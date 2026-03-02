@@ -208,6 +208,11 @@ func (ac *AnilistClientImpl) CompleteAnimeByID(ctx context.Context, id *int, int
 }
 
 func (ac *AnilistClientImpl) ListAnime(ctx context.Context, page *int, search *string, perPage *int, sort []*MediaSort, status []*MediaStatus, genres []*string, averageScoreGreater *int, season *MediaSeason, seasonYear *int, format *MediaFormat, isAdult *bool, interceptors ...clientv2.RequestInterceptor) (*ListAnime, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			ac.logger.Warn().Interface("panic", r).Msg("anilist: Recovered from panic in ListAnime")
+		}
+	}()
 	ac.logger.Debug().Msg("anilist: Fetching media list")
 	return ac.Client.ListAnime(ctx, page, search, perPage, sort, status, genres, averageScoreGreater, season, seasonYear, format, isAdult, interceptors...)
 }

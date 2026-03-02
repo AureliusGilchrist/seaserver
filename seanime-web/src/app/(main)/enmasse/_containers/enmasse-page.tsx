@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useRouter } from "next/navigation"
-import React, { useEffect, useRef } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { BiPlay, BiStop, BiPause } from "react-icons/bi"
 import { LuCircleCheck, LuCircleX, LuDownload, LuRefreshCw } from "react-icons/lu"
+import { Switch } from "@/components/ui/switch"
 
 export function EnMassePage() {
     const router = useRouter()
@@ -19,6 +20,7 @@ export function EnMassePage() {
     const { mutate: start, isPending: isStarting } = useEnMasseStart()
     const { mutate: stop, isPending: isStopping } = useEnMasseStop()
     const { addDownloadingAnime } = useDownloadingAnime()
+    const [resumeToggle, setResumeToggle] = useState<boolean>(false)
     
     const downloadedScrollRef = useRef<HTMLDivElement>(null)
     const failedScrollRef = useRef<HTMLDivElement>(null)
@@ -72,30 +74,30 @@ export function EnMassePage() {
                         Automatically download anime from your AniList collection
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-start">
                     {!status?.isRunning ? (
-                        <>
-                            {status?.hasSavedProgress && (
-                                <Button
-                                    intent="primary"
-                                    leftIcon={<LuRefreshCw className="text-xl" />}
-                                    onClick={() => start({ resume: true })}
-                                    loading={isStarting}
-                                    disabled={isStarting}
-                                >
-                                    Resume
-                                </Button>
-                            )}
+                        <div className="flex flex-col gap-2 items-end">
                             <Button
-                                intent={status?.hasSavedProgress ? "white-subtle" : "primary"}
-                                leftIcon={<BiPlay className="text-xl" />}
-                                onClick={() => start({ resume: false })}
+                                intent="primary"
+                                leftIcon={resumeToggle ? <LuRefreshCw className="text-xl" /> : <BiPlay className="text-xl" />}
+                                onClick={() => start({ resume: resumeToggle && !!status?.hasSavedProgress })}
                                 loading={isStarting}
                                 disabled={isStarting}
                             >
-                                {status?.hasSavedProgress ? "Start Fresh" : "Start Download"}
+                                {resumeToggle ? "Resume" : status?.hasSavedProgress ? "Start Fresh" : "Start Download"}
                             </Button>
-                        </>
+                            <div className="flex items-center gap-2 text-sm text-[--muted]">
+                                <Switch
+                                    value={resumeToggle}
+                                    onValueChange={setResumeToggle}
+                                    label="Resume from saved progress"
+                                    size="sm"
+                                />
+                                {!status?.hasSavedProgress && (
+                                    <span className="text-[--muted] text-xs">No saved progress yet</span>
+                                )}
+                            </div>
+                        </div>
                     ) : (
                         <>
                             <Button

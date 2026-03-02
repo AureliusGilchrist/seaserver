@@ -142,8 +142,9 @@ func NewConfig(options *ConfigOptions, logger *zerolog.Logger) (*Config, error) 
 	viper.SetDefault("web.assetDir", "$SEANIME_DATA_DIR/assets")
 	viper.SetDefault("cache.dir", "$SEANIME_DATA_DIR/cache")
 	viper.SetDefault("cache.transcodeDir", "$SEANIME_DATA_DIR/cache/transcode")
-	viper.SetDefault("manga.downloadDir", "$SEANIME_DATA_DIR/manga")
-	viper.SetDefault("manga.localDir", "$SEANIME_DATA_DIR/manga-local")
+	viper.SetDefault("manga.downloadDir", "/aeternae/Soul/Otaku Media/Manga")
+	viper.SetDefault("manga.localDir", "/aeternae/Soul/Otaku Media/Manga")
+	viper.SetDefault("manga.localDir", "/aeternae/Soul/Otaku Media/Manga")
 	viper.SetDefault("logs.dir", "$SEANIME_DATA_DIR/logs")
 	viper.SetDefault("offline.dir", "$SEANIME_DATA_DIR/offline")
 	viper.SetDefault("offline.assetDir", "$SEANIME_DATA_DIR/offline/assets")
@@ -216,6 +217,14 @@ func NewConfig(options *ConfigOptions, logger *zerolog.Logger) (*Config, error) 
 	expandEnvironmentValues(cfg)
 	cfg.Data.AppDataDir = dataDir
 	cfg.Data.WorkingDir = os.Getenv("SEANIME_WORKING_DIR")
+
+	// Force manga download/local directories to the new path
+	newMangaPath := filepath.FromSlash("/aeternae/Soul/Otaku Media/Manga")
+	cfg.Manga.DownloadDir = newMangaPath
+	cfg.Manga.LocalDir = newMangaPath
+	viper.Set("manga.downloadDir", newMangaPath)
+	viper.Set("manga.localDir", newMangaPath)
+	_ = viper.WriteConfig()
 
 	if cfg.Server.Tls.Enabled && (cfg.Server.Tls.CertPath == "" || cfg.Server.Tls.KeyPath == "") {
 		viper.SetDefault("server.tls.certPath", "$SEANIME_DATA_DIR/certs/cert.pem")

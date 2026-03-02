@@ -68,12 +68,14 @@ const (
     ProviderRateLimitPerMinute    = 12
     AniListAutoRateLimitPerMinute = 6
     AniListUserRateLimitPerMinute = 18
+    AnimeEnMasseRateLimitPerMinute = 12
 )
 
 var (
     providerMinuteLimiter = NewRateLimiter(ProviderRateLimitPerMinute, time.Minute)
     anilistAutoLimiter    = NewRateLimiter(AniListAutoRateLimitPerMinute, time.Minute)
     anilistUserLimiter    = NewRateLimiter(AniListUserRateLimitPerMinute, time.Minute)
+    animeEnMasseLimiter   = NewRateLimiter(AnimeEnMasseRateLimitPerMinute, time.Minute)
 )
 
 type userInitiatedKey struct{}
@@ -99,4 +101,8 @@ func acquireAniList(ctx context.Context, userInitiated bool) error {
         return anilistUserLimiter.Acquire(ctx)
     }
     return anilistAutoLimiter.Acquire(ctx)
+}
+
+func acquireAnimeEnMasse(ctx context.Context) error {
+    return animeEnMasseLimiter.Acquire(ctx)
 }

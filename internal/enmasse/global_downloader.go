@@ -28,12 +28,12 @@ import (
 )
 
 const (
-	AnimeOfflineDatabasePath      = "/aeternae/Otaku/Anime/anime-offline-database-minified.json"
-	GlobalAnimeProgressFilePath   = "/aeternae/Otaku/Anime/enmasse-global-progress.json"
+	GlobalAnimeOfflineDatabasePath = "/aeternae/Soul/Otaku Media/Databases/anime-offline-database-minified.json"
+	GlobalAnimeProgressFilePath    = "/aeternae/Soul/Otaku Media/Databases/enmasse-global-progress.json"
 	GlobalMaxConcurrentSearches   = 2
 	GlobalDelayBetweenAnime       = 3 * time.Second
 	GlobalDelayBetweenSearches    = 1 * time.Second
-	GlobalMaxAnimeLogEntries      = 100
+	GlobalMaxAnimeLogEntries      = 300
 )
 
 type (
@@ -182,10 +182,10 @@ func (d *GlobalDownloader) hasSavedProgress() bool {
 
 // DownloadDatabase downloads the latest anime-offline-database
 func (d *GlobalDownloader) ensureDatabaseAvailable() error {
-	d.logger.Info().Msgf("global-enmasse: Using %s", AnimeOfflineDatabasePath)
+	d.logger.Info().Msgf("global-enmasse: Using %s", GlobalAnimeOfflineDatabasePath)
 	d.setStatus("Verifying database file...")
 
-	if _, err := os.Stat(AnimeOfflineDatabasePath); err != nil {
+	if _, err := os.Stat(GlobalAnimeOfflineDatabasePath); err != nil {
 		return fmt.Errorf("database file missing: %w", err)
 	}
 
@@ -599,7 +599,7 @@ func (d *GlobalDownloader) selectBestTorrent(torrents []*hibiketorrent.AnimeTorr
 }
 
 func (d *GlobalDownloader) loadAnimeList() ([]*AnimeOfflineItem, error) {
-	file, err := os.Open(AnimeOfflineDatabasePath)
+	file, err := os.Open(GlobalAnimeOfflineDatabasePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open anime-offline-database: %w", err)
 	}

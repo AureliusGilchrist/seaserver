@@ -1,7 +1,6 @@
 package enmasse
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"hash/fnv"
 
 	"seanime/internal/api/anilist"
 	"seanime/internal/events"
@@ -26,13 +26,12 @@ import (
 )
 
 const (
-	AnilistMinifiedPath      = "/aeternae/Soul/Otaku Media/Databases/anilist-minified.json"
-	AnimeProgressFilePath    = "/aeternae/Soul/Otaku Media/Databases/enmasse-anime-progress.json"
-	MaxConcurrentSearches    = 3	                    // Concurrent torrent searches
-	DelayBetweenAnime        = 4500 * time.Millisecond   // Wait between each anime
-	DelayBetweenSearches     = 1 * time.Second        // Wait between provider searches
-	MaxAnimeLogEntries       = 300                    // Maximum entries to keep in each log category
-	AniListRateLimitBackoff  = 60 * time.Second       // Wait when AniList rate limits
+	AnimeProgressFilePath   = "/aeternae/Soul/Otaku Media/Databases/enmasse-anime-progress.json"
+	MaxConcurrentSearches   = 3
+	DelayBetweenAnime       = 2 * time.Second
+	DelayBetweenSearches    = 1 * time.Second
+	MaxAnimeLogEntries      = 300
+	AniListRateLimitBackoff = 60 * time.Second
 )
 
 type (
@@ -87,14 +86,14 @@ type (
 	}
 
 	AnilistMinifiedItem struct {
-		ID          int      `json:"id"`
-		Title       string   `json:"title"`
-		TitleRomaji string   `json:"title_romaji"`
-		TitleEnglish string  `json:"title_english,omitempty"`
-		Episodes    int      `json:"episodes"`
-		Status      string   `json:"status"`
-		Format      string   `json:"format"`
-		Synonyms    []string `json:"synonyms,omitempty"`
+		ID           int      `json:"id"`
+		Title        string   `json:"title"`
+		TitleRomaji  string   `json:"title_romaji"`
+		TitleEnglish string   `json:"title_english,omitempty"`
+		Episodes     int      `json:"episodes"`
+		Status       string   `json:"status"`
+		Format       string   `json:"format"`
+		Synonyms     []string `json:"synonyms,omitempty"`
 	}
 )
 
@@ -155,7 +154,14 @@ func (d *Downloader) Start(resume bool) error {
 	d.isRunning = true
 	d.isPaused = false
 
-	if !resume {
+	// Auto-resume if saved progress exists and resume not explicitly requested
+	autoResume := resume
+	if !resume && d.hasSavedProgress() {
+		autoResume = true
+		d.logger.Info().Msg("enmasse-anime: Saved progress found; auto-resuming")
+	}
+
+	if !autoResume {
 		d.processedCount = 0
 		d.downloadedAnime = make([]string, 0, MaxAnimeLogEntries)
 		d.failedAnime = make([]string, 0, MaxAnimeLogEntries)
@@ -167,7 +173,7 @@ func (d *Downloader) Start(resume bool) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	d.cancelFunc = cancel
 
-	go d.run(ctx, resume)
+	go d.run(ctx, autoResume)
 
 	return nil
 }
@@ -203,7 +209,7 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 		d.sendStatusUpdate()
 	}()
 
-	// Load anime list
+	// Load anime list from offline database
 	animeList, err := d.loadAnimeList()
 	if err != nil {
 		d.setStatus(fmt.Sprintf("Error loading anime list: %v", err))
@@ -258,6 +264,14 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 		default:
 		}
 
+		// Rate limit: anime en masse 12 per minute
+		if err := acquireAnimeEnMasse(ctx); err != nil {
+			d.logger.Warn().Err(err).Msg("enmasse-anime: Rate limiter blocked, aborting")
+			d.saveCurrentProgress(processedTitles)
+			d.setStatus("Stopped")
+			return
+		}
+
 		// Skip already processed
 		if processedTitles[animeItem.Title] {
 			continue
@@ -266,28 +280,26 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 		processedCount++
 
 		d.mu.Lock()
-		d.currentAnime = animeItem
+		d.currentAnime = &AnilistMinifiedItem{Title: animeItem.Title}
 		d.processedCount = processedCount
-		d.status = fmt.Sprintf("Processing %d/%d: %s", processedCount, len(animeList), animeItem.TitleRomaji)
+		d.status = fmt.Sprintf("Processing %d/%d: %s", processedCount, len(animeList), animeItem.Title)
 		d.mu.Unlock()
 		d.sendStatusUpdate()
 
-		d.logger.Info().Str("title", animeItem.TitleRomaji).Int("id", animeItem.ID).Msg("enmasse-anime: Processing anime")
+		d.logger.Info().Str("title", animeItem.Title).Msg("enmasse-anime: Processing anime")
 
 		err := d.processAnime(ctx, animeItem)
 		processedTitles[animeItem.Title] = true
 
 		if err != nil {
-			d.logger.Error().Err(err).Str("title", animeItem.TitleRomaji).Msg("enmasse-anime: Failed to process anime")
-			d.addToFailed(animeItem.TitleRomaji)
+			d.logger.Error().Err(err).Str("title", animeItem.Title).Msg("enmasse-anime: Failed to process anime")
+			d.addToFailed(animeItem.Title)
 		} else {
-			d.addToDownloaded(animeItem.TitleRomaji)
+			d.addToDownloaded(animeItem.Title)
 		}
 
-		// Save progress periodically
-		if processedCount%10 == 0 {
-			d.saveCurrentProgress(processedTitles)
-		}
+		// Save progress after every anime for reliable resume
+		d.saveCurrentProgress(processedTitles)
 
 		// Delay between anime
 		time.Sleep(DelayBetweenAnime)
@@ -300,7 +312,7 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 	d.wsEventManager.SendEvent(events.InfoToast, "Anime En Masse Download completed!")
 }
 
-func (d *Downloader) processAnime(ctx context.Context, animeItem *AnilistMinifiedItem) error {
+func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineItem) error {
 	// Acquire semaphore then provider rate limiter (excluding torrent client)
 	d.searchSemaphore <- struct{}{}
 	defer func() { <-d.searchSemaphore }()
@@ -309,8 +321,14 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnilistMinifie
 		return err
 	}
 
-	// Build a BaseAnime from the minified item for torrent search
-	baseAnime := d.buildBaseAnime(animeItem)
+	// Resolve AniList (fallback MAL) using title/synonyms
+	resolved, err := d.resolveAniList(ctx, animeItem)
+	if err != nil {
+		return fmt.Errorf("failed to resolve AniList: %w", err)
+	}
+
+	// Build a BaseAnime from the resolved item for torrent search
+	baseAnime := d.buildBaseAnime(resolved)
 
 	// Get default provider
 	providerExt, ok := d.torrentRepository.GetDefaultAnimeProviderExtension()
@@ -322,7 +340,6 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnilistMinifie
 	canSmartSearch := providerExt.GetProvider().GetSettings().CanSmartSearch
 
 	var searchData *torrent.SearchData
-	var err error
 
 	if canSmartSearch {
 		// Use smart search for providers that support it
@@ -340,21 +357,26 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnilistMinifie
 
 		time.Sleep(DelayBetweenSearches)
 
-		searchData, err = d.torrentRepository.SearchAnime(ctx, searchOpts)
+		res, err := d.torrentRepository.SearchAnime(ctx, searchOpts)
+		searchData = res
 		if err != nil || searchData == nil || len(searchData.Torrents) == 0 {
 			// Fallback to non-batch search
 			searchOpts.Batch = false
 			searchOpts.BestReleases = false
 			time.Sleep(DelayBetweenSearches)
-			searchData, err = d.torrentRepository.SearchAnime(ctx, searchOpts)
+			res2, err2 := d.torrentRepository.SearchAnime(ctx, searchOpts)
+			if err2 != nil {
+				return fmt.Errorf("torrent search failed: %w", err2)
+			}
+			searchData = res2
 		}
 	} else {
 		// For providers without smart search, use simple search with multiple query variants
-		searchData, err = d.simpleSearchWithVariants(ctx, providerExt.GetID(), baseAnime, animeItem)
-	}
-
-	if err != nil {
-		return fmt.Errorf("torrent search failed: %w", err)
+		var err error
+		searchData, err = d.simpleSearchWithVariants(ctx, providerExt.GetID(), baseAnime, resolved)
+		if err != nil {
+			return fmt.Errorf("torrent search failed: %w", err)
+		}
 	}
 
 	if searchData == nil || len(searchData.Torrents) == 0 {
@@ -368,7 +390,7 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnilistMinifie
 	}
 
 	d.logger.Info().
-		Str("title", animeItem.TitleRomaji).
+		Str("title", resolved.TitleRomaji).
 		Str("torrent", selectedTorrent.Name).
 		Int("seeders", selectedTorrent.Seeders).
 		Msg("enmasse-anime: Selected torrent")
@@ -393,17 +415,17 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnilistMinifie
 	}
 
 	// Save metadata for later matching
-	romajiTitle := animeItem.TitleRomaji
+	romajiTitle := resolved.TitleRomaji
 	if romajiTitle == "" {
-		romajiTitle = animeItem.Title
+		romajiTitle = resolved.Title
 	}
 	nativeTitle := ""
-	if err := d.unmatchedRepository.SaveTorrentMetadata(selectedTorrent.Name, animeItem.ID, romajiTitle, nativeTitle); err != nil {
+	if err := d.unmatchedRepository.SaveTorrentMetadata(selectedTorrent.Name, resolved.ID, romajiTitle, nativeTitle); err != nil {
 		d.logger.Warn().Err(err).Str("torrent", selectedTorrent.Name).Msg("enmasse-anime: Failed to save torrent metadata")
 	}
 
 	d.logger.Info().
-		Str("title", animeItem.TitleRomaji).
+		Str("title", resolved.TitleRomaji).
 		Str("destination", destination).
 		Msg("enmasse-anime: Added torrent to download queue")
 
@@ -425,6 +447,10 @@ func (d *Downloader) buildBaseAnime(item *AnilistMinifiedItem) *anilist.BaseAnim
 	romajiTitle := item.TitleRomaji
 	if romajiTitle == "" {
 		romajiTitle = item.Title
+	}
+	if englishTitle == nil && item.Title != "" {
+		t := item.Title
+		englishTitle = &t
 	}
 
 	// Convert []string to []*string for Synonyms
@@ -499,101 +525,162 @@ func (d *Downloader) selectBestTorrent(torrents []*hibiketorrent.AnimeTorrent) *
 	return best
 }
 
-func (d *Downloader) loadAnimeList() ([]*AnilistMinifiedItem, error) {
-	file, err := os.Open(AnilistMinifiedPath)
+func (d *Downloader) loadAnimeList() ([]*AnimeOfflineItem, error) {
+	file, err := os.Open(GlobalAnimeOfflineDatabasePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open anilist-minified.json: %w", err)
+		return nil, fmt.Errorf("failed to open anime-offline-database: %w", err)
 	}
 	defer file.Close()
 
-	reader := bufio.NewReaderSize(file, 1024*1024)
-	decoder := json.NewDecoder(reader)
+	decoder := json.NewDecoder(file)
 
-	// The file may be either an array of minified items or an object containing "deadEntries" with AniList IDs.
-	var raw interface{}
-	if err := decoder.Decode(&raw); err != nil {
-		return nil, fmt.Errorf("failed to decode anime list: %w", err)
+	var db AnimeOfflineDatabase
+	if err := decoder.Decode(&db); err != nil {
+		return nil, fmt.Errorf("failed to decode anime-offline-database: %w", err)
 	}
 
-	// Case 1: already an array of minified items
-	if arr, ok := raw.([]interface{}); ok {
-		data, _ := json.Marshal(arr)
-		var animeList []*AnilistMinifiedItem
-		if err := json.Unmarshal(data, &animeList); err == nil {
-			return animeList, nil
+	for _, item := range db.Data {
+		d.parseSourceIDs(item)
+	}
+
+	if len(db.Data) == 0 {
+		return nil, fmt.Errorf("no entries found in anime-offline-database")
+	}
+
+	return db.Data, nil
+}
+
+func (d *Downloader) parseSourceIDs(item *AnimeOfflineItem) {
+	anilistRegex := regexp.MustCompile(`anilist\.co/anime/(\d+)`)
+	malRegex := regexp.MustCompile(`myanimelist\.net/anime/(\d+)`)
+
+	for _, source := range item.Sources {
+		if matches := anilistRegex.FindStringSubmatch(source); len(matches) > 1 {
+			item.AnilistID, _ = strconv.Atoi(matches[1])
+		}
+		if matches := malRegex.FindStringSubmatch(source); len(matches) > 1 {
+			item.MalID, _ = strconv.Atoi(matches[1])
 		}
 	}
+}
 
-	// Case 2: object with deadEntries of IDs
-	obj, ok := raw.(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unsupported anilist-minified.json format")
-	}
-
-	entries, ok := obj["deadEntries"].([]interface{})
-	if !ok || len(entries) == 0 {
-		return nil, fmt.Errorf("no deadEntries found in anilist-minified.json")
-	}
-
-	// Resolve AniList client (rate limited, auto context)
+func (d *Downloader) resolveAniList(ctx context.Context, animeItem *AnimeOfflineItem) (*AnilistMinifiedItem, error) {
 	plat := d.platformRef.Get()
 	if plat == nil {
-		return nil, fmt.Errorf("anilist platform not available")
+		return d.minifyOfflineItem(animeItem), nil
 	}
 	client := plat.GetAnilistClient()
 	if client == nil {
-		return nil, fmt.Errorf("anilist client not available")
+		return d.minifyOfflineItem(animeItem), nil
 	}
 
-	ctx := context.Background()
-	animeList := make([]*AnilistMinifiedItem, 0, len(entries))
+	// 1) Prefer direct AniList ID from sources
+	if animeItem.AnilistID > 0 {
+		base, err := client.BaseAnimeByID(ctx, &animeItem.AnilistID)
+		if err == nil && base != nil && base.Media != nil {
+			return d.minifyBaseAnime(base.Media), nil
+		}
+	}
 
-	for _, idVal := range entries {
-		idNum, err := toInt(idVal)
-		if err != nil {
-			d.logger.Warn().Err(err).Interface("id", idVal).Msg("enmasse-anime: Skipping invalid AniList ID")
+	// 2) Fallback to MAL ID via AniList bridge
+	if animeItem.MalID > 0 {
+		base, err := client.BaseAnimeByMalID(ctx, &animeItem.MalID)
+		if err == nil && base != nil && base.Media != nil {
+			return d.minifyBaseAnime(base.Media), nil
+		}
+	}
+
+	// 3) Search AniList by title/synonyms
+	variants := d.generateTitleVariants(animeItem)
+	page := 1
+	perPage := 10
+	for _, title := range variants {
+		if title == "" {
 			continue
 		}
-
-		// Fetch live metadata with rate-limit aware retry
-		mediaId := idNum
-		base, err := d.fetchBaseAnimeWithRetry(ctx, client, mediaId)
-		if err != nil || base == nil || base.Media == nil {
-			d.logger.Warn().Err(err).Int("id", mediaId).Msg("enmasse-anime: Failed to fetch AniList ID, skipping")
+		// respect rate limits
+		if err := acquireAniList(ctx, IsUserInitiated(ctx)); err != nil {
+			d.logger.Debug().Err(err).Msg("enmasse-anime: AniList rate limit/acquire failed")
 			continue
 		}
-
-		item := d.minifyBaseAnime(base.Media)
-		animeList = append(animeList, item)
-
-		// gentle pacing
+		media := d.safeListAnime(ctx, client, &page, &title, &perPage)
+		if media != nil {
+			return d.minifyBaseAnime(media), nil
+		}
 		time.Sleep(DelayBetweenSearches)
 	}
 
-	if len(animeList) == 0 {
-		return nil, fmt.Errorf("no valid AniList entries fetched from deadEntries")
-	}
-
-	return animeList, nil
+	return d.minifyOfflineItem(animeItem), nil
 }
 
-// toInt converts a JSON value (string/float/int) to int
-func toInt(v interface{}) (int, error) {
-	switch val := v.(type) {
-	case float64:
-		return int(val), nil
-	case string:
-		return strconv.Atoi(val)
-	case int:
-		return val, nil
-	case int64:
-		return int(val), nil
-	default:
-		return 0, fmt.Errorf("cannot convert %T to int", v)
+// safeListAnime wraps ListAnime and recovers from panics caused by client internals
+func (d *Downloader) safeListAnime(ctx context.Context, client anilist.AnilistClient, page *int, title *string, perPage *int) *anilist.BaseAnime {
+	defer func() {
+		if r := recover(); r != nil {
+			d.logger.Warn().Interface("panic", r).Msg("enmasse-anime: Recovered from AniList client panic during search")
+		}
+	}()
+
+	res, err := client.ListAnime(ctx, page, title, perPage, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	if err != nil || res == nil || res.Page == nil || len(res.Page.Media) == 0 {
+		if err != nil {
+			d.logger.Debug().Err(err).Str("title", *title).Msg("enmasse-anime: AniList search variant failed")
+		}
+		return nil
+	}
+	return res.Page.Media[0]
+}
+
+// minifyOfflineItem builds a minimal AnilistMinifiedItem from offline data when AniList lookup fails
+func (d *Downloader) minifyOfflineItem(item *AnimeOfflineItem) *AnilistMinifiedItem {
+	format := item.Type
+	status := item.Status
+	id := -int(d.syntheticID(item.Title))
+	return &AnilistMinifiedItem{
+		ID:           id,
+		Title:        item.Title,
+		TitleRomaji:  item.Title,
+		TitleEnglish: item.Title,
+		Episodes:     item.Episodes,
+		Status:       status,
+		Format:       format,
+		Synonyms:     item.Synonyms,
 	}
 }
 
-// minifyBaseAnime converts AniList BaseAnime to AnilistMinifiedItem for processing
+func (d *Downloader) syntheticID(title string) uint32 {
+	h := fnv.New32a()
+	h.Write([]byte(title))
+	return h.Sum32()
+}
+
+// generateTitleVariants builds search titles from main title and synonyms
+func (d *Downloader) generateTitleVariants(animeItem *AnimeOfflineItem) []string {
+	seen := make(map[string]struct{})
+	variants := make([]string, 0, len(animeItem.Synonyms)+2)
+	add := func(s string) {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return
+		}
+		key := strings.ToLower(s)
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		variants = append(variants, s)
+	}
+
+	// 1) Original title
+	add(animeItem.Title)
+	// 2) No-symbol version of title
+	add(d.sanitizeSearchQuery(animeItem.Title))
+	for _, syn := range animeItem.Synonyms {
+		add(syn)
+	}
+	return variants
+}
+
 func (d *Downloader) minifyBaseAnime(media *anilist.BaseAnime) *AnilistMinifiedItem {
 	title := safeStr(media.GetTitle().GetRomaji())
 	if title == "" {
@@ -631,8 +718,6 @@ func (d *Downloader) minifyBaseAnime(media *anilist.BaseAnime) *AnilistMinifiedI
 	}
 }
 
-// fetchBaseAnimeWithRetry fetches AniList data with rate-limit handling.
-// If AniList rate-limits, we wait AniListRateLimitBackoff and retry.
 func (d *Downloader) fetchBaseAnimeWithRetry(ctx context.Context, client anilist.AnilistClient, mediaId int) (*anilist.BaseAnimeByID, error) {
 	for {
 		if err := acquireAniList(ctx, IsUserInitiated(ctx)); err != nil {
@@ -663,6 +748,14 @@ func isAniListRateLimitErr(err error) bool {
 	}
 	errStr := strings.ToLower(err.Error())
 	return strings.Contains(errStr, "rate limit") || strings.Contains(errStr, "429") || strings.Contains(errStr, "too many")
+}
+
+func isAniListNotFoundErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	return strings.Contains(errStr, "404") || strings.Contains(errStr, "not found")
 }
 
 // extractRetryAfterSeconds tries to find a Retry-After value in the error string.
@@ -762,20 +855,24 @@ func (d *Downloader) sendStatusUpdate() {
 
 func (d *Downloader) addToDownloaded(title string) {
 	d.mu.Lock()
-	defer d.mu.Unlock()
 	d.downloadedAnime = append(d.downloadedAnime, title)
 	if len(d.downloadedAnime) > MaxAnimeLogEntries {
 		d.downloadedAnime = d.downloadedAnime[len(d.downloadedAnime)-MaxAnimeLogEntries:]
 	}
+	d.mu.Unlock()
+	// push status update so UI reflects newly downloaded entries
+	d.sendStatusUpdate()
 }
 
 func (d *Downloader) addToFailed(title string) {
 	d.mu.Lock()
-	defer d.mu.Unlock()
 	d.failedAnime = append(d.failedAnime, title)
 	if len(d.failedAnime) > MaxAnimeLogEntries {
 		d.failedAnime = d.failedAnime[len(d.failedAnime)-MaxAnimeLogEntries:]
 	}
+	d.mu.Unlock()
+	// push status update so UI skip pile reflects new failure immediately
+	d.sendStatusUpdate()
 }
 
 // simpleSearchWithVariants performs multiple simple searches with different query variants
