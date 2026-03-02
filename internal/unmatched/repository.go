@@ -16,6 +16,8 @@ import (
 
 	"seanime/internal/database/db"
 
+	"github.com/samber/lo"
+
 	"github.com/rs/zerolog"
 )
 
@@ -65,6 +67,9 @@ type UnmatchedTorrent struct {
 	AnimeID         int    `json:"animeId,omitempty"`
 	AnimeTitleRomaji string `json:"animeTitleRomaji,omitempty"`
 	AnimeTitleNative string `json:"animeTitleNative,omitempty"`
+	AnimeFormat      string `json:"animeFormat,omitempty"`
+	AnimeStartYear   int    `json:"animeStartYear,omitempty"`
+	AnimeExpectedEpisodes int `json:"animeExpectedEpisodes,omitempty"`
 }
 
 // TorrentMetadata stores anime info for an unmatched torrent
@@ -72,6 +77,9 @@ type TorrentMetadata struct {
 	AnimeID         int    `json:"animeId"`
 	AnimeTitleRomaji string `json:"animeTitleRomaji"`
 	AnimeTitleNative string `json:"animeTitleNative"`
+	AnimeFormat      string `json:"animeFormat,omitempty"`
+	AnimeStartYear   int    `json:"animeStartYear,omitempty"`
+	AnimeExpectedEpisodes int `json:"animeExpectedEpisodes,omitempty"`
 }
 
 // UnmatchedSeason represents a season folder within a torrent
@@ -306,6 +314,9 @@ func (r *Repository) scanTorrentDirectory(name, path string) (*UnmatchedTorrent,
 		torrent.AnimeID = metadata.AnimeID
 		torrent.AnimeTitleRomaji = metadata.AnimeTitleRomaji
 		torrent.AnimeTitleNative = metadata.AnimeTitleNative
+		torrent.AnimeFormat = metadata.AnimeFormat
+		torrent.AnimeStartYear = metadata.AnimeStartYear
+		torrent.AnimeExpectedEpisodes = metadata.AnimeExpectedEpisodes
 	}
 
 	seasonMap := make(map[string]*UnmatchedSeason)
@@ -441,19 +452,54 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		}
 	}
 
-	// Sort files by season, then by name (to maintain episode order)
-	sort.Slice(filesToMove, func(i, j int) bool {
-		if filesToMove[i].season != filesToMove[j].season {
-			return filesToMove[i].season < filesToMove[j].season
-		}
-		return filesToMove[i].file.Name < filesToMove[j].file.Name
+	// Work only with video files (ignore folders/other types)
+	videoFiles := lo.Filter(filesToMove, func(f fileWithSeason, _ int) bool {
+		return f.file.IsVideo
 	})
 
-	// Calculate episode offset for each season (stacking)
-	seasonOffsets := r.calculateSeasonOffsets(filesToMove)
+	// Sort video files by season, then by name (to maintain episode order)
+	sort.Slice(videoFiles, func(i, j int) bool {
+		if videoFiles[i].season != videoFiles[j].season {
+			return videoFiles[i].season < videoFiles[j].season
+		}
+		return videoFiles[i].file.Name < videoFiles[j].file.Name
+	})
+
+	// Calculate episode offset for each season (stacking) using video files only
+	seasonOffsets := r.calculateSeasonOffsets(videoFiles)
+
+	// Enforce expected episode count for TV/OVA using video files only (ignore folders)
+
+	if torrent.AnimeExpectedEpisodes > 0 && torrent.AnimeFormat != "MOVIE" {
+		if len(videoFiles) < torrent.AnimeExpectedEpisodes {
+			return nil, fmt.Errorf("not enough video files: expected at least %d, found %d", torrent.AnimeExpectedEpisodes, len(videoFiles))
+		}
+	}
 
 	// Move and rename files
-	for i, fw := range filesToMove {
+	for i, fw := range videoFiles {
+		ext := filepath.Ext(fw.file.Name)
+
+		// Movie naming: <AnimeTitle> (<Year>)
+		if torrent.AnimeFormat == "MOVIE" {
+			yearSuffix := ""
+			if torrent.AnimeStartYear > 0 {
+				yearSuffix = fmt.Sprintf(" (%d)", torrent.AnimeStartYear)
+			}
+			newName := fmt.Sprintf("%s%s%s", cleanTitle, yearSuffix, ext)
+			destPath := filepath.Join(destination, newName)
+
+			if err := r.moveFile(fw.file.Path, destPath); err != nil {
+				r.logger.Error().Err(err).Str("src", fw.file.Path).Str("dest", destPath).Msg("unmatched: Failed to move file")
+				result.FailedFiles = append(result.FailedFiles, fw.file.RelativePath)
+				result.Success = false
+			} else {
+				result.MovedFiles = append(result.MovedFiles, newName)
+				r.logger.Info().Str("src", fw.file.Path).Str("dest", destPath).Msg("unmatched: Moved file")
+			}
+			continue
+		}
+
 		episodeNum := i + 1
 		if fw.season > 0 {
 			// Apply season offset for stacking
@@ -463,7 +509,6 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			}
 		}
 
-		ext := filepath.Ext(fw.file.Name)
 		newName := fmt.Sprintf("%s - Episode %02d%s", cleanTitle, episodeNum, ext)
 		destPath := filepath.Join(destination, newName)
 
@@ -616,7 +661,7 @@ func (r *Repository) GetUnmatchedDestination(torrentName string) string {
 const metadataFileName = ".seanime-metadata.json"
 
 // SaveTorrentMetadata saves anime metadata for a torrent
-func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleRomaji, titleNative string) error {
+func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleRomaji, titleNative, format string, startYear int) error {
 	torrentPath := filepath.Join(UnmatchedBasePath, torrentName)
 
 	// Create directory if it doesn't exist
@@ -625,9 +670,11 @@ func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleR
 	}
 
 	metadata := TorrentMetadata{
-		AnimeID:         animeID,
+		AnimeID:          animeID,
 		AnimeTitleRomaji: titleRomaji,
 		AnimeTitleNative: titleNative,
+		AnimeFormat:      format,
+		AnimeStartYear:   startYear,
 	}
 
 	data, err := json.MarshalIndent(metadata, "", "  ")

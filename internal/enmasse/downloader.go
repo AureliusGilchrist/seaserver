@@ -22,6 +22,7 @@ import (
 	"seanime/internal/unmatched"
 	"seanime/internal/util"
 
+	"github.com/5rahim/habari"
 	"github.com/rs/zerolog"
 )
 
@@ -279,6 +280,9 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 		return
 	}
 
+	// Disable cache for en masse to allow deeper, fresher pagination
+	d.torrentRepository.DisableCache()
+
 	// Process each anime
 	processedCount := d.processedCount
 	for _, animeItem := range animeList {
@@ -379,6 +383,7 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 			BestReleases:  true,
 			Resolution:    "1080",
 			SkipPreviews:  true,
+			IncludeSpecialProviders: true,
 		}
 
 		time.Sleep(DelayBetweenSearches)
@@ -449,7 +454,12 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 		romajiTitle = resolved.Title
 	}
 	nativeTitle := ""
-	if err := d.unmatchedRepository.SaveTorrentMetadata(selectedTorrent.Name, resolved.ID, romajiTitle, nativeTitle); err != nil {
+	format := resolved.Format
+	startYear := baseAnime.GetStartYearSafe()
+	if startYear == 0 && animeItem.AnimeSeason != nil {
+		startYear = animeItem.AnimeSeason.Year
+	}
+	if err := d.unmatchedRepository.SaveTorrentMetadata(selectedTorrent.Name, resolved.ID, romajiTitle, nativeTitle, format, startYear); err != nil {
 		d.logger.Warn().Err(err).Str("torrent", selectedTorrent.Name).Msg("enmasse-anime: Failed to save torrent metadata")
 	}
 
@@ -569,19 +579,31 @@ func (d *Downloader) filterMultiEpisodeTorrents(media *anilist.BaseAnime, torren
 			continue
 		}
 
-		// Keep batches and torrents without a reliable episode number
-		if t.IsBatch || t.EpisodeNumber <= 0 {
+		// Keep batches early
+		if t.IsBatch {
 			filtered = append(filtered, t)
 			continue
+		}
+
+		// Parse name to detect episode span
+		parsed := habari.Parse(t.Name)
+		episodesParsed := len(parsed.EpisodeNumber)
+
+		// If provider did not set episode number, use parsed info
+		if t.EpisodeNumber <= 0 {
+			if episodesParsed == 0 || episodesParsed > 1 {
+				filtered = append(filtered, t)
+				continue
+			}
 		}
 
 		// Keep torrents that clearly include multiple episodes
-		if t.EpisodeNumber > 1 {
+		if t.EpisodeNumber > 1 || episodesParsed > 1 {
 			filtered = append(filtered, t)
 			continue
 		}
 
-		// At this point, EpisodeNumber == 1 and media is not movie/OVA -> skip
+		// At this point, single-episode only — skip for series
 		d.logger.Debug().
 			Str("torrent", t.Name).
 			Msg("enmasse-anime: Skipping single-episode torrent for series")

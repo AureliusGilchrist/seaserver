@@ -14,6 +14,7 @@ Dockerfile.dev
 dev.dockerfile
 .dockerignore
 seanime_exe
+build-all-stats.json
 go.work
 
 .github/*.md
@@ -94,3 +95,4 @@ internal/extension_repo/goja_plugin_test
 
 seanime-web-tr/
 codegen/nonext/
+build-all-stats.json
