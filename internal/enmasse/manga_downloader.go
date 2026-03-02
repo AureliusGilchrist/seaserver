@@ -420,6 +420,10 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 	if err != nil {
 		return fmt.Errorf("failed to get chapters from WeebCentral: %w", err)
 	}
+	// Provider rate limit (per provider, excluding torrent client)
+	if err := acquireProvider(ctx); err != nil {
+		return err
+	}
 
 	if len(chapters) == 0 {
 		return fmt.Errorf("no chapters found on WeebCentral")
@@ -495,6 +499,10 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 			}
 
 			time.Sleep(DelayBetweenAPIRequests)
+			if err := acquireProvider(ctx); err != nil {
+				<-d.chapterSemaphore
+				return err
+			}
 			pages, err = mangaProvider.GetProvider().FindChapterPages(chapter.ID)
 			if err != nil {
 				if d.isRetryableError(err) {

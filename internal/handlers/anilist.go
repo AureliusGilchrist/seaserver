@@ -6,6 +6,7 @@ import (
 	"seanime/internal/api/anilist"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util/result"
+	"seanime/internal/enmasse"
 	"strconv"
 	"time"
 
@@ -33,13 +34,14 @@ func (h *Handler) HandleGetAnimeCollection(c echo.Context) error {
 		return h.RespondWithData(c, animeCollection)
 	}
 
-	animeCollection, err := h.App.RefreshAnimeCollection()
+	ctx := enmasse.WithUserInitiated(c.Request().Context())
+	animeCollection, err := h.App.RefreshAnimeCollectionWithCtx(ctx)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
 
 	go func() {
-		_, _ = h.App.RefreshMangaCollection()
+		_, _ = h.App.RefreshMangaCollectionWithCtx(ctx)
 	}()
 
 	return h.RespondWithData(c, animeCollection)
@@ -56,7 +58,8 @@ func (h *Handler) HandleGetRawAnimeCollection(c echo.Context) error {
 	bypassCache := c.Request().Method == "POST"
 
 	// Get the user's anilist collection
-	animeCollection, err := h.App.GetRawAnimeCollection(bypassCache)
+	ctx := enmasse.WithUserInitiated(c.Request().Context())
+	animeCollection, err := h.App.GetRawAnimeCollectionWithCtx(ctx, bypassCache)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}

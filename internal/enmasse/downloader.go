@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,6 +32,7 @@ const (
 	DelayBetweenAnime        = 4500 * time.Millisecond   // Wait between each anime
 	DelayBetweenSearches     = 1 * time.Second        // Wait between provider searches
 	MaxAnimeLogEntries       = 300                    // Maximum entries to keep in each log category
+	AniListRateLimitBackoff  = 60 * time.Second       // Wait when AniList rate limits
 )
 
 type (
@@ -299,9 +301,13 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 }
 
 func (d *Downloader) processAnime(ctx context.Context, animeItem *AnilistMinifiedItem) error {
-	// Acquire semaphore
+	// Acquire semaphore then provider rate limiter (excluding torrent client)
 	d.searchSemaphore <- struct{}{}
 	defer func() { <-d.searchSemaphore }()
+
+	if err := acquireProvider(ctx); err != nil {
+		return err
+	}
 
 	// Build a BaseAnime from the minified item for torrent search
 	baseAnime := d.buildBaseAnime(animeItem)
@@ -529,7 +535,7 @@ func (d *Downloader) loadAnimeList() ([]*AnilistMinifiedItem, error) {
 		return nil, fmt.Errorf("no deadEntries found in anilist-minified.json")
 	}
 
-	// Resolve AniList client
+	// Resolve AniList client (rate limited, auto context)
 	plat := d.platformRef.Get()
 	if plat == nil {
 		return nil, fmt.Errorf("anilist platform not available")
@@ -549,9 +555,9 @@ func (d *Downloader) loadAnimeList() ([]*AnilistMinifiedItem, error) {
 			continue
 		}
 
-		// Fetch live metadata
+		// Fetch live metadata with rate-limit aware retry
 		mediaId := idNum
-		base, err := client.BaseAnimeByID(ctx, &mediaId)
+		base, err := d.fetchBaseAnimeWithRetry(ctx, client, mediaId)
 		if err != nil || base == nil || base.Media == nil {
 			d.logger.Warn().Err(err).Int("id", mediaId).Msg("enmasse-anime: Failed to fetch AniList ID, skipping")
 			continue
@@ -623,6 +629,61 @@ func (d *Downloader) minifyBaseAnime(media *anilist.BaseAnime) *AnilistMinifiedI
 		Format:       format,
 		Synonyms:     syns,
 	}
+}
+
+// fetchBaseAnimeWithRetry fetches AniList data with rate-limit handling.
+// If AniList rate-limits, we wait AniListRateLimitBackoff and retry.
+func (d *Downloader) fetchBaseAnimeWithRetry(ctx context.Context, client anilist.AnilistClient, mediaId int) (*anilist.BaseAnimeByID, error) {
+	for {
+		if err := acquireAniList(ctx, IsUserInitiated(ctx)); err != nil {
+			return nil, err
+		}
+
+		base, err := client.BaseAnimeByID(ctx, &mediaId)
+		if err != nil {
+			if isAniListRateLimitErr(err) {
+				backoff := AniListRateLimitBackoff
+				if sec := extractRetryAfterSeconds(err); sec > 0 {
+					backoff = time.Duration(sec+1) * time.Second
+				}
+				d.logger.Warn().Err(err).Int("id", mediaId).Dur("backoff", backoff).Msg("anilist rate limited, backing off")
+				time.Sleep(backoff)
+				continue
+			}
+			return nil, err
+		}
+
+		return base, nil
+	}
+}
+
+func isAniListRateLimitErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	return strings.Contains(errStr, "rate limit") || strings.Contains(errStr, "429") || strings.Contains(errStr, "too many")
+}
+
+// extractRetryAfterSeconds tries to find a Retry-After value in the error string.
+func extractRetryAfterSeconds(err error) int {
+	if err == nil {
+		return 0
+	}
+	match := regexp.MustCompile(`(?i)retrying in (\d+) seconds?`).FindStringSubmatch(err.Error())
+	if len(match) == 2 {
+		if sec, convErr := strconv.Atoi(match[1]); convErr == nil {
+			return sec
+		}
+	}
+	// fallback: look for Retry-After: N
+	match = regexp.MustCompile(`(?i)retry-after[:=]?[\s]*?(\d+)`).FindStringSubmatch(err.Error())
+	if len(match) == 2 {
+		if sec, convErr := strconv.Atoi(match[1]); convErr == nil {
+			return sec
+		}
+	}
+	return 0
 }
 
 func safeStr(p *string) string {
