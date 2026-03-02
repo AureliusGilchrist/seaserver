@@ -355,33 +355,16 @@ func (a *App) initModulesOnce() {
 		PlatformRef:     a.AnilistPlatformRef,
 	})
 
-	// +-------------------------------+
-	// | Global En Masse Downloader   |
-	// +-------------------------------+
-
-	a.GlobalEnMasseDownloader = enmasse.NewGlobalDownloader(&enmasse.NewGlobalDownloaderOptions{
-		Logger:                     a.Logger,
-		TorrentRepository:          a.TorrentRepository,
-		TorrentClientRepositoryRef: a.TorrentClientRepositoryRef,
-		WSEventManager:             a.WSEventManager,
-		UnmatchedRepository:        a.UnmatchedRepository,
-		Database:                   a.Database,
-	})
-
 }
 
 // HandleNewDatabaseEntries initializes essential database collections.
-// It creates an empty local files collection if one does not already exist.
 func HandleNewDatabaseEntries(database *db.Database, logger *zerolog.Logger) {
-
-	// Create initial empty local files collection if none exists
 	if _, _, err := db_bridge.GetLocalFiles(database); err != nil {
-		_, err := db_bridge.InsertLocalFiles(database, make([]*anime.LocalFile, 0))
+		_, err = db_bridge.InsertLocalFiles(database, make([]*anime.LocalFile, 0))
 		if err != nil {
-			logger.Fatal().Err(err).Msgf("app: Failed to initialize local files in the database")
+			logger.Fatal().Err(err).Msg("app: Failed to initialize local files in the database")
 		}
 	}
-
 }
 
 // InitOrRefreshModules will initialize or refresh modules that depend on settings.

@@ -165,13 +165,6 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             href: "/enmasse-manga",
             isCurrent: pathname === "/enmasse-manga",
         },
-        {
-            id: "enmasse-global",
-            iconType: LuGlobe,
-            name: "Global Downloader",
-            href: "/enmasse-global",
-            isCurrent: pathname === "/enmasse-global",
-        },
     ]
 
     const items = React.useMemo(() => [

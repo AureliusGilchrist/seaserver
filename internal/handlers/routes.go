@@ -608,22 +608,6 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1MangaEnMasse.POST("/start", h.HandleMangaEnMasseStart)
 	v1MangaEnMasse.POST("/stop", h.HandleMangaEnMasseStop)
 
-	//
-	// Global En Masse Downloader (anime-offline-database)
-	//
-	v1GlobalEnMasse := v1.Group("/enmasse/global")
-	v1GlobalEnMasse.GET("/status", h.HandleGlobalEnMasseGetStatus)
-	v1GlobalEnMasse.POST("/start", h.HandleGlobalEnMasseStart)
-	v1GlobalEnMasse.POST("/stop", h.HandleGlobalEnMasseStop)
-
-	//
-	// Synthetic Anime
-	//
-	v1SyntheticAnime := v1.Group("/anime/synthetic")
-	v1SyntheticAnime.POST("/search", h.HandleSearchSyntheticAnime)
-	v1SyntheticAnime.GET("/:id", h.HandleGetSyntheticAnimeDetails)
-	v1SyntheticAnime.GET("/all", h.HandleGetAllSyntheticAnime)
-
 }
 
 func (h *Handler) JSON(c echo.Context, code int, i interface{}) error {

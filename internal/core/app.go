@@ -175,9 +175,8 @@ type (
 		UnmatchedScanner    *unmatched.Scanner
 
 		// En Masse Downloader
-		EnMasseDownloader       *enmasse.Downloader
-		MangaEnMasseDownloader  *enmasse.MangaDownloader
-		GlobalEnMasseDownloader *enmasse.GlobalDownloader
+		EnMasseDownloader      *enmasse.Downloader
+		MangaEnMasseDownloader *enmasse.MangaDownloader
 	}
 )
 

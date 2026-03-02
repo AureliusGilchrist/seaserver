@@ -26,6 +26,7 @@ import (
 )
 
 const (
+	GlobalAnimeOfflineDatabasePath = "/aeternae/Soul/Otaku Media/Databases/anime-offline-database-minified.json"
 	AnimeProgressFilePath   = "/aeternae/Soul/Otaku Media/Databases/enmasse-anime-progress.json"
 	MaxConcurrentSearches   = 3
 	DelayBetweenAnime       = 2 * time.Second
@@ -83,6 +84,32 @@ type (
 		ProcessedTitles []string `json:"processed_titles"`
 		DownloadedAnime []string `json:"downloaded_anime"`
 		FailedAnime     []string `json:"failed_anime"`
+	}
+
+	// AnimeOfflineDatabase represents the offline JSON structure
+	AnimeOfflineDatabase struct {
+		Data []*AnimeOfflineItem `json:"data"`
+	}
+
+	// AnimeOfflineItem represents an entry from anime-offline-database
+	AnimeOfflineItem struct {
+		Sources     []string `json:"sources"`
+		Title       string   `json:"title"`
+		Type        string   `json:"type"`
+		Episodes    int      `json:"episodes"`
+		Status      string   `json:"status"`
+		AnimeSeason *struct {
+			Season string `json:"season"`
+			Year   int    `json:"year"`
+		} `json:"animeSeason"`
+		Picture   string   `json:"picture"`
+		Thumbnail string   `json:"thumbnail"`
+		Synonyms  []string `json:"synonyms"`
+		Studios   []string `json:"studios"`
+		Tags      []string `json:"tags"`
+		// Parsed IDs
+		AnilistID int `json:"-"`
+		MalID     int `json:"-"`
 	}
 
 	AnilistMinifiedItem struct {
