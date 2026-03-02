@@ -272,6 +272,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// Anime
 	//
 	v1.GET("/anime/episode-collection/:id", h.HandleGetAnimeEpisodeCollection)
+	v1.POST("/anime/synthetic/search", h.HandleSearchSyntheticAnime)
+	v1.GET("/anime/synthetic/:id", h.HandleGetSyntheticAnime)
 	v1.GET("/seasonal/timeline", h.HandleGetSeasonalTimeline)
 
 	//

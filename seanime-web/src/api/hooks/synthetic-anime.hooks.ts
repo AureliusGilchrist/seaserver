@@ -1,4 +1,4 @@
-import { useServerMutation, useServerQuery } from "@/api/client/requests"
+import { useServerQuery } from "@/api/client/requests"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Synthetic Anime Types
@@ -43,7 +43,38 @@ export interface GlobalEnMasseDownloaderStatus {
 // Synthetic Anime Endpoints
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Global en masse and synthetic anime removed
+const SYNTHETIC_ANIME_ENDPOINTS = {
+    Search: {
+        key: "synthetic-anime-search",
+        endpoint: "/api/v1/anime/synthetic/search",
+        methods: ["POST"] as const,
+    },
+    Details: {
+        key: "synthetic-anime-details",
+        endpoint: (id: string) => `/api/v1/anime/synthetic/${id}`,
+        methods: ["GET"] as const,
+    },
+}
+
+export function useSearchSyntheticAnime(query: string, enabled: boolean = true) {
+    return useServerQuery<SyntheticAnime[], { query: string, limit: number }>({
+        endpoint: SYNTHETIC_ANIME_ENDPOINTS.Search.endpoint,
+        method: SYNTHETIC_ANIME_ENDPOINTS.Search.methods[0],
+        queryKey: [SYNTHETIC_ANIME_ENDPOINTS.Search.key, query],
+        data: { query, limit: 10 },
+        enabled: enabled && query.length >= 2,
+    })
+}
+
+export function useGetSyntheticAnimeDetails(id: string | number | null) {
+    const syntheticId = id ?? undefined
+    return useServerQuery<SyntheticAnime>({
+        endpoint: syntheticId ? SYNTHETIC_ANIME_ENDPOINTS.Details.endpoint(String(syntheticId)) : "",
+        method: SYNTHETIC_ANIME_ENDPOINTS.Details.methods[0],
+        queryKey: [SYNTHETIC_ANIME_ENDPOINTS.Details.key, syntheticId],
+        enabled: !!syntheticId,
+    })
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helper functions
