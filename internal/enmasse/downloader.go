@@ -28,7 +28,7 @@ const (
 	AnilistMinifiedPath      = "/aeternae/Soul/Otaku Media/Databases/anilist-minified.json"
 	AnimeProgressFilePath    = "/aeternae/Soul/Otaku Media/Databases/enmasse-anime-progress.json"
 	MaxConcurrentSearches    = 3	                    // Concurrent torrent searches
-	DelayBetweenAnime        = 4.5 * time.Second        // Wait between each anime
+	DelayBetweenAnime        = 4500 * time.Millisecond   // Wait between each anime
 	DelayBetweenSearches     = 1 * time.Second        // Wait between provider searches
 	MaxAnimeLogEntries       = 300                    // Maximum entries to keep in each log category
 )
