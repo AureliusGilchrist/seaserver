@@ -139,9 +139,14 @@ func (m *Manager) GetProviderFromBaseManga(baseManga *anilist.BaseManga) (ext ex
 }
 
 func (m *Manager) getProviderFromId(id int) (ext extension.CustomSourceExtension, localId int, isCustom bool, extensionExists bool) {
-	if !IsExtensionId(id) {
-		return nil, 0, false, false
-	}
+    // Synthetic or invalid IDs (<=0) should never be interpreted as extension IDs
+    if id <= 0 {
+        return nil, 0, false, false
+    }
+
+    if !IsExtensionId(id) {
+        return nil, 0, false, false
+    }
 
 	// Extract the extension identifier and local ID
 	extensionIdentifier, localId := ExtractExtensionData(id)
@@ -156,7 +161,10 @@ func (m *Manager) getProviderFromId(id int) (ext extension.CustomSourceExtension
 
 // IsExtensionId checks if an ID belongs to an extension using bit-based separation
 func IsExtensionId(id int) bool {
-	return uint64(id) >= ExtensionIdOffset
+    if id <= 0 {
+        return false
+    }
+    return uint64(id) >= ExtensionIdOffset
 }
 
 // GenerateMediaId creates a runtime extension media ID from extension identifier and local ID

@@ -19,6 +19,11 @@ export function OfflineMetaSection<T extends "anime" | "manga">(props: OfflineMe
 
     if (!entry?.media) return null
 
+    const primaryTitle = entry.media?.title?.romaji
+        || entry.media?.title?.english
+        || entry.media?.title?.native
+        || entry.media?.title?.userPreferred
+
     return (
         <MediaPageHeader
             backgroundImage={entry.media?.bannerImage}
@@ -29,7 +34,7 @@ export function OfflineMetaSection<T extends "anime" | "manga">(props: OfflineMe
 
                 <MediaPageHeaderEntryDetails
                     coverImage={entry.media?.coverImage?.extraLarge || entry.media?.coverImage?.large}
-                    title={entry.media?.title?.userPreferred}
+                    title={primaryTitle}
                     color={entry.media?.coverImage?.color}
                     englishTitle={entry.media?.title?.english}
                     romajiTitle={entry.media?.title?.romaji}

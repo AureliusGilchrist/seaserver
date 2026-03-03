@@ -66,6 +66,13 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	// High-priority: refresh library collection in background so matched items appear immediately
+	go func() {
+		if _, err := h.App.GetAnimeCollection(true); err != nil {
+			h.App.Logger.Warn().Err(err).Msg("unmatched: failed to refresh anime collection after match")
+		}
+	}()
+
 	return h.RespondWithData(c, result)
 }
 

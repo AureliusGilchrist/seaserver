@@ -325,10 +325,11 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     if (!torrent) return null
 
     // Get the anime title to display
-    const displayAnimeTitle = selectedAnime?.title?.romaji 
-        || selectedAnime?.title?.native 
-        || torrentContents?.animeTitleRomaji 
-        || torrent?.animeTitleRomaji 
+    const displayAnimeTitle = selectedAnime?.title?.romaji
+        || selectedAnime?.title?.english
+        || selectedAnime?.title?.native
+        || torrentContents?.animeTitleRomaji
+        || torrent?.animeTitleRomaji
         || null
 
     const isLoadingAnimeInfo = isLoadingStoredAnime && storedAnimeId && !selectedAnime
@@ -372,12 +373,19 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                 <p className="font-semibold text-brand-200 line-clamp-1">
                                     {displayAnimeTitle || torrent.name}
                                 </p>
+                                {selectedAnime?.title?.romaji && selectedAnime.title.romaji !== displayAnimeTitle && (
+                                    <p className="text-xs text-[--muted] line-clamp-1">{selectedAnime.title.romaji}</p>
+                                )}
+                                {selectedAnime?.title?.english && selectedAnime.title.english !== displayAnimeTitle && (
+                                    <p className="text-xs text-[--muted] line-clamp-1">{selectedAnime.title.english}</p>
+                                )}
                                 {selectedAnime?.title?.native && selectedAnime.title.native !== displayAnimeTitle && (
                                     <p className="text-xs text-[--muted] line-clamp-1">{selectedAnime.title.native}</p>
                                 )}
                             </div>
                             <Button
                                 size="sm"
+// ...
                                 intent="gray-outline"
                                 onClick={() => {
                                     setSelectedAnime(null)
@@ -493,7 +501,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                         <div className="p-3 border rounded-md bg-brand-900/20">
                             <p className="text-sm font-medium">Selected:</p>
                             <p className="text-brand-200">
-                                {selectedAnime.title?.native || selectedAnime.title?.romaji || selectedAnime.title?.english}
+                                {selectedAnime?.title?.romaji || selectedAnime?.title?.english || selectedAnime?.title?.native}
                             </p>
                         </div>
                     )}

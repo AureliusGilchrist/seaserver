@@ -303,7 +303,11 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                             />
 
                             <MediaEntryCardHoverPopupTitleSection
-                                title={media.title?.userPreferred || ""}
+                                title={media.title?.romaji
+                                    || media.title?.english
+                                    || media.title?.native
+                                    || media.title?.userPreferred
+                                    || ""}
                                 year={(media as AL_BaseAnime).seasonYear ?? media.startDate?.year}
                                 season={media.season}
                                 format={media.format}
@@ -386,7 +390,11 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
             <MediaEntryCardBody
                 link={link}
                 type={type}
-                title={media.title?.userPreferred || ""}
+                title={media.title?.romaji
+                    || media.title?.english
+                    || media.title?.native
+                    || media.title?.userPreferred
+                    || ""}
                 season={media.season}
                 listStatus={listData?.status}
                 status={media.status}
@@ -397,6 +405,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                 bannerImage={media.coverImage?.extraLarge || ""}
                 isAdult={media.isAdult}
                 showLibraryBadge={showLibraryBadge}
+                isDownloading={isCurrentlyDownloading}
                 blurAdultContent={serverStatus?.settings?.anilist?.blurAdultContent}
                 onClick={onClick}
                 hideReleasingBadge={hideReleasingBadge}
@@ -440,23 +449,14 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                         ><RiCalendarLine /></Badge>
                     </div>
                 )}
-                {isCurrentlyDownloading && (
-                    <div
-                        data-media-entry-card-body-downloading-badge-container
-                        className="absolute z-[10] right-1 top-1"
-                    >
-                        <Badge
-                            className="font-semibold animate-pulse text-white bg-blue-600 !bg-opacity-90 rounded-[--radius-md] text-base"
-                            intent="primary-solid"
-                            size="lg"
-                        ><LuDownload className="mr-1" /> Downloading</Badge>
-                    </div>
-                )}
-
             </MediaEntryCardBody>
 
             <MediaEntryCardTitleSection
-                title={media.title?.userPreferred || ""}
+                title={media.title?.romaji
+                    || media.title?.english
+                    || media.title?.native
+                    || media.title?.userPreferred
+                    || ""}
                 year={(media as AL_BaseAnime).seasonYear ?? media.startDate?.year}
                 season={media.season}
                 format={media.format}

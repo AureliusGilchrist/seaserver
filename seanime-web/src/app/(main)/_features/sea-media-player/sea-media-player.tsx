@@ -370,7 +370,11 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
             })
             setAnimeDiscordActivity({
                 mediaId: media?.id ?? 0,
-                title: media?.title?.userPreferred || media?.title?.romaji || media?.title?.english || "Watching",
+                title: media?.title?.romaji
+                    || media?.title?.english
+                    || media?.title?.native
+                    || media?.title?.userPreferred
+                    || "Watching",
                 image: media?.coverImage?.large || media?.coverImage?.medium || "",
                 isMovie: media?.format === "MOVIE",
                 episodeNumber: progress.currentEpisodeNumber ?? 0,

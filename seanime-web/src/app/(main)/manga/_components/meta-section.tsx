@@ -32,6 +32,11 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
 
     if (!entry?.media) return null
 
+    const primaryTitle = entry.media?.title?.romaji
+        || entry.media?.title?.english
+        || entry.media?.title?.native
+        || entry.media?.title?.userPreferred
+
     const Details = () => (
         <>
             <div
@@ -59,7 +64,7 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
 
                 <MediaPageHeaderEntryDetails
                     coverImage={entry.media?.coverImage?.extraLarge || entry.media?.coverImage?.large}
-                    title={entry.media?.title?.userPreferred}
+                    title={primaryTitle}
                     englishTitle={entry.media?.title?.english}
                     romajiTitle={entry.media?.title?.romaji}
                     startDate={entry.media?.startDate}

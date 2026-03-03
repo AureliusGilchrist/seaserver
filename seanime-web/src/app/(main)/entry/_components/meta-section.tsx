@@ -67,6 +67,11 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
     const listData = entry.listData
     const type = "anime"
 
+    const primaryTitle = entry.media?.title?.romaji
+        || entry.media?.title?.english
+        || entry.media?.title?.native
+        || entry.media?.title?.userPreferred
+
     return (
         <MediaPageHeader
             backgroundImage={entry.media?.bannerImage}
@@ -77,7 +82,7 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
 
                 <MediaPageHeaderEntryDetails
                     coverImage={entry.media?.coverImage?.extraLarge || entry.media?.coverImage?.large}
-                    title={entry.media?.title?.userPreferred}
+                    title={primaryTitle}
                     color={entry.media?.coverImage?.color}
                     englishTitle={entry.media?.title?.english}
                     romajiTitle={entry.media?.title?.romaji}

@@ -216,7 +216,10 @@ function PlaylistMediaEntryTrigger(props: PlaylistMediaEntryTriggerProps) {
                 className="object-center object-cover"
             />
             <p className="line-clamp-2 text-sm absolute m-2 bottom-0 font-semibold z-[10]">
-                {entry.media?.title?.userPreferred || entry.media?.title?.romaji}
+                {entry.media?.title?.romaji
+                    || entry.media?.title?.english
+                    || entry.media?.title?.native
+                    || entry.media?.title?.userPreferred}
             </p>
             <div
                 className="z-[5] absolute bottom-0 w-full h-[80%] bg-gradient-to-t from-[--background] to-transparent"
@@ -245,7 +248,11 @@ export function PlaylistMediaEntry(props: PlaylistMediaEntryProps) {
                 setSelectedMedia(null)
             }
         }}
-        title={entry.media?.title?.userPreferred || entry.media?.title?.romaji || ""}
+        title={entry.media?.title?.romaji
+            || entry.media?.title?.english
+            || entry.media?.title?.native
+            || entry.media?.title?.userPreferred
+            || ""}
     >
         <EntryEpisodeList
             selectedEpisodes={episodes}

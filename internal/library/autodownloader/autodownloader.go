@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"seanime/internal/api/anilist"
 	"seanime/internal/api/metadata"
 	"seanime/internal/api/metadata_provider"
@@ -19,6 +22,7 @@ import (
 	"seanime/internal/notifier"
 	"seanime/internal/torrent_clients/torrent_client"
 	"seanime/internal/torrents/torrent"
+	"seanime/internal/unmatched"
 	"seanime/internal/util"
 	"seanime/internal/util/comparison"
 	"slices"
@@ -82,6 +86,87 @@ type (
 		IsOfflineRef            *util.Ref[bool]
 	}
 )
+
+// saveUnmatchedMetadata writes .seanime-metadata.json into the unmatched torrent folder.
+// Best-effort and resilient: derives titles from parsed data, rule, or torrent name.
+func (ad *AutoDownloader) saveUnmatchedMetadata(t *NormalizedTorrent, rule *anime.AutoDownloaderRule) {
+	defer util.HandlePanicInModuleThen("autodownloader/saveUnmatchedMetadata", func() {})
+
+	if t == nil {
+		return
+	}
+
+	titleRomaji := ""
+	titleNative := ""
+	format := ""
+	startYear := 0
+
+	// From parsed data (habari)
+	if t.ParsedData != nil {
+		if t.ParsedData.FormattedTitle != "" {
+			titleRomaji = t.ParsedData.FormattedTitle
+		} else if t.ParsedData.Title != "" {
+			titleRomaji = t.ParsedData.Title
+		}
+		if t.ParsedData.Year != "" {
+			if y, err := strconv.Atoi(t.ParsedData.Year); err == nil {
+				startYear = y
+			}
+		}
+		// Fallback format from release information if present
+		if len(t.ParsedData.ReleaseInformation) > 0 {
+			format = t.ParsedData.ReleaseInformation[0]
+		}
+	}
+
+	// From rule media title if still empty
+	if titleRomaji == "" && rule != nil {
+		if ac, ok := ad.animeCollection.Get(); ok {
+			if entry, found := ac.GetListEntryFromAnimeId(rule.MediaId); found && entry.GetMedia() != nil && entry.GetMedia().Title != nil {
+				if entry.GetMedia().Title.Romaji != nil {
+					titleRomaji = *entry.GetMedia().Title.Romaji
+				}
+				if entry.GetMedia().Title.Native != nil {
+					titleNative = *entry.GetMedia().Title.Native
+				}
+			}
+		}
+	}
+
+	// Final fallback
+	if titleRomaji == "" {
+		titleRomaji = t.Name
+	}
+
+	// Build metadata payload
+	animeID := 0
+	if rule != nil {
+		animeID = rule.MediaId
+	}
+	meta := unmatched.TorrentMetadata{
+		AnimeID:          animeID,
+		AnimeTitleRomaji: titleRomaji,
+		AnimeTitleNative: titleNative,
+		AnimeFormat:      format,
+		AnimeStartYear:   startYear,
+	}
+
+	// Write file to unmatched directory/torrent name/.seanime-metadata.json
+	torrentPath := filepath.Join(unmatched.UnmatchedBasePath, t.Name)
+	if err := os.MkdirAll(torrentPath, 0755); err != nil {
+		ad.logger.Warn().Err(err).Str("torrent", t.Name).Msg("autodownloader: failed to ensure unmatched directory")
+		return
+	}
+	metaPath := filepath.Join(torrentPath, ".seanime-metadata.json")
+	data, err := json.MarshalIndent(meta, "", "  ")
+	if err != nil {
+		ad.logger.Warn().Err(err).Str("torrent", t.Name).Msg("autodownloader: failed to marshal metadata")
+		return
+	}
+	if err := os.WriteFile(metaPath, data, 0644); err != nil {
+		ad.logger.Warn().Err(err).Str("torrent", t.Name).Msg("autodownloader: failed to write metadata")
+	}
+}
 
 func New(opts *NewAutoDownloaderOptions) *AutoDownloader {
 	return &AutoDownloader{
@@ -1110,7 +1195,6 @@ downloadScope:
 				return false
 			}
 		}
-
 	} else {
 		// Pause the torrent when it's added
 		if downloadImmediately {
@@ -1142,8 +1226,13 @@ downloadScope:
 
 			ad.logger.Debug().Msgf("autodownloader: Downloading torrent: %s", t.Name)
 
+			// Override destination to unmatched path
+			destination := unmatched.UnmatchedBasePath
+			if rule.Destination != "" && filepath.IsAbs(rule.Destination) {
+				destination = rule.Destination
+			}
 			// Add the torrent to torrent client
-			err := ad.torrentClientRepository.AddMagnets([]string{magnet}, rule.Destination)
+			err := ad.torrentClientRepository.AddMagnets([]string{magnet}, destination)
 			if err != nil {
 				ad.logger.Error().Err(err).Str("link", t.Link).Str("name", t.Name).Msg("autodownloader: Failed to add torrent to torrent client")
 				downloadImmediately = false
@@ -1194,6 +1283,11 @@ downloadScope:
 		}
 		_ = ad.database.InsertAutoDownloaderItem(item)
 		ad.logger.Info().Str("name", t.Name).Bool("downloaded", downloaded).Msg("autodownloader: Added item to queue")
+	}
+
+	// Save unmatched metadata (best-effort, resilient)
+	if !isSimulation {
+		ad.saveUnmatchedMetadata(t, rule)
 	}
 
 	// Event

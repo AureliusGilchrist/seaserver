@@ -18,6 +18,7 @@ import startCase from "lodash/startCase"
 import React, { memo } from "react"
 import { BiCalendarAlt } from "react-icons/bi"
 import { IoLibrarySharp } from "react-icons/io5"
+import { LuDownload } from "react-icons/lu"
 import { RiSignalTowerLine } from "react-icons/ri"
 
 type MediaEntryCardContainerProps = {
@@ -144,7 +145,7 @@ export const MediaEntryCardHoverPopup = React.memo((props: MediaEntryCardHoverPo
                 <>
                     {ts.enableMediaCardBlurredBackground && <div
                         data-media-entry-card-hover-popup-image-blur-gradient
-                        className="w-full absolute top-0 h-[50%] opacity-60 bg-gradient-to-b from-30% from-[--background] to-transparent z-[2] rounded-[--radius]"
+                        className="w-full absolute top-0 h-[50%] opacity-36 bg-gradient-to-b from-30% from-[--background] to-transparent z-[2] rounded-[--radius]"
                     />}
 
                     <div data-media-entry-card-hover-popup-content className="p-2 h-full w-full flex flex-col justify-between relative z-[2]">
@@ -307,7 +308,7 @@ type MediaEntryCardBodyProps = {
     link: string
     type: "anime" | "manga"
     title: string
-    season?: string
+    season?: string | null
     listStatus?: AL_MediaListStatus
     status?: AL_MediaStatus
     showProgressBar?: boolean
@@ -317,11 +318,11 @@ type MediaEntryCardBodyProps = {
     bannerImage?: string
     isAdult?: boolean
     showLibraryBadge?: boolean
-    children?: React.ReactNode
+    isDownloading?: boolean
     blurAdultContent?: boolean
     onClick?: () => void
     hideReleasingBadge?: boolean
-}
+} & React.HTMLAttributes<HTMLDivElement>
 
 export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
 
@@ -339,10 +340,11 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
         bannerImage,
         isAdult,
         showLibraryBadge,
-        children,
+        isDownloading,
         blurAdultContent,
         onClick,
         hideReleasingBadge,
+        children,
         ...rest
     } = props
 
@@ -392,6 +394,15 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
                                 className="rounded-[--radius] rounded-bl-none rounded-tr-none text-orange-900"
                             ><IoLibrarySharp /></Badge>
                         </div>}
+
+                    {(!showLibraryBadge && isDownloading) && (
+                        <div data-media-entry-card-body-downloading-badge className="absolute z-[1] left-0 top-0">
+                            <Badge
+                                size="xl" intent="primary-solid"
+                                className="rounded-[--radius] rounded-bl-none rounded-tr-none text-white animate-pulse"
+                            ><LuDownload className="mr-1" /> Downloading</Badge>
+                        </div>
+                    )}
 
                     {/*RELEASING BADGE*/}
                     {(status === "RELEASING" || status === "NOT_YET_RELEASED") && !hideReleasingBadge &&

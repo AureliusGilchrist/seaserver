@@ -108,7 +108,9 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
         if (searchType === Torrent_SearchType.SMART) {
             setGlobalFilter("")
         } else if (searchType === Torrent_SearchType.SIMPLE) {
-            const title = entry.media?.title?.romaji || entry.media?.title?.english || entry.media?.title?.userPreferred
+            const title = entry.media?.title?.romaji
+                || entry.media?.title?.english
+                || entry.media?.title?.userPreferred
             setGlobalFilter(title?.replaceAll(":", "").replaceAll("-", "") || "")
         }
     }, [searchType, entry.media?.title])

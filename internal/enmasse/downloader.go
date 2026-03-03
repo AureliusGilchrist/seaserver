@@ -280,9 +280,6 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 		return
 	}
 
-	// Disable cache for en masse to allow deeper, fresher pagination
-	d.torrentRepository.DisableCache()
-
 	// Process each anime
 	processedCount := d.processedCount
 	for _, animeItem := range animeList {
@@ -368,16 +365,23 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 
 	// Check if provider supports smart search
 	canSmartSearch := providerExt.GetProvider().GetSettings().CanSmartSearch
+	providerID := providerExt.GetID()
 
 	var searchData *torrent.SearchData
 
 	if canSmartSearch {
+		primaryQuery := d.primarySearchQuery(resolved)
+		if primaryQuery == "" {
+			d.logger.Warn().Str("title", resolved.TitleRomaji).Str("provider", providerID).Msg("enmasse-anime: No valid query for smart search; skipping")
+			return fmt.Errorf("torrent search failed: no valid query for smart search")
+		}
+
 		// Use smart search for providers that support it
 		searchOpts := torrent.AnimeSearchOptions{
-			Provider:      providerExt.GetID(),
+			Provider:      providerID,
 			Type:          torrent.AnimeSearchTypeSmart,
 			Media:         baseAnime,
-			Query:         "",
+			Query:         primaryQuery,
 			Batch:         true,
 			EpisodeNumber: 0,
 			BestReleases:  true,
@@ -386,6 +390,7 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 			IncludeSpecialProviders: true,
 		}
 
+		d.logger.Debug().Str("query", primaryQuery).Str("provider", providerExt.GetID()).Msg("enmasse-anime: Smart search")
 		time.Sleep(DelayBetweenSearches)
 
 		res, err := d.torrentRepository.SearchAnime(ctx, searchOpts)
@@ -394,6 +399,7 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 			// Fallback to non-batch search
 			searchOpts.Batch = false
 			searchOpts.BestReleases = false
+			d.logger.Debug().Str("query", primaryQuery).Str("provider", providerExt.GetID()).Msg("enmasse-anime: Smart search fallback")
 			time.Sleep(DelayBetweenSearches)
 			res2, err2 := d.torrentRepository.SearchAnime(ctx, searchOpts)
 			if err2 != nil {
@@ -417,10 +423,19 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 	// Filter out single-episode torrents for series (allow for movies/OVAs)
 	searchData.Torrents = d.filterMultiEpisodeTorrents(baseAnime, searchData.Torrents)
 
-	// Select best torrent (first one after sorting by seeders/best release)
-	selectedTorrent := d.selectBestTorrent(searchData.Torrents)
+	// Prefer torrents that meet or exceed expected episode count (TV/OVA)
+	expectedEpisodes := animeItem.Episodes
+	searchData.Torrents = d.filterByEpisodeMinimum(baseAnime, expectedEpisodes, searchData.Torrents)
+
+	// Select best torrent (first one after sorting by seeders/best release) with season preference
+	selectedTorrent := d.selectBestTorrent(searchData.Torrents, animeItem)
 	if selectedTorrent == nil {
+		d.logger.Warn().Str("title", resolved.TitleRomaji).Str("provider", providerID).Msg("enmasse-anime: No suitable torrent after filtering")
 		return fmt.Errorf("no suitable torrent found")
+	}
+	// Final safety: ensure selected torrent meets expected episode count
+	if !d.torrentMeetsEpisodeMinimum(baseAnime, expectedEpisodes, selectedTorrent) {
+		return fmt.Errorf("selected torrent does not meet episode minimum")
 	}
 
 	d.logger.Info().
@@ -434,6 +449,17 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 	if err != nil {
 		return fmt.Errorf("failed to get magnet link: %w", err)
 	}
+	if magnet == "" {
+		// Fallback to info hash if available
+		if selectedTorrent.InfoHash != "" {
+			magnet = fmt.Sprintf("magnet:?xt=urn:btih:%s", selectedTorrent.InfoHash)
+			if magnet == "magnet:?xt=urn:btih:" {
+				return fmt.Errorf("empty magnet and info hash; cannot add torrent")
+			}
+		} else {
+			return fmt.Errorf("empty magnet link and no info hash; cannot add torrent")
+		}
+	}
 
 	// Download to unmatched directory
 	destination := d.unmatchedRepository.GetUnmatchedDestination(selectedTorrent.Name)
@@ -443,6 +469,7 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 		return fmt.Errorf("torrent client not available")
 	}
 
+	d.logger.Debug().Str("destination", destination).Str("magnet", magnet).Str("infoHash", selectedTorrent.InfoHash).Msg("enmasse-anime: adding torrent to client")
 	err = torrentClientRepo.AddMagnets([]string{magnet}, destination)
 	if err != nil {
 		return fmt.Errorf("failed to add torrent: %w", err)
@@ -512,7 +539,7 @@ func (d *Downloader) buildBaseAnime(item *AnilistMinifiedItem) *anilist.BaseAnim
 	}
 }
 
-func (d *Downloader) selectBestTorrent(torrents []*hibiketorrent.AnimeTorrent) *hibiketorrent.AnimeTorrent {
+func (d *Downloader) selectBestTorrent(torrents []*hibiketorrent.AnimeTorrent, animeItem *AnimeOfflineItem) *hibiketorrent.AnimeTorrent {
 	if len(torrents) == 0 {
 		return nil
 	}
@@ -520,6 +547,13 @@ func (d *Downloader) selectBestTorrent(torrents []*hibiketorrent.AnimeTorrent) *
 	// Prefer: dual-audio > 1080p > high seeders > batch
 	var best *hibiketorrent.AnimeTorrent
 	bestScore := -1
+
+	seasonName := ""
+	seasonYear := 0
+	if animeItem != nil && animeItem.AnimeSeason != nil {
+		seasonName = strings.ToLower(animeItem.AnimeSeason.Season)
+		seasonYear = animeItem.AnimeSeason.Year
+	}
 
 	for _, t := range torrents {
 		score := 0
@@ -555,6 +589,19 @@ func (d *Downloader) selectBestTorrent(torrents []*hibiketorrent.AnimeTorrent) *
 		}
 		score += seederBonus
 
+		// Season/year preference from torrent name
+		if seasonYear > 0 {
+			yearStr := strconv.Itoa(seasonYear)
+			if strings.Contains(nameLower, yearStr) {
+				score += 10
+			}
+		}
+		if seasonName != "" {
+			if strings.Contains(nameLower, seasonName) {
+				score += 150
+			}
+		}
+
 		if score > bestScore {
 			bestScore = score
 			best = t
@@ -562,6 +609,38 @@ func (d *Downloader) selectBestTorrent(torrents []*hibiketorrent.AnimeTorrent) *
 	}
 
 	return best
+}
+
+// torrentMeetsEpisodeMinimum rechecks episode count for the chosen torrent.
+// Movies/OVA with single episode are exempt.
+func (d *Downloader) torrentMeetsEpisodeMinimum(media *anilist.BaseAnime, expectedEpisodes int, t *hibiketorrent.AnimeTorrent) bool {
+	if t == nil || expectedEpisodes <= 0 {
+		return true
+	}
+	if media == nil || media.IsMovie() || (media.Format != nil && *media.Format == anilist.MediaFormatOva && expectedEpisodes == 1) {
+		return true
+	}
+
+	// Treat batches as valid
+	if t.IsBatch {
+		return true
+	}
+
+	// Provider episode number
+	if t.EpisodeNumber >= expectedEpisodes {
+		return true
+	}
+
+	// Parse name for maximum episode
+	parsed := habari.Parse(t.Name)
+	maxEp := 0
+	for _, epStr := range parsed.EpisodeNumber {
+		val := util.StringToIntMust(epStr)
+		if val > maxEp {
+			maxEp = val
+		}
+	}
+	return maxEp >= expectedEpisodes
 }
 
 // filterMultiEpisodeTorrents removes single-episode torrents when the media is a series.
@@ -607,6 +686,55 @@ func (d *Downloader) filterMultiEpisodeTorrents(media *anilist.BaseAnime, torren
 		d.logger.Debug().
 			Str("torrent", t.Name).
 			Msg("enmasse-anime: Skipping single-episode torrent for series")
+	}
+
+	return filtered
+}
+
+// filterByEpisodeMinimum keeps torrents that meet or exceed the expected episode count for TV/OVA.
+// Movies are exempt. If expectedEpisodes <= 0, returns original slice.
+func (d *Downloader) filterByEpisodeMinimum(media *anilist.BaseAnime, expectedEpisodes int, torrents []*hibiketorrent.AnimeTorrent) []*hibiketorrent.AnimeTorrent {
+	if expectedEpisodes <= 0 {
+		return torrents
+	}
+	if media == nil || media.IsMovie() || (media.Format != nil && *media.Format == anilist.MediaFormatOva && expectedEpisodes == 1) {
+		return torrents
+	}
+
+	filtered := make([]*hibiketorrent.AnimeTorrent, 0, len(torrents))
+
+	for _, t := range torrents {
+		if t == nil {
+			continue
+		}
+
+		// Treat batches as valid
+		if t.IsBatch {
+			filtered = append(filtered, t)
+			continue
+		}
+
+		// Use provider episode number when present
+		if t.EpisodeNumber >= expectedEpisodes {
+			filtered = append(filtered, t)
+			continue
+		}
+
+		// Parse name for episode span
+		parsed := habari.Parse(t.Name)
+		if len(parsed.EpisodeNumber) > 0 {
+			maxEp := 0
+			for _, epStr := range parsed.EpisodeNumber {
+				val := util.StringToIntMust(epStr)
+				if val > maxEp {
+					maxEp = val
+				}
+			}
+			if maxEp >= expectedEpisodes {
+				filtered = append(filtered, t)
+				continue
+			}
+		}
 	}
 
 	return filtered
@@ -766,6 +894,15 @@ func (d *Downloader) generateTitleVariants(animeItem *AnimeOfflineItem) []string
 		add(syn)
 	}
 	return variants
+}
+
+// primarySearchQuery picks the first non-empty sanitized variant to use as the main query.
+func (d *Downloader) primarySearchQuery(animeItem *AnilistMinifiedItem) string {
+	variants := d.generateSearchVariants(animeItem)
+	if len(variants) == 0 {
+		return ""
+	}
+	return variants[0]
 }
 
 func (d *Downloader) minifyBaseAnime(media *anilist.BaseAnime) *AnilistMinifiedItem {
@@ -941,6 +1078,9 @@ func (d *Downloader) sendStatusUpdate() {
 }
 
 func (d *Downloader) addToDownloaded(title string) {
+	if strings.TrimSpace(title) == "" || strings.TrimSpace(title) == "0" {
+		return
+	}
 	d.mu.Lock()
 	d.downloadedAnime = append(d.downloadedAnime, title)
 	if len(d.downloadedAnime) > MaxAnimeLogEntries {
@@ -967,6 +1107,11 @@ func (d *Downloader) addToFailed(title string) {
 func (d *Downloader) simpleSearchWithVariants(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, animeItem *AnilistMinifiedItem) (*torrent.SearchData, error) {
 	// Generate search query variants from most specific to least
 	queryVariants := d.generateSearchVariants(animeItem)
+	if len(queryVariants) == 0 {
+		d.logger.Warn().Str("title", animeItem.TitleRomaji).Str("provider", providerID).Msg("enmasse-anime: No query variants for simple search")
+		return nil, fmt.Errorf("no query variants available")
+	}
+	d.logger.Debug().Strs("variants", queryVariants).Str("provider", providerID).Msg("enmasse-anime: Simple search variants")
 
 	var allTorrents []*hibiketorrent.AnimeTorrent
 
@@ -987,6 +1132,12 @@ func (d *Downloader) simpleSearchWithVariants(ctx context.Context, providerID st
 			Str("query", query).
 			Int("variant", i+1).
 			Msg("enmasse-anime: Trying search variant")
+
+		d.logger.Debug().
+			Str("title", animeItem.TitleRomaji).
+			Str("query", query).
+			Int("variant", i+1).
+			Msg("enmasse-anime: Chosen query")
 
 		searchOpts := torrent.AnimeSearchOptions{
 			Provider:     providerID,
@@ -1029,19 +1180,28 @@ func (d *Downloader) simpleSearchWithVariants(ctx context.Context, providerID st
 func (d *Downloader) generateSearchVariants(animeItem *AnilistMinifiedItem) []string {
 	variants := make([]string, 0, 6)
 
-	// Variant 1: Romaji title (most common)
-	if animeItem.TitleRomaji != "" {
-		variants = append(variants, d.sanitizeSearchQuery(animeItem.TitleRomaji))
+	addVariant := func(val string) {
+		if val == "" {
+			return
+		}
+		s := d.sanitizeSearchQuery(val)
+		if s == "" || d.containsVariant(variants, s) {
+			return
+		}
+		variants = append(variants, s)
 	}
+
+	// Variant 1: Romaji title (most common)
+	addVariant(animeItem.TitleRomaji)
 
 	// Variant 2: English title
 	if animeItem.TitleEnglish != "" && animeItem.TitleEnglish != animeItem.TitleRomaji {
-		variants = append(variants, d.sanitizeSearchQuery(animeItem.TitleEnglish))
+		addVariant(animeItem.TitleEnglish)
 	}
 
 	// Variant 3: Original title if different
 	if animeItem.Title != "" && animeItem.Title != animeItem.TitleRomaji && animeItem.Title != animeItem.TitleEnglish {
-		variants = append(variants, d.sanitizeSearchQuery(animeItem.Title))
+		addVariant(animeItem.Title)
 	}
 
 	// Variant 4: First few words of romaji title (for long titles)
@@ -1049,10 +1209,7 @@ func (d *Downloader) generateSearchVariants(animeItem *AnilistMinifiedItem) []st
 		words := strings.Fields(animeItem.TitleRomaji)
 		if len(words) > 3 {
 			shortTitle := strings.Join(words[:3], " ")
-			sanitized := d.sanitizeSearchQuery(shortTitle)
-			if sanitized != "" && !d.containsVariant(variants, sanitized) {
-				variants = append(variants, sanitized)
-			}
+			addVariant(shortTitle)
 		}
 	}
 
@@ -1061,10 +1218,7 @@ func (d *Downloader) generateSearchVariants(animeItem *AnilistMinifiedItem) []st
 		if i >= 2 {
 			break
 		}
-		sanitized := d.sanitizeSearchQuery(syn)
-		if sanitized != "" && !d.containsVariant(variants, sanitized) {
-			variants = append(variants, sanitized)
-		}
+		addVariant(syn)
 	}
 
 	return variants

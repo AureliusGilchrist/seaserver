@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/fsnotify/fsnotify"
 )
 
 // Scanner monitors the Unmatched folder for completed downloads
@@ -35,7 +36,7 @@ func NewScanner(logger *zerolog.Logger, repository *Repository) *Scanner {
 		logger:            logger,
 		repository:        repository,
 		completedTorrents: make([]string, 0),
-		scanInterval:      30 * time.Second,
+		scanInterval:      10 * time.Minute, // fallback polling every 10 minutes
 		verifyDelay:       5 * time.Second,
 	}
 }
@@ -87,15 +88,51 @@ func (s *Scanner) run(ctx context.Context) {
 	// Initial scan
 	s.scanForCompletedDownloads()
 
+	// Watcher for file events
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		s.logger.Warn().Err(err).Msg("unmatched scanner: could not start file watcher; falling back to polling only")
+		watcher = nil
+	}
+	if watcher != nil {
+		// Watch base path; if missing, skip
+		if err := watcher.Add(UnmatchedBasePath); err != nil {
+			s.logger.Warn().Err(err).Msg("unmatched scanner: could not watch base path; falling back to polling only")
+			watcher.Close()
+			watcher = nil
+		}
+	}
+
 	ticker := time.NewTicker(s.scanInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
+			if watcher != nil {
+				watcher.Close()
+			}
 			return
 		case <-ticker.C:
 			s.scanForCompletedDownloads()
+		case event := <-func() <-chan fsnotify.Event {
+			if watcher == nil {
+				return make(<-chan fsnotify.Event)
+			}
+			return watcher.Events
+		}():
+			// On any file change under base path, trigger a scan
+			s.logger.Debug().Str("event", event.Name).Msg("unmatched scanner: file event detected, triggering scan")
+			s.scanForCompletedDownloads()
+		case err := <-func() <-chan error {
+			if watcher == nil {
+				return make(<-chan error)
+			}
+			return watcher.Errors
+		}():
+			if err != nil {
+				s.logger.Warn().Err(err).Msg("unmatched scanner: watcher error")
+			}
 		}
 	}
 }

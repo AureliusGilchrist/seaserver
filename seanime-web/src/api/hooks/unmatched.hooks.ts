@@ -1,4 +1,5 @@
 import { useServerMutation, useServerQuery } from "@/api/client/requests"
+import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
@@ -102,7 +103,12 @@ export function useMatchUnmatchedTorrent(onSuccess?: () => void) {
             } else {
                 toast.error(data?.errorMessage || "Some files failed to move")
             }
-            await queryClient.invalidateQueries({ queryKey: [UNMATCHED_ENDPOINTS.GetUnmatchedTorrents.key] })
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: [UNMATCHED_ENDPOINTS.GetUnmatchedTorrents.key] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.key] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.LIBRARY_EXPLORER.GetLibraryExplorerFileTree.key] }),
+            ])
             onSuccess?.()
         },
     })

@@ -235,7 +235,15 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 					titleNative = *b.Media.Title.Native
 				}
 			}
-			if err := h.App.UnmatchedRepository.SaveTorrentMetadata(t.Name, b.Media.ID, titleRomaji, titleNative); err != nil {
+			format := ""
+			if b.Media.Format != nil {
+				format = string(*b.Media.Format)
+			}
+			startYear := 0
+			if b.Media.StartDate != nil && b.Media.StartDate.Year != nil {
+				startYear = *b.Media.StartDate.Year
+			}
+			if err := h.App.UnmatchedRepository.SaveTorrentMetadata(t.Name, b.Media.ID, titleRomaji, titleNative, format, startYear); err != nil {
 				h.App.Logger.Warn().Err(err).Str("torrent", t.Name).Msg("torrent client: Failed to save torrent metadata")
 			}
 		}

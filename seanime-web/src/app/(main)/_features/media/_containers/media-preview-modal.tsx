@@ -221,7 +221,10 @@ function Content({ entry, entryLoading, detailsLoading, details, type }: {
                 <div className="z-[5] relative">
                     <MediaPageHeaderEntryDetails
                         coverImage={entry.media?.coverImage?.extraLarge || entry.media?.coverImage?.large}
-                        title={entry.media?.title?.userPreferred}
+                        title={entry.media?.title?.romaji
+                            || entry.media?.title?.english
+                            || entry.media?.title?.native
+                            || entry.media?.title?.userPreferred}
                         color={entry.media?.coverImage?.color}
                         englishTitle={entry.media?.title?.english}
                         romajiTitle={entry.media?.title?.romaji}

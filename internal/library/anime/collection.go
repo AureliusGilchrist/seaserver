@@ -290,24 +290,8 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 		lc.Lists = make([]*LibraryCollectionList, 0)
 	}
 
-	// +---------------------+
-	// |  Unknown media ids  |
-	// +---------------------+
-
-	unknownIds := make([]int, 0)
-	for _, id := range mIds {
-		if id != 0 && !slices.Contains(foundIds, id) {
-			unknownIds = append(unknownIds, id)
-		}
-	}
-
+	// UnknownGroups disabled to avoid re-resolving media already matched manually
 	lc.UnknownGroups = make([]*UnknownGroup, 0)
-	for _, id := range unknownIds {
-		lc.UnknownGroups = append(lc.UnknownGroups, &UnknownGroup{
-			MediaId:    id,
-			LocalFiles: groupedLfs[id],
-		})
-	}
 
 	return
 }
