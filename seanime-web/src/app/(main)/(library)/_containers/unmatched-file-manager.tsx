@@ -1,5 +1,5 @@
 import { Anime_UnmatchedGroup } from "@/api/generated/types"
-import { useAnimeEntryManualMatch, useFetchAnimeEntrySuggestions } from "@/api/hooks/anime_entries.hooks"
+import { useAnimeEntryManualMatch, useAnimeEntryRematch, useFetchAnimeEntrySuggestions } from "@/api/hooks/anime_entries.hooks"
 import { useOpenInExplorer } from "@/api/hooks/explorer.hooks"
 import { useListCustomSourceExtensions } from "@/api/hooks/extensions.hooks"
 import { useUpdateLocalFiles } from "@/api/hooks/localfiles.hooks"
@@ -60,8 +60,9 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
     const { mutate: updateLocalFiles, isPending: isUpdatingFile } = useUpdateLocalFiles()
 
     const { mutate: manualMatch, isPending: isMatching } = useAnimeEntryManualMatch()
+    const { mutate: rematch, isPending: isRematching } = useAnimeEntryRematch()
 
-    const isUpdating = isUpdatingFile || isMatching
+    const isUpdating = isUpdatingFile || isMatching || isRematching
 
     const [_r, setR] = React.useState(0)
 
@@ -135,7 +136,9 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
      */
     function handleMatchSelected() {
         if (!!currentGroup && anilistId > 0 && selectedPaths.length > 0) {
-            manualMatch({
+            const hasMatched = currentGroup.localFiles?.some(lf => lf.mediaId)
+            const mutation = hasMatched ? rematch : manualMatch
+            mutation({
                 paths: selectedPaths,
                 mediaId: anilistId,
             }, {

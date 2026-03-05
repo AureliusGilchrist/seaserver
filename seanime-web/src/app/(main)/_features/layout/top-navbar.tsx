@@ -80,10 +80,7 @@ export function SidebarNavbar(props: SidebarNavbarProps) {
 
     const serverStatus = useServerStatus()
     const ts = useThemeSettings()
-    const pathname = usePathname()
-
     const openDownloadQueue = useSetAtom(__manga_chapterDownloadsDrawerIsOpenAtom)
-    const isMangaPage = pathname.startsWith("/manga")
 
     if (!ts.hideTopNavbar && process.env.NEXT_PUBLIC_PLATFORM !== "desktop") return null
 
@@ -101,15 +98,13 @@ export function SidebarNavbar(props: SidebarNavbarProps) {
                 onMouseLeave={handleUnexpandedSidebar}
                 isSidebar
                 items={[
-                    ...(isMangaPage ? [
-                        {
-                            iconType: LuFolderDown,
-                            name: "Manga Downloads",
-                            onClick: () => {
-                                openDownloadQueue(true)
-                            },
+                    {
+                        iconType: LuFolderDown,
+                        name: "Manga Downloads",
+                        onClick: () => {
+                            openDownloadQueue(true)
                         },
-                    ] : []),
+                    },
                 ]}
             />}
             <div data-sidebar-navbar-playback-manager-progress-tracking-button className="flex justify-center">

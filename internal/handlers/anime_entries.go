@@ -4,18 +4,22 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
 	"seanime/internal/api/anilist"
+	"seanime/internal/api/shared_platform"
+	"seanime/internal/bridge/db_bridge"
 	"seanime/internal/customsource"
-	"seanime/internal/database/db_bridge"
+	"seanime/internal/database/models"
+	"seanime/internal/events"
 	"seanime/internal/hook"
 	"seanime/internal/library/anime"
 	"seanime/internal/library/scanner"
 	"seanime/internal/library/summary"
-	"seanime/internal/platforms/shared_platform"
+	"seanime/internal/local"
+	"seanime/internal/mediastream"
 	"seanime/internal/util"
 	"seanime/internal/util/limiter"
+	"seanime/internal/util/random"
+	"seanime/internal/util/version"
 	"seanime/internal/util/result"
 	"slices"
 	"strconv"
@@ -38,6 +42,136 @@ func (h *Handler) getAnimeEntry(c echo.Context, lfs []*anime.LocalFile, mId int)
 			if !customsource.IsExtensionId(lf.MediaId) {
 				continue
 			}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+// HandleAnimeEntryRematch resets selected files, clears prior metadata, and rematches them to the provided media ID.
+// Existing matched files not included in Paths remain untouched.
+// NC/NCOP/NCED files are deleted immediately upon detection (disk + metadata removal).
+func (h *Handler) HandleAnimeEntryRematch(c echo.Context) error {
+
+    type body struct {
+        Paths   []string `json:"paths"`
+        MediaId int      `json:"mediaId"`
+    }
+
+    b := new(body)
+    if err := c.Bind(b); err != nil {
+        return h.RespondWithError(c, err)
+    }
+
+    if len(b.Paths) == 0 || b.MediaId == 0 {
+        return h.RespondWithError(c, errors.New("paths and mediaId are required"))
+    }
+
+    // Load AniList collection (with relations) for snapshot hydration
+    animeCollectionWithRelations, err := h.App.AnilistPlatformRef.Get().GetAnimeCollectionWithRelations(c.Request().Context())
+    if err != nil {
+        return h.RespondWithError(c, err)
+    }
+
+    // Retrieve local files
+    lfs, lfsId, err := db_bridge.GetLocalFiles(h.App.Database)
+    if err != nil {
+        return h.RespondWithError(c, err)
+    }
+
+    // Normalize selected paths for comparison
+    compPaths := make(map[string]struct{})
+    for _, p := range b.Paths {
+        compPaths[util.NormalizePath(p)] = struct{}{}
+    }
+
+    // Collect selected files (any current mediaId allowed, since we're rematching these specific files)
+    selectedLfs := lo.Filter(lfs, func(item *anime.LocalFile, _ int) bool {
+        _, found := compPaths[item.GetNormalizedPath()]
+        return found
+    })
+
+    if len(selectedLfs) == 0 {
+        return h.RespondWithError(c, errors.New("no local files found for provided paths"))
+    }
+
+    // Reset metadata for selected files and set new media ID
+    selectedLfs = lop.Map(selectedLfs, func(item *anime.LocalFile, _ int) *anime.LocalFile {
+        item.MediaId = b.MediaId
+        item.Locked = true
+        item.Ignored = false
+        // reset metadata to fresh state so episodes renumber from 1
+        item.Metadata.Episode = 0
+        item.Metadata.AniDBEpisode = ""
+        item.Metadata.Type = ""
+        return item
+    })
+
+    // Get the media for hydration
+    media, err := h.App.AnilistPlatformRef.Get().GetAnime(c.Request().Context(), b.MediaId)
+    if err != nil {
+        return h.RespondWithError(c, err)
+    }
+
+    normalizedMedia := []*anime.NormalizedMedia{anime.NewNormalizedMedia(media)}
+
+    scanLogger, err := scanner.NewScanLogger(h.App.Config.Logs.Dir)
+    if err != nil {
+        return h.RespondWithError(c, err)
+    }
+
+    scanSummaryLogger := summary.NewScanSummaryLogger()
+
+    fh := scanner.FileHydrator{
+        LocalFiles:          selectedLfs,
+        CompleteAnimeCache:  anilist.NewCompleteAnimeCache(),
+        PlatformRef:         h.App.AnilistPlatformRef,
+        MetadataProviderRef: h.App.MetadataProviderRef,
+        AnilistRateLimiter:  limiter.NewAnilistLimiter(),
+        Logger:              h.App.Logger,
+        ScanLogger:          scanLogger,
+        ScanSummaryLogger:   scanSummaryLogger,
+        AllMedia:            normalizedMedia,
+        ForceMediaId:        media.GetID(),
+    }
+
+    // Delete NC files upfront and exclude from hydration
+    cleanedLfs := make([]*anime.LocalFile, 0, len(selectedLfs))
+    for _, lf := range selectedLfs {
+        if lf.IsProbablyNC() {
+            _ = os.Remove(lf.Path)
+            lf.MediaId = 0
+            lf.Metadata.Episode = 0
+            lf.Metadata.AniDBEpisode = ""
+            lf.Metadata.Type = ""
+            continue
+        }
+        cleanedLfs = append(cleanedLfs, lf)
+    }
+    selectedLfs = cleanedLfs
+
+    fh.LocalFiles = selectedLfs
+    fh.HydrateMetadata()
+
+    // Hydrate summary
+    fh.ScanSummaryLogger.HydrateData(selectedLfs, normalizedMedia, animeCollectionWithRelations)
+
+    // Save summary
+    go func() {
+        _ = db_bridge.InsertScanSummary(h.App.Database, scanSummaryLogger.GenerateSummary())
+    }()
+
+    // Remove original instances of selected files from lfs (by path) and merge hydrated versions
+    selectedPaths := lop.Map(selectedLfs, func(item *anime.LocalFile, _ int) string { return item.GetNormalizedPath() })
+    lfs = lo.Filter(lfs, func(item *anime.LocalFile, _ int) bool {
+        return !slices.Contains(selectedPaths, item.GetNormalizedPath())
+    })
+    lfs = append(lfs, selectedLfs...)
+
+    retLfs, err := db_bridge.SaveLocalFiles(h.App.Database, lfsId, lfs)
+    if err != nil {
+        return h.RespondWithError(c, err)
+    }
+
+    return h.RespondWithData(c, retLfs)
+}
 			_, localId := customsource.ExtractExtensionData(lf.MediaId)
 			extensionId, ok := customSourceMap[lf.MediaId]
 			if !ok {

@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"errors"
+	"os"
 	"seanime/internal/api/anilist"
 	"seanime/internal/api/metadata"
 	"seanime/internal/api/metadata_provider"
@@ -42,6 +43,17 @@ func (fh *FileHydrator) HydrateMetadata() {
 	rateLimiter := limiter.NewLimiter(5*time.Second, 20)
 
 	fh.Logger.Debug().Msg("hydrator: Starting metadata hydration")
+
+	// Drop NC/NCOP/NCED files immediately (delete from disk and skip)
+	cleaned := make([]*anime.LocalFile, 0, len(fh.LocalFiles))
+	for _, lf := range fh.LocalFiles {
+		if lf.IsProbablyNC() {
+			_ = os.Remove(lf.Path)
+			continue
+		}
+		cleaned = append(cleaned, lf)
+	}
+	fh.LocalFiles = cleaned
 
 	// Invoke ScanHydrationStarted hook
 	event := &ScanHydrationStartedEvent{

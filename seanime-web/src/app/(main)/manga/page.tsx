@@ -4,6 +4,7 @@ import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_comp
 import { MangaLibraryHeader } from "@/app/(main)/manga/_components/library-header"
 import { useHandleMangaCollection } from "@/app/(main)/manga/_lib/handle-manga-collection"
 import { MangaLibraryView } from "@/app/(main)/manga/_screens/manga-library-view"
+import { MangaHomeSettingsButton, MangaHomeSettingsModal } from "@/app/(main)/manga/_components/manga-home-settings"
 import { cn } from "@/components/ui/core/styling"
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { __isDesktop__ } from "@/types/constants"
@@ -32,6 +33,10 @@ export default function Page() {
             data-stored-filters={JSON.stringify(storedFilters)}
             data-stored-providers={JSON.stringify(storedProviders)}
         >
+            <div className="flex justify-end px-4 pt-4">
+                <MangaHomeSettingsButton />
+            </div>
+
             {(
                 (!!ts.libraryScreenCustomBannerImage && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom)
             ) && (
@@ -64,6 +69,8 @@ export default function Page() {
                 storedProviders={storedProviders}
                 hasManga={hasManga}
             />
+
+            <MangaHomeSettingsModal />
         </div>
     )
 }

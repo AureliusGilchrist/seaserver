@@ -22,6 +22,23 @@ export function useGetAnimeEntry(id: Nullish<string | number>) {
     })
 }
 
+export function useAnimeEntryRematch() {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<Array<Anime_LocalFile>, { paths: string[]; mediaId: number }>({
+        endpoint: "/api/v1/library/anime-entry/rematch",
+        method: "POST",
+        mutationKey: ["ANIME-ENTRIES-rematch"],
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.key] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.LIBRARY_EXPLORER.GetLibraryExplorerFileTree.key] }),
+            ])
+        },
+    })
+}
+
 export function useAnimeEntryBulkAction(id?: Nullish<number>, onSuccess?: () => void) {
     const queryClient = useQueryClient()
 

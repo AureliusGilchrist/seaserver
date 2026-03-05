@@ -418,6 +418,12 @@ export const HOME_ITEMS = {
             return n
         }),
     },
+    "manga-continue-reading": {
+        name: "Manga Continue Reading",
+        kind: ["row"],
+        schemaVersion: 1,
+        description: "Display a list of manga you are currently reading.",
+    },
     "manga-library": {
         name: "Manga Library",
         kind: ["row", "header"],
@@ -458,6 +464,11 @@ export const HOME_ITEMS = {
     },
 } as Record<string, HomeItemSchema>
 
-export const HOME_ITEM_IDS = Object.keys(HOME_ITEMS) as (keyof typeof HOME_ITEMS)[]
+export const HOME_ITEM_IDS = [
+    "anime-carousel",
+    "manga-carousel",
+    "manga-continue-reading",
+    "manga-library",
+] as const
 
 // export type HomeItemID = (keyof typeof HOME_ITEMS)

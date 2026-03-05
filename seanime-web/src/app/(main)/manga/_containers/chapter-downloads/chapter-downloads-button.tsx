@@ -2,7 +2,6 @@
 import { __manga_chapterDownloadsDrawerIsOpenAtom } from "@/app/(main)/manga/_containers/chapter-downloads/chapter-downloads-drawer"
 import { Button } from "@/components/ui/button"
 import { useSetAtom } from "jotai/react"
-import { usePathname } from "next/navigation"
 import React from "react"
 import { LuFolderDown } from "react-icons/lu"
 
@@ -17,11 +16,7 @@ export function ChapterDownloadsButton(props: ChapterDownloadsButtonProps) {
         ...rest
     } = props
 
-    const pathname = usePathname()
-
     const openDownloadQueue = useSetAtom(__manga_chapterDownloadsDrawerIsOpenAtom)
-
-    if (!pathname.startsWith("/manga")) return null
 
     return (
         <>
@@ -32,7 +27,7 @@ export function ChapterDownloadsButton(props: ChapterDownloadsButtonProps) {
                 size="sm"
                 leftIcon={<LuFolderDown />}
             >
-                Downloads
+                Manga Downloads
             </Button>
         </>
     )

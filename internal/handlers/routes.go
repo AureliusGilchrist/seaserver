@@ -250,6 +250,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Library.GET("/anime-entry/:id", h.HandleGetAnimeEntry)
 	v1Library.POST("/anime-entry/suggestions", h.HandleFetchAnimeEntrySuggestions)
 	v1Library.POST("/anime-entry/manual-match", h.HandleAnimeEntryManualMatch)
+	v1Library.POST("/anime-entry/rematch", h.HandleAnimeEntryRematch)
 	v1Library.PATCH("/anime-entry/bulk-action", h.HandleAnimeEntryBulkAction)
 	v1Library.POST("/anime-entry/open-in-explorer", h.HandleOpenAnimeEntryInExplorer)
 	v1Library.POST("/anime-entry/update-progress", h.HandleUpdateAnimeEntryProgress)

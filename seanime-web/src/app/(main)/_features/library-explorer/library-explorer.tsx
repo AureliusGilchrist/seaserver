@@ -242,6 +242,12 @@ export function LibraryExplorer() {
             setUnmatchedFileManagerOpen(true)
         })
     }
+    const handleRematchFiles = (nodes: LibraryExplorer_FileTreeNodeJSON[]) => {
+        setMatchLocalFiles(nodes?.filter(n => n.localFile)?.map(n => n.localFile!) ?? [])
+        React.startTransition(() => {
+            setUnmatchedFileManagerOpen(true)
+        })
+    }
     const handleResolveFileMedia = (lfs: Anime_LocalFile[]) => {
         setMatchLocalFiles(lfs ?? [])
         React.startTransition(() => {
@@ -484,6 +490,7 @@ export function LibraryExplorer() {
                                 handleUnmatchFiles={handleUnmatchFiles}
                                 handleIgnoreFiles={handleIgnoreFiles}
                                 handleUnignoreFiles={handleUnignoreFiles}
+                                handleRematchFiles={handleRematchFiles}
                             />
                             <LibraryExplorerSuperUpdate
                                 fileNodes={fileNodes}
@@ -641,6 +648,7 @@ type LibraryExplorerBulkActionsProps = {
     handleUnmatchFiles: (paths: string[]) => void
     handleIgnoreFiles: (paths: string[]) => void
     handleUnignoreFiles: (paths: string[]) => void
+    handleRematchFiles?: (nodes: LibraryExplorer_FileTreeNodeJSON[]) => void
 }
 
 export function LibraryExplorerBulkActions(props: LibraryExplorerBulkActionsProps) {
@@ -650,6 +658,7 @@ export function LibraryExplorerBulkActions(props: LibraryExplorerBulkActionsProp
         handleUnmatchFiles,
         handleIgnoreFiles,
         handleUnignoreFiles,
+        handleRematchFiles,
     } = props
 
     const [isSelectingPaths] = useAtom(libraryExplorer_isSelectingPathsAtom)
