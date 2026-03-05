@@ -100,42 +100,7 @@ function applyEnumerationPattern(text: string, index: number): string {
 }
 
 function validateFileName(fileName: string, originalName: string): string {
-    if (!fileName || fileName.trim() === "") {
-        return originalName // Don't allow empty names
-    }
-
-    // Separate the filename and extension
-    const lastDotIndex = fileName.lastIndexOf(".")
-    let nameWithoutExt = fileName
-    let extension = ""
-
-    if (lastDotIndex > 0 && lastDotIndex < fileName.length - 1) {
-        nameWithoutExt = fileName.substring(0, lastDotIndex)
-        extension = fileName.substring(lastDotIndex) // includes the dot
-    }
-
-    // Remove or replace invalid characters for most file systems
-    const sanitized = nameWithoutExt
-        .replace(/[<>:"/\\|?*]/g, "_") // Replace invalid characters with underscore
-        .replace(/\.\./g, "_") // Replace double dots
-        .trim()
-
-    // Ensure the name isn't just dots or spaces
-    if (sanitized === "" || /^[.\s]*$/.test(sanitized)) {
-        return originalName
-    }
-
-    // Prevent names that are too long
-    const maxNameLength = 250 - extension.length
-    if (sanitized.length > maxNameLength && maxNameLength > 0) {
-        const truncated = sanitized.substring(0, maxNameLength).trim()
-        if (truncated === "" || /^[.\s]*$/.test(truncated)) {
-            return originalName
-        }
-        return truncated + extension
-    }
-
-    return sanitized + extension
+    return fileName
 }
 
 function validateEpisodeNumber(episode: number | string): number {

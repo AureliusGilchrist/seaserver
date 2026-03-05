@@ -261,7 +261,7 @@ func (r *Repository) getDownloadedMangaPageContainer(
 	if mediaId < 0 && r.db != nil {
 		syntheticManga, dbFound := r.db.GetSyntheticManga(mediaId)
 		if dbFound && syntheticManga.Title != "" {
-			possibleMediaDirs = append([]string{chapter_downloader.SanitizeDirectoryName(syntheticManga.Title)}, possibleMediaDirs...)
+			possibleMediaDirs = append([]string{syntheticManga.Title}, possibleMediaDirs...)
 		}
 	}
 

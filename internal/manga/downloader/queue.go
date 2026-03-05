@@ -133,6 +133,9 @@ func (q *Queue) Run() {
 
 	// Tells queue to run next if possible (in a goroutine to avoid blocking)
 	go q.runNext()
+
+	// Safety net: if the queue stalls (e.g. current is nil and nothing running), nudge it periodically
+	go q.ensureProgress()
 }
 
 // Stop deactivates the queue
@@ -145,6 +148,28 @@ func (q *Queue) Stop() {
 	}
 
 	q.active = false
+}
+
+// ensureProgress nudges the queue in case it stalls (e.g. current cleared but runNext not triggered)
+func (q *Queue) ensureProgress() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		q.mu.Lock()
+		active := q.active
+		hasCurrent := q.current != nil
+		q.mu.Unlock()
+
+		if !active {
+			return
+		}
+
+		if !hasCurrent {
+			// Kick runNext in a goroutine to avoid blocking the ticker
+			go q.runNext()
+		}
+	}
 }
 
 // runNext runs the next item in the queue.

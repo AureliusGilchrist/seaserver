@@ -479,7 +479,7 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	}
 
 	// Clean the anime title for use as folder name
-	cleanTitle := sanitizeDirectoryName(req.AnimeTitleClean)
+	cleanTitle := sanitizeNamePreserveWhitespace(req.AnimeTitleClean)
 	destination := filepath.Join(r.getAnimeBasePath(), cleanTitle)
 
 	// Create destination directory
@@ -547,7 +547,9 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			if torrent.AnimeStartYear > 0 {
 				yearSuffix = fmt.Sprintf(" (%d)", torrent.AnimeStartYear)
 			}
-			newName := fmt.Sprintf("%s%s%s", cleanTitle, yearSuffix, ext)
+			movieBase := fmt.Sprintf("%s%s", cleanTitle, yearSuffix)
+			safeMovieBase := sanitizeNamePreserveWhitespace(movieBase)
+			newName := fmt.Sprintf("%s%s", safeMovieBase, ext)
 			destPath := filepath.Join(destination, newName)
 
 			if err := r.moveFile(fw.file.Path, destPath); err != nil {
@@ -571,12 +573,12 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		}
 
 		episodeTitle := r.getEpisodeTitle(torrent.AnimeID, episodeNum)
-		var newName string
-		if episodeTitle == "" {
-			newName = fmt.Sprintf("%s - Episode %03d%s", cleanTitle, episodeNum, ext)
-		} else {
-			newName = fmt.Sprintf("%s - Episode %03d - %s%s", cleanTitle, episodeNum, episodeTitle, ext)
+		baseName := fmt.Sprintf("%s - Episode %03d", cleanTitle, episodeNum)
+		if episodeTitle != "" {
+			baseName = fmt.Sprintf("%s - Episode %03d - %s", cleanTitle, episodeNum, episodeTitle)
 		}
+		safeBaseName := sanitizeNamePreserveWhitespace(baseName)
+		newName := fmt.Sprintf("%s%s", safeBaseName, ext)
 		destPath := filepath.Join(destination, newName)
 
 		// Move the file
@@ -882,21 +884,9 @@ func extractEpisodeNumber(name string) int {
 }
 
 func sanitizeDirectoryName(input string) string {
-	// Remove characters that are not allowed in directory names
-	disallowedChars := regexp.MustCompile(`[<>:"/\\|?*\x00-\x1F]`)
-	sanitized := disallowedChars.ReplaceAllString(input, " ")
+	return sanitizeNamePreserveWhitespace(input)
+}
 
-	// Remove leading/trailing spaces and dots
-	sanitized = strings.TrimSpace(sanitized)
-	sanitized = strings.Trim(sanitized, ".")
-
-	// Collapse multiple spaces
-	multiSpace := regexp.MustCompile(`\s+`)
-	sanitized = multiSpace.ReplaceAllString(sanitized, " ")
-
-	if sanitized == "" {
-		return "Untitled"
-	}
-
-	return sanitized
+func sanitizeNamePreserveWhitespace(input string) string {
+	return strings.ReplaceAll(input, "/", "-")
 }

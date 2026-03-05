@@ -260,6 +260,24 @@ func (d *Downloader) DownloadChapterDirect(opts DownloadChapterDirectOptions) er
 	})
 }
 
+// IsChapterAlreadyDownloaded checks if a chapter directory already exists (registry.json present)
+// for the given direct download options. This is used by the en masse downloader to avoid
+// re-queuing chapters that are already on disk.
+func (d *Downloader) IsChapterAlreadyDownloaded(opts DownloadChapterDirectOptions) bool {
+	chapterDir := chapter_downloader.FormatChapterDirName(opts.Provider, opts.MediaId, opts.ChapterId, opts.ChapterNumber)
+
+	// Use raw title directory (no sanitization). Caller is responsible for providing
+	// the exact folder name as it exists on disk.
+	if opts.MediaTitle != "" {
+		registryPath := filepath.Join(d.downloadDir, opts.MediaTitle, chapterDir, "registry.json")
+		if _, err := os.Stat(registryPath); err == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
 // DeleteChapter is called by the client to delete a downloaded chapter.
 func (d *Downloader) DeleteChapter(provider string, mediaId int, chapterId string, chapterNumber string) (err error) {
 	err = d.chapterDownloader.DeleteChapter(chapter_downloader.DownloadID{

@@ -381,12 +381,9 @@ func (r *Registry) save(queueInfo *QueueInfo, destination string, logger *zerolo
 }
 
 func (cd *Downloader) getChapterDownloadDir(downloadId DownloadID) string {
-	// Organize chapters into per-manga subfolders using Romaji title (or mediaId as fallback)
-	var mediaDir string
-	if downloadId.MediaTitle != "" {
-		// Sanitize the title for use as a directory name
-		mediaDir = SanitizeDirectoryName(downloadId.MediaTitle)
-	} else {
+	// Organize chapters into per-manga subfolders using raw Romaji title (or mediaId as fallback)
+	mediaDir := downloadId.MediaTitle
+	if mediaDir == "" {
 		mediaDir = fmt.Sprintf("%d", downloadId.MediaId)
 	}
 	return filepath.Join(cd.downloadDir, mediaDir, FormatChapterDirName(downloadId.Provider, downloadId.MediaId, downloadId.ChapterId, downloadId.ChapterNumber))
@@ -449,26 +446,7 @@ func UnescapeChapterID(id string) string {
 	return id
 }
 
-// SanitizeDirectoryName removes or replaces characters that are invalid in directory names
-func SanitizeDirectoryName(name string) string {
-	// Replace invalid characters with safe alternatives
-	name = strings.ReplaceAll(name, "/", "-")
-	name = strings.ReplaceAll(name, "\\", "-")
-	name = strings.ReplaceAll(name, ":", "-")
-	name = strings.ReplaceAll(name, "*", "")
-	name = strings.ReplaceAll(name, "?", "")
-	name = strings.ReplaceAll(name, "\"", "")
-	name = strings.ReplaceAll(name, "<", "")
-	name = strings.ReplaceAll(name, ">", "")
-	name = strings.ReplaceAll(name, "|", "-")
-	// Trim leading/trailing spaces and dots
-	name = strings.Trim(name, " .")
-	// Limit length to avoid filesystem issues
-	if len(name) > 200 {
-		name = name[:200]
-	}
-	return name
-}
+// NOTE: Directory names are now taken raw from MediaTitle (no sanitization) per user request.
 
 func (cd *Downloader) getChapterRegistryPath(downloadId DownloadID) string {
 	return filepath.Join(cd.getChapterDownloadDir(downloadId), "registry.json")

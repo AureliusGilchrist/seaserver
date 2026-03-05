@@ -452,7 +452,51 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 	}
 
 	if len(chapters) == 0 {
-		return fmt.Errorf("no chapters found on WeebCentral")
+		// Fallback: search by title to resolve alternate IDs and retry
+		d.logger.Warn().
+			Str("title", mangaItem.Title).
+			Str("mangaId", mangaId).
+			Msg("enmasse-manga: No chapters found on primary ID, searching for alternate IDs")
+
+		time.Sleep(DelayBetweenAPIRequests)
+		searchResults, searchErr := mangaProvider.GetProvider().Search(hibikemanga.SearchOptions{Query: mangaItem.Title})
+		if searchErr != nil {
+			d.logger.Warn().Err(searchErr).
+				Str("title", mangaItem.Title).
+				Msg("enmasse-manga: Search fallback failed")
+		} else {
+			// Pick the first result (already ordered by provider) and retry FindChapters
+			for _, res := range searchResults {
+				if res == nil || res.ID == "" {
+					continue
+				}
+				altID := res.ID
+				d.logger.Info().
+					Str("title", mangaItem.Title).
+					Str("mangaId", mangaId).
+					Str("altId", altID).
+					Msg("enmasse-manga: Retrying chapter fetch with alternate ID")
+
+				time.Sleep(DelayBetweenAPIRequests)
+				altChapters, altErr := mangaProvider.GetProvider().FindChapters(altID)
+				if altErr != nil {
+					d.logger.Warn().Err(altErr).
+						Str("title", mangaItem.Title).
+						Str("altId", altID).
+						Msg("enmasse-manga: Alternate ID fetch failed, trying next")
+					continue
+				}
+				if len(altChapters) > 0 {
+					chapters = altChapters
+					mangaId = altID
+					break
+				}
+			}
+		}
+
+		if len(chapters) == 0 {
+			return fmt.Errorf("no chapters found on WeebCentral (primary and fallback search)")
+		}
 	}
 
 	d.logger.Info().
@@ -555,6 +599,22 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 		}
 
 		// Add to download queue with retry for queue full
+		// But first, skip if already downloaded on disk (registry.json present)
+		if d.mangaDownloader.IsChapterAlreadyDownloaded(manga.DownloadChapterDirectOptions{
+			Provider:      provider,
+			MediaId:       mediaId,
+			ChapterId:     chapter.ID,
+			ChapterNumber: manga_providers.GetNormalizedChapter(chapter.Chapter),
+			MediaTitle:    mediaTitle,
+		}) {
+			d.logger.Info().
+				Str("title", mangaItem.Title).
+				Str("chapterId", chapter.ID).
+				Msg("enmasse-manga: Chapter already exists on disk, skipping queue")
+			<-d.chapterSemaphore
+			continue
+		}
+
 		for {
 			select {
 			case <-ctx.Done():

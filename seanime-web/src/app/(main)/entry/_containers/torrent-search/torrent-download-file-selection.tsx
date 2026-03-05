@@ -36,13 +36,7 @@ export function getDefaultDestination(entry: Anime_Entry, libraryPath?: string):
 }
 
 export function sanitizeDirectoryName(input: string): string {
-    const disallowedChars = /[<>:"/\\|?*\x00-\x1F]/g // Pattern for disallowed characters
-    // Replace disallowed characters with an underscore
-    const sanitized = input.replace(disallowedChars, " ")
-    // Remove leading/trailing spaces and dots (periods) which are not allowed
-    const trimmed = sanitized.trim().replace(/^\.+|\.+$/g, "").replace(/\s+/g, " ")
-    // Ensure the directory name is not empty after sanitization
-    return trimmed || "Untitled"
+    return input.replaceAll("/", "-")
 }
 
 export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) {

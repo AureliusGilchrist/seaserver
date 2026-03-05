@@ -39,8 +39,7 @@ export const DirectorySelector = React.memo(React.forwardRef<HTMLInputElement, D
     const firstRender = React.useRef(true)
 
     const sanitizePath = React.useCallback((path: string) => {
-        if (!path) return ""
-        return upath.normalizeSafe(path.replace(/[<>"]/g, ""))
+        return path ?? ""
     }, [])
 
     const [input, setInputRaw] = React.useState(defaultValue ? sanitizePath(defaultValue) : "")
