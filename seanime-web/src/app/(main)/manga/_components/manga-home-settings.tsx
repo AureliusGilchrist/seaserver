@@ -28,6 +28,7 @@ const MANGA_HOME_ITEMS = [
     "manga-carousel",
     "manga-continue-reading",
     "manga-library",
+    "my-lists",
     "centered-title",
 ] as const
 

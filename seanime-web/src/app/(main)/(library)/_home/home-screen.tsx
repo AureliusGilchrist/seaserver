@@ -590,6 +590,38 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
         )
     }
 
+    if (item.type === "manga-continue-reading-header") {
+        return <ComingSoonPlaceholder title="Manga Continue Reading Header" />
+    }
+
+    if (item.type === "local-manga-library") {
+        return <ComingSoonPlaceholder title="Local Manga Library" />
+    }
+
+    if (item.type === "local-manga-library-stats") {
+        return <ComingSoonPlaceholder title="Local Manga Library Stats" />
+    }
+
+    if (item.type === "manga-upcoming-chapters") {
+        return <ComingSoonPlaceholder title="Upcoming Manga Chapters" />
+    }
+
+    if (item.type === "manga-aired-recently") {
+        return <ComingSoonPlaceholder title="Recently Released (Manga)" />
+    }
+
+    if (item.type === "manga-missed-sequels") {
+        return <ComingSoonPlaceholder title="Missed Manga Sequels" />
+    }
+
+    if (item.type === "manga-schedule-calendar") {
+        return <ComingSoonPlaceholder title="Manga Release Calendar" />
+    }
+
+    if (item.type === "manga-discover-header") {
+        return <ComingSoonPlaceholder title="Manga Discover Header" />
+    }
+
     if (item.type === "manga-library") {
         return (
             <>
@@ -648,6 +680,17 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
     return <div>
         Item not found ({item.type})
     </div>
+}
+
+function ComingSoonPlaceholder({ title }: { title: string }) {
+    return (
+        <PageWrapper className="px-4 py-10 text-center text-[--muted]">
+            <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-white">{title}</h3>
+                <p>Coming soon.</p>
+            </div>
+        </PageWrapper>
+    )
 }
 
 function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollectionProps, item: Models_HomeItem, index: number }) {

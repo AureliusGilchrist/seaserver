@@ -424,6 +424,12 @@ export const HOME_ITEMS = {
         schemaVersion: 1,
         description: "Display a list of manga you are currently reading.",
     },
+    "manga-continue-reading-header": {
+        name: "Manga Continue Reading Header",
+        kind: ["header"],
+        schemaVersion: 1,
+        description: "Coming soon: header for manga continue reading.",
+    },
     "manga-library": {
         name: "Manga Library",
         kind: ["row", "header"],
@@ -462,13 +468,74 @@ export const HOME_ITEMS = {
             },
         ],
     },
+    "local-manga-library": {
+        name: "Local Manga Library",
+        kind: ["row"],
+        schemaVersion: 1,
+        description: "Coming soon: complete grid of manga in your local library.",
+        options: [
+            {
+                label: "Layout",
+                name: "layout",
+                type: "select",
+                options: [
+                    { label: "Grid", value: "grid" },
+                    { label: "Carousel", value: "carousel" },
+                ],
+            },
+        ],
+    },
+    "local-manga-library-stats": {
+        name: "Local Manga Library Stats",
+        kind: ["row"],
+        schemaVersion: 1,
+        description: "Coming soon: stats for your local manga library.",
+    },
+    "manga-upcoming-chapters": {
+        name: "Upcoming Manga Chapters",
+        kind: ["row"],
+        schemaVersion: 1,
+        description: "Coming soon: carousel of upcoming chapters from your library.",
+    },
+    "manga-aired-recently": {
+        name: "Recently Released (Manga)",
+        kind: ["row"],
+        schemaVersion: 1,
+        description: "Coming soon: recently released manga chapters.",
+    },
+    "manga-missed-sequels": {
+        name: "Missed Manga Sequels",
+        kind: ["row"],
+        schemaVersion: 1,
+        description: "Coming soon: sequels not in your manga collection.",
+    },
+    "manga-schedule-calendar": {
+        name: "Manga Release Calendar",
+        kind: ["row"],
+        schemaVersion: 1,
+        description: "Coming soon: calendar of manga releases.",
+    },
+    "manga-discover-header": {
+        name: "Manga Discover Header",
+        kind: ["header"],
+        schemaVersion: 1,
+        description: "Coming soon: trending manga header.",
+    },
 } as Record<string, HomeItemSchema>
 
 export const HOME_ITEM_IDS = [
     "anime-carousel",
     "manga-carousel",
     "manga-continue-reading",
+    "manga-continue-reading-header",
     "manga-library",
+    "local-manga-library",
+    "local-manga-library-stats",
+    "manga-upcoming-chapters",
+    "manga-aired-recently",
+    "manga-missed-sequels",
+    "manga-schedule-calendar",
+    "manga-discover-header",
     "centered-title",
     "my-lists",
 ] as const
