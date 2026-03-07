@@ -59,8 +59,8 @@ export function SeaCommandSearch() {
     const { data: animeData, isLoading: animeIsLoading, isFetching: animeIsFetching } = useAnilistListAnime({
         search: debouncedQuery,
         page: 1,
-        perPage: 10,
-        status: ["FINISHED", "CANCELLED", "NOT_YET_RELEASED", "RELEASING"],
+        perPage: 25, // expand results for rematching
+        // include all statuses to avoid hiding potential matches
         sort: ["SEARCH_MATCH"],
     }, debouncedQuery.length > 0 && type === "anime")
 

@@ -436,9 +436,9 @@ func (h *Handler) HandleFetchAnimeEntrySuggestions(c echo.Context) error {
 		shared_platform.NewCacheLayer(h.App.AnilistClientRef),
 		lo.ToPtr(1),
 		&title,
-		lo.ToPtr(8),
+		lo.ToPtr(25), // expand result set for better matching suggestions
 		nil,
-		[]*anilist.MediaStatus{lo.ToPtr(anilist.MediaStatusFinished), lo.ToPtr(anilist.MediaStatusReleasing), lo.ToPtr(anilist.MediaStatusCancelled), lo.ToPtr(anilist.MediaStatusHiatus)},
+		nil,
 		nil,
 		nil,
 		nil,

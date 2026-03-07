@@ -393,7 +393,9 @@ export function MangaHomeSettingsModal() {
 
     const checkTimeRef = React.useRef<NodeJS.Timeout | null>(null)
     React.useEffect(() => {
-        const homeItems = _homeItems || DEFAULT_MANGA_HOME_ITEMS
+        if (!_homeItems) return
+
+        const homeItems = normalizeHomeItems(_homeItems)
         setCurrentItems(homeItems)
 
         if (checkTimeRef.current) {
@@ -403,7 +405,7 @@ export function MangaHomeSettingsModal() {
 
         // Check if an item doesn't exist anymore and remove it
         checkTimeRef.current = setTimeout(() => {
-            const newItems = normalizeHomeItems(currentItems)
+            const newItems = normalizeHomeItems(homeItems)
 
             if (newItems.length !== homeItems.length) {
                 setCurrentItems(newItems)

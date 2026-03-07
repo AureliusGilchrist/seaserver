@@ -35,10 +35,10 @@ export const ANIME_HOME_ITEM_IDS = [
 ] as const
 
 export const MANGA_HOME_ITEM_IDS = [
-    "centered-title",
     "manga-continue-reading",
     "manga-continue-reading-header",
     "manga-library",
+    "manga-favorites",
     "my-lists",
     "local-manga-library",
     "local-manga-library-stats",
@@ -471,10 +471,10 @@ export const HOME_ITEMS = {
         description: "Coming soon: header for manga continue reading.",
     },
     "manga-library": {
-        name: "Manga Library",
-        kind: ["row", "header"],
-        schemaVersion: 2,
-        description: "Display a list of manga you have in your library by status.",
+        name: "Library",
+        kind: ["row"],
+        schemaVersion: 1,
+        description: "Browse your manga library",
         options: [
             {
                 label: "Statuses",

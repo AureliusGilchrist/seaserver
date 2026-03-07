@@ -4,6 +4,7 @@ import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-e
 import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_components/media-entry-page-loading-display"
 import { MangaLibraryHeader } from "@/app/(main)/manga/_components/library-header"
 import { useHandleMangaCollection } from "@/app/(main)/manga/_lib/handle-manga-collection"
+import { useMangaFavorites } from "@/app/(main)/manga/_lib/use-manga-favorites"
 import { useGetMangaDownloadsList } from "@/api/hooks/manga_download.hooks"
 import { MangaLibraryView } from "@/app/(main)/manga/_screens/manga-library-view"
 import { MangaCarousel } from "@/app/(main)/(library)/_home/home-screen"
@@ -27,6 +28,15 @@ export default function Page() {
         mangaCollectionGenres,
         hasManga,
     } = useHandleMangaCollection()
+    const { favorites } = useMangaFavorites()
+
+    const favoritesMedia = React.useMemo(() => {
+        if (!favorites?.length) return [] as any[]
+        const entries = mangaCollection?.lists?.flatMap(l => l.entries).filter(Boolean) || []
+        return favorites
+            .map(id => entries.find(e => Number((e as any)?.media?.id) === Number(id))?.media)
+            .filter(Boolean)
+    }, [favorites, mangaCollection])
 
     const ts = useThemeSettings()
 
@@ -35,6 +45,11 @@ export default function Page() {
     const activeHero = React.useMemo(() => hoverImage, [hoverImage])
     const [scrolled, setScrolled] = React.useState(false)
 
+    const handleHoverImage = React.useCallback((img: string | null) => {
+        if (scrolled) return
+        setHoverImage(img)
+    }, [scrolled])
+
     React.useEffect(() => {
         const handler = () => setScrolled(window.scrollY > 60)
         handler()
@@ -42,9 +57,34 @@ export default function Page() {
         return () => window.removeEventListener("scroll", handler)
     }, [])
 
+    React.useEffect(() => {
+        if (scrolled) {
+            setHoverImage(null)
+        }
+    }, [scrolled])
+
     const { data: downloadedList, isLoading: downloadsLoading, isError: downloadsError } = useGetMangaDownloadsList()
-    const downloadedWithMedia = downloadedList?.filter(d => !!d.media) || []
-    const downloadedChaptersTotal = downloadedList?.reduce((acc, d) => acc + Object.values(d.downloadData).flatMap(n => n).length, 0) || 0
+    const [downloadSearch, setDownloadSearch] = React.useState("")
+    const pageSize = 30
+    const [downloadPage, setDownloadPage] = React.useState(1)
+
+    const downloadedWithMedia = React.useMemo(() => (downloadedList || []).filter(d => !!d.media), [downloadedList])
+    const filteredDownloads = React.useMemo(() => {
+        const list = downloadedList || []
+        const q = downloadSearch.trim().toLowerCase()
+        const filtered = !q ? list : list.filter(item => item.media?.title?.userPreferred?.toLowerCase().includes(q))
+        return filtered
+    }, [downloadSearch, downloadedList])
+    const pagedDownloads = React.useMemo(() => {
+        const start = (downloadPage - 1) * pageSize
+        return filteredDownloads.slice(start, start + pageSize)
+    }, [filteredDownloads, downloadPage])
+    const downloadedChaptersTotal = React.useMemo(() => downloadedList?.reduce((acc, d) => acc + Object.values(d.downloadData).flatMap(n => n).length, 0) || 0, [downloadedList])
+
+    // Reset to first page on new search or data
+    React.useEffect(() => {
+        setDownloadPage(1)
+    }, [downloadSearch, downloadedList?.length])
 
     if (!mangaCollection || mangaCollectionLoading) return <MediaEntryPageLoadingDisplay />
 
@@ -57,7 +97,7 @@ export default function Page() {
             data-stored-providers={JSON.stringify(storedProviders)}
         >
             {/* Dynamic blurred background hero */}
-            <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+            <div className="pointer-events-none fixed inset-0 -z-30 overflow-hidden">
                 <div
                     className={cn(
                         "absolute inset-0 transition-opacity duration-500",
@@ -74,12 +114,12 @@ export default function Page() {
                 <div
                     className={cn(
                         "absolute inset-0 bg-gradient-to-b from-black/85 via-black/90 to-black/95 transition-opacity duration-400",
-                        scrolled ? "opacity-90" : "opacity-70",
+                        scrolled ? "opacity-0" : "opacity-70",
                     )}
                 />
             </div>
 
-            <div className="relative z-[10] pt-16 md:pt-20 lg:pt-24">
+            <div className="relative z-[10] isolate pt-16 md:pt-20 lg:pt-24">
                 <div className="flex justify-end px-4 pt-4 sticky top-0 z-50 bg-transparent">
                     <MangaHomeSettingsButton />
                 </div>
@@ -116,6 +156,32 @@ export default function Page() {
                         return (
                             <div key={item.id} className="px-4 py-8 text-center">
                                 <h2 className="text-2xl font-bold text-white">{item.options?.text || "Title"}</h2>
+                            </div>
+                        )
+                    }
+
+                    // Favorite Manga
+                    if (item.type === "manga-favorites") {
+                        return (
+                            <div key={item.id} className="px-4 py-8 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-xl font-semibold text-white">Favorite Manga</h2>
+                                    {!favoritesMedia.length && <span className="text-sm text-[--muted]">No favorites yet</span>}
+                                </div>
+
+                                {!!favoritesMedia.length && (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                        {favoritesMedia.map(media => (
+                                            <MediaEntryCard
+                                                key={media.id}
+                                                media={media}
+                                                type="manga"
+                                                hideUnseenCountBadge
+                                                onHoverImage={handleHoverImage}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )
                     }
@@ -198,21 +264,94 @@ export default function Page() {
                                 </div>
 
                                 {!downloadsLoading && !downloadsError && (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                                        {downloadedWithMedia.map(item => {
-                                            const chapters = Object.values(item.downloadData).flatMap(n => n).length
-                                            return (
-                                                <MediaEntryCard
-                                                    key={item.media?.id}
-                                                    media={item.media!}
-                                                    type="manga"
-                                                    hideUnseenCountBadge
-                                                    hideAnilistEntryEditButton
-                                                    overlay={<p className="font-semibold text-white bg-gray-950 bg-opacity-90 absolute right-0 px-3 py-1 text-xs rounded-bl-lg">{chapters} chapter{chapters === 1 ? "" : "s"}</p>}
-                                                    onHoverImage={setHoverImage}
-                                                />
-                                            )
-                                        })}
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                value={downloadSearch}
+                                                onChange={(e) => {
+                                                    setDownloadSearch(e.target.value)
+                                                    setDownloadPage(1)
+                                                }}
+                                                placeholder="Search downloaded manga"
+                                                className="w-full rounded-lg bg-gray-900/70 border border-gray-800 px-3 py-2 text-sm text-white focus:border-brand-400 focus:outline-none"
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-4">
+                                            {pagedDownloads.map(item => {
+                                                const chapters = Object.values(item.downloadData).flatMap(n => n).length
+                                                const isSynthetic = (item.media?.id ?? 0) < 0 || Object.keys(item.downloadData || {}).includes("weebcentral")
+                                                if (item.media) {
+                                                    const hoverImage = item.media?.coverImage?.extraLarge || item.media?.coverImage?.large || item.media?.coverImage?.medium || null
+                                                    return (
+                                                        <div
+                                                            key={item.media?.id}
+                                                            onMouseEnter={() => hoverImage && handleHoverImage(hoverImage)}
+                                                            onMouseLeave={() => handleHoverImage(null)}
+                                                        >
+                                                            <MediaEntryCard
+                                                                media={item.media}
+                                                                type="manga"
+                                                                hideUnseenCountBadge
+                                                                hideAnilistEntryEditButton
+                                                                containerClassName="h-full"
+                                                                overlay={
+                                                                    <div className="absolute inset-x-0 top-0 flex justify-between pointer-events-none">
+                                                                        {isSynthetic && (
+                                                                            <span className="ml-0.5 mt-0.5 px-2 py-1 text-[10px] font-semibold rounded-br bg-amber-600/90 text-white">Synthetic</span>
+                                                                        )}
+                                                                        <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">{chapters} chapter{chapters === 1 ? "" : "s"}</p>
+                                                                    </div>
+                                                                }
+                                                                onHoverImage={handleHoverImage}
+                                                            />
+                                                        </div>
+                                                    )
+                                                }
+                                                const provider = Object.keys(item.downloadData || {})[0]
+                                                return (
+                                                    <div
+                                                        key={`download-${item.mediaId}-${provider}`}
+                                                        className="relative h-full rounded-xl border border-gray-800 bg-gray-900/70 p-3 flex flex-col gap-2"
+                                                        onMouseEnter={() => handleHoverImage(null)}
+                                                        onMouseLeave={() => handleHoverImage(null)}
+                                                    >
+                                                        <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-[--muted]">
+                                                            <span>Local download</span>
+                                                            {isSynthetic && <span className="px-2 py-0.5 rounded bg-amber-600/80 text-white text-[10px]">Synthetic</span>}
+                                                        </div>
+                                                        <div className="text-sm font-semibold text-white line-clamp-2">Unknown title</div>
+                                                        {provider && <div className="text-xs text-[--muted]">Provider: {provider}</div>}
+                                                        <div className="mt-auto text-xs text-[--muted]">{chapters} chapter{chapters === 1 ? "" : "s"}</div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-2 text-xs text-[--muted]">
+                                            <div>
+                                                Page {downloadPage} / {Math.max(1, Math.ceil(filteredDownloads.length / pageSize))}
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    className="px-3 py-1 rounded border border-gray-800 bg-gray-900/80 disabled:opacity-40"
+                                                    onClick={() => setDownloadPage(p => Math.max(1, p - 1))}
+                                                    disabled={downloadPage === 1}
+                                                >
+                                                    Prev
+                                                </button>
+                                                <button
+                                                    className="px-3 py-1 rounded border border-gray-800 bg-gray-900/80 disabled:opacity-40"
+                                                    onClick={() => setDownloadPage(p => {
+                                                        const maxPage = Math.max(1, Math.ceil(filteredDownloads.length / pageSize))
+                                                        return Math.min(maxPage, p + 1)
+                                                    })}
+                                                    disabled={downloadPage >= Math.max(1, Math.ceil(filteredDownloads.length / pageSize))}
+                                                >
+                                                    Next
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 

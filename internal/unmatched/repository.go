@@ -530,10 +530,18 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	seasonOffsets := r.calculateSeasonOffsets(videoFiles)
 
 	// Enforce expected episode count for TV/OVA using video files only (ignore folders)
-
+	// If we have fewer files than the expected count, log a warning but continue. Some torrents
+	// legitimately have fewer episodes than AniList metadata, and users may intentionally match a subset.
 	if torrent.AnimeExpectedEpisodes > 0 && torrent.AnimeFormat != "MOVIE" {
+		if len(videoFiles) == 0 {
+			return nil, fmt.Errorf("no video files selected to match")
+		}
 		if len(videoFiles) < torrent.AnimeExpectedEpisodes {
-			return nil, fmt.Errorf("not enough video files: expected at least %d, found %d", torrent.AnimeExpectedEpisodes, len(videoFiles))
+			r.logger.Warn().
+				Str("torrent", torrent.Name).
+				Int("expectedEpisodes", torrent.AnimeExpectedEpisodes).
+				Int("selectedVideos", len(videoFiles)).
+				Msg("unmatched: fewer video files than expected; proceeding with selected files")
 		}
 	}
 

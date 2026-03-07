@@ -26,6 +26,29 @@ type Scanner struct {
 	verifyDelay     time.Duration
 }
 
+// addRecursiveWatch registers the base directory and all existing subdirectories with the watcher.
+// It is best-effort: if any directory cannot be watched, it logs and continues.
+func (s *Scanner) addRecursiveWatch(w *fsnotify.Watcher, root string) error {
+	if err := w.Add(root); err != nil {
+		return err
+	}
+	return filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !d.IsDir() {
+			return nil
+		}
+		if path == root {
+			return nil
+		}
+		if err := w.Add(path); err != nil {
+			s.logger.Debug().Err(err).Str("dir", path).Msg("unmatched scanner: failed to watch subdirectory")
+		}
+		return nil
+	})
+}
+
 type ScannerStatus struct {
 	IsRunning         bool     `json:"isRunning"`
 	CompletedTorrents []string `json:"completedTorrents"`
@@ -36,7 +59,7 @@ func NewScanner(logger *zerolog.Logger, repository *Repository) *Scanner {
 		logger:            logger,
 		repository:        repository,
 		completedTorrents: make([]string, 0),
-		scanInterval:      10 * time.Minute, // fallback polling every 10 minutes
+		scanInterval:      30 * time.Minute, // fallback polling every 30 minutes
 		verifyDelay:       5 * time.Second,
 	}
 }
@@ -95,8 +118,8 @@ func (s *Scanner) run(ctx context.Context) {
 		watcher = nil
 	}
 	if watcher != nil {
-		// Watch base path; if missing, skip
-		if err := watcher.Add(UnmatchedBasePath); err != nil {
+		// Watch base path and subdirectories; if missing, skip
+		if err := s.addRecursiveWatch(watcher, UnmatchedBasePath); err != nil {
 			s.logger.Warn().Err(err).Msg("unmatched scanner: could not watch base path; falling back to polling only")
 			watcher.Close()
 			watcher = nil
@@ -122,6 +145,14 @@ func (s *Scanner) run(ctx context.Context) {
 			return watcher.Events
 		}():
 			// On any file change under base path, trigger a scan
+			// If a new directory is created, start watching it too.
+			if event.Op&fsnotify.Create == fsnotify.Create {
+				if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
+					if err := watcher.Add(event.Name); err == nil {
+						s.logger.Debug().Str("dir", event.Name).Msg("unmatched scanner: added watcher for new directory")
+					}
+				}
+			}
 			s.logger.Debug().Str("event", event.Name).Msg("unmatched scanner: file event detected, triggering scan")
 			s.scanForCompletedDownloads()
 		case err := <-func() <-chan error {
