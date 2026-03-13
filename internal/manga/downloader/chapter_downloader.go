@@ -97,9 +97,10 @@ func NewDownloader(opts *NewDownloaderOptions) *Downloader {
 		logger:              opts.Logger,
 		wsEventManager:      opts.WSEventManager,
 		downloadDir:         opts.DownloadDir,
+		database:            opts.Database,
 		cancelChannels:      make(map[DownloadID]chan struct{}),
 		runCh:               runCh,
-		queue:               NewQueue(opts.Database, opts.Logger, opts.WSEventManager, runCh),
+		queue:               NewQueue(opts.Database, opts.Logger, opts.WSEventManager, runCh, opts.DownloadDir),
 		chapterDownloadedCh: make(chan DownloadID, 100),
 	}
 
@@ -391,6 +392,10 @@ func (cd *Downloader) getChapterDownloadDir(downloadId DownloadID) string {
 
 func FormatChapterDirName(provider string, mediaId int, chapterId string, chapterNumber string) string {
 	return fmt.Sprintf("%s_%d_%s_%s", provider, mediaId, EscapeChapterID(chapterId), chapterNumber)
+}
+
+func FormatChapterDirPrefix(provider string, mediaId int) string {
+	return fmt.Sprintf("%s_%d_", provider, mediaId)
 }
 
 // ParseChapterDirName parses a chapter directory name and returns the DownloadID.

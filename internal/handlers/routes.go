@@ -406,9 +406,12 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Manga.POST("/get-mapping", h.HandleGetMangaMapping)
 	v1Manga.POST("/remove-mapping", h.HandleRemoveMangaMapping)
 	v1Manga.POST("/synthetic/search", h.HandleSearchSyntheticManga)
-	v1Manga.GET("/synthetic/recently-read", h.HandleGetRecentlyReadSyntheticManga)
 	v1Manga.GET("/reading-history", h.HandleGetMangaReadingHistory)
-
+	v1Manga.GET("/synthetic/recently-read", h.HandleGetRecentlyReadSyntheticManga)
+	v1Manga.GET("/trending", h.HandleGetTrendingManga)
+	v1Manga.GET("/recently-released", h.HandleGetRecentlyReleasedManga)
+	v1Manga.GET("/upcoming-chapters", h.HandleGetUpcomingMangaChapters)
+	v1Manga.GET("/missed-sequels", h.HandleGetMangaMissedSequels)
 	v1Manga.GET("/local-page/:path", h.HandleGetLocalMangaPage)
 
 	//

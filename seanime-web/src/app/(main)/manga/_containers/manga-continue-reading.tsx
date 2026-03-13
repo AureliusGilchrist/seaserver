@@ -78,13 +78,11 @@ export function MangaContinueReading({ onHoverImage }: MangaContinueReadingProps
                                     <MediaEntryCard
                                         media={item.media}
                                         type="manga"
-                                        showLibraryBadge
-                                        showTrailer={false}
                                         overlay={
-                                            item.chapterNumber ? (
+                                            item.lastChapterNumber ? (
                                                 <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/90 to-transparent">
                                                     <p className="text-xs text-white font-semibold">
-                                                        Chapter {item.chapterNumber}
+                                                        Chapter {item.lastChapterNumber}
                                                     </p>
                                                     {item.lastReadAt && (
                                                         <p className="text-[10px] text-gray-300">

@@ -1,6 +1,12 @@
 package chapter_downloader
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+
 	"github.com/goccy/go-json"
 	"github.com/rs/zerolog"
 	"seanime/internal/database/db"
@@ -8,8 +14,6 @@ import (
 	"seanime/internal/events"
 	hibikemanga "seanime/internal/extension/hibike/manga"
 	"seanime/internal/util"
-	"sync"
-	"time"
 )
 
 const (
@@ -29,6 +33,7 @@ type (
 		runCh          chan *QueueInfo // Channel to tell downloader to run the next item
 		active         bool
 		wsEventManager events.WSEventManagerInterface
+		downloadDir    string // Path to the download directory
 	}
 
 	QueueStatus string
@@ -42,12 +47,13 @@ type (
 	}
 )
 
-func NewQueue(db *db.Database, logger *zerolog.Logger, wsEventManager events.WSEventManagerInterface, runCh chan *QueueInfo) *Queue {
+func NewQueue(db *db.Database, logger *zerolog.Logger, wsEventManager events.WSEventManagerInterface, runCh chan *QueueInfo, downloadDir string) *Queue {
 	return &Queue{
 		logger:         logger,
 		db:             db,
 		runCh:          runCh,
 		wsEventManager: wsEventManager,
+		downloadDir:    downloadDir,
 	}
 }
 
@@ -207,6 +213,22 @@ func (q *Queue) runNext() {
 		return
 	}
 
+	// Check if this series should be auto-skipped (already mostly downloaded)
+	if q.shouldSkipSeries(next.Provider, next.MediaID) {
+		q.logger.Info().
+			Int("mediaId", next.MediaID).
+			Str("provider", next.Provider).
+			Msg("chapter downloader: Series already mostly downloaded, skipping all queued chapters")
+		
+		// Dequeue all chapters for this series
+		q.dequeueAllChaptersForSeries(next.Provider, next.MediaID)
+		q.mu.Unlock()
+		
+		// Try next item
+		go q.runNext()
+		return
+	}
+
 	id := DownloadID{
 		Provider:      next.Provider,
 		MediaId:       next.MediaID,
@@ -259,6 +281,87 @@ func (q *Queue) runNext() {
 
 	// Tell Downloader to run
 	q.runCh <- currentItem
+}
+
+// shouldSkipSeries checks if a series is already mostly downloaded (within 10% threshold)
+// by comparing the number of downloaded chapters on disk vs queued chapters
+func (q *Queue) shouldSkipSeries(provider string, mediaID int) bool {
+	// Get count of queued chapters for this series
+	queuedCount, err := q.db.GetChapterDownloadQueueCountForSeries(provider, mediaID)
+	if err != nil || queuedCount == 0 {
+		return false
+	}
+
+	// Get count of downloaded chapters on disk for this series
+	downloadedCount := q.getDownloadedChapterCount(provider, mediaID)
+	if downloadedCount == 0 {
+		return false
+	}
+
+	// Calculate the threshold (10% tolerance)
+	// If downloaded chapters are within 10% of queued chapters, skip the series
+	threshold := float64(queuedCount) * 0.9
+	
+	q.logger.Debug().
+		Int("mediaId", mediaID).
+		Str("provider", provider).
+		Int("downloaded", downloadedCount).
+		Int("queued", queuedCount).
+		Float64("threshold", threshold).
+		Msgf("chapter downloader: Checking if series should be skipped")
+
+	// Skip if downloaded count is >= 90% of queued count
+	return float64(downloadedCount) >= threshold
+}
+
+// getDownloadedChapterCount counts the number of downloaded chapters on disk for a series
+func (q *Queue) getDownloadedChapterCount(provider string, mediaID int) int {
+	if q.downloadDir == "" {
+		return 0
+	}
+
+	// Read the download directory
+	// The structure is: downloadDir/{mediaId}/{provider}_{mediaId}_{chapterId}_{chapterNumber}/
+	mediaDir := filepath.Join(q.downloadDir, fmt.Sprintf("%d", mediaID))
+	
+	entries, err := os.ReadDir(mediaDir)
+	if err != nil {
+		// Directory doesn't exist or can't be read - no chapters downloaded
+		return 0
+	}
+
+	count := 0
+	prefix := FormatChapterDirPrefix(provider, mediaID)
+	
+	for _, entry := range entries {
+		if entry.IsDir() && len(entry.Name()) > len(prefix) && entry.Name()[:len(prefix)] == prefix {
+			// Verify this is a valid chapter directory by checking for registry.json
+			registryPath := filepath.Join(mediaDir, entry.Name(), "registry.json")
+			if _, err := os.Stat(registryPath); err == nil {
+				count++
+			}
+		}
+	}
+
+	return count
+}
+
+// dequeueAllChaptersForSeries removes all queued chapters for a specific series
+func (q *Queue) dequeueAllChaptersForSeries(provider string, mediaID int) {
+	err := q.db.DeleteChapterDownloadQueueItemsForSeries(provider, mediaID)
+	if err != nil {
+		q.logger.Error().Err(err).
+			Int("mediaId", mediaID).
+			Str("provider", provider).
+			Msg("chapter downloader: Failed to dequeue all chapters for series")
+	} else {
+		q.logger.Info().
+			Int("mediaId", mediaID).
+			Str("provider", provider).
+			Msg("chapter downloader: Dequeued all chapters for series")
+		
+		q.wsEventManager.SendEvent(events.ChapterDownloadQueueUpdated, nil)
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

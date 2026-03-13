@@ -14,6 +14,7 @@ import {
 } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import {
+    AL_BaseManga,
     AL_ListManga,
     AL_MangaCollection,
     AL_MangaDetailsById_Media,
@@ -265,11 +266,11 @@ export function useGetRecentlyReadSyntheticManga() {
 }
 
 export interface MangaReadingHistory {
-    id: number
     mediaId: number
     lastReadAt: string
     lastChapterNumber: string
     isSynthetic: boolean
+    media?: AL_BaseManga
 }
 
 export function useGetMangaReadingHistory() {
@@ -277,6 +278,37 @@ export function useGetMangaReadingHistory() {
         endpoint: "/api/v1/manga/reading-history",
         method: "GET",
         queryKey: ["manga-reading-history"],
-        enabled: true,
+    })
+}
+
+export function useGetTrendingManga() {
+    return useServerQuery<AL_BaseManga[]>({
+        endpoint: "/api/v1/manga/trending",
+        method: "GET",
+        queryKey: ["manga-trending"],
+    })
+}
+
+export function useGetRecentlyReleasedManga() {
+    return useServerQuery<AL_BaseManga[]>({
+        endpoint: "/api/v1/manga/recently-released",
+        method: "GET",
+        queryKey: ["manga-recently-released"],
+    })
+}
+
+export function useGetUpcomingMangaChapters() {
+    return useServerQuery<AL_BaseManga[]>({
+        endpoint: "/api/v1/manga/upcoming-chapters",
+        method: "GET",
+        queryKey: ["manga-upcoming-chapters"],
+    })
+}
+
+export function useGetMangaMissedSequels() {
+    return useServerQuery<AL_BaseManga[]>({
+        endpoint: "/api/v1/manga/missed-sequels",
+        method: "GET",
+        queryKey: ["manga-missed-sequels"],
     })
 }

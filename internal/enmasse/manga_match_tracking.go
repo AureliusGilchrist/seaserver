@@ -455,7 +455,21 @@ func (d *MangaDownloader) AutoMatchSyntheticManga(ctx context.Context) error {
 		return fmt.Errorf("platform not available")
 	}
 
-	d.logger.Info().Msg("Scanning synthetic manga for AniList matches")
+	d.logger.Info().Msg("Starting auto-match for synthetic manga")
+
+	// Clear existing synthetic manga records to force re-evaluation
+	d.mu.Lock()
+	var filteredRecords []*MangaMatchRecord
+	for _, record := range d.matchRecords {
+		// Keep only non-synthetic records or records that are not "existing" status
+		if !record.IsSynthetic || record.Status != "existing" {
+			filteredRecords = append(filteredRecords, record)
+		}
+	}
+	d.matchRecords = filteredRecords
+	d.mu.Unlock()
+
+	d.logger.Debug().Msg("Cleared existing synthetic manga records for re-evaluation")
 
 	// Get all synthetic manga
 	syntheticManga, err := db.GetAllSyntheticManga()
@@ -470,14 +484,19 @@ func (d *MangaDownloader) AutoMatchSyntheticManga(ctx context.Context) error {
 
 	matchedCount := 0
 	for _, manga := range syntheticManga {
-		// Check if already has a match record
-		if d.isAlreadyRecorded(manga.ProviderID) {
-			continue
+		// Use ProviderID if available, otherwise use synthetic ID as identifier
+		identifier := manga.ProviderID
+		if identifier == "" {
+			identifier = fmt.Sprintf("synthetic-%d", manga.SyntheticID)
 		}
+		
+		// Don't skip - we cleared the records above
+		// This ensures all synthetic manga are re-evaluated
 
 		d.logger.Debug().
 			Str("title", manga.Title).
 			Int("syntheticId", manga.SyntheticID).
+			Str("identifier", identifier).
 			Msg("Attempting to match synthetic manga to AniList")
 
 		// Search AniList for this manga
@@ -491,7 +510,7 @@ func (d *MangaDownloader) AutoMatchSyntheticManga(ctx context.Context) error {
 			// Still create a record for review, but keep it as synthetic
 			d.recordMatch(
 				manga.Title,
-				manga.ProviderID,
+				identifier,
 				manga.SyntheticID,
 				manga.Title,
 				true,
@@ -512,7 +531,7 @@ func (d *MangaDownloader) AutoMatchSyntheticManga(ctx context.Context) error {
 		// Record the match for review
 		d.recordMatch(
 			manga.Title,
-			manga.ProviderID,
+			identifier,
 			bestMatch.ID,
 			bestMatch.GetTitleSafe(),
 			false, // Not synthetic anymore - we found an AniList match

@@ -139,6 +139,15 @@ export function ChapterList(props: ChapterListProps) {
             accessorKey: "title",
             header: "Name",
             size: 90,
+            cell: ({ row }) => {
+                const isDownloaded = isChapterDownloaded(row.original)
+                return (
+                    <div className="flex items-center gap-2">
+                        <span>{row.original.title}</span>
+                        {isDownloaded && <span className="text-green-500">✓</span>}
+                    </div>
+                )
+            },
         },
         ...(selectedExtension?.settings?.supportsMultiScanlator ? [{
             id: "scanlator",

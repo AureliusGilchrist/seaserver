@@ -303,7 +303,32 @@ func (h *Handler) HandleGetMangaEntryChapters(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	return h.RespondWithData(c, container)
+	// Get manga collection for merging downloaded chapters
+	// Note: This may fail if AniList is down, but we still want to try merging with what we have
+	mangaCollection, err := h.App.GetMangaCollection(false)
+	if err != nil {
+		h.App.Logger.Debug().Err(err).Msg("Failed to get manga collection for merging, will try without it")
+		// Continue with nil collection - the merge function should handle this
+	}
+
+	// Merge downloaded chapters with provider chapters
+	mergedContainer, err := h.App.MangaRepository.MergeDownloadedChaptersWithProviderAndCollection(container, b.MediaId, mangaCollection)
+	if err != nil {
+		// If merge fails, just return the original container
+		h.App.Logger.Debug().Err(err).
+			Int("mediaId", b.MediaId).
+			Str("provider", b.Provider).
+			Msg("Failed to merge downloaded chapters with provider chapters")
+		return h.RespondWithData(c, container)
+	}
+
+	h.App.Logger.Debug().
+		Int("mediaId", b.MediaId).
+		Str("provider", b.Provider).
+		Int("mergedChapters", len(mergedContainer.Chapters)).
+		Msg("Successfully merged downloaded chapters with provider chapters")
+
+	return h.RespondWithData(c, mergedContainer)
 }
 
 // HandleGetMangaEntryPages
@@ -632,18 +657,80 @@ func (h *Handler) HandleSearchSyntheticManga(c echo.Context) error {
 	return h.RespondWithData(c, results)
 }
 
+// MangaReadingHistoryItem represents a reading history entry with full media details
+type MangaReadingHistoryItem struct {
+	MediaID           int                `json:"mediaId"`
+	LastReadAt        string             `json:"lastReadAt"`
+	LastChapterNumber string             `json:"lastChapterNumber"`
+	IsSynthetic       bool               `json:"isSynthetic"`
+	Media             *anilist.BaseManga `json:"media,omitempty"`
+}
+
 // HandleGetMangaReadingHistory
 //
-//	@summary returns the manga reading history sorted by most recent.
-//	@desc Returns all manga (including synthetic) that have been read, sorted by last read time.
+//	@summary returns all manga reading history with media details.
+//	@desc Returns all manga (including synthetic) that have been read, sorted by last read time, with full media metadata.
 //	@route /api/v1/manga/reading-history [GET]
-//	@returns []*models.MangaReadingHistory
+//	@returns []MangaReadingHistoryItem
 func (h *Handler) HandleGetMangaReadingHistory(c echo.Context) error {
 	history, err := h.App.Database.GetMangaReadingHistory(50)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
-	return h.RespondWithData(c, history)
+
+	// Enrich with media details
+	var enrichedHistory []MangaReadingHistoryItem
+	for _, entry := range history {
+		item := MangaReadingHistoryItem{
+			MediaID:           entry.MediaID,
+			LastReadAt:        entry.LastReadAt.Format(time.RFC3339),
+			LastChapterNumber: entry.LastChapterNumber,
+			IsSynthetic:       entry.IsSynthetic,
+		}
+
+		// Fetch media details
+		if entry.IsSynthetic {
+			// Get synthetic manga
+			syntheticManga, found := h.App.Database.GetSyntheticManga(entry.MediaID)
+			if found && syntheticManga != nil {
+				// Convert synthetic manga to BaseManga format
+				item.Media = &anilist.BaseManga{
+					ID: syntheticManga.SyntheticID,
+					Title: &anilist.BaseManga_Title{
+						UserPreferred: &syntheticManga.Title,
+						Romaji:        &syntheticManga.Title,
+						English:       &syntheticManga.Title,
+					},
+					CoverImage: &anilist.BaseManga_CoverImage{
+						Large:      &syntheticManga.CoverImage,
+						ExtraLarge: &syntheticManga.CoverImage,
+						Medium:     &syntheticManga.CoverImage,
+					},
+				}
+			}
+		} else {
+			// Get AniList manga from collection
+			mangaCollection, err := h.App.GetMangaCollection(false)
+			if err == nil && mangaCollection != nil && mangaCollection.MediaListCollection != nil {
+				// Find manga in collection
+				for _, list := range mangaCollection.MediaListCollection.Lists {
+					for _, entry := range list.Entries {
+						if entry.Media != nil && entry.Media.ID == item.MediaID {
+							item.Media = entry.Media
+							break
+						}
+					}
+					if item.Media != nil {
+						break
+					}
+				}
+			}
+		}
+
+		enrichedHistory = append(enrichedHistory, item)
+	}
+
+	return h.RespondWithData(c, enrichedHistory)
 }
 
 // HandleGetRecentlyReadSyntheticManga
@@ -669,6 +756,114 @@ func (h *Handler) HandleGetRecentlyReadSyntheticManga(c echo.Context) error {
 	}
 
 	return h.RespondWithData(c, results)
+}
+
+// HandleGetTrendingManga
+//
+//	@summary returns trending manga from AniList.
+//	@desc Returns a list of trending manga.
+//	@route /api/v1/manga/trending [GET]
+//	@returns []*anilist.BaseManga
+func (h *Handler) HandleGetTrendingManga(c echo.Context) error {
+	anilistClient := anilist.NewAnilistClient("", h.App.Config.Anilist.ClientID)
+	
+	// Search for trending manga
+	page := 1
+	perPage := 20
+	
+	result, err := anilistClient.SearchBaseManga(c.Request().Context(), &page, &perPage, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	
+	if result == nil || result.Page == nil {
+		return h.RespondWithData(c, []*anilist.BaseManga{})
+	}
+	
+	return h.RespondWithData(c, result.Page.Media)
+}
+
+// HandleGetRecentlyReleasedManga
+//
+//	@summary returns recently released manga chapters.
+//	@desc Returns manga that have recently released chapters from user's list.
+//	@route /api/v1/manga/recently-released [GET]
+//	@returns []*anilist.BaseManga
+func (h *Handler) HandleGetRecentlyReleasedManga(c echo.Context) error {
+	// Get user's manga collection
+	mangaCollection, err := h.App.GetMangaCollection(false)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	
+	var recentManga []*anilist.BaseManga
+	
+	// Get manga from current reading list
+	if mangaCollection.MediaListCollection != nil {
+		for _, list := range mangaCollection.MediaListCollection.Lists {
+			if list.Status != nil && (*list.Status == anilist.MediaListStatusCurrent || *list.Status == anilist.MediaListStatusRepeating) {
+				for _, entry := range list.Entries {
+					if entry.Media != nil {
+						recentManga = append(recentManga, entry.Media)
+					}
+				}
+			}
+		}
+	}
+	
+	// Limit to 20 most recent
+	if len(recentManga) > 20 {
+		recentManga = recentManga[:20]
+	}
+	
+	return h.RespondWithData(c, recentManga)
+}
+
+// HandleGetUpcomingMangaChapters
+//
+//	@summary returns upcoming manga chapters.
+//	@desc Returns manga with upcoming chapters from user's library.
+//	@route /api/v1/manga/upcoming-chapters [GET]
+//	@returns []*anilist.BaseManga
+func (h *Handler) HandleGetUpcomingMangaChapters(c echo.Context) error {
+	// Get user's manga collection
+	mangaCollection, err := h.App.GetMangaCollection(false)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	
+	var upcomingManga []*anilist.BaseManga
+	
+	// Get manga that are currently releasing
+	if mangaCollection.MediaListCollection != nil {
+		for _, list := range mangaCollection.MediaListCollection.Lists {
+			for _, entry := range list.Entries {
+				if entry.Media != nil && entry.Media.Status != nil && *entry.Media.Status == anilist.MediaStatusReleasing {
+					upcomingManga = append(upcomingManga, entry.Media)
+				}
+			}
+		}
+	}
+	
+	// Limit to 20
+	if len(upcomingManga) > 20 {
+		upcomingManga = upcomingManga[:20]
+	}
+	
+	return h.RespondWithData(c, upcomingManga)
+}
+
+// HandleGetMangaMissedSequels
+//
+//	@summary returns manga sequels not in collection.
+//	@desc Returns sequels of manga in user's collection that aren't added.
+//	@route /api/v1/manga/missed-sequels [GET]
+//	@returns []*anilist.BaseManga
+func (h *Handler) HandleGetMangaMissedSequels(c echo.Context) error {
+	// For now, return empty list since BaseManga doesn't have Relations field
+	// This would require fetching full details for each manga which is expensive
+	return h.RespondWithData(c, []*anilist.BaseManga{})
 }
 
 // HandleGetLocalMangaPage

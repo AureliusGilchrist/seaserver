@@ -110,6 +110,28 @@ func (db *Database) UpdateChapterDownloadQueueItemStatus(provider string, mId in
 	return nil
 }
 
+func (db *Database) GetChapterDownloadQueueCountForSeries(provider string, mediaID int) (int, error) {
+	var count int64
+	err := db.gormdb.Model(&models.ChapterDownloadQueueItem{}).
+		Where("provider = ? AND media_id = ?", provider, mediaID).
+		Count(&count).Error
+	if err != nil {
+		db.Logger.Error().Err(err).Msg("db: Failed to count chapter download queue items for series")
+		return 0, err
+	}
+	return int(count), nil
+}
+
+func (db *Database) DeleteChapterDownloadQueueItemsForSeries(provider string, mediaID int) error {
+	err := db.gormdb.Where("provider = ? AND media_id = ?", provider, mediaID).
+		Delete(&models.ChapterDownloadQueueItem{}).Error
+	if err != nil {
+		db.Logger.Error().Err(err).Msg("db: Failed to delete chapter download queue items for series")
+		return err
+	}
+	return nil
+}
+
 func (db *Database) GetMediaQueuedChapters(mediaId int) ([]*models.ChapterDownloadQueueItem, error) {
 	var res []*models.ChapterDownloadQueueItem
 	err := db.gormdb.Where("media_id = ?", mediaId).Find(&res).Error

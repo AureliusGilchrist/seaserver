@@ -754,6 +754,16 @@ func (a *App) InitOrRefreshAnilistData() {
 	var currUser *user.User
 	acc, err := a.Database.GetAccount()
 	if err != nil || acc.Username == "" {
+		a.Logger.Debug().
+			Err(err).
+			Bool("hasAccount", acc != nil).
+			Str("username", func() string {
+				if acc != nil {
+					return acc.Username
+				}
+				return "nil"
+			}()).
+			Msg("app: No valid account found, using simulated user")
 		a.ServerReady = true
 		currUser = user.NewSimulatedUser() // Create a simulated user if no account is found
 	} else {
@@ -762,11 +772,19 @@ func (a *App) InitOrRefreshAnilistData() {
 			a.Logger.Error().Err(err).Msg("app: Failed to create user from account")
 			return
 		}
+		a.Logger.Debug().
+			Str("username", acc.Username).
+			Str("viewerName", currUser.Viewer.Name).
+			Msg("app: Loaded user account from database")
 	}
 
 	a.user = currUser
 
 	// Set username to Anilist platform
+	a.Logger.Debug().
+		Str("viewerName", currUser.Viewer.Name).
+		Bool("isSimulated", currUser.IsSimulated).
+		Msg("app: Setting username for AniList platform")
 	a.AnilistPlatformRef.Get().SetUsername(currUser.Viewer.Name)
 
 	a.Logger.Info().Msg("app: Authenticated to AniList")

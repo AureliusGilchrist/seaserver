@@ -38,6 +38,90 @@ func getMangaChapterContainerCacheKey(provider string, mediaId int) string {
 	return fmt.Sprintf("%s$%d", provider, mediaId)
 }
 
+// MergeDownloadedChaptersWithProvider merges downloaded chapters with provider chapters.
+// Downloaded chapters take priority - if a chapter is downloaded, it replaces the provider version.
+// Missing chapters (gaps) are filled from the provider.
+func (r *Repository) MergeDownloadedChaptersWithProvider(providerContainer *ChapterContainer, mediaId int) (*ChapterContainer, error) {
+	return r.MergeDownloadedChaptersWithProviderAndCollection(providerContainer, mediaId, nil)
+}
+
+// MergeDownloadedChaptersWithProviderAndCollection merges downloaded chapters with provider chapters.
+// Downloaded chapters take priority - if a chapter is downloaded, it replaces the provider version.
+// Missing chapters (gaps) are filled from the provider.
+func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerContainer *ChapterContainer, mediaId int, mangaCollection *anilist.MangaCollection) (*ChapterContainer, error) {
+	if providerContainer == nil {
+		return nil, fmt.Errorf("provider container is nil")
+	}
+
+	// Get downloaded chapters for this media
+	downloadedContainers, err := r.GetDownloadedMangaChapterContainers(mediaId, mangaCollection)
+	if err != nil {
+		// If no downloaded chapters, just return the provider container
+		r.logger.Debug().Err(err).Int("mediaId", mediaId).Msg("Failed to get downloaded chapters")
+		return providerContainer, nil
+	}
+
+	if len(downloadedContainers) == 0 {
+		r.logger.Debug().Int("mediaId", mediaId).Msg("No downloaded chapters found")
+		return providerContainer, nil
+	}
+
+	// Create a map of downloaded chapters by chapter number for quick lookup
+	downloadedChapterMap := make(map[string]*hibikemanga.ChapterDetails)
+	for _, container := range downloadedContainers {
+		for _, chapter := range container.Chapters {
+			// Skip invalid chapter numbers (e.g., timestamps, very large numbers)
+			// Valid chapter numbers should be reasonable (e.g., 1-9999)
+			if len(chapter.Chapter) > 6 {
+				continue
+			}
+			// Use chapter number as key (e.g., "14.5", "15", etc.)
+			downloadedChapterMap[chapter.Chapter] = chapter
+		}
+	}
+
+	// If there are no provider chapters, just return downloaded chapters
+	if len(providerContainer.Chapters) == 0 {
+		if len(downloadedContainers) > 0 {
+			return downloadedContainers[0], nil
+		}
+		return providerContainer, nil
+	}
+
+	// Merge: prioritize downloaded chapters, fill gaps with provider chapters
+	mergedChapters := make([]*hibikemanga.ChapterDetails, 0, len(providerContainer.Chapters))
+	
+	for _, providerChapter := range providerContainer.Chapters {
+		// Check if this chapter is downloaded
+		if downloadedChapter, exists := downloadedChapterMap[providerChapter.Chapter]; exists {
+			// Use the downloaded version
+			mergedChapters = append(mergedChapters, downloadedChapter)
+		} else {
+			// Use the provider version (gap filler)
+			mergedChapters = append(mergedChapters, providerChapter)
+		}
+	}
+
+	// Add any downloaded chapters that weren't in the provider list
+	// This handles cases where downloaded chapters exist but provider doesn't have them
+	providerChapterMap := make(map[string]bool)
+	for _, chapter := range providerContainer.Chapters {
+		providerChapterMap[chapter.Chapter] = true
+	}
+
+	for chapterNum, downloadedChapter := range downloadedChapterMap {
+		if !providerChapterMap[chapterNum] {
+			mergedChapters = append(mergedChapters, downloadedChapter)
+		}
+	}
+
+	return &ChapterContainer{
+		MediaId:  providerContainer.MediaId,
+		Provider: providerContainer.Provider,
+		Chapters: mergedChapters,
+	}, nil
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type GetMangaChapterContainerOptions struct {

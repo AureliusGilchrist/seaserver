@@ -65,7 +65,7 @@ func (ap *AnilistPlatform) Close() {
 func (ap *AnilistPlatform) SetUsername(username string) {
 	// Set the username for the AnilistPlatform
 	if username == "" {
-		ap.username = mo.Some[string]("")
+		ap.username = mo.None[string]()
 		return
 	}
 

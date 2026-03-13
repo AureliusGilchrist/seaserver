@@ -10,8 +10,15 @@ import { useGetMangaDownloadsList } from "@/api/hooks/manga_download.hooks"
 import { MangaLibraryView } from "@/app/(main)/manga/_screens/manga-library-view"
 import { MangaCarousel } from "@/app/(main)/(library)/_home/home-screen"
 import { MangaHomeSettingsButton, MangaHomeSettingsModal, DEFAULT_MANGA_HOME_ITEMS } from "@/app/(main)/manga/_components/manga-home-settings"
+import { MangaContinueReading } from "@/app/(main)/manga/_containers/manga-continue-reading"
+import { MangaDiscoverHeader } from "@/app/(main)/manga/_containers/manga-discover-header"
+import { MangaUpcomingChapters } from "@/app/(main)/manga/_containers/manga-upcoming-chapters"
+import { MangaRecentlyReleased } from "@/app/(main)/manga/_containers/manga-recently-released"
+import { MangaMissedSequels } from "@/app/(main)/manga/_containers/manga-missed-sequels"
 import { useGetMangaHomeItems } from "@/api/hooks/status.hooks"
 import { cn } from "@/components/ui/core/styling"
+import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
+import { episodeCardCarouselItemClass } from "@/components/shared/classnames"
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { __isDesktop__ } from "@/types/constants"
 import React from "react"
@@ -81,6 +88,22 @@ export default function Page() {
         })
     }, [downloadSearch, downloadedList])
     const downloadedChaptersTotal = React.useMemo(() => downloadedList?.reduce((acc, d) => acc + Object.values(d.downloadData).flatMap(n => n).length, 0) || 0, [downloadedList])
+
+    // Pre-compute filtered downloads for all possible source filters
+    const sourceFilteredDownloadsMap = React.useMemo(() => {
+        const map: Record<string, typeof filteredDownloads> = {
+            both: filteredDownloads,
+            synthetic: filteredDownloads.filter(download => {
+                const isSynthetic = (download.media?.id !== undefined && download.media.id < 0) || Object.keys(download.downloadData || {}).includes("weebcentral")
+                return isSynthetic
+            }),
+            anilist: filteredDownloads.filter(download => {
+                const isSynthetic = (download.media?.id !== undefined && download.media.id < 0) || Object.keys(download.downloadData || {}).includes("weebcentral")
+                return !isSynthetic
+            }),
+        }
+        return map
+    }, [filteredDownloads])
 
     if (!mangaCollection || mangaCollectionLoading) return <MediaEntryPageLoadingDisplay />
 
@@ -223,38 +246,37 @@ export default function Page() {
                         )
                     }
 
-                    // My Lists
+                    // My Lists - handled by shared component, skip for now
                     if (item.type === "my-lists") {
-                        return (
-                            <div key={item.id} className="px-4 py-8">
-                                <h2 className="text-xl font-semibold text-white mb-4">My Lists</h2>
-                                <div className="text-center py-12 bg-gray-800/50 rounded-lg border border-gray-700">
-                                    <p className="text-gray-400">My Lists - Coming Soon</p>
-                                    <p className="text-sm text-gray-500 mt-2">Display media from your custom lists</p>
-                                </div>
-                            </div>
-                        )
+                        return null
                     }
 
                     // Manga Continue Reading
                     if (item.type === "manga-continue-reading" || item.type === "manga-continue-reading-header") {
                         return (
-                            <div key={item.id} className="px-4 py-8">
-                                <h2 className="text-xl font-semibold text-white mb-4">Continue Reading</h2>
-                                <div className="text-center py-12 bg-gray-800/50 rounded-lg border border-gray-700">
-                                    <p className="text-gray-400">Manga Continue Reading - Coming Soon</p>
-                                    <p className="text-sm text-gray-500 mt-2">Display manga you're currently reading</p>
-                                </div>
-                            </div>
+                            <MangaContinueReading
+                                key={item.id}
+                                onHoverImage={handleHoverImage}
+                            />
                         )
                     }
 
                     // Local Manga Library (downloads only)
                     if (item.type === "local-manga-library") {
+                        const sourceFilter = item.options?.source || "both"
+                        const layout = item.options?.layout || "grid"
+                        
+                        // Get pre-computed filtered downloads
+                        const sourceFilteredDownloads = sourceFilteredDownloadsMap[sourceFilter] || filteredDownloads
+                        
                         return (
                             <div key={item.id} className="px-4 py-6 space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <h2 className="text-xl font-semibold text-white">Local Downloads</h2>
+                                    <h2 className="text-xl font-semibold text-white">
+                                        Local Library
+                                        {sourceFilter === "synthetic" && " - Synthetic"}
+                                        {sourceFilter === "anilist" && " - AniList"}
+                                    </h2>
                                     {downloadsLoading && <span className="text-sm text-[--muted]">Loading…</span>}
                                     {downloadsError && <span className="text-sm text-red-400">Failed to load downloads</span>}
                                 </div>
@@ -270,56 +292,103 @@ export default function Page() {
                                             />
                                         </div>
 
-                                        <MediaCardLazyGrid itemCount={filteredDownloads.length}>
-                                            {filteredDownloads.map(item => {
-                                                const chapters = Object.values(item.downloadData).flatMap(n => n).length
-                                                const isSynthetic = (item.media?.id !== undefined && item.media.id < 0) || Object.keys(item.downloadData || {}).includes("weebcentral")
-                                                if (item.media) {
-                                                    const hoverImage = item.media?.bannerImage || item.media?.coverImage?.extraLarge || item.media?.coverImage?.large || null
+                                        {layout === "carousel" ? (
+                                            <Carousel opts={{ align: "start" }} autoScroll>
+                                                <CarouselDotButtons />
+                                                <CarouselContent>
+                                                    {sourceFilteredDownloads.map(item => {
+                                                        const chapters = Object.values(item.downloadData).flatMap(n => n).length
+                                                        const isSynthetic = (item.media?.id !== undefined && item.media.id < 0) || Object.keys(item.downloadData || {}).includes("weebcentral")
+                                                        if (item.media) {
+                                                            const hoverImage = item.media?.bannerImage || item.media?.coverImage?.extraLarge || item.media?.coverImage?.large || null
+                                                            return (
+                                                                <CarouselItem
+                                                                    key={item.media?.id}
+                                                                    className={cn(
+                                                                        episodeCardCarouselItemClass,
+                                                                        "md:basis-1/3 lg:basis-1/4 xl:basis-1/5 2xl:basis-1/6 min-[2000px]:basis-1/8",
+                                                                    )}
+                                                                >
+                                                                    <div
+                                                                        onMouseEnter={() => hoverImage && handleHoverImage(hoverImage)}
+                                                                        onMouseLeave={() => handleHoverImage(null)}
+                                                                    >
+                                                                        <MediaEntryCard
+                                                                            media={item.media}
+                                                                            type="manga"
+                                                                            hideUnseenCountBadge
+                                                                            hideAnilistEntryEditButton
+                                                                            containerClassName="h-full"
+                                                                            overlay={
+                                                                                <div className="absolute inset-x-0 top-0 flex justify-between pointer-events-none">
+                                                                                    {isSynthetic && (
+                                                                                        <span className="ml-0.5 mt-0.5 px-2 py-1 text-[10px] font-semibold rounded-br bg-amber-600/90 text-white">Synthetic</span>
+                                                                                    )}
+                                                                                    <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">{chapters} chapter{chapters === 1 ? "" : "s"}</p>
+                                                                                </div>
+                                                                            }
+                                                                            onHoverImage={handleHoverImage}
+                                                                        />
+                                                                    </div>
+                                                                </CarouselItem>
+                                                            )
+                                                        }
+                                                        return null
+                                                    })}
+                                                </CarouselContent>
+                                            </Carousel>
+                                        ) : (
+                                            <MediaCardLazyGrid itemCount={sourceFilteredDownloads.length}>
+                                                {sourceFilteredDownloads.map(item => {
+                                                    const chapters = Object.values(item.downloadData).flatMap(n => n).length
+                                                    const isSynthetic = (item.media?.id !== undefined && item.media.id < 0) || Object.keys(item.downloadData || {}).includes("weebcentral")
+                                                    if (item.media) {
+                                                        const hoverImage = item.media?.bannerImage || item.media?.coverImage?.extraLarge || item.media?.coverImage?.large || null
+                                                        return (
+                                                            <div
+                                                                key={item.media?.id}
+                                                                onMouseEnter={() => hoverImage && handleHoverImage(hoverImage)}
+                                                                onMouseLeave={() => handleHoverImage(null)}
+                                                            >
+                                                                <MediaEntryCard
+                                                                    media={item.media}
+                                                                    type="manga"
+                                                                    hideUnseenCountBadge
+                                                                    hideAnilistEntryEditButton
+                                                                    containerClassName="h-full"
+                                                                    overlay={
+                                                                        <div className="absolute inset-x-0 top-0 flex justify-between pointer-events-none">
+                                                                            {isSynthetic && (
+                                                                                <span className="ml-0.5 mt-0.5 px-2 py-1 text-[10px] font-semibold rounded-br bg-amber-600/90 text-white">Synthetic</span>
+                                                                            )}
+                                                                            <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">{chapters} chapter{chapters === 1 ? "" : "s"}</p>
+                                                                        </div>
+                                                                    }
+                                                                    onHoverImage={handleHoverImage}
+                                                                />
+                                                            </div>
+                                                        )
+                                                    }
+                                                    const provider = Object.keys(item.downloadData || {})[0]
                                                     return (
                                                         <div
-                                                            key={item.media?.id}
-                                                            onMouseEnter={() => hoverImage && handleHoverImage(hoverImage)}
+                                                            key={`download-${item.mediaId}-${provider}`}
+                                                            className="relative h-full rounded-xl border border-gray-800 bg-gray-900/70 p-3 flex flex-col gap-2"
+                                                            onMouseEnter={() => handleHoverImage(null)}
                                                             onMouseLeave={() => handleHoverImage(null)}
                                                         >
-                                                            <MediaEntryCard
-                                                                media={item.media}
-                                                                type="manga"
-                                                                hideUnseenCountBadge
-                                                                hideAnilistEntryEditButton
-                                                                containerClassName="h-full"
-                                                                overlay={
-                                                                    <div className="absolute inset-x-0 top-0 flex justify-between pointer-events-none">
-                                                                        {isSynthetic && (
-                                                                            <span className="ml-0.5 mt-0.5 px-2 py-1 text-[10px] font-semibold rounded-br bg-amber-600/90 text-white">Synthetic</span>
-                                                                        )}
-                                                                        <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">{chapters} chapter{chapters === 1 ? "" : "s"}</p>
-                                                                    </div>
-                                                                }
-                                                                onHoverImage={handleHoverImage}
-                                                            />
+                                                            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-[--muted]">
+                                                                <span>Local download</span>
+                                                                {isSynthetic && <span className="px-2 py-0.5 rounded bg-amber-600/80 text-white text-[10px]">Synthetic</span>}
+                                                            </div>
+                                                            <div className="text-sm font-semibold text-white line-clamp-2">Unknown title</div>
+                                                            {provider && <div className="text-xs text-[--muted]">Provider: {provider}</div>}
+                                                            <div className="mt-auto text-xs text-[--muted]">{chapters} chapter{chapters === 1 ? "" : "s"}</div>
                                                         </div>
                                                     )
-                                                }
-                                                const provider = Object.keys(item.downloadData || {})[0]
-                                                return (
-                                                    <div
-                                                        key={`download-${item.mediaId}-${provider}`}
-                                                        className="relative h-full rounded-xl border border-gray-800 bg-gray-900/70 p-3 flex flex-col gap-2"
-                                                        onMouseEnter={() => handleHoverImage(null)}
-                                                        onMouseLeave={() => handleHoverImage(null)}
-                                                    >
-                                                        <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-[--muted]">
-                                                            <span>Local download</span>
-                                                            {isSynthetic && <span className="px-2 py-0.5 rounded bg-amber-600/80 text-white text-[10px]">Synthetic</span>}
-                                                        </div>
-                                                        <div className="text-sm font-semibold text-white line-clamp-2">Unknown title</div>
-                                                        {provider && <div className="text-xs text-[--muted]">Provider: {provider}</div>}
-                                                        <div className="mt-auto text-xs text-[--muted]">{chapters} chapter{chapters === 1 ? "" : "s"}</div>
-                                                    </div>
-                                                )
-                                            })}
-                                        </MediaCardLazyGrid>
+                                                })}
+                                            </MediaCardLazyGrid>
+                                        )}
                                     </div>
                                 )}
 
@@ -359,65 +428,45 @@ export default function Page() {
                     // Upcoming Chapters
                     if (item.type === "manga-upcoming-chapters") {
                         return (
-                            <div key={item.id} className="px-4 py-8">
-                                <h2 className="text-xl font-semibold text-white mb-4">Upcoming Chapters</h2>
-                                <div className="text-center py-12 bg-gray-800/50 rounded-lg border border-gray-700">
-                                    <p className="text-gray-400">Upcoming Manga Chapters - Coming Soon</p>
-                                    <p className="text-sm text-gray-500 mt-2">Display upcoming chapters from your library</p>
-                                </div>
-                            </div>
+                            <MangaUpcomingChapters
+                                key={item.id}
+                                onHoverImage={handleHoverImage}
+                            />
                         )
                     }
 
                     // Recently Released
                     if (item.type === "manga-aired-recently") {
                         return (
-                            <div key={item.id} className="px-4 py-8">
-                                <h2 className="text-xl font-semibold text-white mb-4">Recently Released</h2>
-                                <div className="text-center py-12 bg-gray-800/50 rounded-lg border border-gray-700">
-                                    <p className="text-gray-400">Recently Released Manga - Coming Soon</p>
-                                    <p className="text-sm text-gray-500 mt-2">Display recently released manga chapters</p>
-                                </div>
-                            </div>
+                            <MangaRecentlyReleased
+                                key={item.id}
+                                onHoverImage={handleHoverImage}
+                            />
                         )
                     }
 
                     // Missed Sequels
                     if (item.type === "manga-missed-sequels") {
                         return (
-                            <div key={item.id} className="px-4 py-8">
-                                <h2 className="text-xl font-semibold text-white mb-4">Missed Sequels</h2>
-                                <div className="text-center py-12 bg-gray-800/50 rounded-lg border border-gray-700">
-                                    <p className="text-gray-400">Missed Manga Sequels - Coming Soon</p>
-                                    <p className="text-sm text-gray-500 mt-2">Display sequels you might have missed</p>
-                                </div>
-                            </div>
+                            <MangaMissedSequels
+                                key={item.id}
+                                onHoverImage={handleHoverImage}
+                            />
                         )
                     }
 
-                    // Schedule Calendar
+                    // Schedule Calendar - hide for now, calendar requires more complex implementation
                     if (item.type === "manga-schedule-calendar") {
-                        return (
-                            <div key={item.id} className="px-4 py-8">
-                                <h2 className="text-xl font-semibold text-white mb-4">Release Calendar</h2>
-                                <div className="text-center py-12 bg-gray-800/50 rounded-lg border border-gray-700">
-                                    <p className="text-gray-400">Manga Release Calendar - Coming Soon</p>
-                                    <p className="text-sm text-gray-500 mt-2">Display manga release schedule</p>
-                                </div>
-                            </div>
-                        )
+                        return null
                     }
 
                     // Discover Header
                     if (item.type === "manga-discover-header") {
                         return (
-                            <div key={item.id} className="px-4 py-8">
-                                <h2 className="text-xl font-semibold text-white mb-4">Discover Manga</h2>
-                                <div className="text-center py-12 bg-gray-800/50 rounded-lg border border-gray-700">
-                                    <p className="text-gray-400">Manga Discover Header - Coming Soon</p>
-                                    <p className="text-sm text-gray-500 mt-2">Display trending manga</p>
-                                </div>
-                            </div>
+                            <MangaDiscoverHeader
+                                key={item.id}
+                                onHoverImage={handleHoverImage}
+                            />
                         )
                     }
 
