@@ -192,9 +192,13 @@ func (d *MangaDownloader) Start(resume bool) error {
 	}
 	d.isRunning = true
 	d.isPaused = false
+	autoResume := resume
+	if resume && d.hasSavedProgress() {
+		autoResume = true
+		d.logger.Info().Msg("enmasse-manga: Saved progress found; auto-resuming")
+	}
 
-	// Only resume if explicitly requested (no auto-resume)
-	if !resume {
+	if !autoResume {
 		d.processedCount = 0
 		d.downloadedManga = make([]string, 0, MaxLogEntries)
 		d.failedManga = make([]string, 0, MaxLogEntries)
