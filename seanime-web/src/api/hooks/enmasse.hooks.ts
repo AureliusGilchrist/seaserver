@@ -222,6 +222,10 @@ export function useCorrectMangaMatch(onSuccess?: () => void) {
             toast.success("Manga match corrected successfully")
             await queryClient.invalidateQueries({ queryKey: [MANGA_VALIDATION_ENDPOINTS.GetMatchHistory.key] })
             await queryClient.invalidateQueries({ queryKey: [MANGA_VALIDATION_ENDPOINTS.GetLowConfidenceCount.key] })
+            // Invalidate manga collection to refresh the UI with the new AniList entry
+            await queryClient.invalidateQueries({ queryKey: ["manga-collection"] })
+            await queryClient.invalidateQueries({ queryKey: ["anilist-manga-collection"] })
+            await queryClient.invalidateQueries({ queryKey: ["manga-entry"] })
             onSuccess?.()
         },
     })

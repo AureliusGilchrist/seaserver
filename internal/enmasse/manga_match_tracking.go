@@ -159,7 +159,21 @@ func (d *MangaDownloader) CorrectMatch(ctx context.Context, providerID string, n
 	}
 
 	// Add to AniList planning list
-	_ = d.addToAniListPlanningList(ctx, newManga.Media)
+	if err := d.addToAniListPlanningList(ctx, newManga.Media); err != nil {
+		d.logger.Error().Err(err).
+			Int("mediaId", newMediaID).
+			Str("title", newTitle).
+			Msg("Failed to add manga to AniList planning list")
+		return fmt.Errorf("failed to add manga to AniList planning list: %w", err)
+	}
+
+	d.logger.Info().
+		Int("oldMediaID", oldMediaID).
+		Int("newMediaID", newMediaID).
+		Str("oldTitle", record.OriginalTitle).
+		Str("newTitle", newTitle).
+		Bool("wasSynthetic", record.IsSynthetic).
+		Msg("Added manga to AniList planning list")
 
 	// Update match record
 	d.mu.Lock()
