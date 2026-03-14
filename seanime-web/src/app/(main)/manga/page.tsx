@@ -298,7 +298,7 @@ export default function Page() {
                                                 <CarouselContent>
                                                     {sourceFilteredDownloads.map(item => {
                                                         const chapters = Object.values(item.downloadData).flatMap(n => n).length
-                                                        const isSynthetic = (item.media?.id !== undefined && item.media.id < 0) || Object.keys(item.downloadData || {}).includes("weebcentral")
+                                                        const isSynthetic = (item.media?.id !== undefined && item.media.id < 0) && !item.isMapped
                                                         if (item.media) {
                                                             const hoverImage = item.media?.bannerImage || item.media?.coverImage?.extraLarge || item.media?.coverImage?.large || null
                                                             return (
@@ -341,7 +341,7 @@ export default function Page() {
                                             <MediaCardLazyGrid itemCount={sourceFilteredDownloads.length}>
                                                 {sourceFilteredDownloads.map(item => {
                                                     const chapters = Object.values(item.downloadData).flatMap(n => n).length
-                                                    const isSynthetic = (item.media?.id !== undefined && item.media.id < 0) || Object.keys(item.downloadData || {}).includes("weebcentral")
+                                                    const isSynthetic = (item.media?.id !== undefined && item.media.id < 0) && !item.isMapped
                                                     if (item.media) {
                                                         const hoverImage = item.media?.bannerImage || item.media?.coverImage?.extraLarge || item.media?.coverImage?.large || null
                                                         return (

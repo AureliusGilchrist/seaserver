@@ -46,13 +46,27 @@ type (
 
 // NewEntry creates a new manga entry.
 func NewEntry(ctx context.Context, opts *NewEntryOptions) (entry *Entry, err error) {
+	originalMediaId := opts.MediaId
+	resolvedMediaId := opts.MediaId
+	
+	// Resolve ID mapping if it exists (conversion layer)
+	if opts.MediaId < 0 && opts.Database != nil {
+		if anilistID, found := opts.Database.GetMangaIDMapping(opts.MediaId); found {
+			resolvedMediaId = anilistID
+			opts.Logger.Debug().
+				Int("syntheticID", opts.MediaId).
+				Int("anilistID", anilistID).
+				Msg("manga: Resolved synthetic ID to AniList ID via mapping")
+		}
+	}
+	
 	entry = &Entry{
-		MediaId: opts.MediaId,
+		MediaId: resolvedMediaId,
 	}
 
-	// Handle synthetic manga (negative IDs)
-	if opts.MediaId < 0 && opts.Database != nil {
-		syntheticManga, found := opts.Database.GetSyntheticManga(opts.MediaId)
+	// Handle synthetic manga (negative IDs) - only if no mapping exists
+	if originalMediaId < 0 && resolvedMediaId < 0 && opts.Database != nil {
+		syntheticManga, found := opts.Database.GetSyntheticManga(originalMediaId)
 		if found {
 			entry.Media = createBaseMangaFromSyntheticEntry(syntheticManga)
 			// Synthetic manga doesn't have list data from AniList

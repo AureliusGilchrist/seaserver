@@ -810,14 +810,55 @@
     }
   },
   {
+    "name": "HandleAnimeEntryRematch",
+    "trimmedName": "AnimeEntryRematch",
+    "comments": [
+      "HandleAnimeEntryRematch resets selected files, clears prior metadata, and rematches them to the provided media ID.",
+      "Existing matched files not included in Paths remain untouched.",
+      "NC/NCOP/NCED files are deleted immediately upon detection (disk + metadata removal).",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_entries.go",
+    "filename": "anime_entries.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Paths",
+          "jsonName": "paths",
+          "goType": "[]string",
+          "usedStructType": "",
+          "typescriptType": "Array\u003cstring\u003e",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "MediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetAnimeEntry",
     "trimmedName": "GetAnimeEntry",
     "comments": [
       "HandleGetAnimeEntry",
       "",
-      "\t@summary return a media entry for the given AniList anime media id.",
-      "\t@desc This is used by the anime media entry pages to get all the data about the anime.",
-      "\t@desc This includes episodes and metadata (if any), AniList list data, download info...",
+      "\t@summary returns an anime entry for the given AniList anime id.",
+      "\t@desc This is used by the anime media entry pages to get all the data about the anime. It includes metadata, AniList list data, and local files.",
       "\t@route /api/v1/library/anime-entry/{id} [GET]",
       "\t@param id - int - true - \"AniList anime media ID\"",
       "\t@returns anime.Entry",
@@ -826,10 +867,9 @@
     "filepath": "internal/handlers/anime_entries.go",
     "filename": "anime_entries.go",
     "api": {
-      "summary": "return a media entry for the given AniList anime media id.",
+      "summary": "returns an anime entry for the given AniList anime id.",
       "descriptions": [
-        "This is used by the anime media entry pages to get all the data about the anime.",
-        "This includes episodes and metadata (if any), AniList list data, download info..."
+        "This is used by the anime media entry pages to get all the data about the anime. It includes metadata, AniList list data, and local files."
       ],
       "endpoint": "/api/v1/library/anime-entry/{id}",
       "methods": [
@@ -3375,6 +3415,366 @@
     }
   },
   {
+    "name": "HandleEnMasseGetStatus",
+    "trimmedName": "EnMasseGetStatus",
+    "comments": [
+      "HandleEnMasseGetStatus",
+      "",
+      "\t@summary get the status of the en masse downloader.",
+      "\t@desc Returns the current status of the en masse downloader including progress and current anime.",
+      "\t@returns enmasse.DownloaderStatus",
+      "\t@route /api/v1/enmasse/status [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "api": {
+      "summary": "get the status of the en masse downloader.",
+      "descriptions": [
+        "Returns the current status of the en masse downloader including progress and current anime."
+      ],
+      "endpoint": "/api/v1/enmasse/status",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "enmasse.DownloaderStatus",
+      "returnGoType": "enmasse.DownloaderStatus",
+      "returnTypescriptType": "DownloaderStatus"
+    }
+  },
+  {
+    "name": "HandleEnMasseStart",
+    "trimmedName": "EnMasseStart",
+    "comments": [
+      "HandleEnMasseStart",
+      "",
+      "\t@summary start the en masse downloader.",
+      "\t@desc Starts the en masse downloader to process anime from anilist-minified.json.",
+      "\t@returns bool",
+      "\t@route /api/v1/enmasse/start [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "api": {
+      "summary": "start the en masse downloader.",
+      "descriptions": [
+        "Starts the en masse downloader to process anime from anilist-minified.json."
+      ],
+      "endpoint": "/api/v1/enmasse/start",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleEnMasseStop",
+    "trimmedName": "EnMasseStop",
+    "comments": [
+      "HandleEnMasseStop",
+      "",
+      "\t@summary stop the en masse downloader.",
+      "\t@desc Stops the en masse downloader if it's running.",
+      "\t@returns bool",
+      "\t@route /api/v1/enmasse/stop [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "api": {
+      "summary": "stop the en masse downloader.",
+      "descriptions": [
+        "Stops the en masse downloader if it's running."
+      ],
+      "endpoint": "/api/v1/enmasse/stop",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleMangaEnMasseGetStatus",
+    "trimmedName": "MangaEnMasseGetStatus",
+    "comments": [
+      "HandleMangaEnMasseGetStatus",
+      "",
+      "\t@summary get the status of the manga en masse downloader.",
+      "\t@desc Returns the current status of the manga en masse downloader including progress and current manga.",
+      "\t@returns enmasse.MangaDownloaderStatus",
+      "\t@route /api/v1/enmasse/manga/status [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "api": {
+      "summary": "get the status of the manga en masse downloader.",
+      "descriptions": [
+        "Returns the current status of the manga en masse downloader including progress and current manga."
+      ],
+      "endpoint": "/api/v1/enmasse/manga/status",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "enmasse.MangaDownloaderStatus",
+      "returnGoType": "enmasse.MangaDownloaderStatus",
+      "returnTypescriptType": "MangaDownloaderStatus"
+    }
+  },
+  {
+    "name": "HandleMangaEnMasseStart",
+    "trimmedName": "MangaEnMasseStart",
+    "comments": [
+      "HandleMangaEnMasseStart",
+      "",
+      "\t@summary start the manga en masse downloader.",
+      "\t@desc Starts the manga en masse downloader to process manga from hakuneko-mangas.json.",
+      "\t@returns bool",
+      "\t@route /api/v1/enmasse/manga/start [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "api": {
+      "summary": "start the manga en masse downloader.",
+      "descriptions": [
+        "Starts the manga en masse downloader to process manga from hakuneko-mangas.json."
+      ],
+      "endpoint": "/api/v1/enmasse/manga/start",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleMangaEnMasseStop",
+    "trimmedName": "MangaEnMasseStop",
+    "comments": [
+      "HandleMangaEnMasseStop",
+      "",
+      "\t@summary stop the manga en masse downloader.",
+      "\t@desc Stops the manga en masse downloader if it's running.",
+      "\t@returns bool",
+      "\t@route /api/v1/enmasse/manga/stop [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "api": {
+      "summary": "stop the manga en masse downloader.",
+      "descriptions": [
+        "Stops the manga en masse downloader if it's running."
+      ],
+      "endpoint": "/api/v1/enmasse/manga/stop",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetMangaMatchHistory",
+    "trimmedName": "GetMangaMatchHistory",
+    "comments": [
+      "HandleGetMangaMatchHistory",
+      "",
+      "\t@summary get the match history for manga en masse downloader.",
+      "\t@desc Returns all manga match records for review and correction.",
+      "\t@returns []*enmasse.MangaMatchRecord",
+      "\t@route /api/v1/enmasse/manga/match-history [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "api": {
+      "summary": "get the match history for manga en masse downloader.",
+      "descriptions": [
+        "Returns all manga match records for review and correction."
+      ],
+      "endpoint": "/api/v1/enmasse/manga/match-history",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]*enmasse.MangaMatchRecord",
+      "returnGoType": "enmasse.MangaMatchRecord",
+      "returnTypescriptType": "Array\u003cMangaMatchRecord\u003e"
+    }
+  },
+  {
+    "name": "HandleGetLowConfidenceMangaMatchCount",
+    "trimmedName": "GetLowConfidenceMangaMatchCount",
+    "comments": [
+      "HandleGetLowConfidenceMangaMatchCount",
+      "",
+      "\t@summary get count of low confidence manga matches.",
+      "\t@desc Returns count of matches below confidence threshold for sidebar badge.",
+      "\t@returns int",
+      "\t@route /api/v1/enmasse/manga/low-confidence-count [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "api": {
+      "summary": "get count of low confidence manga matches.",
+      "descriptions": [
+        "Returns count of matches below confidence threshold for sidebar badge."
+      ],
+      "endpoint": "/api/v1/enmasse/manga/low-confidence-count",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "int",
+      "returnGoType": "int",
+      "returnTypescriptType": "number"
+    }
+  },
+  {
+    "name": "HandleCorrectMangaMatch",
+    "trimmedName": "CorrectMangaMatch",
+    "comments": [
+      "HandleCorrectMangaMatch",
+      "",
+      "\t@summary correct a manga's AniList match.",
+      "\t@desc Updates a manga's AniList match and moves files accordingly.",
+      "\t@returns bool",
+      "\t@route /api/v1/enmasse/manga/correct-match [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "api": {
+      "summary": "correct a manga's AniList match.",
+      "descriptions": [
+        "Updates a manga's AniList match and moves files accordingly."
+      ],
+      "endpoint": "/api/v1/enmasse/manga/correct-match",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleConvertMangaToSynthetic",
+    "trimmedName": "ConvertMangaToSynthetic",
+    "comments": [
+      "HandleConvertMangaToSynthetic",
+      "",
+      "\t@summary convert an AniList manga match to synthetic.",
+      "\t@desc Converts an AniList match to a synthetic manga entry.",
+      "\t@returns bool",
+      "\t@route /api/v1/enmasse/manga/convert-synthetic [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "api": {
+      "summary": "convert an AniList manga match to synthetic.",
+      "descriptions": [
+        "Converts an AniList match to a synthetic manga entry."
+      ],
+      "endpoint": "/api/v1/enmasse/manga/convert-synthetic",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleScanMangaCollection",
+    "trimmedName": "ScanMangaCollection",
+    "comments": [
+      "HandleScanMangaCollection",
+      "",
+      "\t@summary scan existing manga collection for validation.",
+      "\t@desc Scans the user's existing manga collection (AniList + synthetic) and creates match records.",
+      "\t@returns bool",
+      "\t@route /api/v1/enmasse/manga/scan-collection [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "api": {
+      "summary": "scan existing manga collection for validation.",
+      "descriptions": [
+        "Scans the user's existing manga collection (AniList + synthetic) and creates match records."
+      ],
+      "endpoint": "/api/v1/enmasse/manga/scan-collection",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleAutoMatchSyntheticManga",
+    "trimmedName": "AutoMatchSyntheticManga",
+    "comments": [
+      "HandleAutoMatchSyntheticManga",
+      "",
+      "\t@summary auto-match synthetic manga to AniList.",
+      "\t@desc Scans all synthetic manga and attempts to find AniList matches for review.",
+      "\t@returns bool",
+      "\t@route /api/v1/enmasse/manga/auto-match-synthetic [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "api": {
+      "summary": "auto-match synthetic manga to AniList.",
+      "descriptions": [
+        "Scans all synthetic manga and attempts to find AniList matches for review."
+      ],
+      "endpoint": "/api/v1/enmasse/manga/auto-match-synthetic",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleOpenInExplorer",
     "trimmedName": "OpenInExplorer",
     "comments": [
@@ -5522,6 +5922,28 @@
     }
   },
   {
+    "name": "createMangaDetailsFromSynthetic",
+    "trimmedName": "createMangaDetailsFromSynthetic",
+    "comments": [
+      "createMangaDetailsFromSynthetic creates MangaDetailsById_Media from synthetic manga",
+      "Note: MangaDetailsById_Media has limited fields, so we only populate what's available",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetMangaLatestChapterNumbersMap",
     "trimmedName": "GetMangaLatestChapterNumbersMap",
     "comments": [
@@ -6199,6 +6621,235 @@
     }
   },
   {
+    "name": "HandleSearchSyntheticManga",
+    "trimmedName": "SearchSyntheticManga",
+    "comments": [
+      "HandleSearchSyntheticManga",
+      "",
+      "\t@summary searches for synthetic manga by title.",
+      "\t@desc Returns synthetic manga entries that match the search query.",
+      "\t@route /api/v1/manga/synthetic/search [POST]",
+      "\t@returns []*models.SyntheticManga",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "searches for synthetic manga by title.",
+      "descriptions": [
+        "Returns synthetic manga entries that match the search query."
+      ],
+      "endpoint": "/api/v1/manga/synthetic/search",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Query",
+          "jsonName": "query",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Limit",
+          "jsonName": "limit",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "[]*models.SyntheticManga",
+      "returnGoType": "models.SyntheticManga",
+      "returnTypescriptType": "Array\u003cModels_SyntheticManga\u003e"
+    }
+  },
+  {
+    "name": "HandleGetMangaReadingHistory",
+    "trimmedName": "GetMangaReadingHistory",
+    "comments": [
+      "HandleGetMangaReadingHistory",
+      "",
+      "\t@summary returns all manga reading history with media details.",
+      "\t@desc Returns all manga (including synthetic) that have been read, sorted by last read time, with full media metadata.",
+      "\t@route /api/v1/manga/reading-history [GET]",
+      "\t@returns []MangaReadingHistoryItem",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "returns all manga reading history with media details.",
+      "descriptions": [
+        "Returns all manga (including synthetic) that have been read, sorted by last read time, with full media metadata."
+      ],
+      "endpoint": "/api/v1/manga/reading-history",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]MangaReadingHistoryItem",
+      "returnGoType": "MangaReadingHistoryItem",
+      "returnTypescriptType": "Array\u003cMangaReadingHistoryItem\u003e"
+    }
+  },
+  {
+    "name": "HandleGetRecentlyReadSyntheticManga",
+    "trimmedName": "GetRecentlyReadSyntheticManga",
+    "comments": [
+      "HandleGetRecentlyReadSyntheticManga",
+      "",
+      "\t@summary returns recently read synthetic manga with full details.",
+      "\t@desc Returns synthetic manga that have been read recently, with full metadata.",
+      "\t@route /api/v1/manga/synthetic/recently-read [GET]",
+      "\t@returns []*models.SyntheticManga",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "returns recently read synthetic manga with full details.",
+      "descriptions": [
+        "Returns synthetic manga that have been read recently, with full metadata."
+      ],
+      "endpoint": "/api/v1/manga/synthetic/recently-read",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]*models.SyntheticManga",
+      "returnGoType": "models.SyntheticManga",
+      "returnTypescriptType": "Array\u003cModels_SyntheticManga\u003e"
+    }
+  },
+  {
+    "name": "HandleGetTrendingManga",
+    "trimmedName": "GetTrendingManga",
+    "comments": [
+      "HandleGetTrendingManga",
+      "",
+      "\t@summary returns trending manga from AniList.",
+      "\t@desc Returns a list of trending manga.",
+      "\t@route /api/v1/manga/trending [GET]",
+      "\t@returns []*anilist.BaseManga",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "returns trending manga from AniList.",
+      "descriptions": [
+        "Returns a list of trending manga."
+      ],
+      "endpoint": "/api/v1/manga/trending",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]*anilist.BaseManga",
+      "returnGoType": "anilist.BaseManga",
+      "returnTypescriptType": "Array\u003cAL_BaseManga\u003e"
+    }
+  },
+  {
+    "name": "HandleGetRecentlyReleasedManga",
+    "trimmedName": "GetRecentlyReleasedManga",
+    "comments": [
+      "HandleGetRecentlyReleasedManga",
+      "",
+      "\t@summary returns recently released manga chapters.",
+      "\t@desc Returns manga that have recently released chapters from user's list.",
+      "\t@route /api/v1/manga/recently-released [GET]",
+      "\t@returns []*anilist.BaseManga",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "returns recently released manga chapters.",
+      "descriptions": [
+        "Returns manga that have recently released chapters from user's list."
+      ],
+      "endpoint": "/api/v1/manga/recently-released",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]*anilist.BaseManga",
+      "returnGoType": "anilist.BaseManga",
+      "returnTypescriptType": "Array\u003cAL_BaseManga\u003e"
+    }
+  },
+  {
+    "name": "HandleGetUpcomingMangaChapters",
+    "trimmedName": "GetUpcomingMangaChapters",
+    "comments": [
+      "HandleGetUpcomingMangaChapters",
+      "",
+      "\t@summary returns upcoming manga chapters.",
+      "\t@desc Returns manga with upcoming chapters from user's library.",
+      "\t@route /api/v1/manga/upcoming-chapters [GET]",
+      "\t@returns []*anilist.BaseManga",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "returns upcoming manga chapters.",
+      "descriptions": [
+        "Returns manga with upcoming chapters from user's library."
+      ],
+      "endpoint": "/api/v1/manga/upcoming-chapters",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]*anilist.BaseManga",
+      "returnGoType": "anilist.BaseManga",
+      "returnTypescriptType": "Array\u003cAL_BaseManga\u003e"
+    }
+  },
+  {
+    "name": "HandleGetMangaMissedSequels",
+    "trimmedName": "GetMangaMissedSequels",
+    "comments": [
+      "HandleGetMangaMissedSequels",
+      "",
+      "\t@summary returns manga sequels not in collection.",
+      "\t@desc Returns sequels of manga in user's collection that aren't added.",
+      "\t@route /api/v1/manga/missed-sequels [GET]",
+      "\t@returns []*anilist.BaseManga",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "returns manga sequels not in collection.",
+      "descriptions": [
+        "Returns sequels of manga in user's collection that aren't added."
+      ],
+      "endpoint": "/api/v1/manga/missed-sequels",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]*anilist.BaseManga",
+      "returnGoType": "anilist.BaseManga",
+      "returnTypescriptType": "Array\u003cAL_BaseManga\u003e"
+    }
+  },
+  {
     "name": "HandleGetLocalMangaPage",
     "trimmedName": "GetLocalMangaPage",
     "comments": [
@@ -6280,6 +6931,15 @@
           "goType": "bool",
           "usedStructType": "",
           "typescriptType": "boolean",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "MediaTitle",
+          "jsonName": "mediaTitle",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
           "required": true,
           "descriptions": []
         }
@@ -8245,6 +8905,15 @@
           "typescriptType": "string",
           "required": true,
           "descriptions": []
+        },
+        {
+          "name": "ClientId",
+          "jsonName": "clientId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
         }
       ],
       "returns": "bool",
@@ -9898,7 +10567,7 @@
     "comments": [
       "HandleGetHomeItems",
       "",
-      "\t@summary returns the home items.",
+      "\t@summary returns the anime home items.",
       "\t@route /api/v1/status/home-items [GET]",
       "\t@returns []models.HomeItem",
       ""
@@ -9906,7 +10575,7 @@
     "filepath": "internal/handlers/status.go",
     "filename": "status.go",
     "api": {
-      "summary": "returns the home items.",
+      "summary": "returns the anime home items.",
       "descriptions": [],
       "endpoint": "/api/v1/status/home-items",
       "methods": [
@@ -9925,7 +10594,7 @@
     "comments": [
       "HandleUpdateHomeItems",
       "",
-      "\t@summary updates the home items.",
+      "\t@summary updates the anime home items.",
       "\t@route /api/v1/status/home-items [POST]",
       "\t@returns nil",
       ""
@@ -9933,7 +10602,7 @@
     "filepath": "internal/handlers/status.go",
     "filename": "status.go",
     "api": {
-      "summary": "updates the home items.",
+      "summary": "updates the anime home items.",
       "descriptions": [],
       "endpoint": "/api/v1/status/home-items",
       "methods": [
@@ -9954,6 +10623,146 @@
       "returns": "nil",
       "returnGoType": "nil",
       "returnTypescriptType": "null"
+    }
+  },
+  {
+    "name": "HandleGetMangaHomeItems",
+    "trimmedName": "GetMangaHomeItems",
+    "comments": [
+      "HandleGetMangaHomeItems",
+      "",
+      "\t@summary returns the manga home items.",
+      "\t@route /api/v1/status/manga-home-items [GET]",
+      "\t@returns []models.HomeItem",
+      ""
+    ],
+    "filepath": "internal/handlers/status.go",
+    "filename": "status.go",
+    "api": {
+      "summary": "returns the manga home items.",
+      "descriptions": [],
+      "endpoint": "/api/v1/status/manga-home-items",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]models.HomeItem",
+      "returnGoType": "models.HomeItem",
+      "returnTypescriptType": "Array\u003cModels_HomeItem\u003e"
+    }
+  },
+  {
+    "name": "HandleUpdateMangaHomeItems",
+    "trimmedName": "UpdateMangaHomeItems",
+    "comments": [
+      "HandleUpdateMangaHomeItems",
+      "",
+      "\t@summary updates the manga home items.",
+      "\t@route /api/v1/status/manga-home-items [POST]",
+      "\t@returns nil",
+      ""
+    ],
+    "filepath": "internal/handlers/status.go",
+    "filename": "status.go",
+    "api": {
+      "summary": "updates the manga home items.",
+      "descriptions": [],
+      "endpoint": "/api/v1/status/manga-home-items",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Items",
+          "jsonName": "items",
+          "goType": "[]models.HomeItem",
+          "usedStructType": "models.HomeItem",
+          "typescriptType": "Array\u003cModels_HomeItem\u003e",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "nil",
+      "returnGoType": "nil",
+      "returnTypescriptType": "null"
+    }
+  },
+  {
+    "name": "HandleSearchSyntheticAnime",
+    "trimmedName": "SearchSyntheticAnime",
+    "comments": [
+      "HandleSearchSyntheticAnime",
+      "",
+      "@summary searches for synthetic anime by title.",
+      "@desc Returns synthetic anime entries that match the search query.",
+      "@route /api/v1/anime/synthetic/search [POST]",
+      "@returns []*models.SyntheticAnime",
+      ""
+    ],
+    "filepath": "internal/handlers/synthetic_anime.go",
+    "filename": "synthetic_anime.go",
+    "api": {
+      "summary": "searches for synthetic anime by title.",
+      "descriptions": [
+        "Returns synthetic anime entries that match the search query."
+      ],
+      "endpoint": "/api/v1/anime/synthetic/search",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Query",
+          "jsonName": "query",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Limit",
+          "jsonName": "limit",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "[]*models.SyntheticAnime",
+      "returnGoType": "models.SyntheticAnime",
+      "returnTypescriptType": "Array\u003cModels_SyntheticAnime\u003e"
+    }
+  },
+  {
+    "name": "HandleGetSyntheticAnime",
+    "trimmedName": "GetSyntheticAnime",
+    "comments": [
+      "HandleGetSyntheticAnime",
+      "",
+      "@summary returns a synthetic anime by synthetic ID.",
+      "@route /api/v1/anime/synthetic/:id [GET]",
+      "@returns models.SyntheticAnime",
+      ""
+    ],
+    "filepath": "internal/handlers/synthetic_anime.go",
+    "filename": "synthetic_anime.go",
+    "api": {
+      "summary": "returns a synthetic anime by synthetic ID.",
+      "descriptions": [],
+      "endpoint": "/api/v1/anime/synthetic/:id",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "models.SyntheticAnime",
+      "returnGoType": "models.SyntheticAnime",
+      "returnTypescriptType": "Models_SyntheticAnime"
     }
   },
   {
@@ -10169,7 +10978,7 @@
       "",
       "\t@summary adds torrents to the torrent client.",
       "\t@desc It fetches the magnets from the provided URLs and adds them to the torrent client.",
-      "\t@desc If smart select is enabled, it will try to select the best torrent based on the missing episodes.",
+      "\t@desc All torrents are downloaded to /aeternae/Otaku/Unmatched/$TorrentName for manual matching.",
       "\t@route /api/v1/torrent-client/download [POST]",
       "\t@returns bool",
       ""
@@ -10180,7 +10989,7 @@
       "summary": "adds torrents to the torrent client.",
       "descriptions": [
         "It fetches the magnets from the provided URLs and adds them to the torrent client.",
-        "If smart select is enabled, it will try to select the best torrent based on the missing episodes."
+        "All torrents are downloaded to /aeternae/Otaku/Unmatched/$TorrentName for manual matching."
       ],
       "endpoint": "/api/v1/torrent-client/download",
       "methods": [
@@ -10902,6 +11711,256 @@
       "methods": null,
       "params": [],
       "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetUnmatchedTorrents",
+    "trimmedName": "GetUnmatchedTorrents",
+    "comments": [
+      "HandleGetUnmatchedTorrents",
+      "",
+      "\t@summary returns all unmatched torrents.",
+      "\t@desc This handler returns all torrents in the unmatched directory that haven't been matched to an anime yet.",
+      "\t@route /api/v1/unmatched/torrents [GET]",
+      "\t@returns []*unmatched.UnmatchedTorrent",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched.go",
+    "filename": "unmatched.go",
+    "api": {
+      "summary": "returns all unmatched torrents.",
+      "descriptions": [
+        "This handler returns all torrents in the unmatched directory that haven't been matched to an anime yet."
+      ],
+      "endpoint": "/api/v1/unmatched/torrents",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]*unmatched.UnmatchedTorrent",
+      "returnGoType": "unmatched.UnmatchedTorrent",
+      "returnTypescriptType": "Array\u003cUnmatchedTorrent\u003e"
+    }
+  },
+  {
+    "name": "HandleGetUnmatchedTorrentContents",
+    "trimmedName": "GetUnmatchedTorrentContents",
+    "comments": [
+      "HandleGetUnmatchedTorrentContents",
+      "",
+      "\t@summary returns the contents of a specific unmatched torrent.",
+      "\t@desc This handler returns the detailed file structure of a specific torrent.",
+      "\t@route /api/v1/unmatched/torrent/contents [POST]",
+      "\t@returns *unmatched.UnmatchedTorrent",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched.go",
+    "filename": "unmatched.go",
+    "api": {
+      "summary": "returns the contents of a specific unmatched torrent.",
+      "descriptions": [
+        "This handler returns the detailed file structure of a specific torrent."
+      ],
+      "endpoint": "/api/v1/unmatched/torrent/contents",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Name",
+          "jsonName": "name",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "*unmatched.UnmatchedTorrent",
+      "returnGoType": "unmatched.UnmatchedTorrent",
+      "returnTypescriptType": "UnmatchedTorrent"
+    }
+  },
+  {
+    "name": "HandleMatchUnmatchedTorrent",
+    "trimmedName": "MatchUnmatchedTorrent",
+    "comments": [
+      "HandleMatchUnmatchedTorrent",
+      "",
+      "\t@summary matches selected files from an unmatched torrent to an anime.",
+      "\t@desc This handler moves selected files to the anime directory with proper naming.",
+      "\t@route /api/v1/unmatched/match [POST]",
+      "\t@returns *unmatched.MatchResult",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched.go",
+    "filename": "unmatched.go",
+    "api": {
+      "summary": "matches selected files from an unmatched torrent to an anime.",
+      "descriptions": [
+        "This handler moves selected files to the anime directory with proper naming."
+      ],
+      "endpoint": "/api/v1/unmatched/match",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "*unmatched.MatchResult",
+      "returnGoType": "unmatched.MatchResult",
+      "returnTypescriptType": "MatchResult"
+    }
+  },
+  {
+    "name": "HandleDeleteUnmatchedTorrent",
+    "trimmedName": "DeleteUnmatchedTorrent",
+    "comments": [
+      "HandleDeleteUnmatchedTorrent",
+      "",
+      "\t@summary deletes an unmatched torrent directory.",
+      "\t@desc This handler removes a torrent directory from the unmatched folder.",
+      "\t@route /api/v1/unmatched/torrent/delete [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched.go",
+    "filename": "unmatched.go",
+    "api": {
+      "summary": "deletes an unmatched torrent directory.",
+      "descriptions": [
+        "This handler removes a torrent directory from the unmatched folder."
+      ],
+      "endpoint": "/api/v1/unmatched/torrent/delete",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Name",
+          "jsonName": "name",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetUnmatchedDestination",
+    "trimmedName": "GetUnmatchedDestination",
+    "comments": [
+      "HandleGetUnmatchedDestination",
+      "",
+      "\t@summary returns the destination path for a new torrent download.",
+      "\t@desc This handler returns the path where a torrent should be downloaded to.",
+      "\t@route /api/v1/unmatched/destination [POST]",
+      "\t@returns string",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched.go",
+    "filename": "unmatched.go",
+    "api": {
+      "summary": "returns the destination path for a new torrent download.",
+      "descriptions": [
+        "This handler returns the path where a torrent should be downloaded to."
+      ],
+      "endpoint": "/api/v1/unmatched/destination",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "TorrentName",
+          "jsonName": "torrentName",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "string",
+      "returnGoType": "string",
+      "returnTypescriptType": "string"
+    }
+  },
+  {
+    "name": "HandleGetUnmatchedScannerStatus",
+    "trimmedName": "GetUnmatchedScannerStatus",
+    "comments": [
+      "HandleGetUnmatchedScannerStatus",
+      "",
+      "\t@summary returns the status of the unmatched scanner.",
+      "\t@desc This handler returns the scanner status including completed torrents.",
+      "\t@route /api/v1/unmatched/scanner/status [GET]",
+      "\t@returns *unmatched.ScannerStatus",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched.go",
+    "filename": "unmatched.go",
+    "api": {
+      "summary": "returns the status of the unmatched scanner.",
+      "descriptions": [
+        "This handler returns the scanner status including completed torrents."
+      ],
+      "endpoint": "/api/v1/unmatched/scanner/status",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "*unmatched.ScannerStatus",
+      "returnGoType": "unmatched.ScannerStatus",
+      "returnTypescriptType": "ScannerStatus"
+    }
+  },
+  {
+    "name": "HandleClearCompletedTorrent",
+    "trimmedName": "ClearCompletedTorrent",
+    "comments": [
+      "HandleClearCompletedTorrent",
+      "",
+      "\t@summary clears a torrent from the completed list.",
+      "\t@desc This handler removes a torrent from the scanner's completed list.",
+      "\t@route /api/v1/unmatched/scanner/clear [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched.go",
+    "filename": "unmatched.go",
+    "api": {
+      "summary": "clears a torrent from the completed list.",
+      "descriptions": [
+        "This handler removes a torrent from the scanner's completed list."
+      ],
+      "endpoint": "/api/v1/unmatched/scanner/clear",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "TorrentName",
+          "jsonName": "torrentName",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"

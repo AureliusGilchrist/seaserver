@@ -116,7 +116,8 @@ func migrateTables(db *gorm.DB) error {
 		&models.SyntheticManga{},
 		&models.MangaReadingHistory{},
 		&models.SyntheticAnime{},
-		//&models.MangaChapterContainer{},
+		&models.MangaChapterContainer{},
+		&models.MangaIDMapping{},
 	)
 	if err != nil {
 

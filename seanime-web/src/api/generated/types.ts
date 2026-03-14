@@ -1880,6 +1880,10 @@ export type ChapterDownloader_DownloadID = {
     mediaId: number
     chapterId: string
     chapterNumber: string
+    /**
+     * Romaji title for folder naming
+     */
+    mediaTitle: string
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2170,6 +2174,81 @@ export type DebridClient_StreamState = {
  * - Package: debrid_client
  */
 export type DebridClient_StreamStatus = "downloading" | "ready" | "failed" | "started"
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Enmasse
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/enmasse/downloader.go
+ * - Filename: downloader.go
+ * - Package: enmasse
+ */
+export type DownloaderStatus = {
+    isRunning: boolean
+    isPaused: boolean
+    currentAnime: string
+    currentAnimeId: number
+    processedCount: number
+    totalCount: number
+    downloadedAnime?: Array<string>
+    failedAnime?: Array<string>
+    status: string
+    hasSavedProgress: boolean
+}
+
+/**
+ * - Filepath: internal/enmasse/manga_downloader.go
+ * - Filename: manga_downloader.go
+ * - Package: enmasse
+ */
+export type MangaDownloaderStatus = {
+    isRunning: boolean
+    isPaused: boolean
+    currentManga?: string
+    currentChapter?: string
+    processedCount: number
+    totalCount: number
+    downloadedManga?: Array<string>
+    failedManga?: Array<string>
+    skippedManga?: Array<string>
+    status: string
+    hasSavedProgress: boolean
+    matchRecordCount: number
+    autoMatchInProgress: boolean
+    autoMatchCurrent?: string
+    autoMatchProcessed: number
+    autoMatchTotal: number
+}
+
+/**
+ * - Filepath: internal/enmasse/manga_downloader.go
+ * - Filename: manga_downloader.go
+ * - Package: enmasse
+ */
+export type MangaMatchRecord = {
+    originalTitle: string
+    providerId: string
+    /**
+     * AniList ID or synthetic ID (negative)
+     */
+    matchedId: number
+    matchedTitle: string
+    isSynthetic: boolean
+    /**
+     * 0.0-1.0
+     */
+    confidenceScore: number
+    /**
+     * Top search results for review
+     */
+    searchResults?: Array<AL_BaseManga>
+    /**
+     * "downloaded", "failed", "skipped"
+     */
+    status: string
+    timestamp?: string
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Extension
@@ -3215,6 +3294,10 @@ export type Manga_DownloadListItem = {
     mediaId: number
     media?: AL_BaseManga
     downloadData: Manga_ProviderDownloadMap
+    /**
+     * True if this was a synthetic manga mapped to AniList
+     */
+    isMapped: boolean
 }
 
 /**
@@ -3702,6 +3785,10 @@ export type Models_ChapterDownloadQueueItem = {
     chapterId: string
     chapterNumber: string
     /**
+     * Title for folder naming
+     */
+    mediaTitle: string
+    /**
      * Contains map of page index to page details
      */
     pageData?: Array<string>
@@ -3964,6 +4051,104 @@ export type Models_StringSlice = Array<string>
  * - Filepath: internal/database/models/models.go
  * - Filename: models.go
  * - Package: models
+ * @description
+ *  SyntheticAnime stores metadata for anime from anime-offline-database not found on AniList
+ *  These are assigned synthetic IDs (negative numbers) and displayed in the UI
+ */
+export type Models_SyntheticAnime = {
+    /**
+     * Negative ID to avoid collision with AniList
+     */
+    syntheticId: number
+    title: string
+    titleEnglish: string
+    coverImage: string
+    thumbnail: string
+    /**
+     * TV, MOVIE, OVA, ONA, SPECIAL
+     */
+    type: string
+    episodes: number
+    /**
+     * FINISHED, ONGOING, UPCOMING
+     */
+    status: string
+    /**
+     * SPRING, SUMMER, FALL, WINTER
+     */
+    season: string
+    seasonYear: number
+    description: string
+    /**
+     * JSON array of synonyms
+     */
+    synonyms: string
+    /**
+     * JSON array of tags
+     */
+    tags: string
+    /**
+     * JSON array of studios
+     */
+    studios: string
+    /**
+     * JSON array of source URLs (MAL, AniDB, etc.)
+     */
+    sources: string
+    /**
+     * AniList ID if available from sources
+     */
+    anilistId: number
+    /**
+     * MAL ID if available from sources
+     */
+    malId: number
+    id: number
+    createdAt?: string
+    updatedAt?: string
+}
+
+/**
+ * - Filepath: internal/database/models/models.go
+ * - Filename: models.go
+ * - Package: models
+ * @description
+ *  SyntheticManga stores metadata for manga not found on AniList
+ *  These are assigned synthetic IDs (negative numbers) and displayed in the UI
+ */
+export type Models_SyntheticManga = {
+    /**
+     * Negative ID to avoid collision with AniList
+     */
+    syntheticId: number
+    title: string
+    coverImage: string
+    /**
+     * e.g., "weebcentral"
+     */
+    provider: string
+    /**
+     * ID on the provider (e.g., WeebCentral manga ID)
+     */
+    providerId: string
+    description: string
+    /**
+     * e.g., "RELEASING", "FINISHED"
+     */
+    status: string
+    /**
+     * Total chapter count if known
+     */
+    chapters: number
+    id: number
+    createdAt?: string
+    updatedAt?: string
+}
+
+/**
+ * - Filepath: internal/database/models/models.go
+ * - Filename: models.go
+ * - Package: models
  */
 export type Models_Theme = {
     enableColorSettings: boolean
@@ -4011,6 +4196,7 @@ export type Models_Theme = {
     mobileCustomCSS: string
     unpinnedMenuItems: Models_StringSlice
     homeItems?: Array<string>
+    mangaHomeItems?: Array<string>
     id: number
     createdAt?: string
     updatedAt?: string
@@ -4811,6 +4997,100 @@ export type Torrentstream_TorrentStatus = {
     uploadSpeed: string
     size: string
     seeders: number
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Unmatched
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/unmatched/repository.go
+ * - Filename: repository.go
+ * - Package: unmatched
+ * @description
+ *  MatchResult represents the result of a match operation
+ */
+export type MatchResult = {
+    success: boolean
+    movedFiles?: Array<string>
+    failedFiles?: Array<string>
+    destination: string
+    errorMessage?: string
+}
+
+/**
+ * - Filepath: internal/unmatched/scanner.go
+ * - Filename: scanner.go
+ * - Package: unmatched
+ */
+export type ScannerStatus = {
+    isRunning: boolean
+    completedTorrents?: Array<string>
+}
+
+/**
+ * - Filepath: internal/unmatched/repository.go
+ * - Filename: repository.go
+ * - Package: unmatched
+ * @description
+ *  UnmatchedFile represents a single file within an unmatched torrent
+ */
+export type UnmatchedFile = {
+    name: string
+    path: string
+    /**
+     * Path relative to torrent root
+     */
+    relativePath: string
+    size: number
+    isVideo: boolean
+    /**
+     * Season folder name if applicable
+     */
+    season?: string
+    /**
+     * Extracted season number
+     */
+    seasonNumber?: number
+}
+
+/**
+ * - Filepath: internal/unmatched/repository.go
+ * - Filename: repository.go
+ * - Package: unmatched
+ * @description
+ *  UnmatchedSeason represents a season folder within a torrent
+ */
+export type UnmatchedSeason = {
+    name: string
+    path: string
+    files?: Array<UnmatchedFile>
+    /**
+     * Extracted season number
+     */
+    number: number
+}
+
+/**
+ * - Filepath: internal/unmatched/repository.go
+ * - Filename: repository.go
+ * - Package: unmatched
+ * @description
+ *  UnmatchedTorrent represents a downloaded torrent that hasn't been matched to an anime yet
+ */
+export type UnmatchedTorrent = {
+    name: string
+    path: string
+    size: number
+    fileCount: number
+    files?: Array<UnmatchedFile>
+    seasons?: Array<UnmatchedSeason>
+    animeId?: number
+    animeTitleRomaji?: string
+    animeTitleNative?: string
+    animeFormat?: string
+    animeStartYear?: number
+    animeExpectedEpisodes?: number
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -57,7 +57,8 @@ type (
 		MediaId       int    `json:"mediaId"`
 		ChapterId     string `json:"chapterId"`
 		ChapterNumber string `json:"chapterNumber"`
-		MediaTitle    string `json:"mediaTitle"` // Romaji title for folder naming
+		ChapterTitle  string `json:"chapterTitle"`  // Chapter title for folder naming
+		MediaTitle    string `json:"mediaTitle"`     // Romaji title for folder naming
 	}
 
 	//+-------------------------------------------------------------------------------------------------------------------+
@@ -387,11 +388,54 @@ func (cd *Downloader) getChapterDownloadDir(downloadId DownloadID) string {
 	if mediaDir == "" {
 		mediaDir = fmt.Sprintf("%d", downloadId.MediaId)
 	}
-	return filepath.Join(cd.downloadDir, mediaDir, FormatChapterDirName(downloadId.Provider, downloadId.MediaId, downloadId.ChapterId, downloadId.ChapterNumber))
+	
+	// Use new format with chapter title if available
+	var chapterDirName string
+	if downloadId.ChapterTitle != "" {
+		chapterDirName = FormatChapterDirNameWithTitle(downloadId.Provider, downloadId.MediaId, downloadId.ChapterId, downloadId.ChapterTitle, downloadId.ChapterNumber)
+	} else {
+		chapterDirName = FormatChapterDirName(downloadId.Provider, downloadId.MediaId, downloadId.ChapterId, downloadId.ChapterNumber)
+	}
+	
+	return filepath.Join(cd.downloadDir, mediaDir, chapterDirName)
 }
 
 func FormatChapterDirName(provider string, mediaId int, chapterId string, chapterNumber string) string {
+	// Legacy format for backward compatibility
 	return fmt.Sprintf("%s_%d_%s_%s", provider, mediaId, EscapeChapterID(chapterId), chapterNumber)
+}
+
+func FormatChapterDirNameWithTitle(provider string, mediaId int, chapterId string, chapterTitle string, chapterNumber string) string {
+	// New format with chapter title
+	// Sanitize chapter title for filesystem
+	sanitizedTitle := SanitizeChapterTitle(chapterTitle)
+	if sanitizedTitle == "" {
+		// Fallback to legacy format if title is empty
+		return FormatChapterDirName(provider, mediaId, chapterId, chapterNumber)
+	}
+	return fmt.Sprintf("%s_%d_%s_%s_%s", provider, mediaId, EscapeChapterID(chapterId), sanitizedTitle, chapterNumber)
+}
+
+func SanitizeChapterTitle(title string) string {
+	// Remove "Chapter X" prefix if present
+	// e.g., "Chapter 35.3 - Torture" -> "Torture"
+	// or "Today is the day Chapter 53" -> "Today is the day Chapter 53" (keep as-is)
+	
+	// Replace spaces with underscores
+	title = strings.ReplaceAll(title, " ", "_")
+	
+	// Remove or replace invalid filesystem characters
+	invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
+	for _, char := range invalidChars {
+		title = strings.ReplaceAll(title, char, "")
+	}
+	
+	// Limit length to avoid filesystem issues
+	if len(title) > 100 {
+		title = title[:100]
+	}
+	
+	return title
 }
 
 func FormatChapterDirPrefix(provider string, mediaId int) string {
@@ -399,24 +443,51 @@ func FormatChapterDirPrefix(provider string, mediaId int) string {
 }
 
 // ParseChapterDirName parses a chapter directory name and returns the DownloadID.
-// e.g. comick_1234_chapter$UNDERSCORE$id_13.5 -> {Provider: "comick", MediaId: 1234, ChapterId: "chapter_id", ChapterNumber: "13.5"}
+// Supports both formats:
+// - Legacy: provider_mediaId_chapterId_chapterNumber
+// - New: provider_mediaId_chapterId_chapterTitle_chapterNumber
 func ParseChapterDirName(dirName string) (id DownloadID, ok bool) {
 	parts := strings.Split(dirName, "_")
-	if len(parts) != 4 {
-		return id, false
+	
+	// New format with title (5+ parts)
+	if len(parts) >= 5 {
+		id.Provider = parts[0]
+		var err error
+		id.MediaId, err = strconv.Atoi(parts[1])
+		if err != nil {
+			return id, false
+		}
+		id.ChapterId = UnescapeChapterID(parts[2])
+		
+		// Chapter title is everything between chapterId and the last part (chapter number)
+		// Join all middle parts as the title
+		titleParts := parts[3 : len(parts)-1]
+		id.ChapterTitle = strings.Join(titleParts, "_")
+		
+		// Last part is the chapter number
+		id.ChapterNumber = parts[len(parts)-1]
+		
+		ok = true
+		return
 	}
-
-	id.Provider = parts[0]
-	var err error
-	id.MediaId, err = strconv.Atoi(parts[1])
-	if err != nil {
-		return id, false
+	
+	// Legacy format (4 parts)
+	if len(parts) == 4 {
+		id.Provider = parts[0]
+		var err error
+		id.MediaId, err = strconv.Atoi(parts[1])
+		if err != nil {
+			return id, false
+		}
+		id.ChapterId = UnescapeChapterID(parts[2])
+		id.ChapterNumber = parts[3]
+		id.ChapterTitle = "" // No title in legacy format
+		
+		ok = true
+		return
 	}
-	id.ChapterId = UnescapeChapterID(parts[2])
-	id.ChapterNumber = parts[3]
-
-	ok = true
-	return
+	
+	return id, false
 }
 
 func EscapeChapterID(id string) string {

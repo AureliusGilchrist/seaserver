@@ -108,54 +108,36 @@ func (d *MangaDownloader) CorrectMatch(ctx context.Context, providerID string, n
 	newMediaID := newManga.Media.ID
 	newTitle := newManga.Media.GetTitleSafe()
 
-	// If old match was synthetic, delete it
+	// Store ID mapping instead of moving files
+	// This creates a conversion layer that keeps files in original locations
 	if record.IsSynthetic {
-		syntheticManga, found := db.GetSyntheticManga(oldMediaID)
-		if found {
-			// Move downloaded chapters folder
-			// Get download directory from manga repository
-			downloadDir := filepath.Join(filepath.Dir(MangaProgressFilePath), "manga")
-			oldPath := filepath.Join(downloadDir, syntheticManga.Title)
-			newPath := filepath.Join(downloadDir, newTitle)
-
-			if _, err := os.Stat(oldPath); err == nil {
-				if err := os.Rename(oldPath, newPath); err != nil {
-					d.logger.Warn().Err(err).
-						Str("oldPath", oldPath).
-						Str("newPath", newPath).
-						Msg("Failed to move manga folder")
-				}
-			}
-
-			// Delete synthetic manga entry
-			if err := db.DeleteSyntheticManga(oldMediaID); err != nil {
-				d.logger.Warn().Err(err).Msg("Failed to delete synthetic manga")
-			}
+		// Create mapping from synthetic ID to AniList ID
+		if err := db.SaveMangaIDMapping(oldMediaID, newMediaID, record.ProviderID); err != nil {
+			d.logger.Error().Err(err).
+				Int("syntheticID", oldMediaID).
+				Int("anilistID", newMediaID).
+				Msg("Failed to save manga ID mapping")
+			return fmt.Errorf("failed to save manga ID mapping: %w", err)
 		}
+		
+		d.logger.Info().
+			Int("syntheticID", oldMediaID).
+			Int("anilistID", newMediaID).
+			Str("providerID", record.ProviderID).
+			Msg("Created ID mapping from synthetic to AniList")
+		
+		// Keep the synthetic manga entry for reference
+		// Don't delete it - it's needed to look up the original title for file paths
 	} else {
-		// Move folder from old AniList title to new
-		// Get old manga title
-		oldManga, err := platform.GetAnilistClient().BaseMangaByID(ctx, &oldMediaID)
-		if err == nil {
-			oldTitle := oldManga.Media.GetTitleSafe()
-			downloadDir := filepath.Join(filepath.Dir(MangaProgressFilePath), "manga")
-			oldPath := filepath.Join(downloadDir, oldTitle)
-			newPath := filepath.Join(downloadDir, newTitle)
-
-			if _, err := os.Stat(oldPath); err == nil {
-				if err := os.Rename(oldPath, newPath); err != nil {
-					d.logger.Warn().Err(err).
-						Str("oldPath", oldPath).
-						Str("newPath", newPath).
-						Msg("Failed to move manga folder")
-				}
+		// Correcting from one AniList ID to another
+		// Check if the old ID was actually a mapped synthetic ID
+		if syntheticID, found := db.GetReverseMangaIDMapping(oldMediaID); found {
+			// Update the existing mapping
+			if err := db.SaveMangaIDMapping(syntheticID, newMediaID, record.ProviderID); err != nil {
+				d.logger.Error().Err(err).Msg("Failed to update manga ID mapping")
+				return fmt.Errorf("failed to update manga ID mapping: %w", err)
 			}
 		}
-	}
-
-	// Update chapter containers in database
-	if err := db.UpdateChapterContainerMediaID(oldMediaID, newMediaID); err != nil {
-		d.logger.Warn().Err(err).Msg("Failed to update chapter container media IDs")
 	}
 
 	// Add to AniList planning list
@@ -394,8 +376,8 @@ func (d *MangaDownloader) ScanExistingCollection(ctx context.Context) error {
 	}
 
 	// Get user's AniList manga collection
-	anilistClient := platform.GetAnilistClient()
-	collection, err := anilistClient.MangaCollection(ctx, nil)
+	// Use platform method which handles username correctly
+	collection, err := platform.GetMangaCollection(ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed to fetch AniList manga collection: %w", err)
 	}

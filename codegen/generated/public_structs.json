@@ -27281,6 +27281,15 @@
         "comments": []
       },
       {
+        "name": "TorrentClientRepositoryRef",
+        "jsonName": "TorrentClientRepositoryRef",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "TorrentRepository",
         "jsonName": "TorrentRepository",
         "goType": "torrent.Repository",
@@ -27849,6 +27858,50 @@
         "typescriptType": "Nakama_Manager",
         "usedTypescriptType": "Nakama_Manager",
         "usedStructName": "nakama.Manager",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UnmatchedRepository",
+        "jsonName": "UnmatchedRepository",
+        "goType": "unmatched.Repository",
+        "typescriptType": "Repository",
+        "usedTypescriptType": "Repository",
+        "usedStructName": "unmatched.Repository",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UnmatchedScanner",
+        "jsonName": "UnmatchedScanner",
+        "goType": "unmatched.Scanner",
+        "typescriptType": "Scanner",
+        "usedTypescriptType": "Scanner",
+        "usedStructName": "unmatched.Scanner",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EnMasseDownloader",
+        "jsonName": "EnMasseDownloader",
+        "goType": "enmasse.Downloader",
+        "typescriptType": "Downloader",
+        "usedTypescriptType": "Downloader",
+        "usedStructName": "enmasse.Downloader",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaEnMasseDownloader",
+        "jsonName": "MangaEnMasseDownloader",
+        "goType": "enmasse.MangaDownloader",
+        "typescriptType": "MangaDownloader",
+        "usedTypescriptType": "MangaDownloader",
+        "usedStructName": "enmasse.MangaDownloader",
         "required": false,
         "public": true,
         "comments": []
@@ -29045,6 +29098,28 @@
     "filename": "models.go",
     "name": "LocalFiles",
     "formattedName": "Models_LocalFiles",
+    "package": "models",
+    "fields": [
+      {
+        "name": "Value",
+        "jsonName": "value",
+        "goType": "string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "ShelvedLocalFiles",
+    "formattedName": "Models_ShelvedLocalFiles",
     "package": "models",
     "fields": [
       {
@@ -30759,6 +30834,15 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "MangaHomeItems",
+        "jsonName": "mangaHomeItems",
+        "goType": "string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [],
@@ -30923,6 +31007,17 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "MediaTitle",
+        "jsonName": "mediaTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Title for folder naming"
+        ]
       },
       {
         "name": "PageData",
@@ -31347,6 +31442,104 @@
   {
     "filepath": "../internal/database/models/models.go",
     "filename": "models.go",
+    "name": "SyntheticManga",
+    "formattedName": "Models_SyntheticManga",
+    "package": "models",
+    "fields": [
+      {
+        "name": "SyntheticID",
+        "jsonName": "syntheticId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Negative ID to avoid collision with AniList"
+        ]
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Provider",
+        "jsonName": "provider",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " e.g., \"weebcentral\""
+        ]
+      },
+      {
+        "name": "ProviderID",
+        "jsonName": "providerId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " ID on the provider (e.g., WeebCentral manga ID)"
+        ]
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " e.g., \"RELEASING\", \"FINISHED\""
+        ]
+      },
+      {
+        "name": "Chapters",
+        "jsonName": "chapters",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Total chapter count if known"
+        ]
+      }
+    ],
+    "comments": [
+      " SyntheticManga stores metadata for manga not found on AniList",
+      " These are assigned synthetic IDs (negative numbers) and displayed in the UI"
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
     "name": "MangaChapterContainer",
     "formattedName": "Models_MangaChapterContainer",
     "package": "models",
@@ -31389,6 +31582,300 @@
       }
     ],
     "comments": [],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "MangaIDMapping",
+    "formattedName": "Models_MangaIDMapping",
+    "package": "models",
+    "fields": [
+      {
+        "name": "SyntheticID",
+        "jsonName": "syntheticId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Original synthetic ID (negative)"
+        ]
+      },
+      {
+        "name": "AnilistID",
+        "jsonName": "anilistId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Mapped AniList ID (positive)"
+        ]
+      },
+      {
+        "name": "ProviderID",
+        "jsonName": "providerId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Provider ID for reference"
+        ]
+      }
+    ],
+    "comments": [
+      " MangaIDMapping stores conversions from synthetic manga IDs to AniList IDs",
+      " This allows downloaded files to remain in their original locations while",
+      " presenting them as AniList entries in the UI"
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "MangaReadingHistory",
+    "formattedName": "Models_MangaReadingHistory",
+    "package": "models",
+    "fields": [
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Can be negative for synthetic manga"
+        ]
+      },
+      {
+        "name": "LastReadAt",
+        "jsonName": "lastReadAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastChapterNumber",
+        "jsonName": "lastChapterNumber",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsSynthetic",
+        "jsonName": "isSynthetic",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MangaReadingHistory tracks when manga (including synthetic) was last read",
+      " Used to show \"Continue Reading\" section with most recently read manga first"
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "SyntheticAnime",
+    "formattedName": "Models_SyntheticAnime",
+    "package": "models",
+    "fields": [
+      {
+        "name": "SyntheticID",
+        "jsonName": "syntheticId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Negative ID to avoid collision with AniList"
+        ]
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TitleEnglish",
+        "jsonName": "titleEnglish",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Thumbnail",
+        "jsonName": "thumbnail",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " TV, MOVIE, OVA, ONA, SPECIAL"
+        ]
+      },
+      {
+        "name": "Episodes",
+        "jsonName": "episodes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " FINISHED, ONGOING, UPCOMING"
+        ]
+      },
+      {
+        "name": "Season",
+        "jsonName": "season",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " SPRING, SUMMER, FALL, WINTER"
+        ]
+      },
+      {
+        "name": "SeasonYear",
+        "jsonName": "seasonYear",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Synonyms",
+        "jsonName": "synonyms",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " JSON array of synonyms"
+        ]
+      },
+      {
+        "name": "Tags",
+        "jsonName": "tags",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " JSON array of tags"
+        ]
+      },
+      {
+        "name": "Studios",
+        "jsonName": "studios",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " JSON array of studios"
+        ]
+      },
+      {
+        "name": "Sources",
+        "jsonName": "sources",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " JSON array of source URLs (MAL, AniDB, etc.)"
+        ]
+      },
+      {
+        "name": "AnilistID",
+        "jsonName": "anilistId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " AniList ID if available from sources"
+        ]
+      },
+      {
+        "name": "MalID",
+        "jsonName": "malId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " MAL ID if available from sources"
+        ]
+      }
+    ],
+    "comments": [
+      " SyntheticAnime stores metadata for anime from anime-offline-database not found on AniList",
+      " These are assigned synthetic IDs (negative numbers) and displayed in the UI"
+    ],
     "embeddedStructNames": [
       "models.BaseModel"
     ]
@@ -37136,6 +37623,1349 @@
     "comments": []
   },
   {
+    "filepath": "../internal/enmasse/downloader.go",
+    "filename": "downloader.go",
+    "name": "Downloader",
+    "formattedName": "Downloader",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "torrentRepository",
+        "jsonName": "torrentRepository",
+        "goType": "torrent.Repository",
+        "typescriptType": "Torrent_Repository",
+        "usedTypescriptType": "Torrent_Repository",
+        "usedStructName": "torrent.Repository",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "torrentClientRepositoryRef",
+        "jsonName": "torrentClientRepositoryRef",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "wsEventManager",
+        "jsonName": "wsEventManager",
+        "goType": "events.WSEventManagerInterface",
+        "typescriptType": "Events_WSEventManagerInterface",
+        "usedTypescriptType": "Events_WSEventManagerInterface",
+        "usedStructName": "events.WSEventManagerInterface",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "platformRef",
+        "jsonName": "platformRef",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "unmatchedRepository",
+        "jsonName": "unmatchedRepository",
+        "goType": "unmatched.Repository",
+        "typescriptType": "Repository",
+        "usedTypescriptType": "Repository",
+        "usedStructName": "unmatched.Repository",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "isRunning",
+        "jsonName": "isRunning",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "isPaused",
+        "jsonName": "isPaused",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cancelFunc",
+        "jsonName": "cancelFunc",
+        "goType": "context.CancelFunc",
+        "typescriptType": "CancelFunc",
+        "usedTypescriptType": "CancelFunc",
+        "usedStructName": "context.CancelFunc",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "currentAnime",
+        "jsonName": "currentAnime",
+        "goType": "AnilistMinifiedItem",
+        "typescriptType": "AnilistMinifiedItem",
+        "usedTypescriptType": "AnilistMinifiedItem",
+        "usedStructName": "enmasse.AnilistMinifiedItem",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "processedCount",
+        "jsonName": "processedCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "totalCount",
+        "jsonName": "totalCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "downloadedAnime",
+        "jsonName": "downloadedAnime",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "failedAnime",
+        "jsonName": "failedAnime",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "searchSemaphore",
+        "jsonName": "searchSemaphore",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/downloader.go",
+    "filename": "downloader.go",
+    "name": "NewDownloaderOptions",
+    "formattedName": "NewDownloaderOptions",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "Logger",
+        "jsonName": "Logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TorrentRepository",
+        "jsonName": "TorrentRepository",
+        "goType": "torrent.Repository",
+        "typescriptType": "Torrent_Repository",
+        "usedTypescriptType": "Torrent_Repository",
+        "usedStructName": "torrent.Repository",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TorrentClientRepositoryRef",
+        "jsonName": "TorrentClientRepositoryRef",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WSEventManager",
+        "jsonName": "WSEventManager",
+        "goType": "events.WSEventManagerInterface",
+        "typescriptType": "Events_WSEventManagerInterface",
+        "usedTypescriptType": "Events_WSEventManagerInterface",
+        "usedStructName": "events.WSEventManagerInterface",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PlatformRef",
+        "jsonName": "PlatformRef",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UnmatchedRepository",
+        "jsonName": "UnmatchedRepository",
+        "goType": "unmatched.Repository",
+        "typescriptType": "Repository",
+        "usedTypescriptType": "Repository",
+        "usedStructName": "unmatched.Repository",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/downloader.go",
+    "filename": "downloader.go",
+    "name": "DownloaderStatus",
+    "formattedName": "DownloaderStatus",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "IsRunning",
+        "jsonName": "isRunning",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsPaused",
+        "jsonName": "isPaused",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CurrentAnime",
+        "jsonName": "currentAnime",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CurrentAnimeId",
+        "jsonName": "currentAnimeId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProcessedCount",
+        "jsonName": "processedCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalCount",
+        "jsonName": "totalCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DownloadedAnime",
+        "jsonName": "downloadedAnime",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FailedAnime",
+        "jsonName": "failedAnime",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HasSavedProgress",
+        "jsonName": "hasSavedProgress",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/downloader.go",
+    "filename": "downloader.go",
+    "name": "DownloaderProgress",
+    "formattedName": "DownloaderProgress",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "ProcessedTitles",
+        "jsonName": "processed_titles",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DownloadedAnime",
+        "jsonName": "downloaded_anime",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FailedAnime",
+        "jsonName": "failed_anime",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/downloader.go",
+    "filename": "downloader.go",
+    "name": "AnimeOfflineDatabase",
+    "formattedName": "AnimeOfflineDatabase",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "Data",
+        "jsonName": "data",
+        "goType": "[]AnimeOfflineItem",
+        "typescriptType": "Array\u003cAnimeOfflineItem\u003e",
+        "usedTypescriptType": "AnimeOfflineItem",
+        "usedStructName": "enmasse.AnimeOfflineItem",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/downloader.go",
+    "filename": "downloader.go",
+    "name": "AnimeOfflineItem",
+    "formattedName": "AnimeOfflineItem",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "Sources",
+        "jsonName": "sources",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Episodes",
+        "jsonName": "episodes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeSeason",
+        "jsonName": "animeSeason",
+        "goType": "__STRUCT__",
+        "typescriptType": "{ season: string; year: number; }",
+        "usedTypescriptType": "{ season: string; year: number; }",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Picture",
+        "jsonName": "picture",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Thumbnail",
+        "jsonName": "thumbnail",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Synonyms",
+        "jsonName": "synonyms",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Studios",
+        "jsonName": "studios",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tags",
+        "jsonName": "tags",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnilistID",
+        "jsonName": "",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MalID",
+        "jsonName": "",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/downloader.go",
+    "filename": "downloader.go",
+    "name": "AnilistMinifiedItem",
+    "formattedName": "AnilistMinifiedItem",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TitleRomaji",
+        "jsonName": "title_romaji",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TitleEnglish",
+        "jsonName": "title_english",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Episodes",
+        "jsonName": "episodes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Format",
+        "jsonName": "format",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Synonyms",
+        "jsonName": "synonyms",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/manga_downloader.go",
+    "filename": "manga_downloader.go",
+    "name": "MangaDownloader",
+    "formattedName": "MangaDownloader",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mangaRepository",
+        "jsonName": "mangaRepository",
+        "goType": "manga.Repository",
+        "typescriptType": "Manga_Repository",
+        "usedTypescriptType": "Manga_Repository",
+        "usedStructName": "manga.Repository",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mangaDownloader",
+        "jsonName": "mangaDownloader",
+        "goType": "manga.Downloader",
+        "typescriptType": "Manga_Downloader",
+        "usedTypescriptType": "Manga_Downloader",
+        "usedStructName": "manga.Downloader",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "wsEventManager",
+        "jsonName": "wsEventManager",
+        "goType": "events.WSEventManagerInterface",
+        "typescriptType": "Events_WSEventManagerInterface",
+        "usedTypescriptType": "Events_WSEventManagerInterface",
+        "usedStructName": "events.WSEventManagerInterface",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "platformRef",
+        "jsonName": "platformRef",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "isRunning",
+        "jsonName": "isRunning",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "isPaused",
+        "jsonName": "isPaused",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cancelFunc",
+        "jsonName": "cancelFunc",
+        "goType": "context.CancelFunc",
+        "typescriptType": "CancelFunc",
+        "usedTypescriptType": "CancelFunc",
+        "usedStructName": "context.CancelFunc",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "currentManga",
+        "jsonName": "currentManga",
+        "goType": "HakunekoMangaItem",
+        "typescriptType": "HakunekoMangaItem",
+        "usedTypescriptType": "HakunekoMangaItem",
+        "usedStructName": "enmasse.HakunekoMangaItem",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "currentChapter",
+        "jsonName": "currentChapter",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "processedCount",
+        "jsonName": "processedCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "totalCount",
+        "jsonName": "totalCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "downloadedManga",
+        "jsonName": "downloadedManga",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "failedManga",
+        "jsonName": "failedManga",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "skippedManga",
+        "jsonName": "skippedManga",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mangaSemaphore",
+        "jsonName": "mangaSemaphore",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": [
+          " Controls concurrent manga processing"
+        ]
+      },
+      {
+        "name": "chapterSemaphore",
+        "jsonName": "chapterSemaphore",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": [
+          " Controls concurrent chapter downloads"
+        ]
+      },
+      {
+        "name": "matchRecords",
+        "jsonName": "matchRecords",
+        "goType": "[]MangaMatchRecord",
+        "typescriptType": "Array\u003cMangaMatchRecord\u003e",
+        "usedTypescriptType": "MangaMatchRecord",
+        "usedStructName": "enmasse.MangaMatchRecord",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "processedSyntheticIDs",
+        "jsonName": "processedSyntheticIDs",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": false,
+        "comments": [
+          " Track which synthetic manga have been auto-matched"
+        ]
+      },
+      {
+        "name": "autoMatchInProgress",
+        "jsonName": "autoMatchInProgress",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "autoMatchCurrent",
+        "jsonName": "autoMatchCurrent",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "autoMatchProcessed",
+        "jsonName": "autoMatchProcessed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "autoMatchTotal",
+        "jsonName": "autoMatchTotal",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/manga_downloader.go",
+    "filename": "manga_downloader.go",
+    "name": "MangaDownloaderProgress",
+    "formattedName": "MangaDownloaderProgress",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "ProcessedTitles",
+        "jsonName": "processed_titles",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DownloadedManga",
+        "jsonName": "downloaded_manga",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FailedManga",
+        "jsonName": "failed_manga",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SkippedManga",
+        "jsonName": "skipped_manga",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MatchRecords",
+        "jsonName": "match_records",
+        "goType": "[]MangaMatchRecord",
+        "typescriptType": "Array\u003cMangaMatchRecord\u003e",
+        "usedTypescriptType": "MangaMatchRecord",
+        "usedStructName": "enmasse.MangaMatchRecord",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProcessedSyntheticIDs",
+        "jsonName": "processed_synthetic_ids",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": [
+          " Track which synthetic manga have been auto-matched"
+        ]
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/manga_downloader.go",
+    "filename": "manga_downloader.go",
+    "name": "MangaMatchRecord",
+    "formattedName": "MangaMatchRecord",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "OriginalTitle",
+        "jsonName": "originalTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProviderID",
+        "jsonName": "providerId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MatchedID",
+        "jsonName": "matchedId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " AniList ID or synthetic ID (negative)"
+        ]
+      },
+      {
+        "name": "MatchedTitle",
+        "jsonName": "matchedTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsSynthetic",
+        "jsonName": "isSynthetic",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ConfidenceScore",
+        "jsonName": "confidenceScore",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " 0.0-1.0"
+        ]
+      },
+      {
+        "name": "SearchResults",
+        "jsonName": "searchResults",
+        "goType": "[]anilist.BaseManga",
+        "typescriptType": "Array\u003cAL_BaseManga\u003e",
+        "usedTypescriptType": "AL_BaseManga",
+        "usedStructName": "anilist.BaseManga",
+        "required": false,
+        "public": true,
+        "comments": [
+          " Top search results for review"
+        ]
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"downloaded\", \"failed\", \"skipped\""
+        ]
+      },
+      {
+        "name": "Timestamp",
+        "jsonName": "timestamp",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/manga_downloader.go",
+    "filename": "manga_downloader.go",
+    "name": "HakunekoMangaItem",
+    "formattedName": "HakunekoMangaItem",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/manga_downloader.go",
+    "filename": "manga_downloader.go",
+    "name": "MangaDownloaderStatus",
+    "formattedName": "MangaDownloaderStatus",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "IsRunning",
+        "jsonName": "isRunning",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsPaused",
+        "jsonName": "isPaused",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CurrentManga",
+        "jsonName": "currentManga",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CurrentChapter",
+        "jsonName": "currentChapter",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProcessedCount",
+        "jsonName": "processedCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalCount",
+        "jsonName": "totalCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DownloadedManga",
+        "jsonName": "downloadedManga",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FailedManga",
+        "jsonName": "failedManga",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SkippedManga",
+        "jsonName": "skippedManga",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HasSavedProgress",
+        "jsonName": "hasSavedProgress",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MatchRecordCount",
+        "jsonName": "matchRecordCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AutoMatchInProgress",
+        "jsonName": "autoMatchInProgress",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AutoMatchCurrent",
+        "jsonName": "autoMatchCurrent",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AutoMatchProcessed",
+        "jsonName": "autoMatchProcessed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AutoMatchTotal",
+        "jsonName": "autoMatchTotal",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/manga_downloader.go",
+    "filename": "manga_downloader.go",
+    "name": "NewMangaDownloaderOptions",
+    "formattedName": "NewMangaDownloaderOptions",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "Logger",
+        "jsonName": "Logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaRepository",
+        "jsonName": "MangaRepository",
+        "goType": "manga.Repository",
+        "typescriptType": "Manga_Repository",
+        "usedTypescriptType": "Manga_Repository",
+        "usedStructName": "manga.Repository",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaDownloader",
+        "jsonName": "MangaDownloader",
+        "goType": "manga.Downloader",
+        "typescriptType": "Manga_Downloader",
+        "usedTypescriptType": "Manga_Downloader",
+        "usedStructName": "manga.Downloader",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WSEventManager",
+        "jsonName": "WSEventManager",
+        "goType": "events.WSEventManagerInterface",
+        "typescriptType": "Events_WSEventManagerInterface",
+        "usedTypescriptType": "Events_WSEventManagerInterface",
+        "usedStructName": "events.WSEventManagerInterface",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PlatformRef",
+        "jsonName": "PlatformRef",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enmasse/rate_limiter.go",
+    "filename": "rate_limiter.go",
+    "name": "RateLimiter",
+    "formattedName": "RateLimiter",
+    "package": "enmasse",
+    "fields": [
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "window",
+        "jsonName": "window",
+        "goType": "[]time.Time",
+        "typescriptType": "Array\u003cstring\u003e",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "limit",
+        "jsonName": "limit",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "windowSize",
+        "jsonName": "windowSize",
+        "goType": "time.Duration",
+        "typescriptType": "Duration",
+        "usedTypescriptType": "Duration",
+        "usedStructName": "time.Duration",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " RateLimiter enforces a max number of events within a sliding window.",
+      " Simple windowed limiter suitable for low-rate operations."
+    ]
+  },
+  {
     "filepath": "../internal/events/events.go",
     "filename": "events.go",
     "name": "WebsocketClientEventType",
@@ -41763,6 +43593,15 @@
         "comments": []
       },
       {
+        "name": "closeCh",
+        "jsonName": "closeCh",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "browsers",
         "jsonName": "browsers",
         "goType": "map[string]Browser",
@@ -41933,6 +43772,15 @@
         "comments": []
       },
       {
+        "name": "closeCh",
+        "jsonName": "closeCh",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "allowedDomains",
         "jsonName": "allowedDomains",
         "goType": "[]string",
@@ -42080,6 +43928,28 @@
         "required": true,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "cleanupsMu",
+        "jsonName": "cleanupsMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cleanups",
+        "jsonName": "cleanups",
+        "goType": "[]",
+        "typescriptType": "Array\u003cany\u003e",
+        "required": false,
+        "public": false,
+        "comments": [
+          " cleanup functions to call when pool is deleted"
+        ]
       }
     ],
     "comments": []
@@ -42479,6 +44349,129 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "name": "EnMasseStartBody",
+    "formattedName": "EnMasseStartBody",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Resume",
+        "jsonName": "resume",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "name": "EnMasseStopBody",
+    "formattedName": "EnMasseStopBody",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "SaveProgress",
+        "jsonName": "saveProgress",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "name": "MangaEnMasseStartBody",
+    "formattedName": "MangaEnMasseStartBody",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Resume",
+        "jsonName": "resume",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "name": "MangaEnMasseStopBody",
+    "formattedName": "MangaEnMasseStopBody",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "SaveProgress",
+        "jsonName": "saveProgress",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "name": "CorrectMangaMatchBody",
+    "formattedName": "CorrectMangaMatchBody",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ProviderID",
+        "jsonName": "providerId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewAnilistID",
+        "jsonName": "newAnilistId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/enmasse.go",
+    "filename": "enmasse.go",
+    "name": "ConvertToSyntheticBody",
+    "formattedName": "ConvertToSyntheticBody",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ProviderID",
+        "jsonName": "providerId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
     "filepath": "../internal/handlers/mal.go",
     "filename": "mal.go",
     "name": "MalAuthResponse",
@@ -42523,6 +44516,65 @@
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/manga.go",
+    "filename": "manga.go",
+    "name": "MangaReadingHistoryItem",
+    "formattedName": "MangaReadingHistoryItem",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastReadAt",
+        "jsonName": "lastReadAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastChapterNumber",
+        "jsonName": "lastChapterNumber",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsSynthetic",
+        "jsonName": "isSynthetic",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Media",
+        "jsonName": "media",
+        "goType": "anilist.BaseManga",
+        "typescriptType": "AL_BaseManga",
+        "usedTypescriptType": "AL_BaseManga",
+        "usedStructName": "anilist.BaseManga",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MangaReadingHistoryItem represents a reading history entry with full media details"
+    ]
   },
   {
     "filepath": "../internal/handlers/manual_dump.go",
@@ -49981,6 +52033,26 @@
         "comments": []
       },
       {
+        "name": "currentClientID",
+        "jsonName": "currentClientID",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "currentClientIDMu",
+        "jsonName": "currentClientIDMu",
+        "goType": "sync.RWMutex",
+        "typescriptType": "RWMutex",
+        "usedTypescriptType": "RWMutex",
+        "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "historyMap",
         "jsonName": "historyMap",
         "goType": "map[string]PlaybackState",
@@ -52218,6 +54290,37 @@
         "goType": "string",
         "typescriptType": "string",
         "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WithShelving",
+        "jsonName": "WithShelving",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ExistingShelvedFiles",
+        "jsonName": "ExistingShelvedFiles",
+        "goType": "[]anime.LocalFile",
+        "typescriptType": "Array\u003cAnime_LocalFile\u003e",
+        "usedTypescriptType": "Anime_LocalFile",
+        "usedStructName": "anime.LocalFile",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ShelvedLocalFiles",
+        "jsonName": "ShelvedLocalFiles",
+        "goType": "[]anime.LocalFile",
+        "typescriptType": "Array\u003cAnime_LocalFile\u003e",
+        "usedTypescriptType": "Anime_LocalFile",
+        "usedStructName": "anime.LocalFile",
+        "required": false,
         "public": true,
         "comments": []
       }
@@ -55155,9 +57258,97 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "MediaTitle",
+        "jsonName": "MediaTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Romaji title for folder naming (optional, will be fetched if empty)"
+        ]
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/manga/download.go",
+    "filename": "download.go",
+    "name": "DownloadChapterDirectOptions",
+    "formattedName": "Manga_DownloadChapterDirectOptions",
+    "package": "manga",
+    "fields": [
+      {
+        "name": "Provider",
+        "jsonName": "Provider",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaId",
+        "jsonName": "MediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ChapterId",
+        "jsonName": "ChapterId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ChapterNumber",
+        "jsonName": "ChapterNumber",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaTitle",
+        "jsonName": "MediaTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Pages",
+        "jsonName": "Pages",
+        "goType": "[]hibikemanga.ChapterPage",
+        "typescriptType": "Array\u003cHibikeManga_ChapterPage\u003e",
+        "usedTypescriptType": "HibikeManga_ChapterPage",
+        "usedStructName": "hibikemanga.ChapterPage",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartNow",
+        "jsonName": "StartNow",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " DownloadChapterDirectOptions contains options for direct chapter download"
+    ]
   },
   {
     "filepath": "../internal/manga/download.go",
@@ -55217,6 +57408,17 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "IsMapped",
+        "jsonName": "isMapped",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": [
+          " True if this was a synthetic manga mapped to AniList"
+        ]
       }
     ],
     "comments": []
@@ -55390,6 +57592,17 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "MediaTitle",
+        "jsonName": "mediaTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Romaji title for folder naming"
+        ]
       }
     ],
     "comments": []
@@ -55639,6 +57852,17 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "downloadDir",
+        "jsonName": "downloadDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": [
+          " Path to the download directory"
+        ]
       }
     ],
     "comments": []
@@ -56202,6 +58426,17 @@
         "jsonName": "PlatformRef",
         "goType": "",
         "typescriptType": "any",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Database",
+        "jsonName": "Database",
+        "goType": "db.Database",
+        "typescriptType": "DB_Database",
+        "usedTypescriptType": "DB_Database",
+        "usedStructName": "db.Database",
         "required": false,
         "public": true,
         "comments": []
@@ -80542,7 +82777,7 @@
       {
         "name": "MaxRatio",
         "jsonName": "max_ratio",
-        "goType": "int",
+        "goType": "float64",
         "typescriptType": "number",
         "required": true,
         "public": true,
@@ -80560,7 +82795,7 @@
       {
         "name": "RatioLimit",
         "jsonName": "ratio_limit",
-        "goType": "int",
+        "goType": "float64",
         "typescriptType": "number",
         "required": true,
         "public": true,
@@ -82616,6 +84851,76 @@
     "comments": []
   },
   {
+    "filepath": "../internal/torrents/autoselect/search_test.go",
+    "filename": "search_test.go",
+    "name": "FakeSearchProvider",
+    "formattedName": "FakeSearchProvider",
+    "package": "autoselect",
+    "fields": [
+      {
+        "name": "SearchResults",
+        "jsonName": "SearchResults",
+        "goType": "map[string][]hibiketorrent.AnimeTorrent",
+        "typescriptType": "Record\u003cstring, Array\u003cHibikeTorrent_AnimeTorrent\u003e\u003e",
+        "usedTypescriptType": "HibikeTorrent_AnimeTorrent",
+        "usedStructName": "hibiketorrent.AnimeTorrent",
+        "required": false,
+        "public": true,
+        "comments": [
+          " keyed by resolution"
+        ]
+      },
+      {
+        "name": "CanSmartSearch",
+        "jsonName": "CanSmartSearch",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SearchCallCount",
+        "jsonName": "SearchCallCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastSearchQuery",
+        "jsonName": "LastSearchQuery",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastResolution",
+        "jsonName": "LastResolution",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastBatchSetting",
+        "jsonName": "LastBatchSetting",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " FakeSearchProvider is a fake torrent provider for testing search functionality"
+    ]
+  },
+  {
     "filepath": "../internal/torrents/torrent/repository.go",
     "filename": "repository.go",
     "name": "Repository",
@@ -82866,6 +85171,15 @@
       {
         "name": "IncludeSpecialProviders",
         "jsonName": "IncludeSpecialProviders",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SkipPreviews",
+        "jsonName": "SkipPreviews",
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
@@ -84920,6 +87234,649 @@
         "comments": [
           " \"desktop_torrent_player\" or \"external_player_link\""
         ]
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/unmatched/repository.go",
+    "filename": "repository.go",
+    "name": "Repository",
+    "formattedName": "Repository",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "database",
+        "jsonName": "database",
+        "goType": "db.Database",
+        "typescriptType": "DB_Database",
+        "usedTypescriptType": "DB_Database",
+        "usedStructName": "db.Database",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "metadataCache",
+        "jsonName": "metadataCache",
+        "goType": "animap.Cache",
+        "typescriptType": "Animap_Cache",
+        "usedTypescriptType": "Animap_Cache",
+        "usedStructName": "animap.Cache",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cacheMu",
+        "jsonName": "cacheMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cachedTorrents",
+        "jsonName": "cachedTorrents",
+        "goType": "[]UnmatchedTorrent",
+        "typescriptType": "Array\u003cUnmatchedTorrent\u003e",
+        "usedTypescriptType": "UnmatchedTorrent",
+        "usedStructName": "unmatched.UnmatchedTorrent",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cacheExpiry",
+        "jsonName": "cacheExpiry",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/unmatched/repository.go",
+    "filename": "repository.go",
+    "name": "UnmatchedTorrent",
+    "formattedName": "UnmatchedTorrent",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Path",
+        "jsonName": "path",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Size",
+        "jsonName": "size",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FileCount",
+        "jsonName": "fileCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Files",
+        "jsonName": "files",
+        "goType": "[]UnmatchedFile",
+        "typescriptType": "Array\u003cUnmatchedFile\u003e",
+        "usedTypescriptType": "UnmatchedFile",
+        "usedStructName": "unmatched.UnmatchedFile",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Seasons",
+        "jsonName": "seasons",
+        "goType": "[]UnmatchedSeason",
+        "typescriptType": "Array\u003cUnmatchedSeason\u003e",
+        "usedTypescriptType": "UnmatchedSeason",
+        "usedStructName": "unmatched.UnmatchedSeason",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeID",
+        "jsonName": "animeId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeTitleRomaji",
+        "jsonName": "animeTitleRomaji",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeTitleNative",
+        "jsonName": "animeTitleNative",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeFormat",
+        "jsonName": "animeFormat",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeStartYear",
+        "jsonName": "animeStartYear",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeExpectedEpisodes",
+        "jsonName": "animeExpectedEpisodes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " UnmatchedTorrent represents a downloaded torrent that hasn't been matched to an anime yet"
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/repository.go",
+    "filename": "repository.go",
+    "name": "TorrentMetadata",
+    "formattedName": "TorrentMetadata",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "AnimeID",
+        "jsonName": "animeId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeTitleRomaji",
+        "jsonName": "animeTitleRomaji",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeTitleNative",
+        "jsonName": "animeTitleNative",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeFormat",
+        "jsonName": "animeFormat",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeStartYear",
+        "jsonName": "animeStartYear",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeExpectedEpisodes",
+        "jsonName": "animeExpectedEpisodes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TorrentMetadata stores anime info for an unmatched torrent"
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/repository.go",
+    "filename": "repository.go",
+    "name": "UnmatchedSeason",
+    "formattedName": "UnmatchedSeason",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Path",
+        "jsonName": "path",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Files",
+        "jsonName": "files",
+        "goType": "[]UnmatchedFile",
+        "typescriptType": "Array\u003cUnmatchedFile\u003e",
+        "usedTypescriptType": "UnmatchedFile",
+        "usedStructName": "unmatched.UnmatchedFile",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Number",
+        "jsonName": "number",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Extracted season number"
+        ]
+      }
+    ],
+    "comments": [
+      " UnmatchedSeason represents a season folder within a torrent"
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/repository.go",
+    "filename": "repository.go",
+    "name": "UnmatchedFile",
+    "formattedName": "UnmatchedFile",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Path",
+        "jsonName": "path",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RelativePath",
+        "jsonName": "relativePath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Path relative to torrent root"
+        ]
+      },
+      {
+        "name": "Size",
+        "jsonName": "size",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsVideo",
+        "jsonName": "isVideo",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Season",
+        "jsonName": "season",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": [
+          " Season folder name if applicable"
+        ]
+      },
+      {
+        "name": "SeasonNumber",
+        "jsonName": "seasonNumber",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": [
+          " Extracted season number"
+        ]
+      }
+    ],
+    "comments": [
+      " UnmatchedFile represents a single file within an unmatched torrent"
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/repository.go",
+    "filename": "repository.go",
+    "name": "MatchRequest",
+    "formattedName": "MatchRequest",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "TorrentName",
+        "jsonName": "torrentName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SelectedFiles",
+        "jsonName": "selectedFiles",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": [
+          " Relative paths of selected files"
+        ]
+      },
+      {
+        "name": "AnimeID",
+        "jsonName": "animeId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeTitleJP",
+        "jsonName": "animeTitleJp",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Japanese title from AniList"
+        ]
+      },
+      {
+        "name": "AnimeTitleClean",
+        "jsonName": "animeTitleClean",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Cleaned title for folder name"
+        ]
+      }
+    ],
+    "comments": [
+      " MatchRequest represents a request to match files to an anime"
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/repository.go",
+    "filename": "repository.go",
+    "name": "MatchResult",
+    "formattedName": "MatchResult",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "Success",
+        "jsonName": "success",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MovedFiles",
+        "jsonName": "movedFiles",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FailedFiles",
+        "jsonName": "failedFiles",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Destination",
+        "jsonName": "destination",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ErrorMessage",
+        "jsonName": "errorMessage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MatchResult represents the result of a match operation"
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/scanner.go",
+    "filename": "scanner.go",
+    "name": "Scanner",
+    "formattedName": "Scanner",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "repository",
+        "jsonName": "repository",
+        "goType": "Repository",
+        "typescriptType": "Repository",
+        "usedTypescriptType": "Repository",
+        "usedStructName": "unmatched.Repository",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "isRunning",
+        "jsonName": "isRunning",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cancelFunc",
+        "jsonName": "cancelFunc",
+        "goType": "context.CancelFunc",
+        "typescriptType": "CancelFunc",
+        "usedTypescriptType": "CancelFunc",
+        "usedStructName": "context.CancelFunc",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "completedTorrents",
+        "jsonName": "completedTorrents",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "scanInterval",
+        "jsonName": "scanInterval",
+        "goType": "time.Duration",
+        "typescriptType": "Duration",
+        "usedTypescriptType": "Duration",
+        "usedStructName": "time.Duration",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "verifyDelay",
+        "jsonName": "verifyDelay",
+        "goType": "time.Duration",
+        "typescriptType": "Duration",
+        "usedTypescriptType": "Duration",
+        "usedStructName": "time.Duration",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Scanner monitors the Unmatched folder for completed downloads",
+      " by checking for qBittorrent temporary files (.!qB extension)"
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/scanner.go",
+    "filename": "scanner.go",
+    "name": "ScannerStatus",
+    "formattedName": "ScannerStatus",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "IsRunning",
+        "jsonName": "isRunning",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CompletedTorrents",
+        "jsonName": "completedTorrents",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []

@@ -217,6 +217,7 @@ func (d *Downloader) DownloadChapter(opts DownloadChapterOptions) error {
 			MediaId:       opts.MediaId,
 			ChapterId:     opts.ChapterId,
 			ChapterNumber: manga_providers.GetNormalizedChapter(chapter.Chapter),
+			ChapterTitle:  chapter.Title, // Include chapter title for folder naming
 			MediaTitle:    opts.MediaTitle,
 		},
 		Pages: pageContainer.Pages,
@@ -350,8 +351,9 @@ type (
 		MediaId int `json:"mediaId"`
 		// Media will be nil if the manga is no longer in the user's collection.
 		// The client should handle this case by displaying the download data without the media data.
-		Media        *anilist.BaseManga  `json:"media"`
+		Media        *anilist.BaseManga   `json:"media"`
 		DownloadData ProviderDownloadMap `json:"downloadData"`
+		IsMapped     bool                 `json:"isMapped"` // True if this was a synthetic manga mapped to AniList
 	}
 )
 
@@ -368,18 +370,49 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 		if mId < 0 {
 			syntheticManga, found := d.database.GetSyntheticManga(mId)
 			if found {
-				// Create a BaseManga from synthetic manga data
-				media := createBaseMangaFromSynthetic(syntheticManga)
-				ret = append(ret, &DownloadListItem{
-					MediaId:      mId,
-					Media:        media,
-					DownloadData: data,
-				})
+				// Check if there's a mapping to an AniList ID
+				if anilistID, found := d.database.GetMangaIDMapping(mId); found {
+					d.logger.Debug().
+						Int("syntheticID", mId).
+						Int("anilistID", anilistID).
+						Msg("manga: Hiding synthetic entry, showing only AniList entry in download list")
+					
+					// Only add the AniList entry (hide the synthetic entry)
+					listEntry, ok := opts.MangaCollection.GetListEntryFromMangaId(anilistID)
+					if ok && listEntry.GetMedia() != nil {
+						ret = append(ret, &DownloadListItem{
+							MediaId:      anilistID,
+							Media:        listEntry.GetMedia(),
+							DownloadData: data,
+							IsMapped:     true,
+						})
+					} else {
+						// AniList entry not in collection, create from synthetic data with AniList ID
+						anilistMedia := createBaseMangaFromSynthetic(syntheticManga, anilistID)
+						ret = append(ret, &DownloadListItem{
+							MediaId:      anilistID,
+							Media:        anilistMedia,
+							DownloadData: data,
+							IsMapped:     true,
+						})
+					}
+				} else {
+					// No mapping exists, show the synthetic entry
+					syntheticMedia := createBaseMangaFromSynthetic(syntheticManga, mId)
+					ret = append(ret, &DownloadListItem{
+						MediaId:      mId,
+						Media:        syntheticMedia,
+						DownloadData: data,
+						IsMapped:     false,
+					})
+				}
 			} else {
+				// Synthetic manga not found in database
 				ret = append(ret, &DownloadListItem{
 					MediaId:      mId,
 					Media:        nil,
 					DownloadData: data,
+					IsMapped:     false,
 				})
 			}
 			continue
@@ -418,7 +451,8 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 }
 
 // createBaseMangaFromSynthetic creates a BaseManga object from a SyntheticManga entry
-func createBaseMangaFromSynthetic(sm *models.SyntheticManga) *anilist.BaseManga {
+// displayId is the ID to use in the media object (can be AniList ID if mapped, or synthetic ID if not)
+func createBaseMangaFromSynthetic(sm *models.SyntheticManga, displayId int) *anilist.BaseManga {
 	status := anilist.MediaStatusReleasing
 	if sm.Status == "FINISHED" {
 		status = anilist.MediaStatusFinished
@@ -427,7 +461,7 @@ func createBaseMangaFromSynthetic(sm *models.SyntheticManga) *anilist.BaseManga 
 	format := anilist.MediaFormatManga
 
 	return &anilist.BaseManga{
-		ID: sm.SyntheticID,
+		ID: displayId,
 		Title: &anilist.BaseManga_Title{
 			Romaji:        &sm.Title,
 			English:       &sm.Title,

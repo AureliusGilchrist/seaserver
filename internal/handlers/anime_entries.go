@@ -228,7 +228,13 @@ func (h *Handler) HandleAnimeEntryRematch(c echo.Context) error {
 	return h.RespondWithData(c, retLfs)
 }
 
-// ... rest of the code remains the same ...
+// HandleGetAnimeEntry
+//
+//	@summary returns an anime entry for the given AniList anime id.
+//	@desc This is used by the anime media entry pages to get all the data about the anime. It includes metadata, AniList list data, and local files.
+//	@route /api/v1/library/anime-entry/{id} [GET]
+//	@param id - int - true - "AniList anime media ID"
+//	@returns anime.Entry
 func (h *Handler) HandleGetAnimeEntry(c echo.Context) error {
 
 	mId, err := strconv.Atoi(c.Param("id"))

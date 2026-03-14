@@ -15,9 +15,9 @@ import type {
     Anime_PlaylistEpisode,
     ChapterDownloader_DownloadID,
     Continuity_UpdateWatchHistoryItemOptions,
-    Debrid_TorrentItem,
     DebridClient_CancelStreamOptions,
     DebridClient_StreamPlaybackType,
+    Debrid_TorrentItem,
     HibikeTorrent_AnimeTorrent,
     HibikeTorrent_BatchEpisodeFiles,
     LibraryExplorer_SuperUpdateFileOptions,
@@ -186,7 +186,7 @@ export type AddUnknownMedia_Variables = {
  * - Filename: anime_entries.go
  * - Endpoint: /api/v1/library/anime-entry/{id}
  * @description
- * Route return a media entry for the given AniList anime media id.
+ * Route returns an anime entry for the given AniList anime id.
  */
 export type GetAnimeEntry_Variables = {
     /**
@@ -759,6 +759,10 @@ export type DownloadMacDenshiUpdate_Variables = {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// enmasse
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // explorer
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1294,6 +1298,18 @@ export type RemoveMangaMapping_Variables = {
     mediaId: number
 }
 
+/**
+ * - Filepath: internal/handlers/manga.go
+ * - Filename: manga.go
+ * - Endpoint: /api/v1/manga/synthetic/search
+ * @description
+ * Route searches for synthetic manga by title.
+ */
+export type SearchSyntheticManga_Variables = {
+    query: string
+    limit: number
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // manga_download
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1310,7 +1326,7 @@ export type DownloadMangaChapters_Variables = {
     provider: string
     chapterIds: Array<string>
     startNow: boolean
-    mediaTitle?: string
+    mediaTitle: string
 }
 
 /**
@@ -1634,6 +1650,7 @@ export type RemoveOnlinestreamMapping_Variables = {
  */
 export type PlaybackPlayVideo_Variables = {
     path: string
+    clientId: string
 }
 
 /**
@@ -1869,18 +1886,37 @@ export type GetAnnouncements_Variables = {
  * - Filename: status.go
  * - Endpoint: /api/v1/status/home-items
  * @description
- * Route updates the home items.
+ * Route updates the anime home items.
  */
 export type UpdateHomeItems_Variables = {
     items: Array<Models_HomeItem>
 }
 
 /**
+ * - Filepath: internal/handlers/status.go
+ * - Filename: status.go
+ * - Endpoint: /api/v1/status/manga-home-items
  * @description
  * Route updates the manga home items.
  */
 export type UpdateMangaHomeItems_Variables = {
     items: Array<Models_HomeItem>
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// synthetic_anime
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/handlers/synthetic_anime.go
+ * - Filename: synthetic_anime.go
+ * - Endpoint: /api/v1/anime/synthetic/search
+ * @description
+ * Route searches for synthetic anime by title.
+ */
+export type SearchSyntheticAnime_Variables = {
+    query: string
+    limit: number
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1969,7 +2005,7 @@ export type TorrentClientAddMagnetFromRule_Variables = {
 export type SearchTorrent_Variables = {
     /**
      *  "smart" or "simple"
-     *
+     *  
      *  "smart" or "simple"
      */
     type?: string
@@ -2042,7 +2078,7 @@ export type TorrentstreamStartStream_Variables = {
     batchEpisodeFiles?: HibikeTorrent_BatchEpisodeFiles
     /**
      *  Preload is true if the stream should only be prepared.
-     *
+     *  
      *  Preload is true if the stream should only be prepared.
      */
     preload?: boolean
@@ -2057,6 +2093,54 @@ export type TorrentstreamStartStream_Variables = {
  */
 export type GetTorrentstreamBatchHistory_Variables = {
     mediaId: number
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// unmatched
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/handlers/unmatched.go
+ * - Filename: unmatched.go
+ * - Endpoint: /api/v1/unmatched/torrent/contents
+ * @description
+ * Route returns the contents of a specific unmatched torrent.
+ */
+export type GetUnmatchedTorrentContents_Variables = {
+    name: string
+}
+
+/**
+ * - Filepath: internal/handlers/unmatched.go
+ * - Filename: unmatched.go
+ * - Endpoint: /api/v1/unmatched/torrent/delete
+ * @description
+ * Route deletes an unmatched torrent directory.
+ */
+export type DeleteUnmatchedTorrent_Variables = {
+    name: string
+}
+
+/**
+ * - Filepath: internal/handlers/unmatched.go
+ * - Filename: unmatched.go
+ * - Endpoint: /api/v1/unmatched/destination
+ * @description
+ * Route returns the destination path for a new torrent download.
+ */
+export type GetUnmatchedDestination_Variables = {
+    torrentName: string
+}
+
+/**
+ * - Filepath: internal/handlers/unmatched.go
+ * - Filename: unmatched.go
+ * - Endpoint: /api/v1/unmatched/scanner/clear
+ * @description
+ * Route clears a torrent from the completed list.
+ */
+export type ClearCompletedTorrent_Variables = {
+    torrentName: string
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
