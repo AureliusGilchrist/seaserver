@@ -16,10 +16,23 @@ func (db *Database) GetTheme() (*models.Theme, error) {
 	}
 
 	var theme models.Theme
-	err := db.gormdb.Where("id = ?", 1).Find(&theme).Error
+	err := db.gormdb.Where("id = ?", 1).First(&theme).Error
 
 	if err != nil {
-		return nil, err
+		// If theme doesn't exist, create a default one
+		if err.Error() == "record not found" {
+			theme = models.Theme{
+				BaseModel: models.BaseModel{ID: 1},
+			}
+			err = db.gormdb.Create(&theme).Error
+			if err != nil {
+				db.Logger.Error().Err(err).Msg("db: Failed to create default theme")
+				return nil, err
+			}
+			db.Logger.Debug().Msg("db: Created default theme")
+		} else {
+			return nil, err
+		}
 	}
 
 	themeCache = &theme

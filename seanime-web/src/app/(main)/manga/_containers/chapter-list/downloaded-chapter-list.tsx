@@ -165,6 +165,7 @@ export function DownloadedChapterList(props: DownloadedChapterListProps) {
                     provider: chapter.provider,
                     chapterId: chapter.chapterId,
                     chapterNumber: chapter.chapterNumber,
+                    chapterTitle: "",
                     mediaTitle: entry.media?.title?.userPreferred || "",
                 })),
             }, {

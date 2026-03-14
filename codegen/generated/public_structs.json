@@ -31009,6 +31009,17 @@
         "comments": []
       },
       {
+        "name": "ChapterTitle",
+        "jsonName": "chapterTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Chapter title from provider"
+        ]
+      },
+      {
         "name": "MediaTitle",
         "jsonName": "mediaTitle",
         "goType": "string",
@@ -57592,6 +57603,17 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "ChapterTitle",
+        "jsonName": "chapterTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Chapter title for folder naming"
+        ]
       },
       {
         "name": "MediaTitle",

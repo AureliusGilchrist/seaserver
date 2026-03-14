@@ -1881,6 +1881,10 @@ export type ChapterDownloader_DownloadID = {
     chapterId: string
     chapterNumber: string
     /**
+     * Chapter title for folder naming
+     */
+    chapterTitle: string
+    /**
      * Romaji title for folder naming
      */
     mediaTitle: string
@@ -3784,6 +3788,10 @@ export type Models_ChapterDownloadQueueItem = {
     mediaId: number
     chapterId: string
     chapterNumber: string
+    /**
+     * Chapter title from provider
+     */
+    chapterTitle: string
     /**
      * Title for folder naming
      */

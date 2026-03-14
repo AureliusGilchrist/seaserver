@@ -160,17 +160,15 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
                                     return (
                                         <Card
                                             key={item.mediaId + item.provider + item.chapterId} className={cn(
-                                            "px-3 py-2 bg-gray-900 space-y-1.5",
+                                            "px-3 py-2 bg-gray-800 space-y-1.5",
                                             item.status === "errored" && "border-[--orange]",
                                         )}
                                         >
                                             <div className="flex items-center gap-2">
-                                                {!!media && <SeaLink
-                                                    className="font-semibold max-w-[180px] text-ellipsis truncate underline"
-                                                    href={`/manga/entry?id=${media.id}`}
-                                                >{media.title?.userPreferred}</SeaLink>}
-                                                <p>Chapter {item.chapterNumber} <span className="text-[--muted] italic">(id: {item.chapterId})</span>
+                                                <p className="font-semibold">
+                                                    {media?.title?.userPreferred || item.mediaTitle} - {item.chapterTitle || `Chapter ${item.chapterNumber}`}
                                                 </p>
+                                                <span className="text-[--muted] italic text-sm">(id: {item.chapterId})</span>
                                                 {item.status === "errored" && (
                                                     <div className="flex gap-1 items-center text-[--orange]">
                                                         <PiWarningOctagonDuotone className="text-2xl text-[--orange]" />
@@ -238,7 +236,7 @@ export function ChapterDownloadList(props: ChapterDownloadListProps) {
                                     return (
                                         <Card
                                             key={item.mediaId} className={cn(
-                                            "px-3 py-2 bg-gray-900 space-y-1",
+                                            "px-3 py-2 bg-gray-800 space-y-1",
                                         )}
                                         >
                                             <SeaLink

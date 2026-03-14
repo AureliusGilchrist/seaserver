@@ -75,6 +75,7 @@ func (q *Queue) Add(id DownloadID, pages []*hibikemanga.ChapterPage, runNext boo
 		MediaID:       id.MediaId,
 		ChapterNumber: id.ChapterNumber,
 		ChapterID:     id.ChapterId,
+		ChapterTitle:  id.ChapterTitle,
 		MediaTitle:    id.MediaTitle,
 		PageData:      marshalled,
 		Status:        string(QueueStatusNotStarted),

@@ -412,8 +412,9 @@ type ChapterDownloadQueueItem struct {
 	MediaID       int    `gorm:"column:media_id" json:"mediaId"`
 	ChapterID     string `gorm:"column:chapter_id" json:"chapterId"`
 	ChapterNumber string `gorm:"column:chapter_number" json:"chapterNumber"`
-	MediaTitle    string `gorm:"column:media_title" json:"mediaTitle"` // Title for folder naming
-	PageData      []byte `gorm:"column:page_data" json:"pageData"`     // Contains map of page index to page details
+	ChapterTitle  string `gorm:"column:chapter_title" json:"chapterTitle"` // Chapter title from provider
+	MediaTitle    string `gorm:"column:media_title" json:"mediaTitle"`     // Title for folder naming
+	PageData      []byte `gorm:"column:page_data" json:"pageData"`         // Contains map of page index to page details
 	Status        string `gorm:"column:status" json:"status"`
 }
 
