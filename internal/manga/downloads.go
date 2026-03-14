@@ -12,6 +12,8 @@ import (
 	chapter_downloader "seanime/internal/manga/downloader"
 	manga_providers "seanime/internal/manga/providers"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/goccy/go-json"
 )
@@ -25,9 +27,52 @@ func (r *Repository) GetDownloadedMangaChapterContainers(mId int, mangaCollectio
 		return nil, err
 	}
 
+	// Check if this AniList ID is mapped from a synthetic ID
+	// If so, we need to look for containers with the synthetic ID
+	searchIds := []int{mId}
+	if mId > 0 && r.db != nil {
+		if syntheticID, found := r.db.GetReverseMangaIDMapping(mId); found {
+			searchIds = append(searchIds, syntheticID)
+			r.logger.Debug().
+				Int("anilistID", mId).
+				Int("syntheticID", syntheticID).
+				Msg("manga: Using synthetic ID for downloaded chapter lookup via reverse mapping")
+		} else {
+			r.logger.Debug().
+				Int("anilistID", mId).
+				Msg("manga: No reverse mapping found for this AniList ID")
+		}
+	}
+	
+	r.logger.Debug().
+		Int("mediaId", mId).
+		Ints("searchIds", searchIds).
+		Int("totalContainers", len(containers)).
+		Msg("manga: Searching for downloaded chapters")
+
 	for _, container := range containers {
-		if container.MediaId == mId {
-			ret = append(ret, container)
+		for _, searchId := range searchIds {
+			if container.MediaId == searchId {
+				// If this container has a synthetic ID that's mapped to an AniList ID,
+				// update the container to use the AniList ID for presentation
+				containerToAdd := container
+				if container.MediaId < 0 && r.db != nil {
+					if anilistID, found := r.db.GetMangaIDMapping(container.MediaId); found {
+						// Create a copy with the AniList ID
+						containerToAdd = &ChapterContainer{
+							MediaId:  anilistID,
+							Provider: container.Provider,
+							Chapters: container.Chapters,
+						}
+						r.logger.Debug().
+							Int("syntheticID", container.MediaId).
+							Int("anilistID", anilistID).
+							Msg("manga: Presenting downloaded container with AniList ID")
+					}
+				}
+				ret = append(ret, containerToAdd)
+				break
+			}
 		}
 	}
 
@@ -201,24 +246,120 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 	}
 
 	// Add chapter containers from local provider
+	// For downloaded chapters, create proper chapter entries with format: "ID - SyntheticID - Chapter XXXX"
 	localProviderB, ok := extension.GetExtension[extension.MangaProviderExtension](r.extensionBankRef.Get(), manga_providers.LocalProvider)
 	if ok {
 		_, ok := localProviderB.GetProvider().(*manga_providers.Local)
 		if ok {
+			// Add containers for manga in AniList collection
+			// This includes both regular AniList manga and mapped synthetic manga
+			// (since correcting a match adds the manga to the AniList planning list)
 			for _, list := range mangaCollection.MediaListCollection.GetLists() {
 				for _, entry := range list.GetEntries() {
 					media := entry.GetMedia()
-					opts := GetMangaChapterContainerOptions{
-						Provider: manga_providers.LocalProvider,
-						MediaId:  media.GetID(),
-						Titles:   media.GetAllTitles(),
-						Year:     media.GetStartYearSafe(),
+					mediaId := media.GetID()
+					
+					// Check if this is a mapped AniList ID
+					originalMediaId := mediaId
+					if mediaId > 0 && r.db != nil {
+						if synId, found := r.db.GetReverseMangaIDMapping(mediaId); found {
+							originalMediaId = synId
+						}
 					}
-					container, err := r.GetMangaChapterContainer(&opts)
-					if err != nil {
-						continue
+					
+					// Get the original provider's chapter container to extract chapter titles
+					// Try to find cached containers from any provider for this media
+					var providerContainer *ChapterContainer
+					for _, container := range ret {
+						if container.MediaId == originalMediaId {
+							providerContainer = container
+							break
+						}
 					}
-					ret = append(ret, container)
+					
+					// Build chapters from downloaded folders
+					// Use a map to deduplicate by chapter number
+					chapterMap := make(map[string]*hibikemanga.ChapterDetails)
+					for _, dir := range chapterDirs {
+						downloadId, ok := chapter_downloader.ParseChapterDirName(dir)
+						if !ok {
+							continue
+						}
+						
+						// Only include chapters for this media ID (check both AniList and synthetic)
+						if downloadId.MediaId != mediaId && downloadId.MediaId != originalMediaId {
+							continue
+						}
+						
+						// Parse chapter number and pad to 4 digits
+						chapterNum := downloadId.ChapterNumber
+						
+						// Skip if we already have this chapter number
+						if _, exists := chapterMap[chapterNum]; exists {
+							continue
+						}
+						
+						// Try to get chapter title from folder name first (new format)
+						var chapterTitle string
+						if downloadId.ChapterTitle != "" {
+							// New format: folder has the title, replace underscores with spaces
+							chapterTitle = strings.ReplaceAll(downloadId.ChapterTitle, "_", " ")
+						} else {
+							// Legacy format: try to find title from provider container
+							if providerContainer != nil {
+								for _, ch := range providerContainer.Chapters {
+									if ch.Chapter == chapterNum {
+										// Use the full title from the provider as-is
+										chapterTitle = ch.Title
+										break
+									}
+								}
+							}
+						}
+						
+						// Fallback if no title found
+						if chapterTitle == "" {
+							paddedChapter := fmt.Sprintf("%04s", chapterNum)
+							if len(chapterNum) > 4 {
+								paddedChapter = chapterNum
+							}
+							chapterTitle = fmt.Sprintf("Chapter %s", paddedChapter)
+						}
+						
+						chapterMap[chapterNum] = &hibikemanga.ChapterDetails{
+							Provider: manga_providers.LocalProvider,
+							ID:       downloadId.ChapterId, // Just the chapter ID, not the full path
+							Title:    chapterTitle,
+							Chapter:  chapterNum, // Use unpadded for matching
+							Index:    0,
+						}
+					}
+					
+					// Convert map to slice
+					localChapters := make([]*hibikemanga.ChapterDetails, 0, len(chapterMap))
+					for _, chapter := range chapterMap {
+						localChapters = append(localChapters, chapter)
+					}
+					
+					if len(localChapters) > 0 {
+						// Sort by chapter number
+						slices.SortFunc(localChapters, func(a, b *hibikemanga.ChapterDetails) int {
+							chA, _ := strconv.ParseFloat(a.Chapter, 64)
+							chB, _ := strconv.ParseFloat(b.Chapter, 64)
+							return int(chA - chB)
+						})
+						
+						// Set indexes
+						for i, chapter := range localChapters {
+							chapter.Index = uint(i)
+						}
+						
+						ret = append(ret, &ChapterContainer{
+							MediaId:  mediaId,
+							Provider: manga_providers.LocalProvider,
+							Chapters: localChapters,
+						})
+					}
 				}
 			}
 		}
@@ -252,14 +393,26 @@ func (r *Repository) getDownloadedMangaPageContainer(
 	// Check if the chapter is downloaded
 	found := false
 
+	// Check if this is a mapped AniList ID that should use synthetic ID for file lookup
+	originalMediaId := mediaId
+	if mediaId > 0 && r.db != nil {
+		if syntheticID, found := r.db.GetReverseMangaIDMapping(mediaId); found {
+			originalMediaId = syntheticID
+			r.logger.Debug().
+				Int("anilistID", mediaId).
+				Int("syntheticID", syntheticID).
+				Msg("manga: Using synthetic ID for file lookup via reverse mapping")
+		}
+	}
+	
 	// Try multiple possible directory names:
 	// 1. Numeric media ID (e.g., "12345" or "-12345")
 	// 2. Sanitized title from synthetic manga database
-	possibleMediaDirs := []string{fmt.Sprintf("%d", mediaId)}
+	possibleMediaDirs := []string{fmt.Sprintf("%d", originalMediaId)}
 
 	// For synthetic manga (negative IDs), also try looking up the title
-	if mediaId < 0 && r.db != nil {
-		syntheticManga, dbFound := r.db.GetSyntheticManga(mediaId)
+	if originalMediaId < 0 && r.db != nil {
+		syntheticManga, dbFound := r.db.GetSyntheticManga(originalMediaId)
 		if dbFound && syntheticManga.Title != "" {
 			possibleMediaDirs = append([]string{syntheticManga.Title}, possibleMediaDirs...)
 		}
@@ -285,6 +438,14 @@ func (r *Repository) getDownloadedMangaPageContainer(
 		return nil, ErrChapterNotDownloaded
 	}
 
+	r.logger.Debug().
+		Str("provider", provider).
+		Int("mediaId", mediaId).
+		Int("originalMediaId", originalMediaId).
+		Str("chapterId", chapterId).
+		Str("mediaDir", mediaDir).
+		Msg("manga: Looking for downloaded chapter")
+
 	chapterDir := "" // e.g. comick_123_10010_13
 	for _, file := range chapterFiles {
 		if file.IsDir() {
@@ -294,17 +455,30 @@ func (r *Repository) getDownloadedMangaPageContainer(
 				continue
 			}
 
-			if downloadId.Provider == provider &&
-				downloadId.MediaId == mediaId &&
+			// When provider is local-manga, accept chapters from any provider
+			providerMatches := downloadId.Provider == provider || provider == manga_providers.LocalProvider
+			
+			if providerMatches &&
+				downloadId.MediaId == originalMediaId &&
 				downloadId.ChapterId == chapterId {
 				found = true
 				chapterDir = file.Name()
+				r.logger.Debug().
+					Str("chapterDir", chapterDir).
+					Str("downloadProvider", downloadId.Provider).
+					Msg("manga: Found matching chapter directory")
 				break
 			}
 		}
 	}
 
 	if !found {
+		r.logger.Debug().
+			Str("provider", provider).
+			Int("originalMediaId", originalMediaId).
+			Str("chapterId", chapterId).
+			Int("filesChecked", len(chapterFiles)).
+			Msg("manga: Chapter not found in any directory")
 		return nil, ErrChapterNotDownloaded
 	}
 

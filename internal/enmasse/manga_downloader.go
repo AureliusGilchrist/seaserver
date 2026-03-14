@@ -1092,7 +1092,7 @@ func (d *MangaDownloader) addToAniListPlanningList(ctx context.Context, mangaMed
 	status := anilist.MediaListStatusPlanning
 	progress := 0
 
-	_, err := anilistClient.UpdateMediaListEntry(ctx, &mangaMedia.ID, &status, nil, &progress, nil, nil)
+	_, err := anilistClient.UpdateMediaListEntryProgress(ctx, &mangaMedia.ID, &progress, &status)
 	if err != nil {
 		return err
 	}

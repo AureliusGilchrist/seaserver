@@ -59,6 +59,15 @@ func (r *Repository) GetMangaPageContainer(
 		return ret, nil
 	}
 
+	// For local provider, try downloaded chapters first (handles chapters downloaded from other providers)
+	if isLocalProvider {
+		ret, err = r.getDownloadedMangaPageContainer(provider, mediaId, chapterId)
+		if ret != nil {
+			return ret, nil
+		}
+		// If not found as downloaded, continue to normal local provider flow below
+	}
+	
 	if !isLocalProvider || !extensionExists {
 		ret, err = r.getDownloadedMangaPageContainer(provider, mediaId, chapterId)
 		if ret != nil {
@@ -131,7 +140,16 @@ func (r *Repository) GetMangaPageContainer(
 	}
 
 	if chapter == nil {
-		r.logger.Error().Msg("manga: Chapter not found")
+		// Log available chapter IDs for debugging
+		availableIds := make([]string, 0)
+		for _, c := range chapterContainer.Chapters {
+			availableIds = append(availableIds, c.ID)
+		}
+		r.logger.Error().
+			Str("requestedChapterId", chapterId).
+			Strs("availableChapterIds", availableIds).
+			Int("totalChapters", len(chapterContainer.Chapters)).
+			Msg("manga: Chapter not found in container")
 		return nil, ErrChapterNotFound
 	}
 

@@ -522,10 +522,11 @@ export function ChapterList(props: ChapterListProps) {
                 chapterIdToNumbersMap={chapterIdToNumbersMap}
             />}
 
-            <DownloadedChapterList
+            {/* DEPRECATED: Use the "Show downloaded" checkbox filter in the main chapter list instead */}
+            {/* <DownloadedChapterList
                 entry={entry}
                 data={downloadData}
-            />
+            /> */}
 
             <ConfirmationDialog {...confirmReloadSource} />
         </div>

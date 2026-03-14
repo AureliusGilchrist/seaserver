@@ -520,6 +520,16 @@ type MangaChapterContainer struct {
 	Data      []byte `gorm:"column:data" json:"data"`
 }
 
+// MangaIDMapping stores conversions from synthetic manga IDs to AniList IDs
+// This allows downloaded files to remain in their original locations while
+// presenting them as AniList entries in the UI
+type MangaIDMapping struct {
+	BaseModel
+	SyntheticID int    `gorm:"column:synthetic_id;uniqueIndex" json:"syntheticId"` // Original synthetic ID (negative)
+	AnilistID   int    `gorm:"column:anilist_id" json:"anilistId"`                  // Mapped AniList ID (positive)
+	ProviderID  string `gorm:"column:provider_id" json:"providerId"`                // Provider ID for reference
+}
+
 // MangaReadingHistory tracks when manga (including synthetic) was last read
 // Used to show "Continue Reading" section with most recently read manga first
 type MangaReadingHistory struct {

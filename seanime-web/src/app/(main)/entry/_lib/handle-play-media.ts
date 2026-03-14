@@ -140,7 +140,7 @@ export function useHandlePlayMedia() {
             return
         }
 
-        return playVideo({ path })
+        return playVideo({ path, clientId: clientId || "" })
     }
 
     return {

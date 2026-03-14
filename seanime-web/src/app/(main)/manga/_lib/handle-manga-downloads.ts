@@ -100,7 +100,7 @@ export function useHandleDownloadMangaChapter(mediaId: string | undefined | null
                     provider: selectedProvider,
                     chapterIds: chapters.map(ch => ch.id),
                     startNow: false,
-                    mediaTitle: mediaTitle,
+                    mediaTitle: mediaTitle || "",
                 }, {
                     onSuccess: () => {
                         toast.success("Chapters added to download queue")

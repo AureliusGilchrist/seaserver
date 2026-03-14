@@ -49,6 +49,12 @@ func (r *Repository) MergeDownloadedChaptersWithProvider(providerContainer *Chap
 // Downloaded chapters take priority - if a chapter is downloaded, it replaces the provider version.
 // Missing chapters (gaps) are filled from the provider.
 func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerContainer *ChapterContainer, mediaId int, mangaCollection *anilist.MangaCollection) (*ChapterContainer, error) {
+	r.logger.Debug().
+		Int("mediaId", mediaId).
+		Str("provider", providerContainer.Provider).
+		Int("providerChapterCount", len(providerContainer.Chapters)).
+		Msg("manga: Starting merge of downloaded chapters with provider chapters")
+	
 	if providerContainer == nil {
 		return nil, fmt.Errorf("provider container is nil")
 	}
@@ -65,6 +71,18 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 		r.logger.Debug().Int("mediaId", mediaId).Msg("No downloaded chapters found")
 		return providerContainer, nil
 	}
+	
+	r.logger.Debug().
+		Int("mediaId", mediaId).
+		Int("downloadedContainerCount", len(downloadedContainers)).
+		Int("totalDownloadedChapters", func() int {
+			total := 0
+			for _, c := range downloadedContainers {
+				total += len(c.Chapters)
+			}
+			return total
+		}()).
+		Msg("manga: Found downloaded chapters for merging")
 
 	// Create a map of downloaded chapters by chapter number for quick lookup
 	downloadedChapterMap := make(map[string]*hibikemanga.ChapterDetails)
@@ -91,16 +109,25 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 	// Merge: prioritize downloaded chapters, fill gaps with provider chapters
 	mergedChapters := make([]*hibikemanga.ChapterDetails, 0, len(providerContainer.Chapters))
 	
+	downloadedCount := 0
 	for _, providerChapter := range providerContainer.Chapters {
 		// Check if this chapter is downloaded
 		if downloadedChapter, exists := downloadedChapterMap[providerChapter.Chapter]; exists {
 			// Use the downloaded version
 			mergedChapters = append(mergedChapters, downloadedChapter)
+			downloadedCount++
 		} else {
 			// Use the provider version (gap filler)
 			mergedChapters = append(mergedChapters, providerChapter)
 		}
 	}
+	
+	r.logger.Debug().
+		Int("mediaId", mediaId).
+		Int("providerChapters", len(providerContainer.Chapters)).
+		Int("downloadedChapters", len(downloadedChapterMap)).
+		Int("mergedDownloaded", downloadedCount).
+		Msg("manga: Merged downloaded chapters with provider chapters")
 
 	// Add any downloaded chapters that weren't in the provider list
 	// This handles cases where downloaded chapters exist but provider doesn't have them
@@ -139,6 +166,34 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 	provider := opts.Provider
 	mediaId := opts.MediaId
 	titles := opts.Titles
+	
+	// Check if this AniList ID is mapped from a synthetic ID
+	// If so, we need to use the synthetic ID for cache and the original title for searching
+	cacheMediaId := mediaId
+	if mediaId > 0 && r.db != nil {
+		if syntheticID, found := r.db.GetReverseMangaIDMapping(mediaId); found {
+			cacheMediaId = syntheticID
+			
+			// Get the synthetic manga's original title for searching
+			if syntheticManga, foundSynthetic := r.db.GetSyntheticManga(syntheticID); foundSynthetic {
+				// Use the synthetic manga's title for searching
+				syntheticTitle := syntheticManga.Title
+				titles = []*string{&syntheticTitle}
+				r.logger.Debug().
+					Int("anilistID", mediaId).
+					Int("syntheticID", syntheticID).
+					Str("syntheticTitle", syntheticManga.Title).
+					Str("provider", provider).
+					Msg("manga: Using synthetic ID and title for chapter container lookup via reverse mapping")
+			} else {
+				r.logger.Debug().
+					Int("anilistID", mediaId).
+					Int("syntheticID", syntheticID).
+					Str("provider", provider).
+					Msg("manga: Using synthetic ID for chapter container cache lookup via reverse mapping")
+			}
+		}
+	}
 
 	providerExtension, ok := extension.GetExtension[extension.MangaProviderExtension](r.extensionBankRef.Get(), provider)
 	if !ok {
@@ -159,7 +214,7 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 		Int("mediaId", mediaId).
 		Msgf("manga: Getting chapters")
 
-	chapterContainerKey := getMangaChapterContainerCacheKey(provider, mediaId)
+	chapterContainerKey := getMangaChapterContainerCacheKey(provider, cacheMediaId)
 
 	// +---------------------+
 	// |     Hook event      |
@@ -196,11 +251,21 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 	// +---------------------+
 
 	var container *ChapterContainer
-	containerBucket := r.getFcProviderBucket(provider, mediaId, bucketTypeChapter)
+	containerBucket := r.getFcProviderBucket(provider, cacheMediaId, bucketTypeChapter)
 
 	// Check if the container is in the cache
 	if found, _ := r.fileCacher.Get(containerBucket, chapterContainerKey, &container); found {
 		r.logger.Info().Str("bucket", containerBucket.Name()).Msg("manga: Chapter Container Cache HIT")
+		
+		// If we used a synthetic ID for cache lookup but the request was for an AniList ID,
+		// update the container's MediaId to the AniList ID for presentation
+		if cacheMediaId != mediaId && container != nil {
+			container.MediaId = mediaId
+			r.logger.Debug().
+				Int("syntheticID", cacheMediaId).
+				Int("anilistID", mediaId).
+				Msg("manga: Updated container MediaId from synthetic to AniList ID")
+		}
 
 		// Trigger hook event
 		ev := &MangaChapterContainerEvent{

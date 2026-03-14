@@ -1,6 +1,13 @@
 // /* -------------------------------------------------------------------------------------------------
 //  * Download List
 //  * -----------------------------------------------------------------------------------------------*/
+//
+// DEPRECATED: This component is deprecated in favor of using the "Show downloaded" checkbox filter
+// in the main chapter list (chapter-list.tsx). The main chapter list now handles both online and
+// downloaded chapters in a unified view, making this separate container redundant.
+//
+// This file is kept for reference but should not be used in new code.
+// -----------------------------------------------------------------------------------------------
 
 
 import { Manga_ChapterContainer, Manga_Entry, Manga_MediaDownloadData } from "@/api/generated/types"
@@ -158,6 +165,7 @@ export function DownloadedChapterList(props: DownloadedChapterListProps) {
                     provider: chapter.provider,
                     chapterId: chapter.chapterId,
                     chapterNumber: chapter.chapterNumber,
+                    mediaTitle: entry.media?.title?.userPreferred || "",
                 })),
             }, {
                 onSuccess: () => {
