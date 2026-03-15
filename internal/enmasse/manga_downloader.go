@@ -64,34 +64,13 @@ type (
 		// Rate limiting semaphores
 		mangaSemaphore    chan struct{}  // Controls concurrent manga processing
 		chapterSemaphore  chan struct{}  // Controls concurrent chapter downloads
-		// Match tracking
-		matchRecords           []*MangaMatchRecord
-		processedSyntheticIDs  []int    // Track which synthetic manga have been auto-matched
-		autoMatchInProgress    bool
-		autoMatchCurrent       string
-		autoMatchProcessed     int
-		autoMatchTotal         int
 	}
 
 	MangaDownloaderProgress struct {
-		ProcessedTitles       []string             `json:"processed_titles"`
-		DownloadedManga       []string             `json:"downloaded_manga"`
-		FailedManga           []string             `json:"failed_manga"`
-		SkippedManga          []string             `json:"skipped_manga"`
-		MatchRecords          []*MangaMatchRecord  `json:"match_records"`
-		ProcessedSyntheticIDs []int                `json:"processed_synthetic_ids"` // Track which synthetic manga have been auto-matched
-	}
-
-	MangaMatchRecord struct {
-		OriginalTitle    string                `json:"originalTitle"`
-		ProviderID       string                `json:"providerId"`
-		MatchedID        int                   `json:"matchedId"`        // AniList ID or synthetic ID (negative)
-		MatchedTitle     string                `json:"matchedTitle"`
-		IsSynthetic      bool                  `json:"isSynthetic"`
-		ConfidenceScore  float64               `json:"confidenceScore"`  // 0.0-1.0
-		SearchResults    []*anilist.BaseManga  `json:"searchResults"`    // Top search results for review
-		Status           string                `json:"status"`           // "downloaded", "failed", "skipped"
-		Timestamp        time.Time             `json:"timestamp"`
+		ProcessedTitles []string `json:"processed_titles"`
+		DownloadedManga []string `json:"downloaded_manga"`
+		FailedManga     []string `json:"failed_manga"`
+		SkippedManga    []string `json:"skipped_manga"`
 	}
 
 	HakunekoMangaItem struct {
@@ -100,22 +79,17 @@ type (
 	}
 
 	MangaDownloaderStatus struct {
-		IsRunning           bool     `json:"isRunning"`
-		IsPaused            bool     `json:"isPaused"`
-		CurrentManga        *string  `json:"currentManga"`
-		CurrentChapter      *string  `json:"currentChapter"`
-		ProcessedCount      int      `json:"processedCount"`
-		TotalCount          int      `json:"totalCount"`
-		DownloadedManga     []string `json:"downloadedManga"`
-		FailedManga         []string `json:"failedManga"`
-		SkippedManga        []string `json:"skippedManga"`
-		Status              string   `json:"status"`
-		HasSavedProgress    bool     `json:"hasSavedProgress"`
-		MatchRecordCount    int      `json:"matchRecordCount"`
-		AutoMatchInProgress bool     `json:"autoMatchInProgress"`
-		AutoMatchCurrent    *string  `json:"autoMatchCurrent"`
-		AutoMatchProcessed  int      `json:"autoMatchProcessed"`
-		AutoMatchTotal      int      `json:"autoMatchTotal"`
+		IsRunning        bool     `json:"isRunning"`
+		IsPaused         bool     `json:"isPaused"`
+		CurrentManga     *string  `json:"currentManga"`
+		CurrentChapter   *string  `json:"currentChapter"`
+		ProcessedCount   int      `json:"processedCount"`
+		TotalCount       int      `json:"totalCount"`
+		DownloadedManga  []string `json:"downloadedManga"`
+		FailedManga      []string `json:"failedManga"`
+		SkippedManga     []string `json:"skippedManga"`
+		Status           string   `json:"status"`
+		HasSavedProgress bool     `json:"hasSavedProgress"`
 	}
 
 	NewMangaDownloaderOptions struct {
@@ -139,7 +113,6 @@ func NewMangaDownloader(opts *NewMangaDownloaderOptions) *MangaDownloader {
 		skippedManga:     make([]string, 0, MaxLogEntries),
 		mangaSemaphore:   make(chan struct{}, MaxConcurrentManga),
 		chapterSemaphore: make(chan struct{}, MaxConcurrentChapters),
-		matchRecords:     make([]*MangaMatchRecord, 0),
 	}
 }
 
@@ -148,23 +121,15 @@ func (d *MangaDownloader) GetStatus() *MangaDownloaderStatus {
 	defer d.mu.Unlock()
 
 	status := &MangaDownloaderStatus{
-		IsRunning:           d.isRunning,
-		IsPaused:            d.isPaused,
-		ProcessedCount:      d.processedCount,
-		TotalCount:          d.totalCount,
-		DownloadedManga:     d.downloadedManga,
-		FailedManga:         d.failedManga,
-		SkippedManga:        d.skippedManga,
-		Status:              d.status,
-		HasSavedProgress:    d.hasSavedProgress(),
-		MatchRecordCount:    len(d.matchRecords),
-		AutoMatchInProgress: d.autoMatchInProgress,
-		AutoMatchProcessed:  d.autoMatchProcessed,
-		AutoMatchTotal:      d.autoMatchTotal,
-	}
-
-	if d.autoMatchCurrent != "" {
-		status.AutoMatchCurrent = &d.autoMatchCurrent
+		IsRunning:        d.isRunning,
+		IsPaused:         d.isPaused,
+		ProcessedCount:   d.processedCount,
+		TotalCount:       d.totalCount,
+		DownloadedManga:  d.downloadedManga,
+		FailedManga:      d.failedManga,
+		SkippedManga:     d.skippedManga,
+		Status:           d.status,
+		HasSavedProgress: d.hasSavedProgress(),
 	}
 
 	if d.currentManga != nil {
@@ -203,7 +168,6 @@ func (d *MangaDownloader) Start(resume bool) error {
 		d.downloadedManga = make([]string, 0, MaxLogEntries)
 		d.failedManga = make([]string, 0, MaxLogEntries)
 		d.skippedManga = make([]string, 0, MaxLogEntries)
-		d.processedSyntheticIDs = make([]int, 0) // Clear processed synthetic IDs for fresh auto-match
 		d.clearProgress()
 	}
 	d.status = "Starting..."
@@ -401,27 +365,16 @@ func (d *MangaDownloader) loadProgress() *MangaDownloaderProgress {
 		return nil
 	}
 
-	// Restore match records and processed synthetic IDs
-	d.mu.Lock()
-	if progress.MatchRecords != nil {
-		d.matchRecords = progress.MatchRecords
-	}
-	if progress.ProcessedSyntheticIDs != nil {
-		d.processedSyntheticIDs = progress.ProcessedSyntheticIDs
-	}
-	d.mu.Unlock()
-
 	return &progress
 }
 
 func (d *MangaDownloader) saveCurrentProgress(processedTitles map[string]bool) {
 	d.mu.Lock()
 	progress := MangaDownloaderProgress{
-		ProcessedTitles:  make([]string, 0, len(processedTitles)),
-		DownloadedManga:  d.downloadedManga,
-		FailedManga:      d.failedManga,
-		SkippedManga:     d.skippedManga,
-		MatchRecords:     d.matchRecords,
+		ProcessedTitles: make([]string, 0, len(processedTitles)),
+		DownloadedManga: d.downloadedManga,
+		FailedManga:     d.failedManga,
+		SkippedManga:    d.skippedManga,
 	}
 	d.mu.Unlock()
 
@@ -553,8 +506,6 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 	// This is optional - if not found, we'll create a synthetic manga entry
 	var mediaId int
 	var mediaTitle string
-	var searchResults []*anilist.BaseManga
-	var confidenceScore float64
 
 	searchResult, err := d.searchAniListMangaWithResults(ctx, mangaItem.Title)
 	if err != nil {
@@ -567,8 +518,6 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 			// Fallback to pseudo ID
 			mediaId = d.generatePseudoMediaId(mangaItem.Title)
 			mediaTitle = mangaItem.Title
-			// Record as synthetic with no search results
-			d.recordMatch(mangaItem.Title, mangaId, mediaId, mediaTitle, true, 0.0, nil, "downloaded")
 		} else {
 			mediaId = syntheticManga.SyntheticID
 			mediaTitle = syntheticManga.Title
@@ -576,13 +525,9 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 				Str("title", mangaItem.Title).
 				Int("syntheticId", mediaId).
 				Msg("enmasse-manga: Using synthetic manga entry")
-			// Record as synthetic with no search results
-			d.recordMatch(mangaItem.Title, mangaId, mediaId, mediaTitle, true, 0.0, nil, "downloaded")
 		}
 	} else {
 		anilistManga := searchResult.bestMatch
-		searchResults = searchResult.searchResults
-		confidenceScore = searchResult.bestScore
 		
 		mediaId = anilistManga.ID
 		if anilistManga.Title != nil && anilistManga.Title.Romaji != nil {
@@ -595,13 +540,10 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 			Str("title", mangaItem.Title).
 			Int("anilistId", mediaId).
 			Str("anilistTitle", mediaTitle).
-			Float64("confidence", confidenceScore).
+			Float64("confidence", searchResult.bestScore).
 			Msg("enmasse-manga: Found manga on AniList")
 
-		// Record the match with search results
-		d.recordMatch(mangaItem.Title, mangaId, mediaId, mediaTitle, false, confidenceScore, searchResults, "downloaded")
-
-		// Optionally add to planning list
+		// Add to planning list
 		_ = d.addToAniListPlanningList(ctx, anilistManga)
 	}
 
@@ -687,6 +629,7 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 				MediaId:       mediaId,
 				ChapterId:     chapter.ID,
 				ChapterNumber: manga_providers.GetNormalizedChapter(chapter.Chapter),
+				ChapterTitle:  chapter.Title,
 				MediaTitle:    mediaTitle,
 				Pages:         pages,
 				StartNow:      false,

@@ -231,7 +231,10 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 				// For each chapter, check if the chapter directory exists
 				for _, dir := range chapterDirs {
 					if dir == chapter_downloader.FormatChapterDirName(provider, mediaId, chapter.ID, chapter.Chapter) {
-						downloadedContainer.Chapters = append(downloadedContainer.Chapters, chapter)
+						// Normalize the chapter number to padded format
+						normalizedChapter := *chapter
+						normalizedChapter.Chapter = manga_providers.GetNormalizedChapter(chapter.Chapter)
+						downloadedContainer.Chapters = append(downloadedContainer.Chapters, &normalizedChapter)
 						break
 					}
 				}
@@ -239,6 +242,18 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 
 			if len(downloadedContainer.Chapters) == 0 {
 				continue
+			}
+
+			// Check if this synthetic ID is mapped to an AniList ID
+			// If so, update the container to use the AniList ID for consistency with local provider containers
+			if mediaId < 0 && r.db != nil {
+				if anilistID, found := r.db.GetMangaIDMapping(mediaId); found {
+					downloadedContainer.MediaId = anilistID
+					r.logger.Debug().
+						Int("syntheticID", mediaId).
+						Int("anilistID", anilistID).
+						Msg("manga: Updated provider container to use mapped AniList ID")
+				}
 			}
 
 			ret = append(ret, downloadedContainer)
@@ -291,8 +306,8 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 							continue
 						}
 						
-						// Parse chapter number and pad to 4 digits
-						chapterNum := downloadId.ChapterNumber
+						// Normalize chapter number to padded format for consistent matching
+						chapterNum := manga_providers.GetNormalizedChapter(downloadId.ChapterNumber)
 						
 						// Skip if we already have this chapter number
 						if _, exists := chapterMap[chapterNum]; exists {
@@ -330,7 +345,7 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 							Provider: manga_providers.LocalProvider,
 							ID:       downloadId.ChapterId, // Just the chapter ID, not the full path
 							Title:    chapterTitle,
-							Chapter:  chapterNum, // Use unpadded for matching
+							Chapter:  chapterNum, // Use padded chapter number for matching
 							Index:    0,
 						}
 					}

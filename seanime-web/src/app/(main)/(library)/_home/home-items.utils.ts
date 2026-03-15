@@ -474,7 +474,7 @@ export const HOME_ITEMS = {
     "manga-library": {
         name: "Library",
         kind: ["row"],
-        schemaVersion: 1,
+        schemaVersion: 2,
         description: "Browse your manga library",
         options: [
             {

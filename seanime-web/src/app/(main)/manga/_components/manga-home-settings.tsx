@@ -413,7 +413,7 @@ export function MangaHomeSettingsModal() {
 
         // Check if an item doesn't exist anymore and remove it
         checkTimeRef.current = setTimeout(() => {
-            const newItems = normalizeHomeItems(currentItems)
+            const newItems = normalizeHomeItems(homeItems)
 
             if (newItems.length !== homeItems.length) {
                 setCurrentItems(newItems)

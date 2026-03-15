@@ -230,6 +230,7 @@ type DownloadChapterDirectOptions struct {
 	MediaId       int
 	ChapterId     string
 	ChapterNumber string
+	ChapterTitle  string
 	MediaTitle    string
 	Pages         []*hibikemanga.ChapterPage
 	StartNow      bool
@@ -254,6 +255,7 @@ func (d *Downloader) DownloadChapterDirect(opts DownloadChapterDirectOptions) er
 			MediaId:       opts.MediaId,
 			ChapterId:     opts.ChapterId,
 			ChapterNumber: opts.ChapterNumber,
+			ChapterTitle:  opts.ChapterTitle,
 			MediaTitle:    opts.MediaTitle,
 		},
 		Pages:    opts.Pages,

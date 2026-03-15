@@ -682,7 +682,11 @@ func (h *Handler) HandleGetMangaHomeItems(c echo.Context) error {
 	}
 
 	var items []*models.HomeItem
-	_ = json.Unmarshal(theme.MangaHomeItems, &items)
+	if len(theme.MangaHomeItems) > 0 {
+		_ = json.Unmarshal(theme.MangaHomeItems, &items)
+	}
+
+	h.App.Logger.Debug().Interface("items", items).Msg("status: Retrieved manga home items")
 
 	return h.RespondWithData(c, items)
 }
@@ -702,6 +706,8 @@ func (h *Handler) HandleUpdateMangaHomeItems(c echo.Context) error {
 	if err := c.Bind(&b); err != nil {
 		return h.RespondWithError(c, err)
 	}
+
+	h.App.Logger.Debug().Interface("items", b.Items).Msg("status: Updating manga home items")
 
 	theme, err := h.App.Database.GetTheme()
 	if err != nil {

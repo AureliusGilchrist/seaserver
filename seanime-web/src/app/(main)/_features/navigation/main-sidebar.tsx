@@ -246,13 +246,6 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             href: "/unmatched",
             isCurrent: pathname === "/unmatched",
         },
-        ...(serverStatus?.settings?.library?.enableManga) ? [{
-            id: "manga-validation",
-            iconType: LuClipboardCheck,
-            name: "Manga Validation",
-            href: "/manga-validation",
-            isCurrent: pathname === "/manga-validation",
-        }] : [],
         {
             id: "enmasse",
             iconType: LuDownload,

@@ -615,12 +615,6 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1MangaEnMasse.GET("/status", h.HandleMangaEnMasseGetStatus)
 	v1MangaEnMasse.POST("/start", h.HandleMangaEnMasseStart)
 	v1MangaEnMasse.POST("/stop", h.HandleMangaEnMasseStop)
-	v1MangaEnMasse.GET("/match-history", h.HandleGetMangaMatchHistory)
-	v1MangaEnMasse.GET("/low-confidence-count", h.HandleGetLowConfidenceMangaMatchCount)
-	v1MangaEnMasse.POST("/correct-match", h.HandleCorrectMangaMatch)
-	v1MangaEnMasse.POST("/convert-synthetic", h.HandleConvertMangaToSynthetic)
-	v1MangaEnMasse.POST("/scan-collection", h.HandleScanMangaCollection)
-	v1MangaEnMasse.POST("/auto-match-synthetic", h.HandleAutoMatchSyntheticManga)
 
 }
 

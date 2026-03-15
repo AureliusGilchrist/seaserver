@@ -111,14 +111,19 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 	
 	downloadedCount := 0
 	for _, providerChapter := range providerContainer.Chapters {
+		// Normalize provider chapter number to match padded format
+		normalizedChapterNum := manga_providers.GetNormalizedChapter(providerChapter.Chapter)
+		
 		// Check if this chapter is downloaded
-		if downloadedChapter, exists := downloadedChapterMap[providerChapter.Chapter]; exists {
+		if downloadedChapter, exists := downloadedChapterMap[normalizedChapterNum]; exists {
 			// Use the downloaded version
 			mergedChapters = append(mergedChapters, downloadedChapter)
 			downloadedCount++
 		} else {
-			// Use the provider version (gap filler)
-			mergedChapters = append(mergedChapters, providerChapter)
+			// Use the provider version (gap filler) with normalized chapter number
+			normalizedProviderChapter := *providerChapter
+			normalizedProviderChapter.Chapter = normalizedChapterNum
+			mergedChapters = append(mergedChapters, &normalizedProviderChapter)
 		}
 	}
 	
@@ -133,7 +138,8 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 	// This handles cases where downloaded chapters exist but provider doesn't have them
 	providerChapterMap := make(map[string]bool)
 	for _, chapter := range providerContainer.Chapters {
-		providerChapterMap[chapter.Chapter] = true
+		normalizedChapterNum := manga_providers.GetNormalizedChapter(chapter.Chapter)
+		providerChapterMap[normalizedChapterNum] = true
 	}
 
 	for chapterNum, downloadedChapter := range downloadedChapterMap {

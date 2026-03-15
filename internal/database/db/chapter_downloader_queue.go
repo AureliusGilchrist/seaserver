@@ -8,8 +8,8 @@ import (
 
 func (db *Database) GetChapterDownloadQueue() ([]*models.ChapterDownloadQueueItem, error) {
 	var res []*models.ChapterDownloadQueueItem
-	// Order by media_id first to group series together, then by id for insertion order
-	err := db.gormdb.Order("media_id ASC, id ASC").Find(&res).Error
+	// Order by id only to maintain strict insertion order (FIFO)
+	err := db.gormdb.Order("id ASC").Find(&res).Error
 	if err != nil {
 		db.Logger.Error().Err(err).Msg("db: Failed to get chapter download queue")
 		return nil, err
@@ -20,9 +20,9 @@ func (db *Database) GetChapterDownloadQueue() ([]*models.ChapterDownloadQueueIte
 
 func (db *Database) GetNextChapterDownloadQueueItem() (*models.ChapterDownloadQueueItem, error) {
 	var res models.ChapterDownloadQueueItem
-	// Order by media_id first to ensure all chapters from one series are processed together,
-	// then by id to maintain insertion order within a series
-	err := db.gormdb.Where("status = ?", "not_started").Order("media_id ASC, id ASC").First(&res).Error
+	// Order by id only to maintain strict insertion order (FIFO)
+	// This ensures new manga chapters go to the end of the queue
+	err := db.gormdb.Where("status = ?", "not_started").Order("id ASC").First(&res).Error
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			db.Logger.Error().Err(err).Msg("db: Failed to get next chapter download queue item")
