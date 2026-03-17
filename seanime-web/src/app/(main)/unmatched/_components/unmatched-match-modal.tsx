@@ -57,6 +57,8 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     const storedAnimeId = torrentContents?.animeId || torrent?.animeId
     const storedAnimeTitleRomaji = torrentContents?.animeTitleRomaji || torrent?.animeTitleRomaji
     const storedAnimeTitleNative = torrentContents?.animeTitleNative || torrent?.animeTitleNative
+    const storedAnimeExpectedEpisodes = torrentContents?.animeExpectedEpisodes || torrent?.animeExpectedEpisodes
+    const storedAnimeStartYear = torrentContents?.animeStartYear || torrent?.animeStartYear
     
     const { data: storedAnimeDetails, isLoading: isLoadingStoredAnime } = useGetAnilistAnimeDetails(
         storedAnimeId && !hasAutoSelectedAnime ? storedAnimeId : null
@@ -360,6 +362,12 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         || torrent?.animeTitleRomaji
         || null
 
+    const displayEpisodeCount = selectedAnime?.episodes
+        ?? storedAnimeExpectedEpisodes
+
+    const displayStartYear = selectedAnime?.startDate?.year
+        ?? storedAnimeStartYear
+
     const isLoadingAnimeInfo = isLoadingStoredAnime && storedAnimeId && !selectedAnime
 
     return (
@@ -398,8 +406,18 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                             )}
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs text-[--muted]">Matching to:</p>
-                                <p className="font-semibold text-brand-200 line-clamp-1">
-                                    {displayAnimeTitle || torrent.name}
+                                <p className="font-semibold text-brand-200 line-clamp-1 flex items-center gap-2">
+                                    <span>{displayAnimeTitle || torrent.name}</span>
+                                    {(displayEpisodeCount || displayStartYear) && (
+                                        <span className="text-xs text-[--muted] flex items-center gap-2">
+                                            {typeof displayEpisodeCount === "number" && (
+                                                <span>{displayEpisodeCount} eps</span>
+                                            )}
+                                            {displayStartYear && (
+                                                <span>· {displayStartYear}</span>
+                                            )}
+                                        </span>
+                                    )}
                                 </p>
                                 {selectedAnime?.title?.romaji && selectedAnime.title.romaji !== displayAnimeTitle && (
                                     <p className="text-xs text-[--muted] line-clamp-1">{selectedAnime.title.romaji}</p>

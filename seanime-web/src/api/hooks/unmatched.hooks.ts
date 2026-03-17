@@ -32,6 +32,9 @@ export interface UnmatchedTorrent {
     animeId?: number
     animeTitleRomaji?: string
     animeTitleNative?: string
+    animeFormat?: string
+    animeStartYear?: number
+    animeExpectedEpisodes?: number
 }
 
 export interface MatchRequest {
@@ -73,12 +76,23 @@ const UNMATCHED_ENDPOINTS = {
     },
 }
 
-export function useGetUnmatchedTorrents() {
+export function useGetUnmatchedTorrents({
+    refetchInterval,
+    staleTime,
+    refetchOnWindowFocus,
+}: {
+    refetchInterval?: number
+    staleTime?: number
+    refetchOnWindowFocus?: boolean | "always"
+} = {}) {
     return useServerQuery<UnmatchedTorrent[]>({
         endpoint: UNMATCHED_ENDPOINTS.GetUnmatchedTorrents.endpoint,
         method: UNMATCHED_ENDPOINTS.GetUnmatchedTorrents.methods[0],
         queryKey: [UNMATCHED_ENDPOINTS.GetUnmatchedTorrents.key],
         gcTime: 0,
+        refetchInterval,
+        staleTime,
+        refetchOnWindowFocus,
     })
 }
 

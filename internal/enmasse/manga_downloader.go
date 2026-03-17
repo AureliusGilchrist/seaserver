@@ -409,6 +409,41 @@ func (d *MangaDownloader) clearProgressUnlocked() {
 	os.Remove(MangaProgressFilePath)
 }
 
+// buildTitleVariants returns a set of title candidates to match on-disk folders.
+// It lowercases, trims, and adds a few simple replacements to catch common variants.
+func buildTitleVariants(title string) []string {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return nil
+	}
+
+	lower := strings.ToLower(title)
+	spaceToDash := strings.ReplaceAll(lower, " ", "-")
+	colonToDash := strings.ReplaceAll(lower, ":", "-")
+	ampersandToAnd := strings.ReplaceAll(lower, "&", "and")
+
+	variants := []string{
+		title,
+		lower,
+		spaceToDash,
+		colonToDash,
+		ampersandToAnd,
+	}
+
+	seen := make(map[string]bool)
+	uniq := make([]string, 0, len(variants))
+	for _, v := range variants {
+		v = strings.TrimSpace(v)
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		uniq = append(uniq, v)
+	}
+
+	return uniq
+}
+
 func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoMangaItem) error {
 	provider := DefaultMangaProvider
 

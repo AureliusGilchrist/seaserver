@@ -6,12 +6,20 @@ import { useRefreshAnimeCollection } from "@/api/hooks/anilist.hooks"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-export function useGetLibraryCollection({ enabled }: { enabled?: boolean } = { enabled: true }) {
+export function useGetLibraryCollection({ enabled, refetchInterval, staleTime, refetchOnWindowFocus }: {
+    enabled?: boolean
+    refetchInterval?: number
+    staleTime?: number
+    refetchOnWindowFocus?: boolean | "always"
+} = { enabled: true }) {
     return useServerQuery<Anime_LibraryCollection>({
         endpoint: API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.endpoint,
         method: API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.methods[0],
         queryKey: [API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.key],
         enabled: enabled,
+        refetchInterval,
+        staleTime,
+        refetchOnWindowFocus,
     })
 }
 

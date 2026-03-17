@@ -36,7 +36,12 @@ export function useHandleLibraryCollection() {
     /**
      * Fetch the anime library collection
      */
-    const { data: _data, isLoading } = useGetLibraryCollection()
+    const { data: _data, isLoading } = useGetLibraryCollection({
+        // Poll frequently so unmatched/ignored groups update without manual refresh
+        refetchInterval: 5_000,
+        staleTime: 2_000,
+        refetchOnWindowFocus: "always",
+    })
 
     const data = React.useMemo(() => {
         if (!_data) return undefined

@@ -15,11 +15,20 @@ import { LuFolderSearch } from "react-icons/lu"
 export const selectedUnmatchedTorrentAtom = atom<UnmatchedTorrent | null>(null)
 
 export function UnmatchedTorrentsPage() {
-    const { data: torrents, isLoading, refetch, error, isError, isFetching } = useGetUnmatchedTorrents()
+    const { data: torrents, isLoading, refetch, error, isError, isFetching } = useGetUnmatchedTorrents({
+        // Poll often so new unmatched downloads appear quickly
+        refetchInterval: 5_000,
+        staleTime: 2_000,
+        refetchOnWindowFocus: "always",
+    })
     const [selectedTorrent, setSelectedTorrent] = useAtom(selectedUnmatchedTorrentAtom)
     const { mutate: scanLibrary } = useScanLocalFiles()
 
-    if (isLoading || isFetching) {
+    const torrentsList = torrents ?? []
+    const initialLoading = isLoading && torrentsList.length === 0
+    const isRefreshing = isFetching && !isLoading
+
+    if (initialLoading) {
         return (
             <PageWrapper className="p-4 sm:p-8 space-y-4">
                 <div className="flex items-center gap-3">
@@ -37,13 +46,14 @@ export function UnmatchedTorrentsPage() {
         refetch()
     }
 
-    const hasTorrents = torrents && torrents.length > 0
+    const hasTorrents = torrentsList.length > 0
 
     return (
         <PageWrapper className="p-4 sm:p-8 space-y-4">
             <div className="flex items-center gap-3">
                 <LuFolderSearch className="text-3xl text-brand-200" />
                 <h2 className="text-2xl font-bold">Unmatched Downloads</h2>
+                {isRefreshing && <LoadingSpinner className="h-4 w-4" />}
             </div>
 
             <p className="text-[--muted]">
@@ -71,7 +81,7 @@ export function UnmatchedTorrentsPage() {
             ) : (!isError && hasTorrents ? (
                 <AppLayoutStack>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {torrents.map((torrent) => (
+                        {torrentsList.map((torrent) => (
                             <UnmatchedTorrentCard
                                 key={torrent.path}
                                 torrent={torrent}

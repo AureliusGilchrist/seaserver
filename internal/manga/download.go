@@ -146,33 +146,6 @@ type (
 	}
 )
 
-func NewDownloader(opts *NewDownloaderOptions) *Downloader {
-	_ = os.MkdirAll(opts.DownloadDir, os.ModePerm)
-	filecacher, _ := filecache.NewCacher(opts.DownloadDir)
-
-	d := &Downloader{
-		logger:         opts.Logger,
-		wsEventManager: opts.WSEventManager,
-		database:       opts.Database,
-		downloadDir:    opts.DownloadDir,
-		repository:     opts.Repository,
-		mediaMap:       new(MediaMap),
-		filecacher:     filecacher,
-		isOfflineRef:   opts.IsOfflineRef,
-	}
-
-	d.chapterDownloader = chapter_downloader.NewDownloader(&chapter_downloader.NewDownloaderOptions{
-		Logger:         opts.Logger,
-		WSEventManager: opts.WSEventManager,
-		Database:       opts.Database,
-		DownloadDir:    opts.DownloadDir,
-	})
-
-	go d.hydrateMediaMap()
-
-	return d
-}
-
 // Start is called once to start the Chapter downloader 's main goroutine.
 func (d *Downloader) Start() {
 	d.chapterDownloader.Start()
