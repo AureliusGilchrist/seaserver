@@ -497,6 +497,25 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 		}
 	}
 
+	// Quick on-disk check: if we already have roughly the same number of chapters, skip AniList lookup and downloading
+	if len(chapters) > 0 {
+		variants := buildTitleVariants(mangaItem.Title)
+		bestTitle, diskCount := d.mangaDownloader.CountChaptersByTitles(variants)
+		lowerBound := int(float64(len(chapters)) * 0.8)
+		upperBound := int(float64(len(chapters)) * 1.2)
+
+		if diskCount >= lowerBound && diskCount <= upperBound && diskCount > 0 {
+			d.logger.Info().
+				Str("title", mangaItem.Title).
+				Str("folder", bestTitle).
+				Int("expected", len(chapters)).
+				Int("found", diskCount).
+				Msg("enmasse-manga: Chapters already on disk within tolerance; skipping")
+			d.addToSkipped(mangaItem.Title)
+			return nil
+		}
+	}
+
 	d.logger.Info().
 		Str("title", mangaItem.Title).
 		Int("chapterCount", len(chapters)).

@@ -228,12 +228,19 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 			// Now that we have the container, we'll filter out the chapters that are not downloaded
 			// Go through each chapter and check if it's downloaded
 			for _, chapter := range container.Chapters {
+				// Normalize chapter number to padded format
+				normalizedChapterNum := manga_providers.GetNormalizedChapter(chapter.Chapter)
+				
 				// For each chapter, check if the chapter directory exists
+				// Check both padded and unpadded formats for backward compatibility
 				for _, dir := range chapterDirs {
-					if dir == chapter_downloader.FormatChapterDirName(provider, mediaId, chapter.ID, chapter.Chapter) {
-						// Normalize the chapter number to padded format
+					paddedDirName := chapter_downloader.FormatChapterDirName(provider, mediaId, chapter.ID, normalizedChapterNum)
+					unpaddedDirName := chapter_downloader.FormatChapterDirName(provider, mediaId, chapter.ID, chapter.Chapter)
+					
+					if dir == paddedDirName || dir == unpaddedDirName {
+						// Use normalized chapter number and keep original title
 						normalizedChapter := *chapter
-						normalizedChapter.Chapter = manga_providers.GetNormalizedChapter(chapter.Chapter)
+						normalizedChapter.Chapter = normalizedChapterNum
 						downloadedContainer.Chapters = append(downloadedContainer.Chapters, &normalizedChapter)
 						break
 					}
@@ -281,17 +288,29 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 							originalMediaId = synId
 						}
 					}
-					
-					// Get the original provider's chapter container to extract chapter titles
-					// Try to find cached containers from any provider for this media
+
+					// Get the full chapter container from cache to extract chapter titles
+					// We need the full container (not just downloaded chapters) to get all titles
 					var providerContainer *ChapterContainer
+
+					// Try to find a provider for this media from the already-built containers
+					var containerProvider string
 					for _, container := range ret {
 						if container.MediaId == originalMediaId {
-							providerContainer = container
+							containerProvider = container.Provider
 							break
 						}
 					}
-					
+
+					if containerProvider != "" {
+						// Try permanent cache first
+						providerContainer, _ = r.getChapterContainerFromPermanentFilecache(containerProvider, originalMediaId)
+						if providerContainer == nil {
+							// Try temporary cache
+							providerContainer, _ = r.getChapterContainerFromFilecache(containerProvider, originalMediaId)
+						}
+					}
+
 					// Build chapters from downloaded folders
 					// Use a map to deduplicate by chapter number
 					chapterMap := make(map[string]*hibikemanga.ChapterDetails)
@@ -323,7 +342,9 @@ func (r *Repository) GetDownloadedChapterContainers(mangaCollection *anilist.Man
 							// Legacy format: try to find title from provider container
 							if providerContainer != nil {
 								for _, ch := range providerContainer.Chapters {
-									if ch.Chapter == chapterNum {
+									// Normalize provider chapter number to match padded format
+									normalizedProviderChapter := manga_providers.GetNormalizedChapter(ch.Chapter)
+									if normalizedProviderChapter == chapterNum {
 										// Use the full title from the provider as-is
 										chapterTitle = ch.Title
 										break

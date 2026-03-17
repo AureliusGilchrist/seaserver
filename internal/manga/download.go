@@ -20,6 +20,71 @@ import (
 	"github.com/rs/zerolog"
 )
 
+func NewDownloader(opts *NewDownloaderOptions) *Downloader {
+	_ = os.MkdirAll(opts.DownloadDir, os.ModePerm)
+	filecacher, _ := filecache.NewCacher(opts.DownloadDir)
+
+	d := &Downloader{
+		logger:         opts.Logger,
+		wsEventManager: opts.WSEventManager,
+		database:       opts.Database,
+		downloadDir:    opts.DownloadDir,
+		repository:     opts.Repository,
+		mediaMap:       new(MediaMap),
+		filecacher:     filecacher,
+		isOfflineRef:   opts.IsOfflineRef,
+	}
+
+	d.chapterDownloader = chapter_downloader.NewDownloader(&chapter_downloader.NewDownloaderOptions{
+		Logger:         opts.Logger,
+		WSEventManager: opts.WSEventManager,
+		Database:       opts.Database,
+		DownloadDir:    opts.DownloadDir,
+	})
+
+	go d.hydrateMediaMap()
+
+	return d
+}
+
+// CountChaptersByTitles scans downloadDir for the provided title candidates and returns the best matching
+// title folder and how many chapters (registry.json) it contains.
+// It only matches exact folder names (case sensitive on POSIX), callers should provide multiple normalized variants.
+func (d *Downloader) CountChaptersByTitles(titles []string) (string, int) {
+	bestTitle := ""
+	bestCount := 0
+
+	for _, title := range titles {
+		if title == "" {
+			continue
+		}
+
+		mediaDir := filepath.Join(d.downloadDir, title)
+		entries, err := os.ReadDir(mediaDir)
+		if err != nil {
+			continue
+		}
+
+		count := 0
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			registryPath := filepath.Join(mediaDir, entry.Name(), "registry.json")
+			if _, err := os.Stat(registryPath); err == nil {
+				count++
+			}
+		}
+
+		if count > bestCount {
+			bestCount = count
+			bestTitle = title
+		}
+	}
+
+	return bestTitle, bestCount
+}
+
 type (
 	Downloader struct {
 		logger            *zerolog.Logger

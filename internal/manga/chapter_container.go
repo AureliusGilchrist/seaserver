@@ -263,6 +263,13 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 	if found, _ := r.fileCacher.Get(containerBucket, chapterContainerKey, &container); found {
 		r.logger.Info().Str("bucket", containerBucket.Name()).Msg("manga: Chapter Container Cache HIT")
 		
+		// Normalize chapter numbers in cached container (handles legacy caches with unpadded numbers)
+		if container != nil {
+			for _, chapter := range container.Chapters {
+				chapter.Chapter = manga_providers.GetNormalizedChapter(chapter.Chapter)
+			}
+		}
+		
 		// If we used a synthetic ID for cache lookup but the request was for an AniList ID,
 		// update the container's MediaId to the AniList ID for presentation
 		if cacheMediaId != mediaId && container != nil {
@@ -366,9 +373,11 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 		return nil, ErrNoChapters
 	}
 
-	// Overwrite the provider just in case
+	// Normalize chapter numbers and set provider
 	for _, chapter := range chapterList {
 		chapter.Provider = provider
+		// Normalize chapter number to padded format (e.g., "1" -> "0001", "35.5" -> "0035.5")
+		chapter.Chapter = manga_providers.GetNormalizedChapter(chapter.Chapter)
 	}
 
 	container = &ChapterContainer{
