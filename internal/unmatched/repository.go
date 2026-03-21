@@ -527,14 +527,24 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	// Enforce expected episode count for TV/OVA using video files only (ignore folders)
 	// If we have fewer files than the expected count, log a warning but continue. Some torrents
 	// legitimately have fewer episodes than AniList metadata, and users may intentionally match a subset.
-	if torrent.AnimeExpectedEpisodes > 0 && torrent.AnimeFormat != "MOVIE" {
+	// Use the user-selected AniList ID instead of the torrent's cached ID to respect manual selection.
+	var expectedEpisodes int
+	if req.AnimeID > 0 {
+		if animeMeta, err := r.fetchAnimeMetadata(req.AnimeID); err == nil && animeMeta != nil && animeMeta.Episodes != nil {
+			expectedEpisodes = len(animeMeta.Episodes)
+		}
+	} else if torrent.AnimeExpectedEpisodes > 0 {
+		expectedEpisodes = torrent.AnimeExpectedEpisodes
+	}
+
+	if expectedEpisodes > 0 {
 		if len(videoFiles) == 0 {
 			return nil, fmt.Errorf("no video files selected to match")
 		}
-		if len(videoFiles) < torrent.AnimeExpectedEpisodes {
+		if len(videoFiles) < expectedEpisodes {
 			r.logger.Warn().
 				Str("torrent", torrent.Name).
-				Int("expectedEpisodes", torrent.AnimeExpectedEpisodes).
+				Int("expectedEpisodes", expectedEpisodes).
 				Int("selectedVideos", len(videoFiles)).
 				Msg("unmatched: fewer video files than expected; proceeding with selected files")
 		}
@@ -544,11 +554,38 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	for i, fw := range videoFiles {
 		ext := filepath.Ext(fw.file.Name)
 
+		// Determine format from user-selected AniList ID, falling back to torrent cached format
+		var format string
+		if req.AnimeID > 0 {
+			if animeMeta, err := r.fetchAnimeMetadata(req.AnimeID); err == nil && animeMeta != nil && animeMeta.Type != "" {
+				format = animeMeta.Type
+			}
+		} else if torrent.AnimeFormat != "" {
+			format = torrent.AnimeFormat
+		}
+		// Normalize to uppercase to match existing checks
+		formatUpper := strings.ToUpper(format)
+
 		// Movie naming: <AnimeTitle> (<Year>)
-		if torrent.AnimeFormat == "MOVIE" {
+		// Use user-selected AniList ID to fetch the correct year instead of cached torrent metadata
+		var startYear int
+		if req.AnimeID > 0 {
+			if animeMeta, err := r.fetchAnimeMetadata(req.AnimeID); err == nil && animeMeta != nil && animeMeta.StartDate != "" {
+				// Extract year from StartDate (format: YYYY-MM-DD)
+				if len(animeMeta.StartDate) >= 4 {
+					if parsed, err := strconv.Atoi(animeMeta.StartDate[:4]); err == nil {
+						startYear = parsed
+					}
+				}
+			}
+		} else if torrent.AnimeStartYear > 0 {
+			startYear = torrent.AnimeStartYear
+		}
+
+		if formatUpper == "MOVIE" {
 			yearSuffix := ""
-			if torrent.AnimeStartYear > 0 {
-				yearSuffix = fmt.Sprintf(" (%d)", torrent.AnimeStartYear)
+			if startYear > 0 {
+				yearSuffix = fmt.Sprintf(" (%d)", startYear)
 			}
 			movieBase := fmt.Sprintf("%s%s", cleanTitle, yearSuffix)
 			safeMovieBase := sanitizeNamePreserveWhitespace(movieBase)
@@ -575,7 +612,7 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			}
 		}
 
-		episodeTitle := r.getEpisodeTitle(torrent.AnimeID, episodeNum)
+		episodeTitle := r.getEpisodeTitle(req.AnimeID, episodeNum)
 		baseName := fmt.Sprintf("%s - Episode %03d", cleanTitle, episodeNum)
 		if episodeTitle != "" {
 			baseName = fmt.Sprintf("%s - Episode %03d - %s", cleanTitle, episodeNum, episodeTitle)
@@ -599,6 +636,28 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	if len(result.FailedFiles) == 0 {
 		r.cleanupEmptyDirectories(filepath.Join(UnmatchedBasePath, req.TorrentName))
 		r.invalidateCache()
+	}
+
+	// Save user's selection back to torrent metadata if the match was successful
+	// This ensures that if any files remain, they use the correct metadata in future scans
+	if result.Success && req.AnimeID > 0 && len(result.MovedFiles) > 0 {
+		// Fetch metadata for the user-selected anime
+		if animeMeta, err := r.fetchAnimeMetadata(req.AnimeID); err == nil && animeMeta != nil {
+			startYear := 0
+			if animeMeta.StartDate != "" && len(animeMeta.StartDate) >= 4 {
+				// Extract year from StartDate (format: YYYY-MM-DD)
+				if parsed, err := strconv.Atoi(animeMeta.StartDate[:4]); err == nil {
+					startYear = parsed
+				}
+			}
+			
+			// Save the user's selection to override the cached metadata
+			if err := r.SaveTorrentMetadata(req.TorrentName, req.AnimeID, animeMeta.Title, "", animeMeta.Type, startYear); err != nil {
+				r.logger.Warn().Err(err).Str("torrent", req.TorrentName).Msg("unmatched: Failed to save user's selection metadata")
+			} else {
+				r.logger.Debug().Int("animeId", req.AnimeID).Str("torrent", req.TorrentName).Msg("unmatched: Saved user's selection metadata")
+			}
+		}
 	}
 
 	if len(result.FailedFiles) > 0 {

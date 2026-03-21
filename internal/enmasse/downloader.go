@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -172,36 +173,168 @@ func (d *Downloader) generateTitleVariants(animeItem *AnimeOfflineItem) []string
 	return variants
 }
 
-// simpleSearchWithVariants performs torrent search using multiple query variants for providers without smart search.
-func (d *Downloader) simpleSearchWithVariants(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, animeItem *AnilistMinifiedItem) (*torrent.SearchData, error) {
-	queryVariants := d.generateSearchVariants(animeItem)
-	if len(queryVariants) == 0 {
-		d.logger.Warn().Str("title", animeItem.TitleRomaji).Str("provider", providerID).Msg("enmasse-anime: No query variants for simple search")
-		return nil, fmt.Errorf("no query variants available")
-	}
+// searchProviderWithVariants searches a provider using all available search variants
+func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, searchVariants []string, isSmart bool) []*hibiketorrent.AnimeTorrent {
+	var allProviderTorrents []*hibiketorrent.AnimeTorrent
+	seen := make(map[string]struct{}) // Deduplicate within provider
 
-	searchOpts := torrent.AnimeSearchOptions{
-		Provider: providerID,
-		Type:     torrent.AnimeSearchTypeSimple,
-		Media:    baseAnime,
-		Batch:    true,
-		Resolution: "1080",
-	}
+	d.logger.Debug().
+		Str("provider", providerID).
+		Int("variants", len(searchVariants)).
+		Bool("smart", isSmart).
+		Msg("enmasse-anime: Starting provider search with variants")
 
-	for _, query := range queryVariants {
-		if query == "" {
-			continue
+	if isSmart {
+		// For smart search providers, try smart search first with primary query
+		if len(searchVariants) > 0 {
+			primaryQuery := searchVariants[0]
+			d.logger.Debug().
+				Str("provider", providerID).
+				Str("query", primaryQuery).
+				Msg("enmasse-anime: Trying smart search with primary query")
+			torrents := d.performSmartSearch(ctx, providerID, baseAnime, primaryQuery)
+			d.logger.Debug().
+				Str("provider", providerID).
+				Str("query", primaryQuery).
+				Int("found", len(torrents)).
+				Msg("enmasse-anime: Smart search results")
+			for _, t := range torrents {
+				key := t.InfoHash
+				if key == "" {
+					key = t.Name
+				}
+				if _, exists := seen[key]; !exists {
+					seen[key] = struct{}{}
+					allProviderTorrents = append(allProviderTorrents, t)
+				}
+			}
 		}
-		d.logger.Debug().Str("query", query).Str("provider", providerID).Msg("enmasse-anime: Simple search")
-		time.Sleep(DelayBetweenSearches)
-		searchOpts.Query = query
-		res, err := d.torrentRepository.SearchAnime(ctx, searchOpts)
-		if err == nil && res != nil && len(res.Torrents) > 0 {
-			return res, nil
+
+		// If smart search didn't yield enough results, try simple search with variants
+		if len(allProviderTorrents) < 5 && len(searchVariants) > 1 {
+			d.logger.Debug().
+				Str("provider", providerID).
+				Int("current", len(allProviderTorrents)).
+				Msg("enmasse-anime: Smart search insufficient, trying variant searches")
+			for i, variant := range searchVariants[1:] {
+				if len(allProviderTorrents) >= 20 { // Limit per provider
+					break
+				}
+				d.logger.Debug().
+					Str("provider", providerID).
+					Str("variant", variant).
+					Int("index", i+1).
+					Msg("enmasse-anime: Trying variant search")
+				torrents := d.performSimpleSearch(ctx, providerID, baseAnime, variant)
+				d.logger.Debug().
+					Str("provider", providerID).
+					Str("variant", variant).
+					Int("found", len(torrents)).
+					Msg("enmasse-anime: Variant search results")
+				for _, t := range torrents {
+					key := t.InfoHash
+					if key == "" {
+						key = t.Name
+					}
+					if _, exists := seen[key]; !exists {
+						seen[key] = struct{}{}
+						allProviderTorrents = append(allProviderTorrents, t)
+					}
+				}
+				time.Sleep(DelayBetweenSearches / 2) // Shorter delay for fallback searches
+			}
+		}
+	} else {
+		// For simple search providers, try all variants
+		for i, variant := range searchVariants {
+			if len(allProviderTorrents) >= 20 { // Limit per provider
+				break
+			}
+			d.logger.Debug().
+				Str("provider", providerID).
+				Str("variant", variant).
+				Int("index", i).
+				Msg("enmasse-anime: Trying simple search variant")
+			torrents := d.performSimpleSearch(ctx, providerID, baseAnime, variant)
+			d.logger.Debug().
+				Str("provider", providerID).
+				Str("variant", variant).
+				Int("found", len(torrents)).
+				Msg("enmasse-anime: Simple search results")
+			for _, t := range torrents {
+				key := t.InfoHash
+				if key == "" {
+					key = t.Name
+				}
+				if _, exists := seen[key]; !exists {
+					seen[key] = struct{}{}
+					allProviderTorrents = append(allProviderTorrents, t)
+				}
+			}
+			
+			// Add delay between searches, but reduce for later variants
+			if i < 5 {
+				time.Sleep(DelayBetweenSearches)
+			} else {
+				time.Sleep(DelayBetweenSearches / 2)
+			}
 		}
 	}
 
-	return nil, fmt.Errorf("no torrents found with query variants")
+	d.logger.Debug().
+		Str("provider", providerID).
+		Int("total", len(allProviderTorrents)).
+		Msg("enmasse-anime: Completed provider search")
+
+	return allProviderTorrents
+}
+
+// performSmartSearch performs a smart search on a provider
+func (d *Downloader) performSmartSearch(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, query string) []*hibiketorrent.AnimeTorrent {
+	opts := torrent.AnimeSearchOptions{
+		Provider:      providerID,
+		Type:          torrent.AnimeSearchTypeSmart,
+		Media:         baseAnime,
+		Query:         query,
+		Batch:         true,
+		EpisodeNumber: 0,
+		BestReleases:  true,
+		Resolution:    "1080",
+		SkipPreviews:  true,
+		IncludeSpecialProviders: true,
+	}
+
+	res, err := d.torrentRepository.SearchAnime(ctx, opts)
+	if err != nil || res == nil {
+		// Try fallback without batch/best releases
+		opts.Batch = false
+		opts.BestReleases = false
+		res, err = d.torrentRepository.SearchAnime(ctx, opts)
+		if err != nil || res == nil {
+			return []*hibiketorrent.AnimeTorrent{}
+		}
+	}
+
+	return res.Torrents
+}
+
+// performSimpleSearch performs a simple search on a provider
+func (d *Downloader) performSimpleSearch(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, query string) []*hibiketorrent.AnimeTorrent {
+	opts := torrent.AnimeSearchOptions{
+		Provider:      providerID,
+		Type:          torrent.AnimeSearchTypeSimple,
+		Media:         baseAnime,
+		Query:         query,
+		Batch:         true,
+		Resolution:    "1080",
+	}
+
+	res, err := d.torrentRepository.SearchAnime(ctx, opts)
+	if err != nil || res == nil {
+		return []*hibiketorrent.AnimeTorrent{}
+	}
+
+	return res.Torrents
 }
 
 // addToDownloaded adds an anime title to the downloaded list, keeping only the last MaxAnimeLogEntries
@@ -588,12 +721,21 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 		return fmt.Errorf("no torrent provider extensions available")
 	}
 
-	d.logger.Info().Str("title", resolved.TitleRomaji).Int("providers", len(providerIDs)).Msg("enmasse-anime: Searching across all providers")
+	// Comprehensive torrent collection using ALL search variants
+	d.logger.Info().Str("title", resolved.TitleRomaji).Int("providers", len(providerIDs)).Msg("enmasse-anime: Starting comprehensive torrent collection")
 
 	var allTorrents []*hibiketorrent.AnimeTorrent
 	var mu sync.Mutex
 
-	// Concurrent search across providers with rate limiting
+	// Generate all search variants once for this anime
+	searchVariants := d.generateSearchVariants(resolved)
+	if len(searchVariants) == 0 {
+		d.logger.Warn().Str("title", resolved.TitleRomaji).Msg("enmasse-anime: No search variants generated")
+		return fmt.Errorf("no search variants generated for %s", resolved.TitleRomaji)
+	}
+	d.logger.Info().Str("title", resolved.TitleRomaji).Int("variants", len(searchVariants)).Msg("enmasse-anime: Generated search variants")
+
+	// Concurrent search across all providers with all variants
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 3) // limit concurrency
 
@@ -606,77 +748,74 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 
 			ext, ok := d.torrentRepository.GetAnimeProviderExtension(providerID)
 			if !ok {
-				d.logger.Warn().Str("provider", providerID).Msg("enmasse-anime: Provider not found during multi-provider search")
+				d.logger.Warn().Str("provider", providerID).Msg("enmasse-anime: Provider not found during comprehensive search")
 				return
 			}
 
 			canSmart := ext.GetProvider().GetSettings().CanSmartSearch
-			var providerRes *torrent.SearchData
-			var err error
+			var providerTorrents []*hibiketorrent.AnimeTorrent
 
 			if canSmart {
-				opts := torrent.AnimeSearchOptions{
-					Provider:      providerID,
-					Type:          torrent.AnimeSearchTypeSmart,
-					Media:         baseAnime,
-					Query:         primaryQuery,
-					Batch:         true,
-					EpisodeNumber: 0,
-					BestReleases:  true,
-					Resolution:    "1080",
-					SkipPreviews:  true,
-					IncludeSpecialProviders: true,
-				}
-				time.Sleep(DelayBetweenSearches)
-				providerRes, err = d.torrentRepository.SearchAnime(ctx, opts)
-				if err != nil || providerRes == nil || len(providerRes.Torrents) == 0 {
-					// fallback
-					opts.Batch = false
-					opts.BestReleases = false
-					time.Sleep(DelayBetweenSearches)
-					providerRes, err = d.torrentRepository.SearchAnime(ctx, opts)
-				}
+				// For smart search providers, try primary query first, then variants if needed
+				providerTorrents = d.searchProviderWithVariants(ctx, providerID, baseAnime, searchVariants, true)
 			} else {
-				providerRes, err = d.simpleSearchWithVariants(ctx, providerID, baseAnime, resolved)
+				// For simple search providers, use all variants
+				providerTorrents = d.searchProviderWithVariants(ctx, providerID, baseAnime, searchVariants, false)
 			}
 
-			if err != nil {
-				d.logger.Debug().Err(err).Str("provider", providerID).Msg("enmasse-anime: Provider search failed")
-				return
+			if len(providerTorrents) > 0 {
+				mu.Lock()
+				beforeCount := len(allTorrents)
+				allTorrents = append(allTorrents, providerTorrents...)
+				afterCount := len(allTorrents)
+				mu.Unlock()
+				d.logger.Debug().
+					Str("provider", providerID).
+					Int("found", len(providerTorrents)).
+					Int("before", beforeCount).
+					Int("after", afterCount).
+					Msg("enmasse-anime: Collected torrents from provider")
+			} else {
+				d.logger.Debug().Str("provider", providerID).Msg("enmasse-anime: No torrents found from provider")
 			}
-			if providerRes == nil || len(providerRes.Torrents) == 0 {
-				return
-			}
-
-			mu.Lock()
-			allTorrents = append(allTorrents, providerRes.Torrents...)
-			mu.Unlock()
 		}(pid)
 	}
 	wg.Wait()
 
+	d.logger.Info().Str("title", resolved.TitleRomaji).Int("total", len(allTorrents)).Msg("enmasse-anime: Completed comprehensive torrent collection")
+
 	if len(allTorrents) == 0 {
-		return fmt.Errorf("no torrents found across any providers")
+		return fmt.Errorf("no torrents found across any providers with all search variants")
 	}
 
-	// Deduplicate by name/info hash
+	d.logger.Debug().Int("before_dedup", len(allTorrents)).Msg("enmasse-anime: Starting deduplication")
 	seen := make(map[string]struct{})
 	deduped := make([]*hibiketorrent.AnimeTorrent, 0, len(allTorrents))
+	duplicates := 0
 	for _, t := range allTorrents {
 		if t == nil {
+			d.logger.Debug().Msg("enmasse-anime: Skipping nil torrent during deduplication")
 			continue
 		}
 		key := t.Name
 		if t.InfoHash != "" {
 			key = t.InfoHash
 		}
-		if _, ok := seen[key]; ok {
-			continue
+		if _, exists := seen[key]; !exists {
+			seen[key] = struct{}{}
+			deduped = append(deduped, t)
+		} else {
+			duplicates++
+			d.logger.Debug().
+				Str("name", t.Name).
+				Str("hash", t.InfoHash).
+				Msg("enmasse-anime: Skipping duplicate torrent")
 		}
-		seen[key] = struct{}{}
-		deduped = append(deduped, t)
 	}
-
+	d.logger.Debug().
+		Int("after_dedup", len(deduped)).
+		Int("duplicates", duplicates).
+		Msg("enmasse-anime: Completed deduplication")
 	searchData := &torrent.SearchData{Torrents: deduped}
 	d.logger.Info().Str("title", resolved.TitleRomaji).Int("total", len(allTorrents)).Int("deduped", len(deduped)).Msg("enmasse-anime: Aggregated torrents from all providers")
 
@@ -833,71 +972,473 @@ func (d *Downloader) selectBestTorrent(torrents []*hibiketorrent.AnimeTorrent, a
 		return nil
 	}
 
-	// Prefer: dual-audio > 1080p > high seeders > batch
-	var best *hibiketorrent.AnimeTorrent
-	bestScore := -1
+	d.logger.Info().Int("candidates", len(torrents)).Msg("enmasse-anime: Ranking torrents with advanced system")
 
-	seasonName := ""
-	seasonYear := 0
-	if animeItem != nil && animeItem.AnimeSeason != nil {
-		seasonName = strings.ToLower(animeItem.AnimeSeason.Season)
-		seasonYear = animeItem.AnimeSeason.Year
+	// Rank torrents using the comprehensive scoring system
+	rankedTorrents := d.rankTorrents(torrents, animeItem)
+	
+	if len(rankedTorrents) == 0 {
+		return nil
 	}
 
-	for _, t := range torrents {
-		score := 0
-
-		nameLower := strings.ToLower(t.Name)
-
-		// Dual audio bonus
-		if strings.Contains(nameLower, "dual") || strings.Contains(nameLower, "multi") {
-			score += 100
-		}
-
-		// Resolution bonus
-		if strings.Contains(nameLower, "1080") || t.Resolution == "1080p" {
-			score += 50
-		} else if strings.Contains(nameLower, "720") || t.Resolution == "720p" {
-			score += 25
-		}
-
-		// Batch bonus
-		if t.IsBatch {
-			score += 30
-		}
-
-		// Best release bonus
-		if t.IsBestRelease {
-			score += 40
-		}
-
-		// Seeder bonus (capped)
-		seederBonus := t.Seeders
-		if seederBonus > 50 {
-			seederBonus = 50
-		}
-		score += seederBonus
-
-		// Season/year preference from torrent name
-		if seasonYear > 0 {
-			yearStr := strconv.Itoa(seasonYear)
-			if strings.Contains(nameLower, yearStr) {
-				score += 10
-			}
-		}
-		if seasonName != "" {
-			if strings.Contains(nameLower, seasonName) {
-				score += 150
-			}
-		}
-
-		if score > bestScore {
-			bestScore = score
-			best = t
-		}
-	}
+	best := rankedTorrents[0]
+	d.logger.Info().
+		Str("selected", best.Name).
+		Str("provider", best.Provider).
+		Int("seeders", best.Seeders).
+		Msg("enmasse-anime: Selected best torrent")
 
 	return best
+}
+
+// rankTorrents implements the advanced ranking system with user-specified priorities
+func (d *Downloader) rankTorrents(torrents []*hibiketorrent.AnimeTorrent, animeItem *AnimeOfflineItem) []*hibiketorrent.AnimeTorrent {
+	type TorrentScore struct {
+		torrent *hibiketorrent.AnimeTorrent
+		score   int
+		details map[string]int
+	}
+
+	var scoredTorrents []TorrentScore
+
+	for _, t := range torrents {
+		if t == nil {
+			continue
+		}
+
+		// Hard filter: minimum 5 seeders required
+		if t.Seeders < 5 {
+			d.logger.Debug().
+				Str("torrent", t.Name).
+				Int("seeders", t.Seeders).
+				Msg("enmasse-anime: Skipping torrent - insufficient seeders (minimum 5 required)")
+			continue
+		}
+
+		scoreDetails := make(map[string]int)
+		totalScore := 0
+
+		// Priority 1: Completeness (highest weight)
+		completenessScore := d.calculateCompletenessScore(t, animeItem)
+		scoreDetails["completeness"] = completenessScore
+		totalScore += completenessScore * 1000 // Completeness is most important
+
+		// Priority 2: Audio Quality
+		audioScore := d.calculateAudioScore(t)
+		scoreDetails["audio"] = audioScore
+		totalScore += audioScore * 500 // Audio is second priority
+
+		// Priority 3: Resolution (balanced with seeders)
+		resolutionScore := d.calculateResolutionScore(t)
+		scoreDetails["resolution"] = resolutionScore
+		totalScore += resolutionScore * 100
+
+		// Priority 4: Seeder Health
+		seederScore := d.calculateSeederScore(t)
+		scoreDetails["seeders"] = seederScore
+		totalScore += seederScore * 50
+
+		// Priority 5: Release Quality
+		releaseScore := d.calculateReleaseScore(t)
+		scoreDetails["release"] = releaseScore
+		totalScore += releaseScore * 25
+
+		// Priority 6: Title Relevance
+		titleScore := d.calculateTitleRelevance(t, animeItem)
+		scoreDetails["title"] = titleScore
+		totalScore += titleScore * 10
+
+		scoredTorrents = append(scoredTorrents, TorrentScore{
+			torrent: t,
+			score:   totalScore,
+			details: scoreDetails,
+		})
+
+		d.logger.Debug().
+			Str("torrent", t.Name).
+			Int("total", totalScore).
+			Int("completeness", completenessScore).
+			Int("audio", audioScore).
+			Int("resolution", resolutionScore).
+			Int("seeders", seederScore).
+			Msg("enmasse-anime: Torrent score breakdown")
+	}
+
+	// Sort by score (descending)
+	sort.Slice(scoredTorrents, func(i, j int) bool {
+		return scoredTorrents[i].score > scoredTorrents[j].score
+	})
+
+	// Return only the torrents
+	var result []*hibiketorrent.AnimeTorrent
+	for _, st := range scoredTorrents {
+		result = append(result, st.torrent)
+	}
+
+	return result
+}
+
+// calculateCompletenessScore implements the completeness priority logic
+func (d *Downloader) calculateCompletenessScore(t *hibiketorrent.AnimeTorrent, animeItem *AnimeOfflineItem) int {
+	nameLower := strings.ToLower(t.Name)
+	score := 0
+
+	// "Complete" gets highest priority
+	if strings.Contains(nameLower, "complete") {
+		score += 100
+	}
+
+	// Count "+" indicators for season completeness (more pluses = better)
+	plusCount := strings.Count(nameLower, "+")
+	if plusCount > 0 {
+		score += plusCount * 25 // Each plus adds significant value
+	}
+
+	// Multi-season detection - prioritize more comprehensive collections
+	multiSeasonPatterns := []string{
+		"season 1+2+3+4", "s01+s02+s03+s04", "1+2+3+4", "season 1+2+3", "s01+s02+s03", "1+2+3",
+		"season 1+2", "s01+s02", "1+2",
+	}
+	for i, pattern := range multiSeasonPatterns {
+		if strings.Contains(nameLower, pattern) {
+			// Higher score for more comprehensive collections
+			score += 80 - (i * 10)
+			break
+		}
+	}
+
+	// Additional completeness indicators
+	completenessIndicators := []string{
+		"all episodes", "full series", "entire series", "complete series",
+		"batch", "all seasons", "full collection",
+	}
+	for _, indicator := range completenessIndicators {
+		if strings.Contains(nameLower, indicator) {
+			score += 40
+			break
+		}
+	}
+
+	// OVA/Movie inclusion bonus (but must meet minimum episode count)
+	if (strings.Contains(nameLower, "ova") || strings.Contains(nameLower, "movie")) && animeItem.Episodes > 1 {
+		score += 30
+	}
+
+	// Batch bonus
+	if t.IsBatch {
+		score += 40
+	}
+
+	// Episode count verification against expected episodes
+	if animeItem.Episodes > 0 {
+		if d.torrentMeetsEpisodeMinimum(nil, animeItem.Episodes, t) {
+			score += 50
+		}
+	}
+
+	// Bonus for torrents that explicitly mention episode counts matching expected
+	if animeItem.Episodes > 0 {
+		epCountStr := strconv.Itoa(animeItem.Episodes)
+		if strings.Contains(nameLower, epCountStr+" episodes") || 
+		   strings.Contains(nameLower, epCountStr+" eps") ||
+		   strings.Contains(nameLower, "ep "+epCountStr) {
+			score += 35
+		}
+	}
+
+	return score
+}
+
+// calculateAudioScore implements the audio quality priority logic
+func (d *Downloader) calculateAudioScore(t *hibiketorrent.AnimeTorrent) int {
+	nameLower := strings.ToLower(t.Name)
+	score := 0
+
+	// Explicit "Dual Audio" gets highest priority
+	if strings.Contains(nameLower, "dual audio") {
+		score += 100
+	} else if strings.Contains(nameLower, "dual") {
+		score += 80
+	}
+
+	// "Multi Audio" gets second priority
+	if strings.Contains(nameLower, "multi audio") {
+		score += 90
+	} else if strings.Contains(nameLower, "multi") {
+		score += 70
+	}
+
+	// Lossless audio indicators
+	losslessIndicators := []string{"flac", "truehd", "dts-hd", "lossless"}
+	for _, indicator := range losslessIndicators {
+		if strings.Contains(nameLower, indicator) {
+			score += 20
+			break
+		}
+	}
+
+	return score
+}
+
+// calculateResolutionScore implements the resolution priority with seeder balance
+func (d *Downloader) calculateResolutionScore(t *hibiketorrent.AnimeTorrent) int {
+	nameLower := strings.ToLower(t.Name)
+	score := 0
+
+	// Base resolution scores
+	if strings.Contains(nameLower, "2160p") || strings.Contains(nameLower, "4k") {
+		score = 100
+	} else if strings.Contains(nameLower, "1440p") || strings.Contains(nameLower, "2k") {
+		score = 80
+	} else if strings.Contains(nameLower, "1080p") || t.Resolution == "1080p" {
+		score = 60
+	} else if strings.Contains(nameLower, "720p") || t.Resolution == "720p" {
+		score = 40
+	} else if strings.Contains(nameLower, "480p") || t.Resolution == "480p" {
+		score = 20
+	}
+
+	// Balance with seeder count - prefer slightly lower resolution with more seeders
+	seederBonus := 0
+	if t.Seeders > 100 {
+		seederBonus = 20
+	} else if t.Seeders > 50 {
+		seederBonus = 15
+	} else if t.Seeders > 20 {
+		seederBonus = 10
+	} else if t.Seeders > 10 {
+		seederBonus = 5
+	}
+
+	// Reduce resolution score slightly if very few seeders
+	if t.Seeders < 5 && score > 40 {
+		score -= 10
+	}
+
+	return score + seederBonus
+}
+
+// calculateSeederScore implements the seeder health priority
+func (d *Downloader) calculateSeederScore(t *hibiketorrent.AnimeTorrent) int {
+	seeders := t.Seeders
+	
+	// Minimum 5 seeders required
+	if seeders < 5 {
+		return 0
+	}
+	
+	// Diminishing returns for very high seeder counts
+	if seeders > 1000 {
+		return 100
+	} else if seeders > 500 {
+		return 90
+	} else if seeders > 200 {
+		return 80
+	} else if seeders > 100 {
+		return 70
+	} else if seeders > 50 {
+		return 60
+	} else if seeders > 20 {
+		return 50
+	} else if seeders > 10 {
+		return 40
+	} else if seeders >= 5 {
+		return 30 // Minimum acceptable seeder count gets base score
+	}
+	
+	return 0
+}
+
+// calculateReleaseScore implements the release quality priority
+func (d *Downloader) calculateReleaseScore(t *hibiketorrent.AnimeTorrent) int {
+	score := 0
+
+	// Best release status
+	if t.IsBestRelease {
+		score += 50
+	}
+
+	// Known quality indicators
+	nameLower := strings.ToLower(t.Name)
+	qualityIndicators := []string{"bluray", "bd", "web-dl", "webrip"}
+	for _, indicator := range qualityIndicators {
+		if strings.Contains(nameLower, indicator) {
+			score += 20
+			break
+		}
+	}
+
+	// Proper naming conventions
+	if !strings.Contains(nameLower, "re-encode") && !strings.Contains(nameLower, "x264") {
+		score += 10
+	}
+
+	return score
+}
+
+// calculateTitleRelevance implements title matching priority with proper season handling
+func (d *Downloader) calculateTitleRelevance(t *hibiketorrent.AnimeTorrent, animeItem *AnimeOfflineItem) int {
+	if animeItem == nil {
+		return 0
+	}
+
+	nameLower := strings.ToLower(t.Name)
+	score := 0
+
+	// Check if this is a "complete" or multi-season torrent using regex patterns (supports any season numbers)
+	hasPlusSign := strings.Contains(nameLower, "+")
+	isCompleteOrMulti := regexp.MustCompile(`\bcomplete\b|\bseason\s*\d+\+\d+\b|\bs\d+\+s\d+\b`).MatchString(nameLower)
+
+	// Check for title matches
+	titles := []string{animeItem.Title}
+	titles = append(titles, animeItem.Synonyms...)
+	
+	for _, title := range titles {
+		titleLower := strings.ToLower(title)
+		if strings.Contains(nameLower, titleLower) {
+			score += 30
+			break
+		}
+	}
+	
+	// If there's a + sign, skip season matching entirely - these are always acceptable
+	if hasPlusSign {
+		score += 20 // Bonus for multi-season torrents
+		d.logger.Debug().
+			Str("torrent", t.Name).
+			Int("score", score).
+			Msg("enmasse-anime: Multi-season torrent (+ detected) - season matching skipped")
+	} else if isCompleteOrMulti {
+		// Other complete/multi-season torrents are also acceptable
+		score += 15 // Bonus for completeness
+		d.logger.Debug().
+			Str("torrent", t.Name).
+			Int("score", score).
+			Msg("enmasse-anime: Complete/multi-season torrent accepted")
+	} else {
+		// Only do season matching for non-multi-season torrents
+		// Extract season number from torrent name
+		torrentSeason := d.extractSeasonNumber(nameLower)
+		
+		// Determine the anime's likely season number based on available data
+		animeSeasonNum := d.determineAnimeSeasonNumber(animeItem, nameLower)
+		
+		// Debug logging for season matching
+		d.logger.Debug().
+			Str("torrent", t.Name).
+			Int("torrent_season", torrentSeason).
+			Int("anime_season", animeSeasonNum).
+			Bool("complete_multi", isCompleteOrMulti).
+			Msg("enmasse-anime: Season matching analysis")
+		
+		if torrentSeason > 0 {
+			// Torrent explicitly specifies a season
+			if animeSeasonNum == 0 || torrentSeason == animeSeasonNum {
+				// Perfect season match or we can't determine the anime season
+				score += 25
+				d.logger.Debug().
+					Str("torrent", t.Name).
+					Int("score", score).
+					Msg("enmasse-anime: Perfect season match")
+			} else {
+				// Wrong season - penalize heavily
+				score -= 30
+				d.logger.Debug().
+					Str("torrent", t.Name).
+					Int("score", score).
+					Msg("enmasse-anime: Wrong season - penalized")
+			}
+		} else {
+			// Torrent doesn't specify season
+			if animeSeasonNum <= 1 {
+				// Season 1 or unknown - no season specified in torrent is acceptable
+				score += 10
+				d.logger.Debug().
+					Str("torrent", t.Name).
+					Int("score", score).
+					Msg("enmasse-anime: No season specified - acceptable for season 1")
+			} else {
+				// Season 2+ but torrent doesn't specify season - slight penalty
+				score -= 5
+				d.logger.Debug().
+					Str("torrent", t.Name).
+					Int("score", score).
+					Msg("enmasse-anime: No season specified - slight penalty for season 2+")
+			}
+		}
+	}
+
+	// Year matching (bonus but not critical)
+	if animeItem.AnimeSeason != nil && animeItem.AnimeSeason.Year > 0 {
+		yearStr := strconv.Itoa(animeItem.AnimeSeason.Year)
+		if strings.Contains(nameLower, yearStr) {
+			score += 10
+		}
+	}
+
+	return score
+}
+
+// determineAnimeSeasonNumber tries to determine which season number this anime is
+func (d *Downloader) determineAnimeSeasonNumber(animeItem *AnimeOfflineItem, torrentName string) int {
+	// If we can't determine, default to 1 (most anime are season 1)
+	if animeItem == nil {
+		return 1
+	}
+	
+	// Regex pattern to extract any season number from anime titles/synonyms
+	seasonPattern := `\bseason\s*(\d+)\b|\bs(\d+)\b|\b(\d+)th\s*season\b|\b(\d+)(?:st|nd|rd|th)\s*season\b`
+	
+	// Check title for season indicators
+	titleLower := strings.ToLower(animeItem.Title)
+	if matches := regexp.MustCompile(seasonPattern).FindStringSubmatch(titleLower); len(matches) > 1 {
+		for i := 1; i < len(matches); i++ {
+			if matches[i] != "" {
+				if seasonNum, err := strconv.Atoi(matches[i]); err == nil && seasonNum > 0 {
+					return seasonNum
+				}
+			}
+		}
+	}
+	
+	// Check synonyms for season indicators
+	for _, synonym := range animeItem.Synonyms {
+		synLower := strings.ToLower(synonym)
+		if matches := regexp.MustCompile(seasonPattern).FindStringSubmatch(synLower); len(matches) > 1 {
+			for i := 1; i < len(matches); i++ {
+				if matches[i] != "" {
+					if seasonNum, err := strconv.Atoi(matches[i]); err == nil && seasonNum > 0 {
+						return seasonNum
+					}
+				}
+			}
+		}
+	}
+	
+	// If no clear season indicators, assume season 1
+	return 1
+}
+
+// extractSeasonNumber extracts season number from torrent name using regex (supports any season number)
+func (d *Downloader) extractSeasonNumber(name string) int {
+	name = strings.ToLower(name)
+	
+	// Regex pattern to extract any season number from torrent names
+	seasonPattern := `\bseason\s*(\d+)\b|\bs(\d+)\b|\b(\d+)th\s*season\b|\b(\d+)(?:st|nd|rd|th)\s*season\b`
+	
+	re := regexp.MustCompile(seasonPattern)
+	if matches := re.FindStringSubmatch(name); len(matches) > 1 {
+		// Find the first non-empty capture group that contains a valid number
+		for i := 1; i < len(matches); i++ {
+			if matches[i] != "" {
+				if seasonNum, err := strconv.Atoi(matches[i]); err == nil && seasonNum > 0 {
+					return seasonNum
+				}
+			}
+		}
+	}
+	
+	return 0 // No season found
 }
 
 // torrentMeetsEpisodeMinimum rechecks episode count for the chosen torrent.
@@ -1154,7 +1695,7 @@ func (d *Downloader) syntheticID(title string) uint32 {
 	return h.Sum32()
 }
 func (d *Downloader) generateSearchVariants(animeItem *AnilistMinifiedItem) []string {
-	variants := make([]string, 0, 6)
+	variants := make([]string, 0, 20)
 
 	addVariant := func(val string) {
 		if val == "" {
@@ -1167,42 +1708,136 @@ func (d *Downloader) generateSearchVariants(animeItem *AnilistMinifiedItem) []st
 		variants = append(variants, s)
 	}
 
-	// Variant 1: Romaji title (most common)
-	addVariant(animeItem.TitleRomaji)
-
-	// Variant 1b: Sanitized Romaji title (no-symbol variation)
-	addVariant(d.sanitizeSearchQuery(animeItem.TitleRomaji))
-	
-	// Variant 2: English title
-	if animeItem.TitleEnglish != "" && animeItem.TitleEnglish != animeItem.TitleRomaji {
-		addVariant(animeItem.TitleEnglish)
-		addVariant(d.sanitizeSearchQuery(animeItem.TitleEnglish))
-	}
-
-	// Variant 3: Original title if different
-	if animeItem.Title != "" && animeItem.Title != animeItem.TitleRomaji && animeItem.Title != animeItem.TitleEnglish {
-		addVariant(animeItem.Title)
-		addVariant(d.sanitizeSearchQuery(animeItem.Title))
-	}
-
-	// Variant 4: First few words of romaji title (for long titles)
+	// Collect all base titles
+	titles := []string{}
 	if animeItem.TitleRomaji != "" {
-		words := strings.Fields(animeItem.TitleRomaji)
-		if len(words) > 3 {
-			shortTitle := strings.Join(words[:3], " ")
-			addVariant(shortTitle)
+		titles = append(titles, animeItem.TitleRomaji)
+	}
+	if animeItem.TitleEnglish != "" && animeItem.TitleEnglish != animeItem.TitleRomaji {
+		titles = append(titles, animeItem.TitleEnglish)
+	}
+	if animeItem.Title != "" && animeItem.Title != animeItem.TitleRomaji && animeItem.Title != animeItem.TitleEnglish {
+		titles = append(titles, animeItem.Title)
+	}
+
+	// Add all synonyms (not just first 2)
+	for _, syn := range animeItem.Synonyms {
+		if syn != "" && !d.containsVariant(titles, syn) {
+			titles = append(titles, syn)
 		}
 	}
 
-	// Variant 5: Synonyms (up to 2)
-	for i, syn := range animeItem.Synonyms {
-		if i >= 2 {
-			break
+	// Generate comprehensive variants for each title
+	for _, title := range titles {
+		// Variant 1: Original title (sanitized)
+		addVariant(title)
+
+		// Variant 2: Title with different separators
+		separators := []string{" ", "_", "-", "."}
+		for _, sep := range separators {
+			separatedTitle := strings.ReplaceAll(title, " ", sep)
+			addVariant(separatedTitle)
 		}
-		addVariant(syn)
+
+		// Variant 3: Title without special characters (extended)
+		addVariant(d.removeSpecialCharacters(title))
+
+		// Variant 4: Partial matches for long titles (first 2-4 words)
+		words := strings.Fields(title)
+		if len(words) > 4 {
+			// First 4 words
+			addVariant(strings.Join(words[:4], " "))
+		}
+		if len(words) > 3 {
+			// First 3 words
+			addVariant(strings.Join(words[:3], " "))
+		}
+		if len(words) > 2 {
+			// First 2 words
+			addVariant(strings.Join(words[:2], " "))
+		}
+	}
+
+	// Variant 5: Season-specific variations (if we can detect season info)
+	for _, title := range titles {
+		seasonVariants := d.generateSeasonVariants(title)
+		for _, variant := range seasonVariants {
+			addVariant(variant)
+		}
+	}
+
+	// Variant 6: Year-specific variations (if we have year info)
+	if animeItem.Episodes > 0 { // Use episodes as a proxy for having proper metadata
+		for _, title := range titles {
+			yearVariants := d.generateYearVariants(title)
+			for _, variant := range yearVariants {
+				addVariant(variant)
+			}
+		}
 	}
 
 	return variants
+}
+
+// generateSeasonVariants creates season-specific search variants
+func (d *Downloader) generateSeasonVariants(title string) []string {
+	variants := []string{}
+	
+	// Common season patterns
+	seasonPatterns := []string{
+		" S01", " S1", " Season 1", " 1st Season", " First Season",
+		" S02", " S2", " Season 2", " 2nd Season", " Second Season",
+		" S03", " S3", " Season 3", " 3rd Season", " Third Season",
+		" S04", " S4", " Season 4", " 4th Season", " Fourth Season",
+	}
+	
+	for _, pattern := range seasonPatterns {
+		variants = append(variants, title+pattern)
+	}
+	
+	return variants
+}
+
+// generateYearVariants creates year-specific search variants
+func (d *Downloader) generateYearVariants(title string) []string {
+	variants := []string{}
+	
+	// Common year patterns (recent years)
+	years := []string{"2024", "2023", "2022", "2021", "2020", "2019", "2018"}
+	
+	for _, year := range years {
+		variants = append(variants, title+" "+year)
+		variants = append(variants, title+" "+year+"-"+year[2:])
+		// For previous year
+		if year != "2018" {
+			prevYear := fmt.Sprintf("%d", util.StringToIntMust(year)-1)
+			variants = append(variants, title+" "+prevYear+"-"+year[2:])
+		}
+	}
+	
+	return variants
+}
+
+// removeSpecialCharacters removes a comprehensive set of special characters
+func (d *Downloader) removeSpecialCharacters(query string) string {
+	// Extended set of special characters to remove
+	specialChars := []string{
+		":", "/", "\\", "?", "!", "\"", "'", "(", ")", "[", "]", "{", "}",
+		"*", "&", "^", "%", "$", "#", "@", "+", "=", "~", "`", "|",
+		"<", ">", ",", ";", ".", "_", "-",
+	}
+	
+	result := query
+	for _, char := range specialChars {
+		result = strings.ReplaceAll(result, char, " ")
+	}
+	
+	// Collapse multiple spaces
+	for strings.Contains(result, "  ") {
+		result = strings.ReplaceAll(result, "  ", " ")
+	}
+	
+	return strings.TrimSpace(result)
 }
 
 // sanitizeSearchQuery cleans up a search query for torrent search
