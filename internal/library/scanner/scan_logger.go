@@ -40,8 +40,8 @@ func NewScanLogger(outputDir string) (*ScanLogger, error) {
 	// Create a buffer for storing log entries
 	buffer := new(bytes.Buffer)
 
-	// Create an array writer to wrap the JSON encoder
-	logger := zerolog.New(buffer).With().Logger()
+	// Wrap buffer with a sync writer to avoid concurrent write panics
+	logger := zerolog.New(zerolog.SyncWriter(buffer)).With().Logger()
 
 	return &ScanLogger{&logger, logFile, buffer}, nil
 }
@@ -53,8 +53,8 @@ func NewConsoleScanLogger() (*ScanLogger, error) {
 		TimeFormat: time.DateTime,
 	}
 
-	// Create an array writer to wrap the JSON encoder
-	logger := zerolog.New(output).With().Logger()
+	// Wrap console writer with a sync writer for thread-safe logging
+	logger := zerolog.New(zerolog.SyncWriter(output)).With().Logger()
 
 	return &ScanLogger{logger: &logger, logFile: nil, buffer: nil}, nil
 }

@@ -157,7 +157,7 @@ func (m *WSEventManager) SendEvent(t string, payload interface{}) {
 	//	return
 	//}
 
-	if t != PlaybackManagerProgressPlaybackState && payload == nil {
+	if t != PlaybackManagerProgressPlaybackState && t != ChapterDownloadQueueUpdated && payload == nil {
 		m.Logger.Trace().Str("type", t).Msg("ws: Sending message")
 	}
 

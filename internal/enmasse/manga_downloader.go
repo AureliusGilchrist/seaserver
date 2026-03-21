@@ -39,6 +39,53 @@ const (
 	// Retry settings for queue full / rate limiting - will wait indefinitely
 	QueueFullRetryDelay      = 30 * time.Second  // Wait before retrying when queue is full
 	RateLimitRetryDelay      = 60 * time.Second  // Wait before retrying on rate limit errors
+	searchMangaAllFormatsQuery = `query SearchMangaAllFormats($page: Int, $perPage: Int, $search: String) {
+	  Page(page: $page, perPage: $perPage) {
+	    pageInfo {
+	      hasNextPage
+	    }
+	    media(type: MANGA, search: $search) {
+	      id
+	      idMal
+	      siteUrl
+	      status(version: 2)
+	      season
+	      type
+	      format
+	      bannerImage
+	      chapters
+	      volumes
+	      synonyms
+	      isAdult
+	      countryOfOrigin
+	      meanScore
+	      description
+	      genres
+	      title {
+	        userPreferred
+	        romaji
+	        english
+	        native
+	      }
+	      coverImage {
+	        extraLarge
+	        large
+	        medium
+	        color
+	      }
+	      startDate {
+	        year
+	        month
+	        day
+	      }
+	      endDate {
+	        year
+	        month
+	        day
+	      }
+	    }
+	  }
+	}`
 )
 
 type (
@@ -100,6 +147,39 @@ type (
 		PlatformRef      *util.Ref[platform.Platform]
 	}
 )
+
+// searchAniListMangaAllFormats searches AniList without the format_not: NOVEL filter to avoid false negatives and 500s for certain titles.
+func (d *MangaDownloader) searchAniListMangaAllFormats(ctx context.Context, client anilist.AnilistClient, search string, page int, perPage int) (*anilist.SearchBaseManga, error) {
+	vars := map[string]interface{}{
+		"page":    page,
+		"perPage": perPage,
+		"search":  search,
+	}
+	body, err := json.Marshal(map[string]interface{}{
+		"query":     searchMangaAllFormatsQuery,
+		"variables": vars,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := client.CustomQuery(body, d.logger)
+	if err != nil {
+		return nil, err
+	}
+
+	m, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	var res *anilist.SearchBaseManga
+	if err := json.Unmarshal(m, &res); err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
 
 func NewMangaDownloader(opts *NewMangaDownloaderOptions) *MangaDownloader {
 	return &MangaDownloader{
@@ -590,6 +670,13 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 			mediaTitle = mangaItem.Title
 		}
 
+		// If a synthetic entry already exists for this provider ID, map it to the AniList ID so UI hides the synthetic
+		if database := d.mangaRepository.GetDatabase(); database != nil {
+			if synthetic, found := database.GetSyntheticMangaByProviderID(DefaultMangaProvider, mangaId); found && synthetic != nil {
+				_ = database.SaveMangaIDMapping(synthetic.SyntheticID, mediaId, mangaId)
+			}
+		}
+
 		d.logger.Info().
 			Str("title", mangaItem.Title).
 			Int("anilistId", mediaId).
@@ -925,9 +1012,21 @@ func (d *MangaDownloader) searchAniListMangaWithResults(ctx context.Context, tit
 	// Try each search variant and collect results
 	// Rate limit: AniList is currently limited to 30 req/min, so wait 4s between requests (halved rate)
 	for _, searchTitle := range searchVariants {
+		// Respect AniList auto rate limits
+		if err := acquireAniList(ctx, false); err != nil {
+			return nil, err
+		}
 		d.logger.Debug().Str("originalTitle", title).Str("searchTitle", searchTitle).Msg("enmasse-manga: Trying search variant")
 
-		result, err := anilistClient.ListManga(ctx, &page, &searchTitle, &perPage, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		result, err := anilistClient.SearchBaseManga(ctx, &page, &perPage, nil, &searchTitle, nil)
+		// Fallback: run custom query without format_not NOVEL if we errored or got no results
+		if (err != nil || result == nil || result.Page == nil || len(result.Page.Media) == 0) {
+			customRes, cErr := d.searchAniListMangaAllFormats(ctx, anilistClient, searchTitle, page, perPage)
+			if cErr == nil {
+				result = customRes
+				err = nil
+			}
+		}
 		if err != nil {
 			d.logger.Debug().Err(err).Str("searchTitle", searchTitle).Msg("enmasse-manga: Search variant failed")
 			lastErr = err
@@ -937,8 +1036,13 @@ func (d *MangaDownloader) searchAniListMangaWithResults(ctx context.Context, tit
 		}
 		
 		// Collect results from this variant
-		if result != nil && result.Page != nil && len(result.Page.Media) > 0 {
-			for _, media := range result.Page.Media {
+		var mediaSlice []*anilist.BaseManga
+		if result != nil && result.Page != nil {
+			mediaSlice = result.Page.Media
+		}
+
+		if len(mediaSlice) > 0 {
+			for _, media := range mediaSlice {
 				if media != nil && !searchResultsMap[media.ID] {
 					allSearchResults = append(allSearchResults, media)
 					searchResultsMap[media.ID] = true
@@ -946,7 +1050,7 @@ func (d *MangaDownloader) searchAniListMangaWithResults(ctx context.Context, tit
 			}
 			d.logger.Debug().
 				Str("searchTitle", searchTitle).
-				Int("resultCount", len(result.Page.Media)).
+				Int("resultCount", len(mediaSlice)).
 				Msg("enmasse-manga: Search variant returned results")
 		} else {
 			d.logger.Debug().Str("searchTitle", searchTitle).Msg("enmasse-manga: Search variant returned no results")
@@ -991,15 +1095,27 @@ func (d *MangaDownloader) searchAniListMangaWithResults(ctx context.Context, tit
 				Str("variantTitle", searchTerm).
 				Msg("enmasse-manga: Trying English/Romaji variant search")
 			
-			result, err := anilistClient.ListManga(ctx, &page, &searchTerm, &perPage, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+			result, err := anilistClient.SearchBaseManga(ctx, &page, &perPage, nil, &searchTerm, nil)
+		if (err != nil || result == nil || result.Page == nil || len(result.Page.Media) == 0) {
+			customRes, cErr := d.searchAniListMangaAllFormats(ctx, anilistClient, searchTerm, page, perPage)
+			if cErr == nil {
+				result = customRes
+				err = nil
+			}
+		}
 			if err != nil {
 				d.logger.Debug().Err(err).Str("searchTitle", searchTerm).Msg("enmasse-manga: Variant search failed")
 				time.Sleep(4 * time.Second)
 				continue
 			}
 			
-			if result != nil && result.Page != nil && len(result.Page.Media) > 0 {
-				for _, media := range result.Page.Media {
+			var mediaSlice []*anilist.BaseManga
+			if result != nil && result.Page != nil {
+				mediaSlice = result.Page.Media
+			}
+
+			if len(mediaSlice) > 0 {
+				for _, media := range mediaSlice {
 					if media != nil && !searchResultsMap[media.ID] {
 						allSearchResults = append(allSearchResults, media)
 						searchResultsMap[media.ID] = true
@@ -1007,7 +1123,7 @@ func (d *MangaDownloader) searchAniListMangaWithResults(ctx context.Context, tit
 				}
 				d.logger.Debug().
 					Str("searchTitle", searchTerm).
-					Int("newResults", len(result.Page.Media)).
+					Int("newResults", len(mediaSlice)).
 					Msg("enmasse-manga: Variant search added results")
 			}
 			

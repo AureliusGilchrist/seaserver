@@ -243,6 +243,61 @@ func (ap *AnilistPlatform) GetAnimeDetails(ctx context.Context, mediaID int) (*a
 	return ap.helper.TriggerGetAnimeDetailsEvent(media)
 }
 
+// GetAnimeRelated recursively fetches related anime up to the provided depth (clamped to [1,5]).
+// Returns a de-duplicated list of base anime (excluding the root) across all relation types.
+func (ap *AnilistPlatform) GetAnimeRelated(ctx context.Context, mediaID int, maxDepth int) ([]*anilist.BaseAnime, error) {
+	if maxDepth < 1 {
+		maxDepth = 1
+	}
+	if maxDepth > 5 {
+		maxDepth = 5
+	}
+
+	visited := make(map[int]bool)
+	results := make([]*anilist.BaseAnime, 0)
+
+	type node struct {
+		id    int
+		depth int
+	}
+	queue := []node{{id: mediaID, depth: 0}}
+
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+
+		if cur.depth >= maxDepth {
+			continue
+		}
+
+		media, err := ap.GetAnimeWithRelations(ctx, cur.id)
+		if err != nil || media == nil || media.Relations == nil {
+			continue
+		}
+
+		for _, edge := range media.GetRelations().GetEdges() {
+			if edge == nil || edge.Node == nil {
+				continue
+			}
+			n := edge.GetNode()
+			if n == nil {
+				continue
+			}
+			id := n.ID
+			if id == 0 || id == mediaID {
+				continue
+			}
+			if !visited[id] {
+				visited[id] = true
+				results = append(results, n)
+				queue = append(queue, node{id: id, depth: cur.depth + 1})
+			}
+		}
+	}
+
+	return results, nil
+}
+
 func (ap *AnilistPlatform) GetAnimeWithRelations(ctx context.Context, mediaID int) (*anilist.CompleteAnime, error) {
 	ap.logger.Trace().Int("mediaId", mediaID).Msg("anilist platform: Fetching anime with relations")
 

@@ -166,6 +166,7 @@ export function useHandleLibraryCollection() {
             }
         })
         return [
+            _lists.find(n => n.type === "LOCAL" as any),
             _lists.find(n => n.type === "CURRENT"),
             _lists.find(n => n.type === "PAUSED"),
             _lists.find(n => n.type === "PLANNING"),
@@ -192,6 +193,20 @@ export function useHandleLibraryCollection() {
                 serverStatus?.settings?.anilist?.enableAdultContent,
                 data.continueWatchingList,
                 watchHistory)
+
+            // For the LOCAL list, sort by title with special characters first, then A-Z
+            if (obj.type?.toString() === "LOCAL") {
+                const sortKey = (title?: string | null) => {
+                    if (!title) return "zzzzzz"
+                    const trimmed = title.trim()
+                    if (!trimmed) return "zzzzzz"
+                    const first = trimmed[0]
+                    const isAlpha = /^[A-Za-z]$/.test(first)
+                    // Prefix with 0 for special chars, 1 for letters to ensure special chars first
+                    return `${isAlpha ? "1" : "0"}${trimmed.toLowerCase()}`
+                }
+                arr.sort((a, b) => sortKey(a.media?.title?.userPreferred).localeCompare(sortKey(b.media?.title?.userPreferred)))
+            }
             return {
                 type: obj.type,
                 status: obj.status,
@@ -199,6 +214,7 @@ export function useHandleLibraryCollection() {
             }
         })
         return [
+            _lists.find(n => n.type === "LOCAL" as any),
             _lists.find(n => n.type === "CURRENT"),
             _lists.find(n => n.type === "PAUSED"),
             _lists.find(n => n.type === "PLANNING"),

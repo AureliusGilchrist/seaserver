@@ -154,11 +154,11 @@ func (s *Scanner) run(ctx context.Context) {
 			if event.Op&fsnotify.Create == fsnotify.Create {
 				if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
 					if err := watcher.Add(event.Name); err == nil {
-						s.logger.Debug().Str("dir", event.Name).Msg("unmatched scanner: added watcher for new directory")
+						// s.logger.Debug().Str("dir", event.Name).Msg("unmatched scanner: added watcher for new directory")
 					}
 				}
 			}
-			s.logger.Debug().Str("event", event.Name).Msg("unmatched scanner: file event detected, triggering scan")
+			// s.logger.Debug().Str("event", event.Name).Msg("unmatched scanner: file event detected, triggering scan")
 			s.scanForCompletedDownloads()
 		case err := <-func() <-chan error {
 			if watcher == nil {
@@ -194,30 +194,26 @@ func (s *Scanner) scanForCompletedDownloads() {
 		// Check if this torrent has any temp files
 		hasTempFiles := s.hasTempFiles(path)
 		if hasTempFiles {
-			s.logger.Debug().Str("torrent", d.Name()).Msg("unmatched scanner: Torrent still downloading (has temp files)")
 			return nil
 		}
 
 		// No temp files found - wait and double-check
-		s.logger.Debug().Str("torrent", d.Name()).Msg("unmatched scanner: No temp files found, verifying...")
+		// silently verify before processing
 		time.Sleep(s.verifyDelay)
 		
 		// Double-check after delay
 		if s.hasTempFiles(path) {
-			s.logger.Debug().Str("torrent", d.Name()).Msg("unmatched scanner: Temp files appeared after delay, still downloading")
 			return nil
 		}
 
 		// Triple-check with recursive deep scan
 		if s.deepScanForTempFiles(path) {
-			s.logger.Debug().Str("torrent", d.Name()).Msg("unmatched scanner: Deep scan found temp files, still downloading")
 			return nil
 		}
 
 		// Check if torrent has any video files (not just empty or non-video)
 		hasVideoFiles := s.hasVideoFiles(path)
 		if !hasVideoFiles {
-			s.logger.Debug().Str("torrent", d.Name()).Msg("unmatched scanner: No video files found, skipping")
 			return nil
 		}
 

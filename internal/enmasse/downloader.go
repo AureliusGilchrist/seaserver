@@ -15,6 +15,7 @@ import (
 	"seanime/internal/api/anilist"
 	"seanime/internal/events"
 	hibiketorrent "seanime/internal/extension/hibike/torrent"
+	"seanime/internal/extension"
 	"seanime/internal/platforms/platform"
 	"seanime/internal/torrent_clients/torrent_client"
 	"seanime/internal/torrents/torrent"
@@ -574,64 +575,110 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 	// Build a BaseAnime from the resolved item for torrent search
 	baseAnime := d.buildBaseAnime(resolved)
 
-	// Get default provider
-	providerExt, ok := d.torrentRepository.GetDefaultAnimeProviderExtension()
-	if !ok {
-		return fmt.Errorf("no torrent provider available")
+	// Aggregate results from ALL attached extensions (including NSFW/Adult)
+	primaryQuery := d.primarySearchQuery(resolved)
+	if primaryQuery == "" {
+		d.logger.Warn().Str("title", resolved.TitleRomaji).Msg("enmasse-anime: No valid query for search; skipping")
+		return fmt.Errorf("torrent search failed: no valid query for search")
 	}
 
-	// Check if provider supports smart search
-	canSmartSearch := providerExt.GetProvider().GetSettings().CanSmartSearch
-	providerID := providerExt.GetID()
+	// Gather all provider extensions
+	providerIDs := d.torrentRepository.GetAllAnimeProviderExtensionIds()
+	if len(providerIDs) == 0 {
+		return fmt.Errorf("no torrent provider extensions available")
+	}
 
-	var searchData *torrent.SearchData
+	d.logger.Info().Str("title", resolved.TitleRomaji).Int("providers", len(providerIDs)).Msg("enmasse-anime: Searching across all providers")
 
-	if canSmartSearch {
-		primaryQuery := d.primarySearchQuery(resolved)
-		if primaryQuery == "" {
-			d.logger.Warn().Str("title", resolved.TitleRomaji).Str("provider", providerID).Msg("enmasse-anime: No valid query for smart search; skipping")
-			return fmt.Errorf("torrent search failed: no valid query for smart search")
-		}
+	var allTorrents []*hibiketorrent.AnimeTorrent
+	var mu sync.Mutex
 
-		// Use smart search for providers that support it
-		searchOpts := torrent.AnimeSearchOptions{
-			Provider:      providerID,
-			Type:          torrent.AnimeSearchTypeSmart,
-			Media:         baseAnime,
-			Query:         primaryQuery,
-			Batch:         true,
-			EpisodeNumber: 0,
-			BestReleases:  true,
-			Resolution:    "1080",
-			SkipPreviews:  true,
-			IncludeSpecialProviders: true,
-		}
+	// Concurrent search across providers with rate limiting
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 3) // limit concurrency
 
-		d.logger.Debug().Str("query", primaryQuery).Str("provider", providerExt.GetID()).Msg("enmasse-anime: Smart search")
-		time.Sleep(DelayBetweenSearches)
+	for _, pid := range providerIDs {
+		wg.Add(1)
+		go func(providerID string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
-		res, err := d.torrentRepository.SearchAnime(ctx, searchOpts)
-		searchData = res
-		if err != nil || searchData == nil || len(searchData.Torrents) == 0 {
-			// Fallback to non-batch search
-			searchOpts.Batch = false
-			searchOpts.BestReleases = false
-			d.logger.Debug().Str("query", primaryQuery).Str("provider", providerExt.GetID()).Msg("enmasse-anime: Smart search fallback")
-			time.Sleep(DelayBetweenSearches)
-			res2, err2 := d.torrentRepository.SearchAnime(ctx, searchOpts)
-			if err2 != nil {
-				return fmt.Errorf("torrent search failed: %w", err2)
+			ext, ok := d.torrentRepository.GetAnimeProviderExtension(providerID)
+			if !ok {
+				d.logger.Warn().Str("provider", providerID).Msg("enmasse-anime: Provider not found during multi-provider search")
+				return
 			}
-			searchData = res2
-		}
-	} else {
-		// For providers without smart search, use simple search with multiple query variants
-		var err error
-		searchData, err = d.simpleSearchWithVariants(ctx, providerExt.GetID(), baseAnime, resolved)
-		if err != nil {
-			return fmt.Errorf("torrent search failed: %w", err)
-		}
+
+			canSmart := ext.GetProvider().GetSettings().CanSmartSearch
+			var providerRes *torrent.SearchData
+			var err error
+
+			if canSmart {
+				opts := torrent.AnimeSearchOptions{
+					Provider:      providerID,
+					Type:          torrent.AnimeSearchTypeSmart,
+					Media:         baseAnime,
+					Query:         primaryQuery,
+					Batch:         true,
+					EpisodeNumber: 0,
+					BestReleases:  true,
+					Resolution:    "1080",
+					SkipPreviews:  true,
+					IncludeSpecialProviders: true,
+				}
+				time.Sleep(DelayBetweenSearches)
+				providerRes, err = d.torrentRepository.SearchAnime(ctx, opts)
+				if err != nil || providerRes == nil || len(providerRes.Torrents) == 0 {
+					// fallback
+					opts.Batch = false
+					opts.BestReleases = false
+					time.Sleep(DelayBetweenSearches)
+					providerRes, err = d.torrentRepository.SearchAnime(ctx, opts)
+				}
+			} else {
+				providerRes, err = d.simpleSearchWithVariants(ctx, providerID, baseAnime, resolved)
+			}
+
+			if err != nil {
+				d.logger.Debug().Err(err).Str("provider", providerID).Msg("enmasse-anime: Provider search failed")
+				return
+			}
+			if providerRes == nil || len(providerRes.Torrents) == 0 {
+				return
+			}
+
+			mu.Lock()
+			allTorrents = append(allTorrents, providerRes.Torrents...)
+			mu.Unlock()
+		}(pid)
 	}
+	wg.Wait()
+
+	if len(allTorrents) == 0 {
+		return fmt.Errorf("no torrents found across any providers")
+	}
+
+	// Deduplicate by name/info hash
+	seen := make(map[string]struct{})
+	deduped := make([]*hibiketorrent.AnimeTorrent, 0, len(allTorrents))
+	for _, t := range allTorrents {
+		if t == nil {
+			continue
+		}
+		key := t.Name
+		if t.InfoHash != "" {
+			key = t.InfoHash
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		deduped = append(deduped, t)
+	}
+
+	searchData := &torrent.SearchData{Torrents: deduped}
+	d.logger.Info().Str("title", resolved.TitleRomaji).Int("total", len(allTorrents)).Int("deduped", len(deduped)).Msg("enmasse-anime: Aggregated torrents from all providers")
 
 	if searchData == nil || len(searchData.Torrents) == 0 {
 		return fmt.Errorf("no torrents found")
@@ -652,7 +699,7 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 	// Select best torrent (first one after sorting by seeders/best release) with season preference
 	selectedTorrent := d.selectBestTorrent(searchData.Torrents, animeItem)
 	if selectedTorrent == nil {
-		d.logger.Warn().Str("title", resolved.TitleRomaji).Str("provider", providerID).Msg("enmasse-anime: No suitable torrent after filtering")
+		d.logger.Warn().Str("title", resolved.TitleRomaji).Msg("enmasse-anime: No suitable torrent after filtering across all providers")
 		return fmt.Errorf("no suitable torrent found")
 	}
 	// Final safety: ensure selected torrent meets expected episode count
@@ -664,9 +711,29 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 		Str("title", resolved.TitleRomaji).
 		Str("torrent", selectedTorrent.Name).
 		Int("seeders", selectedTorrent.Seeders).
-		Msg("enmasse-anime: Selected torrent")
+		Msg("enmasse-anime: Selected best torrent across all providers")
 
-	// Get magnet link
+	// Get magnet link from the provider that supplied the selected torrent
+	// Find the provider extension that supplied this torrent (by provider field in torrent metadata or fallback to any)
+	var providerExt extension.AnimeTorrentProviderExtension
+	var found bool
+	if selectedTorrent.Provider != "" {
+		providerExt, found = d.torrentRepository.GetAnimeProviderExtension(selectedTorrent.Provider)
+	}
+	if !found || providerExt == nil {
+		// Fallback: try any provider that can fetch magnet
+		providerIDs := d.torrentRepository.GetAllAnimeProviderExtensionIds()
+		for _, pid := range providerIDs {
+			if ext, ok := d.torrentRepository.GetAnimeProviderExtension(pid); ok {
+				providerExt = ext
+				found = true
+				break
+			}
+		}
+	}
+	if !found {
+		return fmt.Errorf("no provider available to fetch magnet link")
+	}
 	magnet, err := providerExt.GetProvider().GetTorrentMagnetLink(selectedTorrent)
 	if err != nil {
 		return fmt.Errorf("failed to get magnet link: %w", err)

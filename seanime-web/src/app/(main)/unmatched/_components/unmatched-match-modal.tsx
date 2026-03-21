@@ -7,7 +7,7 @@ import {
     useGetUnmatchedTorrentContents,
 } from "@/api/hooks/unmatched.hooks"
 import { useAnilistListAnime, useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
-import { AL_BaseAnime } from "@/api/generated/types"
+import { AL_BaseAnime, AL_AnimeDetailsById_Media } from "@/api/generated/types"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -37,6 +37,14 @@ interface UnmatchedMatchModalProps {
     torrent: UnmatchedTorrent | null
     onClose: () => void
     onSuccess: () => void
+}
+
+// Safely extract a title string from AniList details, handling generated type shapes
+function getAniListTitle(details: AL_AnimeDetailsById_Media | null | undefined): string | null {
+    const media: any = details as any
+    const title = media?.title || media?.Media?.title || null
+    if (!title) return null
+    return title.romaji || title.english || title.native || null
 }
 
 export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMatchModalProps) {
@@ -98,6 +106,10 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             setIsLoadingContents(true)
             setLoadError(null)
             setFetchedName(torrent.name)
+            // Reset selection when switching to a different torrent
+            setSelectedAnime(null)
+            setHasAutoSelectedAnime(false)
+            setSearchQuery("")
             fetchTorrentContents({ name: torrent.name }, {
                 onSuccess: (data) => {
                     setTorrentContents(data || null)
@@ -138,18 +150,32 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setFetchedName(null)
         setTorrentContents(null)
         setLoadError(null)
+        // Also reset selection to avoid stale auto-selected anime
+        setSelectedAnime(null)
+        setHasAutoSelectedAnime(false)
     }, [torrent?.name])
 
     const { mutate: matchTorrent, isPending: isMatching } = useMatchUnmatchedTorrent(() => {
         onSuccess()
-        resetState()
+        // Reset selection to avoid carrying the previous anime into subsequent matches in the same modal session
+        setSelectedAnime(null)
+        setHasAutoSelectedAnime(false)
+        setSearchQuery("")
+        // Keep the files list but drop selections after a match
+        setSelectedFiles(new Set())
     })
 
     // Auto-search query: use the displayed anime title if no anime is selected yet
     const autoSearchQuery = useMemo(() => {
         if (selectedAnime || hasAutoSelectedAnime) return null
+
+        // Prefer AniList-fetched title if available
+        const aniListTitle = getAniListTitle(storedAnimeDetails)
+        if (aniListTitle) return aniListTitle
+
+        // Fall back to stored/torrent metadata
         return torrentContents?.animeTitleRomaji || torrent?.animeTitleRomaji || null
-    }, [selectedAnime, hasAutoSelectedAnime, torrentContents?.animeTitleRomaji, torrent?.animeTitleRomaji])
+    }, [selectedAnime, hasAutoSelectedAnime, storedAnimeDetails, torrentContents?.animeTitleRomaji, torrent?.animeTitleRomaji])
 
     // Use either manual search query or auto-search query
     const effectiveSearchQuery = searchQuery || autoSearchQuery || ""
@@ -160,16 +186,12 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         perPage: 20,
     }, !!effectiveSearchQuery && effectiveSearchQuery.length >= 2)
 
-    // Auto-select the first search result when auto-searching
+    // Pre-fill search input with torrent metadata to avoid manual typing
     useEffect(() => {
-        if (autoSearchQuery && searchResults?.Page?.media?.length && !selectedAnime && !hasAutoSelectedAnime) {
-            const firstResult = searchResults.Page.media[0]
-            if (firstResult) {
-                setSelectedAnime(firstResult as AL_BaseAnime)
-                setHasAutoSelectedAnime(true)
-            }
+        if (!searchQuery && autoSearchQuery) {
+            setSearchQuery(autoSearchQuery)
         }
-    }, [autoSearchQuery, searchResults, selectedAnime, hasAutoSelectedAnime])
+    }, [searchQuery, autoSearchQuery])
 
     const resetState = useCallback(() => {
         setStep("select-files")
@@ -408,10 +430,13 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                 <p className="text-xs text-[--muted]">Matching to:</p>
                                 <p className="font-semibold text-brand-200 line-clamp-1 flex items-center gap-2">
                                     <span>{displayAnimeTitle || torrent.name}</span>
-                                    {(displayEpisodeCount || displayStartYear) && (
+                                    {(displayEpisodeCount || displayStartYear || selectedAnime?.format) && (
                                         <span className="text-xs text-[--muted] flex items-center gap-2">
+                                            {selectedAnime?.format && (
+                                                <span>{selectedAnime.format}</span>
+                                            )}
                                             {typeof displayEpisodeCount === "number" && (
-                                                <span>{displayEpisodeCount} eps</span>
+                                                <span>· {displayEpisodeCount} eps</span>
                                             )}
                                             {displayStartYear && (
                                                 <span>· {displayStartYear}</span>
@@ -516,41 +541,55 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
 
-                    <ScrollArea className="h-[400px] border rounded-md">
-                        {isSearching ? (
-                            <div className="flex justify-center py-10">
-                                <LoadingSpinner />
-                            </div>
-                        ) : searchResults?.Page?.media && searchResults.Page.media.length > 0 ? (
-                            <div className="p-2 space-y-2">
-                                {searchResults.Page.media.map((anime) => (
-                                    <AnimeSearchItem
-                                        key={anime?.id}
-                                        anime={anime as AL_BaseAnime}
-                                        selected={selectedAnime?.id === anime?.id}
-                                        onSelect={() => setSelectedAnime(anime as AL_BaseAnime)}
-                                    />
-                                ))}
-                            </div>
-                        ) : searchQuery.length >= 2 ? (
-                            <div className="flex justify-center py-10 text-[--muted]">
-                                No results found
-                            </div>
-                        ) : (
-                            <div className="flex justify-center py-10 text-[--muted]">
-                                Type at least 2 characters to search
-                            </div>
-                        )}
-                    </ScrollArea>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <ScrollArea className="h-[400px] border rounded-md">
+                            {isSearching ? (
+                                <div className="flex justify-center py-10">
+                                    <LoadingSpinner />
+                                </div>
+                            ) : searchResults?.Page?.media && searchResults.Page.media.length > 0 ? (
+                                <div className="p-2 space-y-2">
+                                    {searchResults.Page.media.map((anime) => (
+                                        <AnimeSearchItem
+                                            key={anime?.id}
+                                            anime={anime as AL_BaseAnime}
+                                            selected={selectedAnime?.id === anime?.id}
+                                            onSelect={() => setSelectedAnime(anime as AL_BaseAnime)}
+                                        />
+                                    ))}
+                                </div>
+                            ) : searchQuery.length >= 2 ? (
+                                <div className="flex justify-center py-10 text-[--muted]">
+                                    No results found
+                                </div>
+                            ) : (
+                                <div className="flex justify-center py-10 text-[--muted]">
+                                    Type at least 2 characters to search
+                                </div>
+                            )}
+                        </ScrollArea>
 
-                    {selectedAnime && (
-                        <div className="p-3 border rounded-md bg-brand-900/20">
-                            <p className="text-sm font-medium">Selected:</p>
-                            <p className="text-brand-200">
-                                {selectedAnime?.title?.romaji || selectedAnime?.title?.english || selectedAnime?.title?.native}
-                            </p>
+                        <div className="h-[400px] border rounded-md bg-gray-950/40 p-3 flex flex-col gap-3">
+                            <p className="text-sm font-medium">Selected target</p>
+                            {selectedAnime ? (
+                                <SelectedAnimeDetails anime={selectedAnime} />
+                            ) : (
+                                <div className="flex-1 flex items-center justify-center text-[--muted] text-sm">
+                                    Choose an anime on the left to target (Season / OVA / Movie)
+                                </div>
+                            )}
+                            {selectedAnime && (
+                                <div className="mt-auto flex gap-2">
+                                    <Button intent="primary" onClick={handleMatch} disabled={isMatching || selectedFiles.size === 0} loading={isMatching} leftIcon={<BiCheck />}>
+                                        Match {selectedFiles.size} Files
+                                    </Button>
+                                    <Button intent="gray-outline" onClick={() => setSelectedAnime(null)}>
+                                        Clear
+                                    </Button>
+                                </div>
+                            )}
                         </div>
-                    )}
+                    </div>
 
                     <div className="flex justify-between items-center pt-4">
                         <Button intent="gray-outline" onClick={() => setStep("select-files")}>
@@ -574,6 +613,47 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                 </AppLayoutStack>
             )}
         </Modal>
+    )
+}
+
+function SelectedAnimeDetails({ anime }: { anime: AL_BaseAnime }) {
+    const season = anime.season ? capitalize(anime.season.toLowerCase()) : null
+    const year = anime.seasonYear
+    const seasonYear = season && year ? `${season} ${year}` : year ? `${year}` : null
+    const episodeText = anime.episodes ? `${anime.episodes} eps` : "Unknown eps"
+
+    return (
+        <div className="flex gap-3">
+            {anime.coverImage?.medium && (
+                <Image
+                    src={anime.coverImage.medium}
+                    alt={anime.title?.romaji || ""}
+                    width={70}
+                    height={98}
+                    className="rounded object-cover flex-shrink-0"
+                />
+            )}
+            <div className="flex-1 min-w-0 space-y-1">
+                <p className="font-semibold text-sm line-clamp-1">{anime.title?.native || anime.title?.romaji}</p>
+                <p className="text-xs text-[--muted] line-clamp-1">{anime.title?.romaji}</p>
+                <div className="flex items-center gap-2 text-xs text-[--muted] flex-wrap">
+                    {anime.format && <span className="px-2 py-0.5 rounded bg-gray-800/70 text-gray-200">{anime.format}</span>}
+                    {seasonYear && <span>{seasonYear}</span>}
+                    <span>•</span>
+                    <span>{episodeText}</span>
+                    {anime.status && <span className="uppercase tracking-wide text-[10px] text-gray-400">{anime.status.replace(/_/g, " ")}</span>}
+                </div>
+                {anime.genres && anime.genres.length > 0 && (
+                    <div className="flex items-center gap-1 flex-wrap">
+                        {anime.genres.slice(0, 4).map((genre, idx) => (
+                            <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800/50 text-gray-300">
+                                {genre}
+                            </span>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
     )
 }
 
@@ -697,6 +777,7 @@ function AnimeSearchItem({ anime, selected, onSelect }: { anime: AL_BaseAnime; s
     const season = anime.season ? capitalize(anime.season.toLowerCase()) : null
     const year = anime.seasonYear
     const seasonYear = season && year ? `${season} ${year}` : year ? `${year}` : null
+    const format = anime.format
     
     const getStatusColor = (status?: string) => {
         switch (status) {
@@ -716,10 +797,9 @@ function AnimeSearchItem({ anime, selected, onSelect }: { anime: AL_BaseAnime; s
     return (
         <div
             className={cn(
-                "flex items-center gap-3 p-2 rounded cursor-pointer hover:bg-gray-800/50 transition-colors",
+                "flex items-center gap-3 p-2 rounded hover:bg-gray-800/50 transition-colors",
                 selected && "bg-brand-900/30 border border-brand-500"
             )}
-            onClick={onSelect}
         >
             {anime.coverImage?.medium && (
                 <Image
@@ -737,9 +817,14 @@ function AnimeSearchItem({ anime, selected, onSelect }: { anime: AL_BaseAnime; s
                 <p className="text-xs text-[--muted] line-clamp-1">
                     {anime.title?.romaji}
                 </p>
-                
+
                 {/* Season/Year and Status */}
                 <div className="flex items-center gap-2 flex-wrap">
+                    {format && (
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-gray-800/70 text-gray-200 font-semibold uppercase tracking-wide">
+                            {format}
+                        </span>
+                    )}
                     {seasonYear && (
                         <span className="text-xs text-[--muted]">{seasonYear}</span>
                     )}
@@ -752,8 +837,6 @@ function AnimeSearchItem({ anime, selected, onSelect }: { anime: AL_BaseAnime; s
                 
                 {/* Format, Episodes, Score */}
                 <div className="flex items-center gap-2 flex-wrap text-xs text-[--muted]">
-                    <span>{anime.format}</span>
-                    <span>•</span>
                     <span>{anime.episodes ? `${anime.episodes} eps` : "Unknown eps"}</span>
                     {anime.meanScore && (
                         <>
@@ -780,7 +863,11 @@ function AnimeSearchItem({ anime, selected, onSelect }: { anime: AL_BaseAnime; s
                     </div>
                 )}
             </div>
-            {selected && <BiCheck className="text-2xl text-brand-200 flex-shrink-0" />}
+            <div className="flex flex-col items-end gap-2">
+                <Button size="xs" intent={selected ? "primary" : "gray"} onClick={onSelect} leftIcon={selected ? <BiCheck /> : undefined}>
+                    {selected ? "Using" : "Use"}
+                </Button>
+            </div>
         </div>
     )
 }

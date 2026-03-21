@@ -412,11 +412,6 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 			if found {
 				// Check if there's a mapping to an AniList ID
 				if anilistID, found := d.database.GetMangaIDMapping(mId); found {
-					d.logger.Debug().
-						Int("syntheticID", mId).
-						Int("anilistID", anilistID).
-						Msg("manga: Hiding synthetic entry, showing only AniList entry in download list")
-					
 					// Only add the AniList entry (hide the synthetic entry)
 					listEntry, ok := opts.MangaCollection.GetListEntryFromMangaId(anilistID)
 					if ok && listEntry.GetMedia() != nil {

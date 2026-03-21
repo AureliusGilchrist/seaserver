@@ -11,11 +11,14 @@ import (
 	"seanime/internal/util"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
 	"github.com/sourcegraph/conc/pool"
 )
+
+const MediaListStatusLocal anilist.MediaListStatus = "LOCAL"
 
 type (
 	// LibraryCollection holds the main data for the library collection.
@@ -129,8 +132,10 @@ func NewLibraryCollection(ctx context.Context, opts *NewLibraryCollectionOptions
 
 	// Create lists
 	lc.hydrateCollectionLists(
+		ctx,
 		opts.LocalFiles,
 		aniLists,
+		opts.PlatformRef,
 	)
 
 	lc.hydrateStats(opts.LocalFiles)
@@ -171,8 +176,10 @@ func NewLibraryCollection(ctx context.Context, opts *NewLibraryCollectionOptions
 //----------------------------------------------------------------------------------------------------------------------
 
 func (lc *LibraryCollection) hydrateCollectionLists(
+	ctx context.Context,
 	localFiles []*LocalFile,
 	aniLists []*anilist.AnimeCollection_MediaListCollection_Lists,
+	platformRef *util.Ref[platform.Platform],
 ) {
 
 	// Group local files by media id
@@ -281,6 +288,55 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 		lists = lo.Filter(lists, func(item *LibraryCollectionList, index int) bool {
 			return item.Status != anilist.MediaListStatusRepeating
 		})
+	}
+
+	// Build a Local list containing every local file group, even if it's not in the user's AniList lists
+	existingIds := make(map[int]struct{})
+	for _, l := range lists {
+		for _, e := range l.Entries {
+			existingIds[e.MediaId] = struct{}{}
+		}
+	}
+
+	localEntries := make([]*LibraryCollectionEntry, 0)
+	for mId, entryLfs := range groupedLfs {
+		if _, ok := existingIds[mId]; ok {
+			continue
+		}
+
+		libraryData, _ := NewEntryLibraryData(&NewEntryLibraryDataOptions{
+			EntryLocalFiles: entryLfs,
+			MediaId:         mId,
+			CurrentProgress: 0,
+		})
+
+		title := deriveLocalTitle(entryLfs)
+		media := &anilist.BaseAnime{ID: mId, Title: &anilist.BaseAnime_Title{UserPreferred: lo.ToPtr(title), Romaji: lo.ToPtr(title), English: lo.ToPtr(title), Native: lo.ToPtr(title)}}
+		if mId > 0 && platformRef != nil {
+			if plat := platformRef.Get(); plat != nil {
+				if ba, err := plat.GetAnime(ctx, mId); err == nil && ba != nil {
+					media = ba
+				}
+			}
+		}
+
+		localEntries = append(localEntries, &LibraryCollectionEntry{
+			MediaId:          mId,
+			Media:            media,
+			EntryLibraryData: libraryData,
+			EntryListData:    nil,
+		})
+	}
+
+	if len(localEntries) > 0 {
+		sort.Slice(localEntries, func(i, j int) bool {
+			return localEntries[i].Media.GetTitleSafe() < localEntries[j].Media.GetTitleSafe()
+		})
+		lists = append([]*LibraryCollectionList{{
+			Type:    MediaListStatusLocal,
+			Status:  MediaListStatusLocal,
+			Entries: localEntries,
+		}}, lists...)
 	}
 
 	// Lists
@@ -448,4 +504,35 @@ func getLibraryCollectionEntryFromListStatus(st anilist.MediaListStatus) anilist
 	}
 
 	return st
+}
+
+// deriveLocalTitle extracts a reasonable display title from a slice of local files.
+// Prefers the parent directory name; falls back to file name sans extension.
+func deriveLocalTitle(lfs []*LocalFile) string {
+	if len(lfs) == 0 {
+		return "Local Entry"
+	}
+	lf := lfs[0]
+	if lf == nil {
+		return "Local Entry"
+	}
+	if lf.Path != "" {
+		dir := filepath.Base(filepath.Dir(lf.Path))
+		dir = strings.TrimSpace(dir)
+		if dir != "" && dir != "." && dir != string(filepath.Separator) {
+			return dir
+		}
+		base := filepath.Base(lf.Path)
+		if base != "" {
+			// Strip extension
+			if idx := strings.LastIndex(base, "."); idx > 0 {
+				base = base[:idx]
+			}
+			base = strings.TrimSpace(base)
+			if base != "" {
+				return base
+			}
+		}
+	}
+	return "Local Entry"
 }

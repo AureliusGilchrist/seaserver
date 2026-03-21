@@ -34,6 +34,7 @@ type (
 		active         bool
 		wsEventManager events.WSEventManagerInterface
 		downloadDir    string // Path to the download directory
+		skipChecked    map[string]map[int]bool // provider -> mediaID -> checked
 	}
 
 	QueueStatus string
@@ -54,7 +55,26 @@ func NewQueue(db *db.Database, logger *zerolog.Logger, wsEventManager events.WSE
 		runCh:          runCh,
 		wsEventManager: wsEventManager,
 		downloadDir:    downloadDir,
+		skipChecked:    make(map[string]map[int]bool),
 	}
+}
+
+// wasSkipChecked returns true if we've already evaluated whether this series should be skipped.
+// caller must hold q.mu
+func (q *Queue) wasSkipChecked(provider string, mediaID int) bool {
+	if m, ok := q.skipChecked[provider]; ok {
+		return m[mediaID]
+	}
+	return false
+}
+
+// markSkipChecked marks that we've evaluated skip logic for this series.
+// caller must hold q.mu
+func (q *Queue) markSkipChecked(provider string, mediaID int) {
+	if _, ok := q.skipChecked[provider]; !ok {
+		q.skipChecked[provider] = make(map[int]bool)
+	}
+	q.skipChecked[provider][mediaID] = true
 }
 
 // Add adds a chapter to the download queue.
@@ -209,27 +229,37 @@ func (q *Queue) runNext() {
 	q.logger.Debug().Msg("chapter downloader: Checking next item in queue")
 
 	// Get next item from the database.
-	next, _ := q.db.GetNextChapterDownloadQueueItem()
+	next, err := q.db.GetNextChapterDownloadQueueItem()
+	if err != nil {
+		q.logger.Error().Err(err).Msg("chapter downloader: Failed to fetch next item")
+		q.mu.Unlock()
+		// Retry shortly to avoid stalling the queue
+		time.AfterFunc(2*time.Second, func() { q.runNext() })
+		return
+	}
 	if next == nil {
 		q.logger.Debug().Msg("chapter downloader: No next item in queue")
 		q.mu.Unlock()
 		return
 	}
 
-	// Check if this series should be auto-skipped (already mostly downloaded)
-	if q.shouldSkipSeries(next.Provider, next.MediaID) {
-		q.logger.Info().
-			Int("mediaId", next.MediaID).
-			Str("provider", next.Provider).
-			Msg("chapter downloader: Series already mostly downloaded, skipping all queued chapters")
-		
-		// Dequeue all chapters for this series
-		q.dequeueAllChaptersForSeries(next.Provider, next.MediaID)
-		q.mu.Unlock()
-		
-		// Try next item
-		go q.runNext()
-		return
+	// Check if this series should be auto-skipped (already mostly downloaded) only once per series
+	if !q.wasSkipChecked(next.Provider, next.MediaID) {
+		q.markSkipChecked(next.Provider, next.MediaID)
+		if q.shouldSkipSeries(next.Provider, next.MediaID) {
+			q.logger.Info().
+				Int("mediaId", next.MediaID).
+				Str("provider", next.Provider).
+				Msg("chapter downloader: Series already mostly downloaded, skipping all queued chapters")
+
+			// Dequeue all chapters for this series
+			q.dequeueAllChaptersForSeries(next.Provider, next.MediaID)
+			q.mu.Unlock()
+
+			// Try next item
+			go q.runNext()
+			return
+		}
 	}
 
 	id := DownloadID{
@@ -254,7 +284,7 @@ func (q *Queue) runNext() {
 	}
 
 	// Unmarshal the page data.
-	err := json.Unmarshal(next.PageData, &q.current.Pages)
+	err = json.Unmarshal(next.PageData, &q.current.Pages)
 	if err != nil {
 		q.logger.Error().Err(err).Msgf("Failed to unmarshal pages for id %v", id)
 		_ = q.db.UpdateChapterDownloadQueueItemStatus(id.Provider, id.MediaId, id.ChapterId, string(QueueStatusNotStarted))
