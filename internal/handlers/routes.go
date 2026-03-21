@@ -40,6 +40,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 		"/api/v1/torrent-client/list",
 		"/api/v1/proxy",
 		"/api/v1/directstream/stream",
+		"/api/v1/enmasse/status",
+		"/api/v1/enmasse/manga/status",
 	}
 
 	// Logging middleware

@@ -16,7 +16,8 @@ import { Switch } from "@/components/ui/switch"
 
 export function EnMassePage() {
     const router = useRouter()
-    const { data: status, isLoading } = useEnMasseStatus()
+    const [shouldPoll, setShouldPoll] = useState<boolean>(false)
+    const { data: status, isLoading } = useEnMasseStatus(true, shouldPoll)
     const { mutate: start, isPending: isStarting } = useEnMasseStart()
     const { mutate: stop, isPending: isStopping } = useEnMasseStop()
     const { addDownloadingAnime } = useDownloadingAnime()
@@ -24,6 +25,11 @@ export function EnMassePage() {
     
     const downloadedScrollRef = useRef<HTMLDivElement>(null)
     const failedScrollRef = useRef<HTMLDivElement>(null)
+
+    // Enable polling only when the downloader is running
+    useEffect(() => {
+        setShouldPoll(!!status?.isRunning)
+    }, [status?.isRunning])
 
     // Auto-scroll to bottom when new entries are added
     useEffect(() => {

@@ -33,12 +33,12 @@ const ENMASSE_ENDPOINTS = {
     },
 }
 
-export function useEnMasseStatus(enabled: boolean = true) {
+export function useEnMasseStatus(enabled: boolean = true, pollOnlyWhenRunning: boolean = false) {
     return useServerQuery<EnMasseDownloaderStatus>({
         endpoint: ENMASSE_ENDPOINTS.GetStatus.endpoint,
         method: ENMASSE_ENDPOINTS.GetStatus.methods[0],
         queryKey: [ENMASSE_ENDPOINTS.GetStatus.key],
-        refetchInterval: 2000,
+        refetchInterval: pollOnlyWhenRunning ? 2000 : undefined,
         enabled,
     })
 }
