@@ -6,6 +6,7 @@ import (
 	"seanime/internal/customsource"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/library/anime"
+	"seanime/internal/platforms/anilist_platform"
 	"seanime/internal/torrentstream"
 	"seanime/internal/util"
 	"seanime/internal/util/result"
@@ -281,8 +282,33 @@ func (h *Handler) HandleAddUnknownMedia(c echo.Context) error {
 		return h.RespondWithError(c, errors.New("error: Anilist responded with an error, this is most likely a rate limit issue"))
 	}
 
-	// Bypass the cache
+	// Bypass the cache and refresh the collection
 	animeCollection, err := h.App.GetAnimeCollection(true)
+	if err != nil {
+		return h.RespondWithError(c, errors.New("error: Anilist responded with an error, wait one minute before refreshing"))
+	}
+
+	// IMPORTANT: Force hydration of the newly added media with original AniList names
+	// This ensures that media not in the user's collection gets properly hydrated
+	for _, mediaId := range b.MediaIds {
+		// Clear any cached media to force fresh fetch from AniList
+		if h.App.AnilistPlatformRef.Get().GetAnilistClient() != nil {
+			// Clear the cache first to ensure fresh data
+			// Access the helper through type assertion to AnilistPlatform
+			if anilistPlatform, ok := h.App.AnilistPlatformRef.Get().(*anilist_platform.AnilistPlatform); ok {
+				anilistPlatform.GetHelper().ClearBaseAnimeCache(mediaId)
+			}
+			
+			// Force fetch fresh media data from AniList to ensure original names are hydrated
+			_, err := h.App.AnilistPlatformRef.Get().GetAnime(c.Request().Context(), mediaId)
+			if err != nil {
+				h.App.Logger.Warn().Err(err).Int("mediaId", mediaId).Msg("Failed to hydrate media after adding to collection")
+			}
+		}
+	}
+
+	// Force another collection refresh to pick up the hydrated media
+	animeCollection, err = h.App.GetAnimeCollection(true)
 	if err != nil {
 		return h.RespondWithError(c, errors.New("error: Anilist responded with an error, wait one minute before refreshing"))
 	}

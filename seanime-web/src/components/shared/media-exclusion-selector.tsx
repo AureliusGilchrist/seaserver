@@ -389,7 +389,7 @@ function MediaExclusionItem(props: {
             />
 
             <p className="line-clamp-2 text-sm absolute m-2 bottom-0 font-semibold z-[10] text-white drop-shadow-lg">
-                {entry.media?.title?.userPreferred || entry.media?.title?.romaji}
+                {entry.media?.title?.romaji || entry.media?.title?.english || entry.media?.title?.userPreferred}
             </p>
 
             {entry.media?.isAdult && (

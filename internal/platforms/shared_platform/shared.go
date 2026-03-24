@@ -179,12 +179,20 @@ func (h *PlatformHelper) SetCachedBaseAnime(mediaID int, anime *anilist.BaseAnim
 	h.baseAnimeCache.SetT(mediaID, anime, time.Minute*30)
 }
 
+func (h *PlatformHelper) ClearBaseAnimeCache(mediaID int) {
+	h.baseAnimeCache.Delete(mediaID)
+}
+
 func (h *PlatformHelper) GetCachedBaseManga(mediaID int) (*anilist.BaseManga, bool) {
 	return h.baseMangaCache.Get(mediaID)
 }
 
 func (h *PlatformHelper) SetCachedBaseManga(mediaID int, manga *anilist.BaseManga) {
 	h.baseMangaCache.SetT(mediaID, manga, time.Minute*30)
+}
+
+func (h *PlatformHelper) ClearBaseMangaCache(mediaID int) {
+	h.baseMangaCache.Delete(mediaID)
 }
 
 func (h *PlatformHelper) GetCachedCompleteAnime(mediaID int) (*anilist.CompleteAnime, bool) {

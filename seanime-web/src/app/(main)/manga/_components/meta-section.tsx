@@ -35,7 +35,6 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
     const primaryTitle = entry.media?.title?.romaji
         || entry.media?.title?.english
         || entry.media?.title?.native
-        || entry.media?.title?.userPreferred
 
     const Details = () => (
         <>

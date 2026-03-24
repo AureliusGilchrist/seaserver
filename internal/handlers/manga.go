@@ -9,6 +9,7 @@ import (
 	"seanime/internal/extension"
 	"seanime/internal/manga"
 	manga_providers "seanime/internal/manga/providers"
+	"seanime/internal/platforms/anilist_platform"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util/result"
 	"strconv"
@@ -852,6 +853,85 @@ func (h *Handler) HandleGetUpcomingMangaChapters(c echo.Context) error {
 	}
 	
 	return h.RespondWithData(c, upcomingManga)
+}
+
+// HandleHydrateAllManga
+//
+//	@summary hydrates all manga entries with missing or empty media data.
+//	@desc This forces fresh data fetch from AniList for all manga entries that have missing titles or metadata.
+//	@route /api/v1/manga/hydrate-all [POST]
+//	@returns manga.Collection
+func (h *Handler) HandleHydrateAllManga(c echo.Context) error {
+
+	// Get current manga collection
+	mangaCollection, err := h.App.GetMangaCollection(false)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	if mangaCollection == nil || mangaCollection.MediaListCollection == nil {
+		return h.RespondWithError(c, errors.New("manga collection is nil"))
+	}
+
+	// Collect all media IDs that need hydration
+	mediaIdsToHydrate := make([]int, 0)
+	
+	for _, list := range mangaCollection.MediaListCollection.Lists {
+		for _, entry := range list.Entries {
+			if entry.Media != nil {
+				// Check if media needs hydration (empty title or missing basic data)
+				needsHydration := false
+				
+				// Check for empty or missing title
+				if entry.Media.GetTitleSafe() == "" || entry.Media.GetTitleSafe() == "unknown title" {
+					needsHydration = true
+				}
+				
+				// Check for missing basic metadata
+				if entry.Media.GetDescription() == nil && entry.Media.GetTitleSafe() != "" {
+					needsHydration = true
+				}
+				
+				if needsHydration {
+					mediaIdsToHydrate = append(mediaIdsToHydrate, entry.Media.ID)
+					
+					// Clear cache for this media ID
+					if h.App.AnilistPlatformRef.Get().GetAnilistClient() != nil {
+						// Clear the cache first to ensure fresh data
+						// Access the helper through type assertion to AnilistPlatform
+						if anilistPlatform, ok := h.App.AnilistPlatformRef.Get().(*anilist_platform.AnilistPlatform); ok {
+							anilistPlatform.GetHelper().ClearBaseMangaCache(entry.Media.ID)
+						}
+						
+						// Force fetch fresh manga data from AniList
+						_, err := h.App.AnilistPlatformRef.Get().GetManga(c.Request().Context(), entry.Media.ID)
+						if err != nil {
+							h.App.Logger.Warn().Err(err).Int("mediaId", entry.Media.ID).Msg("Failed to hydrate manga")
+						}
+					}
+				}
+			}
+		}
+	}
+
+	h.App.Logger.Info().Int("count", len(mediaIdsToHydrate)).Msg("manga: Hydrated manga entries")
+
+	// Force refresh the collection to pick up hydrated data
+	refreshedCollection, err := h.App.GetMangaCollection(true)
+	if err != nil {
+		return h.RespondWithError(c, errors.New("error: Anilist responded with an error during collection refresh"))
+	}
+
+	// Build and return the refreshed collection
+	collection, err := manga.NewCollection(&manga.NewCollectionOptions{
+		MangaCollection: refreshedCollection,
+		PlatformRef:     h.App.AnilistPlatformRef,
+	})
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	return h.RespondWithData(c, collection)
 }
 
 // HandleGetMangaMissedSequels

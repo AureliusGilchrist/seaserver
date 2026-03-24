@@ -271,7 +271,7 @@ export function AutoDownloaderMediaCombobox(props: {
                 <p className="text-[--muted] text-sm">{capitalize(media.status)?.replaceAll("_", " ")}</p>
             </div>,
             value: String(media.id),
-            textValue: media.title?.userPreferred || "N/A",
+            textValue: media.title?.romaji || "N/A",
         })).toSorted((a, b) => a.textValue.localeCompare(b.textValue))}
         value={[String(props.value)]}
         onValueChange={props.onValueChange}
@@ -319,7 +319,7 @@ export function RuleFormFields(props: RuleFormFieldsProps) {
     const selectedMedia = allMedia.find(media => media.id === Number(form_mediaId))
 
     const animeFolderName = useMemo(() => {
-        return sanitizeDirectoryName(selectedMedia?.title?.userPreferred || "")
+        return sanitizeDirectoryName(selectedMedia?.title?.romaji || "")
     }, [selectedMedia])
 
     const libraryPathSelectionProps = useLibraryPathSelection({
@@ -562,5 +562,5 @@ export function RuleFormFields(props: RuleFormFieldsProps) {
 
 
 function sanitizeDirectoryName(input: string): string {
-	return input
+	return input.replaceAll("/", "-")
 }
