@@ -168,7 +168,7 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
                                         >
                                             <div className="flex items-center gap-2">
                                                 <p className="font-semibold">
-                                                    {media?.title?.userPreferred || item.mediaTitle} - {item.chapterTitle || `Chapter ${item.chapterNumber}`}
+                                                    {item.mediaTitle || media?.title?.userPreferred} - {item.chapterTitle || `Chapter ${item.chapterNumber}`}
                                                 </p>
                                                 <span className="text-[--muted] italic text-sm">(id: {item.chapterId})</span>
                                                 {item.status === "errored" && (

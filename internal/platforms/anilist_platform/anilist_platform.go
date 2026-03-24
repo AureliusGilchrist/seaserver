@@ -701,6 +701,10 @@ func (ap *AnilistPlatform) AddMediaToCollection(ctx context.Context, mIds []int)
 	return nil
 }
 
+func (ap *AnilistPlatform) GetHelper() *shared_platform.PlatformHelper {
+	return ap.helper
+}
+
 func (ap *AnilistPlatform) GetStudioDetails(ctx context.Context, studioID int) (*anilist.StudioDetails, error) {
 	ap.logger.Trace().Msg("anilist platform: Fetching studio details")
 	ret, err := ap.anilistClient.StudioDetails(ctx, &studioID)

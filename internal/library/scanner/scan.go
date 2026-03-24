@@ -11,6 +11,7 @@ import (
 	"seanime/internal/library/anime"
 	"seanime/internal/library/filesystem"
 	"seanime/internal/library/summary"
+	"seanime/internal/platforms/anilist_platform"
 	"seanime/internal/platforms/platform"
 	"seanime/internal/util"
 	"seanime/internal/util/limiter"
@@ -406,6 +407,22 @@ func (scn *Scanner) Scan(ctx context.Context) (lfs []*anime.LocalFile, err error
 
 		if err = scn.PlatformRef.Get().AddMediaToCollection(ctx, mf.UnknownMediaIds); err != nil {
 			scn.Logger.Warn().Msg("scanner: An error occurred while adding media to planning list: " + err.Error())
+		}
+
+		// IMPORTANT: Force hydration of newly added media with original AniList names
+		// This ensures that media not in the user's collection gets properly hydrated
+		for _, mediaId := range mf.UnknownMediaIds {
+			// Clear the cache first to ensure fresh data
+			// Access the helper through type assertion to AnilistPlatform
+			if anilistPlatform, ok := scn.PlatformRef.Get().(*anilist_platform.AnilistPlatform); ok {
+				anilistPlatform.GetHelper().ClearBaseAnimeCache(mediaId)
+			}
+			
+			// Force fetch fresh media data from AniList to ensure original names are hydrated
+			_, err := scn.PlatformRef.Get().GetAnime(ctx, mediaId)
+			if err != nil {
+				scn.Logger.Warn().Err(err).Int("mediaId", mediaId).Msg("scanner: Failed to hydrate media after adding to collection")
+			}
 		}
 	}
 

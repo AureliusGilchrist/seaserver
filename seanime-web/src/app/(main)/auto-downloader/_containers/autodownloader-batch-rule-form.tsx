@@ -305,7 +305,7 @@ export function MediaArrayField(props: MediaArrayFieldProps) {
     const handleFieldChange = (index: number, updatedValues: Partial<MediaEntry>, field: MediaEntry) => {
         if ("mediaId" in updatedValues) {
             const mediaId = updatedValues.mediaId!
-            const sanitizedTitle = sanitizeDirectoryName(props.allMedia.find(m => m.id === mediaId)?.title?.userPreferred || "")
+            const sanitizedTitle = sanitizeDirectoryName(props.allMedia.find(m => m.id === mediaId)?.title?.romaji || "")
 
             update(index, {
                 ...field,
@@ -331,7 +331,7 @@ export function MediaArrayField(props: MediaArrayFieldProps) {
         setShowReleasingOnly("all")
 
         currentlyWatchingMedia.forEach(media => {
-            const sanitizedTitle = sanitizeDirectoryName(media.title?.userPreferred || "")
+            const sanitizedTitle = sanitizeDirectoryName(media.title?.romaji || "")
             append({
                 mediaId: media.id,
                 destination: upath.join(props.libraryPath, sanitizedTitle),
@@ -352,7 +352,7 @@ export function MediaArrayField(props: MediaArrayFieldProps) {
         setShowReleasingOnly("all")
 
         upcomingMedia.forEach(media => {
-            const sanitizedTitle = sanitizeDirectoryName(media.title?.userPreferred || "")
+            const sanitizedTitle = sanitizeDirectoryName(media.title?.romaji || "")
             append({
                 mediaId: media.id,
                 destination: upath.join(props.libraryPath, sanitizedTitle),
@@ -441,7 +441,7 @@ function MediaFieldItem(props: MediaFieldItemProps) {
     }, [allMedia, field.mediaId])
 
     const animeFolderName = React.useMemo(() => {
-        return sanitizeDirectoryName(selectedMedia?.title?.userPreferred || "")
+        return sanitizeDirectoryName(selectedMedia?.title?.romaji || "")
     }, [selectedMedia])
 
     const destination = useWatch({ name: `entries.${index}.destination` }) as string
@@ -499,5 +499,5 @@ function MediaFieldItem(props: MediaFieldItemProps) {
 
 
 function sanitizeDirectoryName(input: string): string {
-    return input
+    return input.replaceAll("/", "-")
 }

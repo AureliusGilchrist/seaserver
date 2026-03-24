@@ -210,14 +210,20 @@ func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID 
 			}
 		}
 
-		// If smart search didn't yield enough results, try simple search with variants
-		if len(allProviderTorrents) < 5 && len(searchVariants) > 1 {
+		// If smart search didn't yield enough results, try simple search with variants (OPTIMIZED)
+		if len(allProviderTorrents) < 3 && len(searchVariants) > 1 { // Reduced threshold from 5 to 3
 			d.logger.Debug().
 				Str("provider", providerID).
 				Int("current", len(allProviderTorrents)).
-				Msg("enmasse-anime: Smart search insufficient, trying variant searches")
-			for i, variant := range searchVariants[1:] {
-				if len(allProviderTorrents) >= 20 { // Limit per provider
+				Msg("enmasse-anime: Smart search insufficient, trying limited variant searches")
+			
+			maxVariants := 5 // Limit to 5 variants for speed
+			if len(searchVariants[1:]) < maxVariants {
+				maxVariants = len(searchVariants[1:])
+			}
+			
+			for i, variant := range searchVariants[1:maxVariants+1] {
+				if len(allProviderTorrents) >= 8 { // Reduced limit from 20 to 8
 					break
 				}
 				d.logger.Debug().
@@ -241,13 +247,18 @@ func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID 
 						allProviderTorrents = append(allProviderTorrents, t)
 					}
 				}
-				time.Sleep(DelayBetweenSearches / 2) // Shorter delay for fallback searches
+				time.Sleep(50 * time.Millisecond) // Reduced delay for faster processing
 			}
 		}
 	} else {
-		// For simple search providers, try all variants
-		for i, variant := range searchVariants {
-			if len(allProviderTorrents) >= 20 { // Limit per provider
+		// For simple search providers, try limited variants for speed
+		maxVariants := 8 // Limit to first 8 variants for speed
+		if len(searchVariants) < maxVariants {
+			maxVariants = len(searchVariants)
+		}
+		
+		for i, variant := range searchVariants[:maxVariants] {
+			if len(allProviderTorrents) >= 10 { // Reduced limit per provider from 20 to 10 for speed
 				break
 			}
 			d.logger.Debug().
@@ -272,11 +283,11 @@ func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID 
 				}
 			}
 			
-			// Add delay between searches, but reduce for later variants
-			if i < 5 {
-				time.Sleep(DelayBetweenSearches)
+			// Reduced delays for faster processing
+			if i < 3 {
+				time.Sleep(100 * time.Millisecond) // Reduced from DelayBetweenSearches
 			} else {
-				time.Sleep(DelayBetweenSearches / 2)
+				time.Sleep(50 * time.Millisecond) // Minimal delay for later variants
 			}
 		}
 	}
@@ -735,9 +746,9 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 	}
 	d.logger.Info().Str("title", resolved.TitleRomaji).Int("variants", len(searchVariants)).Msg("enmasse-anime: Generated search variants")
 
-	// Concurrent search across all providers with all variants
+	// Concurrent search across all providers with all variants (OPTIMIZED)
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 3) // limit concurrency
+	sem := make(chan struct{}, 6) // Increased concurrency from 3 to 6 for faster processing
 
 	for _, pid := range providerIDs {
 		wg.Add(1)
@@ -1006,12 +1017,12 @@ func (d *Downloader) rankTorrents(torrents []*hibiketorrent.AnimeTorrent, animeI
 			continue
 		}
 
-		// Hard filter: minimum 5 seeders required
-		if t.Seeders < 5 {
+		// Hard filter: minimum 1 seeder required
+		if t.Seeders < 1 {
 			d.logger.Debug().
 				Str("torrent", t.Name).
 				Int("seeders", t.Seeders).
-				Msg("enmasse-anime: Skipping torrent - insufficient seeders (minimum 5 required)")
+				Msg("enmasse-anime: Skipping torrent - insufficient seeders (minimum 1 required)")
 			continue
 		}
 
@@ -1211,8 +1222,8 @@ func (d *Downloader) calculateResolutionScore(t *hibiketorrent.AnimeTorrent) int
 	}
 
 	// Reduce resolution score slightly if very few seeders
-	if t.Seeders < 5 && score > 40 {
-		score -= 10
+	if t.Seeders == 1 && score > 40 {
+		score -= 5 // Smaller penalty for having exactly 1 seeder
 	}
 
 	return score + seederBonus
@@ -1222,8 +1233,8 @@ func (d *Downloader) calculateResolutionScore(t *hibiketorrent.AnimeTorrent) int
 func (d *Downloader) calculateSeederScore(t *hibiketorrent.AnimeTorrent) int {
 	seeders := t.Seeders
 	
-	// Minimum 5 seeders required
-	if seeders < 5 {
+	// Minimum 1 seeder required
+	if seeders < 1 {
 		return 0
 	}
 	
@@ -1242,8 +1253,12 @@ func (d *Downloader) calculateSeederScore(t *hibiketorrent.AnimeTorrent) int {
 		return 50
 	} else if seeders > 10 {
 		return 40
-	} else if seeders >= 5 {
-		return 30 // Minimum acceptable seeder count gets base score
+	} else if seeders > 5 {
+		return 35
+	} else if seeders > 2 {
+		return 30
+	} else if seeders >= 1 {
+		return 25 // Minimum 1 seeder gets base score
 	}
 	
 	return 0
@@ -1695,7 +1710,7 @@ func (d *Downloader) syntheticID(title string) uint32 {
 	return h.Sum32()
 }
 func (d *Downloader) generateSearchVariants(animeItem *AnilistMinifiedItem) []string {
-	variants := make([]string, 0, 20)
+	variants := make([]string, 0, 12) // Reduced from 20 to 12 for speed
 
 	addVariant := func(val string) {
 		if val == "" {
@@ -1708,7 +1723,7 @@ func (d *Downloader) generateSearchVariants(animeItem *AnilistMinifiedItem) []st
 		variants = append(variants, s)
 	}
 
-	// Collect all base titles
+	// Collect only essential base titles (OPTIMIZED)
 	titles := []string{}
 	if animeItem.TitleRomaji != "" {
 		titles = append(titles, animeItem.TitleRomaji)
@@ -1716,63 +1731,34 @@ func (d *Downloader) generateSearchVariants(animeItem *AnilistMinifiedItem) []st
 	if animeItem.TitleEnglish != "" && animeItem.TitleEnglish != animeItem.TitleRomaji {
 		titles = append(titles, animeItem.TitleEnglish)
 	}
-	if animeItem.Title != "" && animeItem.Title != animeItem.TitleRomaji && animeItem.Title != animeItem.TitleEnglish {
-		titles = append(titles, animeItem.Title)
-	}
-
-	// Add all synonyms (not just first 2)
+	
+	// Add only first 2 synonyms for speed (instead of all)
+	synCount := 0
 	for _, syn := range animeItem.Synonyms {
-		if syn != "" && !d.containsVariant(titles, syn) {
+		if syn != "" && !d.containsVariant(titles, syn) && synCount < 2 {
 			titles = append(titles, syn)
+			synCount++
+			if synCount >= 2 {
+				break
+			}
 		}
 	}
 
-	// Generate comprehensive variants for each title
+	// Generate focused variants for each title (OPTIMIZED)
 	for _, title := range titles {
 		// Variant 1: Original title (sanitized)
 		addVariant(title)
 
-		// Variant 2: Title with different separators
-		separators := []string{" ", "_", "-", "."}
-		for _, sep := range separators {
-			separatedTitle := strings.ReplaceAll(title, " ", sep)
-			addVariant(separatedTitle)
-		}
+		// Variant 2: Only try underscore separator (most common)
+		separatedTitle := strings.ReplaceAll(title, " ", "_")
+		addVariant(separatedTitle)
 
-		// Variant 3: Title without special characters (extended)
+		// Variant 3: Title without special characters (essential)
 		addVariant(d.removeSpecialCharacters(title))
 
-		// Variant 4: Partial matches for long titles (first 2-4 words)
-		words := strings.Fields(title)
-		if len(words) > 4 {
-			// First 4 words
-			addVariant(strings.Join(words[:4], " "))
-		}
-		if len(words) > 3 {
-			// First 3 words
-			addVariant(strings.Join(words[:3], " "))
-		}
-		if len(words) > 2 {
-			// First 2 words
-			addVariant(strings.Join(words[:2], " "))
-		}
-	}
-
-	// Variant 5: Season-specific variations (if we can detect season info)
-	for _, title := range titles {
-		seasonVariants := d.generateSeasonVariants(title)
-		for _, variant := range seasonVariants {
-			addVariant(variant)
-		}
-	}
-
-	// Variant 6: Year-specific variations (if we have year info)
-	if animeItem.Episodes > 0 { // Use episodes as a proxy for having proper metadata
-		for _, title := range titles {
-			yearVariants := d.generateYearVariants(title)
-			for _, variant := range yearVariants {
-				addVariant(variant)
-			}
+		// Stop generating variants if we have enough
+		if len(variants) >= 12 {
+			break
 		}
 	}
 

@@ -189,7 +189,7 @@ function MediaMetadata({ episode, episodes, onHoverChange }: MediaMetadataProps)
                     <SeaLink href={`/entry?id=${anime.id}`}>
                         <TextGenerateEffect
                             className="[text-shadow:_0_1px_10px_rgb(0_0_0_/_20%)] text-white leading-8 line-clamp-2 pb-1 max-w-md text-pretty text-3xl overflow-ellipsis"
-                            words={anime.title?.userPreferred || ""}
+                            words={anime.title?.romaji || anime.title?.english || anime.title?.userPreferred || ""}
                         />
                     </SeaLink>
 
@@ -303,7 +303,7 @@ function EpisodeCardSidebar({ episode, isTransitioning }: EpisodeCardSidebarProp
                     <EpisodeCard
                         episode={episode}
                         image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}
-                        topTitle={episode.episodeTitle || episode?.baseAnime?.title?.userPreferred}
+                        topTitle={episode.episodeTitle || episode?.baseAnime?.title?.romaji}
                         title={episode.displayTitle}
                         isInvalid={episode.isInvalid}
                         progressTotal={episode.baseAnime?.episodes}

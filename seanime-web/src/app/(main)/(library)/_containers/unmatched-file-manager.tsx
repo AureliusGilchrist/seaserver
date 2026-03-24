@@ -375,7 +375,7 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
                     options={suggestions?.map((media) => (
                         {
                             label: <div>
-                                <p className="text-base md:text-md font-medium !-mt-1.5 line-clamp-1">{media.title?.userPreferred || media.title?.english || media.title?.romaji || "N/A"}</p>
+                                <p className="text-base md:text-md font-medium !-mt-1.5 line-clamp-1">{media.title?.romaji || media.title?.english || media.title?.userPreferred || "N/A"}</p>
                                 <div className="mt-2 flex w-full gap-4">
                                     {media.coverImage?.medium && <div
                                         className="h-28 w-28 flex-none rounded-[--radius-md] object-cover object-center relative overflow-hidden"

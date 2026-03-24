@@ -162,273 +162,13 @@ func (m *Matcher) matchLocalFileWithMedia(lf *anime.LocalFile) {
 	}
 	m.ScanSummaryLogger.LogDebug(lf, util.InlineSpewT(titleVariations))
 
-	//------------------
-
-	var levMatch *comparison.LevenshteinResult
-	var sdMatch *comparison.SorensenDiceResult
-	var jaccardMatch *comparison.JaccardResult
-
-	if m.Algorithm == "jaccard" {
-		// Using Jaccard
-		// Get the matchs for each title variation
-		compResults := lop.Map(titleVariations, func(title *string, _ int) *comparison.JaccardResult {
-			comps := make([]*comparison.JaccardResult, 0)
-			if len(m.MediaContainer.engTitles) > 0 {
-				if eng, found := comparison.FindBestMatchWithJaccard(title, m.MediaContainer.engTitles); found {
-					comps = append(comps, eng)
-				}
-			}
-			if len(m.MediaContainer.romTitles) > 0 {
-				if rom, found := comparison.FindBestMatchWithJaccard(title, m.MediaContainer.romTitles); found {
-					comps = append(comps, rom)
-				}
-			}
-			if len(m.MediaContainer.synonyms) > 0 {
-				if syn, found := comparison.FindBestMatchWithJaccard(title, m.MediaContainer.synonyms); found {
-					comps = append(comps, syn)
-				}
-			}
-			var res *comparison.JaccardResult
-			if len(comps) > 1 {
-				res = lo.Reduce(comps, func(prev *comparison.JaccardResult, curr *comparison.JaccardResult, _ int) *comparison.JaccardResult {
-					if prev.Rating > curr.Rating {
-						return prev
-					} else {
-						return curr
-					}
-				}, comps[0])
-			} else if len(comps) == 1 {
-				return comps[0]
-			}
-			return res
-		})
-
-		// Retrieve the match from all the title variations results
-		jaccardMatch = lo.Reduce(compResults, func(prev *comparison.JaccardResult, curr *comparison.JaccardResult, _ int) *comparison.JaccardResult {
-			if prev.Rating > curr.Rating {
-				return prev
-			} else {
-				return curr
-			}
-		}, compResults[0])
-
-		if m.ScanLogger != nil {
-			m.ScanLogger.LogMatcher(zerolog.DebugLevel).
-				Str("filename", lf.Name).
-				Interface("match", jaccardMatch).
-				Interface("results", compResults).
-				Msg("Jaccard match")
-		}
-		m.ScanSummaryLogger.LogComparison(lf, "Jaccard", *jaccardMatch.Value, "Rating", util.InlineSpewT(jaccardMatch.Rating))
-
-	} else if m.Algorithm == "sorensen-dice" {
-		// Using Sorensen-Dice
-		// Get the matchs for each title variation
-		compResults := lop.Map(titleVariations, func(title *string, _ int) *comparison.SorensenDiceResult {
-			comps := make([]*comparison.SorensenDiceResult, 0)
-			if len(m.MediaContainer.engTitles) > 0 {
-				if eng, found := comparison.FindBestMatchWithSorensenDice(title, m.MediaContainer.engTitles); found {
-					comps = append(comps, eng)
-				}
-			}
-			if len(m.MediaContainer.romTitles) > 0 {
-				if rom, found := comparison.FindBestMatchWithSorensenDice(title, m.MediaContainer.romTitles); found {
-					comps = append(comps, rom)
-				}
-			}
-			if len(m.MediaContainer.synonyms) > 0 {
-				if syn, found := comparison.FindBestMatchWithSorensenDice(title, m.MediaContainer.synonyms); found {
-					comps = append(comps, syn)
-				}
-			}
-			var res *comparison.SorensenDiceResult
-			if len(comps) > 1 {
-				res = lo.Reduce(comps, func(prev *comparison.SorensenDiceResult, curr *comparison.SorensenDiceResult, _ int) *comparison.SorensenDiceResult {
-					if prev.Rating > curr.Rating {
-						return prev
-					} else {
-						return curr
-					}
-				}, comps[0])
-			} else if len(comps) == 1 {
-				return comps[0]
-			}
-			return res
-		})
-
-		// Retrieve the match from all the title variations results
-		sdMatch = lo.Reduce(compResults, func(prev *comparison.SorensenDiceResult, curr *comparison.SorensenDiceResult, _ int) *comparison.SorensenDiceResult {
-			if prev.Rating > curr.Rating {
-				return prev
-			} else {
-				return curr
-			}
-		}, compResults[0])
-
-		//util.Spew(compResults)
-
-		if m.ScanLogger != nil {
-			m.ScanLogger.LogMatcher(zerolog.DebugLevel).
-				Str("filename", lf.Name).
-				Interface("match", sdMatch).
-				Interface("results", compResults).
-				Msg("Sorensen-Dice match")
-		}
-		m.ScanSummaryLogger.LogComparison(lf, "Sorensen-Dice", *sdMatch.Value, "Rating", util.InlineSpewT(sdMatch.Rating))
-
-	} else {
-		// Using Levenshtein
-		// Get the matches for each title variation
-		levCompResults := lop.Map(titleVariations, func(title *string, _ int) *comparison.LevenshteinResult {
-			comps := make([]*comparison.LevenshteinResult, 0)
-			if len(m.MediaContainer.engTitles) > 0 {
-				if eng, found := comparison.FindBestMatchWithLevenshtein(title, m.MediaContainer.engTitles); found {
-					comps = append(comps, eng)
-				}
-			}
-			if len(m.MediaContainer.romTitles) > 0 {
-				if rom, found := comparison.FindBestMatchWithLevenshtein(title, m.MediaContainer.romTitles); found {
-					comps = append(comps, rom)
-				}
-			}
-			if len(m.MediaContainer.synonyms) > 0 {
-				if syn, found := comparison.FindBestMatchWithLevenshtein(title, m.MediaContainer.synonyms); found {
-					comps = append(comps, syn)
-				}
-			}
-			var res *comparison.LevenshteinResult
-			if len(comps) > 1 {
-				res = lo.Reduce(comps, func(prev *comparison.LevenshteinResult, curr *comparison.LevenshteinResult, _ int) *comparison.LevenshteinResult {
-					if prev.Distance < curr.Distance {
-						return prev
-					} else {
-						return curr
-					}
-				}, comps[0])
-			} else if len(comps) == 1 {
-				return comps[0]
-			}
-			return res
-		})
-
-		levMatch = lo.Reduce(levCompResults, func(prev *comparison.LevenshteinResult, curr *comparison.LevenshteinResult, _ int) *comparison.LevenshteinResult {
-			if prev.Distance < curr.Distance {
-				return prev
-			} else {
-				return curr
-			}
-		}, levCompResults[0])
-
-		if m.ScanLogger != nil {
-			m.ScanLogger.LogMatcher(zerolog.DebugLevel).
-				Str("filename", lf.Name).
-				Interface("match", levMatch).
-				Interface("results", levCompResults).
-				Int("distance", levMatch.Distance).
-				Msg("Levenshtein match")
-		}
-		m.ScanSummaryLogger.LogComparison(lf, "Levenshtein", *levMatch.Value, "Distance", util.InlineSpewT(levMatch.Distance))
+	// NEW STRATEGY: Try AniList name matching first with 92.5% threshold
+	if m.tryAnilistNameMatching(lf, titleVariations) {
+		return // Successfully matched with AniList name
 	}
 
-	//------------------
-
-	var mediaMatch *anime.NormalizedMedia
-	var found bool
-	finalRating := 0.0
-
-	if sdMatch != nil {
-		finalRating = sdMatch.Rating
-		mediaMatch, found = m.MediaContainer.GetMediaFromTitleOrSynonym(sdMatch.Value)
-
-	} else if jaccardMatch != nil {
-		finalRating = jaccardMatch.Rating
-		mediaMatch, found = m.MediaContainer.GetMediaFromTitleOrSynonym(jaccardMatch.Value)
-
-	} else {
-		dice := metrics.NewSorensenDice()
-		dice.CaseSensitive = false
-		dice.NgramSize = 1
-		finalRating = dice.Compare(*levMatch.OriginalValue, *levMatch.Value)
-		m.ScanSummaryLogger.LogComparison(lf, "Sorensen-Dice", *levMatch.Value, "Final rating", util.InlineSpewT(finalRating))
-		mediaMatch, found = m.MediaContainer.GetMediaFromTitleOrSynonym(levMatch.Value)
-	}
-
-	// After setting the mediaId, add the hook invocation
-	// Invoke ScanLocalFileMatched hook
-	event := &ScanLocalFileMatchedEvent{
-		LocalFile: lf,
-		Score:     finalRating,
-		Match:     mediaMatch,
-		Found:     found,
-	}
-	hook.GlobalHookManager.OnScanLocalFileMatched().Trigger(event)
-	lf = event.LocalFile
-	mediaMatch = event.Match
-	found = event.Found
-	finalRating = event.Score
-
-	// Check if the hook overrode the match
-	if event.DefaultPrevented {
-		if m.ScanLogger != nil {
-			if mediaMatch != nil {
-				m.ScanLogger.LogMatcher(zerolog.DebugLevel).
-					Str("filename", lf.Name).
-					Int("id", mediaMatch.ID).
-					Msg("Hook overrode match")
-			} else {
-				m.ScanLogger.LogMatcher(zerolog.DebugLevel).
-					Str("filename", lf.Name).
-					Msg("Hook overrode match, no match found")
-			}
-		}
-		if mediaMatch != nil {
-			lf.MediaId = mediaMatch.ID
-		} else {
-			lf.MediaId = 0
-		}
-		return
-	}
-
-	if !found {
-		if m.ScanLogger != nil {
-			m.ScanLogger.LogMatcher(zerolog.ErrorLevel).
-				Str("filename", lf.Name).
-				Msg("No media found from comparison result")
-		}
-		m.ScanSummaryLogger.LogFileNotMatched(lf, "No media found from comparison result")
-		return
-	}
-
-	if m.ScanLogger != nil {
-		m.ScanLogger.LogMatcher(zerolog.DebugLevel).
-			Str("filename", lf.Name).
-			Str("title", mediaMatch.GetTitleSafe()).
-			Int("id", mediaMatch.ID).
-			Msg("Best match found")
-	}
-
-	if finalRating < m.Threshold {
-		if m.ScanLogger != nil {
-			m.ScanLogger.LogMatcher(zerolog.DebugLevel).
-				Str("filename", lf.Name).
-				Float64("rating", finalRating).
-				Float64("threshold", m.Threshold).
-				Msg("Best match Sorensen-Dice rating too low, un-matching file")
-		}
-		m.ScanSummaryLogger.LogFailedMatch(lf, "Rating too low, threshold is "+fmt.Sprintf("%f", m.Threshold))
-		return
-	}
-
-	if m.ScanLogger != nil {
-		m.ScanLogger.LogMatcher(zerolog.DebugLevel).
-			Str("filename", lf.Name).
-			Float64("rating", finalRating).
-			Float64("threshold", m.Threshold).
-			Msg("Best match rating high enough, matching file")
-	}
-	m.ScanSummaryLogger.LogSuccessfullyMatched(lf, mediaMatch.ID)
-
-	lf.MediaId = mediaMatch.ID
+	// FALLBACK: Use original matching algorithm if AniList name matching fails
+	m.tryOriginalMatching(lf, titleVariations)
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -512,13 +252,25 @@ func (m *Matcher) validateMatchGroup(mediaId int, lfs []*anime.LocalFile) {
 	}, 0.0)
 
 	// Un-match files that have a lower rating than the ceiling
-	// UNLESS they are Special or NC
+	// UNLESS they are Special or NC OR manually matched (locked)
 	lop.ForEach(lfs, func(lf *anime.LocalFile, _ int) {
+		// Skip validation for manually matched/locked files
+		if lf.Locked {
+			if m.ScanLogger != nil {
+				m.ScanLogger.LogMatcher(zerolog.DebugLevel).
+					Int("mediaId", mediaId).
+					Str("filename", lf.Name).
+					Msg("File is locked, skipping validation")
+			}
+			return
+		}
+		
 		if !comparison.ValueContainsSpecial(lf.Name) && !comparison.ValueContainsNC(lf.Name) {
 			t := lf.GetParsedTitle()
 			if compRes, ok := comparison.FindBestMatchWithSorensenDice(&t, titles); ok {
 				// If the local file's rating is lower, un-match it
 				// Unless the difference is less than 0.7 (very lax since a lot of anime have very long names that can be truncated)
+				// NOTE: This validation is more lenient for non-manually matched files
 				if compRes.Rating < highestRating && math.Abs(compRes.Rating-highestRating) > 0.7 {
 					lf.MediaId = 0
 
@@ -549,4 +301,285 @@ func (m *Matcher) validateMatchGroup(mediaId int, lfs []*anime.LocalFile) {
 		}
 	})
 
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+// tryAnilistNameMatching attempts to match local files against AniList names with 92.5% threshold
+func (m *Matcher) tryAnilistNameMatching(lf *anime.LocalFile, titleVariations []*string) bool {
+	// Try to match against AniList names with 92.5% threshold
+	anilistThreshold := 0.925 // 92.5%
+	
+	for _, titleVar := range titleVariations {
+		// Try English titles first
+		if len(m.MediaContainer.engTitles) > 0 {
+			if eng, found := comparison.FindBestMatchWithSorensenDice(titleVar, m.MediaContainer.engTitles); found {
+				if eng.Rating >= anilistThreshold {
+					if mediaMatch, found := m.MediaContainer.GetMediaFromTitleOrSynonym(eng.Value); found {
+						// Invoke hook for AniList name match
+						event := &ScanLocalFileMatchedEvent{
+							LocalFile: lf,
+							Score:     eng.Rating,
+							Match:     mediaMatch,
+							Found:     found,
+						}
+						hook.GlobalHookManager.OnScanLocalFileMatched().Trigger(event)
+						
+						if !event.DefaultPrevented && event.Match != nil {
+							lf.MediaId = event.Match.ID
+							if m.ScanLogger != nil {
+								m.ScanLogger.LogMatcher(zerolog.InfoLevel).
+									Str("filename", lf.Name).
+									Str("title", event.Match.GetTitleSafe()).
+									Int("id", event.Match.ID).
+									Float64("rating", eng.Rating).
+									Msg("AniList name matched with high confidence")
+							}
+							m.ScanSummaryLogger.LogSuccessfullyMatched(lf, event.Match.ID)
+							return true
+						}
+					}
+				}
+			}
+		}
+		
+		// Try Romaji titles
+		if len(m.MediaContainer.romTitles) > 0 {
+			if rom, found := comparison.FindBestMatchWithSorensenDice(titleVar, m.MediaContainer.romTitles); found {
+				if rom.Rating >= anilistThreshold {
+					if mediaMatch, found := m.MediaContainer.GetMediaFromTitleOrSynonym(rom.Value); found {
+						// Invoke hook for AniList name match
+						event := &ScanLocalFileMatchedEvent{
+							LocalFile: lf,
+							Score:     rom.Rating,
+							Match:     mediaMatch,
+							Found:     found,
+						}
+						hook.GlobalHookManager.OnScanLocalFileMatched().Trigger(event)
+						
+						if !event.DefaultPrevented && event.Match != nil {
+							lf.MediaId = event.Match.ID
+							if m.ScanLogger != nil {
+								m.ScanLogger.LogMatcher(zerolog.InfoLevel).
+									Str("filename", lf.Name).
+									Str("title", event.Match.GetTitleSafe()).
+									Int("id", event.Match.ID).
+									Float64("rating", rom.Rating).
+									Msg("AniList name matched with high confidence")
+							}
+							m.ScanSummaryLogger.LogSuccessfullyMatched(lf, event.Match.ID)
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return false // No high-confidence AniList name match found
+}
+
+// tryOriginalMatching implements the original matching algorithm as a fallback
+func (m *Matcher) tryOriginalMatching(lf *anime.LocalFile, titleVariations []*string) {
+	var levMatch *comparison.LevenshteinResult
+	var sdMatch *comparison.SorensenDiceResult
+	var jaccardMatch *comparison.JaccardResult
+
+	if m.Algorithm == "jaccard" {
+		// Using Jaccard
+		compResults := lop.Map(titleVariations, func(title *string, _ int) *comparison.JaccardResult {
+			comps := make([]*comparison.JaccardResult, 0)
+			if len(m.MediaContainer.engTitles) > 0 {
+				if eng, found := comparison.FindBestMatchWithJaccard(title, m.MediaContainer.engTitles); found {
+					comps = append(comps, eng)
+				}
+			}
+			if len(m.MediaContainer.romTitles) > 0 {
+				if rom, found := comparison.FindBestMatchWithJaccard(title, m.MediaContainer.romTitles); found {
+					comps = append(comps, rom)
+				}
+			}
+			if len(m.MediaContainer.synonyms) > 0 {
+				if syn, found := comparison.FindBestMatchWithJaccard(title, m.MediaContainer.synonyms); found {
+					comps = append(comps, syn)
+				}
+			}
+			var res *comparison.JaccardResult
+			if len(comps) > 1 {
+				res = lo.Reduce(comps, func(prev *comparison.JaccardResult, curr *comparison.JaccardResult, _ int) *comparison.JaccardResult {
+					if prev.Rating > curr.Rating {
+						return prev
+					} else {
+						return curr
+					}
+				}, comps[0])
+			} else if len(comps) == 1 {
+				return comps[0]
+			}
+			return res
+		})
+
+		jaccardMatch = lo.Reduce(compResults, func(prev *comparison.JaccardResult, curr *comparison.JaccardResult, _ int) *comparison.JaccardResult {
+			if prev.Rating > curr.Rating {
+				return prev
+			} else {
+				return curr
+			}
+		}, compResults[0])
+
+		if m.ScanLogger != nil {
+			m.ScanLogger.LogMatcher(zerolog.DebugLevel).
+				Str("filename", lf.Name).
+				Interface("match", jaccardMatch).
+				Msg("Jaccard match (fallback)")
+		}
+
+	} else if m.Algorithm == "sorensen-dice" {
+		// Using Sorensen-Dice
+		compResults := lop.Map(titleVariations, func(title *string, _ int) *comparison.SorensenDiceResult {
+			comps := make([]*comparison.SorensenDiceResult, 0)
+			if len(m.MediaContainer.engTitles) > 0 {
+				if eng, found := comparison.FindBestMatchWithSorensenDice(title, m.MediaContainer.engTitles); found {
+					comps = append(comps, eng)
+				}
+			}
+			if len(m.MediaContainer.romTitles) > 0 {
+				if rom, found := comparison.FindBestMatchWithSorensenDice(title, m.MediaContainer.romTitles); found {
+					comps = append(comps, rom)
+				}
+			}
+			if len(m.MediaContainer.synonyms) > 0 {
+				if syn, found := comparison.FindBestMatchWithSorensenDice(title, m.MediaContainer.synonyms); found {
+					comps = append(comps, syn)
+				}
+			}
+			var res *comparison.SorensenDiceResult
+			if len(comps) > 1 {
+				res = lo.Reduce(comps, func(prev *comparison.SorensenDiceResult, curr *comparison.SorensenDiceResult, _ int) *comparison.SorensenDiceResult {
+					if prev.Rating > curr.Rating {
+						return prev
+					} else {
+						return curr
+					}
+				}, comps[0])
+			} else if len(comps) == 1 {
+				return comps[0]
+			}
+			return res
+		})
+
+		sdMatch = lo.Reduce(compResults, func(prev *comparison.SorensenDiceResult, curr *comparison.SorensenDiceResult, _ int) *comparison.SorensenDiceResult {
+			if prev.Rating > curr.Rating {
+				return prev
+			} else {
+				return curr
+			}
+		}, compResults[0])
+
+		if m.ScanLogger != nil {
+			m.ScanLogger.LogMatcher(zerolog.DebugLevel).
+				Str("filename", lf.Name).
+				Interface("match", sdMatch).
+				Msg("Sorensen-Dice match (fallback)")
+		}
+
+	} else {
+		// Using Levenshtein (default)
+		levCompResults := lop.Map(titleVariations, func(title *string, _ int) *comparison.LevenshteinResult {
+			comps := make([]*comparison.LevenshteinResult, 0)
+			if len(m.MediaContainer.engTitles) > 0 {
+				if eng, found := comparison.FindBestMatchWithLevenshtein(title, m.MediaContainer.engTitles); found {
+					comps = append(comps, eng)
+				}
+			}
+			if len(m.MediaContainer.romTitles) > 0 {
+				if rom, found := comparison.FindBestMatchWithLevenshtein(title, m.MediaContainer.romTitles); found {
+					comps = append(comps, rom)
+				}
+			}
+			if len(m.MediaContainer.synonyms) > 0 {
+				if syn, found := comparison.FindBestMatchWithLevenshtein(title, m.MediaContainer.synonyms); found {
+					comps = append(comps, syn)
+				}
+			}
+			var res *comparison.LevenshteinResult
+			if len(comps) > 1 {
+				res = lo.Reduce(comps, func(prev *comparison.LevenshteinResult, curr *comparison.LevenshteinResult, _ int) *comparison.LevenshteinResult {
+					if prev.Distance < curr.Distance {
+						return prev
+					} else {
+						return curr
+					}
+				}, comps[0])
+			} else if len(comps) == 1 {
+				return comps[0]
+			}
+			return res
+		})
+
+		levMatch = lo.Reduce(levCompResults, func(prev *comparison.LevenshteinResult, curr *comparison.LevenshteinResult, _ int) *comparison.LevenshteinResult {
+			if prev.Distance < curr.Distance {
+				return prev
+			} else {
+				return curr
+			}
+		}, levCompResults[0])
+
+		if m.ScanLogger != nil {
+			m.ScanLogger.LogMatcher(zerolog.DebugLevel).
+				Str("filename", lf.Name).
+				Interface("match", levMatch).
+				Msg("Levenshtein match (fallback)")
+		}
+	}
+
+	// Determine the best match and apply threshold
+	var mediaMatch *anime.NormalizedMedia
+	var found bool
+	finalRating := 0.0
+
+	if sdMatch != nil {
+		finalRating = sdMatch.Rating
+		mediaMatch, found = m.MediaContainer.GetMediaFromTitleOrSynonym(sdMatch.Value)
+	} else if jaccardMatch != nil {
+		finalRating = jaccardMatch.Rating
+		mediaMatch, found = m.MediaContainer.GetMediaFromTitleOrSynonym(jaccardMatch.Value)
+	} else if levMatch != nil {
+		dice := metrics.NewSorensenDice()
+		dice.CaseSensitive = false
+		dice.NgramSize = 1
+		finalRating = dice.Compare(*levMatch.OriginalValue, *levMatch.Value)
+		mediaMatch, found = m.MediaContainer.GetMediaFromTitleOrSynonym(levMatch.Value)
+	}
+
+	// Invoke hook
+	event := &ScanLocalFileMatchedEvent{
+		LocalFile: lf,
+		Score:     finalRating,
+		Match:     mediaMatch,
+		Found:     found,
+	}
+	hook.GlobalHookManager.OnScanLocalFileMatched().Trigger(event)
+	
+	if !event.DefaultPrevented && event.Match != nil && finalRating >= m.Threshold {
+		lf.MediaId = event.Match.ID
+		if m.ScanLogger != nil {
+			m.ScanLogger.LogMatcher(zerolog.InfoLevel).
+				Str("filename", lf.Name).
+				Str("title", event.Match.GetTitleSafe()).
+				Int("id", event.Match.ID).
+				Float64("rating", finalRating).
+				Msg("Fallback matching successful")
+		}
+		m.ScanSummaryLogger.LogSuccessfullyMatched(lf, event.Match.ID)
+	} else {
+		if m.ScanLogger != nil {
+			m.ScanLogger.LogMatcher(zerolog.DebugLevel).
+				Str("filename", lf.Name).
+				Float64("rating", finalRating).
+				Float64("threshold", m.Threshold).
+				Msg("Fallback matching failed - rating too low")
+		}
+		m.ScanSummaryLogger.LogFailedMatch(lf, "Fallback rating too low")
+	}
 }

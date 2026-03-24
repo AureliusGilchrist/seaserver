@@ -268,7 +268,7 @@ export default function Page() {
                             key={episode.localFile?.path || ""}
                             id={`episode-${String(episode.episodeNumber)}`}
                             media={episode?.baseAnime as any}
-                            title={episode?.displayTitle || episode?.baseAnime?.title?.userPreferred || ""}
+                            title={episode?.displayTitle || episode?.baseAnime?.title?.romaji || ""}
                             image={episode?.episodeMetadata?.image || episode?.baseAnime?.coverImage?.large}
                             episodeTitle={episode?.episodeTitle}
                             fileName={episode?.localFile?.parsedInfo?.original}

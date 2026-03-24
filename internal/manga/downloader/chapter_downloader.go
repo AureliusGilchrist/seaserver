@@ -424,14 +424,16 @@ func FormatChapterDirNameWithTitle(provider string, mediaId int, chapterId strin
 
 func SanitizeChapterTitle(title string) string {
 	// Remove "Chapter X" prefix if present
-	// e.g., "Chapter 35.3 - Torture" -> "Torture"
 	// or "Today is the day Chapter 53" -> "Today is the day Chapter 53" (keep as-is)
 	
 	// Replace spaces with underscores
 	title = strings.ReplaceAll(title, " ", "_")
 	
-	// Remove or replace invalid filesystem characters
-	invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
+	// Replace "/" with "-" specifically (as requested)
+	title = strings.ReplaceAll(title, "/", "-")
+	
+	// Remove other invalid filesystem characters (excluding "/" which we already handled)
+	invalidChars := []string{"\\"}
 	for _, char := range invalidChars {
 		title = strings.ReplaceAll(title, char, "")
 	}

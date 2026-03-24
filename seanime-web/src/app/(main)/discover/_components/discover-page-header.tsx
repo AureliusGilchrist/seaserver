@@ -281,7 +281,7 @@ function MediaMetadata({ media, pageType, isTransitioning, onHoverChange }: Medi
                 <SeaLink href={pageType === "manga" ? `/manga/entry?id=${media.id}` : `/entry?id=${media.id}`}>
                     <TextGenerateEffect
                         className="[text-shadow:_0_1px_10px_rgb(0_0_0_/_20%)] text-white leading-8 line-clamp-2 pb-1 max-w-md text-pretty text-3xl overflow-ellipsis"
-                        words={media.title?.userPreferred || ""}
+                        words={media.title?.romaji || media.title?.english || media.title?.userPreferred || ""}
                     />
                 </SeaLink>
 

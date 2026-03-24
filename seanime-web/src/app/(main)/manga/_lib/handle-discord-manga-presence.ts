@@ -25,7 +25,7 @@ export function useDiscordMangaPresence(entry: { media?: AL_BaseManga } | undefi
             if (currentChapter && entry && entry.media) {
                 mutate({
                     mediaId: entry.media?.id ?? 0,
-                    title: entry.media?.title?.userPreferred || entry.media?.title?.romaji || entry.media?.title?.english || "Reading",
+                    title: entry.media?.title?.romaji || entry.media?.title?.english || entry.media?.title?.userPreferred || "Reading",
                     image: entry.media?.coverImage?.large || entry.media?.coverImage?.medium || "",
                     chapter: currentChapter.chapterNumber,
                 })

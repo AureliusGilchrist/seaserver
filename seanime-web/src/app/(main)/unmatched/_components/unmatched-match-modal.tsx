@@ -44,7 +44,7 @@ function getAniListTitle(details: AL_AnimeDetailsById_Media | null | undefined):
     const media: any = details as any
     const title = media?.title || media?.Media?.title || null
     if (!title) return null
-    return title.romaji || title.english || title.native || null
+    return title.romaji || title.english || title.native || title.userPreferred || null
 }
 
 export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMatchModalProps) {

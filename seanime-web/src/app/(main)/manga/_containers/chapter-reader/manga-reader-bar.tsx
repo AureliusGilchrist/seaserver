@@ -239,7 +239,7 @@ export function MangaReaderBar(props: MangaReaderBarProps) {
                 />
 
                 <h4 data-manga-reader-bar-title className="lg:flex gap-1 items-center hidden">
-                    <span className="max-w-[180px] text-ellipsis truncate block">{entry?.media?.title?.userPreferred}</span>
+                    <span className="max-w-[180px] text-ellipsis truncate block">{entry?.media?.title?.romaji || entry?.media?.title?.english || entry?.media?.title?.userPreferred}</span>
                 </h4>
 
                 {!!selectedChapter &&

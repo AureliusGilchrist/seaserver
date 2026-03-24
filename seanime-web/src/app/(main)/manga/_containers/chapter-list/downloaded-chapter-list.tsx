@@ -166,7 +166,7 @@ export function DownloadedChapterList(props: DownloadedChapterListProps) {
                     chapterId: chapter.chapterId,
                     chapterNumber: chapter.chapterNumber,
                     chapterTitle: "",
-                    mediaTitle: entry.media?.title?.userPreferred || "",
+                    mediaTitle: entry.media?.title?.romaji || "",
                 })),
             }, {
                 onSuccess: () => {

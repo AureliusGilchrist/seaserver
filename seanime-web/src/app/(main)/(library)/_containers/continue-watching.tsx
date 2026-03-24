@@ -112,7 +112,7 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
         inject("continue-watching", {
             items: episodes.map(episode => ({
                 data: episode,
-                id: `${episode.localFile?.path || episode.baseAnime?.title?.userPreferred || ""}-${episode.episodeNumber || 1}`,
+                id: `${episode.localFile?.path || episode.baseAnime?.title?.romaji || ""}-${episode.episodeNumber || 1}`,
                 value: `${episode.episodeNumber || 1}`,
                 heading: "Continue Watching",
                 priority: 100,
@@ -127,7 +127,7 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
                             />
                         </div>
                         <div className="flex gap-1 items-center w-full">
-                            <p className="max-w-[70%] truncate">{episode.baseAnime?.title?.userPreferred || ""}</p>&nbsp;-&nbsp;
+                            <p className="max-w-[70%] truncate">{episode.baseAnime?.title?.romaji || ""}</p>&nbsp;-&nbsp;
                             {!anilist_animeIsMovie(episode.baseAnime) ? <>
                                 <p className="text-[--muted]">Ep</p><span>{episode.episodeNumber}</span>
                             </> : <>
@@ -157,7 +157,7 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
             <h2 data-continue-watching-title>Continue watching</h2>
             {(ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic && headerEpisode?.baseAnime && withTitle) && <TextGenerateEffect
                 data-continue-watching-media-title
-                words={headerEpisode?.baseAnime?.title?.userPreferred || ""}
+                words={headerEpisode?.baseAnime?.title?.romaji || ""}
                 className="w-full text-xl lg:text-[2.8rem] lg:max-w-[50%] h-[3.3rem] !mt-1 line-clamp-1 truncate leading-[3rem] text-ellipsis hidden lg:block pb-1"
             />}
             <Carousel
@@ -228,7 +228,7 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, watchHistory }: 
             key={episode.localFile?.path || ""}
             episode={episode}
             image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}
-            topTitle={episode.episodeTitle || episode?.baseAnime?.title?.userPreferred}
+            topTitle={episode.episodeTitle || episode?.baseAnime?.title?.romaji}
             title={episode.displayTitle}
             isInvalid={episode.isInvalid}
             progressTotal={episode.baseAnime?.episodes}
