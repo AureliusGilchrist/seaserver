@@ -262,6 +262,10 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Library.GET("/anime-entry/silence/:id", h.HandleGetAnimeEntrySilenceStatus)
 	v1Library.POST("/anime-entry/silence", h.HandleToggleAnimeEntrySilenceStatus)
 
+	v1Library.POST("/reset-matches", h.HandleResetIncorrectMatches)
+
+	v1Library.POST("/reset-all-matches", h.HandleResetAllMatches)
+
 	v1Library.POST("/unknown-media", h.HandleAddUnknownMedia)
 
 	//

@@ -2,15 +2,15 @@
 import { useGetMangaMissedSequels } from "@/api/hooks/manga.hooks"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
-import { episodeCardCarouselItemClass } from "@/components/shared/classnames"
 import { cn } from "@/components/ui/core/styling"
 import React from "react"
 
 interface MangaMissedSequelsProps {
     onHoverImage?: (image: string | null) => void
+    cardSizeClass?: string
 }
 
-export function MangaMissedSequels({ onHoverImage }: MangaMissedSequelsProps) {
+export function MangaMissedSequels({ onHoverImage, cardSizeClass }: MangaMissedSequelsProps) {
     const { data: missedSequels, isLoading } = useGetMangaMissedSequels()
 
     if (isLoading) {
@@ -47,8 +47,8 @@ export function MangaMissedSequels({ onHoverImage }: MangaMissedSequelsProps) {
                             <CarouselItem
                                 key={manga.id}
                                 className={cn(
-                                    episodeCardCarouselItemClass,
-                                    "md:basis-1/3 lg:basis-1/4 xl:basis-1/5 2xl:basis-1/6 min-[2000px]:basis-1/8",
+                                    "basis-1/2",
+                                    cardSizeClass || "md:basis-1/3 lg:basis-1/4 xl:basis-1/5 2xl:basis-1/6 min-[2000px]:basis-1/8",
                                 )}
                             >
                                 <div

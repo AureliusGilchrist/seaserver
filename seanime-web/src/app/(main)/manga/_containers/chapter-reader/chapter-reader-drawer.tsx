@@ -80,6 +80,8 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
 
     /**
      * Get the pages
+     * Use currentChapter.mediaId to ensure we're fetching pages for the correct manga
+     * (avoids stale chapter data from localStorage for a different manga entry)
      */
     const {
         data: pageContainer,
@@ -87,9 +89,8 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
         isError: pageContainerError,
         refetch: retryFetchPageContainer,
     } = useGetMangaEntryPages({
-        mediaId: entry?.media?.id,
+        mediaId: currentChapter?.mediaId,
         chapterId: currentChapter?.chapterId,
-        // provider: chapterContainer.provider as Manga_Provider,
         provider: currentChapter?.provider,
         doublePage: readingMode === MangaReadingMode.DOUBLE_PAGE,
     })

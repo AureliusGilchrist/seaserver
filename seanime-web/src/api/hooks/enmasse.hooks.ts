@@ -12,7 +12,28 @@ export interface EnMasseDownloaderStatus {
     downloadedAnime: string[]
     failedAnime: string[]
     status: string
+    details?: AnimeEnMasseDetails
     hasSavedProgress: boolean
+}
+
+export interface AnimeEnMasseDetails {
+    phase: string
+    step: string
+    currentAnimeIndex: number
+    currentAnimeTotal: number
+    currentProvider: string
+    providersDone: number
+    providersTotal: number
+    currentQuery: string
+    variantIndex: number
+    variantsTotal: number
+    torrentsCollected: number
+    selectedTorrent: string
+    destination: string
+    expectedEpisodes: number
+    downloadedCount: number
+    failedCount: number
+    lastError: string
 }
 
 const ENMASSE_ENDPOINTS = {
@@ -88,7 +109,28 @@ export interface MangaEnMasseDownloaderStatus {
     failedManga: string[]
     skippedManga: string[]
     status: string
+    details?: MangaEnMasseDetails
     hasSavedProgress: boolean
+}
+
+export interface MangaEnMasseDetails {
+    phase: string
+    step: string
+    currentMangaIndex: number
+    currentMangaTotal: number
+    provider: string
+    mangaId: string
+    currentChapterId: string
+    currentChapter: string
+    chapterIndex: number
+    chapterTotal: number
+    pageIndex: number
+    pageTotal: number
+    queuedChapters: number
+    downloadedCount: number
+    failedCount: number
+    skippedCount: number
+    lastError: string
 }
 
 const MANGA_ENMASSE_ENDPOINTS = {

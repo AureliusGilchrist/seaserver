@@ -29,6 +29,8 @@ type gojaProviderBase struct {
 	wsEventManager events.WSEventManagerInterface
 }
 
+const gojaPromiseWaitTimeout = 90 * time.Second
+
 func initializeProviderBase(
 	ext *extension.Extension,
 	language extension.Language,
@@ -193,17 +195,13 @@ func (g *gojaProviderBase) waitForPromise(value goja.Value) (goja.Value, error) 
 
 	// If the value is a promise, wait for it to resolve
 	if promise, ok := value.Export().(*goja.Promise); ok {
-		doneCh := make(chan struct{})
-
-		// Wait for the promise to resolve
-		go func() {
-			for promise.State() == goja.PromiseStatePending {
-				time.Sleep(10 * time.Millisecond)
+		deadline := time.Now().Add(gojaPromiseWaitTimeout)
+		for promise.State() == goja.PromiseStatePending {
+			if time.Now().After(deadline) {
+				return nil, fmt.Errorf("promise timed out after %s", gojaPromiseWaitTimeout)
 			}
-			close(doneCh)
-		}()
-
-		<-doneCh
+			time.Sleep(10 * time.Millisecond)
+		}
 
 		// If the promise is rejected, return the error
 		if promise.State() == goja.PromiseStateRejected {

@@ -22,6 +22,7 @@ func (h *Handler) HandleDownloadMangaChapters(c echo.Context) error {
 		ChapterIds []string `json:"chapterIds"`
 		StartNow   bool     `json:"startNow"`
 		MediaTitle string   `json:"mediaTitle"` // Romaji title for folder naming
+		CoverImage string   `json:"coverImage"` // Optional cover image URL
 	}
 
 	var b body
@@ -30,6 +31,39 @@ func (h *Handler) HandleDownloadMangaChapters(c echo.Context) error {
 	}
 
 	h.App.WSEventManager.SendEvent(events.InfoToast, "Adding chapters to download queue...")
+
+	// Store manga metadata for display purposes (even if not in AniList collection)
+	// This ensures titles and covers display correctly in the download queue and local library
+	if b.MediaId > 0 {
+		coverImage := b.CoverImage
+		title := b.MediaTitle
+
+		// If cover image not provided, try to fetch from AniList API
+		if coverImage == "" && h.App.AnilistPlatformRef != nil {
+			if mangaMedia, err := h.App.AnilistPlatformRef.Get().GetManga(c.Request().Context(), b.MediaId); err == nil && mangaMedia != nil {
+				if mangaMedia.GetCoverImage() != nil {
+					if mangaMedia.GetCoverImage().GetExtraLarge() != nil {
+						coverImage = *mangaMedia.GetCoverImage().GetExtraLarge()
+					} else if mangaMedia.GetCoverImage().GetLarge() != nil {
+						coverImage = *mangaMedia.GetCoverImage().GetLarge()
+					}
+				}
+				// Also get title if not provided
+				if title == "" && mangaMedia.GetTitle() != nil {
+					if mangaMedia.GetTitle().GetRomaji() != nil {
+						title = *mangaMedia.GetTitle().GetRomaji()
+					} else if mangaMedia.GetTitle().GetEnglish() != nil {
+						title = *mangaMedia.GetTitle().GetEnglish()
+					}
+				}
+			}
+		}
+
+		// Save metadata to database
+		if title != "" || coverImage != "" {
+			_ = h.App.Database.SaveDownloadedMangaMetadata(b.MediaId, title, coverImage, b.Provider)
+		}
+	}
 
 	// Add chapters to the download queue
 	for _, chapterId := range b.ChapterIds {
@@ -203,6 +237,8 @@ func (h *Handler) HandleGetMangaDownloadsList(c echo.Context) error {
 
 	res, err := h.App.MangaDownloader.NewDownloadList(&manga.NewDownloadListOptions{
 		MangaCollection: mangaCollection,
+		PlatformRef:     h.App.AnilistPlatformRef,
+		Ctx:             c.Request().Context(),
 	})
 	if err != nil {
 		return h.RespondWithError(c, err)

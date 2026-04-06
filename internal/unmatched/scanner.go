@@ -180,49 +180,41 @@ func (s *Scanner) scanForCompletedDownloads() {
 		return
 	}
 
-	filepath.WalkDir(UnmatchedBasePath, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if path == UnmatchedBasePath {
-			return nil
-		}
-		if !d.IsDir() {
-			return nil
+	entries, err := os.ReadDir(UnmatchedBasePath)
+	if err != nil {
+		return
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
 		}
 
-		// Check if this torrent has any temp files
-		hasTempFiles := s.hasTempFiles(path)
-		if hasTempFiles {
-			return nil
+		path := filepath.Join(UnmatchedBasePath, entry.Name())
+
+		// Check if this top-level torrent folder has any temp files
+		if s.hasTempFiles(path) {
+			continue
 		}
 
 		// No temp files found - wait and double-check
-		// silently verify before processing
 		time.Sleep(s.verifyDelay)
-		
-		// Double-check after delay
 		if s.hasTempFiles(path) {
-			return nil
+			continue
 		}
 
 		// Triple-check with recursive deep scan
 		if s.deepScanForTempFiles(path) {
-			return nil
+			continue
 		}
 
-		// Check if torrent has any video files (not just empty or non-video)
-		hasVideoFiles := s.hasVideoFiles(path)
-		if !hasVideoFiles {
-			return nil
-		}
-
-		rel, relErr := filepath.Rel(UnmatchedBasePath, path)
-		if relErr != nil {
-			rel = d.Name()
+		// Check if torrent has any video files
+		if !s.hasVideoFiles(path) {
+			continue
 		}
 
 		// Torrent is complete!
+		rel := entry.Name()
 		s.mu.Lock()
 		alreadyTracked := false
 		for _, t := range s.completedTorrents {
@@ -236,9 +228,7 @@ func (s *Scanner) scanForCompletedDownloads() {
 			s.logger.Info().Str("torrent", rel).Msg("unmatched scanner: Download completed!")
 		}
 		s.mu.Unlock()
-
-		return filepath.SkipDir
-	})
+	}
 }
 
 // hasTempFiles checks if a directory contains any qBittorrent temp files

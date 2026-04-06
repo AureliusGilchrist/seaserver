@@ -80,6 +80,7 @@ export function HomeToolbar(props: HomeToolbarProps) {
         <>
             <div className={cn("flex flex-wrap w-full justify-end gap-1 p-4 relative z-[10]", className)} data-home-toolbar-container>
                 <div className="flex flex-1 pointer-events-none" data-home-toolbar-spacer></div>
+                
                 {isNakamaLibrary && <Tooltip
                     trigger={<div className="flex items-center px-2 h-10">
                         <MdOutlineConnectWithoutContact className="size-8" />

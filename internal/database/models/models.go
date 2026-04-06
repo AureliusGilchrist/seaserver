@@ -543,6 +543,16 @@ type MangaReadingHistory struct {
 	IsSynthetic       bool      `gorm:"column:is_synthetic" json:"isSynthetic"`
 }
 
+// DownloadedMangaMetadata stores metadata for downloaded manga that may not be in the user's AniList collection
+// This ensures titles and cover images display correctly in the download queue and local library
+type DownloadedMangaMetadata struct {
+	BaseModel
+	MediaID    int    `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
+	Title      string `gorm:"column:title" json:"title"`
+	CoverImage string `gorm:"column:cover_image" json:"coverImage"`
+	Provider   string `gorm:"column:provider" json:"provider"`
+}
+
 // SyntheticAnime stores metadata for anime from anime-offline-database not found on AniList
 // These are assigned synthetic IDs (negative numbers) and displayed in the UI
 type SyntheticAnime struct {

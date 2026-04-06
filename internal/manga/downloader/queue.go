@@ -26,15 +26,16 @@ type (
 	// Queue is used to manage the download queue.
 	// If feeds the downloader with the next item in the queue.
 	Queue struct {
-		logger         *zerolog.Logger
-		mu             sync.Mutex
-		db             *db.Database
-		current        *QueueInfo
-		runCh          chan *QueueInfo // Channel to tell downloader to run the next item
-		active         bool
-		wsEventManager events.WSEventManagerInterface
-		downloadDir    string // Path to the download directory
-		skipChecked    map[string]map[int]bool // provider -> mediaID -> checked
+		logger            *zerolog.Logger
+		mu                sync.Mutex
+		db                *db.Database
+		current           *QueueInfo
+		runCh             chan *QueueInfo // Channel to tell downloader to run the next item
+		active            bool
+		ensureRunning     bool // Tracks if ensureProgress goroutine is running
+		wsEventManager    events.WSEventManagerInterface
+		downloadDir       string // Path to the download directory
+		skipChecked       map[string]map[int]bool // provider -> mediaID -> checked
 	}
 
 	QueueStatus string
@@ -154,20 +155,29 @@ func (q *Queue) HasCompleted(queueInfo *QueueInfo) {
 // Run activates the queue and invokes runNext
 func (q *Queue) Run() {
 	q.mu.Lock()
-	if !q.active {
+	wasActive := q.active
+	q.active = true
+	shouldStartEnsure := !q.ensureRunning
+	if shouldStartEnsure {
+		q.ensureRunning = true
+	}
+	q.mu.Unlock()
+
+	if !wasActive {
 		q.logger.Debug().Msg("chapter downloader: Starting queue")
 	}
-	q.active = true
-	q.mu.Unlock()
 
 	// Tells queue to run next if possible (in a goroutine to avoid blocking)
 	go q.runNext()
 
 	// Safety net: if the queue stalls (e.g. current is nil and nothing running), nudge it periodically
-	go q.ensureProgress()
+	// Only start if not already running
+	if shouldStartEnsure {
+		go q.ensureProgress()
+	}
 }
 
-// Stop deactivates the queue
+// Stop deactivates the queue and resets any in-progress downloads
 func (q *Queue) Stop() {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -177,12 +187,21 @@ func (q *Queue) Stop() {
 	}
 
 	q.active = false
+	q.current = nil
+
+	// Reset any "downloading" items back to "not_started" so they can be picked up again
+	_ = q.db.ResetDownloadingChapterDownloadQueueItems()
 }
 
 // ensureProgress nudges the queue in case it stalls (e.g. current cleared but runNext not triggered)
 func (q *Queue) ensureProgress() {
 	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
+	defer func() {
+		ticker.Stop()
+		q.mu.Lock()
+		q.ensureRunning = false
+		q.mu.Unlock()
+	}()
 
 	for range ticker.C {
 		q.mu.Lock()
@@ -238,6 +257,12 @@ func (q *Queue) runNext() {
 		return
 	}
 	if next == nil {
+		// No "not_started" items found - check if there are errored-only series to clean up
+		cleanedUp, _ := q.db.CleanupErroredOnlySeries()
+		if cleanedUp > 0 {
+			q.logger.Info().Int("count", cleanedUp).Msg("chapter downloader: Cleaned up errored-only series")
+			q.wsEventManager.SendEvent(events.ChapterDownloadQueueUpdated, nil)
+		}
 		q.logger.Debug().Msg("chapter downloader: No next item in queue")
 		q.mu.Unlock()
 		return
@@ -267,6 +292,7 @@ func (q *Queue) runNext() {
 		MediaId:       next.MediaID,
 		ChapterId:     next.ChapterID,
 		ChapterNumber: next.ChapterNumber,
+		ChapterTitle:  next.ChapterTitle,
 		MediaTitle:    next.MediaTitle,
 	}
 
@@ -296,8 +322,8 @@ func (q *Queue) runNext() {
 	currentItem := q.current
 	q.mu.Unlock()
 
-	// Delay outside of the lock to prevent blocking other operations
-	time.Sleep(5 * time.Second)
+	// Brief delay to allow UI to update and prevent hammering the source
+	time.Sleep(500 * time.Millisecond)
 
 	// Check if queue is still active after the delay
 	q.mu.Lock()
@@ -354,9 +380,24 @@ func (q *Queue) getDownloadedChapterCount(provider string, mediaID int) int {
 	}
 
 	// Read the download directory
-	// The structure is: downloadDir/{mediaId}/{provider}_{mediaId}_{chapterId}_{chapterNumber}/
 	mediaDir := filepath.Join(q.downloadDir, fmt.Sprintf("%d", mediaID))
 	
+	// Try new format: series-level registry.json
+	seriesRegistry, err := LoadSeriesRegistry(mediaDir, q.logger)
+	if err == nil && len(seriesRegistry.Chapters) > 0 {
+		// Count chapters matching the provider
+		count := 0
+		for _, entry := range seriesRegistry.Chapters {
+			if entry.Provider == provider || seriesRegistry.Provider == provider {
+				count++
+			}
+		}
+		if count > 0 {
+			return count
+		}
+	}
+	
+	// Fallback: old format with per-chapter directories
 	entries, err := os.ReadDir(mediaDir)
 	if err != nil {
 		// Directory doesn't exist or can't be read - no chapters downloaded

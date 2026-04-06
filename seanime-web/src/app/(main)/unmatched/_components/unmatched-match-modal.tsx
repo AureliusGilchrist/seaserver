@@ -7,6 +7,7 @@ import {
     useGetUnmatchedTorrentContents,
 } from "@/api/hooks/unmatched.hooks"
 import { useAnilistListAnime, useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
+import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { AL_BaseAnime, AL_AnimeDetailsById_Media } from "@/api/generated/types"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Button } from "@/components/ui/button"
@@ -18,6 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { TextInput } from "@/components/ui/text-input"
 import { Alert } from "@/components/ui/alert/alert"
 import React, { useState, useMemo, useCallback, useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { BiCheck, BiFolder, BiFile, BiSearch, BiFolderOpen, BiSolidStar } from "react-icons/bi"
 import { LuChevronDown, LuChevronRight } from "react-icons/lu"
@@ -47,7 +49,25 @@ function getAniListTitle(details: AL_AnimeDetailsById_Media | null | undefined):
     return title.romaji || title.english || title.native || title.userPreferred || null
 }
 
+// Check if anime is already in the local library
+function isAnimeInLibrary(animeId: number, libraryCollection: any): boolean {
+    if (!libraryCollection?.lists) return false
+    
+    for (const list of libraryCollection.lists) {
+        if (list?.entries) {
+            for (const entry of list.entries) {
+                if (entry?.mediaId === animeId) {
+                    return true
+                }
+            }
+        }
+    }
+    return false
+}
+
 export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMatchModalProps) {
+    const queryClient = useQueryClient()
+    const { data: libraryCollection } = useGetLibraryCollection()
     const [step, setStep] = useState<"select-files" | "select-anime">("select-files")
     const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
     const [selectedAnime, setSelectedAnime] = useState<AL_BaseAnime | null>(null)
@@ -203,6 +223,15 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setFetchedName(null)
         setHasAutoSelectedAnime(false)
     }, [])
+
+    const handleManualSearch = useCallback(() => {
+        if (!searchQuery || searchQuery.length < 2) return
+        
+        // Invalidate the search query to trigger a refetch
+        queryClient.invalidateQueries({ 
+            queryKey: ["ANILIST-anilist-list-anime", { search: searchQuery, page: 1, perPage: 20 }] 
+        })
+    }, [searchQuery, queryClient])
 
     const handleClose = useCallback(() => {
         resetState()
@@ -534,12 +563,24 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                 </AppLayoutStack>
             ) : (
                 <AppLayoutStack className="space-y-4">
+                    <div className="flex gap-2">
                     <TextInput
                         leftIcon={<BiSearch />}
                         placeholder="Search for anime..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        className="flex-1"
                     />
+                    <Button
+                        size="sm"
+                        intent="primary"
+                        onClick={handleManualSearch}
+                        disabled={!searchQuery || searchQuery.length < 2}
+                        leftIcon={<BiSearch />}
+                        className="px-3"
+                    >
+                    </Button>
+                </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <ScrollArea className="h-[400px] border rounded-md">
@@ -555,6 +596,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                             anime={anime as AL_BaseAnime}
                                             selected={selectedAnime?.id === anime?.id}
                                             onSelect={() => setSelectedAnime(anime as AL_BaseAnime)}
+                                            libraryCollection={libraryCollection}
                                         />
                                     ))}
                                 </div>
@@ -773,11 +815,18 @@ function TreeNodeItem({
     )
 }
 
-function AnimeSearchItem({ anime, selected, onSelect }: { anime: AL_BaseAnime; selected: boolean; onSelect: () => void }) {
+function AnimeSearchItem({ anime, selected, onSelect, libraryCollection }: { 
+    anime: AL_BaseAnime; 
+    selected: boolean; 
+    onSelect: () => void; 
+    libraryCollection?: any 
+}) {
     const season = anime.season ? capitalize(anime.season.toLowerCase()) : null
     const year = anime.seasonYear
     const seasonYear = season && year ? `${season} ${year}` : year ? `${year}` : null
     const format = anime.format
+    
+    const isInLibrary = anime?.id ? isAnimeInLibrary(anime.id, libraryCollection) : false
     
     const getStatusColor = (status?: string) => {
         switch (status) {
@@ -864,8 +913,15 @@ function AnimeSearchItem({ anime, selected, onSelect }: { anime: AL_BaseAnime; s
                 )}
             </div>
             <div className="flex flex-col items-end gap-2">
-                <Button size="xs" intent={selected ? "primary" : "gray"} onClick={onSelect} leftIcon={selected ? <BiCheck /> : undefined}>
-                    {selected ? "Using" : "Use"}
+                <Button 
+                    size="xs" 
+                    intent={isInLibrary ? "gray-outline" : (selected ? "primary" : "gray")} 
+                    onClick={onSelect} 
+                    leftIcon={selected ? <BiCheck /> : undefined}
+                    disabled={isInLibrary}
+                    className={isInLibrary ? "opacity-50 cursor-not-allowed" : ""}
+                >
+                    {isInLibrary ? "In Library" : (selected ? "Using" : "Use")}
                 </Button>
             </div>
         </div>

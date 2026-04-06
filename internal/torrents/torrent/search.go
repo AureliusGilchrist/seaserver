@@ -283,7 +283,9 @@ func (r *Repository) SearchAnime(ctx context.Context, opts AnimeSearchOptions) (
 			}
 			if err != nil {
 				if isMain {
+					mu.Lock()
 					mainErr = err
+					mu.Unlock()
 				}
 				return
 			}
@@ -432,7 +434,6 @@ func (r *Repository) SearchAnime(ctx context.Context, opts AnimeSearchOptions) (
 
 	return
 }
-
 type createAnimeTorrentPreviewOptions struct {
 	torrent       *hibiketorrent.AnimeTorrent
 	media         *anilist.BaseAnime

@@ -86,7 +86,7 @@ func NewProvider(options *NewProviderImplOptions) Provider {
 
 func (p *ProviderImpl) Close() {
 	p.customSourceManager.Close()
-	go p.animeMetadataCache.Clear()
+	p.animeMetadataCache.Clear()
 }
 
 func (p *ProviderImpl) ClearCache() {
@@ -100,7 +100,7 @@ func (p *ProviderImpl) GetCache() *result.BoundedCache[string, *metadata.AnimeMe
 
 func (p *ProviderImpl) SetUseFallbackProvider(useFallback bool) {
 	if useFallback != p.useFallbackProvider.Load() {
-		go p.animeMetadataCache.Clear()
+		p.animeMetadataCache.Clear()
 	}
 	p.useFallbackProvider.Store(useFallback)
 }

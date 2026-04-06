@@ -57,13 +57,9 @@ func (d *Downloader) primarySearchQuery(animeItem *AnilistMinifiedItem) string {
 	return variants[0]
 }
 
-func (d *Downloader) saveCurrentProgress(processedTitles map[string]bool) {
-	titles := make([]string, 0, len(processedTitles))
-	for title := range processedTitles {
-		titles = append(titles, title)
-	}
+func (d *Downloader) saveCurrentProgress(lastIndex int) {
 	progress := &DownloaderProgress{
-		ProcessedTitles: titles,
+		LastIndex:       lastIndex,
 		DownloadedAnime: d.downloadedAnime,
 		FailedAnime:     d.failedAnime,
 	}
@@ -89,7 +85,28 @@ func (d *Downloader) loadProgress() *DownloaderProgress {
 		d.logger.Error().Err(err).Msg("enmasse-anime: Failed to unmarshal progress")
 		return nil
 	}
+
+	progress.DownloadedAnime = uniqueStringsOrdered(progress.DownloadedAnime)
+	progress.FailedAnime = uniqueStringsOrdered(progress.FailedAnime)
 	return &progress
+}
+
+func uniqueStringsOrdered(values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+
+	seen := make(map[string]struct{}, len(values))
+	ret := make([]string, 0, len(values))
+	for _, v := range values {
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		ret = append(ret, v)
+	}
+
+	return ret
 }
 
 // minifyBaseAnime converts AniList BaseAnime to AnilistMinifiedItem
@@ -119,6 +136,11 @@ func (d *Downloader) minifyBaseAnime(media *anilist.BaseAnime) *AnilistMinifiedI
 		status = string(*media.Status)
 	}
 
+	isAdult := false
+	if media.IsAdult != nil {
+		isAdult = *media.IsAdult
+	}
+
 	format := "UNKNOWN"
 	if media.Format != nil {
 		format = string(*media.Format)
@@ -139,6 +161,7 @@ func (d *Downloader) minifyBaseAnime(media *anilist.BaseAnime) *AnilistMinifiedI
 		Episodes:     episodes,
 		Status:       status,
 		Format:       format,
+		IsAdult:      isAdult,
 		Synonyms:     syns,
 	}
 }
@@ -174,9 +197,10 @@ func (d *Downloader) generateTitleVariants(animeItem *AnimeOfflineItem) []string
 }
 
 // searchProviderWithVariants searches a provider using all available search variants
-func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, searchVariants []string, isSmart bool) []*hibiketorrent.AnimeTorrent {
+func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, searchVariants []string, isSmart bool) ([]*hibiketorrent.AnimeTorrent, bool) {
 	var allProviderTorrents []*hibiketorrent.AnimeTorrent
 	seen := make(map[string]struct{}) // Deduplicate within provider
+	hadTimeout := false
 
 	d.logger.Debug().
 		Str("provider", providerID).
@@ -188,11 +212,26 @@ func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID 
 		// For smart search providers, try smart search first with primary query
 		if len(searchVariants) > 0 {
 			primaryQuery := searchVariants[0]
+			d.updateDetails(func(details *AnimeDownloaderDetails) {
+				details.Phase = "searching"
+				details.Step = "smart search (primary variant)"
+				details.CurrentProvider = providerID
+				details.CurrentQuery = primaryQuery
+				details.VariantIndex = 1
+				details.VariantsTotal = len(searchVariants)
+			})
 			d.logger.Debug().
 				Str("provider", providerID).
 				Str("query", primaryQuery).
 				Msg("enmasse-anime: Trying smart search with primary query")
-			torrents := d.performSmartSearch(ctx, providerID, baseAnime, primaryQuery)
+			torrents, err := d.performSmartSearch(ctx, providerID, baseAnime, primaryQuery)
+			if err != nil {
+				if d.isProviderSearchTimeoutError(err) {
+					hadTimeout = true
+					d.logger.Warn().Err(err).Str("provider", providerID).Str("query", primaryQuery).Msg("enmasse-anime: Provider timed out during smart search")
+				}
+				torrents = []*hibiketorrent.AnimeTorrent{}
+			}
 			d.logger.Debug().
 				Str("provider", providerID).
 				Str("query", primaryQuery).
@@ -210,12 +249,74 @@ func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID 
 			}
 		}
 
-		// If smart search didn't yield enough results, try simple search with variants (OPTIMIZED)
+		// If smart search on primary query was insufficient, keep using smart search on more variants.
 		if len(allProviderTorrents) < 3 && len(searchVariants) > 1 { // Reduced threshold from 5 to 3
 			d.logger.Debug().
 				Str("provider", providerID).
 				Int("current", len(allProviderTorrents)).
-				Msg("enmasse-anime: Smart search insufficient, trying limited variant searches")
+				Msg("enmasse-anime: Smart search insufficient, trying additional smart variants")
+
+			maxVariants := 5 // Limit to 5 variants for speed
+			if len(searchVariants[1:]) < maxVariants {
+				maxVariants = len(searchVariants[1:])
+			}
+
+			for i, variant := range searchVariants[1 : maxVariants+1] {
+				if len(allProviderTorrents) >= 8 { // Reduced limit from 20 to 8
+					break
+				}
+
+				d.updateDetails(func(details *AnimeDownloaderDetails) {
+					details.Phase = "searching"
+					details.Step = "smart search (variant)"
+					details.CurrentProvider = providerID
+					details.CurrentQuery = variant
+					details.VariantIndex = i + 2
+					details.VariantsTotal = len(searchVariants)
+				})
+
+				d.logger.Debug().
+					Str("provider", providerID).
+					Str("variant", variant).
+					Int("index", i+1).
+					Msg("enmasse-anime: Trying smart variant search")
+
+				torrents, err := d.performSmartSearch(ctx, providerID, baseAnime, variant)
+				if err != nil {
+					if d.isProviderSearchTimeoutError(err) {
+						hadTimeout = true
+						d.logger.Warn().Err(err).Str("provider", providerID).Str("query", variant).Msg("enmasse-anime: Provider timed out during smart variant search")
+					}
+					torrents = []*hibiketorrent.AnimeTorrent{}
+				}
+
+				d.logger.Debug().
+					Str("provider", providerID).
+					Str("variant", variant).
+					Int("found", len(torrents)).
+					Msg("enmasse-anime: Smart variant search results")
+
+				for _, t := range torrents {
+					key := t.InfoHash
+					if key == "" {
+						key = t.Name
+					}
+					if _, exists := seen[key]; !exists {
+						seen[key] = struct{}{}
+						allProviderTorrents = append(allProviderTorrents, t)
+					}
+				}
+
+				// No delay — rate limiters handle safety
+			}
+		}
+
+		// If smart search still didn't yield enough results, try simple search with variants (fallback)
+		if len(allProviderTorrents) < 3 && len(searchVariants) > 1 { // Reduced threshold from 5 to 3
+			d.logger.Debug().
+				Str("provider", providerID).
+				Int("current", len(allProviderTorrents)).
+				Msg("enmasse-anime: Smart search insufficient after variants, trying limited simple variant searches")
 			
 			maxVariants := 5 // Limit to 5 variants for speed
 			if len(searchVariants[1:]) < maxVariants {
@@ -226,12 +327,27 @@ func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID 
 				if len(allProviderTorrents) >= 8 { // Reduced limit from 20 to 8
 					break
 				}
+				d.updateDetails(func(details *AnimeDownloaderDetails) {
+					details.Phase = "searching"
+					details.Step = "simple fallback search (variant)"
+					details.CurrentProvider = providerID
+					details.CurrentQuery = variant
+					details.VariantIndex = i + 2
+					details.VariantsTotal = len(searchVariants)
+				})
 				d.logger.Debug().
 					Str("provider", providerID).
 					Str("variant", variant).
 					Int("index", i+1).
 					Msg("enmasse-anime: Trying variant search")
-				torrents := d.performSimpleSearch(ctx, providerID, baseAnime, variant)
+				torrents, err := d.performSimpleSearch(ctx, providerID, baseAnime, variant)
+				if err != nil {
+					if d.isProviderSearchTimeoutError(err) {
+						hadTimeout = true
+						d.logger.Warn().Err(err).Str("provider", providerID).Str("query", variant).Msg("enmasse-anime: Provider timed out during simple fallback search")
+					}
+					torrents = []*hibiketorrent.AnimeTorrent{}
+				}
 				d.logger.Debug().
 					Str("provider", providerID).
 					Str("variant", variant).
@@ -261,12 +377,27 @@ func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID 
 			if len(allProviderTorrents) >= 10 { // Reduced limit per provider from 20 to 10 for speed
 				break
 			}
+			d.updateDetails(func(details *AnimeDownloaderDetails) {
+				details.Phase = "searching"
+				details.Step = "simple search (variant)"
+				details.CurrentProvider = providerID
+				details.CurrentQuery = variant
+				details.VariantIndex = i + 1
+				details.VariantsTotal = maxVariants
+			})
 			d.logger.Debug().
 				Str("provider", providerID).
 				Str("variant", variant).
 				Int("index", i).
 				Msg("enmasse-anime: Trying simple search variant")
-			torrents := d.performSimpleSearch(ctx, providerID, baseAnime, variant)
+			torrents, err := d.performSimpleSearch(ctx, providerID, baseAnime, variant)
+			if err != nil {
+				if d.isProviderSearchTimeoutError(err) {
+					hadTimeout = true
+					d.logger.Warn().Err(err).Str("provider", providerID).Str("query", variant).Msg("enmasse-anime: Provider timed out during simple search")
+				}
+				torrents = []*hibiketorrent.AnimeTorrent{}
+			}
 			d.logger.Debug().
 				Str("provider", providerID).
 				Str("variant", variant).
@@ -282,13 +413,6 @@ func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID 
 					allProviderTorrents = append(allProviderTorrents, t)
 				}
 			}
-			
-			// Reduced delays for faster processing
-			if i < 3 {
-				time.Sleep(100 * time.Millisecond) // Reduced from DelayBetweenSearches
-			} else {
-				time.Sleep(50 * time.Millisecond) // Minimal delay for later variants
-			}
 		}
 	}
 
@@ -297,11 +421,11 @@ func (d *Downloader) searchProviderWithVariants(ctx context.Context, providerID 
 		Int("total", len(allProviderTorrents)).
 		Msg("enmasse-anime: Completed provider search")
 
-	return allProviderTorrents
+	return allProviderTorrents, hadTimeout
 }
 
 // performSmartSearch performs a smart search on a provider
-func (d *Downloader) performSmartSearch(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, query string) []*hibiketorrent.AnimeTorrent {
+func (d *Downloader) performSmartSearch(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, query string) ([]*hibiketorrent.AnimeTorrent, error) {
 	opts := torrent.AnimeSearchOptions{
 		Provider:      providerID,
 		Type:          torrent.AnimeSearchTypeSmart,
@@ -322,15 +446,18 @@ func (d *Downloader) performSmartSearch(ctx context.Context, providerID string, 
 		opts.BestReleases = false
 		res, err = d.torrentRepository.SearchAnime(ctx, opts)
 		if err != nil || res == nil {
-			return []*hibiketorrent.AnimeTorrent{}
+			if err != nil {
+				return nil, err
+			}
+			return []*hibiketorrent.AnimeTorrent{}, nil
 		}
 	}
 
-	return res.Torrents
+	return res.Torrents, nil
 }
 
 // performSimpleSearch performs a simple search on a provider
-func (d *Downloader) performSimpleSearch(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, query string) []*hibiketorrent.AnimeTorrent {
+func (d *Downloader) performSimpleSearch(ctx context.Context, providerID string, baseAnime *anilist.BaseAnime, query string) ([]*hibiketorrent.AnimeTorrent, error) {
 	opts := torrent.AnimeSearchOptions{
 		Provider:      providerID,
 		Type:          torrent.AnimeSearchTypeSimple,
@@ -342,16 +469,24 @@ func (d *Downloader) performSimpleSearch(ctx context.Context, providerID string,
 
 	res, err := d.torrentRepository.SearchAnime(ctx, opts)
 	if err != nil || res == nil {
-		return []*hibiketorrent.AnimeTorrent{}
+		if err != nil {
+			return nil, err
+		}
+		return []*hibiketorrent.AnimeTorrent{}, nil
 	}
 
-	return res.Torrents
+	return res.Torrents, nil
 }
 
 // addToDownloaded adds an anime title to the downloaded list, keeping only the last MaxAnimeLogEntries
 func (d *Downloader) addToDownloaded(title string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	for _, existing := range d.downloadedAnime {
+		if existing == title {
+			return
+		}
+	}
 	d.downloadedAnime = append(d.downloadedAnime, title)
 	if len(d.downloadedAnime) > MaxAnimeLogEntries {
 		d.downloadedAnime = d.downloadedAnime[len(d.downloadedAnime)-MaxAnimeLogEntries:]
@@ -362,6 +497,11 @@ func (d *Downloader) addToDownloaded(title string) {
 func (d *Downloader) addToFailed(title string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	for _, existing := range d.failedAnime {
+		if existing == title {
+			return
+		}
+	}
 	d.failedAnime = append(d.failedAnime, title)
 	if len(d.failedAnime) > MaxAnimeLogEntries {
 		d.failedAnime = d.failedAnime[len(d.failedAnime)-MaxAnimeLogEntries:]
@@ -391,9 +531,10 @@ func (d *Downloader) filterOutSeasonEpisodePattern(torrents []*hibiketorrent.Ani
 const (
 	GlobalAnimeOfflineDatabasePath = "/aeternae/Soul/Otaku Media/Databases/anime-offline-database-minified.json"
 	AnimeProgressFilePath   = "/aeternae/Soul/Otaku Media/Databases/enmasse-anime-progress.json"
-	MaxConcurrentSearches   = 3
-	DelayBetweenAnime       = 2 * time.Second
-	DelayBetweenSearches    = 1 * time.Second
+	MaxConcurrentSearches   = 6
+	DelayBetweenAnime       = 500 * time.Millisecond
+	DelayBetweenSearches    = 300 * time.Millisecond
+	TorrentClientRetryDelay = 5 * time.Second
 	MaxAnimeLogEntries      = 300
 	AniListRateLimitBackoff = 60 * time.Second
 )
@@ -417,6 +558,7 @@ type (
 		downloadedAnime []string
 		failedAnime     []string
 		status          string
+		details         AnimeDownloaderDetails
 		// Rate limiting semaphore
 		searchSemaphore chan struct{}
 	}
@@ -440,11 +582,32 @@ type (
 		DownloadedAnime  []string `json:"downloadedAnime"`
 		FailedAnime      []string `json:"failedAnime"`
 		Status           string   `json:"status"`
+		Details          AnimeDownloaderDetails `json:"details"`
 		HasSavedProgress bool     `json:"hasSavedProgress"`
 	}
 
+	AnimeDownloaderDetails struct {
+		Phase              string `json:"phase"`
+		Step               string `json:"step"`
+		CurrentAnimeIndex  int    `json:"currentAnimeIndex"`
+		CurrentAnimeTotal  int    `json:"currentAnimeTotal"`
+		CurrentProvider    string `json:"currentProvider"`
+		ProvidersDone      int    `json:"providersDone"`
+		ProvidersTotal     int    `json:"providersTotal"`
+		CurrentQuery       string `json:"currentQuery"`
+		VariantIndex       int    `json:"variantIndex"`
+		VariantsTotal      int    `json:"variantsTotal"`
+		TorrentsCollected  int    `json:"torrentsCollected"`
+		SelectedTorrent    string `json:"selectedTorrent"`
+		Destination        string `json:"destination"`
+		ExpectedEpisodes   int    `json:"expectedEpisodes"`
+		DownloadedCount    int    `json:"downloadedCount"`
+		FailedCount        int    `json:"failedCount"`
+		LastError          string `json:"lastError"`
+	}
+
 	DownloaderProgress struct {
-		ProcessedTitles []string `json:"processed_titles"`
+		LastIndex       int      `json:"last_index"`
 		DownloadedAnime []string `json:"downloaded_anime"`
 		FailedAnime     []string `json:"failed_anime"`
 	}
@@ -483,6 +646,7 @@ type (
 		Episodes     int      `json:"episodes"`
 		Status       string   `json:"status"`
 		Format       string   `json:"format"`
+		IsAdult      bool     `json:"is_adult"`
 		Synonyms     []string `json:"synonyms,omitempty"`
 	}
 )
@@ -498,6 +662,10 @@ func NewDownloader(opts *NewDownloaderOptions) *Downloader {
 		status:                     "Idle",
 		downloadedAnime:            make([]string, 0, MaxAnimeLogEntries),
 		failedAnime:                make([]string, 0, MaxAnimeLogEntries),
+		details: AnimeDownloaderDetails{
+			Phase: "idle",
+			Step:  "idle",
+		},
 		searchSemaphore:            make(chan struct{}, MaxConcurrentSearches),
 	}
 }
@@ -526,8 +694,36 @@ func (d *Downloader) GetStatus() *DownloaderStatus {
 		DownloadedAnime:  d.downloadedAnime,
 		FailedAnime:      d.failedAnime,
 		Status:           d.status,
+		Details: AnimeDownloaderDetails{
+			Phase:             d.details.Phase,
+			Step:              d.details.Step,
+			CurrentAnimeIndex: d.details.CurrentAnimeIndex,
+			CurrentAnimeTotal: d.details.CurrentAnimeTotal,
+			CurrentProvider:   d.details.CurrentProvider,
+			ProvidersDone:     d.details.ProvidersDone,
+			ProvidersTotal:    d.details.ProvidersTotal,
+			CurrentQuery:      d.details.CurrentQuery,
+			VariantIndex:      d.details.VariantIndex,
+			VariantsTotal:     d.details.VariantsTotal,
+			TorrentsCollected: d.details.TorrentsCollected,
+			SelectedTorrent:   d.details.SelectedTorrent,
+			Destination:       d.details.Destination,
+			ExpectedEpisodes:  d.details.ExpectedEpisodes,
+			DownloadedCount:   len(d.downloadedAnime),
+			FailedCount:       len(d.failedAnime),
+			LastError:         d.details.LastError,
+		},
 		HasSavedProgress: d.hasSavedProgress(),
 	}
+}
+
+func (d *Downloader) updateDetails(updateFn func(*AnimeDownloaderDetails)) {
+	d.mu.Lock()
+	if updateFn != nil {
+		updateFn(&d.details)
+	}
+	d.mu.Unlock()
+	d.sendStatusUpdate()
 }
 
 func (d *Downloader) hasSavedProgress() bool {
@@ -598,6 +794,25 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 		d.sendStatusUpdate()
 	}()
 
+	d.setStatus("Loading anime database...")
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Phase = "loading"
+		details.Step = "loading anime offline database"
+		details.CurrentAnimeTotal = 0
+		details.CurrentAnimeIndex = 0
+		details.CurrentProvider = ""
+		details.ProvidersDone = 0
+		details.ProvidersTotal = 0
+		details.CurrentQuery = ""
+		details.VariantIndex = 0
+		details.VariantsTotal = 0
+		details.TorrentsCollected = 0
+		details.SelectedTorrent = ""
+		details.Destination = ""
+		details.ExpectedEpisodes = 0
+		details.LastError = ""
+	})
+
 	// Load anime list from offline database
 	animeList, err := d.loadAnimeList()
 	if err != nil {
@@ -608,46 +823,50 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 
 	d.mu.Lock()
 	d.totalCount = len(animeList)
+	d.details.CurrentAnimeTotal = len(animeList)
 	d.mu.Unlock()
 
 	d.logger.Info().Int("count", len(animeList)).Msg("enmasse-anime: Loaded anime list")
+	d.setStatus(fmt.Sprintf("Loaded %d anime entries", len(animeList)))
 
-	// Load progress if resuming
-	processedTitles := make(map[string]bool)
+	// Load progress if resuming (index-based, starts 2 before last)
+	startIndex := 0
 	if resume {
 		if progress := d.loadProgress(); progress != nil {
-			for _, title := range progress.ProcessedTitles {
-				processedTitles[title] = true
+			// Start 2 entries before the last processed index
+			startIndex = progress.LastIndex - 2
+			if startIndex < 0 {
+				startIndex = 0
 			}
 			d.mu.Lock()
 			d.downloadedAnime = progress.DownloadedAnime
 			d.failedAnime = progress.FailedAnime
-			d.processedCount = len(processedTitles)
+			d.processedCount = startIndex
 			d.mu.Unlock()
-			d.logger.Info().Int("processed", len(processedTitles)).Msg("enmasse-anime: Resumed from saved progress")
+			d.logger.Info().Int("resumeAt", startIndex).Int("lastIndex", progress.LastIndex).Msg("enmasse-anime: Resumed from saved progress")
+			d.setStatus(fmt.Sprintf("Resumed: starting at %d/%d", startIndex, len(animeList)))
 		}
 	}
 
-	// Start torrent client if not running
-	torrentClientRepo := d.torrentClientRepositoryRef.Get()
-	if torrentClientRepo == nil {
-		d.setStatus("Error: Torrent client repository not available")
-		d.logger.Error().Msg("enmasse-anime: Torrent client repository not available")
+	d.setStatus("Starting torrent client...")
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Phase = "startup"
+		details.Step = "starting torrent client"
+	})
+
+	if err := d.waitForTorrentClient(ctx, "starting downloader"); err != nil {
+		d.setStatus("Stopped")
+		d.logger.Warn().Err(err).Msg("enmasse-anime: Stopped while waiting for torrent client")
 		return
 	}
 
-	if !torrentClientRepo.Start() {
-		d.setStatus("Error: Could not start torrent client")
-		d.logger.Error().Msg("enmasse-anime: Could not start torrent client")
-		return
-	}
+	// Process each anime starting from startIndex
+	for i := startIndex; i < len(animeList); i++ {
+		animeItem := animeList[i]
 
-	// Process each anime
-	processedCount := d.processedCount
-	for _, animeItem := range animeList {
 		select {
 		case <-ctx.Done():
-			d.saveCurrentProgress(processedTitles)
+			d.saveCurrentProgress(i)
 			d.setStatus("Stopped")
 			return
 		default:
@@ -656,39 +875,64 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 		// Rate limit: anime en masse 12 per minute
 		if err := acquireAnimeEnMasse(ctx); err != nil {
 			d.logger.Warn().Err(err).Msg("enmasse-anime: Rate limiter blocked, aborting")
-			d.saveCurrentProgress(processedTitles)
+			d.saveCurrentProgress(i)
 			d.setStatus("Stopped")
 			return
 		}
 
-		// Skip already processed
-		if processedTitles[animeItem.Title] {
-			continue
-		}
-
-		processedCount++
-
 		d.mu.Lock()
 		d.currentAnime = &AnilistMinifiedItem{Title: animeItem.Title}
-		d.processedCount = processedCount
-		d.status = fmt.Sprintf("Processing %d/%d: %s", processedCount, len(animeList), animeItem.Title)
+		d.processedCount = i + 1
+		d.status = fmt.Sprintf("Processing %d/%d: %s", i+1, len(animeList), animeItem.Title)
+		d.details.Phase = "processing"
+		d.details.Step = "starting anime processing"
+		d.details.CurrentAnimeIndex = i + 1
+		d.details.CurrentAnimeTotal = len(animeList)
+		d.details.CurrentProvider = ""
+		d.details.ProvidersDone = 0
+		d.details.ProvidersTotal = 0
+		d.details.CurrentQuery = ""
+		d.details.VariantIndex = 0
+		d.details.VariantsTotal = 0
+		d.details.TorrentsCollected = 0
+		d.details.SelectedTorrent = ""
+		d.details.Destination = ""
+		d.details.ExpectedEpisodes = animeItem.Episodes
+		d.details.LastError = ""
 		d.mu.Unlock()
 		d.sendStatusUpdate()
 
-		d.logger.Info().Str("title", animeItem.Title).Msg("enmasse-anime: Processing anime")
+		d.logger.Info().Str("title", animeItem.Title).Int("index", i).Msg("enmasse-anime: Processing anime")
 
 		err := d.processAnime(ctx, animeItem)
-		processedTitles[animeItem.Title] = true
 
 		if err != nil {
+			if ctx.Err() != nil {
+				d.saveCurrentProgress(i)
+				d.setStatus("Stopped")
+				return
+			}
+			if d.isProviderSearchTimeoutError(err) {
+				d.setStatus(fmt.Sprintf("Provider timeout on %s, skipping", animeItem.Title))
+			}
+			d.updateDetails(func(details *AnimeDownloaderDetails) {
+				details.Phase = "processing"
+				details.Step = "anime failed"
+				details.LastError = err.Error()
+			})
 			d.logger.Error().Err(err).Str("title", animeItem.Title).Msg("enmasse-anime: Failed to process anime")
 			d.addToFailed(animeItem.Title)
 		} else {
+			d.updateDetails(func(details *AnimeDownloaderDetails) {
+				details.Phase = "processing"
+				details.Step = "anime queued successfully"
+				details.LastError = ""
+			})
 			d.addToDownloaded(animeItem.Title)
 		}
 
 		// Save progress after every anime for reliable resume
-		d.saveCurrentProgress(processedTitles)
+		d.saveCurrentProgress(i)
 
 		// Delay between anime
 		time.Sleep(DelayBetweenAnime)
@@ -696,6 +940,14 @@ func (d *Downloader) run(ctx context.Context, resume bool) {
 
 	d.clearProgress()
 	d.setStatus("Completed! Redirecting to unmatched...")
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Phase = "completed"
+		details.Step = "all anime processed"
+		details.CurrentProvider = ""
+		details.CurrentQuery = ""
+		details.VariantIndex = 0
+		details.VariantsTotal = 0
+	})
 	d.sendStatusUpdate()
 
 	d.wsEventManager.SendEvent(events.InfoToast, "Anime En Masse Download completed!")
@@ -711,6 +963,10 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 	}
 
 	// Resolve AniList (fallback MAL) using title/synonyms
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Phase = "processing"
+		details.Step = "resolving AniList metadata"
+	})
 	resolved, err := d.resolveAniList(ctx, animeItem)
 	if err != nil {
 		return fmt.Errorf("failed to resolve AniList: %w", err)
@@ -726,17 +982,27 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 		return fmt.Errorf("torrent search failed: no valid query for search")
 	}
 
-	// Gather all provider extensions
-	providerIDs := d.torrentRepository.GetAllAnimeProviderExtensionIds()
+	// Gather provider extensions (adult-aware ordering)
+	providerIDs := d.getProviderIDsForAnime(resolved)
 	if len(providerIDs) == 0 {
 		return fmt.Errorf("no torrent provider extensions available")
 	}
+
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Phase = "searching"
+		details.Step = "searching providers"
+		details.ProvidersTotal = len(providerIDs)
+		details.ProvidersDone = 0
+		details.CurrentProvider = ""
+		details.CurrentQuery = ""
+	})
 
 	// Comprehensive torrent collection using ALL search variants
 	d.logger.Info().Str("title", resolved.TitleRomaji).Int("providers", len(providerIDs)).Msg("enmasse-anime: Starting comprehensive torrent collection")
 
 	var allTorrents []*hibiketorrent.AnimeTorrent
 	var mu sync.Mutex
+	hadProviderTimeout := false
 
 	// Generate all search variants once for this anime
 	searchVariants := d.generateSearchVariants(resolved)
@@ -745,10 +1011,14 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 		return fmt.Errorf("no search variants generated for %s", resolved.TitleRomaji)
 	}
 	d.logger.Info().Str("title", resolved.TitleRomaji).Int("variants", len(searchVariants)).Msg("enmasse-anime: Generated search variants")
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.VariantsTotal = len(searchVariants)
+		details.VariantIndex = 0
+	})
 
 	// Concurrent search across all providers with all variants (OPTIMIZED)
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 6) // Increased concurrency from 3 to 6 for faster processing
+	sem := make(chan struct{}, 10) // High concurrency — rate limiters handle safety
 
 	for _, pid := range providerIDs {
 		wg.Add(1)
@@ -756,6 +1026,11 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
+
+			d.updateDetails(func(details *AnimeDownloaderDetails) {
+				details.CurrentProvider = providerID
+				details.Step = "searching provider torrents"
+			})
 
 			ext, ok := d.torrentRepository.GetAnimeProviderExtension(providerID)
 			if !ok {
@@ -765,13 +1040,20 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 
 			canSmart := ext.GetProvider().GetSettings().CanSmartSearch
 			var providerTorrents []*hibiketorrent.AnimeTorrent
+			var timedOut bool
 
 			if canSmart {
 				// For smart search providers, try primary query first, then variants if needed
-				providerTorrents = d.searchProviderWithVariants(ctx, providerID, baseAnime, searchVariants, true)
+				providerTorrents, timedOut = d.searchProviderWithVariants(ctx, providerID, baseAnime, searchVariants, true)
 			} else {
 				// For simple search providers, use all variants
-				providerTorrents = d.searchProviderWithVariants(ctx, providerID, baseAnime, searchVariants, false)
+				providerTorrents, timedOut = d.searchProviderWithVariants(ctx, providerID, baseAnime, searchVariants, false)
+			}
+
+			if timedOut {
+				mu.Lock()
+				hadProviderTimeout = true
+				mu.Unlock()
 			}
 
 			if len(providerTorrents) > 0 {
@@ -780,6 +1062,9 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 				allTorrents = append(allTorrents, providerTorrents...)
 				afterCount := len(allTorrents)
 				mu.Unlock()
+				d.updateDetails(func(details *AnimeDownloaderDetails) {
+					details.TorrentsCollected = afterCount
+				})
 				d.logger.Debug().
 					Str("provider", providerID).
 					Int("found", len(providerTorrents)).
@@ -789,6 +1074,10 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 			} else {
 				d.logger.Debug().Str("provider", providerID).Msg("enmasse-anime: No torrents found from provider")
 			}
+
+			d.updateDetails(func(details *AnimeDownloaderDetails) {
+				details.ProvidersDone++
+			})
 		}(pid)
 	}
 	wg.Wait()
@@ -796,6 +1085,13 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 	d.logger.Info().Str("title", resolved.TitleRomaji).Int("total", len(allTorrents)).Msg("enmasse-anime: Completed comprehensive torrent collection")
 
 	if len(allTorrents) == 0 {
+		if hadProviderTimeout {
+			d.updateDetails(func(details *AnimeDownloaderDetails) {
+				details.LastError = "provider timeout while searching torrents"
+				details.Step = "provider timeout while searching torrents"
+			})
+			return fmt.Errorf("provider timeout while searching torrents")
+		}
 		return fmt.Errorf("no torrents found across any providers with all search variants")
 	}
 
@@ -852,6 +1148,10 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 		d.logger.Warn().Str("title", resolved.TitleRomaji).Msg("enmasse-anime: No suitable torrent after filtering across all providers")
 		return fmt.Errorf("no suitable torrent found")
 	}
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Step = "selected best torrent"
+		details.SelectedTorrent = selectedTorrent.Name
+	})
 	// Final safety: ensure selected torrent meets expected episode count
 	if !d.torrentMeetsEpisodeMinimum(baseAnime, expectedEpisodes, selectedTorrent) {
 		return fmt.Errorf("selected torrent does not meet episode minimum")
@@ -884,6 +1184,12 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 	if !found {
 		return fmt.Errorf("no provider available to fetch magnet link")
 	}
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Step = "fetching magnet link"
+		if providerExt != nil {
+			details.CurrentProvider = providerExt.GetID()
+		}
+	})
 	magnet, err := providerExt.GetProvider().GetTorrentMagnetLink(selectedTorrent)
 	if err != nil {
 		return fmt.Errorf("failed to get magnet link: %w", err)
@@ -902,16 +1208,43 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 
 	// Download to unmatched directory
 	destination := d.unmatchedRepository.GetUnmatchedDestination(selectedTorrent.Name)
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Step = "adding magnet to torrent client"
+		details.Destination = destination
+	})
 
 	torrentClientRepo := d.torrentClientRepositoryRef.Get()
-	if torrentClientRepo == nil {
-		return fmt.Errorf("torrent client not available")
+	if err := d.waitForTorrentClient(ctx, "adding torrent"); err != nil {
+		return err
 	}
 
-	d.logger.Debug().Str("destination", destination).Str("magnet", magnet).Str("infoHash", selectedTorrent.InfoHash).Msg("enmasse-anime: adding torrent to client")
-	err = torrentClientRepo.AddMagnets([]string{magnet}, destination)
-	if err != nil {
-		return fmt.Errorf("failed to add torrent: %w", err)
+	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		torrentClientRepo = d.torrentClientRepositoryRef.Get()
+		if torrentClientRepo == nil {
+			if err := d.waitForTorrentClient(ctx, "adding torrent"); err != nil {
+				return err
+			}
+			continue
+		}
+
+		d.logger.Debug().Str("destination", destination).Str("magnet", magnet).Str("infoHash", selectedTorrent.InfoHash).Msg("enmasse-anime: adding torrent to client")
+		err = torrentClientRepo.AddMagnets([]string{magnet}, destination)
+		if err == nil {
+			break
+		}
+
+		if !d.isTorrentClientUnavailableError(err) {
+			return fmt.Errorf("failed to add torrent: %w", err)
+		}
+
+		d.logger.Warn().Err(err).Msg("enmasse-anime: Torrent client unavailable while adding torrent, waiting to retry")
+		if err := d.waitForTorrentClient(ctx, "adding torrent"); err != nil {
+			return err
+		}
 	}
 
 	// Save metadata for later matching
@@ -934,7 +1267,109 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 		Str("destination", destination).
 		Msg("enmasse-anime: Added torrent to download queue")
 
+	d.updateDetails(func(details *AnimeDownloaderDetails) {
+		details.Step = "queued in torrent client"
+		details.LastError = ""
+	})
+
 	return nil
+}
+
+func (d *Downloader) getProviderIDsForAnime(item *AnilistMinifiedItem) []string {
+	providerIDs := d.torrentRepository.GetAllAnimeProviderExtensionIds()
+	if len(providerIDs) == 0 {
+		return providerIDs
+	}
+
+	if item == nil || !item.IsAdult {
+		return providerIDs
+	}
+
+	adultProviders := make([]string, 0, len(providerIDs))
+	nonAdultProviders := make([]string, 0, len(providerIDs))
+
+	for _, pid := range providerIDs {
+		ext, ok := d.torrentRepository.GetAnimeProviderExtension(pid)
+		if !ok || ext == nil {
+			nonAdultProviders = append(nonAdultProviders, pid)
+			continue
+		}
+
+		settings := ext.GetProvider().GetSettings()
+		// NSFW-specific providers are usually marked as special type.
+		// Keep them in the same pool as adult-capable providers.
+		if settings.SupportsAdult || settings.Type == hibiketorrent.AnimeProviderTypeSpecial {
+			adultProviders = append(adultProviders, pid)
+		} else {
+			nonAdultProviders = append(nonAdultProviders, pid)
+		}
+	}
+
+	if len(adultProviders) == 0 {
+		d.logger.Warn().Msg("enmasse-anime: NSFW anime detected but no NSFW/adult-capable providers are installed")
+		return providerIDs
+	}
+
+	ordered := make([]string, 0, len(providerIDs))
+	ordered = append(ordered, adultProviders...)
+	ordered = append(ordered, nonAdultProviders...)
+	return ordered
+}
+
+func (d *Downloader) waitForTorrentClient(ctx context.Context, action string) error {
+	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		torrentClientRepo := d.torrentClientRepositoryRef.Get()
+		if torrentClientRepo != nil && torrentClientRepo.Start() {
+			return nil
+		}
+
+		d.setStatus(fmt.Sprintf("Waiting for torrent client (%s)...", action))
+		d.updateDetails(func(details *AnimeDownloaderDetails) {
+			details.Phase = "waiting"
+			details.Step = fmt.Sprintf("waiting for torrent client (%s)", action)
+		})
+		d.logger.Warn().Str("action", action).Dur("retryIn", TorrentClientRetryDelay).Msg("enmasse-anime: Torrent client unavailable, retrying")
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(TorrentClientRetryDelay):
+		}
+	}
+}
+
+func (d *Downloader) isTorrentClientUnavailableError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := strings.ToLower(err.Error())
+
+	return strings.Contains(errStr, "connection refused") ||
+		strings.Contains(errStr, "no route to host") ||
+		strings.Contains(errStr, "network is unreachable") ||
+		strings.Contains(errStr, "dial tcp") ||
+		strings.Contains(errStr, "i/o timeout") ||
+		strings.Contains(errStr, "connection reset") ||
+		strings.Contains(errStr, "eof") ||
+		strings.Contains(errStr, "qbittorrent") ||
+		strings.Contains(errStr, "forbidden") ||
+		strings.Contains(errStr, "unauthorized")
+}
+
+func (d *Downloader) isProviderSearchTimeoutError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := strings.ToLower(err.Error())
+	return strings.Contains(errStr, "search timeout") ||
+		strings.Contains(errStr, "smart search timeout") ||
+		strings.Contains(errStr, "promise timed out")
 }
 
 func (d *Downloader) buildBaseAnime(item *AnilistMinifiedItem) *anilist.BaseAnime {
@@ -942,7 +1377,7 @@ func (d *Downloader) buildBaseAnime(item *AnilistMinifiedItem) *anilist.BaseAnim
 	status := anilist.MediaStatus(item.Status)
 	format := anilist.MediaFormat(item.Format)
 	episodes := item.Episodes
-	isAdult := false
+	isAdult := item.IsAdult
 
 	var englishTitle *string
 	if item.TitleEnglish != "" {
@@ -951,7 +1386,11 @@ func (d *Downloader) buildBaseAnime(item *AnilistMinifiedItem) *anilist.BaseAnim
 
 	romajiTitle := item.TitleRomaji
 	if romajiTitle == "" {
-		romajiTitle = item.Title
+		if item.TitleEnglish != "" {
+			romajiTitle = item.TitleEnglish
+		} else {
+			romajiTitle = item.Title
+		}
 	}
 	if englishTitle == nil && item.Title != "" {
 		t := item.Title
@@ -1700,6 +2139,7 @@ func (d *Downloader) minifyOfflineItem(item *AnimeOfflineItem) *AnilistMinifiedI
 		Episodes:     item.Episodes,
 		Status:       status,
 		Format:       format,
+		IsAdult:      false,
 		Synonyms:     item.Synonyms,
 	}
 }
@@ -1723,13 +2163,13 @@ func (d *Downloader) generateSearchVariants(animeItem *AnilistMinifiedItem) []st
 		variants = append(variants, s)
 	}
 
-	// Collect only essential base titles (OPTIMIZED)
+	// Collect only essential base titles (English-first)
 	titles := []string{}
-	if animeItem.TitleRomaji != "" {
-		titles = append(titles, animeItem.TitleRomaji)
-	}
-	if animeItem.TitleEnglish != "" && animeItem.TitleEnglish != animeItem.TitleRomaji {
+	if animeItem.TitleEnglish != "" {
 		titles = append(titles, animeItem.TitleEnglish)
+	}
+	if animeItem.TitleRomaji != "" && animeItem.TitleRomaji != animeItem.TitleEnglish {
+		titles = append(titles, animeItem.TitleRomaji)
 	}
 	
 	// Add only first 2 synonyms for speed (instead of all)

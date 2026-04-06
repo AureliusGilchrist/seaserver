@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"seanime/internal/util"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -43,9 +44,11 @@ type Fetch struct {
 	vmResponseCh   chan func()
 	closed         atomic.Bool
 	closeCh        chan struct{}
+	requestWg      sync.WaitGroup
 	allowedDomains []string // empty = allow all domains
 	rules          []accessRule
 	anilistToken   string
+	responseHandler chan struct{} // To track the response handler goroutine
 }
 
 func (f *Fetch) SetAnilistToken(token string) {
@@ -88,6 +91,7 @@ func NewFetch(vm *goja.Runtime, allowedDomains []string) *Fetch {
 		vmResponseCh:   make(chan func(), maxConcurrentRequests),
 		closeCh:        make(chan struct{}),
 		allowedDomains: allowedDomains,
+		responseHandler: make(chan struct{}),
 	}
 	f.allowedDomains = lo.Uniq(append(f.allowedDomains, whitelistedDomains...))
 	f.compileRules()
@@ -155,7 +159,21 @@ func (f *Fetch) Close() {
 	}()
 	if f.closed.CompareAndSwap(false, true) {
 		close(f.closeCh)
+		f.requestWg.Wait()
 		close(f.vmResponseCh)
+	}
+}
+
+func (f *Fetch) enqueueResponse(fn func()) bool {
+	if f.closed.Load() {
+		return false
+	}
+
+	select {
+	case <-f.closeCh:
+		return false
+	case f.vmResponseCh <- fn:
+		return true
 	}
 }
 
@@ -188,23 +206,15 @@ func BindFetch(vm *goja.Runtime, allowedDomains ...[]string) *Fetch {
 	_ = vm.Set("fetch", f.Fetch)
 
 	go func() {
-		for {
-			select {
-			case fn, ok := <-f.ResponseChannel():
-				if !ok {
-					return
-				}
-				func() {
-					defer func() {
-						if r := recover(); r != nil {
-							log.Warn().Msgf("extension: response channel panic: %v", r)
-						}
-					}()
-					fn()
+		for fn := range f.ResponseChannel() {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Warn().Msgf("extension: response channel panic: %v", r)
+					}
 				}()
-			case <-f.closeCh:
-				return
-			}
+				fn()
+			}()
 		}
 	}()
 
@@ -386,7 +396,9 @@ func (f *Fetch) Fetch(call goja.FunctionCall) goja.Value {
 		}
 	}
 
+	f.requestWg.Add(1)
 	go func() {
+		defer f.requestWg.Done()
 		defer util.HandlePanicInModuleThen("goja/goja_bindings/Fetch", func() {})
 		if f.closed.Load() {
 			return
@@ -399,14 +411,14 @@ func (f *Fetch) Fetch(call goja.FunctionCall) goja.Value {
 		if options.Signal != nil {
 			abortedValue := options.Signal.Get("aborted")
 			if !goja.IsUndefined(abortedValue) && abortedValue.ToBoolean() {
-				f.vmResponseCh <- func() {
+				_ = f.enqueueResponse(func() {
 					reason := options.Signal.Get("reason")
 					if !goja.IsUndefined(reason) && !goja.IsNull(reason) {
 						_ = reject(f.vm.ToValue(reason))
 					} else {
 						_ = reject(NewError(f.vm, fmt.Errorf("AbortError: The operation was aborted")))
 					}
-				}
+				})
 				return
 			}
 		}
@@ -477,9 +489,9 @@ func (f *Fetch) Fetch(call goja.FunctionCall) goja.Value {
 		}
 
 		if err != nil {
-			f.vmResponseCh <- func() {
+			_ = f.enqueueResponse(func() {
 				_ = reject(NewError(f.vm, err))
-			}
+			})
 			return
 		}
 
@@ -499,10 +511,10 @@ func (f *Fetch) Fetch(call goja.FunctionCall) goja.Value {
 			}
 		}
 
-		f.vmResponseCh <- func() {
+		_ = f.enqueueResponse(func() {
 			_ = resolve(result.toGojaObject(f.vm))
 			return
-		}
+		})
 	}()
 
 	return f.vm.ToValue(promise)

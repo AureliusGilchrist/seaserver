@@ -17,7 +17,8 @@ type (
 	CollectionStatusType string
 
 	Collection struct {
-		Lists []*CollectionList `json:"lists"`
+		Lists         []*CollectionList `json:"lists"`
+		UnknownGroups []*UnknownGroup   `json:"unknownGroups"`
 	}
 
 	CollectionList struct {
@@ -31,12 +32,22 @@ type (
 		MediaId       int                `json:"mediaId"`
 		EntryListData *EntryListData     `json:"listData"` // AniList list data
 	}
+
+	// UnknownGroup holds the data for a group of downloaded manga whose media is not in the user's AniList.
+	// The client will use this data to suggest manga to the user, so they can add it to their AniList.
+	UnknownGroup struct {
+		MediaId    int    `json:"mediaId"`
+		Title      string `json:"title"`
+		Provider   string `json:"provider"`
+		ChapterCount int  `json:"chapterCount"`
+	}
 )
 
 type (
 	NewCollectionOptions struct {
 		MangaCollection *anilist.MangaCollection
 		PlatformRef     *util.Ref[platform.Platform]
+		MediaMap        *map[int]ProviderDownloadMap // Downloaded manga data
 	}
 )
 
@@ -130,6 +141,57 @@ func NewCollection(opts *NewCollectionOptions) (collection *Collection, err erro
 	}
 
 	coll.Lists = lists
+	
+	// Populate UnknownGroups with downloaded manga not in collection
+	coll.UnknownGroups = make([]*UnknownGroup, 0)
+	if opts.MediaMap != nil {
+		// Get all media IDs that are in the user's AniList collection
+		collectionMediaIds := make(map[int]struct{})
+		if opts.MangaCollection != nil && opts.MangaCollection.MediaListCollection != nil {
+			for _, list := range opts.MangaCollection.MediaListCollection.Lists {
+				for _, entry := range list.GetEntries() {
+					collectionMediaIds[entry.GetMedia().GetID()] = struct{}{}
+				}
+			}
+		}
+		
+		// Find downloaded manga that aren't in the collection
+		for mediaId, downloadData := range *opts.MediaMap {
+			if _, found := collectionMediaIds[mediaId]; !found {
+				// This downloaded manga is not in the collection
+				// Count total chapters
+				totalChapters := 0
+				provider := "unknown"
+				for providerName, chapters := range downloadData {
+					totalChapters += len(chapters)
+					if provider == "unknown" {
+						provider = providerName
+					}
+				}
+				
+				// Create UnknownGroup
+				unknownGroup := &UnknownGroup{
+					MediaId:      mediaId,
+					Title:        fmt.Sprintf("Media %d", mediaId),
+					Provider:     provider,
+					ChapterCount: totalChapters,
+				}
+				
+				// If this is a synthetic manga (negative ID), try to get the title
+				if mediaId < 0 {
+					// TODO: Access database to get synthetic manga title
+					unknownGroup.Title = "Synthetic Manga"
+				}
+				
+				coll.UnknownGroups = append(coll.UnknownGroups, unknownGroup)
+			}
+		}
+		
+		// Sort by MediaId
+		slices.SortFunc(coll.UnknownGroups, func(i, j *UnknownGroup) int {
+			return cmp.Compare(i.MediaId, j.MediaId)
+		})
+	}
 
 	event := new(MangaLibraryCollectionEvent)
 	event.LibraryCollection = coll

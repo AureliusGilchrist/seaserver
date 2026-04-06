@@ -1,6 +1,7 @@
 package manga
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -13,9 +14,12 @@ import (
 	"seanime/internal/hook"
 	chapter_downloader "seanime/internal/manga/downloader"
 	manga_providers "seanime/internal/manga/providers"
+	"seanime/internal/platforms/platform"
 	"seanime/internal/util"
 	"seanime/internal/util/filecache"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog"
 )
@@ -48,7 +52,7 @@ func NewDownloader(opts *NewDownloaderOptions) *Downloader {
 }
 
 // CountChaptersByTitles scans downloadDir for the provided title candidates and returns the best matching
-// title folder and how many chapters (registry.json) it contains.
+// title folder and how many chapters it contains.
 // It only matches exact folder names (case sensitive on POSIX), callers should provide multiple normalized variants.
 func (d *Downloader) CountChaptersByTitles(titles []string) (string, int) {
 	bestTitle := ""
@@ -60,6 +64,19 @@ func (d *Downloader) CountChaptersByTitles(titles []string) (string, int) {
 		}
 
 		mediaDir := filepath.Join(d.downloadDir, title)
+		
+		// Try new format: series-level registry.json
+		seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(mediaDir, d.logger)
+		if err == nil && len(seriesRegistry.Chapters) > 0 {
+			count := len(seriesRegistry.Chapters)
+			if count > bestCount {
+				bestCount = count
+				bestTitle = title
+			}
+			continue
+		}
+		
+		// Fallback: old format with per-chapter registry.json
 		entries, err := os.ReadDir(mediaDir)
 		if err != nil {
 			continue
@@ -83,6 +100,54 @@ func (d *Downloader) CountChaptersByTitles(titles []string) (string, int) {
 	}
 
 	return bestTitle, bestCount
+}
+
+// IsSeriesFullyDownloadedByChapterIDs checks whether every chapter ID exists in the
+// series-level registry for a given media title folder.
+//
+// This is a fast path used by en masse flows to skip series that are already fully
+// downloaded without performing per-chapter provider calls.
+func (d *Downloader) IsSeriesFullyDownloadedByChapterIDs(mediaTitle string, provider string, chapterIDs []string) bool {
+	mediaTitle = strings.TrimSpace(mediaTitle)
+	if mediaTitle == "" || len(chapterIDs) == 0 {
+		return false
+	}
+
+	seriesDir := filepath.Join(d.downloadDir, mediaTitle)
+	seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(seriesDir, d.logger)
+	if err != nil || len(seriesRegistry.Chapters) == 0 {
+		return false
+	}
+
+	downloadedIDs := make(map[string]struct{}, len(seriesRegistry.Chapters))
+	for _, entry := range seriesRegistry.Chapters {
+		if entry == nil || entry.ChapterId == "" {
+			continue
+		}
+
+		if provider != "" {
+			if entry.Provider != "" && entry.Provider != provider && seriesRegistry.Provider != provider {
+				continue
+			}
+		}
+
+		downloadedIDs[entry.ChapterId] = struct{}{}
+	}
+
+	if len(downloadedIDs) == 0 {
+		return false
+	}
+
+	for _, chapterID := range chapterIDs {
+		if chapterID == "" {
+			continue
+		}
+		if _, ok := downloadedIDs[chapterID]; !ok {
+			return false
+		}
+	}
+
+	return true
 }
 
 type (
@@ -148,6 +213,9 @@ type (
 
 // Start is called once to start the Chapter downloader 's main goroutine.
 func (d *Downloader) Start() {
+	// Run migration on start to convert old format to new format
+	go d.migrateToNewFormat()
+	
 	d.chapterDownloader.Start()
 	go func() {
 		for {
@@ -177,6 +245,17 @@ func (d *Downloader) Start() {
 			}
 		}
 	}()
+}
+
+type MigrationProgressPayload struct {
+	Running       bool   `json:"running"`
+	CurrentSeries int    `json:"currentSeries"`
+	TotalSeries   int    `json:"totalSeries"`
+	Migrated      int    `json:"migrated"`
+	Failed        int    `json:"failed"`
+	Percentage    int    `json:"percentage"`
+	SeriesDir     string `json:"seriesDir,omitempty"`
+	Status        string `json:"status"`
 }
 
 // The bucket for storing downloaded chapter containers.
@@ -249,13 +328,14 @@ func (d *Downloader) DownloadChapter(opts DownloadChapterOptions) error {
 	}
 
 	// Add the chapter to the download queue
+	normalizedChapterNumber := manga_providers.GetNormalizedChapter(chapter.Chapter)
 	return d.chapterDownloader.AddToQueue(chapter_downloader.DownloadOptions{
 		DownloadID: chapter_downloader.DownloadID{
 			Provider:      opts.Provider,
 			MediaId:       opts.MediaId,
 			ChapterId:     opts.ChapterId,
-			ChapterNumber: manga_providers.GetNormalizedChapter(chapter.Chapter),
-			ChapterTitle:  chapter.Title, // Include chapter title for folder naming
+			ChapterNumber: normalizedChapterNumber,
+			ChapterTitle:  chapter.Title,
 			MediaTitle:    opts.MediaTitle,
 		},
 		Pages: pageContainer.Pages,
@@ -287,12 +367,13 @@ func (d *Downloader) DownloadChapterDirect(opts DownloadChapterDirectOptions) er
 	}
 
 	// Add the chapter to the download queue
+	normalizedChapterNumber := manga_providers.GetNormalizedChapter(opts.ChapterNumber)
 	return d.chapterDownloader.AddToQueue(chapter_downloader.DownloadOptions{
 		DownloadID: chapter_downloader.DownloadID{
 			Provider:      opts.Provider,
 			MediaId:       opts.MediaId,
 			ChapterId:     opts.ChapterId,
-			ChapterNumber: opts.ChapterNumber,
+			ChapterNumber: normalizedChapterNumber,
 			ChapterTitle:  opts.ChapterTitle,
 			MediaTitle:    opts.MediaTitle,
 		},
@@ -301,19 +382,30 @@ func (d *Downloader) DownloadChapterDirect(opts DownloadChapterDirectOptions) er
 	})
 }
 
-// IsChapterAlreadyDownloaded checks if a chapter directory already exists (registry.json present)
+// IsChapterAlreadyDownloaded checks if a chapter is already downloaded
 // for the given direct download options. This is used by the en masse downloader to avoid
 // re-queuing chapters that are already on disk.
 func (d *Downloader) IsChapterAlreadyDownloaded(opts DownloadChapterDirectOptions) bool {
-	chapterDir := chapter_downloader.FormatChapterDirName(opts.Provider, opts.MediaId, opts.ChapterId, opts.ChapterNumber)
-
-	// Use raw title directory (no sanitization). Caller is responsible for providing
-	// the exact folder name as it exists on disk.
-	if opts.MediaTitle != "" {
-		registryPath := filepath.Join(d.downloadDir, opts.MediaTitle, chapterDir, "registry.json")
-		if _, err := os.Stat(registryPath); err == nil {
+	if opts.MediaTitle == "" {
+		return false
+	}
+	
+	seriesDir := filepath.Join(d.downloadDir, opts.MediaTitle)
+	
+	// Try new format: check series-level registry
+	seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(seriesDir, d.logger)
+	if err == nil && len(seriesRegistry.Chapters) > 0 {
+		_, _, found := seriesRegistry.GetChapterByID(opts.ChapterId)
+		if found {
 			return true
 		}
+	}
+	
+	// Fallback: check old format (per-chapter registry.json)
+	chapterDir := chapter_downloader.FormatChapterDirName(opts.Provider, opts.MediaId, opts.ChapterId, opts.ChapterNumber)
+	registryPath := filepath.Join(seriesDir, chapterDir, "registry.json")
+	if _, err := os.Stat(registryPath); err == nil {
+		return true
 	}
 
 	return false
@@ -371,6 +463,23 @@ func (d *Downloader) GetMediaDownloads(mediaId int, cached bool) (ret MediaDownl
 	return d.mediaMap.getMediaDownload(mediaId, d.database)
 }
 
+// GetMediaMap returns a copy of the current media map
+func (d *Downloader) GetMediaMap() map[int]ProviderDownloadMap {
+	d.mediaMapMu.RLock()
+	defer d.mediaMapMu.RUnlock()
+	
+	if d.mediaMap == nil {
+		return make(map[int]ProviderDownloadMap)
+	}
+	
+	// Return a copy to avoid concurrent access issues
+	result := make(map[int]ProviderDownloadMap)
+	for k, v := range *d.mediaMap {
+		result[k] = v
+	}
+	return result
+}
+
 func (d *Downloader) RunChapterDownloadQueue() {
 	d.chapterDownloader.Run()
 }
@@ -385,6 +494,8 @@ func (d *Downloader) StopChapterDownloadQueue() {
 type (
 	NewDownloadListOptions struct {
 		MangaCollection *anilist.MangaCollection
+		PlatformRef     *util.Ref[platform.Platform] // Optional: used to fetch metadata for manga not in collection
+		Ctx             context.Context
 	}
 
 	DownloadListItem struct {
@@ -404,6 +515,7 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 	mm := d.mediaMap
 
 	ret = make([]*DownloadListItem, 0)
+	seen := make(map[int]bool) // Track seen media IDs to avoid duplicates
 
 	for mId, data := range *mm {
 		// Check if this is a synthetic manga (negative ID)
@@ -412,6 +524,12 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 			if found {
 				// Check if there's a mapping to an AniList ID
 				if anilistID, found := d.database.GetMangaIDMapping(mId); found {
+					// Skip if we've already seen this AniList ID
+					if seen[anilistID] {
+						continue
+					}
+					seen[anilistID] = true
+
 					// Only add the AniList entry (hide the synthetic entry)
 					listEntry, ok := opts.MangaCollection.GetListEntryFromMangaId(anilistID)
 					if ok && listEntry.GetMedia() != nil {
@@ -432,6 +550,12 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 						})
 					}
 				} else {
+					// Skip if we've already seen this synthetic ID
+					if seen[mId] {
+						continue
+					}
+					seen[mId] = true
+
 					// No mapping exists, show the synthetic entry
 					syntheticMedia := createBaseMangaFromSynthetic(syntheticManga, mId)
 					ret = append(ret, &DownloadListItem{
@@ -442,6 +566,12 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 					})
 				}
 			} else {
+				// Skip if we've already seen this ID
+				if seen[mId] {
+					continue
+				}
+				seen[mId] = true
+
 				// Synthetic manga not found in database
 				ret = append(ret, &DownloadListItem{
 					MediaId:      mId,
@@ -453,23 +583,53 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 			continue
 		}
 
+		// Skip if we've already seen this media ID
+		if seen[mId] {
+			continue
+		}
+		seen[mId] = true
+
 		listEntry, ok := opts.MangaCollection.GetListEntryFromMangaId(mId)
 		if !ok {
-			ret = append(ret, &DownloadListItem{
-				MediaId:      mId,
-				Media:        nil,
-				DownloadData: data,
-			})
+			// Not in AniList collection, try to get stored metadata
+			if storedMetadata, found := d.database.GetDownloadedMangaMetadata(mId); found {
+				media := createBaseMangaFromStoredMetadata(storedMetadata)
+				ret = append(ret, &DownloadListItem{
+					MediaId:      mId,
+					Media:        media,
+					DownloadData: data,
+				})
+			} else {
+				// No stored metadata, try to fetch from AniList API and store it
+				media := d.fetchAndStoreMetadataFromAniList(opts, mId)
+				ret = append(ret, &DownloadListItem{
+					MediaId:      mId,
+					Media:        media,
+					DownloadData: data,
+				})
+			}
 			continue
 		}
 
 		media := listEntry.GetMedia()
 		if media == nil {
-			ret = append(ret, &DownloadListItem{
-				MediaId:      mId,
-				Media:        nil,
-				DownloadData: data,
-			})
+			// In collection but media is nil, try stored metadata
+			if storedMetadata, found := d.database.GetDownloadedMangaMetadata(mId); found {
+				media = createBaseMangaFromStoredMetadata(storedMetadata)
+				ret = append(ret, &DownloadListItem{
+					MediaId:      mId,
+					Media:        media,
+					DownloadData: data,
+				})
+			} else {
+				// No stored metadata, try to fetch from AniList API and store it
+				media := d.fetchAndStoreMetadataFromAniList(opts, mId)
+				ret = append(ret, &DownloadListItem{
+					MediaId:      mId,
+					Media:        media,
+					DownloadData: data,
+				})
+			}
 			continue
 		}
 
@@ -483,6 +643,42 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 	}
 
 	return
+}
+
+// fetchAndStoreMetadataFromAniList fetches manga metadata from AniList API and stores it in the database
+func (d *Downloader) fetchAndStoreMetadataFromAniList(opts *NewDownloadListOptions, mediaId int) *anilist.BaseManga {
+	if opts.PlatformRef == nil || opts.Ctx == nil {
+		return nil
+	}
+
+	mangaMedia, err := opts.PlatformRef.Get().GetManga(opts.Ctx, mediaId)
+	if err != nil || mangaMedia == nil {
+		return nil
+	}
+
+	// Extract title and cover image
+	var title, coverImage string
+	if mangaMedia.GetTitle() != nil {
+		if mangaMedia.GetTitle().GetRomaji() != nil {
+			title = *mangaMedia.GetTitle().GetRomaji()
+		} else if mangaMedia.GetTitle().GetEnglish() != nil {
+			title = *mangaMedia.GetTitle().GetEnglish()
+		}
+	}
+	if mangaMedia.GetCoverImage() != nil {
+		if mangaMedia.GetCoverImage().GetExtraLarge() != nil {
+			coverImage = *mangaMedia.GetCoverImage().GetExtraLarge()
+		} else if mangaMedia.GetCoverImage().GetLarge() != nil {
+			coverImage = *mangaMedia.GetCoverImage().GetLarge()
+		}
+	}
+
+	// Store metadata for future use
+	if title != "" || coverImage != "" {
+		_ = d.database.SaveDownloadedMangaMetadata(mediaId, title, coverImage, "")
+	}
+
+	return mangaMedia
 }
 
 // createBaseMangaFromSynthetic creates a BaseManga object from a SyntheticManga entry
@@ -510,6 +706,28 @@ func createBaseMangaFromSynthetic(sm *models.SyntheticManga, displayId int) *ani
 		Status:   &status,
 		Format:   &format,
 		Chapters: &sm.Chapters,
+	}
+}
+
+// createBaseMangaFromStoredMetadata creates a BaseManga object from stored DownloadedMangaMetadata
+func createBaseMangaFromStoredMetadata(metadata *models.DownloadedMangaMetadata) *anilist.BaseManga {
+	status := anilist.MediaStatusReleasing
+	format := anilist.MediaFormatManga
+
+	return &anilist.BaseManga{
+		ID: metadata.MediaID,
+		Title: &anilist.BaseManga_Title{
+			Romaji:        &metadata.Title,
+			English:       &metadata.Title,
+			UserPreferred: &metadata.Title,
+		},
+		CoverImage: &anilist.BaseManga_CoverImage{
+			Large:      &metadata.CoverImage,
+			ExtraLarge: &metadata.CoverImage,
+			Medium:     &metadata.CoverImage,
+		},
+		Status: &status,
+		Format: &format,
 	}
 }
 
@@ -580,22 +798,52 @@ func (d *Downloader) hydrateMediaMap() {
 
 	ret := make(MediaMap)
 
-	// Read top-level directories (media ID folders)
+	// Read top-level directories (series folders)
 	mediaDirs, err := os.ReadDir(d.downloadDir)
 	if err != nil {
 		d.logger.Error().Err(err).Msg("manga downloader: Failed to read download directory")
 	}
 
-	// Hydrate MediaMap by going through all media directories and their chapter subdirectories
 	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
+	
 	for _, mediaDir := range mediaDirs {
 		if !mediaDir.IsDir() {
 			continue
 		}
 
-		// Read chapter directories inside each media folder
 		mediaDirPath := filepath.Join(d.downloadDir, mediaDir.Name())
+		
+		// Try new format: series-level registry.json
+		seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(mediaDirPath, d.logger)
+		if err == nil && len(seriesRegistry.Chapters) > 0 && seriesRegistry.MediaId != 0 {
+			mu.Lock()
+			if _, ok := ret[seriesRegistry.MediaId]; !ok {
+				ret[seriesRegistry.MediaId] = make(map[string][]ProviderDownloadMapChapterInfo)
+			}
+			
+			for _, entry := range seriesRegistry.Chapters {
+				newMapInfo := ProviderDownloadMapChapterInfo{
+					ChapterID:     entry.ChapterId,
+					ChapterNumber: entry.ChapterNumber,
+				}
+				
+				provider := entry.Provider
+				if provider == "" {
+					provider = seriesRegistry.Provider
+				}
+				
+				if _, ok := ret[seriesRegistry.MediaId][provider]; !ok {
+					ret[seriesRegistry.MediaId][provider] = []ProviderDownloadMapChapterInfo{newMapInfo}
+				} else {
+					ret[seriesRegistry.MediaId][provider] = append(ret[seriesRegistry.MediaId][provider], newMapInfo)
+				}
+			}
+			mu.Unlock()
+			continue
+		}
+		
+		// Fallback: old format with per-chapter directories
 		chapterDirs, err := os.ReadDir(mediaDirPath)
 		if err != nil {
 			d.logger.Error().Err(err).Str("mediaDir", mediaDir.Name()).Msg("manga downloader: Failed to read media directory")
@@ -608,7 +856,7 @@ func (d *Downloader) hydrateMediaMap() {
 				defer wg.Done()
 
 				if chapterDir.IsDir() {
-					// e.g. comick_1234_abc_13.5
+					// e.g. comick_1234_abc_13.5 (old format)
 					id, ok := chapter_downloader.ParseChapterDirName(chapterDir.Name())
 					if !ok {
 						return
@@ -651,4 +899,80 @@ func (d *Downloader) hydrateMediaMap() {
 
 	// When done refreshing, send a message to the client to refetch the download data
 	d.wsEventManager.SendEvent(events.RefreshedMangaDownloadData, nil)
+}
+
+// migrateToNewFormat migrates all manga in the download directory to the new series registry format
+func (d *Downloader) migrateToNewFormat() {
+	d.logger.Info().Msg("manga downloader: Checking for chapters to migrate to new format")
+	d.wsEventManager.SendEvent(events.MangaChapterMigrationProgress, &MigrationProgressPayload{
+		Running:    true,
+		Percentage: 0,
+		Status:     "starting",
+	})
+	
+	results, err := chapter_downloader.MigrateDownloadDirectoryWithProgress(
+		d.downloadDir,
+		d.logger,
+		125*time.Millisecond,
+		func(progress chapter_downloader.MigrationProgress) {
+			percentage := 0
+			if progress.TotalSeries > 0 {
+				percentage = int((float64(progress.CurrentSeries) / float64(progress.TotalSeries)) * 100)
+			}
+			d.wsEventManager.SendEvent(events.MangaChapterMigrationProgress, &MigrationProgressPayload{
+				Running:       progress.Status != "completed",
+				CurrentSeries: progress.CurrentSeries,
+				TotalSeries:   progress.TotalSeries,
+				Migrated:      progress.Migrated,
+				Failed:        progress.Failed,
+				Percentage:    percentage,
+				SeriesDir:     progress.SeriesDir,
+				Status:        progress.Status,
+			})
+		},
+	)
+	if err != nil {
+		d.logger.Error().Err(err).Msg("manga downloader: Failed to migrate download directory")
+		d.wsEventManager.SendEvent(events.MangaChapterMigrationProgress, &MigrationProgressPayload{
+			Running:    false,
+			Percentage: 100,
+			Status:     "error",
+		})
+		return
+	}
+	
+	totalMigrated := 0
+	totalFailed := 0
+	totalSeriesErrors := 0
+	for _, result := range results {
+		totalMigrated += result.ChaptersMigrated
+		totalFailed += result.ChaptersFailed
+		if len(result.Errors) > 0 {
+			totalSeriesErrors++
+		}
+		for _, errMsg := range result.Errors {
+			d.logger.Warn().Str("seriesDir", result.SeriesDir).Msg(errMsg)
+		}
+	}
+
+	d.logger.Info().
+		Int("migrated", totalMigrated).
+		Int("failed", totalFailed).
+		Int("seriesWithErrors", totalSeriesErrors).
+		Msg("manga downloader: Migration run completed")
+
+	if totalMigrated > 0 || totalFailed > 0 || totalSeriesErrors > 0 {
+		d.hydrateMediaMap()
+	} else {
+		d.logger.Info().
+			Msg("manga downloader: Migration found no changes")
+	}
+
+	d.wsEventManager.SendEvent(events.MangaChapterMigrationProgress, &MigrationProgressPayload{
+		Running:    false,
+		Percentage: 100,
+		Migrated:   totalMigrated,
+		Failed:     totalFailed,
+		Status:     "completed",
+	})
 }

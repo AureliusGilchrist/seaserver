@@ -149,6 +149,55 @@ export function EnMassePage() {
 
                     <p className="text-[--muted] mb-4">{status?.status || "Ready to start"}</p>
 
+                    {status?.details && (
+                        <div className="mb-4 rounded-lg border border-[--border] bg-[--subtle]/40 p-4">
+                            <p className="mb-3 text-sm font-semibold">Live Details</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                                <div>
+                                    <span className="text-[--muted]">Phase:</span> {status.details.phase || "-"}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Step:</span> {status.details.step || "-"}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Anime:</span>{" "}
+                                    {status.details.currentAnimeIndex || 0}/{status.details.currentAnimeTotal || status.totalCount || 0}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Providers:</span>{" "}
+                                    {status.details.providersDone || 0}/{status.details.providersTotal || 0}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Provider:</span> {status.details.currentProvider || "-"}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Variant:</span>{" "}
+                                    {status.details.variantIndex || 0}/{status.details.variantsTotal || 0}
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <span className="text-[--muted]">Query:</span> {status.details.currentQuery || "-"}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Torrents collected:</span> {status.details.torrentsCollected || 0}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Expected episodes:</span> {status.details.expectedEpisodes || 0}
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <span className="text-[--muted]">Selected torrent:</span> {status.details.selectedTorrent || "-"}
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <span className="text-[--muted]">Destination:</span> {status.details.destination || "-"}
+                                </div>
+                                {status.details.lastError ? (
+                                    <div className="sm:col-span-2 text-red-400">
+                                        <span className="text-[--muted]">Last error:</span> {status.details.lastError}
+                                    </div>
+                                ) : null}
+                            </div>
+                        </div>
+                    )}
+
                     {status?.isRunning && status?.currentAnime && (
                         <div className="bg-[--subtle] rounded-lg p-4 mb-4">
                             <p className="text-sm text-[--muted]">Currently processing:</p>

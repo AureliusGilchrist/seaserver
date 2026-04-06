@@ -73,14 +73,12 @@ func (r *Repository) reloadExtensions() {
 	r.animeProviderSearchCaches = result.NewMap[string, *result.Cache[string, *SearchData]]()
 	r.animeProviderSmartSearchCaches = result.NewMap[string, *result.Cache[string, *SearchData]]()
 
-	go func() {
-		// Create new caches for each provider
-		extension.RangeExtensions(r.extensionBankRef.Get(), func(provider string, value extension.AnimeTorrentProviderExtension) bool {
-			r.animeProviderSearchCaches.Set(provider, result.NewCache[string, *SearchData]())
-			r.animeProviderSmartSearchCaches.Set(provider, result.NewCache[string, *SearchData]())
-			return true
-		})
-	}()
+	// Create new caches for each provider synchronously to avoid goroutine buildup on frequent reloads.
+	extension.RangeExtensions(r.extensionBankRef.Get(), func(provider string, value extension.AnimeTorrentProviderExtension) bool {
+		r.animeProviderSearchCaches.Set(provider, result.NewCache[string, *SearchData]())
+		r.animeProviderSmartSearchCaches.Set(provider, result.NewCache[string, *SearchData]())
+		return true
+	})
 
 	// Check if the default provider is in the list of providers
 	//if r.settings.DefaultAnimeProvider != "" && r.settings.DefaultAnimeProvider != "none" {

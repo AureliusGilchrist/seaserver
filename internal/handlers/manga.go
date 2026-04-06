@@ -83,9 +83,13 @@ func (h *Handler) HandleGetMangaCollection(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	// Get the media map from the manga downloader
+	mediaMap := h.App.MangaDownloader.GetMediaMap()
+
 	collection, err := manga.NewCollection(&manga.NewCollectionOptions{
 		MangaCollection: animeCollection,
 		PlatformRef:     h.App.AnilistPlatformRef,
+		MediaMap:        &mediaMap,
 	})
 	if err != nil {
 		return h.RespondWithError(c, err)

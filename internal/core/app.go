@@ -133,6 +133,8 @@ type (
 
 		// Lifecycle management
 		Cleanups                        []func()
+		cleanupMu                       sync.Mutex
+		cleanupKeys                     map[string]struct{}
 		OnRefreshAnilistCollectionFuncs *result.Map[string, func()]
 		OnFlushLogs                     func()
 
@@ -444,6 +446,30 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		ServerPasswordHash:              serverPasswordHash,
 	}
 
+	app.AddCleanupFunctionOnce("ws-event-manager.stop", func() {
+		if app.WSEventManager != nil {
+			app.WSEventManager.Stop()
+		}
+	})
+
+	app.AddCleanupFunctionOnce("metadata-provider.close", func() {
+		if app.MetadataProviderRef != nil && app.MetadataProviderRef.IsPresent() {
+			app.MetadataProviderRef.Get().Close()
+		}
+	})
+
+	app.AddCleanupFunctionOnce("anilist-platform.close", func() {
+		if app.AnilistPlatformRef != nil && app.AnilistPlatformRef.IsPresent() {
+			app.AnilistPlatformRef.Get().Close()
+		}
+	})
+
+	app.AddCleanupFunctionOnce("offline-platform.close", func() {
+		if app.OfflinePlatformRef != nil && app.OfflinePlatformRef.IsPresent() {
+			app.OfflinePlatformRef.Get().Close()
+		}
+	})
+
 	// Run database migrations if version has changed
 	app.runMigrations()
 
@@ -507,6 +533,29 @@ func (a *App) IsOfflineRef() *util.Ref[bool] {
 }
 
 func (a *App) AddCleanupFunction(f func()) {
+	a.cleanupMu.Lock()
+	defer a.cleanupMu.Unlock()
+	a.Cleanups = append(a.Cleanups, f)
+}
+
+func (a *App) AddCleanupFunctionOnce(key string, f func()) {
+	if key == "" {
+		a.AddCleanupFunction(f)
+		return
+	}
+
+	a.cleanupMu.Lock()
+	defer a.cleanupMu.Unlock()
+
+	if a.cleanupKeys == nil {
+		a.cleanupKeys = make(map[string]struct{})
+	}
+
+	if _, exists := a.cleanupKeys[key]; exists {
+		return
+	}
+
+	a.cleanupKeys[key] = struct{}{}
 	a.Cleanups = append(a.Cleanups, f)
 }
 func (a *App) AddOnRefreshAnilistCollectionFunc(key string, f func()) {
@@ -517,7 +566,12 @@ func (a *App) AddOnRefreshAnilistCollectionFunc(key string, f func()) {
 }
 
 func (a *App) Cleanup() {
-	for _, f := range a.Cleanups {
+	a.cleanupMu.Lock()
+	cleanups := make([]func(), 0, len(a.Cleanups))
+	cleanups = append(cleanups, a.Cleanups...)
+	a.cleanupMu.Unlock()
+
+	for _, f := range cleanups {
 		f()
 	}
 }

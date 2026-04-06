@@ -9,6 +9,9 @@ import (
 func (c *Context) bindFetch(obj *goja.Object, allowedDomains []string, anilistToken string) {
 	f := goja_bindings.NewFetch(c.vm, allowedDomains)
 	f.SetAnilistToken(anilistToken)
+	
+	// Store instance for cleanup
+	c.fetchInstance = f
 
 	_ = obj.Set("fetch", f.Fetch)
 

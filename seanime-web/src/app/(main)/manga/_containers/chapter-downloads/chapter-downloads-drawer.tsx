@@ -240,6 +240,7 @@ export function ChapterDownloadList(props: ChapterDownloadListProps) {
                                 .sort((a, b) => Object.values(b.downloadData).flatMap(n => n).length - Object.values(a.downloadData)
                                     .flatMap(n => n).length)
                                 .map(item => {
+                                    const chapterCount = Object.values(item.downloadData).flatMap(n => n).length
                                     return (
                                         <Card
                                             key={item.mediaId} className={cn(
@@ -249,12 +250,12 @@ export function ChapterDownloadList(props: ChapterDownloadListProps) {
                                             <SeaLink
                                                 className="font-semibold underline"
                                                 href={`/manga/entry?id=${item.mediaId}`}
-                                            >Media {item.mediaId}</SeaLink>
+                                            >Manga ID: {item.mediaId}</SeaLink>
 
                                             <div className="flex items-center gap-2">
-                                                <p>{Object.values(item.downloadData)
-                                                    .flatMap(n => n).length} chapters</p> - <em className="text-[--muted]">Not in your AniList
-                                                                                                                           collection</em>
+                                                <p>{chapterCount} chapter{chapterCount === 1 ? "" : "s"}</p>
+                                                <span className="text-[--muted]">•</span>
+                                                <em className="text-[--muted]">Metadata unavailable</em>
                                             </div>
                                         </Card>
                                     )

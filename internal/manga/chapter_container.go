@@ -172,6 +172,17 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 	provider := opts.Provider
 	mediaId := opts.MediaId
 	titles := opts.Titles
+	seriesTitle := ""
+	for _, t := range titles {
+		if t == nil {
+			continue
+		}
+		trimmed := strings.TrimSpace(*t)
+		if trimmed != "" {
+			seriesTitle = trimmed
+			break
+		}
+	}
 	
 	// Check if this AniList ID is mapped from a synthetic ID
 	// If so, we need to use the synthetic ID for cache and the original title for searching
@@ -265,8 +276,14 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 		
 		// Normalize chapter numbers in cached container (handles legacy caches with unpadded numbers)
 		if container != nil {
+			providerTitles := make([]string, 0, len(container.Chapters))
+			for _, chapter := range container.Chapters {
+				providerTitles = append(providerTitles, chapter.Title)
+			}
+			dynamicPrefix := manga_providers.InferDynamicChapterPrefixForSeries(providerTitles, seriesTitle)
 			for _, chapter := range container.Chapters {
 				chapter.Chapter = manga_providers.GetNormalizedChapter(chapter.Chapter)
+				chapter.Title = manga_providers.GetPreferredChapterTitle(dynamicPrefix, chapter.Title, chapter.Chapter)
 			}
 		}
 		
@@ -373,11 +390,18 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 		return nil, ErrNoChapters
 	}
 
+	providerTitles := make([]string, 0, len(chapterList))
+	for _, chapter := range chapterList {
+		providerTitles = append(providerTitles, chapter.Title)
+	}
+	dynamicPrefix := manga_providers.InferDynamicChapterPrefixForSeries(providerTitles, seriesTitle)
+
 	// Normalize chapter numbers and set provider
 	for _, chapter := range chapterList {
 		chapter.Provider = provider
 		// Normalize chapter number to padded format (e.g., "1" -> "0001", "35.5" -> "0035.5")
 		chapter.Chapter = manga_providers.GetNormalizedChapter(chapter.Chapter)
+		chapter.Title = manga_providers.GetPreferredChapterTitle(dynamicPrefix, chapter.Title, chapter.Chapter)
 	}
 
 	container = &ChapterContainer{

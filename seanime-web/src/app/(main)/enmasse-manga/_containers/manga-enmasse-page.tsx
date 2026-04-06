@@ -128,6 +128,49 @@ export function MangaEnMassePage() {
 
                     <p className="text-[--muted] mb-4">{status?.status || "Ready to start"}</p>
 
+                    {status?.details && (
+                        <div className="mb-4 rounded-lg border border-[--border] bg-[--subtle]/40 p-4">
+                            <p className="mb-3 text-sm font-semibold">Live Details</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                                <div>
+                                    <span className="text-[--muted]">Phase:</span> {status.details.phase || "-"}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Step:</span> {status.details.step || "-"}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Manga:</span>{" "}
+                                    {status.details.currentMangaIndex || 0}/{status.details.currentMangaTotal || status.totalCount || 0}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Provider:</span> {status.details.provider || "-"}
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <span className="text-[--muted]">Manga ID:</span> {status.details.mangaId || "-"}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Chapter:</span>{" "}
+                                    {status.details.chapterIndex || 0}/{status.details.chapterTotal || 0}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Current chapter:</span> {status.details.currentChapter || "-"}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Page:</span>{" "}
+                                    {status.details.pageIndex || 0}/{status.details.pageTotal || 0}
+                                </div>
+                                <div>
+                                    <span className="text-[--muted]">Queued chapters:</span> {status.details.queuedChapters || 0}
+                                </div>
+                                {status.details.lastError ? (
+                                    <div className="sm:col-span-2 text-red-400">
+                                        <span className="text-[--muted]">Last error:</span> {status.details.lastError}
+                                    </div>
+                                ) : null}
+                            </div>
+                        </div>
+                    )}
+
                     {status?.isRunning && status?.currentManga && (
                         <div className="bg-[--subtle] rounded-lg p-4 mb-4">
                             <p className="text-sm text-[--muted]">Currently processing:</p>

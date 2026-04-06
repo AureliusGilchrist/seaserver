@@ -1,6 +1,7 @@
 package plugin_ui
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"seanime/internal/database/db"
@@ -48,6 +49,10 @@ type UI struct {
 	// This is used to interrupt the Plugin when the UI is stopped
 	destroyedCh chan struct{}
 	destroyed   bool
+
+	// Context for goroutine management
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 type NewUIOptions struct {
@@ -97,6 +102,12 @@ func (u *UI) UnloadFromInside(signalDestroyed bool) {
 	if u.destroyed {
 		return
 	}
+	
+	// Cancel context to stop all goroutines
+	if u.cancel != nil {
+		u.cancel()
+	}
+	
 	// Stop the VM
 	u.vm.ClearInterrupt()
 	// Unsubscribe from client all events
@@ -156,15 +167,26 @@ func (u *UI) Register(callback string) error {
 	// Subscribe the plugin to client events
 	u.context.wsSubscriber = u.wsEventManager.SubscribeToClientEvents("plugin-" + u.ext.ID)
 
+	// Initialize context for goroutine management
+	u.ctx, u.cancel = context.WithCancel(context.Background())
+
 	u.logger.Debug().Msg("plugin: Registering UI")
 
 	// Listen for client events and send them to the event listeners
 	go func() {
-		for event := range u.context.wsSubscriber.Channel {
-			//u.logger.Trace().Msgf("Received event %s", event.Type)
-			u.HandleWSEvent(event)
+		defer u.logger.Debug().Msg("plugin: Event goroutine stopped")
+		for {
+			select {
+			case event, ok := <-u.context.wsSubscriber.Channel:
+				if !ok {
+					return
+				}
+				//u.logger.Trace().Msgf("Received event %s", event.Type)
+				u.HandleWSEvent(event)
+			case <-u.ctx.Done():
+				return
+			}
 		}
-		u.logger.Debug().Msg("plugin: Event goroutine stopped")
 	}()
 
 	u.context.createAndBindContextObject(u.vm)

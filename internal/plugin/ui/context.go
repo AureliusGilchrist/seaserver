@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"seanime/internal/events"
 	"seanime/internal/extension"
+	"seanime/internal/goja/goja_bindings"
 	"seanime/internal/plugin"
 	gojautil "seanime/internal/util/goja"
 	"seanime/internal/util/result"
@@ -54,6 +55,10 @@ type Context struct {
 	wsSubscriber     *events.ClientEventSubscriber
 	eventBus         *result.Map[ClientEventType, *result.Map[string, *EventListener]] // map[string]map[string]*EventListener (event -> listenerID -> listener)
 	contextObj       *goja.Object
+
+	// Resource tracking for cleanup
+	fetchInstance    *goja_bindings.Fetch
+	chromeDPInstance *goja_bindings.ChromeDP
 
 	fieldRefCount  int                    // Number of field refs registered
 	exceptionCount int                    // Number of exceptions that have occurred
@@ -1317,6 +1322,19 @@ func (c *Context) Stop() {
 		c.stateSubscribers.Delete(id)
 		return true
 	})
+
+	// Explicitly close fetch and ChromeDP instances
+	if c.fetchInstance != nil {
+		c.logger.Debug().Msg("plugin: Closing fetch instance")
+		c.fetchInstance.Close()
+		c.fetchInstance = nil
+	}
+	
+	if c.chromeDPInstance != nil {
+		c.logger.Debug().Msg("plugin: Closing ChromeDP instance")
+		c.chromeDPInstance.Close()
+		c.chromeDPInstance = nil
+	}
 
 	// Run all cleanup functions
 	c.onCleanupFns.Range(func(key int64, fn func()) bool {

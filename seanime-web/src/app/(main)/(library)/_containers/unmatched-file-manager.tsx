@@ -366,7 +366,6 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
                 {suggestionsLoading && <LoadingSpinner />}
 
                 {(!suggestionsLoading && !!suggestions?.length) && <RadioGroup
-                    defaultValue="1"
                     fieldClass="w-full"
                     fieldLabelClass="text-md"
                     label="Select Anime"

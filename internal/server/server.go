@@ -6,6 +6,7 @@ import (
 	golog "log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"seanime/internal/core"
 	"seanime/internal/cron"
 	"seanime/internal/handlers"
@@ -87,6 +88,9 @@ appLoop:
 			break appLoop
 		case false:
 
+			// Start goroutine monitoring
+			startGoroutineMonitor()
+
 			// Create the echo app instance
 			echoApp := core.NewEchoApp(app, webFS)
 
@@ -96,8 +100,9 @@ appLoop:
 			// Run the server
 			core.RunEchoServer(app, echoApp)
 
-			// Run the jobs in the background
-			cron.RunJobs(app)
+			// Run jobs and register cleanup for graceful stop.
+			stopJobs := cron.RunJobs(app)
+			app.AddCleanupFunctionOnce("cron.stop-jobs", stopJobs)
 
 			select {
 			case <-selfupdater.Started():
@@ -108,4 +113,21 @@ appLoop:
 		}
 		continue
 	}
+}
+
+// startGoroutineMonitor monitors goroutine count and logs warnings if it gets too high
+func startGoroutineMonitor() {
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		
+		for range ticker.C {
+			count := runtime.NumGoroutine()
+			if count > 10000 {  // Threshold for warning
+				log.Warn().Int("goroutines", count).Msg("High goroutine count detected - potential leak")
+			} else if count > 5000 {  // Lower threshold for info
+				log.Info().Int("goroutines", count).Msg("Elevated goroutine count")
+			}
+		}
+	}()
 }

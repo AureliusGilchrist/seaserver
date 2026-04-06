@@ -243,14 +243,14 @@ func (ap *AnilistPlatform) GetAnimeDetails(ctx context.Context, mediaID int) (*a
 	return ap.helper.TriggerGetAnimeDetailsEvent(media)
 }
 
-// GetAnimeRelated recursively fetches related anime up to the provided depth (clamped to [1,5]).
+// GetAnimeRelated recursively fetches related anime up to the provided depth (clamped to [1,4]).
 // Returns a de-duplicated list of base anime (excluding the root) across all relation types.
 func (ap *AnilistPlatform) GetAnimeRelated(ctx context.Context, mediaID int, maxDepth int) ([]*anilist.BaseAnime, error) {
 	if maxDepth < 1 {
 		maxDepth = 1
 	}
-	if maxDepth > 5 {
-		maxDepth = 5
+	if maxDepth > 4 {
+		maxDepth = 4
 	}
 
 	visited := make(map[int]bool)

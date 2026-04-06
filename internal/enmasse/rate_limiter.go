@@ -65,10 +65,10 @@ func (r *RateLimiter) Acquire(ctx context.Context) error {
 
 // Shared rate limits (per minute)
 const (
-    ProviderRateLimitPerMinute    = 12
-    AniListAutoRateLimitPerMinute = 6
-    AniListUserRateLimitPerMinute = 18
-    AnimeEnMasseRateLimitPerMinute = 12
+	ProviderRateLimitPerMinute    = 30
+	AniListAutoRateLimitPerMinute = 12
+	AniListUserRateLimitPerMinute = 30
+	AnimeEnMasseRateLimitPerMinute = 40
 )
 
 var (

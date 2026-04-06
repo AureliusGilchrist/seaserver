@@ -94,21 +94,24 @@ func (b *UnifiedBank) Set(id string, ext BaseExtension) {
 	b.extensions.Set(id, ext)
 
 	// Notify listeners that an extension has been added
-
-	go func() {
-		b.subscribers.Range(func(id string, sub *BankSubscriber) bool {
-			if sub.closed.Load() {
-				return true
-			}
-			sub.mu.Lock()
-			sub.extensionAddedCh <- struct{}{}
-			if ext.GetType() == TypeCustomSource {
-				sub.customSourcesChangedCh <- struct{}{}
-			}
-			sub.mu.Unlock()
+	b.subscribers.Range(func(id string, sub *BankSubscriber) bool {
+		if sub.closed.Load() {
 			return true
-		})
-	}()
+		}
+		sub.mu.Lock()
+		select {
+		case sub.extensionAddedCh <- struct{}{}:
+		default:
+		}
+		if ext.GetType() == TypeCustomSource {
+			select {
+			case sub.customSourcesChangedCh <- struct{}{}:
+			default:
+			}
+		}
+		sub.mu.Unlock()
+		return true
+	})
 }
 
 func (b *UnifiedBank) Get(id string) (BaseExtension, bool) {
@@ -126,20 +129,24 @@ func (b *UnifiedBank) Delete(id string) {
 	b.extensions.Delete(id)
 
 	// Notify listeners that an extension has been removed
-	go func() {
-		b.subscribers.Range(func(id string, sub *BankSubscriber) bool {
-			if sub.closed.Load() {
-				return true
-			}
-			sub.mu.Lock()
-			sub.extensionRemovedCh <- struct{}{}
-			if ext.GetType() == TypeCustomSource {
-				sub.customSourcesChangedCh <- struct{}{}
-			}
-			sub.mu.Unlock()
+	b.subscribers.Range(func(id string, sub *BankSubscriber) bool {
+		if sub.closed.Load() {
 			return true
-		})
-	}()
+		}
+		sub.mu.Lock()
+		select {
+		case sub.extensionRemovedCh <- struct{}{}:
+		default:
+		}
+		if ext.GetType() == TypeCustomSource {
+			select {
+			case sub.customSourcesChangedCh <- struct{}{}:
+			default:
+			}
+		}
+		sub.mu.Unlock()
+		return true
+	})
 }
 
 func (b *UnifiedBank) GetExtensionMap() *result.Map[string, BaseExtension] {

@@ -88,7 +88,11 @@ func (db *Database) InsertChapterDownloadQueueItem(item *models.ChapterDownloadQ
 	if !mediaAlreadyInQueue {
 		var uniqueSeriesCount int64
 		retryOnBusy(func() error {
-			return db.gormdb.Model(&models.ChapterDownloadQueueItem{}).Distinct("media_id").Count(&uniqueSeriesCount).Error
+			// Count all distinct media_ids in the queue regardless of status
+			return db.gormdb.Raw(`
+				SELECT COUNT(DISTINCT media_id) 
+				FROM chapter_download_queue_items
+			`).Count(&uniqueSeriesCount).Error
 		})
 		if uniqueSeriesCount >= MaxQueuedSeries {
 			db.Logger.Debug().Int64("currentCount", uniqueSeriesCount).Int("max", MaxQueuedSeries).Msg("db: Maximum queued series limit reached")
@@ -248,4 +252,43 @@ func (db *Database) ResetDownloadingChapterDownloadQueueItems() error {
 		return err
 	}
 	return nil
+}
+
+// CleanupErroredOnlySeries removes all chapters for series that only have errored chapters remaining.
+// Returns the number of series cleaned up.
+func (db *Database) CleanupErroredOnlySeries() (int, error) {
+	// Find media_ids that only have errored chapters (no not_started or downloading)
+	var erroredOnlyMediaIds []int
+	err := retryOnBusy(func() error {
+		return db.gormdb.Raw(`
+			SELECT DISTINCT media_id 
+			FROM chapter_download_queue_items 
+			WHERE media_id NOT IN (
+				SELECT DISTINCT media_id 
+				FROM chapter_download_queue_items 
+				WHERE status != 'errored'
+			)
+		`).Scan(&erroredOnlyMediaIds).Error
+	})
+	if err != nil {
+		db.Logger.Error().Err(err).Msg("db: Failed to find errored-only series")
+		return 0, err
+	}
+
+	if len(erroredOnlyMediaIds) == 0 {
+		return 0, nil
+	}
+
+	// Delete all chapters for these series
+	err = retryOnBusy(func() error {
+		return db.gormdb.Where("media_id IN ?", erroredOnlyMediaIds).
+			Delete(&models.ChapterDownloadQueueItem{}).Error
+	})
+	if err != nil {
+		db.Logger.Error().Err(err).Msg("db: Failed to cleanup errored-only series")
+		return 0, err
+	}
+
+	db.Logger.Info().Ints("mediaIds", erroredOnlyMediaIds).Msg("db: Cleaned up errored-only series from queue")
+	return len(erroredOnlyMediaIds), nil
 }

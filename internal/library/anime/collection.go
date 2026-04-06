@@ -163,6 +163,8 @@ func NewLibraryCollection(ctx context.Context, opts *NewLibraryCollectionOptions
 
 	lc.hydrateUnmatchedGroups()
 
+	lc.hydrateUnknownGroups(opts.LocalFiles, opts.AnimeCollection)
+
 	// Event
 	event := &AnimeLibraryCollectionEvent{
 		LibraryCollection: lc,
@@ -346,9 +348,6 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 		lc.Lists = make([]*LibraryCollectionList, 0)
 	}
 
-	// UnknownGroups disabled to avoid re-resolving media already matched manually
-	lc.UnknownGroups = make([]*UnknownGroup, 0)
-
 	return
 }
 
@@ -493,6 +492,55 @@ func (lc *LibraryCollection) hydrateUnmatchedGroups() {
 
 	// Assign the created groups
 	lc.UnmatchedGroups = groups
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+// hydrateUnknownGroups identifies local files with valid MediaId that aren't in the user's AniList collection
+// and groups them by MediaId to create UnknownGroup entries for resolution.
+func (lc *LibraryCollection) hydrateUnknownGroups(localFiles []*LocalFile, animeCollection *anilist.AnimeCollection) {
+	
+	// Get all media IDs that are in the user's AniList collection
+	collectionMediaIds := make(map[int]struct{})
+	for _, list := range animeCollection.GetMediaListCollection().GetLists() {
+		for _, entry := range list.GetEntries() {
+			collectionMediaIds[entry.GetMedia().GetID()] = struct{}{}
+		}
+	}
+
+	// Filter local files that have MediaId > 0 but aren't in the collection
+	unknownLocalFiles := lo.Filter(localFiles, func(lf *LocalFile, index int) bool {
+		return lf.MediaId > 0 && !lf.Ignored
+	})
+
+	unknownLocalFiles = lo.Filter(unknownLocalFiles, func(lf *LocalFile, index int) bool {
+		_, found := collectionMediaIds[lf.MediaId]
+		return !found
+	})
+
+	// Group unknown local files by MediaId
+	groupedUnknownFiles := lop.GroupBy(unknownLocalFiles, func(lf *LocalFile) int {
+		return lf.MediaId
+	})
+
+	// Create UnknownGroup for each MediaId
+	unknownGroups := make([]*UnknownGroup, 0)
+	for mediaId, files := range groupedUnknownFiles {
+		if len(files) > 0 {
+			unknownGroups = append(unknownGroups, &UnknownGroup{
+				MediaId:    mediaId,
+				LocalFiles: files,
+			})
+		}
+	}
+
+	// Sort by MediaId for consistent ordering
+	slices.SortStableFunc(unknownGroups, func(i, j *UnknownGroup) int {
+		return cmp.Compare(i.MediaId, j.MediaId)
+	})
+
+	// Assign the created groups
+	lc.UnknownGroups = unknownGroups
 }
 
 //----------------------------------------------------------------------------------------------------------------------

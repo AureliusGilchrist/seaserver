@@ -705,7 +705,7 @@ func (a *App) InitOrRefreshTorrentstreamSettings() {
 		//})
 	}
 
-	a.Cleanups = append(a.Cleanups, func() {
+	a.AddCleanupFunctionOnce("torrentstream.shutdown", func() {
 		a.TorrentstreamRepository.Shutdown()
 	})
 

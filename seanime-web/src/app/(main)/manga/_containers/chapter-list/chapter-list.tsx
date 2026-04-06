@@ -142,9 +142,11 @@ export function ChapterList(props: ChapterListProps) {
             cell: ({ row }) => {
                 const isDownloaded = isChapterDownloaded(row.original)
                 return (
-                    <div className="flex items-center gap-2">
-                        <span>{row.original.title}</span>
-                        {isDownloaded && <span className="text-green-500">✓</span>}
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-5 shrink-0 flex items-center justify-center" aria-hidden>
+                            <span className={isDownloaded ? "text-green-500" : "opacity-0"}>✓</span>
+                        </span>
+                        <span className="truncate">{row.original.title}</span>
                     </div>
                 )
             },

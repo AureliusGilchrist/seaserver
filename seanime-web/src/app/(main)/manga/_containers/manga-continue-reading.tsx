@@ -1,19 +1,43 @@
 "use client"
 import { useGetMangaReadingHistory } from "@/api/hooks/manga.hooks"
-import { useRouter } from "next/navigation"
 import React from "react"
+import { __mangaLibraryHeaderImageAtom } from "@/app/(main)/manga/_components/library-header"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { cn } from "@/components/ui/core/styling"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
-import { episodeCardCarouselItemClass } from "@/components/shared/classnames"
+import { useAtom } from "jotai/react"
 
 interface MangaContinueReadingProps {
     onHoverImage?: (image: string | null) => void
+    cardSizeClass?: string
 }
 
 export function MangaContinueReading({ onHoverImage }: MangaContinueReadingProps) {
-    const router = useRouter()
     const { data: readingHistory, isLoading } = useGetMangaReadingHistory()
+    const [currentHeaderImage, setCurrentHeaderImage] = useAtom(__mangaLibraryHeaderImageAtom)
+
+    const uniqueManga = React.useMemo(() => {
+        if (!readingHistory || readingHistory.length === 0) return []
+        // Filter to get unique manga (by mediaId) and limit to recent ones
+        return readingHistory
+            .filter((item, index, self) =>
+                index === self.findIndex(t => t.mediaId === item.mediaId),
+            )
+            .slice(0, 20)
+    }, [readingHistory])
+
+    React.useEffect(() => {
+        if (currentHeaderImage !== null) return
+        if (uniqueManga.length === 0) return
+
+        const firstBannerImage = uniqueManga
+            .map(item => item.media?.bannerImage || item.media?.coverImage?.extraLarge || item.media?.coverImage?.large || null)
+            .find(Boolean) || null
+
+        if (firstBannerImage) {
+            setCurrentHeaderImage(firstBannerImage)
+        }
+    }, [currentHeaderImage, setCurrentHeaderImage, uniqueManga])
 
     if (isLoading) {
         return (
@@ -31,13 +55,6 @@ export function MangaContinueReading({ onHoverImage }: MangaContinueReadingProps
     if (!readingHistory || readingHistory.length === 0) {
         return null
     }
-
-    // Filter to get unique manga (by mediaId) and limit to recent ones
-    const uniqueManga = readingHistory
-        .filter((item, index, self) => 
-            index === self.findIndex(t => t.mediaId === item.mediaId)
-        )
-        .slice(0, 20)
 
     if (uniqueManga.length === 0) {
         return null
@@ -67,17 +84,21 @@ export function MangaContinueReading({ onHoverImage }: MangaContinueReadingProps
                             <CarouselItem
                                 key={item.mediaId}
                                 className={cn(
-                                    episodeCardCarouselItemClass,
-                                    "md:basis-1/3 lg:basis-1/4 xl:basis-1/5 2xl:basis-1/6 min-[2000px]:basis-1/8",
+                                    "basis-1/2 md:basis-1/3 min-[1080px]:basis-1/4 min-[1320px]:basis-1/5 min-[1750px]:basis-1/6 min-[1850px]:basis-1/7 min-[2000px]:basis-1/8",
                                 )}
                             >
                                 <div
-                                    onMouseEnter={() => hoverImage && onHoverImage?.(hoverImage)}
+                                    onMouseEnter={() => {
+                                        if (!hoverImage) return
+                                        onHoverImage?.(hoverImage)
+                                        setCurrentHeaderImage(hoverImage)
+                                    }}
                                     onMouseLeave={() => onHoverImage?.(null)}
                                 >
                                     <MediaEntryCard
                                         media={item.media}
                                         type="manga"
+                                        containerClassName="h-full"
                                         overlay={
                                             item.lastChapterNumber ? (
                                                 <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/90 to-transparent">

@@ -50,6 +50,9 @@ type (
 		Conns                              []*WSConn
 		Logger                             *zerolog.Logger
 		hasHadConnection                   bool
+		sidecarMonitorStopCh               chan struct{}
+		sidecarMonitorOnce                 sync.Once
+		sidecarMonitorStopOnce             sync.Once
 		mu                                 sync.Mutex
 		eventMu                            sync.RWMutex
 		clientEventSubscribers             *result.Map[string, *ClientEventSubscriber]
@@ -81,6 +84,7 @@ func NewWSEventManager(logger *zerolog.Logger) *WSEventManager {
 	ret := &WSEventManager{
 		Logger:                             logger,
 		Conns:                              make([]*WSConn, 0),
+		sidecarMonitorStopCh:               make(chan struct{}),
 		clientEventSubscribers:             result.NewMap[string, *ClientEventSubscriber](),
 		clientNativePlayerEventSubscribers: result.NewMap[string, *ClientEventSubscriber](),
 		clientVideoCoreEventSubscribers:    result.NewMap[string, *ClientEventSubscriber](),
@@ -97,6 +101,7 @@ func NewWSEventManager(logger *zerolog.Logger) *WSEventManager {
 // It checks for a connection every 5 seconds. If a connection is lost, it starts a countdown a waits for 15 seconds.
 // If a connection is not established within 15 seconds, it will exit the app.
 func (m *WSEventManager) ExitIfNoConnsAsDesktopSidecar() {
+	m.sidecarMonitorOnce.Do(func() {
 	go func() {
 		defer util.HandlePanicInModuleThen("events/ExitIfNoConnsAsDesktopSidecar", func() {})
 
@@ -109,26 +114,38 @@ func (m *WSEventManager) ExitIfNoConnsAsDesktopSidecar() {
 		var connectionLostTime time.Time
 		exitTimeout := 10 * time.Second
 
-		for range ticker.C {
-			// Check WebSocket connection status
-			if len(m.Conns) == 0 && m.hasHadConnection {
-				// If not connected and first detection of connection loss
-				if connectionLostTime.IsZero() {
-					m.Logger.Warn().Msg("ws: No connection detected. Starting countdown...")
-					connectionLostTime = time.Now()
-				}
+		for {
+			select {
+			case <-m.sidecarMonitorStopCh:
+				return
+			case <-ticker.C:
+				// Check WebSocket connection status
+				if len(m.Conns) == 0 && m.hasHadConnection {
+					// If not connected and first detection of connection loss
+					if connectionLostTime.IsZero() {
+						m.Logger.Warn().Msg("ws: No connection detected. Starting countdown...")
+						connectionLostTime = time.Now()
+					}
 
-				// Check if connection has been lost for more than 15 seconds
-				if time.Since(connectionLostTime) > exitTimeout {
-					m.Logger.Warn().Msg("ws: No connection detected for 10 seconds. Exiting...")
-					os.Exit(1)
+					// Check if connection has been lost for more than 15 seconds
+					if time.Since(connectionLostTime) > exitTimeout {
+						m.Logger.Warn().Msg("ws: No connection detected for 10 seconds. Exiting...")
+						os.Exit(1)
+					}
+				} else {
+					// Connection is active, reset connection lost time
+					connectionLostTime = time.Time{}
 				}
-			} else {
-				// Connection is active, reset connection lost time
-				connectionLostTime = time.Time{}
 			}
 		}
 	}()
+	})
+}
+
+func (m *WSEventManager) Stop() {
+	m.sidecarMonitorStopOnce.Do(func() {
+		close(m.sidecarMonitorStopCh)
+	})
 }
 
 func (m *WSEventManager) AddConn(id string, conn *websocket.Conn) {
@@ -223,19 +240,17 @@ func (m *WSEventManager) OnClientEvent(event *WebsocketClientEvent) {
 	defer m.eventMu.RUnlock()
 
 	onEvent := func(key string, subscriber *ClientEventSubscriber) bool {
-		go func() {
-			defer util.HandlePanicInModuleThen("events/OnClientEvent/clientNativePlayerEventSubscribers", func() {})
-			subscriber.mu.RLock()
-			defer subscriber.mu.RUnlock()
-			if !subscriber.closed {
-				select {
-				case subscriber.Channel <- event:
-				default:
-					// Channel is blocked, skip sending
-					m.Logger.Warn().Msg("ws: Client event channel is blocked, event dropped")
-				}
+		defer util.HandlePanicInModuleThen("events/OnClientEvent/clientNativePlayerEventSubscribers", func() {})
+		subscriber.mu.RLock()
+		defer subscriber.mu.RUnlock()
+		if !subscriber.closed {
+			select {
+			case subscriber.Channel <- event:
+			default:
+				// Channel is blocked, skip sending
+				m.Logger.Warn().Msg("ws: Client event channel is blocked, event dropped")
 			}
-		}()
+		}
 		return true
 	}
 
@@ -257,6 +272,14 @@ func (m *WSEventManager) SubscribeToClientEvents(id string) *ClientEventSubscrib
 	subscriber := &ClientEventSubscriber{
 		Channel: make(chan *WebsocketClientEvent, 900),
 	}
+	if old, ok := m.clientEventSubscribers.Get(id); ok {
+		old.mu.Lock()
+		if !old.closed {
+			old.closed = true
+			close(old.Channel)
+		}
+		old.mu.Unlock()
+	}
 	m.clientEventSubscribers.Set(id, subscriber)
 	return subscriber
 }
@@ -264,6 +287,14 @@ func (m *WSEventManager) SubscribeToClientEvents(id string) *ClientEventSubscrib
 func (m *WSEventManager) SubscribeToClientNativePlayerEvents(id string) *ClientEventSubscriber {
 	subscriber := &ClientEventSubscriber{
 		Channel: make(chan *WebsocketClientEvent, 100),
+	}
+	if old, ok := m.clientNativePlayerEventSubscribers.Get(id); ok {
+		old.mu.Lock()
+		if !old.closed {
+			old.closed = true
+			close(old.Channel)
+		}
+		old.mu.Unlock()
 	}
 	m.clientNativePlayerEventSubscribers.Set(id, subscriber)
 	return subscriber
@@ -273,6 +304,14 @@ func (m *WSEventManager) SubscribeToClientVideoCoreEvents(id string) *ClientEven
 	subscriber := &ClientEventSubscriber{
 		Channel: make(chan *WebsocketClientEvent, 100),
 	}
+	if old, ok := m.clientVideoCoreEventSubscribers.Get(id); ok {
+		old.mu.Lock()
+		if !old.closed {
+			old.closed = true
+			close(old.Channel)
+		}
+		old.mu.Unlock()
+	}
 	m.clientVideoCoreEventSubscribers.Set(id, subscriber)
 	return subscriber
 }
@@ -281,6 +320,14 @@ func (m *WSEventManager) SubscribeToClientNakamaEvents(id string) *ClientEventSu
 	subscriber := &ClientEventSubscriber{
 		Channel: make(chan *WebsocketClientEvent, 100),
 	}
+	if old, ok := m.nakamaEventSubscribers.Get(id); ok {
+		old.mu.Lock()
+		if !old.closed {
+			old.closed = true
+			close(old.Channel)
+		}
+		old.mu.Unlock()
+	}
 	m.nakamaEventSubscribers.Set(id, subscriber)
 	return subscriber
 }
@@ -288,6 +335,14 @@ func (m *WSEventManager) SubscribeToClientNakamaEvents(id string) *ClientEventSu
 func (m *WSEventManager) SubscribeToClientPlaylistEvents(id string) *ClientEventSubscriber {
 	subscriber := &ClientEventSubscriber{
 		Channel: make(chan *WebsocketClientEvent, 100),
+	}
+	if old, ok := m.playlistEventSubscribers.Get(id); ok {
+		old.mu.Lock()
+		if !old.closed {
+			old.closed = true
+			close(old.Channel)
+		}
+		old.mu.Unlock()
 	}
 	m.playlistEventSubscribers.Set(id, subscriber)
 	return subscriber
@@ -301,21 +356,32 @@ func (m *WSEventManager) UnsubscribeFromClientEvents(id string) {
 			m.Logger.Warn().Msg("ws: Failed to unsubscribe from client events")
 		}
 	}()
-	subscriber, ok := m.clientEventSubscribers.Get(id)
-	if !ok {
-		subscriber, ok = m.clientNativePlayerEventSubscribers.Get(id)
+	unsubscribeMap := func(subs *result.Map[string, *ClientEventSubscriber]) bool {
+		subscriber, ok := subs.Get(id)
 		if !ok {
-			subscriber, ok = m.clientVideoCoreEventSubscribers.Get(id)
-			if !ok {
-				subscriber, ok = m.nakamaEventSubscribers.Get(id)
-			}
+			return false
 		}
-	}
-	if ok {
 		subscriber.mu.Lock()
-		defer subscriber.mu.Unlock()
-		subscriber.closed = true
-		m.clientEventSubscribers.Delete(id)
-		close(subscriber.Channel)
+		if !subscriber.closed {
+			subscriber.closed = true
+			close(subscriber.Channel)
+		}
+		subscriber.mu.Unlock()
+		subs.Delete(id)
+		return true
 	}
+
+	if unsubscribeMap(m.clientEventSubscribers) {
+		return
+	}
+	if unsubscribeMap(m.clientNativePlayerEventSubscribers) {
+		return
+	}
+	if unsubscribeMap(m.clientVideoCoreEventSubscribers) {
+		return
+	}
+	if unsubscribeMap(m.nakamaEventSubscribers) {
+		return
+	}
+	_ = unsubscribeMap(m.playlistEventSubscribers)
 }
