@@ -157,10 +157,9 @@ func (q *Queue) Run() {
 	q.mu.Lock()
 	wasActive := q.active
 	q.active = true
-	shouldStartEnsure := !q.ensureRunning
-	if shouldStartEnsure {
-		q.ensureRunning = true
-	}
+	// Always start a new ensureProgress goroutine on Run().
+	// The old one (if any) will exit on its next tick when it sees it's been superseded.
+	q.ensureRunning = true
 	q.mu.Unlock()
 
 	if !wasActive {
@@ -171,10 +170,7 @@ func (q *Queue) Run() {
 	go q.runNext()
 
 	// Safety net: if the queue stalls (e.g. current is nil and nothing running), nudge it periodically
-	// Only start if not already running
-	if shouldStartEnsure {
-		go q.ensureProgress()
-	}
+	go q.ensureProgress()
 }
 
 // Stop deactivates the queue and resets any in-progress downloads

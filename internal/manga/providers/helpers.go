@@ -9,6 +9,7 @@ import (
 
 var chapterOnlyTitleRegex = regexp.MustCompile(`(?i)^chapter\s*0*([0-9]+(?:\.[0-9]+)?)$`)
 var chapterWithSuffixTitleRegex = regexp.MustCompile(`(?i)^chapter\s*0*([0-9]+(?:\.[0-9]+)?)(\s*[-:–]\s*.+)$`)
+var chapterWithSeasonPrefixRegex = regexp.MustCompile(`(?i)^(S\d+)\s*[-:–]?\s*chapter\s*0*([0-9]+(?:\.[0-9]+)?)(\s*[-:–]\s*.+)?$`)
 var chapterNumberRegex = regexp.MustCompile(`0*[0-9]+(?:\.[0-9]+)?`)
 
 // GetNormalizedChapter returns a padded chapter string with 4 digits before the decimal point.
@@ -41,6 +42,31 @@ func GetNormalizedChapter(chapter string) string {
 	
 	// Fallback for non-numeric chapters
 	return chapter
+}
+
+// GetSeasonAwareChapterNumber checks if the chapter title has a season prefix
+// (e.g., "S1 - Chapter 7") and returns a composite chapter number encoding both
+// season and chapter for proper ordering (season*10000 + chapter).
+// If no season prefix is detected, returns the original chapter number unchanged.
+func GetSeasonAwareChapterNumber(chapterTitle string, originalChapter string) string {
+	if m := chapterWithSeasonPrefixRegex.FindStringSubmatch(chapterTitle); len(m) >= 3 {
+		seasonStr := strings.TrimPrefix(strings.ToUpper(m[1]), "S")
+		seasonNum, err := strconv.Atoi(seasonStr)
+		if err != nil {
+			return originalChapter
+		}
+		chapterNumStr := m[2]
+		chapterNum, err := strconv.ParseFloat(chapterNumStr, 64)
+		if err != nil {
+			return originalChapter
+		}
+		composite := float64(seasonNum)*10000 + chapterNum
+		if composite == float64(int(composite)) {
+			return strconv.Itoa(int(composite))
+		}
+		return strconv.FormatFloat(composite, 'f', -1, 64)
+	}
+	return originalChapter
 }
 
 // GetDisplayChapterNumber converts normalized chapter numbers like "0001" or "0035.5"
@@ -90,7 +116,7 @@ func InferDynamicChapterPrefixForSeries(chapterTitles []string, seriesTitle stri
 		if title == "" {
 			continue
 		}
-		if chapterOnlyTitleRegex.MatchString(title) || chapterWithSuffixTitleRegex.MatchString(title) {
+		if chapterOnlyTitleRegex.MatchString(title) || chapterWithSuffixTitleRegex.MatchString(title) || chapterWithSeasonPrefixRegex.MatchString(title) {
 			continue
 		}
 
@@ -168,6 +194,17 @@ func GetPreferredChapterTitle(dynamicPrefix string, chapterTitle string, chapter
 			return "#" + number + strings.TrimSpace(m[2])
 		}
 		return strings.TrimSpace(dynamicPrefix + " " + number + m[2])
+	}
+
+	// Match season-prefixed titles like "S1 - Chapter 9" or "S2 - Chapter 5 - The Beginning"
+	if m := chapterWithSeasonPrefixRegex.FindStringSubmatch(chapterTitle); len(m) >= 3 {
+		season := m[1]
+		number := GetDisplayChapterNumber(m[2])
+		suffix := ""
+		if len(m) >= 4 {
+			suffix = m[3]
+		}
+		return strings.TrimSpace(season + " - Chapter " + number + suffix)
 	}
 
 	return chapterTitle

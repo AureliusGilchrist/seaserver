@@ -63,7 +63,6 @@ export const HOME_ITEM_ICONS = {
     "manga-library": LuBookOpen,
     "manga-favorites": LuBookOpen,
     "local-manga-library": IoLibraryOutline,
-    "local-manga-library-stats": BiStats,
     "manga-upcoming-chapters": LuClock,
     "manga-aired-recently": LuCalendarClock,
     "manga-missed-sequels": LuMilestone,

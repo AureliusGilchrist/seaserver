@@ -183,12 +183,12 @@ export default function Page() {
 
                 {/* Manga Continue Reading Header - if first item */}
                 {homeItems[0]?.type === "manga-continue-reading-header" && (
-                    <MangaContinueReading onHoverImage={handleHoverImage} cardSizeClass={cardSizeClass} />
+                    <MangaContinueReading onHoverImage={handleHoverImage} />
                 )}
 
-                {/* Manga Library Header - dynamic banner when manga-library or manga-continue-reading is first */}
+                {/* Manga Library Header - dynamic banner only when manga-library is first */}
                 {(ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic && 
-                    (homeItems[0]?.type === "manga-library" || homeItems[0]?.type === "manga-continue-reading")
+                    (homeItems[0]?.type === "manga-library")
                 ) && (
                     <MangaLibraryHeader manga={mangaCollection?.lists?.flatMap(l => l.entries)?.flatMap(e => e?.media)?.filter(Boolean) || []} />
                 )}
@@ -204,7 +204,7 @@ export default function Page() {
                 {/* Top padding for dynamic banner */}
                 {(
                     (ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic && hasManga) &&
-                    (homeItems[0]?.type === "manga-continue-reading" || homeItems[0]?.type === "manga-library")
+                    (homeItems[0]?.type === "manga-library")
                 ) && <div
                     className={cn(
                         "h-28",
@@ -255,10 +255,30 @@ export default function Page() {
                             },
                         }}
                     >
-                        {homeItems.filter(n => n.type !== "manga-discover-header" && n.type !== "manga-continue-reading-header").map((item, index) => {
+                        {/* Local Manga Library Stats - always at top of items */}
+                        {!downloadsLoading && !downloadsError && (downloadedList?.length ?? 0) > 0 && (
+                            <div className="px-4 pb-4">
+                                <div className="grid gap-4 md:grid-cols-3 bg-gray-900/50 border border-gray-800 rounded-xl p-4 text-sm text-gray-100">
+                                    <div className="space-y-1">
+                                        <p className="text-xs text-gray-400">Total Series</p>
+                                        <p className="text-lg font-semibold">{downloadedList?.length || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-xs text-gray-400">Total Chapters</p>
+                                        <p className="text-lg font-semibold">{downloadedChaptersTotal}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-xs text-gray-400">With Metadata</p>
+                                        <p className="text-lg font-semibold">{downloadedWithMedia.length}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {homeItems.filter(n => n.type !== "manga-discover-header" && n.type !== "manga-continue-reading-header" && n.type !== "local-manga-library-stats").map((item, index) => {
                             // Divider between items (except for certain types)
                             const showDivider = index !== 0 && 
-                                !(item?.type === "manga-library" || item?.type === "manga-continue-reading" || item?.type === "local-manga-library-stats")
+                                !(item?.type === "manga-library" || item?.type === "manga-continue-reading")
 
                             return (
                                 <React.Fragment key={item.id}>
@@ -431,7 +451,6 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         return (
             <MangaContinueReading
                 onHoverImage={onHoverImage}
-                cardSizeClass={cardSizeClass}
             />
         )
     }

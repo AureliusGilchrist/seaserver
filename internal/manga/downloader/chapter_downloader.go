@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/rs/zerolog"
@@ -315,6 +316,13 @@ func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo) (err error) {
 	var downloadedCount int32
 	semaphore := make(chan struct{}, batchSize) // Semaphore to control concurrency
 	for _, page := range queueInfo.Pages {
+		// Check cancel before acquiring semaphore to avoid blocking on cancelled downloads
+		select {
+		case <-cd.cancelCh:
+			wg.Wait()
+			return fmt.Errorf("chapter downloader: Download cancelled")
+		default:
+		}
 		semaphore <- struct{}{} // Acquire semaphore
 		wg.Add(1)
 		go func(page *hibikemanga.ChapterPage, registry *map[int]PageInfo) {
@@ -326,11 +334,34 @@ func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo) (err error) {
 			case <-cd.cancelCh:
 				return
 			default:
-				cd.downloadPageToRegistry(page, destination, registry)
-				// Update progress after each page
-				newCount := atomic.AddInt32(&downloadedCount, 1)
-				_ = cd.database.UpdateChapterDownloadProgress(queueInfo.Provider, queueInfo.MediaId, queueInfo.ChapterId, int(newCount))
-				cd.wsEventManager.SendEvent(events.ChapterDownloadQueueUpdated, nil)
+				// Retry page download up to 3 times
+				for attempt := 0; attempt < 3; attempt++ {
+					select {
+					case <-cd.cancelCh:
+						return
+					default:
+					}
+					cd.downloadPageToRegistry(page, destination, registry)
+					cd.downloadMu.Lock()
+					_, ok := (*registry)[page.Index]
+					cd.downloadMu.Unlock()
+					if ok {
+						break // Success
+					}
+					if attempt < 2 {
+						cd.logger.Warn().Int("attempt", attempt+1).Str("url", page.URL).Msg("chapter downloader: Retrying failed page download")
+						time.Sleep(2 * time.Second)
+					}
+				}
+				cd.downloadMu.Lock()
+				_, ok := (*registry)[page.Index]
+				cd.downloadMu.Unlock()
+				if ok {
+					// Update progress after each page
+					newCount := atomic.AddInt32(&downloadedCount, 1)
+					_ = cd.database.UpdateChapterDownloadProgress(queueInfo.Provider, queueInfo.MediaId, queueInfo.ChapterId, int(newCount))
+					cd.wsEventManager.SendEvent(events.ChapterDownloadQueueUpdated, nil)
+				}
 			}
 		}(page, &pageRegistry)
 	}

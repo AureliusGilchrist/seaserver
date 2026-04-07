@@ -548,6 +548,8 @@ type (
 		platformRef                *util.Ref[platform.Platform]
 		unmatchedRepository        *unmatched.Repository
 
+		OnAnimeQueued func(mediaId int) // Called when an anime torrent is added to the download queue
+
 		mu              sync.Mutex
 		isRunning       bool
 		isPaused        bool
@@ -1130,6 +1132,12 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 		return fmt.Errorf("no torrents found")
 	}
 
+	// Filter out music collections, soundtracks, OSTs, and non-anime content
+	searchData.Torrents = d.filterOutMusicCollections(searchData.Torrents)
+
+	// Filter torrents that lack video content indicators (no codec, no resolution)
+	searchData.Torrents = d.filterRequireVideoContent(searchData.Torrents)
+
 	// Filter out single-episode torrents for series (movies are exempt)
 	searchData.Torrents = d.filterMultiEpisodeTorrents(baseAnime, searchData.Torrents)
 
@@ -1266,6 +1274,11 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 		Str("title", resolved.TitleRomaji).
 		Str("destination", destination).
 		Msg("enmasse-anime: Added torrent to download queue")
+
+	// Auto-track anime for offline library
+	if d.OnAnimeQueued != nil {
+		go d.OnAnimeQueued(resolved.ID)
+	}
 
 	d.updateDetails(func(details *AnimeDownloaderDetails) {
 		details.Step = "queued in torrent client"
@@ -1468,10 +1481,10 @@ func (d *Downloader) rankTorrents(torrents []*hibiketorrent.AnimeTorrent, animeI
 		scoreDetails := make(map[string]int)
 		totalScore := 0
 
-		// Priority 1: Completeness (highest weight)
+		// Priority 1: Completeness (preferred but optional)
 		completenessScore := d.calculateCompletenessScore(t, animeItem)
 		scoreDetails["completeness"] = completenessScore
-		totalScore += completenessScore * 1000 // Completeness is most important
+		totalScore += completenessScore * 100 // Bonus for completeness, not a hard requirement
 
 		// Priority 2: Audio Quality
 		audioScore := d.calculateAudioScore(t)
@@ -1618,12 +1631,20 @@ func (d *Downloader) calculateAudioScore(t *hibiketorrent.AnimeTorrent) int {
 		score += 70
 	}
 
-	// Lossless audio indicators
-	losslessIndicators := []string{"flac", "truehd", "dts-hd", "lossless"}
-	for _, indicator := range losslessIndicators {
-		if strings.Contains(nameLower, indicator) {
-			score += 20
-			break
+	// Lossless audio indicators (only reward if torrent also has video codec indicators)
+	hasVideoCodec := strings.Contains(nameLower, "x264") || strings.Contains(nameLower, "x265") ||
+		strings.Contains(nameLower, "h264") || strings.Contains(nameLower, "h265") ||
+		strings.Contains(nameLower, "hevc") || strings.Contains(nameLower, "avc") ||
+		strings.Contains(nameLower, "h.264") || strings.Contains(nameLower, "h.265") ||
+		strings.Contains(nameLower, "av1") || strings.Contains(nameLower, "vp9") ||
+		strings.Contains(nameLower, "mkv") || strings.Contains(nameLower, "mp4")
+	if hasVideoCodec {
+		losslessIndicators := []string{"flac", "truehd", "dts-hd", "lossless"}
+		for _, indicator := range losslessIndicators {
+			if strings.Contains(nameLower, indicator) {
+				score += 20
+				break
+			}
 		}
 	}
 
@@ -1722,9 +1743,23 @@ func (d *Downloader) calculateReleaseScore(t *hibiketorrent.AnimeTorrent) int {
 		}
 	}
 
+	// Release group tag bonus — good anime torrents have [GroupName] at the start
+	if strings.HasPrefix(strings.TrimSpace(t.Name), "[") {
+		score += 15
+	}
+
+	// Video codec presence bonus — confirms this is actual video content
+	videoCodecIndicators := []string{"x264", "x265", "h264", "h265", "h.264", "h.265", "hevc", "avc", "av1", "10bit", "10-bit"}
+	for _, codec := range videoCodecIndicators {
+		if strings.Contains(nameLower, codec) {
+			score += 10
+			break
+		}
+	}
+
 	// Proper naming conventions
-	if !strings.Contains(nameLower, "re-encode") && !strings.Contains(nameLower, "x264") {
-		score += 10
+	if !strings.Contains(nameLower, "re-encode") {
+		score += 5
 	}
 
 	return score
@@ -2015,6 +2050,187 @@ func (d *Downloader) filterByEpisodeMinimum(media *anilist.BaseAnime, expectedEp
 				continue
 			}
 		}
+	}
+
+	return filtered
+}
+
+// filterOutMusicCollections removes torrents that are music collections, soundtracks, OSTs,
+// manga archives, audio-only releases, or other non-anime content.
+func (d *Downloader) filterOutMusicCollections(torrents []*hibiketorrent.AnimeTorrent) []*hibiketorrent.AnimeTorrent {
+	musicPatterns := []string{
+		"music collection", "soundtrack", "original soundtrack", "sound track",
+		" ost ", " ost]", " ost)", "[ost", "(ost",
+		"insert song", "character song", "vocal collection",
+		"opening theme", "ending theme", "theme song",
+		"drama cd", "audio drama", "radio cd",
+	}
+
+	// Non-anime content patterns
+	nonAnimePatterns := []string{
+		"manga archive", "manga collection", "manga pack",
+		"light novel", "visual novel",
+		"artbook", "art book", "art collection",
+		"j-core", "j-pop", "j-rock", "j-music",
+		"doujin",
+	}
+
+	// Audio-only format indicators (no video)
+	audioOnlyFormats := []string{"vorbis", "ogg", "mp3", "aac", "opus", "wav", "alac", "ape", "wma"}
+
+	// Video codec/container indicators that confirm video content
+	videoIndicators := []string{
+		"x264", "x265", "h264", "h265", "h.264", "h.265",
+		"hevc", "avc", "av1", "vp9", "xvid", "divx",
+		"mkv", "mp4", "avi", "10bit", "10-bit", "8bit", "8-bit",
+		"1080p", "720p", "480p", "2160p", "4k", "1440p",
+		"bluray", "bd", "web-dl", "webrip", "dvdrip", "bdrip",
+	}
+
+	filtered := make([]*hibiketorrent.AnimeTorrent, 0, len(torrents))
+	for _, t := range torrents {
+		if t == nil {
+			continue
+		}
+		nameLower := strings.ToLower(t.Name)
+
+		isJunk := false
+
+		// Check music patterns
+		for _, pattern := range musicPatterns {
+			if strings.Contains(nameLower, pattern) {
+				isJunk = true
+				break
+			}
+		}
+
+		// Check non-anime patterns
+		if !isJunk {
+			for _, pattern := range nonAnimePatterns {
+				if strings.Contains(nameLower, pattern) {
+					isJunk = true
+					break
+				}
+			}
+		}
+
+		// Check for audio-only formats without video indicators
+		if !isJunk {
+			hasAudioOnly := false
+			for _, fmt := range audioOnlyFormats {
+				if strings.Contains(nameLower, fmt) {
+					hasAudioOnly = true
+					break
+				}
+			}
+			if hasAudioOnly {
+				hasVideo := false
+				for _, vi := range videoIndicators {
+					if strings.Contains(nameLower, vi) {
+						hasVideo = true
+						break
+					}
+				}
+				if !hasVideo {
+					isJunk = true
+				}
+			}
+		}
+
+		// Flag FLAC-only torrents with no video codec indicators
+		if !isJunk && strings.Contains(nameLower, "flac") {
+			hasVideo := false
+			for _, vi := range videoIndicators {
+				if strings.Contains(nameLower, vi) {
+					hasVideo = true
+					break
+				}
+			}
+			if !hasVideo {
+				isJunk = true
+			}
+		}
+
+		// Reject director/studio compilations like "SHINICHIRO WATANABE Anime (1994-2019)"
+		// These typically have a year range pattern and "anime" as a generic word
+		if !isJunk {
+			yearRangeRegex := regexp.MustCompile(`\(\d{4}[-–]\d{4}\)`)
+			if yearRangeRegex.MatchString(nameLower) && strings.Contains(nameLower, "anime") {
+				isJunk = true
+			}
+		}
+
+		if isJunk {
+			d.logger.Debug().Str("name", t.Name).Msg("enmasse-anime: Filtered out non-anime torrent")
+			continue
+		}
+		filtered = append(filtered, t)
+	}
+
+	if len(filtered) == 0 {
+		d.logger.Warn().Msg("enmasse-anime: All torrents filtered as non-anime, returning original list")
+		return torrents
+	}
+
+	return filtered
+}
+
+// filterRequireVideoContent removes torrents that lack any video content indicators.
+// Legitimate anime torrents almost always mention a video codec, resolution, or source.
+// This catches garbage results that slip through other filters.
+func (d *Downloader) filterRequireVideoContent(torrents []*hibiketorrent.AnimeTorrent) []*hibiketorrent.AnimeTorrent {
+	videoIndicators := []string{
+		// Codecs
+		"x264", "x265", "h264", "h265", "h.264", "h.265",
+		"hevc", "avc", "av1", "vp9", "xvid", "divx",
+		// Bit depth
+		"10bit", "10-bit", "8bit", "8-bit",
+		// Containers
+		"mkv", "mp4", "avi",
+		// Resolution
+		"1080p", "720p", "480p", "2160p", "4k", "1440p", "2k",
+		// Source
+		"bluray", "blu-ray", "bdrip", "bdrip", "dvdrip", "web-dl", "webrip", "hdtv",
+		// Common anime torrent markers that imply video
+		"dual audio", "multi-subs", "multi subs", "eng sub", "hardsub", "softsub",
+		"batch",
+	}
+
+	filtered := make([]*hibiketorrent.AnimeTorrent, 0, len(torrents))
+	for _, t := range torrents {
+		if t == nil {
+			continue
+		}
+		nameLower := strings.ToLower(t.Name)
+
+		hasVideoIndicator := false
+		for _, vi := range videoIndicators {
+			if strings.Contains(nameLower, vi) {
+				hasVideoIndicator = true
+				break
+			}
+		}
+
+		// Also accept if torrent has resolution field set from provider
+		if !hasVideoIndicator && t.Resolution != "" {
+			hasVideoIndicator = true
+		}
+
+		// Also accept batch-flagged torrents from provider
+		if !hasVideoIndicator && t.IsBatch {
+			hasVideoIndicator = true
+		}
+
+		if !hasVideoIndicator {
+			d.logger.Debug().Str("name", t.Name).Msg("enmasse-anime: Filtered out torrent with no video content indicators")
+			continue
+		}
+		filtered = append(filtered, t)
+	}
+
+	if len(filtered) == 0 {
+		d.logger.Warn().Msg("enmasse-anime: All torrents filtered as non-video, returning original list")
+		return torrents
 	}
 
 	return filtered

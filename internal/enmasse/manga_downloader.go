@@ -529,6 +529,8 @@ func (d *MangaDownloader) run(ctx context.Context, resume bool) {
 				details.LastError = ""
 			})
 			d.addToDownloaded(mangaItem.Title)
+			// Start the download queue so chapters download while the next manga is being queued
+			d.mangaDownloader.RunChapterDownloadQueue()
 		}
 
 		// Save progress after every manga for reliable resume
@@ -564,7 +566,7 @@ func (d *MangaDownloader) loadMangaList() ([]*HakunekoMangaItem, error) {
 	defer file.Close()
 
 	// Use a buffered reader for better performance with large files
-	reader := bufio.NewReaderSize(file, 1024*1024) // 1MB buffer
+	reader := bufio.NewReaderSize(file, 1024*4096) // 4MB buffer
 
 	decoder := json.NewDecoder(reader)
 
@@ -836,6 +838,7 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 		if chapter == nil {
 			continue
 		}
+		chapter.Chapter = manga_providers.GetSeasonAwareChapterNumber(chapter.Title, chapter.Chapter)
 		normalized := manga_providers.GetNormalizedChapter(chapter.Chapter)
 		chapter.Chapter = normalized
 		chapter.Title = manga_providers.GetPreferredChapterTitle(dynamicPrefix, chapter.Title, normalized)

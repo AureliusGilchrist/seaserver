@@ -158,6 +158,8 @@ type (
 		downloadDir       string
 		chapterDownloader *chapter_downloader.Downloader
 		repository        *Repository
+
+		OnMangaQueued func(mediaId int) // Called when a manga chapter is queued for download
 		filecacher        *filecache.Cacher
 
 		mediaMap   *MediaMap // Refreshed on start and after each download
@@ -217,6 +219,8 @@ func (d *Downloader) Start() {
 	go d.migrateToNewFormat()
 	
 	d.chapterDownloader.Start()
+	// Ensure the download queue is not active on startup — user must start it explicitly
+	d.chapterDownloader.Stop()
 	go func() {
 		for {
 			select {
@@ -329,7 +333,7 @@ func (d *Downloader) DownloadChapter(opts DownloadChapterOptions) error {
 
 	// Add the chapter to the download queue
 	normalizedChapterNumber := manga_providers.GetNormalizedChapter(chapter.Chapter)
-	return d.chapterDownloader.AddToQueue(chapter_downloader.DownloadOptions{
+	err = d.chapterDownloader.AddToQueue(chapter_downloader.DownloadOptions{
 		DownloadID: chapter_downloader.DownloadID{
 			Provider:      opts.Provider,
 			MediaId:       opts.MediaId,
@@ -340,6 +344,10 @@ func (d *Downloader) DownloadChapter(opts DownloadChapterOptions) error {
 		},
 		Pages: pageContainer.Pages,
 	})
+	if err == nil && d.OnMangaQueued != nil {
+		go d.OnMangaQueued(opts.MediaId)
+	}
+	return err
 }
 
 // DownloadChapterDirectOptions contains options for direct chapter download
@@ -368,7 +376,7 @@ func (d *Downloader) DownloadChapterDirect(opts DownloadChapterDirectOptions) er
 
 	// Add the chapter to the download queue
 	normalizedChapterNumber := manga_providers.GetNormalizedChapter(opts.ChapterNumber)
-	return d.chapterDownloader.AddToQueue(chapter_downloader.DownloadOptions{
+	err := d.chapterDownloader.AddToQueue(chapter_downloader.DownloadOptions{
 		DownloadID: chapter_downloader.DownloadID{
 			Provider:      opts.Provider,
 			MediaId:       opts.MediaId,
@@ -380,6 +388,11 @@ func (d *Downloader) DownloadChapterDirect(opts DownloadChapterDirectOptions) er
 		Pages:    opts.Pages,
 		StartNow: opts.StartNow,
 	})
+	if err == nil && d.OnMangaQueued != nil {
+		go d.OnMangaQueued(opts.MediaId)
+	}
+	return err
+}
 }
 
 // IsChapterAlreadyDownloaded checks if a chapter is already downloaded
@@ -703,9 +716,10 @@ func createBaseMangaFromSynthetic(sm *models.SyntheticManga, displayId int) *ani
 			ExtraLarge: &sm.CoverImage,
 			Medium:     &sm.CoverImage,
 		},
-		Status:   &status,
-		Format:   &format,
-		Chapters: &sm.Chapters,
+		BannerImage: &sm.CoverImage,
+		Status:      &status,
+		Format:      &format,
+		Chapters:    &sm.Chapters,
 	}
 }
 
@@ -726,8 +740,9 @@ func createBaseMangaFromStoredMetadata(metadata *models.DownloadedMangaMetadata)
 			ExtraLarge: &metadata.CoverImage,
 			Medium:     &metadata.CoverImage,
 		},
-		Status: &status,
-		Format: &format,
+		BannerImage: &metadata.CoverImage,
+		Status:      &status,
+		Format:      &format,
 	}
 }
 

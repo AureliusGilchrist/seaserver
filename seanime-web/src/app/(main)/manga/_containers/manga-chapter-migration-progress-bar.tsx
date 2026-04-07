@@ -28,7 +28,7 @@ export function MangaChapterMigrationProgressBar() {
 
     if (!state || (!state.running && state.status !== "completed" && state.status !== "error")) return null
 
-    const show = state.running || state.status === "completed" || state.status === "error"
+    const show = state.running || state.status === "completed" || state.status === "error"  
     if (!show) return null
 
     return (

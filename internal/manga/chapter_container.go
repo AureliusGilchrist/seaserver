@@ -282,6 +282,7 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 			}
 			dynamicPrefix := manga_providers.InferDynamicChapterPrefixForSeries(providerTitles, seriesTitle)
 			for _, chapter := range container.Chapters {
+				chapter.Chapter = manga_providers.GetSeasonAwareChapterNumber(chapter.Title, chapter.Chapter)
 				chapter.Chapter = manga_providers.GetNormalizedChapter(chapter.Chapter)
 				chapter.Title = manga_providers.GetPreferredChapterTitle(dynamicPrefix, chapter.Title, chapter.Chapter)
 			}
@@ -399,6 +400,7 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 	// Normalize chapter numbers and set provider
 	for _, chapter := range chapterList {
 		chapter.Provider = provider
+		chapter.Chapter = manga_providers.GetSeasonAwareChapterNumber(chapter.Title, chapter.Chapter)
 		// Normalize chapter number to padded format (e.g., "1" -> "0001", "35.5" -> "0035.5")
 		chapter.Chapter = manga_providers.GetNormalizedChapter(chapter.Chapter)
 		chapter.Title = manga_providers.GetPreferredChapterTitle(dynamicPrefix, chapter.Title, chapter.Chapter)

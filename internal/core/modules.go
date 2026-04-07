@@ -355,6 +355,32 @@ func (a *App) initModulesOnce() {
 		PlatformRef:     a.AnilistPlatformRef,
 	})
 
+	// +------------------------------------------+
+	// | Auto-track downloads for offline library  |
+	// +------------------------------------------+
+
+	// Track manga when chapters are queued for download
+	a.MangaDownloader.OnMangaQueued = func(mediaId int) {
+		if a.LocalManager == nil {
+			return
+		}
+		err := a.LocalManager.TrackManga(mediaId)
+		if err != nil && err != local.ErrAlreadyTracked {
+			a.Logger.Debug().Err(err).Int("mediaId", mediaId).Msg("auto-track: Could not track manga for offline")
+		}
+	}
+
+	// Track anime when torrents are added via en masse downloader
+	a.AnimeEnMasseDownloader.OnAnimeQueued = func(mediaId int) {
+		if a.LocalManager == nil {
+			return
+		}
+		err := a.LocalManager.TrackAnime(mediaId)
+		if err != nil && err != local.ErrAlreadyTracked {
+			a.Logger.Debug().Err(err).Int("mediaId", mediaId).Msg("auto-track: Could not track anime for offline")
+		}
+	}
+
 }
 
 // HandleNewDatabaseEntries initializes essential database collections.

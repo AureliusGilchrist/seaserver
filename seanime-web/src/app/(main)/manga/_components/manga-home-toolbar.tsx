@@ -37,7 +37,7 @@ export function MangaHomeToolbar(props: MangaHomeToolbarProps) {
 
     return (
         <>
-            <div className={cn("flex flex-wrap w-full justify-end gap-1 p-4 relative z-[60]", className)} data-manga-home-toolbar-container>
+            <div className={cn("flex flex-wrap w-full justify-end gap-1 p-4 relative z-[120]", className)} data-manga-home-toolbar-container>
                 <div className="flex flex-1 pointer-events-none" data-manga-home-toolbar-spacer></div>
 
                 {hasManga && (
@@ -70,6 +70,7 @@ export function MangaHomeToolbar(props: MangaHomeToolbarProps) {
 
                 {hasMangaDownloadPath &&
                     <DropdownMenu
+                        className="z-[150]"
                         trigger={<IconButton
                             data-manga-home-toolbar-dropdown-menu-trigger
                             icon={<BiDotsVerticalRounded />} intent="gray-basic"

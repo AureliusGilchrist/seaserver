@@ -168,7 +168,7 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
                                         >
                                             <div className="flex items-center gap-2">
                                                 <p className="font-semibold">
-                                                    {item.mediaTitle || media?.title?.userPreferred} - {item.chapterTitle || `Chapter ${item.chapterNumber}`}
+                                                    <SeaLink href={`/manga/entry?id=${item.mediaId}`} className="hover:underline hover:text-brand-200 transition-colors">{item.mediaTitle || media?.title?.userPreferred}</SeaLink> - {item.chapterTitle || `Chapter ${item.chapterNumber}`}
                                                 </p>
                                                 <span className="text-[--muted] italic text-sm">(id: {item.chapterId})</span>
                                                 {item.status === "errored" && (
