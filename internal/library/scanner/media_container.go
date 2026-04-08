@@ -144,3 +144,8 @@ func (mc *MediaContainer) GetMediaFromId(id int) (*anime.NormalizedMedia, bool) 
 	})
 	return res, found
 }
+
+// NormalizedMediaFromAnilistComplete is an identity passthrough for []*anilist.CompleteAnime.
+func NormalizedMediaFromAnilistComplete(media []*anilist.CompleteAnime) []*anilist.CompleteAnime {
+	return media
+}

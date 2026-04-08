@@ -8,6 +8,7 @@ testdata/
 .cursor
 .DS_Store
 */.DS_Store
+node_modules/*
 
 Dockerfile
 Dockerfile.dev

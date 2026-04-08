@@ -118,3 +118,28 @@ func ValueContainsNC(val string) bool {
 
 	return false
 }
+
+// ExtractNCType extracts the NC type prefix (e.g. "OP", "ED") from a filename.
+// Returns the normalized type string and true if found, or ("", false) otherwise.
+func ExtractNCType(val string) (string, bool) {
+	patterns := []*regexp.Regexp{
+		regexp.MustCompile(`(?i)\b(NCOP|OP|OPED|Opening)\b`),
+		regexp.MustCompile(`(?i)\b(NCED|ED|Ending)\b`),
+	}
+
+	for _, p := range patterns {
+		matches := p.FindStringSubmatch(val)
+		if matches == nil {
+			continue
+		}
+		matched := strings.ToUpper(matches[1])
+		switch {
+		case matched == "NCOP" || matched == "OP" || matched == "OPED" || matched == "OPENING":
+			return "OP", true
+		case matched == "NCED" || matched == "ED" || matched == "ENDING":
+			return "ED", true
+		}
+	}
+
+	return "", false
+}

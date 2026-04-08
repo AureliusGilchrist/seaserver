@@ -136,6 +136,11 @@ func (vc *VideoCore) Shutdown() {
 	close(vc.dispatcherStop)
 }
 
+// RecordEvent records a subtitle event for later analysis (e.g. Insight feature).
+func (vc *VideoCore) RecordEvent(event *mkvparser.SubtitleEvent) {
+	// TODO: implement event recording for Insight
+}
+
 func (vc *VideoCore) PushEvent(event VideoEvent) {
 	// Before pushing the event, identify it with the playback state.
 	state, ok := vc.GetPlaybackState()
