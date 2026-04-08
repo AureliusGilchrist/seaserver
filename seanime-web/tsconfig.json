@@ -30,6 +30,21 @@
       ],
       "@/*": [
         "./src/*"
+      ],
+      "next": [
+        "./src/shims/next.ts"
+      ],
+      "next/navigation": [
+        "./src/shims/next-navigation.ts"
+      ],
+      "next/link": [
+        "./src/shims/next-link.ts"
+      ],
+      "next/image": [
+        "./src/shims/next-image.ts"
+      ],
+      "next/font/google": [
+        "./src/shims/next-font-google.ts"
       ]
     }
   },
