@@ -1,70 +1,7 @@
-import { HIDE_IMAGES } from "@/types/constants"
-import React, { forwardRef, useEffect, useState } from "react"
+// Shim: next/image → native <img> with compatibility props
+import React, { forwardRef, useState, useEffect } from "react"
 
-type ImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
-    fill?: boolean
-    priority?: boolean
-    overrideSrc?: string
-    quality?: number | string
-    placeholder?: string
-    blurDataURL?: string
-    sizes?: string
-    allowGif?: boolean
-}
-
-export const SeaImage = forwardRef<HTMLImageElement, ImageProps & { isExternal?: boolean }>(
-    ({ isExternal, fill, priority, quality, placeholder, sizes, allowGif, ...props }, ref) => {
-        const [hasError, setHasError] = useState(false)
-
-        useEffect(() => {
-            setHasError(false)
-        }, [props.src])
-
-        if (HIDE_IMAGES) {
-            return <Image
-                ref={ref}
-                {...props}
-                src="/no-cover.png"
-                className={props.className}
-                alt={props.alt || "cover"}
-                fill={fill}
-            />
-        }
-
-        const blocked = isExternal && props.src && typeof props.src === "string" && !(
-            props.src.endsWith(".png")
-            || props.src.endsWith(".jpg")
-            || props.src.endsWith(".jpeg")
-            || props.src.endsWith(".avif")
-            || props.src.endsWith(".webp")
-            || props.src.endsWith(".ico")
-            || (allowGif && props.src.endsWith(".gif"))
-        )
-
-        const effectiveOverride = (blocked || hasError) ? "/no-cover.png" : props.overrideSrc
-
-        function handleError() {
-            setHasError(true)
-            console.warn(`Error loading image ${props.src}`)
-        }
-
-        return <Image
-            ref={ref}
-            {...props}
-            src={props.src || ""}
-            alt={props.alt || ""}
-            fill={fill}
-            priority={priority}
-            placeholder={placeholder}
-            overrideSrc={effectiveOverride}
-            onError={handleError}
-        />
-    },
-)
-
-SeaImage.displayName = "SeaImage"
-
-interface _ImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+export type ImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
     src: string | any
     alt: string
     width?: number | string
@@ -80,9 +17,10 @@ interface _ImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
     layout?: string
     objectFit?: string
     overrideSrc?: string
+    sizes?: string
 }
 
-const Image = forwardRef<HTMLImageElement, _ImageProps>((
+const Image = forwardRef<HTMLImageElement, ImageProps>((
     {
         src,
         alt,
@@ -102,6 +40,7 @@ const Image = forwardRef<HTMLImageElement, _ImageProps>((
         objectFit,
         overrideSrc,
         onLoad,
+        sizes,
         ...props
     },
     ref,
@@ -110,6 +49,7 @@ const Image = forwardRef<HTMLImageElement, _ImageProps>((
 
     const isStaticImport = typeof src === "object" && src !== null && "src" in src
     const imageSrc = overrideSrc || (isStaticImport ? src.src : src)
+
     const staticBlur = isStaticImport ? src.blurDataURL : undefined
 
     useEffect(() => {
@@ -167,3 +107,5 @@ const Image = forwardRef<HTMLImageElement, _ImageProps>((
 })
 
 Image.displayName = "Image"
+
+export default Image

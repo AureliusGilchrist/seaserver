@@ -1,65 +1,56 @@
 import { cn } from "@/components/ui/core/styling"
-import { __isDesktop__ } from "@/types/constants"
-import Link, { LinkProps } from "next/link"
-import { useRouter } from "next/navigation"
+import { Link } from "@tanstack/react-router"
 import React from "react"
 
-type SeaLinkProps = { href: string | undefined } & Omit<LinkProps, "href"> & React.ComponentPropsWithRef<"a">
+type SeaLinkProps = React.ComponentPropsWithRef<"a"> & { href: string | undefined, resetScroll?: boolean }
 
-export const SeaLink = React.forwardRef((props: SeaLinkProps, _) => {
-
+export const SeaLink = React.forwardRef<HTMLAnchorElement, SeaLinkProps>((props, ref) => {
     const {
         href,
         children,
         className,
         onClick,
+        resetScroll = true,
         ...rest
     } = props
 
-    const router = useRouter()
+    const isExternal = href?.startsWith("http") || href?.startsWith("mailto")
 
-    if (!href) return (
-        <a
-            className={cn(
-                "cursor-pointer",
-                className,
-            )}
-            onClick={e => {
-                if (onClick) {
-                    onClick(e)
-                } else {
-                    router.push(href as string)
-                }
-            }}
-            data-current={(rest as any)["data-current"]}
-            {...rest}
-        >
-            {children}
-        </a>
-    )
-
-    if (__isDesktop__ && rest.target !== "_blank") {
+    if (!href || isExternal) {
         return (
             <a
-                className={cn(
-                    "cursor-pointer",
-                    className,
-                )}
-                onClick={e => {
-                    router.push(href as string)
-                    if (onClick) {
-                        onClick(e)
-                    }
-                }}
-                data-current={(rest as any)["data-current"]}
+                ref={ref}
+                href={href}
+                className={cn("cursor-pointer", className)}
+                onClick={onClick}
+                {...rest}
             >
                 {children}
             </a>
         )
     }
 
+    const [pathname, searchString] = href.split("?")
+    const searchParams: Record<string, any> = {}
+
+    if (searchString) {
+        const urlSearchParams = new URLSearchParams(searchString)
+        urlSearchParams.forEach((value, key) => {
+            const numValue = Number(value)
+            const isNumeric = !isNaN(numValue) && value.trim() !== ""
+            searchParams[key] = isNumeric ? numValue : value
+        })
+    }
+
     return (
-        <Link href={href} className={cn("cursor-pointer", className)} onClick={onClick} {...rest}>
+        <Link
+            to={pathname}
+            search={Object.keys(searchParams).length > 0 ? () => searchParams : undefined}
+            className={cn("cursor-pointer", className)}
+            resetScroll={resetScroll}
+            onClick={onClick}
+            {...rest}
+        >
             {children}
         </Link>
     )
