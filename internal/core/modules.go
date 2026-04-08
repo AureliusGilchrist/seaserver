@@ -12,9 +12,11 @@ import (
 	"seanime/internal/enmasse"
 	"seanime/internal/events"
 	"seanime/internal/library/anime"
+	"seanime/internal/local"
 	"seanime/internal/library/autodownloader"
 	"seanime/internal/library/autoscanner"
 	"seanime/internal/library/fillermanager"
+	"seanime/internal/library/gojuuon"
 	"seanime/internal/library/playbackmanager"
 	"seanime/internal/library_explorer"
 	"seanime/internal/manga"
@@ -371,7 +373,7 @@ func (a *App) initModulesOnce() {
 	}
 
 	// Track anime when torrents are added via en masse downloader
-	a.AnimeEnMasseDownloader.OnAnimeQueued = func(mediaId int) {
+	a.EnMasseDownloader.OnAnimeQueued = func(mediaId int) {
 		if a.LocalManager == nil {
 			return
 		}
@@ -380,6 +382,22 @@ func (a *App) initModulesOnce() {
 			a.Logger.Debug().Err(err).Int("mediaId", mediaId).Msg("auto-track: Could not track anime for offline")
 		}
 	}
+
+	// +---------------------+
+	// |   GoJuuon Service   |
+	// +---------------------+
+
+	a.GojuuonService = gojuuon.NewService(a.Logger)
+
+	// +---------------------+
+	// |   Service Runner    |
+	// +---------------------+
+
+	a.ServiceRunner = NewServiceRunner(a)
+	a.ServiceRunner.Start()
+	a.AddCleanupFunction(func() {
+		a.ServiceRunner.Stop()
+	})
 
 }
 

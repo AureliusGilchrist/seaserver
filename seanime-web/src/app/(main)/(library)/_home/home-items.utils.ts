@@ -372,6 +372,21 @@ export const HOME_ITEMS = {
                     },
                 ],
             },
+            {
+                label: "Sorting",
+                name: "sorting",
+                type: "select",
+                options: [
+                    {
+                        label: "Alphabetical",
+                        value: "alphabetical",
+                    },
+                    {
+                        label: "GoJuuon (五十音)",
+                        value: "gojuuon",
+                    },
+                ],
+            },
         ],
     },
     "library-upcoming-episodes": {
@@ -537,6 +552,15 @@ export const HOME_ITEMS = {
                     { label: "Synthetic", value: "synthetic" },
                     { label: "AniList", value: "anilist" },
                     { label: "Both", value: "both" },
+                ],
+            },
+            {
+                label: "Sorting",
+                name: "sorting",
+                type: "select",
+                options: [
+                    { label: "Alphabetical", value: "alphabetical" },
+                    { label: "GoJuuon (五十音)", value: "gojuuon" },
                 ],
             },
         ],

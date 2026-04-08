@@ -23,6 +23,7 @@ import (
 	"seanime/internal/library/autodownloader"
 	"seanime/internal/library/autoscanner"
 	"seanime/internal/library/fillermanager"
+	"seanime/internal/library/gojuuon"
 	"seanime/internal/library/playbackmanager"
 	"seanime/internal/library/scanner"
 	"seanime/internal/library_explorer"
@@ -179,6 +180,12 @@ type (
 		// En Masse Downloader
 		EnMasseDownloader      *enmasse.Downloader
 		MangaEnMasseDownloader *enmasse.MangaDownloader
+
+		// GoJuuon sorting
+		GojuuonService *gojuuon.Service
+
+		// Service runner
+		ServiceRunner *ServiceRunner
 	}
 )
 

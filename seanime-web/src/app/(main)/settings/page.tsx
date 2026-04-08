@@ -14,6 +14,7 @@ import { AnimeLibrarySettings } from "@/app/(main)/settings/_containers/anime-li
 import { DebridSettings } from "@/app/(main)/settings/_containers/debrid-settings"
 import { FilecacheSettings } from "@/app/(main)/settings/_containers/filecache-settings"
 import { LogsSettings } from "@/app/(main)/settings/_containers/logs-settings"
+import { ServicesSettings } from "@/app/(main)/settings/_containers/services-settings"
 import { MangaSettings } from "@/app/(main)/settings/_containers/manga-settings"
 import { MediastreamSettings } from "@/app/(main)/settings/_containers/mediastream-settings"
 import { ServerSettings } from "@/app/(main)/settings/_containers/server-settings"
@@ -277,6 +278,10 @@ export default function Page() {
                                         value="logs"
                                         className="group"
                                     ><LuBookKey className="text-xl mr-3 transition-transform duration-200" /> Logs & Cache</TabsTrigger>
+                                    <TabsTrigger
+                                        value="services"
+                                        className="group"
+                                    ><HiOutlineServerStack className="text-xl mr-3 transition-transform duration-200" /> Services</TabsTrigger>
                                 </Card>
                             </div>
                         </SettingsNavCard>
@@ -878,6 +883,12 @@ export default function Page() {
                         <TabsContent value="debrid" className={tabContentClass}>
 
                             <DebridSettings />
+
+                        </TabsContent>
+
+                        <TabsContent value="services" className={tabContentClass}>
+
+                            <ServicesSettings />
 
                         </TabsContent>
                     </div>

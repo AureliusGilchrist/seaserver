@@ -623,6 +623,19 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1MangaEnMasse.POST("/start", h.HandleMangaEnMasseStart)
 	v1MangaEnMasse.POST("/stop", h.HandleMangaEnMasseStop)
 
+	//
+	// Services
+	//
+	v1Services := v1.Group("/services")
+	v1Services.POST("/update-anime-library", h.HandleRunUpdateAnimeLibrary)
+	v1Services.POST("/update-manga-library", h.HandleRunUpdateMangaLibrary)
+	v1Services.POST("/scan-anime-library", h.HandleRunScanAnimeLibrary)
+	v1Services.POST("/scan-manga-library", h.HandleRunScanMangaLibrary)
+	v1Services.POST("/find-anime-library-sorting", h.HandleRunFindAnimeLibrarySorting)
+	v1Services.POST("/find-manga-library-sorting", h.HandleRunFindMangaLibrarySorting)
+	v1Services.GET("/anime-gojuuon-map", h.HandleGetAnimeGojuuonMap)
+	v1Services.GET("/manga-gojuuon-map", h.HandleGetMangaGojuuonMap)
+
 }
 
 func (h *Handler) JSON(c echo.Context, code int, i interface{}) error {

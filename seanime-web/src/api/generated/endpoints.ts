@@ -2538,5 +2538,47 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/unmatched/scanner/clear",
         },
     },
+    SERVICES: {
+        RunUpdateAnimeLibrary: {
+            key: "SERVICES-run-update-anime-library",
+            methods: ["POST"],
+            endpoint: "/api/v1/services/update-anime-library",
+        },
+        RunUpdateMangaLibrary: {
+            key: "SERVICES-run-update-manga-library",
+            methods: ["POST"],
+            endpoint: "/api/v1/services/update-manga-library",
+        },
+        RunScanAnimeLibrary: {
+            key: "SERVICES-run-scan-anime-library",
+            methods: ["POST"],
+            endpoint: "/api/v1/services/scan-anime-library",
+        },
+        RunScanMangaLibrary: {
+            key: "SERVICES-run-scan-manga-library",
+            methods: ["POST"],
+            endpoint: "/api/v1/services/scan-manga-library",
+        },
+        RunFindAnimeLibrarySorting: {
+            key: "SERVICES-run-find-anime-library-sorting",
+            methods: ["POST"],
+            endpoint: "/api/v1/services/find-anime-library-sorting",
+        },
+        RunFindMangaLibrarySorting: {
+            key: "SERVICES-run-find-manga-library-sorting",
+            methods: ["POST"],
+            endpoint: "/api/v1/services/find-manga-library-sorting",
+        },
+        GetAnimeGojuuonMap: {
+            key: "SERVICES-get-anime-gojuuon-map",
+            methods: ["GET"],
+            endpoint: "/api/v1/services/anime-gojuuon-map",
+        },
+        GetMangaGojuuonMap: {
+            key: "SERVICES-get-manga-gojuuon-map",
+            methods: ["GET"],
+            endpoint: "/api/v1/services/manga-gojuuon-map",
+        },
+    },
 } satisfies ApiEndpoints
 

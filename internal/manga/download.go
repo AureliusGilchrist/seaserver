@@ -393,7 +393,6 @@ func (d *Downloader) DownloadChapterDirect(opts DownloadChapterDirectOptions) er
 	}
 	return err
 }
-}
 
 // IsChapterAlreadyDownloaded checks if a chapter is already downloaded
 // for the given direct download options. This is used by the en masse downloader to avoid
