@@ -155,8 +155,8 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             id: "enmasse-anime",
             iconType: LuTv,
             name: "Anime En Masse",
-            href: "/enmasse",
-            isCurrent: pathname === "/enmasse",
+            href: "/enmasse-anime",
+            isCurrent: pathname === "/enmasse-anime",
         },
         {
             id: "enmasse-manga",
