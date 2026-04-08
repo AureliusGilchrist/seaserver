@@ -21,7 +21,7 @@ export const Route = createRootRouteWithContext<{
         </Template>
     ),
     pendingComponent: LoadingOverlayWithLogo,
-    pendingMs: 200,
+    pendingMs: 50,
     errorComponent: AppErrorBoundary,
     notFoundComponent: NotFound,
 })

@@ -21,3 +21,11 @@ export function useDownloadIssueReport() {
         enabled: true,
     })
 }
+
+export function useDecompressIssueReport() {
+    return useServerMutation<unknown, FormData>({
+        endpoint: "/api/v1/issue-report/decompress",
+        method: "POST",
+        mutationKey: ["DecompressIssueReport"],
+    })
+}

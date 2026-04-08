@@ -168,7 +168,7 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
                                         >
                                             <div className="flex items-center gap-2">
                                                 <p className="font-semibold">
-                                                    <SeaLink href={`/manga/entry?id=${item.mediaId}`} className="hover:underline hover:text-brand-200 transition-colors">{item.mediaTitle || media?.title?.userPreferred}</SeaLink> - {item.chapterTitle || `Chapter ${item.chapterNumber}`}
+                                                    <SeaLink href={`/manga/entry?id=${item.mediaId}`} className="hover:underline hover:text-brand-200 transition-colors">{(item as any).mediaTitle || media?.title?.userPreferred}</SeaLink> - {(item as any).chapterTitle || `Chapter ${item.chapterNumber}`}
                                                 </p>
                                                 <span className="text-[--muted] italic text-sm">(id: {item.chapterId})</span>
                                                 {item.status === "errored" && (
@@ -183,7 +183,7 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
                                             {item.status === "downloading" && (
                                                 <>
                                                     <p className="text-xs text-[--muted]">
-                                                        {item.downloadedPages || 0} / {item.totalPages || 0} pages downloaded
+                                                        {(item as any).downloadedPages || 0} / {(item as any).totalPages || 0} pages downloaded
                                                     </p>
                                                     <ProgressBar size="sm" isIndeterminate />
                                                 </>

@@ -38,7 +38,9 @@
   ],
   "exclude": [
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "src/app/layout.tsx",
+    "src/app/manifest.ts"
   ],
   "references": [
     {

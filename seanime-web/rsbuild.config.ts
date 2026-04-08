@@ -108,6 +108,11 @@ export default defineConfig({
         // swc: {
         //   minify: true,
         // },
+        cssLoader: {
+            url: {
+                filter: (url: string) => !url.startsWith("/"),
+            },
+        },
         rspack: {
             experiments: {
                 // breaks rrweb

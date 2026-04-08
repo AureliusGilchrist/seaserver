@@ -502,13 +502,13 @@ export default function Page() {
             toast.info("Decompressing report...")
 
             decompressReport(formData, {
-                onSuccess: (data) => {
+                onSuccess: (data: unknown) => {
                     const resolved = resolveRecords(data as ExtendedReport)
                     setReport(resolved)
                     saveReportToDB(resolved)
                     toast.success("Report loaded")
                 },
-                onError: (error) => {
+                onError: (error: unknown) => {
                     console.error(error)
                     toast.error("Failed to decompress report")
                 },

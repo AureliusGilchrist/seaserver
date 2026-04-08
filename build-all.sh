@@ -83,10 +83,8 @@ success "Dependencies installed"
 step "1.2" "Frontend build (tsgo + rsbuild)"
 (
   cd seanime-web
-  substep "Type-checking with tsgo..."
-  npx tsgo
-  substep "Bundling with rsbuild..."
-  npx rsbuild build
+  substep "Type-checking and bundling..."
+  npm run build
   substep "Checking build output (./out)..."
   [[ -d out ]] || { fail "Frontend build output missing (expected seanime-web/out/)"; exit 1; }
 )

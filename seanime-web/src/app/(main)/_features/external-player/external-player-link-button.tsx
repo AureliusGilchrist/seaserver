@@ -22,7 +22,7 @@ export function ExternalPlayerLinkButton(props: ExternalPlayerLinkButtonProps) {
     return (
         <>
             <div className="fixed bottom-2 right-2 z-50">
-                <SeaLink href={link} target="_blank" prefetch={false}>
+                <SeaLink href={link} target="_blank">
                     <Button
                         rounded
                         size="lg"

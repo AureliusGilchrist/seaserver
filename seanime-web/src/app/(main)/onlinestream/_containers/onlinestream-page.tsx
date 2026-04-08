@@ -286,18 +286,20 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                 } else {
                     _url = videoSource.url
                 }
-                React.startTransition(async () => {
+                React.startTransition(() => {
                     // If the video source is unknown or we can't determine if it's a native video from the url,
                     // send a HEAD request to determine the content type
                     if (videoSource.type === "unknown" || !isValidVideoSourceType(videoSource.type) || (videoSource.type === "mp4" && !isNativeVideoExtension(
                         _url)) || (videoSource.type === "m3u8" && !isHLSSrc(_url))) {
                         log.warning("Verifying original video source type", videoSource)
-                        if (await isProbablyHls(_url) === "hls") {
-                            log.info("Detected HLS source type")
-                            setOverrideStreamType("hls")
-                        } else {
-                            setOverrideStreamType(!isValidVideoSourceType(videoSource.type) ? "native" : null)
-                        }
+                        void isProbablyHls(_url).then((result) => {
+                            if (result === "hls") {
+                                log.info("Detected HLS source type")
+                                setOverrideStreamType("hls")
+                            } else {
+                                setOverrideStreamType(!isValidVideoSourceType(videoSource.type) ? "native" : null)
+                            }
+                        })
                     }
                     React.startTransition(() => {
                         log.info("Setting stream URL", { url: _url, quality, server, dubbed, provider })

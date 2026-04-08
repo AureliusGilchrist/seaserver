@@ -12,12 +12,12 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useSetAtom } from "jotai/react"
 import { toast } from "sonner"
 
-export function useGetSettings() {
+export function useGetSettings(opts?: { enabled?: boolean }) {
     return useServerQuery<Models_Settings>({
         endpoint: API_ENDPOINTS.SETTINGS.GetSettings.endpoint,
         method: API_ENDPOINTS.SETTINGS.GetSettings.methods[0],
         queryKey: [API_ENDPOINTS.SETTINGS.GetSettings.key],
-        enabled: true,
+        enabled: opts?.enabled ?? true,
     })
 }
 
