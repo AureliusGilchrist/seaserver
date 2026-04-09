@@ -3142,6 +3142,17 @@ export type MemoryStatsResponse = {
 }
 
 /**
+ * - Filepath: internal/handlers/notification.go
+ * - Filename: notification.go
+ * - Package: handlers
+ */
+export type NotificationsResponse = {
+    notifications?: Array<any>
+    totalCount: number
+    unreadCount: number
+}
+
+/**
  * - Filepath: internal/handlers/docs.go
  * - Filename: docs.go
  * - Package: handlers
@@ -3633,6 +3644,44 @@ export type Manga_MangaLatestChapterNumberItem = {
     scanlator: string
     language: string
     number: number
+}
+
+/**
+ * - Filepath: internal/manga/scanner.go
+ * - Filename: scanner.go
+ * - Package: manga
+ * @description
+ *  MangaScanFolder represents one scanned folder and its match status.
+ */
+export type Manga_MangaScanFolder = {
+    folderPath: string
+    folderName: string
+    chapterCount: number
+    /**
+     * "matched", "unmatched", "skipped"
+     */
+    status: string
+    matchedMediaId: number
+    matchedTitle: string
+    matchedImage: string
+    confidence: number
+    isSynthetic: boolean
+}
+
+/**
+ * - Filepath: internal/manga/scanner.go
+ * - Filename: scanner.go
+ * - Package: manga
+ * @description
+ *  MangaScanResult is the top-level response for a manga directory scan.
+ */
+export type Manga_MangaScanResult = {
+    scannedFolders?: Array<Manga_MangaScanFolder>
+    matchedCount: number
+    unmatchedCount: number
+    skippedCount: number
+    startedAt: string
+    completedAt: string
 }
 
 /**
@@ -4544,6 +4593,7 @@ export type Models_Theme = {
     unpinnedMenuItems: Models_StringSlice
     homeItems?: Array<string>
     mangaHomeItems?: Array<string>
+    enableBlurringEffects: boolean
     id: number
     createdAt?: string
     updatedAt?: string
@@ -5247,7 +5297,7 @@ export type Report_IssueReport = {
     navigationLogs?: Array<Report_NavigationLog>
     screenshots?: Array<Report_Screenshot>
     websocketLogs?: Array<Report_WebSocketLog>
-    rrwebEvents?: Array<RawMessage>
+    rrwebEvents?: Array<any>
     unlockedLocalFiles?: Array<Report_UnlockedLocalFile>
     scanLogs?: Array<string>
     serverLogs?: string
@@ -5340,7 +5390,7 @@ export type Report_WebSocketLog = {
      */
     direction: string
     eventType: string
-    payload?: RawMessage
+    payload?: any
     timestamp?: string
 }
 

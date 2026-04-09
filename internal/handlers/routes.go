@@ -459,6 +459,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Manga.POST("/favorites/toggle", h.HandleToggleMangaFavorite)
 	v1Manga.POST("/favorites/bulk", h.HandleBulkAddMangaFavorites)
 
+	// Manga Directory Scanner
+	v1Manga.POST("/scan", h.HandleScanMangaDirectories)
+	v1Manga.GET("/scan/result", h.HandleGetMangaScanResult)
+	v1Manga.POST("/scan/link", h.HandleMangaScanManualLink)
+
 	//
 	// File Cache
 	//

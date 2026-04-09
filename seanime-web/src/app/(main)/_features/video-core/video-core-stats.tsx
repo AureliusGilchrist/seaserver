@@ -135,8 +135,8 @@ export function VideoCoreStatsForNerds({ playbackInfo, videoRef }: VideoCoreStat
         if (playbackInfo.localFile) {
             details.push({ label: "File", value: playbackInfo.localFile.name })
         }
-        if (playbackInfo.streamPath) {
-            details.push({ label: "Path", value: playbackInfo.streamPath })
+        if ((playbackInfo as any).streamPath) {
+            details.push({ label: "Path", value: (playbackInfo as any).streamPath })
         }
         if (playbackInfo.streamUrl) {
             details.push({ label: "Stream", value: playbackInfo.streamUrl?.replace("{{SERVER_URL}}", "") })

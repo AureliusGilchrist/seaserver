@@ -32571,6 +32571,15 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "EnableBlurringEffects",
+        "jsonName": "enableBlurringEffects",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [],
@@ -62666,6 +62675,208 @@
     "comments": []
   },
   {
+    "filepath": "../internal/manga/scanner.go",
+    "filename": "scanner.go",
+    "name": "MangaScanResult",
+    "formattedName": "Manga_MangaScanResult",
+    "package": "manga",
+    "fields": [
+      {
+        "name": "ScannedFolders",
+        "jsonName": "scannedFolders",
+        "goType": "[]MangaScanFolder",
+        "typescriptType": "Array\u003cManga_MangaScanFolder\u003e",
+        "usedTypescriptType": "Manga_MangaScanFolder",
+        "usedStructName": "manga.MangaScanFolder",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MatchedCount",
+        "jsonName": "matchedCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UnmatchedCount",
+        "jsonName": "unmatchedCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SkippedCount",
+        "jsonName": "skippedCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CompletedAt",
+        "jsonName": "completedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MangaScanResult is the top-level response for a manga directory scan."
+    ]
+  },
+  {
+    "filepath": "../internal/manga/scanner.go",
+    "filename": "scanner.go",
+    "name": "MangaScanFolder",
+    "formattedName": "Manga_MangaScanFolder",
+    "package": "manga",
+    "fields": [
+      {
+        "name": "FolderPath",
+        "jsonName": "folderPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FolderName",
+        "jsonName": "folderName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ChapterCount",
+        "jsonName": "chapterCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"matched\", \"unmatched\", \"skipped\""
+        ]
+      },
+      {
+        "name": "MatchedMediaID",
+        "jsonName": "matchedMediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MatchedTitle",
+        "jsonName": "matchedTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MatchedImage",
+        "jsonName": "matchedImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Confidence",
+        "jsonName": "confidence",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsSynthetic",
+        "jsonName": "isSynthetic",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MangaScanFolder represents one scanned folder and its match status."
+    ]
+  },
+  {
+    "filepath": "../internal/manga/scanner.go",
+    "filename": "scanner.go",
+    "name": "MangaScanProgressEvent",
+    "formattedName": "Manga_MangaScanProgressEvent",
+    "package": "manga",
+    "fields": [
+      {
+        "name": "Current",
+        "jsonName": "current",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Total",
+        "jsonName": "total",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FolderName",
+        "jsonName": "folderName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MangaScanProgressEvent is sent via WebSocket during scanning."
+    ]
+  },
+  {
     "filepath": "../internal/matroska/ebml.go",
     "filename": "ebml.go",
     "name": "EBMLElement",
@@ -83692,8 +83903,7 @@
         "name": "Payload",
         "jsonName": "payload",
         "goType": "json.RawMessage",
-        "typescriptType": "RawMessage",
-        "usedTypescriptType": "RawMessage",
+        "typescriptType": "any",
         "usedStructName": "json.RawMessage",
         "required": false,
         "public": true,
@@ -83857,8 +84067,7 @@
         "name": "RRWebEvents",
         "jsonName": "rrwebEvents",
         "goType": "[]json.RawMessage",
-        "typescriptType": "Array\u003cRawMessage\u003e",
-        "usedTypescriptType": "RawMessage",
+        "typescriptType": "Array\u003cany\u003e",
         "usedStructName": "json.RawMessage",
         "required": false,
         "public": true,
@@ -96306,8 +96515,7 @@
         "name": "Payload",
         "jsonName": "payload",
         "goType": "json.RawMessage",
-        "typescriptType": "RawMessage",
-        "usedTypescriptType": "RawMessage",
+        "typescriptType": "any",
         "usedStructName": "json.RawMessage",
         "required": false,
         "public": true,

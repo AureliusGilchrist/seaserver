@@ -10,18 +10,18 @@ import { useMutation } from "@tanstack/react-query"
 
 export function useGetNotifications(page: number, limit: number = 20, enabled?: boolean) {
     return useServerQuery<NotificationsResponse>({
-        endpoint: API_ENDPOINTS.NOTIFICATIONS.GetNotifications.endpoint + `?page=${page}&limit=${limit}`,
-        method: API_ENDPOINTS.NOTIFICATIONS.GetNotifications.methods[0],
-        queryKey: [API_ENDPOINTS.NOTIFICATIONS.GetNotifications.key, String(page), String(limit)],
+        endpoint: API_ENDPOINTS.NOTIFICATION.GetNotifications.endpoint + `?page=${page}&limit=${limit}`,
+        method: API_ENDPOINTS.NOTIFICATION.GetNotifications.methods[0],
+        queryKey: [API_ENDPOINTS.NOTIFICATION.GetNotifications.key, String(page), String(limit)],
         enabled: enabled !== false,
     })
 }
 
 export function useGetUnreadNotificationCount() {
     return useServerQuery<number>({
-        endpoint: API_ENDPOINTS.NOTIFICATIONS.GetUnreadNotificationCount.endpoint,
-        method: API_ENDPOINTS.NOTIFICATIONS.GetUnreadNotificationCount.methods[0],
-        queryKey: [API_ENDPOINTS.NOTIFICATIONS.GetUnreadNotificationCount.key],
+        endpoint: API_ENDPOINTS.NOTIFICATION.GetUnreadNotificationCount.endpoint,
+        method: API_ENDPOINTS.NOTIFICATION.GetUnreadNotificationCount.methods[0],
+        queryKey: [API_ENDPOINTS.NOTIFICATION.GetUnreadNotificationCount.key],
     })
 }
 
@@ -31,7 +31,7 @@ export function useMarkNotificationRead() {
     const profileToken = useAtomValue(profileSessionTokenAtom)
 
     return useMutation({
-        mutationKey: [API_ENDPOINTS.NOTIFICATIONS.MarkNotificationRead.key],
+        mutationKey: [API_ENDPOINTS.NOTIFICATION.MarkNotificationRead.key],
         mutationFn: async (variables: { notificationId: number }) => {
             return buildSeaQuery<any>({
                 endpoint: `/api/v1/notifications/${variables.notificationId}/read`,
@@ -41,8 +41,8 @@ export function useMarkNotificationRead() {
             })
         },
         onSuccess: async () => {
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATIONS.GetNotifications.key] })
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATIONS.GetUnreadNotificationCount.key] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATION.GetNotifications.key] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATION.GetUnreadNotificationCount.key] })
         },
     })
 }
@@ -53,18 +53,18 @@ export function useMarkAllNotificationsRead() {
     const profileToken = useAtomValue(profileSessionTokenAtom)
 
     return useMutation({
-        mutationKey: [API_ENDPOINTS.NOTIFICATIONS.MarkAllNotificationsRead.key],
+        mutationKey: [API_ENDPOINTS.NOTIFICATION.MarkAllNotificationsRead.key],
         mutationFn: async () => {
             return buildSeaQuery<any>({
-                endpoint: API_ENDPOINTS.NOTIFICATIONS.MarkAllNotificationsRead.endpoint,
+                endpoint: API_ENDPOINTS.NOTIFICATION.MarkAllNotificationsRead.endpoint,
                 method: "POST",
                 password: password,
                 profileToken: profileToken,
             })
         },
         onSuccess: async () => {
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATIONS.GetNotifications.key] })
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATIONS.GetUnreadNotificationCount.key] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATION.GetNotifications.key] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATION.GetUnreadNotificationCount.key] })
         },
     })
 }
@@ -75,7 +75,7 @@ export function useDeleteNotification() {
     const profileToken = useAtomValue(profileSessionTokenAtom)
 
     return useMutation({
-        mutationKey: [API_ENDPOINTS.NOTIFICATIONS.DeleteNotification.key],
+        mutationKey: [API_ENDPOINTS.NOTIFICATION.DeleteNotification.key],
         mutationFn: async (variables: { notificationId: number }) => {
             return buildSeaQuery<any>({
                 endpoint: `/api/v1/notifications/${variables.notificationId}`,
@@ -85,8 +85,8 @@ export function useDeleteNotification() {
             })
         },
         onSuccess: async () => {
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATIONS.GetNotifications.key] })
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATIONS.GetUnreadNotificationCount.key] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATION.GetNotifications.key] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATION.GetUnreadNotificationCount.key] })
         },
     })
 }
@@ -101,8 +101,8 @@ export function useNotificationWSListener() {
     useWebsocketMessageListener({
         type: WSEvents.NOTIFICATION_CREATED,
         onMessage: () => {
-            qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATIONS.GetNotifications.key] })
-            qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATIONS.GetUnreadNotificationCount.key] })
+            qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATION.GetNotifications.key] })
+            qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATION.GetUnreadNotificationCount.key] })
         },
     })
 }

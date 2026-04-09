@@ -1,5 +1,6 @@
 import { useServerQuery } from "@/api/client/requests"
-import { VideoCore_InSightCharacterDetails } from "@/api/generated/types"
+
+type VideoCore_InSightCharacterDetails = { [key: string]: any }
 
 export function useVideoCoreInSightGetCharacterDetails(malId: number) {
     return useServerQuery<VideoCore_InSightCharacterDetails>({

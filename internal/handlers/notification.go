@@ -16,7 +16,7 @@ type NotificationsResponse struct {
 //
 //	@summary get paginated notifications for the current profile.
 //	@desc Returns a paginated list of notifications with total and unread counts.
-//	@returns NotificationsResponse
+//	@returns handlers.NotificationsResponse
 //	@route /api/v1/notifications [GET]
 func (h *Handler) HandleGetNotifications(c echo.Context) error {
 	page, _ := strconv.Atoi(c.QueryParam("page"))

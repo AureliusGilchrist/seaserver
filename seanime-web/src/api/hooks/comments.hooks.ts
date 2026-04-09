@@ -9,9 +9,9 @@ import { toast } from "sonner"
 
 export function useGetComments(mediaId: number | string, mediaType: string, sort: string, enabled?: boolean) {
     return useServerQuery<CommentsResponse>({
-        endpoint: API_ENDPOINTS.COMMENTS.GetComments.endpoint + `?mediaId=${mediaId}&mediaType=${mediaType}&sort=${sort}`,
-        method: API_ENDPOINTS.COMMENTS.GetComments.methods[0],
-        queryKey: [API_ENDPOINTS.COMMENTS.GetComments.key, String(mediaId), mediaType, sort],
+        endpoint: API_ENDPOINTS.COMMENT.GetComments.endpoint + `?mediaId=${mediaId}&mediaType=${mediaType}&sort=${sort}`,
+        method: API_ENDPOINTS.COMMENT.GetComments.methods[0],
+        queryKey: [API_ENDPOINTS.COMMENT.GetComments.key, String(mediaId), mediaType, sort],
         enabled: enabled !== false && !!mediaId && !!mediaType,
     })
 }
@@ -20,11 +20,11 @@ export function useCreateComment(mediaId: number | string, mediaType: string, so
     const qc = useQueryClient()
 
     return useServerMutation<any, { mediaId: number; mediaType: string; parentId?: number; content: string; isSpoiler?: boolean }>({
-        endpoint: API_ENDPOINTS.COMMENTS.CreateComment.endpoint,
-        method: API_ENDPOINTS.COMMENTS.CreateComment.methods[0],
-        mutationKey: [API_ENDPOINTS.COMMENTS.CreateComment.key],
+        endpoint: API_ENDPOINTS.COMMENT.CreateComment.endpoint,
+        method: API_ENDPOINTS.COMMENT.CreateComment.methods[0],
+        mutationKey: [API_ENDPOINTS.COMMENT.CreateComment.key],
         onSuccess: async () => {
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.COMMENTS.GetComments.key, String(mediaId), mediaType, sort] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.COMMENT.GetComments.key, String(mediaId), mediaType, sort] })
         },
     })
 }
@@ -35,7 +35,7 @@ export function useEditComment(mediaId: number | string, mediaType: string, sort
     const profileToken = useAtomValue(profileSessionTokenAtom)
 
     return useMutation({
-        mutationKey: [API_ENDPOINTS.COMMENTS.EditComment.key],
+        mutationKey: [API_ENDPOINTS.COMMENT.EditComment.key],
         mutationFn: async (variables: { commentId: number; content: string }) => {
             return buildSeaQuery<any, { content: string }>({
                 endpoint: `/api/v1/comments/${variables.commentId}`,
@@ -50,7 +50,7 @@ export function useEditComment(mediaId: number | string, mediaType: string, sort
             toast.error(msg)
         },
         onSuccess: async () => {
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.COMMENTS.GetComments.key, String(mediaId), mediaType, sort] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.COMMENT.GetComments.key, String(mediaId), mediaType, sort] })
         },
     })
 }
@@ -61,7 +61,7 @@ export function useDeleteComment(mediaId: number | string, mediaType: string, so
     const profileToken = useAtomValue(profileSessionTokenAtom)
 
     return useMutation({
-        mutationKey: [API_ENDPOINTS.COMMENTS.DeleteComment.key],
+        mutationKey: [API_ENDPOINTS.COMMENT.DeleteComment.key],
         mutationFn: async (variables: { commentId: number }) => {
             return buildSeaQuery<any>({
                 endpoint: `/api/v1/comments/${variables.commentId}`,
@@ -75,7 +75,7 @@ export function useDeleteComment(mediaId: number | string, mediaType: string, so
             toast.error(msg)
         },
         onSuccess: async () => {
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.COMMENTS.GetComments.key, String(mediaId), mediaType, sort] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.COMMENT.GetComments.key, String(mediaId), mediaType, sort] })
         },
     })
 }
@@ -86,7 +86,7 @@ export function useVoteComment(mediaId: number | string, mediaType: string, sort
     const profileToken = useAtomValue(profileSessionTokenAtom)
 
     return useMutation({
-        mutationKey: [API_ENDPOINTS.COMMENTS.VoteComment.key],
+        mutationKey: [API_ENDPOINTS.COMMENT.VoteComment.key],
         mutationFn: async (variables: { commentId: number; value: number }) => {
             return buildSeaQuery<any, { value: number }>({
                 endpoint: `/api/v1/comments/${variables.commentId}/vote`,
@@ -101,7 +101,7 @@ export function useVoteComment(mediaId: number | string, mediaType: string, sort
             toast.error(msg)
         },
         onSuccess: async () => {
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.COMMENTS.GetComments.key, String(mediaId), mediaType, sort] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.COMMENT.GetComments.key, String(mediaId), mediaType, sort] })
         },
     })
 }

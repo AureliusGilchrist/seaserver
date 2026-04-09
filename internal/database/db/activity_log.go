@@ -10,7 +10,7 @@ func (db *Database) RecordAnimeActivity(episodes int, minutes int) error {
 	today := time.Now().Format("2006-01-02")
 
 	var log models.ActivityLog
-	result := db.GormDB().Where("date = ?", today).First(&log)
+	result := db.gormdb.Where("date = ?", today).First(&log)
 	if result.Error != nil {
 		// Create new row for today
 		log = models.ActivityLog{
@@ -19,11 +19,11 @@ func (db *Database) RecordAnimeActivity(episodes int, minutes int) error {
 			MangaChapters: 0,
 			AnimeMinutes:  minutes,
 		}
-		return db.GormDB().Create(&log).Error
+		return db.gormdb.Create(&log).Error
 	}
 
 	// Update existing row
-	return db.GormDB().Model(&log).Updates(map[string]interface{}{
+	return db.gormdb.Model(&log).Updates(map[string]interface{}{
 		"anime_episodes": log.AnimeEpisodes + episodes,
 		"anime_minutes":  log.AnimeMinutes + minutes,
 	}).Error
@@ -34,7 +34,7 @@ func (db *Database) RecordMangaActivity(chapters int) error {
 	today := time.Now().Format("2006-01-02")
 
 	var log models.ActivityLog
-	result := db.GormDB().Where("date = ?", today).First(&log)
+	result := db.gormdb.Where("date = ?", today).First(&log)
 	if result.Error != nil {
 		// Create new row for today
 		log = models.ActivityLog{
@@ -43,11 +43,11 @@ func (db *Database) RecordMangaActivity(chapters int) error {
 			MangaChapters: chapters,
 			AnimeMinutes:  0,
 		}
-		return db.GormDB().Create(&log).Error
+		return db.gormdb.Create(&log).Error
 	}
 
 	// Update existing row
-	return db.GormDB().Model(&log).Updates(map[string]interface{}{
+	return db.gormdb.Model(&log).Updates(map[string]interface{}{
 		"manga_chapters": log.MangaChapters + chapters,
 	}).Error
 }
@@ -55,7 +55,7 @@ func (db *Database) RecordMangaActivity(chapters int) error {
 // GetActivityLogs returns activity logs between startDate and endDate (inclusive), ordered by date ascending.
 func (db *Database) GetActivityLogs(startDate, endDate string) ([]*models.ActivityLog, error) {
 	var logs []*models.ActivityLog
-	err := db.GormDB().
+	err := db.gormdb.
 		Where("date >= ? AND date <= ?", startDate, endDate).
 		Order("date ASC").
 		Find(&logs).Error
@@ -65,6 +65,6 @@ func (db *Database) GetActivityLogs(startDate, endDate string) ([]*models.Activi
 // GetAllActivityLogs returns all activity logs ordered by date ascending.
 func (db *Database) GetAllActivityLogs() ([]*models.ActivityLog, error) {
 	var logs []*models.ActivityLog
-	err := db.GormDB().Order("date ASC").Find(&logs).Error
+	err := db.gormdb.Order("date ASC").Find(&logs).Error
 	return logs, err
 }

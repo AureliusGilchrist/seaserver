@@ -234,7 +234,7 @@ function CommentItem({ comment, mediaId, mediaType, sort, depth }: CommentItemPr
 
     const timeAgo = React.useMemo(() => {
         try {
-            return formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })
+            return formatDistanceToNow(new Date(comment.createdAt!), { addSuffix: true })
         } catch {
             return ""
         }

@@ -50,10 +50,12 @@ const (
 	CheckForUpdates       = "check-for-updates"
 	CheckForAnnouncements = "check-for-announcements"
 
-	RefreshedMangaDownloadData  = "refreshed-manga-download-data"
-	ChapterDownloadQueueUpdated = "chapter-download-queue-updated"
+	RefreshedMangaDownloadData    = "refreshed-manga-download-data"
+	ChapterDownloadQueueUpdated   = "chapter-download-queue-updated"
 	MangaChapterMigrationProgress = "manga-chapter-migration-progress"
-	OfflineSnapshotCreated      = "offline-snapshot-created"
+	MangaScanProgress             = "manga-scan-progress"
+	MangaScanCompleted            = "manga-scan-completed"
+	OfflineSnapshotCreated        = "offline-snapshot-created"
 
 	MediastreamShutdownStream = "mediastream-shutdown-stream"
 

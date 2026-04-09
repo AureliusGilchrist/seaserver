@@ -1975,6 +1975,41 @@
 // }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// manga_scan
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useScanMangaDirectories() {
+//     return useServerMutation<boolean, ScanMangaDirectories_Variables>({
+//         endpoint: API_ENDPOINTS.MANGA_SCAN.ScanMangaDirectories.endpoint,
+//         method: API_ENDPOINTS.MANGA_SCAN.ScanMangaDirectories.methods[0],
+//         mutationKey: [API_ENDPOINTS.MANGA_SCAN.ScanMangaDirectories.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useGetMangaScanResult() {
+//     return useServerQuery<Manga_MangaScanResult>({
+//         endpoint: API_ENDPOINTS.MANGA_SCAN.GetMangaScanResult.endpoint,
+//         method: API_ENDPOINTS.MANGA_SCAN.GetMangaScanResult.methods[0],
+//         queryKey: [API_ENDPOINTS.MANGA_SCAN.GetMangaScanResult.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useMangaScanManualLink() {
+//     return useServerMutation<boolean, MangaScanManualLink_Variables>({
+//         endpoint: API_ENDPOINTS.MANGA_SCAN.MangaScanManualLink.endpoint,
+//         method: API_ENDPOINTS.MANGA_SCAN.MangaScanManualLink.methods[0],
+//         mutationKey: [API_ENDPOINTS.MANGA_SCAN.MangaScanManualLink.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // manual_dump
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

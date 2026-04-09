@@ -1,4 +1,4 @@
-import { ProfileSummary, Status } from "@/api/generated/types"
+import { INTERNAL_ProfileSummary as ProfileSummary, Status } from "@/api/generated/types"
 import { atom } from "jotai"
 import { atomWithImmer } from "jotai-immer"
 import { atomWithStorage } from "jotai/utils"

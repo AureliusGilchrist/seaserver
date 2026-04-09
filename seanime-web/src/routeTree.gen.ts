@@ -24,10 +24,11 @@ import { Route as MainMediastreamIndexRouteImport } from './routes/_main/mediast
 import { Route as MainMedialinksIndexRouteImport } from './routes/_main/medialinks/index'
 import { Route as MainExtensionsIndexRouteImport } from './routes/_main/extensions/index'
 import { Route as MainEntryIndexRouteImport } from './routes/_main/entry/index'
-import { Route as MainAchievementsIndexRouteImport } from './routes/_main/achievements/index'
-import { Route as MainProfileStatsIndexRouteImport } from './routes/_main/profile/stats/index'
 import { Route as MainDiscoverIndexRouteImport } from './routes/_main/discover/index'
 import { Route as MainCustomSourcesIndexRouteImport } from './routes/_main/custom-sources/index'
+import { Route as MainAchievementsIndexRouteImport } from './routes/_main/achievements/index'
+import { Route as MainSettingsMangaScanIndexRouteImport } from './routes/_main/settings/manga-scan/index'
+import { Route as MainProfileStatsIndexRouteImport } from './routes/_main/profile/stats/index'
 import { Route as MainMangaEntryIndexRouteImport } from './routes/_main/manga/entry/index'
 import { Route as MainAuthCallbackIndexRouteImport } from './routes/_main/auth/callback/index'
 import { Route as MainOfflineEntryMangaIndexRouteImport } from './routes/_main/offline/entry/manga/index'
@@ -63,12 +64,6 @@ const MainAutoDownloaderIndexLazyRouteImport = createFileRoute(
 )()
 const MainOfflineMangaIndexLazyRouteImport = createFileRoute(
   '/_main/offline/manga/',
-)()
-const MainAchievementsIndexLazyRouteImport = createFileRoute(
-  '/_main/achievements/',
-)()
-const MainProfileStatsIndexLazyRouteImport = createFileRoute(
-  '/_main/profile/stats/',
 )()
 const MainExtensionsPlaygroundIndexLazyRouteImport = createFileRoute(
   '/_main/extensions/playground/',
@@ -252,20 +247,6 @@ const MainMedialinksIndexRoute = MainMedialinksIndexRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_main/medialinks/index.lazy').then((d) => d.Route),
 )
-const MainAchievementsIndexRoute = MainAchievementsIndexRouteImport.update({
-  id: '/achievements/',
-  path: '/achievements/',
-  getParentRoute: () => MainRoute,
-} as any).lazy(() =>
-  import('./routes/_main/achievements/index.lazy').then((d) => d.Route),
-)
-const MainProfileStatsIndexRoute = MainProfileStatsIndexRouteImport.update({
-  id: '/profile/stats/',
-  path: '/profile/stats/',
-  getParentRoute: () => MainRoute,
-} as any).lazy(() =>
-  import('./routes/_main/profile/stats/index.lazy').then((d) => d.Route),
-)
 const MainExtensionsIndexRoute = MainExtensionsIndexRouteImport.update({
   id: '/extensions/',
   path: '/extensions/',
@@ -294,6 +275,13 @@ const MainCustomSourcesIndexRoute = MainCustomSourcesIndexRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_main/custom-sources/index.lazy').then((d) => d.Route),
 )
+const MainAchievementsIndexRoute = MainAchievementsIndexRouteImport.update({
+  id: '/achievements/',
+  path: '/achievements/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/achievements/index.lazy').then((d) => d.Route),
+)
 const MainOfflineMangaIndexLazyRoute =
   MainOfflineMangaIndexLazyRouteImport.update({
     id: '/offline/manga/',
@@ -312,6 +300,23 @@ const MainExtensionsPlaygroundIndexLazyRoute =
       (d) => d.Route,
     ),
   )
+const MainSettingsMangaScanIndexRoute =
+  MainSettingsMangaScanIndexRouteImport.update({
+    id: '/settings/manga-scan/',
+    path: '/settings/manga-scan/',
+    getParentRoute: () => MainRoute,
+  } as any).lazy(() =>
+    import('./routes/_main/settings/manga-scan/index.lazy').then(
+      (d) => d.Route,
+    ),
+  )
+const MainProfileStatsIndexRoute = MainProfileStatsIndexRouteImport.update({
+  id: '/profile/stats/',
+  path: '/profile/stats/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/profile/stats/index.lazy').then((d) => d.Route),
+)
 const MainMangaEntryIndexRoute = MainMangaEntryIndexRouteImport.update({
   id: '/manga/entry/',
   path: '/manga/entry/',
@@ -352,10 +357,10 @@ export interface FileRoutesByFullPath {
   '/docs/': typeof DocsIndexLazyRoute
   '/issue-report/': typeof IssueReportIndexLazyRoute
   '/scan-log-viewer/': typeof ScanLogViewerIndexLazyRoute
+  '/achievements/': typeof MainAchievementsIndexRoute
   '/custom-sources/': typeof MainCustomSourcesIndexRoute
   '/discover/': typeof MainDiscoverIndexRoute
   '/entry/': typeof MainEntryIndexRoute
-  '/achievements/': typeof MainAchievementsIndexRoute
   '/extensions/': typeof MainExtensionsIndexRoute
   '/medialinks/': typeof MainMedialinksIndexRoute
   '/mediastream/': typeof MainMediastreamIndexRoute
@@ -379,11 +384,12 @@ export interface FileRoutesByFullPath {
   '/webview/': typeof MainWebviewIndexLazyRoute
   '/auth/callback/': typeof MainAuthCallbackIndexRoute
   '/manga/entry/': typeof MainMangaEntryIndexRoute
+  '/profile/stats/': typeof MainProfileStatsIndexRoute
+  '/settings/manga-scan/': typeof MainSettingsMangaScanIndexRoute
   '/extensions/playground/': typeof MainExtensionsPlaygroundIndexLazyRoute
   '/offline/manga/': typeof MainOfflineMangaIndexLazyRoute
   '/offline/entry/anime/': typeof MainOfflineEntryAnimeIndexRoute
   '/offline/entry/manga/': typeof MainOfflineEntryMangaIndexRoute
-  '/profile/stats/': typeof MainProfileStatsIndexRoute
 }
 export interface FileRoutesByTo {
   '/error-test': typeof MainErrorTestRoute
@@ -392,10 +398,10 @@ export interface FileRoutesByTo {
   '/docs': typeof DocsIndexLazyRoute
   '/issue-report': typeof IssueReportIndexLazyRoute
   '/scan-log-viewer': typeof ScanLogViewerIndexLazyRoute
+  '/achievements': typeof MainAchievementsIndexRoute
   '/custom-sources': typeof MainCustomSourcesIndexRoute
   '/discover': typeof MainDiscoverIndexRoute
   '/entry': typeof MainEntryIndexRoute
-  '/achievements': typeof MainAchievementsIndexRoute
   '/extensions': typeof MainExtensionsIndexRoute
   '/medialinks': typeof MainMedialinksIndexRoute
   '/mediastream': typeof MainMediastreamIndexRoute
@@ -419,11 +425,12 @@ export interface FileRoutesByTo {
   '/webview': typeof MainWebviewIndexLazyRoute
   '/auth/callback': typeof MainAuthCallbackIndexRoute
   '/manga/entry': typeof MainMangaEntryIndexRoute
+  '/profile/stats': typeof MainProfileStatsIndexRoute
+  '/settings/manga-scan': typeof MainSettingsMangaScanIndexRoute
   '/extensions/playground': typeof MainExtensionsPlaygroundIndexLazyRoute
   '/offline/manga': typeof MainOfflineMangaIndexLazyRoute
   '/offline/entry/anime': typeof MainOfflineEntryAnimeIndexRoute
   '/offline/entry/manga': typeof MainOfflineEntryMangaIndexRoute
-  '/profile/stats': typeof MainProfileStatsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -434,10 +441,10 @@ export interface FileRoutesById {
   '/docs/': typeof DocsIndexLazyRoute
   '/issue-report/': typeof IssueReportIndexLazyRoute
   '/scan-log-viewer/': typeof ScanLogViewerIndexLazyRoute
+  '/_main/achievements/': typeof MainAchievementsIndexRoute
   '/_main/custom-sources/': typeof MainCustomSourcesIndexRoute
   '/_main/discover/': typeof MainDiscoverIndexRoute
   '/_main/entry/': typeof MainEntryIndexRoute
-  '/_main/achievements/': typeof MainAchievementsIndexRoute
   '/_main/extensions/': typeof MainExtensionsIndexRoute
   '/_main/medialinks/': typeof MainMedialinksIndexRoute
   '/_main/mediastream/': typeof MainMediastreamIndexRoute
@@ -461,11 +468,12 @@ export interface FileRoutesById {
   '/_main/webview/': typeof MainWebviewIndexLazyRoute
   '/_main/auth/callback/': typeof MainAuthCallbackIndexRoute
   '/_main/manga/entry/': typeof MainMangaEntryIndexRoute
+  '/_main/profile/stats/': typeof MainProfileStatsIndexRoute
+  '/_main/settings/manga-scan/': typeof MainSettingsMangaScanIndexRoute
   '/_main/extensions/playground/': typeof MainExtensionsPlaygroundIndexLazyRoute
   '/_main/offline/manga/': typeof MainOfflineMangaIndexLazyRoute
   '/_main/offline/entry/anime/': typeof MainOfflineEntryAnimeIndexRoute
   '/_main/offline/entry/manga/': typeof MainOfflineEntryMangaIndexRoute
-  '/_main/profile/stats/': typeof MainProfileStatsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -476,10 +484,10 @@ export interface FileRouteTypes {
     | '/docs/'
     | '/issue-report/'
     | '/scan-log-viewer/'
+    | '/achievements/'
     | '/custom-sources/'
     | '/discover/'
     | '/entry/'
-    | '/achievements/'
     | '/extensions/'
     | '/medialinks/'
     | '/mediastream/'
@@ -503,11 +511,12 @@ export interface FileRouteTypes {
     | '/webview/'
     | '/auth/callback/'
     | '/manga/entry/'
+    | '/profile/stats/'
+    | '/settings/manga-scan/'
     | '/extensions/playground/'
     | '/offline/manga/'
     | '/offline/entry/anime/'
     | '/offline/entry/manga/'
-    | '/profile/stats/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/error-test'
@@ -516,10 +525,10 @@ export interface FileRouteTypes {
     | '/docs'
     | '/issue-report'
     | '/scan-log-viewer'
+    | '/achievements'
     | '/custom-sources'
     | '/discover'
     | '/entry'
-    | '/achievements'
     | '/extensions'
     | '/medialinks'
     | '/mediastream'
@@ -543,11 +552,12 @@ export interface FileRouteTypes {
     | '/webview'
     | '/auth/callback'
     | '/manga/entry'
+    | '/profile/stats'
+    | '/settings/manga-scan'
     | '/extensions/playground'
     | '/offline/manga'
     | '/offline/entry/anime'
     | '/offline/entry/manga'
-    | '/profile/stats'
   id:
     | '__root__'
     | '/_main'
@@ -557,10 +567,10 @@ export interface FileRouteTypes {
     | '/docs/'
     | '/issue-report/'
     | '/scan-log-viewer/'
+    | '/_main/achievements/'
     | '/_main/custom-sources/'
     | '/_main/discover/'
     | '/_main/entry/'
-    | '/_main/achievements/'
     | '/_main/extensions/'
     | '/_main/medialinks/'
     | '/_main/mediastream/'
@@ -584,11 +594,12 @@ export interface FileRouteTypes {
     | '/_main/webview/'
     | '/_main/auth/callback/'
     | '/_main/manga/entry/'
+    | '/_main/profile/stats/'
+    | '/_main/settings/manga-scan/'
     | '/_main/extensions/playground/'
     | '/_main/offline/manga/'
     | '/_main/offline/entry/anime/'
     | '/_main/offline/entry/manga/'
-    | '/_main/profile/stats/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -792,13 +803,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainMedialinksIndexRouteImport
       parentRoute: typeof MainRoute
     }
-    '/_main/achievements/': {
-      id: '/_main/achievements/'
-      path: '/achievements'
-      fullPath: '/achievements/'
-      preLoaderRoute: typeof MainAchievementsIndexRouteImport
-      parentRoute: typeof MainRoute
-    }
     '/_main/extensions/': {
       id: '/_main/extensions/'
       path: '/extensions'
@@ -827,6 +831,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainCustomSourcesIndexRouteImport
       parentRoute: typeof MainRoute
     }
+    '/_main/achievements/': {
+      id: '/_main/achievements/'
+      path: '/achievements'
+      fullPath: '/achievements/'
+      preLoaderRoute: typeof MainAchievementsIndexRouteImport
+      parentRoute: typeof MainRoute
+    }
     '/_main/offline/manga/': {
       id: '/_main/offline/manga/'
       path: '/offline/manga'
@@ -839,6 +850,20 @@ declare module '@tanstack/react-router' {
       path: '/extensions/playground'
       fullPath: '/extensions/playground/'
       preLoaderRoute: typeof MainExtensionsPlaygroundIndexLazyRouteImport
+      parentRoute: typeof MainRoute
+    }
+    '/_main/settings/manga-scan/': {
+      id: '/_main/settings/manga-scan/'
+      path: '/settings/manga-scan'
+      fullPath: '/settings/manga-scan/'
+      preLoaderRoute: typeof MainSettingsMangaScanIndexRouteImport
+      parentRoute: typeof MainRoute
+    }
+    '/_main/profile/stats/': {
+      id: '/_main/profile/stats/'
+      path: '/profile/stats'
+      fullPath: '/profile/stats/'
+      preLoaderRoute: typeof MainProfileStatsIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/manga/entry/': {
@@ -869,23 +894,16 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainOfflineEntryAnimeIndexRouteImport
       parentRoute: typeof MainRoute
     }
-    '/_main/profile/stats/': {
-      id: '/_main/profile/stats/'
-      path: '/profile/stats'
-      fullPath: '/profile/stats/'
-      preLoaderRoute: typeof MainProfileStatsIndexRouteImport
-      parentRoute: typeof MainRoute
-    }
   }
 }
 
 interface MainRouteChildren {
   MainErrorTestRoute: typeof MainErrorTestRoute
   MainIndexRoute: typeof MainIndexRoute
+  MainAchievementsIndexRoute: typeof MainAchievementsIndexRoute
   MainCustomSourcesIndexRoute: typeof MainCustomSourcesIndexRoute
   MainDiscoverIndexRoute: typeof MainDiscoverIndexRoute
   MainEntryIndexRoute: typeof MainEntryIndexRoute
-  MainAchievementsIndexRoute: typeof MainAchievementsIndexRoute
   MainExtensionsIndexRoute: typeof MainExtensionsIndexRoute
   MainMedialinksIndexRoute: typeof MainMedialinksIndexRoute
   MainMediastreamIndexRoute: typeof MainMediastreamIndexRoute
@@ -907,20 +925,21 @@ interface MainRouteChildren {
   MainWebviewIndexLazyRoute: typeof MainWebviewIndexLazyRoute
   MainAuthCallbackIndexRoute: typeof MainAuthCallbackIndexRoute
   MainMangaEntryIndexRoute: typeof MainMangaEntryIndexRoute
+  MainProfileStatsIndexRoute: typeof MainProfileStatsIndexRoute
+  MainSettingsMangaScanIndexRoute: typeof MainSettingsMangaScanIndexRoute
   MainExtensionsPlaygroundIndexLazyRoute: typeof MainExtensionsPlaygroundIndexLazyRoute
   MainOfflineMangaIndexLazyRoute: typeof MainOfflineMangaIndexLazyRoute
   MainOfflineEntryAnimeIndexRoute: typeof MainOfflineEntryAnimeIndexRoute
   MainOfflineEntryMangaIndexRoute: typeof MainOfflineEntryMangaIndexRoute
-  MainProfileStatsIndexRoute: typeof MainProfileStatsIndexRoute
 }
 
 const MainRouteChildren: MainRouteChildren = {
   MainErrorTestRoute: MainErrorTestRoute,
   MainIndexRoute: MainIndexRoute,
+  MainAchievementsIndexRoute: MainAchievementsIndexRoute,
   MainCustomSourcesIndexRoute: MainCustomSourcesIndexRoute,
   MainDiscoverIndexRoute: MainDiscoverIndexRoute,
   MainEntryIndexRoute: MainEntryIndexRoute,
-  MainAchievementsIndexRoute: MainAchievementsIndexRoute,
   MainExtensionsIndexRoute: MainExtensionsIndexRoute,
   MainMedialinksIndexRoute: MainMedialinksIndexRoute,
   MainMediastreamIndexRoute: MainMediastreamIndexRoute,
@@ -942,12 +961,13 @@ const MainRouteChildren: MainRouteChildren = {
   MainWebviewIndexLazyRoute: MainWebviewIndexLazyRoute,
   MainAuthCallbackIndexRoute: MainAuthCallbackIndexRoute,
   MainMangaEntryIndexRoute: MainMangaEntryIndexRoute,
+  MainProfileStatsIndexRoute: MainProfileStatsIndexRoute,
+  MainSettingsMangaScanIndexRoute: MainSettingsMangaScanIndexRoute,
   MainExtensionsPlaygroundIndexLazyRoute:
     MainExtensionsPlaygroundIndexLazyRoute,
   MainOfflineMangaIndexLazyRoute: MainOfflineMangaIndexLazyRoute,
   MainOfflineEntryAnimeIndexRoute: MainOfflineEntryAnimeIndexRoute,
   MainOfflineEntryMangaIndexRoute: MainOfflineEntryMangaIndexRoute,
-  MainProfileStatsIndexRoute: MainProfileStatsIndexRoute,
 }
 
 const MainRouteWithChildren = MainRoute._addFileChildren(MainRouteChildren)

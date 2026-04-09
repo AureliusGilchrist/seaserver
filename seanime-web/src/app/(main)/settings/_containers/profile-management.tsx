@@ -1,4 +1,4 @@
-import { ProfileSummary } from "@/api/generated/types"
+import { INTERNAL_ProfileSummary as ProfileSummary } from "@/api/generated/types"
 import {
     useCreateProfile,
     useDeleteProfile,

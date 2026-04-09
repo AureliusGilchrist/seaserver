@@ -1619,6 +1619,35 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/manga/favorites/bulk",
         },
     },
+    MANGA_SCAN: {
+        /**
+         *  @description
+         *  Route triggers a scan of local manga directories and auto-matches folders to AniList.
+         *  Scans the local source directory and download directory for manga folders,
+         *  attempts to match each folder to an AniList entry using title similarity,
+         *  and creates MangaMappings for confident matches or SyntheticManga for unmatched folders.
+         */
+        ScanMangaDirectories: {
+            key: "MANGA-SCAN-scan-manga-directories",
+            methods: ["POST"],
+            endpoint: "/api/v1/manga/scan",
+        },
+        GetMangaScanResult: {
+            key: "MANGA-SCAN-get-manga-scan-result",
+            methods: ["GET"],
+            endpoint: "/api/v1/manga/scan/result",
+        },
+        /**
+         *  @description
+         *  Route manually links an unmatched manga folder to an AniList manga ID.
+         *  Creates a MangaMapping for the folder and removes any existing SyntheticManga entry.
+         */
+        MangaScanManualLink: {
+            key: "MANGA-SCAN-manga-scan-manual-link",
+            methods: ["POST"],
+            endpoint: "/api/v1/manga/scan/link",
+        },
+    },
     MANUAL_DUMP: {
         TestDump: {
             key: "MANUAL-DUMP-test-dump",

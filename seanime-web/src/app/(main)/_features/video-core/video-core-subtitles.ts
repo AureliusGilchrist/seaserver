@@ -258,7 +258,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 this.fonts = this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
                     ?.map(a => `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}${this.hmacToken}`) || []
 
-                if (!this.playbackInfo.libassFonts) {
+                if (!(this.playbackInfo as any).libassFonts) {
                     this.fonts = [...new Set([...this.fonts, defaultFontUrl])]
                 }
 

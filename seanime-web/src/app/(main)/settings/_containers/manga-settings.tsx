@@ -10,7 +10,8 @@ import { atom } from "jotai"
 import { useAtom } from "jotai/react"
 import React from "react"
 import { useFormContext } from "react-hook-form"
-import { LuBookOpen } from "react-icons/lu"
+import { LuBookOpen, LuFolderSearch } from "react-icons/lu"
+import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
 type MangaSettingsProps = {
@@ -33,6 +34,7 @@ export function MangaSettings(props: MangaSettingsProps) {
 
     const { storedProviders, overwriteStoredProviders, overwriteStoredProvidersWith } = useStoredMangaProviders(extensions)
     const [storedProvidersHistory, setStoredProvidersHistory] = useAtom(__manga_storedProvidersHistoryAtom)
+    const navigate = useNavigate()
 
     const options = React.useMemo(() => {
         return [
@@ -119,6 +121,14 @@ export function MangaSettings(props: MangaSettingsProps) {
                     label="Local Source Directory"
                     help="Directory where your manga is stored. This is only used by the local manga provider."
                 />
+
+                <Button
+                    intent="primary-subtle"
+                    leftIcon={<LuFolderSearch />}
+                    onClick={() => navigate({ to: "/settings/manga-scan" })}
+                >
+                    Scan &amp; Match Manga Library
+                </Button>
             </SettingsCard>
 
             <ConfirmationDialog {...confirmDialog} />

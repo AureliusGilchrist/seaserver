@@ -451,7 +451,7 @@ function AniListCharts({ stats }: { stats?: AL_Stats }) {
         if (!stats?.animeStats?.scores) return []
         return stats.animeStats.scores
             .map((item) => ({
-                name: String(item.score / 10),
+                name: String((item.score ?? 0) / 10),
                 Count: item.count,
             }))
             .sort((a, b) => Number(a.name) - Number(b.name))

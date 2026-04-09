@@ -1,6 +1,19 @@
 "use client"
 import { useDeleteNotification, useGetNotifications, useMarkAllNotificationsRead, useMarkNotificationRead } from "@/api/hooks/notifications.hooks"
-import { Notification } from "@/api/generated/types"
+
+type Notification = {
+    id: number
+    createdAt: string
+    updatedAt: string
+    type: string
+    title: string
+    body: string
+    imageUrl: string
+    mediaId: number
+    isRead: boolean
+    metadata: string
+}
+
 import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { Drawer } from "@/components/ui/drawer"

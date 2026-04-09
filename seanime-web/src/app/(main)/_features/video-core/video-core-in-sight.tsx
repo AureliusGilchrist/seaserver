@@ -1,5 +1,5 @@
-import { VideoCore_InSightCharacter } from "@/api/generated/types"
-import { VideoCore_InSightData } from "@/api/generated/types"
+type VideoCore_InSightCharacter = { mal_id: number; name?: string; images?: { webp?: { image_url?: string } }; [key: string]: any }
+type VideoCore_InSightData = { characters?: VideoCore_InSightCharacter[]; [key: string]: any }
 import { useVideoCoreInSightGetCharacterDetails } from "@/api/hooks/videocore.hooks"
 
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -54,7 +54,7 @@ export function VideoCoreInSight() {
     const characters = useMemo(() => {
         const list = data?.characters || []
         if (!searchQuery) return list
-        const res = list.filter(c => c.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+        const res = list.filter((c: VideoCore_InSightCharacter) => c.name?.toLowerCase().includes(searchQuery.toLowerCase()))
         if (res.length === 0) return [{
             mal_id: 0,
             name: "No results",
@@ -241,7 +241,7 @@ export function VideoCoreInSight() {
                         "flex gap-4 flex-nowrap relative px-12 pb-4 py-6 !pr-20 h-[20rem] items-start",
                     )}
                 >
-                    {characters?.map(character => (
+                    {characters?.map((character: VideoCore_InSightCharacter) => (
                         <Popover
                             key={character.mal_id}
                             className="z-[100] bg-gray-950/95 max-h-[14rem] w-[25rem] overflow-y-auto"

@@ -1,4 +1,4 @@
-import { VideoCore_InSightData } from "@/api/generated/types"
+type VideoCore_InSightData = { characters?: any[]; [key: string]: any }
 import { MKVParser_TrackInfo, VideoCore_ClientEventType, VideoCore_PlaybackState, VideoCore_ServerEvent } from "@/api/generated/types"
 import { vc_subtitleManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_mediaCaptionsManager } from "@/app/(main)/_features/video-core/video-core"
@@ -632,19 +632,19 @@ export function useVideoCoreSetupEvents(id: string,
                     const trackNumber = audioManager?.getSelectedTrackNumberOrNull() ?? -1
                     sendEvent<VideoCoreAudioTrackEventPayload>("video-audio-track", { trackNumber: trackNumber, isHLS: audioManager?.isHLS ?? false })
                     break
-                case "get-subtitle-track-content":
+                case "get-subtitle-track-content" as VideoCore_ServerEvent:
                     log.info("Get subtitle track content event received")
                     const number = payload as number
                     if (subtitleManager) {
                         const content = subtitleManager.getTrackContent(number)
-                        sendEvent("video-subtitle-track-content", {
+                        sendEvent("video-subtitle-track-content" as VideoCore_ClientEventType, {
                             trackNumber: number,
                             content: content ?? "",
                             type: "ass",
                         })
                     } else if (mediaCaptionsManager) {
                         const content = mediaCaptionsManager.getTrackContent(number)
-                        sendEvent("video-subtitle-track-content", {
+                        sendEvent("video-subtitle-track-content" as VideoCore_ClientEventType, {
                             trackNumber: number,
                             content: content ?? "",
                             type: "vtt",
@@ -728,7 +728,7 @@ export function useVideoCoreSetupEvents(id: string,
                     const p = payload as { original: string, translated: string }
                     subtitleManager?.processEventTranslationQueue?.(p.original, p.translated)
                     break
-                case "in-sight-data":
+                case "in-sight-data" as VideoCore_ServerEvent:
                     log.info("In-sight data event received", payload)
                     setInSightData((payload ?? null) as VideoCore_InSightData | null)
                     break

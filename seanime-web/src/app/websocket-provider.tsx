@@ -197,7 +197,7 @@ function WebsocketManagement() {
                             path: "/",
                             sameSite: "lax",
                             secure: false,
-                            maxAge: 24 * 60 * 60, // 24 hours
+                            maxAge: 14 * 24 * 60 * 60, // 14 days
                         })
                     }
 

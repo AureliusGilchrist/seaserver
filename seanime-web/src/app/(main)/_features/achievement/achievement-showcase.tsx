@@ -154,7 +154,7 @@ export function AchievementShowcase() {
             </div>
 
             {/* Picker modal */}
-            <Modal open={pickerSlot !== null} onOpenChange={() => setPickerSlot(null)} title="Select Achievement" size="xl">
+            <Modal open={pickerSlot !== null} onOpenChange={() => setPickerSlot(null)} title="Select Achievement" contentClass="max-w-xl">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[60vh] overflow-y-auto p-1">
                     {achievementsData?.definitions?.map(def => {
                         const maxTier = def.MaxTier || 0

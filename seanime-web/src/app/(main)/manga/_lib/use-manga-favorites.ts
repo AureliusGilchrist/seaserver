@@ -21,27 +21,27 @@ function loadLocalFavorites(): number[] {
 
 export function useMangaFavorites() {
     const qc = useQueryClient()
-    const queryKey = [API_ENDPOINTS.MANGA_FAVORITES.GetMangaFavorites.key]
+    const queryKey = [API_ENDPOINTS.MANGA_FAVORITE.GetMangaFavorites.key]
 
     const { data: favorites = [], isLoading } = useServerQuery<number[]>({
-        endpoint: API_ENDPOINTS.MANGA_FAVORITES.GetMangaFavorites.endpoint,
-        method: API_ENDPOINTS.MANGA_FAVORITES.GetMangaFavorites.methods[0],
+        endpoint: API_ENDPOINTS.MANGA_FAVORITE.GetMangaFavorites.endpoint,
+        method: API_ENDPOINTS.MANGA_FAVORITE.GetMangaFavorites.methods[0],
         queryKey,
     })
 
     const { mutate: toggleMutate } = useServerMutation<boolean, { mediaId: number }>({
-        endpoint: API_ENDPOINTS.MANGA_FAVORITES.ToggleMangaFavorite.endpoint,
-        method: API_ENDPOINTS.MANGA_FAVORITES.ToggleMangaFavorite.methods[0],
-        mutationKey: [API_ENDPOINTS.MANGA_FAVORITES.ToggleMangaFavorite.key],
+        endpoint: API_ENDPOINTS.MANGA_FAVORITE.ToggleMangaFavorite.endpoint,
+        method: API_ENDPOINTS.MANGA_FAVORITE.ToggleMangaFavorite.methods[0],
+        mutationKey: [API_ENDPOINTS.MANGA_FAVORITE.ToggleMangaFavorite.key],
         onSuccess: async () => {
             await qc.invalidateQueries({ queryKey })
         },
     })
 
     const { mutate: bulkAddMutate } = useServerMutation<boolean, { mediaIds: number[] }>({
-        endpoint: API_ENDPOINTS.MANGA_FAVORITES.BulkAddMangaFavorites.endpoint,
-        method: API_ENDPOINTS.MANGA_FAVORITES.BulkAddMangaFavorites.methods[0],
-        mutationKey: [API_ENDPOINTS.MANGA_FAVORITES.BulkAddMangaFavorites.key],
+        endpoint: API_ENDPOINTS.MANGA_FAVORITE.BulkAddMangaFavorites.endpoint,
+        method: API_ENDPOINTS.MANGA_FAVORITE.BulkAddMangaFavorites.methods[0],
+        mutationKey: [API_ENDPOINTS.MANGA_FAVORITE.BulkAddMangaFavorites.key],
         onSuccess: async () => {
             await qc.invalidateQueries({ queryKey })
         },

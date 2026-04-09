@@ -561,6 +561,9 @@ func fieldTypeToTypescriptType(fieldType ast.Expr, usedStructPkgName string) str
 		if t.Sel.Name == "Time" {
 			return "string"
 		}
+		if t.Sel.Name == "RawMessage" {
+			return "any"
+		}
 		return getTypePrefix(usedStructPkgName) + t.Sel.Name
 	case *ast.StructType:
 		s := "{ "
@@ -612,6 +615,9 @@ func stringGoTypeToTypescriptType(goType string) string {
 
 	if strings.Contains(goType, ".") {
 		parts := strings.Split(goType, ".")
+		if parts[1] == "RawMessage" {
+			return "any"
+		}
 		return getTypePrefix(parts[0]) + parts[1]
 	}
 

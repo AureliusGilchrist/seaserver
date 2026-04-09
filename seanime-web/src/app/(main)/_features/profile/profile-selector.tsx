@@ -1,4 +1,4 @@
-import { ProfileSummary } from "@/api/generated/types"
+import { INTERNAL_ProfileSummary as ProfileSummary } from "@/api/generated/types"
 import { useProfileLogin } from "@/api/hooks/profiles.hooks"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"

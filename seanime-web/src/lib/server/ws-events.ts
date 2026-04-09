@@ -74,6 +74,8 @@ export const enum WSEvents {
     PLAYLIST = "playlist",
     NOTIFICATION_CREATED = "notification-created",
     ACHIEVEMENT_UNLOCKED = "achievement-unlocked",
+    MANGA_SCAN_PROGRESS = "manga-scan-progress",
+    MANGA_SCAN_COMPLETED = "manga-scan-completed",
 }
 
 export const enum WebviewEvents {

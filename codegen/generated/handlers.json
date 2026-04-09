@@ -7588,6 +7588,126 @@
     }
   },
   {
+    "name": "HandleScanMangaDirectories",
+    "trimmedName": "ScanMangaDirectories",
+    "comments": [
+      "HandleScanMangaDirectories",
+      "",
+      "\t@summary triggers a scan of local manga directories and auto-matches folders to AniList.",
+      "\t@desc Scans the local source directory and download directory for manga folders,",
+      "\t@desc attempts to match each folder to an AniList entry using title similarity,",
+      "\t@desc and creates MangaMappings for confident matches or SyntheticManga for unmatched folders.",
+      "\t@route /api/v1/manga/scan [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/manga_scan.go",
+    "filename": "manga_scan.go",
+    "api": {
+      "summary": "triggers a scan of local manga directories and auto-matches folders to AniList.",
+      "descriptions": [
+        "Scans the local source directory and download directory for manga folders,",
+        "attempts to match each folder to an AniList entry using title similarity,",
+        "and creates MangaMappings for confident matches or SyntheticManga for unmatched folders."
+      ],
+      "endpoint": "/api/v1/manga/scan",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ForceRematch",
+          "jsonName": "forceRematch",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetMangaScanResult",
+    "trimmedName": "GetMangaScanResult",
+    "comments": [
+      "HandleGetMangaScanResult",
+      "",
+      "\t@summary returns the cached result of the last manga directory scan.",
+      "\t@route /api/v1/manga/scan/result [GET]",
+      "\t@returns manga.MangaScanResult",
+      ""
+    ],
+    "filepath": "internal/handlers/manga_scan.go",
+    "filename": "manga_scan.go",
+    "api": {
+      "summary": "returns the cached result of the last manga directory scan.",
+      "descriptions": [],
+      "endpoint": "/api/v1/manga/scan/result",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "manga.MangaScanResult",
+      "returnGoType": "manga.MangaScanResult",
+      "returnTypescriptType": "Manga_MangaScanResult"
+    }
+  },
+  {
+    "name": "HandleMangaScanManualLink",
+    "trimmedName": "MangaScanManualLink",
+    "comments": [
+      "HandleMangaScanManualLink",
+      "",
+      "\t@summary manually links an unmatched manga folder to an AniList manga ID.",
+      "\t@desc Creates a MangaMapping for the folder and removes any existing SyntheticManga entry.",
+      "\t@route /api/v1/manga/scan/link [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/manga_scan.go",
+    "filename": "manga_scan.go",
+    "api": {
+      "summary": "manually links an unmatched manga folder to an AniList manga ID.",
+      "descriptions": [
+        "Creates a MangaMapping for the folder and removes any existing SyntheticManga entry."
+      ],
+      "endpoint": "/api/v1/manga/scan/link",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "FolderName",
+          "jsonName": "folderName",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "MediaID",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleTestDump",
     "trimmedName": "TestDump",
     "comments": [
@@ -8845,7 +8965,7 @@
       "",
       "\t@summary get paginated notifications for the current profile.",
       "\t@desc Returns a paginated list of notifications with total and unread counts.",
-      "\t@returns NotificationsResponse",
+      "\t@returns handlers.NotificationsResponse",
       "\t@route /api/v1/notifications [GET]",
       ""
     ],
@@ -8862,8 +8982,8 @@
       ],
       "params": [],
       "bodyFields": [],
-      "returns": "NotificationsResponse",
-      "returnGoType": "NotificationsResponse",
+      "returns": "handlers.NotificationsResponse",
+      "returnGoType": "handlers.NotificationsResponse",
       "returnTypescriptType": "NotificationsResponse"
     }
   },
