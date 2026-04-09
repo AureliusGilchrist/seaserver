@@ -168,7 +168,7 @@ func (s *Nakama) LoadPlaybackInfo() (ret *nativeplayer.PlaybackInfo, err error) 
 }
 
 func (s *Nakama) GetAttachmentByName(filename string) (*mkvparser.AttachmentInfo, bool) {
-	return getAttachmentByName(s.manager.playbackCtx, s, filename)
+	return getAttachmentByName(s.PlaybackCtx(), s, filename)
 }
 
 func (s *Nakama) GetStreamHandler() http.Handler {
@@ -229,7 +229,7 @@ func (s *Nakama) GetStreamHandler() http.Handler {
 				return
 			}
 			if ra.Start < s.contentLength-1024*1024 {
-				go s.StartSubtitleStreamP(s, s.manager.playbackCtx, subReader, ra.Start, 0)
+				go s.StartSubtitleStreamP(s, s.PlaybackCtx(), subReader, ra.Start, 0)
 			}
 		}
 
@@ -279,6 +279,7 @@ type PlayNakamaStreamOptions struct {
 	Media              *anilist.BaseAnime
 	NakamaHostPassword string
 	ClientId           string
+	ProfileID          uint
 }
 
 // PlayNakamaStream is used by a module to load a new nakama stream.
@@ -308,6 +309,7 @@ func (m *Manager) PlayNakamaStream(ctx context.Context, opts PlayNakamaStreamOpt
 			manager:               m,
 			logger:                m.Logger,
 			clientId:              opts.ClientId,
+			profileId:             opts.ProfileID,
 			media:                 opts.Media,
 			filename:              "",
 			episode:               episode,
@@ -319,7 +321,7 @@ func (m *Manager) PlayNakamaStream(ctx context.Context, opts PlayNakamaStreamOpt
 	}
 
 	go func() {
-		m.loadStream(stream)
+		m.loadStream(opts.ProfileID, stream)
 	}()
 
 	return nil
@@ -352,7 +354,7 @@ func (s *Nakama) initializeStream() error {
 	s.logger.Debug().Msgf("directstream(nakama): Initializing FileStream for stream URL: %s", s.streamUrl)
 
 	// Create a file-backed stream with the known content length
-	cache, err := httputil.NewFileStream(s.manager.playbackCtx, s.logger, s.contentLength)
+	cache, err := httputil.NewFileStream(s.PlaybackCtx(), s.logger, s.contentLength)
 	if err != nil {
 		return fmt.Errorf("failed to create FileStream: %w", err)
 	}

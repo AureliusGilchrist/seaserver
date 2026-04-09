@@ -21,6 +21,7 @@ func RunJobs(app *core.App) func() {
 	refreshLocalDataTicker := time.NewTicker(30 * time.Minute)
 	refetchReleaseTicker := time.NewTicker(1 * time.Hour)
 	refetchAnnouncementsTicker := time.NewTicker(10 * time.Minute)
+	notificationCleanupTicker := time.NewTicker(24 * time.Hour)
 	stopCh := make(chan struct{})
 	var stopOnce sync.Once
 	var wg sync.WaitGroup
@@ -32,6 +33,7 @@ func RunJobs(app *core.App) func() {
 			refreshLocalDataTicker.Stop()
 			refetchReleaseTicker.Stop()
 			refetchAnnouncementsTicker.Stop()
+			notificationCleanupTicker.Stop()
 			wg.Wait()
 		})
 	}
@@ -97,6 +99,19 @@ func RunJobs(app *core.App) func() {
 					continue
 				}
 				app.Updater.FetchAnnouncements()
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stopCh:
+				return
+			case <-notificationCleanupTicker.C:
+				CleanupOldNotificationsJob(ctx)
 			}
 		}
 	}()

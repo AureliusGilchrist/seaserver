@@ -97,6 +97,7 @@ type (
 	Manager struct {
 		// Playlist being played currently
 		clientId              string
+		profileID             uint
 		currentPlaylistData   mo.Option[*playlistData]
 		currentEpisode        mo.Option[*anime.PlaylistEpisode]
 		currentPlaybackMethod ClientPlaybackMethod
@@ -240,6 +241,7 @@ func (m *Manager) listenToEvents() {
 				if err := event.UnmarshalAs(&payload); err == nil {
 					// Get the playlist
 					m.clientId = payload.ClientId
+					m.profileID = clientEvent.ProfileID
 					playlist, err := db_bridge.GetPlaylist(m.db, payload.DbId)
 					if err != nil {
 						m.logger.Error().Err(err).Msg("playlist: failed to get playlist")
@@ -595,6 +597,7 @@ func (m *Manager) playEpisode(episode *anime.PlaylistEpisode) {
 		m.logger.Debug().Msg("playlist: Local file and native media player, playing from server")
 		err := m.directstreamManager.PlayLocalFile(context.Background(), directstream.PlayLocalFileOptions{
 			ClientId:   "",
+			ProfileID:  m.profileID,
 			Path:       episode.Episode.LocalFile.Path,
 			LocalFiles: []*anime.LocalFile{episode.Episode.LocalFile},
 		})
@@ -610,7 +613,7 @@ func (m *Manager) playEpisode(episode *anime.PlaylistEpisode) {
 	// nakama and desktop media player or native player, play it from server
 	if isNakama && (data.options.LocalFilePlaybackMethod == ClientPlaybackMethodDefault || data.options.LocalFilePlaybackMethod == ClientPlaybackMethodNativePlayer) {
 		m.logger.Debug().Msg("playlist: Nakama stream and desktop media player, playing from server")
-		err := m.nakamaManager.PlayHostAnimeLibraryFile(episode.Episode.LocalFile.Path, "", m.clientId, episode.Episode.BaseAnime, episode.Episode.AniDBEpisode, "")
+		err := m.nakamaManager.PlayHostAnimeLibraryFile(episode.Episode.LocalFile.Path, "", m.clientId, m.profileID, episode.Episode.BaseAnime, episode.Episode.AniDBEpisode, "")
 		if err != nil {
 			m.logger.Error().Err(err).Msg("playlist: Failed to start playing nakama stream")
 			m.StopPlaylist("Failed to start playing nakama stream")

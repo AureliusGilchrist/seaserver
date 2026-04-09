@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/api/metadata_provider"
 	"seanime/internal/constants"
@@ -189,9 +190,14 @@ type (
 		PrivacyManager *privacy.Manager
 
 		// Profile system
-		ProfileManager      *ProfileManager
-		ProfileMigrator     *ProfileMigrator
-		ProfilePathResolver *ProfilePathResolver
+		ProfileManager         *ProfileManager
+		ProfileMigrator        *ProfileMigrator
+		ProfilePathResolver    *ProfilePathResolver
+		ProfileDatabaseManager *ProfileDatabaseManager
+		AnilistClientManager   *AnilistClientManager
+
+		// Achievement system
+		AchievementEngine *achievement.Engine
 
 		// Service runner
 		ServiceRunner *ServiceRunner
@@ -277,6 +283,9 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	}
 
 	HandleNewDatabaseEntries(database, logger)
+
+	// Initialize profile database manager for per-profile database isolation
+	profileDBManager := NewProfileDatabaseManager(profileManager, database, logger)
 
 	// Clean up old database entries using the cleanup manager to prevent concurrent access issues
 	database.RunDatabaseCleanup() // Remove old entries from all tables sequentially
@@ -513,7 +522,11 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		ProfileManager:                  profileManager,
 		ProfileMigrator:                 profileMigrator,
 		ProfilePathResolver:             profilePathResolver,
+		ProfileDatabaseManager:          profileDBManager,
 	}
+
+	// Initialize AnilistClientManager after app struct is created (it references app)
+	app.AnilistClientManager = NewAnilistClientManager(app)
 
 	app.AddCleanupFunctionOnce("ws-event-manager.stop", func() {
 		if app.WSEventManager != nil {
@@ -548,6 +561,18 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	app.AddCleanupFunctionOnce("profile-manager.close", func() {
 		if app.ProfileManager != nil {
 			app.ProfileManager.Close()
+		}
+	})
+
+	app.AddCleanupFunctionOnce("profile-db-manager.close", func() {
+		if app.ProfileDatabaseManager != nil {
+			app.ProfileDatabaseManager.CloseAll()
+		}
+	})
+
+	app.AddCleanupFunctionOnce("anilist-client-manager.close", func() {
+		if app.AnilistClientManager != nil {
+			app.AnilistClientManager.CloseAll()
 		}
 	})
 

@@ -18,6 +18,15 @@ const (
 	WatchHistoryBucketName = "watch_history"
 )
 
+// GetProfileBucket returns a file cache bucket namespaced by profile ID.
+// If profileID is 0, returns the default (global) bucket.
+func GetProfileBucket(profileID uint) filecache.Bucket {
+	if profileID == 0 {
+		return filecache.NewBucket(WatchHistoryBucketName, time.Hour*24*99999)
+	}
+	return filecache.NewBucket(fmt.Sprintf("%s_%d", WatchHistoryBucketName, profileID), time.Hour*24*99999)
+}
+
 type (
 	// WatchHistory is a map of WatchHistoryItem.
 	// The key is the WatchHistoryItem.MediaId.
@@ -416,3 +425,131 @@ func (m *Manager) trimWatchHistoryItems() error {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Profile-scoped watch history methods.
+// These use a separate file cache bucket per profile (watch_history_{profileID}).
+
+func (m *Manager) GetWatchHistoryForProfile(profileID uint) WatchHistory {
+	defer util.HandlePanicInModuleThen("continuity/GetWatchHistoryForProfile", func() {})
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	bucket := GetProfileBucket(profileID)
+	items, err := filecache.GetAll[*WatchHistoryItem](m.fileCacher, bucket)
+	if err != nil {
+		m.logger.Error().Err(err).Uint("profileID", profileID).Msg("continuity: Failed to get profile watch history")
+		return nil
+	}
+
+	ret := make(WatchHistory)
+	for _, item := range items {
+		ret[item.MediaId] = item
+	}
+	return ret
+}
+
+func (m *Manager) GetWatchHistoryItemForProfile(profileID uint, mediaId int) *WatchHistoryItemResponse {
+	defer util.HandlePanicInModuleThen("continuity/GetWatchHistoryItemForProfile", func() {})
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	bucket := GetProfileBucket(profileID)
+	var ret *WatchHistoryItem
+	exists, _ := m.fileCacher.Get(bucket, strconv.Itoa(mediaId), &ret)
+
+	if exists && ret != nil && ret.Duration > 0 {
+		ratio := ret.CurrentTime / ret.Duration
+		if ratio >= IgnoreRatioThreshold {
+			go func() {
+				defer util.HandlePanicInModuleThen("continuity/GetWatchHistoryItemForProfile", func() {})
+				_ = m.fileCacher.Delete(bucket, strconv.Itoa(mediaId))
+			}()
+			return &WatchHistoryItemResponse{Item: nil, Found: false}
+		}
+		if ratio < 0.05 {
+			return &WatchHistoryItemResponse{Item: nil, Found: false}
+		}
+	}
+
+	return &WatchHistoryItemResponse{Item: ret, Found: exists}
+}
+
+func (m *Manager) UpdateWatchHistoryItemForProfile(profileID uint, opts *UpdateWatchHistoryItemOptions) error {
+	defer util.HandlePanicInModuleThen("continuity/UpdateWatchHistoryItemForProfile", func() {})
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	bucket := GetProfileBucket(profileID)
+	added := false
+
+	var i *WatchHistoryItem
+	exists, _ := m.fileCacher.Get(bucket, strconv.Itoa(opts.MediaId), &i)
+
+	if !exists || i == nil {
+		added = true
+		i = &WatchHistoryItem{
+			Kind:          opts.Kind,
+			Filepath:      opts.Filepath,
+			MediaId:       opts.MediaId,
+			EpisodeNumber: opts.EpisodeNumber,
+			CurrentTime:   opts.CurrentTime,
+			Duration:      opts.Duration,
+			TimeAdded:     time.Now(),
+			TimeUpdated:   time.Now(),
+		}
+	} else {
+		i.Kind = opts.Kind
+		i.EpisodeNumber = opts.EpisodeNumber
+		i.CurrentTime = opts.CurrentTime
+		i.Duration = opts.Duration
+		i.TimeUpdated = time.Now()
+	}
+
+	err := m.fileCacher.Set(bucket, strconv.Itoa(opts.MediaId), i)
+	if err != nil {
+		return fmt.Errorf("continuity: Failed to save profile watch history item: %w", err)
+	}
+
+	// Also update the global bucket so internal playback manager still works
+	_ = m.fileCacher.Set(*m.watchHistoryFileCacheBucket, strconv.Itoa(opts.MediaId), i)
+
+	_ = hook.GlobalHookManager.OnWatchHistoryItemUpdated().Trigger(&WatchHistoryItemUpdatedEvent{
+		WatchHistoryItem: i,
+	})
+
+	if added {
+		_ = m.trimProfileWatchHistory(bucket)
+	}
+
+	return nil
+}
+
+func (m *Manager) DeleteWatchHistoryItemForProfile(profileID uint, mediaId int) error {
+	defer util.HandlePanicInModuleThen("continuity/DeleteWatchHistoryItemForProfile", func() {})
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	bucket := GetProfileBucket(profileID)
+	return m.fileCacher.Delete(bucket, strconv.Itoa(mediaId))
+}
+
+func (m *Manager) trimProfileWatchHistory(bucket filecache.Bucket) error {
+	items, err := filecache.GetAll[*WatchHistoryItem](m.fileCacher, bucket)
+	if err != nil {
+		return err
+	}
+	if len(items) > MaxWatchHistoryItems {
+		var oldestKey string
+		for key := range items {
+			if oldestKey == "" || items[key].TimeUpdated.Before(items[oldestKey].TimeUpdated) {
+				oldestKey = key
+			}
+		}
+		return m.fileCacher.Delete(bucket, oldestKey)
+	}
+	return nil
+}

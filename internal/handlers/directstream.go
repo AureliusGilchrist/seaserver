@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"net/http"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/directstream"
 	"seanime/internal/mkvparser"
@@ -39,6 +38,7 @@ func (h *Handler) HandleDirectstreamPlayLocalFile(c echo.Context) error {
 
 	return h.App.DirectStreamManager.PlayLocalFile(c.Request().Context(), directstream.PlayLocalFileOptions{
 		ClientId:   b.ClientId,
+		ProfileID:  h.GetProfileID(c),
 		Path:       b.Path,
 		LocalFiles: lfs,
 	})
@@ -95,10 +95,14 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 	return h.RespondWithData(c, ret)
 }
 
-func (h *Handler) HandleDirectstreamGetStream() http.Handler {
-	return h.App.DirectStreamManager.ServeEchoStream()
+func (h *Handler) HandleDirectstreamGetStream(c echo.Context) error {
+	profileID := h.GetProfileID(c)
+	handler := h.App.DirectStreamManager.ServeEchoStream(profileID)
+	handler.ServeHTTP(c.Response(), c.Request())
+	return nil
 }
 
 func (h *Handler) HandleDirectstreamGetAttachments(c echo.Context) error {
-	return h.App.DirectStreamManager.ServeEchoAttachments(c)
+	profileID := h.GetProfileID(c)
+	return h.App.DirectStreamManager.ServeEchoAttachments(profileID, c)
 }

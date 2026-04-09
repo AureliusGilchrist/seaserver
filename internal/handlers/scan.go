@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"seanime/internal/achievement"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/library/scanner"
 	"seanime/internal/library/summary"
@@ -111,6 +112,16 @@ func (h *Handler) HandleScanLocalFiles(c echo.Context) error {
 	_ = db_bridge.InsertScanSummary(h.App.Database, scanSummaryLogger.GenerateSummary())
 
 	go h.App.AutoDownloader.CleanUpDownloadedItems()
+
+	// Fire achievement event for library scan completion
+	go h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+		ProfileID: h.GetProfileID(c),
+		Trigger:   achievement.TriggerPlatformEvent,
+		Metadata: map[string]interface{}{
+			"action":     "library_scan",
+			"file_count": len(lfs),
+		},
+	})
 
 	return h.RespondWithData(c, lfs)
 

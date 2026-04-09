@@ -673,6 +673,80 @@ type PrivacySettings struct {
 
 ///////////////////////////////////////////////////////////////////////////
 
+// +---------------------+
+// |      Comments       |
+// +---------------------+
+
+// Comment represents a user comment on an anime or manga.
+// Stored in the global database (shared across all profiles).
+type Comment struct {
+	BaseModel
+	MediaID   int    `gorm:"column:media_id;index" json:"mediaId"`
+	MediaType string `gorm:"column:media_type;index" json:"mediaType"` // "anime" or "manga"
+	ProfileID uint   `gorm:"column:profile_id;index" json:"profileId"`
+	ParentID  *uint  `gorm:"column:parent_id;index" json:"parentId"` // nil for top-level comments
+	Content   string `gorm:"column:content;type:text" json:"content"`
+	IsEdited  bool   `gorm:"column:is_edited;default:false" json:"isEdited"`
+	IsSpoiler bool   `gorm:"column:is_spoiler;default:false" json:"isSpoiler"`
+}
+
+// CommentVote tracks upvotes/downvotes per profile per comment.
+type CommentVote struct {
+	BaseModel
+	CommentID uint `gorm:"column:comment_id;uniqueIndex:idx_comment_vote" json:"commentId"`
+	ProfileID uint `gorm:"column:profile_id;uniqueIndex:idx_comment_vote" json:"profileId"`
+	Value     int  `gorm:"column:value" json:"value"` // +1 or -1
+}
+
+// MangaFavorite stores a favorited manga per profile (stored in per-profile DB).
+type MangaFavorite struct {
+	BaseModel
+	MediaID int       `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
+	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
+// Notification stores a notification per profile (stored in per-profile DB).
+type Notification struct {
+	BaseModel
+	Type     string `gorm:"column:type" json:"type"`         // new_episode, sequel_announced, related_airing, character_birthday, achievement_unlocked, manga_chapter
+	Title    string `gorm:"column:title" json:"title"`
+	Body     string `gorm:"column:body" json:"body"`
+	ImageURL string `gorm:"column:image_url" json:"imageUrl"`
+	MediaID  int    `gorm:"column:media_id" json:"mediaId"` // 0 if not media-related
+	IsRead   bool   `gorm:"column:is_read;default:false" json:"isRead"`
+	Metadata string `gorm:"column:metadata;type:text" json:"metadata"` // JSON string for extra data
+}
+
+// Achievement stores per-profile achievement progress and unlock state (stored in per-profile DB).
+type Achievement struct {
+	BaseModel
+	Key          string     `gorm:"column:key;uniqueIndex:idx_achievement_key_tier" json:"key"`
+	Tier         int        `gorm:"column:tier;uniqueIndex:idx_achievement_key_tier;default:0" json:"tier"` // 0 for untiered, 1-5 for tiered
+	IsUnlocked   bool       `gorm:"column:is_unlocked;default:false" json:"isUnlocked"`
+	UnlockedAt   *time.Time `gorm:"column:unlocked_at" json:"unlockedAt"`
+	Progress     float64    `gorm:"column:progress;default:0" json:"progress"`         // 0.0 - 1.0
+	ProgressData string     `gorm:"column:progress_data;type:text" json:"progressData"` // JSON blob for tracking state
+}
+
+// AchievementShowcase stores the user's selected achievement badges for profile display (stored in per-profile DB).
+type AchievementShowcase struct {
+	BaseModel
+	Slot           int    `gorm:"column:slot;uniqueIndex" json:"slot"` // 0-4 (5 slots)
+	AchievementKey string `gorm:"column:achievement_key" json:"achievementKey"`
+	AchievementTier int   `gorm:"column:achievement_tier;default:0" json:"achievementTier"`
+}
+
+// ActivityLog tracks daily anime/manga activity for heatmap and streak data (stored in per-profile DB).
+type ActivityLog struct {
+	BaseModel
+	Date          string `gorm:"column:date;uniqueIndex" json:"date"` // "2006-01-02" format
+	AnimeEpisodes int    `gorm:"column:anime_episodes;default:0" json:"animeEpisodes"`
+	MangaChapters int    `gorm:"column:manga_chapters;default:0" json:"mangaChapters"`
+	AnimeMinutes  int    `gorm:"column:anime_minutes;default:0" json:"animeMinutes"`
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 type StringSlice []string
 
 func (o *StringSlice) Scan(src interface{}) error {

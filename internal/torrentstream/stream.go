@@ -37,6 +37,7 @@ type StartStreamOptions struct {
 	FileIndex         *int                        // Index of the file to stream (Manual selection)
 	UserAgent         string
 	ClientId          string
+	ProfileID         uint
 	PlaybackType      PlaybackType
 	BatchEpisodeFiles *hibiketorrent.BatchEpisodeFiles
 }
@@ -61,7 +62,7 @@ func (r *Repository) StartStream(ctx context.Context, opts *StartStreamOptions) 
 	}()
 
 	if opts.PlaybackType == PlaybackTypeNativePlayer {
-		r.directStreamManager.PrepareNewStream(opts.ClientId, "Selecting torrent...")
+		r.directStreamManager.PrepareNewStream(opts.ProfileID, opts.ClientId, "Selecting torrent...")
 	}
 
 	//
@@ -109,7 +110,7 @@ func (r *Repository) StartStream(ctx context.Context, opts *StartStreamOptions) 
 			torrentToStream, err = r.findBestTorrent(media, aniDbEpisode, episodeNumber)
 			if err != nil {
 				if opts.PlaybackType == PlaybackTypeNativePlayer {
-					r.directStreamManager.AbortOpen(opts.ClientId, err)
+					r.directStreamManager.AbortOpen(opts.ProfileID, opts.ClientId, err)
 				}
 				r.sendStateEvent(eventLoadingFailed)
 				return err
@@ -121,7 +122,7 @@ func (r *Repository) StartStream(ctx context.Context, opts *StartStreamOptions) 
 			torrentToStream, err = r.findBestTorrentFromManualSelection(opts.Torrent, media, aniDbEpisode, opts.FileIndex)
 			if err != nil {
 				if opts.PlaybackType == PlaybackTypeNativePlayer {
-					r.directStreamManager.AbortOpen(opts.ClientId, err)
+					r.directStreamManager.AbortOpen(opts.ProfileID, opts.ClientId, err)
 				}
 				r.sendStateEvent(eventLoadingFailed)
 				return err
@@ -131,7 +132,7 @@ func (r *Repository) StartStream(ctx context.Context, opts *StartStreamOptions) 
 
 	if torrentToStream == nil {
 		if opts.PlaybackType == PlaybackTypeNativePlayer {
-			r.directStreamManager.AbortOpen(opts.ClientId, fmt.Errorf("torrentstream: No torrent found"))
+			r.directStreamManager.AbortOpen(opts.ProfileID, opts.ClientId, fmt.Errorf("torrentstream: No torrent found"))
 		}
 		r.sendStateEvent(eventLoadingFailed)
 		return fmt.Errorf("torrentstream: No torrent selected")
@@ -184,6 +185,7 @@ func (r *Repository) StartStream(ctx context.Context, opts *StartStreamOptions) 
 		case PlaybackTypeNativePlayer:
 			readyCh, err := r.directStreamManager.PlayTorrentStream(ctx, directstream.PlayTorrentStreamOptions{
 				ClientId:      opts.ClientId,
+				ProfileID:     opts.ProfileID,
 				EpisodeNumber: opts.EpisodeNumber,
 				AnidbEpisode:  opts.AniDBEpisode,
 				Media:         media.ToBaseAnime(),
@@ -200,7 +202,7 @@ func (r *Repository) StartStream(ctx context.Context, opts *StartStreamOptions) 
 			}
 
 			if opts.PlaybackType == PlaybackTypeNativePlayer {
-				r.directStreamManager.PrepareNewStream(opts.ClientId, "Downloading metadata...")
+				r.directStreamManager.PrepareNewStream(opts.ProfileID, opts.ClientId, "Downloading metadata...")
 			}
 
 			// Make sure the client is ready and the torrent is partially downloaded

@@ -7,6 +7,48 @@ export type ApiEndpoints = Record<string, Record<string, {
 }>>
 
 export const API_ENDPOINTS = {
+    ACHIEVEMENT: {
+        /**
+         *  @description
+         *  Route get all achievements for the current profile.
+         *  Returns all achievement definitions, categories, current progress/unlock state, and a summary.
+         */
+        GetAchievements: {
+            key: "ACHIEVEMENT-get-achievements",
+            methods: ["GET"],
+            endpoint: "/api/v1/achievements",
+        },
+        /**
+         *  @description
+         *  Route get achievement summary for the current profile.
+         *  Returns total and unlocked achievement counts.
+         */
+        GetAchievementSummary: {
+            key: "ACHIEVEMENT-get-achievement-summary",
+            methods: ["GET"],
+            endpoint: "/api/v1/achievements/summary",
+        },
+        /**
+         *  @description
+         *  Route set the achievement showcase for the current profile.
+         *  Sets which achievements to display in the profile badge showcase (up to 6 slots).
+         */
+        SetAchievementShowcase: {
+            key: "ACHIEVEMENT-set-achievement-showcase",
+            methods: ["POST"],
+            endpoint: "/api/v1/achievements/showcase",
+        },
+        /**
+         *  @description
+         *  Route get the achievement showcase for the current profile.
+         *  Returns the current showcase configuration.
+         */
+        GetAchievementShowcase: {
+            key: "ACHIEVEMENT-get-achievement-showcase",
+            methods: ["GET"],
+            endpoint: "/api/v1/achievements/showcase",
+        },
+    },
     ANILIST: {
         /**
          *  @description
@@ -297,6 +339,8 @@ export const API_ENDPOINTS = {
          *  This is called when the JWT token is obtained from AniList after logging in with redirection on the client.
          *  It also fetches the Viewer data from AniList and saves it in the database.
          *  It creates a new handlers.Status and refreshes App modules.
+         *  When called by a non-admin profile, the token is stored in the profile's database
+         *  and only that profile's cached AniList client is updated (global platform is untouched).
          */
         Login: {
             key: "AUTH-login",
@@ -308,6 +352,7 @@ export const API_ENDPOINTS = {
          *  Route logs out the user by removing JWT token from the database.
          *  It removes JWT token and Viewer data from the database.
          *  It creates a new handlers.Status and refreshes App modules.
+         *  When called by a non-admin profile, only that profile's token and client are removed.
          */
         Logout: {
             key: "AUTH-logout",
@@ -440,6 +485,58 @@ export const API_ENDPOINTS = {
             key: "AUTO-DOWNLOADER-delete-auto-downloader-item",
             methods: ["DELETE"],
             endpoint: "/api/v1/auto-downloader/item",
+        },
+    },
+    COMMENT: {
+        /**
+         *  @description
+         *  Route get comments for a media entry.
+         *  Returns a threaded tree of comments for the given media.
+         */
+        GetComments: {
+            key: "COMMENT-get-comments",
+            methods: ["GET"],
+            endpoint: "/api/v1/comments",
+        },
+        /**
+         *  @description
+         *  Route create a new comment.
+         *  Creates a new comment on an anime or manga entry.
+         */
+        CreateComment: {
+            key: "COMMENT-create-comment",
+            methods: ["POST"],
+            endpoint: "/api/v1/comments",
+        },
+        /**
+         *  @description
+         *  Route edit a comment.
+         *  Updates the content of a comment. Only the author can edit.
+         */
+        EditComment: {
+            key: "COMMENT-edit-comment",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/comments/:id",
+        },
+        /**
+         *  @description
+         *  Route delete a comment.
+         *  Deletes a comment and all its replies. Admin or author only.
+         */
+        DeleteComment: {
+            key: "COMMENT-delete-comment",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/comments/:id",
+        },
+        /**
+         *  @description
+         *  Route vote on a comment.
+         *  Upvote (+1), downvote (-1), or remove vote (0) on a comment.
+         */
+        VoteComment: {
+            key: "COMMENT-vote-comment",
+            methods: ["POST"],
+            endpoint: "/api/v1/comments/:id/vote",
         },
     },
     CONTINUITY: {
@@ -755,66 +852,6 @@ export const API_ENDPOINTS = {
             key: "ENMASSE-manga-en-masse-stop",
             methods: ["POST"],
             endpoint: "/api/v1/enmasse/manga/stop",
-        },
-        /**
-         *  @description
-         *  Route get the match history for manga en masse downloader.
-         *  Returns all manga match records for review and correction.
-         */
-        GetMangaMatchHistory: {
-            key: "ENMASSE-get-manga-match-history",
-            methods: ["GET"],
-            endpoint: "/api/v1/enmasse/manga/match-history",
-        },
-        /**
-         *  @description
-         *  Route get count of low confidence manga matches.
-         *  Returns count of matches below confidence threshold for sidebar badge.
-         */
-        GetLowConfidenceMangaMatchCount: {
-            key: "ENMASSE-get-low-confidence-manga-match-count",
-            methods: ["GET"],
-            endpoint: "/api/v1/enmasse/manga/low-confidence-count",
-        },
-        /**
-         *  @description
-         *  Route correct a manga's AniList match.
-         *  Updates a manga's AniList match and moves files accordingly.
-         */
-        CorrectMangaMatch: {
-            key: "ENMASSE-correct-manga-match",
-            methods: ["POST"],
-            endpoint: "/api/v1/enmasse/manga/correct-match",
-        },
-        /**
-         *  @description
-         *  Route convert an AniList manga match to synthetic.
-         *  Converts an AniList match to a synthetic manga entry.
-         */
-        ConvertMangaToSynthetic: {
-            key: "ENMASSE-convert-manga-to-synthetic",
-            methods: ["POST"],
-            endpoint: "/api/v1/enmasse/manga/convert-synthetic",
-        },
-        /**
-         *  @description
-         *  Route scan existing manga collection for validation.
-         *  Scans the user's existing manga collection (AniList + synthetic) and creates match records.
-         */
-        ScanMangaCollection: {
-            key: "ENMASSE-scan-manga-collection",
-            methods: ["POST"],
-            endpoint: "/api/v1/enmasse/manga/scan-collection",
-        },
-        /**
-         *  @description
-         *  Route auto-match synthetic manga to AniList.
-         *  Scans all synthetic manga and attempts to find AniList matches for review.
-         */
-        AutoMatchSyntheticManga: {
-            key: "ENMASSE-auto-match-synthetic-manga",
-            methods: ["POST"],
-            endpoint: "/api/v1/enmasse/manga/auto-match-synthetic",
         },
     },
     EXPLORER: {
@@ -1434,6 +1471,16 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route hydrates all manga entries with missing or empty media data.
+         *  This forces fresh data fetch from AniList for all manga entries that have missing titles or metadata.
+         */
+        HydrateAllManga: {
+            key: "MANGA-hydrate-all-manga",
+            methods: ["POST"],
+            endpoint: "/api/v1/manga/hydrate-all",
+        },
+        /**
+         *  @description
          *  Route returns manga sequels not in collection.
          *  Returns sequels of manga in user's collection that aren't added.
          */
@@ -1538,6 +1585,38 @@ export const API_ENDPOINTS = {
             key: "MANGA-DOWNLOAD-get-manga-downloads-list",
             methods: ["GET"],
             endpoint: "/api/v1/manga/downloads",
+        },
+    },
+    MANGA_FAVORITE: {
+        /**
+         *  @description
+         *  Route get the list of favorited manga media IDs.
+         *  Returns an array of media IDs that are favorited for the current profile.
+         */
+        GetMangaFavorites: {
+            key: "MANGA-FAVORITE-get-manga-favorites",
+            methods: ["GET"],
+            endpoint: "/api/v1/manga/favorites",
+        },
+        /**
+         *  @description
+         *  Route toggle a manga as favorite (add/remove).
+         *  Adds the manga to favorites if not present, removes it if already favorited.
+         */
+        ToggleMangaFavorite: {
+            key: "MANGA-FAVORITE-toggle-manga-favorite",
+            methods: ["POST"],
+            endpoint: "/api/v1/manga/favorites/toggle",
+        },
+        /**
+         *  @description
+         *  Route bulk-add manga favorites (for localStorage migration).
+         *  Accepts an array of media IDs and adds them all as favorites, skipping duplicates.
+         */
+        BulkAddMangaFavorites: {
+            key: "MANGA-FAVORITE-bulk-add-manga-favorites",
+            methods: ["POST"],
+            endpoint: "/api/v1/manga/favorites/bulk",
         },
     },
     MANUAL_DUMP: {
@@ -1813,6 +1892,58 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/nakama/watch-party/chat",
         },
     },
+    NOTIFICATION: {
+        /**
+         *  @description
+         *  Route get paginated notifications for the current profile.
+         *  Returns a paginated list of notifications with total and unread counts.
+         */
+        GetNotifications: {
+            key: "NOTIFICATION-get-notifications",
+            methods: ["GET"],
+            endpoint: "/api/v1/notifications",
+        },
+        /**
+         *  @description
+         *  Route get the unread notification count for the current profile.
+         *  Returns the number of unread notifications.
+         */
+        GetUnreadNotificationCount: {
+            key: "NOTIFICATION-get-unread-notification-count",
+            methods: ["GET"],
+            endpoint: "/api/v1/notifications/unread-count",
+        },
+        /**
+         *  @description
+         *  Route mark a single notification as read.
+         *  Marks the notification with the given ID as read.
+         */
+        MarkNotificationRead: {
+            key: "NOTIFICATION-mark-notification-read",
+            methods: ["POST"],
+            endpoint: "/api/v1/notifications/:id/read",
+        },
+        /**
+         *  @description
+         *  Route mark all notifications as read.
+         *  Marks all notifications for the current profile as read.
+         */
+        MarkAllNotificationsRead: {
+            key: "NOTIFICATION-mark-all-notifications-read",
+            methods: ["POST"],
+            endpoint: "/api/v1/notifications/read-all",
+        },
+        /**
+         *  @description
+         *  Route delete a notification.
+         *  Deletes the notification with the given ID.
+         */
+        DeleteNotification: {
+            key: "NOTIFICATION-delete-notification",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/notifications/:id",
+        },
+    },
     ONLINESTREAM: {
         /**
          *  @description
@@ -2038,6 +2169,133 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/playlist/episodes/{id}",
         },
     },
+    PRIVACY: {
+        /**
+         *  @description
+         *  Route get privacy settings.
+         *  This returns the privacy settings and DNSCrypt status.
+         */
+        GetPrivacySettings: {
+            key: "PRIVACY-get-privacy-settings",
+            methods: ["GET"],
+            endpoint: "/api/v1/privacy/settings",
+        },
+        /**
+         *  @description
+         *  Route save privacy settings.
+         *  This saves the privacy settings and applies them immediately.
+         */
+        SavePrivacySettings: {
+            key: "PRIVACY-save-privacy-settings",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/privacy/settings",
+        },
+        /**
+         *  @description
+         *  Route test the privacy layers.
+         *  This tests the currently configured privacy layers and returns results.
+         */
+        TestPrivacyConnection: {
+            key: "PRIVACY-test-privacy-connection",
+            methods: ["POST"],
+            endpoint: "/api/v1/privacy/test",
+        },
+        /**
+         *  @description
+         *  Route install dnscrypt-proxy.
+         *  This attempts to install dnscrypt-proxy via dnf.
+         */
+        InstallDNSCrypt: {
+            key: "PRIVACY-install-d-n-s-crypt",
+            methods: ["POST"],
+            endpoint: "/api/v1/privacy/dnscrypt/install",
+        },
+    },
+    PROFILE: {
+        GetProfiles: {
+            key: "PROFILE-get-profiles",
+            methods: ["GET"],
+            endpoint: "/api/v1/profiles",
+        },
+        GetCurrentProfile: {
+            key: "PROFILE-get-current-profile",
+            methods: ["GET"],
+            endpoint: "/api/v1/profiles/current",
+        },
+        ProfileLogin: {
+            key: "PROFILE-profile-login",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/login",
+        },
+        ProfileLogout: {
+            key: "PROFILE-profile-logout",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/logout",
+        },
+        CreateProfile: {
+            key: "PROFILE-create-profile",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles",
+        },
+        UpdateProfile: {
+            key: "PROFILE-update-profile",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/profiles/:id",
+        },
+        DeleteProfile: {
+            key: "PROFILE-delete-profile",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/profiles/:id",
+        },
+        UploadProfileAvatar: {
+            key: "PROFILE-upload-profile-avatar",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/:id/avatar",
+        },
+        ServeProfileAvatar: {
+            key: "PROFILE-serve-profile-avatar",
+            methods: ["GET"],
+            endpoint: "/api/v1/profiles/:id/avatar/:filename",
+        },
+        GetAllowedLibraryPaths: {
+            key: "PROFILE-get-allowed-library-paths",
+            methods: ["GET"],
+            endpoint: "/api/v1/profiles/library-paths",
+        },
+        SetAllowedLibraryPaths: {
+            key: "PROFILE-set-allowed-library-paths",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/library-paths",
+        },
+        GetMigrationStatus: {
+            key: "PROFILE-get-migration-status",
+            methods: ["GET"],
+            endpoint: "/api/v1/profiles/migration/status",
+        },
+        RunMigration: {
+            key: "PROFILE-run-migration",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/migration/run",
+        },
+        SkipMigration: {
+            key: "PROFILE-skip-migration",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/migration/skip",
+        },
+    },
+    PROFILE_STATS: {
+        /**
+         *  @description
+         *  Route get enhanced profile statistics for the current profile.
+         *  Returns activity heatmap, streak data, anime personality, and watch patterns.
+         *  Optional query param "year" selects a calendar year; defaults to last 365 days.
+         */
+        GetProfileStats: {
+            key: "PROFILE-STATS-get-profile-stats",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/stats",
+        },
+    },
     RELEASES: {
         /**
          *  @description
@@ -2089,6 +2347,30 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/report/issue/download",
         },
     },
+    RESET_ALL_MATCHES: {
+        /**
+         *  @description
+         *  Route resets ALL media matches, making all files unmatched.
+         *  This clears all media_id values, making every local file appear in unmatched for fresh matching.
+         */
+        ResetAllMatches: {
+            key: "RESET-ALL-MATCHES-reset-all-matches",
+            methods: ["POST"],
+            endpoint: "/api/v1/library/reset-all-matches",
+        },
+    },
+    RESET_MATCHES: {
+        /**
+         *  @description
+         *  Route resets files matched to incorrect media IDs.
+         *  This allows bulk resetting of incorrectly matched files so they can be re-matched correctly.
+         */
+        ResetIncorrectMatches: {
+            key: "RESET-MATCHES-reset-incorrect-matches",
+            methods: ["POST"],
+            endpoint: "/api/v1/library/reset-matches",
+        },
+    },
     SCAN: {
         /**
          *  @description
@@ -2107,6 +2389,48 @@ export const API_ENDPOINTS = {
             key: "SCAN-SUMMARY-get-scan-summaries",
             methods: ["GET"],
             endpoint: "/api/v1/library/scan-summaries",
+        },
+    },
+    SERVICES: {
+        RunUpdateAnimeLibrary: {
+            key: "SERVICES-run-update-anime-library",
+            methods: ["POST"],
+            endpoint: "/api/v1/services/update-anime-library",
+        },
+        RunUpdateMangaLibrary: {
+            key: "SERVICES-run-update-manga-library",
+            methods: ["POST"],
+            endpoint: "/api/v1/services/update-manga-library",
+        },
+        RunScanAnimeLibrary: {
+            key: "SERVICES-run-scan-anime-library",
+            methods: ["POST"],
+            endpoint: "/api/v1/services/scan-anime-library",
+        },
+        RunScanMangaLibrary: {
+            key: "SERVICES-run-scan-manga-library",
+            methods: ["POST"],
+            endpoint: "/api/v1/services/scan-manga-library",
+        },
+        RunFindAnimeLibrarySorting: {
+            key: "SERVICES-run-find-anime-library-sorting",
+            methods: ["POST"],
+            endpoint: "/api/v1/services/find-anime-library-sorting",
+        },
+        RunFindMangaLibrarySorting: {
+            key: "SERVICES-run-find-manga-library-sorting",
+            methods: ["POST"],
+            endpoint: "/api/v1/services/find-manga-library-sorting",
+        },
+        GetAnimeGojuuonMap: {
+            key: "SERVICES-get-anime-gojuuon-map",
+            methods: ["GET"],
+            endpoint: "/api/v1/services/anime-gojuuon-map",
+        },
+        GetMangaGojuuonMap: {
+            key: "SERVICES-get-manga-gojuuon-map",
+            methods: ["GET"],
+            endpoint: "/api/v1/services/manga-gojuuon-map",
         },
     },
     SETTINGS: {
@@ -2547,137 +2871,6 @@ export const API_ENDPOINTS = {
             key: "UNMATCHED-clear-completed-torrent",
             methods: ["POST"],
             endpoint: "/api/v1/unmatched/scanner/clear",
-        },
-    },
-    SERVICES: {
-        RunUpdateAnimeLibrary: {
-            key: "SERVICES-run-update-anime-library",
-            methods: ["POST"],
-            endpoint: "/api/v1/services/update-anime-library",
-        },
-        RunUpdateMangaLibrary: {
-            key: "SERVICES-run-update-manga-library",
-            methods: ["POST"],
-            endpoint: "/api/v1/services/update-manga-library",
-        },
-        RunScanAnimeLibrary: {
-            key: "SERVICES-run-scan-anime-library",
-            methods: ["POST"],
-            endpoint: "/api/v1/services/scan-anime-library",
-        },
-        RunScanMangaLibrary: {
-            key: "SERVICES-run-scan-manga-library",
-            methods: ["POST"],
-            endpoint: "/api/v1/services/scan-manga-library",
-        },
-        RunFindAnimeLibrarySorting: {
-            key: "SERVICES-run-find-anime-library-sorting",
-            methods: ["POST"],
-            endpoint: "/api/v1/services/find-anime-library-sorting",
-        },
-        RunFindMangaLibrarySorting: {
-            key: "SERVICES-run-find-manga-library-sorting",
-            methods: ["POST"],
-            endpoint: "/api/v1/services/find-manga-library-sorting",
-        },
-        GetAnimeGojuuonMap: {
-            key: "SERVICES-get-anime-gojuuon-map",
-            methods: ["GET"],
-            endpoint: "/api/v1/services/anime-gojuuon-map",
-        },
-        GetMangaGojuuonMap: {
-            key: "SERVICES-get-manga-gojuuon-map",
-            methods: ["GET"],
-            endpoint: "/api/v1/services/manga-gojuuon-map",
-        },
-    },
-    PRIVACY: {
-        GetPrivacySettings: {
-            key: "PRIVACY-get-privacy-settings",
-            methods: ["GET"],
-            endpoint: "/api/v1/privacy/settings",
-        },
-        SavePrivacySettings: {
-            key: "PRIVACY-save-privacy-settings",
-            methods: ["PATCH"],
-            endpoint: "/api/v1/privacy/settings",
-        },
-        TestPrivacyConnection: {
-            key: "PRIVACY-test-privacy-connection",
-            methods: ["POST"],
-            endpoint: "/api/v1/privacy/test",
-        },
-        InstallDNSCrypt: {
-            key: "PRIVACY-install-dnscrypt",
-            methods: ["POST"],
-            endpoint: "/api/v1/privacy/dnscrypt/install",
-        },
-    },
-    PROFILES: {
-        GetProfiles: {
-            key: "PROFILES-get-profiles",
-            methods: ["GET"],
-            endpoint: "/api/v1/profiles",
-        },
-        GetCurrentProfile: {
-            key: "PROFILES-get-current-profile",
-            methods: ["GET"],
-            endpoint: "/api/v1/profiles/current",
-        },
-        CreateProfile: {
-            key: "PROFILES-create-profile",
-            methods: ["POST"],
-            endpoint: "/api/v1/profiles",
-        },
-        UpdateProfile: {
-            key: "PROFILES-update-profile",
-            methods: ["PATCH"],
-            endpoint: "/api/v1/profiles/{id}",
-        },
-        DeleteProfile: {
-            key: "PROFILES-delete-profile",
-            methods: ["DELETE"],
-            endpoint: "/api/v1/profiles/{id}",
-        },
-        LoginProfile: {
-            key: "PROFILES-login-profile",
-            methods: ["POST"],
-            endpoint: "/api/v1/profiles/login",
-        },
-        LogoutProfile: {
-            key: "PROFILES-logout-profile",
-            methods: ["POST"],
-            endpoint: "/api/v1/profiles/logout",
-        },
-        UploadAvatar: {
-            key: "PROFILES-upload-avatar",
-            methods: ["POST"],
-            endpoint: "/api/v1/profiles/{id}/avatar",
-        },
-        GetAllowedLibraryPaths: {
-            key: "PROFILES-get-allowed-library-paths",
-            methods: ["GET"],
-            endpoint: "/api/v1/profiles/library-paths",
-        },
-        SetAllowedLibraryPaths: {
-            key: "PROFILES-set-allowed-library-paths",
-            methods: ["POST"],
-            endpoint: "/api/v1/profiles/library-paths",
-        },
-        GetMigrationStatus: {
-            key: "PROFILES-get-migration-status",
-            methods: ["GET"],
-            endpoint: "/api/v1/profiles/migration/status",
-        },
-        RunMigration: {
-            key: "PROFILES-run-migration",
-            methods: ["POST"],
-            endpoint: "/api/v1/profiles/migration/run",
-        },
-        SkipMigration: {
-            key: "PROFILES-skip-migration",
-            methods: ["POST"],
-            endpoint: "/api/v1/profiles/migration/skip",
         },
     },
 } satisfies ApiEndpoints

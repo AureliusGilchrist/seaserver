@@ -65,8 +65,19 @@ func (h *Handler) NewStatus(c echo.Context) *Status {
 	var theme *models.Theme
 	//var mal *models.Mal
 
+	// Determine which database to read the account from.
+	// If a profile session is active, use the profile-scoped database
+	// so each profile sees their own AniList account.
+	accountDB := h.App.Database
+	profileSession := h.GetProfileSession(c)
+	if profileSession != nil && h.App.ProfileDatabaseManager != nil {
+		if pdb, err := h.App.ProfileDatabaseManager.GetDatabase(profileSession.ProfileID); err == nil {
+			accountDB = pdb
+		}
+	}
+
 	// Get the user from the database (if logged in)
-	if dbAcc, _ = h.App.Database.GetAccount(); dbAcc != nil {
+	if dbAcc, _ = accountDB.GetAccount(); dbAcc != nil {
 		currentUser, _ = user.NewUser(dbAcc)
 		if currentUser != nil {
 			currentUser.Token = "HIDDEN"

@@ -378,6 +378,7 @@ func (h *Handler) HandleDebridStartStream(c echo.Context) error {
 		FileIndex:         b.FileIndex,
 		UserAgent:         userAgent,
 		ClientId:          b.ClientId,
+		ProfileID:         h.GetProfileID(c),
 		PlaybackType:      b.PlaybackType,
 		AutoSelect:        b.AutoSelect,
 		BatchEpisodeFiles: b.BatchEpisodeFiles,

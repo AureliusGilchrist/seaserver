@@ -423,10 +423,10 @@ func (wpm *WatchPartyManager) handleWatchPartyStateChangedEvent(payload *WatchPa
 			err = wpm.manager.torrentstreamRepository.StartStream(wpm.sessionCtx, payload.Session.CurrentMediaInfo.TorrentStreamParams)
 		case WatchPartyStreamTypeDebrid:
 			// Start the debrid stream, which is just the current stream the host is playing
-			err = wpm.manager.PlayHostAnimeStream(payload.Session.CurrentMediaInfo.StreamType, "seanime/nakama", wpm.clientId, media, payload.Session.CurrentMediaInfo.AniDBEpisode)
+			err = wpm.manager.PlayHostAnimeStream(payload.Session.CurrentMediaInfo.StreamType, "seanime/nakama", wpm.clientId, 0, media, payload.Session.CurrentMediaInfo.AniDBEpisode)
 		case WatchPartyStreamTypeFile:
 			// Start the local file stream off of the host using the file path
-			err = wpm.manager.PlayHostAnimeLibraryFile(payload.Session.CurrentMediaInfo.LocalFilePath, "seanime/nakama", wpm.clientId, media, payload.Session.CurrentMediaInfo.AniDBEpisode, "")
+			err = wpm.manager.PlayHostAnimeLibraryFile(payload.Session.CurrentMediaInfo.LocalFilePath, "seanime/nakama", wpm.clientId, 0, media, payload.Session.CurrentMediaInfo.AniDBEpisode, "")
 		case WatchPartyStreamTypeOnlinestream:
 			if payload.Session.CurrentMediaInfo.OnlinestreamParams == nil {
 				wpm.logger.Error().Msg("nakama: No onlinestream params found")

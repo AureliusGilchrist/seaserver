@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"seanime/internal/core"
 	"seanime/internal/events"
 
 	"github.com/goccy/go-json"
@@ -39,9 +40,19 @@ func (h *Handler) webSocketEventHandler(c echo.Context) error {
 		id = "0"
 	}
 
+	// Extract profile ID from profile session token query param
+	var profileID uint
+	profileToken := c.QueryParam("profileToken")
+	if profileToken != "" && h.App.ProfileManager != nil {
+		payload, err := core.ValidateProfileSessionToken(h.App.ProfileManager.GetJWTSecret(), profileToken)
+		if err == nil {
+			profileID = payload.ProfileID
+		}
+	}
+
 	// Add connection to manager
-	h.App.WSEventManager.AddConn(id, ws)
-	h.App.Logger.Debug().Str("id", id).Msg("ws: Client connected")
+	h.App.WSEventManager.AddConn(id, profileID, ws)
+	h.App.Logger.Debug().Str("id", id).Uint("profileID", profileID).Msg("ws: Client connected")
 
 	for {
 		_, msg, err := ws.ReadMessage()
@@ -60,6 +71,9 @@ func (h *Handler) webSocketEventHandler(c echo.Context) error {
 			h.App.Logger.Error().Err(err).Msg("ws: Failed to unmarshal message sent from webview")
 			continue
 		}
+
+		// Attach profile ID from the WS connection to the event
+		event.ProfileID = profileID
 
 		// Handle ping messages
 		if event.Type == "ping" {

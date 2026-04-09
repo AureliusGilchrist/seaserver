@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"seanime/internal/achievement"
 	"seanime/internal/customsource"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/library/anime"
@@ -37,6 +38,15 @@ func (h *Handler) HandleCreatePlaylist(c echo.Context) error {
 	if err := db_bridge.SavePlaylist(h.App.Database, playlist); err != nil {
 		return h.RespondWithError(c, err)
 	}
+
+	// Fire achievement event for playlist creation
+	go h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+		ProfileID: h.GetProfileID(c),
+		Trigger:   achievement.TriggerPlatformEvent,
+		Metadata: map[string]interface{}{
+			"action": "playlist_create",
+		},
+	})
 
 	return h.RespondWithData(c, playlist)
 }

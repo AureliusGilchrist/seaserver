@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util/result"
@@ -43,6 +44,14 @@ func (h *Handler) HandleGetAnimeCollection(c echo.Context) error {
 	go func() {
 		_, _ = h.App.RefreshMangaCollectionWithCtx(ctx)
 	}()
+
+	// Evaluate collection-based achievements synchronously
+	profileID := h.GetProfileID(c)
+	if profileID > 0 {
+		mangaCollection, _ := h.App.GetMangaCollection(false)
+		stats := buildCollectionStats(animeCollection, mangaCollection)
+		h.App.AchievementEngine.EvaluateCollectionStats(profileID, stats)
+	}
 
 	return h.RespondWithData(c, animeCollection)
 }
@@ -103,6 +112,29 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 	)
 	if err != nil {
 		return h.RespondWithError(c, err)
+	}
+
+	// Fire achievement events for score/status changes
+	profileID := h.GetProfileID(c)
+	if p.Score != nil && *p.Score > 0 {
+		go h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+			ProfileID: profileID,
+			Trigger:   achievement.TriggerRatingChange,
+			MediaID:   *p.MediaId,
+			Metadata: map[string]interface{}{
+				"score": *p.Score,
+			},
+		})
+	}
+	if p.Status != nil {
+		go h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+			ProfileID: profileID,
+			Trigger:   achievement.TriggerStatusChange,
+			MediaID:   *p.MediaId,
+			Metadata: map[string]interface{}{
+				"status": string(*p.Status),
+			},
+		})
 	}
 
 	switch p.Type {

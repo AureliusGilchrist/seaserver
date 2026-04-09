@@ -20,15 +20,18 @@ import { getCustomSourceExtensionId, getCustomSourceMediaSiteUrl, isCustomSource
 import { ThemeMediaPageInfoBoxSize, useThemeSettings } from "@/lib/theme/hooks"
 import React from "react"
 import { BiExtension } from "react-icons/bi"
+import { AiFillHeart, AiOutlineHeart } from "react-icons/ai"
 import { LuExternalLink } from "react-icons/lu"
 import { SiAnilist } from "react-icons/si"
 import { PluginMangaPageButtons } from "../../_features/plugin/actions/plugin-actions"
+import { useMangaFavorites } from "@/app/(main)/manga/_lib/use-manga-favorites"
 
 
 export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL_MangaDetailsById_Media | undefined }) {
 
     const { entry, details } = props
     const ts = useThemeSettings()
+    const { isFavorite, toggleFavorite } = useMangaFavorites()
 
     if (!entry?.media) return null
 
@@ -113,6 +116,21 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
                     </Tooltip>}
 
                     {ts.mediaPageBannerInfoBoxSize !== ThemeMediaPageInfoBoxSize.Fluid && <div className="flex-1 hidden lg:flex"></div>}
+
+                    <Tooltip trigger={
+                        <IconButton
+                            size="sm"
+                            intent="gray-link"
+                            className="px-0"
+                            icon={isFavorite(entry.mediaId)
+                                ? <AiFillHeart className="text-lg text-red-500" />
+                                : <AiOutlineHeart className="text-lg" />
+                            }
+                            onClick={() => toggleFavorite(entry.mediaId)}
+                        />
+                    }>
+                        {isFavorite(entry.mediaId) ? "Remove from favorites" : "Add to favorites"}
+                    </Tooltip>
 
                     <MediaSyncTrackButton mediaId={entry.mediaId} type="manga" size="md" />
 

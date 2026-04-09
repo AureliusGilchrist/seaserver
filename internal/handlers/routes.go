@@ -173,6 +173,13 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.PATCH("/profiles/:id", h.HandleUpdateProfile)
 	v1.DELETE("/profiles/:id", h.HandleDeleteProfile)
 	v1.POST("/profiles/:id/avatar", h.HandleUploadProfileAvatar)
+
+	// Comments
+	v1.GET("/comments", h.HandleGetComments)
+	v1.POST("/comments", h.HandleCreateComment)
+	v1.PATCH("/comments/:id", h.HandleEditComment)
+	v1.DELETE("/comments/:id", h.HandleDeleteComment)
+	v1.POST("/comments/:id/vote", h.HandleVoteComment)
 	v1.GET("/profiles/:id/avatar/:filename", h.HandleServeProfileAvatar)
 	v1.GET("/profiles/library-paths", h.HandleGetAllowedLibraryPaths)
 	v1.POST("/profiles/library-paths", h.HandleSetAllowedLibraryPaths)
@@ -447,6 +454,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Manga.GET("/missed-sequels", h.HandleGetMangaMissedSequels)
 	v1Manga.GET("/local-page/:path", h.HandleGetLocalMangaPage)
 
+	// Manga Favorites (per-profile)
+	v1Manga.GET("/favorites", h.HandleGetMangaFavorites)
+	v1Manga.POST("/favorites/toggle", h.HandleToggleMangaFavorite)
+	v1Manga.POST("/favorites/bulk", h.HandleBulkAddMangaFavorites)
+
 	//
 	// File Cache
 	//
@@ -488,8 +500,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// Direct Stream
 	//
 	v1.POST("/directstream/play/localfile", h.HandleDirectstreamPlayLocalFile)
-	v1.GET("/directstream/stream", echo.WrapHandler(h.HandleDirectstreamGetStream()))
-	v1.HEAD("/directstream/stream", echo.WrapHandler(h.HandleDirectstreamGetStream()))
+	v1.GET("/directstream/stream", h.HandleDirectstreamGetStream)
+	v1.HEAD("/directstream/stream", h.HandleDirectstreamGetStream)
 	v1.GET("/directstream/att/*", h.HandleDirectstreamGetAttachments)
 	v1.POST("/directstream/subs/convert-subs", h.HandleDirectstreamConvertSubs)
 
@@ -661,6 +673,27 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Services.POST("/find-manga-library-sorting", h.HandleRunFindMangaLibrarySorting)
 	v1Services.GET("/anime-gojuuon-map", h.HandleGetAnimeGojuuonMap)
 	v1Services.GET("/manga-gojuuon-map", h.HandleGetMangaGojuuonMap)
+
+	//
+	// Notifications
+	//
+
+	v1Notifications := v1.Group("/notifications")
+	v1Notifications.GET("", h.HandleGetNotifications)
+	v1Notifications.GET("/unread-count", h.HandleGetUnreadNotificationCount)
+	v1Notifications.POST("/:id/read", h.HandleMarkNotificationRead)
+	v1Notifications.POST("/read-all", h.HandleMarkAllNotificationsRead)
+	v1Notifications.DELETE("/:id", h.HandleDeleteNotification)
+
+	// Achievements
+	v1Achievements := v1.Group("/achievements")
+	v1Achievements.GET("", h.HandleGetAchievements)
+	v1Achievements.GET("/summary", h.HandleGetAchievementSummary)
+	v1Achievements.GET("/showcase", h.HandleGetAchievementShowcase)
+	v1Achievements.POST("/showcase", h.HandleSetAchievementShowcase)
+
+	// Profile Stats
+	v1.GET("/profile/stats", h.HandleGetProfileStats)
 
 }
 

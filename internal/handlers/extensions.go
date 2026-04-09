@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/url"
+	"seanime/internal/achievement"
 	"seanime/internal/core"
 	"seanime/internal/extension"
 	"seanime/internal/extension_playground"
@@ -56,6 +57,15 @@ func (h *Handler) HandleInstallExternalExtension(c echo.Context) error {
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
+
+	// Fire achievement event for extension install
+	go h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+		ProfileID: h.GetProfileID(c),
+		Trigger:   achievement.TriggerPlatformEvent,
+		Metadata: map[string]interface{}{
+			"action": "extension_install",
+		},
+	})
 
 	return h.RespondWithData(c, res)
 }

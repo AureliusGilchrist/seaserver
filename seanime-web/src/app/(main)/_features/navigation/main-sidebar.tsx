@@ -13,6 +13,9 @@ import { useAutoDownloaderQueueCount } from "@/app/(main)/_hooks/autodownloader-
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loader"
 import { useCurrentUser, useServerStatus, useSetServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { useGetUnreadNotificationCount, useNotificationWSListener } from "@/api/hooks/notifications.hooks"
+import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
+import { NotificationDrawer } from "@/app/(main)/_features/notification/notification-drawer"
 import { TauriUpdateModal } from "@/app/(main)/_tauri/tauri-update-modal"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { SeaLink } from "@/components/shared/sea-link"
@@ -41,7 +44,7 @@ import { BiChevronRight, BiExtension, BiLogIn, BiLogOut } from "react-icons/bi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
-import { LuBook, LuBookOpen, LuCalendar, LuClipboardCheck, LuCompass, LuDownload, LuFolderSearch, LuGlobe, LuRefreshCw, LuRss, LuSettings, LuTv } from "react-icons/lu"
+import { LuActivity, LuBook, LuBookOpen, LuBell, LuCalendar, LuClipboardCheck, LuCompass, LuDownload, LuFolderSearch, LuGlobe, LuRefreshCw, LuRss, LuSettings, LuTrophy, LuTv } from "react-icons/lu"
 import { MdOutlineConnectWithoutContact } from "react-icons/md"
 import { PiArrowCircleLeftDuotone, PiArrowCircleRightDuotone } from "react-icons/pi"
 import { RiListCheck3 } from "react-icons/ri"
@@ -146,6 +149,11 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
 
     // Refresh AniList
     const { mutate: refreshAC, isPending: isRefreshingAC } = useRefreshAnimeCollection()
+
+    // Notifications
+    const [notificationDrawerOpen, setNotificationDrawerOpen] = React.useState(false)
+    const { data: unreadCount } = useGetUnreadNotificationCount()
+    useNotificationWSListener()
 
     // Items
     const enmasseDownloaders = [
@@ -278,6 +286,19 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 setSeaCommandOpen(true)
             },
         },
+        {
+            id: "notifications",
+            iconType: LuBell,
+            name: "Notifications",
+            onClick: () => {
+                ctx.setOpen(false)
+                setNotificationDrawerOpen(true)
+            },
+            addon: (unreadCount ?? 0) > 0 ? <Badge
+                className="absolute right-0 top-0" size="sm"
+                intent="alert-solid"
+            >{unreadCount}</Badge> : undefined,
+        },
     ], [
         pathname,
         missingEpisodeCount,
@@ -292,6 +313,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         activeTorrentCount.downloading,
         activeTorrentCount.paused,
         autoDownloaderQueueCount,
+        unreadCount,
     ])
 
     // Plugins
@@ -461,6 +483,11 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
 
             <PluginSidebarTray place="sidebar" />
 
+            <NotificationDrawer
+                open={notificationDrawerOpen}
+                onOpenChange={setNotificationDrawerOpen}
+            />
+
         </div>
     )
 }
@@ -486,6 +513,9 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
 
     // Sync
     const { syncIsActive } = useSyncIsActive()
+
+    // Achievements
+    const { data: achievementSummary } = useGetAchievementSummary()
 
     // Nakama
     const [nakamaModalOpen, setNakamaModalOpen] = useAtom(nakamaModalOpenAtom)
@@ -553,6 +583,26 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                                 {updateData?.length || pluginWithIssuesCount || 1}
                             </Badge>
                             : undefined,
+                    },
+                    {
+                        iconType: LuTrophy,
+                        name: "Achievements",
+                        href: "/achievements",
+                        isCurrent: pathname.includes("/achievements"),
+                        addon: achievementSummary && achievementSummary.unlockedCount > 0
+                            ? <Badge
+                                className="absolute right-0 top-0" size="sm"
+                                intent="warning-solid"
+                            >
+                                {achievementSummary.unlockedCount}
+                            </Badge>
+                            : undefined,
+                    },
+                    {
+                        iconType: LuActivity,
+                        name: "Stats",
+                        href: "/profile/stats",
+                        isCurrent: pathname.includes("/profile/stats"),
                     },
                     {
                         iconType: IoCloudOfflineOutline,

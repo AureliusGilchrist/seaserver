@@ -1,0 +1,127 @@
+package handlers
+
+import (
+	"seanime/internal/achievement"
+	"seanime/internal/database/models"
+
+	"github.com/labstack/echo/v4"
+)
+
+// HandleGetAchievements
+//
+//	@summary get all achievements for the current profile.
+//	@desc Returns all achievement definitions, categories, current progress/unlock state, and a summary.
+//	@returns achievement.ListResponse
+//	@route /api/v1/achievements [GET]
+func (h *Handler) HandleGetAchievements(c echo.Context) error {
+	database := h.GetProfileDatabase(c)
+
+	// Lazily init rows via a no-op event
+	h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+		ProfileID: h.GetProfileID(c),
+		Trigger:   achievement.EvalTrigger("_init"),
+	})
+
+	dbAchievements, err := database.GetAllAchievements()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	entries := make([]achievement.Entry, 0, len(dbAchievements))
+	for _, a := range dbAchievements {
+		entry := achievement.Entry{
+			Key:        a.Key,
+			Tier:       a.Tier,
+			IsUnlocked: a.IsUnlocked,
+			Progress:   a.Progress,
+		}
+		if a.UnlockedAt != nil {
+			ts := a.UnlockedAt.Format("2006-01-02T15:04:05Z")
+			entry.UnlockedAt = &ts
+		}
+		entries = append(entries, entry)
+	}
+
+	total, unlocked, _ := database.GetAchievementSummary()
+
+	return h.RespondWithData(c, achievement.ListResponse{
+		Definitions:  achievement.AllDefinitions,
+		Categories:   achievement.AllCategories,
+		Achievements: entries,
+		Summary: achievement.SummaryResponse{
+			TotalCount:    total,
+			UnlockedCount: unlocked,
+		},
+	})
+}
+
+// HandleGetAchievementSummary
+//
+//	@summary get achievement summary for the current profile.
+//	@desc Returns total and unlocked achievement counts.
+//	@returns achievement.SummaryResponse
+//	@route /api/v1/achievements/summary [GET]
+func (h *Handler) HandleGetAchievementSummary(c echo.Context) error {
+	database := h.GetProfileDatabase(c)
+	total, unlocked, err := database.GetAchievementSummary()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, achievement.SummaryResponse{
+		TotalCount:    total,
+		UnlockedCount: unlocked,
+	})
+}
+
+// HandleSetAchievementShowcase
+//
+//	@summary set the achievement showcase for the current profile.
+//	@desc Sets which achievements to display in the profile badge showcase (up to 6 slots).
+//	@returns bool
+//	@route /api/v1/achievements/showcase [POST]
+func (h *Handler) HandleSetAchievementShowcase(c echo.Context) error {
+	type body struct {
+		Slots []struct {
+			Slot            int    `json:"slot"`
+			AchievementKey  string `json:"achievementKey"`
+			AchievementTier int    `json:"achievementTier"`
+		} `json:"slots"`
+	}
+
+	b := new(body)
+	if err := c.Bind(b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	database := h.GetProfileDatabase(c)
+
+	showcaseItems := make([]models.AchievementShowcase, 0, len(b.Slots))
+	for _, s := range b.Slots {
+		showcaseItems = append(showcaseItems, models.AchievementShowcase{
+			Slot:            s.Slot,
+			AchievementKey:  s.AchievementKey,
+			AchievementTier: s.AchievementTier,
+		})
+	}
+
+	if err := database.SetAchievementShowcase(showcaseItems); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	return h.RespondWithData(c, true)
+}
+
+// HandleGetAchievementShowcase
+//
+//	@summary get the achievement showcase for the current profile.
+//	@desc Returns the current showcase configuration.
+//	@returns []models.AchievementShowcase
+//	@route /api/v1/achievements/showcase [GET]
+func (h *Handler) HandleGetAchievementShowcase(c echo.Context) error {
+	database := h.GetProfileDatabase(c)
+	showcase, err := database.GetAchievementShowcase()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, showcase)
+}

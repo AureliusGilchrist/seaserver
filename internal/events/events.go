@@ -11,9 +11,10 @@ const (
 )
 
 type WebsocketClientEvent struct {
-	ClientID string                   `json:"clientId"`
-	Type     WebsocketClientEventType `json:"type"`
-	Payload  interface{}              `json:"payload"`
+	ClientID  string                   `json:"clientId"`
+	Type      WebsocketClientEventType `json:"type"`
+	Payload   interface{}              `json:"payload"`
+	ProfileID uint                     `json:"-"` // Set server-side from the WS connection's profile, not from the client JSON
 }
 
 const (
@@ -102,4 +103,10 @@ const (
 	NakamaWatchPartyEnableRelayMode                       = "nakama-watch-party-enable-relay-mode"
 	NakamaWatchPartyRelayModeToggleShareLibraryWithOrigin = "nakama-watch-party-relay-mode-toggle-share-library-with-origin"
 	NakamaWatchPartyChatMessage                           = "nakama-watch-party-chat-message"
+
+	// Notification events
+	NotificationCreated = "notification-created"
+
+	// Achievement events
+	AchievementUnlocked = "achievement-unlocked"
 )

@@ -1,4 +1,46 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// achievement
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetAchievements() {
+//     return useServerQuery<Achievement_ListResponse>({
+//         endpoint: API_ENDPOINTS.ACHIEVEMENT.GetAchievements.endpoint,
+//         method: API_ENDPOINTS.ACHIEVEMENT.GetAchievements.methods[0],
+//         queryKey: [API_ENDPOINTS.ACHIEVEMENT.GetAchievements.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetAchievementSummary() {
+//     return useServerQuery<Achievement_SummaryResponse>({
+//         endpoint: API_ENDPOINTS.ACHIEVEMENT.GetAchievementSummary.endpoint,
+//         method: API_ENDPOINTS.ACHIEVEMENT.GetAchievementSummary.methods[0],
+//         queryKey: [API_ENDPOINTS.ACHIEVEMENT.GetAchievementSummary.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useSetAchievementShowcase() {
+//     return useServerMutation<boolean, SetAchievementShowcase_Variables>({
+//         endpoint: API_ENDPOINTS.ACHIEVEMENT.SetAchievementShowcase.endpoint,
+//         method: API_ENDPOINTS.ACHIEVEMENT.SetAchievementShowcase.methods[0],
+//         mutationKey: [API_ENDPOINTS.ACHIEVEMENT.SetAchievementShowcase.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useGetAchievementShowcase() {
+//     return useServerQuery<Array<Models_AchievementShowcase>>({
+//         endpoint: API_ENDPOINTS.ACHIEVEMENT.GetAchievementShowcase.endpoint,
+//         method: API_ENDPOINTS.ACHIEVEMENT.GetAchievementShowcase.methods[0],
+//         queryKey: [API_ENDPOINTS.ACHIEVEMENT.GetAchievementShowcase.key],
+//         enabled: true,
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // anilist
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -491,6 +533,63 @@
 // }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// comment
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetComments() {
+//     return useServerQuery<CommentsResponse>({
+//         endpoint: API_ENDPOINTS.COMMENT.GetComments.endpoint,
+//         method: API_ENDPOINTS.COMMENT.GetComments.methods[0],
+//         queryKey: [API_ENDPOINTS.COMMENT.GetComments.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useCreateComment() {
+//     return useServerMutation<CommentResponse, CreateComment_Variables>({
+//         endpoint: API_ENDPOINTS.COMMENT.CreateComment.endpoint,
+//         method: API_ENDPOINTS.COMMENT.CreateComment.methods[0],
+//         mutationKey: [API_ENDPOINTS.COMMENT.CreateComment.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useEditComment() {
+//     return useServerMutation<CommentResponse, EditComment_Variables>({
+//         endpoint: API_ENDPOINTS.COMMENT.EditComment.endpoint,
+//         method: API_ENDPOINTS.COMMENT.EditComment.methods[0],
+//         mutationKey: [API_ENDPOINTS.COMMENT.EditComment.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useDeleteComment() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.COMMENT.DeleteComment.endpoint,
+//         method: API_ENDPOINTS.COMMENT.DeleteComment.methods[0],
+//         mutationKey: [API_ENDPOINTS.COMMENT.DeleteComment.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useVoteComment() {
+//     return useServerMutation<boolean, VoteComment_Variables>({
+//         endpoint: API_ENDPOINTS.COMMENT.VoteComment.endpoint,
+//         method: API_ENDPOINTS.COMMENT.VoteComment.methods[0],
+//         mutationKey: [API_ENDPOINTS.COMMENT.VoteComment.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // continuity
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -880,68 +979,6 @@
 //         endpoint: API_ENDPOINTS.ENMASSE.MangaEnMasseStop.endpoint,
 //         method: API_ENDPOINTS.ENMASSE.MangaEnMasseStop.methods[0],
 //         mutationKey: [API_ENDPOINTS.ENMASSE.MangaEnMasseStop.key],
-//         onSuccess: async () => {
-// 
-//         },
-//     })
-// }
-
-// export function useGetMangaMatchHistory() {
-//     return useServerQuery<Array<MangaMatchRecord>>({
-//         endpoint: API_ENDPOINTS.ENMASSE.GetMangaMatchHistory.endpoint,
-//         method: API_ENDPOINTS.ENMASSE.GetMangaMatchHistory.methods[0],
-//         queryKey: [API_ENDPOINTS.ENMASSE.GetMangaMatchHistory.key],
-//         enabled: true,
-//     })
-// }
-
-// export function useGetLowConfidenceMangaMatchCount() {
-//     return useServerQuery<number>({
-//         endpoint: API_ENDPOINTS.ENMASSE.GetLowConfidenceMangaMatchCount.endpoint,
-//         method: API_ENDPOINTS.ENMASSE.GetLowConfidenceMangaMatchCount.methods[0],
-//         queryKey: [API_ENDPOINTS.ENMASSE.GetLowConfidenceMangaMatchCount.key],
-//         enabled: true,
-//     })
-// }
-
-// export function useCorrectMangaMatch() {
-//     return useServerMutation<boolean>({
-//         endpoint: API_ENDPOINTS.ENMASSE.CorrectMangaMatch.endpoint,
-//         method: API_ENDPOINTS.ENMASSE.CorrectMangaMatch.methods[0],
-//         mutationKey: [API_ENDPOINTS.ENMASSE.CorrectMangaMatch.key],
-//         onSuccess: async () => {
-// 
-//         },
-//     })
-// }
-
-// export function useConvertMangaToSynthetic() {
-//     return useServerMutation<boolean>({
-//         endpoint: API_ENDPOINTS.ENMASSE.ConvertMangaToSynthetic.endpoint,
-//         method: API_ENDPOINTS.ENMASSE.ConvertMangaToSynthetic.methods[0],
-//         mutationKey: [API_ENDPOINTS.ENMASSE.ConvertMangaToSynthetic.key],
-//         onSuccess: async () => {
-// 
-//         },
-//     })
-// }
-
-// export function useScanMangaCollection() {
-//     return useServerMutation<boolean>({
-//         endpoint: API_ENDPOINTS.ENMASSE.ScanMangaCollection.endpoint,
-//         method: API_ENDPOINTS.ENMASSE.ScanMangaCollection.methods[0],
-//         mutationKey: [API_ENDPOINTS.ENMASSE.ScanMangaCollection.key],
-//         onSuccess: async () => {
-// 
-//         },
-//     })
-// }
-
-// export function useAutoMatchSyntheticManga() {
-//     return useServerMutation<boolean>({
-//         endpoint: API_ENDPOINTS.ENMASSE.AutoMatchSyntheticManga.endpoint,
-//         method: API_ENDPOINTS.ENMASSE.AutoMatchSyntheticManga.methods[0],
-//         mutationKey: [API_ENDPOINTS.ENMASSE.AutoMatchSyntheticManga.key],
 //         onSuccess: async () => {
 // 
 //         },
@@ -1774,6 +1811,17 @@
 //     })
 // }
 
+// export function useHydrateAllManga() {
+//     return useServerMutation<Manga_Collection>({
+//         endpoint: API_ENDPOINTS.MANGA.HydrateAllManga.endpoint,
+//         method: API_ENDPOINTS.MANGA.HydrateAllManga.methods[0],
+//         mutationKey: [API_ENDPOINTS.MANGA.HydrateAllManga.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
 // export function useGetMangaMissedSequels() {
 //     return useServerQuery<Array<AL_BaseManga>>({
 //         endpoint: API_ENDPOINTS.MANGA.GetMangaMissedSequels.endpoint,
@@ -1888,6 +1936,41 @@
 //         method: API_ENDPOINTS.MANGA_DOWNLOAD.GetMangaDownloadsList.methods[0],
 //         queryKey: [API_ENDPOINTS.MANGA_DOWNLOAD.GetMangaDownloadsList.key],
 //         enabled: true,
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// manga_favorite
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetMangaFavorites() {
+//     return useServerQuery<Array<number>>({
+//         endpoint: API_ENDPOINTS.MANGA_FAVORITE.GetMangaFavorites.endpoint,
+//         method: API_ENDPOINTS.MANGA_FAVORITE.GetMangaFavorites.methods[0],
+//         queryKey: [API_ENDPOINTS.MANGA_FAVORITE.GetMangaFavorites.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useToggleMangaFavorite() {
+//     return useServerMutation<boolean, ToggleMangaFavorite_Variables>({
+//         endpoint: API_ENDPOINTS.MANGA_FAVORITE.ToggleMangaFavorite.endpoint,
+//         method: API_ENDPOINTS.MANGA_FAVORITE.ToggleMangaFavorite.methods[0],
+//         mutationKey: [API_ENDPOINTS.MANGA_FAVORITE.ToggleMangaFavorite.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useBulkAddMangaFavorites() {
+//     return useServerMutation<boolean, BulkAddMangaFavorites_Variables>({
+//         endpoint: API_ENDPOINTS.MANGA_FAVORITE.BulkAddMangaFavorites.endpoint,
+//         method: API_ENDPOINTS.MANGA_FAVORITE.BulkAddMangaFavorites.methods[0],
+//         mutationKey: [API_ENDPOINTS.MANGA_FAVORITE.BulkAddMangaFavorites.key],
+//         onSuccess: async () => {
+// 
+//         },
 //     })
 // }
 
@@ -2208,6 +2291,61 @@
 // }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// notification
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetNotifications() {
+//     return useServerQuery<NotificationsResponse>({
+//         endpoint: API_ENDPOINTS.NOTIFICATION.GetNotifications.endpoint,
+//         method: API_ENDPOINTS.NOTIFICATION.GetNotifications.methods[0],
+//         queryKey: [API_ENDPOINTS.NOTIFICATION.GetNotifications.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetUnreadNotificationCount() {
+//     return useServerQuery<number>({
+//         endpoint: API_ENDPOINTS.NOTIFICATION.GetUnreadNotificationCount.endpoint,
+//         method: API_ENDPOINTS.NOTIFICATION.GetUnreadNotificationCount.methods[0],
+//         queryKey: [API_ENDPOINTS.NOTIFICATION.GetUnreadNotificationCount.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useMarkNotificationRead() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.NOTIFICATION.MarkNotificationRead.endpoint,
+//         method: API_ENDPOINTS.NOTIFICATION.MarkNotificationRead.methods[0],
+//         mutationKey: [API_ENDPOINTS.NOTIFICATION.MarkNotificationRead.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useMarkAllNotificationsRead() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.NOTIFICATION.MarkAllNotificationsRead.endpoint,
+//         method: API_ENDPOINTS.NOTIFICATION.MarkAllNotificationsRead.methods[0],
+//         mutationKey: [API_ENDPOINTS.NOTIFICATION.MarkAllNotificationsRead.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useDeleteNotification() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.NOTIFICATION.DeleteNotification.endpoint,
+//         method: API_ENDPOINTS.NOTIFICATION.DeleteNotification.methods[0],
+//         mutationKey: [API_ENDPOINTS.NOTIFICATION.DeleteNotification.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // onlinestream
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2467,6 +2605,213 @@
 // }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// privacy
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetPrivacySettings() {
+//     return useServerQuery<PrivacyStatus>({
+//         endpoint: API_ENDPOINTS.PRIVACY.GetPrivacySettings.endpoint,
+//         method: API_ENDPOINTS.PRIVACY.GetPrivacySettings.methods[0],
+//         queryKey: [API_ENDPOINTS.PRIVACY.GetPrivacySettings.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useSavePrivacySettings() {
+//     return useServerMutation<PrivacyStatus, SavePrivacySettings_Variables>({
+//         endpoint: API_ENDPOINTS.PRIVACY.SavePrivacySettings.endpoint,
+//         method: API_ENDPOINTS.PRIVACY.SavePrivacySettings.methods[0],
+//         mutationKey: [API_ENDPOINTS.PRIVACY.SavePrivacySettings.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useTestPrivacyConnection() {
+//     return useServerMutation<ConnectionTestResult>({
+//         endpoint: API_ENDPOINTS.PRIVACY.TestPrivacyConnection.endpoint,
+//         method: API_ENDPOINTS.PRIVACY.TestPrivacyConnection.methods[0],
+//         mutationKey: [API_ENDPOINTS.PRIVACY.TestPrivacyConnection.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useInstallDNSCrypt() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.PRIVACY.InstallDNSCrypt.endpoint,
+//         method: API_ENDPOINTS.PRIVACY.InstallDNSCrypt.methods[0],
+//         mutationKey: [API_ENDPOINTS.PRIVACY.InstallDNSCrypt.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// profile
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetProfiles() {
+//     return useServerQuery<Array<INTERNAL_ProfileSummary>>({
+//         endpoint: API_ENDPOINTS.PROFILE.GetProfiles.endpoint,
+//         method: API_ENDPOINTS.PROFILE.GetProfiles.methods[0],
+//         queryKey: [API_ENDPOINTS.PROFILE.GetProfiles.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetCurrentProfile() {
+//     return useServerQuery<INTERNAL_ProfileSummary>({
+//         endpoint: API_ENDPOINTS.PROFILE.GetCurrentProfile.endpoint,
+//         method: API_ENDPOINTS.PROFILE.GetCurrentProfile.methods[0],
+//         queryKey: [API_ENDPOINTS.PROFILE.GetCurrentProfile.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useProfileLogin() {
+//     return useServerMutation<Record<string, interface{}>, ProfileLogin_Variables>({
+//         endpoint: API_ENDPOINTS.PROFILE.ProfileLogin.endpoint,
+//         method: API_ENDPOINTS.PROFILE.ProfileLogin.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE.ProfileLogin.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useProfileLogout() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.PROFILE.ProfileLogout.endpoint,
+//         method: API_ENDPOINTS.PROFILE.ProfileLogout.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE.ProfileLogout.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useCreateProfile() {
+//     return useServerMutation<INTERNAL_ProfileSummary, CreateProfile_Variables>({
+//         endpoint: API_ENDPOINTS.PROFILE.CreateProfile.endpoint,
+//         method: API_ENDPOINTS.PROFILE.CreateProfile.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE.CreateProfile.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useUpdateProfile() {
+//     return useServerMutation<INTERNAL_ProfileSummary, UpdateProfile_Variables>({
+//         endpoint: API_ENDPOINTS.PROFILE.UpdateProfile.endpoint,
+//         method: API_ENDPOINTS.PROFILE.UpdateProfile.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE.UpdateProfile.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useDeleteProfile() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.PROFILE.DeleteProfile.endpoint,
+//         method: API_ENDPOINTS.PROFILE.DeleteProfile.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE.DeleteProfile.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useUploadProfileAvatar() {
+//     return useServerMutation<INTERNAL_ProfileSummary>({
+//         endpoint: API_ENDPOINTS.PROFILE.UploadProfileAvatar.endpoint,
+//         method: API_ENDPOINTS.PROFILE.UploadProfileAvatar.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE.UploadProfileAvatar.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useServeProfileAvatar() {
+//     return useServerQuery<boolean>({
+//         endpoint: API_ENDPOINTS.PROFILE.ServeProfileAvatar.endpoint,
+//         method: API_ENDPOINTS.PROFILE.ServeProfileAvatar.methods[0],
+//         queryKey: [API_ENDPOINTS.PROFILE.ServeProfileAvatar.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetAllowedLibraryPaths() {
+//     return useServerQuery<Array<string>>({
+//         endpoint: API_ENDPOINTS.PROFILE.GetAllowedLibraryPaths.endpoint,
+//         method: API_ENDPOINTS.PROFILE.GetAllowedLibraryPaths.methods[0],
+//         queryKey: [API_ENDPOINTS.PROFILE.GetAllowedLibraryPaths.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useSetAllowedLibraryPaths() {
+//     return useServerMutation<boolean, SetAllowedLibraryPaths_Variables>({
+//         endpoint: API_ENDPOINTS.PROFILE.SetAllowedLibraryPaths.endpoint,
+//         method: API_ENDPOINTS.PROFILE.SetAllowedLibraryPaths.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE.SetAllowedLibraryPaths.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useGetMigrationStatus() {
+//     return useServerQuery<INTERNAL_MigrationStatus>({
+//         endpoint: API_ENDPOINTS.PROFILE.GetMigrationStatus.endpoint,
+//         method: API_ENDPOINTS.PROFILE.GetMigrationStatus.methods[0],
+//         queryKey: [API_ENDPOINTS.PROFILE.GetMigrationStatus.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useRunMigration() {
+//     return useServerMutation<INTERNAL_MigrationStatus, RunMigration_Variables>({
+//         endpoint: API_ENDPOINTS.PROFILE.RunMigration.endpoint,
+//         method: API_ENDPOINTS.PROFILE.RunMigration.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE.RunMigration.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useSkipMigration() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.PROFILE.SkipMigration.endpoint,
+//         method: API_ENDPOINTS.PROFILE.SkipMigration.methods[0],
+//         mutationKey: [API_ENDPOINTS.PROFILE.SkipMigration.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// profile_stats
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetProfileStats() {
+//     return useServerQuery<ProfileStats_ProfileStats>({
+//         endpoint: API_ENDPOINTS.PROFILE_STATS.GetProfileStats.endpoint,
+//         method: API_ENDPOINTS.PROFILE_STATS.GetProfileStats.methods[0],
+//         queryKey: [API_ENDPOINTS.PROFILE_STATS.GetProfileStats.key],
+//         enabled: true,
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // releases
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2535,6 +2880,36 @@
 // }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// reset_all_matches
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useResetAllMatches() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.RESET_ALL_MATCHES.ResetAllMatches.endpoint,
+//         method: API_ENDPOINTS.RESET_ALL_MATCHES.ResetAllMatches.methods[0],
+//         mutationKey: [API_ENDPOINTS.RESET_ALL_MATCHES.ResetAllMatches.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// reset_matches
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useResetIncorrectMatches() {
+//     return useServerMutation<boolean, ResetIncorrectMatches_Variables>({
+//         endpoint: API_ENDPOINTS.RESET_MATCHES.ResetIncorrectMatches.endpoint,
+//         method: API_ENDPOINTS.RESET_MATCHES.ResetIncorrectMatches.methods[0],
+//         mutationKey: [API_ENDPOINTS.RESET_MATCHES.ResetIncorrectMatches.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // scan
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2558,6 +2933,94 @@
 //         endpoint: API_ENDPOINTS.SCAN_SUMMARY.GetScanSummaries.endpoint,
 //         method: API_ENDPOINTS.SCAN_SUMMARY.GetScanSummaries.methods[0],
 //         queryKey: [API_ENDPOINTS.SCAN_SUMMARY.GetScanSummaries.key],
+//         enabled: true,
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// services
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useRunUpdateAnimeLibrary() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.SERVICES.RunUpdateAnimeLibrary.endpoint,
+//         method: API_ENDPOINTS.SERVICES.RunUpdateAnimeLibrary.methods[0],
+//         mutationKey: [API_ENDPOINTS.SERVICES.RunUpdateAnimeLibrary.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useRunUpdateMangaLibrary() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.SERVICES.RunUpdateMangaLibrary.endpoint,
+//         method: API_ENDPOINTS.SERVICES.RunUpdateMangaLibrary.methods[0],
+//         mutationKey: [API_ENDPOINTS.SERVICES.RunUpdateMangaLibrary.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useRunScanAnimeLibrary() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.SERVICES.RunScanAnimeLibrary.endpoint,
+//         method: API_ENDPOINTS.SERVICES.RunScanAnimeLibrary.methods[0],
+//         mutationKey: [API_ENDPOINTS.SERVICES.RunScanAnimeLibrary.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useRunScanMangaLibrary() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.SERVICES.RunScanMangaLibrary.endpoint,
+//         method: API_ENDPOINTS.SERVICES.RunScanMangaLibrary.methods[0],
+//         mutationKey: [API_ENDPOINTS.SERVICES.RunScanMangaLibrary.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useRunFindAnimeLibrarySorting() {
+//     return useServerMutation<Record<number, interface{}>>({
+//         endpoint: API_ENDPOINTS.SERVICES.RunFindAnimeLibrarySorting.endpoint,
+//         method: API_ENDPOINTS.SERVICES.RunFindAnimeLibrarySorting.methods[0],
+//         mutationKey: [API_ENDPOINTS.SERVICES.RunFindAnimeLibrarySorting.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useRunFindMangaLibrarySorting() {
+//     return useServerMutation<Record<number, interface{}>>({
+//         endpoint: API_ENDPOINTS.SERVICES.RunFindMangaLibrarySorting.endpoint,
+//         method: API_ENDPOINTS.SERVICES.RunFindMangaLibrarySorting.methods[0],
+//         mutationKey: [API_ENDPOINTS.SERVICES.RunFindMangaLibrarySorting.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useGetAnimeGojuuonMap() {
+//     return useServerQuery<Record<number, SortEntry>>({
+//         endpoint: API_ENDPOINTS.SERVICES.GetAnimeGojuuonMap.endpoint,
+//         method: API_ENDPOINTS.SERVICES.GetAnimeGojuuonMap.methods[0],
+//         queryKey: [API_ENDPOINTS.SERVICES.GetAnimeGojuuonMap.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetMangaGojuuonMap() {
+//     return useServerQuery<Record<number, SortEntry>>({
+//         endpoint: API_ENDPOINTS.SERVICES.GetMangaGojuuonMap.endpoint,
+//         method: API_ENDPOINTS.SERVICES.GetMangaGojuuonMap.methods[0],
+//         queryKey: [API_ENDPOINTS.SERVICES.GetMangaGojuuonMap.key],
 //         enabled: true,
 //     })
 // }

@@ -60,6 +60,8 @@ export function PrivacySettings() {
                     failMode: status.settings.failMode || "open",
                 }}
                 stackClass="space-y-4"
+                // Prevent submit event from reaching the outer settings Form (nested <form> workaround)
+                onSubmitCapture={(e: React.FormEvent) => e.stopPropagation()}
             >
                 {(f) => (
                     <>
