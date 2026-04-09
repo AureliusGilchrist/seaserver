@@ -2885,6 +2885,11 @@ export type Status = {
     serverReady: boolean
     serverHasPassword: boolean
     showChangelogTour: string
+    // Multi-profile fields
+    profilesEnabled: boolean
+    needsMigration: boolean
+    currentProfile?: ProfileSummary
+    profiles?: ProfileSummary[]
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -5475,5 +5480,32 @@ export type Video = {
     width: number
     height: number
     bitrate: number
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Profiles
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export type ProfileSummary = {
+    id: number
+    name: string
+    isAdmin: boolean
+    anilistUsername: string
+    anilistAvatar: string
+    avatarPath: string
+    createdAt: string
+}
+
+export type MigrationStatus = {
+    needsMigration: boolean
+    step: string
+    progress: number
+    error: string
+    complete: boolean
+}
+
+export type ProfileLoginResponse = {
+    token: string
+    profile: ProfileSummary
 }
 

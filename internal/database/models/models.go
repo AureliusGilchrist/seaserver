@@ -656,6 +656,23 @@ type MediaMetadataParent struct {
 
 ///////////////////////////////////////////////////////////////////////////
 
+// +---------------------+
+// |      Privacy        |
+// +---------------------+
+
+type PrivacySettings struct {
+	BaseModel
+	DoHEnabled      bool   `gorm:"column:doh_enabled" json:"dohEnabled"`
+	DoHProviders    string `gorm:"column:doh_providers;type:text" json:"dohProviders"` // Comma-separated URLs
+	Socks5Enabled   bool   `gorm:"column:socks5_enabled" json:"socks5Enabled"`
+	Socks5Address   string `gorm:"column:socks5_address" json:"socks5Address"`
+	Socks5Port      int    `gorm:"column:socks5_port" json:"socks5Port"`
+	DNSCryptEnabled bool   `gorm:"column:dnscrypt_enabled" json:"dnsCryptEnabled"`
+	FailMode        string `gorm:"column:fail_mode" json:"failMode"` // "open" or "closed"
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 type StringSlice []string
 
 func (o *StringSlice) Scan(src interface{}) error {

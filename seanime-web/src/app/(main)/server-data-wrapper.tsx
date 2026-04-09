@@ -1,5 +1,7 @@
 import { useGetStatus } from "@/api/hooks/status.hooks"
 import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { MigrationWizard } from "@/app/(main)/_features/profile/migration-wizard"
+import { ProfileSelector } from "@/app/(main)/_features/profile/profile-selector"
 import { GettingStartedPage } from "@/app/(main)/_features/getting-started/getting-started-page"
 import { useServerStatus, useSetServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { LoadingOverlayWithLogo } from "@/components/shared/loading-overlay-with-logo"
@@ -124,6 +126,23 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
 
     if (!serverStatus?.mediastreamSettings?.transcodeEnabled && pathname.startsWith("/mediastream")) {
         return <LuffyError title="Transcoding not enabled" />
+    }
+
+    /**
+     * Migration gate: if data needs migration to multi-profile, show wizard
+     */
+    if (serverStatus?.needsMigration) {
+        return <MigrationWizard onComplete={() => refetch()} />
+    }
+
+    /**
+     * Profile gate: if profiles are enabled and no current profile session, show selector
+     */
+    if (serverStatus?.profilesEnabled && !serverStatus?.currentProfile) {
+        const profiles = serverStatus?.profiles || []
+        if (profiles.length > 0) {
+            return <ProfileSelector profiles={profiles} />
+        }
     }
 
     if (!serverStatus?.user && host === "127.0.0.1:43211" && !__isDesktop__) {

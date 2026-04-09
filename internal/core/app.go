@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"seanime/internal/api/anilist"
 	"seanime/internal/api/metadata_provider"
 	"seanime/internal/constants"
@@ -13,7 +14,6 @@ import (
 	debrid_client "seanime/internal/debrid/client"
 	"seanime/internal/directstream"
 	discordrpc_presence "seanime/internal/discordrpc/presence"
-	"seanime/internal/doh"
 	"seanime/internal/enmasse"
 	"seanime/internal/events"
 	"seanime/internal/extension"
@@ -44,6 +44,7 @@ import (
 	"seanime/internal/platforms/simulated_platform"
 	"seanime/internal/playlist"
 	"seanime/internal/plugin"
+	"seanime/internal/privacy"
 	"seanime/internal/report"
 	"seanime/internal/torrent_clients/torrent_client"
 	"seanime/internal/torrents/torrent"
@@ -184,6 +185,14 @@ type (
 		// GoJuuon sorting
 		GojuuonService *gojuuon.Service
 
+		// Privacy
+		PrivacyManager *privacy.Manager
+
+		// Profile system
+		ProfileManager      *ProfileManager
+		ProfileMigrator     *ProfileMigrator
+		ProfilePathResolver *ProfilePathResolver
+
 		// Service runner
 		ServiceRunner *ServiceRunner
 	}
@@ -242,6 +251,25 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		logger.Info().Msg("app: Desktop sidecar mode enabled")
 	}
 
+	// Initialize profile system
+	profileManager, err := NewProfileManager(cfg.Data.AppDataDir, logger)
+	if err != nil {
+		logger.Fatal().Err(err).Msgf("app: Failed to initialize profile manager")
+	}
+
+	// Check if migration from single-user is needed
+	profileMigrator := NewProfileMigrator(cfg.Data.AppDataDir, cfg.Data.AppDataDir, logger)
+
+	// Initialize profile path resolver for shared/per-profile resource routing
+	profilePathResolver := NewProfilePathResolver(profileManager, cfg.Data.AppDataDir)
+
+	// Override shared resource paths when profiles are active
+	if profileManager.HasProfiles() {
+		cfg.Extensions.Dir = profilePathResolver.GetExtensionsDir(cfg.Extensions.Dir)
+		cfg.Manga.DownloadDir = profilePathResolver.GetMangaDownloadDir(cfg.Manga.DownloadDir)
+		cfg.Manga.LocalDir = profilePathResolver.GetMangaLocalDir(cfg.Manga.LocalDir)
+	}
+
 	// Initialize database connection
 	database, err := db.NewDatabase(cfg.Data.AppDataDir, cfg.Database.Name, logger)
 	if err != nil {
@@ -278,8 +306,38 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		wsEventManager.ExitIfNoConnsAsDesktopSidecar()
 	}
 
-	// Initialize DNS-over-HTTPS service in background
-	go doh.HandleDoH(cfg.Server.DoHUrl, logger)
+	// Initialize Privacy Manager (DoH, SOCKS5, DNSCrypt)
+	privacyManager := privacy.NewManager(logger)
+
+	// Load privacy settings from database and apply them
+	privacySettings, _ := database.GetPrivacySettings()
+	if privacySettings != nil && privacySettings.ID != 0 {
+		providers := []string{}
+		if privacySettings.DoHProviders != "" {
+			for _, p := range strings.Split(privacySettings.DoHProviders, ",") {
+				p = strings.TrimSpace(p)
+				if p != "" {
+					providers = append(providers, p)
+				}
+			}
+		}
+		privacyManager.UpdateSettings(&privacy.Settings{
+			DoHEnabled:      privacySettings.DoHEnabled,
+			DoHProviders:    providers,
+			Socks5Enabled:   privacySettings.Socks5Enabled,
+			Socks5Address:   privacySettings.Socks5Address,
+			Socks5Port:      privacySettings.Socks5Port,
+			DNSCryptEnabled: privacySettings.DNSCryptEnabled,
+			FailMode:        privacySettings.FailMode,
+		})
+	} else if cfg.Server.DoHUrl != "" {
+		// Fallback: use legacy DoH config from seanime.toml
+		privacyManager.UpdateSettings(&privacy.Settings{
+			DoHEnabled:   true,
+			DoHProviders: []string{cfg.Server.DoHUrl},
+			FailMode:     "open",
+		})
+	}
 
 	// Initialize file cache system for media and metadata
 	fileCacher, err := filecache.NewCacher(cfg.Cache.Dir)
@@ -451,6 +509,10 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		HookManager:                     hookManager,
 		isOfflineRef:                    isOfflineRef,
 		ServerPasswordHash:              serverPasswordHash,
+		PrivacyManager:                  privacyManager,
+		ProfileManager:                  profileManager,
+		ProfileMigrator:                 profileMigrator,
+		ProfilePathResolver:             profilePathResolver,
 	}
 
 	app.AddCleanupFunctionOnce("ws-event-manager.stop", func() {
@@ -474,6 +536,18 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	app.AddCleanupFunctionOnce("offline-platform.close", func() {
 		if app.OfflinePlatformRef != nil && app.OfflinePlatformRef.IsPresent() {
 			app.OfflinePlatformRef.Get().Close()
+		}
+	})
+
+	app.AddCleanupFunctionOnce("privacy-manager.shutdown", func() {
+		if app.PrivacyManager != nil {
+			app.PrivacyManager.Shutdown()
+		}
+	})
+
+	app.AddCleanupFunctionOnce("profile-manager.close", func() {
+		if app.ProfileManager != nil {
+			app.ProfileManager.Close()
 		}
 	})
 

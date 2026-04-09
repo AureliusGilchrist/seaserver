@@ -63,6 +63,10 @@ type Config struct {
 	Experimental struct {
 		MainServerTorrentStreaming bool
 	}
+	Privacy struct {
+		Socks5Address string
+		Socks5Port    int
+	}
 }
 
 type ConfigOptions struct {

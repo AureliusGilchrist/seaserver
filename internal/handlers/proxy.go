@@ -19,15 +19,27 @@ import (
 
 var proxyUA = util.GetRandomUserAgent()
 
-var videoProxyClient2 = &http.Client{
+// videoProxyClient2 is lazily initialized per-handler to use the privacy transport.
+// The getVideoProxyClient method on Handler provides the client.
+var fallbackVideoProxyClient = &http.Client{
 	Transport: &http.Transport{
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 10,
 		IdleConnTimeout:     90 * time.Second,
-		ForceAttemptHTTP2:   false, // Fixes issues on Linux
+		ForceAttemptHTTP2:   false,
 		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 	},
 	Timeout: 60 * time.Second,
+}
+
+func (h *Handler) getVideoProxyClient() *http.Client {
+	if h.App.PrivacyManager != nil {
+		return &http.Client{
+			Transport: h.App.PrivacyManager.ProxyTransport(),
+			Timeout:   60 * time.Second,
+		}
+	}
+	return fallbackVideoProxyClient
 }
 
 func (h *Handler) VideoProxy(c echo.Context) (err error) {
@@ -61,7 +73,7 @@ func (h *Handler) VideoProxy(c echo.Context) (err error) {
 		req.Header.Set("Range", rangeHeader)
 	}
 
-	resp, err := videoProxyClient2.Do(req)
+	resp, err := h.getVideoProxyClient().Do(req)
 
 	if err != nil {
 		log.Error().Err(err).Msg("proxy: Error sending request")

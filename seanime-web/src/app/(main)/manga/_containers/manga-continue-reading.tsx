@@ -1,5 +1,6 @@
 "use client"
 import { useGetMangaReadingHistory } from "@/api/hooks/manga.hooks"
+import { useGetCurrentProfile } from "@/api/hooks/profiles.hooks"
 import React from "react"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { cn } from "@/components/ui/core/styling"
@@ -12,6 +13,9 @@ interface MangaContinueReadingProps {
 export function MangaContinueReading({ onHoverImage }: MangaContinueReadingProps) {
     const { data: readingHistory, isLoading } = useGetMangaReadingHistory()
 
+    // Get current profile
+    const { data: currentProfile } = useGetCurrentProfile()
+
     const uniqueManga = React.useMemo(() => {
         if (!readingHistory || readingHistory.length === 0) return []
         // Filter to get unique manga (by mediaId) and limit to recent ones
@@ -22,10 +26,16 @@ export function MangaContinueReading({ onHoverImage }: MangaContinueReadingProps
             .slice(0, 20)
     }, [readingHistory])
 
+
     if (isLoading) {
         return (
             <div className="px-4 py-8">
-                <h2 className="text-xl font-semibold text-white mb-4">Continue Reading</h2>
+                <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-xl font-semibold text-white">Continue Reading</h2>
+                    {currentProfile?.name && (
+                        <span className="text-sm text-[--muted]">Profile: {currentProfile.name}</span>
+                    )}
+                </div>
                 <div className="flex gap-4 overflow-hidden">
                     {[...Array(5)].map((_, i) => (
                         <div key={i} className="w-48 h-72 bg-gray-800/50 rounded-lg animate-pulse" />
@@ -46,7 +56,12 @@ export function MangaContinueReading({ onHoverImage }: MangaContinueReadingProps
     return (
         <div className="px-4 py-8 space-y-4">
             <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white">Continue Reading</h2>
+                <div>
+                    <h2 className="text-xl font-semibold text-white">Continue Reading</h2>
+                    {currentProfile?.name && (
+                        <span className="text-xs text-[--muted]">Profile: {currentProfile.name}</span>
+                    )}
+                </div>
                 <span className="text-sm text-[--muted]">{uniqueManga.length} series</span>
             </div>
 

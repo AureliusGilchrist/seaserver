@@ -38,6 +38,16 @@ var (
 				SetTimeout(defaultTimeout)
 )
 
+// ApplyProxyURL sets a SOCKS5 proxy URL on both fetch clients.
+// This is called by the privacy manager after startup to inject proxy support.
+func ApplyProxyURL(proxyURL string) {
+	if proxyURL == "" {
+		return
+	}
+	clientWithCloudFlareBypass.SetProxyURL(proxyURL)
+	clientWithoutBypass.SetProxyURL(proxyURL)
+}
+
 type Fetch struct {
 	vm             *goja.Runtime
 	fetchSem       chan struct{}

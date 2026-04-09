@@ -2591,5 +2591,94 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/services/manga-gojuuon-map",
         },
     },
+    PRIVACY: {
+        GetPrivacySettings: {
+            key: "PRIVACY-get-privacy-settings",
+            methods: ["GET"],
+            endpoint: "/api/v1/privacy/settings",
+        },
+        SavePrivacySettings: {
+            key: "PRIVACY-save-privacy-settings",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/privacy/settings",
+        },
+        TestPrivacyConnection: {
+            key: "PRIVACY-test-privacy-connection",
+            methods: ["POST"],
+            endpoint: "/api/v1/privacy/test",
+        },
+        InstallDNSCrypt: {
+            key: "PRIVACY-install-dnscrypt",
+            methods: ["POST"],
+            endpoint: "/api/v1/privacy/dnscrypt/install",
+        },
+    },
+    PROFILES: {
+        GetProfiles: {
+            key: "PROFILES-get-profiles",
+            methods: ["GET"],
+            endpoint: "/api/v1/profiles",
+        },
+        GetCurrentProfile: {
+            key: "PROFILES-get-current-profile",
+            methods: ["GET"],
+            endpoint: "/api/v1/profiles/current",
+        },
+        CreateProfile: {
+            key: "PROFILES-create-profile",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles",
+        },
+        UpdateProfile: {
+            key: "PROFILES-update-profile",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/profiles/{id}",
+        },
+        DeleteProfile: {
+            key: "PROFILES-delete-profile",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/profiles/{id}",
+        },
+        LoginProfile: {
+            key: "PROFILES-login-profile",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/login",
+        },
+        LogoutProfile: {
+            key: "PROFILES-logout-profile",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/logout",
+        },
+        UploadAvatar: {
+            key: "PROFILES-upload-avatar",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/{id}/avatar",
+        },
+        GetAllowedLibraryPaths: {
+            key: "PROFILES-get-allowed-library-paths",
+            methods: ["GET"],
+            endpoint: "/api/v1/profiles/library-paths",
+        },
+        SetAllowedLibraryPaths: {
+            key: "PROFILES-set-allowed-library-paths",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/library-paths",
+        },
+        GetMigrationStatus: {
+            key: "PROFILES-get-migration-status",
+            methods: ["GET"],
+            endpoint: "/api/v1/profiles/migration/status",
+        },
+        RunMigration: {
+            key: "PROFILES-run-migration",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/migration/run",
+        },
+        SkipMigration: {
+            key: "PROFILES-skip-migration",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/migration/skip",
+        },
+    },
 } satisfies ApiEndpoints
 

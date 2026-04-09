@@ -47,6 +47,11 @@ type Status struct {
 	DisabledFeatures      []core.FeatureKey             `json:"disabledFeatures"`
 	ServerReady           bool                          `json:"serverReady"`
 	ServerHasPassword     bool                          `json:"serverHasPassword"`
+	// Multi-profile fields
+	ProfilesEnabled      bool                    `json:"profilesEnabled"`
+	NeedsMigration       bool                    `json:"needsMigration"`
+	CurrentProfile       *core.ProfileSummary    `json:"currentProfile"`
+	Profiles             []*core.ProfileSummary  `json:"profiles"`
 }
 
 var clientInfoCache = result.NewMap[string, util.ClientInfo]()
@@ -108,6 +113,30 @@ func (h *Handler) NewStatus(c echo.Context) *Status {
 		ServerReady:           h.App.ServerReady,
 		ServerHasPassword:     h.App.Config.Server.Password != "",
 		DisabledFeatures:      h.App.FeatureManager.DisabledFeatures,
+	}
+
+	// Populate profile fields
+	if h.App.ProfileManager != nil {
+		status.ProfilesEnabled = h.App.ProfileManager.HasProfiles()
+
+		if h.App.ProfileMigrator != nil {
+			status.NeedsMigration = h.App.ProfileMigrator.NeedsMigration()
+		}
+
+		if profiles, err := h.App.ProfileManager.GetAllProfiles(); err == nil {
+			summaries := make([]*core.ProfileSummary, len(profiles))
+			for i, p := range profiles {
+				summaries[i] = p.ToSummary()
+			}
+			status.Profiles = summaries
+		}
+
+		if session := c.Get("profileSession"); session != nil {
+			payload := session.(*core.ProfileSessionPayload)
+			if profile, err := h.App.ProfileManager.GetProfile(payload.ProfileID); err == nil {
+				status.CurrentProfile = profile.ToSummary()
+			}
+		}
 	}
 
 	if c.Get("unauthenticated") != nil && c.Get("unauthenticated").(bool) {

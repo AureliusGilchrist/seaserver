@@ -1,6 +1,6 @@
 "use client"
 import { getServerBaseUrl } from "@/api/client/server-url"
-import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useMutation, UseMutationOptions, useQuery, UseQueryOptions } from "@tanstack/react-query"
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
 import { useAtomValue } from "jotai"
@@ -17,10 +17,12 @@ type SeaQuery<D> = {
     data?: D
     params?: D
     password?: string
+    profileToken?: string
 }
 
 export function useSeaQuery() {
     const password = useAtomValue(serverAuthTokenAtom)
+    const profileToken = useAtomValue(profileSessionTokenAtom)
 
     return {
         seaFetch: <T, D extends any = any>(endpoint: string, method: "POST" | "GET" | "PATCH" | "DELETE" | "PUT", data?: D, params?: D) => {
@@ -30,6 +32,7 @@ export function useSeaQuery() {
                 data,
                 params,
                 password,
+                profileToken,
             })
         },
     }
@@ -47,11 +50,15 @@ export async function buildSeaQuery<T, D extends any = any>(
         data,
         params,
         password,
+        profileToken,
     }: SeaQuery<D>): Promise<T | undefined> {
 
     axios.interceptors.request.use((request: InternalAxiosRequestConfig) => {
             if (password) {
                 request.headers.set("X-Seanime-Token", password)
+            }
+            if (profileToken) {
+                request.headers.set("X-Seanime-Profile-Token", profileToken)
             }
             return request
         },
@@ -85,6 +92,7 @@ export function useServerMutation<R = void, V = void>(
     }: ServerMutationProps<R, V>) {
 
     const password = useAtomValue(serverAuthTokenAtom)
+    const profileToken = useAtomValue(profileSessionTokenAtom)
 
     return useMutation<R | undefined, SeaError, V>({
         onError: error => {
@@ -102,6 +110,7 @@ export function useServerMutation<R = void, V = void>(
                 method: method,
                 data: variables,
                 password: password,
+                profileToken: profileToken,
             })
         },
         ...options,
@@ -134,6 +143,7 @@ export function useServerQuery<R, V = any>(
 
     const pathname = usePathname()
     const [password, setPassword] = useAtom(serverAuthTokenAtom)
+    const profileToken = useAtomValue(profileSessionTokenAtom)
 
     const props = useQuery<R | undefined, SeaError>({
         queryFn: async () => {
@@ -143,6 +153,7 @@ export function useServerQuery<R, V = any>(
                 params: params,
                 data: data,
                 password: password,
+                profileToken: profileToken,
             })
         },
         ...options,

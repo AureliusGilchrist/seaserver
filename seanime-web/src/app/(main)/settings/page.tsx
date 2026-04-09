@@ -55,7 +55,9 @@ import {
     LuLibrary,
     LuMonitorPlay,
     LuPalette,
+    LuShieldCheck,
     LuTabletSmartphone,
+    LuUsers,
     LuWandSparkles,
 } from "react-icons/lu"
 import { LuRefreshCw } from "react-icons/lu"
@@ -69,6 +71,8 @@ import { SettingsCard, SettingsNavCard, SettingsPageHeader } from "./_components
 import { DiscordRichPresenceSettings } from "./_containers/discord-rich-presence-settings"
 import { LocalSettings } from "./_containers/local-settings"
 import { NakamaSettings } from "./_containers/nakama-settings"
+import { PrivacySettings } from "./_containers/privacy-settings"
+import { ProfileManagement } from "./_containers/profile-management"
 
 const tabContentClass = cn(
     "space-y-4 animate-in fade-in-0 duration-300",
@@ -271,6 +275,14 @@ export default function Page() {
                                         value="discord"
                                         className="group"
                                     ><FaDiscord className="text-xl mr-3 transition-transform duration-200" /> Discord</TabsTrigger>
+                                    <TabsTrigger
+                                        value="privacy"
+                                        className="group"
+                                    ><LuShieldCheck className="text-xl mr-3 transition-transform duration-200" /> Privacy & Network</TabsTrigger>
+                                    <TabsTrigger
+                                        value="profiles"
+                                        className="group"
+                                    ><LuUsers className="text-xl mr-3 transition-transform duration-200" /> Profiles</TabsTrigger>
                                 </Card>
 
                                 {/*<div className="text-xs lg:text-[--muted] text-center py-1.5 uppercase px-3 border-gray-800 tracking-wide font-medium">*/}
@@ -666,6 +678,14 @@ export default function Page() {
 
                                         <SettingsSubmitButton isPending={isPending} />
 
+                                    </TabsContent>
+
+                                    <TabsContent value="privacy" className={tabContentClass}>
+                                        <PrivacySettings />
+                                    </TabsContent>
+
+                                    <TabsContent value="profiles" className={tabContentClass}>
+                                        <ProfileManagement />
                                     </TabsContent>
 
                                     <TabsContent value="torrent" className={tabContentClass}>

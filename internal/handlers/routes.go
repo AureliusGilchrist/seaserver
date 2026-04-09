@@ -24,7 +24,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Cookie", "Authorization",
-			"X-Seanime-Token", "X-Seanime-Nakama-Token", "X-Seanime-Nakama-Username", "X-Seanime-Nakama-Server-Version", "X-Seanime-Nakama-Peer-Id"},
+			"X-Seanime-Token", "X-Seanime-Profile-Token", "X-Seanime-Nakama-Token", "X-Seanime-Nakama-Username", "X-Seanime-Nakama-Server-Version", "X-Seanime-Nakama-Peer-Id"},
 		AllowCredentials: true,
 	}))
 
@@ -118,6 +118,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	//
 	v1.Use(h.OptionalAuthMiddleware)
 	v1.Use(h.FeaturesMiddleware)
+	v1.Use(h.ProfileSessionMiddleware)
 
 	imageProxy := &util.ImageProxy{}
 	v1.GET("/image-proxy", imageProxy.ProxyImage)
@@ -156,6 +157,30 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/start", h.HandleGettingStarted)
 	v1.PATCH("/settings/auto-downloader", h.HandleSaveAutoDownloaderSettings)
 	v1.PATCH("/settings/media-player", h.HandleSaveMediaPlayerSettings)
+
+	// Privacy
+	v1.GET("/privacy/settings", h.HandleGetPrivacySettings)
+	v1.PATCH("/privacy/settings", h.HandleSavePrivacySettings)
+	v1.POST("/privacy/test", h.HandleTestPrivacyConnection)
+	v1.POST("/privacy/dnscrypt/install", h.HandleInstallDNSCrypt)
+
+	// Profiles
+	v1.GET("/profiles", h.HandleGetProfiles)
+	v1.POST("/profiles", h.HandleCreateProfile)
+	v1.GET("/profiles/current", h.HandleGetCurrentProfile)
+	v1.POST("/profiles/login", h.HandleProfileLogin)
+	v1.POST("/profiles/logout", h.HandleProfileLogout)
+	v1.PATCH("/profiles/:id", h.HandleUpdateProfile)
+	v1.DELETE("/profiles/:id", h.HandleDeleteProfile)
+	v1.POST("/profiles/:id/avatar", h.HandleUploadProfileAvatar)
+	v1.GET("/profiles/:id/avatar/:filename", h.HandleServeProfileAvatar)
+	v1.GET("/profiles/library-paths", h.HandleGetAllowedLibraryPaths)
+	v1.POST("/profiles/library-paths", h.HandleSetAllowedLibraryPaths)
+
+	// Profile Migration
+	v1.GET("/profiles/migration/status", h.HandleGetMigrationStatus)
+	v1.POST("/profiles/migration/run", h.HandleRunMigration)
+	v1.POST("/profiles/migration/skip", h.HandleSkipMigration)
 
 	// Auto Downloader
 	v1.POST("/auto-downloader/run", h.HandleRunAutoDownloader)
