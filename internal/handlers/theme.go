@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"seanime/internal/achievement"
 	"seanime/internal/database/models"
 
 	"github.com/labstack/echo/v4"
@@ -52,6 +53,15 @@ func (h *Handler) HandleUpdateTheme(c echo.Context) error {
 	if _, err := h.App.Database.UpsertTheme(&b.Theme); err != nil {
 		return h.RespondWithError(c, err)
 	}
+
+	// Fire achievement event for theme change
+	go h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+		ProfileID: h.GetProfileID(c),
+		Trigger:   achievement.TriggerPlatformEvent,
+		Metadata: map[string]interface{}{
+			"action": "theme_change",
+		},
+	})
 
 	// Send the new theme to the client
 	return h.RespondWithData(c, b.Theme)

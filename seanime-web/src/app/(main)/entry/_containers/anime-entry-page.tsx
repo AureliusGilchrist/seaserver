@@ -10,6 +10,7 @@ import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-at
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { MetaSection } from "@/app/(main)/entry/_components/meta-section"
 import { SyntheticAnimeEntryPage } from "@/app/(main)/entry/_containers/synthetic-anime-entry-page"
+import { CommentSection } from "@/app/(main)/_features/comment/comment-section"
 import { RelationsRecommendationsSection } from "@/app/(main)/entry/_components/relations-recommendations-section"
 import { DebridStreamPage } from "@/app/(main)/entry/_containers/debrid-stream/debrid-stream-page"
 import { EpisodeSection } from "@/app/(main)/entry/_containers/episode-list/episode-section"
@@ -300,6 +301,7 @@ export function AnimeEntryPage() {
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
                                     <MediaEntryCharactersSection details={animeDetails} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
+                                    <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
                                 </>}
                             />
                         </PageWrapper>}
@@ -311,6 +313,7 @@ export function AnimeEntryPage() {
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
                                     <MediaEntryCharactersSection details={animeDetails} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
+                                    <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
                                 </>}
                             />}
 
@@ -321,6 +324,7 @@ export function AnimeEntryPage() {
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
                                     <MediaEntryCharactersSection details={animeDetails} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
+                                    <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
                                 </>}
                             />}
 
@@ -361,6 +365,7 @@ export function AnimeEntryPage() {
                                 {/*/>*/}
                                 <MediaEntryCharactersSection details={animeDetails} />
                                 <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
+                                <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
                             </div>
                         </PageWrapper>}
 

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/continuity"
 	"seanime/internal/database/db"
@@ -395,6 +396,18 @@ func (a *App) initModulesOnce() {
 	// +---------------------+
 
 	a.GojuuonService = gojuuon.NewService(a.Logger)
+
+	// +---------------------+
+	// | Achievement Engine  |
+	// +---------------------+
+
+	a.AchievementEngine = achievement.NewEngine(&achievement.NewEngineOptions{
+		Logger:         a.Logger,
+		WSEventManager: a.WSEventManager,
+		GetDB: func(profileID uint) (*db.Database, error) {
+			return a.ProfileDatabaseManager.GetDatabase(profileID)
+		},
+	})
 
 	// +---------------------+
 	// |   Service Runner    |

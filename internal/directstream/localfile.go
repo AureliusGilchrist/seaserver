@@ -145,7 +145,7 @@ func (s *LocalFileStream) LoadPlaybackInfo() (ret *nativeplayer.PlaybackInfo, er
 }
 
 func (s *LocalFileStream) GetAttachmentByName(filename string) (*mkvparser.AttachmentInfo, bool) {
-	return getAttachmentByName(s.manager.playbackCtx, s, filename)
+	return getAttachmentByName(s.PlaybackCtx(), s, filename)
 }
 
 func (s *LocalFileStream) GetStreamHandler() http.Handler {
@@ -204,7 +204,7 @@ func ServeLocalFile(w http.ResponseWriter, r *http.Request, lfStream *LocalFileS
 		lfStream.serveContentCancelFunc()
 	}
 
-	ct, cancel := context.WithCancel(lfStream.manager.playbackCtx)
+	ct, cancel := context.WithCancel(lfStream.PlaybackCtx())
 	lfStream.serveContentCancelFunc = cancel
 
 	reader, err := lfStream.newReader()
@@ -227,7 +227,7 @@ func ServeLocalFile(w http.ResponseWriter, r *http.Request, lfStream *LocalFileS
 			http.Error(w, "Failed to create subtitle reader", http.StatusInternalServerError)
 			return
 		}
-		go lfStream.StartSubtitleStream(lfStream, lfStream.manager.playbackCtx, subReader, ra.Start)
+		go lfStream.StartSubtitleStream(lfStream, lfStream.PlaybackCtx(), subReader, ra.Start)
 	}
 
 	serveContentRange(w, r, ct, reader, lfStream.localFile.Path, size, playbackInfo.MimeType, ra)
@@ -235,6 +235,7 @@ func ServeLocalFile(w http.ResponseWriter, r *http.Request, lfStream *LocalFileS
 
 type PlayLocalFileOptions struct {
 	ClientId   string
+	ProfileID  uint
 	Path       string
 	LocalFiles []*anime.LocalFile
 }
@@ -307,6 +308,7 @@ func (m *Manager) PlayLocalFile(ctx context.Context, opts PlayLocalFileOptions) 
 			manager:               m,
 			logger:                m.Logger,
 			clientId:              opts.ClientId,
+			profileId:             opts.ProfileID,
 			filename:              filepath.Base(lf.Path),
 			media:                 media,
 			episode:               episode,
@@ -316,7 +318,7 @@ func (m *Manager) PlayLocalFile(ctx context.Context, opts PlayLocalFileOptions) 
 		},
 	}
 
-	m.loadStream(stream)
+	m.loadStream(opts.ProfileID, stream)
 
 	return nil
 }

@@ -103,7 +103,7 @@ func (s *TorrentStream) LoadPlaybackInfo() (ret *nativeplayer.PlaybackInfo, err 
 }
 
 func (s *TorrentStream) GetAttachmentByName(filename string) (*mkvparser.AttachmentInfo, bool) {
-	return getAttachmentByName(s.manager.playbackCtx, s, filename)
+	return getAttachmentByName(s.PlaybackCtx(), s, filename)
 }
 
 func (s *TorrentStream) GetStreamHandler() http.Handler {
@@ -159,11 +159,11 @@ func (s *TorrentStream) GetStreamHandler() http.Handler {
 				// Start a subtitle stream from the current position
 				subReader := s.file.NewReader()
 				subReader.SetResponsive()
-				s.StartSubtitleStream(s, s.manager.playbackCtx, subReader, ra.Start)
+				s.StartSubtitleStream(s, s.PlaybackCtx(), subReader, ra.Start)
 			}
 		}()
 
-		serveContentRange(w, r, s.manager.playbackCtx, tr, name, size, s.LoadContentType(), ra)
+		serveContentRange(w, r, s.PlaybackCtx(), tr, name, size, s.LoadContentType(), ra)
 	})
 }
 
@@ -177,6 +177,7 @@ func (s *TorrentStream) Terminate() {
 
 type PlayTorrentStreamOptions struct {
 	ClientId      string
+	ProfileID     uint
 	EpisodeNumber int
 	AnidbEpisode  string
 	Media         *anilist.BaseAnime
@@ -213,6 +214,7 @@ func (m *Manager) PlayTorrentStream(ctx context.Context, opts PlayTorrentStreamO
 			manager:               m,
 			logger:                m.Logger,
 			clientId:              opts.ClientId,
+			profileId:             opts.ProfileID,
 			media:                 opts.Media,
 			filename:              filepath.Base(opts.File.DisplayPath()),
 			episode:               episode,
@@ -225,7 +227,7 @@ func (m *Manager) PlayTorrentStream(ctx context.Context, opts PlayTorrentStreamO
 
 	go func() {
 		<-stream.streamReadyCh
-		m.loadStream(stream)
+		m.loadStream(opts.ProfileID, stream)
 	}()
 
 	return stream.streamReadyCh, nil

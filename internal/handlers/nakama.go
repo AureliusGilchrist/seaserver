@@ -292,7 +292,7 @@ func (h *Handler) HandleNakamaPlayVideo(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	err = h.App.NakamaManager.PlayHostAnimeLibraryFile(b.Path, c.Request().Header.Get("User-Agent"), b.ClientId, media, b.AniDBEpisode, b.ForcePlaybackMethod)
+	err = h.App.NakamaManager.PlayHostAnimeLibraryFile(b.Path, c.Request().Header.Get("User-Agent"), b.ClientId, h.GetProfileID(c), media, b.AniDBEpisode, b.ForcePlaybackMethod)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}

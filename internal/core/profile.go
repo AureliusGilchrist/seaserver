@@ -42,6 +42,7 @@ type ProfileSummary struct {
 	AniListAvatar   string    `json:"anilistAvatar"`
 	AvatarPath      string    `json:"avatarPath"`
 	CreatedAt       time.Time `json:"createdAt"`
+	HasPIN          bool      `json:"hasPIN"`
 }
 
 func (p *Profile) ToSummary() *ProfileSummary {
@@ -53,6 +54,7 @@ func (p *Profile) ToSummary() *ProfileSummary {
 		AniListAvatar:   p.AniListAvatar,
 		AvatarPath:      p.AvatarPath,
 		CreatedAt:       p.CreatedAt,
+		HasPIN:          p.PINHash != "",
 	}
 }
 
@@ -186,8 +188,8 @@ func (pm *ProfileManager) CreateProfile(name, pin string, isAdmin bool) (*Profil
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	if len(pin) < 4 || len(pin) > 6 {
-		return nil, errors.New("PIN must be 4-6 digits")
+	if len(pin) < 4 || len(pin) > 8 {
+		return nil, errors.New("PIN must be 4-8 digits")
 	}
 	for _, c := range pin {
 		if c < '0' || c > '9' {
@@ -264,8 +266,8 @@ func (pm *ProfileManager) UpdateProfilePIN(id uint, newPIN string) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	if len(newPIN) < 4 || len(newPIN) > 6 {
-		return errors.New("PIN must be 4-6 digits")
+	if len(newPIN) < 4 || len(newPIN) > 8 {
+		return errors.New("PIN must be 4-8 digits")
 	}
 	for _, c := range newPIN {
 		if c < '0' || c > '9' {
@@ -321,6 +323,11 @@ func (pm *ProfileManager) ValidatePIN(id uint, pin string) (*Profile, error) {
 	var profile Profile
 	if err := pm.db.First(&profile, id).Error; err != nil {
 		return nil, errors.New("profile not found")
+	}
+
+	// Allow login without PIN if profile has no PIN set
+	if profile.PINHash == "" && pin == "" {
+		return &profile, nil
 	}
 
 	if !verifyPIN(pin, profile.PINHash, profile.PINSalt) {

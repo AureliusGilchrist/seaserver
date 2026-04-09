@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/database/db_bridge"
@@ -757,6 +758,40 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 	)
 	if err != nil {
 		return h.RespondWithError(c, err)
+	}
+
+	// Fire achievement event for episode progress
+	go h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+		ProfileID: h.GetProfileID(c),
+		Trigger:   achievement.TriggerEpisodeProgress,
+		MediaID:   b.MediaId,
+	})
+
+	// Record activity for stats heatmap/streaks
+	go func() {
+		pdb := h.GetProfileDatabase(c)
+		if pdb != nil {
+			minutes := 0
+			// Try to get episode duration from cached collection
+			if col, err := h.App.GetAnimeCollection(false); err == nil && col != nil {
+				if anime, ok := col.FindAnime(b.MediaId); ok && anime.Duration != nil {
+					minutes = *anime.Duration
+				}
+			}
+			_ = pdb.RecordAnimeActivity(1, minutes)
+		}
+	}()
+
+	// Check if series was completed
+	if b.TotalEpisodes > 0 && b.EpisodeNumber >= b.TotalEpisodes {
+		go h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+			ProfileID: h.GetProfileID(c),
+			Trigger:   achievement.TriggerSeriesComplete,
+			MediaID:   b.MediaId,
+			Metadata: map[string]interface{}{
+				"episodes": b.TotalEpisodes,
+			},
+		})
 	}
 
 	_, _ = h.App.RefreshAnimeCollection() // Refresh the AniList collection

@@ -2,8 +2,13 @@ import { ProfileSummary } from "@/api/generated/types"
 import { useProfileLogin } from "@/api/hooks/profiles.hooks"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/components/ui/core/styling"
 import React from "react"
-import { BiPlus } from "react-icons/bi"
+import { BiArrowBack, BiCheck, BiPlus } from "react-icons/bi"
+import { MdBackspace } from "react-icons/md"
+
+const MAX_PIN_LENGTH = 8
+const MIN_PIN_LENGTH = 4
 
 type ProfileSelectorProps = {
     profiles: ProfileSummary[]
@@ -14,17 +19,29 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
     const [selectedProfile, setSelectedProfile] = React.useState<ProfileSummary | null>(null)
     const [pin, setPin] = React.useState("")
     const [pinError, setPinError] = React.useState("")
+    const [pressedKey, setPressedKey] = React.useState<string | null>(null)
     const { mutate: login, isPending } = useProfileLogin()
-    const pinInputRef = React.useRef<HTMLInputElement>(null)
 
     const handleProfileClick = (profile: ProfileSummary) => {
+        if (!profile.hasPIN) {
+            // Auto-login for profiles without PIN
+            login(
+                { profileId: profile.id, pin: "" },
+                {
+                    onError: () => {
+                        setPinError("Login failed")
+                    },
+                },
+            )
+            return
+        }
         setSelectedProfile(profile)
         setPin("")
         setPinError("")
     }
 
     const handlePinSubmit = () => {
-        if (!selectedProfile) return
+        if (!selectedProfile || pin.length < MIN_PIN_LENGTH) return
         setPinError("")
         login(
             { profileId: selectedProfile.id, pin },
@@ -43,16 +60,44 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
         setPinError("")
     }
 
-    const handlePinKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter") {
+    const handleKeypadPress = (key: string) => {
+        setPressedKey(key)
+        setTimeout(() => setPressedKey(null), 150)
+
+        if (key === "backspace") {
+            setPin(prev => prev.slice(0, -1))
+            setPinError("")
+        } else if (key === "submit") {
             handlePinSubmit()
-        }
-        if (e.key === "Escape") {
-            handleBack()
+        } else {
+            setPin(prev => {
+                if (prev.length >= MAX_PIN_LENGTH) return prev
+                setPinError("")
+                return prev + key
+            })
         }
     }
 
-    // PIN entry screen
+    // Keyboard support
+    React.useEffect(() => {
+        if (!selectedProfile) return
+
+        const handler = (e: KeyboardEvent) => {
+            if (e.key >= "0" && e.key <= "9") {
+                handleKeypadPress(e.key)
+            } else if (e.key === "Backspace") {
+                handleKeypadPress("backspace")
+            } else if (e.key === "Enter") {
+                handlePinSubmit()
+            } else if (e.key === "Escape") {
+                handleBack()
+            }
+        }
+        window.addEventListener("keydown", handler)
+        return () => window.removeEventListener("keydown", handler)
+    }, [selectedProfile, pin])
+
+    // PIN entry screen with keypad
     if (selectedProfile) {
         return (
             <div className="flex min-h-screen flex-col items-center justify-center bg-[--background]">
@@ -69,55 +114,72 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
                     <h2 className="text-xl font-semibold text-[--foreground]">
                         {selectedProfile.name}
                     </h2>
-                    <div className="flex flex-col items-center gap-3" onClick={() => pinInputRef.current?.focus()}>
-                        <p className="text-sm text-[--muted]">Enter your PIN</p>
-                        <div className="flex gap-2 cursor-text">
-                            {[0, 1, 2, 3, 4, 5].map((i) => (
-                                <div
-                                    key={i}
-                                    className={`w-12 h-14 rounded-md border-2 flex items-center justify-center text-2xl font-bold transition-colors ${
-                                        i < pin.length
-                                            ? "border-[--brand] bg-[--brand]/10 text-[--brand]"
-                                            : "border-[--border] bg-[--paper]"
-                                    }`}
-                                >
-                                    {i < pin.length ? "•" : ""}
-                                </div>
-                            ))}
-                        </div>
-                        <input
-                            ref={pinInputRef}
-                            type="password"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            maxLength={6}
-                            value={pin}
-                            onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, "")
-                                setPin(val)
-                            }}
-                            onKeyDown={handlePinKeyDown}
-                            className="sr-only"
-                            autoFocus
-                        />
-                        {pinError && (
-                            <p className="text-sm text-red-500">{pinError}</p>
-                        )}
-                        <div className="flex gap-3 mt-2">
-                            <Button intent="gray" size="sm" onClick={handleBack}>
-                                Back
-                            </Button>
-                            <Button
-                                intent="primary"
-                                size="sm"
-                                onClick={handlePinSubmit}
-                                loading={isPending}
-                                disabled={pin.length < 4}
-                            >
-                                Continue
-                            </Button>
-                        </div>
+
+                    <p className="text-sm text-[--muted]">Enter your PIN</p>
+
+                    {/* Dot indicators */}
+                    <div className="flex gap-3">
+                        {Array.from({ length: MAX_PIN_LENGTH }).map((_, i) => (
+                            <div
+                                key={i}
+                                className={cn(
+                                    "w-3 h-3 rounded-full transition-all duration-200",
+                                    i < pin.length
+                                        ? "bg-[--brand] scale-110"
+                                        : i < MIN_PIN_LENGTH
+                                            ? "bg-[--border]"
+                                            : "bg-[--border] opacity-40",
+                                )}
+                            />
+                        ))}
                     </div>
+
+                    {pinError && (
+                        <p className="text-sm text-red-500 animate-shake">{pinError}</p>
+                    )}
+
+                    {/* 3×4 Keypad grid */}
+                    <div className="grid grid-cols-3 gap-3 mt-2">
+                        {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
+                            <KeypadButton
+                                key={digit}
+                                label={digit}
+                                pressed={pressedKey === digit}
+                                onClick={() => handleKeypadPress(digit)}
+                                disabled={pin.length >= MAX_PIN_LENGTH}
+                            />
+                        ))}
+                        <KeypadButton
+                            label={<MdBackspace className="text-xl" />}
+                            pressed={pressedKey === "backspace"}
+                            onClick={() => handleKeypadPress("backspace")}
+                            disabled={pin.length === 0}
+                            variant="utility"
+                        />
+                        <KeypadButton
+                            label="0"
+                            pressed={pressedKey === "0"}
+                            onClick={() => handleKeypadPress("0")}
+                            disabled={pin.length >= MAX_PIN_LENGTH}
+                        />
+                        <KeypadButton
+                            label={<BiCheck className="text-2xl" />}
+                            pressed={pressedKey === "submit"}
+                            onClick={() => handleKeypadPress("submit")}
+                            disabled={pin.length < MIN_PIN_LENGTH || isPending}
+                            variant="submit"
+                        />
+                    </div>
+
+                    <Button
+                        intent="gray-basic"
+                        size="sm"
+                        leftIcon={<BiArrowBack />}
+                        onClick={handleBack}
+                        className="mt-2"
+                    >
+                        Back
+                    </Button>
                 </div>
             </div>
         )
@@ -168,5 +230,45 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
                 </Button>
             )}
         </div>
+    )
+}
+
+type KeypadButtonProps = {
+    label: React.ReactNode
+    pressed: boolean
+    onClick: () => void
+    disabled?: boolean
+    variant?: "digit" | "utility" | "submit"
+}
+
+function KeypadButton({ label, pressed, onClick, disabled, variant = "digit" }: KeypadButtonProps) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={cn(
+                "w-16 h-16 rounded-full flex items-center justify-center text-xl font-semibold transition-all duration-150 select-none",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-[--brand] focus-visible:ring-offset-2 focus-visible:ring-offset-[--background]",
+                "disabled:opacity-30 disabled:cursor-not-allowed",
+                variant === "digit" && [
+                    "bg-[--paper] border border-[--border] text-[--foreground]",
+                    "hover:bg-[--subtle] active:bg-[--brand]/20 active:border-[--brand]/50",
+                    pressed && "scale-90 bg-[--brand]/20 border-[--brand]/50",
+                ],
+                variant === "utility" && [
+                    "bg-transparent border border-transparent text-[--muted]",
+                    "hover:bg-[--subtle] active:text-[--foreground]",
+                    pressed && "scale-90 text-[--foreground]",
+                ],
+                variant === "submit" && [
+                    "bg-[--brand]/20 border border-[--brand]/30 text-[--brand]",
+                    "hover:bg-[--brand]/30 active:bg-[--brand]/40",
+                    pressed && "scale-90 bg-[--brand]/40",
+                ],
+            )}
+        >
+            {label}
+        </button>
     )
 }

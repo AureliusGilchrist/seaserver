@@ -143,7 +143,7 @@ func (m *Manager) GetHostAnimeLibrary(ctx context.Context) (ac *NakamaAnimeLibra
 	return entryResponse.Data, true
 }
 
-func (m *Manager) PlayHostAnimeLibraryFile(path string, userAgent string, clientId string, media *anilist.BaseAnime, aniDBEpisode string, forcePlaybackMethod string) error {
+func (m *Manager) PlayHostAnimeLibraryFile(path string, userAgent string, clientId string, profileID uint, media *anilist.BaseAnime, aniDBEpisode string, forcePlaybackMethod string) error {
 	if !m.settings.Enabled || !m.IsConnectedToHost() || m.IsRoomConnection() {
 		return errors.New("not connected to host")
 	}
@@ -225,6 +225,7 @@ func (m *Manager) PlayHostAnimeLibraryFile(path string, userAgent string, client
 			Media:              media,
 			NakamaHostPassword: m.settings.RemoteServerPassword,
 			ClientId:           clientId,
+			ProfileID:          profileID,
 		})
 		if err != nil {
 			m.wsEventManager.SendEvent(events.HideIndefiniteLoader, "nakama-file")
@@ -248,7 +249,7 @@ func (m *Manager) PlayHostAnimeLibraryFile(path string, userAgent string, client
 	return nil
 }
 
-func (m *Manager) PlayHostAnimeStream(streamType WatchPartyStreamType, userAgent string, clientId string, media *anilist.BaseAnime, aniDBEpisode string) error {
+func (m *Manager) PlayHostAnimeStream(streamType WatchPartyStreamType, userAgent string, clientId string, profileID uint, media *anilist.BaseAnime, aniDBEpisode string) error {
 	if !m.settings.Enabled || !m.IsConnectedToHost() {
 		return errors.New("not connected to host")
 	}
@@ -304,6 +305,7 @@ func (m *Manager) PlayHostAnimeStream(streamType WatchPartyStreamType, userAgent
 			Media:              media,
 			NakamaHostPassword: m.settings.RemoteServerPassword,
 			ClientId:           clientId,
+			ProfileID:          profileID,
 		})
 		if err != nil {
 			m.wsEventManager.SendEvent(events.HideIndefiniteLoader, "nakama-stream")

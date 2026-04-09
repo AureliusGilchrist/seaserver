@@ -1,5 +1,5 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
-import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { websocketAtom, WebSocketContext } from "@/app/(main)/_atoms/websocket.atoms"
 import { ElectronRestartServerPrompt } from "@/app/(main)/_electron/electron-restart-server-prompt"
 import { __openDrawersAtom } from "@/components/ui/drawer"
@@ -92,6 +92,13 @@ function WebsocketManagement() {
         serverAuthTokenRef.current = serverAuthToken
     }, [serverAuthToken])
 
+    // Profile session token for profile-scoped WS events
+    const profileSessionToken = useAtomValue(profileSessionTokenAtom)
+    const profileSessionTokenRef = React.useRef(profileSessionToken)
+    React.useEffect(() => {
+        profileSessionTokenRef.current = profileSessionToken
+    }, [profileSessionToken])
+
     const [, setClientId] = useAtom(clientIdAtom)
     const setMainTab = useSetAtom(isMainTabAtom)
 
@@ -173,7 +180,8 @@ function WebsocketManagement() {
 
             try {
                 const tokenParam = serverAuthTokenRef.current ? `&token=${encodeURIComponent(serverAuthTokenRef.current)}` : ""
-                socketRef.current = new WebSocket(`${wsUrl}?id=${clientId}${tokenParam}`)
+                const profileTokenParam = profileSessionTokenRef.current ? `&profileToken=${encodeURIComponent(profileSessionTokenRef.current)}` : ""
+                socketRef.current = new WebSocket(`${wsUrl}?id=${clientId}${tokenParam}${profileTokenParam}`)
 
                 // Reset the last pong timestamp whenever we connect
                 lastPongRef.current = Date.now()

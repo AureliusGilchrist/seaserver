@@ -125,6 +125,8 @@ var typePrefixesByPackage = map[string]string{
 	"customsource":       "CustomSource_",
 	"videocore":          "VideoCore_",
 	"plugin_ui":          "PluginUI_",
+	"achievement":        "Achievement_",
+	"profilestats":       "ProfileStats_",
 }
 
 func getTypePrefix(packageName string) string {

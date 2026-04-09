@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/models"
 	"seanime/internal/extension"
@@ -366,8 +367,9 @@ func (h *Handler) HandleGetMangaEntryPages(c echo.Context) error {
 	}
 
 	// Update reading history when pages are fetched (user is reading this chapter)
+	profileDB := h.GetProfileDatabase(c)
 	go func() {
-		_ = h.App.Database.UpdateMangaReadingHistory(b.MediaId, b.ChapterId)
+		_ = profileDB.UpdateMangaReadingHistory(b.MediaId, b.ChapterId)
 	}()
 
 	return h.RespondWithData(c, container)
@@ -518,6 +520,35 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 	)
 	if err != nil {
 		return h.RespondWithError(c, err)
+	}
+
+	// Fire achievement events for chapter progress
+	profileID := h.GetProfileID(c)
+	h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+		ProfileID: profileID,
+		Trigger:   achievement.TriggerChapterRead,
+		MediaID:   b.MediaId,
+		Metadata: map[string]interface{}{
+			"chapter": b.ChapterNumber,
+		},
+	})
+
+	// Record activity for stats heatmap/streaks
+	go func() {
+		pdb := h.GetProfileDatabase(c)
+		if pdb != nil {
+			_ = pdb.RecordMangaActivity(1)
+		}
+	}()
+	if b.TotalChapters > 0 && b.ChapterNumber >= b.TotalChapters {
+		h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+			ProfileID: profileID,
+			Trigger:   achievement.TriggerMangaComplete,
+			MediaID:   b.MediaId,
+			Metadata: map[string]interface{}{
+				"chapters": b.TotalChapters,
+			},
+		})
 	}
 
 	_, _ = h.App.RefreshMangaCollection() // Refresh the AniList collection
@@ -678,7 +709,8 @@ type MangaReadingHistoryItem struct {
 //	@route /api/v1/manga/reading-history [GET]
 //	@returns []MangaReadingHistoryItem
 func (h *Handler) HandleGetMangaReadingHistory(c echo.Context) error {
-	history, err := h.App.Database.GetMangaReadingHistory(50)
+	profileDB := h.GetProfileDatabase(c)
+	history, err := profileDB.GetMangaReadingHistory(50)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
@@ -696,7 +728,7 @@ func (h *Handler) HandleGetMangaReadingHistory(c echo.Context) error {
 		// Fetch media details
 		if entry.IsSynthetic {
 			// Get synthetic manga
-			syntheticManga, found := h.App.Database.GetSyntheticManga(entry.MediaID)
+			syntheticManga, found := profileDB.GetSyntheticManga(entry.MediaID)
 			if found && syntheticManga != nil {
 				// Convert synthetic manga to BaseManga format
 				item.Media = &anilist.BaseManga{

@@ -120,6 +120,13 @@ func migrateTables(db *gorm.DB) error {
 		&models.MangaIDMapping{},
 		&models.DownloadedMangaMetadata{},
 		&models.PrivacySettings{},
+		&models.Comment{},
+		&models.CommentVote{},
+		&models.MangaFavorite{},
+		&models.Notification{},
+		&models.Achievement{},
+		&models.AchievementShowcase{},
+		&models.ActivityLog{},
 	)
 	if err != nil {
 

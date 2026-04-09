@@ -15,6 +15,7 @@ import (
 type WSEventManagerInterface interface {
 	SendEvent(t string, payload interface{})
 	SendEventTo(clientId string, t string, payload interface{}, noLog ...bool)
+	SendEventToProfile(profileID uint, t string, payload interface{})
 	SubscribeToClientEvents(id string) *ClientEventSubscriber
 	SubscribeToClientNativePlayerEvents(id string) *ClientEventSubscriber
 	SubscribeToClientVideoCoreEvents(id string) *ClientEventSubscriber
@@ -43,6 +44,13 @@ func (w *GlobalWSEventManagerWrapper) SendEventTo(clientId string, t string, pay
 	w.WSEventManager.SendEventTo(clientId, t, payload, noLog...)
 }
 
+func (w *GlobalWSEventManagerWrapper) SendEventToProfile(profileID uint, t string, payload interface{}) {
+	if w.WSEventManager == nil {
+		return
+	}
+	w.WSEventManager.SendEventToProfile(profileID, t, payload)
+}
+
 type (
 	// WSEventManager holds the websocket connection instance.
 	// It is attached to the App instance, so it is available to other handlers.
@@ -69,8 +77,9 @@ type (
 	}
 
 	WSConn struct {
-		ID   string
-		Conn *websocket.Conn
+		ID        string
+		ProfileID uint
+		Conn      *websocket.Conn
 	}
 
 	WSEvent struct {
@@ -148,11 +157,12 @@ func (m *WSEventManager) Stop() {
 	})
 }
 
-func (m *WSEventManager) AddConn(id string, conn *websocket.Conn) {
+func (m *WSEventManager) AddConn(id string, profileID uint, conn *websocket.Conn) {
 	m.hasHadConnection = true
 	m.Conns = append(m.Conns, &WSConn{
-		ID:   id,
-		Conn: conn,
+		ID:        id,
+		ProfileID: profileID,
+		Conn:      conn,
 	})
 }
 
@@ -216,6 +226,29 @@ func (m *WSEventManager) SendEventTo(clientId string, t string, payload interfac
 					m.Logger.Trace().Str("to", clientId).Str("type", t).Str("payload", truncated).Msg("ws: Sending message")
 				}
 			}
+			_ = conn.Conn.WriteJSON(WSEvent{
+				Type:    t,
+				Payload: payload,
+			})
+		}
+	}
+}
+
+// SendEventToProfile sends a websocket event to all connections belonging to the specified profile.
+// If profileID is 0, it falls back to broadcasting to all connections.
+func (m *WSEventManager) SendEventToProfile(profileID uint, t string, payload interface{}) {
+	if profileID == 0 {
+		m.SendEvent(t, payload)
+		return
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.Logger.Trace().Uint("profileID", profileID).Str("type", t).Msg("ws: Sending message to profile")
+
+	for _, conn := range m.Conns {
+		if conn.ProfileID == profileID {
 			_ = conn.Conn.WriteJSON(WSEvent{
 				Type:    t,
 				Payload: payload,

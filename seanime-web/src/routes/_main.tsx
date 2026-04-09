@@ -1,3 +1,4 @@
+import { AchievementCelebrationOverlay } from "@/app/(main)/_features/achievement/achievement-celebration-overlay"
 import { MainLayout } from "@/app/(main)/_features/layout/main-layout"
 import { OfflineLayout } from "@/app/(main)/_features/layout/offline-layout"
 import { TopNavbar } from "@/app/(main)/_features/layout/top-navbar"
@@ -49,6 +50,7 @@ function Layout() {
                 </div>
             </MainLayout>
             <TourOverlay />
+            <AchievementCelebrationOverlay />
         </ServerDataWrapper>
     )
 }

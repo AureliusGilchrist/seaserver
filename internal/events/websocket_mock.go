@@ -77,6 +77,10 @@ func (m *MockWSEventManager) SubscribeToClientPlaylistEvents(id string) *ClientE
 	return subscriber
 }
 
+func (m *MockWSEventManager) SendEventToProfile(profileID uint, t string, payload interface{}) {
+	m.Logger.Trace().Any("payload", payload).Str("type", t).Uint("profileID", profileID).Msg("ws: Sent message to profile")
+}
+
 func (m *MockWSEventManager) UnsubscribeFromClientEvents(id string) {
 	m.ClientEventSubscribers.Delete(id)
 }

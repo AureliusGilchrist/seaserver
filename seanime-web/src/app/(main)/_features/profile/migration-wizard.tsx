@@ -128,13 +128,13 @@ export function MigrationWizard({ onComplete }: MigrationWizardProps) {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-[--foreground] mb-1.5">
-                                    PIN (4-6 digits)
+                                    PIN (4-8 digits)
                                 </label>
                                 <input
                                     type="password"
                                     inputMode="numeric"
                                     pattern="[0-9]*"
-                                    maxLength={6}
+                                    maxLength={8}
                                     value={pin}
                                     onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
                                     placeholder="••••"

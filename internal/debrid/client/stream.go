@@ -49,6 +49,7 @@ type (
 		FileIndex         *int                        // Index of the file to stream (Manual selection)
 		UserAgent         string
 		ClientId          string
+		ProfileID         uint
 		PlaybackType      StreamPlaybackType
 		AutoSelect        bool
 		BatchEpisodeFiles *hibiketorrent.BatchEpisodeFiles
@@ -117,7 +118,7 @@ func (s *StreamManager) startStream(ctx context.Context, opts *StartStreamOption
 	//}()
 
 	if opts.PlaybackType == PlaybackTypeNativePlayer {
-		s.repository.directStreamManager.PrepareNewStream(opts.ClientId, "Selecting torrent...")
+		s.repository.directStreamManager.PrepareNewStream(opts.ProfileID, opts.ClientId, "Selecting torrent...")
 	}
 
 	//
@@ -146,7 +147,7 @@ func (s *StreamManager) startStream(ctx context.Context, opts *StartStreamOption
 		st, fi, err := s.repository.findBestTorrent(provider, media, opts.EpisodeNumber)
 		if err != nil {
 			if opts.PlaybackType == PlaybackTypeNativePlayer {
-				s.repository.directStreamManager.AbortOpen(opts.ClientId, err)
+				s.repository.directStreamManager.AbortOpen(opts.ProfileID, opts.ClientId, err)
 			}
 			s.repository.wsEventManager.SendEvent(events.DebridStreamState, StreamState{
 				Status:      StreamStatusFailed,
@@ -180,7 +181,7 @@ func (s *StreamManager) startStream(ctx context.Context, opts *StartStreamOption
 			st, fi, err := s.repository.findBestTorrentFromManualSelection(provider, selectedTorrent, media, opts.EpisodeNumber, chosenFileIndex)
 			if err != nil {
 				if opts.PlaybackType == PlaybackTypeNativePlayer {
-					s.repository.directStreamManager.AbortOpen(opts.ClientId, err)
+					s.repository.directStreamManager.AbortOpen(opts.ProfileID, opts.ClientId, err)
 				}
 				s.repository.wsEventManager.SendEvent(events.DebridStreamState, StreamState{
 					Status:      StreamStatusFailed,
@@ -197,7 +198,7 @@ func (s *StreamManager) startStream(ctx context.Context, opts *StartStreamOption
 
 	if selectedTorrent == nil {
 		if opts.PlaybackType == PlaybackTypeNativePlayer {
-			s.repository.directStreamManager.AbortOpen(opts.ClientId, fmt.Errorf("debridstream: Failed to start stream, no torrent provided"))
+			s.repository.directStreamManager.AbortOpen(opts.ProfileID, opts.ClientId, fmt.Errorf("debridstream: Failed to start stream, no torrent provided"))
 		}
 		s.repository.wsEventManager.SendEvent(events.HideIndefiniteLoader, "debridstream")
 		return fmt.Errorf("debridstream: Failed to start stream, no torrent provided")
@@ -268,7 +269,7 @@ func (s *StreamManager) startStream(ctx context.Context, opts *StartStreamOption
 		go func() {
 			for item := range itemCh {
 				if opts.PlaybackType == PlaybackTypeNativePlayer {
-					s.repository.directStreamManager.PrepareNewStream(opts.ClientId, fmt.Sprintf("Awaiting stream: %d%%", item.CompletionPercentage))
+					s.repository.directStreamManager.PrepareNewStream(opts.ProfileID, opts.ClientId, fmt.Sprintf("Awaiting stream: %d%%", item.CompletionPercentage))
 				}
 
 				s.repository.wsEventManager.SendEvent(events.DebridStreamState, StreamState{
@@ -516,6 +517,7 @@ func (s *StreamManager) startStream(ctx context.Context, opts *StartStreamOption
 				FileId:       fileId,
 				UserAgent:    opts.UserAgent,
 				ClientId:     opts.ClientId,
+				ProfileID:    opts.ProfileID,
 				AutoSelect:   false,
 			})
 			if err != nil {

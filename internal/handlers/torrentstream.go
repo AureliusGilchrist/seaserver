@@ -162,6 +162,7 @@ func (h *Handler) HandleTorrentstreamStartStream(c echo.Context) error {
 		FileIndex:         b.FileIndex,
 		UserAgent:         userAgent,
 		ClientId:          b.ClientId,
+		ProfileID:         h.GetProfileID(c),
 		PlaybackType:      b.PlaybackType,
 		BatchEpisodeFiles: b.BatchEpisodeFiles,
 	}

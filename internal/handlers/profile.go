@@ -126,6 +126,13 @@ func (h *Handler) HandleCreateProfile(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	// Initialize the per-profile database (empty schema) so it's ready for use
+	if h.App.ProfileDatabaseManager != nil {
+		if _, err := h.App.ProfileDatabaseManager.GetDatabase(profile.ID); err != nil {
+			h.App.Logger.Error().Err(err).Uint("profileID", profile.ID).Msg("profile: Failed to initialize per-profile database")
+		}
+	}
+
 	return h.RespondWithData(c, profile.ToSummary())
 }
 
@@ -208,6 +215,11 @@ func (h *Handler) HandleDeleteProfile(c echo.Context) error {
 
 	if err := h.App.ProfileManager.DeleteProfile(uint(id)); err != nil {
 		return h.RespondWithError(c, err)
+	}
+
+	// Close the per-profile database connection if cached
+	if h.App.ProfileDatabaseManager != nil {
+		h.App.ProfileDatabaseManager.CloseProfile(uint(id))
 	}
 
 	return h.RespondWithData(c, true)

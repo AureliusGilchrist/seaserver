@@ -1,83 +1,82 @@
+import { useServerMutation, useServerQuery } from "@/api/client/requests"
+import { API_ENDPOINTS } from "@/api/generated/endpoints"
+import { useQueryClient } from "@tanstack/react-query"
 import React from "react"
 
 const STORAGE_KEY = "manga_favorites"
+const MIGRATED_KEY = "manga_favorites_migrated"
 
-type FavoriteSet = number[]
-
-function loadFavorites(): FavoriteSet {
+function loadLocalFavorites(): number[] {
     if (typeof window === "undefined") return []
     try {
         const raw = localStorage.getItem(STORAGE_KEY)
         if (!raw) return []
         const parsed = JSON.parse(raw) as unknown
         if (!Array.isArray(parsed)) return []
-        const filtered: number[] = []
-        for (const n of parsed) {
-            if (typeof n === "number") filtered.push(n)
-        }
-        return filtered
+        return parsed.filter((n): n is number => typeof n === "number")
     } catch {
         return []
     }
 }
 
-function saveFavorites(favs: FavoriteSet) {
-    if (typeof window === "undefined") return
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(favs))
-    } catch {
-        // ignore storage errors
-    }
-}
-
 export function useMangaFavorites() {
-    const [favorites, setFavorites] = React.useState<FavoriteSet>(() => loadFavorites())
+    const qc = useQueryClient()
+    const queryKey = [API_ENDPOINTS.MANGA_FAVORITES.GetMangaFavorites.key]
+
+    const { data: favorites = [], isLoading } = useServerQuery<number[]>({
+        endpoint: API_ENDPOINTS.MANGA_FAVORITES.GetMangaFavorites.endpoint,
+        method: API_ENDPOINTS.MANGA_FAVORITES.GetMangaFavorites.methods[0],
+        queryKey,
+    })
+
+    const { mutate: toggleMutate } = useServerMutation<boolean, { mediaId: number }>({
+        endpoint: API_ENDPOINTS.MANGA_FAVORITES.ToggleMangaFavorite.endpoint,
+        method: API_ENDPOINTS.MANGA_FAVORITES.ToggleMangaFavorite.methods[0],
+        mutationKey: [API_ENDPOINTS.MANGA_FAVORITES.ToggleMangaFavorite.key],
+        onSuccess: async () => {
+            await qc.invalidateQueries({ queryKey })
+        },
+    })
+
+    const { mutate: bulkAddMutate } = useServerMutation<boolean, { mediaIds: number[] }>({
+        endpoint: API_ENDPOINTS.MANGA_FAVORITES.BulkAddMangaFavorites.endpoint,
+        method: API_ENDPOINTS.MANGA_FAVORITES.BulkAddMangaFavorites.methods[0],
+        mutationKey: [API_ENDPOINTS.MANGA_FAVORITES.BulkAddMangaFavorites.key],
+        onSuccess: async () => {
+            await qc.invalidateQueries({ queryKey })
+        },
+    })
+
+    // Auto-migrate from localStorage on first load
+    React.useEffect(() => {
+        if (isLoading) return
+        if (typeof window === "undefined") return
+
+        const alreadyMigrated = localStorage.getItem(MIGRATED_KEY)
+        if (alreadyMigrated) return
+
+        const localFavs = loadLocalFavorites()
+        if (localFavs.length > 0) {
+            bulkAddMutate({ mediaIds: localFavs }, {
+                onSuccess: () => {
+                    localStorage.removeItem(STORAGE_KEY)
+                    localStorage.setItem(MIGRATED_KEY, "1")
+                },
+            })
+        } else {
+            localStorage.setItem(MIGRATED_KEY, "1")
+        }
+    }, [isLoading])
 
     const isFavorite = React.useCallback((id?: number | string | null) => {
         if (id == null) return false
-        const num = Number(id)
-        return favorites.includes(num)
+        return favorites.includes(Number(id))
     }, [favorites])
 
     const toggleFavorite = React.useCallback((id?: number | string | null) => {
         if (id == null) return
-        const num = Number(id)
-        setFavorites((prev) => {
-            const exists = prev.includes(num)
-            const next = exists ? prev.filter((n) => n !== num) : [...prev, num]
-            saveFavorites(next)
-            return next
-        })
-    }, [])
+        toggleMutate({ mediaId: Number(id) })
+    }, [toggleMutate])
 
-    const addFavorite = React.useCallback((id?: number | string | null) => {
-        if (id == null) return
-        const num = Number(id)
-        setFavorites((prev) => {
-            if (prev.includes(num)) return prev
-            const next = [...prev, num]
-            saveFavorites(next)
-            return next
-        })
-    }, [])
-
-    const removeFavorite = React.useCallback((id?: number | string | null) => {
-        if (id == null) return
-        const num = Number(id)
-        setFavorites((prev) => {
-            if (!prev.includes(num)) return prev
-            const next = prev.filter((n) => n !== num)
-            saveFavorites(next)
-            return next
-        })
-    }, [])
-
-    React.useEffect(() => {
-        // keep in sync with external changes (e.g., other tabs)
-        const handler = () => setFavorites(loadFavorites())
-        window.addEventListener("storage", handler)
-        return () => window.removeEventListener("storage", handler)
-    }, [])
-
-    return { favorites, isFavorite, toggleFavorite, addFavorite, removeFavorite }
+    return { favorites, isFavorite, toggleFavorite, isLoading }
 }

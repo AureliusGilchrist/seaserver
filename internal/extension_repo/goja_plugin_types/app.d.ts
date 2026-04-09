@@ -3566,6 +3566,7 @@ declare namespace $app {
      */
     interface Manga_Collection {
         lists?: Array<Manga_CollectionList>;
+        unknownGroups?: Array<Manga_UnknownGroup>;
     }
 
     /**
@@ -3636,6 +3637,16 @@ declare namespace $app {
     interface Manga_ProviderDownloadMapChapterInfo {
         chapterId: string;
         chapterNumber: string;
+    }
+
+    /**
+     * - Filepath: internal/manga/collection.go
+     */
+    interface Manga_UnknownGroup {
+        mediaId: number;
+        title: string;
+        provider: string;
+        chapterCount: number;
     }
 
     /**

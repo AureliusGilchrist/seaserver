@@ -209,15 +209,15 @@ function CreateProfileModal({ open, onClose }: { open: boolean; onClose: () => v
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-[--foreground] mb-1.5">PIN (4-6 digits)</label>
+                    <label className="block text-sm font-medium text-[--foreground] mb-1.5">PIN (4-8 digits)</label>
                     <input
                         type="password"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        maxLength={6}
+                        maxLength={8}
                         value={pin}
                         onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-                        placeholder="Optional"
+                        placeholder="Required"
                         className="w-full px-3 py-2 rounded-md border border-[--border] bg-[--paper] text-[--foreground] focus:border-[--brand] focus:outline-none"
                     />
                 </div>
@@ -232,7 +232,7 @@ function CreateProfileModal({ open, onClose }: { open: boolean; onClose: () => v
                 </label>
                 <div className="flex gap-3 justify-end pt-2">
                     <Button intent="gray" onClick={onClose}>Cancel</Button>
-                    <Button intent="primary" onClick={handleSubmit} loading={isPending} disabled={!name.trim()}>
+                    <Button intent="primary" onClick={handleSubmit} loading={isPending} disabled={!name.trim() || pin.length < 4}>
                         Create
                     </Button>
                 </div>
@@ -346,7 +346,7 @@ function EditProfileModal({ profile, onClose }: { profile: ProfileSummary | null
                         type="password"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        maxLength={6}
+                        maxLength={8}
                         value={pin}
                         onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
                         placeholder="••••"
