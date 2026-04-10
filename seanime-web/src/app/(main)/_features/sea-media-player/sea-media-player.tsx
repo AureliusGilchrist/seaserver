@@ -32,7 +32,6 @@ import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { logger } from "@/lib/helpers/debug"
-import { __isDesktop__ } from "@/types/constants"
 import {
     MediaCanPlayDetail,
     MediaCanPlayEvent,
@@ -212,10 +211,16 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
 
     React.useEffect(() => {
         if (previousUrlRef.current === url) return
+        const hadPreviousUrl = !!previousUrlRef.current
         previousUrlRef.current = url
 
         // Reset the canPlayRef when the url changes
         canPlayRef.current = false
+
+        // Mark as transitioning if URL changed (episode change)
+        if (hadPreviousUrl && url) {
+            isTransitioningRef.current = true
+        }
     }, [url])
 
     const onTimeUpdate = (detail: MediaTimeUpdateEventDetail, e: MediaTimeUpdateEvent) => { // let React compiler optimize
@@ -310,12 +315,14 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
     const { watchHistory, waitForWatchHistory, getEpisodeContinuitySeekTo } = useHandleCurrentMediaContinuity(media?.id)
 
     const wentToNextEpisodeRef = React.useRef(false)
+    const isTransitioningRef = React.useRef(false)
     const onEnded = (e: MediaEndedEvent) => {
         _onEnded?.(e)
 
         if (autoNext && !wentToNextEpisodeRef.current) {
             onGoToNextEpisode?.()
             wentToNextEpisodeRef.current = true
+            isTransitioningRef.current = true
         }
     }
 
@@ -333,8 +340,8 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
 
         canPlayRef.current = true
 
-        if (__isDesktop__ && wentToNextEpisodeRef.current && wasFullscreenRef.current) {
-            logger("MEDIA PLAYER").info("Restoring fullscreen")
+        if (isTransitioningRef.current && wasFullscreenRef.current) {
+            logger("MEDIA PLAYER").info("Restoring fullscreen after episode change")
             try {
                 playerRef.current?.enterFullscreen()
                 playerRef.current?.el?.focus()
@@ -344,6 +351,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
         }
 
         wentToNextEpisodeRef.current = false
+        isTransitioningRef.current = false
 
         // If the watch history is found and the episode number matches, seek to the last watched time
         if (progress.currentEpisodeNumber && watchHistory?.found && watchHistory.item?.episodeNumber === progress.currentEpisodeNumber) {
@@ -544,13 +552,15 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
                         onMediaEnterFullscreenRequest={onMediaEnterFullscreenRequest}
                         onFullscreenChange={(isFullscreen: boolean, event: MediaFullscreenChangeEvent) => {
                             setIsFullscreen(isFullscreen)
-                            // Track fullscreen state
-                            wasFullscreenRef.current = isFullscreen
 
+                            // Don't clear wasFullscreenRef during source transitions
+                            // so we can restore fullscreen after the new source loads
                             if (isFullscreen) {
+                                wasFullscreenRef.current = true
                                 // Store the currently focused element
                                 lastFocusedElementRef.current = document.activeElement as HTMLElement
-                            } else {
+                            } else if (!isTransitioningRef.current) {
+                                wasFullscreenRef.current = false
                                 // Restore focus
                                 setTimeout(() => {
                                     lastFocusedElementRef.current?.focus()

@@ -106,6 +106,16 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route returns details about a staff member.
+         *  This fetches media associated with the staff member.
+         */
+        GetAnilistStaffDetails: {
+            key: "ANILIST-get-anilist-staff-details",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/staff-details/{id}",
+        },
+        /**
+         *  @description
          *  Route deletes an entry from the user's AniList list.
          *  This is used to delete an entry on AniList.
          *  The "type" field is used to determine if the entry is an anime or manga and refreshes the collection accordingly.
@@ -1619,6 +1629,38 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/manga/favorites/bulk",
         },
     },
+    ANIME_FAVORITE: {
+        /**
+         *  @description
+         *  Route get the list of favorited anime media IDs.
+         *  Returns an array of media IDs that are favorited for the current profile.
+         */
+        GetAnimeFavorites: {
+            key: "ANIME-FAVORITE-get-anime-favorites",
+            methods: ["GET"],
+            endpoint: "/api/v1/library/favorites",
+        },
+        /**
+         *  @description
+         *  Route toggle an anime as favorite (add/remove).
+         *  Adds the anime to favorites if not present, removes it if already favorited.
+         */
+        ToggleAnimeFavorite: {
+            key: "ANIME-FAVORITE-toggle-anime-favorite",
+            methods: ["POST"],
+            endpoint: "/api/v1/library/favorites/toggle",
+        },
+        /**
+         *  @description
+         *  Route bulk-add anime favorites (for localStorage migration).
+         *  Accepts an array of media IDs and adds them all as favorites, skipping duplicates.
+         */
+        BulkAddAnimeFavorites: {
+            key: "ANIME-FAVORITE-bulk-add-anime-favorites",
+            methods: ["POST"],
+            endpoint: "/api/v1/library/favorites/bulk",
+        },
+    },
     MANGA_SCAN: {
         /**
          *  @description
@@ -2900,6 +2942,40 @@ export const API_ENDPOINTS = {
             key: "UNMATCHED-clear-completed-torrent",
             methods: ["POST"],
             endpoint: "/api/v1/unmatched/scanner/clear",
+        },
+    },
+    PROFILE_PAGE: {
+        GetMyProfile: {
+            key: "PROFILE-PAGE-get-my-profile",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/me",
+        },
+        GetUserProfile: {
+            key: "PROFILE-PAGE-get-user-profile",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/user",
+        },
+        UpdateBio: {
+            key: "PROFILE-PAGE-update-bio",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/profile/bio",
+        },
+        GetLevel: {
+            key: "PROFILE-PAGE-get-level",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/level",
+        },
+    },
+    COMMUNITY: {
+        GetCommunityProfiles: {
+            key: "COMMUNITY-get-community-profiles",
+            methods: ["GET"],
+            endpoint: "/api/v1/community/profiles",
+        },
+        GetActivityFeed: {
+            key: "COMMUNITY-get-activity-feed",
+            methods: ["GET"],
+            endpoint: "/api/v1/community/feed",
         },
     },
 } satisfies ApiEndpoints

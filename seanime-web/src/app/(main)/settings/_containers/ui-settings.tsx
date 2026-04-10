@@ -272,6 +272,7 @@ export function UISettings() {
                 unpinnedMenuItems: themeSettings?.unpinnedMenuItems ?? [],
             }}
             stackClass="space-y-4 relative"
+            noFormElement
         >
             {(f) => (
                 <>

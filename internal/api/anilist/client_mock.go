@@ -556,6 +556,11 @@ func (ac *MockAnilistClientImpl) StudioDetails(ctx context.Context, id *int, int
 	return ac.realAnilistClient.StudioDetails(ctx, id, interceptors...)
 }
 
+func (ac *MockAnilistClientImpl) StaffDetails(ctx context.Context, id *int, interceptors ...clientv2.RequestInterceptor) (*StaffDetails, error) {
+	ac.logger.Debug().Int("staffId", *id).Msg("anilist: Fetching staff details")
+	return ac.realAnilistClient.StaffDetails(ctx, id, interceptors...)
+}
+
 func (ac *MockAnilistClientImpl) ViewerStats(ctx context.Context, interceptors ...clientv2.RequestInterceptor) (*ViewerStats, error) {
 	ac.logger.Debug().Msg("anilist: Fetching stats")
 	return ac.realAnilistClient.ViewerStats(ctx, interceptors...)

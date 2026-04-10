@@ -1,4 +1,4 @@
-import { AL_ListRecentAnime_Page_AiringSchedules, Anime_ScheduleItem, Models_HomeItem } from "@/api/generated/types"
+import { AL_ListRecentAnime_Page_AiringSchedules, Anime_LibraryCollectionList, Anime_ScheduleItem, Models_HomeItem } from "@/api/generated/types"
 import { useAnilistListAnime, useAnilistListRecentAiringAnime } from "@/api/hooks/anilist.hooks"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useAnilistListManga } from "@/api/hooks/manga.hooks"
@@ -15,6 +15,7 @@ import { DEFAULT_HOME_ITEMS, HOME_ITEMS, isAnimeLibraryItemsOnly } from "@/app/(
 import { __home_settingsModalOpen, HomeSettingsModal } from "@/app/(main)/(library)/_home/home-settings-modal"
 import { HomeToolbar } from "@/app/(main)/(library)/_home/home-toolbar"
 import { HandleLibraryCollectionProps, useHandleLibraryCollection } from "@/app/(main)/(library)/_lib/handle-library-collection"
+import { useAnimeFavorites } from "@/app/(main)/(library)/_lib/use-anime-favorites"
 import { DetailedLibraryView } from "@/app/(main)/(library)/_screens/detailed-library-view"
 import { LibraryView } from "@/app/(main)/(library)/_screens/library-view"
 import { __anilist_userAnimeMediaAtom } from "@/app/(main)/_atoms/anilist.atoms"
@@ -41,6 +42,7 @@ import { FiSearch } from "react-icons/fi"
 import { LiaPlayCircle } from "react-icons/lia"
 import { LuPlus } from "react-icons/lu"
 import { useWindowSize } from "react-use"
+import { MediaCardLazyGrid } from "../../_features/media/_components/media-card-grid"
 import { MediaEntryCard } from "../../_features/media/_components/media-entry-card"
 import { MediaEntryCardSkeleton } from "../../_features/media/_components/media-entry-card-skeleton"
 import { MediaEntryPageLoadingDisplay } from "../../_features/media/_components/media-entry-page-loading-display"
@@ -569,6 +571,15 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
                     item={item}
                 />
             </>
+        )
+    }
+
+    if (item.type === "anime-favorites") {
+        return (
+            <AnimeFavoritesSection
+                libraryCollectionList={libraryCollectionList}
+                onHoverImage={onHoverImage}
+            />
         )
     }
 
@@ -1154,5 +1165,44 @@ function InvalidHomeItem(props: { item: Models_HomeItem }) {
              {JSON.stringify(item, null, 2)}
              </pre> */}
         </PageWrapper>
+    )
+}
+
+function AnimeFavoritesSection(props: {
+    libraryCollectionList: Anime_LibraryCollectionList[]
+    onHoverImage?: (imageUrl: string | null) => void
+}) {
+    const { libraryCollectionList, onHoverImage } = props
+    const { favorites } = useAnimeFavorites()
+
+    const favoritesMedia = React.useMemo(() => {
+        if (!favorites?.length) return [] as any[]
+        const entries = libraryCollectionList?.flatMap(l => l.entries).filter(Boolean) || []
+        return favorites
+            .map(id => entries.find(e => Number((e as any)?.media?.id) === Number(id))?.media)
+            .filter(Boolean)
+    }, [favorites, libraryCollectionList])
+
+    return (
+        <div className="px-4 py-8 space-y-4">
+            <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-white">Favorite Anime</h2>
+                {!favoritesMedia.length && <span className="text-sm text-[--muted]">No favorites yet</span>}
+            </div>
+
+            {!!favoritesMedia.length && (
+                <MediaCardLazyGrid itemCount={favoritesMedia.length}>
+                    {favoritesMedia.map(media => (
+                        <MediaEntryCard
+                            key={media.id}
+                            media={media}
+                            type="anime"
+                            hideUnseenCountBadge
+                            onHoverImage={onHoverImage}
+                        />
+                    ))}
+                </MediaCardLazyGrid>
+            )}
+        </div>
     )
 }

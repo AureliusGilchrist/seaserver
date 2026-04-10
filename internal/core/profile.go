@@ -31,6 +31,8 @@ type Profile struct {
 	AniListUsername string    `gorm:"column:anilist_username" json:"anilistUsername"`
 	AniListAvatar   string    `gorm:"column:anilist_avatar" json:"anilistAvatar"`
 	AvatarPath      string    `gorm:"column:avatar_path" json:"avatarPath"`
+	Bio             string    `gorm:"column:bio;type:text" json:"bio"`
+	BannerImage     string    `gorm:"column:banner_image" json:"bannerImage"`
 }
 
 // ProfileSummary is a safe projection of Profile for API responses (never includes PIN data).
@@ -41,6 +43,8 @@ type ProfileSummary struct {
 	AniListUsername string    `json:"anilistUsername"`
 	AniListAvatar   string    `json:"anilistAvatar"`
 	AvatarPath      string    `json:"avatarPath"`
+	Bio             string    `json:"bio"`
+	BannerImage     string    `json:"bannerImage"`
 	CreatedAt       time.Time `json:"createdAt"`
 	HasPIN          bool      `json:"hasPIN"`
 }
@@ -53,6 +57,8 @@ func (p *Profile) ToSummary() *ProfileSummary {
 		AniListUsername: p.AniListUsername,
 		AniListAvatar:   p.AniListAvatar,
 		AvatarPath:      p.AvatarPath,
+		Bio:             p.Bio,
+		BannerImage:     p.BannerImage,
 		CreatedAt:       p.CreatedAt,
 		HasPIN:          p.PINHash != "",
 	}

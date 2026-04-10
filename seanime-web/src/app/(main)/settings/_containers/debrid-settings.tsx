@@ -81,6 +81,7 @@ export function DebridSettings(props: DebridSettingsProps) {
                     streamPreferredResolution: settings?.streamPreferredResolution || "-",
                 }}
                 stackClass="space-y-4"
+                noFormElement
             >
                 {(f) => (
                     <>

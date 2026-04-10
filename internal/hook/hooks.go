@@ -23,6 +23,7 @@ type Manager interface {
 	OnGetCachedRawAnimeCollection() *Hook[hook_resolver.Resolver]
 	OnGetCachedRawMangaCollection() *Hook[hook_resolver.Resolver]
 	OnGetStudioDetails() *Hook[hook_resolver.Resolver]
+	OnGetStaffDetails() *Hook[hook_resolver.Resolver]
 	OnPreUpdateEntry() *Hook[hook_resolver.Resolver]
 	OnPostUpdateEntry() *Hook[hook_resolver.Resolver]
 	OnPreUpdateEntryProgress() *Hook[hook_resolver.Resolver]
@@ -167,6 +168,7 @@ type ManagerImpl struct {
 	onGetCachedRawAnimeCollection *Hook[hook_resolver.Resolver]
 	onGetCachedRawMangaCollection *Hook[hook_resolver.Resolver]
 	onGetStudioDetails            *Hook[hook_resolver.Resolver]
+	onGetStaffDetails             *Hook[hook_resolver.Resolver]
 	onPreUpdateEntry              *Hook[hook_resolver.Resolver]
 	onPostUpdateEntry             *Hook[hook_resolver.Resolver]
 	onPreUpdateEntryProgress      *Hook[hook_resolver.Resolver]
@@ -309,6 +311,7 @@ func (m *ManagerImpl) initHooks() {
 	m.onGetCachedRawAnimeCollection = &Hook[hook_resolver.Resolver]{}
 	m.onGetCachedRawMangaCollection = &Hook[hook_resolver.Resolver]{}
 	m.onGetStudioDetails = &Hook[hook_resolver.Resolver]{}
+	m.onGetStaffDetails = &Hook[hook_resolver.Resolver]{}
 	m.onPreUpdateEntry = &Hook[hook_resolver.Resolver]{}
 	m.onPostUpdateEntry = &Hook[hook_resolver.Resolver]{}
 	m.onPreUpdateEntryProgress = &Hook[hook_resolver.Resolver]{}
@@ -503,6 +506,13 @@ func (m *ManagerImpl) OnGetStudioDetails() *Hook[hook_resolver.Resolver] {
 		return &Hook[hook_resolver.Resolver]{}
 	}
 	return m.onGetStudioDetails
+}
+
+func (m *ManagerImpl) OnGetStaffDetails() *Hook[hook_resolver.Resolver] {
+	if m == nil {
+		return &Hook[hook_resolver.Resolver]{}
+	}
+	return m.onGetStaffDetails
 }
 
 func (m *ManagerImpl) OnPreUpdateEntry() *Hook[hook_resolver.Resolver] {

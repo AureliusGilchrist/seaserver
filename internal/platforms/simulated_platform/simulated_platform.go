@@ -721,6 +721,17 @@ func (sp *SimulatedPlatform) GetStudioDetails(ctx context.Context, studioID int)
 	return sp.helper.TriggerGetStudioDetailsEvent(ret)
 }
 
+func (sp *SimulatedPlatform) GetStaffDetails(ctx context.Context, staffID int) (*anilist.StaffDetails, error) {
+	sp.logger.Trace().Int("staffID", staffID).Msg("simulated platform: Getting staff details")
+
+	ret, err := sp.client.StaffDetails(ctx, &staffID)
+	if err != nil {
+		return nil, err
+	}
+
+	return sp.helper.TriggerGetStaffDetailsEvent(ret)
+}
+
 func (sp *SimulatedPlatform) GetAnilistClient() anilist.AnilistClient {
 	return sp.client
 }

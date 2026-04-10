@@ -451,6 +451,11 @@ func (lp *OfflinePlatform) GetStudioDetails(ctx context.Context, studioID int) (
 	return &anilist.StudioDetails{}, nil
 }
 
+// GetStaffDetails isn't supported for the local platform, always returns an empty struct
+func (lp *OfflinePlatform) GetStaffDetails(ctx context.Context, staffID int) (*anilist.StaffDetails, error) {
+	return &anilist.StaffDetails{}, nil
+}
+
 func (lp *OfflinePlatform) GetAnilistClient() anilist.AnilistClient {
 	return lp.clientRef.Get()
 }

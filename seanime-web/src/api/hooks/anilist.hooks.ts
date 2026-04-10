@@ -14,6 +14,7 @@ import {
     AL_ListRecentAnime,
     AL_Stats,
     AL_StudioDetails,
+    AL_StaffDetails,
     Nullish,
 } from "@/api/generated/types"
 import { useQueryClient } from "@tanstack/react-query"
@@ -139,6 +140,15 @@ export function useGetAnilistStudioDetails(id: number) {
         endpoint: API_ENDPOINTS.ANILIST.GetAnilistStudioDetails.endpoint.replace("{id}", String(id)),
         method: API_ENDPOINTS.ANILIST.GetAnilistStudioDetails.methods[0],
         queryKey: [API_ENDPOINTS.ANILIST.GetAnilistStudioDetails.key, String(id)],
+        enabled: true,
+    })
+}
+
+export function useGetAnilistStaffDetails(id: number) {
+    return useServerQuery<AL_StaffDetails>({
+        endpoint: API_ENDPOINTS.ANILIST.GetAnilistStaffDetails.endpoint.replace("{id}", String(id)),
+        method: API_ENDPOINTS.ANILIST.GetAnilistStaffDetails.methods[0],
+        queryKey: [API_ENDPOINTS.ANILIST.GetAnilistStaffDetails.key, String(id)],
         enabled: true,
     })
 }

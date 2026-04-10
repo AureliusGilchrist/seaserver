@@ -3,6 +3,7 @@ package handlers
 import (
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
+	"strings"
 )
 
 // buildCollectionStats computes achievement-relevant stats from the anime and manga collections.
@@ -11,16 +12,20 @@ func buildCollectionStats(
 	mangaCol *anilist.MangaCollection,
 ) *achievement.CollectionStats {
 	stats := &achievement.CollectionStats{
-		GenreCounts:  make(map[string]int),
-		FormatCounts: make(map[string]int),
+		AnimeGenreCounts:  make(map[string]int),
+		MangaGenreCounts:  make(map[string]int),
+		AnimeFormatCounts: make(map[string]int),
+		MangaFormatCounts: make(map[string]int),
 	}
 
-	genreSet := make(map[string]struct{})
+	allGenreSet := make(map[string]struct{})
 	formatSet := make(map[string]struct{})
 	decadeSet := make(map[int]struct{})
 
-	var totalScore float64
-	var scoreCount int
+	var animeTotalScore float64
+	var animeScoreCount int
+	var mangaTotalScore float64
+	var mangaScoreCount int
 
 	// Process anime collection
 	if animeCol != nil && animeCol.GetMediaListCollection() != nil {
@@ -36,54 +41,75 @@ func buildCollectionStats(
 
 				stats.TotalAnime++
 
-				// Progress / episodes
 				if entry.Progress != nil {
 					stats.TotalEpisodes += *entry.Progress
 				}
 
-				// Minutes = progress * duration
 				if entry.Progress != nil && media != nil && media.Duration != nil {
 					stats.TotalMinutes += *entry.Progress * *media.Duration
 				}
 
-				// Completed
-				if entry.Status != nil && *entry.Status == anilist.MediaListStatusCompleted {
-					stats.CompletedAnime++
+				if entry.Repeat != nil && *entry.Repeat > 0 {
+					stats.AnimeRewatches += *entry.Repeat
 				}
 
-				// Score
+				if entry.Status != nil {
+					switch *entry.Status {
+					case anilist.MediaListStatusCompleted:
+						stats.CompletedAnime++
+					case anilist.MediaListStatusDropped:
+						stats.DroppedAnime++
+					case anilist.MediaListStatusCurrent:
+						stats.WatchingAnime++
+					case anilist.MediaListStatusPaused:
+						stats.PausedAnime++
+					case anilist.MediaListStatusPlanning:
+						stats.PTWAnime++
+					}
+				}
+
 				if entry.Score != nil && *entry.Score > 0 {
-					stats.RatingCount++
-					totalScore += *entry.Score
-					scoreCount++
-					if *entry.Score == 100 {
-						stats.PerfectTenCount++
+					stats.AnimeRatingCount++
+					animeTotalScore += *entry.Score
+					animeScoreCount++
+					if *entry.Score == 100 || *entry.Score == 10 {
+						stats.PerfectTenAnime++
 					}
 					if *entry.Score > 0 && *entry.Score <= 30 {
-						stats.HarshCriticCount++
+						stats.HarshCriticAnime++
 					}
 				}
 
 				if media != nil {
-					// Format
 					if media.Format != nil {
 						f := string(*media.Format)
 						formatSet[f] = struct{}{}
-						stats.FormatCounts[f]++
-						if *media.Format == anilist.MediaFormatMovie {
+						stats.AnimeFormatCounts[f]++
+						switch *media.Format {
+						case anilist.MediaFormatTv:
+							stats.TVCount++
+						case anilist.MediaFormatMovie:
 							stats.MovieCount++
+						case anilist.MediaFormatOva:
+							stats.OVACount++
+						case anilist.MediaFormatOna:
+							stats.ONACount++
+						case anilist.MediaFormatSpecial:
+							stats.SpecialCount++
+						case anilist.MediaFormatMusic:
+							stats.MusicCount++
+						case anilist.MediaFormatTvShort:
+							stats.TVShortCount++
 						}
 					}
 
-					// Genres
 					for _, g := range media.Genres {
 						if g != nil {
-							genreSet[*g] = struct{}{}
-							stats.GenreCounts[*g]++
+							allGenreSet[*g] = struct{}{}
+							stats.AnimeGenreCounts[*g]++
 						}
 					}
 
-					// Decade from SeasonYear
 					if media.SeasonYear != nil && *media.SeasonYear > 0 {
 						decade := (*media.SeasonYear / 10) * 10
 						decadeSet[decade] = struct{}{}
@@ -107,35 +133,64 @@ func buildCollectionStats(
 
 				stats.TotalManga++
 
-				// Chapter progress
 				if entry.Progress != nil {
 					stats.TotalChapters += *entry.Progress
 				}
 
-				// Completed
-				if entry.Status != nil && *entry.Status == anilist.MediaListStatusCompleted {
-					stats.CompletedManga++
+				if entry.Repeat != nil && *entry.Repeat > 0 {
+					stats.MangaRereads += *entry.Repeat
 				}
 
-				// Score (aggregate with anime scores)
+				if entry.Status != nil {
+					switch *entry.Status {
+					case anilist.MediaListStatusCompleted:
+						stats.CompletedManga++
+					case anilist.MediaListStatusDropped:
+						stats.DroppedManga++
+					case anilist.MediaListStatusCurrent:
+						stats.ReadingManga++
+					case anilist.MediaListStatusPaused:
+						stats.PausedManga++
+					case anilist.MediaListStatusPlanning:
+						stats.PTRManga++
+					}
+				}
+
 				if entry.Score != nil && *entry.Score > 0 {
-					stats.RatingCount++
-					totalScore += *entry.Score
-					scoreCount++
-					if *entry.Score == 100 {
-						stats.PerfectTenCount++
+					stats.MangaRatingCount++
+					mangaTotalScore += *entry.Score
+					mangaScoreCount++
+					if *entry.Score == 100 || *entry.Score == 10 {
+						stats.PerfectTenManga++
 					}
 					if *entry.Score > 0 && *entry.Score <= 30 {
-						stats.HarshCriticCount++
+						stats.HarshCriticManga++
 					}
 				}
 
 				if media != nil {
-					// Genres
 					for _, g := range media.Genres {
 						if g != nil {
-							genreSet[*g] = struct{}{}
-							stats.GenreCounts[*g]++
+							allGenreSet[*g] = struct{}{}
+							stats.MangaGenreCounts[*g]++
+						}
+					}
+
+					if media.Format != nil {
+						f := string(*media.Format)
+						stats.MangaFormatCounts[f]++
+						fl := strings.ToUpper(f)
+						switch {
+						case fl == "MANHWA":
+							stats.ManhwaCount++
+						case fl == "MANHUA":
+							stats.ManhuaCount++
+						case fl == "ONE_SHOT":
+							stats.OneshotCount++
+						case fl == "NOVEL":
+							stats.NovelCount++
+						case fl == "LIGHT_NOVEL":
+							stats.LightNovelCount++
 						}
 					}
 				}
@@ -143,12 +198,16 @@ func buildCollectionStats(
 		}
 	}
 
-	stats.GenreCount = len(genreSet)
+	stats.GenreCount = len(allGenreSet)
 	stats.FormatCount = len(formatSet)
 	stats.DecadeCount = len(decadeSet)
+	stats.StudioCount = 0 // Studios not available from base anime query
 
-	if scoreCount > 0 {
-		stats.AverageRating = totalScore / float64(scoreCount)
+	if animeScoreCount > 0 {
+		stats.AnimeAverageRating = animeTotalScore / float64(animeScoreCount)
+	}
+	if mangaScoreCount > 0 {
+		stats.MangaAverageRating = mangaTotalScore / float64(mangaScoreCount)
 	}
 
 	return stats

@@ -1,0 +1,60 @@
+query StaffDetails($id: Int) {
+  Staff(id: $id) {
+    id
+    name {
+      full
+      native
+    }
+    image {
+      large
+    }
+    description(asHtml: false)
+    primaryOccupations
+    staffMedia(sort: TRENDING_DESC, perPage: 80) {
+      edges {
+        staffRole
+        node {
+          id
+          idMal
+          siteUrl
+          status(version: 2)
+          season
+          type
+          format
+          bannerImage
+          episodes
+          chapters
+          volumes
+          synonyms
+          isAdult
+          countryOfOrigin
+          meanScore
+          description
+          genres
+          title {
+            userPreferred
+            romaji
+            english
+            native
+          }
+          coverImage {
+            extraLarge
+            large
+            medium
+            color
+          }
+          startDate {
+            year
+            month
+            day
+          }
+          endDate {
+            year
+            month
+            day
+          }
+        }
+      }
+    }
+  }
+}

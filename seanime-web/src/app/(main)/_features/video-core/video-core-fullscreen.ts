@@ -24,6 +24,8 @@ export class VideoCoreFullscreenManager extends EventTarget {
     private onFullscreenChange: (isFullscreen: boolean) => void
     private isElectronNativeFullscreen = false
     private attachVideoListeners?: () => void
+    private _isTransitioning = false
+    private _wasFullscreenBeforeTransition = false
 
     constructor(onFullscreenChange: (isFullscreen: boolean) => void) {
         super()
@@ -96,7 +98,7 @@ export class VideoCoreFullscreenManager extends EventTarget {
         this.containerElement = containerElement
     }
 
-    setVideoElement(videoElement: HTMLVideoElement) {
+    setVideoElement(videoElement: HTMLVideoElement | null) {
         this.videoElement = videoElement
 
         // Attach iOS-specific listeners
@@ -321,9 +323,51 @@ export class VideoCoreFullscreenManager extends EventTarget {
         const isFullscreen = this.isFullscreen
         log.info("Fullscreen state changed:", isFullscreen)
 
+        // During source transitions, don't propagate browser-forced fullscreen exits
+        if (this._isTransitioning && !isFullscreen) {
+            log.info("Suppressing fullscreen exit during source transition")
+            return
+        }
+
         const event: FullscreenManagerChangedEvent = new CustomEvent("fullscreenchanged", { detail: { isFullscreen } })
         this.dispatchEvent(event)
 
         this.onFullscreenChange(isFullscreen)
+    }
+
+    /**
+     * Call before changing video source to preserve fullscreen state.
+     * Pass the current CSS-based fullscreen state (from atom) for inline mode.
+     */
+    beginTransition(cssFullscreen?: boolean) {
+        this._wasFullscreenBeforeTransition = this.isFullscreen || !!cssFullscreen
+        this._isTransitioning = true
+        log.info("Begin transition, was fullscreen:", this._wasFullscreenBeforeTransition)
+    }
+
+    /**
+     * Call after new video can play to restore fullscreen if it was active.
+     * For inline (CSS-based) fullscreen, just restores the atom state.
+     * For real fullscreen, re-enters fullscreen on the container.
+     */
+    async endTransition() {
+        const shouldRestore = this._isTransitioning && this._wasFullscreenBeforeTransition
+        this._isTransitioning = false
+        this._wasFullscreenBeforeTransition = false
+
+        if (shouldRestore) {
+            log.info("Restoring fullscreen after source transition")
+            // If we have a container and can use real fullscreen, do so
+            if (this.containerElement && (this._isElectron() || document.fullscreenEnabled)) {
+                await this.enterFullscreen()
+            } else {
+                // For CSS-based inline fullscreen, just restore the atom state
+                this.onFullscreenChange(true)
+            }
+        }
+    }
+
+    get isInTransition(): boolean {
+        return this._isTransitioning
     }
 }

@@ -2,14 +2,16 @@ package profilestats
 
 // ProfileStats is the response for GET /api/v1/profile/stats.
 type ProfileStats struct {
-	ActivityHeatmap []*ActivityDay     `json:"activityHeatmap"`
-	AnimeStreak     *StreakInfo        `json:"animeStreak"`
-	MangaStreak     *StreakInfo        `json:"mangaStreak"`
-	TotalActiveDays int               `json:"totalActiveDays"`
-	TotalAnimeDays  int               `json:"totalAnimeDays"`
-	TotalMangaDays  int               `json:"totalMangaDays"`
-	Personality     *PersonalityResult `json:"personality"`
-	WatchPatterns   *WatchPatterns     `json:"watchPatterns"`
+	ActivityHeatmap            []*ActivityDay     `json:"activityHeatmap"`
+	AnimeStreak                *StreakInfo        `json:"animeStreak"`
+	MangaStreak                *StreakInfo        `json:"mangaStreak"`
+	TotalActiveDays            int                `json:"totalActiveDays"`
+	TotalAnimeDays             int                `json:"totalAnimeDays"`
+	TotalMangaDays             int                `json:"totalMangaDays"`
+	Personality                *PersonalityResult `json:"personality"`
+	WatchPatterns              *WatchPatterns     `json:"watchPatterns"`
+	TotalWatchMinutesWithRewatches int            `json:"totalWatchMinutesWithRewatches"`
+	EstimatedReadingMinutes    int                `json:"estimatedReadingMinutes"`
 }
 
 // ActivityDay represents one day's activity for the heatmap.

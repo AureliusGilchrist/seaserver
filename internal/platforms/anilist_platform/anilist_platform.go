@@ -715,6 +715,16 @@ func (ap *AnilistPlatform) GetStudioDetails(ctx context.Context, studioID int) (
 	return ap.helper.TriggerGetStudioDetailsEvent(ret)
 }
 
+func (ap *AnilistPlatform) GetStaffDetails(ctx context.Context, staffID int) (*anilist.StaffDetails, error) {
+	ap.logger.Trace().Msg("anilist platform: Fetching staff details")
+	ret, err := ap.anilistClient.StaffDetails(ctx, &staffID)
+	if err != nil {
+		return nil, err
+	}
+
+	return ap.helper.TriggerGetStaffDetailsEvent(ret)
+}
+
 func (ap *AnilistPlatform) GetAnilistClient() anilist.AnilistClient {
 	return ap.anilistClient
 }

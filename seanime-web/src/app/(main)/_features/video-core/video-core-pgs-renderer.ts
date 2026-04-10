@@ -47,6 +47,9 @@ export class VideoCorePgsRenderer {
             return
         }
 
+        if (this._canvas) {
+            this._canvas.style.display = "block"
+        }
         this._worker.postMessage({
             type: "addEvent",
             payload: event,
@@ -58,6 +61,9 @@ export class VideoCorePgsRenderer {
             return
         }
 
+        if (this._canvas) {
+            this._canvas.style.display = "block"
+        }
         this._worker.postMessage({
             type: "addEvents",
             payload: events,
@@ -129,6 +135,9 @@ export class VideoCorePgsRenderer {
             return
         }
 
+        if (this._canvas) {
+            this._canvas.style.display = "none"
+        }
         this._worker.postMessage({
             type: "clear",
         })
@@ -169,6 +178,7 @@ export class VideoCorePgsRenderer {
         this._canvas.style.zIndex = "10"
         this._canvas.style.objectFit = "contain"
         this._canvas.style.objectPosition = "center"
+        this._canvas.style.display = "none"
         this._canvas.className = "vc-pgs-canvas"
 
         // Insert canvas after video element

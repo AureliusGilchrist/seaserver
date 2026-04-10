@@ -23,6 +23,7 @@ export const ANIME_HOME_ITEM_IDS = [
     "anime-continue-watching",
     "anime-continue-watching-header",
     "anime-library",
+    "anime-favorites",
     "my-lists",
     "local-anime-library",
     "library-upcoming-episodes",
@@ -280,6 +281,12 @@ export const HOME_ITEMS = {
                 ],
             },
         ],
+    },
+    "anime-favorites": {
+        name: "Favorite Anime",
+        kind: ["row"],
+        schemaVersion: 1,
+        description: "Display your favorite anime series.",
     },
     "my-lists": {
         name: "My Lists",

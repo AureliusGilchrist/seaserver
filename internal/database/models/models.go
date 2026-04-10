@@ -706,6 +706,13 @@ type MangaFavorite struct {
 	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
 }
 
+// AnimeFavorite stores a favorited anime per profile (stored in per-profile DB).
+type AnimeFavorite struct {
+	BaseModel
+	MediaID int       `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
+	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
 // Notification stores a notification per profile (stored in per-profile DB).
 type Notification struct {
 	BaseModel
@@ -744,6 +751,13 @@ type ActivityLog struct {
 	AnimeEpisodes int    `gorm:"column:anime_episodes;default:0" json:"animeEpisodes"`
 	MangaChapters int    `gorm:"column:manga_chapters;default:0" json:"mangaChapters"`
 	AnimeMinutes  int    `gorm:"column:anime_minutes;default:0" json:"animeMinutes"`
+}
+
+// LevelProgress tracks the user's XP and level for the leveling system (stored in per-profile DB).
+type LevelProgress struct {
+	BaseModel
+	TotalXP      int     `gorm:"column:total_xp;default:0" json:"totalXP"`
+	CurrentLevel int     `gorm:"column:current_level;default:1" json:"currentLevel"`
 }
 
 ///////////////////////////////////////////////////////////////////////////

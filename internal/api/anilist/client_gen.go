@@ -32,6 +32,7 @@ type GithubGraphQLClient interface {
 	ListManga(ctx context.Context, page *int, search *string, perPage *int, sort []*MediaSort, status []*MediaStatus, genres []*string, averageScoreGreater *int, startDateGreater *string, startDateLesser *string, format *MediaFormat, countryOfOrigin *string, isAdult *bool, interceptors ...clientv2.RequestInterceptor) (*ListManga, error)
 	ViewerStats(ctx context.Context, interceptors ...clientv2.RequestInterceptor) (*ViewerStats, error)
 	StudioDetails(ctx context.Context, id *int, interceptors ...clientv2.RequestInterceptor) (*StudioDetails, error)
+	StaffDetails(ctx context.Context, id *int, interceptors ...clientv2.RequestInterceptor) (*StaffDetails, error)
 	GetViewer(ctx context.Context, interceptors ...clientv2.RequestInterceptor) (*GetViewer, error)
 }
 
@@ -5930,6 +5931,82 @@ func (t *BaseMangaById_Media_BaseManga_EndDate) GetDay() *int {
 	return t.Day
 }
 
+type MangaDetailsById_Media_Staff_Edges_Node_Name struct {
+	Full *string "json:\"full,omitempty\" graphql:\"full\""
+}
+
+func (t *MangaDetailsById_Media_Staff_Edges_Node_Name) GetFull() *string {
+	if t == nil {
+		t = &MangaDetailsById_Media_Staff_Edges_Node_Name{}
+	}
+	return t.Full
+}
+
+type MangaDetailsById_Media_Staff_Edges_Node_Image struct {
+	Medium *string "json:\"medium,omitempty\" graphql:\"medium\""
+}
+
+func (t *MangaDetailsById_Media_Staff_Edges_Node_Image) GetMedium() *string {
+	if t == nil {
+		t = &MangaDetailsById_Media_Staff_Edges_Node_Image{}
+	}
+	return t.Medium
+}
+
+type MangaDetailsById_Media_Staff_Edges_Node struct {
+	Name  *MangaDetailsById_Media_Staff_Edges_Node_Name  "json:\"name,omitempty\" graphql:\"name\""
+	ID    int                                             "json:\"id\" graphql:\"id\""
+	Image *MangaDetailsById_Media_Staff_Edges_Node_Image "json:\"image,omitempty\" graphql:\"image\""
+}
+
+func (t *MangaDetailsById_Media_Staff_Edges_Node) GetName() *MangaDetailsById_Media_Staff_Edges_Node_Name {
+	if t == nil {
+		t = &MangaDetailsById_Media_Staff_Edges_Node{}
+	}
+	return t.Name
+}
+func (t *MangaDetailsById_Media_Staff_Edges_Node) GetID() int {
+	if t == nil {
+		t = &MangaDetailsById_Media_Staff_Edges_Node{}
+	}
+	return t.ID
+}
+func (t *MangaDetailsById_Media_Staff_Edges_Node) GetImage() *MangaDetailsById_Media_Staff_Edges_Node_Image {
+	if t == nil {
+		t = &MangaDetailsById_Media_Staff_Edges_Node{}
+	}
+	return t.Image
+}
+
+type MangaDetailsById_Media_Staff_Edges struct {
+	Role *string                                    "json:\"role,omitempty\" graphql:\"role\""
+	Node *MangaDetailsById_Media_Staff_Edges_Node   "json:\"node,omitempty\" graphql:\"node\""
+}
+
+func (t *MangaDetailsById_Media_Staff_Edges) GetRole() *string {
+	if t == nil {
+		t = &MangaDetailsById_Media_Staff_Edges{}
+	}
+	return t.Role
+}
+func (t *MangaDetailsById_Media_Staff_Edges) GetNode() *MangaDetailsById_Media_Staff_Edges_Node {
+	if t == nil {
+		t = &MangaDetailsById_Media_Staff_Edges{}
+	}
+	return t.Node
+}
+
+type MangaDetailsById_Media_Staff struct {
+	Edges []*MangaDetailsById_Media_Staff_Edges "json:\"edges,omitempty\" graphql:\"edges\""
+}
+
+func (t *MangaDetailsById_Media_Staff) GetEdges() []*MangaDetailsById_Media_Staff_Edges {
+	if t == nil {
+		t = &MangaDetailsById_Media_Staff{}
+	}
+	return t.Edges
+}
+
 type MangaDetailsById_Media_Rankings struct {
 	Context string        "json:\"context\" graphql:\"context\""
 	Type    MediaRankType "json:\"type\" graphql:\"type\""
@@ -6521,6 +6598,7 @@ type MangaDetailsById_Media struct {
 	Genres          []*string                               "json:\"genres,omitempty\" graphql:\"genres\""
 	Rankings        []*MangaDetailsById_Media_Rankings      "json:\"rankings,omitempty\" graphql:\"rankings\""
 	Characters      *MangaDetailsById_Media_Characters      "json:\"characters,omitempty\" graphql:\"characters\""
+	Staff           *MangaDetailsById_Media_Staff            "json:\"staff,omitempty\" graphql:\"staff\""
 	Recommendations *MangaDetailsById_Media_Recommendations "json:\"recommendations,omitempty\" graphql:\"recommendations\""
 	Relations       *MangaDetailsById_Media_Relations       "json:\"relations,omitempty\" graphql:\"relations\""
 }
@@ -6560,6 +6638,12 @@ func (t *MangaDetailsById_Media) GetCharacters() *MangaDetailsById_Media_Charact
 		t = &MangaDetailsById_Media{}
 	}
 	return t.Characters
+}
+func (t *MangaDetailsById_Media) GetStaff() *MangaDetailsById_Media_Staff {
+	if t == nil {
+		t = &MangaDetailsById_Media{}
+	}
+	return t.Staff
 }
 func (t *MangaDetailsById_Media) GetRecommendations() *MangaDetailsById_Media_Recommendations {
 	if t == nil {
@@ -7536,6 +7620,386 @@ func (t *StudioDetails) GetStudio() *StudioDetails_Studio {
 		t = &StudioDetails{}
 	}
 	return t.Studio
+}
+
+type StaffDetails_Staff_Name struct {
+	Full   *string "json:\"full,omitempty\" graphql:\"full\""
+	Native *string "json:\"native,omitempty\" graphql:\"native\""
+}
+
+func (t *StaffDetails_Staff_Name) GetFull() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_Name{}
+	}
+	return t.Full
+}
+func (t *StaffDetails_Staff_Name) GetNative() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_Name{}
+	}
+	return t.Native
+}
+
+type StaffDetails_Staff_Image struct {
+	Large *string "json:\"large,omitempty\" graphql:\"large\""
+}
+
+func (t *StaffDetails_Staff_Image) GetLarge() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_Image{}
+	}
+	return t.Large
+}
+
+type StaffDetails_Staff_StaffMedia_Edges_Node_Title struct {
+	UserPreferred *string "json:\"userPreferred,omitempty\" graphql:\"userPreferred\""
+	Romaji        *string "json:\"romaji,omitempty\" graphql:\"romaji\""
+	English       *string "json:\"english,omitempty\" graphql:\"english\""
+	Native        *string "json:\"native,omitempty\" graphql:\"native\""
+}
+
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_Title) GetUserPreferred() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_Title{}
+	}
+	return t.UserPreferred
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_Title) GetRomaji() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_Title{}
+	}
+	return t.Romaji
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_Title) GetEnglish() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_Title{}
+	}
+	return t.English
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_Title) GetNative() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_Title{}
+	}
+	return t.Native
+}
+
+type StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage struct {
+	ExtraLarge *string "json:\"extraLarge,omitempty\" graphql:\"extraLarge\""
+	Large      *string "json:\"large,omitempty\" graphql:\"large\""
+	Medium     *string "json:\"medium,omitempty\" graphql:\"medium\""
+	Color      *string "json:\"color,omitempty\" graphql:\"color\""
+}
+
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage) GetExtraLarge() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage{}
+	}
+	return t.ExtraLarge
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage) GetLarge() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage{}
+	}
+	return t.Large
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage) GetMedium() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage{}
+	}
+	return t.Medium
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage) GetColor() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage{}
+	}
+	return t.Color
+}
+
+type StaffDetails_Staff_StaffMedia_Edges_Node_StartDate struct {
+	Year  *int "json:\"year,omitempty\" graphql:\"year\""
+	Month *int "json:\"month,omitempty\" graphql:\"month\""
+	Day   *int "json:\"day,omitempty\" graphql:\"day\""
+}
+
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_StartDate) GetYear() *int {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_StartDate{}
+	}
+	return t.Year
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_StartDate) GetMonth() *int {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_StartDate{}
+	}
+	return t.Month
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_StartDate) GetDay() *int {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_StartDate{}
+	}
+	return t.Day
+}
+
+type StaffDetails_Staff_StaffMedia_Edges_Node_EndDate struct {
+	Year  *int "json:\"year,omitempty\" graphql:\"year\""
+	Month *int "json:\"month,omitempty\" graphql:\"month\""
+	Day   *int "json:\"day,omitempty\" graphql:\"day\""
+}
+
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_EndDate) GetYear() *int {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_EndDate{}
+	}
+	return t.Year
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_EndDate) GetMonth() *int {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_EndDate{}
+	}
+	return t.Month
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node_EndDate) GetDay() *int {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node_EndDate{}
+	}
+	return t.Day
+}
+
+type StaffDetails_Staff_StaffMedia_Edges_Node struct {
+	ID               int                                               "json:\"id\" graphql:\"id\""
+	IDMal            *int                                              "json:\"idMal,omitempty\" graphql:\"idMal\""
+	SiteURL          *string                                           "json:\"siteUrl,omitempty\" graphql:\"siteUrl\""
+	Status           *MediaStatus                                      "json:\"status,omitempty\" graphql:\"status\""
+	Season           *MediaSeason                                      "json:\"season,omitempty\" graphql:\"season\""
+	Type             *MediaType                                        "json:\"type,omitempty\" graphql:\"type\""
+	Format           *MediaFormat                                      "json:\"format,omitempty\" graphql:\"format\""
+	BannerImage      *string                                           "json:\"bannerImage,omitempty\" graphql:\"bannerImage\""
+	Episodes         *int                                              "json:\"episodes,omitempty\" graphql:\"episodes\""
+	Chapters         *int                                              "json:\"chapters,omitempty\" graphql:\"chapters\""
+	Volumes          *int                                              "json:\"volumes,omitempty\" graphql:\"volumes\""
+	Synonyms         []*string                                         "json:\"synonyms,omitempty\" graphql:\"synonyms\""
+	IsAdult          *bool                                             "json:\"isAdult,omitempty\" graphql:\"isAdult\""
+	CountryOfOrigin  *string                                           "json:\"countryOfOrigin,omitempty\" graphql:\"countryOfOrigin\""
+	MeanScore        *int                                              "json:\"meanScore,omitempty\" graphql:\"meanScore\""
+	Description      *string                                           "json:\"description,omitempty\" graphql:\"description\""
+	Genres           []*string                                         "json:\"genres,omitempty\" graphql:\"genres\""
+	Title            *StaffDetails_Staff_StaffMedia_Edges_Node_Title   "json:\"title,omitempty\" graphql:\"title\""
+	CoverImage       *StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage "json:\"coverImage,omitempty\" graphql:\"coverImage\""
+	StartDate        *StaffDetails_Staff_StaffMedia_Edges_Node_StartDate  "json:\"startDate,omitempty\" graphql:\"startDate\""
+	EndDate          *StaffDetails_Staff_StaffMedia_Edges_Node_EndDate    "json:\"endDate,omitempty\" graphql:\"endDate\""
+}
+
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetID() int {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.ID
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetIDMal() *int {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.IDMal
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetSiteURL() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.SiteURL
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetStatus() *MediaStatus {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.Status
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetSeason() *MediaSeason {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.Season
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetType() *MediaType {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.Type
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetFormat() *MediaFormat {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.Format
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetBannerImage() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.BannerImage
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetEpisodes() *int {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.Episodes
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetChapters() *int {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.Chapters
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetVolumes() *int {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.Volumes
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetSynonyms() []*string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.Synonyms
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetIsAdult() *bool {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.IsAdult
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetCountryOfOrigin() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.CountryOfOrigin
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetMeanScore() *int {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.MeanScore
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetDescription() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.Description
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetGenres() []*string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.Genres
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetTitle() *StaffDetails_Staff_StaffMedia_Edges_Node_Title {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.Title
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetCoverImage() *StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.CoverImage
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetStartDate() *StaffDetails_Staff_StaffMedia_Edges_Node_StartDate {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.StartDate
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges_Node) GetEndDate() *StaffDetails_Staff_StaffMedia_Edges_Node_EndDate {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges_Node{}
+	}
+	return t.EndDate
+}
+
+type StaffDetails_Staff_StaffMedia_Edges struct {
+	StaffRole *string                                     "json:\"staffRole,omitempty\" graphql:\"staffRole\""
+	Node      *StaffDetails_Staff_StaffMedia_Edges_Node   "json:\"node,omitempty\" graphql:\"node\""
+}
+
+func (t *StaffDetails_Staff_StaffMedia_Edges) GetStaffRole() *string {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges{}
+	}
+	return t.StaffRole
+}
+func (t *StaffDetails_Staff_StaffMedia_Edges) GetNode() *StaffDetails_Staff_StaffMedia_Edges_Node {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia_Edges{}
+	}
+	return t.Node
+}
+
+type StaffDetails_Staff_StaffMedia struct {
+	Edges []*StaffDetails_Staff_StaffMedia_Edges "json:\"edges,omitempty\" graphql:\"edges\""
+}
+
+func (t *StaffDetails_Staff_StaffMedia) GetEdges() []*StaffDetails_Staff_StaffMedia_Edges {
+	if t == nil {
+		t = &StaffDetails_Staff_StaffMedia{}
+	}
+	return t.Edges
+}
+
+type StaffDetails_Staff struct {
+	ID                 int                              "json:\"id\" graphql:\"id\""
+	Name               *StaffDetails_Staff_Name         "json:\"name,omitempty\" graphql:\"name\""
+	Image              *StaffDetails_Staff_Image        "json:\"image,omitempty\" graphql:\"image\""
+	Description        *string                          "json:\"description,omitempty\" graphql:\"description\""
+	PrimaryOccupations []*string                        "json:\"primaryOccupations,omitempty\" graphql:\"primaryOccupations\""
+	StaffMedia         *StaffDetails_Staff_StaffMedia   "json:\"staffMedia,omitempty\" graphql:\"staffMedia\""
+}
+
+func (t *StaffDetails_Staff) GetID() int {
+	if t == nil {
+		t = &StaffDetails_Staff{}
+	}
+	return t.ID
+}
+func (t *StaffDetails_Staff) GetName() *StaffDetails_Staff_Name {
+	if t == nil {
+		t = &StaffDetails_Staff{}
+	}
+	return t.Name
+}
+func (t *StaffDetails_Staff) GetImage() *StaffDetails_Staff_Image {
+	if t == nil {
+		t = &StaffDetails_Staff{}
+	}
+	return t.Image
+}
+func (t *StaffDetails_Staff) GetDescription() *string {
+	if t == nil {
+		t = &StaffDetails_Staff{}
+	}
+	return t.Description
+}
+func (t *StaffDetails_Staff) GetPrimaryOccupations() []*string {
+	if t == nil {
+		t = &StaffDetails_Staff{}
+	}
+	return t.PrimaryOccupations
+}
+func (t *StaffDetails_Staff) GetStaffMedia() *StaffDetails_Staff_StaffMedia {
+	if t == nil {
+		t = &StaffDetails_Staff{}
+	}
+	return t.StaffMedia
+}
+
+type StaffDetails struct {
+	Staff *StaffDetails_Staff "json:\"Staff,omitempty\" graphql:\"Staff\""
+}
+
+func (t *StaffDetails) GetStaff() *StaffDetails_Staff {
+	if t == nil {
+		t = &StaffDetails{}
+	}
+	return t.Staff
 }
 
 type GetViewer struct {
@@ -9045,6 +9509,20 @@ const MangaDetailsByIDDocument = `query MangaDetailsById ($id: Int) {
 				}
 			}
 		}
+		staff(sort: [RELEVANCE]) {
+			edges {
+				role
+				node {
+					name {
+						full
+					}
+					id
+					image {
+						medium
+					}
+				}
+			}
+		}
 		recommendations(page: 1, perPage: 8, sort: RATING_DESC) {
 			edges {
 				node {
@@ -9472,6 +9950,85 @@ func (c *Client) StudioDetails(ctx context.Context, id *int, interceptors ...cli
 
 	var res StudioDetails
 	if err := c.Client.Post(ctx, "StudioDetails", StudioDetailsDocument, &res, vars, interceptors...); err != nil {
+		if c.Client.ParseDataWhenErrors {
+			return &res, err
+		}
+
+		return nil, err
+	}
+
+	return &res, nil
+}
+
+const StaffDetailsDocument = `query StaffDetails ($id: Int) {
+	Staff(id: $id) {
+		id
+		name {
+			full
+			native
+		}
+		image {
+			large
+		}
+		description(asHtml: false)
+		primaryOccupations
+		staffMedia(sort: TRENDING_DESC, perPage: 80) {
+			edges {
+				staffRole
+				node {
+					id
+					idMal
+					siteUrl
+					status(version: 2)
+					season
+					type
+					format
+					bannerImage
+					episodes
+					chapters
+					volumes
+					synonyms
+					isAdult
+					countryOfOrigin
+					meanScore
+					description
+					genres
+					title {
+						userPreferred
+						romaji
+						english
+						native
+					}
+					coverImage {
+						extraLarge
+						large
+						medium
+						color
+					}
+					startDate {
+						year
+						month
+						day
+					}
+					endDate {
+						year
+						month
+						day
+					}
+				}
+			}
+		}
+	}
+}
+`
+
+func (c *Client) StaffDetails(ctx context.Context, id *int, interceptors ...clientv2.RequestInterceptor) (*StaffDetails, error) {
+	vars := map[string]any{
+		"id": id,
+	}
+
+	var res StaffDetails
+	if err := c.Client.Post(ctx, "StaffDetails", StaffDetailsDocument, &res, vars, interceptors...); err != nil {
 		if c.Client.ParseDataWhenErrors {
 			return &res, err
 		}

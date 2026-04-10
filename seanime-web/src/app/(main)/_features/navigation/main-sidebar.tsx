@@ -2,6 +2,7 @@
 import { useRefreshAnimeCollection } from "@/api/hooks/anilist.hooks"
 import { useLogout } from "@/api/hooks/auth.hooks"
 import { useGetExtensionUpdateData as useGetExtensionUpdateData, usePluginWithIssuesCount } from "@/api/hooks/extensions.hooks"
+import { useProfileLogout } from "@/api/hooks/profiles.hooks"
 import { isLoginModalOpenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useSyncIsActive } from "@/app/(main)/_atoms/sync.atoms"
 import { ElectronUpdateModal } from "@/app/(main)/_electron/electron-update-modal"
@@ -44,7 +45,7 @@ import { BiChevronRight, BiExtension, BiLogIn, BiLogOut } from "react-icons/bi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
-import { LuActivity, LuBook, LuBookOpen, LuBell, LuCalendar, LuClipboardCheck, LuCompass, LuDownload, LuFolderSearch, LuGlobe, LuRefreshCw, LuRss, LuSettings, LuTrophy, LuTv } from "react-icons/lu"
+import { LuActivity, LuBook, LuBookOpen, LuBell, LuCalendar, LuClipboardCheck, LuCompass, LuDownload, LuFolderSearch, LuGlobe, LuRefreshCw, LuRss, LuSettings, LuTrophy, LuTv, LuUsers } from "react-icons/lu"
 import { MdOutlineConnectWithoutContact } from "react-icons/md"
 import { PiArrowCircleLeftDuotone, PiArrowCircleRightDuotone } from "react-icons/pi"
 import { RiListCheck3 } from "react-icons/ri"
@@ -529,6 +530,15 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
             onLogout()
         },
     })
+    // Profile logout
+    const { mutate: profileLogout } = useProfileLogout()
+    const confirmProfileLogout = useConfirmationDialog({
+        title: "Log out of profile",
+        description: "Are you sure you want to log out of the current profile?",
+        onConfirm: () => {
+            profileLogout()
+        },
+    })
     // Login
     const [loginModal, setLoginModal] = useAtom(isLoginModalOpenAtom)
 
@@ -599,6 +609,12 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                             : undefined,
                     },
                     {
+                        iconType: LuUsers,
+                        name: "Community",
+                        href: "/community",
+                        isCurrent: pathname.includes("/community"),
+                    },
+                    {
                         iconType: LuActivity,
                         name: "Stats",
                         href: "/profile/stats",
@@ -625,6 +641,11 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                         isCurrent: pathname === ("/settings"),
                     },
                     ...(ctx.isBelowBreakpoint ? [
+                        ...(serverStatus?.currentProfile ? [{
+                            iconType: BiLogOut,
+                            name: "Log out of profile",
+                            onClick: confirmProfileLogout.open,
+                        }] : []),
                         {
                             iconType: user?.isSimulated ? FiLogIn : BiLogOut,
                             name: user?.isSimulated ? "Sign in" : "Sign out",
@@ -634,6 +655,7 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                 ]}
             />
             <ConfirmationDialog {...confirmSignOut} />
+            <ConfirmationDialog {...confirmProfileLogout} />
         </div>
     )
 }
@@ -641,11 +663,22 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
 function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: boolean, expandedSidebar: boolean, onLogout: () => void }) {
     const ctx = useAppSidebarContext()
     const user = useCurrentUser()
+    const serverStatus = useServerStatus()
     const router = useRouter()
 
     const [dropdownOpen, setDropdownOpen] = React.useState(false)
     const [loginModal, setLoginModal] = useAtom(isLoginModalOpenAtom)
     const [loggingIn, setLoggingIn] = React.useState(false)
+
+    // Profile logout
+    const { mutate: profileLogout } = useProfileLogout()
+    const confirmProfileLogout = useConfirmationDialog({
+        title: "Log out of profile",
+        description: "Are you sure you want to log out of the current profile?",
+        onConfirm: () => {
+            profileLogout()
+        },
+    })
 
     // Sign out
     const confirmSignOut = useConfirmationDialog({
@@ -689,6 +722,9 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
                     open={dropdownOpen}
                     onOpenChange={setDropdownOpen}
                 >
+                    {!!serverStatus?.currentProfile && <DropdownMenuItem onClick={confirmProfileLogout.open}>
+                        <BiLogOut /> Log out of profile
+                    </DropdownMenuItem>}
                     {!user.isSimulated ? <DropdownMenuItem onClick={confirmSignOut.open}>
                         <BiLogOut /> Sign out
                     </DropdownMenuItem> : <DropdownMenuItem onClick={() => setLoginModal(true)}>
@@ -748,6 +784,7 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
             </Modal>
 
             <ConfirmationDialog {...confirmSignOut} />
+            <ConfirmationDialog {...confirmProfileLogout} />
         </>
     )
 }

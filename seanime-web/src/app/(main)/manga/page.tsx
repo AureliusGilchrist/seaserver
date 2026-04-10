@@ -386,7 +386,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                 </div>
 
                 {!!favoritesMedia.length && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    <MediaCardLazyGrid itemCount={favoritesMedia.length}>
                         {favoritesMedia.map(media => (
                             <MediaEntryCard
                                 key={media.id}
@@ -396,7 +396,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                 onHoverImage={onHoverImage}
                             />
                         ))}
-                    </div>
+                    </MediaCardLazyGrid>
                 )}
             </div>
         )

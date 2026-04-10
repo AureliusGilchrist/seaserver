@@ -62,15 +62,21 @@ func (h *Handler) HandleGetProfileStats(c echo.Context) error {
 	// Compute personality from anime collection genre distribution
 	personality := h.computePersonality()
 
+	// Compute reading time and rewatch time from AniList collections
+	totalWatchMinWithRewatches := h.computeWatchMinutesWithRewatches()
+	estimatedReadingMin := h.computeEstimatedReadingMinutes()
+
 	result := &profilestats.ProfileStats{
-		ActivityHeatmap: heatmap,
-		AnimeStreak:     animeStreak,
-		MangaStreak:     mangaStreak,
-		TotalActiveDays: totalActive,
-		TotalAnimeDays:  animeDays,
-		TotalMangaDays:  mangaDays,
-		Personality:     personality,
-		WatchPatterns:   watchPatterns,
+		ActivityHeatmap:                heatmap,
+		AnimeStreak:                    animeStreak,
+		MangaStreak:                    mangaStreak,
+		TotalActiveDays:                totalActive,
+		TotalAnimeDays:                 animeDays,
+		TotalMangaDays:                 mangaDays,
+		Personality:                    personality,
+		WatchPatterns:                  watchPatterns,
+		TotalWatchMinutesWithRewatches: totalWatchMinWithRewatches,
+		EstimatedReadingMinutes:        estimatedReadingMin,
 	}
 
 	return h.RespondWithData(c, result)
@@ -120,4 +126,95 @@ func (h *Handler) computePersonality() *profilestats.PersonalityResult {
 	}
 
 	return profilestats.ClassifyPersonality(genreCounts, totalEntries, completedEntries, droppedEntries)
+}
+
+// computeWatchMinutesWithRewatches computes total anime watch minutes including rewatches.
+// Formula: sum of (progress × duration) + (repeat × episodes × duration) for each entry.
+func (h *Handler) computeWatchMinutesWithRewatches() int {
+	animeCol, err := h.App.GetAnimeCollection(false)
+	if err != nil || animeCol == nil {
+		return 0
+	}
+
+	var totalMin int
+	if animeCol.GetMediaListCollection() != nil {
+		for _, list := range animeCol.GetMediaListCollection().GetLists() {
+			if list == nil {
+				continue
+			}
+			for _, entry := range list.GetEntries() {
+				if entry == nil {
+					continue
+				}
+				media := entry.GetMedia()
+				if media == nil || media.Duration == nil {
+					continue
+				}
+				dur := *media.Duration
+
+				// First watch: progress × duration
+				if entry.Progress != nil {
+					totalMin += *entry.Progress * dur
+				}
+
+				// Rewatches: repeat × (episodes ?? progress) × duration
+				if entry.Repeat != nil && *entry.Repeat > 0 {
+					eps := 0
+					if media.Episodes != nil && *media.Episodes > 0 {
+						eps = *media.Episodes
+					} else if entry.Progress != nil {
+						eps = *entry.Progress
+					}
+					totalMin += *entry.Repeat * eps * dur
+				}
+			}
+		}
+	}
+	return totalMin
+}
+
+// computeEstimatedReadingMinutes computes estimated manga reading time.
+// Formula: sum of (progress + repeat × (chapters ?? progress)) × 7 min per chapter.
+func (h *Handler) computeEstimatedReadingMinutes() int {
+	mangaCol, err := h.App.GetMangaCollection(false)
+	if err != nil || mangaCol == nil {
+		return 0
+	}
+
+	const minPerChapter = 7
+	var totalMin int
+
+	if mangaCol.GetMediaListCollection() != nil {
+		for _, list := range mangaCol.GetMediaListCollection().GetLists() {
+			if list == nil {
+				continue
+			}
+			for _, entry := range list.GetEntries() {
+				if entry == nil {
+					continue
+				}
+
+				progress := 0
+				if entry.Progress != nil {
+					progress = *entry.Progress
+				}
+
+				// First read: progress chapters
+				chaptersRead := progress
+
+				// Rereads: repeat × (totalChapters ?? progress)
+				if entry.Repeat != nil && *entry.Repeat > 0 {
+					media := entry.GetMedia()
+					totalCh := progress
+					if media != nil && media.Chapters != nil && *media.Chapters > 0 {
+						totalCh = *media.Chapters
+					}
+					chaptersRead += *entry.Repeat * totalCh
+				}
+
+				totalMin += chaptersRead * minPerChapter
+			}
+		}
+	}
+	return totalMin
 }

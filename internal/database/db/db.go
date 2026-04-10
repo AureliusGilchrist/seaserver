@@ -123,10 +123,12 @@ func migrateTables(db *gorm.DB) error {
 		&models.Comment{},
 		&models.CommentVote{},
 		&models.MangaFavorite{},
+		&models.AnimeFavorite{},
 		&models.Notification{},
 		&models.Achievement{},
 		&models.AchievementShowcase{},
 		&models.ActivityLog{},
+		&models.LevelProgress{},
 	)
 	if err != nil {
 

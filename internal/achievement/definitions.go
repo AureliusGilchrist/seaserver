@@ -4,150 +4,138 @@ package achievement
 type Category string
 
 const (
-	CategoryFirstSteps       Category = "first_steps"
-	CategoryBingeWatching    Category = "binge_watching"
-	CategoryNightOwl         Category = "night_owl"
-	CategoryEarlyBird        Category = "early_bird"
-	CategoryStreakMaster     Category = "streak_master"
-	CategoryEpisodeMilestone Category = "episode_milestones"
-	CategoryMangaMilestone   Category = "manga_milestones"
-	CategorySpeedDemon       Category = "speed_demon"
-	CategoryDedication       Category = "dedication"
-	CategoryGenreExplorer    Category = "genre_explorer"
-	CategoryFormatExplorer   Category = "format_explorer"
-	CategoryHolidaySeasonal  Category = "holiday_seasonal"
-	CategorySeasonalWatcher  Category = "seasonal_watcher"
-	CategoryTimeQuirky       Category = "time_quirky"
-	CategoryCrossMedia       Category = "cross_media"
+	// Anime categories
+	CategoryAnimeMilestones  Category = "anime_milestones"
+	CategoryAnimeBinge       Category = "anime_binge"
+	CategoryAnimeGenres      Category = "anime_genres"
+	CategoryAnimeCompletion  Category = "anime_completion"
+	CategoryAnimeDedication  Category = "anime_dedication"
+	CategoryAnimeDiscovery   Category = "anime_discovery"
+	CategoryAnimeTime        Category = "anime_time"
+	CategoryAnimeSocial      Category = "anime_social"
+	CategoryAnimeSpecial     Category = "anime_special"
+	CategoryAnimeFormats     Category = "anime_formats"
+	CategoryAnimeStreaks     Category = "anime_streaks"
+	CategoryAnimeScoring     Category = "anime_scoring"
+	CategoryAnimeHoliday     Category = "anime_holiday"
+
+	// Manga categories
+	CategoryMangaMilestones  Category = "manga_milestones"
+	CategoryMangaBinge       Category = "manga_binge"
+	CategoryMangaGenres      Category = "manga_genres"
+	CategoryMangaCompletion  Category = "manga_completion"
+	CategoryMangaDedication  Category = "manga_dedication"
+	CategoryMangaDiscovery   Category = "manga_discovery"
+	CategoryMangaTime        Category = "manga_time"
+	CategoryMangaSpecial     Category = "manga_special"
+	CategoryMangaFormats     Category = "manga_formats"
+	CategoryMangaStreaks     Category = "manga_streaks"
+	CategoryMangaScoring     Category = "manga_scoring"
 	CategoryMangaCreative    Category = "manga_creative"
-	CategoryThrowback        Category = "throwback"
-	CategoryScoring          Category = "scoring"
-	CategorySocial           Category = "social"
-	CategoryDiscovery        Category = "discovery"
-	CategoryMovieNight       Category = "movie_night"
-	CategoryTimeChallenge    Category = "time_challenges"
-	CategoryCompletionPattern Category = "completion_patterns"
-	CategorySpecialMedia     Category = "special_media"
-	CategoryPlatform         Category = "platform_engagement"
-	CategoryObscureFun       Category = "obscure_fun"
-	CategoryReadingMilestone Category = "reading_milestones"
-	CategoryMixed            Category = "mixed_creative"
+	CategoryMangaHoliday     Category = "manga_holiday"
 )
 
 // EvalTrigger defines what type of event triggers reevaluation.
 type EvalTrigger string
 
 const (
-	TriggerEpisodeProgress EvalTrigger = "episode_progress" // Episode watched / progress updated
-	TriggerSeriesComplete  EvalTrigger = "series_complete"  // Anime series completed
-	TriggerChapterRead     EvalTrigger = "chapter_read"     // Manga chapter read
-	TriggerMangaComplete   EvalTrigger = "manga_complete"   // Manga completed
-	TriggerRatingChange    EvalTrigger = "rating_change"    // Score/rating changed
-	TriggerStatusChange    EvalTrigger = "status_change"    // List status changed
-	TriggerSessionUpdate   EvalTrigger = "session_update"   // Watch session updated (time/duration)
-	TriggerCollectionRefresh EvalTrigger = "collection_refresh" // AniList collection refreshed (stat-based)
-	TriggerFavoriteToggle  EvalTrigger = "favorite_toggle"  // Manga favorite toggled
-	TriggerNakamaEvent     EvalTrigger = "nakama_event"     // Nakama/social event
-	TriggerPlatformEvent   EvalTrigger = "platform_event"   // Extension installed, theme changed, etc.
-	TriggerAny             EvalTrigger = "any"              // Evaluated on any event
+	TriggerEpisodeProgress   EvalTrigger = "episode_progress"
+	TriggerSeriesComplete    EvalTrigger = "series_complete"
+	TriggerChapterProgress   EvalTrigger = "chapter_progress"
+	TriggerMangaComplete     EvalTrigger = "manga_complete"
+	TriggerRatingChange      EvalTrigger = "rating_change"
+	TriggerStatusChange      EvalTrigger = "status_change"
+	TriggerSessionUpdate     EvalTrigger = "session_update"
+	TriggerCollectionRefresh EvalTrigger = "collection_refresh"
+	TriggerFavoriteToggle    EvalTrigger = "favorite_toggle"
+	TriggerNakamaEvent       EvalTrigger = "nakama_event"
+	TriggerPlatformEvent     EvalTrigger = "platform_event"
+	TriggerAny               EvalTrigger = "any"
 )
 
 // Definition describes a single achievement (or the template for a tiered achievement).
 type Definition struct {
-	Key             string      // Unique key, e.g. "binge_watcher"
-	Name            string      // Display name, e.g. "Binge Watcher"
-	Description     string      // Description template, may include {threshold} placeholder
-	Category        Category    // Category for grouping
-	IconSVG         string      // SVG icon string (category-level default if empty)
-	MaxTier         int         // 0 = one-time, 1-5 for tiered
-	TierThresholds  []int       // Thresholds for each tier (length = MaxTier), empty for one-time
-	TierNames       []string    // Optional per-tier names (e.g. "I", "II", "III", "IV", "V")
-	Triggers        []EvalTrigger // What events cause this to be re-evaluated
+	Key            string        `json:"key"`
+	Name           string        `json:"name"`
+	Description    string        `json:"description"`
+	Category       Category      `json:"category"`
+	IconSVG        string        `json:"iconSVG,omitempty"`
+	MaxTier        int           `json:"maxTier"`
+	TierThresholds []int         `json:"tierThresholds,omitempty"`
+	TierNames      []string      `json:"tierNames,omitempty"`
+	Triggers       []EvalTrigger `json:"triggers"`
+	XPReward       int           `json:"xpReward"` // Base XP per tier unlock (0 = use default)
 }
 
 // CategoryInfo provides display metadata for categories.
 type CategoryInfo struct {
-	Key         Category
-	Name        string
-	Description string
-	IconSVG     string // Default SVG icon for the category
+	Key         Category `json:"key"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	IconSVG     string   `json:"iconSVG"`
 }
 
-// TierLabel returns the Roman numeral label for a tier (1-5).
+// TierLabel returns the Roman numeral label for a tier (1-10).
 func TierLabel(tier int) string {
-	labels := []string{"", "I", "II", "III", "IV", "V"}
-	if tier >= 1 && tier <= 5 {
+	labels := []string{"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"}
+	if tier >= 1 && tier <= 10 {
 		return labels[tier]
 	}
 	return ""
 }
 
+// DefaultTierXP returns the default XP for unlocking a given tier.
+func DefaultTierXP(tier int) int {
+	xp := []int{0, 50, 100, 200, 400, 800, 1200, 1800, 2500, 3500, 5000}
+	if tier >= 1 && tier <= 10 {
+		return xp[tier]
+	}
+	if tier == 0 {
+		return 150 // one-time achievement
+	}
+	return 50
+}
+
 // AllCategories returns display info for all categories.
 var AllCategories = []CategoryInfo{
-	{CategoryFirstSteps, "First Steps", "Your first milestones", iconTrophy},
-	{CategoryBingeWatching, "Binge Watching", "For the marathon watchers", iconFlame},
-	{CategoryNightOwl, "Night Owl", "Burning the midnight oil", iconMoon},
-	{CategoryEarlyBird, "Early Bird", "The early watcher gets the episode", iconSunrise},
-	{CategoryStreakMaster, "Streak Master", "Consistency is key", iconStreak},
-	{CategoryEpisodeMilestone, "Episode Milestones", "Climbing the episode ladder", iconMilestone},
-	{CategoryMangaMilestone, "Manga Milestones", "A reader's journey", iconBook},
-	{CategorySpeedDemon, "Speed Demon", "Fast and furious consumption", iconBolt},
-	{CategoryDedication, "Dedication", "Devoted to the craft", iconHeart},
-	{CategoryGenreExplorer, "Genre Explorer", "Broadening your horizons", iconCompass},
-	{CategoryFormatExplorer, "Format Explorer", "Every format has its charm", iconGrid},
-	{CategoryHolidaySeasonal, "Holiday & Seasonal", "Festive watching", iconCalendar},
-	{CategorySeasonalWatcher, "Seasonal Watcher", "Following the seasons", iconLeaf},
-	{CategoryTimeQuirky, "Time-Based Quirky", "Unusual timing achievements", iconClock},
-	{CategoryCrossMedia, "Cross-Media", "Bridging anime and manga", iconBridge},
+	// Anime
+	{CategoryAnimeMilestones, "Anime Milestones", "Your anime journey in numbers", iconMilestone},
+	{CategoryAnimeBinge, "Anime Binge", "For the marathon watchers", iconFlame},
+	{CategoryAnimeGenres, "Anime Genre Mastery", "Explore every genre", iconCompass},
+	{CategoryAnimeCompletion, "Anime Completion", "Finishing what you start", iconCheck},
+	{CategoryAnimeDedication, "Anime Dedication", "Devoted to the craft", iconHeart},
+	{CategoryAnimeDiscovery, "Anime Discovery", "Broadening your horizons", iconSearch},
+	{CategoryAnimeTime, "Anime Time", "When you watch matters", iconClock},
+	{CategoryAnimeSocial, "Anime Social", "Better together", iconUsers},
+	{CategoryAnimeSpecial, "Anime Special", "Unique feats", iconSparkle},
+	{CategoryAnimeFormats, "Anime Formats", "Every format has its charm", iconGrid},
+	{CategoryAnimeStreaks, "Anime Streaks", "Consistency is key", iconStreak},
+	{CategoryAnimeScoring, "Anime Scoring", "The critic's corner", iconStar},
+	{CategoryAnimeHoliday, "Anime Holiday", "Festive watching", iconCalendar},
+
+	// Manga
+	{CategoryMangaMilestones, "Manga Milestones", "Your reading journey in numbers", iconBook},
+	{CategoryMangaBinge, "Manga Binge", "For the voracious readers", iconFlame},
+	{CategoryMangaGenres, "Manga Genre Mastery", "Read across all genres", iconCompass},
+	{CategoryMangaCompletion, "Manga Completion", "Closing the last chapter", iconCheck},
+	{CategoryMangaDedication, "Manga Dedication", "A reader's devotion", iconHeart},
+	{CategoryMangaDiscovery, "Manga Discovery", "Discovering new worlds", iconSearch},
+	{CategoryMangaTime, "Manga Time", "When you read matters", iconClock},
+	{CategoryMangaSpecial, "Manga Special", "Unique reading feats", iconSparkle},
+	{CategoryMangaFormats, "Manga Formats", "Every format tells a story", iconGrid},
+	{CategoryMangaStreaks, "Manga Streaks", "Daily dedication", iconStreak},
+	{CategoryMangaScoring, "Manga Scoring", "The literary critic", iconStar},
 	{CategoryMangaCreative, "Manga Creative", "Creative reading patterns", iconPen},
-	{CategoryThrowback, "Throwback", "Appreciating the classics", iconRewind},
-	{CategoryScoring, "Scoring & Rating", "The critic's corner", iconStar},
-	{CategorySocial, "Social", "Better together", iconUsers},
-	{CategoryDiscovery, "Discovery & Variety", "Try everything once", iconSearch},
-	{CategoryMovieNight, "Movie Night", "Anime cinema appreciation", iconFilm},
-	{CategoryTimeChallenge, "Time Challenges", "Specific time feats", iconHourglass},
-	{CategoryCompletionPattern, "Completion Patterns", "Finishing what you start", iconCheck},
-	{CategorySpecialMedia, "Special Media", "Genre-specific mastery", iconSparkle},
-	{CategoryPlatform, "Platform Engagement", "Power user status", iconSettings},
-	{CategoryObscureFun, "Obscure & Fun", "Hidden gems and oddities", iconDice},
-	{CategoryReadingMilestone, "Reading Milestones", "Manga reading records", iconBookOpen},
-	{CategoryMixed, "Mixed & Creative", "Creative cross-category feats", iconPuzzle},
+	{CategoryMangaHoliday, "Manga Holiday", "Festive reading", iconCalendar},
 }
 
 // AllDefinitions contains every achievement definition.
-// Built at init time by combining all category definition slices.
 var AllDefinitions []Definition
 
 func init() {
-	AllDefinitions = make([]Definition, 0, 200)
-	AllDefinitions = append(AllDefinitions, firstStepsDefinitions...)
-	AllDefinitions = append(AllDefinitions, bingeWatchingDefinitions...)
-	AllDefinitions = append(AllDefinitions, nightOwlDefinitions...)
-	AllDefinitions = append(AllDefinitions, earlyBirdDefinitions...)
-	AllDefinitions = append(AllDefinitions, streakMasterDefinitions...)
-	AllDefinitions = append(AllDefinitions, episodeMilestoneDefinitions...)
-	AllDefinitions = append(AllDefinitions, mangaMilestoneDefinitions...)
-	AllDefinitions = append(AllDefinitions, speedDemonDefinitions...)
-	AllDefinitions = append(AllDefinitions, dedicationDefinitions...)
-	AllDefinitions = append(AllDefinitions, genreExplorerDefinitions...)
-	AllDefinitions = append(AllDefinitions, formatExplorerDefinitions...)
-	AllDefinitions = append(AllDefinitions, holidaySeasonalDefinitions...)
-	AllDefinitions = append(AllDefinitions, seasonalWatcherDefinitions...)
-	AllDefinitions = append(AllDefinitions, timeQuirkyDefinitions...)
-	AllDefinitions = append(AllDefinitions, crossMediaDefinitions...)
-	AllDefinitions = append(AllDefinitions, mangaCreativeDefinitions...)
-	AllDefinitions = append(AllDefinitions, throwbackDefinitions...)
-	AllDefinitions = append(AllDefinitions, scoringDefinitions...)
-	AllDefinitions = append(AllDefinitions, socialDefinitions...)
-	AllDefinitions = append(AllDefinitions, discoveryDefinitions...)
-	AllDefinitions = append(AllDefinitions, movieNightDefinitions...)
-	AllDefinitions = append(AllDefinitions, timeChallengeDefinitions...)
-	AllDefinitions = append(AllDefinitions, completionPatternDefinitions...)
-	AllDefinitions = append(AllDefinitions, specialMediaDefinitions...)
-	AllDefinitions = append(AllDefinitions, platformDefinitions...)
-	AllDefinitions = append(AllDefinitions, obscureFunDefinitions...)
-	AllDefinitions = append(AllDefinitions, readingMilestoneDefinitions...)
-	AllDefinitions = append(AllDefinitions, mixedDefinitions...)
+	AllDefinitions = make([]Definition, 0, 1200)
+	AllDefinitions = append(AllDefinitions, animeDefinitions...)
+	AllDefinitions = append(AllDefinitions, mangaDefinitions...)
 }
 
 // TotalAchievementCount returns the total number of individual achievement entries (including all tiers).
@@ -155,7 +143,7 @@ func TotalAchievementCount() int {
 	count := 0
 	for _, d := range AllDefinitions {
 		if d.MaxTier == 0 {
-			count++ // One-time achievement
+			count++
 		} else {
 			count += d.MaxTier
 		}

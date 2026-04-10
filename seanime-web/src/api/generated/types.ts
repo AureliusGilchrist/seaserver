@@ -1017,8 +1017,22 @@ export type AL_MangaDetailsById_Media = {
     genres?: Array<string>
     rankings?: Array<AL_MangaDetailsById_Media_Rankings>
     characters?: AL_MangaDetailsById_Media_Characters
+    staff?: AL_MangaDetailsById_Media_Staff
     recommendations?: AL_MangaDetailsById_Media_Recommendations
     relations?: AL_MangaDetailsById_Media_Relations
+}
+
+export type AL_MangaDetailsById_Media_Staff = {
+    edges?: Array<AL_MangaDetailsById_Media_Staff_Edge>
+}
+
+export type AL_MangaDetailsById_Media_Staff_Edge = {
+    role?: string
+    node?: {
+        name?: { full?: string }
+        id: number
+        image?: { medium?: string }
+    }
 }
 
 /**
@@ -1369,6 +1383,52 @@ export type AL_StudioDetails_Studio = {
  */
 export type AL_StudioDetails_Studio_Media = {
     nodes?: Array<AL_BaseAnime>
+}
+
+export type AL_StaffDetails = {
+    Staff?: AL_StaffDetails_Staff
+}
+
+export type AL_StaffDetails_Staff = {
+    id: number
+    name?: { full?: string, native?: string }
+    image?: { large?: string }
+    description?: string
+    primaryOccupations?: Array<string>
+    staffMedia?: AL_StaffDetails_Staff_StaffMedia
+}
+
+export type AL_StaffDetails_Staff_StaffMedia = {
+    edges?: Array<AL_StaffDetails_Staff_StaffMedia_Edge>
+}
+
+export type AL_StaffDetails_Staff_StaffMedia_Edge = {
+    staffRole?: string
+    node?: AL_StaffDetails_Staff_StaffMedia_Edge_Node
+}
+
+export type AL_StaffDetails_Staff_StaffMedia_Edge_Node = {
+    id: number
+    idMal?: number
+    siteUrl?: string
+    status?: AL_MediaStatus
+    season?: string
+    type?: AL_MediaType
+    format?: AL_MediaFormat
+    bannerImage?: string
+    episodes?: number
+    chapters?: number
+    volumes?: number
+    synonyms?: Array<string>
+    isAdult?: boolean
+    countryOfOrigin?: string
+    meanScore?: number
+    description?: string
+    genres?: Array<string>
+    title?: { userPreferred?: string, romaji?: string, english?: string, native?: string }
+    coverImage?: { extraLarge?: string, large?: string, medium?: string, color?: string }
+    startDate?: { year?: number, month?: number, day?: number }
+    endDate?: { year?: number, month?: number, day?: number }
 }
 
 /**
@@ -2199,8 +2259,89 @@ export type INTERNAL_ProfileSummary = {
     anilistUsername: string
     anilistAvatar: string
     avatarPath: string
+    bio: string
+    bannerImage: string
     createdAt?: string
     hasPIN: boolean
+}
+
+/**
+ * - Filepath: internal/handlers/profile_page.go
+ * - Package: handlers
+ */
+export type Handlers_ProfilePageResponse = {
+    profile?: INTERNAL_ProfileSummary
+    level?: Handlers_LevelResponse
+    showcase: Array<Handlers_ShowcaseEntry>
+    achievementSummary: Achievement_SummaryResponse
+    activityHeatmap?: Array<ProfileStats_ActivityDay>
+    animeStreak?: ProfileStats_StreakInfo
+    mangaStreak?: ProfileStats_StreakInfo
+    recentAchievements: Array<Handlers_RecentAchievementEntry>
+}
+
+export type Handlers_RecentAchievementEntry = {
+    key: string
+    tier: number
+    unlockedAt?: string
+    definition?: Achievement_Definition
+}
+
+export type Handlers_LevelResponse = {
+    currentLevel: number
+    totalXP: number
+    xpToNext: number
+    xpInCurrentLevel: number
+    xpNeededForLevel: number
+    multiplier: number
+}
+
+export type Handlers_ShowcaseEntry = {
+    slot: number
+    key: string
+    tier: number
+    definition?: Achievement_Definition
+}
+
+/**
+ * - Filepath: internal/handlers/community.go
+ * - Package: handlers
+ */
+export type Handlers_CommunityProfile = {
+    id: number
+    name: string
+    anilistUsername: string
+    anilistAvatar: string
+    avatarPath: string
+    bio: string
+    bannerImage: string
+    isAdmin: boolean
+    currentLevel: number
+    totalXP: number
+    achievementCount: number
+}
+
+export type Handlers_CommunityResponse = {
+    profiles: Array<Handlers_CommunityProfile>
+    aggregateStats?: Handlers_AggregateStats
+}
+
+export type Handlers_AggregateStats = {
+    totalProfiles: number
+    totalXP: number
+    totalAchievements: number
+    highestLevel: number
+}
+
+export type Handlers_ActivityFeedEntry = {
+    profileId: number
+    profileName: string
+    profileAvatar: string
+    achievementKey: string
+    achievementTier: number
+    achievementName: string
+    iconSvg: string
+    unlockedAt?: string
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

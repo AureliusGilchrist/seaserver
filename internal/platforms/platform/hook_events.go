@@ -74,6 +74,11 @@ type GetStudioDetailsEvent struct {
 	Studio *anilist.StudioDetails `json:"studio"`
 }
 
+type GetStaffDetailsEvent struct {
+	hook_resolver.Event
+	Staff *anilist.StaffDetails `json:"staff"`
+}
+
 // PreUpdateEntryEvent is triggered when an entry is about to be updated.
 // Prevent default to skip the default update and override the update.
 type PreUpdateEntryEvent struct {

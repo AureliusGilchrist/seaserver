@@ -21,9 +21,14 @@ import "@vidstack/react/player/styles/default/layouts/video.css"
 import { uniq } from "lodash"
 import { CaptionsFileFormat } from "media-captions"
 import { useRouter, useSearchParams } from "@/lib/navigation"
+import { useAtomValue } from "jotai/react"
 import React from "react"
 import "@vidstack/react/player/styles/base.css"
 import { BiInfoCircle } from "react-icons/bi"
+import {
+    __seaMediaPlayer_preferredAudioLanguageAtom,
+    __seaMediaPlayer_preferredSubtitleLanguageAtom,
+} from "../_features/sea-media-player/sea-media-player.atoms"
 import { PluginEpisodeGridItemMenuItems } from "../_features/plugin/actions/plugin-actions"
 import { SeaMediaPlayerProvider } from "../_features/sea-media-player/sea-media-player-provider"
 
@@ -77,6 +82,53 @@ export default function Page() {
     } = useHandleMediastream({ playerRef, episodes, mediaId })
 
     const { jassubOffscreenRender, setJassubOffscreenRender } = useMediastreamJassubOffscreenRender()
+
+    const preferredAudioLang = useAtomValue(__seaMediaPlayer_preferredAudioLanguageAtom)
+    const preferredSubtitleLang = useAtomValue(__seaMediaPlayer_preferredSubtitleLanguageAtom)
+
+    /**
+     * Find the best subtitle track to set as default based on language preferences.
+     */
+    const getPreferredSubtitleDefault = React.useCallback((sub: { language?: string; isDefault: boolean }, allSubs: Array<{ language?: string; isDefault: boolean }>): boolean => {
+        // If a subtitle is explicitly marked default by the file, respect it
+        if (allSubs.some(s => s.isDefault)) return sub.isDefault
+
+        // Otherwise, find the best match by preferred language
+        const prefLangs = preferredSubtitleLang.split(",").map(l => l.trim().toLowerCase())
+        for (const pref of prefLangs) {
+            const match = allSubs.find(s => {
+                const lang = (s.language || "").toLowerCase()
+                return lang === pref || lang.startsWith(pref)
+            })
+            if (match) return match === sub
+        }
+        return false
+    }, [preferredSubtitleLang])
+
+    /**
+     * Auto-select preferred audio track on canplay (for HLS with multiple audio streams).
+     */
+    const handleAudioAutoSelect = React.useCallback(() => {
+        if (!playerRef.current) return
+        const audioTracks = playerRef.current.audioTracks
+        if (!audioTracks || audioTracks.length <= 1) return
+
+        const prefLangs = preferredAudioLang.split(",").map(l => l.trim().toLowerCase())
+        for (const pref of prefLangs) {
+            const match = audioTracks.toArray().find(t => {
+                const lang = (t.language || "").toLowerCase()
+                return lang === pref || lang.startsWith(pref)
+            })
+            if (match) {
+                // Vidstack audio track switching
+                const idx = audioTracks.toArray().indexOf(match)
+                if (idx >= 0 && audioTracks.toArray()[idx] !== audioTracks.selected) {
+                    audioTracks.toArray()[idx].selected = true
+                }
+                break
+            }
+        }
+    }, [preferredAudioLang])
 
     /**
      * The episode number of the current file
@@ -245,7 +297,11 @@ export default function Page() {
                                 animeEntry?.media?.bannerImage || animeEntry?.media?.coverImage?.extraLarge}
                             onProviderChange={onProviderChange}
                             onProviderSetup={onProviderSetup}
-                            onCanPlay={onCanPlay}
+                            onCanPlay={(detail, event) => {
+                                onCanPlay?.(detail)
+                                // Auto-select preferred audio track after media loads
+                                handleAudioAutoSelect()
+                            }}
                             onGoToNextEpisode={hasNextEpisode ? playNextEpisode : undefined}
                             onGoToPreviousEpisode={hasPreviousEpisode ? playPreviousEpisode : undefined}
                             tracks={subtitles?.map((sub) => ({
@@ -254,7 +310,7 @@ export default function Page() {
                                 lang: sub.language,
                                 type: (sub.extension?.replace(".", "") || "ass") as CaptionsFileFormat,
                                 kind: "subtitles",
-                                default: sub.isDefault || (!subtitles.some(n => n.isDefault) && sub.language?.startsWith("en")),
+                                default: getPreferredSubtitleDefault(sub, subtitles),
                             }))}
                             mediaInfoDuration={mediaContainer?.mediaInfo?.duration}
                             loadingText={<>

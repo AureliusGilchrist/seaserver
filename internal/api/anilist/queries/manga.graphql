@@ -74,6 +74,20 @@ query MangaDetailsById ($id: Int) {
         }
       }
     }
+    staff(sort: [RELEVANCE]) {
+      edges {
+        role
+        node {
+          name {
+            full
+          }
+          id
+          image {
+            medium
+          }
+        }
+      }
+    }
     recommendations(page: 1, perPage: 8, sort: RATING_DESC) {
       edges {
         node {

@@ -91,6 +91,7 @@ export function TorrentstreamSettings(props: TorrentstreamSettingsProps) {
                     preloadNextStream: settings.preloadNextStream,
                 }}
                 stackClass="space-y-4"
+                noFormElement
             >
                 {(f) => (
                     <>

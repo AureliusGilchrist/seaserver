@@ -247,6 +247,16 @@ func (h *PlatformHelper) TriggerGetStudioDetailsEvent(studio *anilist.StudioDeta
 	return event.Studio, nil
 }
 
+func (h *PlatformHelper) TriggerGetStaffDetailsEvent(staff *anilist.StaffDetails) (*anilist.StaffDetails, error) {
+	event := new(platform.GetStaffDetailsEvent)
+	event.Staff = staff
+	err := hook.GlobalHookManager.OnGetStaffDetails().Trigger(event)
+	if err != nil {
+		return nil, err
+	}
+	return event.Staff, nil
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Custom Source
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

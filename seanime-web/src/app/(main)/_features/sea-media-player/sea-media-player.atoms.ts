@@ -16,3 +16,7 @@ export const __seaMediaPlayer_mutedAtom = atomWithStorage("sea-media-player-mute
 export const __seaMediaPlayer_playbackRateAtom = atomWithStorage("sea-media-playback-rate", 1, undefined, { getOnInit: true })
 
 export const __seaMediaPlayer_isFullscreenAtom = atom(false)
+
+// Language preferences for MKV playback (comma-separated language codes, e.g. "jpn,jp,jap,japanese")
+export const __seaMediaPlayer_preferredAudioLanguageAtom = atomWithStorage("sea-media-player-preferred-audio-lang", "jpn,jp,jap,japanese", undefined, { getOnInit: true })
+export const __seaMediaPlayer_preferredSubtitleLanguageAtom = atomWithStorage("sea-media-player-preferred-subtitle-lang", "en,eng,english", undefined, { getOnInit: true })

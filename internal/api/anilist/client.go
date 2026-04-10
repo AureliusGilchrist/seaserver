@@ -47,6 +47,7 @@ type AnilistClient interface {
 	ListManga(ctx context.Context, page *int, search *string, perPage *int, sort []*MediaSort, status []*MediaStatus, genres []*string, averageScoreGreater *int, startDateGreater *string, startDateLesser *string, format *MediaFormat, countryOfOrigin *string, isAdult *bool, interceptors ...clientv2.RequestInterceptor) (*ListManga, error)
 	ViewerStats(ctx context.Context, interceptors ...clientv2.RequestInterceptor) (*ViewerStats, error)
 	StudioDetails(ctx context.Context, id *int, interceptors ...clientv2.RequestInterceptor) (*StudioDetails, error)
+	StaffDetails(ctx context.Context, id *int, interceptors ...clientv2.RequestInterceptor) (*StaffDetails, error)
 	GetViewer(ctx context.Context, interceptors ...clientv2.RequestInterceptor) (*GetViewer, error)
 	AnimeAiringSchedule(ctx context.Context, ids []*int, season *MediaSeason, seasonYear *int, previousSeason *MediaSeason, previousSeasonYear *int, nextSeason *MediaSeason, nextSeasonYear *int, interceptors ...clientv2.RequestInterceptor) (*AnimeAiringSchedule, error)
 	AnimeAiringScheduleRaw(ctx context.Context, ids []*int, interceptors ...clientv2.RequestInterceptor) (*AnimeAiringScheduleRaw, error)
@@ -245,6 +246,11 @@ func (ac *AnilistClientImpl) ListManga(ctx context.Context, page *int, search *s
 func (ac *AnilistClientImpl) StudioDetails(ctx context.Context, id *int, interceptors ...clientv2.RequestInterceptor) (*StudioDetails, error) {
 	ac.logger.Debug().Int("studioId", *id).Msg("anilist: Fetching studio details")
 	return ac.Client.StudioDetails(ctx, id, interceptors...)
+}
+
+func (ac *AnilistClientImpl) StaffDetails(ctx context.Context, id *int, interceptors ...clientv2.RequestInterceptor) (*StaffDetails, error) {
+	ac.logger.Debug().Int("staffId", *id).Msg("anilist: Fetching staff details")
+	return ac.Client.StaffDetails(ctx, id, interceptors...)
 }
 
 func (ac *AnilistClientImpl) SearchBaseAnimeByIds(ctx context.Context, ids []*int, page *int, perPage *int, status []*MediaStatus, inCollection *bool, sort []*MediaSort, season *MediaSeason, year *int, genre *string, format *MediaFormat, interceptors ...clientv2.RequestInterceptor) (*SearchBaseAnimeByIds, error) {

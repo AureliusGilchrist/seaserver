@@ -89,9 +89,14 @@ func (h *Handler) HandleLogin(c echo.Context) error {
 		if getViewer.Viewer.Avatar != nil && getViewer.Viewer.Avatar.Large != nil {
 			avatarURL = *getViewer.Viewer.Avatar.Large
 		}
+		bannerURL := ""
+		if getViewer.Viewer.BannerImage != nil {
+			bannerURL = *getViewer.Viewer.BannerImage
+		}
 		_, _ = h.App.ProfileManager.UpdateProfile(profileID, map[string]interface{}{
 			"anilist_username": getViewer.Viewer.Name,
 			"anilist_avatar":   avatarURL,
+			"banner_image":     bannerURL,
 		})
 	}
 

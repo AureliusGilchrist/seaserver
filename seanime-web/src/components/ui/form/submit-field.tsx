@@ -2,6 +2,7 @@ import React from "react"
 import { useFormContext } from "react-hook-form"
 import { Button, ButtonProps } from "../button"
 import { LoadingOverlay } from "../loading-spinner"
+import { __FormManualSubmitContext } from "./form"
 
 /* -------------------------------------------------------------------------------------------------
  * SubmitField
@@ -54,6 +55,8 @@ export const SubmitField = React.forwardRef<HTMLButtonElement, SubmitFieldProps>
 
     const { formState } = useFormContext()
 
+    const manualSubmit = React.useContext(__FormManualSubmitContext)
+
     const disableSuccess = disableOnSuccess ? formState.isSubmitSuccessful : false
     const disableInvalid = disableIfInvalid ? !formState.isValid : false
 
@@ -67,7 +70,8 @@ export const SubmitField = React.forwardRef<HTMLButtonElement, SubmitFieldProps>
             )}
 
             <Button
-                type="submit"
+                type={manualSubmit ? "button" : "submit"}
+                onClick={manualSubmit ? manualSubmit : undefined}
                 loading={formState.isSubmitting || loading}
                 disabled={disableInvalid || disabled || disableSuccess}
                 ref={ref}

@@ -117,6 +117,7 @@ const (
 	ViewerBucket                   = "viewer"
 	ViewerStatsBucket              = "viewer-stats"
 	StudioDetailsBucket            = "studio-details"
+	StaffDetailsBucket             = "staff-details"
 	AnimeAiringScheduleBucket      = "anime-airing-schedule"
 	AnimeAiringScheduleRawBucket   = "anime-airing-schedule-raw"
 	ListAnimeBucket                = "list-anime"
@@ -211,6 +212,7 @@ func NewCacheLayer(anilistClientRef *util.Ref[anilist.AnilistClient]) anilist.An
 	buckets[ViewerBucket] = filecache.NewPermanentBucket(ViewerBucket)
 	buckets[ViewerStatsBucket] = filecache.NewPermanentBucket(ViewerStatsBucket)
 	buckets[StudioDetailsBucket] = filecache.NewPermanentBucket(StudioDetailsBucket)
+	buckets[StaffDetailsBucket] = filecache.NewPermanentBucket(StaffDetailsBucket)
 	buckets[AnimeAiringScheduleBucket] = filecache.NewPermanentBucket(AnimeAiringScheduleBucket)
 	buckets[AnimeAiringScheduleRawBucket] = filecache.NewPermanentBucket(AnimeAiringScheduleRawBucket)
 	buckets[ListAnimeBucket] = filecache.NewPermanentBucket(ListAnimeBucket)
@@ -1065,6 +1067,17 @@ func (c *CacheLayer) StudioDetails(ctx context.Context, id *int, interceptors ..
 	cacheKey := c.generateCacheKey(id)
 	return networkFirstGet(c, StudioDetailsBucket, cacheKey, func() (*anilist.StudioDetails, error) {
 		return c.anilistClientRef.Get().StudioDetails(ctx, id, interceptors...)
+	})
+}
+
+func (c *CacheLayer) StaffDetails(ctx context.Context, id *int, interceptors ...clientv2.RequestInterceptor) (*anilist.StaffDetails, error) {
+	if id == nil {
+		return c.anilistClientRef.Get().StaffDetails(ctx, id, interceptors...)
+	}
+
+	cacheKey := c.generateCacheKey(id)
+	return networkFirstGet(c, StaffDetailsBucket, cacheKey, func() (*anilist.StaffDetails, error) {
+		return c.anilistClientRef.Get().StaffDetails(ctx, id, interceptors...)
 	})
 }
 

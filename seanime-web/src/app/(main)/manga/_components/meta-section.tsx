@@ -5,6 +5,7 @@ import {
     MediaEntryAudienceScore,
     MediaEntryGenresList,
 } from "@/app/(main)/_features/media/_components/media-entry-metadata-components"
+import { MangaEntryStaff } from "@/app/(main)/_features/media/_components/manga-entry-staff"
 import {
     MediaPageHeader,
     MediaPageHeaderDetailsContainer,
@@ -48,6 +49,8 @@ export function MetaSection(props: { entry: Manga_Entry | undefined, details: AL
                 )}
             >
                 <MediaEntryAudienceScore meanScore={entry.media?.meanScore} badgeClass="bg-transparent" />
+
+                <MangaEntryStaff staff={details?.staff} />
 
                 <MediaEntryGenresList genres={details?.genres} type="manga" />
             </div>

@@ -185,6 +185,7 @@ func (h *Handler) HandleGetAnilistAnimeDetails(c echo.Context) error {
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 var studioDetailsMap = result.NewMap[int, *anilist.StudioDetails]()
+var staffDetailsMap = result.NewMap[int, *anilist.StaffDetails]()
 
 // HandleGetAnilistStudioDetails
 //
@@ -211,6 +212,39 @@ func (h *Handler) HandleGetAnilistStudioDetails(c echo.Context) error {
 	go func() {
 		if details != nil {
 			studioDetailsMap.Set(mId, details)
+		}
+	}()
+
+	return h.RespondWithData(c, details)
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+
+// HandleGetAnilistStaffDetails
+//
+//	@summary returns details about a staff member.
+//	@desc This fetches media associated with the staff member.
+//	@param id - int - true - "The AniList staff ID"
+//	@returns anilist.StaffDetails
+//	@route /api/v1/anilist/staff-details/{id} [GET]
+func (h *Handler) HandleGetAnilistStaffDetails(c echo.Context) error {
+
+	mId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	if details, ok := staffDetailsMap.Get(mId); ok {
+		return h.RespondWithData(c, details)
+	}
+	details, err := h.App.AnilistPlatformRef.Get().GetStaffDetails(c.Request().Context(), mId)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	go func() {
+		if details != nil {
+			staffDetailsMap.Set(mId, details)
 		}
 	}()
 

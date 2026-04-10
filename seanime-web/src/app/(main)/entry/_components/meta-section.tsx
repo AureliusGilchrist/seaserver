@@ -32,6 +32,7 @@ import { TORRENT_CLIENT } from "@/lib/server/settings"
 import { getCustomSourceExtensionId, getCustomSourceMediaSiteUrl, isCustomSource } from "@/lib/server/utils"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import React from "react"
+import { AiFillHeart, AiOutlineHeart } from "react-icons/ai"
 import { BiExtension } from "react-icons/bi"
 import { IoInformationCircle } from "react-icons/io5"
 import { LuExternalLink } from "react-icons/lu"
@@ -39,6 +40,7 @@ import { MdOutlineConnectWithoutContact } from "react-icons/md"
 import { SiAnilist } from "react-icons/si"
 import { useNakamaStatus } from "../../_features/nakama/nakama-manager"
 import { PluginAnimePageButtons } from "../../_features/plugin/actions/plugin-actions"
+import { useAnimeFavorites } from "../../(library)/_lib/use-anime-favorites"
 
 export function AnimeMetaActionButton({ className, ...rest }: ButtonProps) {
     const ts = useThemeSettings()
@@ -58,6 +60,7 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
     const { entry, details } = props
     const ts = useThemeSettings()
     const nakamaStatus = useNakamaStatus()
+    const { isFavorite, toggleFavorite } = useAnimeFavorites()
 
     if (!entry.media) return null
 
@@ -214,6 +217,21 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                             <MdOutlineConnectWithoutContact className="size-6 animate-pulse text-[--blue]" />
                             <span className="text-sm tracking-wide">Shared by {nakamaStatus?.hostConnectionStatus?.username}</span>
                         </div>}
+
+                    <Tooltip trigger={
+                        <IconButton
+                            size="sm"
+                            intent="gray-link"
+                            className="px-0"
+                            icon={isFavorite(entry.mediaId)
+                                ? <AiFillHeart className="text-lg text-red-500" />
+                                : <AiOutlineHeart className="text-lg" />
+                            }
+                            onClick={() => toggleFavorite(entry.mediaId)}
+                        />
+                    }>
+                        {isFavorite(entry.mediaId) ? "Remove from favorites" : "Add to favorites"}
+                    </Tooltip>
 
                     <PluginAnimePageButtons media={entry.media!} />
 

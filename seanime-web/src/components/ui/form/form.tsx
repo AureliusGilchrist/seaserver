@@ -25,6 +25,13 @@ export const useFormSchema = (): { shape: z.ZodRawShape, schema: z.ZodObject<z.Z
     return React.useContext(__FormSchemaContext)!
 }
 
+/**
+ * When a Form renders without a <form> element (noFormElement=true),
+ * this context provides the manual submit handler so SubmitField can trigger it via onClick.
+ * @internal
+ */
+export const __FormManualSubmitContext = React.createContext<(() => void) | undefined>(undefined)
+
 export type SubmitHandler<T> = (data: T, event?: React.BaseSyntheticEvent) => any
 export type SubmitErrorHandler<TFieldValues extends FieldValues> = (errors: FieldErrors<TFieldValues>, event?: React.BaseSyntheticEvent) => any
 
@@ -65,6 +72,12 @@ export type FormProps<Schema extends z.ZodObject<z.ZodRawShape> = z.ZodObject<z.
      * Ref to the form methods.
      */
     mRef?: React.Ref<UseFormReturn<NoInfer<z.infer<Schema>>>>
+    /**
+     * When true, renders a <div> instead of a <form> element.
+     * Use this when the Form is nested inside another <form> to avoid invalid HTML.
+     * SubmitField will automatically use onClick instead of native form submission.
+     */
+    noFormElement?: boolean
 }
 
 export const Form = <Schema extends z.ZodObject<z.ZodRawShape>>(props: FormProps<Schema>) => {
@@ -88,6 +101,7 @@ export const Form = <Schema extends z.ZodObject<z.ZodRawShape>>(props: FormProps
         mRef,
         /**/
         stackClass,
+        noFormElement,
         ...rest
     } = props
 
@@ -129,15 +143,25 @@ export const Form = <Schema extends z.ZodObject<z.ZodRawShape>>(props: FormProps
     return (
         <FormProvider {...methods}>
             <__FormSchemaContext.Provider value={{ schema, shape: schema.shape }}>
-                <form
-                    ref={formRef}
-                    onSubmit={handleSubmit(onSubmit, onError)}
-                    {...rest}
-                >
-                    <div className={cn("w-full space-y-3", stackClass)}>
-                        {runIfFn(children, methods)}
-                    </div>
-                </form>
+                <__FormManualSubmitContext.Provider value={noFormElement ? () => handleSubmit(onSubmit, onError)() : undefined}>
+                    {noFormElement ? (
+                        <div {...(rest as any)}>
+                            <div className={cn("w-full space-y-3", stackClass)}>
+                                {runIfFn(children, methods)}
+                            </div>
+                        </div>
+                    ) : (
+                        <form
+                            ref={formRef}
+                            onSubmit={handleSubmit(onSubmit, onError)}
+                            {...rest}
+                        >
+                            <div className={cn("w-full space-y-3", stackClass)}>
+                                {runIfFn(children, methods)}
+                            </div>
+                        </form>
+                    )}
+                </__FormManualSubmitContext.Provider>
             </__FormSchemaContext.Provider>
         </FormProvider>
     )

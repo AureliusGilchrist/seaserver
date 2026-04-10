@@ -7,11 +7,16 @@
     --media-slider-focused-track-height: calc(var(--media-slider-track-height) * 1.5);
     --media-buffering-size: 70px;
     --media-slider-track-bg: rgba(255, 255, 255, 0.15);
-    --media-menu-hint-font-size: 15px;
-    --media-menu-hint-color: rgba(255, 255, 255, 0.7);
-    --media-menu-bg: rgba(0, 0, 0, 0.9);
+    --media-menu-hint-font-size: 13px;
+    --media-menu-hint-color: rgba(255, 255, 255, 0.5);
+    --media-menu-bg: rgba(0, 0, 0, 0.92);
     --media-font-family: Inter, sans-serif;
     --media-menu-radio-check-size: 14px;
+    --media-menu-font-size: 14px;
+    --media-menu-item-padding: 8px 10px;
+    --media-menu-item-icon-size: 18px;
+    --media-menu-min-width: 220px;
+    --media-menu-padding: 8px;
 }
 
 /*
@@ -898,17 +903,17 @@ iframe.vds-youtube[data-no-controls] {
     display: flex;
     flex-direction: column;
     font-family: var(--media-font-family, sans-serif);
-    font-size: var(--media-menu-font-size, 15px);
+    font-size: var(--media-menu-font-size, 14px);
     font-weight: var(--media-menu-font-weight, 500);
     transition: height 0.35s ease;
 }
 
 :where(.vds-menu-items:not([data-submenu])) {
-    padding: var(--media-menu-padding, 10px);
+    padding: var(--media-menu-padding, 8px);
     background-color: var(--media-menu-bg, rgb(10 10 10));
     border-radius: var(--media-menu-border-radius, 8px);
     box-shadow: var(--media-menu-box-shadow, 1px 1px 1px rgb(10 10 10 / 0.5));
-    /*backdrop-filter: blur(4px);*/
+    backdrop-filter: blur(12px);
     height: var(--menu-height, auto);
     will-change: width, height;
     overflow-y: auto;
@@ -1062,8 +1067,8 @@ iframe.vds-youtube[data-no-controls] {
     border: var(--media-menu-item-border, 0);
     color: var(--media-menu-item-color, #f5f5f5);
     background-color: var(--media-menu-item-bg, transparent);
-    padding: var(--media-menu-item-padding, 8px);
-    font-size: var(--media-menu-font-size, 1rem);
+    padding: var(--media-menu-item-padding, 8px 10px);
+    font-size: var(--media-menu-font-size, 14px);
 }
 
 .vds-menu-items [role='menuitem']:focus-visible,
@@ -1076,7 +1081,7 @@ iframe.vds-youtube[data-no-controls] {
 
 :where(.vds-menu-items:not([data-submenu]):not([data-placement]))
 :where([role='menuitem'], [role='menuitemradio']) {
-    padding: var(--media-sm-menu-item-padding, 12px);
+    padding: var(--media-sm-menu-item-padding, 10px);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1124,8 +1129,8 @@ iframe.vds-youtube[data-no-controls] {
  */
 
 :where(.vds-menu-items [role='menuitem'] .vds-menu-button-icon) {
-    width: var(--media-menu-item-icon-size, 22px);
-    height: var(--media-menu-item-icon-size, 22px);
+    width: var(--media-menu-item-icon-size, 18px);
+    height: var(--media-menu-item-icon-size, 18px);
     margin-right: var(--media-menu-item-icon-spacing, 6px);
     opacity: 0.5;
     display: none !important;
@@ -1137,8 +1142,8 @@ iframe.vds-youtube[data-no-controls] {
 
 :where(.vds-menu-items [role='menuitem'])
 :where(.vds-menu-button-open-icon, .vds-menu-button-close-icon) {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
 }
 
 :where(.vds-menu-items [role='menuitem'])
@@ -1195,7 +1200,7 @@ iframe.vds-youtube[data-no-controls] {
     cursor: pointer;
     display: flex;
     font-family: var(--media-font-family, sans-serif);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
     contain: content;
     padding: var(--media-menu-item-padding, 12px);

@@ -47,6 +47,8 @@ type Platform interface {
 	AddMediaToCollection(context context.Context, mIds []int) error
 	// GetStudioDetails gets the studio details for the given studio ID
 	GetStudioDetails(context context.Context, studioID int) (*anilist.StudioDetails, error)
+	// GetStaffDetails gets the staff details for the given staff ID
+	GetStaffDetails(context context.Context, staffID int) (*anilist.StaffDetails, error)
 	// GetAnilistClient gets the AniList client
 	GetAnilistClient() anilist.AnilistClient
 	// RefreshAnimeCollection refreshes the anime collection

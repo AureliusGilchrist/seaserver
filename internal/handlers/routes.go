@@ -233,6 +233,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	v1Anilist.GET("/studio-details/:id", h.HandleGetAnilistStudioDetails)
 
+	v1Anilist.GET("/staff-details/:id", h.HandleGetAnilistStaffDetails)
+
 	v1Anilist.POST("/list-entry", h.HandleEditAnilistListEntry)
 
 	v1Anilist.DELETE("/list-entry", h.HandleDeleteAnilistListEntry)
@@ -295,6 +297,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Library.POST("/anime-entry/silence", h.HandleToggleAnimeEntrySilenceStatus)
 
 	v1Library.POST("/reset-matches", h.HandleResetIncorrectMatches)
+
+	// Anime Favorites (per-profile)
+	v1Library.GET("/favorites", h.HandleGetAnimeFavorites)
+	v1Library.POST("/favorites/toggle", h.HandleToggleAnimeFavorite)
+	v1Library.POST("/favorites/bulk", h.HandleBulkAddAnimeFavorites)
 
 	v1Library.POST("/reset-all-matches", h.HandleResetAllMatches)
 
@@ -699,6 +706,16 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	// Profile Stats
 	v1.GET("/profile/stats", h.HandleGetProfileStats)
+
+	// Profile Page
+	v1.GET("/profile/me", h.HandleGetMyProfile)
+	v1.GET("/profile/user/:id", h.HandleGetUserProfile)
+	v1.PATCH("/profile/bio", h.HandleUpdateBio)
+	v1.GET("/profile/level", h.HandleGetLevel)
+
+	// Community
+	v1.GET("/community/profiles", h.HandleGetCommunityProfiles)
+	v1.GET("/community/feed", h.HandleGetActivityFeed)
 
 }
 

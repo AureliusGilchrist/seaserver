@@ -747,6 +747,9 @@ export function VideoCore(props: VideoCoreProps) {
             dispatchTerminatedEvent()
             setActivePlayer(null)
         }
+        // Destroy fullscreen manager on true unmount
+        fullscreenManager?.destroy?.()
+        setFullscreenManager(null)
     })
 
     function onTerminateStream() {
@@ -896,8 +899,12 @@ export function VideoCore(props: VideoCoreProps) {
             pipManager?.destroy?.()
             setPipManager(null)
             setPipElement(null)
-            fullscreenManager?.destroy?.()
-            setFullscreenManager(null)
+            // Don't destroy fullscreen manager during episode transitions
+            // so fullscreen state is preserved across loading states
+            if (fullscreenManager) {
+                fullscreenManager.beginTransition(fullscreen)
+                fullscreenManager.setVideoElement(null)
+            }
             setInSightOpen(false)
             setInSightData(null)
             // setIsFullscreen(false)
@@ -1096,9 +1103,13 @@ export function VideoCore(props: VideoCoreProps) {
             return manager
         })
 
-        // Initialize fullscreen manager
+        // Initialize fullscreen manager (reuse existing to preserve fullscreen state)
         setFullscreenManager(p => {
-            if (p) p.destroy()
+            if (p) {
+                // Reuse existing manager, just update the container
+                p.setContainer(containerRef.current!)
+                return p
+            }
             return new VideoCoreFullscreenManager((isFullscreen: boolean) => {
                 setIsFullscreen(isFullscreen)
                 onFullscreenChange?.(isFullscreen)
@@ -1325,6 +1336,11 @@ export function VideoCore(props: VideoCoreProps) {
 
     const handleCanPlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         setBuffering(false)
+
+        // Restore fullscreen if we were in a source transition
+        if (fullscreenManager?.isInTransition) {
+            fullscreenManager.endTransition()
+        }
 
         if (!hasSoughtRef.current) {
             if (!state.playbackInfo || !videoRef.current) return

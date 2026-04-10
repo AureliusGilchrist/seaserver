@@ -526,7 +526,7 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 	profileID := h.GetProfileID(c)
 	h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
 		ProfileID: profileID,
-		Trigger:   achievement.TriggerChapterRead,
+		Trigger:   achievement.TriggerChapterProgress,
 		MediaID:   b.MediaId,
 		Metadata: map[string]interface{}{
 			"chapter": b.ChapterNumber,
