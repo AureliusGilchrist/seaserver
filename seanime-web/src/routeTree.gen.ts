@@ -17,6 +17,8 @@ import { Route as MainIndexRouteImport } from './routes/_main/index'
 import { Route as MainErrorTestRouteImport } from './routes/_main/error-test'
 import { Route as SplashscreenCrashIndexRouteImport } from './routes/splashscreen/crash/index'
 import { Route as PublicAuthIndexRouteImport } from './routes/public/auth/index'
+import { Route as MainStudioIndexRouteImport } from './routes/_main/studio/index'
+import { Route as MainStaffIndexRouteImport } from './routes/_main/staff/index'
 import { Route as MainSettingsIndexRouteImport } from './routes/_main/settings/index'
 import { Route as MainSearchIndexRouteImport } from './routes/_main/search/index'
 import { Route as MainOfflineIndexRouteImport } from './routes/_main/offline/index'
@@ -26,14 +28,12 @@ import { Route as MainExtensionsIndexRouteImport } from './routes/_main/extensio
 import { Route as MainEntryIndexRouteImport } from './routes/_main/entry/index'
 import { Route as MainDiscoverIndexRouteImport } from './routes/_main/discover/index'
 import { Route as MainCustomSourcesIndexRouteImport } from './routes/_main/custom-sources/index'
+import { Route as MainCommunityIndexRouteImport } from './routes/_main/community/index'
 import { Route as MainAchievementsIndexRouteImport } from './routes/_main/achievements/index'
 import { Route as MainSettingsMangaScanIndexRouteImport } from './routes/_main/settings/manga-scan/index'
+import { Route as MainProfileUserIndexRouteImport } from './routes/_main/profile/user/index'
 import { Route as MainProfileStatsIndexRouteImport } from './routes/_main/profile/stats/index'
 import { Route as MainProfileMeIndexRouteImport } from './routes/_main/profile/me/index'
-import { Route as MainProfileUserIndexRouteImport } from './routes/_main/profile/user/index'
-import { Route as MainCommunityIndexRouteImport } from './routes/_main/community/index'
-import { Route as MainStudioIndexRouteImport } from './routes/_main/studio/index'
-import { Route as MainStaffIndexRouteImport } from './routes/_main/staff/index'
 import { Route as MainMangaEntryIndexRouteImport } from './routes/_main/manga/entry/index'
 import { Route as MainAuthCallbackIndexRouteImport } from './routes/_main/auth/callback/index'
 import { Route as MainOfflineEntryMangaIndexRouteImport } from './routes/_main/offline/entry/manga/index'
@@ -219,6 +219,20 @@ const PublicAuthIndexRoute = PublicAuthIndexRouteImport.update({
   path: '/public/auth/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MainStudioIndexRoute = MainStudioIndexRouteImport.update({
+  id: '/studio/',
+  path: '/studio/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/studio/index.lazy').then((d) => d.Route),
+)
+const MainStaffIndexRoute = MainStaffIndexRouteImport.update({
+  id: '/staff/',
+  path: '/staff/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/staff/index.lazy').then((d) => d.Route),
+)
 const MainSettingsIndexRoute = MainSettingsIndexRouteImport.update({
   id: '/settings/',
   path: '/settings/',
@@ -280,6 +294,13 @@ const MainCustomSourcesIndexRoute = MainCustomSourcesIndexRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_main/custom-sources/index.lazy').then((d) => d.Route),
 )
+const MainCommunityIndexRoute = MainCommunityIndexRouteImport.update({
+  id: '/community/',
+  path: '/community/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/community/index.lazy').then((d) => d.Route),
+)
 const MainAchievementsIndexRoute = MainAchievementsIndexRouteImport.update({
   id: '/achievements/',
   path: '/achievements/',
@@ -315,6 +336,13 @@ const MainSettingsMangaScanIndexRoute =
       (d) => d.Route,
     ),
   )
+const MainProfileUserIndexRoute = MainProfileUserIndexRouteImport.update({
+  id: '/profile/user/',
+  path: '/profile/user/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/profile/user/index.lazy').then((d) => d.Route),
+)
 const MainProfileStatsIndexRoute = MainProfileStatsIndexRouteImport.update({
   id: '/profile/stats/',
   path: '/profile/stats/',
@@ -328,34 +356,6 @@ const MainProfileMeIndexRoute = MainProfileMeIndexRouteImport.update({
   getParentRoute: () => MainRoute,
 } as any).lazy(() =>
   import('./routes/_main/profile/me/index.lazy').then((d) => d.Route),
-)
-const MainProfileUserIndexRoute = MainProfileUserIndexRouteImport.update({
-  id: '/profile/user/',
-  path: '/profile/user/',
-  getParentRoute: () => MainRoute,
-} as any).lazy(() =>
-  import('./routes/_main/profile/user/index.lazy').then((d) => d.Route),
-)
-const MainCommunityIndexRoute = MainCommunityIndexRouteImport.update({
-  id: '/community/',
-  path: '/community/',
-  getParentRoute: () => MainRoute,
-} as any).lazy(() =>
-  import('./routes/_main/community/index.lazy').then((d) => d.Route),
-)
-const MainStudioIndexRoute = MainStudioIndexRouteImport.update({
-  id: '/studio/',
-  path: '/studio/',
-  getParentRoute: () => MainRoute,
-} as any).lazy(() =>
-  import('./routes/_main/studio/index.lazy').then((d) => d.Route),
-)
-const MainStaffIndexRoute = MainStaffIndexRouteImport.update({
-  id: '/staff/',
-  path: '/staff/',
-  getParentRoute: () => MainRoute,
-} as any).lazy(() =>
-  import('./routes/_main/staff/index.lazy').then((d) => d.Route),
 )
 const MainMangaEntryIndexRoute = MainMangaEntryIndexRouteImport.update({
   id: '/manga/entry/',
@@ -398,6 +398,7 @@ export interface FileRoutesByFullPath {
   '/issue-report/': typeof IssueReportIndexLazyRoute
   '/scan-log-viewer/': typeof ScanLogViewerIndexLazyRoute
   '/achievements/': typeof MainAchievementsIndexRoute
+  '/community/': typeof MainCommunityIndexRoute
   '/custom-sources/': typeof MainCustomSourcesIndexRoute
   '/discover/': typeof MainDiscoverIndexRoute
   '/entry/': typeof MainEntryIndexRoute
@@ -407,6 +408,8 @@ export interface FileRoutesByFullPath {
   '/offline/': typeof MainOfflineIndexRoute
   '/search/': typeof MainSearchIndexRoute
   '/settings/': typeof MainSettingsIndexRoute
+  '/staff/': typeof MainStaffIndexRoute
+  '/studio/': typeof MainStudioIndexRoute
   '/public/auth/': typeof PublicAuthIndexRoute
   '/splashscreen/crash/': typeof SplashscreenCrashIndexRoute
   '/auto-downloader/': typeof MainAutoDownloaderIndexLazyRoute
@@ -424,9 +427,6 @@ export interface FileRoutesByFullPath {
   '/webview/': typeof MainWebviewIndexLazyRoute
   '/auth/callback/': typeof MainAuthCallbackIndexRoute
   '/manga/entry/': typeof MainMangaEntryIndexRoute
-  '/community/': typeof MainCommunityIndexRoute
-  '/studio/': typeof MainStudioIndexRoute
-  '/staff/': typeof MainStaffIndexRoute
   '/profile/me/': typeof MainProfileMeIndexRoute
   '/profile/stats/': typeof MainProfileStatsIndexRoute
   '/profile/user/': typeof MainProfileUserIndexRoute
@@ -444,6 +444,7 @@ export interface FileRoutesByTo {
   '/issue-report': typeof IssueReportIndexLazyRoute
   '/scan-log-viewer': typeof ScanLogViewerIndexLazyRoute
   '/achievements': typeof MainAchievementsIndexRoute
+  '/community': typeof MainCommunityIndexRoute
   '/custom-sources': typeof MainCustomSourcesIndexRoute
   '/discover': typeof MainDiscoverIndexRoute
   '/entry': typeof MainEntryIndexRoute
@@ -453,6 +454,8 @@ export interface FileRoutesByTo {
   '/offline': typeof MainOfflineIndexRoute
   '/search': typeof MainSearchIndexRoute
   '/settings': typeof MainSettingsIndexRoute
+  '/staff': typeof MainStaffIndexRoute
+  '/studio': typeof MainStudioIndexRoute
   '/public/auth': typeof PublicAuthIndexRoute
   '/splashscreen/crash': typeof SplashscreenCrashIndexRoute
   '/auto-downloader': typeof MainAutoDownloaderIndexLazyRoute
@@ -470,9 +473,6 @@ export interface FileRoutesByTo {
   '/webview': typeof MainWebviewIndexLazyRoute
   '/auth/callback': typeof MainAuthCallbackIndexRoute
   '/manga/entry': typeof MainMangaEntryIndexRoute
-  '/community': typeof MainCommunityIndexRoute
-  '/studio': typeof MainStudioIndexRoute
-  '/staff': typeof MainStaffIndexRoute
   '/profile/me': typeof MainProfileMeIndexRoute
   '/profile/stats': typeof MainProfileStatsIndexRoute
   '/profile/user': typeof MainProfileUserIndexRoute
@@ -492,6 +492,7 @@ export interface FileRoutesById {
   '/issue-report/': typeof IssueReportIndexLazyRoute
   '/scan-log-viewer/': typeof ScanLogViewerIndexLazyRoute
   '/_main/achievements/': typeof MainAchievementsIndexRoute
+  '/_main/community/': typeof MainCommunityIndexRoute
   '/_main/custom-sources/': typeof MainCustomSourcesIndexRoute
   '/_main/discover/': typeof MainDiscoverIndexRoute
   '/_main/entry/': typeof MainEntryIndexRoute
@@ -501,6 +502,8 @@ export interface FileRoutesById {
   '/_main/offline/': typeof MainOfflineIndexRoute
   '/_main/search/': typeof MainSearchIndexRoute
   '/_main/settings/': typeof MainSettingsIndexRoute
+  '/_main/staff/': typeof MainStaffIndexRoute
+  '/_main/studio/': typeof MainStudioIndexRoute
   '/public/auth/': typeof PublicAuthIndexRoute
   '/splashscreen/crash/': typeof SplashscreenCrashIndexRoute
   '/_main/auto-downloader/': typeof MainAutoDownloaderIndexLazyRoute
@@ -518,9 +521,6 @@ export interface FileRoutesById {
   '/_main/webview/': typeof MainWebviewIndexLazyRoute
   '/_main/auth/callback/': typeof MainAuthCallbackIndexRoute
   '/_main/manga/entry/': typeof MainMangaEntryIndexRoute
-  '/_main/community/': typeof MainCommunityIndexRoute
-  '/_main/studio/': typeof MainStudioIndexRoute
-  '/_main/staff/': typeof MainStaffIndexRoute
   '/_main/profile/me/': typeof MainProfileMeIndexRoute
   '/_main/profile/stats/': typeof MainProfileStatsIndexRoute
   '/_main/profile/user/': typeof MainProfileUserIndexRoute
@@ -540,6 +540,7 @@ export interface FileRouteTypes {
     | '/issue-report/'
     | '/scan-log-viewer/'
     | '/achievements/'
+    | '/community/'
     | '/custom-sources/'
     | '/discover/'
     | '/entry/'
@@ -549,6 +550,8 @@ export interface FileRouteTypes {
     | '/offline/'
     | '/search/'
     | '/settings/'
+    | '/staff/'
+    | '/studio/'
     | '/public/auth/'
     | '/splashscreen/crash/'
     | '/auto-downloader/'
@@ -566,9 +569,6 @@ export interface FileRouteTypes {
     | '/webview/'
     | '/auth/callback/'
     | '/manga/entry/'
-    | '/community/'
-    | '/studio/'
-    | '/staff/'
     | '/profile/me/'
     | '/profile/stats/'
     | '/profile/user/'
@@ -586,6 +586,7 @@ export interface FileRouteTypes {
     | '/issue-report'
     | '/scan-log-viewer'
     | '/achievements'
+    | '/community'
     | '/custom-sources'
     | '/discover'
     | '/entry'
@@ -595,6 +596,8 @@ export interface FileRouteTypes {
     | '/offline'
     | '/search'
     | '/settings'
+    | '/staff'
+    | '/studio'
     | '/public/auth'
     | '/splashscreen/crash'
     | '/auto-downloader'
@@ -612,9 +615,6 @@ export interface FileRouteTypes {
     | '/webview'
     | '/auth/callback'
     | '/manga/entry'
-    | '/community'
-    | '/studio'
-    | '/staff'
     | '/profile/me'
     | '/profile/stats'
     | '/profile/user'
@@ -633,6 +633,7 @@ export interface FileRouteTypes {
     | '/issue-report/'
     | '/scan-log-viewer/'
     | '/_main/achievements/'
+    | '/_main/community/'
     | '/_main/custom-sources/'
     | '/_main/discover/'
     | '/_main/entry/'
@@ -642,6 +643,8 @@ export interface FileRouteTypes {
     | '/_main/offline/'
     | '/_main/search/'
     | '/_main/settings/'
+    | '/_main/staff/'
+    | '/_main/studio/'
     | '/public/auth/'
     | '/splashscreen/crash/'
     | '/_main/auto-downloader/'
@@ -659,9 +662,6 @@ export interface FileRouteTypes {
     | '/_main/webview/'
     | '/_main/auth/callback/'
     | '/_main/manga/entry/'
-    | '/_main/community/'
-    | '/_main/studio/'
-    | '/_main/staff/'
     | '/_main/profile/me/'
     | '/_main/profile/stats/'
     | '/_main/profile/user/'
@@ -838,6 +838,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicAuthIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_main/studio/': {
+      id: '/_main/studio/'
+      path: '/studio'
+      fullPath: '/studio/'
+      preLoaderRoute: typeof MainStudioIndexRouteImport
+      parentRoute: typeof MainRoute
+    }
+    '/_main/staff/': {
+      id: '/_main/staff/'
+      path: '/staff'
+      fullPath: '/staff/'
+      preLoaderRoute: typeof MainStaffIndexRouteImport
+      parentRoute: typeof MainRoute
+    }
     '/_main/settings/': {
       id: '/_main/settings/'
       path: '/settings'
@@ -901,13 +915,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainCustomSourcesIndexRouteImport
       parentRoute: typeof MainRoute
     }
-    '/_main/achievements/': {
-      id: '/_main/achievements/'
-      path: '/achievements'
-      fullPath: '/achievements/'
-      preLoaderRoute: typeof MainAchievementsIndexRouteImport
-      parentRoute: typeof MainRoute
-    }
     '/_main/community/': {
       id: '/_main/community/'
       path: '/community'
@@ -915,18 +922,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainCommunityIndexRouteImport
       parentRoute: typeof MainRoute
     }
-    '/_main/studio/': {
-      id: '/_main/studio/'
-      path: '/studio'
-      fullPath: '/studio/'
-      preLoaderRoute: typeof MainStudioIndexRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_main/staff/': {
-      id: '/_main/staff/'
-      path: '/staff'
-      fullPath: '/staff/'
-      preLoaderRoute: typeof MainStaffIndexRouteImport
+    '/_main/achievements/': {
+      id: '/_main/achievements/'
+      path: '/achievements'
+      fullPath: '/achievements/'
+      preLoaderRoute: typeof MainAchievementsIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/offline/manga/': {
@@ -950,6 +950,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainSettingsMangaScanIndexRouteImport
       parentRoute: typeof MainRoute
     }
+    '/_main/profile/user/': {
+      id: '/_main/profile/user/'
+      path: '/profile/user'
+      fullPath: '/profile/user/'
+      preLoaderRoute: typeof MainProfileUserIndexRouteImport
+      parentRoute: typeof MainRoute
+    }
     '/_main/profile/stats/': {
       id: '/_main/profile/stats/'
       path: '/profile/stats'
@@ -962,13 +969,6 @@ declare module '@tanstack/react-router' {
       path: '/profile/me'
       fullPath: '/profile/me/'
       preLoaderRoute: typeof MainProfileMeIndexRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_main/profile/user/': {
-      id: '/_main/profile/user/'
-      path: '/profile/user'
-      fullPath: '/profile/user/'
-      preLoaderRoute: typeof MainProfileUserIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/manga/entry/': {
@@ -1006,6 +1006,7 @@ interface MainRouteChildren {
   MainErrorTestRoute: typeof MainErrorTestRoute
   MainIndexRoute: typeof MainIndexRoute
   MainAchievementsIndexRoute: typeof MainAchievementsIndexRoute
+  MainCommunityIndexRoute: typeof MainCommunityIndexRoute
   MainCustomSourcesIndexRoute: typeof MainCustomSourcesIndexRoute
   MainDiscoverIndexRoute: typeof MainDiscoverIndexRoute
   MainEntryIndexRoute: typeof MainEntryIndexRoute
@@ -1015,6 +1016,8 @@ interface MainRouteChildren {
   MainOfflineIndexRoute: typeof MainOfflineIndexRoute
   MainSearchIndexRoute: typeof MainSearchIndexRoute
   MainSettingsIndexRoute: typeof MainSettingsIndexRoute
+  MainStaffIndexRoute: typeof MainStaffIndexRoute
+  MainStudioIndexRoute: typeof MainStudioIndexRoute
   MainAutoDownloaderIndexLazyRoute: typeof MainAutoDownloaderIndexLazyRoute
   MainDebridIndexLazyRoute: typeof MainDebridIndexLazyRoute
   MainEnmasseAnimeIndexLazyRoute: typeof MainEnmasseAnimeIndexLazyRoute
@@ -1030,12 +1033,9 @@ interface MainRouteChildren {
   MainWebviewIndexLazyRoute: typeof MainWebviewIndexLazyRoute
   MainAuthCallbackIndexRoute: typeof MainAuthCallbackIndexRoute
   MainMangaEntryIndexRoute: typeof MainMangaEntryIndexRoute
-  MainProfileStatsIndexRoute: typeof MainProfileStatsIndexRoute
   MainProfileMeIndexRoute: typeof MainProfileMeIndexRoute
+  MainProfileStatsIndexRoute: typeof MainProfileStatsIndexRoute
   MainProfileUserIndexRoute: typeof MainProfileUserIndexRoute
-  MainCommunityIndexRoute: typeof MainCommunityIndexRoute
-  MainStudioIndexRoute: typeof MainStudioIndexRoute
-  MainStaffIndexRoute: typeof MainStaffIndexRoute
   MainSettingsMangaScanIndexRoute: typeof MainSettingsMangaScanIndexRoute
   MainExtensionsPlaygroundIndexLazyRoute: typeof MainExtensionsPlaygroundIndexLazyRoute
   MainOfflineMangaIndexLazyRoute: typeof MainOfflineMangaIndexLazyRoute
@@ -1047,6 +1047,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainErrorTestRoute: MainErrorTestRoute,
   MainIndexRoute: MainIndexRoute,
   MainAchievementsIndexRoute: MainAchievementsIndexRoute,
+  MainCommunityIndexRoute: MainCommunityIndexRoute,
   MainCustomSourcesIndexRoute: MainCustomSourcesIndexRoute,
   MainDiscoverIndexRoute: MainDiscoverIndexRoute,
   MainEntryIndexRoute: MainEntryIndexRoute,
@@ -1056,6 +1057,8 @@ const MainRouteChildren: MainRouteChildren = {
   MainOfflineIndexRoute: MainOfflineIndexRoute,
   MainSearchIndexRoute: MainSearchIndexRoute,
   MainSettingsIndexRoute: MainSettingsIndexRoute,
+  MainStaffIndexRoute: MainStaffIndexRoute,
+  MainStudioIndexRoute: MainStudioIndexRoute,
   MainAutoDownloaderIndexLazyRoute: MainAutoDownloaderIndexLazyRoute,
   MainDebridIndexLazyRoute: MainDebridIndexLazyRoute,
   MainEnmasseAnimeIndexLazyRoute: MainEnmasseAnimeIndexLazyRoute,
@@ -1071,12 +1074,9 @@ const MainRouteChildren: MainRouteChildren = {
   MainWebviewIndexLazyRoute: MainWebviewIndexLazyRoute,
   MainAuthCallbackIndexRoute: MainAuthCallbackIndexRoute,
   MainMangaEntryIndexRoute: MainMangaEntryIndexRoute,
-  MainProfileStatsIndexRoute: MainProfileStatsIndexRoute,
   MainProfileMeIndexRoute: MainProfileMeIndexRoute,
+  MainProfileStatsIndexRoute: MainProfileStatsIndexRoute,
   MainProfileUserIndexRoute: MainProfileUserIndexRoute,
-  MainCommunityIndexRoute: MainCommunityIndexRoute,
-  MainStudioIndexRoute: MainStudioIndexRoute,
-  MainStaffIndexRoute: MainStaffIndexRoute,
   MainSettingsMangaScanIndexRoute: MainSettingsMangaScanIndexRoute,
   MainExtensionsPlaygroundIndexLazyRoute:
     MainExtensionsPlaygroundIndexLazyRoute,
