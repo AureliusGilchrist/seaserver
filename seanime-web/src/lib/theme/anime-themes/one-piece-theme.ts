@@ -603,8 +603,8 @@ export const onePieceTheme: AnimeThemeConfig = {
         name: "GEAR FIVE",
         durationMs: 55000,
         voiceText: "Gear... FIVE!",
-        voicePitch: 1.5,
-        voiceRate: 0.85,
+        voicePitch: 0,
+        voiceRate: 0,
         audioClipPath: "/public/themes/one-piece-gear5.mp3",
         isGear5: true,
     },
@@ -615,4 +615,10 @@ export const onePieceTheme: AnimeThemeConfig = {
         accent: "#e8c060",
     },
     hasAnimatedElements: true,
+    backgroundImageUrl: "https://w.wallhaven.cc/full/72/wallhaven-72lej9.png",
+    particleTypes: {
+        bubbles: { label: "Sabaody Bubbles", maxCount: 12, defaultEnabled: true, defaultIntensity: 60 },
+        waves: { label: "Ocean Waves", maxCount: 3, defaultEnabled: true, defaultIntensity: 50 },
+        jollyRoger: { label: "Jolly Roger Watermark", maxCount: 1, defaultEnabled: true, defaultIntensity: 50 },
+    },
 }

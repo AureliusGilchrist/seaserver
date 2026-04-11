@@ -2,12 +2,25 @@
 
 import { useAchievementUnlockListener } from "@/api/hooks/achievement.hooks"
 import { cn } from "@/components/ui/core/styling"
+import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { AnimatePresence, motion } from "motion/react"
 import React from "react"
 import { LuTrophy } from "react-icons/lu"
 
 export function AchievementCelebrationOverlay() {
     const { currentUnlock, dismiss, hasPending } = useAchievementUnlockListener()
+    const themeCtx = useAnimeThemeOrNull()
+
+    React.useEffect(() => {
+        if (!currentUnlock) return
+        const timer = setTimeout(dismiss, 5000)
+        return () => clearTimeout(timer)
+    }, [currentUnlock, dismiss])
+
+    // Map achievement name to themed name
+    const displayName = currentUnlock
+        ? (themeCtx?.config.achievementNames[currentUnlock.key] ?? currentUnlock.name)
+        : ""
 
     React.useEffect(() => {
         if (!currentUnlock) return
@@ -61,7 +74,7 @@ export function AchievementCelebrationOverlay() {
                                 Achievement Unlocked
                             </p>
                             <h2 className="text-2xl font-bold text-white">
-                                {currentUnlock.name}
+                                {displayName}
                                 {currentUnlock.tierName && (
                                     <span className="text-yellow-400 ml-2">{currentUnlock.tierName}</span>
                                 )}

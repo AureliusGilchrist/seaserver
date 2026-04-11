@@ -38,6 +38,7 @@ import { IoInformationCircle } from "react-icons/io5"
 import { LuExternalLink } from "react-icons/lu"
 import { MdOutlineConnectWithoutContact } from "react-icons/md"
 import { SiAnilist } from "react-icons/si"
+import { displayTitle } from "@/lib/helpers/media"
 import { useNakamaStatus } from "../../_features/nakama/nakama-manager"
 import { PluginAnimePageButtons } from "../../_features/plugin/actions/plugin-actions"
 import { useAnimeFavorites } from "../../(library)/_lib/use-anime-favorites"
@@ -71,10 +72,8 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
     const listData = entry.listData
     const type = "anime"
 
-    const primaryTitle = entry.media?.title?.romaji
-        || entry.media?.title?.english
+    const primaryTitle = displayTitle(entry.media?.title)
         || entry.media?.title?.native
-        || entry.media?.title?.userPreferred
 
     return (
         <>

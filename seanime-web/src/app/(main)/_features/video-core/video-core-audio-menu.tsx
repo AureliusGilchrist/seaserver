@@ -60,7 +60,7 @@ export function VideoCoreAudioMenu() {
         }
     }, [hlsCurrentAudioTrack, isHls])
 
-    if (isMiniPlayer || !audioTracks?.length || audioTracks.length === 1) return null
+    if (isMiniPlayer || !audioTracks?.length) return null
 
     return (
         <VideoCoreMenu
@@ -83,20 +83,29 @@ export function VideoCoreAudioMenu() {
                     containerElement={containerElement}
                     options={audioTracks.map(track => {
                         if (isHls) {
-                            // HLS track format
                             const hlsTrack = track as HlsAudioTrack
+                            const parts: string[] = []
+                            if (hlsTrack.name) parts.push(hlsTrack.name)
+                            if (hlsTrack.language) parts.push(`[${hlsTrack.language}]`)
                             return {
-                                label: hlsTrack.name || hlsTrack.language?.toUpperCase() || `Track ${hlsTrack.id + 1}`,
+                                label: parts.length > 0 ? parts.join(" ") : `Track ${hlsTrack.id + 1}`,
                                 value: hlsTrack.id,
                                 moreInfo: hlsTrack.language?.toUpperCase(),
                             }
                         } else {
-                            // Event track format
                             const eventTrack = track as MKVParser_TrackInfo
+                            const lang = eventTrack.language || eventTrack.languageIETF
+                            const parts: string[] = []
+                            if (eventTrack.name) parts.push(eventTrack.name)
+                            if (lang) parts.push(`[${lang}]`)
+                            const codec = eventTrack.codecID?.replace("A_", "")
+                            if (codec) parts.push(`(${codec})`)
+                            const ch = eventTrack.audio?.Channels
+                            if (ch) parts.push(`${ch}ch`)
                             return {
-                                label: `${eventTrack.name || eventTrack.language?.toUpperCase() || eventTrack.languageIETF?.toUpperCase()}`,
+                                label: parts.length > 0 ? parts.join(" ") : `Track ${eventTrack.number}`,
                                 value: eventTrack.number,
-                                moreInfo: eventTrack.language?.toUpperCase(),
+                                moreInfo: lang?.toUpperCase(),
                             }
                         }
                     })}

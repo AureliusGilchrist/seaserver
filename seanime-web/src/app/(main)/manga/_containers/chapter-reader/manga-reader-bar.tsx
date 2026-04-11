@@ -36,6 +36,7 @@ import { useAtom, useAtomValue } from "jotai/react"
 import React from "react"
 import { BiX } from "react-icons/bi"
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu"
+import { displayTitle } from "@/lib/helpers/media"
 
 type MangaReaderBarProps = {
     children?: React.ReactNode
@@ -239,7 +240,7 @@ export function MangaReaderBar(props: MangaReaderBarProps) {
                 />
 
                 <h4 data-manga-reader-bar-title className="lg:flex gap-1 items-center hidden">
-                    <span className="max-w-[180px] text-ellipsis truncate block">{entry?.media?.title?.romaji || entry?.media?.title?.english || entry?.media?.title?.userPreferred}</span>
+                    <span className="max-w-[180px] text-ellipsis truncate block">{displayTitle(entry?.media?.title)}</span>
                 </h4>
 
                 {!!selectedChapter &&

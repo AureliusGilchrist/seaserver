@@ -1,5 +1,9 @@
 import { AL_AnimeListEntry, AL_BaseAnime, AL_MangaListEntry, Nullish } from "@/api/generated/types"
 
+export function displayTitle(title?: { romaji?: string | null; english?: string | null; userPreferred?: string | null } | null): string {
+    return title?.romaji || title?.english || title?.userPreferred || ""
+}
+
 export function anilist_getTotalEpisodes(anime: Nullish<AL_BaseAnime>) {
     if (!anime) return -1
     let maxEp = anime?.episodes ?? -1

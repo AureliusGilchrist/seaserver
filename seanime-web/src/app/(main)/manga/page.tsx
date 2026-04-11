@@ -25,6 +25,7 @@ import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/c
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { useDebounce } from "use-debounce"
 import { __isDesktop__ } from "@/types/constants"
+import { displayTitle } from "@/lib/helpers/media"
 import { AnimatePresence } from "motion/react"
 import { useAtomValue } from "jotai/react"
 import React from "react"
@@ -85,12 +86,12 @@ export default function Page() {
     const filteredDownloads = React.useMemo(() => {
         const list = downloadedList || []
         const q = downloadSearch.trim().toLowerCase()
-        const filtered = !q ? list : list.filter(item => item.media?.title?.userPreferred?.toLowerCase().includes(q))
+        const filtered = !q ? list : list.filter(item => displayTitle(item.media?.title).toLowerCase().includes(q))
         
         // Sort alphabetically with natural number ordering
         return filtered.sort((a, b) => {
-            const titleA = a.media?.title?.userPreferred || `Unknown ${a.mediaId}`
-            const titleB = b.media?.title?.userPreferred || `Unknown ${b.mediaId}`
+            const titleA = displayTitle(a.media?.title) || `Unknown ${a.mediaId}`
+            const titleB = displayTitle(b.media?.title) || `Unknown ${b.mediaId}`
             return titleA.localeCompare(titleB, undefined, { numeric: true, sensitivity: 'base' })
         })
     }, [downloadSearch, downloadedList])

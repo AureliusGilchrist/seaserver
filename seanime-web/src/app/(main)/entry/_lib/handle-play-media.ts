@@ -16,6 +16,7 @@ import { clientIdAtom } from "@/app/websocket-provider"
 import { ExternalPlayerLink } from "@/lib/external-player-link/external-player-link"
 import { openTab } from "@/lib/helpers/browser"
 import { logger } from "@/lib/helpers/debug"
+import { displayTitle } from "@/lib/helpers/media"
 import { __isElectronDesktop__ } from "@/types/constants"
 import { useAtomValue, useSetAtom } from "jotai"
 import { useRouter } from "@/lib/navigation"
@@ -70,7 +71,7 @@ export function useHandlePlayMedia() {
             ) {
                 const link = new ExternalPlayerLink(externalPlayerLink)
                 link.setEpisodeNumber(episode.progressNumber)
-                link.setMediaTitle(episode.baseAnime?.title?.userPreferred)
+                link.setMediaTitle(displayTitle(episode.baseAnime?.title))
                 link.to({
                     endpoint: "/api/v1/nakama/stream?type=file&path=" + Buffer.from(path).toString("base64"),
                     onTokenQueryParam: () => getServerHMACTokenQueryParam("/api/v1/nakama/stream", "&"),

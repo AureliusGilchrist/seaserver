@@ -31,6 +31,7 @@ import { CommandItemMedia, CommandItemSyntheticManga } from "../../_features/sea
 import { Badge } from "@/components/ui/badge"
 import { SeaImage } from "@/components/shared/sea-image"
 import { imageShimmer } from "@/components/shared/image-helpers"
+import { displayTitle } from "@/lib/helpers/media"
 
 type MangaLibraryViewProps = {
     collection: Manga_Collection
@@ -306,7 +307,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                 items.push({
                     type: "regular",
                     mediaId: entry.mediaId,
-                    title: entry.media?.title?.romaji || entry.media?.title?.english || entry.media?.title?.userPreferred || "",
+                    title: displayTitle(entry.media?.title),
                     coverImage: entry.media?.coverImage?.large || entry.media?.coverImage?.medium,
                     bannerImage: entry.media?.bannerImage,
                     lastReadAt: historyMap.get(entry.mediaId) || null,
@@ -465,7 +466,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
             {(list.type === "CURRENT" && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic && headerManga && withTitle) &&
                 <TextGenerateEffect
                     data-manga-library-view-collection-list-item-header-media-title
-                    words={headerManga?.title?.romaji || headerManga?.title?.english || headerManga?.title?.userPreferred || ""}
+                    words={displayTitle(headerManga?.title)}
                     className="w-full text-xl lg:text-5xl lg:max-w-[50%] h-[3.2rem] !mt-1 line-clamp-1 truncate text-ellipsis hidden lg:block pb-1"
                 />
             }

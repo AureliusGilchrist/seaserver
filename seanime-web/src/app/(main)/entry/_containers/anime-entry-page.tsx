@@ -20,6 +20,7 @@ import { OnlinestreamPage } from "@/app/(main)/onlinestream/_containers/onlinest
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
 import { StaticTabs } from "@/components/ui/tabs"
+import { displayTitle } from "@/lib/helpers/media"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { atom, useAtomValue } from "jotai"
 import { useAtom, useSetAtom } from "jotai/react"
@@ -93,8 +94,8 @@ export function AnimeEntryPage() {
     React.useLayoutEffect(() => {
         if (!animeEntry) return
         try {
-            if (animeEntry?.media?.title?.userPreferred) {
-                document.title = `${animeEntry?.media?.title?.userPreferred} | Seanime`
+            if (displayTitle(animeEntry?.media?.title)) {
+                document.title = `${displayTitle(animeEntry?.media?.title)} | Seanime`
             }
             // switchedView.current = false
         }

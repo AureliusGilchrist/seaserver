@@ -12,6 +12,7 @@ import { cn } from "@/components/ui/core/styling"
 import { Tooltip } from "@/components/ui/tooltip"
 import { openTab } from "@/lib/helpers/browser"
 import { formatDistanceToNowSafe } from "@/lib/helpers/date"
+import { displayTitle } from "@/lib/helpers/media"
 import { uniqBy } from "lodash"
 import React, { memo } from "react"
 import { AiFillWarning } from "react-icons/ai"
@@ -44,7 +45,7 @@ export const TorrentListItem = ({ torrent, metadata, debridCached, onClick, isSe
             link={overrideProps?.link ?? torrent?.link}
             confirmed={overrideProps?.confirmed ?? torrent?.confirmed}
             key={torrent.link}
-            displayName={overrideProps?.displayName ?? (episode?.displayTitle || episode?.baseAnime?.title?.userPreferred || "")}
+            displayName={overrideProps?.displayName ?? (episode?.displayTitle || displayTitle(episode?.baseAnime?.title) || "")}
             releaseGroup={overrideProps?.releaseGroup ?? (torrent.releaseGroup || "")}
             torrentName={overrideProps?.torrentName ?? torrent.name}
             isBatch={overrideProps?.isBatch ?? torrent.isBatch ?? false}

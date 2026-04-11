@@ -13,6 +13,7 @@ import { useAtomValue } from "jotai/react"
 import React from "react"
 import { FaCircleCheck, FaRegCircleCheck } from "react-icons/fa6"
 import { MdOutlineDownloadForOffline } from "react-icons/md"
+import { displayTitle } from "@/lib/helpers/media"
 
 type SyncAddMediaModalProps = {
     savedMediaIds: number[]
@@ -214,23 +215,23 @@ function MediaList(props: {
             CURRENT: collection.lists?.find(n => n.type === "CURRENT")
                 ?.entries
                 ?.filter(Boolean)
-                ?.toSorted((a, b) => a.media!.title!.userPreferred!.localeCompare(b.media!.title!.userPreferred!)) ?? [],
+                ?.toSorted((a, b) => displayTitle(a.media?.title).localeCompare(displayTitle(b.media?.title))) ?? [],
             PLANNING: collection.lists?.find(n => n.type === "PLANNING")
                 ?.entries
                 ?.filter(Boolean)
-                ?.toSorted((a, b) => a.media!.title!.userPreferred!.localeCompare(b.media!.title!.userPreferred!)) ?? [],
+                ?.toSorted((a, b) => displayTitle(a.media?.title).localeCompare(displayTitle(b.media?.title))) ?? [],
             COMPLETED: collection.lists?.find(n => n.type === "COMPLETED")
                 ?.entries
                 ?.filter(Boolean)
-                ?.toSorted((a, b) => a.media!.title!.userPreferred!.localeCompare(b.media!.title!.userPreferred!)) ?? [],
+                ?.toSorted((a, b) => displayTitle(a.media?.title).localeCompare(displayTitle(b.media?.title))) ?? [],
             PAUSED: collection.lists?.find(n => n.type === "PAUSED")
                 ?.entries
                 ?.filter(Boolean)
-                ?.toSorted((a, b) => a.media!.title!.userPreferred!.localeCompare(b.media!.title!.userPreferred!)) ?? [],
+                ?.toSorted((a, b) => displayTitle(a.media?.title).localeCompare(displayTitle(b.media?.title))) ?? [],
             DROPPED: collection.lists?.find(n => n.type === "DROPPED")
                 ?.entries
                 ?.filter(Boolean)
-                ?.toSorted((a, b) => a.media!.title!.userPreferred!.localeCompare(b.media!.title!.userPreferred!)) ?? [],
+                ?.toSorted((a, b) => displayTitle(a.media?.title).localeCompare(displayTitle(b.media?.title))) ?? [],
         }
     }, [collection])
 
@@ -410,7 +411,7 @@ function MediaItem(props: {
                         isSaved && "text-[--green]",
                     )}
                 >
-                    {entry.media?.title?.userPreferred || entry.media?.title?.romaji}
+                    {displayTitle(entry.media?.title)}
                 </p>
                 <div
                     className="z-[5] absolute -bottom-1 w-full h-[80%] bg-gradient-to-t from-[--background] to-transparent"

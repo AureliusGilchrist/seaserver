@@ -12,6 +12,7 @@ import { isSameDay } from "date-fns/isSameDay"
 import { useRouter } from "@/lib/navigation"
 import React from "react"
 import { LuDock, LuEye } from "react-icons/lu"
+import { displayTitle } from "@/lib/helpers/media"
 
 
 export function DiscoverAiringSchedule() {
@@ -64,7 +65,7 @@ export function DiscoverAiringSchedule() {
                 if (item.media?.id === 162804) console.log(item.airingAt)
                 return {
                     id: item.id + item?.episode!,
-                    name: item.media?.title?.userPreferred,
+                    name: displayTitle(item.media?.title),
                     time: format(new Date(item?.airingAt! * 1000), "h:mm a"),
                     datetime: format(new Date(item?.airingAt! * 1000), "yyyy-MM-dd'T'HH:mm"),
                     href: `/entry?id=${item.id}`,
@@ -109,7 +110,7 @@ export function DiscoverAiringSchedule() {
                                                 <SeaContextMenu
                                                     content={<ContextMenuGroup>
                                                         <ContextMenuLabel className="text-[--muted] line-clamp-2 py-0 my-2">
-                                                            {event.media?.title?.userPreferred}
+                                                            {displayTitle(event.media?.title)}
                                                         </ContextMenuLabel>
                                                         <ContextMenuItem
                                                             onClick={() => {
@@ -149,7 +150,7 @@ export function DiscoverAiringSchedule() {
                                                                 <SeaLink
                                                                     href={`/entry?id=${event.media?.id}`}
                                                                     className="font-medium tracking-wide line-clamp-1"
-                                                                >{event.media?.title?.userPreferred}</SeaLink>
+                                                                >{displayTitle(event.media?.title)}</SeaLink>
 
                                                                 <p className="text-[--muted]">
                                                                     Ep {event.episode} airing at {event.time}

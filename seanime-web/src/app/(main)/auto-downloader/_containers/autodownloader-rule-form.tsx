@@ -31,6 +31,7 @@ import { cn } from "@/components/ui/core/styling"
 import { DangerZone, defineSchema, Field, Form, InferType } from "@/components/ui/form"
 import { Modal } from "@/components/ui/modal"
 import { Separator } from "@/components/ui/separator"
+import { displayTitle } from "@/lib/helpers/media"
 import { upath } from "@/lib/helpers/upath"
 import { useAtom, useAtomValue } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
@@ -267,7 +268,7 @@ export function AutoDownloaderMediaCombobox(props: {
                         className="object-cover object-center"
                     />
                 </div>
-                <p>{media.title?.userPreferred || "N/A"}</p>
+                <p>{displayTitle(media.title) || "N/A"}</p>
                 <p className="text-[--muted] text-sm">{capitalize(media.status)?.replaceAll("_", " ")}</p>
             </div>,
             value: String(media.id),

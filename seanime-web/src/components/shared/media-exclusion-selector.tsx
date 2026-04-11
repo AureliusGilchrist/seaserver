@@ -13,6 +13,7 @@ import { useAtomValue } from "jotai/react"
 import React from "react"
 import { BiEdit } from "react-icons/bi"
 import { RiCloseCircleFill } from "react-icons/ri"
+import { displayTitle } from "@/lib/helpers/media"
 
 export type MediaExclusionSelectorProps = {
     value?: number[]
@@ -110,7 +111,7 @@ export const MediaExclusionSelector = React.forwardRef<HTMLDivElement, MediaExcl
             return {
                 CURRENT: animeLibraryCollectionEntries
                     ?.filter(Boolean)
-                    ?.toSorted((a, b) => a.media!.title!.userPreferred!.localeCompare(b.media!.title!.userPreferred!)) ?? [],
+                    ?.toSorted((a, b) => displayTitle(a.media?.title).localeCompare(displayTitle(b.media?.title))) ?? [],
                 // PLANNING: animeLibraryCollection.lists
                 //     .find(n => n.type === "PLANNING")
                 //     ?.entries?.filter(Boolean)
@@ -389,7 +390,7 @@ function MediaExclusionItem(props: {
             />
 
             <p className="line-clamp-2 text-sm absolute m-2 bottom-0 font-semibold z-[10] text-white drop-shadow-lg">
-                {entry.media?.title?.romaji || entry.media?.title?.english || entry.media?.title?.userPreferred}
+                {displayTitle(entry.media?.title)}
             </p>
 
             {entry.media?.isAdult && (

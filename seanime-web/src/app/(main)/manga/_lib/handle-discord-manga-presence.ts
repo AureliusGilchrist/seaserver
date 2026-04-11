@@ -1,5 +1,6 @@
 import { AL_BaseManga } from "@/api/generated/types"
 import { useCancelDiscordActivity, useSetDiscordMangaActivity } from "@/api/hooks/discord.hooks"
+import { displayTitle } from "@/lib/helpers/media"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 
 import { __manga_selectedChapterAtom } from "@/app/(main)/manga/_lib/handle-chapter-reader"
@@ -25,7 +26,7 @@ export function useDiscordMangaPresence(entry: { media?: AL_BaseManga } | undefi
             if (currentChapter && entry && entry.media) {
                 mutate({
                     mediaId: entry.media?.id ?? 0,
-                    title: entry.media?.title?.romaji || entry.media?.title?.english || entry.media?.title?.userPreferred || "Reading",
+                    title: displayTitle(entry.media?.title) || "Reading",
                     image: entry.media?.coverImage?.large || entry.media?.coverImage?.medium || "",
                     chapter: currentChapter.chapterNumber,
                 })

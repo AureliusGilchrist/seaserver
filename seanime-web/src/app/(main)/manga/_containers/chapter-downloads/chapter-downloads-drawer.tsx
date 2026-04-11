@@ -20,6 +20,7 @@ import React from "react"
 import { MdClear } from "react-icons/md"
 import { PiWarningOctagonDuotone } from "react-icons/pi"
 import { TbWorldDownload } from "react-icons/tb"
+import { displayTitle } from "@/lib/helpers/media"
 
 export const __manga_chapterDownloadsDrawerIsOpenAtom = atom(false)
 
@@ -168,7 +169,7 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
                                         >
                                             <div className="flex items-center gap-2">
                                                 <p className="font-semibold">
-                                                    <SeaLink href={`/manga/entry?id=${item.mediaId}`} className="hover:underline hover:text-brand-200 transition-colors">{(item as any).mediaTitle || media?.title?.userPreferred}</SeaLink> - {(item as any).chapterTitle || `Chapter ${item.chapterNumber}`}
+                                                    <SeaLink href={`/manga/entry?id=${item.mediaId}`} className="hover:underline hover:text-brand-200 transition-colors">{(item as any).mediaTitle || displayTitle(media?.title)}</SeaLink> - {(item as any).chapterTitle || `Chapter ${item.chapterNumber}`}
                                                 </p>
                                                 <span className="text-[--muted] italic text-sm">(id: {item.chapterId})</span>
                                                 {item.status === "errored" && (

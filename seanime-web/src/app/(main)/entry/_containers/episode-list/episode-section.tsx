@@ -16,6 +16,7 @@ import { Alert } from "@/components/ui/alert"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
 import { ContextMenuItem } from "@/components/ui/context-menu"
+import { displayTitle } from "@/lib/helpers/media"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import React from "react"
 import { IoLibrarySharp } from "react-icons/io5"
@@ -154,7 +155,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                             key={episode.localFile?.path || ""}
                                             episode={episode}
                                             image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}
-                                            topTitle={episode.episodeTitle || episode?.baseAnime?.title?.userPreferred}
+                                            topTitle={episode.episodeTitle || displayTitle(episode?.baseAnime?.title)}
                                             title={episode.displayTitle}
                                             isInvalid={episode.isInvalid}
                                             progressTotal={episode.baseAnime?.episodes}
@@ -171,7 +172,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                             anime={{
                                                 id: entry.mediaId,
                                                 image: episode.baseAnime?.coverImage?.medium,
-                                                title: episode?.baseAnime?.title?.userPreferred,
+                                                title: displayTitle(episode?.baseAnime?.title),
                                             }}
                                             additionalContextMenuItems={<>
                                                 {isUsingNativePlayer && <ContextMenuItem

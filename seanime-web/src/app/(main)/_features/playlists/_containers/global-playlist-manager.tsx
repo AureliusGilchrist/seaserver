@@ -27,6 +27,7 @@ import { cn } from "@/components/ui/core/styling"
 import { Modal } from "@/components/ui/modal"
 import { Tooltip } from "@/components/ui/tooltip"
 import { logger } from "@/lib/helpers/debug"
+import { displayTitle } from "@/lib/helpers/media"
 import { getImageUrl } from "@/lib/server/assets"
 import { WSEvents } from "@/lib/server/ws-events"
 import { __isElectronDesktop__ } from "@/types/constants"
@@ -225,7 +226,7 @@ export function GlobalPlaylistManager() {
                     const payload2 = data.payload as { playlistEpisode: Anime_PlaylistEpisode }
                     const episode = payload2.playlistEpisode
 
-                    toast.info(`Playing episode ${episode.episode?.aniDBEpisode} of ${episode.episode?.baseAnime?.title?.userPreferred}`)
+                    toast.info(`Playing episode ${episode.episode?.aniDBEpisode} of ${displayTitle(episode.episode?.baseAnime?.title)}`)
 
                     switch (payload2.playlistEpisode.watchType) {
                         case "nakama":
@@ -432,7 +433,7 @@ function EpisodeItem({ episode }: { episode: Anime_PlaylistEpisode }) {
                 />}
             </div>
             <div className="max-w-full space-y-1">
-                <p className="text-sm text-[--muted]">{episode.episode?.baseAnime?.title?.userPreferred}</p>
+                <p className="text-sm text-[--muted]">{displayTitle(episode.episode?.baseAnime?.title)}</p>
                 <p className="">{episode.episode?.baseAnime?.format !== "MOVIE" ? `Episode ${episode.episode!.episodeNumber}` : "Movie"}</p>
 
                 <div>

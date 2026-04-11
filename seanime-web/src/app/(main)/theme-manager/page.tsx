@@ -18,6 +18,9 @@ export default function ThemeManagerPage() {
         config,
         animatedIntensity,
         setAnimatedIntensity,
+        particleSettings,
+        setParticleTypeEnabled,
+        setParticleTypeIntensity,
     } = useAnimeTheme()
 
     return (
@@ -186,7 +189,7 @@ export default function ThemeManagerPage() {
                     </h2>
                     <p className="text-sm text-[--muted]">
                         {config.id === "naruto" && "Falling leaves, chakra wisps, and a Sharingan watermark float around Konoha."}
-                        {config.id === "bleach" && "Karakura Town at night with hollows prowling the rooftops, drifting masks, reiatsu wisps, and soul butterflies."}
+                        {config.id === "bleach" && "Karakura Town at night with hell butterflies, reiatsu wisps, and a moonlit cityscape."}
                         {config.id === "one-piece" && "Ocean waves, Sabaody bubbles, and the Straw Hat Jolly Roger."}
                     </p>
 
@@ -220,6 +223,53 @@ export default function ThemeManagerPage() {
                             </button>
                         ))}
                     </div>
+
+                    {/* Per-particle type controls */}
+                    {config.particleTypes && Object.keys(config.particleTypes).length > 0 && (
+                        <div className="space-y-3 pt-2 border-t border-[--border]">
+                            <h3 className="text-sm font-medium text-[--foreground]">Particle Types</h3>
+                            {Object.entries(config.particleTypes).map(([key, pt]) => {
+                                const s = particleSettings[key]
+                                const enabled = s?.enabled ?? pt.defaultEnabled
+                                const intensity = s?.intensity ?? pt.defaultIntensity
+                                return (
+                                    <div key={key} className="flex items-center gap-4">
+                                        <button
+                                            onClick={() => setParticleTypeEnabled(key, !enabled)}
+                                            className={cn(
+                                                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none shrink-0",
+                                                enabled ? "bg-[--color-brand-500]" : "bg-[--color-gray-700]",
+                                            )}
+                                            role="switch"
+                                            aria-checked={enabled}
+                                        >
+                                            <span
+                                                className={cn(
+                                                    "inline-block size-3.5 rounded-full bg-white shadow-sm transition-transform duration-200",
+                                                    enabled ? "translate-x-[18px]" : "translate-x-0.5",
+                                                )}
+                                            />
+                                        </button>
+                                        <span className="text-sm text-[--foreground] w-24 shrink-0">{pt.label}</span>
+                                        {enabled && (
+                                            <>
+                                                <input
+                                                    type="range"
+                                                    min={0}
+                                                    max={100}
+                                                    step={1}
+                                                    value={intensity}
+                                                    onChange={e => setParticleTypeIntensity(key, Number(e.target.value))}
+                                                    className="w-36 accent-[--color-brand-500]"
+                                                />
+                                                <span className="text-xs text-[--muted] w-8 text-right">{intensity}%</span>
+                                            </>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
 

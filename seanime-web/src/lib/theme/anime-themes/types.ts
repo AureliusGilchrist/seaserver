@@ -21,6 +21,17 @@ export type AnimeThemeEventConfig = {
     isGear5?: boolean
 }
 
+export type ParticleTypeConfig = {
+    /** Display name in settings UI */
+    label: string
+    /** Max particle count at 100% */
+    maxCount: number
+    /** Default enabled state */
+    defaultEnabled: boolean
+    /** Default sub-intensity 0-100 (controls count, speed, opacity for this type) */
+    defaultIntensity: number
+}
+
 export type AnimeThemeConfig = {
     id: AnimeThemeId
     displayName: string
@@ -48,4 +59,8 @@ export type AnimeThemeConfig = {
     }
     /** Whether this theme has animated background elements */
     hasAnimatedElements?: boolean
+    /** Full-resolution background image URL (loaded from CDN, cached by browser) */
+    backgroundImageUrl?: string
+    /** Per-particle-type configuration (keyed by particle type id) */
+    particleTypes?: Record<string, ParticleTypeConfig>
 }

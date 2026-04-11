@@ -30,6 +30,7 @@ import { Select } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { TextInput } from "@/components/ui/text-input"
+import { displayTitle } from "@/lib/helpers/media"
 import { TORRENT_PROVIDER } from "@/lib/server/settings"
 import { subDays, subMonths } from "date-fns"
 import { atom, useSetAtom } from "jotai"
@@ -108,9 +109,7 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
         if (searchType === Torrent_SearchType.SMART) {
             setGlobalFilter("")
         } else if (searchType === Torrent_SearchType.SIMPLE) {
-            const title = entry.media?.title?.romaji
-                || entry.media?.title?.english
-                || entry.media?.title?.userPreferred
+            const title = displayTitle(entry.media?.title)
             setGlobalFilter(title?.replaceAll(":", "").replaceAll("-", "") || "")
         }
     }, [searchType, entry.media?.title])
@@ -173,7 +172,7 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
                             </h4>
                             <EpisodeCard
                                 image={torrentSearchStreamEpisode.episodeMetadata?.image || torrentSearchStreamEpisode.baseAnime?.bannerImage || torrentSearchStreamEpisode.baseAnime?.coverImage?.extraLarge}
-                                topTitle={torrentSearchStreamEpisode.episodeTitle || torrentSearchStreamEpisode?.baseAnime?.title?.userPreferred}
+                                topTitle={torrentSearchStreamEpisode.episodeTitle || displayTitle(torrentSearchStreamEpisode?.baseAnime?.title)}
                                 title={torrentSearchStreamEpisode.displayTitle}
                                 isInvalid={torrentSearchStreamEpisode.isInvalid}
                                 progressTotal={torrentSearchStreamEpisode.baseAnime?.episodes}
@@ -184,7 +183,7 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
                                 anime={{
                                     id: torrentSearchStreamEpisode.baseAnime?.id,
                                     image: torrentSearchStreamEpisode.baseAnime?.coverImage?.large,
-                                    title: torrentSearchStreamEpisode.baseAnime?.title?.userPreferred,
+                                    title: displayTitle(torrentSearchStreamEpisode.baseAnime?.title),
                                 }}
                             />
                         </div>}

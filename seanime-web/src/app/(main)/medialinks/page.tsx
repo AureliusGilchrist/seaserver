@@ -17,6 +17,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { ExternalPlayerLink } from "@/lib/external-player-link/external-player-link"
 import { openTab } from "@/lib/helpers/browser"
 import { logger } from "@/lib/helpers/debug"
+import { displayTitle } from "@/lib/helpers/media"
 import { useAtomValue, useSetAtom } from "jotai"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import React from "react"
@@ -73,7 +74,7 @@ export default function Page() {
 
                 const link = new ExternalPlayerLink(externalPlayerLink)
                 link.setEpisodeNumber(episode.progressNumber)
-                link.setMediaTitle(animeEntry.media?.title?.userPreferred)
+                link.setMediaTitle(displayTitle(animeEntry?.media?.title))
                 await link.to({
                     endpoint: "/api/v1/mediastream/file?path=" + encodeFilePath(filePath),
                     onTokenQueryParam: () => getHMACTokenQueryParam("/api/v1/mediastream/file", "&"),
@@ -132,7 +133,7 @@ export default function Page() {
                         <SeaLink href={`/entry?id=${animeEntry?.mediaId}`}>
                             <IconButton icon={<AiOutlineArrowLeft />} rounded intent="white-outline" size="md" />
                         </SeaLink>
-                        <h3 className="max-w-full lg:max-w-[50%] text-ellipsis truncate">{animeEntry?.media?.title?.userPreferred}</h3>
+                        <h3 className="max-w-full lg:max-w-[50%] text-ellipsis truncate">{displayTitle(animeEntry?.media?.title)}</h3>
                     </div>
                 </div>
 
@@ -142,7 +143,7 @@ export default function Page() {
                             key={episode.localFile?.path || ""}
                             id={`episode-${String(episode.episodeNumber)}`}
                             media={episode?.baseAnime as any}
-                            title={episode?.displayTitle || episode?.baseAnime?.title?.userPreferred || ""}
+                            title={episode?.displayTitle || displayTitle(episode?.baseAnime?.title) || ""}
                             image={episode?.episodeMetadata?.image || episode?.baseAnime?.coverImage?.large}
                             episodeTitle={episode?.episodeTitle}
                             fileName={episode?.localFile?.parsedInfo?.original}

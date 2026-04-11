@@ -11,6 +11,7 @@ import { IconButton } from "@/components/ui/button"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
 import { ContextMenuItem } from "@/components/ui/context-menu"
 import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { displayTitle } from "@/lib/helpers/media"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import React, { useMemo } from "react"
 import { BiDotsHorizontal } from "react-icons/bi"
@@ -85,7 +86,7 @@ export function TorrentStreamEpisodeSection(props: TorrentStreamEpisodeSectionPr
                                 key={episode.localFile?.path || ""}
                                 episode={episode}
                                 image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}
-                                topTitle={episode.episodeTitle || episode?.baseAnime?.title?.userPreferred}
+                                topTitle={episode.episodeTitle || displayTitle(episode?.baseAnime?.title)}
                                 title={episode.displayTitle}
                                 // meta={episode.episodeMetadata?.airDate ?? undefined}
                                 isInvalid={episode.isInvalid}
@@ -102,7 +103,7 @@ export function TorrentStreamEpisodeSection(props: TorrentStreamEpisodeSectionPr
                                 anime={{
                                     id: entry.mediaId,
                                     image: episode.baseAnime?.coverImage?.medium,
-                                    title: episode?.baseAnime?.title?.userPreferred,
+                                    title: displayTitle(episode?.baseAnime?.title),
                                 }}
                                 additionalContextMenuItems={<>
                                     {onPlayExternallyEpisodeClick && <ContextMenuItem
@@ -125,7 +126,7 @@ export function TorrentStreamEpisodeSection(props: TorrentStreamEpisodeSectionPr
                     return (<EpisodeGridItem
                             key={episode?.episodeNumber + (episode?.displayTitle || "")}
                             media={episode?.baseAnime as any}
-                            title={episode?.displayTitle || episode?.baseAnime?.title?.userPreferred || ""}
+                            title={episode?.displayTitle || displayTitle(episode?.baseAnime?.title) || ""}
                             image={episode?.episodeMetadata?.image || episode?.baseAnime?.coverImage?.large}
                             episodeTitle={episode?.episodeTitle}
                             onClick={() => {

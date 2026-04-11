@@ -611,8 +611,8 @@ export const narutoTheme: AnimeThemeConfig = {
         name: "NINE-TAILS CHAKRA MODE",
         durationMs: 45000,
         voiceText: "Nine Tails... lend me your power!",
-        voicePitch: 0.6,
-        voiceRate: 0.72,
+        voicePitch: 0,
+        voiceRate: 0,
         audioClipPath: "/public/themes/naruto-event.mp3",
     },
     previewColors: {
@@ -622,4 +622,10 @@ export const narutoTheme: AnimeThemeConfig = {
         accent: "#ff8c20",
     },
     hasAnimatedElements: true,
+    backgroundImageUrl: "https://w.wallhaven.cc/full/57/wallhaven-57z1r3.png",
+    particleTypes: {
+        leaves: { label: "Falling Leaves", maxCount: 15, defaultEnabled: true, defaultIntensity: 60 },
+        wisps: { label: "Chakra Wisps", maxCount: 10, defaultEnabled: true, defaultIntensity: 50 },
+        sharingan: { label: "Sharingan Watermark", maxCount: 1, defaultEnabled: true, defaultIntensity: 50 },
+    },
 }

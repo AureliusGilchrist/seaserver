@@ -4,12 +4,14 @@ import { useAtomValue } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ANIME_THEMES, ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
-import type { AnimeThemeId, AnimeThemeConfig } from "@/lib/theme/anime-themes"
+import type { AnimeThemeId, AnimeThemeConfig, ParticleTypeConfig } from "@/lib/theme/anime-themes"
 import { ThemeAnimatedOverlay } from "@/lib/theme/anime-themes/animated-elements"
 
 // ─────────────────────────────────────────────────────────────────
 // Context
 // ─────────────────────────────────────────────────────────────────
+
+type ParticleSettings = Record<string, { enabled: boolean; intensity: number }>
 
 type AnimeThemeContextValue = {
     themeId: AnimeThemeId
@@ -23,6 +25,9 @@ type AnimeThemeContextValue = {
     setMusicVolume: (v: number) => void
     animatedIntensity: number
     setAnimatedIntensity: (v: number) => void
+    particleSettings: ParticleSettings
+    setParticleTypeEnabled: (typeId: string, enabled: boolean) => void
+    setParticleTypeIntensity: (typeId: string, intensity: number) => void
 }
 
 const AnimeThemeContext = React.createContext<AnimeThemeContextValue | null>(null)
@@ -121,6 +126,77 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         try { localStorage.setItem(`sea-anime-particles-${profileKey}`, String(clamped)) } catch { }
     }, [profileKey])
 
+    // ── Per-particle-type settings ──
+    const particleStorageKey = `sea-anime-ptypes-${profileKey}-${themeId}`
+
+    const buildDefaultParticleSettings = React.useCallback((): ParticleSettings => {
+        const types = config.particleTypes ?? {}
+        const out: ParticleSettings = {}
+        for (const [k, v] of Object.entries(types)) {
+            out[k] = { enabled: v.defaultEnabled, intensity: v.defaultIntensity }
+        }
+        return out
+    }, [config.particleTypes])
+
+    const [particleSettings, setParticleSettingsRaw] = React.useState<ParticleSettings>(() => {
+        const defaults = (() => {
+            const types = (ANIME_THEMES[themeId as AnimeThemeId]?.particleTypes ?? {}) as Record<string, ParticleTypeConfig>
+            const out: ParticleSettings = {}
+            for (const [k, v] of Object.entries(types)) {
+                out[k] = { enabled: v.defaultEnabled, intensity: v.defaultIntensity }
+            }
+            return out
+        })()
+        if (typeof window === "undefined") return defaults
+        try {
+            const raw = localStorage.getItem(particleStorageKey)
+            if (raw) {
+                const parsed = JSON.parse(raw) as ParticleSettings
+                // merge with defaults so new particle types get defaults
+                return { ...defaults, ...parsed }
+            }
+        } catch { /* noop */ }
+        return defaults
+    })
+
+    // Reset particle settings when theme changes
+    React.useEffect(() => {
+        const defaults = buildDefaultParticleSettings()
+        try {
+            const raw = localStorage.getItem(particleStorageKey)
+            if (raw) {
+                const parsed = JSON.parse(raw) as ParticleSettings
+                setParticleSettingsRaw({ ...defaults, ...parsed })
+            } else {
+                setParticleSettingsRaw(defaults)
+            }
+        } catch {
+            setParticleSettingsRaw(defaults)
+        }
+    }, [themeId, particleStorageKey, buildDefaultParticleSettings])
+
+    const persistParticleSettings = React.useCallback((settings: ParticleSettings) => {
+        setParticleSettingsRaw(settings)
+        try { localStorage.setItem(particleStorageKey, JSON.stringify(settings)) } catch { }
+    }, [particleStorageKey])
+
+    const setParticleTypeEnabled = React.useCallback((typeId: string, enabled: boolean) => {
+        setParticleSettingsRaw((prev: ParticleSettings) => {
+            const next = { ...prev, [typeId]: { ...prev[typeId], enabled } }
+            try { localStorage.setItem(particleStorageKey, JSON.stringify(next)) } catch { }
+            return next
+        })
+    }, [particleStorageKey])
+
+    const setParticleTypeIntensity = React.useCallback((typeId: string, intensity: number) => {
+        const clamped = Math.max(0, Math.min(100, intensity))
+        setParticleSettingsRaw((prev: ParticleSettings) => {
+            const next = { ...prev, [typeId]: { ...prev[typeId], intensity: clamped } }
+            try { localStorage.setItem(particleStorageKey, JSON.stringify(next)) } catch { }
+            return next
+        })
+    }, [particleStorageKey])
+
     // ── CSS var injection ──
     React.useEffect(() => {
         const root = document.documentElement
@@ -132,6 +208,22 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             Object.keys(vars).forEach(k => root.style.removeProperty(k))
         }
     }, [config])
+
+    // ── Background image: hide default body:before AND body:after when theme bg is active ──
+    React.useEffect(() => {
+        const root = document.documentElement
+        if (config.backgroundImageUrl) {
+            root.style.setProperty("--body-bg-opacity", "0")
+            root.style.setProperty("--body-after-opacity", "0")
+        } else {
+            root.style.removeProperty("--body-bg-opacity")
+            root.style.removeProperty("--body-after-opacity")
+        }
+        return () => {
+            root.style.removeProperty("--body-bg-opacity")
+            root.style.removeProperty("--body-after-opacity")
+        }
+    }, [config.backgroundImageUrl])
 
     // ── Google Font injection ──
     React.useEffect(() => {
@@ -172,27 +264,26 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
 
         setIsEventActive(true)
 
-        // Voice synthesis
-        if (typeof window !== "undefined" && "speechSynthesis" in window) {
-            const utter = new SpeechSynthesisUtterance(config.event.voiceText)
-            utter.pitch = config.event.voicePitch
-            utter.rate = config.event.voiceRate
-            window.speechSynthesis.speak(utter)
-        }
-
-        // Audio clip
-        if (config.event.audioClipPath) {
-            try {
-                const audio = new Audio(config.event.audioClipPath)
-                audio.volume = 0.8
-                audio.play().catch(() => { /* user hasn't interacted yet, ignore */ })
-                audioRef.current = audio
-            } catch { /* noop */ }
-        }
-
         // Gear 5 body bounce
         if (config.event.isGear5) {
             document.body.classList.add("gear-5-active")
+        }
+
+        // Bleach Bankai: shift to dark red-black
+        if (config.id === "bleach") {
+            const root = document.documentElement
+            root.style.setProperty("--color-brand-200", "255 180 180")
+            root.style.setProperty("--color-brand-300", "220 100 100")
+            root.style.setProperty("--color-brand-400", "180 50 50")
+            root.style.setProperty("--color-brand-500", "140 25 25")
+            root.style.setProperty("--color-brand-600", "100 15 15")
+            root.style.setProperty("--color-brand-700", "70 10 10")
+            root.style.setProperty("--color-brand-800", "45 8 8")
+            root.style.setProperty("--color-brand-900", "25 5 5")
+            root.style.setProperty("--color-brand-950", "12 2 2")
+            root.style.setProperty("--brand", "200 60 60")
+            root.style.setProperty("--background", "#0a0202")
+            root.style.setProperty("--paper", "#120505")
         }
 
         // End event
@@ -201,6 +292,12 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             setIsEventActive(false)
             if (config.event.isGear5) {
                 document.body.classList.remove("gear-5-active")
+            }
+            // Bleach Bankai: restore original silver/black vars
+            if (config.id === "bleach") {
+                const root = document.documentElement
+                const vars = config.cssVars
+                Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v as string))
             }
         }, config.event.durationMs)
     }, [config, isEventActive])
@@ -246,13 +343,17 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setMusicVolume,
         animatedIntensity,
         setAnimatedIntensity,
-    }), [themeId, config, setThemeId, isEventActive, triggerEvent, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity])
+        particleSettings,
+        setParticleTypeEnabled,
+        setParticleTypeIntensity,
+    }), [themeId, config, setThemeId, isEventActive, triggerEvent, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity])
 
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
             <AnimeThemeMusicPlayer />
-            {config.hasAnimatedElements && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} />}
+            {config.backgroundImageUrl && <ThemeBackgroundImage url={config.backgroundImageUrl} />}
+            {config.hasAnimatedElements && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} />}
             {isEventActive && config.id === "naruto" && <NarutoEventOverlay />}
             {isEventActive && config.id === "bleach" && <BleachBankaiOverlay />}
             {isEventActive && config.id === "one-piece" && <OnePieceGear5Overlay />}
@@ -291,6 +392,30 @@ function AnimeThemeMusicPlayer() {
             loop
             preload="none"
             style={{ display: "none" }}
+        />
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Theme Background Image
+// ─────────────────────────────────────────────────────────────────
+
+function ThemeBackgroundImage({ url }: { url: string }) {
+    return (
+        <div
+            aria-hidden
+            style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: -2,
+                pointerEvents: "none",
+                backgroundImage: `url("${url}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                opacity: 0.35,
+                boxShadow: "inset 0 0 200px 80px rgba(0,0,0,0.85), inset 0 0 80px 40px rgba(0,0,0,0.6)",
+            }}
         />
     )
 }

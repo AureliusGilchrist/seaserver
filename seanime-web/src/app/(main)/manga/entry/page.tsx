@@ -9,6 +9,7 @@ import { MetaSection } from "@/app/(main)/manga/_components/meta-section"
 import { ChapterList } from "@/app/(main)/manga/_containers/chapter-list/chapter-list"
 import { useHandleMangaDownloadData } from "@/app/(main)/manga/_lib/handle-manga-downloads"
 import { PageWrapper } from "@/components/shared/page-wrapper"
+import { displayTitle } from "@/lib/helpers/media"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import React from "react"
 
@@ -36,8 +37,8 @@ export default function Page() {
 
     React.useEffect(() => {
         try {
-            if (mangaEntry?.media?.title?.romaji || mangaEntry?.media?.title?.english || mangaEntry?.media?.title?.userPreferred) {
-                document.title = `${mangaEntry?.media?.title?.romaji || mangaEntry?.media?.title?.english || mangaEntry?.media?.title?.userPreferred} | Seanime`
+            if (displayTitle(mangaEntry?.media?.title)) {
+                document.title = `${displayTitle(mangaEntry?.media?.title)} | Seanime`
             }
         }
         catch {

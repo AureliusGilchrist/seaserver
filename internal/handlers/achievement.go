@@ -185,3 +185,78 @@ func (h *Handler) HandleGetUserAchievements(c echo.Context) error {
 		},
 	})
 }
+
+// HandleImportAchievements
+//
+//	@summary retroactively evaluate all stat-based achievements and return newly unlocked ones.
+//	@desc Fetches current anime/manga collections and evaluates all collection-based achievements.
+//	@desc Returns a list of achievements that were newly unlocked by this import.
+//	@returns []achievement.UnlockPayload
+//	@route /api/v1/achievements/import [POST]
+func (h *Handler) HandleImportAchievements(c echo.Context) error {
+	profileID := h.GetProfileID(c)
+	database := h.GetProfileDatabase(c)
+
+	// Lazily init rows
+	h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+		ProfileID: profileID,
+		Trigger:   achievement.EvalTrigger("_init"),
+	})
+
+	// Snapshot current unlocked achievements
+	beforeUnlocked, err := database.GetUnlockedAchievements()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	beforeSet := make(map[string]bool, len(beforeUnlocked))
+	for _, a := range beforeUnlocked {
+		beforeSet[a.Key+":"+strconv.Itoa(a.Tier)] = true
+	}
+
+	// Get collections and build stats
+	animeCollection, _ := h.App.GetAnimeCollection(false)
+	mangaCollection, _ := h.App.GetMangaCollection(false)
+	stats := buildCollectionStats(animeCollection, mangaCollection)
+
+	// Evaluate all stat-based achievements
+	h.App.AchievementEngine.EvaluateCollectionStats(profileID, stats)
+
+	// Find newly unlocked
+	afterUnlocked, err := database.GetUnlockedAchievements()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	defMap := achievement.DefinitionMap()
+	var newlyUnlocked []achievement.UnlockPayload
+	for _, a := range afterUnlocked {
+		key := a.Key + ":" + strconv.Itoa(a.Tier)
+		if beforeSet[key] {
+			continue
+		}
+		def, ok := defMap[a.Key]
+		if !ok {
+			continue
+		}
+		tierName := ""
+		if a.Tier > 0 && a.Tier <= len(def.TierNames) {
+			tierName = def.TierNames[a.Tier-1]
+		}
+		catInfo := achievement.CategoryMap()[def.Category]
+		newlyUnlocked = append(newlyUnlocked, achievement.UnlockPayload{
+			Key:         a.Key,
+			Name:        def.Name,
+			Description: def.Description,
+			Tier:        a.Tier,
+			TierName:    tierName,
+			Category:    string(def.Category),
+			IconSVG:     catInfo.IconSVG,
+		})
+	}
+
+	if newlyUnlocked == nil {
+		newlyUnlocked = []achievement.UnlockPayload{}
+	}
+
+	return h.RespondWithData(c, newlyUnlocked)
+}

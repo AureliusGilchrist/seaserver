@@ -29,6 +29,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Modal } from "@/components/ui/modal"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useBoolean } from "@/hooks/use-disclosure"
+import { displayTitle } from "@/lib/helpers/media"
 import { useAtomValue } from "jotai/react"
 import React from "react"
 import { BiDotsVerticalRounded } from "react-icons/bi"
@@ -106,7 +107,7 @@ export function AutoDownloaderPage() {
             if (mediaA?.status === "NOT_YET_RELEASED") return 1
             if (mediaB?.status === "NOT_YET_RELEASED") return -1
         }
-        return mediaA?.title?.userPreferred?.localeCompare(mediaB?.title?.userPreferred ?? "") ?? 0
+        return displayTitle(mediaA?.title).localeCompare(displayTitle(mediaB?.title))
     }
 
     return (

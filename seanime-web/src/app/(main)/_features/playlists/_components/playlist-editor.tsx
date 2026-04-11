@@ -12,6 +12,7 @@ import { Modal } from "@/components/ui/modal"
 import { Select } from "@/components/ui/select"
 import { TextInput } from "@/components/ui/text-input"
 import { useDebounce } from "@/hooks/use-debounce"
+import { displayTitle } from "@/lib/helpers/media"
 import { getImageUrl } from "@/lib/server/assets"
 import { DndContext, DragEndEvent } from "@dnd-kit/core"
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
@@ -216,10 +217,7 @@ function PlaylistMediaEntryTrigger(props: PlaylistMediaEntryTriggerProps) {
                 className="object-center object-cover"
             />
             <p className="line-clamp-2 text-sm absolute m-2 bottom-0 font-semibold z-[10]">
-                {entry.media?.title?.romaji
-                    || entry.media?.title?.english
-                    || entry.media?.title?.native
-                    || entry.media?.title?.userPreferred}
+                {displayTitle(entry.media?.title)}
             </p>
             <div
                 className="z-[5] absolute bottom-0 w-full h-[80%] bg-gradient-to-t from-[--background] to-transparent"
@@ -248,11 +246,7 @@ export function PlaylistMediaEntry(props: PlaylistMediaEntryProps) {
                 setSelectedMedia(null)
             }
         }}
-        title={entry.media?.title?.romaji
-            || entry.media?.title?.english
-            || entry.media?.title?.native
-            || entry.media?.title?.userPreferred
-            || ""}
+        title={displayTitle(entry.media?.title)}
     >
         <EntryEpisodeList
             selectedEpisodes={episodes}
@@ -360,7 +354,7 @@ function SortableItem({ id, episode, setEpisodes }: {
                     />}
                 </div>
                 <div className="max-w-full space-y-1">
-                    <p className="text-sm text-[--muted] font-medium">{episode.episode?.baseAnime?.title?.userPreferred}</p>
+                    <p className="text-sm text-[--muted] font-medium">{displayTitle(episode.episode?.baseAnime?.title)}</p>
                     <p className="">{episode.episode?.baseAnime?.format !== "MOVIE"
                         ? `Episode ${episode.episode!.episodeNumber}`
                         : "Movie"}{episode.isCompleted ? ` (Watched)` : ""}</p>
