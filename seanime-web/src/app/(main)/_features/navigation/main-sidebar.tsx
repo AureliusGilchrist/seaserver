@@ -35,12 +35,14 @@ import { ANILIST_OAUTH_URL, ANILIST_PIN_URL } from "@/lib/server/config"
 import { TORRENT_CLIENT, TORRENT_PROVIDER } from "@/lib/server/settings"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useThemeSettings } from "@/lib/theme/hooks"
+import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { __isDesktop__, __isElectronDesktop__, __isTauriDesktop__ } from "@/types/constants"
 import { useAtom, useSetAtom } from "jotai"
 import { SeaLink as Link } from "@/components/shared/sea-link"
 import { usePathname, useRouter } from "@/lib/navigation"
 import React from "react"
 import { BiChevronRight, BiExtension, BiLogIn, BiLogOut } from "react-icons/bi"
+import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
@@ -130,6 +132,9 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     const router = useRouter()
     const pathname = usePathname()
     const serverStatus = useServerStatus()
+
+    // Anime theme
+    const { config: animeConfig } = useAnimeTheme()
 
     // Commands
     const { setSeaCommandOpen } = useSeaCommand()
@@ -285,6 +290,13 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             isCurrent: pathname.includes("/community"),
         },
         {
+            id: "achievements",
+            iconType: GiTrophyCup,
+            name: "Achievements",
+            href: "/achievements",
+            isCurrent: pathname === "/achievements",
+        },
+        {
             id: "search",
             iconType: FiSearch,
             name: "Search",
@@ -335,6 +347,13 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         window.addEventListener("resize", handleResize)
         return () => window.removeEventListener("resize", handleResize)
     }, [])
+
+    // Apply anime theme overrides (icon + label) to any item that has an override
+    const applyAnimeOverride = React.useCallback((item: any) => {
+        const ov = animeConfig.sidebarOverrides[item.id]
+        if (!ov) return item
+        return { ...item, iconType: ov.icon, name: ov.label }
+    }, [animeConfig.sidebarOverrides])
 
     const allPinnedItems = React.useMemo(() => {
         return items.filter(item => !ts.unpinnedMenuItems?.includes(item.id))
@@ -440,7 +459,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 itemChevronClass="hidden"
                 itemIconClass="transition-transform duration-300"
                 items={[
-                    ...displayedPinnedItems,
+                    ...displayedPinnedItems.map(applyAnimeOverride),
                     ...displayedPluginItems,
                     ...unpinnedMenuItems,
                     {
@@ -514,6 +533,14 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
     const serverStatus = useServerStatus()
     const user = useCurrentUser()
 
+    // Anime theme overrides
+    const { config: animeConfig } = useAnimeTheme()
+    const applyFooterOverride = React.useCallback((item: { id: string, iconType: any, name: string, [k: string]: any }) => {
+        const ov = animeConfig.sidebarOverrides[item.id]
+        if (!ov) return item
+        return { ...item, iconType: ov.icon, name: ov.label }
+    }, [animeConfig.sidebarOverrides])
+
     // Extensions
     const { data: updateData } = useGetExtensionUpdateData()
     const pluginWithIssuesCount = usePluginWithIssuesCount()
@@ -584,6 +611,14 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                         </>,
                     }] : [],
                     {
+                        id: "theme-manager",
+                        iconType: GiPalette,
+                        name: "Theme Manager",
+                        href: "/theme-manager",
+                        isCurrent: pathname === "/theme-manager",
+                    },
+                    applyFooterOverride({
+                        id: "extensions",
                         iconType: BiExtension,
                         name: "Extensions",
                         href: "/extensions",
@@ -596,8 +631,9 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                                 {updateData?.length || pluginWithIssuesCount || 1}
                             </Badge>
                             : undefined,
-                    },
-                    {
+                    }),
+                    applyFooterOverride({
+                        id: "sync",
                         iconType: IoCloudOfflineOutline,
                         name: "Offline",
                         href: "/sync",
@@ -610,13 +646,14 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                                 1
                             </Badge>
                             : undefined,
-                    },
-                    {
+                    }),
+                    applyFooterOverride({
+                        id: "settings",
                         iconType: LuSettings,
                         name: "Settings",
                         href: "/settings",
                         isCurrent: pathname === ("/settings"),
-                    },
+                    }),
                     ...(ctx.isBelowBreakpoint ? [
                         ...(serverStatus?.currentProfile ? [{
                             iconType: BiLogOut,

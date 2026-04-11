@@ -57,17 +57,17 @@ const (
 
 // Definition describes a single achievement (or the template for a tiered achievement).
 type Definition struct {
-	Key            string        `json:"key"`
-	Name           string        `json:"name"`
-	Description    string        `json:"description"`
-	Category       Category      `json:"category"`
-	IconSVG        string        `json:"iconSVG,omitempty"`
-	MaxTier        int           `json:"maxTier"`
-	TierThresholds []int         `json:"tierThresholds,omitempty"`
-	TierNames      []string      `json:"tierNames,omitempty"`
-	Triggers       []EvalTrigger `json:"triggers"`
-	XPReward       int           `json:"xpReward"`     // Base XP per tier unlock (0 = use default)
-	Difficulty     Difficulty    `json:"difficulty"`    // Difficulty rating for XP multiplier
+	Key            string        `json:"Key"`
+	Name           string        `json:"Name"`
+	Description    string        `json:"Description"`
+	Category       Category      `json:"Category"`
+	IconSVG        string        `json:"IconSVG,omitempty"`
+	MaxTier        int           `json:"MaxTier"`
+	TierThresholds []int         `json:"TierThresholds,omitempty"`
+	TierNames      []string      `json:"TierNames,omitempty"`
+	Triggers       []EvalTrigger `json:"Triggers"`
+	XPReward       int           `json:"XPReward"`     // Base XP per tier unlock (0 = use default)
+	Difficulty     Difficulty    `json:"Difficulty"`    // Difficulty rating for XP multiplier
 }
 
 // Difficulty represents how hard an achievement is to earn.
@@ -98,10 +98,10 @@ func DifficultyMultiplier(d Difficulty) float64 {
 
 // CategoryInfo provides display metadata for categories.
 type CategoryInfo struct {
-	Key         Category `json:"key"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	IconSVG     string   `json:"iconSVG"`
+	Key         Category `json:"Key"`
+	Name        string   `json:"Name"`
+	Description string   `json:"Description"`
+	IconSVG     string   `json:"IconSVG"`
 }
 
 // TierLabel returns the Roman numeral label for a tier (1-10).

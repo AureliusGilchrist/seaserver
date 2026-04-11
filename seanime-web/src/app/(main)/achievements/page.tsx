@@ -16,6 +16,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { StaticTabs } from "@/components/ui/tabs"
 import React from "react"
 import { LuTrophy, LuLock } from "react-icons/lu"
+import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
 
 export default function Page() {
     const { data, isLoading } = useGetAchievements()
@@ -166,6 +167,8 @@ function AchievementCard({ definition, entryMap }: {
     definition: Achievement_Definition
     entryMap: Map<string, Achievement_Entry>
 }) {
+    const { config: animeConfig } = useAnimeTheme()
+    const achievementName = animeConfig.achievementNames[definition.Key] ?? definition.Name
     const maxTier = definition.MaxTier || 0
     const isOneTime = maxTier === 0
 
@@ -184,7 +187,7 @@ function AchievementCard({ definition, entryMap }: {
                 <AchievementIcon svg={definition.IconSVG} isUnlocked={isUnlocked} />
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm truncate">{definition.Name}</span>
+                        <span className="font-semibold text-sm truncate">{achievementName}</span>
                         {isUnlocked && <Badge size="sm" intent="warning">Unlocked</Badge>}
                     </div>
                     <p className="text-xs text-[--muted] mt-0.5">{definition.Description}</p>
@@ -225,7 +228,7 @@ function AchievementCard({ definition, entryMap }: {
             <AchievementIcon svg={definition.IconSVG} isUnlocked={highestUnlockedTier > 0} />
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm truncate">{definition.Name}</span>
+                    <span className="font-semibold text-sm truncate">{achievementName}</span>
                     {highestUnlockedTier > 0 && (
                         <Badge size="sm" intent={isFullyUnlocked ? "warning" : "primary"}>
                             {definition.TierNames?.[highestUnlockedTier - 1] ?? `Tier ${highestUnlockedTier}`}
