@@ -16,6 +16,8 @@ export default function ThemeManagerPage() {
         setMusicVolume,
         triggerEvent,
         config,
+        animatedIntensity,
+        setAnimatedIntensity,
     } = useAnimeTheme()
 
     return (
@@ -169,6 +171,54 @@ export default function ThemeManagerPage() {
                         <div>Opening music: <code className="text-[--color-brand-400]">{config.musicUrl.replace("/public", "seanime-web/public")}</code></div>
                         <div>Event clip: <code className="text-[--color-brand-400]">{config.event.audioClipPath.replace("/public", "seanime-web/public")}</code></div>
                         <div className="pt-1 text-white/40">Drop your own files at those paths — they will be played automatically.</div>
+                    </div>
+                </div>
+            )}
+
+            {/* Animated Elements */}
+            {config.hasAnimatedElements && (
+                <div className="rounded-2xl border border-[--border] bg-[--paper] p-6 space-y-6">
+                    <h2
+                        className="text-xl font-semibold"
+                        style={{ fontFamily: config.fontFamily }}
+                    >
+                        Animated Elements
+                    </h2>
+                    <p className="text-sm text-[--muted]">
+                        {config.id === "naruto" && "Falling leaves, chakra wisps, and a Sharingan watermark float around Konoha."}
+                        {config.id === "bleach" && "Karakura Town at night with hollows prowling the rooftops, drifting masks, reiatsu wisps, and soul butterflies."}
+                        {config.id === "one-piece" && "Ocean waves, Sabaody bubbles, and the Straw Hat Jolly Roger."}
+                    </p>
+
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm text-[--muted] w-20 shrink-0">Intensity</span>
+                        <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={animatedIntensity}
+                            onChange={e => setAnimatedIntensity(Number(e.target.value))}
+                            className="w-56 accent-[--color-brand-500]"
+                        />
+                        <span className="text-sm text-[--muted] w-10 text-right">{animatedIntensity}%</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                        {[0, 25, 50, 75, 100].map(preset => (
+                            <button
+                                key={preset}
+                                onClick={() => setAnimatedIntensity(preset)}
+                                className={cn(
+                                    "px-3 py-1 rounded-md text-xs font-medium transition-colors",
+                                    animatedIntensity === preset
+                                        ? "bg-[--color-brand-600] text-white"
+                                        : "bg-[--color-gray-800] text-[--muted] hover:bg-[--color-gray-700]",
+                                )}
+                            >
+                                {preset === 0 ? "Off" : `${preset}%`}
+                            </button>
+                        ))}
                     </div>
                 </div>
             )}

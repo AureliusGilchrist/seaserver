@@ -614,4 +614,5 @@ export const onePieceTheme: AnimeThemeConfig = {
         secondary: "#3a5a7a",
         accent: "#e8c060",
     },
+    hasAnimatedElements: true,
 }

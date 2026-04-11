@@ -1153,3 +1153,170 @@ media-preview-chapter-display {
 :root[style*="--font-anime-theme"] h3 {
     font-family: var(--font-anime-theme), sans-serif;
 }
+
+/* Extend theme font to sidebar nav item labels */
+:root[style*="--font-anime-theme"] .UI-VerticalMenu__item,
+:root[style*="--font-anime-theme"] .UI-VerticalMenu__item a,
+:root[style*="--font-anime-theme"] .UI-VerticalMenu__item button,
+:root[style*="--font-anime-theme"] .UI-VerticalMenu__itemContent {
+    font-family: var(--font-anime-theme), sans-serif;
+    letter-spacing: 0.03em;
+}
+
+/* Extend to page-level section headers (e.g. tabs, subtitles, card titles) */
+:root[style*="--font-anime-theme"] h4,
+:root[style*="--font-anime-theme"] h5,
+:root[style*="--font-anime-theme"] h6 {
+    font-family: var(--font-anime-theme), sans-serif;
+}
+
+/* Themed buttons and action text */
+:root[style*="--font-anime-theme"] [class*="UI-Button"] {
+    font-family: var(--font-anime-theme), sans-serif;
+    letter-spacing: 0.04em;
+}
+
+/* Breadcrumbs and nav tabs */
+:root[style*="--font-anime-theme"] [class*="TabsTrigger"],
+:root[style*="--font-anime-theme"] [aria-label*="breadcrumb"] {
+    font-family: var(--font-anime-theme), sans-serif;
+}
+
+/* Achievement card names / tier labels */
+:root[style*="--font-anime-theme"] [class*="achievement"] h4,
+:root[style*="--font-anime-theme"] [class*="achievement"] p {
+    font-family: var(--font-anime-theme), sans-serif;
+}
+
+/* ── Animated Theme Elements ── */
+
+/* Naruto: falling leaf with lateral sway */
+@keyframes leafFall {
+    0%   { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; }
+    5%   { opacity: 0.7; }
+    50%  { transform: translateY(50vh) translateX(40px) rotate(180deg); opacity: 0.6; }
+    100% { transform: translateY(105vh) translateX(-30px) rotate(360deg); opacity: 0; }
+}
+.animate-leaf-fall {
+    animation: leafFall 10s ease-in-out infinite;
+}
+
+/* Naruto: chakra wisp floating upward with pulse */
+@keyframes chakraWisp {
+    0%   { transform: translateY(0) scale(1); opacity: 0; }
+    10%  { opacity: 0.8; }
+    50%  { transform: translateY(-30vh) scale(1.4); opacity: 0.5; }
+    100% { transform: translateY(-60vh) scale(0.6); opacity: 0; }
+}
+.animate-chakra-wisp {
+    animation: chakraWisp 6s ease-in-out infinite;
+}
+
+/* Naruto: slow spin for Sharingan */
+@keyframes slowSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+.animate-slow-spin {
+    animation: slowSpin 30s linear infinite;
+}
+
+/* Bleach: Hollow mask drifting diagonally */
+@keyframes hollowDrift {
+    0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+    8%   { opacity: 1; }
+    50%  { transform: translate(-60px, 30px) rotate(8deg); }
+    92%  { opacity: 1; }
+    100% { transform: translate(-120px, 60px) rotate(-5deg); opacity: 0; }
+}
+.animate-hollow-drift {
+    animation: hollowDrift 16s ease-in-out infinite;
+}
+
+/* Bleach: rooftop hollow prowl */
+@keyframes hollowProwl {
+    0%   { transform: translateX(0) translateY(0) scale(1); }
+    25%  { transform: translateX(6px) translateY(-1px) scale(1.04); }
+    50%  { transform: translateX(-5px) translateY(1px) scale(0.97); }
+    75%  { transform: translateX(4px) translateY(0) scale(1.03); }
+    100% { transform: translateX(0) translateY(0) scale(1); }
+}
+.animate-hollow-prowl {
+    animation: hollowProwl 6s ease-in-out infinite;
+}
+
+/* Bleach: reiatsu particles rising */
+@keyframes reiatsuRise {
+    0%   { transform: translateY(0) scale(1); opacity: 0; }
+    10%  { opacity: 0.7; }
+    50%  { transform: translateY(-40vh) scale(1.5); opacity: 0.4; }
+    100% { transform: translateY(-80vh) scale(0.5); opacity: 0; }
+}
+.animate-reiatsu-rise {
+    animation: reiatsuRise 7s ease-in-out infinite;
+}
+
+/* Bleach: soul butterfly drifting across screen */
+@keyframes butterflyDrift {
+    0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+    5%   { opacity: 1; }
+    25%  { transform: translate(-25vw, -20px) rotate(-3deg); }
+    50%  { transform: translate(-50vw, 15px) rotate(2deg); }
+    75%  { transform: translate(-75vw, -10px) rotate(-2deg); }
+    95%  { opacity: 1; }
+    100% { transform: translate(-105vw, 5px) rotate(0deg); opacity: 0; }
+}
+.animate-butterfly-drift {
+    animation: butterflyDrift 20s ease-in-out infinite;
+}
+
+/* Bleach: slash flash */
+@keyframes slashFlash {
+    0%   { opacity: 0; }
+    20%  { opacity: 1; }
+    100% { opacity: 0; }
+}
+.animate-slash-flash {
+    animation: slashFlash 0.4s ease-out forwards;
+}
+
+/* One Piece: wave layers drifting horizontally */
+@keyframes waveDriftSlow {
+    0%   { transform: translateX(0); }
+    50%  { transform: translateX(-30px); }
+    100% { transform: translateX(0); }
+}
+.animate-wave-drift-slow {
+    animation: waveDriftSlow 8s ease-in-out infinite;
+}
+
+@keyframes waveDriftMid {
+    0%   { transform: translateX(0); }
+    50%  { transform: translateX(25px); }
+    100% { transform: translateX(0); }
+}
+.animate-wave-drift-mid {
+    animation: waveDriftMid 6s ease-in-out infinite;
+}
+
+@keyframes waveDriftFast {
+    0%   { transform: translateX(0); }
+    50%  { transform: translateX(-20px); }
+    100% { transform: translateX(0); }
+}
+.animate-wave-drift-fast {
+    animation: waveDriftFast 4s ease-in-out infinite;
+}
+
+/* One Piece: Sabaody bubble rising and popping */
+@keyframes bubbleRise {
+    0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+    10%  { opacity: 0.6; transform: translateY(-5vh) scale(0.8); }
+    40%  { transform: translateY(-35vh) translateX(15px) scale(1); opacity: 0.5; }
+    70%  { transform: translateY(-65vh) translateX(-10px) scale(1.1); opacity: 0.4; }
+    90%  { transform: translateY(-85vh) scale(1.15); opacity: 0.2; }
+    100% { transform: translateY(-95vh) scale(1.3); opacity: 0; }
+}
+.animate-bubble-rise {
+    animation: bubbleRise 8s ease-in-out infinite;
+}

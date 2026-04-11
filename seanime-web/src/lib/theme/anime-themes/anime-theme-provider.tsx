@@ -5,6 +5,7 @@ import { atomWithStorage } from "jotai/utils"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ANIME_THEMES, ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
 import type { AnimeThemeId, AnimeThemeConfig } from "@/lib/theme/anime-themes"
+import { ThemeAnimatedOverlay } from "@/lib/theme/anime-themes/animated-elements"
 
 // ─────────────────────────────────────────────────────────────────
 // Context
@@ -20,6 +21,8 @@ type AnimeThemeContextValue = {
     setMusicEnabled: (v: boolean) => void
     musicVolume: number
     setMusicVolume: (v: number) => void
+    animatedIntensity: number
+    setAnimatedIntensity: (v: number) => void
 }
 
 const AnimeThemeContext = React.createContext<AnimeThemeContextValue | null>(null)
@@ -28,6 +31,15 @@ export function useAnimeTheme(): AnimeThemeContextValue {
     const ctx = React.useContext(AnimeThemeContext)
     if (!ctx) throw new Error("useAnimeTheme must be used inside AnimeThemeProvider")
     return ctx
+}
+
+/**
+ * Safe version — returns null if called outside AnimeThemeProvider.
+ * Use this in sidebar/layout components to prevent a missing-provider crash
+ * from cascading up and hiding sibling UI (e.g. the user avatar dropdown).
+ */
+export function useAnimeThemeOrNull(): AnimeThemeContextValue | null {
+    return React.useContext(AnimeThemeContext)
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -92,6 +104,21 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const setMusicVolume = React.useCallback((v: number) => {
         setMusicVolumeRaw(v)
         try { localStorage.setItem(`sea-anime-vol-${profileKey}`, String(v)) } catch { }
+    }, [profileKey])
+
+    // ── Animated elements intensity ──
+    const [animatedIntensity, setAnimatedIntensityRaw] = React.useState<number>(() => {
+        if (typeof window === "undefined") return 50
+        try {
+            const v = parseInt(localStorage.getItem(`sea-anime-particles-${profileKey}`) ?? "", 10)
+            return isNaN(v) ? 50 : Math.max(0, Math.min(100, v))
+        } catch { return 50 }
+    })
+
+    const setAnimatedIntensity = React.useCallback((v: number) => {
+        const clamped = Math.max(0, Math.min(100, v))
+        setAnimatedIntensityRaw(clamped)
+        try { localStorage.setItem(`sea-anime-particles-${profileKey}`, String(clamped)) } catch { }
     }, [profileKey])
 
     // ── CSS var injection ──
@@ -217,12 +244,15 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setMusicEnabled,
         musicVolume,
         setMusicVolume,
-    }), [themeId, config, setThemeId, isEventActive, triggerEvent, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume])
+        animatedIntensity,
+        setAnimatedIntensity,
+    }), [themeId, config, setThemeId, isEventActive, triggerEvent, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity])
 
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
             <AnimeThemeMusicPlayer />
+            {config.hasAnimatedElements && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} />}
             {isEventActive && config.id === "naruto" && <NarutoEventOverlay />}
             {isEventActive && config.id === "bleach" && <BleachBankaiOverlay />}
             {isEventActive && config.id === "one-piece" && <OnePieceGear5Overlay />}

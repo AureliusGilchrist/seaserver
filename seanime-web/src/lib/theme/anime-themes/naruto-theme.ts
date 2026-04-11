@@ -621,4 +621,5 @@ export const narutoTheme: AnimeThemeConfig = {
         secondary: "#f07010",
         accent: "#ff8c20",
     },
+    hasAnimatedElements: true,
 }

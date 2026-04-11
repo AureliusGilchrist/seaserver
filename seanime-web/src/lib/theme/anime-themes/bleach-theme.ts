@@ -614,4 +614,5 @@ export const bleachTheme: AnimeThemeConfig = {
         secondary: "#8090c8",
         accent: "#c0c8f0",
     },
+    hasAnimatedElements: true,
 }

@@ -46,4 +46,6 @@ export type AnimeThemeConfig = {
         accent: string
         bg: string
     }
+    /** Whether this theme has animated background elements */
+    hasAnimatedElements?: boolean
 }

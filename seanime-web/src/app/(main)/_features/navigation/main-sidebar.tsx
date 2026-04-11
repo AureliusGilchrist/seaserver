@@ -35,7 +35,8 @@ import { ANILIST_OAUTH_URL, ANILIST_PIN_URL } from "@/lib/server/config"
 import { TORRENT_CLIENT, TORRENT_PROVIDER } from "@/lib/server/settings"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useThemeSettings } from "@/lib/theme/hooks"
-import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { __isDesktop__, __isElectronDesktop__, __isTauriDesktop__ } from "@/types/constants"
 import { useAtom, useSetAtom } from "jotai"
 import { SeaLink as Link } from "@/components/shared/sea-link"
@@ -133,8 +134,9 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     const pathname = usePathname()
     const serverStatus = useServerStatus()
 
-    // Anime theme
-    const { config: animeConfig } = useAnimeTheme()
+    // Anime theme (safe: null if provider not yet mounted — prevents crash hiding avatar)
+    const animeTheme = useAnimeThemeOrNull()
+    const animeConfig = animeTheme?.config ?? ANIME_THEMES["seanime"]
 
     // Commands
     const { setSeaCommandOpen } = useSeaCommand()
@@ -533,8 +535,9 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
     const serverStatus = useServerStatus()
     const user = useCurrentUser()
 
-    // Anime theme overrides
-    const { config: animeConfig } = useAnimeTheme()
+    // Anime theme overrides (safe: null if provider not yet mounted — prevents crash hiding avatar)
+    const animeTheme = useAnimeThemeOrNull()
+    const animeConfig = animeTheme?.config ?? ANIME_THEMES["seanime"]
     const applyFooterOverride = React.useCallback((item: { id: string, iconType: any, name: string, [k: string]: any }) => {
         const ov = animeConfig.sidebarOverrides[item.id]
         if (!ov) return item
