@@ -17,6 +17,7 @@ import { Route as MainIndexRouteImport } from './routes/_main/index'
 import { Route as MainErrorTestRouteImport } from './routes/_main/error-test'
 import { Route as SplashscreenCrashIndexRouteImport } from './routes/splashscreen/crash/index'
 import { Route as PublicAuthIndexRouteImport } from './routes/public/auth/index'
+import { Route as MainThemeManagerIndexRouteImport } from './routes/_main/theme-manager/index'
 import { Route as MainStudioIndexRouteImport } from './routes/_main/studio/index'
 import { Route as MainStaffIndexRouteImport } from './routes/_main/staff/index'
 import { Route as MainSettingsIndexRouteImport } from './routes/_main/settings/index'
@@ -219,6 +220,13 @@ const PublicAuthIndexRoute = PublicAuthIndexRouteImport.update({
   path: '/public/auth/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MainThemeManagerIndexRoute = MainThemeManagerIndexRouteImport.update({
+  id: '/theme-manager/',
+  path: '/theme-manager/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/theme-manager/index.lazy').then((d) => d.Route),
+)
 const MainStudioIndexRoute = MainStudioIndexRouteImport.update({
   id: '/studio/',
   path: '/studio/',
@@ -410,6 +418,7 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof MainSettingsIndexRoute
   '/staff/': typeof MainStaffIndexRoute
   '/studio/': typeof MainStudioIndexRoute
+  '/theme-manager/': typeof MainThemeManagerIndexRoute
   '/public/auth/': typeof PublicAuthIndexRoute
   '/splashscreen/crash/': typeof SplashscreenCrashIndexRoute
   '/auto-downloader/': typeof MainAutoDownloaderIndexLazyRoute
@@ -456,6 +465,7 @@ export interface FileRoutesByTo {
   '/settings': typeof MainSettingsIndexRoute
   '/staff': typeof MainStaffIndexRoute
   '/studio': typeof MainStudioIndexRoute
+  '/theme-manager': typeof MainThemeManagerIndexRoute
   '/public/auth': typeof PublicAuthIndexRoute
   '/splashscreen/crash': typeof SplashscreenCrashIndexRoute
   '/auto-downloader': typeof MainAutoDownloaderIndexLazyRoute
@@ -504,6 +514,7 @@ export interface FileRoutesById {
   '/_main/settings/': typeof MainSettingsIndexRoute
   '/_main/staff/': typeof MainStaffIndexRoute
   '/_main/studio/': typeof MainStudioIndexRoute
+  '/_main/theme-manager/': typeof MainThemeManagerIndexRoute
   '/public/auth/': typeof PublicAuthIndexRoute
   '/splashscreen/crash/': typeof SplashscreenCrashIndexRoute
   '/_main/auto-downloader/': typeof MainAutoDownloaderIndexLazyRoute
@@ -552,6 +563,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/staff/'
     | '/studio/'
+    | '/theme-manager/'
     | '/public/auth/'
     | '/splashscreen/crash/'
     | '/auto-downloader/'
@@ -598,6 +610,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/staff'
     | '/studio'
+    | '/theme-manager'
     | '/public/auth'
     | '/splashscreen/crash'
     | '/auto-downloader'
@@ -645,6 +658,7 @@ export interface FileRouteTypes {
     | '/_main/settings/'
     | '/_main/staff/'
     | '/_main/studio/'
+    | '/_main/theme-manager/'
     | '/public/auth/'
     | '/splashscreen/crash/'
     | '/_main/auto-downloader/'
@@ -838,6 +852,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicAuthIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_main/theme-manager/': {
+      id: '/_main/theme-manager/'
+      path: '/theme-manager'
+      fullPath: '/theme-manager/'
+      preLoaderRoute: typeof MainThemeManagerIndexRouteImport
+      parentRoute: typeof MainRoute
+    }
     '/_main/studio/': {
       id: '/_main/studio/'
       path: '/studio'
@@ -1018,6 +1039,7 @@ interface MainRouteChildren {
   MainSettingsIndexRoute: typeof MainSettingsIndexRoute
   MainStaffIndexRoute: typeof MainStaffIndexRoute
   MainStudioIndexRoute: typeof MainStudioIndexRoute
+  MainThemeManagerIndexRoute: typeof MainThemeManagerIndexRoute
   MainAutoDownloaderIndexLazyRoute: typeof MainAutoDownloaderIndexLazyRoute
   MainDebridIndexLazyRoute: typeof MainDebridIndexLazyRoute
   MainEnmasseAnimeIndexLazyRoute: typeof MainEnmasseAnimeIndexLazyRoute
@@ -1059,6 +1081,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainSettingsIndexRoute: MainSettingsIndexRoute,
   MainStaffIndexRoute: MainStaffIndexRoute,
   MainStudioIndexRoute: MainStudioIndexRoute,
+  MainThemeManagerIndexRoute: MainThemeManagerIndexRoute,
   MainAutoDownloaderIndexLazyRoute: MainAutoDownloaderIndexLazyRoute,
   MainDebridIndexLazyRoute: MainDebridIndexLazyRoute,
   MainEnmasseAnimeIndexLazyRoute: MainEnmasseAnimeIndexLazyRoute,

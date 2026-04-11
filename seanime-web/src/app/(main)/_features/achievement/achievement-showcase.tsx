@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/modal"
 import React from "react"
 import { LuPlus, LuTrophy, LuX } from "react-icons/lu"
 import { toast } from "sonner"
+import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
 
 const MAX_SHOWCASE_SLOTS = 6
 
@@ -19,6 +20,7 @@ export function AchievementShowcase() {
     const [isEditing, setIsEditing] = React.useState(false)
     const [editSlots, setEditSlots] = React.useState<Array<{ achievementKey: string, achievementTier: number }>>([])
     const [pickerSlot, setPickerSlot] = React.useState<number | null>(null)
+    const { config: animeConfig } = useAnimeTheme()
 
     const defMap = React.useMemo(() => {
         const map = new Map<string, Achievement_Definition>()
@@ -170,7 +172,7 @@ export function AchievementShowcase() {
                                     <div className="size-8 flex items-center justify-center rounded bg-yellow-500/20 text-yellow-500 [&>svg]:size-5">
                                         <span dangerouslySetInnerHTML={{ __html: def.IconSVG }} />
                                     </div>
-                                    <span className="text-xs font-medium truncate">{def.Name}</span>
+                                    <span className="text-xs font-medium truncate">{animeConfig.achievementNames[def.Key] ?? def.Name}</span>
                                 </button>
                             )
                         }
@@ -191,7 +193,7 @@ export function AchievementShowcase() {
                                     <span dangerouslySetInnerHTML={{ __html: def.IconSVG }} />
                                 </div>
                                 <div className="min-w-0">
-                                    <span className="text-xs font-medium truncate block">{def.Name}</span>
+                                    <span className="text-xs font-medium truncate block">{animeConfig.achievementNames[def.Key] ?? def.Name}</span>
                                     <span className="text-xs text-[--muted]">{def.TierNames?.[highestTier - 1] ?? `Tier ${highestTier}`}</span>
                                 </div>
                             </button>
@@ -204,6 +206,8 @@ export function AchievementShowcase() {
 }
 
 function ShowcaseBadge({ definition, tier }: { definition: Achievement_Definition, tier: number }) {
+    const { config: animeConfig } = useAnimeTheme()
+    const achievementName = animeConfig.achievementNames[definition.Key] ?? definition.Name
     const tierName = tier > 0 ? definition.TierNames?.[tier - 1] : undefined
     return (
         <div className={cn(
@@ -214,7 +218,7 @@ function ShowcaseBadge({ definition, tier }: { definition: Achievement_Definitio
                 className="size-5 [&>svg]:size-5"
                 dangerouslySetInnerHTML={{ __html: definition.IconSVG }}
             />
-            <span className="text-xs font-semibold">{definition.Name}</span>
+            <span className="text-xs font-semibold">{achievementName}</span>
             {tierName && <Badge size="sm" intent="warning">{tierName}</Badge>}
         </div>
     )

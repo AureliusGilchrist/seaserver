@@ -38,6 +38,7 @@ import React from "react"
 import { useServerStatus } from "../../_hooks/use-server-status"
 import { useInvalidateQueriesListener } from "../../_listeners/invalidate-queries.listeners"
 import { Announcements } from "../announcements"
+import { AnimeThemeProvider } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { NakamaManager } from "../nakama/nakama-manager"
 import { NakamaWatchPartyChat, NakamaWatchPartyChatProvider } from "../nakama/nakama-watch-party-chat"
 import { NativePlayer } from "../native-player/native-player"
@@ -47,6 +48,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
     return (
         <>
+            <AnimeThemeProvider>
             <Loader />
             <ScanProgressBar />
             <MangaChapterMigrationProgressBar />
@@ -87,6 +89,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
                     </AppLayout>
                 </AppLayout>
             </AppSidebarProvider>
+            </AnimeThemeProvider>
         </>
     )
 }

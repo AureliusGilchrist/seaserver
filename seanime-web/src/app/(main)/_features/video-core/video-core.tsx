@@ -677,6 +677,7 @@ export function VideoCore(props: VideoCoreProps) {
     React.useEffect(() => {
         setIsMobilePlayer(windowWidth < 1024)
     }, [windowWidth < 1024])
+    const vcWatchContinuity = useAtomValue(vc_watchContinuityAtom)
 
     const setVideoElement = useSetAtom(vc_videoElement)
     const setRealVideoSize = useSetAtom(vc_realVideoSize)

@@ -1,0 +1,56 @@
+ANIME THEME SYSTEM — ARTIST & FONT CREDITS
+==========================================
+
+This file credits all third-party creative works used in the Seanime anime theme system.
+
+───────────────────────────────────────────────────────────────────
+FONTS (Google Fonts — Open Font License)
+───────────────────────────────────────────────────────────────────
+
+Naruto Theme (Bangers)
+  Font:    Bangers
+  Author:  Vernon Adams
+  License: SIL Open Font License 1.1 (OFL)
+  Source:  https://fonts.google.com/specimen/Bangers
+
+Bleach Theme (Cinzel Decorative)
+  Font:    Cinzel Decorative
+  Author:  Natanael Gama
+  License: SIL Open Font License 1.1 (OFL)
+  Source:  https://fonts.google.com/specimen/Cinzel+Decorative
+
+One Piece Theme (Boogaloo)
+  Font:    Boogaloo
+  Author:  John Vargas Beltrán
+  License: SIL Open Font License 1.1 (OFL)
+  Source:  https://fonts.google.com/specimen/Boogaloo
+
+───────────────────────────────────────────────────────────────────
+AUDIO FILE SLOTS (User-supplied — not bundled)
+───────────────────────────────────────────────────────────────────
+
+The theme system supports optional user-supplied audio files.
+No audio files are bundled with Seanime. Drop your own files at:
+
+  seanime-web/public/themes/naruto-opening.mp3    — Naruto background music
+  seanime-web/public/themes/naruto-event.mp3      — Nine-Tails event audio clip
+  seanime-web/public/themes/bleach-opening.mp3    — Bleach background music
+  seanime-web/public/themes/bleach-bankai.mp3     — Bankai event audio clip
+  seanime-web/public/themes/one-piece-opening.mp3 — One Piece background music
+  seanime-web/public/themes/one-piece-gear5.mp3   — Gear 5 event audio clip
+
+You are solely responsible for ensuring you have the right to use
+any audio files you place in these slots. Seanime does not endorse
+any copyright infringement.
+
+───────────────────────────────────────────────────────────────────
+ICONS (react-icons — MIT License)
+───────────────────────────────────────────────────────────────────
+
+Theme icons use the react-icons package (https://react-icons.github.io/react-icons/),
+specifically the Game Icons (gi) subset.
+
+  Game Icons: https://game-icons.net (CC BY 3.0)
+  Game Icons authors: Lorc, Delapouite, and hundreds of contributors.
+  License:    Creative Commons Attribution 3.0 Unported (CC BY 3.0)
+  Attribution: https://game-icons.net/about.html#authors
