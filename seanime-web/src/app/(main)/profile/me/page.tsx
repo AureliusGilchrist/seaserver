@@ -90,6 +90,7 @@ export default function Page() {
 
     return (
         <>
+            {/* Banner */}
             {profile!.bannerImage ? (
                 <div className="relative h-48 w-full overflow-hidden">
                     <div
@@ -101,9 +102,9 @@ export default function Page() {
             ) : (
                 <CustomLibraryBanner discrete />
             )}
-            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-20 relative z-10")}>
-                {/* Profile header */}
-                <div className="flex items-center gap-6">
+            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-20 relative z-10")}> 
+                {/* Unified Profile Header */}
+                <div className="flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border]">
                     <LevelRingAvatar
                         profile={{
                             currentLevel: level?.currentLevel ?? 1,
@@ -112,78 +113,79 @@ export default function Page() {
                             anilistAvatar: profile!.anilistAvatar,
                             name: profile!.name,
                         }}
-                        size={100}
+                        size={120}
                     />
-                    <div className="space-y-1 flex-1">
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold">{profile!.name}</h1>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                            <h1 className="text-3xl font-bold truncate">{profile!.name}{profile!.anilistUsername && (
+                                <span className="text-[--muted] font-normal"> ({profile!.anilistUsername})</span>
+                            )}</h1>
+                            <span className={cn("text-lg font-bold", levelColors.label)}>
+                                Level {level?.currentLevel ?? 1}
+                            </span>
                             {level && level.multiplier > 1 && (
                                 <ActivityMultiplierBadge multiplier={level.multiplier} />
                             )}
                         </div>
-                        <p className={cn("text-lg font-bold", levelColors.label)}>
-                            Level {level?.currentLevel ?? 1}
-                        </p>
-                        {editingBio ? (
-                            <div className="flex items-center gap-2">
-                                <textarea
-                                    className="bg-[--subtle] border border-[--border] rounded px-2 py-1 text-sm w-64 resize-none"
-                                    rows={2}
-                                    maxLength={500}
-                                    value={bioText}
-                                    onChange={(e) => setBioText(e.target.value)}
-                                    autoFocus
-                                />
-                                <button
-                                    className="p-1 text-green-400 hover:text-green-300"
-                                    onClick={() => {
-                                        updateBio({ bio: bioText })
-                                        setEditingBio(false)
-                                    }}
-                                    disabled={isUpdatingBio}
-                                >
-                                    <LuCheck className="size-4" />
-                                </button>
-                                <button
-                                    className="p-1 text-red-400 hover:text-red-300"
-                                    onClick={() => setEditingBio(false)}
-                                >
-                                    <LuX className="size-4" />
-                                </button>
+                        <div className="flex flex-wrap items-center gap-6 mt-2">
+                            <div className="flex items-center gap-2 text-[--muted]">
+                                <LuStar className="size-4" />
+                                <span className="font-semibold">{(level?.totalXP ?? 0).toLocaleString()}</span>
+                                <span className="text-sm">Total XP</span>
                             </div>
-                        ) : (
-                            <div className="flex items-center gap-2">
-                                <p className="text-[--muted] text-sm max-w-md">
-                                    {profile!.bio || "No bio yet"}
-                                </p>
-                                <button
-                                    className="p-1 text-[--muted] hover:text-white"
-                                    onClick={() => {
-                                        setBioText(profile!.bio || "")
-                                        setEditingBio(true)
-                                    }}
-                                >
-                                    <LuPencil className="size-3" />
-                                </button>
+                            <div className="flex items-center gap-2 text-[--muted]">
+                                <LuTrophy className="size-4" />
+                                <span className="font-semibold">{achievementSummary?.unlockedCount ?? 0}</span>
+                                <span className="text-sm">/ {achievementSummary?.totalCount ?? 0} achievements</span>
                             </div>
-                        )}
+                        </div>
+                        <div className="mt-2">
+                            {editingBio ? (
+                                <div className="flex items-center gap-2">
+                                    <textarea
+                                        className="bg-[--subtle] border border-[--border] rounded px-2 py-1 text-sm w-64 resize-none"
+                                        rows={2}
+                                        maxLength={500}
+                                        value={bioText}
+                                        onChange={(e) => setBioText(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <button
+                                        className="p-1 text-green-400 hover:text-green-300"
+                                        onClick={() => {
+                                            updateBio({ bio: bioText })
+                                            setEditingBio(false)
+                                        }}
+                                        disabled={isUpdatingBio}
+                                    >
+                                        <LuCheck className="size-4" />
+                                    </button>
+                                    <button
+                                        className="p-1 text-red-400 hover:text-red-300"
+                                        onClick={() => setEditingBio(false)}
+                                    >
+                                        <LuX className="size-4" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <p className="text-[--muted] text-sm max-w-md truncate">
+                                        {profile!.bio || "No bio yet"}
+                                    </p>
+                                    <button
+                                        className="p-1 text-[--muted] hover:text-white"
+                                        onClick={() => {
+                                            setBioText(profile!.bio || "")
+                                            setEditingBio(true)
+                                        }}
+                                    >
+                                        <LuPencil className="size-3" />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-
-                {/* Stats row */}
-                <div className="flex flex-wrap items-center gap-6">
-                    <div className="flex items-center gap-2 text-[--muted]">
-                        <LuStar className="size-4" />
-                        <span className="font-semibold">{(level?.totalXP ?? 0).toLocaleString()}</span>
-                        <span className="text-sm">Total XP</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[--muted]">
-                        <LuTrophy className="size-4" />
-                        <span className="font-semibold">{achievementSummary?.unlockedCount ?? 0}</span>
-                        <span className="text-sm">/ {achievementSummary?.totalCount ?? 0} achievements</span>
-                    </div>
-                </div>
-
                 {/* Level progress bar */}
                 {level && (
                     <div className="space-y-1">
@@ -202,7 +204,6 @@ export default function Page() {
                         </div>
                     </div>
                 )}
-
                 {/* Tabs */}
                 <Tabs
                     value={activeTab}
@@ -219,7 +220,6 @@ export default function Page() {
                             <LuTrophy className="mr-1.5" /> Achievements
                         </TabsTrigger>
                     </TabsList>
-
                     <TabsContent value="activity" className="space-y-6 mt-6">
                         <ActivityTabContent
                             animeStreak={animeStreak}
@@ -228,19 +228,12 @@ export default function Page() {
                             showcase={showcase}
                             recentAchievements={recentAchievements}
                             editable={true}
-                            anilistProfile={{
-                                avatar: profile!.anilistAvatar,
-                                banner: profile!.bannerImage,
-                                bio: profile!.bio,
-                                name: profile!.anilistUsername || profile!.name,
-                            }}
+                            anilistProfile={undefined} // No profile header in activity tab
                         />
                     </TabsContent>
-
                     <TabsContent value="stats" className="space-y-6 mt-6">
                         <StatsTabContent />
                     </TabsContent>
-
                     <TabsContent value="achievements" className="space-y-6 mt-6">
                         <AchievementsTabContent editable />
                     </TabsContent>

@@ -73,15 +73,14 @@ export default function Page() {
             ) : (
                 <CustomLibraryBanner discrete />
             )}
-            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-20 relative z-10")}>
+            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-20 relative z-10")}> 
                 <SeaLink href="/community">
                     <span className="text-[--muted] hover:text-white text-sm flex items-center gap-1 mb-4">
                         <LuArrowLeft className="size-4" /> Community
                     </span>
                 </SeaLink>
-
-                {/* Profile header */}
-                <div className="flex items-center gap-6">
+                {/* Unified Profile Header */}
+                <div className="flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border]">
                     <LevelRingAvatar
                         profile={{
                             currentLevel: level?.currentLevel ?? 1,
@@ -90,43 +89,41 @@ export default function Page() {
                             anilistAvatar: profile!.anilistAvatar,
                             name: profile!.name,
                         }}
-                        size={100}
+                        size={120}
                     />
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold">
-                                {profile!.name}
-                                {profile!.anilistUsername && (
-                                    <span className="text-[--muted] font-normal"> ({profile!.anilistUsername})</span>
-                                )}
-                            </h1>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                            <h1 className="text-3xl font-bold truncate">{profile!.name}{profile!.anilistUsername && (
+                                <span className="text-[--muted] font-normal"> ({profile!.anilistUsername})</span>
+                            )}</h1>
+                            <span className={cn("text-lg font-bold", levelColors.label)}>
+                                Level {level?.currentLevel ?? 1}
+                            </span>
                             {level && level.multiplier > 1 && (
                                 <ActivityMultiplierBadge multiplier={level.multiplier} />
                             )}
                         </div>
-                        <p className={cn("text-lg font-bold", levelColors.label)}>
-                            Level {level?.currentLevel ?? 1}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-6 mt-2">
+                            <div className="flex items-center gap-2 text-[--muted]">
+                                <LuStar className="size-4" />
+                                <span className="font-semibold">{(level?.totalXP ?? 0).toLocaleString()}</span>
+                                <span className="text-sm">Total XP</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[--muted]">
+                                <LuTrophy className="size-4" />
+                                <span className="font-semibold">{achievementSummary?.unlockedCount ?? 0}</span>
+                                <span className="text-sm">/ {achievementSummary?.totalCount ?? 0} achievements</span>
+                            </div>
+                        </div>
                         {profile!.bio && (
-                            <p className="text-[--muted] text-sm max-w-md">{profile!.bio}</p>
+                            <div className="mt-2">
+                                <p className="text-[--muted] text-sm max-w-md truncate">
+                                    {profile!.bio}
+                                </p>
+                            </div>
                         )}
                     </div>
                 </div>
-
-                {/* Stats row */}
-                <div className="flex flex-wrap items-center gap-6">
-                    <div className="flex items-center gap-2 text-[--muted]">
-                        <LuStar className="size-4" />
-                        <span className="font-semibold">{(level?.totalXP ?? 0).toLocaleString()}</span>
-                        <span className="text-sm">Total XP</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[--muted]">
-                        <LuTrophy className="size-4" />
-                        <span className="font-semibold">{achievementSummary?.unlockedCount ?? 0}</span>
-                        <span className="text-sm">/ {achievementSummary?.totalCount ?? 0} achievements</span>
-                    </div>
-                </div>
-
                 {/* Level progress bar */}
                 {level && (
                     <div className="space-y-1">
@@ -145,7 +142,6 @@ export default function Page() {
                         </div>
                     </div>
                 )}
-
                 {/* Tabs */}
                 <Tabs
                     value={activeTab}
@@ -162,7 +158,6 @@ export default function Page() {
                             <LuTrophy className="mr-1.5" /> Achievements
                         </TabsTrigger>
                     </TabsList>
-
                     <TabsContent value="activity" className="space-y-6 mt-6">
                         <ActivityTabContent
                             animeStreak={animeStreak}
@@ -170,19 +165,12 @@ export default function Page() {
                             activityHeatmap={activityHeatmap}
                             showcase={showcase}
                             recentAchievements={recentAchievements}
-                            anilistProfile={{
-                                avatar: profile!.anilistAvatar,
-                                banner: profile!.bannerImage,
-                                bio: profile!.bio,
-                                name: profile!.anilistUsername || profile!.name,
-                            }}
+                            anilistProfile={undefined} // No profile header in activity tab
                         />
                     </TabsContent>
-
                     <TabsContent value="stats" className="space-y-6 mt-6">
                         <UserStatsTabContent userId={id} />
                     </TabsContent>
-
                     <TabsContent value="achievements" className="space-y-6 mt-6">
                         <UserAchievementsTabContent userId={id} />
                     </TabsContent>
