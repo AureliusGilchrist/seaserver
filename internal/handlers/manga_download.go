@@ -68,6 +68,7 @@ func (h *Handler) HandleDownloadMangaChapters(c echo.Context) error {
 	// Add chapters to the download queue
 	for _, chapterId := range b.ChapterIds {
 		err := h.App.MangaDownloader.DownloadChapter(manga.DownloadChapterOptions{
+			ProfileID:  h.GetProfileID(c),
 			Provider:   b.Provider,
 			MediaId:    b.MediaId,
 			ChapterId:  chapterId,
@@ -239,6 +240,7 @@ func (h *Handler) HandleGetMangaDownloadsList(c echo.Context) error {
 		MangaCollection: mangaCollection,
 		PlatformRef:     h.App.AnilistPlatformRef,
 		Ctx:             c.Request().Context(),
+		EnableRemoteMetadataFetch: false,
 	})
 	if err != nil {
 		return h.RespondWithError(c, err)

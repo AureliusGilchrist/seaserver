@@ -1,5 +1,5 @@
 "use client"
-import { ScanProgressBar } from "@/app/(main)/(library)/_containers/scan-progress-bar"
+import { MangaHydrationProgressBar, ScanProgressBar } from "@/app/(main)/(library)/_containers/scan-progress-bar"
 import { ScannerModal } from "@/app/(main)/(library)/_containers/scanner-modal"
 import { ErrorExplainer } from "@/app/(main)/_features/error-explainer/error-explainer"
 import { IssueReport } from "@/app/(main)/_features/issue-report/issue-report"
@@ -37,6 +37,7 @@ import { usePathname, useRouter } from "@/lib/navigation"
 import React from "react"
 import { useServerStatus } from "../../_hooks/use-server-status"
 import { useInvalidateQueriesListener } from "../../_listeners/invalidate-queries.listeners"
+import { AdminAnnouncementsBanner } from "../admin-announcements"
 import { Announcements } from "../announcements"
 import { AnimeThemeProvider } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { NakamaManager } from "../nakama/nakama-manager"
@@ -51,6 +52,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <AnimeThemeProvider>
             <Loader />
             <ScanProgressBar />
+            <MangaHydrationProgressBar />
             <MangaChapterMigrationProgressBar />
             <LibraryWatcher />
             <ScannerModal />
@@ -74,6 +76,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <NakamaWatchPartyChat />
             <TopIndefiniteLoader />
             <Announcements />
+            <AdminAnnouncementsBanner />
             <LibraryExplorerDrawer />
             <PluginWebviewSlot slot="fixed" />
 

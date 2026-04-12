@@ -70,7 +70,7 @@ func (h *Handler) HandleGetMyProfile(c echo.Context) error {
 //	@summary get another user's profile page data by profile ID.
 //	@desc Returns profile summary, level, showcase, and achievement summary for the specified user.
 //	@returns ProfilePageResponse
-//	@route /api/v1/profile/user/:id [GET]
+//	@route /api/v1/profile/user/{id} [GET]
 func (h *Handler) HandleGetUserProfile(c echo.Context) error {
 	idStr := c.Param("id")
 	if idStr == "" {

@@ -3,6 +3,7 @@ package handlers
 import (
 	"seanime/internal/core"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -10,6 +11,9 @@ import (
 // ProfileSessionMiddleware extracts and validates the profile session token
 // from the X-Seanime-Profile-Token header and sets it in the echo context.
 // This runs after OptionalAuthMiddleware and FeaturesMiddleware.
+// It also implements a sliding window: if the token was issued more than 15 minutes ago,
+// it emits a fresh token in the X-Seanime-Profile-Token response header so the client
+// can store it and stay logged in.
 func (h *Handler) ProfileSessionMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		if h.App.ProfileManager == nil {
@@ -28,6 +32,20 @@ func (h *Handler) ProfileSessionMiddleware(next echo.HandlerFunc) echo.HandlerFu
 		}
 
 		c.Set("profileSession", payload)
+
+		// Sliding window renewal: if more than 15 minutes have passed since issue,
+		// emit a fresh 60-minute token so the client stays logged in on access.
+		if time.Now().Unix()-payload.IssuedAt > int64((15 * time.Minute).Seconds()) {
+			if newToken, err := core.CreateProfileSessionToken(
+				h.App.ProfileManager.GetJWTSecret(),
+				payload.ProfileID,
+				payload.IsAdmin,
+				payload.ClientID,
+			); err == nil {
+				c.Response().Header().Set("X-Seanime-Profile-Token", newToken)
+			}
+		}
+
 		return next(c)
 	}
 }

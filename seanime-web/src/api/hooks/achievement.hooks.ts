@@ -83,6 +83,29 @@ export type AchievementUnlockPayload = {
     iconSVG: string
 }
 
+export function useImportAchievements() {
+    const qc = useQueryClient()
+    const password = useAtomValue(serverAuthTokenAtom)
+    const profileToken = useAtomValue(profileSessionTokenAtom)
+
+    return useMutation({
+        mutationKey: ["import-achievements"],
+        mutationFn: async () => {
+            return buildSeaQuery<AchievementUnlockPayload[]>({
+                endpoint: "/api/v1/achievements/import",
+                method: "POST",
+                data: {},
+                password: password,
+                profileToken: profileToken,
+            })
+        },
+        onSuccess: async () => {
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.ACHIEVEMENT.GetAchievements.key] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.ACHIEVEMENT.GetAchievementSummary.key] })
+        },
+    })
+}
+
 export function useAchievementUnlockListener() {
     const [pendingUnlocks, setPendingUnlocks] = useState<AchievementUnlockPayload[]>([])
     const qc = useQueryClient()

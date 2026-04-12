@@ -1,4 +1,5 @@
 import { useGetStatus } from "@/api/hooks/status.hooks"
+import { useSavePlanningSlutToken } from "@/api/hooks/admin.hooks"
 import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { MigrationWizard } from "@/app/(main)/_features/profile/migration-wizard"
 import { ProfileSelector } from "@/app/(main)/_features/profile/profile-selector"
@@ -145,6 +146,28 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         }
     }
 
+    if (!serverStatus?.planningSlutConfigured) {
+        return <PlanningSlutSetupGate
+            isAdmin={
+                // No profiles at all = initial setup, allow any user
+                !serverStatus?.profiles?.length ||
+                // Profiles exist but none is selected = can't be here yet (profile gate comes first)
+                // Profiles enabled + current profile with admin flag
+                !!serverStatus?.currentProfile?.isAdmin
+            }
+            onConfigured={() => refetch()}
+        />
+    }
+
+    if (serverStatus?.profilesEnabled && !!serverStatus?.currentProfile && !serverStatus?.user) {
+        return <ProfileAniListGate
+            profileName={serverStatus.currentProfile.name}
+            host={host}
+            clientId={serverStatus?.anilistClientId}
+            onManualToken={token => router.push("/auth/callback#access_token=" + token.trim())}
+        />
+    }
+
     if (!serverStatus?.user && host === "127.0.0.1:43211" && !__isDesktop__) {
         return <div className="container max-w-3xl py-10">
             <Card className="md:py-10">
@@ -225,4 +248,140 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
     }
 
     return children
+}
+
+function ProfileAniListGate(props: {
+    profileName: string
+    host: string
+    clientId?: string
+    onManualToken: (token: string) => void
+}) {
+    const { profileName, host, clientId, onManualToken } = props
+    const [formError, setFormError] = React.useState<string | null>(null)
+
+    const loginButton = host === "127.0.0.1:43211" && !__isDesktop__
+        ? <Button
+            onClick={() => {
+                const url = clientId
+                    ? `https://anilist.co/api/v2/oauth/authorize?client_id=${clientId}&response_type=token`
+                    : ANILIST_OAUTH_URL
+                window.open(url, "_self")
+            }}
+            intent="primary"
+            size="xl"
+            aria-label={`Link AniList account for ${profileName}`}
+        >Link AniList</Button>
+        : <Link href={ANILIST_PIN_URL} target="_blank">
+            <Button intent="white" size="md" aria-label="Get AniList token">Get AniList token</Button>
+        </Link>
+
+    return <div className="container max-w-3xl py-10">
+        <Card className="md:py-10">
+            <AppLayoutStack>
+                <div className="text-center space-y-4">
+                    <div className="mb-4 flex justify-center w-full">
+                        <img src="/seanime-logo.png" alt="logo" className="w-24 h-auto" />
+                    </div>
+                    <h3>Link AniList for {profileName}</h3>
+                    <p className="text-[--muted]">
+                        This profile needs its own AniList account linked before it can continue using Seanime.
+                    </p>
+                    <p className="text-xs text-[--muted]">Your AniList account is personal to this profile and won't be shared with others.</p>
+
+                    {loginButton}
+
+                    {formError && (
+                        <div className="rounded-md bg-[--alert]/10 border border-[--alert] p-3 text-[--alert] text-sm">
+                            {formError}
+                        </div>
+                    )}
+
+                    <Form
+                        schema={defineSchema(({ z }) => z.object({
+                            token: z.string().min(1, "Token is required"),
+                        }))}
+                        onSubmit={data => {
+                            setFormError(null)
+                            try {
+                                onManualToken(data.token.trim())
+                            } catch (e) {
+                                setFormError("Failed to process token")
+                            }
+                        }}
+                    >
+                        <p className="text-xs text-[--muted] mb-2">Paste your AniList access token. Get one at anilist.co/settings/developer</p>
+                        <Field.Textarea
+                            name="token"
+                            label="Profile AniList token"
+                            fieldClass="px-4"
+                        />
+                        <Field.Submit showLoadingOverlayOnSuccess>Continue</Field.Submit>
+                    </Form>
+                </div>
+            </AppLayoutStack>
+        </Card>
+    </div>
+}
+
+function PlanningSlutSetupGate(props: { isAdmin: boolean, onConfigured: () => void }) {
+    const { isAdmin, onConfigured } = props
+    const { mutate: savePlanningSlutToken, isPending } = useSavePlanningSlutToken()
+    const [formError, setFormError] = React.useState<string | null>(null)
+
+    // Non-admin profiles cannot proceed - they're completely blocked
+    if (!isAdmin) {
+        return <LoadingOverlayWithLogo title="System setup in progress" />
+    }
+
+    return <div className="container max-w-3xl py-10">
+        <Card className="md:py-10">
+            <AppLayoutStack>
+                <div className="text-center space-y-4">
+                    <div className="mb-4 flex justify-center w-full">
+                        <img src="/seanime-logo.png" alt="logo" className="w-24 h-auto" />
+                    </div>
+                    <h3>Connect the shared AniList account</h3>
+                    <p className="text-[--muted]">
+                        Create or link a shared AniList account that all profiles will use to manage the library.
+                    </p>
+                    <p className="text-xs text-[--muted]">All profiles will see the same anime and manga list, but with personal tracking per profile.</p>
+
+                    <Link href={ANILIST_PIN_URL} target="_blank">
+                        <Button intent="white" size="md" aria-label="Get AniList token">Get AniList token</Button>
+                    </Link>
+
+                    {formError && (
+                        <div className="rounded-md bg-[--alert]/10 border border-[--alert] p-3 text-[--alert] text-sm">
+                            {formError}
+                        </div>
+                    )}
+
+                    <Form
+                        schema={defineSchema(({ z }) => z.object({
+                            token: z.string().min(1, "Token is required").min(10, "Token appears invalid"),
+                        }))}
+                        onSubmit={data => {
+                            setFormError(null)
+                            savePlanningSlutToken({ token: data.token.trim() }, {
+                                onSuccess: () => {
+                                    onConfigured()
+                                },
+                                onError: (err) => {
+                                    setFormError(err?.message || "Failed to validate token. Please check and try again.")
+                                },
+                            })
+                        }}
+                    >
+                        <p className="text-xs text-[--muted] mb-2">Paste your AniList Bearer token. Get one at anilist.co/settings/developer</p>
+                        <Field.Textarea
+                            name="token"
+                            label="Shared AniList access token"
+                            fieldClass="px-4"
+                        />
+                        <Field.Submit loading={isPending}>Validate & continue</Field.Submit>
+                    </Form>
+                </div>
+            </AppLayoutStack>
+        </Card>
+    </div>
 }

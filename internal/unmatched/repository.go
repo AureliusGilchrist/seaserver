@@ -603,13 +603,16 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			continue
 		}
 
+		baseEpisode := extractEpisodeNumber(fw.file.Name)
 		episodeNum := i + 1
 		if fw.season > 0 {
 			// Apply season offset for stacking
-			baseEpisode := extractEpisodeNumber(fw.file.Name)
 			if baseEpisode > 0 {
 				episodeNum = seasonOffsets[fw.season] + baseEpisode
 			}
+		} else if baseEpisode > 0 {
+			// Use the actual episode number from the filename instead of sort index
+			episodeNum = baseEpisode
 		}
 
 		episodeTitle := r.getEpisodeTitle(req.AnimeID, episodeNum)
@@ -920,25 +923,64 @@ func extractSeasonNumber(name string) int {
 }
 
 func extractEpisodeNumber(name string) int {
-	name = strings.ToLower(name)
+	base := filepath.Base(name)
+	ext := filepath.Ext(base)
+	base = strings.TrimSuffix(base, ext)
+	lower := strings.ToLower(base)
+	lower = strings.NewReplacer("_", " ", ".", " ").Replace(lower)
 
-	// Match patterns like "Episode 1", "E01", "Ep01", "- 01", " 01 "
-	patterns := []string{
-		`episode\s*(\d+)`,
-		`ep?\s*(\d+)`,
-		`-\s*(\d+)`,
-		`\s(\d+)\s`,
-		`(\d+)\.(?:mkv|mp4|avi)`,
+	// Strip common noise that contains numbers but isn't episode info:
+	// [1080p], [720p], [480p], (1080p), x264, x265, h264, h265, 10bit, etc.
+	noise := regexp.MustCompile(`(?i)[\[\(]\d{3,4}p[\]\)]|\b\d{3,4}p\b|\b(?:[xh]\.?26[45]|hevc|av1|flac|aac|opus|blu-?ray|b[rd]rip|web[- ]?dl|webrip|dual[- ]audio|multi[- ]subtitle|uncensored)\b|\b\d+[_-]?bit\b`)
+	cleaned := noise.ReplaceAllString(lower, " ")
+
+	// Strip subgroup tags in brackets: [SubGroup], (SubGroup)
+	brackets := regexp.MustCompile(`[\[\(][^\]\)]*[\]\)]`)
+	cleaned = brackets.ReplaceAllString(cleaned, " ")
+
+	// 1. Most specific: S01E05 pattern — always episode
+	re := regexp.MustCompile(`s\d+\s*e(\d+)`)
+	if m := re.FindStringSubmatch(cleaned); len(m) > 1 {
+		if num, err := strconv.Atoi(m[1]); err == nil && num > 0 && num < 10000 {
+			return num
+		}
 	}
 
-	for _, pattern := range patterns {
-		re := regexp.MustCompile(pattern)
-		matches := re.FindStringSubmatch(name)
-		if len(matches) > 1 {
-			num, err := strconv.Atoi(matches[1])
-			if err == nil && num > 0 && num < 10000 {
-				return num
-			}
+	// 2. "Episode ##" or "Episode ##" — explicit label
+	re = regexp.MustCompile(`episode\s*(\d+)`)
+	if m := re.FindStringSubmatch(cleaned); len(m) > 1 {
+		if num, err := strconv.Atoi(m[1]); err == nil && num > 0 && num < 10000 {
+			return num
+		}
+	}
+
+	// 3. Standalone "EP##" or "E##" with word boundary (not preceded by letter)
+	re = regexp.MustCompile(`(?:^|[^a-z])ep?\s*(\d+)(?:[^a-z\d]|$)`)
+	if m := re.FindStringSubmatch(cleaned); len(m) > 1 {
+		if num, err := strconv.Atoi(m[1]); err == nil && num > 0 && num < 10000 {
+			return num
+		}
+	}
+
+	// 4. " - ## " pattern — take the LAST match since the episode separator
+	//    comes after the title. This avoids matching numbers in series names
+	//    like "86 EIGHTY-SIX - 03" or "Season 2 - 05".
+	//    Also strip "season X" before scanning to avoid "Season 2 - " being matched.
+	noSeason := regexp.MustCompile(`(?i)\bseason\s*\d+\b|\b\d+(?:st|nd|rd|th)\s+season\b|\bcour\s*\d+\b|\bpart\s*\d+\b`).ReplaceAllString(cleaned, " ")
+	re = regexp.MustCompile(`-\s*(\d+)`)
+	allMatches := re.FindAllStringSubmatch(noSeason, -1)
+	if len(allMatches) > 0 {
+		last := allMatches[len(allMatches)-1]
+		if num, err := strconv.Atoi(last[1]); err == nil && num > 0 && num < 10000 {
+			return num
+		}
+	}
+
+	// 5. A trailing standalone number — last resort for names like "Show 03"
+	re = regexp.MustCompile(`(?:^|[^a-z\d])(\d{1,4})(?:v\d+)?\s*$`)
+	if m := re.FindStringSubmatch(cleaned); len(m) > 1 {
+		if num, err := strconv.Atoi(m[1]); err == nil && num > 0 && num < 10000 {
+			return num
 		}
 	}
 

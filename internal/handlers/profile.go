@@ -140,7 +140,7 @@ func (h *Handler) HandleCreateProfile(c echo.Context) error {
 //
 //	@summary update a profile.
 //	@returns *core.ProfileSummary
-//	@route /api/v1/profiles/:id [PATCH]
+//	@route /api/v1/profiles/{id} [PATCH]
 func (h *Handler) HandleUpdateProfile(c echo.Context) error {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -206,7 +206,7 @@ func (h *Handler) HandleUpdateProfile(c echo.Context) error {
 //
 //	@summary delete a profile (admin only).
 //	@returns bool
-//	@route /api/v1/profiles/:id [DELETE]
+//	@route /api/v1/profiles/{id} [DELETE]
 func (h *Handler) HandleDeleteProfile(c echo.Context) error {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -229,7 +229,7 @@ func (h *Handler) HandleDeleteProfile(c echo.Context) error {
 //
 //	@summary upload a custom avatar for a profile.
 //	@returns *core.ProfileSummary
-//	@route /api/v1/profiles/:id/avatar [POST]
+//	@route /api/v1/profiles/{id}/avatar [POST]
 func (h *Handler) HandleUploadProfileAvatar(c echo.Context) error {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -313,7 +313,7 @@ func (h *Handler) HandleUploadProfileAvatar(c echo.Context) error {
 // HandleServeProfileAvatar
 //
 //	@summary serve a profile's avatar image.
-//	@route /api/v1/profiles/:id/avatar/:filename [GET]
+//	@route /api/v1/profiles/{id}/avatar/{filename} [GET]
 func (h *Handler) HandleServeProfileAvatar(c echo.Context) error {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

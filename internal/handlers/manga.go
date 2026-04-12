@@ -1,20 +1,26 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/models"
 	"seanime/internal/extension"
+	hibikemanga "seanime/internal/extension/hibike/manga"
 	"seanime/internal/manga"
+	chapter_downloader "seanime/internal/manga/downloader"
 	manga_providers "seanime/internal/manga/providers"
 	"seanime/internal/platforms/anilist_platform"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util/result"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -25,7 +31,42 @@ import (
 var (
 	baseMangaCache    = result.NewCache[int, *anilist.BaseManga]()
 	mangaDetailsCache = result.NewCache[int, *anilist.MangaDetailsById_Media]()
+	mangaHydrationMu  sync.RWMutex
+	mangaHydration    = MangaHydrationStatus{Details: make([]MangaHydrationDetail, 0)}
 )
+
+const (
+	syntheticMangaHydrationProvider    = "weebcentral"
+	syntheticMangaLocalProvider        = "local"
+	syntheticMangaHydrationConcurrency = 4
+	hydrationDetailsLimit              = 100
+)
+
+type MangaHydrationDetail struct {
+	Timestamp time.Time `json:"timestamp"`
+	Source    string    `json:"source"`
+	MediaID   int       `json:"mediaId"`
+	Title     string    `json:"title"`
+	Action    string    `json:"action"`
+	Message   string    `json:"message,omitempty"`
+}
+
+type MangaHydrationStatus struct {
+	IsRunning         bool                  `json:"isRunning"`
+	CancelRequested   bool                  `json:"cancelRequested"`
+	WasCancelled      bool                  `json:"wasCancelled"`
+	Total             int                   `json:"total"`
+	Processed         int                   `json:"processed"`
+	AniListHydrated   int                   `json:"aniListHydrated"`
+	SyntheticHydrated int                   `json:"syntheticHydrated"`
+	Skipped           int                   `json:"skipped"`
+	Failed            int                   `json:"failed"`
+	Progress          float64               `json:"progress"`
+	StartedAt         *time.Time            `json:"startedAt,omitempty"`
+	FinishedAt        *time.Time            `json:"finishedAt,omitempty"`
+	LastUpdatedAt     *time.Time            `json:"lastUpdatedAt,omitempty"`
+	Details           []MangaHydrationDetail `json:"details"`
+}
 
 // HandleGetAnilistMangaCollection
 //
@@ -87,6 +128,25 @@ func (h *Handler) HandleGetMangaCollection(c echo.Context) error {
 	// Get the media map from the manga downloader
 	mediaMap := h.App.MangaDownloader.GetMediaMap()
 
+	sharedOnlyMediaIds := make(map[int]struct{})
+	if h.getPlanningSlutToken() != "" && len(mediaMap) > 0 {
+		downloadedMediaIds := make(map[int]struct{})
+		for mediaID := range mediaMap {
+			if mediaID > 0 {
+				downloadedMediaIds[mediaID] = struct{}{}
+			}
+		}
+
+		if len(downloadedMediaIds) > 0 {
+			sharedCollection, sharedErr := h.getPlanningSlutMangaCollection(c.Request().Context())
+			if sharedErr != nil {
+				h.App.Logger.Debug().Err(sharedErr).Msg("manga: failed to fetch planning slut manga collection")
+			} else {
+				sharedOnlyMediaIds = mergePlanningSlutMangaCollection(animeCollection, sharedCollection, downloadedMediaIds)
+			}
+		}
+	}
+
 	collection, err := manga.NewCollection(&manga.NewCollectionOptions{
 		MangaCollection: animeCollection,
 		PlatformRef:     h.App.AnilistPlatformRef,
@@ -95,6 +155,7 @@ func (h *Handler) HandleGetMangaCollection(c echo.Context) error {
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
+	hideSharedOnlyMangaListData(collection, sharedOnlyMediaIds)
 
 	return h.RespondWithData(c, collection)
 }
@@ -898,76 +959,522 @@ func (h *Handler) HandleGetUpcomingMangaChapters(c echo.Context) error {
 //	@route /api/v1/manga/hydrate-all [POST]
 //	@returns manga.Collection
 func (h *Handler) HandleHydrateAllManga(c echo.Context) error {
+	current := getMangaHydrationStatusSnapshot()
+	if current.IsRunning {
+		return h.RespondWithData(c, true)
+	}
 
-	// Get current manga collection
+	now := time.Now()
+	setMangaHydrationStatus(MangaHydrationStatus{
+		IsRunning:       true,
+		CancelRequested: false,
+		WasCancelled:    false,
+		StartedAt:       &now,
+		LastUpdatedAt:   &now,
+		Details:         make([]MangaHydrationDetail, 0),
+	})
+
+	go h.runMangaHydrationJob()
+
+	return h.RespondWithData(c, true)
+}
+
+// HandleCancelMangaHydration
+//
+//	@summary requests cancellation for manga metadata hydration.
+//	@route /api/v1/manga/hydrate-all/cancel [POST]
+//	@returns bool
+func (h *Handler) HandleCancelMangaHydration(c echo.Context) error {
+	updateMangaHydrationStatus(func(s *MangaHydrationStatus) {
+		if !s.IsRunning {
+			return
+		}
+		now := time.Now()
+		s.CancelRequested = true
+		s.LastUpdatedAt = &now
+		appendHydrationDetailLocked(s, MangaHydrationDetail{Timestamp: now, Source: "system", Action: "cancelled", Message: "cancellation requested"})
+	})
+
+	return h.RespondWithData(c, true)
+}
+
+// HandleGetMangaHydrationStatus
+//
+//	@summary returns metadata hydration progress for manga.
+//	@route /api/v1/manga/hydrate-all/status [GET]
+//	@returns handlers.MangaHydrationStatus
+func (h *Handler) HandleGetMangaHydrationStatus(c echo.Context) error {
+	return h.RespondWithData(c, getMangaHydrationStatusSnapshot())
+}
+
+func (h *Handler) runMangaHydrationJob() {
+	defer func() {
+		if r := recover(); r != nil {
+			updateMangaHydrationStatus(func(s *MangaHydrationStatus) {
+				now := time.Now()
+				s.IsRunning = false
+				s.Failed++
+				s.FinishedAt = &now
+				s.LastUpdatedAt = &now
+				appendHydrationDetailLocked(s, MangaHydrationDetail{Timestamp: now, Source: "system", Action: "failed", Message: "panic recovered during hydration"})
+			})
+		}
+	}()
+
 	mangaCollection, err := h.App.GetMangaCollection(false)
 	if err != nil {
-		return h.RespondWithError(c, err)
+		failHydrationJob(err.Error())
+		return
 	}
-
 	if mangaCollection == nil || mangaCollection.MediaListCollection == nil {
-		return h.RespondWithError(c, errors.New("manga collection is nil"))
+		failHydrationJob("manga collection is nil")
+		return
 	}
 
-	// Collect all media IDs that need hydration
-	mediaIdsToHydrate := make([]int, 0)
-	
+	mediaMap := h.App.MangaDownloader.GetMediaMap()
+	h.ensureSyntheticEntriesFromDownloads(mediaMap)
+
+	type aniItem struct {
+		MediaID int
+		Title   string
+	}
+
+	anilistToHydrate := make([]aniItem, 0)
 	for _, list := range mangaCollection.MediaListCollection.Lists {
 		for _, entry := range list.Entries {
-			if entry.Media != nil {
-				// Check if media needs hydration (empty title or missing basic data)
-				needsHydration := false
-				
-				// Check for empty or missing title
-				if entry.Media.GetTitleSafe() == "" || entry.Media.GetTitleSafe() == "unknown title" {
-					needsHydration = true
+			if entry.Media == nil {
+				continue
+			}
+			if !needsAniListHydration(entry.Media) {
+				continue
+			}
+			anilistToHydrate = append(anilistToHydrate, aniItem{MediaID: entry.Media.ID, Title: entry.Media.GetTitleSafe()})
+		}
+	}
+
+	syntheticToHydrate := make([]*models.SyntheticManga, 0)
+	syntheticManga, syntheticErr := h.App.Database.GetAllSyntheticManga()
+	if syntheticErr == nil {
+		for _, item := range syntheticManga {
+			if !needsSyntheticHydration(item) {
+				continue
+			}
+			syntheticToHydrate = append(syntheticToHydrate, item)
+		}
+	}
+
+	updateMangaHydrationStatus(func(s *MangaHydrationStatus) {
+		now := time.Now()
+		s.Total = len(anilistToHydrate) + len(syntheticToHydrate)
+		s.LastUpdatedAt = &now
+	})
+
+	for _, item := range anilistToHydrate {
+		if isMangaHydrationCancelled() {
+			break
+		}
+
+		if h.App.AnilistPlatformRef.Get().GetAnilistClient() != nil {
+			if anilistPlatform, ok := h.App.AnilistPlatformRef.Get().(*anilist_platform.AnilistPlatform); ok {
+				anilistPlatform.GetHelper().ClearBaseMangaCache(item.MediaID)
+			}
+		}
+
+		_, fetchErr := h.App.AnilistPlatformRef.Get().GetManga(context.Background(), item.MediaID)
+		if fetchErr != nil {
+			updateMangaHydrationStatus(func(s *MangaHydrationStatus) {
+				s.Processed++
+				s.Failed++
+				updateHydrationProgressLocked(s)
+				now := time.Now()
+				s.LastUpdatedAt = &now
+				appendHydrationDetailLocked(s, MangaHydrationDetail{Timestamp: now, Source: "anilist", MediaID: item.MediaID, Title: item.Title, Action: "failed", Message: fetchErr.Error()})
+			})
+			h.App.Logger.Warn().Err(fetchErr).Int("mediaId", item.MediaID).Msg("manga: failed to hydrate AniList manga")
+			continue
+		}
+
+		updateMangaHydrationStatus(func(s *MangaHydrationStatus) {
+			s.Processed++
+			s.AniListHydrated++
+			updateHydrationProgressLocked(s)
+			now := time.Now()
+			s.LastUpdatedAt = &now
+			appendHydrationDetailLocked(s, MangaHydrationDetail{Timestamp: now, Source: "anilist", MediaID: item.MediaID, Title: item.Title, Action: "hydrated"})
+		})
+	}
+
+	providerExtension, ok := extension.GetExtension[extension.MangaProviderExtension](h.App.ExtensionRepository.GetExtensionBank(), syntheticMangaHydrationProvider)
+	if !ok {
+		if len(syntheticToHydrate) > 0 {
+			updateMangaHydrationStatus(func(s *MangaHydrationStatus) {
+				s.Processed += len(syntheticToHydrate)
+				s.Failed += len(syntheticToHydrate)
+				updateHydrationProgressLocked(s)
+				now := time.Now()
+				s.LastUpdatedAt = &now
+				appendHydrationDetailLocked(s, MangaHydrationDetail{Timestamp: now, Source: "synthetic", Action: "failed", Message: "weebcentral provider extension not found"})
+			})
+		}
+	} else if !isMangaHydrationCancelled() {
+		var wg sync.WaitGroup
+		semaphore := make(chan struct{}, syntheticMangaHydrationConcurrency)
+
+		for _, item := range syntheticToHydrate {
+			if item == nil {
+				continue
+			}
+
+			wg.Add(1)
+			semaphore <- struct{}{}
+
+			go func(sm *models.SyntheticManga) {
+				defer wg.Done()
+				defer func() { <-semaphore }()
+
+				if isMangaHydrationCancelled() {
+					return
 				}
-				
-				// Check for missing basic metadata
-				if entry.Media.GetDescription() == nil && entry.Media.GetTitleSafe() != "" {
-					needsHydration = true
+
+				providerKey := strings.ToLower(strings.TrimSpace(sm.Provider))
+				updated := false
+
+				searchResults, searchErr := providerExtension.GetProvider().Search(hibikemanga.SearchOptions{Query: sm.Title})
+				if searchErr != nil {
+					updateMangaHydrationStatus(func(s *MangaHydrationStatus) {
+						s.Processed++
+						s.Failed++
+						updateHydrationProgressLocked(s)
+						now := time.Now()
+						s.LastUpdatedAt = &now
+						appendHydrationDetailLocked(s, MangaHydrationDetail{Timestamp: now, Source: "synthetic", MediaID: sm.SyntheticID, Title: sm.Title, Action: "failed", Message: searchErr.Error()})
+					})
+					return
 				}
-				
-				if needsHydration {
-					mediaIdsToHydrate = append(mediaIdsToHydrate, entry.Media.ID)
-					
-					// Clear cache for this media ID
-					if h.App.AnilistPlatformRef.Get().GetAnilistClient() != nil {
-						// Clear the cache first to ensure fresh data
-						// Access the helper through type assertion to AnilistPlatform
-						if anilistPlatform, ok := h.App.AnilistPlatformRef.Get().(*anilist_platform.AnilistPlatform); ok {
-							anilistPlatform.GetHelper().ClearBaseMangaCache(entry.Media.ID)
-						}
-						
-						// Force fetch fresh manga data from AniList
-						_, err := h.App.AnilistPlatformRef.Get().GetManga(c.Request().Context(), entry.Media.ID)
-						if err != nil {
-							h.App.Logger.Warn().Err(err).Int("mediaId", entry.Media.ID).Msg("Failed to hydrate manga")
+
+				best := pickSyntheticMangaSearchResult(searchResults, sm)
+				chapterLookupID := sm.ProviderID
+				if best != nil {
+					if best.Title != "" && best.Title != sm.Title {
+						sm.Title = best.Title
+						updated = true
+					}
+					if best.Image != "" && best.Image != sm.CoverImage {
+						sm.CoverImage = best.Image
+						updated = true
+					}
+					if providerKey == syntheticMangaHydrationProvider && sm.ProviderID == "" && best.ID != "" {
+						sm.ProviderID = best.ID
+						chapterLookupID = best.ID
+						updated = true
+					} else if providerKey == syntheticMangaLocalProvider && best.ID != "" {
+						chapterLookupID = best.ID
+					}
+				}
+
+				if chapterLookupID != "" {
+					chapters, chapterErr := providerExtension.GetProvider().FindChapters(chapterLookupID)
+					if chapterErr == nil {
+						if len(chapters) != sm.Chapters {
+							sm.Chapters = len(chapters)
+							updated = true
 						}
 					}
 				}
+
+				if !updated {
+					updateMangaHydrationStatus(func(s *MangaHydrationStatus) {
+						s.Processed++
+						s.Skipped++
+						updateHydrationProgressLocked(s)
+						now := time.Now()
+						s.LastUpdatedAt = &now
+						appendHydrationDetailLocked(s, MangaHydrationDetail{Timestamp: now, Source: "synthetic", MediaID: sm.SyntheticID, Title: sm.Title, Action: "skipped"})
+					})
+					return
+				}
+
+				if saveErr := h.App.Database.UpdateSyntheticManga(sm); saveErr != nil {
+					updateMangaHydrationStatus(func(s *MangaHydrationStatus) {
+						s.Processed++
+						s.Failed++
+						updateHydrationProgressLocked(s)
+						now := time.Now()
+						s.LastUpdatedAt = &now
+						appendHydrationDetailLocked(s, MangaHydrationDetail{Timestamp: now, Source: "synthetic", MediaID: sm.SyntheticID, Title: sm.Title, Action: "failed", Message: saveErr.Error()})
+					})
+					return
+				}
+
+				updateMangaHydrationStatus(func(s *MangaHydrationStatus) {
+					s.Processed++
+					s.SyntheticHydrated++
+					updateHydrationProgressLocked(s)
+					now := time.Now()
+					s.LastUpdatedAt = &now
+					appendHydrationDetailLocked(s, MangaHydrationDetail{Timestamp: now, Source: "synthetic", MediaID: sm.SyntheticID, Title: sm.Title, Action: "hydrated"})
+				})
+			}(item)
+		}
+
+		wg.Wait()
+	}
+
+	_, _ = h.App.GetMangaCollection(true)
+
+	updateMangaHydrationStatus(func(s *MangaHydrationStatus) {
+		now := time.Now()
+		s.IsRunning = false
+		s.WasCancelled = s.CancelRequested
+		s.FinishedAt = &now
+		s.LastUpdatedAt = &now
+		updateHydrationProgressLocked(s)
+		if s.WasCancelled {
+			appendHydrationDetailLocked(s, MangaHydrationDetail{Timestamp: now, Source: "system", Action: "cancelled", Message: "hydration cancelled"})
+		}
+	})
+
+	status := getMangaHydrationStatusSnapshot()
+	h.App.Logger.Info().
+		Int("total", status.Total).
+		Int("processed", status.Processed).
+		Int("anilistHydrated", status.AniListHydrated).
+		Int("syntheticHydrated", status.SyntheticHydrated).
+		Int("skipped", status.Skipped).
+		Int("failed", status.Failed).
+		Msg("manga: metadata hydration job completed")
+}
+
+func failHydrationJob(message string) {
+	updateMangaHydrationStatus(func(s *MangaHydrationStatus) {
+		now := time.Now()
+		s.IsRunning = false
+		s.Failed++
+		s.FinishedAt = &now
+		s.LastUpdatedAt = &now
+		appendHydrationDetailLocked(s, MangaHydrationDetail{Timestamp: now, Source: "system", Action: "failed", Message: message})
+	})
+}
+
+func needsAniListHydration(media *anilist.BaseManga) bool {
+	if media == nil {
+		return false
+	}
+	title := strings.TrimSpace(media.GetTitleSafe())
+	if title == "" || strings.EqualFold(title, "unknown title") {
+		return true
+	}
+	if media.GetDescription() == nil {
+		return true
+	}
+	return false
+}
+
+func needsSyntheticHydration(sm *models.SyntheticManga) bool {
+	if sm == nil {
+		return false
+	}
+	providerKey := strings.ToLower(strings.TrimSpace(sm.Provider))
+	if providerKey != syntheticMangaHydrationProvider && providerKey != syntheticMangaLocalProvider {
+		return false
+	}
+	if strings.TrimSpace(sm.Title) == "" || strings.EqualFold(strings.TrimSpace(sm.Title), "synthetic manga") {
+		return true
+	}
+	if strings.TrimSpace(sm.CoverImage) == "" {
+		return true
+	}
+	if sm.Chapters <= 0 {
+		return true
+	}
+	if providerKey == syntheticMangaHydrationProvider && strings.TrimSpace(sm.ProviderID) == "" {
+		return true
+	}
+	return false
+}
+
+func (h *Handler) ensureSyntheticEntriesFromDownloads(mediaMap map[int]manga.ProviderDownloadMap) {
+	if len(mediaMap) == 0 || h.App.Database == nil {
+		return
+	}
+
+	titleByMediaID := h.getSeriesTitlesByMediaID()
+
+	for mediaID, downloadData := range mediaMap {
+		if mediaID >= 0 {
+			continue
+		}
+		if _, found := h.App.Database.GetSyntheticManga(mediaID); found {
+			continue
+		}
+
+		provider := syntheticMangaLocalProvider
+		for providerName := range downloadData {
+			provider = strings.TrimSpace(providerName)
+			if provider != "" {
+				break
+			}
+		}
+		if provider == "" {
+			provider = syntheticMangaLocalProvider
+		}
+
+		title := strings.TrimSpace(titleByMediaID[mediaID])
+		if title == "" {
+			title = "Manga " + strconv.Itoa(mediaID)
+		}
+
+		chapterCount := countProviderDownloadMapChapters(downloadData)
+
+		synthetic := &models.SyntheticManga{
+			SyntheticID: mediaID,
+			Title:       title,
+			Provider:    provider,
+			ProviderID:  "",
+			Status:      "RELEASING",
+			Chapters:    chapterCount,
+		}
+
+		if err := h.App.Database.InsertSyntheticManga(synthetic); err != nil {
+			h.App.Logger.Warn().Err(err).Int("mediaId", mediaID).Msg("manga: failed to insert synthetic manga from download map")
+			continue
+		}
+
+		h.App.Logger.Info().
+			Int("mediaId", mediaID).
+			Str("title", title).
+			Str("provider", provider).
+			Int("chapters", chapterCount).
+			Msg("manga: created synthetic metadata seed from downloaded chapters")
+	}
+}
+
+func (h *Handler) getSeriesTitlesByMediaID() map[int]string {
+	titles := make(map[int]string)
+	if h.App.MangaRepository == nil {
+		return titles
+	}
+
+	downloadDir := strings.TrimSpace(h.App.MangaRepository.GetDownloadDir())
+	if downloadDir == "" {
+		return titles
+	}
+
+	entries, err := os.ReadDir(downloadDir)
+	if err != nil {
+		return titles
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		seriesDir := filepath.Join(downloadDir, entry.Name())
+		registry, loadErr := chapter_downloader.LoadSeriesRegistry(seriesDir, h.App.Logger)
+		if loadErr != nil || registry == nil || registry.MediaId == 0 {
+			continue
+		}
+
+		if strings.TrimSpace(entry.Name()) != "" {
+			titles[registry.MediaId] = entry.Name()
+		}
+	}
+
+	return titles
+}
+
+func countProviderDownloadMapChapters(downloadData manga.ProviderDownloadMap) int {
+	total := 0
+	for _, chapters := range downloadData {
+		total += len(chapters)
+	}
+	return total
+}
+
+func setMangaHydrationStatus(status MangaHydrationStatus) {
+	mangaHydrationMu.Lock()
+	defer mangaHydrationMu.Unlock()
+	if status.Details == nil {
+		status.Details = make([]MangaHydrationDetail, 0)
+	}
+	mangaHydration = status
+}
+
+func updateMangaHydrationStatus(update func(*MangaHydrationStatus)) {
+	mangaHydrationMu.Lock()
+	defer mangaHydrationMu.Unlock()
+	update(&mangaHydration)
+}
+
+func getMangaHydrationStatusSnapshot() MangaHydrationStatus {
+	mangaHydrationMu.RLock()
+	defer mangaHydrationMu.RUnlock()
+	copyDetails := make([]MangaHydrationDetail, len(mangaHydration.Details))
+	copy(copyDetails, mangaHydration.Details)
+	ret := mangaHydration
+	ret.Details = copyDetails
+	return ret
+}
+
+func isMangaHydrationCancelled() bool {
+	mangaHydrationMu.RLock()
+	defer mangaHydrationMu.RUnlock()
+	return mangaHydration.CancelRequested
+}
+
+func appendHydrationDetailLocked(status *MangaHydrationStatus, detail MangaHydrationDetail) {
+	status.Details = append(status.Details, detail)
+	if len(status.Details) > hydrationDetailsLimit {
+		status.Details = status.Details[len(status.Details)-hydrationDetailsLimit:]
+	}
+}
+
+func updateHydrationProgressLocked(status *MangaHydrationStatus) {
+	if status.Total <= 0 {
+		status.Progress = 0
+		return
+	}
+	status.Progress = (float64(status.Processed) / float64(status.Total)) * 100
+	if status.Progress > 100 {
+		status.Progress = 100
+	}
+}
+
+func pickSyntheticMangaSearchResult(results []*hibikemanga.SearchResult, sm *models.SyntheticManga) *hibikemanga.SearchResult {
+	if len(results) == 0 {
+		return nil
+	}
+
+	if sm != nil && sm.ProviderID != "" {
+		for _, item := range results {
+			if item != nil && item.ID == sm.ProviderID {
+				return item
 			}
 		}
 	}
 
-	h.App.Logger.Info().Int("count", len(mediaIdsToHydrate)).Msg("manga: Hydrated manga entries")
-
-	// Force refresh the collection to pick up hydrated data
-	refreshedCollection, err := h.App.GetMangaCollection(true)
-	if err != nil {
-		return h.RespondWithError(c, errors.New("error: Anilist responded with an error during collection refresh"))
+	if sm != nil && sm.Title != "" {
+		for _, item := range results {
+			if item != nil && strings.EqualFold(item.Title, sm.Title) {
+				return item
+			}
+		}
 	}
 
-	// Build and return the refreshed collection
-	collection, err := manga.NewCollection(&manga.NewCollectionOptions{
-		MangaCollection: refreshedCollection,
-		PlatformRef:     h.App.AnilistPlatformRef,
-	})
-	if err != nil {
-		return h.RespondWithError(c, err)
+	for _, item := range results {
+		if item != nil && item.Image != "" {
+			return item
+		}
 	}
 
-	return h.RespondWithData(c, collection)
+	for _, item := range results {
+		if item != nil {
+			return item
+		}
+	}
+
+	return nil
 }
 
 // HandleGetMangaMissedSequels

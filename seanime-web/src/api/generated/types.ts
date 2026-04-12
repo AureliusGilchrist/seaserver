@@ -3386,6 +3386,7 @@ export type Status = {
     serverHasPassword: boolean
     profilesEnabled: boolean
     needsMigration: boolean
+    planningSlutConfigured: boolean
     currentProfile?: INTERNAL_ProfileSummary
     profiles?: Array<INTERNAL_ProfileSummary>
 }
@@ -4299,6 +4300,7 @@ export type Models_AutoDownloaderSettings = {
  * - Package: models
  */
 export type Models_ChapterDownloadQueueItem = {
+    profileId: number
     provider: string
     mediaId: number
     chapterId: string

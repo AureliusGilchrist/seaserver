@@ -3,11 +3,22 @@ import { getServerBaseUrl } from "@/api/client/server-url"
 import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useMutation, UseMutationOptions, useQuery, UseQueryOptions } from "@tanstack/react-query"
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
+import { getDefaultStore } from "jotai"
 import { useAtomValue } from "jotai"
 import { useAtom } from "jotai/react"
 import { usePathname } from "@/lib/navigation"
 import { useEffect } from "react"
 import { toast } from "sonner"
+
+// Sliding window: when the server emits a refreshed profile token in the response header,
+// update the in-memory atom and localStorage so the user stays logged in.
+axios.interceptors.response.use(response => {
+    const refreshed = response.headers["x-seanime-profile-token"]
+    if (refreshed && typeof refreshed === "string") {
+        getDefaultStore().set(profileSessionTokenAtom, refreshed)
+    }
+    return response
+})
 
 type SeaError = AxiosError<{ error: string }>
 

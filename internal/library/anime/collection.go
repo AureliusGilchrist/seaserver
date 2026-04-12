@@ -292,7 +292,8 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 		})
 	}
 
-	// Build a Local list containing every local file group, even if it's not in the user's AniList lists
+
+	// Build a Local list containing every local file group, including unmatched files (MediaId == 0)
 	existingIds := make(map[int]struct{})
 	for _, l := range lists {
 		for _, e := range l.Entries {
@@ -301,9 +302,41 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 	}
 
 	localEntries := make([]*LibraryCollectionEntry, 0)
-	for mId, entryLfs := range groupedLfs {
-		if _, ok := existingIds[mId]; ok {
+
+	// Only add unmatched files (MediaId == 0) as generic entries
+	unmatchedGroups := lop.GroupBy(lo.Filter(localFiles, func(lf *LocalFile, _ int) bool {
+		return lf.MediaId == 0 && !lf.Ignored
+	}), func(lf *LocalFile) string {
+		return filepath.Dir(lf.GetPath())
+	})
+
+	for dir, files := range unmatchedGroups {
+		if len(files) == 0 {
 			continue
+		}
+		// Use folder name as title
+		title := filepath.Base(dir)
+		media := &anilist.BaseAnime{ID: 0, Title: &anilist.BaseAnime_Title{UserPreferred: lo.ToPtr(title), Romaji: lo.ToPtr(title), English: lo.ToPtr(title), Native: lo.ToPtr(title)}}
+		libraryData, _ := NewEntryLibraryData(&NewEntryLibraryDataOptions{
+			EntryLocalFiles: files,
+			MediaId:         0,
+			CurrentProgress: 0,
+		})
+		localEntries = append(localEntries, &LibraryCollectionEntry{
+			MediaId:          0,
+			Media:            media,
+			EntryLibraryData: libraryData,
+			EntryListData:    nil,
+		})
+	}
+
+	// For matched files (MediaId > 0 and not already in AniList lists), hydrate with AniList data
+	for mId, entryLfs := range groupedLfs {
+		if mId == 0 {
+			continue // already handled above
+		}
+		if _, ok := existingIds[mId]; ok {
+			continue // already in AniList lists
 		}
 
 		libraryData, _ := NewEntryLibraryData(&NewEntryLibraryDataOptions{
@@ -312,9 +345,8 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 			CurrentProgress: 0,
 		})
 
-		title := deriveLocalTitle(entryLfs)
-		media := &anilist.BaseAnime{ID: mId, Title: &anilist.BaseAnime_Title{UserPreferred: lo.ToPtr(title), Romaji: lo.ToPtr(title), English: lo.ToPtr(title), Native: lo.ToPtr(title)}}
-		if mId > 0 && platformRef != nil {
+		media := &anilist.BaseAnime{ID: mId}
+		if platformRef != nil {
 			if plat := platformRef.Get(); plat != nil {
 				if ba, err := plat.GetAnime(ctx, mId); err == nil && ba != nil {
 					media = ba

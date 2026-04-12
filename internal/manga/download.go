@@ -205,6 +205,7 @@ type (
 	}
 
 	DownloadChapterOptions struct {
+		ProfileID  uint
 		Provider   string
 		MediaId    int
 		ChapterId  string
@@ -335,6 +336,7 @@ func (d *Downloader) DownloadChapter(opts DownloadChapterOptions) error {
 	normalizedChapterNumber := manga_providers.GetNormalizedChapter(chapter.Chapter)
 	err = d.chapterDownloader.AddToQueue(chapter_downloader.DownloadOptions{
 		DownloadID: chapter_downloader.DownloadID{
+			ProfileID:     opts.ProfileID,
 			Provider:      opts.Provider,
 			MediaId:       opts.MediaId,
 			ChapterId:     opts.ChapterId,
@@ -378,6 +380,7 @@ func (d *Downloader) DownloadChapterDirect(opts DownloadChapterDirectOptions) er
 	normalizedChapterNumber := manga_providers.GetNormalizedChapter(opts.ChapterNumber)
 	err := d.chapterDownloader.AddToQueue(chapter_downloader.DownloadOptions{
 		DownloadID: chapter_downloader.DownloadID{
+			ProfileID:     0,
 			Provider:      opts.Provider,
 			MediaId:       opts.MediaId,
 			ChapterId:     opts.ChapterId,
@@ -508,6 +511,7 @@ type (
 		MangaCollection *anilist.MangaCollection
 		PlatformRef     *util.Ref[platform.Platform] // Optional: used to fetch metadata for manga not in collection
 		Ctx             context.Context
+		EnableRemoteMetadataFetch bool // If false, never call AniList during list generation
 	}
 
 	DownloadListItem struct {
@@ -611,12 +615,19 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 					Media:        media,
 					DownloadData: data,
 				})
-			} else {
+			} else if opts.EnableRemoteMetadataFetch {
 				// No stored metadata, try to fetch from AniList API and store it
 				media := d.fetchAndStoreMetadataFromAniList(opts, mId)
 				ret = append(ret, &DownloadListItem{
 					MediaId:      mId,
 					Media:        media,
+					DownloadData: data,
+				})
+			} else {
+				// Keep endpoint fast and deterministic: no remote calls when disabled.
+				ret = append(ret, &DownloadListItem{
+					MediaId:      mId,
+					Media:        nil,
 					DownloadData: data,
 				})
 			}
@@ -633,12 +644,18 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 					Media:        media,
 					DownloadData: data,
 				})
-			} else {
+			} else if opts.EnableRemoteMetadataFetch {
 				// No stored metadata, try to fetch from AniList API and store it
 				media := d.fetchAndStoreMetadataFromAniList(opts, mId)
 				ret = append(ret, &DownloadListItem{
 					MediaId:      mId,
 					Media:        media,
+					DownloadData: data,
+				})
+			} else {
+				ret = append(ret, &DownloadListItem{
+					MediaId:      mId,
+					Media:        nil,
 					DownloadData: data,
 				})
 			}

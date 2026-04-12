@@ -252,6 +252,16 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         }
     }, [config.fontFamily, config.id])
 
+    // ── Theme data-attribute for per-theme CSS text animations ──
+    React.useEffect(() => {
+        if (config.id !== "seanime") {
+            document.documentElement.dataset.animeTheme = config.id
+        } else {
+            delete document.documentElement.dataset.animeTheme
+        }
+        return () => { delete document.documentElement.dataset.animeTheme }
+    }, [config.id])
+
     // ── Event engine ──
     const [isEventActive, setIsEventActive] = React.useState(false)
     const eventTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)

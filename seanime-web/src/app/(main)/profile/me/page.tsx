@@ -1,6 +1,6 @@
 "use client"
 
-import { useGetAchievements } from "@/api/hooks/achievement.hooks"
+import { useGetAchievements, useImportAchievements, AchievementUnlockPayload } from "@/api/hooks/achievement.hooks"
 import { useGetAniListStats } from "@/api/hooks/anilist.hooks"
 import { useGetMyProfile, useUpdateBio } from "@/api/hooks/community.hooks"
 import { useGetProfileStats } from "@/api/hooks/profile-stats.hooks"
@@ -26,17 +26,34 @@ import { Badge } from "@/components/ui/badge"
 import { BarChart, DonutChart, AreaChart } from "@/components/ui/charts"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Modal } from "@/components/ui/modal"
 import { Separator } from "@/components/ui/separator"
 import { Stats } from "@/components/ui/stats"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
-import React from "react"
+import * as React from "react"
 import {
     LuTrophy, LuStar, LuPencil, LuCheck, LuX, LuFlame,
     LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity,
-    LuGlobe, LuHourglass, LuLock, LuZap,
+    LuGlobe, LuHourglass, LuLock, LuZap, LuDownload, LuEye, LuEyeOff,
 } from "react-icons/lu"
+
+function formatDescription(desc: string, thresholds?: number[], tierIdx?: number): React.ReactNode {
+    if (!desc.includes("{threshold}") || !thresholds?.length) return desc
+    const idx = tierIdx != null ? tierIdx : 0
+    const val = thresholds[Math.min(idx, thresholds.length - 1)]
+    const parts = desc.split("{threshold}")
+    return <>{parts[0]}<strong className="text-[--foreground]">{val.toLocaleString()}</strong>{parts[1]}</>
+}
+
+function isDefUnlocked(def: Achievement_Definition, entryMap: Map<string, Achievement_Entry>): boolean {
+    if ((def.MaxTier || 0) === 0) return entryMap.get(`${def.Key}:0`)?.isUnlocked ?? false
+    for (let t = 1; t <= (def.MaxTier || 0); t++) {
+        if (entryMap.get(`${def.Key}:${t}`)?.isUnlocked) return true
+    }
+    return false
+}
 
 const formatName: Record<string, string> = {
     TV: "TV", TV_SHORT: "TV Short", MOVIE: "Movie",
@@ -189,7 +206,7 @@ export default function Page() {
                 {/* Tabs */}
                 <Tabs
                     value={activeTab}
-                    onValueChange={(v) => router.push(`/profile/me?tab=${v}`)}
+                    onValueChange={(v: string) => router.push(`/profile/me?tab=${v}`)}
                 >
                     <TabsList className={tabsListClass}>
                         <TabsTrigger value="activity" className={tabsTriggerClass}>
@@ -210,7 +227,13 @@ export default function Page() {
                             activityHeatmap={activityHeatmap}
                             showcase={showcase}
                             recentAchievements={recentAchievements}
-                            editable
+                            editable={true}
+                            anilistProfile={{
+                                avatar: profile!.anilistAvatar,
+                                banner: profile!.bannerImage,
+                                bio: profile!.bio,
+                                name: profile!.anilistUsername || profile!.name,
+                            }}
                         />
                     </TabsContent>
 
@@ -246,60 +269,7 @@ export function ActivityMultiplierBadge({ multiplier }: { multiplier: number }) 
 
 // ─────────────────────── Activity Tab ───────────────────────
 
-export function ActivityTabContent({ animeStreak, mangaStreak, activityHeatmap, showcase, recentAchievements, editable }: {
-    animeStreak?: ProfileStats_StreakInfo
-    mangaStreak?: ProfileStats_StreakInfo
-    activityHeatmap?: ProfileStats_ActivityDay[]
-    showcase?: Handlers_ShowcaseEntry[]
-    recentAchievements?: Handlers_RecentAchievementEntry[]
-    editable?: boolean
-}) {
-    return (
-        <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <StreakCard label="Anime Streak" icon={<LuTv className="text-lg" />} streak={animeStreak} />
-                <StreakCard label="Manga Streak" icon={<LuBookOpen className="text-lg" />} streak={mangaStreak} />
-            </div>
-
-            <div className="space-y-2">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <LuCalendar className="text-blue-400" />
-                    Activity (90 days)
-                </h2>
-                <ActivityHeatmap days={activityHeatmap} />
-            </div>
-
-            {editable ? (
-                <AchievementShowcase />
-            ) : (
-                showcase && showcase.length > 0 && (
-                    <div className="space-y-3">
-                        <h2 className="text-lg font-semibold">Showcase</h2>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                            {showcase.map((entry) => (
-                                <ShowcaseCard key={entry.slot} entry={entry} />
-                            ))}
-                        </div>
-                    </div>
-                )
-            )}
-
-            {recentAchievements && recentAchievements.length > 0 && (
-                <div className="space-y-3">
-                    <h2 className="text-lg font-semibold flex items-center gap-2">
-                        <LuClock className="text-emerald-400" />
-                        Recent Achievements
-                    </h2>
-                    <div className="space-y-2">
-                        {recentAchievements.map((ach) => (
-                            <RecentAchievementRow key={`${ach.key}-${ach.tier}`} entry={ach} />
-                        ))}
-                    </div>
-                </div>
-            )}
-        </>
-    )
-}
+import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
 
 // ─────────────────────── Stats Tab (lazy) ───────────────────────
 
@@ -372,7 +342,11 @@ function StatsTabContent() {
 
 function AchievementsTabContent({ editable }: { editable?: boolean }) {
     const { data, isLoading } = useGetAchievements()
+    const { config: animeConfig } = useAnimeTheme()
     const [selectedCategory, setSelectedCategory] = React.useState<Achievement_Category | "all">("all")
+    const { mutate: importAchievements, isPending: isImporting } = useImportAchievements()
+    const [importResults, setImportResults] = React.useState<AchievementUnlockPayload[] | null>(null)
+    const [showUnlockedOnly, setShowUnlockedOnly] = React.useState(false)
 
     if (isLoading) {
         return <div className="flex justify-center py-12"><LoadingSpinner /></div>
@@ -392,9 +366,12 @@ function AchievementsTabContent({ editable }: { editable?: boolean }) {
         categoryMap.set(cat.Key, cat)
     }
 
-    const filteredDefs = selectedCategory === "all"
+    let filteredDefs = selectedCategory === "all"
         ? definitions
-        : definitions.filter(d => d.Category === selectedCategory)
+        : definitions.filter((d: Achievement_Definition) => d.Category === selectedCategory)
+    if (showUnlockedOnly) {
+        filteredDefs = filteredDefs.filter((d: Achievement_Definition) => isDefUnlocked(d, entryMap))
+    }
 
     const groupedDefs = new Map<Achievement_Category, Achievement_Definition[]>()
     for (const def of filteredDefs) {
@@ -414,16 +391,68 @@ function AchievementsTabContent({ editable }: { editable?: boolean }) {
                     <h2 className="text-xl font-bold">Achievements</h2>
                     <p className="text-[--muted]">{unlockedCount} / {totalCount} unlocked</p>
                 </div>
-                <div className="ml-auto">
+                <div className="ml-auto flex items-center gap-3">
+                    {editable && (
+                        <button
+                            className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                                "bg-brand-500/15 text-brand-300 border border-brand-500/30 hover:bg-brand-500/25",
+                                isImporting && "opacity-50 pointer-events-none",
+                            )}
+                            onClick={() => importAchievements(undefined, {
+                                onSuccess: (res: any) => setImportResults(res ?? []),
+                            })}
+                            disabled={isImporting}
+                        >
+                            {isImporting ? <LoadingSpinner className="size-4" /> : <LuDownload className="size-4" />}
+                            Import
+                        </button>
+                    )}
                     <ProgressRing value={totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0} />
                 </div>
             </div>
 
+            {/* Import Results Modal */}
+            <Modal open={importResults !== null} onOpenChange={() => setImportResults(null)} title="Import Results" contentClass="max-w-lg" onPointerDownCapture={() => {}} onOpenAutoFocus={() => {}} onCloseAutoFocus={() => {}} onEscapeKeyDown={() => {}} onInteractOutside={() => {}}>
+                {importResults && importResults.length === 0 ? (
+                    <p className="text-[--muted] text-center py-6">No new achievements unlocked.</p>
+                ) : (
+                    <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                        <p className="text-sm text-[--muted] mb-3">{importResults?.length} achievement{(importResults?.length ?? 0) !== 1 ? "s" : ""} unlocked!</p>
+                        {importResults?.map(a => (
+                            <div key={`${a.key}-${a.tier}`} className="flex items-center gap-3 p-3 rounded-lg bg-[--subtle]">
+                                {a.iconSVG && (
+                                    <div className="w-7 h-7 shrink-0 text-yellow-500 [&>svg]:size-5" dangerouslySetInnerHTML={{ __html: a.iconSVG }} />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold truncate">{animeConfig.achievementNames[a.key] ?? a.name}</p>
+                                    <p className="text-xs text-[--muted] truncate">{a.description}</p>
+                                    {a.tier > 0 && <p className="text-xs text-[--muted]">{a.tierName || `Tier ${a.tier}`}</p>}
+                                </div>
+                                <span className="text-xs text-[--muted] shrink-0">{a.category}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Modal>
+
             {editable && <AchievementShowcase />}
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+                <button
+                    onClick={() => setShowUnlockedOnly(v => !v)}
+                    className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border mr-1",
+                        showUnlockedOnly
+                            ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/40"
+                            : "bg-[--paper] text-[--muted] border-[--border] hover:bg-[--highlight]",
+                    )}
+                >
+                    {showUnlockedOnly ? <LuEye className="size-3.5" /> : <LuEyeOff className="size-3.5" />}
+                    {showUnlockedOnly ? "Unlocked" : "All"}
+                </button>
                 <CategoryPill name="All" isActive={selectedCategory === "all"} onClick={() => setSelectedCategory("all")} />
-                {categories.map(cat => (
+                {categories.map((cat: Achievement_CategoryInfo) => (
                     <CategoryPill
                         key={cat.Key}
                         name={cat.Name}
@@ -743,7 +772,7 @@ export function AchievementCard({ definition, entryMap }: { definition: Achievem
                         <span className="font-semibold text-sm truncate">{achievementName}</span>
                         {isUnlocked && <Badge size="sm" intent="warning">Unlocked</Badge>}
                     </div>
-                    <p className="text-xs text-[--muted] mt-0.5">{definition.Description}</p>
+                    <p className="text-xs text-[--muted] mt-0.5">{formatDescription(definition.Description, definition.TierThresholds, 0)}</p>
                     {entry?.unlockedAt && <p className="text-xs text-[--muted] mt-1">{new Date(entry.unlockedAt).toLocaleDateString()}</p>}
                 </div>
                 {!isUnlocked && <LuLock className="absolute top-2 right-2 size-3 text-[--muted]" />}
@@ -778,7 +807,7 @@ export function AchievementCard({ definition, entryMap }: { definition: Achievem
                         </Badge>
                     )}
                 </div>
-                <p className="text-xs text-[--muted] mt-0.5">{definition.Description}</p>
+                <p className="text-xs text-[--muted] mt-0.5">{formatDescription(definition.Description, definition.TierThresholds, nextTier - 1)}</p>
                 <div className="flex items-center gap-1 mt-2">
                     {Array.from({ length: maxTier }, (_, i) => (
                         <div key={i + 1} className={cn("size-2 rounded-full", i + 1 <= highestUnlockedTier ? "bg-yellow-500" : "bg-[--border]")} title={definition.TierNames?.[i] ?? `Tier ${i + 1}`} />
@@ -846,8 +875,8 @@ export function formatTimeAgo(date: Date): string {
 }
 
 export function getLevelColor(level: number): { ring: string; glow: string; label: string } {
-    if (level >= 40) return { ring: "stroke-yellow-400", glow: "shadow-yellow-400/50", label: "text-yellow-400" }
-    if (level >= 25) return { ring: "stroke-purple-400", glow: "shadow-purple-400/50", label: "text-purple-400" }
-    if (level >= 10) return { ring: "stroke-blue-400", glow: "shadow-blue-400/50", label: "text-blue-400" }
+    if (level >= 100) return { ring: "stroke-yellow-400", glow: "shadow-yellow-400/50", label: "text-yellow-400" }
+    if (level >= 50) return { ring: "stroke-purple-400", glow: "shadow-purple-400/50", label: "text-purple-400" }
+    if (level >= 20) return { ring: "stroke-blue-400", glow: "shadow-blue-400/50", label: "text-blue-400" }
     return { ring: "stroke-gray-400", glow: "shadow-gray-400/30", label: "text-gray-400" }
 }

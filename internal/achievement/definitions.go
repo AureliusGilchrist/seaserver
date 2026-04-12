@@ -1,6 +1,9 @@
 package achievement
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // Category represents an achievement category for grouping and display.
 type Category string
@@ -123,6 +126,21 @@ func DefaultTierXP(tier int) int {
 		return 150 // one-time achievement
 	}
 	return 50
+}
+
+// FormatThreshold replaces {threshold} in a description with the actual threshold for the given tier.
+func FormatThreshold(desc string, thresholds []int, tier int) string {
+	if len(thresholds) == 0 {
+		return desc
+	}
+	idx := tier - 1
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(thresholds) {
+		idx = len(thresholds) - 1
+	}
+	return strings.ReplaceAll(desc, "{threshold}", strconv.Itoa(thresholds[idx]))
 }
 
 // AllCategories returns display info for all categories.
@@ -283,6 +301,15 @@ func DefinitionMap() map[string]*Definition {
 	m := make(map[string]*Definition, len(AllDefinitions))
 	for i := range AllDefinitions {
 		m[AllDefinitions[i].Key] = &AllDefinitions[i]
+	}
+	return m
+}
+
+// CategoryMap returns a map of category key -> CategoryInfo for quick lookup.
+func CategoryMap() map[Category]CategoryInfo {
+	m := make(map[Category]CategoryInfo, len(AllCategories))
+	for _, c := range AllCategories {
+		m[c.Key] = c
 	}
 	return m
 }

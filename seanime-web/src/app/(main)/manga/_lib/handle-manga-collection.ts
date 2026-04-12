@@ -1,7 +1,8 @@
 import { Manga_Collection, Manga_MangaLatestChapterNumberItem } from "@/api/generated/types"
 import { useListMangaProviderExtensions } from "@/api/hooks/extensions.hooks"
 import { useGetMangaCollection, useGetMangaLatestChapterNumbersMap } from "@/api/hooks/manga.hooks"
-import { CollectionParams, DEFAULT_COLLECTION_PARAMS, filterCollectionEntries, filterMangaCollectionEntries } from "@/lib/helpers/filtering"
+import { useGetMangaGojuuonMap } from "@/api/hooks/services.hooks"
+import { CollectionParams, DEFAULT_COLLECTION_PARAMS, filterMangaCollectionEntries } from "@/lib/helpers/filtering"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { atomWithImmer } from "jotai-immer"
 import { useAtom } from "jotai/react"
@@ -41,6 +42,7 @@ export function useHandleMangaCollection() {
 
     // const { data: chapterCounts } = useGetMangaChapterCountMap()
     const { data: latestChapterNumbers } = useGetMangaLatestChapterNumbersMap()
+    const { data: mangaGojuuonMap } = useGetMangaGojuuonMap()
     const { data: _extensions } = useListMangaProviderExtensions()
 
     const { mangaLibraryCollectionDefaultSorting } = useThemeSettings()
@@ -114,12 +116,14 @@ export function useHandleMangaCollection() {
             if (!obj) return obj
 
             const newParams = { ...params, sorting: mangaLibraryCollectionDefaultSorting as any }
-            let arr = filterMangaCollectionEntries(obj.entries, newParams, true, storedProviders, storedFilters, latestChapterNumbers)
+            let arr = filterMangaCollectionEntries(obj.entries, newParams, true, storedProviders, storedFilters, latestChapterNumbers,
+                mangaGojuuonMap)
 
             // Reset `unreadOnly` if it's about to make the list disappear
             if (arr.length === 0 && newParams.unreadOnly) {
                 const newParams = { ...params, unreadOnly: false, sorting: mangaLibraryCollectionDefaultSorting as any }
-                arr = filterMangaCollectionEntries(obj.entries, newParams, true, storedProviders, storedFilters, latestChapterNumbers)
+                arr = filterMangaCollectionEntries(obj.entries, newParams, true, storedProviders, storedFilters, latestChapterNumbers,
+                    mangaGojuuonMap)
             }
 
             return {
@@ -138,7 +142,7 @@ export function useHandleMangaCollection() {
                 // data.lists.find(n => n.type === "DROPPED"), // DO NOT SHOW THIS LIST IN MANGA VIEW
             ].filter(Boolean),
         } as Manga_Collection
-    }, [data, params, storedProviders, storedFilters, latestChapterNumbers])
+    }, [data, params, storedProviders, storedFilters, latestChapterNumbers, mangaGojuuonMap, mangaLibraryCollectionDefaultSorting])
 
     const filteredCollection = React.useMemo(() => {
         if (!data || !data.lists) return data
@@ -147,7 +151,8 @@ export function useHandleMangaCollection() {
             if (!obj) return obj
 
             const newParams = { ...params, sorting: mangaLibraryCollectionDefaultSorting as any }
-            const arr = filterCollectionEntries("manga", obj.entries, newParams, true)
+            const arr = filterMangaCollectionEntries(obj.entries, newParams, true, storedProviders, storedFilters, latestChapterNumbers,
+                mangaGojuuonMap)
             return {
                 type: obj.type,
                 status: obj.status,
@@ -163,7 +168,7 @@ export function useHandleMangaCollection() {
                 // data.lists.find(n => n.type === "DROPPED"), // DO NOT SHOW THIS LIST IN MANGA VIEW
             ].filter(Boolean),
         } as Manga_Collection
-    }, [data, params])
+    }, [data, params, storedProviders, storedFilters, latestChapterNumbers, mangaGojuuonMap, mangaLibraryCollectionDefaultSorting])
 
     const libraryGenres = React.useMemo(() => {
         const allGenres = filteredCollection?.lists?.flatMap(l => {

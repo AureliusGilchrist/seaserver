@@ -13,27 +13,17 @@ import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-l
 import { LevelRingAvatar } from "@/app/(main)/community/page"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { tabsTriggerClass, tabsListClass } from "@/components/shared/classnames"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "@/lib/navigation"
-import {
-    ActivityMultiplierBadge,
-    ActivityTabContent,
-    StreakCard,
-    StatsActivityHeatmap,
-    DayOfWeekChart,
-    CategoryPill,
-    AchievementCard,
-    ProgressRing,
-    getLevelColor,
-} from "@/app/(main)/profile/me/page"
-import React from "react"
+import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
+import { ActivityMultiplierBadge, StreakCard, StatsActivityHeatmap, DayOfWeekChart, CategoryPill, AchievementCard, ProgressRing, getLevelColor } from "@/app/(main)/profile/me/page"
+import * as React from "react"
 import {
     LuTrophy, LuStar, LuArrowLeft, LuCalendar, LuBookOpen,
-    LuTv, LuActivity, LuHourglass,
+    LuTv, LuActivity,
 } from "react-icons/lu"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Stats } from "@/components/ui/stats"
@@ -68,12 +58,10 @@ export default function Page() {
     }
 
     const { profile, level, showcase, achievementSummary, activityHeatmap, animeStreak, mangaStreak, recentAchievements } = data
-
     const levelColors = getLevelColor(level?.currentLevel ?? 1)
 
     return (
         <>
-            {/* Banner */}
             {profile!.bannerImage ? (
                 <div className="relative h-48 w-full overflow-hidden">
                     <div
@@ -106,7 +94,12 @@ export default function Page() {
                     />
                     <div className="space-y-1">
                         <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold">{profile!.name}</h1>
+                            <h1 className="text-2xl font-bold">
+                                {profile!.name}
+                                {profile!.anilistUsername && (
+                                    <span className="text-[--muted] font-normal"> ({profile!.anilistUsername})</span>
+                                )}
+                            </h1>
                             {level && level.multiplier > 1 && (
                                 <ActivityMultiplierBadge multiplier={level.multiplier} />
                             )}
@@ -156,7 +149,7 @@ export default function Page() {
                 {/* Tabs */}
                 <Tabs
                     value={activeTab}
-                    onValueChange={(v) => router.push(`/profile/user?id=${id}&tab=${v}`)}
+                    onValueChange={(v: string) => router.push(`/profile/user?id=${id}&tab=${v}`)}
                 >
                     <TabsList className={tabsListClass}>
                         <TabsTrigger value="activity" className={tabsTriggerClass}>
@@ -177,6 +170,12 @@ export default function Page() {
                             activityHeatmap={activityHeatmap}
                             showcase={showcase}
                             recentAchievements={recentAchievements}
+                            anilistProfile={{
+                                avatar: profile!.anilistAvatar,
+                                banner: profile!.bannerImage,
+                                bio: profile!.bio,
+                                name: profile!.anilistUsername || profile!.name,
+                            }}
                         />
                     </TabsContent>
 
@@ -193,7 +192,7 @@ export default function Page() {
     )
 }
 
-// ─────────────────────── Stats Tab (lazy) ───────────────────────
+// ─────────────────────── Stats Tab ───────────────────────
 
 function UserStatsTabContent({ userId }: { userId: number }) {
     const [selectedYear, setSelectedYear] = React.useState<number | undefined>(undefined)
@@ -238,7 +237,7 @@ function UserStatsTabContent({ userId }: { userId: number }) {
                         value={selectedYear ?? ""}
                         onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : undefined)}
                     >
-                        {yearOptions.map((y) => (
+                        {yearOptions.map((y: number | undefined) => (
                             <option key={y ?? "rolling"} value={y ?? ""}>
                                 {y ? `${y}` : "Last 365 days"}
                             </option>
@@ -252,7 +251,15 @@ function UserStatsTabContent({ userId }: { userId: number }) {
     )
 }
 
-// ─────────────────────── Achievements Tab (lazy) ───────────────────────
+// ─────────────────────── Achievements Tab ───────────────────────
+
+function isDefUnlocked(def: Achievement_Definition, entryMap: Map<string, Achievement_Entry>): boolean {
+    if ((def.MaxTier || 0) === 0) return entryMap.get(`${def.Key}:0`)?.isUnlocked ?? false
+    for (let t = 1; t <= (def.MaxTier || 0); t++) {
+        if (entryMap.get(`${def.Key}:${t}`)?.isUnlocked) return true
+    }
+    return false
+}
 
 function UserAchievementsTabContent({ userId }: { userId: number }) {
     const { data, isLoading } = useGetUserAchievements(userId)
@@ -278,7 +285,7 @@ function UserAchievementsTabContent({ userId }: { userId: number }) {
 
     const filteredDefs = selectedCategory === "all"
         ? definitions
-        : definitions.filter(d => d.Category === selectedCategory)
+        : definitions.filter((d: Achievement_Definition) => d.Category === selectedCategory)
 
     const groupedDefs = new Map<Achievement_Category, Achievement_Definition[]>()
     for (const def of filteredDefs) {
@@ -305,7 +312,7 @@ function UserAchievementsTabContent({ userId }: { userId: number }) {
 
             <div className="flex flex-wrap gap-2">
                 <CategoryPill name="All" isActive={selectedCategory === "all"} onClick={() => setSelectedCategory("all")} />
-                {categories.map(cat => (
+                {categories.map((cat: Achievement_CategoryInfo) => (
                     <CategoryPill
                         key={cat.Key}
                         name={cat.Name}
@@ -328,7 +335,7 @@ function UserAchievementsTabContent({ userId }: { userId: number }) {
                             {catInfo?.Description && <span className="text-sm text-[--muted]">— {catInfo.Description}</span>}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                            {defs.map(def => (
+                            {defs.map((def: Achievement_Definition) => (
                                 <AchievementCard key={def.Key} definition={def} entryMap={entryMap} />
                             ))}
                         </div>

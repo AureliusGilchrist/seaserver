@@ -526,7 +526,7 @@ export const API_ENDPOINTS = {
         EditComment: {
             key: "COMMENT-edit-comment",
             methods: ["PATCH"],
-            endpoint: "/api/v1/comments/:id",
+            endpoint: "/api/v1/comments/{id}",
         },
         /**
          *  @description
@@ -536,7 +536,7 @@ export const API_ENDPOINTS = {
         DeleteComment: {
             key: "COMMENT-delete-comment",
             methods: ["DELETE"],
-            endpoint: "/api/v1/comments/:id",
+            endpoint: "/api/v1/comments/{id}",
         },
         /**
          *  @description
@@ -546,7 +546,7 @@ export const API_ENDPOINTS = {
         VoteComment: {
             key: "COMMENT-vote-comment",
             methods: ["POST"],
-            endpoint: "/api/v1/comments/:id/vote",
+            endpoint: "/api/v1/comments/{id}/vote",
         },
     },
     CONTINUITY: {
@@ -1992,7 +1992,7 @@ export const API_ENDPOINTS = {
         MarkNotificationRead: {
             key: "NOTIFICATION-mark-notification-read",
             methods: ["POST"],
-            endpoint: "/api/v1/notifications/:id/read",
+            endpoint: "/api/v1/notifications/{id}/read",
         },
         /**
          *  @description
@@ -2012,7 +2012,7 @@ export const API_ENDPOINTS = {
         DeleteNotification: {
             key: "NOTIFICATION-delete-notification",
             methods: ["DELETE"],
-            endpoint: "/api/v1/notifications/:id",
+            endpoint: "/api/v1/notifications/{id}",
         },
     },
     ONLINESTREAM: {
@@ -2311,22 +2311,22 @@ export const API_ENDPOINTS = {
         UpdateProfile: {
             key: "PROFILE-update-profile",
             methods: ["PATCH"],
-            endpoint: "/api/v1/profiles/:id",
+            endpoint: "/api/v1/profiles/{id}",
         },
         DeleteProfile: {
             key: "PROFILE-delete-profile",
             methods: ["DELETE"],
-            endpoint: "/api/v1/profiles/:id",
+            endpoint: "/api/v1/profiles/{id}",
         },
         UploadProfileAvatar: {
             key: "PROFILE-upload-profile-avatar",
             methods: ["POST"],
-            endpoint: "/api/v1/profiles/:id/avatar",
+            endpoint: "/api/v1/profiles/{id}/avatar",
         },
         ServeProfileAvatar: {
             key: "PROFILE-serve-profile-avatar",
             methods: ["GET"],
-            endpoint: "/api/v1/profiles/:id/avatar/:filename",
+            endpoint: "/api/v1/profiles/{id}/avatar/{filename}",
         },
         GetAllowedLibraryPaths: {
             key: "PROFILE-get-allowed-library-paths",
@@ -2684,7 +2684,7 @@ export const API_ENDPOINTS = {
         GetSyntheticAnime: {
             key: "SYNTHETIC-ANIME-get-synthetic-anime",
             methods: ["GET"],
-            endpoint: "/api/v1/anime/synthetic/:id",
+            endpoint: "/api/v1/anime/synthetic/{id}",
         },
     },
     THEME: {

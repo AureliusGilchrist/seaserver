@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"seanime/internal/api/anilist"
+	database "seanime/internal/database/db"
 	"seanime/internal/database/models"
 	"seanime/internal/events"
 	"seanime/internal/extension"
@@ -95,6 +96,7 @@ type (
 		logger            *zerolog.Logger
 		mangaRepository   *manga.Repository
 		mangaDownloader   *manga.Downloader
+		database          *database.Database
 		wsEventManager    events.WSEventManagerInterface
 		platformRef       *util.Ref[platform.Platform]
 
@@ -167,6 +169,7 @@ type (
 		Logger           *zerolog.Logger
 		MangaRepository  *manga.Repository
 		MangaDownloader  *manga.Downloader
+		Database         *database.Database
 		WSEventManager   events.WSEventManagerInterface
 		PlatformRef      *util.Ref[platform.Platform]
 	}
@@ -210,6 +213,7 @@ func NewMangaDownloader(opts *NewMangaDownloaderOptions) *MangaDownloader {
 		logger:           opts.Logger,
 		mangaRepository:  opts.MangaRepository,
 		mangaDownloader:  opts.MangaDownloader,
+		database:         opts.Database,
 		wsEventManager:   opts.WSEventManager,
 		platformRef:      opts.PlatformRef,
 		downloadedManga:  make([]string, 0, MaxLogEntries),
@@ -1486,17 +1490,23 @@ func (d *MangaDownloader) searchAniListMangaWithResults(ctx context.Context, tit
 }
 
 func (d *MangaDownloader) addToAniListPlanningList(ctx context.Context, mangaMedia *anilist.BaseManga) error {
-	platform := d.platformRef.Get()
-	if platform == nil {
-		return fmt.Errorf("platform not available")
+	if d.database == nil {
+		return fmt.Errorf("database not available")
+	}
+	settings, err := d.database.GetSettings()
+	if err != nil {
+		return err
+	}
+	if settings == nil || settings.Library == nil || settings.Library.PlanningSlutToken == "" {
+		return fmt.Errorf("planning slut token not configured")
 	}
 
-	// Add to planning list using AniList API (which syncs to MAL if linked)
-	anilistClient := platform.GetAnilistClient()
+	// En masse downloads should write to the shared Planning Slut AniList account.
+	anilistClient := anilist.NewAnilistClient(settings.Library.PlanningSlutToken, d.mangaRepository.GetCacheDir())
 	status := anilist.MediaListStatusPlanning
 	progress := 0
 
-	_, err := anilistClient.UpdateMediaListEntryProgress(ctx, &mangaMedia.ID, &progress, &status)
+	_, err = anilistClient.UpdateMediaListEntryProgress(ctx, &mangaMedia.ID, &progress, &status)
 	if err != nil {
 		return err
 	}

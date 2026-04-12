@@ -61,6 +61,12 @@ func (h *Handler) HandleGettingStarted(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	// Preserve globally configured Planning Slut token.
+	// It should only be changed through /planning-slut/token endpoints.
+	if prev, err := h.App.Database.GetSettings(); err == nil && prev != nil && prev.Library != nil {
+		b.Library.PlanningSlutToken = prev.Library.PlanningSlutToken
+	}
+
 	// Check settings
 	if b.Library.LibraryPaths == nil {
 		b.Library.LibraryPaths = []string{}
@@ -165,6 +171,12 @@ func (h *Handler) HandleSaveSettings(c echo.Context) error {
 
 	if err := c.Bind(&b); err != nil {
 		return h.RespondWithError(c, err)
+	}
+
+	// Preserve globally configured Planning Slut token.
+	// It should only be changed through /planning-slut/token endpoints.
+	if prev, err := h.App.Database.GetSettings(); err == nil && prev != nil && prev.Library != nil {
+		b.Library.PlanningSlutToken = prev.Library.PlanningSlutToken
 	}
 
 	if b.Library.LibraryPath != "" {

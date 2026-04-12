@@ -92,6 +92,7 @@ func (q *Queue) Add(id DownloadID, pages []*hibikemanga.ChapterPage, runNext boo
 
 	err = q.db.InsertChapterDownloadQueueItem(&models.ChapterDownloadQueueItem{
 		BaseModel:       models.BaseModel{},
+		ProfileID:       id.ProfileID,
 		Provider:        id.Provider,
 		MediaID:         id.MediaId,
 		ChapterNumber:   id.ChapterNumber,

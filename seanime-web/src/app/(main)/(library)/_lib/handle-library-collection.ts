@@ -1,6 +1,7 @@
 import { Anime_LibraryCollectionList } from "@/api/generated/types"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
+import { useGetAnimeGojuuonMap } from "@/api/hooks/services.hooks"
 import { animeLibraryCollectionAtom } from "@/app/(main)/_atoms/anime-library-collection.atoms"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import {
@@ -32,6 +33,7 @@ export function useHandleLibraryCollection() {
     const { animeLibraryCollectionDefaultSorting, continueWatchingDefaultSorting } = useThemeSettings()
 
     const { data: watchHistory } = useGetContinuityWatchHistory()
+    const { data: animeGojuuonMap } = useGetAnimeGojuuonMap()
 
     /**
      * Fetch the anime library collection
@@ -139,6 +141,7 @@ export function useHandleLibraryCollection() {
                 serverStatus?.settings?.anilist?.enableAdultContent,
                 continueWatchingList,
                 watchHistory,
+                animeGojuuonMap,
             )
 
             // Reset `continueWatchingOnly` to false if it's about to make the list disappear
@@ -156,6 +159,7 @@ export function useHandleLibraryCollection() {
                     serverStatus?.settings?.anilist?.enableAdultContent,
                     continueWatchingList,
                     watchHistory,
+                    animeGojuuonMap,
                 )
             }
 
@@ -173,7 +177,7 @@ export function useHandleLibraryCollection() {
             _lists.find(n => n.type === "COMPLETED"),
             _lists.find(n => n.type === "DROPPED"),
         ].filter(Boolean)
-    }, [data, params, animeLibraryCollectionDefaultSorting, serverStatus?.settings?.anilist?.enableAdultContent])
+    }, [data, params, animeLibraryCollectionDefaultSorting, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
 
     /**
      * Filter the collection
@@ -192,7 +196,8 @@ export function useHandleLibraryCollection() {
                 paramsToApply,
                 serverStatus?.settings?.anilist?.enableAdultContent,
                 data.continueWatchingList,
-                watchHistory)
+                watchHistory,
+                animeGojuuonMap)
 
             // For the LOCAL list, sort by title with special characters first, then A-Z
             if (obj.type?.toString() === "LOCAL") {
@@ -221,7 +226,7 @@ export function useHandleLibraryCollection() {
             _lists.find(n => n.type === "COMPLETED"),
             _lists.find(n => n.type === "DROPPED"),
         ].filter(Boolean)
-    }, [data, params, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory])
+    }, [data, params, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
 
     /**
      * Sort the continue watching list

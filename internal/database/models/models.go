@@ -101,6 +101,8 @@ type LibrarySettings struct {
 	ScannerConfig            string `gorm:"column:scanner_config" json:"scannerConfig"`
 	// v3.6.0+
 	UpdateChannel string `gorm:"column:update_channel" json:"updateChannel"` // "github", "seanime", "seanime_nightly"
+	// Planning Slut: shared AniList account token for the global library
+	PlanningSlutToken string `gorm:"column:planning_slut_token" json:"planningSlutToken"`
 }
 
 func (o *LibrarySettings) GetLibraryPaths() (ret []string) {
@@ -414,6 +416,7 @@ type Playlist struct {
 
 type ChapterDownloadQueueItem struct {
 	BaseModel
+	ProfileID       uint   `gorm:"column:profile_id;index" json:"profileId"`
 	Provider        string `gorm:"column:provider" json:"provider"`
 	MediaID         int    `gorm:"column:media_id" json:"mediaId"`
 	ChapterID       string `gorm:"column:chapter_id" json:"chapterId"`
@@ -759,6 +762,15 @@ type LevelProgress struct {
 	TotalXP      int `gorm:"column:total_xp;default:0" json:"totalXP"`
 	CurrentLevel int `gorm:"column:current_level;default:1" json:"currentLevel"`
 	XPVersion    int `gorm:"column:xp_version;default:0" json:"xpVersion"`
+}
+
+// AdminAnnouncement is a server-local announcement created by an admin, shown as a dismissible banner.
+type AdminAnnouncement struct {
+	BaseModel
+	Message   string    `gorm:"column:message" json:"message"`
+	CreatedBy uint      `gorm:"column:created_by" json:"createdBy"`
+	ExpiresAt time.Time `gorm:"column:expires_at" json:"expiresAt"`
+	Dismissed string    `gorm:"column:dismissed;type:text" json:"-"` // comma-separated profile IDs
 }
 
 ///////////////////////////////////////////////////////////////////////////

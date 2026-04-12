@@ -6,7 +6,7 @@ import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-l
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import React from "react"
+import * as React from "react"
 import { LuUsers, LuLayoutGrid, LuList, LuTrophy, LuStar, LuActivity, LuZap } from "react-icons/lu"
 import { SeaLink } from "@/components/shared/sea-link"
 
@@ -163,9 +163,9 @@ function formatTimeAgo(date: Date): string {
 }
 
 function getLevelColor(level: number): { ring: string; glow: string; label: string } {
-    if (level >= 40) return { ring: "stroke-yellow-400", glow: "shadow-yellow-400/50", label: "text-yellow-400" }
-    if (level >= 25) return { ring: "stroke-purple-400", glow: "shadow-purple-400/50", label: "text-purple-400" }
-    if (level >= 10) return { ring: "stroke-blue-400", glow: "shadow-blue-400/50", label: "text-blue-400" }
+    if (level >= 100) return { ring: "stroke-yellow-400", glow: "shadow-yellow-400/50", label: "text-yellow-400" }
+    if (level >= 50) return { ring: "stroke-purple-400", glow: "shadow-purple-400/50", label: "text-purple-400" }
+    if (level >= 20) return { ring: "stroke-blue-400", glow: "shadow-blue-400/50", label: "text-blue-400" }
     return { ring: "stroke-gray-400", glow: "shadow-gray-400/30", label: "text-gray-400" }
 }
 

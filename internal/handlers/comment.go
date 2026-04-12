@@ -289,7 +289,7 @@ func (h *Handler) HandleCreateComment(c echo.Context) error {
 //	@summary edit a comment.
 //	@desc Updates the content of a comment. Only the author can edit.
 //	@returns handlers.CommentResponse
-//	@route /api/v1/comments/:id [PATCH]
+//	@route /api/v1/comments/{id} [PATCH]
 func (h *Handler) HandleEditComment(c echo.Context) error {
 	type body struct {
 		Content string `json:"content"`
@@ -363,7 +363,7 @@ func (h *Handler) HandleEditComment(c echo.Context) error {
 //	@summary delete a comment.
 //	@desc Deletes a comment and all its replies. Admin or author only.
 //	@returns bool
-//	@route /api/v1/comments/:id [DELETE]
+//	@route /api/v1/comments/{id} [DELETE]
 func (h *Handler) HandleDeleteComment(c echo.Context) error {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -399,7 +399,7 @@ func (h *Handler) HandleDeleteComment(c echo.Context) error {
 //	@summary vote on a comment.
 //	@desc Upvote (+1), downvote (-1), or remove vote (0) on a comment.
 //	@returns bool
-//	@route /api/v1/comments/:id/vote [POST]
+//	@route /api/v1/comments/{id}/vote [POST]
 func (h *Handler) HandleVoteComment(c echo.Context) error {
 	type body struct {
 		Value int `json:"value"` // +1, -1, or 0
