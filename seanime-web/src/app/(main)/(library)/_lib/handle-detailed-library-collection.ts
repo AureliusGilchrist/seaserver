@@ -1,6 +1,7 @@
 import { Anime_LibraryCollectionEntry, Anime_LibraryCollectionList } from "@/api/generated/types"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
+import { useGetAnimeGojuuonMap } from "@/api/hooks/services.hooks"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useDebounce } from "@/hooks/use-debounce"
 import { CollectionParams, DEFAULT_ANIME_COLLECTION_PARAMS, filterAnimeCollectionEntries, filterEntriesByTitle } from "@/lib/helpers/filtering"
@@ -28,6 +29,7 @@ export function useHandleDetailedLibraryCollection({ enabled = true }: { enabled
     const { animeLibraryCollectionDefaultSorting } = useThemeSettings()
 
     const { data: watchHistory } = useGetContinuityWatchHistory()
+    const { data: animeGojuuonMap } = useGetAnimeGojuuonMap()
 
     /**
      * Fetch the library collection data
@@ -58,7 +60,8 @@ export function useHandleDetailedLibraryCollection({ enabled = true }: { enabled
                 paramsToDebounce,
                 serverStatus?.settings?.anilist?.enableAdultContent,
                 data.continueWatchingList,
-                watchHistory)
+                watchHistory,
+                animeGojuuonMap)
             return {
                 type: obj.type,
                 status: obj.status,
@@ -72,7 +75,7 @@ export function useHandleDetailedLibraryCollection({ enabled = true }: { enabled
             _lists.find(n => n.type === "COMPLETED"),
             _lists.find(n => n.type === "DROPPED"),
         ].filter(Boolean)
-    }, [data, debouncedParams, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory])
+    }, [data, debouncedParams, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
 
     const filteredCollection: Anime_LibraryCollectionList[] = React.useMemo(() => {
         return _filteredCollection.map(obj => {
@@ -95,8 +98,9 @@ export function useHandleDetailedLibraryCollection({ enabled = true }: { enabled
             paramsToDebounce,
             serverStatus?.settings?.anilist?.enableAdultContent,
             data.continueWatchingList,
-            watchHistory)
-    }, [data, debouncedParams, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory])
+            watchHistory,
+            animeGojuuonMap)
+    }, [data, debouncedParams, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
 
     const filteredEntries: Anime_LibraryCollectionEntry[] = React.useMemo(() => {
         return filterEntriesByTitle(_filteredEntries, debouncedSearchInput)

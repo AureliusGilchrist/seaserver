@@ -167,6 +167,25 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 		}
 	}
 
+	sharedOnlyMediaIds := make(map[int]struct{})
+	if h.getPlanningSlutToken() != "" && len(lfs) > 0 {
+		localMediaIds := make(map[int]struct{})
+		for _, lf := range lfs {
+			if lf.MediaId > 0 && !customsource.IsExtensionId(lf.MediaId) {
+				localMediaIds[lf.MediaId] = struct{}{}
+			}
+		}
+
+		if len(localMediaIds) > 0 {
+			sharedCollection, sharedErr := h.getPlanningSlutAnimeCollection(c.Request().Context())
+			if sharedErr != nil {
+				h.App.Logger.Debug().Err(sharedErr).Msg("library: failed to fetch planning slut anime collection")
+			} else {
+				sharedOnlyMediaIds = mergePlanningSlutAnimeCollection(animeCollection, sharedCollection, localMediaIds)
+			}
+		}
+	}
+
 	libraryCollection, err := anime.NewLibraryCollection(c.Request().Context(), &anime.NewLibraryCollectionOptions{
 		AnimeCollection:     animeCollection,
 		PlatformRef:         h.App.AnilistPlatformRef,
@@ -176,6 +195,7 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
+	hideSharedOnlyAnimeListData(libraryCollection, sharedOnlyMediaIds)
 
 	// Restore the original anime collection if it was modified
 	if fromNakama {

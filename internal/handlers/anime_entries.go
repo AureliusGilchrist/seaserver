@@ -435,6 +435,12 @@ func (h *Handler) HandleFetchAnimeEntrySuggestions(c echo.Context) error {
 		return item.MediaId == 0
 	})
 
+	if len(selectedLfs) == 0 {
+		empty := make([]*anilist.BaseAnime, 0)
+		entriesSuggestionsCache.Set(b.Dir, empty)
+		return h.RespondWithData(c, empty)
+	}
+
 	title := selectedLfs[0].GetParsedTitle()
 
 	h.App.Logger.Info().Str("title", title).Msg("handlers: Fetching anime suggestions")

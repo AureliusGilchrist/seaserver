@@ -30,6 +30,32 @@ import {
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+export type MangaHydrationDetail = {
+    timestamp: string
+    source: string
+    mediaId: number
+    title: string
+    action: "hydrated" | "skipped" | "failed"
+    message?: string
+}
+
+export type MangaHydrationStatus = {
+    isRunning: boolean
+    cancelRequested: boolean
+    wasCancelled: boolean
+    total: number
+    processed: number
+    aniListHydrated: number
+    syntheticHydrated: number
+    skipped: number
+    failed: number
+    progress: number
+    startedAt?: string
+    finishedAt?: string
+    lastUpdatedAt?: string
+    details: MangaHydrationDetail[]
+}
+
 export function useGetAnilistMangaCollection() {
     return useServerQuery<AL_MangaCollection, GetAnilistMangaCollection_Variables>({
         endpoint: API_ENDPOINTS.MANGA.GetAnilistMangaCollection.endpoint,
@@ -55,6 +81,47 @@ export function useGetMangaCollection() {
         method: API_ENDPOINTS.MANGA.GetMangaCollection.methods[0],
         queryKey: [API_ENDPOINTS.MANGA.GetMangaCollection.key],
         enabled: true,
+    })
+}
+
+export function useHydrateAllManga() {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<boolean>({
+        endpoint: API_ENDPOINTS.MANGA.HydrateAllManga.endpoint,
+        method: API_ENDPOINTS.MANGA.HydrateAllManga.methods[0],
+        mutationKey: [API_ENDPOINTS.MANGA.HydrateAllManga.key],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["MANGA-hydrate-all-status"] })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaCollection.key] })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaEntry.key] })
+            toast.success("Manga hydration started")
+        },
+    })
+}
+
+export function useCancelMangaHydration() {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<boolean>({
+        endpoint: "/api/v1/manga/hydrate-all/cancel",
+        method: "POST",
+        mutationKey: ["MANGA-hydrate-all-cancel"],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["MANGA-hydrate-all-status"] })
+            toast.success("Hydration cancellation requested")
+        },
+    })
+}
+
+export function useGetMangaHydrationStatus() {
+    return useServerQuery<MangaHydrationStatus>({
+        endpoint: "/api/v1/manga/hydrate-all/status",
+        method: "GET",
+        queryKey: ["MANGA-hydrate-all-status"],
+        refetchInterval: query => query.state.data?.isRunning ? 1200 : 5000,
+        enabled: true,
+        muteError: true,
     })
 }
 

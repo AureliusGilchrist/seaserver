@@ -4,6 +4,7 @@ import { INTERNAL_MigrationStatus as MigrationStatus, INTERNAL_ProfileSummary as
 
 type ProfileLoginResponse = { token: string; profile: ProfileSummary }
 import { currentProfileAtom, profileSessionTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { serverStatusAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useQueryClient } from "@tanstack/react-query"
 import { useSetAtom } from "jotai"
 import { toast } from "sonner"
@@ -30,6 +31,7 @@ export function useProfileLogin() {
     const qc = useQueryClient()
     const setProfileToken = useSetAtom(profileSessionTokenAtom)
     const setCurrentProfile = useSetAtom(currentProfileAtom)
+    const setServerStatus = useSetAtom(serverStatusAtom)
 
     return useServerMutation<ProfileLoginResponse, { profileId: number; pin: string }>({
         endpoint: API_ENDPOINTS.PROFILE.ProfileLogin.endpoint,
@@ -39,6 +41,11 @@ export function useProfileLogin() {
             if (data) {
                 setProfileToken(data.token)
                 setCurrentProfile(data.profile)
+                // Immediate UI transition: avoid requiring manual refresh to leave PIN screen.
+                setServerStatus(draft => {
+                    if (!draft) return
+                    draft.currentProfile = data.profile
+                })
                 await qc.invalidateQueries()
                 toast.success(`Welcome, ${data.profile.name}`)
             }

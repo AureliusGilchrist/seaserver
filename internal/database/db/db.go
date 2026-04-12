@@ -129,6 +129,7 @@ func migrateTables(db *gorm.DB) error {
 		&models.AchievementShowcase{},
 		&models.ActivityLog{},
 		&models.LevelProgress{},
+		&models.AdminAnnouncement{},
 	)
 	if err != nil {
 

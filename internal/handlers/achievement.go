@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+
 )
 
 // HandleGetAchievements
@@ -132,7 +133,7 @@ func (h *Handler) HandleGetAchievementShowcase(c echo.Context) error {
 //	@summary get all achievements for another user by profile ID.
 //	@desc Returns achievement definitions, categories, progress/unlock state, and summary for the specified user.
 //	@returns achievement.ListResponse
-//	@route /api/v1/achievements/user/:id [GET]
+//	@route /api/v1/achievements/user/{id} [GET]
 func (h *Handler) HandleGetUserAchievements(c echo.Context) error {
 	idStr := c.Param("id")
 	if idStr == "" {
@@ -242,11 +243,12 @@ func (h *Handler) HandleImportAchievements(c echo.Context) error {
 		if a.Tier > 0 && a.Tier <= len(def.TierNames) {
 			tierName = def.TierNames[a.Tier-1]
 		}
+		desc := achievement.FormatThreshold(def.Description, def.TierThresholds, a.Tier)
 		catInfo := achievement.CategoryMap()[def.Category]
 		newlyUnlocked = append(newlyUnlocked, achievement.UnlockPayload{
 			Key:         a.Key,
 			Name:        def.Name,
-			Description: def.Description,
+			Description: desc,
 			Tier:        a.Tier,
 			TierName:    tierName,
 			Category:    string(def.Category),

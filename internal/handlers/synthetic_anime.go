@@ -41,7 +41,7 @@ func (h *Handler) HandleSearchSyntheticAnime(c echo.Context) error {
 // HandleGetSyntheticAnime
 //
 // @summary returns a synthetic anime by synthetic ID.
-// @route /api/v1/anime/synthetic/:id [GET]
+// @route /api/v1/anime/synthetic/{id} [GET]
 // @returns models.SyntheticAnime
 func (h *Handler) HandleGetSyntheticAnime(c echo.Context) error {
     idStr := c.Param("id")

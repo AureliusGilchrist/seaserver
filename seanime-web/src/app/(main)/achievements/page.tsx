@@ -15,13 +15,30 @@ import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { StaticTabs } from "@/components/ui/tabs"
 import React from "react"
-import { LuTrophy, LuLock } from "react-icons/lu"
+import { LuTrophy, LuLock, LuEye, LuEyeOff } from "react-icons/lu"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
+
+function formatDescription(desc: string, thresholds?: number[], tierIdx?: number): React.ReactNode {
+    if (!desc.includes("{threshold}") || !thresholds?.length) return desc
+    const idx = tierIdx != null ? tierIdx : 0
+    const val = thresholds[Math.min(idx, thresholds.length - 1)]
+    const parts = desc.split("{threshold}")
+    return <>{parts[0]}<strong className="text-[--foreground]">{val.toLocaleString()}</strong>{parts[1]}</>
+}
+
+function isDefUnlocked(def: Achievement_Definition, entryMap: Map<string, Achievement_Entry>): boolean {
+    if ((def.MaxTier || 0) === 0) return entryMap.get(`${def.Key}:0`)?.isUnlocked ?? false
+    for (let t = 1; t <= (def.MaxTier || 0); t++) {
+        if (entryMap.get(`${def.Key}:${t}`)?.isUnlocked) return true
+    }
+    return false
+}
 
 export default function Page() {
     const { data, isLoading } = useGetAchievements()
 
     const [selectedCategory, setSelectedCategory] = React.useState<Achievement_Category | "all">("all")
+    const [showUnlockedOnly, setShowUnlockedOnly] = React.useState(false)
 
     if (isLoading) {
         return (
@@ -46,10 +63,13 @@ export default function Page() {
         categoryMap.set(cat.Key, cat)
     }
 
-    // Filter definitions by selected category
-    const filteredDefs = selectedCategory === "all"
+    // Filter definitions by selected category and unlock state
+    let filteredDefs = selectedCategory === "all"
         ? definitions
         : definitions.filter(d => d.Category === selectedCategory)
+    if (showUnlockedOnly) {
+        filteredDefs = filteredDefs.filter(d => isDefUnlocked(d, entryMap))
+    }
 
     // Group definitions by category for display
     const groupedDefs = new Map<Achievement_Category, Achievement_Definition[]>()
@@ -84,7 +104,19 @@ export default function Page() {
                 <AchievementShowcase />
 
                 {/* Category filter tabs */}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 items-center">
+                    <button
+                        onClick={() => setShowUnlockedOnly(v => !v)}
+                        className={cn(
+                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border mr-1",
+                            showUnlockedOnly
+                                ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/40"
+                                : "bg-[--paper] text-[--muted] border-[--border] hover:bg-[--highlight]",
+                        )}
+                    >
+                        {showUnlockedOnly ? <LuEye className="size-3.5" /> : <LuEyeOff className="size-3.5" />}
+                        {showUnlockedOnly ? "Unlocked" : "All"}
+                    </button>
                     <CategoryPill
                         name="All"
                         isActive={selectedCategory === "all"}
@@ -190,7 +222,7 @@ function AchievementCard({ definition, entryMap }: {
                         <span className="font-semibold text-sm truncate">{achievementName}</span>
                         {isUnlocked && <Badge size="sm" intent="warning">Unlocked</Badge>}
                     </div>
-                    <p className="text-xs text-[--muted] mt-0.5">{definition.Description}</p>
+                    <p className="text-xs text-[--muted] mt-0.5">{formatDescription(definition.Description, definition.TierThresholds, 0)}</p>
                     {entry?.unlockedAt && (
                         <p className="text-xs text-[--muted] mt-1">
                             {new Date(entry.unlockedAt).toLocaleDateString()}
@@ -235,7 +267,7 @@ function AchievementCard({ definition, entryMap }: {
                         </Badge>
                     )}
                 </div>
-                <p className="text-xs text-[--muted] mt-0.5">{definition.Description}</p>
+                <p className="text-xs text-[--muted] mt-0.5">{formatDescription(definition.Description, definition.TierThresholds, nextTier - 1)}</p>
 
                 {/* Tier dots */}
                 <div className="flex items-center gap-1 mt-2">

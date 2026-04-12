@@ -657,6 +657,13 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                         href: "/settings",
                         isCurrent: pathname === ("/settings"),
                     }),
+                    ...(serverStatus?.currentProfile?.isAdmin ? [applyFooterOverride({
+                        id: "admin-announcements",
+                        iconType: LuBell,
+                        name: "Announcements",
+                        href: "/admin/announcements",
+                        isCurrent: pathname === "/admin/announcements",
+                    })] : []),
                     ...(ctx.isBelowBreakpoint ? [
                         ...(serverStatus?.currentProfile ? [{
                             iconType: BiLogOut,

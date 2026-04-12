@@ -88,7 +88,7 @@ func (h *Handler) HandleGetProfileStats(c echo.Context) error {
 //	@desc Returns activity heatmap, streak data, and watch patterns. Personality/AniList data not available for other users.
 //	@desc Optional query param "year" selects a calendar year; defaults to last 365 days.
 //	@returns profilestats.ProfileStats
-//	@route /api/v1/profile/user/:id/stats [GET]
+//	@route /api/v1/profile/user/{id}/stats [GET]
 func (h *Handler) HandleGetUserProfileStats(c echo.Context) error {
 	idStr := c.Param("id")
 	if idStr == "" {

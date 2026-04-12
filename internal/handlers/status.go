@@ -52,6 +52,8 @@ type Status struct {
 	NeedsMigration       bool                    `json:"needsMigration"`
 	CurrentProfile       *core.ProfileSummary    `json:"currentProfile"`
 	Profiles             []*core.ProfileSummary  `json:"profiles"`
+	// Planning Slut shared library
+	PlanningSlutConfigured bool `json:"planningSlutConfigured"`
 }
 
 var clientInfoCache = result.NewMap[string, util.ClientInfo]()
@@ -126,9 +128,15 @@ func (h *Handler) NewStatus(c echo.Context) *Status {
 		DisabledFeatures:      h.App.FeatureManager.DisabledFeatures,
 	}
 
+	// Populate Planning Slut configured flag
+	if settings != nil && settings.Library != nil && settings.Library.PlanningSlutToken != "" {
+		status.PlanningSlutConfigured = true
+	}
+
 	// Populate profile fields
 	if h.App.ProfileManager != nil {
-		status.ProfilesEnabled = h.App.ProfileManager.HasProfiles()
+		// Multi-profile support is always active
+		status.ProfilesEnabled = true
 
 		if h.App.ProfileMigrator != nil {
 			status.NeedsMigration = h.App.ProfileMigrator.NeedsMigration()

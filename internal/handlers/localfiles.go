@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
+	"seanime/internal/api/anilist"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/library/anime"
 	"seanime/internal/library/filesystem"
@@ -273,6 +275,20 @@ func (h *Handler) HandleUpdateLocalFiles(c echo.Context) error {
 	_, err = db_bridge.SaveLocalFiles(h.App.Database, lfsId, lfs)
 	if err != nil {
 		return h.RespondWithError(c, err)
+	}
+
+	if b.Action == "match" && b.MediaId > 0 && h.getPlanningSlutToken() != "" {
+		mediaID := b.MediaId
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+
+			if err := h.addAnimeToPlanningSlutPlanning(ctx, mediaID); err != nil {
+				if !errors.Is(err, anilist.ErrNotAuthenticated) {
+					h.App.Logger.Debug().Err(err).Int("mediaId", mediaID).Msg("library: failed to add matched anime to planning slut")
+				}
+			}
+		}()
 	}
 
 	return h.RespondWithData(c, true)

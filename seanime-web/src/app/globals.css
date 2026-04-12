@@ -1321,3 +1321,159 @@ media-preview-chapter-display {
 .animate-bubble-rise {
     animation: bubbleRise 8s ease-in-out infinite;
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   Per-Theme Animated Text Effects
+   Each theme gets distinct text animations that match its identity.
+   Triggered by data-anime-theme="<id>" on :root.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── NARUTO ── Chakra-infused text: warm pulsing orange glow on headings,
+   quick fiery flicker on sidebar items, jutsu-seal energy on buttons */
+
+@keyframes narutoChakraPulse {
+    0%, 100% { text-shadow: 0 0 4px rgba(255,120,0,0.25), 0 0 10px rgba(255,80,0,0.08); }
+    50%      { text-shadow: 0 0 8px rgba(255,130,0,0.55), 0 0 18px rgba(255,80,0,0.2), 0 0 30px rgba(200,60,0,0.08); }
+}
+
+@keyframes narutoFireFlicker {
+    0%, 100% { text-shadow: 0 0 2px rgba(255,100,0,0.15); opacity: 1; }
+    25%      { text-shadow: 0 0 5px rgba(255,120,0,0.35); opacity: 0.95; }
+    50%      { text-shadow: 0 0 3px rgba(255,80,0,0.2); opacity: 1; }
+    75%      { text-shadow: 0 0 6px rgba(255,140,0,0.4); opacity: 0.97; }
+}
+
+@keyframes narutoSealPulse {
+    0%, 100% { text-shadow: 0 0 3px rgba(255,100,0,0.2); letter-spacing: 0.08em; }
+    50%      { text-shadow: 0 0 6px rgba(255,120,0,0.4), 0 0 12px rgba(200,60,0,0.12); letter-spacing: 0.1em; }
+}
+
+[data-anime-theme="naruto"] h1,
+[data-anime-theme="naruto"] h2,
+[data-anime-theme="naruto"] h3 {
+    animation: narutoChakraPulse 3s ease-in-out infinite;
+}
+
+[data-anime-theme="naruto"] h4,
+[data-anime-theme="naruto"] h5,
+[data-anime-theme="naruto"] h6 {
+    animation: narutoChakraPulse 3.5s ease-in-out infinite;
+}
+
+[data-anime-theme="naruto"] .UI-VerticalMenu__item,
+[data-anime-theme="naruto"] .UI-VerticalMenu__itemContent {
+    animation: narutoFireFlicker 2.5s ease-in-out infinite;
+}
+
+[data-anime-theme="naruto"] [class*="UI-Button"] {
+    animation: narutoSealPulse 3s ease-in-out infinite;
+}
+
+[data-anime-theme="naruto"] [class*="TabsTrigger"] {
+    animation: narutoSealPulse 3.2s ease-in-out infinite;
+}
+
+[data-anime-theme="naruto"] [class*="achievement"] h4 {
+    animation: narutoChakraPulse 2.8s ease-in-out infinite;
+}
+
+/* ── BLEACH ── Soul Society text: cold silver reiatsu sweep across headings,
+   slow ethereal ice shimmer on sidebar, spectral flicker on buttons */
+
+@keyframes bleachReiatsuSweep {
+    0%   { text-shadow: 0 0 3px rgba(180,200,230,0.15), 0 0 8px rgba(120,150,200,0.05); }
+    30%  { text-shadow: 0 0 6px rgba(200,215,240,0.4), 0 0 14px rgba(150,175,220,0.15), 0 0 24px rgba(100,130,180,0.06); }
+    60%  { text-shadow: 0 0 10px rgba(210,225,250,0.5), 0 0 20px rgba(160,185,230,0.2), 0 0 35px rgba(120,150,200,0.08); }
+    100% { text-shadow: 0 0 3px rgba(180,200,230,0.15), 0 0 8px rgba(120,150,200,0.05); }
+}
+
+@keyframes bleachEtherealFade {
+    0%, 100% { text-shadow: 0 0 2px rgba(180,200,230,0.1); opacity: 1; }
+    33%      { text-shadow: 0 0 4px rgba(200,215,240,0.25); opacity: 0.92; }
+    66%      { text-shadow: 0 0 6px rgba(170,195,230,0.3); opacity: 0.97; }
+}
+
+@keyframes bleachSpectralFlicker {
+    0%, 100% { text-shadow: 0 0 2px rgba(200,210,235,0.15); }
+    20%      { text-shadow: 0 0 5px rgba(210,220,245,0.35); }
+    40%      { text-shadow: 0 0 2px rgba(180,195,220,0.1); }
+    60%      { text-shadow: 0 0 7px rgba(220,230,255,0.4); }
+    80%      { text-shadow: 0 0 3px rgba(190,205,230,0.2); }
+}
+
+[data-anime-theme="bleach"] h1,
+[data-anime-theme="bleach"] h2,
+[data-anime-theme="bleach"] h3 {
+    animation: bleachReiatsuSweep 4s ease-in-out infinite;
+}
+
+[data-anime-theme="bleach"] h4,
+[data-anime-theme="bleach"] h5,
+[data-anime-theme="bleach"] h6 {
+    animation: bleachReiatsuSweep 4.5s ease-in-out infinite;
+}
+
+[data-anime-theme="bleach"] .UI-VerticalMenu__item,
+[data-anime-theme="bleach"] .UI-VerticalMenu__itemContent {
+    animation: bleachEtherealFade 5s ease-in-out infinite;
+}
+
+[data-anime-theme="bleach"] [class*="UI-Button"] {
+    animation: bleachSpectralFlicker 3.5s ease-in-out infinite;
+}
+
+[data-anime-theme="bleach"] [class*="TabsTrigger"] {
+    animation: bleachSpectralFlicker 3.8s ease-in-out infinite;
+}
+
+[data-anime-theme="bleach"] [class*="achievement"] h4 {
+    animation: bleachReiatsuSweep 3.5s ease-in-out infinite;
+}
+
+/* ── ONE PIECE ── Treasure/adventure text: warm gold shimmer on headings,
+   lantern-glow on sidebar (like a ship at night), bouncy energy on buttons */
+
+@keyframes onePieceTreasureGleam {
+    0%, 100% { text-shadow: 0 0 4px rgba(255,200,50,0.2), 0 0 10px rgba(200,150,30,0.06); }
+    35%      { text-shadow: 0 0 8px rgba(255,210,70,0.45), 0 0 16px rgba(220,170,40,0.15), 0 0 28px rgba(180,130,20,0.06); }
+    70%      { text-shadow: 0 0 6px rgba(255,190,40,0.35), 0 0 12px rgba(200,140,20,0.1); }
+}
+
+@keyframes onePieceLanternGlow {
+    0%, 100% { text-shadow: 0 0 2px rgba(255,180,50,0.12); opacity: 1; }
+    50%      { text-shadow: 0 0 5px rgba(255,200,80,0.3), 0 0 10px rgba(200,140,30,0.08); opacity: 0.96; }
+}
+
+@keyframes onePieceBounceShimmer {
+    0%, 100% { text-shadow: 0 0 3px rgba(255,200,50,0.2); transform: translateY(0); }
+    50%      { text-shadow: 0 0 7px rgba(255,210,70,0.4), 0 0 14px rgba(200,150,30,0.12); transform: translateY(-0.5px); }
+}
+
+[data-anime-theme="one-piece"] h1,
+[data-anime-theme="one-piece"] h2,
+[data-anime-theme="one-piece"] h3 {
+    animation: onePieceTreasureGleam 3.5s ease-in-out infinite;
+}
+
+[data-anime-theme="one-piece"] h4,
+[data-anime-theme="one-piece"] h5,
+[data-anime-theme="one-piece"] h6 {
+    animation: onePieceTreasureGleam 4s ease-in-out infinite;
+}
+
+[data-anime-theme="one-piece"] .UI-VerticalMenu__item,
+[data-anime-theme="one-piece"] .UI-VerticalMenu__itemContent {
+    animation: onePieceLanternGlow 4s ease-in-out infinite;
+}
+
+[data-anime-theme="one-piece"] [class*="UI-Button"] {
+    animation: onePieceBounceShimmer 2.8s ease-in-out infinite;
+}
+
+[data-anime-theme="one-piece"] [class*="TabsTrigger"] {
+    animation: onePieceBounceShimmer 3s ease-in-out infinite;
+}
+
+[data-anime-theme="one-piece"] [class*="achievement"] h4 {
+    animation: onePieceTreasureGleam 3s ease-in-out infinite;
+}

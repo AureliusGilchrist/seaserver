@@ -22,6 +22,10 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
     const [pressedKey, setPressedKey] = React.useState<string | null>(null)
     const { mutate: login, isPending } = useProfileLogin()
 
+    // Ref keeps the latest pin value so event handlers never see a stale closure
+    const pinRef = React.useRef(pin)
+    React.useEffect(() => { pinRef.current = pin }, [pin])
+
     const handleProfileClick = (profile: ProfileSummary) => {
         if (!profile.hasPIN) {
             // Auto-login for profiles without PIN
@@ -40,11 +44,12 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
         setPinError("")
     }
 
-    const handlePinSubmit = () => {
-        if (!selectedProfile || pin.length < MIN_PIN_LENGTH) return
+    const handlePinSubmit = React.useCallback(() => {
+        const currentPin = pinRef.current
+        if (!selectedProfile || currentPin.length < MIN_PIN_LENGTH) return
         setPinError("")
         login(
-            { profileId: selectedProfile.id, pin },
+            { profileId: selectedProfile.id, pin: currentPin },
             {
                 onError: () => {
                     setPinError("Incorrect PIN")
@@ -52,7 +57,7 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
                 },
             },
         )
-    }
+    }, [selectedProfile, login])
 
     const handleBack = () => {
         setSelectedProfile(null)
@@ -78,7 +83,14 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
         }
     }
 
-    // Keyboard support
+    // Auto-submit when PIN reaches max length (8 digits)
+    React.useEffect(() => {
+        if (pin.length === MAX_PIN_LENGTH && selectedProfile) {
+            handlePinSubmit()
+        }
+    }, [pin])
+
+    // Keyboard support — handlePinSubmit is stable via useCallback so no stale closure
     React.useEffect(() => {
         if (!selectedProfile) return
 
@@ -95,7 +107,7 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
         }
         window.addEventListener("keydown", handler)
         return () => window.removeEventListener("keydown", handler)
-    }, [selectedProfile, pin])
+    }, [selectedProfile, handlePinSubmit])
 
     // PIN entry screen with keypad
     if (selectedProfile) {

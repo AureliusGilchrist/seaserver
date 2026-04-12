@@ -9,6 +9,7 @@ import { MetaSection } from "@/app/(main)/manga/_components/meta-section"
 import { ChapterList } from "@/app/(main)/manga/_containers/chapter-list/chapter-list"
 import { useHandleMangaDownloadData } from "@/app/(main)/manga/_lib/handle-manga-downloads"
 import { PageWrapper } from "@/components/shared/page-wrapper"
+import { Button } from "@/components/ui/button"
 import { displayTitle } from "@/lib/helpers/media"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import React from "react"
@@ -19,8 +20,18 @@ export default function Page() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const mediaId = searchParams.get("id")
-    const { data: mangaEntry, isLoading: mangaEntryLoading } = useGetMangaEntry(mediaId)
-    const { data: mangaDetails, isLoading: mangaDetailsLoading } = useGetMangaEntryDetails(mediaId)
+    const {
+        data: mangaEntry,
+        isLoading: mangaEntryLoading,
+        isError: mangaEntryError,
+        refetch: refetchMangaEntry,
+    } = useGetMangaEntry(mediaId)
+    const {
+        data: mangaDetails,
+        isLoading: mangaDetailsLoading,
+        isError: mangaDetailsError,
+        refetch: refetchMangaDetails,
+    } = useGetMangaEntryDetails(mediaId)
 
     /**
      * Fetch manga download data
@@ -30,10 +41,8 @@ export default function Page() {
     React.useEffect(() => {
         if (!mediaId) {
             router.push("/")
-        } else if ((!mangaEntryLoading && !mangaEntry)) {
-            router.push("/")
         }
-    }, [mangaEntry, mangaEntryLoading])
+    }, [mediaId, router])
 
     React.useEffect(() => {
         try {
@@ -45,7 +54,32 @@ export default function Page() {
         }
     }, [mangaEntry])
 
-    if (!mangaEntry || mangaEntryLoading || mangaDetailsLoading) return <MediaEntryPageLoadingDisplay />
+    if (mangaEntryLoading || mangaDetailsLoading) return <MediaEntryPageLoadingDisplay />
+
+    if (!mangaEntry) {
+        return (
+            <PageWrapper className="px-4 md:px-8 py-10 space-y-4">
+                <div className="text-xl font-semibold">Could not load manga entry</div>
+                <p className="text-sm text-gray-300">
+                    {mangaEntryError || mangaDetailsError
+                        ? "The request failed. This can happen if AniList or the shared library request is temporarily unavailable."
+                        : "This manga entry is currently unavailable."}
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                    <Button
+                        intent="white-subtle"
+                        onClick={() => {
+                            refetchMangaEntry()
+                            refetchMangaDetails()
+                        }}
+                    >
+                        Retry
+                    </Button>
+                    <Button intent="gray-subtle" onClick={() => router.push("/")}>Back to home</Button>
+                </div>
+            </PageWrapper>
+        )
+    }
 
     return (
         <div

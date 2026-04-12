@@ -28,6 +28,7 @@ type BaseCollectionSorting =
     | "PROGRESS_DESC"
     | "TITLE"
     | "TITLE_DESC"
+    | "GOJUUON"
 
 
 type CollectionSorting<T extends CollectionType> = BaseCollectionSorting | (T extends "anime" ?
@@ -35,9 +36,15 @@ type CollectionSorting<T extends CollectionType> = BaseCollectionSorting | (T ex
     | "PROGRESS"
     | "AIRDATE"
     | "AIRDATE_DESC"
+    | "UNWATCHED_EPISODES"
+    | "UNWATCHED_EPISODES_DESC"
+    | "LAST_WATCHED"
+    | "LAST_WATCHED_DESC"
     : T extends "manga" ?
         "PROGRESS"
         | "PROGRESS_DESC"
+        | "UNREAD_CHAPTERS"
+        | "UNREAD_CHAPTERS_DESC"
         : never)
 
 
@@ -87,6 +94,7 @@ export const COLLECTION_SORTING_OPTIONS = [
 ]
 
 export const ANIME_COLLECTION_SORTING_OPTIONS = [
+    { label: "Gojuuon (series + chronology)", value: "GOJUUON" },
     { label: "Aired recently and not up-to-date", value: "AIRDATE_DESC" },
     { label: "Aired oldest and not up-to-date", value: "AIRDATE" },
     { label: "Most unwatched episodes", value: "UNWATCHED_EPISODES_DESC" },
@@ -97,10 +105,18 @@ export const ANIME_COLLECTION_SORTING_OPTIONS = [
 ]
 
 export const MANGA_COLLECTION_SORTING_OPTIONS = [
+    { label: "Gojuuon (series + chronology)", value: "GOJUUON" },
     { label: "Most unread chapters", value: "UNREAD_CHAPTERS_DESC" },
     { label: "Least unread chapters", value: "UNREAD_CHAPTERS" },
     ...COLLECTION_SORTING_OPTIONS,
 ]
+
+type GojuuonSortEntry = {
+    mediaId: number
+    groupKey: string
+    groupRomajiTitle: string
+    chronologicalOrder: number
+}
 
 export type CollectionType = "anime" | "manga"
 
@@ -159,6 +175,28 @@ function getParamValue<T extends any>(value: T | ""): any {
     if (typeof value === "string" && !isNaN(parseInt(value))) return Number(value)
     if (value === null) return undefined
     return value
+}
+
+function sortByGojuuon<T extends { media?: { id?: number; title?: any } }>(arr: T[], gojuuonMap: Record<number, GojuuonSortEntry> | null | undefined) {
+    if (!gojuuonMap) return arr
+
+    return [...arr].sort((a, b) => {
+        const aId = a.media?.id ?? 0
+        const bId = b.media?.id ?? 0
+        const aEntry = gojuuonMap[aId]
+        const bEntry = gojuuonMap[bId]
+
+        const aGroup = aEntry?.groupKey || "~~~"
+        const bGroup = bEntry?.groupKey || "~~~"
+        const groupCmp = aGroup.localeCompare(bGroup, "ja")
+        if (groupCmp !== 0) return groupCmp
+
+        const aChronology = aEntry?.chronologicalOrder ?? Number.MAX_SAFE_INTEGER
+        const bChronology = bEntry?.chronologicalOrder ?? Number.MAX_SAFE_INTEGER
+        if (aChronology !== bChronology) return aChronology - bChronology
+
+        return displayTitle(a.media?.title).localeCompare(displayTitle(b.media?.title), "ja")
+    })
 }
 
 
@@ -363,8 +401,13 @@ export function filterAnimeCollectionEntries<T extends Anime_LibraryCollectionEn
     showAdultContent: boolean | undefined,
     continueWatchingList: Anime_Episode[] | null | undefined,
     watchHistory: Continuity_WatchHistory | null | undefined,
+    gojuuonMap?: Record<number, GojuuonSortEntry> | null,
 ) {
     let arr = filterCollectionEntries("anime", entries, params, showAdultContent)
+
+    if (getParamValue(params.sorting) === "GOJUUON") {
+        arr = sortByGojuuon(arr, gojuuonMap)
+    }
 
     if (params.continueWatchingOnly) {
         arr = arr.filter(n => continueWatchingList?.findIndex(e => e.baseAnime?.id === n.media?.id) !== -1)
@@ -424,6 +467,7 @@ export function filterMangaCollectionEntries<T extends Anime_LibraryCollectionEn
     storedProviders: Record<string, string> | null | undefined,
     storedProviderFilters: Record<number, MangaEntryFilters> | null | undefined,
     latestChapterNumbers: Record<number, Manga_MangaLatestChapterNumberItem[]> | null | undefined,
+    gojuuonMap?: Record<number, GojuuonSortEntry> | null,
 ) {
     if (!latestChapterNumbers || !storedProviders || !storedProviderFilters) return []
     let arr = filterCollectionEntries("manga", entries, params, showAdultContent)
@@ -453,6 +497,10 @@ export function filterMangaCollectionEntries<T extends Anime_LibraryCollectionEn
             const mangaChapterCount = latestChapterNumber || 0
             return mangaChapterCount - (n.listData?.progress || 0)
         }).reverse()
+    }
+
+    if (getParamValue(params.sorting) === "GOJUUON") {
+        arr = sortByGojuuon(arr, gojuuonMap)
     }
 
     return arr

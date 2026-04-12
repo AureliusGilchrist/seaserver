@@ -1,10 +1,11 @@
 "use client"
-import { Manga_Collection } from "@/api/generated/types"
+import { Manga_Collection, Models_ChapterDownloadQueueItem } from "@/api/generated/types"
 import { useGetMangaCollection } from "@/api/hooks/manga.hooks"
 import { useGetMangaDownloadsList } from "@/api/hooks/manga_download.hooks"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 
 import { useHandleMangaChapterDownloadQueue } from "@/app/(main)/manga/_lib/handle-manga-downloads"
+import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { LuffyError } from "@/components/shared/luffy-error"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Button } from "@/components/ui/button"
@@ -68,6 +69,9 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
         ...rest
     } = props
 
+    const serverStatus = useServerStatus()
+    const currentProfileId = serverStatus?.currentProfile?.id ?? 0
+
     const {
         downloadQueue,
         downloadQueueLoading,
@@ -83,6 +87,8 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
     } = useHandleMangaChapterDownloadQueue()
 
     const isMutating = isStartingDownloadQueue || isStoppingDownloadQueue || isResettingErroredChapters || isClearingDownloadQueue
+    const backgroundQueue = React.useMemo(() => (downloadQueue || []).filter(item => (item.profileId ?? 0) === 0), [downloadQueue])
+    const myQueue = React.useMemo(() => (downloadQueue || []).filter(item => (item.profileId ?? 0) === currentProfileId && currentProfileId > 0), [downloadQueue, currentProfileId])
 
     return (
         <>
@@ -94,7 +100,7 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
                     {(!downloadQueueLoading && !downloadQueueError) &&
                         <div className="flex gap-2 items-center" data-chapter-download-queue-header-actions>
 
-                        {!!downloadQueue?.find(n => n.status === "errored") && <Button
+                        {!!backgroundQueue.find(n => n.status === "errored") && <Button
                             intent="warning-outline"
                             size="sm"
                             disabled={isMutating}
@@ -104,7 +110,7 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
                             Reset errored chapters
                         </Button>}
 
-                        {!!downloadQueue?.find(n => n.status === "downloading") ? (
+                        {!!backgroundQueue.find(n => n.status === "downloading") ? (
                             <>
                                 <Button
                                     intent="alert-subtle"
@@ -117,7 +123,7 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
                             </>
                         ) : (
                             <>
-                                {!!downloadQueue?.length && <Button
+                                {!!backgroundQueue.length && <Button
                                     intent="alert-subtle"
                                     size="sm"
                                     disabled={isMutating}
@@ -128,7 +134,7 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
                                     Clear all
                                 </Button>}
 
-                                {(!!downloadQueue?.length && !!downloadQueue?.find(n => n.status === "not_started")) && <Button
+                                {(!!backgroundQueue.length && !!backgroundQueue.find(n => n.status === "not_started")) && <Button
                                     intent="success"
                                     size="sm"
                                     disabled={isMutating}
@@ -152,48 +158,19 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
                         </LuffyError> : null)}
 
                     {!!downloadQueue?.length ? (
-                        <ScrollArea className="h-[14rem]" data-chapter-download-queue-scroll-area>
-                            <div className="space-y-2" data-chapter-download-queue-scroll-area-content>
-                                {downloadQueue.map(item => {
-
-                                    const media = mangaCollection?.lists?.flatMap(n => n.entries)?.find(n => n?.media?.id === item.mediaId)?.media
-
-                                    return (
-                                        <Card
-                                            key={item.mediaId + item.provider + item.chapterId} className={cn(
-                                            "px-3 py-2 space-y-1.5 transition-all duration-200",
-                                            item.status === "downloading" && "backdrop-blur-sm bg-white/5 hover:bg-white/10 shadow-lg",
-                                            item.status === "not_started" && "bg-gray-800",
-                                            item.status === "errored" && "bg-gray-800 border-[--orange]",
-                                        )}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <p className="font-semibold">
-                                                    <SeaLink href={`/manga/entry?id=${item.mediaId}`} className="hover:underline hover:text-brand-200 transition-colors">{(item as any).mediaTitle || displayTitle(media?.title)}</SeaLink> - {(item as any).chapterTitle || `Chapter ${item.chapterNumber}`}
-                                                </p>
-                                                <span className="text-[--muted] italic text-sm">(id: {item.chapterId})</span>
-                                                {item.status === "errored" && (
-                                                    <div className="flex gap-1 items-center text-[--orange]">
-                                                        <PiWarningOctagonDuotone className="text-2xl text-[--orange]" />
-                                                        <p>
-                                                            Errored
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {item.status === "downloading" && (
-                                                <>
-                                                    <p className="text-xs text-[--muted]">
-                                                        {(item as any).downloadedPages || 0} / {(item as any).totalPages || 0} pages downloaded
-                                                    </p>
-                                                    <ProgressBar size="sm" isIndeterminate />
-                                                </>
-                                            )}
-                                        </Card>
-                                    )
-                                })}
-                            </div>
-                        </ScrollArea>
+                        <div className="space-y-5">
+                            <QueueSection
+                                title="Background"
+                                items={backgroundQueue}
+                                mangaCollection={mangaCollection}
+                            />
+                            {currentProfileId > 0 && <QueueSection
+                                title="My Downloads"
+                                items={myQueue}
+                                mangaCollection={mangaCollection}
+                                emptyText="No profile-specific chapters queued"
+                            />}
+                        </div>
                     ) : ((!downloadQueueLoading && !downloadQueueError) && (
                         <p className="text-center text-[--muted] text-sm" data-chapter-download-queue-empty-state>
                             Nothing in the queue
@@ -205,6 +182,88 @@ export function ChapterDownloadQueue(props: ChapterDownloadQueueProps) {
             </div>
         </>
     )
+}
+
+function QueueSection(props: {
+    title: string
+    items: Models_ChapterDownloadQueueItem[]
+    mangaCollection: Manga_Collection | undefined
+    emptyText?: string
+}) {
+    const { title, items, mangaCollection, emptyText = "Nothing queued" } = props
+
+    // Memoize media map to avoid re-finding on every render
+    const mediaMap = React.useMemo(() => {
+        const map = new Map<number, any>()
+        mangaCollection?.lists?.flatMap(n => n.entries).forEach(entry => {
+            if (entry?.media?.id) {
+                map.set(entry.media.id, entry.media)
+            }
+        })
+        return map
+    }, [mangaCollection])
+
+    return <div className="space-y-2">
+        <div className="flex items-center justify-between">
+            <h4>{title}</h4>
+            <span className="text-xs text-[--muted]">{items.length}</span>
+        </div>
+
+        {!!items.length ? (
+            <ScrollArea className="h-[14rem]" data-chapter-download-queue-scroll-area>
+                <div className="space-y-2" data-chapter-download-queue-scroll-area-content>
+                    {items.map(item => {
+                        const media = mediaMap.get(item.mediaId)
+                        const displayName = item.mediaTitle || displayTitle(media?.title)
+                        const chapterDisplay = item.chapterTitle || `Chapter ${item.chapterNumber}`
+
+                        return (
+                            <Card
+                                key={item.mediaId + item.provider + item.chapterId + title}
+                                className={cn(
+                                    "px-3 py-2 space-y-1.5 transition-all duration-200",
+                                    item.status === "downloading" && "backdrop-blur-sm bg-white/5 hover:bg-white/10 shadow-lg",
+                                    item.status === "not_started" && "bg-gray-800",
+                                    item.status === "errored" && "bg-gray-800 border-[--orange]",
+                                )}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <p className="font-semibold">
+                                        <SeaLink 
+                                            href={`/manga/entry?id=${item.mediaId}`} 
+                                            className="hover:underline hover:text-brand-200 transition-colors"
+                                            title={displayName}
+                                        >
+                                            {displayName}
+                                        </SeaLink>
+                                        {" - "}
+                                        <span title={chapterDisplay}>{chapterDisplay}</span>
+                                    </p>
+                                    <span className="text-[--muted] italic text-sm">(id: {item.chapterId})</span>
+                                    {item.status === "errored" && (
+                                        <div className="flex gap-1 items-center text-[--orange]">
+                                            <PiWarningOctagonDuotone className="text-2xl text-[--orange]" aria-label="Error" />
+                                            <p>Errored</p>
+                                        </div>
+                                    )}
+                                </div>
+                                {item.status === "downloading" && (
+                                    <>
+                                        <p className="text-xs text-[--muted]">
+                                            {Math.max(0, item.downloadedPages || 0)} / {Math.max(0, item.totalPages || 0)} pages downloaded
+                                        </p>
+                                        <ProgressBar size="sm" isIndeterminate />
+                                    </>
+                                )}
+                            </Card>
+                        )
+                    })}
+                </div>
+            </ScrollArea>
+        ) : (
+            <p className="text-center text-[--muted] text-sm">{emptyText}</p>
+        )}
+    </div>
 }
 
 /////////////////////////////////////

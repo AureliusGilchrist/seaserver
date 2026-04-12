@@ -27,6 +27,8 @@ import (
 	_ "golang.org/x/image/tiff" // Register Tiff format
 )
 
+const chapterDownloadTimeout = 5 * time.Minute
+
 // 📁 cache/manga
 // └── 📁 {provider}_{mediaId}_{chapterId}_{chapterNumber}      <- Downloader generates
 //     ├── 📄 registry.json						                <- Contains Registry
@@ -56,6 +58,7 @@ type (
 	//+-------------------------------------------------------------------------------------------------------------------+
 
 	DownloadID struct {
+		ProfileID     uint   `json:"profileId"`
 		Provider      string `json:"provider"`
 		MediaId       int    `json:"mediaId"`
 		ChapterId     string `json:"chapterId"`
@@ -236,8 +239,14 @@ func (cd *Downloader) run(queueInfo *QueueInfo) {
 		cd.queue.HasCompleted(queueInfo)
 	})
 
+	timeoutCh := make(chan struct{})
+	timer := time.AfterFunc(chapterDownloadTimeout, func() {
+		close(timeoutCh)
+	})
+	defer timer.Stop()
+
 	// Download chapter images
-	if err := cd.downloadChapterImages(queueInfo); err != nil {
+	if err := cd.downloadChapterImages(queueInfo, timeoutCh); err != nil {
 		// Mark as errored and notify queue to move on
 		queueInfo.Status = QueueStatusErrored
 		cd.queue.HasCompleted(queueInfo)
@@ -246,7 +255,11 @@ func (cd *Downloader) run(queueInfo *QueueInfo) {
 
 	// Success - notify queue and send to channel
 	cd.queue.HasCompleted(queueInfo)
-	cd.chapterDownloadedCh <- queueInfo.DownloadID
+	select {
+	case cd.chapterDownloadedCh <- queueInfo.DownloadID:
+	default:
+		cd.logger.Warn().Str("chapterId", queueInfo.ChapterId).Msg("chapter downloader: chapterDownloadedCh full, dropping completion signal")
+	}
 }
 
 // downloadChapterImages creates a directory for the chapter and downloads each image to that directory.
@@ -259,7 +272,7 @@ func (cd *Downloader) run(queueInfo *QueueInfo) {
 //	   │   ├── 📄 01.jpg
 //	   │   ├── 📄 02.jpg
 //	   │   └── 📄 ...
-func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo) (err error) {
+func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo, timeoutCh <-chan struct{}) (err error) {
 	downloadId := queueInfo.DownloadID
 
 	// Get series directory
@@ -321,9 +334,20 @@ func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo) (err error) {
 		case <-cd.cancelCh:
 			wg.Wait()
 			return fmt.Errorf("chapter downloader: Download cancelled")
+		case <-timeoutCh:
+			go os.RemoveAll(destination)
+			return fmt.Errorf("chapter downloader: chapter download timed out after %s", chapterDownloadTimeout)
 		default:
 		}
-		semaphore <- struct{}{} // Acquire semaphore
+		select {
+		case semaphore <- struct{}{}:
+		case <-cd.cancelCh:
+			wg.Wait()
+			return fmt.Errorf("chapter downloader: Download cancelled")
+		case <-timeoutCh:
+			go os.RemoveAll(destination)
+			return fmt.Errorf("chapter downloader: chapter download timed out after %s", chapterDownloadTimeout)
+		}
 		wg.Add(1)
 		go func(page *hibikemanga.ChapterPage, registry *map[int]PageInfo) {
 			defer func() {
@@ -333,11 +357,15 @@ func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo) (err error) {
 			select {
 			case <-cd.cancelCh:
 				return
+			case <-timeoutCh:
+				return
 			default:
 				// Retry page download up to 3 times
 				for attempt := 0; attempt < 3; attempt++ {
 					select {
 					case <-cd.cancelCh:
+						return
+					case <-timeoutCh:
 						return
 					default:
 					}
@@ -350,7 +378,13 @@ func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo) (err error) {
 					}
 					if attempt < 2 {
 						cd.logger.Warn().Int("attempt", attempt+1).Str("url", page.URL).Msg("chapter downloader: Retrying failed page download")
-						time.Sleep(2 * time.Second)
+						select {
+						case <-cd.cancelCh:
+							return
+						case <-timeoutCh:
+							return
+						case <-time.After(2 * time.Second):
+						}
 					}
 				}
 				cd.downloadMu.Lock()
@@ -365,7 +399,19 @@ func (cd *Downloader) downloadChapterImages(queueInfo *QueueInfo) (err error) {
 			}
 		}(page, &pageRegistry)
 	}
-	wg.Wait()
+
+	waitDone := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(waitDone)
+	}()
+
+	select {
+	case <-waitDone:
+	case <-timeoutCh:
+		go os.RemoveAll(destination)
+		return fmt.Errorf("chapter downloader: chapter download timed out after %s", chapterDownloadTimeout)
+	}
 
 	// Verify all images have been downloaded
 	allDownloaded := true

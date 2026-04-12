@@ -227,12 +227,16 @@ func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profil
 		return
 	}
 
-	// Award XP (base × difficulty multiplier × activity multiplier)
-	baseXP := def.XPReward
-	if baseXP <= 0 {
-		baseXP = DefaultTierXP(tier)
+	// Award XP (base × difficulty multiplier × activity multiplier).
+	// Planning-only achievements are intentionally excluded from XP progression.
+	xp := 0
+	if !isNoXPAchievement(def.Key) {
+		baseXP := def.XPReward
+		if baseXP <= 0 {
+			baseXP = DefaultTierXP(tier)
+		}
+		xp = int(math.Round(float64(baseXP) * DifficultyMultiplier(def.Difficulty)))
 	}
-	xp := int(math.Round(float64(baseXP) * DifficultyMultiplier(def.Difficulty)))
 
 	// Apply activity multiplier
 	activityMult, actErr := database.ComputeActivityMultiplier()
@@ -265,7 +269,7 @@ func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profil
 	payload := &UnlockPayload{
 		Key:         def.Key,
 		Name:        def.Name,
-		Description: def.Description,
+		Description: FormatThreshold(def.Description, def.TierThresholds, tier),
 		Tier:        tier,
 		TierName:    tierName,
 		Category:    string(def.Category),
@@ -367,6 +371,9 @@ func (e *Engine) RecalculateXP(database *db.Database) error {
 		if !ok {
 			continue
 		}
+		if isNoXPAchievement(a.Key) {
+			continue
+		}
 		baseXP := def.XPReward
 		if baseXP <= 0 {
 			baseXP = DefaultTierXP(a.Tier)
@@ -380,6 +387,16 @@ func (e *Engine) RecalculateXP(database *db.Database) error {
 	return database.SetXP(totalXP)
 }
 
+// isNoXPAchievement marks achievements that should never grant XP.
+func isNoXPAchievement(key string) bool {
+	switch key {
+	case "a_ptw_hoarder", "m_ptr_hoarder", "a_from_ptw", "m_from_ptr":
+		return true
+	default:
+		return false
+	}
+}
+
 // --- Evaluator helpers ---
 
 // evalStatOrFirst: for stat-based categories. If metadata has def.Key, use stat threshold.
@@ -389,8 +406,11 @@ func (e *Engine) evalStatOrFirst(meta map[string]interface{}, def *Definition, t
 	if val > 0 || threshold > 0 {
 		return e.evalStatThreshold(meta, def, threshold)
 	}
-	// One-time achievement with no matching metadata key = first-event unlock
-	if def.MaxTier == 0 {
+	// One-time achievement with no matching metadata key:
+	// Only auto-unlock for event-driven triggers (e.g. first episode watched).
+	// During a collection refresh we have full stats context, so the absence of a
+	// matching key means the condition simply hasn't been met yet.
+	if def.MaxTier == 0 && event.Trigger != TriggerCollectionRefresh {
 		return 100, true
 	}
 	return 0, false
@@ -719,6 +739,15 @@ func containsString(slice []string, target string) bool {
 	return false
 }
 
+// boolToFloat converts a bool to a float64 (1.0 = true, 0.0 = false).
+// Used to express boolean conditions as metadata values for stat-based achievements.
+func boolToFloat(b bool) float64 {
+	if b {
+		return 1.0
+	}
+	return 0.0
+}
+
 // --- Math helpers ---
 
 func isPalindrome(s string) bool {
@@ -847,32 +876,55 @@ type CollectionStats struct {
 }
 
 func (s *CollectionStats) toMetadata() map[string]interface{} {
-	m := map[string]interface{}{
-		// Anime milestones
-		"a_episode_counter":   float64(s.TotalEpisodes),
-		"a_episode_titan":     float64(s.TotalEpisodes),
-		"a_hours_invested":    float64(s.TotalMinutes) / 60.0,
-		"a_time_lord":         float64(s.TotalMinutes) / 60.0,
-		"a_anime_collector":   float64(s.TotalAnime),
-		"a_library_legend":    float64(s.TotalAnime),
-		"a_hundred_club":      float64(s.CompletedAnime),
-		"a_ten_thousand_min":  float64(s.TotalMinutes),
-		"a_season_veteran":    float64(s.SeasonCount),
-		"a_year_explorer":     float64(s.YearCount),
-		"a_five_hundred_eps":  float64(s.TotalEpisodes),
-		"a_thousand_eps":      float64(s.TotalEpisodes),
-		"a_watching_ten":      float64(s.WatchingAnime),
-		"a_ptw_hoarder":       float64(s.PTWAnime),
-		"a_dropped_honesty":   float64(s.DroppedAnime),
+	// Pre-compute derived values
+	animeCompletionRate := 0.0
+	if s.TotalAnime > 0 {
+		animeCompletionRate = float64(s.CompletedAnime) / float64(s.TotalAnime) * 100.0
+	}
+	mangaCompletionRate := 0.0
+	if s.TotalManga > 0 {
+		mangaCompletionRate = float64(s.CompletedManga) / float64(s.TotalManga) * 100.0
+	}
 
-		// Anime completion
+	m := map[string]interface{}{
+		// ── Anime milestones ──────────────────────────────────────────────────────
+		// Tiered (raw counts — evalStatThreshold uses tier thresholds)
+		"a_episode_counter": float64(s.TotalEpisodes),
+		"a_episode_titan":   float64(s.TotalEpisodes),
+		"a_hours_invested":  float64(s.TotalMinutes) / 60.0,
+		"a_time_lord":       float64(s.TotalMinutes) / 60.0,
+		"a_anime_collector": float64(s.TotalAnime),
+		"a_library_legend":  float64(s.TotalAnime),
+		"a_season_veteran":  float64(s.SeasonCount),
+		"a_year_explorer":   float64(s.YearCount),
+		"a_ptw_hoarder":     float64(s.PTWAnime),
+		"a_dropped_honesty": float64(s.DroppedAnime),
+		// One-time (boolean: 1.0 when condition met, 0.0 otherwise)
+		"a_first_episode":   boolToFloat(s.TotalEpisodes > 0),
+		"a_first_day":       boolToFloat(s.TotalEpisodes > 0),
+		"a_first_complete":  boolToFloat(s.CompletedAnime > 0),
+		"a_first_rating":    boolToFloat(s.AnimeRatingCount > 0),
+		"a_hundred_club":    boolToFloat(s.CompletedAnime >= 100),
+		"a_ten_thousand_min": boolToFloat(s.TotalMinutes >= 10000),
+		"a_five_hundred_eps": boolToFloat(s.TotalEpisodes >= 500),
+		"a_thousand_eps":    boolToFloat(s.TotalEpisodes >= 1000),
+		"a_watching_ten":    boolToFloat(s.WatchingAnime >= 10),
+
+		// ── Anime completion ─────────────────────────────────────────────────────
+		// Tiered
 		"a_completionist":      float64(s.CompletedAnime),
 		"a_mega_completionist": float64(s.CompletedAnime),
-		"a_no_drop":            float64(s.CompletedAnime), // Checked with DroppedAnime == 0 condition
-		"a_rewatch_master":     float64(s.AnimeRewatches),
-		"a_zero_to_hero":       float64(s.CompletedAnime),
+		// a_no_drop: progress only counts when nothing has been dropped
+		"a_no_drop":        boolToFloat(s.DroppedAnime == 0) * float64(s.CompletedAnime),
+		"a_rewatch_master": float64(s.AnimeRewatches),
+		// One-time
+		"a_zero_to_hero":       boolToFloat(s.CompletedAnime >= 100),
+		"a_completion_rate_50": boolToFloat(animeCompletionRate >= 50),
+		"a_completion_rate_75": boolToFloat(animeCompletionRate >= 75),
+		"a_completion_rate_90": boolToFloat(animeCompletionRate >= 90),
+		"a_clean_list":         boolToFloat(s.TotalAnime > 0 && s.PausedAnime == 0),
 
-		// Anime genres
+		// ── Anime genres (tiered) ─────────────────────────────────────────────────
 		"a_genre_action":        float64(s.AnimeGenreCounts["Action"]),
 		"a_genre_adventure":     float64(s.AnimeGenreCounts["Adventure"]),
 		"a_genre_comedy":        float64(s.AnimeGenreCounts["Comedy"]),
@@ -890,59 +942,72 @@ func (s *CollectionStats) toMetadata() map[string]interface{} {
 		"a_genre_music":         float64(s.AnimeGenreCounts["Music"]),
 		"a_genre_psychological": float64(s.AnimeGenreCounts["Psychological"]),
 
-		// Anime discovery
-		"a_genre_explorer":   float64(s.GenreCount),
-		"a_studio_hopper":    float64(s.StudioCount),
-		"a_tag_explorer":     float64(s.TagCount),
-		"a_decade_hopper":    float64(s.DecadeCount),
+		// ── Anime discovery (tiered) ──────────────────────────────────────────────
+		"a_genre_explorer": float64(s.GenreCount),
+		"a_studio_hopper":  float64(s.StudioCount),
+		"a_tag_explorer":   float64(s.TagCount),
+		"a_decade_hopper":  float64(s.DecadeCount),
 
-		// Anime formats
-		"a_tv_watcher":       float64(s.TVCount),
-		"a_movie_buff":       float64(s.MovieCount),
-		"a_ova_hunter":       float64(s.OVACount),
-		"a_ona_explorer":     float64(s.ONACount),
-		"a_special_watcher":  float64(s.SpecialCount),
-		"a_short_king":       float64(s.ShortCount),
-		"a_music_video":      float64(s.MusicCount),
-		"a_tv_short":         float64(s.TVShortCount),
+		// ── Anime formats (tiered) ────────────────────────────────────────────────
+		"a_tv_watcher":      float64(s.TVCount),
+		"a_movie_buff":      float64(s.MovieCount),
+		"a_ova_hunter":      float64(s.OVACount),
+		"a_ona_explorer":    float64(s.ONACount),
+		"a_special_watcher": float64(s.SpecialCount),
+		"a_short_king":      float64(s.ShortCount),
+		"a_music_video":     float64(s.MusicCount),
+		"a_tv_short":        float64(s.TVShortCount),
 
-		// Anime scoring
-		"a_critic":        float64(s.AnimeRatingCount),
-		"a_perfect_ten":   float64(s.PerfectTenAnime),
-		"a_harsh_critic":  float64(s.HarshCriticAnime),
-		"a_100_rated":     float64(s.AnimeRatingCount),
-		"a_500_rated":     float64(s.AnimeRatingCount),
-		"average_rating":  s.AnimeAverageRating,
-		"rating_count":    float64(s.AnimeRatingCount),
+		// ── Anime scoring ─────────────────────────────────────────────────────────
+		"a_critic":       float64(s.AnimeRatingCount),
+		"a_perfect_ten":  float64(s.PerfectTenAnime),
+		"a_harsh_critic": float64(s.HarshCriticAnime),
+		"a_100_rated":    float64(s.AnimeRatingCount),
+		"a_500_rated":    float64(s.AnimeRatingCount),
+		"average_rating": s.AnimeAverageRating,
+		"rating_count":   float64(s.AnimeRatingCount),
 
-		// Anime dedication
-		"a_studio_devotee":  float64(s.StudioCount),
-		"a_decade_watcher":  float64(s.DecadeCount),
+		// ── Anime dedication (tiered) ─────────────────────────────────────────────
+		"a_studio_devotee": float64(s.StudioCount),
+		"a_decade_watcher": float64(s.DecadeCount),
 
-		// Manga milestones
-		"m_chapter_counter":  float64(s.TotalChapters),
-		"m_chapter_titan":    float64(s.TotalChapters),
-		"m_reading_hours":    float64(s.TotalChapters) * 7.0 / 60.0,
+		// ── Manga milestones ───────────────────────────────────────────────────────
+		// Tiered
+		"m_chapter_counter":   float64(s.TotalChapters),
+		"m_chapter_titan":     float64(s.TotalChapters),
+		"m_reading_hours":     float64(s.TotalChapters) * 7.0 / 60.0,
 		"m_reading_time_lord": float64(s.TotalChapters) * 7.0 / 60.0,
-		"m_manga_collector":  float64(s.TotalManga),
-		"m_library_legend":   float64(s.TotalManga),
-		"m_hundred_club":     float64(s.CompletedManga),
-		"m_ten_thousand_pages": float64(s.TotalChapters) * 20.0,
-		"m_year_explorer":    float64(s.YearCount),
-		"m_five_hundred_ch":  float64(s.TotalChapters),
-		"m_thousand_ch":      float64(s.TotalChapters),
-		"m_reading_ten":      float64(s.ReadingManga),
-		"m_ptr_hoarder":      float64(s.PTRManga),
-		"m_dropped_honesty":  float64(s.DroppedManga),
+		"m_manga_collector":   float64(s.TotalManga),
+		"m_library_legend":    float64(s.TotalManga),
+		"m_year_explorer":     float64(s.YearCount),
+		"m_ptr_hoarder":       float64(s.PTRManga),
+		"m_dropped_honesty":   float64(s.DroppedManga),
+		// One-time
+		"m_first_chapter":    boolToFloat(s.TotalChapters > 0),
+		"m_first_day":        boolToFloat(s.TotalChapters > 0),
+		"m_first_complete":   boolToFloat(s.CompletedManga > 0),
+		"m_first_rating":     boolToFloat(s.MangaRatingCount > 0),
+		"m_hundred_club":     boolToFloat(s.CompletedManga >= 100),
+		"m_ten_thousand_pages": boolToFloat(s.TotalChapters >= 500), // 500 ch × 20 pages = 10 000 pages
+		"m_five_hundred_ch":  boolToFloat(s.TotalChapters >= 500),
+		"m_thousand_ch":      boolToFloat(s.TotalChapters >= 1000),
+		"m_reading_ten":      boolToFloat(s.ReadingManga >= 10),
 
-		// Manga completion
-		"m_completionist":       float64(s.CompletedManga),
-		"m_mega_completionist":  float64(s.CompletedManga),
-		"m_no_drop":             float64(s.CompletedManga),
-		"m_reread_master":       float64(s.MangaRereads),
-		"m_zero_to_hundred":     float64(s.CompletedManga),
+		// ── Manga completion ───────────────────────────────────────────────────────
+		// Tiered
+		"m_completionist":      float64(s.CompletedManga),
+		"m_mega_completionist": float64(s.CompletedManga),
+		// m_no_drop: progress only counts when nothing has been dropped
+		"m_no_drop":       boolToFloat(s.DroppedManga == 0) * float64(s.CompletedManga),
+		"m_reread_master": float64(s.MangaRereads),
+		// One-time
+		"m_zero_to_hundred":    boolToFloat(s.CompletedManga >= 100),
+		"m_completion_rate_50": boolToFloat(mangaCompletionRate >= 50),
+		"m_completion_rate_75": boolToFloat(mangaCompletionRate >= 75),
+		"m_completion_rate_90": boolToFloat(mangaCompletionRate >= 90),
+		"m_clean_list":         boolToFloat(s.TotalManga > 0 && s.PausedManga == 0),
 
-		// Manga genres
+		// ── Manga genres (tiered) ──────────────────────────────────────────────────
 		"m_genre_action":        float64(s.MangaGenreCounts["Action"]),
 		"m_genre_adventure":     float64(s.MangaGenreCounts["Adventure"]),
 		"m_genre_comedy":        float64(s.MangaGenreCounts["Comedy"]),
@@ -960,31 +1025,31 @@ func (s *CollectionStats) toMetadata() map[string]interface{} {
 		"m_genre_isekai":        float64(s.MangaGenreCounts["Isekai"]),
 		"m_genre_shounen":       float64(s.MangaGenreCounts["Shounen"]),
 
-		// Manga discovery
-		"m_genre_explorer":    float64(s.GenreCount),
-		"m_tag_explorer":      float64(s.TagCount),
-		"m_decade_hopper":     float64(s.DecadeCount),
-		"m_manhwa_reader":     float64(s.ManhwaCount),
-		"m_manhua_reader":     float64(s.ManhuaCount),
+		// ── Manga discovery (tiered) ───────────────────────────────────────────────
+		"m_genre_explorer": float64(s.GenreCount),
+		"m_tag_explorer":   float64(s.TagCount),
+		"m_decade_hopper":  float64(s.DecadeCount),
+		"m_manhwa_reader":  float64(s.ManhwaCount),
+		"m_manhua_reader":  float64(s.ManhuaCount),
 
-		// Manga creative
-		"m_webtoon_reader":    float64(s.WebtoonCount),
-		"m_doujin_reader":     float64(s.DoujinCount),
+		// ── Manga creative (tiered) ────────────────────────────────────────────────
+		"m_webtoon_reader":     float64(s.WebtoonCount),
+		"m_doujin_reader":      float64(s.DoujinCount),
 		"m_light_novel_reader": float64(s.LightNovelCount),
-		"m_novel_reader":      float64(s.NovelCount),
-		"m_oneshot_reader":    float64(s.OneshotCount),
+		"m_novel_reader":       float64(s.NovelCount),
+		"m_oneshot_reader":     float64(s.OneshotCount),
 
-		// Manga scoring
-		"m_critic":        float64(s.MangaRatingCount),
-		"m_perfect_ten":   float64(s.PerfectTenManga),
-		"m_harsh_critic":  float64(s.HarshCriticManga),
-		"m_100_rated":     float64(s.MangaRatingCount),
-		"m_500_rated":     float64(s.MangaRatingCount),
+		// ── Manga scoring ──────────────────────────────────────────────────────────
+		"m_critic":       float64(s.MangaRatingCount),
+		"m_perfect_ten":  float64(s.PerfectTenManga),
+		"m_harsh_critic": float64(s.HarshCriticManga),
+		"m_100_rated":    float64(s.MangaRatingCount),
+		"m_500_rated":    float64(s.MangaRatingCount),
 
-		// Manga dedication
-		"m_decade_reader":  float64(s.DecadeCount),
+		// ── Manga dedication (tiered) ──────────────────────────────────────────────
+		"m_decade_reader": float64(s.DecadeCount),
 
-		// Shared metadata
+		// ── Shared metadata ────────────────────────────────────────────────────────
 		"completed_count": float64(s.CompletedAnime + s.CompletedManga),
 		"total_count":     float64(s.TotalEpisodes + s.TotalChapters),
 		"total_episodes":  float64(s.TotalEpisodes),

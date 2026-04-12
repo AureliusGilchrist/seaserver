@@ -10,5 +10,5 @@ export const isLoginModalOpenAtom = atom(false)
 export const serverAuthTokenAtom = atomWithStorage<string | undefined>("sea-server-auth-token", undefined, undefined, { getOnInit: true })
 
 // Profile system atoms
-export const profileSessionTokenAtom = atomWithStorage<string | undefined>("sea-profile-token", undefined, undefined, { getOnInit: true })
+export const profileSessionTokenAtom = atomWithStorage<string | undefined>("sea-profile-token", undefined)
 export const currentProfileAtom = atomWithImmer<ProfileSummary | undefined>(undefined)

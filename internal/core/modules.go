@@ -361,6 +361,7 @@ func (a *App) initModulesOnce() {
 		Logger:          a.Logger,
 		MangaRepository: a.MangaRepository,
 		MangaDownloader: a.MangaDownloader,
+		Database:        a.Database,
 		WSEventManager:  a.WSEventManager,
 		PlatformRef:     a.AnilistPlatformRef,
 	})

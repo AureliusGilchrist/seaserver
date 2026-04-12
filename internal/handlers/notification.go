@@ -75,7 +75,7 @@ func (h *Handler) HandleGetUnreadNotificationCount(c echo.Context) error {
 //	@summary mark a single notification as read.
 //	@desc Marks the notification with the given ID as read.
 //	@returns bool
-//	@route /api/v1/notifications/:id/read [POST]
+//	@route /api/v1/notifications/{id}/read [POST]
 func (h *Handler) HandleMarkNotificationRead(c echo.Context) error {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -112,7 +112,7 @@ func (h *Handler) HandleMarkAllNotificationsRead(c echo.Context) error {
 //	@summary delete a notification.
 //	@desc Deletes the notification with the given ID.
 //	@returns bool
-//	@route /api/v1/notifications/:id [DELETE]
+//	@route /api/v1/notifications/{id} [DELETE]
 func (h *Handler) HandleDeleteNotification(c echo.Context) error {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

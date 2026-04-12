@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"path/filepath"
 	"seanime/internal/core"
@@ -157,6 +158,20 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/start", h.HandleGettingStarted)
 	v1.PATCH("/settings/auto-downloader", h.HandleSaveAutoDownloaderSettings)
 	v1.PATCH("/settings/media-player", h.HandleSaveMediaPlayerSettings)
+
+	// Shared AniList library account
+	// Note: POST /planning-slut/token uses a custom inline auth check to allow initial setup
+	// when no profiles exist yet (bootstrap scenario). RequireProfileAdmin is kept on info/delete.
+	v1.GET("/planning-slut/info", h.HandleGetPlanningSlutInfo, h.RequireProfileAdmin)
+	v1.POST("/planning-slut/token", h.HandleSavePlanningSlutToken)
+	v1.DELETE("/planning-slut/token", h.HandleDeletePlanningSlutToken, h.RequireProfileAdmin)
+
+	// Admin announcements
+	v1.GET("/admin/announcements", h.HandleGetActiveAdminAnnouncements)
+	v1.POST("/admin/announcements", h.HandleCreateAdminAnnouncement, h.RequireProfileAdmin)
+	v1.GET("/admin/announcements/all", h.HandleGetAllAdminAnnouncements, h.RequireProfileAdmin)
+	v1.POST("/admin/announcements/:id/dismiss", h.HandleDismissAdminAnnouncement)
+	v1.DELETE("/admin/announcements/:id", h.HandleDeleteAdminAnnouncement, h.RequireProfileAdmin)
 
 	// Privacy
 	v1.GET("/privacy/settings", h.HandleGetPrivacySettings)
@@ -428,6 +443,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Manga.POST("/anilist/list", h.HandleAnilistListManga)
 	v1Manga.GET("/collection", h.HandleGetMangaCollection)
 	v1Manga.POST("/hydrate-all", h.HandleHydrateAllManga)
+	v1Manga.GET("/hydrate-all/status", h.HandleGetMangaHydrationStatus)
+	v1Manga.POST("/hydrate-all/cancel", h.HandleCancelMangaHydration)
 	v1Manga.GET("/latest-chapter-numbers", h.HandleGetMangaLatestChapterNumbersMap)
 	v1Manga.POST("/refetch-chapter-containers", h.HandleRefetchMangaChapterContainers)
 	v1Manga.GET("/entry/:id", h.HandleGetMangaEntry)
@@ -703,6 +720,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Achievements.GET("/summary", h.HandleGetAchievementSummary)
 	v1Achievements.GET("/showcase", h.HandleGetAchievementShowcase)
 	v1Achievements.POST("/showcase", h.HandleSetAchievementShowcase)
+	v1Achievements.POST("/import", h.HandleImportAchievements)
 	v1Achievements.GET("/user/:id", h.HandleGetUserAchievements)
 
 	// Profile Stats
@@ -730,7 +748,12 @@ func (h *Handler) RespondWithData(c echo.Context, data interface{}) error {
 }
 
 func (h *Handler) RespondWithError(c echo.Context, err error) error {
-	return c.JSON(500, NewErrorResponse(err))
+	code := 500
+	var he *echo.HTTPError
+	if errors.As(err, &he) {
+		code = he.Code
+	}
+	return c.JSON(code, NewErrorResponse(err))
 }
 
 func headMethodMiddleware(next echo.HandlerFunc) echo.HandlerFunc {

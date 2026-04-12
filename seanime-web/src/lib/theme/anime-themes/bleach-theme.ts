@@ -54,10 +54,10 @@ export const bleachTheme: AnimeThemeConfig = {
     sidebarOverrides: {
         "home": { icon: GiAngelOutfit, label: "Soul Society" },
         "schedule": { icon: GiAlarmClock, label: "Dispatch Orders" },
-        "manga": { icon: GiSpellBook, label: "Kidō Texts" },
+        "manga": { icon: GiSpellBook, label: "Kidō Archive" },
         "lists": { icon: GiDeathNote, label: "Soul Records" },
         "discover": { icon: GiSpiralArrow, label: "Hollow Hunt" },
-        "torrent-list": { icon: GiBloodySword, label: "Battle Report" },
+        "torrent-list": { icon: GiBloodySword, label: "Soul Transfers" },
         "debrid": { icon: GiDragonHead, label: "Shinigami Ops" },
         "unmatched": { icon: GiSkullCrossedBones, label: "Unclaimed Souls" },
         "enmasse": { icon: GiEclipseFlare, label: "Mass Purification" },
