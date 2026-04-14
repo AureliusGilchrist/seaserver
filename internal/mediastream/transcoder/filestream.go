@@ -87,7 +87,11 @@ func (fs *FileStream) GetMaster() string {
 				break
 			}
 		}
-		{
+		// Only include the "original" (passthrough) quality when the source codec is AVC/H.264.
+		// Non-AVC codecs (e.g. HEVC) cannot be played inside MPEG-TS containers by most browsers,
+		// so including them causes HLS.js to attempt and fail, triggering a destructive quality-switch cycle.
+		isSourceAvc := fs.Info.Video.MimeCodec != nil && strings.HasPrefix(*fs.Info.Video.MimeCodec, "avc1")
+		if isSourceAvc {
 			bitrate := float64(fs.Info.Video.Bitrate)
 			master += "#EXT-X-STREAM-INF:"
 			master += fmt.Sprintf("AVERAGE-BANDWIDTH=%d,", int(math.Min(bitrate*0.8, float64(transmuxQuality.AverageBitrate()))))

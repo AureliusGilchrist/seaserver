@@ -18,6 +18,7 @@ type (
 		Password         string
 		DisablePassword  bool
 		LockDown         bool
+		HwAccel          string
 	}
 )
 
@@ -42,6 +43,7 @@ func GetSeanimeFlags() SeanimeFlags {
 		fmt.Printf("  --disable-all-features        disable all features that can be disabled\n")
 		fmt.Printf("  --password string             password to use for the instance\n")
 		fmt.Printf("  --disable-password            disable password protection\n")
+		fmt.Printf("  --hwaccel string              override transcode hardware acceleration (cpu, nvidia, qsv, vaapi, videotoolbox, custom)\n")
 		fmt.Printf("  -h                           show this help message\n")
 	}
 
@@ -54,6 +56,7 @@ func GetSeanimeFlags() SeanimeFlags {
 	flag.BoolVar(&flags.LockDown, "disable-all-features", false, "Disables all features that can be disabled")
 	flag.StringVar(&flags.Password, "password", "", "Password to use for the instance")
 	flag.BoolVar(&flags.DisablePassword, "disable-password", false, "Disable password protection")
+	flag.StringVar(&flags.HwAccel, "hwaccel", "", "Override transcode hardware acceleration (cpu, nvidia, qsv, vaapi, videotoolbox, custom)")
 
 	flag.Parse()
 

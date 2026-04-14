@@ -84,12 +84,24 @@ func (t *Tracker) start() {
 			t.lastUsage[info.path] = time.Now()
 
 			// now that the new info is stored and fixed, kill old streams
+			// Use a grace period before killing to avoid HLS.js adaptive bitrate
+			// probing from causing a destructive kill cycle
 			if ok && old.path == info.path {
 				if old.audio != info.audio && old.audio != -1 {
-					t.KillAudioIfDead(old.path, old.audio)
+					oldAudio := old.audio
+					oldPath := old.path
+					go func() {
+						time.Sleep(10 * time.Second)
+						t.KillAudioIfDead(oldPath, oldAudio)
+					}()
 				}
 				if old.quality != info.quality && old.quality != nil {
-					t.KillQualityIfDead(old.path, *old.quality)
+					oldQuality := *old.quality
+					oldPath := old.path
+					go func() {
+						time.Sleep(10 * time.Second)
+						t.KillQualityIfDead(oldPath, oldQuality)
+					}()
 				}
 				if old.head != -1 && Abs(info.head-old.head) > 100 {
 					t.KillOrphanedHeads(old.path, old.quality, old.audio)

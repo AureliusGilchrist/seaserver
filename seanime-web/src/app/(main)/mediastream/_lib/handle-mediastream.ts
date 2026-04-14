@@ -188,7 +188,16 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
         if (mediaContainer?.streamType === "transcode") {
             logger("MEDIASTREAM").info("Stream type is transcode")
 
-            if (!codecSupported && mediastreamSettings?.directPlayOnly) {
+            // Don't auto-switch until settings are loaded
+            if (!mediastreamSettings) return
+
+            logger("MEDIASTREAM").info("Settings", {
+                disableAutoSwitchToDirectPlay: mediastreamSettings.disableAutoSwitchToDirectPlay,
+                directPlayOnly: mediastreamSettings.directPlayOnly,
+                codecSupported,
+            })
+
+            if (!codecSupported && mediastreamSettings.directPlayOnly) {
                 logger("MEDIASTREAM").warning("Codec not supported for direct play", mediaContainer?.mediaInfo?.mimeCodec)
                 logger("MEDIASTREAM").warning("Stopping playback")
                 toast.warning("Codec not supported for direct play")
@@ -197,15 +206,29 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
                 return
             }
 
-            if (codecSupported && (!mediastreamSettings?.disableAutoSwitchToDirectPlay || mediastreamSettings?.directPlayOnly)) {
-                logger("MEDIASTREAM").info("Codec supported", mediaContainer?.mediaInfo?.mimeCodec)
-                logger("MEDIASTREAM").warning("Switching to direct play")
-                setStreamType("direct")
-                changeUrl(undefined)
-                logger("MEDIASTREAM").info("Setting URL to undefined")
-                return
+            if (!mediastreamSettings.disableAutoSwitchToDirectPlay && !mediastreamSettings.directPlayOnly) {
+                if (codecSupported) {
+                    logger("MEDIASTREAM").info("Codec supported", mediaContainer?.mediaInfo?.mimeCodec)
+                    logger("MEDIASTREAM").warning("Switching to direct play")
+                    setStreamType("direct")
+                    changeUrl(undefined)
+                    logger("MEDIASTREAM").info("Setting URL to undefined")
+                    return
+                }
+            } else if (mediastreamSettings.directPlayOnly) {
+                if (codecSupported) {
+                    logger("MEDIASTREAM").info("Direct play only, switching to direct play")
+                    setStreamType("direct")
+                    changeUrl(undefined)
+                    return
+                } else {
+                    logger("MEDIASTREAM").warning("Direct play only but codec not supported")
+                    toast.warning("Codec not supported for direct play")
+                    changeUrl(undefined)
+                    return
+                }
             } else {
-                logger("MEDIASTREAM").info("Codec not supported for direct play", mediaContainer?.mediaInfo?.mimeCodec)
+                logger("MEDIASTREAM").info("Prefer transcoding is enabled, staying on transcode")
             }
         }
         // If the codec is not supported, switch to transcode

@@ -3,7 +3,7 @@ import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/nat
 import { submenuClass, VdsSubmenuButton } from "@/app/(main)/onlinestream/_components/onlinestream-video-addons"
 import { vc_audioManager, vc_subtitleManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
-import { HlsAudioTrack, vc_hlsAudioTracks, vc_hlsCurrentAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
+import { HlsAudioTrack, vc_hlsAudioTracks, vc_hlsCurrentAudioTrack, vc_hlsSetAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
 import { NormalizedTrackInfo } from "@/app/(main)/_features/video-core/video-core-subtitles"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
 import { Switch } from "@/components/ui/switch"
@@ -158,12 +158,14 @@ function SeaMediaPlayerAudioTrackSubmenu() {
     const action = useSetAtom(vc_dispatchAction)
     const hlsAudioTracks = useAtomValue(vc_hlsAudioTracks)
     const hlsCurrentAudioTrack = useAtomValue(vc_hlsCurrentAudioTrack)
+    const hlsSetAudioTrack = useAtomValue(vc_hlsSetAudioTrack)
 
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
 
     const mkvAudioTracks = state.playbackInfo?.mkvMetadata?.audioTracks
-    const audioTracks = mkvAudioTracks || (hlsAudioTracks.length > 0 ? hlsAudioTracks : null)
-    const isHls = !mkvAudioTracks && hlsAudioTracks.length > 0
+    // Use the audio manager's own detection — it knows whether HLS tracks were provided at construction
+    const isHls = audioManager?.isHLS ?? (!mkvAudioTracks && hlsAudioTracks.length > 0)
+    const audioTracks = isHls ? (hlsAudioTracks.length > 0 ? hlsAudioTracks : null) : (mkvAudioTracks || null)
 
     function onAudioChange() {
         setSelectedTrack(audioManager?.getSelectedTrackNumberOrNull?.() ?? null)
@@ -180,8 +182,8 @@ function SeaMediaPlayerAudioTrackSubmenu() {
     React.useEffect(() => { onAudioChange() }, [audioManager])
 
     React.useEffect(() => {
-        if (isHls && hlsCurrentAudioTrack !== -1) setSelectedTrack(hlsCurrentAudioTrack)
-    }, [hlsCurrentAudioTrack, isHls])
+        if (hlsAudioTracks.length > 0 && hlsCurrentAudioTrack !== -1) setSelectedTrack(hlsCurrentAudioTrack)
+    }, [hlsCurrentAudioTrack, hlsAudioTracks])
 
     const currentLabel = React.useMemo(() => {
         if (!audioTracks?.length) return "No file"
@@ -215,7 +217,15 @@ function SeaMediaPlayerAudioTrackSubmenu() {
                                 <button
                                     key={value}
                                     onClick={() => {
-                                        audioManager?.selectTrack(value)
+                                        // For HLS streams, use the latest setter from the atom directly
+                                        // to avoid stale closures in AudioManager after error recovery
+                                        if (isHls && hlsSetAudioTrack) {
+                                            hlsSetAudioTrack(value)
+                                        } else {
+                                            audioManager?.selectTrack(value)
+                                        }
+                                        // Immediately update the visual selection
+                                        setSelectedTrack(value)
                                         action({ type: "seek", payload: { time: -1 } })
                                     }}
                                     className={cn(

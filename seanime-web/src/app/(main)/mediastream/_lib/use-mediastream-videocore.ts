@@ -83,21 +83,45 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     React.useEffect(() => {
         log.info("Media container changed", mediaContainer)
 
+        // Don't process until settings are loaded
+        if (!mediastreamSettings || mediastreamSettingsLoading) return
+
         const codecSupported = isCodecSupported(mediaContainer?.mediaInfo?.mimeCodec ?? "")
+
+        log.info("Settings loaded", {
+            disableAutoSwitchToDirectPlay: mediastreamSettings.disableAutoSwitchToDirectPlay,
+            directPlayOnly: mediastreamSettings.directPlayOnly,
+            codecSupported,
+            streamType: mediaContainer?.streamType,
+        })
 
         // Auto-switch to direct play if codec is supported
         if (mediaContainer?.streamType === "transcode") {
-            if (!codecSupported && mediastreamSettings?.directPlayOnly) {
+            if (!codecSupported && mediastreamSettings.directPlayOnly) {
                 log.warning("Codec not supported for direct play")
                 toast.warning("Codec not supported for direct play")
                 changeUrl(undefined)
                 return
             }
-            if (codecSupported && (!mediastreamSettings?.disableAutoSwitchToDirectPlay || mediastreamSettings?.directPlayOnly)) {
-                log.info("Auto-switching to direct play")
-                setStreamType("direct")
-                changeUrl(undefined)
-                return
+            if (!mediastreamSettings.disableAutoSwitchToDirectPlay && !mediastreamSettings.directPlayOnly) {
+                if (codecSupported) {
+                    log.info("Auto-switching to direct play")
+                    setStreamType("direct")
+                    changeUrl(undefined)
+                    return
+                }
+            } else if (mediastreamSettings.directPlayOnly) {
+                if (codecSupported) {
+                    log.info("Direct play only mode, switching to direct play")
+                    setStreamType("direct")
+                    changeUrl(undefined)
+                    return
+                } else {
+                    log.warning("Direct play only mode but codec not supported")
+                    toast.warning("Codec not supported for direct play")
+                    changeUrl(undefined)
+                    return
+                }
             }
         }
 
@@ -118,7 +142,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         } else {
             changeUrl(undefined)
         }
-    }, [mediaContainer?.streamUrl, mediastreamSettings?.disableAutoSwitchToDirectPlay])
+    }, [mediaContainer?.streamUrl, mediastreamSettings?.disableAutoSwitchToDirectPlay, mediastreamSettings, mediastreamSettingsLoading])
 
     // ── WebSocket: shutdown stream ──────────────────────────────────────
 

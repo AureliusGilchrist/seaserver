@@ -8,7 +8,7 @@ import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-at
 import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { VideoCoreControlButtonIcon } from "@/app/(main)/_features/video-core/video-core-control-bar"
-import { HlsAudioTrack, vc_hlsAudioTracks, vc_hlsCurrentAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
+import { HlsAudioTrack, vc_hlsAudioTracks, vc_hlsCurrentAudioTrack, vc_hlsSetAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
 import { VideoCoreMenu, VideoCoreMenuBody, VideoCoreMenuTitle, VideoCoreSettingSelect } from "@/app/(main)/_features/video-core/video-core-menu"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
 import { useAtomValue } from "jotai"
@@ -33,6 +33,7 @@ export function VideoCoreAudioMenu() {
     // Get HLS audio tracks
     const hlsAudioTracks = useAtomValue(vc_hlsAudioTracks)
     const hlsCurrentAudioTrack = useAtomValue(vc_hlsCurrentAudioTrack)
+    const hlsSetAudioTrack = useAtomValue(vc_hlsSetAudioTrack)
 
     // Determine which audio tracks to use
     const audioTracks = mkvAudioTracks || (hlsAudioTracks.length > 0 ? hlsAudioTracks : null)
@@ -112,7 +113,15 @@ export function VideoCoreAudioMenu() {
                         }
                     })}
                     onValueChange={(value: number) => {
-                        audioManager?.selectTrack(value)
+                        // For HLS streams, use the latest setter from the atom directly
+                        // to avoid stale closures in AudioManager after error recovery
+                        if (isHls && hlsSetAudioTrack) {
+                            hlsSetAudioTrack(value)
+                        } else {
+                            audioManager?.selectTrack(value)
+                        }
+                        // Immediately update the visual checkmark
+                        setSelectedTrack(value)
                         action({ type: "seek", payload: { time: -1 } })
 
                         // Save per-media audio language override

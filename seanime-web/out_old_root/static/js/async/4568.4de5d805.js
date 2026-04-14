@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkseanime_web=self.webpackChunkseanime_web||[]).push([["4568"],{16267(e,n,s){s.d(n,{Route:()=>u});var a=s(28409);let u=(0,s(7413).uV)("/_main/profile/me/")({component:a.Ay})}}]);
