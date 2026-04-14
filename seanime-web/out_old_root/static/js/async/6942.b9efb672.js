@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkseanime_web=self.webpackChunkseanime_web||[]).push([["6942"],{3597(e,n,a){a.d(n,{Route:()=>t});var s=a(96475);let t=(0,a(7413).uV)("/_main/entry/")({component:s.a9})}}]);

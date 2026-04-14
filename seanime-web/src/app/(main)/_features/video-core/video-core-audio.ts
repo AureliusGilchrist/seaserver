@@ -23,6 +23,10 @@ export class VideoCoreAudioManager extends EventTarget {
     private readonly hlsSetAudioTrack: ((trackId: number) => void) | null = null
     private readonly hlsAudioTracks: HlsAudioTrack[] = []
     private hlsCurrentAudioTrack: number = -1
+    // Tracks whether the user has manually selected an audio track.
+    // When true, auto-selection (e.g. __selectDefaultHlsTrack) is skipped
+    // so the user's choice is preserved across quality switches and re-renders.
+    private _userHasSelectedTrack: boolean = false
 
     constructor({
         videoElement,
@@ -135,7 +139,7 @@ export class VideoCoreAudioManager extends EventTarget {
 
         // Try each preferred language in order
         for (const preferredLang of preferredLanguages) {
-            const foundTracks = this.playbackInfo.mkvMetadata?.audioTracks?.filter?.(t => (t.language || "eng") === preferredLang)
+            const foundTracks = this.playbackInfo.mkvMetadata?.audioTracks?.filter?.(t => t.language && t.language === preferredLang)
             if (foundTracks?.length) {
                 // Find default track
                 const defaultIndex = foundTracks.findIndex(t => t.default)
@@ -156,6 +160,7 @@ export class VideoCoreAudioManager extends EventTarget {
 
     __selectDefaultHlsTrack() {
         if (!this.hlsSetAudioTrack || !this.isHlsStream()) return
+        if (this._userHasSelectedTrack) return
 
         // Split preferred languages by comma and trim whitespace
         const preferredLanguages = this.settings.preferredAudioLanguage
@@ -165,7 +170,7 @@ export class VideoCoreAudioManager extends EventTarget {
 
         // Try each preferred language in order
         for (const preferredLang of preferredLanguages) {
-            const foundTrack = this.hlsAudioTracks.find(t => (t.language || "eng") === preferredLang)
+            const foundTrack = this.hlsAudioTracks.find(t => t.language && t.language === preferredLang)
             if (foundTrack) {
                 audioLog.info("Selecting preferred HLS audio track", foundTrack)
                 this.hlsSetAudioTrack(foundTrack.id)
@@ -189,6 +194,7 @@ export class VideoCoreAudioManager extends EventTarget {
     }
 
     selectTrack(trackNumber: number) {
+        this._userHasSelectedTrack = true
         // If it's an HLS stream, select the track from the HLS API
         if (this.hlsSetAudioTrack) {
             audioLog.info("Selecting HLS audio track", trackNumber)

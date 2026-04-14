@@ -1087,19 +1087,24 @@ export function VideoCore(props: VideoCoreProps) {
         }
 
         // Initialize audio manager for HLS streams
+        // Only create a new audio manager if one doesn't already exist for HLS
+        // (quality/audio switches in HLS.js can re-fire loadedmetadata, which would
+        // otherwise recreate the manager and override the user's track selection)
         if (hlsAudioTracks.length > 0 && hlsSetAudioTrack) {
-            setAudioManager(new VideoCoreAudioManager({
-                videoElement: v!,
-                playbackInfo: state.playbackInfo,
-                settings: effectiveSettings,
-                onError: (error) => {
-                    log.error("Audio manager error", error)
-                    onError?.(error)
-                },
-                hlsSetAudioTrack: hlsSetAudioTrack,
-                hlsAudioTracks: hlsAudioTracks,
-                hlsCurrentAudioTrack: hlsCurrentAudioTrack,
-            }))
+            if (!audioManager || !audioManager.isHLS) {
+                setAudioManager(new VideoCoreAudioManager({
+                    videoElement: v!,
+                    playbackInfo: state.playbackInfo,
+                    settings: effectiveSettings,
+                    onError: (error) => {
+                        log.error("Audio manager error", error)
+                        onError?.(error)
+                    },
+                    hlsSetAudioTrack: hlsSetAudioTrack,
+                    hlsAudioTracks: hlsAudioTracks,
+                    hlsCurrentAudioTrack: hlsCurrentAudioTrack,
+                }))
+            }
         } else if (!!state.playbackInfo?.mkvMetadata) {
             setAudioManager(new VideoCoreAudioManager({
                 videoElement: v!,

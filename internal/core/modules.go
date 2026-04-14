@@ -733,6 +733,17 @@ func (a *App) InitOrRefreshMediastreamSettings() {
 		}
 	}
 
+	// Apply --hwaccel CLI flag override and persist to DB
+	if a.Flags.HwAccel != "" && settings.TranscodeHwAccel != a.Flags.HwAccel {
+		a.Logger.Info().Str("from", settings.TranscodeHwAccel).Str("to", a.Flags.HwAccel).Msg("app: Overriding transcode hwaccel from --hwaccel flag")
+		settings.TranscodeHwAccel = a.Flags.HwAccel
+		if updated, err := a.Database.UpsertMediastreamSettings(settings); err != nil {
+			a.Logger.Error().Err(err).Msg("app: Failed to persist --hwaccel override to database")
+		} else {
+			settings = updated
+		}
+	}
+
 	a.MediastreamRepository.InitializeModules(settings, a.Config.Cache.Dir, a.Config.Cache.TranscodeDir)
 
 	// Cleanup cache

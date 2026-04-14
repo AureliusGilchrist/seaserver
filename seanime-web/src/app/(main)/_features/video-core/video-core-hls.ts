@@ -113,18 +113,24 @@ export function useVideoCoreHls({
 
             // Quality setter function
             const qualitySetter = (levelIndex: number) => {
-                if (!hls) return
+                if (!hlsRef.current) return
                 hlsLog.info("Setting quality level to", levelIndex)
-                hls.currentLevel = levelIndex
+                hlsRef.current.currentLevel = levelIndex
                 setCurrentQuality(levelIndex)
             }
             setSetQuality(() => qualitySetter)
 
             // Audio track setter function
             const audioTrackSetter = (trackId: number) => {
-                if (!hls) return
+                hlsLog.info("audioTrackSetter called, trackId:", trackId, "hlsRef.current:", !!hlsRef.current)
+                if (!hlsRef.current) return
                 hlsLog.info("Setting audio track to", trackId)
-                hls.audioTrack = trackId
+                try {
+                    hlsRef.current.audioTrack = trackId
+                } catch (e) {
+                    hlsLog.error("Failed to set audio track", e)
+                    return
+                }
                 setCurrentAudioTrack(trackId)
             }
             setSetAudioTrack(() => audioTrackSetter)
@@ -165,7 +171,8 @@ export function useVideoCoreHls({
                     const uniqueTracks = new Map<string, { track: any, index: number }>()
 
                     data.audioTracks.forEach((track: any, index: number) => {
-                        const key = `${track.groupId || ""}-${track.lang || "unknown"}-${track.name || ""}-${track.audioCodec || ""}`
+                        // Include index in key so tracks without language/name metadata are never incorrectly merged
+                        const key = `${track.groupId || ""}-${track.lang || ""}-${track.name || ""}-${track.audioCodec || ""}-${track.url || index}`
 
                         // Keep the first occurrence of each unique track
                         if (!uniqueTracks.has(key)) {
@@ -210,6 +217,7 @@ export function useVideoCoreHls({
                 if (data.fatal) {
                     hlsLog.error("Fatal error, cannot recover")
                     hls.destroy()
+                    hlsRef.current = null
                     onFatalError?.(data)
                     // switch (data.type) {
                     //     case Hls.ErrorTypes.NETWORK_ERROR:
@@ -232,6 +240,14 @@ export function useVideoCoreHls({
                     hlsRef.current.destroy()
                     hlsRef.current = null
                 }
+                // Reset all HLS atoms to defaults so stale setters don't persist
+                // after error recovery or component remount
+                setQualityLevels([])
+                setCurrentQuality(-1)
+                setSetQuality(null as any)
+                setAudioTracks([])
+                setCurrentAudioTrack(-1)
+                setSetAudioTrack(null as any)
             }
         } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
             hlsLog.info("Native support detected for HLS stream")
