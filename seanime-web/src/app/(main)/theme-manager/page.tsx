@@ -14,7 +14,6 @@ export default function ThemeManagerPage() {
         setMusicEnabled,
         musicVolume,
         setMusicVolume,
-        triggerEvent,
         config,
         animatedIntensity,
         setAnimatedIntensity,
@@ -32,9 +31,7 @@ export default function ThemeManagerPage() {
                 >
                     Theme Manager
                 </h1>
-                <p className="text-[--muted] text-sm">
-                    Choose an anime theme to customize colors, navigation labels, achievement names, and special events.
-                </p>
+                <p className="text-[--muted] text-sm">Choose an anime theme to customize colors, navigation labels, and achievement names.</p>
             </div>
 
             {/* Theme Cards */}
@@ -84,12 +81,6 @@ export default function ThemeManagerPage() {
                             <p className="text-white/60 text-xs mt-1 line-clamp-2">
                                 {theme.description}
                             </p>
-
-                            {theme.id !== "seanime" && (
-                                <div className="mt-3 text-xs text-white/40">
-                                    Event: {theme.event.name}
-                                </div>
-                            )}
                         </button>
                     )
                 })}
@@ -102,7 +93,7 @@ export default function ThemeManagerPage() {
                         className="text-xl font-semibold"
                         style={{ fontFamily: config.fontFamily }}
                     >
-                        Music & Events
+                        Music
                     </h2>
 
                     {/* Music toggle */}
@@ -150,29 +141,10 @@ export default function ThemeManagerPage() {
                         </div>
                     )}
 
-                    {/* Test event */}
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={triggerEvent}
-                            className={cn(
-                                "px-5 py-2 rounded-lg text-sm font-bold transition-all duration-150",
-                                "bg-[--color-brand-700] hover:bg-[--color-brand-600] text-white",
-                                "active:scale-95",
-                            )}
-                            style={{ fontFamily: config.fontFamily }}
-                        >
-                            Test {config.event.name} Event
-                        </button>
-                        <span className="text-xs text-[--muted]">
-                            Also fires automatically every 1–3 hours
-                        </span>
-                    </div>
-
                     {/* Audio slot info */}
                     <div className="rounded-xl bg-[--background] border border-[--border] p-4 text-xs text-[--muted] space-y-1">
                         <div className="font-semibold text-[--foreground] mb-2">Audio file slots</div>
                         <div>Opening music: <code className="text-[--color-brand-400]">{config.musicUrl.replace("/public", "seanime-web/public")}</code></div>
-                        <div>Event clip: <code className="text-[--color-brand-400]">{config.event.audioClipPath.replace("/public", "seanime-web/public")}</code></div>
                         <div className="pt-1 text-white/40">Drop your own files at those paths — they will be played automatically.</div>
                     </div>
                 </div>

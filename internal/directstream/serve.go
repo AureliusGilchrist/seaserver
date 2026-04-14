@@ -8,19 +8,19 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// ServeEchoStream is a proxy to the current stream for a specific profile.
+// ServeEchoStream is a proxy to the current stream identified by its UUID.
 // It sits in between the player and the real stream (whether it's a local file, torrent, or http stream).
 //
 // If this is an EBML stream, it gets the range request from the player, processes it to stream the correct subtitles, and serves the video.
 // Otherwise, it just serves the video.
-func (m *Manager) ServeEchoStream(profileID uint) http.Handler {
-	return m.getStreamHandler(profileID)
+func (m *Manager) ServeEchoStream(streamID string) http.Handler {
+	return m.getStreamHandlerByID(streamID)
 }
 
-// ServeEchoAttachments serves the attachments loaded into memory from the current stream for a specific profile.
-func (m *Manager) ServeEchoAttachments(profileID uint, c echo.Context) error {
-	// Get the stream for this profile
-	session, ok := m.sessions.Get(profileID)
+// ServeEchoAttachments serves the attachments loaded into memory from the current stream identified by its UUID.
+func (m *Manager) ServeEchoAttachments(streamID string, c echo.Context) error {
+	// Get the session for this stream
+	session, ok := m.getSessionByStreamID(streamID)
 	if !ok {
 		return errors.New("no stream")
 	}

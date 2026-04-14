@@ -8,6 +8,7 @@ import { __seaMediaPlayer_isFullscreenAtom, __seaMediaPlayer_watchContinuityAtom
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { useMediastreamCurrentFile, useMediastreamJassubOffscreenRender } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { clientIdAtom } from "@/app/websocket-provider"
+import { getMediastreamSessionId } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { useDebounce } from "@/hooks/use-debounce"
 import { logger } from "@/lib/helpers/debug"
 import { legacy_getAssetUrl } from "@/lib/server/assets"
@@ -123,6 +124,7 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
     const previousIsPlayingRef = React.useRef(false)
 
     const sessionId = useAtomValue(clientIdAtom)
+    const mediastreamSessionId = React.useMemo(() => getMediastreamSessionId(), [])
 
     /**
      * Watch history
@@ -135,7 +137,7 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
     const { data: _mediaContainer, isError: isMediaContainerError, isPending, isFetching, refetch } = useRequestMediastreamMediaContainer({
         path: filePath,
         streamType: streamType,
-        clientId: sessionId ?? uuidv4(),
+        clientId: mediastreamSessionId,
     }, !!mediastreamSettings && !mediastreamSettingsLoading && !waitForWatchHistory)
 
     const mediaContainer = React.useMemo(() => (!isPending && !isFetching) ? _mediaContainer : undefined, [_mediaContainer, isPending, isFetching])
@@ -286,7 +288,7 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
             // logger("MEDIASTREAM").info("Fallback font:", firstFont)
 
             const defaultFontUrl = "/jassub/Roboto-Medium.ttf"
-            let fonts = mediaContainer?.mediaInfo?.fonts?.map(name => `${getServerBaseUrl()}/api/v1/mediastream/att/${name}`) || []
+            let fonts = mediaContainer?.mediaInfo?.fonts?.map(name => `${getServerBaseUrl()}/api/v1/mediastream/att/${mediastreamSessionId}/${name}`) || []
             fonts = [defaultFontUrl, ...fonts]
 
             // @ts-expect-error
@@ -415,7 +417,7 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
                             logger("MEDIASTREAM").error("handleFatalError", data)
                             // Shut down transcoder
                             if (mediaContainer?.streamType === "transcode") {
-                                shutdownTranscode()
+                                shutdownTranscode({ clientId: mediastreamSessionId })
                             }
                             // Set playback errored
                             setPlaybackErrored(true)
@@ -532,7 +534,7 @@ export function useHandleMediastream(props: HandleMediastreamProps) {
     // Subtitle endpoint URI
     const subtitleEndpointUri = React.useMemo(() => {
         if (mediaContainer?.streamUrl && mediaContainer?.streamType) {
-            return `${getServerBaseUrl()}/api/v1/mediastream/subs`
+            return `${getServerBaseUrl()}/api/v1/mediastream/subs/${mediastreamSessionId}`
         }
         return ""
     }, [mediaContainer?.streamUrl, mediaContainer?.streamType])

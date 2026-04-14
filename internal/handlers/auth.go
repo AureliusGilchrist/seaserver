@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/models"
 	"seanime/internal/platforms/anilist_platform"
@@ -54,6 +55,16 @@ func (h *Handler) HandleLogin(c echo.Context) error {
 		return h.RespondWithError(c, errors.New("could not find user"))
 	}
 
+	// Prevent the same AniList account from being linked to multiple profiles
+	if h.App.AnilistClientManager != nil {
+		if ownerName := h.App.AnilistClientManager.IsAniListUsernameUsedByOtherProfile(getViewer.Viewer.Name, profileID); ownerName != "" {
+			return h.RespondWithError(c, echo.NewHTTPError(409, fmt.Sprintf(
+				"AniList account '%s' is already linked to profile '%s'. Each profile must use a unique AniList account.",
+				getViewer.Viewer.Name, ownerName,
+			)))
+		}
+	}
+
 	// Marshal viewer data
 	bytes, err := json.Marshal(getViewer.Viewer)
 	if err != nil {
@@ -63,14 +74,14 @@ func (h *Handler) HandleLogin(c echo.Context) error {
 	// Determine which database to save the account to
 	targetDB := h.GetProfileDatabase(c)
 
-	// Save account data in database
+	// Save token in database first (username/avatar are optional)
 	_, err = targetDB.UpsertAccount(&models.Account{
 		BaseModel: models.BaseModel{
 			ID:        1,
 			UpdatedAt: time.Now(),
 		},
-		Username: getViewer.Viewer.Name,
 		Token:    b.Token,
+		Username: getViewer.Viewer.Name, // Save if available
 		Viewer:   bytes,
 	})
 
@@ -83,7 +94,7 @@ func (h *Handler) HandleLogin(c echo.Context) error {
 		h.App.AnilistClientManager.UpdateClient(profileID, b.Token)
 	}
 
-	// Update profile's AniList metadata in profiles.db
+	// Update profile's AniList metadata in profiles.db (optional, not required for login)
 	if h.App.ProfileManager != nil && profileID > 0 {
 		avatarURL := ""
 		if getViewer.Viewer.Avatar != nil && getViewer.Viewer.Avatar.Large != nil {
@@ -98,6 +109,13 @@ func (h *Handler) HandleLogin(c echo.Context) error {
 			"anilist_avatar":   avatarURL,
 			"banner_image":     bannerURL,
 		})
+		// --- DEBUG LOGGING: Confirm profile update ---
+		profile, err := h.App.ProfileManager.GetProfile(profileID)
+		if err != nil {
+			h.App.Logger.Error().Err(err).Uint("profileID", profileID).Msg("Failed to fetch profile after AniList update")
+		} else {
+			h.App.Logger.Info().Str("anilist_username", profile.AniListUsername).Uint("profileID", profileID).Msg("Profile after AniList update")
+		}
 	}
 
 	if isAdmin {

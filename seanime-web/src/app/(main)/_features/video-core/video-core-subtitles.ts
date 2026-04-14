@@ -255,14 +255,21 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 subtitleLog.info("Libass renderer ready")
 
 
-                this.fonts = this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
-                    ?.map(a => `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}${this.hmacToken}`) || []
+                // Use pre-resolved font URLs if provided (e.g. from mediastream),
+                // otherwise build from mkvMetadata attachments (directstream)
+                const preResolvedFonts = (this.playbackInfo as any)._mediastreamFontUrls as string[] | undefined
+                if (preResolvedFonts?.length) {
+                    this.fonts = [defaultFontUrl, ...preResolvedFonts]
+                } else {
+                    this.fonts = this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
+                        ?.map(a => `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}${this.hmacToken}`) || []
 
-                if (!(this.playbackInfo as any).libassFonts) {
-                    this.fonts = [...new Set([...this.fonts, defaultFontUrl])]
+                    if (!(this.playbackInfo as any).libassFonts) {
+                        this.fonts = [...new Set([...this.fonts, defaultFontUrl])]
+                    }
+
+                    this.fonts = [defaultFontUrl, ...this.fonts]
                 }
-
-                this.fonts = [defaultFontUrl, ...this.fonts]
 
                 await this.libassRenderer.renderer.addFonts(this.fonts)
             }

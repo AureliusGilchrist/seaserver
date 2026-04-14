@@ -14,6 +14,8 @@ import { useAutoDownloaderQueueCount } from "@/app/(main)/_hooks/autodownloader-
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loader"
 import { useCurrentUser, useServerStatus, useSetServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
+import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
 import { useGetUnreadNotificationCount, useNotificationWSListener } from "@/api/hooks/notifications.hooks"
 import { NotificationDrawer } from "@/app/(main)/_features/notification/notification-drawer"
 import { TauriUpdateModal } from "@/app/(main)/_tauri/tauri-update-modal"
@@ -162,6 +164,12 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     const { data: unreadCount } = useGetUnreadNotificationCount()
     useNotificationWSListener()
 
+    // Persistent sidebar badge data
+    const { data: achievementSummary } = useGetAchievementSummary()
+    const { data: unmatchedTorrents } = useGetUnmatchedTorrents({ staleTime: 60_000 })
+    const unmatchedCount = unmatchedTorrents?.length ?? 0
+    const achievementUnlockedCount = achievementSummary?.unlockedCount ?? 0
+
     // Items
     const enmasseDownloaders = [
         {
@@ -258,6 +266,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             name: "Unmatched Downloads",
             href: "/unmatched",
             isCurrent: pathname === "/unmatched",
+            addon: unmatchedCount > 0 ? <Badge className="absolute right-0 top-0" size="sm" intent="alert-solid">{unmatchedCount}</Badge> : undefined,
         },
         {
             id: "enmasse",
@@ -297,6 +306,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             name: "Achievements",
             href: "/achievements",
             isCurrent: pathname === "/achievements",
+            addon: achievementUnlockedCount > 0 ? <Badge className="absolute right-0 top-0 bg-amber-500" size="sm" intent="alert-solid">{achievementUnlockedCount}</Badge> : undefined,
         },
         {
             id: "search",
@@ -335,6 +345,8 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         activeTorrentCount.paused,
         autoDownloaderQueueCount,
         unreadCount,
+        unmatchedCount,
+        achievementUnlockedCount,
     ])
 
     // Plugins

@@ -45,12 +45,31 @@ func (h *Handler) HandleGetAnimeCollection(c echo.Context) error {
 		_, _ = h.App.RefreshMangaCollectionWithCtx(ctx)
 	}()
 
-	// Evaluate collection-based achievements synchronously
+	// Evaluate collection-based achievements using the per-profile AniList client
+	// so achievements reflect the profile's own stats, not the shared/global account.
 	profileID := h.GetProfileID(c)
 	if profileID > 0 {
-		mangaCollection, _ := h.App.GetMangaCollection(false)
-		stats := buildCollectionStats(animeCollection, mangaCollection)
-		h.App.AchievementEngine.EvaluateCollectionStats(profileID, stats)
+		profileClient := h.GetProfileAnilistClient(c)
+		if profileClient.IsAuthenticated() {
+			// Get the profile's username for collection fetch
+			var profileUsername *string
+			if h.App.ProfileManager != nil {
+				if prof, err := h.App.ProfileManager.GetProfile(profileID); err == nil && prof.AniListUsername != "" {
+					profileUsername = &prof.AniListUsername
+				}
+			}
+			// Fetch collections using the profile's own AniList client
+			profileAnimeCol, animeErr := profileClient.AnimeCollection(c.Request().Context(), profileUsername)
+			profileMangaCol, mangaErr := profileClient.MangaCollection(c.Request().Context(), profileUsername)
+			if animeErr == nil {
+				var mangaCol *anilist.MangaCollection
+				if mangaErr == nil {
+					mangaCol = profileMangaCol
+				}
+				stats := buildCollectionStats(profileAnimeCol, mangaCol)
+				h.App.AchievementEngine.EvaluateCollectionStats(profileID, stats)
+			}
+		}
 	}
 
 	return h.RespondWithData(c, animeCollection)
@@ -520,25 +539,45 @@ var anilistStatsCache = result.NewCache[int, *anilist.Stats]()
 //	@route /api/v1/anilist/stats [GET]
 //	@returns anilist.Stats
 func (h *Handler) HandleGetAniListStats(c echo.Context) error {
-	cached, ok := anilistStatsCache.Get(0)
-	if ok {
+	profileID := h.GetProfileID(c)
+	cacheKey := 0
+	if profileID > 0 {
+		cacheKey = int(profileID)
+	}
+
+	if cached, ok := anilistStatsCache.Get(cacheKey); ok {
 		return h.RespondWithData(c, cached)
 	}
 
-	stats, err := h.App.AnilistPlatformRef.Get().GetViewerStats(c.Request().Context())
-	if err != nil {
-		return h.RespondWithError(c, err)
+	var viewerStats *anilist.ViewerStats
+	var statsErr error
+
+	// Prefer the per-profile AniList client so each profile uses its own token.
+	if profileID > 0 {
+		profileClient := h.GetProfileAnilistClient(c)
+		if profileClient.IsAuthenticated() {
+			viewerStats, statsErr = profileClient.ViewerStats(c.Request().Context())
+		}
+	}
+
+	// Fall back to the global platform (shared account or simulated).
+	if viewerStats == nil {
+		viewerStats, statsErr = h.App.AnilistPlatformRef.Get().GetViewerStats(c.Request().Context())
+	}
+
+	if statsErr != nil {
+		return h.RespondWithError(c, statsErr)
 	}
 
 	ret, err := anilist.GetStats(
 		c.Request().Context(),
-		stats,
+		viewerStats,
 	)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
 
-	anilistStatsCache.SetT(0, ret, time.Hour*1)
+	anilistStatsCache.SetT(cacheKey, ret, time.Hour*1)
 
 	return h.RespondWithData(c, ret)
 }

@@ -75,7 +75,7 @@ func (h *Handler) HandleScanLocalFiles(c echo.Context) error {
 		Logger:               h.App.Logger,
 		WSEventManager:       h.App.WSEventManager,
 		ExistingLocalFiles:   existingLfs,
-		SkipLockedFiles:      b.SkipLockedFiles,
+		SkipLockedFiles:      true, // Always skip locked files to protect manual matches
 		SkipIgnoredFiles:     b.SkipIgnoredFiles,
 		ScanSummaryLogger:    scanSummaryLogger,
 		ScanLogger:           scanLogger,
@@ -93,6 +93,31 @@ func (h *Handler) HandleScanLocalFiles(c echo.Context) error {
 			return h.RespondWithData(c, []interface{}{})
 		} else {
 			return h.RespondWithError(c, err)
+		}
+	}
+
+	// Race condition guard: re-read current DB state to preserve any manual matches
+	// made while this scan was running. Locked files in DB always take priority.
+	db_bridge.ClearLocalFilesCache()
+	freshDbLfs, _, _ := db_bridge.GetLocalFiles(h.App.Database)
+	if len(freshDbLfs) > 0 {
+		// Build a lookup of scan results by normalized path
+		scanResultPaths := make(map[string]int, len(allLfs))
+		for i, lf := range allLfs {
+			scanResultPaths[lf.GetNormalizedPath()] = i
+		}
+		// For each locked file in the fresh DB state, ensure it survives in scan results
+		for _, dbLf := range freshDbLfs {
+			if dbLf.IsLocked() && dbLf.MediaId != 0 {
+				npath := dbLf.GetNormalizedPath()
+				if idx, exists := scanResultPaths[npath]; exists {
+					// Replace scan result with the locked DB version
+					allLfs[idx] = dbLf
+				} else {
+					// Locked file wasn't in scan — add it back
+					allLfs = append(allLfs, dbLf)
+				}
+			}
 		}
 	}
 

@@ -19,7 +19,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
-import { ActivityMultiplierBadge, StreakCard, StatsActivityHeatmap, DayOfWeekChart, CategoryPill, AchievementCard, ProgressRing, getLevelColor } from "@/app/(main)/profile/me/page"
+import { ActivityBuffBadge, StreakCard, StatsActivityHeatmap, DayOfWeekChart, CategoryPill, AchievementCard, ProgressRing, getLevelColor } from "@/app/(main)/profile/me/page"
 import * as React from "react"
 import {
     LuTrophy, LuStar, LuArrowLeft, LuCalendar, LuBookOpen,
@@ -100,7 +100,7 @@ export default function Page() {
                                 Level {level?.currentLevel ?? 1}
                             </span>
                             {level && level.multiplier > 1 && (
-                                <ActivityMultiplierBadge multiplier={level.multiplier} />
+                                <ActivityBuffBadge multiplier={level.multiplier} />
                             )}
                         </div>
                         <div className="flex flex-wrap items-center gap-6 mt-2">
@@ -165,7 +165,12 @@ export default function Page() {
                             activityHeatmap={activityHeatmap}
                             showcase={showcase}
                             recentAchievements={recentAchievements}
-                            anilistProfile={undefined} // No profile header in activity tab
+                            anilistProfile={profile?.anilistUsername ? {
+                                avatar: profile.anilistAvatar,
+                                banner: profile.bannerImage,
+                                bio: profile.bio,
+                                name: profile.name,
+                            } : undefined}
                         />
                     </TabsContent>
                     <TabsContent value="stats" className="space-y-6 mt-6">

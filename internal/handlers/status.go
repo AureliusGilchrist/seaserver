@@ -54,6 +54,8 @@ type Status struct {
 	Profiles             []*core.ProfileSummary  `json:"profiles"`
 	// Planning Slut shared library
 	PlanningSlutConfigured bool `json:"planningSlutConfigured"`
+	// Boot ID — changes every server restart so frontend can invalidate stale sessions
+	BootID string `json:"bootId"`
 }
 
 var clientInfoCache = result.NewMap[string, util.ClientInfo]()
@@ -126,6 +128,7 @@ func (h *Handler) NewStatus(c echo.Context) *Status {
 		ServerReady:           h.App.ServerReady,
 		ServerHasPassword:     h.App.Config.Server.Password != "",
 		DisabledFeatures:      h.App.FeatureManager.DisabledFeatures,
+		BootID:                h.App.BootID,
 	}
 
 	// Populate Planning Slut configured flag

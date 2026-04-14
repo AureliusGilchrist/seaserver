@@ -81,38 +81,42 @@ func buildCollectionStats(
 				}
 
 				if media != nil {
-					if media.Format != nil {
-						f := string(*media.Format)
-						formatSet[f] = struct{}{}
-						stats.AnimeFormatCounts[f]++
-						switch *media.Format {
-						case anilist.MediaFormatTv:
-							stats.TVCount++
-						case anilist.MediaFormatMovie:
-							stats.MovieCount++
-						case anilist.MediaFormatOva:
-							stats.OVACount++
-						case anilist.MediaFormatOna:
-							stats.ONACount++
-						case anilist.MediaFormatSpecial:
-							stats.SpecialCount++
-						case anilist.MediaFormatMusic:
-							stats.MusicCount++
-						case anilist.MediaFormatTvShort:
-							stats.TVShortCount++
-						}
-					}
+					isPlanning := entry.Status != nil && *entry.Status == anilist.MediaListStatusPlanning
 
-					for _, g := range media.Genres {
-						if g != nil {
-							allGenreSet[*g] = struct{}{}
-							stats.AnimeGenreCounts[*g]++
+					if !isPlanning {
+						if media.Format != nil {
+							f := string(*media.Format)
+							formatSet[f] = struct{}{}
+							stats.AnimeFormatCounts[f]++
+							switch *media.Format {
+							case anilist.MediaFormatTv:
+								stats.TVCount++
+							case anilist.MediaFormatMovie:
+								stats.MovieCount++
+							case anilist.MediaFormatOva:
+								stats.OVACount++
+							case anilist.MediaFormatOna:
+								stats.ONACount++
+							case anilist.MediaFormatSpecial:
+								stats.SpecialCount++
+							case anilist.MediaFormatMusic:
+								stats.MusicCount++
+							case anilist.MediaFormatTvShort:
+								stats.TVShortCount++
+							}
 						}
-					}
 
-					if media.SeasonYear != nil && *media.SeasonYear > 0 {
-						decade := (*media.SeasonYear / 10) * 10
-						decadeSet[decade] = struct{}{}
+						for _, g := range media.Genres {
+							if g != nil {
+								allGenreSet[*g] = struct{}{}
+								stats.AnimeGenreCounts[*g]++
+							}
+						}
+
+						if media.SeasonYear != nil && *media.SeasonYear > 0 {
+							decade := (*media.SeasonYear / 10) * 10
+							decadeSet[decade] = struct{}{}
+						}
 					}
 				}
 			}
@@ -169,28 +173,32 @@ func buildCollectionStats(
 				}
 
 				if media != nil {
-					for _, g := range media.Genres {
-						if g != nil {
-							allGenreSet[*g] = struct{}{}
-							stats.MangaGenreCounts[*g]++
-						}
-					}
+					isPlanning := entry.Status != nil && *entry.Status == anilist.MediaListStatusPlanning
 
-					if media.Format != nil {
-						f := string(*media.Format)
-						stats.MangaFormatCounts[f]++
-						fl := strings.ToUpper(f)
-						switch {
-						case fl == "MANHWA":
-							stats.ManhwaCount++
-						case fl == "MANHUA":
-							stats.ManhuaCount++
-						case fl == "ONE_SHOT":
-							stats.OneshotCount++
-						case fl == "NOVEL":
-							stats.NovelCount++
-						case fl == "LIGHT_NOVEL":
-							stats.LightNovelCount++
+					if !isPlanning {
+						for _, g := range media.Genres {
+							if g != nil {
+								allGenreSet[*g] = struct{}{}
+								stats.MangaGenreCounts[*g]++
+							}
+						}
+
+						if media.Format != nil {
+							f := string(*media.Format)
+							stats.MangaFormatCounts[f]++
+							fl := strings.ToUpper(f)
+							switch {
+							case fl == "MANHWA":
+								stats.ManhwaCount++
+							case fl == "MANHUA":
+								stats.ManhuaCount++
+							case fl == "ONE_SHOT":
+								stats.OneshotCount++
+							case fl == "NOVEL":
+								stats.NovelCount++
+							case fl == "LIGHT_NOVEL":
+								stats.LightNovelCount++
+							}
 						}
 					}
 				}

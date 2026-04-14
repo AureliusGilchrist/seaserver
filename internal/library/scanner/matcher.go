@@ -107,8 +107,21 @@ func (m *Matcher) MatchLocalFilesWithMedia() error {
 // If the best match is above a certain threshold, set the local file's mediaId to the best match's id
 // If the best match is below a certain threshold, leave the local file's mediaId to 0
 func (m *Matcher) matchLocalFileWithMedia(lf *anime.LocalFile) {
+	// Never re-match a locked (manually matched) file
+	if lf.Locked && lf.MediaId != 0 {
+		if m.ScanLogger != nil {
+			m.ScanLogger.LogMatcher(zerolog.DebugLevel).
+				Str("filename", lf.Name).
+				Int("mediaId", lf.MediaId).
+				Msg("File is locked (manually matched), skipping")
+		}
+		return
+	}
+
 	defer util.HandlePanicInModuleThenS("scanner/matcher/matchLocalFileWithMedia", func(stackTrace string) {
-		lf.MediaId = 0
+		if !lf.Locked {
+			lf.MediaId = 0
+		}
 		/*Log*/
 		if m.ScanLogger != nil {
 			m.ScanLogger.LogMatcher(zerolog.ErrorLevel).

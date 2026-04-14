@@ -33,7 +33,7 @@ export function useProfileLogin() {
     const setCurrentProfile = useSetAtom(currentProfileAtom)
     const setServerStatus = useSetAtom(serverStatusAtom)
 
-    return useServerMutation<ProfileLoginResponse, { profileId: number; pin: string }>({
+    return useServerMutation<ProfileLoginResponse, { profileId: number; pin: string; anilistToken?: string }>({
         endpoint: API_ENDPOINTS.PROFILE.ProfileLogin.endpoint,
         method: API_ENDPOINTS.PROFILE.ProfileLogin.methods[0],
         mutationKey: [API_ENDPOINTS.PROFILE.ProfileLogin.key],
@@ -72,7 +72,7 @@ export function useProfileLogout() {
 
 export function useCreateProfile() {
     const qc = useQueryClient()
-    return useServerMutation<ProfileSummary, { name: string; pin: string; isAdmin: boolean }>({
+    return useServerMutation<ProfileSummary, { name: string; pin: string; isAdmin: boolean; anilistToken?: string }>({
         endpoint: API_ENDPOINTS.PROFILE.CreateProfile.endpoint,
         method: API_ENDPOINTS.PROFILE.CreateProfile.methods[0],
         mutationKey: [API_ENDPOINTS.PROFILE.CreateProfile.key],

@@ -24,7 +24,6 @@ export function ScannerModal() {
     const [, setScannerIsScanning] = useAtom(__scanner_isScanningAtom)
     const [userMedia] = useAtom(__anilist_userAnimeMediaAtom)
     const anilistDataOnly = useBoolean(true)
-    const skipLockedFiles = useBoolean(true)
     const skipIgnoredFiles = useBoolean(true)
 
     const { mutate: scanLibrary, isPending: isScanning } = useScanLocalFiles(() => {
@@ -43,7 +42,7 @@ export function ScannerModal() {
     function handleScan() {
         scanLibrary({
             enhanced: !anilistDataOnly.active,
-            skipLockedFiles: skipLockedFiles.active,
+            skipLockedFiles: true, // Always protect manual matches
             skipIgnoredFiles: skipIgnoredFiles.active,
         })
         setOpen(false)
@@ -123,13 +122,6 @@ export function ScannerModal() {
 
                     <AppLayoutStack className="space-y-2">
                         <h5 className="text-[--muted]">Local files</h5>
-                        <Switch
-                            side="right"
-                            label="Skip locked files"
-                            value={skipLockedFiles.active}
-                            onValueChange={v => skipLockedFiles.set(v as boolean)}
-                            // size="lg"
-                        />
                         <Switch
                             side="right"
                             label="Skip ignored files"

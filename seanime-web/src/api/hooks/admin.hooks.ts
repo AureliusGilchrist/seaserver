@@ -133,3 +133,24 @@ export function useDeleteAdminAnnouncement() {
         },
     })
 }
+
+export function useAdminSetProfileAniListToken() {
+    const qc = useQueryClient()
+
+    return useServerMutation<any, { profileId: number; token: string }>({
+        endpoint: "",
+        method: "POST",
+        mutationKey: ["admin-set-profile-anilist-token"],
+        mutationFn: async variables => {
+            return (await import("@/api/client/requests")).buildSeaQuery<any, { token: string }>({
+                endpoint: `/api/v1/profiles/${variables.profileId}/anilist-token`,
+                method: "POST",
+                data: { token: variables.token },
+            })
+        },
+        onSuccess: async () => {
+            await qc.invalidateQueries()
+            toast.success("AniList token saved")
+        },
+    })
+}

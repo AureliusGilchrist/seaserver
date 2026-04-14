@@ -28,9 +28,9 @@ import { TbReportSearch } from "react-icons/tb"
 export const narutoTheme: AnimeThemeConfig = {
     id: "naruto",
     displayName: "Naruto",
-    description: "Hidden Leaf Village aesthetics. Nine-Tails Chakra events. Jutsu-named achievements.",
-    fontFamily: "'Bangers', cursive",
-    fontHref: "https://fonts.googleapis.com/css2?family=Bangers&display=swap",
+    description: "Hidden Leaf Village aesthetics. Kyuubi chakra particles. Jutsu-named achievements.",
+    fontFamily: "'Rajdhani', sans-serif",
+    fontHref: "https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap",
     cssVars: {
         // Brand → orange/red Naruto palette
         "--color-brand-200": "255 210 160",
@@ -607,14 +607,6 @@ export const narutoTheme: AnimeThemeConfig = {
         "m_time_traveler": "Scroll Time Traveler",
     },
     musicUrl: "/public/themes/naruto-opening.mp3",
-    event: {
-        name: "NINE-TAILS CHAKRA MODE",
-        durationMs: 45000,
-        voiceText: "Nine Tails... lend me your power!",
-        voicePitch: 0,
-        voiceRate: 0,
-        audioClipPath: "/public/themes/naruto-event.mp3",
-    },
     previewColors: {
         bg: "#0a0400",
         primary: "#dc5000",
@@ -622,10 +614,14 @@ export const narutoTheme: AnimeThemeConfig = {
         accent: "#ff8c20",
     },
     hasAnimatedElements: true,
-    backgroundImageUrl: "https://w.wallhaven.cc/full/57/wallhaven-57z1r3.png",
+    backgroundImageUrl: "https://w.wallhaven.cc/full/wq/wallhaven-wq8vzp.png",
+    backgroundDim: 0.30,
+    backgroundBlur: 30,
     particleTypes: {
         leaves: { label: "Falling Leaves", maxCount: 15, defaultEnabled: true, defaultIntensity: 60 },
         wisps: { label: "Chakra Wisps", maxCount: 10, defaultEnabled: true, defaultIntensity: 50 },
+        kunai: { label: "Kunai & Shuriken", maxCount: 8, defaultEnabled: true, defaultIntensity: 45 },
+        village: { label: "Village Silhouette", maxCount: 1, defaultEnabled: true, defaultIntensity: 50 },
         sharingan: { label: "Sharingan Watermark", maxCount: 1, defaultEnabled: true, defaultIntensity: 50 },
     },
 }

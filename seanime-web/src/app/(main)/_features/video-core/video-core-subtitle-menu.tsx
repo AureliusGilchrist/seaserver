@@ -1,12 +1,13 @@
-import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { vc_subtitleManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_mediaCaptionsManager } from "@/app/(main)/_features/video-core/video-core"
+import { vc_perMediaTrackOverrides } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_menuOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_menuSectionOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { VideoCoreControlButtonIcon } from "@/app/(main)/_features/video-core/video-core-control-bar"
 import { MediaCaptionsTrack } from "@/app/(main)/_features/video-core/video-core-media-captions"
 import { VideoCoreMenu, VideoCoreMenuBody, VideoCoreMenuTitle, VideoCoreSettingSelect } from "@/app/(main)/_features/video-core/video-core-menu"
@@ -23,13 +24,14 @@ import { LuCaptions, LuPaintbrush } from "react-icons/lu"
 export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
     const action = useSetAtom(vc_dispatchAction)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
-    const state = useAtomValue(nativePlayer_stateAtom)
+    const playbackInfo = useAtomValue(vc_playbackInfo)
     const subtitleManager = useAtomValue(vc_subtitleManager)
     const mediaCaptionsManager = useAtomValue(vc_mediaCaptionsManager)
     const videoElement = useAtomValue(vc_videoElement)
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const containerElement = useAtomValue(vc_containerElement)
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
+    const setPerMediaOverrides = useSetAtom(vc_perMediaTrackOverrides)
 
     const setMenuOpen = useSetAtom(vc_menuOpen)
     const setMenuSectionOpen = useSetAtom(vc_menuSectionOpen)
@@ -156,6 +158,14 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                         if (value === -1) {
                             activeManager?.setNoTrack()
                             setSelectedTrack(null)
+                            // Save "none" subtitle preference
+                            const mediaId = playbackInfo?.media?.id
+                            if (mediaId) {
+                                setPerMediaOverrides(prev => ({
+                                    ...prev,
+                                    [String(mediaId)]: { ...prev[String(mediaId)], subtitleLanguage: "none" },
+                                }))
+                            }
                             return
                         }
                         if (subtitleManager) {
@@ -163,6 +173,20 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                         } else if (mediaCaptionsManager) {
                             mediaCaptionsManager.selectTrack(value)
                             setSelectedTrack(value)
+                        }
+
+                        // Save per-media subtitle language override
+                        const mediaId = playbackInfo?.media?.id
+                        if (mediaId) {
+                            const subTrack = subtitleTracks.find(t => t.number === value)
+                            const captionTrack = mediaCaptionsTracks.find(t => t.number === value)
+                            const lang = subTrack?.language || captionTrack?.language
+                            if (lang) {
+                                setPerMediaOverrides(prev => ({
+                                    ...prev,
+                                    [String(mediaId)]: { ...prev[String(mediaId)], subtitleLanguage: lang },
+                                }))
+                            }
                         }
                     }}
                     value={selectedTrack ?? -1}

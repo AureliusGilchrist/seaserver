@@ -181,3 +181,19 @@ export const vc_storedVolumeAtom = atomWithStorage("sea-video-core-volume", 1, u
 export const vc_storedMutedAtom = atomWithStorage("sea-video-core-muted", false, undefined, { getOnInit: true })
 export const vc_storedPlaybackRateAtom = atomWithStorage("sea-video-core-playback-rate", 1, undefined, { getOnInit: true })
 export const vc_showStatsForNerdsAtom = atomWithStorage("sea-video-core-show-stats-for-nerds", false, undefined, { getOnInit: true })
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Per-media track overrides
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export type PerMediaTrackOverride = {
+    audioLanguage?: string
+    subtitleLanguage?: string
+}
+
+export const vc_perMediaTrackOverrides = atomWithStorage<Record<string, PerMediaTrackOverride>>(
+    "sea-video-core-per-media-tracks",
+    {},
+    undefined,
+    { getOnInit: true },
+)

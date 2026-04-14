@@ -1112,41 +1112,6 @@ media-preview-chapter-display {
    ANIME THEME SYSTEM
    ────────────────────────────────────────────────── */
 
-/* Gear 5 bounce effect applied when .gear-5-active is on <body> */
-@keyframes gear5Bounce {
-    0%, 100% { transform: scale(1) rotate(0deg); }
-    25% { transform: scale(1.04) rotate(-1.5deg); }
-    75% { transform: scale(0.97) rotate(1.5deg); }
-}
-
-.gear-5-active button,
-.gear-5-active [data-card],
-.gear-5-active nav,
-.gear-5-active .rounded-xl,
-.gear-5-active .rounded-2xl,
-.gear-5-active [class*="card"],
-.gear-5-active input,
-.gear-5-active select {
-    animation: gear5Bounce 0.45s ease-in-out infinite alternate;
-}
-
-/* Event overlay keyframes */
-@keyframes narutoTextPop {
-    from { opacity: 0; transform: scale(0.6); }
-    to   { opacity: 1; transform: scale(1); }
-}
-
-@keyframes bleachZoomIn {
-    from { opacity: 0; transform: scale(0.3) translateY(40px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-@keyframes gear5BounceIn {
-    0%   { opacity: 0; transform: scale(0.5) rotate(-6deg); }
-    60%  { opacity: 1; transform: scale(1.1) rotate(3deg); }
-    100% { opacity: 1; transform: scale(1) rotate(0deg); }
-}
-
 /* Apply themed font-family to headings when a theme font is set */
 :root[style*="--font-anime-theme"] h1,
 :root[style*="--font-anime-theme"] h2,
@@ -1320,6 +1285,15 @@ media-preview-chapter-display {
 }
 .animate-bubble-rise {
     animation: bubbleRise 8s ease-in-out infinite;
+}
+
+/* One Piece: Treasure sparkle glint */
+@keyframes treasureGlint {
+    0%, 100% { transform: scale(0.5) rotate(0deg); opacity: 0; }
+    20%  { transform: scale(1) rotate(20deg); opacity: 0.8; }
+    40%  { transform: scale(0.8) rotate(45deg); opacity: 0.4; }
+    60%  { transform: scale(1.2) rotate(70deg); opacity: 0.9; }
+    80%  { transform: scale(0.6) rotate(90deg); opacity: 0.2; }
 }
 
 /* ══════════════════════════════════════════════════════════════════

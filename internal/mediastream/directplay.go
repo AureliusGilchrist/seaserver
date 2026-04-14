@@ -59,11 +59,11 @@ func (r *Repository) ServeEchoDirectPlay(c echo.Context, clientId string) error 
 		return errors.New("module not initialized")
 	}
 
-	// Get current media
-	mediaContainer, found := r.playbackManager.currentMediaContainer.Get()
+	// Get current media for this client
+	mediaContainer, found := r.playbackManager.GetActiveStream(clientId)
 	if !found {
 		r.wsEventManager.SendEvent(events.MediastreamShutdownStream, "no file has been loaded")
-		return errors.New("no file has been loaded")
+		return errors.New("no file has been loaded for this client")
 	}
 
 	if c.Request().Method == http.MethodHead {

@@ -14,6 +14,14 @@ import (
 var CurrLocalFilesDbId uint
 var CurrLocalFiles mo.Option[[]*anime.LocalFile]
 
+// ClearLocalFilesCache invalidates the in-memory cache so the next GetLocalFiles
+// call reads fresh data from the database. Used to protect against race conditions
+// where manual matches may have been saved while a scan was in progress.
+func ClearLocalFilesCache() {
+	CurrLocalFiles = mo.None[[]*anime.LocalFile]()
+	CurrLocalFilesDbId = 0
+}
+
 // GetLocalFiles will return the latest local files and the id of the entry.
 func GetLocalFiles(db *db.Database) ([]*anime.LocalFile, uint, error) {
 

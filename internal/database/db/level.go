@@ -64,12 +64,12 @@ func ComputeLevel(totalXP int) int {
 }
 
 // XPForLevel returns the cumulative XP required to reach a given level.
-// Level 1 = 0 XP, Level 2 = 100 XP, scaling with N^1.5
+// Level 1 = 0 XP, scaling with N^1.7 so ~2000 total achievement unlocks reaches level 150.
 func XPForLevel(level int) int {
 	if level <= 1 {
 		return 0
 	}
-	return int(100 * math.Pow(float64(level-1), 1.5))
+	return int(100 * math.Pow(float64(level-1), 1.7))
 }
 
 // XPToNextLevel returns the XP needed from current total to reach the next level.
@@ -107,9 +107,13 @@ func (db *Database) SetXPVersion(version int) error {
 	return db.gormdb.Save(lp).Error
 }
 
-// ComputeActivityMultiplier calculates the XP multiplier based on rolling 30-day activity hours.
-// Every 50 hours in the last 30 days = +0.1x, capped at 2.0x.
-func (db *Database) ComputeActivityMultiplier() (float64, error) {
+// ComputeActivityBuff calculates the Activity Buff XP multiplier based on rolling 30-day active days.
+//
+// Rules:
+//   - Base  1.0 → 2.0: scaled by active days (days with ≥1 episode or chapter) out of 30.
+//   - Bonus 0.0 → 1.0: scaled by average daily intensity (1 entry/day = 0 bonus, ≥3 entries/day = full bonus).
+//   - Total capped at 3.0x. Bare minimum (1 entry/day × 30 days) = 2.0x. Fully active = 3.0x.
+func (db *Database) ComputeActivityBuff() (float64, error) {
 	endDate := time.Now().Format("2006-01-02")
 	startDate := time.Now().AddDate(0, 0, -30).Format("2006-01-02")
 
@@ -118,19 +122,34 @@ func (db *Database) ComputeActivityMultiplier() (float64, error) {
 		return 1.0, err
 	}
 
-	totalMinutes := 0
+	activeDays := 0
+	totalEntries := 0
 	for _, log := range logs {
-		totalMinutes += log.AnimeMinutes
-		totalMinutes += log.MangaChapters * 7 // 7 min per chapter average
+		dayEntries := log.AnimeEpisodes + log.MangaChapters
+		if dayEntries >= 1 {
+			activeDays++
+			totalEntries += dayEntries
+		}
 	}
 
-	totalHours := float64(totalMinutes) / 60.0
-	bonus := math.Floor(totalHours/50.0) * 0.1
-	multiplier := 1.0 + bonus
-
-	if multiplier > 2.0 {
-		multiplier = 2.0
+	if activeDays == 0 {
+		return 1.0, nil
 	}
 
-	return multiplier, nil
+	// Base scales from 1.0 (0 active days) to 2.0 (30 active days)
+	base := 1.0 + float64(activeDays)/30.0
+
+	// Intensity: 1 entry/day = 0, 3+ entries/day = 1.0
+	avgPerDay := float64(totalEntries) / float64(activeDays)
+	intensity := math.Min(1.0, math.Max(0, (avgPerDay-1.0)/2.0))
+
+	// Bonus scales from 0 to 1.0; full bonus requires both full activity AND high intensity
+	bonus := (float64(activeDays) / 30.0) * intensity
+
+	result := base + bonus
+	if result > 3.0 {
+		result = 3.0
+	}
+
+	return result, nil
 }

@@ -30,9 +30,9 @@ func (r *Repository) ServeEchoTranscodeStream(c echo.Context, clientId string) e
 
 	path := c.Param("*")
 
-	mediaContainer, found := r.playbackManager.currentMediaContainer.Get()
+	mediaContainer, found := r.playbackManager.GetActiveStream(clientId)
 	if !found {
-		return errors.New("no file has been loaded")
+		return errors.New("no file has been loaded for this client")
 	}
 
 	if path == "master.m3u8" {
@@ -157,20 +157,25 @@ func (r *Repository) ShutdownTranscodeStream(clientId string) {
 
 	r.logger.Warn().Str("client_id", clientId).Msg("mediastream: Received shutdown transcode stream request")
 
-	if !r.playbackManager.currentMediaContainer.IsPresent() {
+	if !r.playbackManager.activeStreams.Has(clientId) {
 		return
 	}
 
-	// Kill playback
-	r.playbackManager.KillPlayback()
+	// Kill playback for this client
+	r.playbackManager.KillPlayback(clientId)
 
-	// Destroy the current transcoder
-	r.transcoder.MustGet().Destroy()
+	// Only destroy and recreate the transcoder if no active streams remain
+	hasActiveStreams := false
+	r.playbackManager.activeStreams.Range(func(_ string, _ *MediaContainer) bool {
+		hasActiveStreams = true
+		return false // stop iteration
+	})
+	if !hasActiveStreams {
+		r.transcoder.MustGet().Destroy()
+		r.transcoder = mo.None[*transcoder.Transcoder]()
+		r.initializeTranscoder(r.settings)
+	}
 
-	// Load a new transcoder
-	r.transcoder = mo.None[*transcoder.Transcoder]()
-	r.initializeTranscoder(r.settings)
-
-	// Send event
+	// Send event with clientId so the frontend can filter
 	r.wsEventManager.SendEvent(events.MediastreamShutdownStream, nil)
 }

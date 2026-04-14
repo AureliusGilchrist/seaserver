@@ -146,8 +146,21 @@ func (fh *FileHydrator) hydrateGroupMetadata(
 	// Process each local file in the group sequentially
 	lop.ForEach(lfs, func(lf *anime.LocalFile, index int) {
 
+		// Never modify a locked (manually matched) file during hydration
+		if lf.Locked {
+			if fh.ScanLogger != nil {
+				fh.ScanLogger.LogFileHydrator(zerolog.DebugLevel).
+					Str("filename", lf.Name).
+					Int("mediaId", lf.MediaId).
+					Msg("File is locked (manually matched), skipping hydration")
+			}
+			return
+		}
+
 		defer util.HandlePanicInModuleThenS("scanner/hydrator/hydrateGroupMetadata", func(stackTrace string) {
-			lf.MediaId = 0
+			if !lf.Locked {
+				lf.MediaId = 0
+			}
 			/*Log*/
 			if fh.ScanLogger != nil {
 				fh.ScanLogger.LogFileHydrator(zerolog.ErrorLevel).

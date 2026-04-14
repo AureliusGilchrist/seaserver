@@ -8,14 +8,6 @@ export const seanimeTheme: AnimeThemeConfig = {
     sidebarOverrides: {},
     achievementNames: {},
     musicUrl: "",
-    event: {
-        name: "",
-        durationMs: 0,
-        voiceText: "",
-        voicePitch: 1,
-        voiceRate: 1,
-        audioClipPath: "",
-    },
     previewColors: {
         bg: "#070707",
         primary: "#6152df",

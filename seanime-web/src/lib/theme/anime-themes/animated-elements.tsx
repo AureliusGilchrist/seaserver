@@ -41,10 +41,13 @@ export function ThemeAnimatedOverlay({ themeId, intensity, particleSettings }: P
 function NarutoElements({ globalScale, ps: settings }: { globalScale: number; ps: ParticleSettings }) {
     const leavesP = ps(settings, "leaves")
     const wispsP = ps(settings, "wisps")
+    const kunaiP = ps(settings, "kunai")
+    const villageP = ps(settings, "village")
     const sharinganP = ps(settings, "sharingan")
 
     const leafCount = leavesP.enabled ? Math.round(4 + leavesP.scale * 11) : 0
     const wispCount = wispsP.enabled ? Math.round(3 + wispsP.scale * 7) : 0
+    const kunaiCount = kunaiP.enabled ? Math.round(2 + kunaiP.scale * 6) : 0
 
     const leaves = React.useMemo(() =>
         Array.from({ length: 15 }, (_, i) => ({
@@ -68,8 +71,47 @@ function NarutoElements({ globalScale, ps: settings }: { globalScale: number; ps
         })),
     [])
 
+    const kunais = React.useMemo(() =>
+        Array.from({ length: 8 }, (_, i) => ({
+            id: i,
+            left: `${10 + (i * 11.7) % 80}%`,
+            delay: `${(i * 2.8) % 10}s`,
+            duration: `${3 + (i * 0.9) % 3}s`,
+            size: 14 + (i % 3) * 4,
+            rotation: 30 + (i * 23) % 60,
+            isShuriken: i % 3 === 0,
+        })),
+    [])
+
     return (
         <>
+            {/* Village silhouette — Konoha skyline with Hokage Rock */}
+            {villageP.enabled && (
+                <div
+                    className="absolute bottom-0 left-0 right-0"
+                    style={{ height: 90, opacity: 0.08 + villageP.scale * 0.07 }}
+                >
+                    <svg viewBox="0 0 1200 90" preserveAspectRatio="none" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M0 90 L0 65 L40 65 L40 50 L55 50 L55 42 L65 42 L65 35 L80 35 L80 45 L100 45 L100 55 L130 55 L130 30 L145 30 L145 20 L160 18 L175 20 L175 30 L190 30 L190 55 L220 55 L220 40 L240 40 L240 25 L255 22 L270 25 L270 40 L290 40 L290 55 L310 55 L310 38 L325 35 L340 38 L340 55 L370 55 L370 45 L390 45 L390 30 L400 28 L410 25 L420 22 L430 25 L440 28 L450 30 L450 45 L470 45 L470 55 L500 55 L500 42 L520 42 L520 55 L560 55 L560 48 L580 48 L580 55 L620 55 L620 42 L640 42 L640 55 L680 55 L680 45 L700 40 L720 45 L720 55 L760 55 L760 50 L780 48 L800 50 L800 55 L840 55 L840 60 L900 60 L900 55 L950 55 L950 48 L980 48 L980 55 L1020 55 L1020 60 L1060 60 L1060 55 L1100 55 L1100 50 L1140 50 L1140 60 L1200 60 L1200 90 Z"
+                            fill="#1a0800"
+                        />
+                        {/* Hokage Rock faces hint */}
+                        {[155, 185, 215, 245].map((x, i) => (
+                            <rect key={i} x={x} y={22 + i * 2} width="10" height="8" rx="2" fill="#2a1500" opacity={0.4} />
+                        ))}
+                        {/* Window lights */}
+                        {[50, 90, 140, 200, 280, 380, 460, 540, 650, 750, 860, 980, 1100].map((x, i) => (
+                            <rect key={`w-${i}`} x={x} y={45 + (i * 5) % 15} width="2.5" height="2.5" rx="0.3"
+                                fill="#ff9040" opacity={0.25 + (i % 3) * 0.1}
+                            >
+                                <animate attributeName="opacity" values={`${0.15 + (i % 3) * 0.08};${0.35 + (i % 2) * 0.15};${0.15 + (i % 3) * 0.08}`} dur={`${3 + i % 4}s`} repeatCount="indefinite" />
+                            </rect>
+                        ))}
+                    </svg>
+                </div>
+            )}
+
             {leaves.slice(0, leafCount).map(l => (
                 <div
                     key={`leaf-${l.id}`}
@@ -112,6 +154,43 @@ function NarutoElements({ globalScale, ps: settings }: { globalScale: number; ps
                 />
             ))}
 
+            {/* Kunai & Shuriken */}
+            {kunais.slice(0, kunaiCount).map(k => (
+                <div
+                    key={`kunai-${k.id}`}
+                    className="absolute animate-leaf-fall will-change-transform"
+                    style={{
+                        left: k.left,
+                        top: `${10 + (k.id * 7) % 40}%`,
+                        animationDelay: k.delay,
+                        animationDuration: k.duration,
+                        width: k.size,
+                        height: k.size,
+                        opacity: 0.25 + kunaiP.scale * 0.2,
+                    }}
+                >
+                    {k.isShuriken ? (
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="animate-slow-spin"
+                            style={{ animationDuration: `${1.5 + k.id * 0.3}s` }}
+                        >
+                            <path d="M12 2 L14 10 L12 12 L10 10 Z" fill="#888" opacity="0.7" />
+                            <path d="M22 12 L14 14 L12 12 L14 10 Z" fill="#999" opacity="0.7" />
+                            <path d="M12 22 L10 14 L12 12 L14 14 Z" fill="#888" opacity="0.7" />
+                            <path d="M2 12 L10 10 L12 12 L10 14 Z" fill="#999" opacity="0.7" />
+                            <circle cx="12" cy="12" r="2" fill="#666" />
+                        </svg>
+                    ) : (
+                        <svg viewBox="0 0 12 30" xmlns="http://www.w3.org/2000/svg"
+                            style={{ transform: `rotate(${k.rotation}deg)` }}
+                        >
+                            <path d="M6 0 L8 10 L6 12 L4 10 Z" fill="#aaa" opacity="0.7" />
+                            <rect x="5" y="12" width="2" height="14" fill="#666" opacity="0.6" />
+                            <rect x="3" y="26" width="6" height="3" rx="1" fill="#c04000" opacity="0.5" />
+                        </svg>
+                    )}
+                </div>
+            ))}
+
             {sharinganP.enabled && sharinganP.scale >= 0.3 && (
                 <div
                     className="absolute animate-slow-spin"
@@ -148,7 +227,7 @@ function BleachElements({ globalScale, ps: settings }: { globalScale: number; ps
     const butterfliesP = ps(settings, "butterflies")
     const wispsP = ps(settings, "wisps")
     const moonP = ps(settings, "moon")
-    const cityscapeP = ps(settings, "cityscape")
+    const lasNochesP = ps(settings, "lasNoches")
 
     const butterflyCount = butterfliesP.enabled ? Math.round(5 + butterfliesP.scale * 10) : 0
     const wispCount = wispsP.enabled ? Math.round(2 + wispsP.scale * 6) : 0
@@ -205,24 +284,40 @@ function BleachElements({ globalScale, ps: settings }: { globalScale: number; ps
                 />
             )}
 
-            {/* Cityscape silhouette */}
-            {cityscapeP.enabled && (
+            {/* Las Noches silhouette — Hueco Mundo fortress */}
+            {lasNochesP.enabled && (
                 <div
                     className="absolute bottom-0 left-0 right-0"
-                    style={{ height: 80, opacity: 0.12 + cityscapeP.scale * 0.08 }}
+                    style={{ height: 100, opacity: 0.10 + lasNochesP.scale * 0.08 }}
                 >
-                    <svg viewBox="0 0 1200 80" preserveAspectRatio="none" className="w-full h-full"
+                    <svg viewBox="0 0 1200 100" preserveAspectRatio="none" className="w-full h-full"
                         xmlns="http://www.w3.org/2000/svg"
                     >
+                        {/* Desert dunes */}
                         <path
-                            d="M0 80 L0 55 L30 55 L30 35 L45 35 L45 40 L55 40 L55 20 L70 20 L70 38 L90 38 L90 28 L100 28 L100 45 L120 45 L120 15 L135 15 L135 42 L150 42 L150 50 L170 50 L170 30 L180 30 L180 25 L195 25 L195 35 L210 35 L210 48 L230 48 L230 18 L245 18 L245 12 L255 12 L255 40 L275 40 L275 52 L300 52 L300 22 L315 22 L315 35 L330 35 L330 45 L350 45 L350 30 L360 30 L360 10 L375 10 L375 38 L400 38 L400 50 L420 50 L420 28 L435 28 L435 42 L450 42 L450 55 L475 55 L475 25 L490 25 L490 15 L500 15 L500 35 L520 35 L520 48 L540 48 L540 20 L555 20 L555 40 L575 40 L575 30 L590 30 L590 45 L610 45 L610 55 L630 55 L630 22 L645 22 L645 8 L660 8 L660 32 L680 32 L680 48 L700 48 L700 35 L720 35 L720 18 L735 18 L735 42 L755 42 L755 28 L770 28 L770 50 L790 50 L790 38 L810 38 L810 15 L825 15 L825 30 L840 30 L840 45 L860 45 L860 55 L880 55 L880 25 L895 25 L895 40 L915 40 L915 50 L935 50 L935 32 L950 32 L950 20 L965 20 L965 38 L985 38 L985 52 L1010 52 L1010 28 L1025 28 L1025 42 L1045 42 L1045 55 L1065 55 L1065 35 L1080 35 L1080 18 L1095 18 L1095 45 L1115 45 L1115 30 L1130 30 L1130 50 L1150 50 L1150 55 L1170 55 L1170 40 L1185 40 L1185 55 L1200 55 L1200 80 Z"
-                            fill="#1a1a30"
+                            d="M0 100 L0 75 C100 68 200 78 300 72 C400 66 500 76 600 70 C700 64 800 74 900 68 C1000 62 1100 72 1200 70 L1200 100 Z"
+                            fill="#0d0d1a"
                         />
-                        {[65, 133, 248, 365, 492, 648, 720, 830, 960, 1085].map((x, i) => (
-                            <rect key={i} x={x} y={25 + (i * 7) % 20} width="3" height="3" rx="0.5"
-                                fill="#ffdd88" opacity={0.3 + (i % 3) * 0.15}
+                        {/* Central dome — Las Noches */}
+                        <path
+                            d="M400 72 L420 65 L440 55 L460 42 L480 32 L500 25 L520 20 L540 16 L560 14 L580 13 L600 12 L620 13 L640 14 L660 16 L680 20 L700 25 L720 32 L740 42 L760 55 L780 65 L800 72"
+                            fill="#111122" stroke="#1a1a35" strokeWidth="0.5"
+                        />
+                        {/* Fortress towers */}
+                        <rect x="350" y="50" width="12" height="22" fill="#0e0e1e" />
+                        <rect x="354" y="44" width="4" height="6" fill="#0e0e1e" />
+                        <rect x="838" y="50" width="12" height="22" fill="#0e0e1e" />
+                        <rect x="842" y="44" width="4" height="6" fill="#0e0e1e" />
+                        <rect x="550" y="18" width="8" height="10" fill="#0e0e1e" />
+                        <rect x="642" y="18" width="8" height="10" fill="#0e0e1e" />
+                        {/* Gate */}
+                        <path d="M585 70 L585 55 L600 48 L615 55 L615 70" fill="#080814" opacity="0.6" />
+                        {/* Faint glow from windows */}
+                        {[500, 560, 640, 700, 580, 620].map((x, i) => (
+                            <rect key={i} x={x} y={30 + (i * 7) % 25} width="2" height="2" rx="0.3"
+                                fill="#4050aa" opacity={0.2 + (i % 3) * 0.1}
                             >
-                                <animate attributeName="opacity" values={`${0.2 + (i % 3) * 0.1};${0.5 + (i % 2) * 0.2};${0.2 + (i % 3) * 0.1}`} dur={`${3 + i % 4}s`} repeatCount="indefinite" />
+                                <animate attributeName="opacity" values={`${0.1 + (i % 3) * 0.05};${0.3 + (i % 2) * 0.1};${0.1 + (i % 3) * 0.05}`} dur={`${4 + i % 3}s`} repeatCount="indefinite" />
                             </rect>
                         ))}
                     </svg>
@@ -406,9 +501,12 @@ function HellButterfly({ b, scale }: {
 function OnePieceElements({ globalScale, ps: settings }: { globalScale: number; ps: ParticleSettings }) {
     const bubblesP = ps(settings, "bubbles")
     const wavesP = ps(settings, "waves")
+    const sparklesP = ps(settings, "sparkles")
+    const bountyP = ps(settings, "bountyPoster")
     const jollyP = ps(settings, "jollyRoger")
 
     const bubbleCount = bubblesP.enabled ? Math.round(4 + bubblesP.scale * 8) : 0
+    const sparkleCount = sparklesP.enabled ? Math.round(3 + sparklesP.scale * 7) : 0
 
     const bubbles = React.useMemo(() =>
         Array.from({ length: 12 }, (_, i) => ({
@@ -417,6 +515,17 @@ function OnePieceElements({ globalScale, ps: settings }: { globalScale: number; 
             delay: `${(i * 1.6) % 8}s`,
             duration: `${5 + (i * 1.2) % 5}s`,
             size: 8 + (i % 4) * 5,
+        })),
+    [])
+
+    const sparkles = React.useMemo(() =>
+        Array.from({ length: 10 }, (_, i) => ({
+            id: i,
+            left: `${8 + (i * 9.3) % 84}%`,
+            top: `${15 + (i * 7.7) % 60}%`,
+            delay: `${(i * 1.4) % 6}s`,
+            duration: `${2 + (i * 0.7) % 3}s`,
+            size: 4 + (i % 3) * 3,
         })),
     [])
 
@@ -486,6 +595,50 @@ function OnePieceElements({ globalScale, ps: settings }: { globalScale: number; 
                     }}
                 />
             ))}
+
+            {/* Treasure Sparkles — floating gold glints */}
+            {sparkles.slice(0, sparkleCount).map(s => (
+                <div
+                    key={`sparkle-${s.id}`}
+                    className="absolute will-change-transform"
+                    style={{
+                        left: s.left,
+                        top: s.top,
+                        width: s.size,
+                        height: s.size,
+                        animationDelay: s.delay,
+                        animation: `treasureGlint ${s.duration} ease-in-out ${s.delay} infinite`,
+                        opacity: 0.2 + sparklesP.scale * 0.3,
+                    }}
+                >
+                    <svg viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 0 L7 5 L12 6 L7 7 L6 12 L5 7 L0 6 L5 5 Z" fill="#ffd700" opacity="0.7" />
+                    </svg>
+                </div>
+            ))}
+
+            {/* Bounty Poster watermark */}
+            {bountyP.enabled && bountyP.scale >= 0.3 && (
+                <div
+                    className="absolute"
+                    style={{
+                        bottom: "8%",
+                        left: "3%",
+                        width: 70,
+                        height: 90,
+                        opacity: 0.04 + bountyP.scale * 0.05,
+                        transform: "rotate(-3deg)",
+                    }}
+                >
+                    <svg viewBox="0 0 70 90" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2" y="2" width="66" height="86" rx="2" fill="#1a1508" stroke="#8b7530" strokeWidth="1" opacity="0.6" />
+                        <text x="35" y="14" textAnchor="middle" fill="#c8a040" fontSize="6" fontWeight="bold" opacity="0.5">WANTED</text>
+                        <rect x="12" y="20" width="46" height="35" rx="1" fill="#0d0a04" opacity="0.4" />
+                        <text x="35" y="66" textAnchor="middle" fill="#c8a040" fontSize="4" opacity="0.4">DEAD OR ALIVE</text>
+                        <text x="35" y="78" textAnchor="middle" fill="#daa520" fontSize="5" fontWeight="bold" opacity="0.5">B 3,000,000,000</text>
+                    </svg>
+                </div>
+            )}
 
             {/* Jolly Roger watermark */}
             {jollyP.enabled && jollyP.scale >= 0.3 && (

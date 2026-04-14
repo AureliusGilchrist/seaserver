@@ -55,6 +55,7 @@ const (
 	TriggerFavoriteToggle    EvalTrigger = "favorite_toggle"
 	TriggerNakamaEvent       EvalTrigger = "nakama_event"
 	TriggerPlatformEvent     EvalTrigger = "platform_event"
+	TriggerComment           EvalTrigger = "comment"
 	TriggerAny               EvalTrigger = "any"
 )
 

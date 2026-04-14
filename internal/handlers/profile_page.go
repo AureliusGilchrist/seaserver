@@ -143,7 +143,7 @@ func (h *Handler) HandleGetLevel(c echo.Context) error {
 	xpInLevel := progress.TotalXP - db.XPForLevel(level)
 	xpToNext := db.XPToNextLevel(progress.TotalXP, level)
 	xpNeeded := db.XPForLevel(level + 1)
-	mult, _ := database.ComputeActivityMultiplier()
+	mult, _ := database.ComputeActivityBuff()
 
 	return h.RespondWithData(c, &LevelResponse{
 		CurrentLevel:   level,
@@ -177,7 +177,7 @@ func (h *Handler) buildProfileResponse(c echo.Context, profileID uint) error {
 	xpInLevel := progress.TotalXP - db.XPForLevel(level)
 	xpToNext := db.XPToNextLevel(progress.TotalXP, level)
 	xpNeeded := db.XPForLevel(level + 1)
-	mult, _ := database.ComputeActivityMultiplier()
+	mult, _ := database.ComputeActivityBuff()
 
 	levelResp := &LevelResponse{
 		CurrentLevel:   level,

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"seanime/internal/achievement"
+	"seanime/internal/api/anilist"
 	"seanime/internal/database/models"
 	"strconv"
 
@@ -214,9 +215,27 @@ func (h *Handler) HandleImportAchievements(c echo.Context) error {
 		beforeSet[a.Key+":"+strconv.Itoa(a.Tier)] = true
 	}
 
-	// Get collections and build stats
-	animeCollection, _ := h.App.GetAnimeCollection(false)
-	mangaCollection, _ := h.App.GetMangaCollection(false)
+	// Get collections using the per-profile AniList client
+	// so achievements reflect the profile's own stats, not the shared/global account.
+	var animeCollection *anilist.AnimeCollection
+	var mangaCollection *anilist.MangaCollection
+	profileClient := h.GetProfileAnilistClient(c)
+	if profileClient.IsAuthenticated() {
+		var profileUsername *string
+		if h.App.ProfileManager != nil {
+			if prof, err := h.App.ProfileManager.GetProfile(profileID); err == nil && prof.AniListUsername != "" {
+				profileUsername = &prof.AniListUsername
+			}
+		}
+		animeCollection, _ = profileClient.AnimeCollection(c.Request().Context(), profileUsername)
+		mangaCollection, _ = profileClient.MangaCollection(c.Request().Context(), profileUsername)
+	}
+	if animeCollection == nil {
+		animeCollection, _ = h.App.GetAnimeCollection(false)
+	}
+	if mangaCollection == nil {
+		mangaCollection, _ = h.App.GetMangaCollection(false)
+	}
 	stats := buildCollectionStats(animeCollection, mangaCollection)
 
 	// Evaluate all stat-based achievements
