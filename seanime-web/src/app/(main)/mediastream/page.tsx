@@ -3,11 +3,11 @@ import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { EpisodeGridItem } from "@/app/(main)/_features/anime/_components/episode-grid-item"
 import { MediaEntryPageSmallBanner } from "@/app/(main)/_features/media/_components/media-entry-page-small-banner"
 import { MediaEpisodeInfoModal } from "@/app/(main)/_features/media/_components/media-episode-info-modal"
-import { SeaMediaPlayer } from "@/app/(main)/_features/sea-media-player/sea-media-player"
 import { SeaMediaPlayerLayout } from "@/app/(main)/_features/sea-media-player/sea-media-player-layout"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
-import { useHandleMediastream } from "@/app/(main)/mediastream/_lib/handle-mediastream"
 import { useMediastreamCurrentFile, useMediastreamJassubOffscreenRender } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
+import { useMediastreamVideoCore } from "@/app/(main)/mediastream/_lib/use-mediastream-videocore"
+import { MediastreamVideoCore } from "@/app/(main)/mediastream/_lib/mediastream-videocore"
 import { Alert } from "@/components/ui/alert"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Button } from "@/components/ui/button"
@@ -15,20 +15,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Modal } from "@/components/ui/modal"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { MediaPlayerInstance } from "@vidstack/react"
-import "@/app/vidstack-theme.css"
-import "@vidstack/react/player/styles/default/layouts/video.css"
 import { uniq } from "lodash"
-import { CaptionsFileFormat } from "media-captions"
 import { useRouter, useSearchParams } from "@/lib/navigation"
-import { useAtomValue } from "jotai/react"
 import React from "react"
-import "@vidstack/react/player/styles/base.css"
 import { BiInfoCircle } from "react-icons/bi"
-import {
-    __seaMediaPlayer_preferredAudioLanguageAtom,
-    __seaMediaPlayer_preferredSubtitleLanguageAtom,
-} from "../_features/sea-media-player/sea-media-player.atoms"
 import { PluginEpisodeGridItemMenuItems } from "../_features/plugin/actions/plugin-actions"
 import { SeaMediaPlayerProvider } from "../_features/sea-media-player/sea-media-player-provider"
 
@@ -39,7 +29,6 @@ export default function Page() {
     const searchParams = useSearchParams()
     const mediaId = searchParams.get("id")
     const { data: animeEntry, isLoading: animeEntryLoading } = useGetAnimeEntry(mediaId)
-    const playerRef = React.useRef<MediaPlayerInstance>(null)
     const { filePath } = useMediastreamCurrentFile()
 
     const mainEpisodes = React.useMemo(() => {
@@ -59,85 +48,24 @@ export default function Page() {
     }, [mainEpisodes, specialEpisodes, ncEpisodes])
 
     const {
-        url,
-        isError,
-        isMediaContainerLoading,
+        lifecycleState,
+        episode: currentEpisode,
         mediaContainer,
-        subtitles,
-        subtitleEndpointUri,
-        onProviderChange,
-        onProviderSetup,
-        onCanPlay,
+        isCodecSupported,
+        hasNextEpisode,
+        hasPreviousEpisode,
         playNextEpisode,
         playPreviousEpisode,
-        hasPreviousEpisode,
-        hasNextEpisode,
         onPlayFile,
-        isCodecSupported,
-        setStreamType,
+        handleTerminateStream,
+        handleChangeStreamType,
         disabledAutoSwitchToDirectPlay,
-        handleUpdateWatchHistory,
-        episode,
-        duration,
-    } = useHandleMediastream({ playerRef, episodes, mediaId })
+    } = useMediastreamVideoCore({ episodes, mediaId })
 
     const { jassubOffscreenRender, setJassubOffscreenRender } = useMediastreamJassubOffscreenRender()
 
-    const preferredAudioLang = useAtomValue(__seaMediaPlayer_preferredAudioLanguageAtom)
-    const preferredSubtitleLang = useAtomValue(__seaMediaPlayer_preferredSubtitleLanguageAtom)
-
-    /**
-     * Find the best subtitle track to set as default based on language preferences.
-     */
-    const getPreferredSubtitleDefault = React.useCallback((sub: { language?: string; isDefault: boolean }, allSubs: Array<{ language?: string; isDefault: boolean }>): boolean => {
-        // If a subtitle is explicitly marked default by the file, respect it
-        if (allSubs.some(s => s.isDefault)) return sub.isDefault
-
-        // Otherwise, find the best match by preferred language
-        const prefLangs = preferredSubtitleLang.split(",").map(l => l.trim().toLowerCase())
-        for (const pref of prefLangs) {
-            const match = allSubs.find(s => {
-                const lang = (s.language || "").toLowerCase()
-                return lang === pref || lang.startsWith(pref)
-            })
-            if (match) return match === sub
-        }
-        return false
-    }, [preferredSubtitleLang])
-
-    /**
-     * Auto-select preferred audio track on canplay (for HLS with multiple audio streams).
-     */
-    const handleAudioAutoSelect = React.useCallback(() => {
-        if (!playerRef.current) return
-        const audioTracks = playerRef.current.audioTracks
-        if (!audioTracks || audioTracks.length <= 1) return
-
-        const prefLangs = preferredAudioLang.split(",").map(l => l.trim().toLowerCase())
-        for (const pref of prefLangs) {
-            const match = audioTracks.toArray().find(t => {
-                const lang = (t.language || "").toLowerCase()
-                return lang === pref || lang.startsWith(pref)
-            })
-            if (match) {
-                // Vidstack audio track switching
-                const idx = audioTracks.toArray().indexOf(match)
-                if (idx >= 0 && audioTracks.toArray()[idx] !== audioTracks.selected) {
-                    audioTracks.toArray()[idx].selected = true
-                }
-                break
-            }
-        }
-    }, [preferredAudioLang])
-
-    /**
-     * The episode number of the current file
-     */
     const episodeNumber = React.useMemo(() => {
         return episodes.find(ep => !!ep.localFile?.path && ep.localFile?.path === filePath)?.episodeNumber || -1
-    }, [episodes, filePath])
-    const episodeTitle = React.useMemo(() => {
-        return episodes.find(ep => !!ep.localFile?.path && ep.localFile?.path === filePath)?.episodeTitle
     }, [episodes, filePath])
 
     const progress = animeEntry?.listData?.progress
@@ -175,7 +103,7 @@ export default function Page() {
             progress={{
                 currentProgress: progress ?? 0,
                 currentEpisodeNumber: episodeNumber === -1 ? null : episodeNumber,
-                currentEpisodeTitle: episodeTitle || null,
+                currentEpisodeTitle: currentEpisode?.displayTitle || currentEpisode?.episodeTitle || null,
             }}
         >
             <AppLayoutStack className="p-4 lg:p-8 z-[5]">
@@ -248,7 +176,7 @@ export default function Page() {
                                         <div className="space-y-2">
                                             <Button
                                                 intent="primary-subtle"
-                                                onClick={() => setStreamType("transcode")}
+                                                onClick={() => handleChangeStreamType("transcode")}
                                                 disabled={!disabledAutoSwitchToDirectPlay}
                                             >
                                                 Switch to transcoding
@@ -259,64 +187,22 @@ export default function Page() {
                                         </div>}
 
                                     {(mediaContainer?.streamType === "transcode" && isCodecSupported(mediaContainer?.mediaInfo?.mimeCodec || "")) &&
-                                        <Button intent="success-subtle" onClick={() => setStreamType("direct")}>
+                                        <Button intent="success-subtle" onClick={() => handleChangeStreamType("direct")}>
                                             Switch to direct play
                                         </Button>}
                                 </div>
                             </Modal>
                         </div>
-
-                        {/* {(!!progressItem && animeEntry?.media && progressItem.episodeNumber > currentProgress) && <Button
-                         className="animate-pulse"
-                         loading={isUpdatingProgress}
-                         disabled={hasUpdatedProgress}
-                         onClick={() => {
-                         updateProgress({
-                         episodeNumber: progressItem.episodeNumber,
-                         mediaId: animeEntry.media!.id,
-                         totalEpisodes: animeEntry.media!.episodes || 0,
-                         malId: animeEntry.media!.idMal || undefined,
-                         }, {
-                         onSuccess: () => setProgressItem(undefined),
-                         })
-                         setCurrentProgress(progressItem.episodeNumber)
-                         }}
-                         >Update progress</Button>} */}
                     </>}
                     mediaPlayer={
-                        <SeaMediaPlayer
-                            url={mediaContainer?.streamType === "direct" ? {
-                                src: url || "",
-                                type: mediaContainer?.mediaInfo?.extension === "mp4" ? "video/mp4" :
-                                    mediaContainer?.mediaInfo?.extension === "avi" ? "video/x-msvideo" : "video/webm",
-                            } : url}
-                            isPlaybackError={isError ? "Playback error" : undefined}
-                            isLoading={isMediaContainerLoading}
-                            playerRef={playerRef}
-                            poster={episodes?.find(n => n.localFile?.path === mediaContainer?.filePath)?.episodeMetadata?.image ||
-                                animeEntry?.media?.bannerImage || animeEntry?.media?.coverImage?.extraLarge}
-                            onProviderChange={onProviderChange}
-                            onProviderSetup={onProviderSetup}
-                            onCanPlay={(detail, event) => {
-                                onCanPlay?.(detail)
-                                // Auto-select preferred audio track after media loads
-                                handleAudioAutoSelect()
-                            }}
-                            onGoToNextEpisode={hasNextEpisode ? playNextEpisode : undefined}
-                            onGoToPreviousEpisode={hasPreviousEpisode ? playPreviousEpisode : undefined}
-                            tracks={subtitles?.map((sub) => ({
-                                src: subtitleEndpointUri + sub.link,
-                                label: sub.title || sub.language,
-                                lang: sub.language,
-                                type: (sub.extension?.replace(".", "") || "ass") as CaptionsFileFormat,
-                                kind: "subtitles",
-                                default: getPreferredSubtitleDefault(sub, subtitles),
-                            }))}
-                            mediaInfoDuration={mediaContainer?.mediaInfo?.duration}
-                            loadingText={<>
-                                <p>Extracting video metadata...</p>
-                                <p>This might take a while.</p>
-                            </>}
+                        <MediastreamVideoCore
+                            lifecycleState={lifecycleState}
+                            episode={currentEpisode}
+                            hasNextEpisode={!!hasNextEpisode}
+                            hasPreviousEpisode={!!hasPreviousEpisode}
+                            playNextEpisode={playNextEpisode}
+                            playPreviousEpisode={playPreviousEpisode}
+                            handleTerminateStream={handleTerminateStream}
                         />
                     }
                     episodeList={episodes.map((episode) => (

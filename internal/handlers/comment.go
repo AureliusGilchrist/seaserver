@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"seanime/internal/achievement"
 	"seanime/internal/core"
 	"seanime/internal/database/models"
 	"sort"
@@ -257,6 +258,15 @@ func (h *Handler) HandleCreateComment(c echo.Context) error {
 
 	if err := h.App.Database.CreateComment(comment); err != nil {
 		return h.RespondWithError(c, err)
+	}
+
+	// Fire comment achievement event
+	if h.App.AchievementEngine != nil {
+		h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+			ProfileID: profileID,
+			Trigger:   achievement.TriggerComment,
+			Metadata:  map[string]interface{}{"count": float64(1)},
+		})
 	}
 
 	// Build response

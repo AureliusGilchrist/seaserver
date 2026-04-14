@@ -788,15 +788,14 @@ func (r *Repository) DeleteTorrent(torrentName string) error {
 
 // GetUnmatchedDestination returns the path where a torrent should be downloaded
 func (r *Repository) GetUnmatchedDestination(torrentName string) string {
-	// Don't sanitize - use the original torrent name as-is
-	return filepath.Join(UnmatchedBasePath, torrentName)
+	return filepath.Join(UnmatchedBasePath, sanitizeNamePreserveWhitespace(torrentName))
 }
 
 const metadataFileName = ".seanime-metadata.json"
 
 // SaveTorrentMetadata saves anime metadata for a torrent
 func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleRomaji, titleNative, format string, startYear int) error {
-	torrentPath := filepath.Join(UnmatchedBasePath, torrentName)
+	torrentPath := filepath.Join(UnmatchedBasePath, sanitizeNamePreserveWhitespace(torrentName))
 
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(torrentPath, 0755); err != nil {

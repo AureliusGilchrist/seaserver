@@ -2,6 +2,7 @@ package directstream
 
 import (
 	"context"
+	"fmt"
 	"seanime/internal/api/anilist"
 	"seanime/internal/api/metadata_provider"
 	"seanime/internal/continuity"
@@ -47,8 +48,8 @@ type (
 
 		// ---------- Playback State ---------- //
 
-		// Per-profile stream sessions. Key is profileID (0 = default/admin).
-		sessions *result.Map[uint, *ProfileStreamSession]
+		// Per-profile stream sessions. Key is "profileID:clientId" composite key.
+		sessions *result.Map[string, *ProfileStreamSession]
 
 		settings *Settings
 
@@ -99,7 +100,7 @@ func NewManager(options NewManagerOptions) *Manager {
 		refreshAnimeCollectionFunc: options.RefreshAnimeCollectionFunc,
 		hmacTokenFunc:              options.HMACTokenFunc,
 		isOfflineRef:               options.IsOfflineRef,
-		sessions:                   result.NewMap[uint, *ProfileStreamSession](),
+		sessions:                   result.NewMap[string, *ProfileStreamSession](),
 		nativePlayer:               options.NativePlayer,
 		parserCache:                result.NewCache[string, *mkvparser.MetadataParser](),
 		videoCore:                  options.VideoCore,
@@ -116,6 +117,11 @@ func (m *Manager) SetAnimeCollection(ac *anilist.AnimeCollection) {
 
 func (m *Manager) SetSettings(s *Settings) {
 	m.settings = s
+}
+
+// sessionKey builds the composite session key from profileID and clientId.
+func sessionKey(profileID uint, clientId string) string {
+	return fmt.Sprintf("%d:%s", profileID, clientId)
 }
 
 // GetHMACTokenQueryParam returns an HMAC token query param for the given endpoint, or empty string if not available.

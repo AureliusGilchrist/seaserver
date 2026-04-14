@@ -1,14 +1,19 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"seanime/internal/api/anilist"
 	"seanime/internal/core"
+	"seanime/internal/database/models"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/goccy/go-json"
 	"github.com/labstack/echo/v4"
 )
 
@@ -57,8 +62,9 @@ func (h *Handler) HandleGetCurrentProfile(c echo.Context) error {
 //	@route /api/v1/profiles/login [POST]
 func (h *Handler) HandleProfileLogin(c echo.Context) error {
 	type body struct {
-		ProfileID uint   `json:"profileId"`
-		PIN       string `json:"pin"`
+		ProfileID    uint   `json:"profileId"`
+		PIN          string `json:"pin"`
+		AnilistToken string `json:"anilistToken"`
 	}
 
 	var b body
@@ -71,8 +77,84 @@ func (h *Handler) HandleProfileLogin(c echo.Context) error {
 		return h.RespondWithError(c, echo.NewHTTPError(401, err.Error()))
 	}
 
-	// Strictly block login if AniList token is missing
-	if profile.AniListUsername == "" || profile.AniListAvatar == "" {
+	// If the profile doesn't have an AniList token yet but one was provided, save it now
+	authenticated := h.App.AnilistClientManager.IsAuthenticated(profile.ID)
+	h.App.Logger.Debug().Uint("profileID", profile.ID).Bool("anilist_authenticated", authenticated).Msg("profile_login: AniList authentication check")
+
+	if !authenticated && b.AnilistToken != "" {
+		// Validate the provided token with AniList
+		tempClient := anilist.NewAnilistClient(b.AnilistToken, h.App.AnilistCacheDir)
+		getViewer, verifyErr := tempClient.GetViewer(context.Background())
+		if verifyErr != nil {
+			h.App.Logger.Error().Err(verifyErr).Uint("profileID", profile.ID).Msg("profile_login: Invalid AniList token provided")
+			return h.RespondWithError(c, echo.NewHTTPError(401, "Invalid AniList token. Please check and try again."))
+		}
+		if len(getViewer.Viewer.Name) == 0 {
+			return h.RespondWithError(c, echo.NewHTTPError(401, "Could not find AniList user for this token."))
+		}
+
+		// Check for duplicate AniList accounts across profiles
+		if h.App.AnilistClientManager != nil {
+			if ownerName := h.App.AnilistClientManager.IsAniListUsernameUsedByOtherProfile(getViewer.Viewer.Name, profile.ID); ownerName != "" {
+				return h.RespondWithError(c, echo.NewHTTPError(409, fmt.Sprintf(
+					"AniList account '%s' is already linked to profile '%s'. Each profile must use a unique AniList account.",
+					getViewer.Viewer.Name, ownerName,
+				)))
+			}
+		}
+
+		// Save the token to the profile's per-profile database
+		if h.App.ProfileDatabaseManager != nil {
+			targetDB, dbErr := h.App.ProfileDatabaseManager.GetDatabase(profile.ID)
+			if dbErr != nil {
+				h.App.Logger.Error().Err(dbErr).Uint("profileID", profile.ID).Msg("profile_login: Failed to get profile database")
+				return h.RespondWithError(c, echo.NewHTTPError(500, "Failed to access profile database."))
+			}
+
+			viewerBytes, _ := json.Marshal(getViewer.Viewer)
+			_, saveErr := targetDB.UpsertAccount(&models.Account{
+				BaseModel: models.BaseModel{
+					ID:        1,
+					UpdatedAt: time.Now(),
+				},
+				Token:    b.AnilistToken,
+				Username: getViewer.Viewer.Name,
+				Viewer:   viewerBytes,
+			})
+			if saveErr != nil {
+				h.App.Logger.Error().Err(saveErr).Uint("profileID", profile.ID).Msg("profile_login: Failed to save AniList token")
+				return h.RespondWithError(c, echo.NewHTTPError(500, "Failed to save AniList token."))
+			}
+
+			// Update the AniList client manager cache
+			if h.App.AnilistClientManager != nil {
+				h.App.AnilistClientManager.UpdateClient(profile.ID, b.AnilistToken)
+			}
+
+			// Update profile's AniList metadata in profiles.db
+			if h.App.ProfileManager != nil {
+				avatarURL := ""
+				if getViewer.Viewer.Avatar != nil && getViewer.Viewer.Avatar.Large != nil {
+					avatarURL = *getViewer.Viewer.Avatar.Large
+				}
+				bannerURL := ""
+				if getViewer.Viewer.BannerImage != nil {
+					bannerURL = *getViewer.Viewer.BannerImage
+				}
+				_, _ = h.App.ProfileManager.UpdateProfile(profile.ID, map[string]interface{}{
+					"anilist_username": getViewer.Viewer.Name,
+					"anilist_avatar":   avatarURL,
+					"banner_image":     bannerURL,
+				})
+			}
+
+			h.App.Logger.Info().Str("anilist_user", getViewer.Viewer.Name).Uint("profileID", profile.ID).Msg("profile_login: AniList token saved during login")
+			authenticated = true
+		}
+	}
+
+	if !authenticated {
+		h.App.Logger.Warn().Uint("profileID", profile.ID).Msg("profile_login: AniList token missing, blocking login")
 		return h.RespondWithError(c, echo.NewHTTPError(401, "AniList login required for this profile. Please use the Seanime AniList token flow to link your account."))
 	}
 
@@ -116,9 +198,10 @@ func (h *Handler) HandleProfileLogout(c echo.Context) error {
 //	@route /api/v1/profiles [POST]
 func (h *Handler) HandleCreateProfile(c echo.Context) error {
 	type body struct {
-		Name    string `json:"name"`
-		PIN     string `json:"pin"`
-		IsAdmin bool   `json:"isAdmin"`
+		Name         string `json:"name"`
+		PIN          string `json:"pin"`
+		IsAdmin      bool   `json:"isAdmin"`
+		AnilistToken string `json:"anilistToken"`
 	}
 
 	var b body
@@ -135,6 +218,63 @@ func (h *Handler) HandleCreateProfile(c echo.Context) error {
 	if h.App.ProfileDatabaseManager != nil {
 		if _, err := h.App.ProfileDatabaseManager.GetDatabase(profile.ID); err != nil {
 			h.App.Logger.Error().Err(err).Uint("profileID", profile.ID).Msg("profile: Failed to initialize per-profile database")
+		}
+	}
+
+	// If an AniList token was provided during creation, validate and save it
+	if b.AnilistToken != "" && h.App.ProfileDatabaseManager != nil {
+		tempClient := anilist.NewAnilistClient(b.AnilistToken, h.App.AnilistCacheDir)
+		getViewer, verifyErr := tempClient.GetViewer(context.Background())
+		if verifyErr != nil {
+			h.App.Logger.Warn().Err(verifyErr).Uint("profileID", profile.ID).Msg("profile_create: AniList token invalid, profile created without token")
+		} else if len(getViewer.Viewer.Name) > 0 {
+			// Check for duplicate AniList accounts
+			if h.App.AnilistClientManager != nil {
+				if ownerName := h.App.AnilistClientManager.IsAniListUsernameUsedByOtherProfile(getViewer.Viewer.Name, profile.ID); ownerName != "" {
+					h.App.Logger.Warn().Str("anilist_user", getViewer.Viewer.Name).Str("owner", ownerName).Uint("profileID", profile.ID).Msg("profile_create: AniList account already used by another profile")
+					// Still return the profile, just don't save the token
+					return h.RespondWithData(c, profile.ToSummary())
+				}
+			}
+
+			targetDB, dbErr := h.App.ProfileDatabaseManager.GetDatabase(profile.ID)
+			if dbErr == nil {
+				viewerBytes, _ := json.Marshal(getViewer.Viewer)
+				_, _ = targetDB.UpsertAccount(&models.Account{
+					BaseModel: models.BaseModel{
+						ID:        1,
+						UpdatedAt: time.Now(),
+					},
+					Token:    b.AnilistToken,
+					Username: getViewer.Viewer.Name,
+					Viewer:   viewerBytes,
+				})
+
+				if h.App.AnilistClientManager != nil {
+					h.App.AnilistClientManager.UpdateClient(profile.ID, b.AnilistToken)
+				}
+
+				avatarURL := ""
+				if getViewer.Viewer.Avatar != nil && getViewer.Viewer.Avatar.Large != nil {
+					avatarURL = *getViewer.Viewer.Avatar.Large
+				}
+				bannerURL := ""
+				if getViewer.Viewer.BannerImage != nil {
+					bannerURL = *getViewer.Viewer.BannerImage
+				}
+				_, _ = h.App.ProfileManager.UpdateProfile(profile.ID, map[string]interface{}{
+					"anilist_username": getViewer.Viewer.Name,
+					"anilist_avatar":   avatarURL,
+					"banner_image":     bannerURL,
+				})
+
+				h.App.Logger.Info().Str("anilist_user", getViewer.Viewer.Name).Uint("profileID", profile.ID).Msg("profile_create: AniList token saved during creation")
+
+				// Refresh profile to include AniList metadata
+				if updated, err := h.App.ProfileManager.GetProfile(profile.ID); err == nil {
+					profile = updated
+				}
+			}
 		}
 	}
 
@@ -482,4 +622,115 @@ func (h *Handler) HandleSyncAniListProfile(c echo.Context) error {
 	}
 
 	return h.RespondWithData(c, updatedProfile.ToSummary())
+}
+
+// HandleAdminSetProfileAniListToken
+//
+//	@summary admin-only: set an AniList token for any profile.
+//	@returns *core.ProfileSummary
+//	@route /api/v1/profiles/{id}/anilist-token [POST]
+func (h *Handler) HandleAdminSetProfileAniListToken(c echo.Context) error {
+	// Verify the caller is admin
+	session := c.Get("profileSession")
+	if session != nil {
+		payload := session.(*core.ProfileSessionPayload)
+		if !payload.IsAdmin {
+			return h.RespondWithError(c, echo.NewHTTPError(403, "Only admins can set AniList tokens for other profiles"))
+		}
+	}
+
+	profileID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "invalid profile ID"))
+	}
+
+	type body struct {
+		Token string `json:"token"`
+	}
+
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	if b.Token == "" {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "Token is required"))
+	}
+
+	// Verify the profile exists
+	profile, err := h.App.ProfileManager.GetProfile(uint(profileID))
+	if err != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(404, "Profile not found"))
+	}
+
+	// Validate token with AniList
+	tempClient := anilist.NewAnilistClient(b.Token, h.App.AnilistCacheDir)
+	getViewer, verifyErr := tempClient.GetViewer(context.Background())
+	if verifyErr != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(401, "Invalid AniList token. Please check and try again."))
+	}
+	if len(getViewer.Viewer.Name) == 0 {
+		return h.RespondWithError(c, echo.NewHTTPError(401, "Could not find AniList user for this token."))
+	}
+
+	// Check for duplicate AniList accounts
+	if h.App.AnilistClientManager != nil {
+		if ownerName := h.App.AnilistClientManager.IsAniListUsernameUsedByOtherProfile(getViewer.Viewer.Name, profile.ID); ownerName != "" {
+			return h.RespondWithError(c, echo.NewHTTPError(409, fmt.Sprintf(
+				"AniList account '%s' is already linked to profile '%s'. Each profile must use a unique AniList account.",
+				getViewer.Viewer.Name, ownerName,
+			)))
+		}
+	}
+
+	// Save to profile's database
+	if h.App.ProfileDatabaseManager == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "Profile database manager not available"))
+	}
+
+	targetDB, dbErr := h.App.ProfileDatabaseManager.GetDatabase(profile.ID)
+	if dbErr != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "Failed to access profile database"))
+	}
+
+	viewerBytes, _ := json.Marshal(getViewer.Viewer)
+	_, saveErr := targetDB.UpsertAccount(&models.Account{
+		BaseModel: models.BaseModel{
+			ID:        1,
+			UpdatedAt: time.Now(),
+		},
+		Token:    b.Token,
+		Username: getViewer.Viewer.Name,
+		Viewer:   viewerBytes,
+	})
+	if saveErr != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "Failed to save AniList token"))
+	}
+
+	// Update client manager cache
+	if h.App.AnilistClientManager != nil {
+		h.App.AnilistClientManager.UpdateClient(profile.ID, b.Token)
+	}
+
+	// Update profile metadata
+	avatarURL := ""
+	if getViewer.Viewer.Avatar != nil && getViewer.Viewer.Avatar.Large != nil {
+		avatarURL = *getViewer.Viewer.Avatar.Large
+	}
+	bannerURL := ""
+	if getViewer.Viewer.BannerImage != nil {
+		bannerURL = *getViewer.Viewer.BannerImage
+	}
+	updatedProfile, _ := h.App.ProfileManager.UpdateProfile(profile.ID, map[string]interface{}{
+		"anilist_username": getViewer.Viewer.Name,
+		"anilist_avatar":   avatarURL,
+		"banner_image":     bannerURL,
+	})
+
+	h.App.Logger.Info().Str("anilist_user", getViewer.Viewer.Name).Uint("profileID", profile.ID).Msg("admin: AniList token set for profile")
+
+	if updatedProfile != nil {
+		return h.RespondWithData(c, updatedProfile.ToSummary())
+	}
+	return h.RespondWithData(c, profile.ToSummary())
 }

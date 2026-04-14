@@ -1,11 +1,12 @@
 import { MKVParser_TrackInfo } from "@/api/generated/types"
-import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { vc_audioManager } from "@/app/(main)/_features/video-core/video-core"
+import { vc_perMediaTrackOverrides } from "@/app/(main)/_features/video-core/video-core.atoms"
 
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { VideoCoreControlButtonIcon } from "@/app/(main)/_features/video-core/video-core-control-bar"
 import { HlsAudioTrack, vc_hlsAudioTracks, vc_hlsCurrentAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
 import { VideoCoreMenu, VideoCoreMenuBody, VideoCoreMenuTitle, VideoCoreSettingSelect } from "@/app/(main)/_features/video-core/video-core-menu"
@@ -18,15 +19,16 @@ import { LuHeadphones } from "react-icons/lu"
 export function VideoCoreAudioMenu() {
     const action = useSetAtom(vc_dispatchAction)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
-    const state = useAtomValue(nativePlayer_stateAtom)
+    const playbackInfo = useAtomValue(vc_playbackInfo)
     const audioManager = useAtomValue(vc_audioManager)
     const videoElement = useAtomValue(vc_videoElement)
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const containerElement = useAtomValue(vc_containerElement)
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
+    const setPerMediaOverrides = useSetAtom(vc_perMediaTrackOverrides)
 
     // Get MKV audio tracks
-    const mkvAudioTracks = state.playbackInfo?.mkvMetadata?.audioTracks
+    const mkvAudioTracks = playbackInfo?.mkvMetadata?.audioTracks
 
     // Get HLS audio tracks
     const hlsAudioTracks = useAtomValue(vc_hlsAudioTracks)
@@ -112,6 +114,23 @@ export function VideoCoreAudioMenu() {
                     onValueChange={(value: number) => {
                         audioManager?.selectTrack(value)
                         action({ type: "seek", payload: { time: -1 } })
+
+                        // Save per-media audio language override
+                        const mediaId = playbackInfo?.media?.id
+                        if (mediaId) {
+                            let lang: string | undefined
+                            if (isHls) {
+                                lang = (audioTracks as HlsAudioTrack[])?.find(t => t.id === value)?.language
+                            } else {
+                                lang = (audioTracks as MKVParser_TrackInfo[])?.find(t => t.number === value)?.language
+                            }
+                            if (lang) {
+                                setPerMediaOverrides(prev => ({
+                                    ...prev,
+                                    [String(mediaId)]: { ...prev[String(mediaId)], audioLanguage: lang },
+                                }))
+                            }
+                        }
                     }}
                     value={selectedTrack || 0}
                 />

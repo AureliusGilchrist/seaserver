@@ -159,12 +159,12 @@ func (r *Repository) StartMediaOptimization(opts *StartMediaOptimizationOptions)
 	return
 }
 
-func (r *Repository) RequestOptimizedStream(filepath string) (ret *MediaContainer, err error) {
+func (r *Repository) RequestOptimizedStream(filepath string, clientId string) (ret *MediaContainer, err error) {
 	if !r.IsInitialized() {
 		return nil, errors.New("module not initialized")
 	}
 
-	ret, err = r.playbackManager.RequestPlayback(filepath, StreamTypeOptimized)
+	ret, err = r.playbackManager.RequestPlayback(filepath, StreamTypeOptimized, clientId)
 
 	return
 }
@@ -192,7 +192,7 @@ func (r *Repository) RequestTranscodeStream(filepath string, clientId string) (r
 		return nil, errors.New("real-time transcoder not initialized, check your settings")
 	}
 
-	ret, err = r.playbackManager.RequestPlayback(filepath, StreamTypeTranscode)
+	ret, err = r.playbackManager.RequestPlayback(filepath, StreamTypeTranscode, clientId)
 
 	return
 }
@@ -223,7 +223,7 @@ func (r *Repository) RequestDirectPlay(filepath string, clientId string) (ret *M
 		return nil, errors.New("module not initialized")
 	}
 
-	ret, err = r.playbackManager.RequestPlayback(filepath, StreamTypeDirect)
+	ret, err = r.playbackManager.RequestPlayback(filepath, StreamTypeDirect, clientId)
 
 	return
 }

@@ -222,12 +222,13 @@ func NewConfig(options *ConfigOptions, logger *zerolog.Logger) (*Config, error) 
 	cfg.Data.AppDataDir = dataDir
 	cfg.Data.WorkingDir = os.Getenv("SEANIME_WORKING_DIR")
 
-	// Force manga download/local directories to the new path
-	newMangaPath := filepath.FromSlash("/aeternae/Soul/Otaku Media/Manga")
-	cfg.Manga.DownloadDir = newMangaPath
-	cfg.Manga.LocalDir = newMangaPath
-	viper.Set("manga.downloadDir", newMangaPath)
-	viper.Set("manga.localDir", newMangaPath)
+	// Force manga download/local directories to the new path for ALL profiles
+	forcedMangaPath := filepath.FromSlash("/aeternae/Soul/Otaku Media/Manga")
+	cfg.Manga.DownloadDir = forcedMangaPath
+	cfg.Manga.LocalDir = forcedMangaPath
+	viper.Set("manga.downloadDir", forcedMangaPath)
+	viper.Set("manga.localDir", forcedMangaPath)
+	logger.Info().Msgf("[config] Forced manga download path for all profiles: %s", forcedMangaPath)
 	_ = viper.WriteConfig()
 
 	if cfg.Server.Tls.Enabled && (cfg.Server.Tls.CertPath == "" || cfg.Server.Tls.KeyPath == "") {

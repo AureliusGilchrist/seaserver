@@ -63,7 +63,7 @@ func (d *Downloader) CountChaptersByTitles(titles []string) (string, int) {
 			continue
 		}
 
-		mediaDir := filepath.Join(d.downloadDir, title)
+		mediaDir := filepath.Join(d.downloadDir, chapter_downloader.SanitizeFolderName(title))
 		
 		// Try new format: series-level registry.json
 		seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(mediaDir, d.logger)
@@ -113,7 +113,7 @@ func (d *Downloader) IsSeriesFullyDownloadedByChapterIDs(mediaTitle string, prov
 		return false
 	}
 
-	seriesDir := filepath.Join(d.downloadDir, mediaTitle)
+	seriesDir := filepath.Join(d.downloadDir, chapter_downloader.SanitizeFolderName(mediaTitle))
 	seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(seriesDir, d.logger)
 	if err != nil || len(seriesRegistry.Chapters) == 0 {
 		return false
@@ -405,7 +405,7 @@ func (d *Downloader) IsChapterAlreadyDownloaded(opts DownloadChapterDirectOption
 		return false
 	}
 	
-	seriesDir := filepath.Join(d.downloadDir, opts.MediaTitle)
+	seriesDir := filepath.Join(d.downloadDir, chapter_downloader.SanitizeFolderName(opts.MediaTitle))
 	
 	// Try new format: check series-level registry
 	seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(seriesDir, d.logger)

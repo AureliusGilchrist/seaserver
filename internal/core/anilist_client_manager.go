@@ -122,6 +122,28 @@ func (m *AnilistClientManager) CloseAll() {
 	m.mu.Unlock()
 }
 
+// IsAniListUsernameUsedByOtherProfile checks all profiles (except excludeProfileID)
+// to see if any already have the given AniList username linked.
+// Returns the profile name that owns it, or empty string if unused.
+func (m *AnilistClientManager) IsAniListUsernameUsedByOtherProfile(username string, excludeProfileID uint) string {
+	if m.app.ProfileManager == nil || username == "" {
+		return ""
+	}
+	profiles, err := m.app.ProfileManager.GetAllProfiles()
+	if err != nil {
+		return ""
+	}
+	for _, p := range profiles {
+		if p.ID == excludeProfileID {
+			continue
+		}
+		if p.AniListUsername != "" && p.AniListUsername == username {
+			return p.Name
+		}
+	}
+	return ""
+}
+
 // Warm pre-loads the AniList client for a given profile.
 // Useful after app startup to ensure admin's client is cached.
 func (m *AnilistClientManager) Warm(profileID uint) {

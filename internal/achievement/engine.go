@@ -12,7 +12,7 @@ import (
 )
 
 // CurrentXPVersion is bumped whenever the XP formula changes to trigger retroactive recalculation.
-const CurrentXPVersion = 1
+const CurrentXPVersion = 2
 
 // AchievementEvent is carried into the engine from handlers.
 // All fields are optional except ProfileID and Trigger.
@@ -227,24 +227,16 @@ func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profil
 		return
 	}
 
-	// Award XP (base × difficulty multiplier × activity multiplier).
-	// Planning-only achievements are intentionally excluded from XP progression.
+	// Award XP: base × difficulty × current Activity Buff (up to 3x for full daily activity).
 	xp := 0
 	if !isNoXPAchievement(def.Key) {
 		baseXP := def.XPReward
 		if baseXP <= 0 {
 			baseXP = DefaultTierXP(tier)
 		}
-		xp = int(math.Round(float64(baseXP) * DifficultyMultiplier(def.Difficulty)))
+		activityBuff, _ := database.ComputeActivityBuff()
+		xp = int(math.Round(float64(baseXP) * DifficultyMultiplier(def.Difficulty) * activityBuff))
 	}
-
-	// Apply activity multiplier
-	activityMult, actErr := database.ComputeActivityMultiplier()
-	if actErr != nil {
-		e.logger.Warn().Err(actErr).Msg("achievement: failed to compute activity multiplier, using 1.0")
-		activityMult = 1.0
-	}
-	xp = int(math.Round(float64(xp) * activityMult))
 
 	newLevel, leveledUp, xpErr := database.AddXP(xp)
 	if xpErr != nil {
@@ -352,17 +344,11 @@ func (e *Engine) RunStartupMigrations(databases []*db.Database) {
 }
 
 // RecalculateXP recomputes total XP from all unlocked achievements using current difficulty multipliers
-// and the current activity multiplier, then updates the level progress.
+// and the current Activity Buff, then updates the level progress.
 func (e *Engine) RecalculateXP(database *db.Database) error {
 	unlocked, err := database.GetUnlockedAchievements()
 	if err != nil {
 		return err
-	}
-
-	activityMult, actErr := database.ComputeActivityMultiplier()
-	if actErr != nil {
-		e.logger.Warn().Err(actErr).Msg("achievement: failed to compute activity multiplier during recalculation, using 1.0")
-		activityMult = 1.0
 	}
 
 	totalXP := 0
@@ -378,8 +364,7 @@ func (e *Engine) RecalculateXP(database *db.Database) error {
 		if baseXP <= 0 {
 			baseXP = DefaultTierXP(a.Tier)
 		}
-		baseWithDifficulty := int(math.Round(float64(baseXP) * DifficultyMultiplier(def.Difficulty)))
-		xp := int(math.Round(float64(baseWithDifficulty) * activityMult))
+		xp := int(math.Round(float64(baseXP) * DifficultyMultiplier(def.Difficulty)))
 		totalXP += xp
 	}
 

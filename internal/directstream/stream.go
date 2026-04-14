@@ -61,25 +61,52 @@ type Stream interface {
 	OnSubtitleFileUploaded(filename string, content string)
 }
 
-func (m *Manager) getStreamHandler(profileID uint) http.Handler {
+// getStreamHandlerByID finds the session whose stream PlaybackInfo ID matches streamID.
+func (m *Manager) getStreamHandlerByID(streamID string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		session, ok := m.sessions.Get(profileID)
-		if !ok {
+		var found *ProfileStreamSession
+		m.sessions.Range(func(_ string, s *ProfileStreamSession) bool {
+			info, _ := s.Stream.LoadPlaybackInfo()
+			if info != nil && info.ID == streamID {
+				found = s
+				return false
+			}
+			return true
+		})
+		if found == nil {
 			http.Error(w, "no stream", http.StatusInternalServerError)
 			return
 		}
-		session.Stream.GetStreamHandler().ServeHTTP(w, r)
+		found.Stream.GetStreamHandler().ServeHTTP(w, r)
 	})
+}
+
+// getSessionByStreamID finds a session by stream playback info ID.
+func (m *Manager) getSessionByStreamID(streamID string) (*ProfileStreamSession, bool) {
+	var found *ProfileStreamSession
+	m.sessions.Range(func(_ string, s *ProfileStreamSession) bool {
+		info, _ := s.Stream.LoadPlaybackInfo()
+		if info != nil && info.ID == streamID {
+			found = s
+			return false
+		}
+		return true
+	})
+	if found == nil {
+		return nil, false
+	}
+	return found, true
 }
 
 func (m *Manager) PrepareNewStream(profileID uint, clientId string, step string) {
 	m.prepareNewStreamForProfile(profileID, clientId, step)
 }
 
-func (m *Manager) StreamError(profileID uint, err error) {
-	// Clear the stream for the given profile
-	if session, ok := m.sessions.Get(profileID); ok {
-		m.Logger.Warn().Err(err).Uint("profileID", profileID).Msgf("directstream: Terminating stream with error")
+func (m *Manager) StreamError(profileID uint, clientId string, err error) {
+	// Clear the stream for the given client
+	key := sessionKey(profileID, clientId)
+	if session, ok := m.sessions.Get(key); ok {
+		m.Logger.Warn().Err(err).Uint("profileID", profileID).Str("clientId", clientId).Msgf("directstream: Terminating stream with error")
 		session.Stream.StreamError(err)
 	}
 }
@@ -89,34 +116,36 @@ func (m *Manager) AbortOpen(profileID uint, clientId string, err error) {
 }
 
 func (m *Manager) prepareNewStreamForProfile(profileID uint, clientId string, step string) {
-	// Cancel the previous playback for this profile
-	if session, ok := m.sessions.Get(profileID); ok {
+	// Cancel the previous playback for this client
+	key := sessionKey(profileID, clientId)
+	if session, ok := m.sessions.Get(key); ok {
 		if session.PlaybackCtxCancel != nil {
-			m.Logger.Trace().Uint("profileID", profileID).Msgf("directstream: Cancelling previous playback")
+			m.Logger.Trace().Uint("profileID", profileID).Str("clientId", clientId).Msgf("directstream: Cancelling previous playback")
 			session.PlaybackCtxCancel()
 		}
-		m.Logger.Debug().Uint("profileID", profileID).Msgf("directstream: Terminating previous stream before preparing new stream")
+		m.Logger.Debug().Uint("profileID", profileID).Str("clientId", clientId).Msgf("directstream: Terminating previous stream before preparing new stream")
 		session.Stream.Terminate()
-		m.sessions.Delete(profileID)
+		m.sessions.Delete(key)
 	}
 
-	m.Logger.Debug().Uint("profileID", profileID).Msgf("directstream: Signaling native player that a new stream is starting")
+	m.Logger.Debug().Uint("profileID", profileID).Str("clientId", clientId).Msgf("directstream: Signaling native player that a new stream is starting")
 	m.nativePlayer.OpenAndAwait(clientId, step)
 }
 
 func (m *Manager) abortPreparation(profileID uint, clientId string, err error) {
-	// Cancel the previous playback for this profile
-	if session, ok := m.sessions.Get(profileID); ok {
+	// Cancel the previous playback for this client
+	key := sessionKey(profileID, clientId)
+	if session, ok := m.sessions.Get(key); ok {
 		if session.PlaybackCtxCancel != nil {
-			m.Logger.Trace().Uint("profileID", profileID).Msgf("directstream: Cancelling previous playback")
+			m.Logger.Trace().Uint("profileID", profileID).Str("clientId", clientId).Msgf("directstream: Cancelling previous playback")
 			session.PlaybackCtxCancel()
 		}
-		m.Logger.Debug().Uint("profileID", profileID).Msgf("directstream: Terminating previous stream before aborting")
+		m.Logger.Debug().Uint("profileID", profileID).Str("clientId", clientId).Msgf("directstream: Terminating previous stream before aborting")
 		session.Stream.Terminate()
-		m.sessions.Delete(profileID)
+		m.sessions.Delete(key)
 	}
 
-	m.Logger.Debug().Uint("profileID", profileID).Msgf("directstream: Signaling native player to abort stream preparation, reason: %s", err.Error())
+	m.Logger.Debug().Uint("profileID", profileID).Str("clientId", clientId).Msgf("directstream: Signaling native player to abort stream preparation, reason: %s", err.Error())
 	m.nativePlayer.AbortOpen(clientId, err.Error())
 }
 
@@ -125,9 +154,9 @@ func (m *Manager) abortPreparation(profileID uint, clientId string, err error) {
 func (m *Manager) loadStream(profileID uint, stream Stream) {
 	m.prepareNewStreamForProfile(profileID, stream.ClientId(), "Loading stream...")
 
-	m.Logger.Debug().Uint("profileID", profileID).Msgf("directstream: Loading stream")
+	m.Logger.Debug().Uint("profileID", profileID).Str("clientId", stream.ClientId()).Msgf("directstream: Loading stream")
 
-	// Create a new context for this profile's playback
+	// Create a new context for this client's playback
 	ctx, cancel := context.WithCancel(context.Background())
 	session := &ProfileStreamSession{
 		ProfileID:         profileID,
@@ -135,7 +164,8 @@ func (m *Manager) loadStream(profileID uint, stream Stream) {
 		PlaybackCtx:       ctx,
 		PlaybackCtxCancel: cancel,
 	}
-	m.sessions.Set(profileID, session)
+	key := sessionKey(profileID, stream.ClientId())
+	m.sessions.Set(key, session)
 
 	m.Logger.Debug().Uint("profileID", profileID).Msgf("directstream: Loading content type")
 	m.nativePlayer.OpenAndAwait(stream.ClientId(), "Loading metadata...")
@@ -175,7 +205,7 @@ func (m *Manager) listenToPlayerEvents() {
 				// Find the session whose stream matches this event's clientId
 				var cs Stream
 				var session *ProfileStreamSession
-				m.sessions.Range(func(_ uint, s *ProfileStreamSession) bool {
+				m.sessions.Range(func(_ string, s *ProfileStreamSession) bool {
 					if s.Stream.ClientId() == event.GetClientId() {
 						cs = s.Stream
 						session = s
@@ -231,27 +261,28 @@ func (m *Manager) listenToPlayerEvents() {
 	}()
 }
 
-func (m *Manager) unloadStreamForProfile(profileID uint) {
-	m.Logger.Debug().Uint("profileID", profileID).Msg("directstream: Unloading stream for profile")
+func (m *Manager) unloadStream(profileID uint, clientId string) {
+	key := sessionKey(profileID, clientId)
+	m.Logger.Debug().Uint("profileID", profileID).Str("clientId", clientId).Msg("directstream: Unloading stream")
 
-	session, ok := m.sessions.Get(profileID)
+	session, ok := m.sessions.Get(key)
 	if !ok {
-		m.Logger.Debug().Uint("profileID", profileID).Msg("directstream: No stream to unload for profile")
+		m.Logger.Debug().Uint("profileID", profileID).Str("clientId", clientId).Msg("directstream: No stream to unload")
 		return
 	}
 
 	// Cancel playback context
 	if session.PlaybackCtxCancel != nil {
-		m.Logger.Trace().Uint("profileID", profileID).Msg("directstream: Cancelling playback context")
+		m.Logger.Trace().Uint("profileID", profileID).Str("clientId", clientId).Msg("directstream: Cancelling playback context")
 		session.PlaybackCtxCancel()
 	}
 
 	// Terminate the stream
-	m.Logger.Debug().Uint("profileID", profileID).Msg("directstream: Terminating stream")
+	m.Logger.Debug().Uint("profileID", profileID).Str("clientId", clientId).Msg("directstream: Terminating stream")
 	session.Stream.Terminate()
 
-	m.sessions.Delete(profileID)
-	m.Logger.Debug().Uint("profileID", profileID).Msg("directstream: Stream unloaded successfully")
+	m.sessions.Delete(key)
+	m.Logger.Debug().Uint("profileID", profileID).Str("clientId", clientId).Msg("directstream: Stream unloaded successfully")
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -327,10 +358,11 @@ func (s *BaseStream) ProfileID() uint {
 	return s.profileId
 }
 
-// PlaybackCtx returns the playback context for this stream's profile session.
+// PlaybackCtx returns the playback context for this stream's session.
 // Returns context.Background() if no session is found.
 func (s *BaseStream) PlaybackCtx() context.Context {
-	if session, ok := s.manager.sessions.Get(s.profileId); ok {
+	key := sessionKey(s.profileId, s.clientId)
+	if session, ok := s.manager.sessions.Get(key); ok {
 		return session.PlaybackCtx
 	}
 	return context.Background()
@@ -338,8 +370,9 @@ func (s *BaseStream) PlaybackCtx() context.Context {
 
 func (s *BaseStream) Terminate() {
 	s.terminateOnce.Do(func() {
-		// Cancel the per-profile playback context
-		if session, ok := s.manager.sessions.Get(s.profileId); ok {
+		// Cancel the playback context for this session
+		key := sessionKey(s.profileId, s.clientId)
+		if session, ok := s.manager.sessions.Get(key); ok {
 			if session.PlaybackCtxCancel != nil {
 				session.PlaybackCtxCancel()
 			}
@@ -361,7 +394,7 @@ func (s *BaseStream) StreamError(err error) {
 	s.manager.nativePlayer.Error(s.clientId, err)
 	s.Terminate()
 	s.manager.playbackMu.Lock()
-	s.manager.unloadStreamForProfile(s.profileId)
+	s.manager.unloadStream(s.profileId, s.clientId)
 	s.manager.playbackMu.Unlock()
 }
 
@@ -410,7 +443,7 @@ func loadContentType(path string, reader ...io.ReadSeekCloser) string {
 func (m *Manager) preStreamError(stream Stream, err error) {
 	stream.Terminate()
 	m.nativePlayer.Error(stream.ClientId(), err)
-	m.unloadStreamForProfile(stream.ProfileID())
+	m.unloadStream(stream.ProfileID(), stream.ClientId())
 }
 
 func (m *Manager) getContentTypeAndLength(url string) (string, int64, error) {

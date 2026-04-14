@@ -608,7 +608,7 @@ func (r *Registry) save(queueInfo *QueueInfo, destination string, logger *zerolo
 
 // getSeriesDir returns the series directory path for a download
 func (cd *Downloader) getSeriesDir(downloadId DownloadID) string {
-	mediaDir := downloadId.MediaTitle
+	mediaDir := SanitizeFolderName(downloadId.MediaTitle)
 	if mediaDir == "" {
 		mediaDir = fmt.Sprintf("%d", downloadId.MediaId)
 	}

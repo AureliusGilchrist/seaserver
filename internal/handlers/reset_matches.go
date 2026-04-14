@@ -39,6 +39,7 @@ func (h *Handler) HandleResetIncorrectMatches(c echo.Context) error {
 		for _, mediaId := range b.MediaIds {
 			if lf.MediaId == mediaId {
 				lf.MediaId = 0
+				lf.Locked = false // Clear locked flag to avoid zombie state
 				resetCount++
 			}
 		}

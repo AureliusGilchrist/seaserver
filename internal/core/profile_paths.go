@@ -32,19 +32,15 @@ func (r *ProfilePathResolver) GetExtensionsDir(defaultDir string) string {
 // GetMangaDownloadDir returns the manga download directory.
 // When profiles exist, manga downloads are shared.
 func (r *ProfilePathResolver) GetMangaDownloadDir(defaultDir string) string {
-	if r.profileManager != nil && r.profileManager.HasProfiles() {
-		return r.profileManager.GetSharedMangaDir()
-	}
-	return defaultDir
+	// Force all profiles to use the fixed manga download directory
+	return "/aeternae/Soul/Otaku Media/Manga/"
 }
 
 // GetMangaLocalDir returns the manga local directory.
 // When profiles exist, manga local files are shared.
 func (r *ProfilePathResolver) GetMangaLocalDir(defaultDir string) string {
-	if r.profileManager != nil && r.profileManager.HasProfiles() {
-		return r.profileManager.GetSharedMangaDir()
-	}
-	return defaultDir
+	// Force all profiles to use the fixed manga local directory
+	return "/aeternae/Soul/Otaku Media/Manga/"
 }
 
 // GetProfileDBPath returns the database path for a given profile.

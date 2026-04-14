@@ -1,9 +1,12 @@
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useAtom } from "jotai/react"
-import { atomWithStorage } from "jotai/utils"
+import { atomWithStorage, createJSONStorage } from "jotai/utils"
 import React from "react"
 
-const __mediastream_filePath = atomWithStorage<string | undefined>("sea-mediastream-filepath", undefined, undefined, { getOnInit: true })
+// Per-tab session storage adapter — isolates state between browser tabs
+const sessionStorageAdapter = createJSONStorage<any>(() => sessionStorage)
+
+const __mediastream_filePath = atomWithStorage<string | undefined>("sea-mediastream-filepath", undefined, sessionStorageAdapter, { getOnInit: true })
 
 export function useMediastreamCurrentFile() {
     const [filePath, setFilePath] = useAtom(__mediastream_filePath)
@@ -12,6 +15,21 @@ export function useMediastreamCurrentFile() {
         filePath,
         setFilePath,
     }
+}
+
+/**
+ * Returns a stable, per-tab mediastream session ID.
+ * Used as the clientId for all mediastream API calls, ensuring multi-tab/multi-profile isolation.
+ */
+export function getMediastreamSessionId(): string {
+    let id = sessionStorage.getItem("sea-mediastream-session-id")
+    if (!id) {
+        id = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`
+        sessionStorage.setItem("sea-mediastream-session-id", id)
+    }
+    return id
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -17,8 +17,6 @@ type AnimeThemeContextValue = {
     themeId: AnimeThemeId
     config: AnimeThemeConfig
     setThemeId: (id: AnimeThemeId) => void
-    isEventActive: boolean
-    triggerEvent: () => void
     musicEnabled: boolean
     setMusicEnabled: (v: boolean) => void
     musicVolume: number
@@ -262,91 +260,10 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         return () => { delete document.documentElement.dataset.animeTheme }
     }, [config.id])
 
-    // ── Event engine ──
-    const [isEventActive, setIsEventActive] = React.useState(false)
-    const eventTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-    const eventEndRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-    const audioRef = React.useRef<HTMLAudioElement | null>(null)
-
-    const triggerEvent = React.useCallback(() => {
-        if (config.id === "seanime") return
-        if (isEventActive) return
-
-        setIsEventActive(true)
-
-        // Gear 5 body bounce
-        if (config.event.isGear5) {
-            document.body.classList.add("gear-5-active")
-        }
-
-        // Bleach Bankai: shift to dark red-black
-        if (config.id === "bleach") {
-            const root = document.documentElement
-            root.style.setProperty("--color-brand-200", "255 180 180")
-            root.style.setProperty("--color-brand-300", "220 100 100")
-            root.style.setProperty("--color-brand-400", "180 50 50")
-            root.style.setProperty("--color-brand-500", "140 25 25")
-            root.style.setProperty("--color-brand-600", "100 15 15")
-            root.style.setProperty("--color-brand-700", "70 10 10")
-            root.style.setProperty("--color-brand-800", "45 8 8")
-            root.style.setProperty("--color-brand-900", "25 5 5")
-            root.style.setProperty("--color-brand-950", "12 2 2")
-            root.style.setProperty("--brand", "200 60 60")
-            root.style.setProperty("--background", "#0a0202")
-            root.style.setProperty("--paper", "#120505")
-        }
-
-        // End event
-        if (eventEndRef.current) clearTimeout(eventEndRef.current)
-        eventEndRef.current = setTimeout(() => {
-            setIsEventActive(false)
-            if (config.event.isGear5) {
-                document.body.classList.remove("gear-5-active")
-            }
-            // Bleach Bankai: restore original silver/black vars
-            if (config.id === "bleach") {
-                const root = document.documentElement
-                const vars = config.cssVars
-                Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v as string))
-            }
-        }, config.event.durationMs)
-    }, [config, isEventActive])
-
-    // Random timer: 1-3 hours
-    const scheduleNextEvent = React.useCallback(() => {
-        if (eventTimerRef.current) clearTimeout(eventTimerRef.current)
-        if (config.id === "seanime") return
-
-        const minMs = 60 * 60 * 1000       // 1 hour
-        const maxMs = 3 * 60 * 60 * 1000   // 3 hours
-        const delay = minMs + Math.random() * (maxMs - minMs)
-
-        eventTimerRef.current = setTimeout(() => {
-            triggerEvent()
-            scheduleNextEvent()
-        }, delay)
-    }, [config.id, triggerEvent])
-
-    React.useEffect(() => {
-        scheduleNextEvent()
-        return () => {
-            if (eventTimerRef.current) clearTimeout(eventTimerRef.current)
-            if (eventEndRef.current) clearTimeout(eventEndRef.current)
-        }
-    }, [scheduleNextEvent])
-
-    // Clean up Gear 5 on theme switch
-    React.useEffect(() => {
-        document.body.classList.remove("gear-5-active")
-        setIsEventActive(false)
-    }, [themeId])
-
     const value = React.useMemo<AnimeThemeContextValue>(() => ({
         themeId,
         config,
         setThemeId,
-        isEventActive,
-        triggerEvent,
         musicEnabled,
         setMusicEnabled,
         musicVolume,
@@ -356,17 +273,14 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         particleSettings,
         setParticleTypeEnabled,
         setParticleTypeIntensity,
-    }), [themeId, config, setThemeId, isEventActive, triggerEvent, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity])
+    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity])
 
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
             <AnimeThemeMusicPlayer />
-            {config.backgroundImageUrl && <ThemeBackgroundImage url={config.backgroundImageUrl} />}
+            {config.backgroundImageUrl && <ThemeBackgroundImage url={config.backgroundImageUrl} dim={config.backgroundDim} blur={config.backgroundBlur} />}
             {config.hasAnimatedElements && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} />}
-            {isEventActive && config.id === "naruto" && <NarutoEventOverlay />}
-            {isEventActive && config.id === "bleach" && <BleachBankaiOverlay />}
-            {isEventActive && config.id === "one-piece" && <OnePieceGear5Overlay />}
         </AnimeThemeContext.Provider>
     )
 }
@@ -410,7 +324,8 @@ function AnimeThemeMusicPlayer() {
 // Theme Background Image
 // ─────────────────────────────────────────────────────────────────
 
-function ThemeBackgroundImage({ url }: { url: string }) {
+function ThemeBackgroundImage({ url, dim, blur }: { url: string; dim?: number; blur?: number }) {
+    const opacity = dim != null ? (1 - dim) : 0.35
     return (
         <div
             aria-hidden
@@ -423,177 +338,11 @@ function ThemeBackgroundImage({ url }: { url: string }) {
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",
-                opacity: 0.35,
+                opacity,
+                filter: blur ? `blur(${blur}px)` : undefined,
                 boxShadow: "inset 0 0 200px 80px rgba(0,0,0,0.85), inset 0 0 80px 40px rgba(0,0,0,0.6)",
             }}
         />
     )
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Event Overlays
-// ─────────────────────────────────────────────────────────────────
-
-function NarutoEventOverlay() {
-    const [phase, setPhase] = React.useState<"burst" | "text" | "fade">("burst")
-
-    React.useEffect(() => {
-        const t1 = setTimeout(() => setPhase("text"), 600)
-        const t2 = setTimeout(() => setPhase("fade"), 4000)
-        return () => { clearTimeout(t1); clearTimeout(t2) }
-    }, [])
-
-    return (
-        <div
-            className="fixed inset-0 pointer-events-none z-[9999] flex items-center justify-center overflow-hidden"
-            style={{
-                transition: "opacity 1s ease",
-                opacity: phase === "fade" ? 0 : 1,
-            }}
-        >
-            {/* Radial flame burst */}
-            <div
-                className="absolute inset-0"
-                style={{
-                    background: phase === "burst"
-                        ? "radial-gradient(circle at center, rgba(255,120,0,0.7) 0%, rgba(200,40,0,0.4) 40%, transparent 75%)"
-                        : "radial-gradient(circle at center, rgba(255,80,0,0.35) 0%, rgba(200,40,0,0.15) 50%, transparent 80%)",
-                    transition: "background 0.6s ease",
-                }}
-            />
-            {/* Nine-tails cloak veins */}
-            <div
-                className="absolute inset-0 opacity-20"
-                style={{
-                    background: "repeating-conic-gradient(rgba(255,80,0,0.3) 0deg, transparent 5deg, transparent 18deg, rgba(255,80,0,0.3) 20deg)",
-                    animation: phase !== "fade" ? "spin 8s linear infinite" : undefined,
-                }}
-            />
-            {phase === "text" && (
-                <div
-                    className="relative text-center"
-                    style={{
-                        animation: "narutoTextPop 0.4s cubic-bezier(0.17, 0.89, 0.32, 1.28) both",
-                        fontFamily: "'Bangers', cursive",
-                        color: "#ff6a00",
-                        textShadow: "0 0 30px rgba(255,80,0,0.9), 0 0 60px rgba(255,40,0,0.5), 3px 3px 0 #000",
-                        fontSize: "clamp(2.5rem, 8vw, 6rem)",
-                        letterSpacing: "0.1em",
-                        lineHeight: 1.1,
-                    }}
-                >
-                    NINE-TAILS<br />CHAKRA MODE
-                </div>
-            )}
-        </div>
-    )
-}
-
-function BleachBankaiOverlay() {
-    const [phase, setPhase] = React.useState<"flash" | "ban" | "kai" | "fade">("flash")
-
-    React.useEffect(() => {
-        const t1 = setTimeout(() => setPhase("ban"), 400)
-        const t2 = setTimeout(() => setPhase("kai"), 1600)
-        const t3 = setTimeout(() => setPhase("fade"), 4500)
-        return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
-    }, [])
-
-    return (
-        <div
-            className="fixed inset-0 pointer-events-none z-[9999] flex items-center justify-center overflow-hidden"
-            style={{
-                transition: "opacity 1.5s ease",
-                opacity: phase === "fade" ? 0 : 1,
-                background: phase === "flash" ? "rgba(240,240,255,0.95)" : "transparent",
-            }}
-        >
-            {(phase === "ban" || phase === "kai") && (
-                <div
-                    className="absolute inset-0"
-                    style={{
-                        background: "radial-gradient(ellipse at center, rgba(80,90,180,0.18) 0%, transparent 70%)",
-                    }}
-                />
-            )}
-            {phase === "ban" && (
-                <div
-                    style={{
-                        fontFamily: "'Cinzel Decorative', cursive",
-                        color: "#d0d8ff",
-                        fontSize: "clamp(4rem, 14vw, 11rem)",
-                        fontWeight: 900,
-                        textShadow: "0 0 40px rgba(160,170,255,0.9), 0 0 80px rgba(100,120,255,0.5), 4px 4px 0 #000",
-                        letterSpacing: "0.2em",
-                        animation: "bleachZoomIn 0.5s cubic-bezier(0.17, 0.89, 0.32, 1.28) both",
-                    }}
-                >
-                    BAN.
-                </div>
-            )}
-            {phase === "kai" && (
-                <div
-                    style={{
-                        fontFamily: "'Cinzel Decorative', cursive",
-                        color: "#ffffff",
-                        fontSize: "clamp(5rem, 18vw, 14rem)",
-                        fontWeight: 900,
-                        textShadow: "0 0 60px rgba(200,210,255,0.95), 0 0 120px rgba(140,160,255,0.7), 6px 6px 0 #000",
-                        letterSpacing: "0.25em",
-                        animation: "bleachZoomIn 0.4s cubic-bezier(0.17, 0.89, 0.32, 1.28) both",
-                    }}
-                >
-                    KAI.
-                </div>
-            )}
-        </div>
-    )
-}
-
-function OnePieceGear5Overlay() {
-    const [phase, setPhase] = React.useState<"flash" | "text" | "fade">("flash")
-
-    React.useEffect(() => {
-        const t1 = setTimeout(() => setPhase("text"), 300)
-        const t2 = setTimeout(() => setPhase("fade"), 5000)
-        return () => { clearTimeout(t1); clearTimeout(t2) }
-    }, [])
-
-    return (
-        <div
-            className="fixed inset-0 pointer-events-none z-[9999] flex items-center justify-center overflow-hidden"
-            style={{
-                transition: "opacity 1.5s ease",
-                opacity: phase === "fade" ? 0 : 1,
-                background: phase === "flash" ? "rgba(255,255,240,0.98)" : "transparent",
-            }}
-        >
-            {phase === "text" && (
-                <>
-                    <div
-                        className="absolute inset-0"
-                        style={{
-                            background: "radial-gradient(circle at center, rgba(255,230,80,0.3) 0%, rgba(255,140,0,0.12) 55%, transparent 80%)",
-                        }}
-                    />
-                    <div
-                        className="relative text-center"
-                        style={{
-                            fontFamily: "'Boogaloo', cursive",
-                            color: "#fff",
-                            fontSize: "clamp(3rem, 10vw, 8rem)",
-                            fontWeight: 700,
-                            textShadow: "0 0 30px rgba(255,200,50,0.9), 0 0 60px rgba(255,140,0,0.6), 4px 4px 0 #8b4500",
-                            letterSpacing: "0.1em",
-                            lineHeight: 1.1,
-                            animation: "gear5BounceIn 0.5s cubic-bezier(0.17, 0.89, 0.32, 1.28) both",
-                        }}
-                    >
-                        GEAR...<br />
-                        <span style={{ fontSize: "1.4em", color: "#ffe566" }}>FIVE!</span>
-                    </div>
-                </>
-            )}
-        </div>
-    )
-}

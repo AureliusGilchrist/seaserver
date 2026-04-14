@@ -55,7 +55,7 @@ export function usePreloadMediastreamMediaContainer() {
 }
 
 export function useMediastreamShutdownTranscodeStream() {
-    return useServerMutation<boolean>({
+    return useServerMutation<boolean, { clientId: string }>({
         endpoint: API_ENDPOINTS.MEDIASTREAM.MediastreamShutdownTranscodeStream.endpoint,
         method: API_ENDPOINTS.MEDIASTREAM.MediastreamShutdownTranscodeStream.methods[0],
         mutationKey: [API_ENDPOINTS.MEDIASTREAM.MediastreamShutdownTranscodeStream.key],

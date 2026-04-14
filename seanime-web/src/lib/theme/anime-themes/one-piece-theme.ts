@@ -22,9 +22,9 @@ import { LuBell, LuRss } from "react-icons/lu"
 export const onePieceTheme: AnimeThemeConfig = {
     id: "one-piece",
     displayName: "One Piece",
-    description: "Grand Line ocean aesthetic. Gold & blue bounty hunter palette. Gear 5 events. Pirate-named achievements.",
-    fontFamily: "'Boogaloo', cursive",
-    fontHref: "https://fonts.googleapis.com/css2?family=Boogaloo&display=swap",
+    description: "Grand Line ocean aesthetic. Gold & blue bounty hunter palette. Pirate-named achievements.",
+    fontFamily: "'Baloo 2', cursive",
+    fontHref: "https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&display=swap",
     cssVars: {
         "--color-brand-200": "220 200 110",
         "--color-brand-300": "210 175 70",
@@ -599,15 +599,6 @@ export const onePieceTheme: AnimeThemeConfig = {
         "m_time_traveler": "Sea Time Traveler",
     },
     musicUrl: "/public/themes/one-piece-opening.mp3",
-    event: {
-        name: "GEAR FIVE",
-        durationMs: 55000,
-        voiceText: "Gear... FIVE!",
-        voicePitch: 0,
-        voiceRate: 0,
-        audioClipPath: "/public/themes/one-piece-gear5.mp3",
-        isGear5: true,
-    },
     previewColors: {
         bg: "#010a10",
         primary: "#c47d08",
@@ -615,10 +606,14 @@ export const onePieceTheme: AnimeThemeConfig = {
         accent: "#e8c060",
     },
     hasAnimatedElements: true,
-    backgroundImageUrl: "https://w.wallhaven.cc/full/72/wallhaven-72lej9.png",
+    backgroundImageUrl: "https://w.wallhaven.cc/full/4y/wallhaven-4yjjj7.jpg",
+    backgroundDim: 0.30,
+    backgroundBlur: 30,
     particleTypes: {
         bubbles: { label: "Sabaody Bubbles", maxCount: 12, defaultEnabled: true, defaultIntensity: 60 },
         waves: { label: "Ocean Waves", maxCount: 3, defaultEnabled: true, defaultIntensity: 50 },
+        sparkles: { label: "Treasure Sparkles", maxCount: 10, defaultEnabled: true, defaultIntensity: 45 },
+        bountyPoster: { label: "Bounty Poster", maxCount: 1, defaultEnabled: true, defaultIntensity: 50 },
         jollyRoger: { label: "Jolly Roger Watermark", maxCount: 1, defaultEnabled: true, defaultIntensity: 50 },
     },
 }

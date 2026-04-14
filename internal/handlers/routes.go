@@ -188,6 +188,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.PATCH("/profiles/:id", h.HandleUpdateProfile)
 	v1.DELETE("/profiles/:id", h.HandleDeleteProfile)
 	v1.POST("/profiles/:id/avatar", h.HandleUploadProfileAvatar)
+	v1.POST("/profiles/:id/anilist-token", h.HandleAdminSetProfileAniListToken)
 
 	// Comments
 	v1.GET("/comments", h.HandleGetComments)
@@ -518,11 +519,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/mediastream/preload", h.HandlePreloadMediastreamMediaContainer)
 	// Transcode
 	v1.POST("/mediastream/shutdown-transcode", h.HandleMediastreamShutdownTranscodeStream)
-	v1.GET("/mediastream/transcode/*", h.HandleMediastreamTranscode)
-	v1.GET("/mediastream/subs/*", h.HandleMediastreamGetSubtitles)
-	v1.GET("/mediastream/att/*", h.HandleMediastreamGetAttachments)
-	v1.GET("/mediastream/direct", h.HandleMediastreamDirectPlay)
-	v1.HEAD("/mediastream/direct", h.HandleMediastreamDirectPlay)
+	v1.GET("/mediastream/transcode/:clientId/*", h.HandleMediastreamTranscode)
+	v1.GET("/mediastream/subs/:clientId/*", h.HandleMediastreamGetSubtitles)
+	v1.GET("/mediastream/att/:clientId/*", h.HandleMediastreamGetAttachments)
+	v1.GET("/mediastream/direct/:clientId", h.HandleMediastreamDirectPlay)
+	v1.HEAD("/mediastream/direct/:clientId", h.HandleMediastreamDirectPlay)
 	v1.GET("/mediastream/file", h.HandleMediastreamFile)
 
 	//

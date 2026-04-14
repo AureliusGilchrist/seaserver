@@ -1,6 +1,7 @@
 import { useGetStatus } from "@/api/hooks/status.hooks"
 import { useSavePlanningSlutToken } from "@/api/hooks/admin.hooks"
-import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { useCreateProfile } from "@/api/hooks/profiles.hooks"
+import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { MigrationWizard } from "@/app/(main)/_features/profile/migration-wizard"
 import { ProfileSelector } from "@/app/(main)/_features/profile/profile-selector"
 import { GettingStartedPage } from "@/app/(main)/_features/getting-started/getting-started-page"
@@ -15,7 +16,7 @@ import { logger } from "@/lib/helpers/debug"
 import { ANILIST_OAUTH_URL, ANILIST_PIN_URL } from "@/lib/server/config"
 import { WSEvents } from "@/lib/server/ws-events"
 import { __isDesktop__ } from "@/types/constants"
-import { useAtomValue } from "jotai"
+import { useAtomValue, useSetAtom } from "jotai"
 import { SeaLink as Link } from "@/components/shared/sea-link"
 import { usePathname, useRouter } from "@/lib/navigation"
 import React from "react"
@@ -39,7 +40,20 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
     const serverStatus = useServerStatus()
     const setServerStatus = useSetServerStatus()
     const password = useAtomValue(serverAuthTokenAtom)
+    const setProfileToken = useSetAtom(profileSessionTokenAtom)
     const { data: _serverStatus, isLoading, refetch } = useGetStatus()
+
+    // Clear session token when server reboots (boot UUID changes)
+    React.useEffect(() => {
+        if (_serverStatus?.bootId) {
+            const storedBootId = localStorage.getItem("sea-boot-id")
+            if (storedBootId && storedBootId !== _serverStatus.bootId) {
+                logger("Data Wrapper").info("Server rebooted (boot ID changed), clearing session token")
+                setProfileToken(undefined)
+            }
+            localStorage.setItem("sea-boot-id", _serverStatus.bootId)
+        }
+    }, [_serverStatus?.bootId])
 
     React.useEffect(() => {
         if (_serverStatus) {
@@ -144,6 +158,8 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         if (profiles.length > 0) {
             return <ProfileSelector profiles={profiles} />
         }
+        // No profiles exist yet — force creating the first one
+        return <CreateFirstProfileGate onCreated={() => refetch()} />
     }
 
     if (!serverStatus?.planningSlutConfigured) {
@@ -159,7 +175,7 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         />
     }
 
-    if (serverStatus?.profilesEnabled && !!serverStatus?.currentProfile && !serverStatus?.user) {
+    if (serverStatus?.profilesEnabled && !!serverStatus?.currentProfile && (!serverStatus?.user || serverStatus?.user?.isSimulated)) {
         return <ProfileAniListGate
             profileName={serverStatus.currentProfile.name}
             host={host}
@@ -168,7 +184,7 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         />
     }
 
-    if (!serverStatus?.user && host === "127.0.0.1:43211" && !__isDesktop__) {
+    if ((!serverStatus?.user || serverStatus?.user?.isSimulated) && host === "127.0.0.1:43211" && !__isDesktop__) {
         return <div className="container max-w-3xl py-10">
             <Card className="md:py-10">
                 <AppLayoutStack>
@@ -199,7 +215,7 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
                 </AppLayoutStack>
             </Card>
         </div>
-    } else if (!serverStatus?.user) {
+    } else if (!serverStatus?.user || serverStatus?.user?.isSimulated) {
         return <div className="container max-w-3xl py-10">
             <Card className="md:py-10">
                 <AppLayoutStack>
@@ -257,9 +273,10 @@ function ProfileAniListGate(props: {
     host: string
     clientId?: string
     onManualToken: (token: string) => void
+    formError?: string | null
+    isLoading?: boolean
 }) {
-    const { profileName, host, clientId, onManualToken } = props
-    const [formError, setFormError] = React.useState<string | null>(null)
+    const { profileName, host, clientId, onManualToken, formError, isLoading } = props
 
     const loginButton = host === "127.0.0.1:43211" && !__isDesktop__
         ? <Button
@@ -303,12 +320,7 @@ function ProfileAniListGate(props: {
                             token: z.string().min(1, "Token is required"),
                         }))}
                         onSubmit={data => {
-                            setFormError(null)
-                            try {
-                                onManualToken(data.token.trim())
-                            } catch (e) {
-                                setFormError("Failed to process token")
-                            }
+                            onManualToken(data.token.trim())
                         }}
                     >
                         <p className="text-xs text-[--muted] mb-2">Paste your AniList access token. Get one at anilist.co/settings/developer</p>
@@ -316,8 +328,9 @@ function ProfileAniListGate(props: {
                             name="token"
                             label="Profile AniList token"
                             fieldClass="px-4"
+                            disabled={isLoading}
                         />
-                        <Field.Submit showLoadingOverlayOnSuccess>Continue</Field.Submit>
+                        <Field.Submit showLoadingOverlayOnSuccess disabled={isLoading}>Continue</Field.Submit>
                     </Form>
                 </div>
             </AppLayoutStack>
@@ -386,4 +399,87 @@ function PlanningSlutSetupGate(props: { isAdmin: boolean, onConfigured: () => vo
             </AppLayoutStack>
         </Card>
     </div>
+}
+
+function CreateFirstProfileGate(props: { onCreated: () => void }) {
+    const { onCreated } = props
+    const { mutate: createProfile, isPending } = useCreateProfile()
+    const [name, setName] = React.useState("")
+    const [pin, setPin] = React.useState("")
+    const [error, setError] = React.useState<string | null>(null)
+
+    function handleCreate() {
+        setError(null)
+        if (!name.trim()) { setError("Name is required"); return }
+        if (pin.length < 4 || pin.length > 8) { setError("PIN must be 4\u20138 digits"); return }
+        if (!/^\d+$/.test(pin)) { setError("PIN must contain only digits"); return }
+        createProfile(
+            { name: name.trim(), pin, isAdmin: true },
+            {
+                onSuccess: () => onCreated(),
+                onError: (err: any) => setError(err?.message || "Failed to create profile"),
+            },
+        )
+    }
+
+    return (
+        <div className="container max-w-md py-10">
+            <Card className="md:py-10">
+                <AppLayoutStack>
+                    <div className="text-center space-y-4">
+                        <div className="mb-4 flex justify-center w-full">
+                            <img src="/seanime-logo.png" alt="logo" className="w-24 h-auto" />
+                        </div>
+                        <h3>Create your profile</h3>
+                        <p className="text-[--muted] text-sm">Set up your first profile to get started. This will be an admin profile.</p>
+
+                        <div className="space-y-3 px-4 text-left">
+                            <div>
+                                <label className="text-sm font-medium block mb-1">Profile name</label>
+                                <input
+                                    type="text"
+                                    className="w-full rounded-md bg-[--subtle] border border-[--border] px-3 py-2 text-sm"
+                                    value={name}
+                                    onChange={e => setName(e.target.value)}
+                                    placeholder="Enter a name"
+                                    maxLength={50}
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium block mb-1">PIN (4\u20138 digits)</label>
+                                <input
+                                    type="password"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    className="w-full rounded-md bg-[--subtle] border border-[--border] px-3 py-2 text-sm tracking-widest"
+                                    value={pin}
+                                    onChange={e => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                                    placeholder="\u2022\u2022\u2022\u2022"
+                                    maxLength={8}
+                                />
+                            </div>
+                        </div>
+
+                        {error && (
+                            <div className="rounded-md bg-[--alert]/10 border border-[--alert] p-3 text-[--alert] text-sm mx-4">
+                                {error}
+                            </div>
+                        )}
+
+                        <Button
+                            onClick={handleCreate}
+                            intent="primary"
+                            size="lg"
+                            className="w-full max-w-xs mx-auto"
+                            loading={isPending}
+                            disabled={isPending}
+                        >
+                            Create profile
+                        </Button>
+                    </div>
+                </AppLayoutStack>
+            </Card>
+        </div>
+    )
 }

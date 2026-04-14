@@ -1,4 +1,5 @@
 // Atoms with no dependencies
+import { VideoCore_VideoPlaybackInfo } from "@/api/generated/types"
 import { atom } from "jotai"
 import { derive } from "jotai-derive"
 
@@ -56,3 +57,6 @@ export const vc_previousPausedState = atom(false)
 export const vc_lastKnownProgress = atom<{ mediaId: number, progressNumber: number, time: number } | null>(null)
 export const vc_skipOpeningTime = atom<number | null>(null)
 export const vc_skipEndingTime = atom<number | null>(null)
+
+// Shared playback info atom — synced by VideoCore from its props so menus work for all playback modes
+export const vc_playbackInfo = atom<VideoCore_VideoPlaybackInfo | null>(null)

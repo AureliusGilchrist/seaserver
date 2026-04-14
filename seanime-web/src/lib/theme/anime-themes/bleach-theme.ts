@@ -23,9 +23,9 @@ import { TbReportSearch } from "react-icons/tb"
 export const bleachTheme: AnimeThemeConfig = {
     id: "bleach",
     displayName: "Bleach",
-    description: "TYBW / Soul Society aesthetics. Black & silver. Bankai events. Shinigami-named achievements.",
-    fontFamily: "'Cinzel Decorative', cursive",
-    fontHref: "https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&display=swap",
+    description: "TYBW / Soul Society aesthetics. Black & silver. Shinigami-named achievements.",
+    fontFamily: "'Cinzel', serif",
+    fontHref: "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&display=swap",
     cssVars: {
         "--color-brand-200": "215 218 225",
         "--color-brand-300": "180 185 195",
@@ -600,14 +600,6 @@ export const bleachTheme: AnimeThemeConfig = {
         "m_time_traveler": "Soul Time Traveler",
     },
     musicUrl: "/public/themes/bleach-opening.mp3",
-    event: {
-        name: "BANKAI",
-        durationMs: 50000,
-        voiceText: "Ban... Kai...",
-        voicePitch: 0.35,
-        voiceRate: 0.5,
-        audioClipPath: "/public/themes/bleach-bankai.mp3",
-    },
     previewColors: {
         bg: "#02020a",
         primary: "#4655a0",
@@ -615,11 +607,13 @@ export const bleachTheme: AnimeThemeConfig = {
         accent: "#c0c8f0",
     },
     hasAnimatedElements: true,
-    backgroundImageUrl: "https://w.wallhaven.cc/full/po/wallhaven-po3o93.jpg",
+    backgroundImageUrl: "https://w.wallhaven.cc/full/gj/wallhaven-gj6vpd.jpg",
+    backgroundDim: 0.30,
+    backgroundBlur: 30,
     particleTypes: {
         butterflies: { label: "Hell Butterflies", maxCount: 6, defaultEnabled: true, defaultIntensity: 60 },
         wisps: { label: "Reiatsu Wisps", maxCount: 8, defaultEnabled: true, defaultIntensity: 50 },
         moon: { label: "Moon & Haze", maxCount: 1, defaultEnabled: true, defaultIntensity: 60 },
-        cityscape: { label: "Cityscape Silhouette", maxCount: 1, defaultEnabled: true, defaultIntensity: 50 },
+        lasNoches: { label: "Las Noches Silhouette", maxCount: 1, defaultEnabled: true, defaultIntensity: 50 },
     },
 }

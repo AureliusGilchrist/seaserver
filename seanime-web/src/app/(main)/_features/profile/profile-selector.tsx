@@ -24,6 +24,11 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
     const { mutate: login, isPending } = useProfileLogin()
     const [showAniListModal, setShowAniListModal] = React.useState(false)
     const [pendingProfile, setPendingProfile] = React.useState<ProfileSummary | null>(null)
+    // Track last login attempt for retry after token
+    const lastLoginProfileRef = React.useRef<ProfileSummary | null>(null)
+    const lastLoginPinRef = React.useRef<string>("")
+    const [aniListModalError, setAniListModalError] = React.useState<string | null>(null)
+    const [isSubmittingToken, setIsSubmittingToken] = React.useState(false)
 
     // Ref keeps the latest pin value so event handlers never see a stale closure
     const pinRef = React.useRef(pin)
@@ -32,6 +37,8 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
     const handleProfileClick = (profile: ProfileSummary) => {
         // Always enforce AniList token modal on first login (no exceptions)
         if (!profile.hasPIN) {
+            lastLoginProfileRef.current = profile
+            lastLoginPinRef.current = ""
             login(
                 { profileId: profile.id, pin: "" },
                 {
@@ -49,6 +56,8 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
             )
             return
         }
+        lastLoginProfileRef.current = profile
+        lastLoginPinRef.current = pin
         setSelectedProfile(profile)
         setPin("")
         setPinError("")
@@ -58,6 +67,8 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
         const currentPin = pinRef.current
         if (!selectedProfile || currentPin.length < MIN_PIN_LENGTH) return
         setPinError("")
+        lastLoginProfileRef.current = selectedProfile
+        lastLoginPinRef.current = currentPin
         login(
             { profileId: selectedProfile.id, pin: currentPin },
             {
@@ -132,12 +143,33 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
             <ProfileAniListGate
                 profileName={pendingProfile.name}
                 host={window.location.host}
-                onManualToken={() => {
-                    setShowAniListModal(false);
-                    setPendingProfile(null);
+                onManualToken={(token: string) => {
+                    setAniListModalError(null)
+                    setIsSubmittingToken(true)
+                    // Re-call profile login with the AniList token included
+                    login(
+                        {
+                            profileId: pendingProfile.id,
+                            pin: lastLoginPinRef.current,
+                            anilistToken: token.trim(),
+                        },
+                        {
+                            onSuccess: () => {
+                                setIsSubmittingToken(false)
+                                // useProfileLogin's onSuccess handles token storage, state update, and query invalidation
+                            },
+                            onError: (err: any) => {
+                                setIsSubmittingToken(false)
+                                const msg = err?.response?.data?.message || err?.message || "Invalid or expired AniList token. Please try again."
+                                setAniListModalError(msg)
+                            },
+                        },
+                    )
                 }}
+                formError={aniListModalError}
+                isLoading={isSubmittingToken}
             />
-        );
+        )
     }
 
     // PIN entry screen with keypad

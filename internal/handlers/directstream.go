@@ -96,13 +96,13 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 }
 
 func (h *Handler) HandleDirectstreamGetStream(c echo.Context) error {
-	profileID := h.GetProfileID(c)
-	handler := h.App.DirectStreamManager.ServeEchoStream(profileID)
+	streamID := c.QueryParam("id")
+	handler := h.App.DirectStreamManager.ServeEchoStream(streamID)
 	handler.ServeHTTP(c.Response(), c.Request())
 	return nil
 }
 
 func (h *Handler) HandleDirectstreamGetAttachments(c echo.Context) error {
-	profileID := h.GetProfileID(c)
-	return h.App.DirectStreamManager.ServeEchoAttachments(profileID, c)
+	streamID := c.QueryParam("id")
+	return h.App.DirectStreamManager.ServeEchoAttachments(streamID, c)
 }

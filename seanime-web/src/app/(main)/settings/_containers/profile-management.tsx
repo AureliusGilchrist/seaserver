@@ -7,13 +7,14 @@ import {
     useSetAllowedLibraryPaths,
     useUpdateProfile,
 } from "@/api/hooks/profiles.hooks"
+import { useAdminSetProfileAniListToken } from "@/api/hooks/admin.hooks"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { SettingsCard, SettingsPageHeader } from "@/app/(main)/settings/_components/settings-card"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/ui/modal"
 import React from "react"
-import { BiEdit, BiPlus, BiTrash } from "react-icons/bi"
+import { BiEdit, BiPlus, BiTrash, BiKey } from "react-icons/bi"
 import { LuUsers } from "react-icons/lu"
 import { toast } from "sonner"
 
@@ -115,6 +116,16 @@ export function ProfileManagement() {
                 </SettingsCard>
             )}
 
+            {isAdmin && profiles && profiles.length > 0 && (
+                <SettingsCard title="AniList Tokens" description="Set or update AniList tokens for any profile. Each profile needs a unique AniList account.">
+                    <div className="space-y-3">
+                        {profiles.map((profile) => (
+                            <AdminProfileTokenRow key={profile.id} profile={profile} />
+                        ))}
+                    </div>
+                </SettingsCard>
+            )}
+
             <CreateProfileModal open={createOpen} onClose={() => setCreateOpen(false)} />
             <EditProfileModal profile={editProfile} onClose={() => setEditProfile(null)} />
         </div>
@@ -172,17 +183,19 @@ function CreateProfileModal({ open, onClose }: { open: boolean; onClose: () => v
     const [name, setName] = React.useState("")
     const [pin, setPin] = React.useState("")
     const [isAdmin, setIsAdmin] = React.useState(false)
+    const [anilistToken, setAnilistToken] = React.useState("")
     const { mutate: create, isPending } = useCreateProfile()
 
     const handleSubmit = () => {
         if (!name.trim()) return
         create(
-            { name: name.trim(), pin, isAdmin },
+            { name: name.trim(), pin, isAdmin, anilistToken: anilistToken.trim() || undefined },
             {
                 onSuccess: () => {
                     setName("")
                     setPin("")
                     setIsAdmin(false)
+                    setAnilistToken("")
                     onClose()
                 },
             },
@@ -220,6 +233,17 @@ function CreateProfileModal({ open, onClose }: { open: boolean; onClose: () => v
                         placeholder="Required"
                         className="w-full px-3 py-2 rounded-md border border-[--border] bg-[--paper] text-[--foreground] focus:border-[--brand] focus:outline-none"
                     />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-[--foreground] mb-1.5">AniList Token (optional)</label>
+                    <textarea
+                        value={anilistToken}
+                        onChange={(e) => setAnilistToken(e.target.value)}
+                        placeholder="Paste AniList access token — can also be set on first login"
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-md border border-[--border] bg-[--paper] text-[--foreground] text-sm focus:border-[--brand] focus:outline-none resize-none"
+                    />
+                    <p className="text-xs text-[--muted] mt-1">If not provided, the user will be prompted on first login.</p>
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -370,6 +394,78 @@ function EditProfileModal({ profile, onClose }: { profile: ProfileSummary | null
                 </div>
             </div>
         </Modal>
+    )
+}
+
+function AdminProfileTokenRow({ profile }: { profile: ProfileSummary }) {
+    const [token, setToken] = React.useState("")
+    const [expanded, setExpanded] = React.useState(false)
+    const { mutate: setAniListToken, isPending } = useAdminSetProfileAniListToken()
+
+    const handleSave = () => {
+        if (!token.trim()) return
+        setAniListToken(
+            { profileId: profile.id, token: token.trim() },
+            {
+                onSuccess: () => {
+                    setToken("")
+                    setExpanded(false)
+                },
+                onError: (err: any) => {
+                    toast.error(err?.response?.data?.message || err?.message || "Failed to save token")
+                },
+            },
+        )
+    }
+
+    return (
+        <div className="p-3 rounded-md bg-[--subtle] border border-[--border]">
+            <div className="flex items-center gap-3">
+                <Avatar
+                    src={profile.avatarPath || profile.anilistAvatar || undefined}
+                    fallback={profile.name.charAt(0).toUpperCase()}
+                    size="sm"
+                />
+                <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-[--foreground]">{profile.name}</span>
+                    {profile.anilistUsername ? (
+                        <p className="text-xs text-green-500">Linked: {profile.anilistUsername}</p>
+                    ) : (
+                        <p className="text-xs text-yellow-500">No AniList account linked</p>
+                    )}
+                </div>
+                <Button
+                    intent="gray-subtle"
+                    size="sm"
+                    leftIcon={<BiKey />}
+                    onClick={() => setExpanded(!expanded)}
+                >
+                    {expanded ? "Cancel" : profile.anilistUsername ? "Change" : "Set Token"}
+                </Button>
+            </div>
+            {expanded && (
+                <div className="mt-3 space-y-2">
+                    <textarea
+                        value={token}
+                        onChange={(e) => setToken(e.target.value)}
+                        placeholder="Paste AniList access token"
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-md border border-[--border] bg-[--paper] text-[--foreground] text-sm focus:border-[--brand] focus:outline-none resize-none"
+                    />
+                    <div className="flex justify-end">
+                        <Button
+                            intent="primary"
+                            size="sm"
+                            onClick={handleSave}
+                            loading={isPending}
+                            disabled={!token.trim()}
+                        >
+                            Save Token
+                        </Button>
+                    </div>
+                </div>
+            )}
+        </div>
     )
 }
 

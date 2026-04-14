@@ -43,7 +43,7 @@ export class VideoCorePreviewManager {
 
         this.isHlsSource = streamType === "hls"
         this.loadMediaSource(
-            mediaSource + (useCustomThumbnailRequest ? "&thumbnail=true" : ""),
+            mediaSource + (useCustomThumbnailRequest ? (mediaSource.includes("?") ? "&" : "?") + "thumbnail=true" : ""),
         )
 
         this._bindToVideoPlayer()

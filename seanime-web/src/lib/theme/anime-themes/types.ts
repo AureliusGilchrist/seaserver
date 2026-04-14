@@ -7,20 +7,6 @@ export type SidebarItemOverride = {
     label: string
 }
 
-export type AnimeThemeEventConfig = {
-    name: string
-    /** Duration in ms */
-    durationMs: number
-    /** Voice text spoken by Web Speech API */
-    voiceText: string
-    voicePitch: number
-    voiceRate: number
-    /** Path to local audio clip, played if available */
-    audioClipPath: string
-    /** When true, activates the Gear 5 body-bounce effect */
-    isGear5?: boolean
-}
-
 export type ParticleTypeConfig = {
     /** Display name in settings UI */
     label: string
@@ -48,8 +34,6 @@ export type AnimeThemeConfig = {
     achievementNames: Record<string, string>
     /** URL to hosted or local background music (CC-licensed or user-supplied) */
     musicUrl: string
-    /** Event config */
-    event: AnimeThemeEventConfig
     /** Preview color for theme selector card */
     previewColors: {
         primary: string
@@ -61,6 +45,10 @@ export type AnimeThemeConfig = {
     hasAnimatedElements?: boolean
     /** Full-resolution background image URL (loaded from CDN, cached by browser) */
     backgroundImageUrl?: string
+    /** Background dim (0-1), default 0 means use default opacity */
+    backgroundDim?: number
+    /** Background blur in px, default 0 */
+    backgroundBlur?: number
     /** Per-particle-type configuration (keyed by particle type id) */
     particleTypes?: Record<string, ParticleTypeConfig>
 }

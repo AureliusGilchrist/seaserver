@@ -113,17 +113,17 @@ export default function Page() {
         <>
             {/* Banner */}
             {profile!.bannerImage ? (
-                <div className="relative h-48 w-full overflow-hidden">
+                <div className="relative h-[320px] w-full overflow-hidden">
                     <div
                         className="absolute inset-0 bg-cover bg-center"
                         style={{ backgroundImage: `url(${profile!.bannerImage})` }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[--background] via-[--background]/60 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[--background] via-[--background]/30 to-transparent" />
                 </div>
             ) : (
                 <CustomLibraryBanner discrete />
             )}
-            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-20 relative z-10")}> 
+            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-36 relative z-10")}> 
                 {/* Unified Profile Header */}
                 <div className="flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border] relative">
                     {/* Sync AniList Profile Button (top-right) */}
@@ -159,7 +159,7 @@ export default function Page() {
                                 Level {level?.currentLevel ?? 1}
                             </span>
                             {level && level.multiplier > 1 && (
-                                <ActivityMultiplierBadge multiplier={level.multiplier} />
+                                <ActivityBuffBadge multiplier={level.multiplier} />
                             )}
                         </div>
                         <div className="flex flex-wrap items-center gap-6 mt-2">
@@ -263,7 +263,12 @@ export default function Page() {
                             showcase={showcase}
                             recentAchievements={recentAchievements}
                             editable={true}
-                            anilistProfile={undefined} // No profile header in activity tab
+                            anilistProfile={profile?.anilistUsername ? {
+                                avatar: profile.anilistAvatar,
+                                banner: profile.bannerImage,
+                                bio: profile.bio,
+                                name: profile.name,
+                            } : undefined}
                         />
                     </TabsContent>
                     <TabsContent value="stats" className="space-y-6 mt-6">
@@ -278,9 +283,9 @@ export default function Page() {
     )
 }
 
-// ─────────────────────── Activity Multiplier Badge ───────────────────────
+// ─────────────────────── Activity Buff Badge ───────────────────────
 
-export function ActivityMultiplierBadge({ multiplier }: { multiplier: number }) {
+export function ActivityBuffBadge({ multiplier }: { multiplier: number }) {
     const isMax = multiplier >= 2.0
     return (
         <div className={cn(

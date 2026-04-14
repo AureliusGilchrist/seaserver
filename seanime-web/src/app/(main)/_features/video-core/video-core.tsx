@@ -41,6 +41,7 @@ import { vc_previousPausedState } from "@/app/(main)/_features/video-core/video-
 import { vc_lastKnownProgress } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_skipOpeningTime } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_skipEndingTime } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { VideoCoreAudioManager } from "@/app/(main)/_features/video-core/video-core-audio"
 import { VideoCoreAudioMenu } from "@/app/(main)/_features/video-core/video-core-audio-menu"
 import {
@@ -97,6 +98,7 @@ import {
     vc_autoNextAtom,
     vc_autoPlayVideoAtom,
     vc_beautifyImageAtom,
+    vc_perMediaTrackOverrides,
     vc_settings,
     vc_showStatsForNerdsAtom,
     vc_storedMutedAtom,
@@ -209,6 +211,7 @@ export function VideoCoreProvider(props: { id: string, children: React.ReactNode
                 vc_lastKnownProgress,
                 vc_skipOpeningTime,
                 vc_skipEndingTime,
+                vc_playbackInfo,
                 vc_dispatchAction,
                 vc_hoveringControlBar,
                 vc_menuOpen,
@@ -356,6 +359,20 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                 onMouseEnter={handleContainerMouseEnter}
                 onMouseLeave={handleContainerMouseLeave}
             >
+                {state.playbackInfo?.media?.coverImage?.extraLarge && (
+                    <div
+                        data-vc-element="background-blur"
+                        className="absolute inset-0 z-[0] overflow-hidden pointer-events-none"
+                        aria-hidden
+                    >
+                        <img
+                            src={state.playbackInfo.media.coverImage.extraLarge}
+                            className="absolute inset-0 w-full h-full object-cover blur-3xl scale-110 opacity-20"
+                            alt=""
+                        />
+                        <div className="absolute inset-0 bg-black/50" />
+                    </div>
+                )}
                 {(!!state.playbackInfo?.streamUrl && !state.loadingState) ? (
                     <>
                         <VideoCoreKeybindingController
@@ -684,6 +701,12 @@ export function VideoCore(props: VideoCoreProps) {
     useVideoCoreBindings(videoRef, state.playbackInfo)
     useVideoCorePlaylistSetup(state, onPlayEpisode)
 
+    // Sync playbackInfo to scoped atom so menus (audio/subtitle) can read it in all playback modes
+    const setPlaybackInfo = useSetAtom(vc_playbackInfo)
+    React.useEffect(() => {
+        setPlaybackInfo(state.playbackInfo ?? null)
+    }, [state.playbackInfo])
+
     const { isParticipant: isWatchPartyParticipant } = useNakamaWatchParty()
 
     const videoCompletedRef = useRef(false)
@@ -708,6 +731,7 @@ export function VideoCore(props: VideoCoreProps) {
     // States
     const qc = useQueryClient()
     const settings = useAtomValue(vc_settings)
+    const perMediaTrackOverrides = useAtomValue(vc_perMediaTrackOverrides)
     const [isMiniPlayer, setIsMiniPlayer] = useAtom(vc_miniPlayer)
     const [busy, setBusy] = useAtom(vc_busy)
     const [buffering, setBuffering] = useAtom(vc_buffering)
@@ -976,6 +1000,15 @@ export function VideoCore(props: VideoCoreProps) {
 
         if (!state.playbackInfo) return // shouldn't happen
 
+        // Build effective settings with per-media track overrides
+        const mediaId = state.playbackInfo.media?.id
+        const perMediaOverride = mediaId ? perMediaTrackOverrides[String(mediaId)] : undefined
+        const effectiveSettings = perMediaOverride ? {
+            ...settings,
+            preferredAudioLanguage: perMediaOverride.audioLanguage || settings.preferredAudioLanguage,
+            preferredSubtitleLanguage: perMediaOverride.subtitleLanguage || settings.preferredSubtitleLanguage,
+        } : settings
+
         // setHasUpdatedProgress(false)
 
         currentPlaybackRef.current = state.playbackInfo.id
@@ -1002,7 +1035,7 @@ export function VideoCore(props: VideoCoreProps) {
                     translateTargetLang: serverStatus?.settings?.mediaPlayer?.vcTranslate
                         ? serverStatus?.settings?.mediaPlayer?.vcTranslateTargetLanguage
                         : null,
-                    settings: settings,
+                    settings: effectiveSettings,
                     fetchAndConvertToVTT: (url?: string, content?: string) => {
                         return new Promise((resolve, reject) => {
                             convertSubs({ url: url ?? "", content: content ?? "", to: "vtt" }, {
@@ -1032,7 +1065,7 @@ export function VideoCore(props: VideoCoreProps) {
                     translateTargetLang: serverStatus?.settings?.mediaPlayer?.vcTranslate
                         ? serverStatus?.settings?.mediaPlayer?.vcTranslateTargetLanguage
                         : null,
-                    settings: settings,
+                    settings: effectiveSettings,
                     fetchAndConvertToASS: (url?: string, content?: string) => {
                         return new Promise((resolve, reject) => {
                             convertSubs({ url: url ?? "", content: content ?? "", to: "ass" }, {
@@ -1058,7 +1091,7 @@ export function VideoCore(props: VideoCoreProps) {
             setAudioManager(new VideoCoreAudioManager({
                 videoElement: v!,
                 playbackInfo: state.playbackInfo,
-                settings: settings,
+                settings: effectiveSettings,
                 onError: (error) => {
                     log.error("Audio manager error", error)
                     onError?.(error)
@@ -1071,7 +1104,7 @@ export function VideoCore(props: VideoCoreProps) {
             setAudioManager(new VideoCoreAudioManager({
                 videoElement: v!,
                 playbackInfo: state.playbackInfo,
-                settings: settings,
+                settings: effectiveSettings,
                 onError: (error) => {
                     log.error("Audio manager error", error)
                     onError?.(error)

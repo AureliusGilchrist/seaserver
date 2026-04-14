@@ -1,6 +1,8 @@
 package core
 
 import (
+	crypto_rand "crypto/rand"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -195,6 +197,9 @@ type (
 		ProfilePathResolver    *ProfilePathResolver
 		ProfileDatabaseManager *ProfileDatabaseManager
 		AnilistClientManager   *AnilistClientManager
+
+		// Boot UUID — regenerated every server start to invalidate frontend sessions
+		BootID string
 
 		// Achievement system
 		AchievementEngine *achievement.Engine
@@ -523,6 +528,14 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		ProfileMigrator:                 profileMigrator,
 		ProfilePathResolver:             profilePathResolver,
 		ProfileDatabaseManager:          profileDBManager,
+	}
+
+	// Generate a unique boot ID each server start to invalidate frontend session tokens
+	{
+		bootBytes := make([]byte, 16)
+		_, _ = crypto_rand.Read(bootBytes)
+		app.BootID = fmt.Sprintf("%x-%x-%x-%x-%x", bootBytes[0:4], bootBytes[4:6], bootBytes[6:8], bootBytes[8:10], bootBytes[10:])
+		logger.Info().Str("bootId", app.BootID).Msg("app: Generated boot ID for session invalidation")
 	}
 
 	// Initialize AnilistClientManager after app struct is created (it references app)
