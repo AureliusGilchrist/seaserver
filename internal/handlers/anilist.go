@@ -24,10 +24,20 @@ import (
 //	@route /api/v1/anilist/collection [GET,POST]
 func (h *Handler) HandleGetAnimeCollection(c echo.Context) error {
 
+	profileID := h.GetProfileID(c)
 	bypassCache := c.Request().Method == "POST"
 
 	if !bypassCache {
-		// Get the user's anilist collection
+		// GET: return cached collection.
+		// Profile users use the per-profile manager cache (5-min TTL + singleflight).
+		// Admin uses the shared platform cache.
+		if profileID > 0 {
+			animeCollection, err := h.App.AnilistClientManager.GetAnimeCollection(profileID)
+			if err != nil {
+				return h.RespondWithError(c, err)
+			}
+			return h.RespondWithData(c, animeCollection)
+		}
 		animeCollection, err := h.App.GetAnimeCollection(false)
 		if err != nil {
 			return h.RespondWithError(c, err)
@@ -35,41 +45,49 @@ func (h *Handler) HandleGetAnimeCollection(c echo.Context) error {
 		return h.RespondWithData(c, animeCollection)
 	}
 
+	// POST: force-refresh.
+	// For profile users: invalidate + synchronously re-fetch their own collection (so the
+	// response has fresh data), AND kick off an async refresh of the planning-slut/admin
+	// collection (which drives auto-downloader, scanner, etc.).
+	// For admin: sync refresh of the shared collection as before.
 	ctx := enmasse.WithUserInitiated(c.Request().Context())
-	animeCollection, err := h.App.RefreshAnimeCollectionWithCtx(ctx)
-	if err != nil {
-		return h.RespondWithError(c, err)
+
+	var animeCollection *anilist.AnimeCollection
+	if profileID > 0 {
+		// Invalidate the profile cache then fetch fresh.
+		h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
+		var err error
+		animeCollection, err = h.App.AnilistClientManager.GetAnimeCollection(profileID)
+		if err != nil {
+			return h.RespondWithError(c, err)
+		}
+		// Async refresh of the planning-slut/shared collection.
+		go func() {
+			_, _ = h.App.RefreshAnimeCollectionWithCtx(ctx)
+			_, _ = h.App.RefreshMangaCollectionWithCtx(ctx)
+		}()
+	} else {
+		var err error
+		animeCollection, err = h.App.RefreshAnimeCollectionWithCtx(ctx)
+		if err != nil {
+			return h.RespondWithError(c, err)
+		}
+		go func() {
+			_, _ = h.App.RefreshMangaCollectionWithCtx(ctx)
+		}()
 	}
 
-	go func() {
-		_, _ = h.App.RefreshMangaCollectionWithCtx(ctx)
-	}()
-
-	// Evaluate collection-based achievements using the per-profile AniList client
-	// so achievements reflect the profile's own stats, not the shared/global account.
-	profileID := h.GetProfileID(c)
+	// Evaluate collection-based achievements using the per-profile collection.
 	if profileID > 0 {
-		profileClient := h.GetProfileAnilistClient(c)
-		if profileClient.IsAuthenticated() {
-			// Get the profile's username for collection fetch
-			var profileUsername *string
-			if h.App.ProfileManager != nil {
-				if prof, err := h.App.ProfileManager.GetProfile(profileID); err == nil && prof.AniListUsername != "" {
-					profileUsername = &prof.AniListUsername
-				}
+		go func() {
+			profileMangaCol, mangaErr := h.App.AnilistClientManager.GetMangaCollection(profileID)
+			var mangaCol *anilist.MangaCollection
+			if mangaErr == nil {
+				mangaCol = profileMangaCol
 			}
-			// Fetch collections using the profile's own AniList client
-			profileAnimeCol, animeErr := profileClient.AnimeCollection(c.Request().Context(), profileUsername)
-			profileMangaCol, mangaErr := profileClient.MangaCollection(c.Request().Context(), profileUsername)
-			if animeErr == nil {
-				var mangaCol *anilist.MangaCollection
-				if mangaErr == nil {
-					mangaCol = profileMangaCol
-				}
-				stats := buildCollectionStats(profileAnimeCol, mangaCol)
-				h.App.AchievementEngine.EvaluateCollectionStats(profileID, stats)
-			}
-		}
+			stats := buildCollectionStats(animeCollection, mangaCol)
+			h.App.AchievementEngine.EvaluateCollectionStats(profileID, stats)
+		}()
 	}
 
 	return h.RespondWithData(c, animeCollection)
@@ -179,12 +197,29 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 
 	switch p.Type {
 	case "anime":
-		_, _ = h.App.RefreshAnimeCollection()
+		if profileID > 0 {
+			h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
+			go func() { _, _ = h.App.RefreshAnimeCollection() }()
+		} else {
+			_, _ = h.App.RefreshAnimeCollection()
+		}
 	case "manga":
-		_, _ = h.App.RefreshMangaCollection()
+		if profileID > 0 {
+			h.App.AnilistClientManager.InvalidateMangaCollection(profileID)
+			go func() { _, _ = h.App.RefreshMangaCollection() }()
+		} else {
+			_, _ = h.App.RefreshMangaCollection()
+		}
 	default:
-		_, _ = h.App.RefreshAnimeCollection()
-		_, _ = h.App.RefreshMangaCollection()
+		if profileID > 0 {
+			h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
+			h.App.AnilistClientManager.InvalidateMangaCollection(profileID)
+			go func() { _, _ = h.App.RefreshAnimeCollection() }()
+			go func() { _, _ = h.App.RefreshMangaCollection() }()
+		} else {
+			_, _ = h.App.RefreshAnimeCollection()
+			_, _ = h.App.RefreshMangaCollection()
+		}
 	}
 
 	return h.RespondWithData(c, true)
@@ -420,9 +455,19 @@ func (h *Handler) HandleDeleteAnilistListEntry(c echo.Context) error {
 
 	switch *p.Type {
 	case "anime":
-		_, _ = h.App.RefreshAnimeCollection()
+		if profileID > 0 {
+			h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
+			go func() { _, _ = h.App.RefreshAnimeCollection() }()
+		} else {
+			_, _ = h.App.RefreshAnimeCollection()
+		}
 	case "manga":
-		_, _ = h.App.RefreshMangaCollection()
+		if profileID > 0 {
+			h.App.AnilistClientManager.InvalidateMangaCollection(profileID)
+			go func() { _, _ = h.App.RefreshMangaCollection() }()
+		} else {
+			_, _ = h.App.RefreshMangaCollection()
+		}
 	}
 
 	return h.RespondWithData(c, true)

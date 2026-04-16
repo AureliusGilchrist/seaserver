@@ -15,6 +15,7 @@ import { Drawer } from "@/components/ui/drawer"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { NumberInput } from "@/components/ui/number-input"
 import { RadioGroup } from "@/components/ui/radio-group"
+import { Switch } from "@/components/ui/switch"
 import { upath } from "@/lib/helpers/upath"
 import { atom } from "jotai"
 import { useAtom } from "jotai/react"
@@ -63,6 +64,10 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
     const { mutate: rematch, isPending: isRematching } = useAnimeEntryRematch()
 
     const isUpdating = isUpdatingFile || isMatching || isRematching
+
+    // Index-based episode matching state
+    const [dependOnIndex, setDependOnIndex] = React.useState(false)
+    const [episodeOffset, setEpisodeOffset] = React.useState(1)
 
     const [_r, setR] = React.useState(0)
 
@@ -141,6 +146,8 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
             mutation({
                 paths: selectedPaths,
                 mediaId: anilistId,
+                useIndexBasedEpisodes: dependOnIndex,
+                episodeOffset: dependOnIndex ? (episodeOffset > 0 ? episodeOffset : 1) : undefined,
             }, {
                 onSuccess: () => {
                     pruneAndAdvance(selectedPaths)
@@ -265,6 +272,29 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
                         >Match selection</Button>
                     </div>
 
+                    {/* Index-based episode matching controls */}
+                    <div className="flex flex-wrap items-center gap-3 w-full py-1">
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-[--muted]">Depend on index</span>
+                            <Switch
+                                value={dependOnIndex}
+                                onValueChange={setDependOnIndex}
+                            />
+                        </div>
+                        {dependOnIndex && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-[--muted]">Start at episode</span>
+                                <div className="w-24">
+                                    <NumberInput
+                                        value={episodeOffset}
+                                        onValueChange={v => setEpisodeOffset(v > 0 ? v : 1)}
+                                        formatOptions={{ useGrouping: false }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/*<div className="flex flex-1">*/}
                     {/*</div>*/}
                 </div>
@@ -292,7 +322,15 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
                         />
                     </div>
 
-                    {currentGroup.localFiles?.sort((a, b) => ((Number(a.parsedInfo?.episode ?? 0)) - (Number(b.parsedInfo?.episode ?? 0))))
+                    {currentGroup.localFiles?.slice().sort((a, b) => {
+                        if (dependOnIndex) {
+                            // Natural sort by filename when index-based mode is on
+                            return upath.basename(a.path).localeCompare(
+                                upath.basename(b.path), undefined, { numeric: true, sensitivity: "base" },
+                            )
+                        }
+                        return (Number(a.parsedInfo?.episode ?? 0)) - (Number(b.parsedInfo?.episode ?? 0))
+                    })
                         .map((lf, index) => (
                             <div
                                 key={`${lf.path}-${index}`}

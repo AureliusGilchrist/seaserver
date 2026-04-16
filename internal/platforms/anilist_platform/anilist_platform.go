@@ -18,6 +18,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
 	"github.com/samber/mo"
+	"golang.org/x/sync/singleflight"
 )
 
 type (
@@ -34,6 +35,11 @@ type (
 		helper                 *shared_platform.PlatformHelper
 		db                     *db.Database
 		extensionBankRef       *util.Ref[*extension.UnifiedBank]
+		// singleflight groups prevent thundering-herd: concurrent callers that find the
+		// collection cache empty all wait on the same in-flight HTTP request instead of
+		// each firing their own.
+		animeSfg singleflight.Group
+		mangaSfg singleflight.Group
 	}
 )
 
@@ -474,12 +480,21 @@ func (ap *AnilistPlatform) RefreshAnimeCollection(ctx context.Context) (*anilist
 }
 
 func (ap *AnilistPlatform) refreshAnimeCollection(ctx context.Context) error {
+	_, err, _ := ap.animeSfg.Do("anime", func() (interface{}, error) {
+		return nil, ap.doRefreshAnimeCollection()
+	})
+	return err
+}
+
+func (ap *AnilistPlatform) doRefreshAnimeCollection() error {
 	if ap.username.IsAbsent() {
 		return errors.New("anilist: Username is not set")
 	}
 
-	// Else, get the collection from Anilist
-	collection, err := ap.anilistClient.AnimeCollection(ctx, ap.username.ToPointer())
+	// Get the collection from AniList; use a fresh background context so the
+	// shared in-flight request is not cancelled if a single caller's context
+	// times out while others are still waiting.
+	collection, err := ap.anilistClient.AnimeCollection(context.Background(), ap.username.ToPointer())
 	if err != nil {
 		return err
 	}
@@ -616,11 +631,18 @@ func (ap *AnilistPlatform) RefreshMangaCollection(ctx context.Context) (*anilist
 }
 
 func (ap *AnilistPlatform) refreshMangaCollection(ctx context.Context) error {
+	_, err, _ := ap.mangaSfg.Do("manga", func() (interface{}, error) {
+		return nil, ap.doRefreshMangaCollection()
+	})
+	return err
+}
+
+func (ap *AnilistPlatform) doRefreshMangaCollection() error {
 	if ap.username.IsAbsent() {
 		return errors.New("anilist: Username is not set")
 	}
 
-	collection, err := ap.anilistClient.MangaCollection(ctx, ap.username.ToPointer())
+	collection, err := ap.anilistClient.MangaCollection(context.Background(), ap.username.ToPointer())
 	if err != nil {
 		return err
 	}

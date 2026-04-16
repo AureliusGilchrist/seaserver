@@ -60,11 +60,24 @@ func (h *Handler) HandleGetProfileStats(c echo.Context) error {
 	totalActive, animeDays, mangaDays := profilestats.CountActiveDays(allLogs)
 
 	// Compute personality from anime collection genre distribution
-	personality := h.computePersonality()
+	// Compute reading time and rewatch time from AniList collections.
+	// Fetch profile-correct collections once so we don't make extra AniList calls.
+	var animeCol *anilist.AnimeCollection
+	var mangaCol *anilist.MangaCollection
+	profileID := h.GetProfileID(c)
+	if profileID > 0 {
+		animeCol, _ = h.App.AnilistClientManager.GetAnimeCollection(profileID)
+		mangaCol, _ = h.App.AnilistClientManager.GetMangaCollection(profileID)
+	} else {
+		animeCol, _ = h.App.GetAnimeCollection(false)
+		mangaCol, _ = h.App.GetMangaCollection(false)
+	}
+
+	personality := h.computePersonality(animeCol)
 
 	// Compute reading time and rewatch time from AniList collections
-	totalWatchMinWithRewatches := h.computeWatchMinutesWithRewatches()
-	estimatedReadingMin := h.computeEstimatedReadingMinutes()
+	totalWatchMinWithRewatches := h.computeWatchMinutesWithRewatches(animeCol)
+	estimatedReadingMin := h.computeEstimatedReadingMinutes(mangaCol)
 
 	result := &profilestats.ProfileStats{
 		ActivityHeatmap:                heatmap,
@@ -153,9 +166,8 @@ func (h *Handler) HandleGetUserProfileStats(c echo.Context) error {
 
 // computePersonality extracts genre counts and collection stats from the AniList collection
 // to classify the user's anime personality.
-func (h *Handler) computePersonality() *profilestats.PersonalityResult {
-	animeCol, err := h.App.GetAnimeCollection(false)
-	if err != nil || animeCol == nil {
+func (h *Handler) computePersonality(animeCol *anilist.AnimeCollection) *profilestats.PersonalityResult {
+	if animeCol == nil {
 		return profilestats.ClassifyPersonality(nil, 0, 0, 0)
 	}
 
@@ -199,9 +211,8 @@ func (h *Handler) computePersonality() *profilestats.PersonalityResult {
 
 // computeWatchMinutesWithRewatches computes total anime watch minutes including rewatches.
 // Formula: sum of (progress × duration) + (repeat × episodes × duration) for each entry.
-func (h *Handler) computeWatchMinutesWithRewatches() int {
-	animeCol, err := h.App.GetAnimeCollection(false)
-	if err != nil || animeCol == nil {
+func (h *Handler) computeWatchMinutesWithRewatches(animeCol *anilist.AnimeCollection) int {
+	if animeCol == nil {
 		return 0
 	}
 
@@ -244,9 +255,8 @@ func (h *Handler) computeWatchMinutesWithRewatches() int {
 
 // computeEstimatedReadingMinutes computes estimated manga reading time.
 // Formula: sum of (progress + repeat × (chapters ?? progress)) × 7 min per chapter.
-func (h *Handler) computeEstimatedReadingMinutes() int {
-	mangaCol, err := h.App.GetMangaCollection(false)
-	if err != nil || mangaCol == nil {
+func (h *Handler) computeEstimatedReadingMinutes(mangaCol *anilist.MangaCollection) int {
+	if mangaCol == nil {
 		return 0
 	}
 

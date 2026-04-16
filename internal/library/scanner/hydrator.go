@@ -13,6 +13,7 @@ import (
 	"seanime/internal/util"
 	"seanime/internal/util/comparison"
 	"seanime/internal/util/limiter"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,6 +40,12 @@ type FileHydrator struct {
 	ForceMediaId        int                        // optional - force all local files to have this media ID
 	Config              *Config
 	hydrationRules      map[string]*compiledHydrationRule
+	// UseIndexBasedEpisodes assigns episode numbers by natural-sorted position
+	// rather than parsing them from the filename. Applies only during manual match.
+	UseIndexBasedEpisodes bool
+	// EpisodeOffset is the first episode number assigned when UseIndexBasedEpisodes
+	// is true. If <= 0 it defaults to 1.
+	EpisodeOffset int
 }
 
 type compiledHydrationRule struct {
@@ -135,6 +142,48 @@ func (fh *FileHydrator) hydrateGroupMetadata(
 
 	// Make sure the media is fetched
 	_ = anime.FetchNormalizedMedia(fh.PlatformRef.Get().GetAnilistClient(), fh.AnilistRateLimiter, fh.CompleteAnimeCache, media)
+
+	// Index-based episode assignment: skip filename parsing entirely.
+	// Files are sorted by natural (numeric-aware) filename order; locked files are
+	// excluded from the counter so they keep their existing metadata.
+	if fh.UseIndexBasedEpisodes {
+		sorted := make([]*anime.LocalFile, len(lfs))
+		copy(sorted, lfs)
+		slices.SortStableFunc(sorted, func(a, b *anime.LocalFile) int {
+			if naturalSortNameLess(a.Name, b.Name) {
+				return -1
+			}
+			return 1
+		})
+		offset := fh.EpisodeOffset
+		if offset <= 0 {
+			offset = 1
+		}
+		episodeIdx := 0
+		for _, lf := range sorted {
+			if lf.Locked {
+				continue // keep existing metadata; don't consume an index slot
+			}
+			ep := offset + episodeIdx
+			lf.MediaId = mId
+			lf.Metadata.Episode = ep
+			lf.Metadata.AniDBEpisode = strconv.Itoa(ep)
+			lf.Metadata.Type = anime.LocalFileTypeMain
+			lf.Locked = true // lock so post-save rescans don't re-hydrate them
+			if fh.ScanLogger != nil {
+				fh.ScanLogger.LogFileHydrator(zerolog.DebugLevel).
+					Str("filename", lf.Name).
+					Int("mediaId", mId).
+					Int("episode", ep).
+					Msg("File assigned episode by index")
+			}
+			if fh.ScanSummaryLogger != nil {
+				fh.ScanSummaryLogger.LogMetadataMain(lf, ep, strconv.Itoa(ep))
+			}
+			episodeIdx++
+		}
+		return
+	}
 
 	// Tree contains media relations
 	tree := anilist.NewCompleteAnimeRelationTree()
@@ -827,6 +876,68 @@ func (fh *FileHydrator) applyHydrationRule(lf *anime.LocalFile) bool {
 
 	}
 
+	return false
+}
+
+// naturalSortNameLess reports whether filename a should sort before b using
+// natural (human-friendly) ordering where numeric runs are compared numerically.
+// Example: "ep2.mkv" < "ep10.mkv" because 2 < 10.
+func naturalSortNameLess(a, b string) bool {
+	al := strings.ToLower(a)
+	bl := strings.ToLower(b)
+	for len(al) > 0 || len(bl) > 0 {
+		// Find the first digit in each string.
+		ai := strings.IndexAny(al, "0123456789")
+		bi := strings.IndexAny(bl, "0123456789")
+
+		// Extract the non-digit prefix.
+		ap := al
+		if ai >= 0 {
+			ap = al[:ai]
+		}
+		bp := bl
+		if bi >= 0 {
+			bp = bl[:bi]
+		}
+
+		// Compare non-digit prefixes lexicographically.
+		if ap != bp {
+			return ap < bp
+		}
+
+		// Both prefixes match; advance past them.
+		if ai < 0 && bi < 0 {
+			return false // strings equal so far, no more digits
+		}
+		if ai < 0 {
+			return true // a exhausted its non-digit part first
+		}
+		if bi < 0 {
+			return false
+		}
+		al = al[ai:]
+		bl = bl[bi:]
+
+		// Extract digit run from each.
+		ae := 0
+		for ae < len(al) && al[ae] >= '0' && al[ae] <= '9' {
+			ae++
+		}
+		be := 0
+		for be < len(bl) && bl[be] >= '0' && bl[be] <= '9' {
+			be++
+		}
+
+		na, _ := strconv.Atoi(al[:ae])
+		nb, _ := strconv.Atoi(bl[:be])
+		if na != nb {
+			return na < nb
+		}
+
+		// Numerically equal (e.g. "007" vs "7"): advance and keep comparing.
+		al = al[ae:]
+		bl = bl[be:]
+	}
 	return false
 }
 

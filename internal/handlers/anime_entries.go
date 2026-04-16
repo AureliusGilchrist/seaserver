@@ -15,7 +15,6 @@ import (
 	"seanime/internal/library/summary"
 	"seanime/internal/util"
 	"seanime/internal/util/limiter"
-	"seanime/internal/util/result"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -56,10 +55,23 @@ func (h *Handler) getAnimeEntry(c echo.Context, lfs []*anime.LocalFile, mId int)
 		}
 	}
 
-	// Get the user's anilist collection
-	animeCollection, err := h.App.GetAnimeCollection(false)
-	if err != nil {
-		return nil, err
+	// Get the user's anilist collection.
+	// Profile users use the per-profile manager cache so they see their own watch
+	// status and progress on the entry page. Admin uses the planning-slut collection.
+	var animeCollection *anilist.AnimeCollection
+	profileID := h.GetProfileID(c)
+	if profileID > 0 {
+		var err error
+		animeCollection, err = h.App.AnilistClientManager.GetAnimeCollection(profileID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		var err error
+		animeCollection, err = h.App.GetAnimeCollection(false)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if animeCollection == nil {
@@ -107,8 +119,10 @@ func (h *Handler) getAnimeEntry(c echo.Context, lfs []*anime.LocalFile, mId int)
 func (h *Handler) HandleAnimeEntryRematch(c echo.Context) error {
 
 	type body struct {
-		Paths   []string `json:"paths"`
-		MediaId int      `json:"mediaId"`
+		Paths                 []string `json:"paths"`
+		MediaId               int      `json:"mediaId"`
+		UseIndexBasedEpisodes bool     `json:"useIndexBasedEpisodes"`
+		EpisodeOffset         int      `json:"episodeOffset"`
 	}
 
 	b := new(body)
@@ -176,16 +190,18 @@ func (h *Handler) HandleAnimeEntryRematch(c echo.Context) error {
 	scanSummaryLogger := summary.NewScanSummaryLogger()
 
 	fh := scanner.FileHydrator{
-		LocalFiles:          selectedLfs,
-		CompleteAnimeCache:  anilist.NewCompleteAnimeCache(),
-		PlatformRef:         h.App.AnilistPlatformRef,
-		MetadataProviderRef: h.App.MetadataProviderRef,
-		AnilistRateLimiter:  limiter.NewAnilistLimiter(),
-		Logger:              h.App.Logger,
-		ScanLogger:          scanLogger,
-		ScanSummaryLogger:   scanSummaryLogger,
-		AllMedia:            normalizedMedia,
-		ForceMediaId:        media.GetID(),
+		LocalFiles:            selectedLfs,
+		CompleteAnimeCache:    anilist.NewCompleteAnimeCache(),
+		PlatformRef:           h.App.AnilistPlatformRef,
+		MetadataProviderRef:   h.App.MetadataProviderRef,
+		AnilistRateLimiter:    limiter.NewAnilistLimiter(),
+		Logger:                h.App.Logger,
+		ScanLogger:            scanLogger,
+		ScanSummaryLogger:     scanSummaryLogger,
+		AllMedia:              normalizedMedia,
+		ForceMediaId:          media.GetID(),
+		UseIndexBasedEpisodes: b.UseIndexBasedEpisodes,
+		EpisodeOffset:         b.EpisodeOffset,
 	}
 
 	// Delete NC files upfront and exclude from hydration
@@ -385,10 +401,6 @@ func (h *Handler) HandleOpenAnimeEntryInExplorer(c echo.Context) error {
 
 //----------------------------------------------------------------------------------------------------------------------
 
-var (
-	entriesSuggestionsCache = result.NewCache[string, []*anilist.BaseAnime]()
-)
-
 // HandleFetchAnimeEntrySuggestions
 //
 //	@summary returns a list of media suggestions for files in the given directory.
@@ -408,11 +420,6 @@ func (h *Handler) HandleFetchAnimeEntrySuggestions(c echo.Context) error {
 	}
 
 	b.Dir = util.NormalizePath(b.Dir)
-
-	suggestions, found := entriesSuggestionsCache.Get(b.Dir)
-	if found {
-		return h.RespondWithData(c, suggestions)
-	}
 
 	// Retrieve local files
 	lfs, _, err := db_bridge.GetLocalFiles(h.App.Database)
@@ -436,9 +443,7 @@ func (h *Handler) HandleFetchAnimeEntrySuggestions(c echo.Context) error {
 	})
 
 	if len(selectedLfs) == 0 {
-		empty := make([]*anilist.BaseAnime, 0)
-		entriesSuggestionsCache.Set(b.Dir, empty)
-		return h.RespondWithData(c, empty)
+		return h.RespondWithData(c, make([]*anilist.BaseAnime, 0))
 	}
 
 	title := selectedLfs[0].GetParsedTitle()
@@ -466,9 +471,6 @@ func (h *Handler) HandleFetchAnimeEntrySuggestions(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	// Cache the results
-	entriesSuggestionsCache.Set(b.Dir, res.GetPage().GetMedia())
-
 	return h.RespondWithData(c, res.GetPage().GetMedia())
 
 }
@@ -486,8 +488,10 @@ func (h *Handler) HandleFetchAnimeEntrySuggestions(c echo.Context) error {
 func (h *Handler) HandleAnimeEntryManualMatch(c echo.Context) error {
 
 	type body struct {
-		Paths   []string `json:"paths"`
-		MediaId int      `json:"mediaId"`
+		Paths                 []string `json:"paths"`
+		MediaId               int      `json:"mediaId"`
+		UseIndexBasedEpisodes bool     `json:"useIndexBasedEpisodes"`
+		EpisodeOffset         int      `json:"episodeOffset"`
 	}
 
 	b := new(body)
@@ -545,16 +549,18 @@ func (h *Handler) HandleAnimeEntryManualMatch(c echo.Context) error {
 	scanSummaryLogger := summary.NewScanSummaryLogger()
 
 	fh := scanner.FileHydrator{
-		LocalFiles:          selectedLfs,
-		CompleteAnimeCache:  anilist.NewCompleteAnimeCache(),
-		PlatformRef:         h.App.AnilistPlatformRef,
-		MetadataProviderRef: h.App.MetadataProviderRef,
-		AnilistRateLimiter:  limiter.NewAnilistLimiter(),
-		Logger:              h.App.Logger,
-		ScanLogger:          scanLogger,
-		ScanSummaryLogger:   scanSummaryLogger,
-		AllMedia:            normalizedMedia,
-		ForceMediaId:        media.GetID(),
+		LocalFiles:            selectedLfs,
+		CompleteAnimeCache:    anilist.NewCompleteAnimeCache(),
+		PlatformRef:           h.App.AnilistPlatformRef,
+		MetadataProviderRef:   h.App.MetadataProviderRef,
+		AnilistRateLimiter:    limiter.NewAnilistLimiter(),
+		Logger:                h.App.Logger,
+		ScanLogger:            scanLogger,
+		ScanSummaryLogger:     scanSummaryLogger,
+		AllMedia:              normalizedMedia,
+		ForceMediaId:          media.GetID(),
+		UseIndexBasedEpisodes: b.UseIndexBasedEpisodes,
+		EpisodeOffset:         b.EpisodeOffset,
 	}
 
 	fh.HydrateMetadata()
@@ -825,7 +831,12 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 		})
 	}
 
-	_, _ = h.App.RefreshAnimeCollection() // Refresh the AniList collection
+	if profileID > 0 {
+		h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
+		go func() { _, _ = h.App.RefreshAnimeCollection() }()
+	} else {
+		_, _ = h.App.RefreshAnimeCollection()
+	}
 
 	return h.RespondWithData(c, true)
 }

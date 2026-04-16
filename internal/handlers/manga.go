@@ -84,6 +84,20 @@ func (h *Handler) HandleGetAnilistMangaCollection(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	profileID := h.GetProfileID(c)
+	if profileID > 0 {
+		// Profile user: use manager cache (5-min TTL + singleflight).
+		// On bypassCache, invalidate first so the next Get fetches fresh.
+		if b.BypassCache {
+			h.App.AnilistClientManager.InvalidateMangaCollection(profileID)
+		}
+		collection, err := h.App.AnilistClientManager.GetMangaCollection(profileID)
+		if err != nil {
+			return h.RespondWithError(c, err)
+		}
+		return h.RespondWithData(c, collection)
+	}
+
 	collection, err := h.App.GetMangaCollection(b.BypassCache)
 	if err != nil {
 		return h.RespondWithError(c, err)
@@ -119,27 +133,67 @@ func (h *Handler) HandleGetRawAnilistMangaCollection(c echo.Context) error {
 //	@route /api/v1/manga/collection [GET]
 //	@returns manga.Collection
 func (h *Handler) HandleGetMangaCollection(c echo.Context) error {
+	profileID := h.GetProfileID(c)
 
-	animeCollection, err := h.App.GetMangaCollection(false)
+	// Catalogue = admin/planning-slut's manga collection (media metadata source, cached)
+	catalogueMangaCollection, err := h.App.GetMangaCollection(false)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
 
-	// Get the media map from the manga downloader
+	// Determine the collection whose list data (status, score, progress) is authoritative.
+	// For profile users with their own AniList: use their personal collection.
+	// For admin or unlinked profiles: fall back to the catalogue.
+	mangaCollection := catalogueMangaCollection
+	if profileID > 0 {
+		profileMangaCollection, ferr := h.App.AnilistClientManager.GetMangaCollection(profileID)
+		if ferr == nil && profileMangaCollection != nil {
+			mangaCollection = profileMangaCollection
+		}
+	}
+
+	// Get media map from manga downloader (downloaded chapters)
 	mediaMap := h.App.MangaDownloader.GetMediaMap()
 
-	// Planning slut merge disabled — profile users saw shared entries merged into their collection.
-	sharedOnlyMediaIds := make(map[int]struct{})
+	// For profile users: inject downloaded-chapter manga from the catalogue that the profile
+	// hasn't personally tracked, so downloaded manga always shows up.
+	// Their EntryListData (planning-slut tracking) is then nulled via hideSharedOnlyMangaListData.
+	sharedOnlyMangaIds := make(map[int]struct{})
+	if profileID > 0 && mangaCollection != catalogueMangaCollection && catalogueMangaCollection != nil {
+		downloadedMediaIds := make(map[int]struct{})
+		for id := range mediaMap {
+			downloadedMediaIds[id] = struct{}{}
+		}
+		userTrackedIds := make(map[int]struct{})
+		if mangaCollection != nil && mangaCollection.MediaListCollection != nil {
+			for _, list := range mangaCollection.MediaListCollection.GetLists() {
+				for _, entry := range list.GetEntries() {
+					if m := entry.GetMedia(); m != nil {
+						userTrackedIds[m.GetID()] = struct{}{}
+					}
+				}
+			}
+		}
+		downloadedOnlyIds := make(map[int]struct{})
+		for id := range downloadedMediaIds {
+			if _, tracked := userTrackedIds[id]; !tracked {
+				downloadedOnlyIds[id] = struct{}{}
+			}
+		}
+		if len(downloadedOnlyIds) > 0 {
+			sharedOnlyMangaIds = mergePlanningSlutMangaCollection(mangaCollection, catalogueMangaCollection, downloadedOnlyIds)
+		}
+	}
 
 	collection, err := manga.NewCollection(&manga.NewCollectionOptions{
-		MangaCollection: animeCollection,
+		MangaCollection: mangaCollection,
 		PlatformRef:     h.App.AnilistPlatformRef,
 		MediaMap:        &mediaMap,
 	})
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
-	hideSharedOnlyMangaListData(collection, sharedOnlyMediaIds)
+	hideSharedOnlyMangaListData(collection, sharedOnlyMangaIds)
 
 	return h.RespondWithData(c, collection)
 }
@@ -620,7 +674,12 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 		})
 	}
 
-	_, _ = h.App.RefreshMangaCollection() // Refresh the AniList collection
+	if profileID > 0 {
+		h.App.AnilistClientManager.InvalidateMangaCollection(profileID)
+		go func() { _, _ = h.App.RefreshMangaCollection() }()
+	} else {
+		_, _ = h.App.RefreshMangaCollection()
+	}
 
 	return h.RespondWithData(c, true)
 }

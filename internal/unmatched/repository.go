@@ -107,11 +107,13 @@ type UnmatchedFile struct {
 
 // MatchRequest represents a request to match files to an anime
 type MatchRequest struct {
-	TorrentName     string   `json:"torrentName"`
-	SelectedFiles   []string `json:"selectedFiles"` // Relative paths of selected files
-	AnimeID         int      `json:"animeId"`
-	AnimeTitleJP    string   `json:"animeTitleJp"`    // Japanese title from AniList
-	AnimeTitleClean string   `json:"animeTitleClean"` // Cleaned title for folder name
+	TorrentName           string   `json:"torrentName"`
+	SelectedFiles         []string `json:"selectedFiles"` // Relative paths of selected files
+	AnimeID               int      `json:"animeId"`
+	AnimeTitleJP          string   `json:"animeTitleJp"`    // Japanese title from AniList
+	AnimeTitleClean       string   `json:"animeTitleClean"` // Cleaned title for folder name
+	UseIndexBasedEpisodes bool     `json:"useIndexBasedEpisodes"`
+	EpisodeOffset         int      `json:"episodeOffset"`
 }
 
 // MatchResult represents the result of a match operation
@@ -603,16 +605,25 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			continue
 		}
 
-		baseEpisode := extractEpisodeNumber(fw.file.Name)
-		episodeNum := i + 1
-		if fw.season > 0 {
-			// Apply season offset for stacking
-			if baseEpisode > 0 {
-				episodeNum = seasonOffsets[fw.season] + baseEpisode
+		var episodeNum int
+		if req.UseIndexBasedEpisodes {
+			offset := req.EpisodeOffset
+			if offset <= 0 {
+				offset = 1
 			}
-		} else if baseEpisode > 0 {
-			// Use the actual episode number from the filename instead of sort index
-			episodeNum = baseEpisode
+			episodeNum = i + offset
+		} else {
+			baseEpisode := extractEpisodeNumber(fw.file.Name)
+			episodeNum = i + 1
+			if fw.season > 0 {
+				// Apply season offset for stacking
+				if baseEpisode > 0 {
+					episodeNum = seasonOffsets[fw.season] + baseEpisode
+				}
+			} else if baseEpisode > 0 {
+				// Use the actual episode number from the filename instead of sort index
+				episodeNum = baseEpisode
+			}
 		}
 
 		episodeTitle := r.getEpisodeTitle(req.AnimeID, episodeNum)

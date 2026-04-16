@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"errors"
 	"seanime/internal/api/anilist"
 	"seanime/internal/customsource"
@@ -33,33 +32,12 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 	var err error
 
 	if profileID > 0 {
-		// Non-admin profile: fetch from the profile's own AniList account
-		anilistClient := h.GetProfileAnilistClient(c)
-		if !anilistClient.IsAuthenticated() {
+		// Non-admin profile: use the manager cache (5-min TTL + singleflight).
+		// Multiple concurrent page loads for the same profile collapse into one
+		// AniList request instead of each firing their own.
+		animeCollection, err = h.App.AnilistClientManager.GetAnimeCollection(profileID)
+		if err != nil || animeCollection == nil {
 			return h.RespondWithData(c, &anime.LibraryCollection{})
-		}
-		// Resolve the viewer's username (cached after first call) because
-		// AniList's MediaListCollection query requires a userName parameter.
-		viewerName := h.App.AnilistClientManager.GetUsername(profileID)
-		if viewerName == "" {
-			h.App.Logger.Error().Uint("profileID", profileID).Msg("library: could not resolve AniList username for profile")
-			return h.RespondWithData(c, &anime.LibraryCollection{})
-		}
-		animeCollection, err = anilistClient.AnimeCollection(context.Background(), &viewerName)
-		if err != nil {
-			return h.RespondWithError(c, err)
-		}
-		// Filter out custom lists (lists with no status) like the platform does
-		if animeCollection != nil && animeCollection.MediaListCollection != nil {
-			animeCollection.MediaListCollection.Lists = func(lists []*anilist.AnimeCollection_MediaListCollection_Lists) []*anilist.AnimeCollection_MediaListCollection_Lists {
-				filtered := make([]*anilist.AnimeCollection_MediaListCollection_Lists, 0, len(lists))
-				for _, list := range lists {
-					if list.Status != nil {
-						filtered = append(filtered, list)
-					}
-				}
-				return filtered
-			}(animeCollection.MediaListCollection.Lists)
 		}
 	} else {
 		// Admin profile: use global platform (with caching)
@@ -71,6 +49,13 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 
 	if animeCollection == nil {
 		return h.RespondWithData(c, &anime.LibraryCollection{})
+	}
+
+	// For non-admin profiles: fetch the catalogue (admin/planning-slut) collection so local-file-only
+	// items can always be shown even when the profile hasn't personally tracked them.
+	var catalogueCollection *anilist.AnimeCollection
+	if profileID > 0 {
+		catalogueCollection, _ = h.App.GetAnimeCollection(false)
 	}
 
 	originalAnimeCollection := animeCollection
@@ -205,8 +190,36 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 		}
 	}
 
+	// For profile users: inject local-file-only items from the catalogue so all local files always show.
+	// Their EntryListData (planning-slut status/score) is then nulled via hideSharedOnlyAnimeListData.
 	sharedOnlyMediaIds := make(map[int]struct{})
-	// Planning slut merge disabled — its entries should not appear in the library.
+	if !fromNakama && profileID > 0 && catalogueCollection != nil {
+		localMediaIds := make(map[int]struct{})
+		for _, lf := range lfs {
+			if lf.MediaId > 0 {
+				localMediaIds[lf.MediaId] = struct{}{}
+			}
+		}
+		userTrackedIds := make(map[int]struct{})
+		if animeCollection != nil && animeCollection.MediaListCollection != nil {
+			for _, list := range animeCollection.MediaListCollection.GetLists() {
+				for _, entry := range list.GetEntries() {
+					if m := entry.GetMedia(); m != nil {
+						userTrackedIds[m.GetID()] = struct{}{}
+					}
+				}
+			}
+		}
+		localOnlyIds := make(map[int]struct{})
+		for id := range localMediaIds {
+			if _, tracked := userTrackedIds[id]; !tracked {
+				localOnlyIds[id] = struct{}{}
+			}
+		}
+		if len(localOnlyIds) > 0 {
+			sharedOnlyMediaIds = mergePlanningSlutAnimeCollection(animeCollection, catalogueCollection, localOnlyIds)
+		}
+	}
 
 	libraryCollection, err := anime.NewLibraryCollection(c.Request().Context(), &anime.NewLibraryCollectionOptions{
 		AnimeCollection:     animeCollection,

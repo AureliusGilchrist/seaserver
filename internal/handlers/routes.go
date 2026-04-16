@@ -242,8 +242,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	v1Anilist := v1.Group("/anilist")
 
-	v1Anilist.GET("/collection", h.HandleGetAnimeCollection)
-	v1Anilist.POST("/collection", h.HandleGetAnimeCollection)
+	v1Anilist.GET("/collection", h.HandleGetAnimeCollection, h.RequireProfileSession)
+	v1Anilist.POST("/collection", h.HandleGetAnimeCollection, h.RequireProfileSession)
 
 	v1Anilist.GET("/collection/raw", h.HandleGetRawAnimeCollection)
 	v1Anilist.POST("/collection/raw", h.HandleGetRawAnimeCollection)
@@ -297,14 +297,14 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Library.PATCH("/local-file", h.HandleUpdateLocalFileData)
 	v1Library.PATCH("/local-files/super-update", h.HandleSuperUpdateLocalFiles)
 
-	v1Library.GET("/collection", h.HandleGetLibraryCollection)
+	v1Library.GET("/collection", h.HandleGetLibraryCollection, h.RequireProfileSession)
 	v1Library.GET("/schedule", h.HandleGetAnimeCollectionSchedule)
 
 	v1Library.GET("/scan-summaries", h.HandleGetScanSummaries)
 
 	v1Library.GET("/missing-episodes", h.HandleGetMissingEpisodes)
 
-	v1Library.GET("/anime-entry/:id", h.HandleGetAnimeEntry)
+	v1Library.GET("/anime-entry/:id", h.HandleGetAnimeEntry, h.RequireProfileSession)
 	v1Library.POST("/anime-entry/suggestions", h.HandleFetchAnimeEntrySuggestions)
 	v1Library.POST("/anime-entry/manual-match", h.HandleAnimeEntryManualMatch)
 	v1Library.POST("/anime-entry/rematch", h.HandleAnimeEntryRematch)
@@ -441,11 +441,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	//
 
 	v1Manga := v1.Group("/manga")
-	v1Manga.POST("/anilist/collection", h.HandleGetAnilistMangaCollection)
+	v1Manga.POST("/anilist/collection", h.HandleGetAnilistMangaCollection, h.RequireProfileSession)
 	v1Manga.GET("/anilist/collection/raw", h.HandleGetRawAnilistMangaCollection)
 	v1Manga.POST("/anilist/collection/raw", h.HandleGetRawAnilistMangaCollection)
 	v1Manga.POST("/anilist/list", h.HandleAnilistListManga)
-	v1Manga.GET("/collection", h.HandleGetMangaCollection)
+	v1Manga.GET("/collection", h.HandleGetMangaCollection, h.RequireProfileSession)
 	v1Manga.POST("/hydrate-all", h.HandleHydrateAllManga)
 	v1Manga.GET("/hydrate-all/status", h.HandleGetMangaHydrationStatus)
 	v1Manga.POST("/hydrate-all/cancel", h.HandleCancelMangaHydration)
@@ -728,7 +728,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Achievements.GET("/user/:id", h.HandleGetUserAchievements)
 
 	// Profile Stats
-	v1.GET("/profile/stats", h.HandleGetProfileStats)
+	v1.GET("/profile/stats", h.HandleGetProfileStats, h.RequireProfileSession)
 
 	// Profile Page
 	v1.GET("/profile/me", h.HandleGetMyProfile)

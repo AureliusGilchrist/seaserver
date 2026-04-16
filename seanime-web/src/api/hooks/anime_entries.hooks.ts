@@ -25,7 +25,7 @@ export function useGetAnimeEntry(id: Nullish<string | number>) {
 export function useAnimeEntryRematch() {
     const queryClient = useQueryClient()
 
-    return useServerMutation<Array<Anime_LocalFile>, { paths: string[]; mediaId: number }>({
+    return useServerMutation<Array<Anime_LocalFile>, { paths: string[]; mediaId: number; useIndexBasedEpisodes?: boolean; episodeOffset?: number }>({
         endpoint: "/api/v1/library/anime-entry/rematch",
         method: "POST",
         mutationKey: ["ANIME-ENTRIES-rematch"],

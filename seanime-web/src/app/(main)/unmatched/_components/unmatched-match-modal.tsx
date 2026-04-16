@@ -15,7 +15,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Modal } from "@/components/ui/modal"
+import { NumberInput } from "@/components/ui/number-input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Switch } from "@/components/ui/switch"
 import { TextInput } from "@/components/ui/text-input"
 import { Alert } from "@/components/ui/alert/alert"
 import React, { useState, useMemo, useCallback, useEffect } from "react"
@@ -78,6 +80,8 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     const [loadError, setLoadError] = useState<string | null>(null)
     const [fetchedName, setFetchedName] = useState<string | null>(null)
     const [hasAutoSelectedAnime, setHasAutoSelectedAnime] = useState(false)
+    const [dependOnIndex, setDependOnIndex] = useState(false)
+    const [episodeOffset, setEpisodeOffset] = useState(1)
 
     const { mutate: fetchTorrentContents } = useGetUnmatchedTorrentContents(torrent?.name || null)
 
@@ -291,6 +295,8 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             animeId: selectedAnime.id,
             animeTitleJp: titleJp,
             animeTitleClean: titleClean,
+            useIndexBasedEpisodes: dependOnIndex,
+            episodeOffset: dependOnIndex ? (episodeOffset > 0 ? episodeOffset : 1) : undefined,
         })
     }, [torrent, selectedAnime, selectedFiles, matchTorrent, torrentContents])
 
@@ -535,6 +541,28 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                         <span className="text-sm text-[--muted]">
                             {selectedFiles.size} files selected
                         </span>
+                        {/* Index-based episode matching controls */}
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-[--muted]">Depend on index</span>
+                                <Switch
+                                    value={dependOnIndex}
+                                    onValueChange={setDependOnIndex}
+                                />
+                            </div>
+                            {dependOnIndex && (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-[--muted]">Start at ep</span>
+                                    <div className="w-20">
+                                        <NumberInput
+                                            value={episodeOffset}
+                                            onValueChange={v => setEpisodeOffset(v > 0 ? v : 1)}
+                                            formatOptions={{ useGrouping: false }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                         <div className="flex gap-2">
                             <Button intent="gray-outline" onClick={handleClose}>
                                 Cancel
@@ -555,7 +583,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                     onClick={() => setStep("select-anime")}
                                     disabled={selectedFiles.size === 0}
                                 >
-                                    Next: Select Anime
+                                    Match {selectedFiles.size} Files
                                 </Button>
                             )}
                         </div>

@@ -43,6 +43,8 @@ export interface MatchRequest {
     animeId: number
     animeTitleJp: string
     animeTitleClean: string
+    useIndexBasedEpisodes?: boolean
+    episodeOffset?: number
 }
 
 export interface MatchResult {

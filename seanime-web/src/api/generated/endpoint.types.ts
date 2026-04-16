@@ -259,6 +259,8 @@ export type FetchAnimeEntrySuggestions_Variables = {
 export type AnimeEntryManualMatch_Variables = {
     paths: Array<string>
     mediaId: number
+    useIndexBasedEpisodes?: boolean
+    episodeOffset?: number
 }
 
 /**

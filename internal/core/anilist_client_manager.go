@@ -2,12 +2,31 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"seanime/internal/api/anilist"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog"
+	"golang.org/x/sync/singleflight"
 )
+
+// profileCollectionCacheTTL controls how long a per-profile collection is
+// served from memory before a fresh fetch is triggered.
+const profileCollectionCacheTTL = 5 * time.Minute
+
+// profileAnimeCache is a time-stamped cache entry for an anime collection.
+type profileAnimeCache struct {
+	data      *anilist.AnimeCollection
+	fetchedAt time.Time
+}
+
+// profileMangaCache is a time-stamped cache entry for a manga collection.
+type profileMangaCache struct {
+	data      *anilist.MangaCollection
+	fetchedAt time.Time
+}
 
 // AnilistClientManager manages per-profile AniList API clients.
 // Each profile has its own AniList token stored in its per-profile database,
@@ -18,18 +37,31 @@ type AnilistClientManager struct {
 	clients   map[uint]anilist.AnilistClient
 	usernames map[uint]string // cached viewer usernames per profile
 	mu        sync.RWMutex
-	app       *App
-	logger    *zerolog.Logger
-	cacheDir  string
+
+	// Per-profile collection cache (keyed by profileID). Protected by colMu.
+	animeColCache map[uint]*profileAnimeCache
+	mangaColCache map[uint]*profileMangaCache
+	colMu         sync.RWMutex
+
+	// Singleflight groups collapse concurrent fetches for the same profile
+	// into one in-flight request so we never send duplicates to AniList.
+	animeSfg singleflight.Group
+	mangaSfg singleflight.Group
+
+	app      *App
+	logger   *zerolog.Logger
+	cacheDir string
 }
 
 func NewAnilistClientManager(app *App) *AnilistClientManager {
 	return &AnilistClientManager{
-		clients:   make(map[uint]anilist.AnilistClient),
-		usernames: make(map[uint]string),
-		app:       app,
-		logger:    app.Logger,
-		cacheDir:  app.AnilistCacheDir,
+		clients:       make(map[uint]anilist.AnilistClient),
+		usernames:     make(map[uint]string),
+		animeColCache: make(map[uint]*profileAnimeCache),
+		mangaColCache: make(map[uint]*profileMangaCache),
+		app:           app,
+		logger:        app.Logger,
+		cacheDir:      app.AnilistCacheDir,
 	}
 }
 
@@ -99,6 +131,8 @@ func (m *AnilistClientManager) RemoveClient(profileID uint) {
 	delete(m.clients, profileID)
 	delete(m.usernames, profileID)
 	m.mu.Unlock()
+	m.InvalidateAnimeCollection(profileID)
+	m.InvalidateMangaCollection(profileID)
 }
 
 // GetUsername returns the cached AniList username for a profile.
@@ -192,6 +226,121 @@ func init() {
 	// Ensure AnilistClientManager implements the expected contract at compile time.
 	// No interface to check against, but this prevents dead code elimination.
 	_ = (*AnilistClientManager)(nil)
+}
+
+// GetAnimeCollection returns the cached anime collection for a profile, or fetches
+// it from AniList if the cache is missing or expired. Concurrent calls for the same
+// profileID are collapsed into a single in-flight HTTP request via singleflight.
+func (m *AnilistClientManager) GetAnimeCollection(profileID uint) (*anilist.AnimeCollection, error) {
+	// Fast path: return from cache if still fresh.
+	m.colMu.RLock()
+	if entry, ok := m.animeColCache[profileID]; ok && time.Since(entry.fetchedAt) < profileCollectionCacheTTL {
+		col := entry.data
+		m.colMu.RUnlock()
+		return col, nil
+	}
+	m.colMu.RUnlock()
+
+	// Slow path: fetch (deduplicated per profileID).
+	key := fmt.Sprintf("anime-%d", profileID)
+	result, err, _ := m.animeSfg.Do(key, func() (interface{}, error) {
+		client := m.GetClient(profileID)
+		if !client.IsAuthenticated() {
+			return nil, anilist.ErrNotAuthenticated
+		}
+		username := m.GetUsername(profileID)
+		if username == "" {
+			return nil, errors.New("anilist: no username for profile")
+		}
+		col, err := client.AnimeCollection(context.Background(), &username)
+		if err != nil {
+			return nil, err
+		}
+		// Filter out custom lists (lists whose status is nil) to match platform behaviour.
+		if col != nil && col.MediaListCollection != nil {
+			lists := col.MediaListCollection.Lists
+			filtered := make([]*anilist.AnimeCollection_MediaListCollection_Lists, 0, len(lists))
+			for _, l := range lists {
+				if l.Status != nil {
+					filtered = append(filtered, l)
+				}
+			}
+			col.MediaListCollection.Lists = filtered
+		}
+		m.colMu.Lock()
+		m.animeColCache[profileID] = &profileAnimeCache{data: col, fetchedAt: time.Now()}
+		m.colMu.Unlock()
+		return col, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*anilist.AnimeCollection), nil
+}
+
+// InvalidateAnimeCollection evicts the cached anime collection for a profile so
+// the next call to GetAnimeCollection fetches fresh data from AniList.
+func (m *AnilistClientManager) InvalidateAnimeCollection(profileID uint) {
+	m.colMu.Lock()
+	delete(m.animeColCache, profileID)
+	m.colMu.Unlock()
+}
+
+// GetMangaCollection returns the cached manga collection for a profile, or fetches
+// it from AniList if the cache is missing or expired. Concurrent calls are collapsed
+// into a single in-flight request via singleflight.
+func (m *AnilistClientManager) GetMangaCollection(profileID uint) (*anilist.MangaCollection, error) {
+	// Fast path.
+	m.colMu.RLock()
+	if entry, ok := m.mangaColCache[profileID]; ok && time.Since(entry.fetchedAt) < profileCollectionCacheTTL {
+		col := entry.data
+		m.colMu.RUnlock()
+		return col, nil
+	}
+	m.colMu.RUnlock()
+
+	// Slow path.
+	key := fmt.Sprintf("manga-%d", profileID)
+	result, err, _ := m.mangaSfg.Do(key, func() (interface{}, error) {
+		client := m.GetClient(profileID)
+		if !client.IsAuthenticated() {
+			return nil, anilist.ErrNotAuthenticated
+		}
+		username := m.GetUsername(profileID)
+		if username == "" {
+			return nil, errors.New("anilist: no username for profile")
+		}
+		col, err := client.MangaCollection(context.Background(), &username)
+		if err != nil {
+			return nil, err
+		}
+		// Filter out custom lists and novels to match platform behaviour.
+		if col != nil && col.MediaListCollection != nil {
+			lists := col.MediaListCollection.Lists
+			filtered := make([]*anilist.MangaCollection_MediaListCollection_Lists, 0, len(lists))
+			for _, l := range lists {
+				if l.Status != nil {
+					filtered = append(filtered, l)
+				}
+			}
+			col.MediaListCollection.Lists = filtered
+		}
+		m.colMu.Lock()
+		m.mangaColCache[profileID] = &profileMangaCache{data: col, fetchedAt: time.Now()}
+		m.colMu.Unlock()
+		return col, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*anilist.MangaCollection), nil
+}
+
+// InvalidateMangaCollection evicts the cached manga collection for a profile.
+func (m *AnilistClientManager) InvalidateMangaCollection(profileID uint) {
+	m.colMu.Lock()
+	delete(m.mangaColCache, profileID)
+	m.colMu.Unlock()
 }
 
 // String returns a debug representation.

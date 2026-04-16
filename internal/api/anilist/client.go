@@ -319,27 +319,26 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 
 		rlRemainingStr = resp.Header.Get("X-Ratelimit-Remaining")
 		rlRetryAfterStr := resp.Header.Get("Retry-After")
-		//println("Remaining:", rlRemainingStr, " | RetryAfter:", rlRetryAfterStr)
 
-		// If we have a rate limit, sleep for the time
-		rlRetryAfter, err := strconv.Atoi(rlRetryAfterStr)
-		if err == nil {
-			ac.logger.Warn().Msgf("anilist: Rate limited, retrying in %d seconds", rlRetryAfter+1)
+		// Handle HTTP 429 explicitly: wait for the server-specified retry-after
+		// (or a safe 60 s default) then retry once.  Do NOT fall through to
+		// parseResponse because the body will be an nginx HTML error page.
+		if resp.StatusCode == 429 {
+			waitSec := 60
+			if ra, e := strconv.Atoi(rlRetryAfterStr); e == nil && ra > 0 {
+				waitSec = ra + 1
+			}
+			ac.logger.Warn().Msgf("anilist: Rate limited (429), waiting %ds before retry", waitSec)
 			if time.Since(sentRateLimitWarningTime) > 10*time.Second {
-				events.GlobalWSEventManager.SendEvent(events.WarningToast, "anilist: Rate limited, retrying in "+strconv.Itoa(rlRetryAfter+1)+" seconds")
+				events.GlobalWSEventManager.SendEvent(events.WarningToast, "AniList rate-limited, retrying in "+strconv.Itoa(waitSec)+"s")
 				sentRateLimitWarningTime = time.Now()
 			}
 			select {
-			case <-time.After(time.Duration(rlRetryAfter+1) * time.Second):
-				continue
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Duration(waitSec) * time.Second):
 			}
-		}
-
-		if rlRemainingStr == "" {
-			select {
-			case <-time.After(5 * time.Second):
-				continue
-			}
+			continue
 		}
 
 		break
