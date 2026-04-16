@@ -33,7 +33,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
 import * as React from "react"
-import { useState } from "react"
 import {
     LuTrophy, LuStar, LuPencil, LuCheck, LuX, LuFlame,
     LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity,
@@ -69,26 +68,6 @@ export default function Page() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const activeTab = searchParams.get("tab") || "activity"
-
-    // AniList sync state
-    const [syncing, setSyncing] = useState(false)
-    const [syncError, setSyncError] = useState<string | null>(null)
-
-    // Sync AniList profile handler
-    async function handleSyncAniListProfile() {
-        setSyncing(true)
-        setSyncError(null)
-        try {
-            const res = await fetch("/api/v1/profile/sync-anilist", { method: "POST" })
-            if (!res.ok) throw new Error("Failed to sync AniList profile")
-            // Refetch profile data after sync
-            window.location.reload()
-        } catch (e: any) {
-            setSyncError(e.message || "Failed to sync AniList profile")
-        } finally {
-            setSyncing(false)
-        }
-    }
 
     if (isLoading) {
         return (
@@ -126,20 +105,6 @@ export default function Page() {
             <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-36 relative z-10")}> 
                 {/* Unified Profile Header */}
                 <div className="flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border] relative">
-                    {/* Sync AniList Profile Button (top-right) */}
-                    <button
-                        className="absolute right-0 top-0 mt-2 mr-2 px-3 py-1.5 rounded bg-blue-900 text-white text-xs font-semibold shadow hover:bg-blue-700 disabled:opacity-60"
-                        onClick={handleSyncAniListProfile}
-                        disabled={syncing}
-                        title="Sync AniList profile data"
-                    >
-                        {syncing ? "Syncing..." : "Sync AniList Profile"}
-                    </button>
-                    {syncError && (
-                        <div className="absolute right-0 top-10 mt-2 mr-2 px-3 py-1.5 rounded bg-red-900 text-white text-xs font-semibold shadow">
-                            {syncError}
-                        </div>
-                    )}
                     <LevelRingAvatar
                         profile={{
                             currentLevel: level?.currentLevel ?? 1,
