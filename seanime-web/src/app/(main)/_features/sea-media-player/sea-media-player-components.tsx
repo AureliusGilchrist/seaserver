@@ -2,6 +2,7 @@ import { MKVParser_TrackInfo } from "@/api/generated/types"
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { submenuClass, VdsSubmenuButton } from "@/app/(main)/onlinestream/_components/onlinestream-video-addons"
 import { vc_audioManager, vc_subtitleManager } from "@/app/(main)/_features/video-core/video-core"
+import { vc_perMediaTrackOverrides } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_requestTranscodeForAudio } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { HlsAudioTrack, vc_hlsAudioTracks, vc_hlsCurrentAudioTrack, vc_hlsSetAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
@@ -157,6 +158,7 @@ function SeaMediaPlayerAudioTrackSubmenu() {
     const audioManager = useAtomValue(vc_audioManager)
     const videoElement = useAtomValue(vc_videoElement)
     const action = useSetAtom(vc_dispatchAction)
+    const setPerMediaOverrides = useSetAtom(vc_perMediaTrackOverrides)
     const hlsAudioTracks = useAtomValue(vc_hlsAudioTracks)
     const hlsCurrentAudioTrack = useAtomValue(vc_hlsCurrentAudioTrack)
     const hlsSetAudioTrack = useAtomValue(vc_hlsSetAudioTrack)
@@ -220,11 +222,30 @@ function SeaMediaPlayerAudioTrackSubmenu() {
                                 <button
                                     key={value}
                                     onClick={() => {
+                                        const mediaId = state.playbackInfo?.media?.id
+                                        if (mediaId) {
+                                            let lang: string | undefined
+                                            if (isHls) {
+                                                lang = (audioTracks as HlsAudioTrack[])?.find(t => t.id === value)?.language
+                                            } else {
+                                                lang = (audioTracks as MKVParser_TrackInfo[])?.find(t => t.number === value)?.language
+                                            }
+                                            if (lang) {
+                                                setPerMediaOverrides(prev => ({
+                                                    ...prev,
+                                                    [String(mediaId)]: { ...prev[String(mediaId)], audioLanguage: lang },
+                                                }))
+                                            }
+                                        }
+
                                         if (isHls && hlsSetAudioTrack) {
                                             hlsSetAudioTrack(value)
                                             setSelectedTrack(value)
                                             action({ type: "seek", payload: { time: -1 } })
                                         } else if (requestTranscodeForAudio) {
+                                            // Direct play: browser audioTracks API doesn't actually
+                                            // switch decoded audio for MKV. Switch to transcode.
+                                            setSelectedTrack(value)
                                             requestTranscodeForAudio()
                                         }
                                     }}

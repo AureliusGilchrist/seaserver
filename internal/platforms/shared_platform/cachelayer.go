@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"seanime/internal/api/anilist"
-	"seanime/internal/events"
 	"seanime/internal/util"
 	"seanime/internal/util/filecache"
 	"seanime/internal/util/result"
@@ -70,7 +69,6 @@ func init() {
 			if err != nil {
 				IsWorking.Store(false)
 			} else {
-				events.GlobalWSEventManager.SendEvent(events.InfoToast, "The AniList API is back online")
 				IsWorking.Store(true)
 			}
 		}
@@ -326,9 +324,6 @@ func (c *CacheLayer) checkAndUpdateWorkingState(err error) {
 					Int("recent_failures", recentFailures).
 					Dur("within_window", failureWindow).
 					Msg("anilist cache: Multiple API failures detected, switching to cache-only mode.")
-				events.GlobalWSEventManager.SendEvent(events.WarningToast,
-					fmt.Sprintf("The AniList API is experiencing issues (%d failures in %v), switching to cache-only mode.",
-						recentFailures, failureWindow))
 				IsWorking.Store(false)
 			} else {
 				c.logger.Debug().
@@ -342,7 +337,6 @@ func (c *CacheLayer) checkAndUpdateWorkingState(err error) {
 		// clear failure tracking and mark as working if not already
 		if !IsWorking.Load() {
 			c.logger.Info().Msg("anilist cache: API client is working again, switching back to network-first mode.")
-			events.GlobalWSEventManager.SendEvent(events.InfoToast, "The AniList API is back online")
 			IsWorking.Store(true)
 		}
 		clearFailureTracking()

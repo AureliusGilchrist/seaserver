@@ -59,6 +59,11 @@ func (r *Repository) getAnimeBasePath() string {
 	return libraryPath
 }
 
+// GetAnimeBasePath is the exported version of getAnimeBasePath for use by handlers.
+func (r *Repository) GetAnimeBasePath() string {
+	return r.getAnimeBasePath()
+}
+
 // UnmatchedTorrent represents a downloaded torrent that hasn't been matched to an anime yet
 type UnmatchedTorrent struct {
 	Name      string             `json:"name"`

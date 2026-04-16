@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"seanime/internal/constants"
-	"seanime/internal/events"
 	"seanime/internal/util"
 	"strconv"
 	"time"
@@ -91,10 +90,7 @@ func customQuery(body []byte, logger *zerolog.Logger, token ...string) (data int
 		rlRetryAfter, err := strconv.Atoi(rlRetryAfterStr)
 		if err == nil {
 			logger.Warn().Msgf("anilist: Rate limited, retrying in %d seconds", rlRetryAfter+1)
-			if time.Since(sentRateLimitWarningTime) > 10*time.Second {
-				events.GlobalWSEventManager.SendEvent(events.WarningToast, "anilist: Rate limited, retrying in "+strconv.Itoa(rlRetryAfter+1)+" seconds")
-				sentRateLimitWarningTime = time.Now()
-			}
+
 			select {
 			case <-time.After(time.Duration(rlRetryAfter+1) * time.Second):
 				continue
