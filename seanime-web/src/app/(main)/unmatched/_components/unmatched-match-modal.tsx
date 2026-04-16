@@ -185,6 +185,8 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setSelectedAnime(null)
         setHasAutoSelectedAnime(false)
         setSearchQuery("")
+        setDependOnIndex(false)
+        setEpisodeOffset(1)
         // Keep the files list but drop selections after a match
         setSelectedFiles(new Set())
     })
