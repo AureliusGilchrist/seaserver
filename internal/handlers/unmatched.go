@@ -1,6 +1,10 @@
 package handlers
 
 import (
+	"context"
+	"fmt"
+	"seanime/internal/database/db_bridge"
+	"seanime/internal/library/anime"
 	"seanime/internal/unmatched"
 
 	"github.com/labstack/echo/v4"
@@ -61,9 +65,59 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	// Feature 4: guard against matching the same mediaId twice
+	if req.AnimeID > 0 {
+		if lfs, _, err := db_bridge.GetLocalFiles(h.App.Database); err == nil {
+			for _, lf := range lfs {
+				if lf.MediaId == req.AnimeID {
+					return h.RespondWithError(c, echo.NewHTTPError(409,
+						fmt.Sprintf("You already matched these files (mediaId %d is already in your library)", req.AnimeID)))
+				}
+			}
+		}
+	}
+
 	result, err := h.App.UnmatchedRepository.MatchAndMoveFiles(&req)
 	if err != nil {
 		return h.RespondWithError(c, err)
+	}
+
+	// Feature 3: immediately inject moved files as locked local-file DB entries so
+	// the "Resolve unmatched" step on the home page is never needed.
+	if result.Success && req.AnimeID > 0 && len(result.MovedFiles) > 0 {
+		libraryPath := h.App.UnmatchedRepository.GetAnimeBasePath()
+		go func() {
+			newLFs := make([]*anime.LocalFile, 0, len(result.MovedFiles))
+			for _, name := range result.MovedFiles {
+				fullPath := result.Destination + "/" + name
+				lf := anime.NewLocalFile(fullPath, libraryPath)
+				lf.MediaId = req.AnimeID
+				lf.Locked = true
+				lf.Ignored = false
+				// Set episode type to main — the FileHydrator will refine it during the next scan
+				lf.Metadata = &anime.LocalFileMetadata{
+					Episode:      0,
+					AniDBEpisode: "",
+					Type:         anime.LocalFileTypeMain,
+				}
+				newLFs = append(newLFs, lf)
+			}
+
+			existingLFs, lfsId, lfsErr := db_bridge.GetLocalFiles(h.App.Database)
+			if lfsErr != nil {
+				h.App.Logger.Warn().Err(lfsErr).Msg("unmatched: failed to load local files for DB injection")
+			} else {
+				merged := append(existingLFs, newLFs...)
+				if _, saveErr := db_bridge.SaveLocalFiles(h.App.Database, lfsId, merged); saveErr != nil {
+					h.App.Logger.Warn().Err(saveErr).Msg("unmatched: failed to save injected local files")
+				} else {
+					h.App.Logger.Info().
+						Int("count", len(newLFs)).
+						Int("mediaId", req.AnimeID).
+						Msg("unmatched: injected moved files into library DB")
+				}
+			}
+		}()
 	}
 
 	// High-priority: refresh library collection in background so matched items appear immediately
@@ -78,6 +132,90 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 	}()
 
 	return h.RespondWithData(c, result)
+}
+
+// HandleUnmatchedFamilySearch
+//
+//	@summary fetches the full sequel/prequel relation tree for an anime.
+//	@desc Returns the root anime plus all related sequel/prequel entries from AniList.
+//	@route /api/v1/unmatched/family-search [POST]
+//	@returns []familyEntry
+func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
+	type body struct {
+		AnimeID int `json:"animeId"`
+	}
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if b.AnimeID <= 0 {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "animeId is required"))
+	}
+
+	type familyEntry struct {
+		ID    int    `json:"id"`
+		Title string `json:"title"`
+	}
+
+	platform := h.App.AnilistPlatformRef.Get()
+	ctx := context.Background()
+
+	visited := make(map[int]bool)
+	out := make([]familyEntry, 0)
+
+	type node struct{ id int }
+	queue := []node{{id: b.AnimeID}}
+
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		if visited[cur.id] {
+			continue
+		}
+		visited[cur.id] = true
+
+		media, err := platform.GetAnimeWithRelations(ctx, cur.id)
+		if err != nil || media == nil {
+			continue
+		}
+
+		title := ""
+		if media.GetTitle() != nil {
+			if media.GetTitle().GetUserPreferred() != nil {
+				title = *media.GetTitle().GetUserPreferred()
+			} else if media.GetTitle().GetRomaji() != nil {
+				title = *media.GetTitle().GetRomaji()
+			}
+		}
+		out = append(out, familyEntry{ID: media.ID, Title: title})
+
+		if media.Relations == nil {
+			continue
+		}
+		for _, edge := range media.GetRelations().GetEdges() {
+			if edge == nil || edge.Node == nil {
+				continue
+			}
+			n := edge.GetNode()
+			if n == nil || visited[n.ID] {
+				continue
+			}
+			// Only follow sequels / prequels that have broad relation formats
+			if edge.RelationType == nil {
+				continue
+			}
+			rt := string(*edge.RelationType)
+			if rt != "SEQUEL" && rt != "PREQUEL" {
+				continue
+			}
+			if !edge.IsBroadRelationFormat() {
+				continue
+			}
+			queue = append(queue, node{id: n.ID})
+		}
+	}
+
+	return h.RespondWithData(c, out)
 }
 
 // HandleDeleteUnmatchedTorrent

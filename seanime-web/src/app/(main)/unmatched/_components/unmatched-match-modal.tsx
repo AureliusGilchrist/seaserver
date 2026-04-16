@@ -3,8 +3,10 @@
 import {
     UnmatchedTorrent,
     UnmatchedFile,
+    FamilyEntry,
     useMatchUnmatchedTorrent,
     useGetUnmatchedTorrentContents,
+    useUnmatchedFamilySearch,
 } from "@/api/hooks/unmatched.hooks"
 import { useAnilistListAnime, useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
@@ -82,6 +84,10 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     const [hasAutoSelectedAnime, setHasAutoSelectedAnime] = useState(false)
     const [dependOnIndex, setDependOnIndex] = useState(false)
     const [episodeOffset, setEpisodeOffset] = useState(1)
+    // Family search (Feature 2)
+    const [familySearchDone, setFamilySearchDone] = useState(false)
+    const [familyResults, setFamilyResults] = useState<FamilyEntry[] | null>(null)
+    const { mutate: runFamilySearch, isPending: isFamilySearchLoading } = useUnmatchedFamilySearch()
 
     const { mutate: fetchTorrentContents } = useGetUnmatchedTorrentContents(torrent?.name || null)
 
@@ -228,6 +234,8 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setTorrentContents(null)
         setFetchedName(null)
         setHasAutoSelectedAnime(false)
+        setFamilySearchDone(false)
+        setFamilyResults(null)
     }, [])
 
     const handleManualSearch = useCallback(() => {
@@ -280,6 +288,15 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
 
     const handleMatch = useCallback(() => {
         if (!torrent || !selectedAnime || selectedFiles.size === 0) return
+
+        // Feature 4: warn if this media ID is already in the library
+        if (isAnimeInLibrary(selectedAnime.id, libraryCollection)) {
+            toast.error("You already matched these files", {
+                description: `Media ID ${selectedAnime.id} is already in your library. Choose a different entry or remove the existing one first.`,
+                duration: 8000,
+            })
+            return
+        }
 
         const titleJp = selectedAnime.title?.native || selectedAnime.title?.romaji || selectedAnime.title?.english || ""
         // Fallback to torrent metadata titles if anime title is empty
@@ -593,6 +610,64 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                 </AppLayoutStack>
             ) : (
                 <AppLayoutStack className="space-y-4">
+                    {/* Feature 2: Family / relation search prompt */}
+                    {!familySearchDone && storedAnimeId && (
+                        <div className="flex items-center justify-between p-3 border rounded-md bg-[--subtle] gap-3">
+                            <div>
+                                <p className="text-sm font-medium">Load full anime family?</p>
+                                <p className="text-xs text-[--muted]">
+                                    Fetch all sequels &amp; prequels from AniList so you can pick the right season or part.
+                                </p>
+                            </div>
+                            <div className="flex gap-2 shrink-0">
+                                <Button
+                                    size="sm"
+                                    intent="primary"
+                                    loading={isFamilySearchLoading}
+                                    onClick={() => {
+                                        runFamilySearch({ animeId: storedAnimeId }, {
+                                            onSuccess: (data) => {
+                                                setFamilyResults(data || null)
+                                                setFamilySearchDone(true)
+                                            },
+                                            onError: () => setFamilySearchDone(true),
+                                        })
+                                    }}
+                                >
+                                    Yes, load family
+                                </Button>
+                                <Button size="sm" intent="gray-outline" onClick={() => setFamilySearchDone(true)}>
+                                    No
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Family search results */}
+                    {familyResults && familyResults.length > 0 && (
+                        <div className="p-3 border rounded-md bg-[--subtle] space-y-2">
+                            <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Related entries — pick one to match</p>
+                            <div className="flex flex-wrap gap-2">
+                                {familyResults.map((entry) => (
+                                    <button
+                                        key={entry.id}
+                                        onClick={() => {
+                                            setSearchQuery(entry.title)
+                                        }}
+                                        className={cn(
+                                            "text-xs px-2 py-1 rounded border transition-colors",
+                                            searchQuery === entry.title
+                                                ? "border-brand-500 bg-brand-900/30 text-brand-200"
+                                                : "border-[--border] bg-[--highlight] hover:border-brand-500/60 text-[--muted] hover:text-white",
+                                        )}
+                                    >
+                                        {entry.title}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex gap-2">
                     <TextInput
                         leftIcon={<BiSearch />}

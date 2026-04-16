@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"seanime/internal/constants"
-	"seanime/internal/events"
 	"seanime/internal/util"
 	"strconv"
 	"time"
@@ -270,8 +269,6 @@ func (ac *AnilistClientImpl) AnimeAiringScheduleRaw(ctx context.Context, ids []*
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-var sentRateLimitWarningTime = time.Now().Add(-10 * time.Second)
-
 // customDoFunc is a custom request interceptor function that handles rate limiting and retries.
 func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request, gqlInfo *clientv2.GQLRequestInfo, res interface{}) (err error) {
 	var rlRemainingStr string
@@ -329,10 +326,6 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 				waitSec = ra + 1
 			}
 			ac.logger.Warn().Msgf("anilist: Rate limited (429), waiting %ds before retry", waitSec)
-			if time.Since(sentRateLimitWarningTime) > 10*time.Second {
-				events.GlobalWSEventManager.SendEvent(events.WarningToast, "AniList rate-limited, retrying in "+strconv.Itoa(waitSec)+"s")
-				sentRateLimitWarningTime = time.Now()
-			}
 			select {
 			case <-ctx.Done():
 				return ctx.Err()

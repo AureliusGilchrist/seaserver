@@ -71,6 +71,11 @@ const UNMATCHED_ENDPOINTS = {
         methods: ["POST"] as const,
         endpoint: "/api/v1/unmatched/match",
     },
+    FamilySearch: {
+        key: "UNMATCHED-family-search",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/family-search",
+    },
     DeleteUnmatchedTorrent: {
         key: "UNMATCHED-delete-unmatched-torrent",
         methods: ["POST"] as const,
@@ -142,5 +147,18 @@ export function useDeleteUnmatchedTorrent(onSuccess?: () => void) {
             await queryClient.invalidateQueries({ queryKey: [UNMATCHED_ENDPOINTS.GetUnmatchedTorrents.key] })
             onSuccess?.()
         },
+    })
+}
+
+export interface FamilyEntry {
+    id: number
+    title: string
+}
+
+export function useUnmatchedFamilySearch() {
+    return useServerMutation<FamilyEntry[], { animeId: number }>({
+        endpoint: UNMATCHED_ENDPOINTS.FamilySearch.endpoint,
+        method: UNMATCHED_ENDPOINTS.FamilySearch.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.FamilySearch.key],
     })
 }

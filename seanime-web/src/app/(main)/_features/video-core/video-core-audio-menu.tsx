@@ -135,14 +135,16 @@ export function VideoCoreAudioMenu() {
                         }
 
                         if (isHls && hlsSetAudioTrack) {
-                            // HLS mode: switch audio directly via HLS.js
+                            // HLS mode: switch audio directly via HLS.js — reliable in all browsers.
                             hlsSetAudioTrack(value)
                             setSelectedTrack(value)
                             action({ type: "seek", payload: { time: -1 } })
                         } else if (requestTranscodeForAudio) {
-                            // Direct play mode: browser audioTracks API is unreliable across browsers.
-                            // Switch to transcode mode where HLS.js handles multi-audio properly.
-                            // The language preference saved above will be picked up after the switch.
+                            // Direct play mode: the browser audioTracks API silently accepts
+                            // writes but never actually switches the decoded audio for MKV
+                            // files. Switch to transcode mode where HLS.js handles it properly.
+                            // The per-media language override saved above will be applied
+                            // when the transcode stream starts.
                             setSelectedTrack(value)
                             requestTranscodeForAudio()
                         }

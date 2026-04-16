@@ -673,6 +673,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Unmatched.GET("/torrents", h.HandleGetUnmatchedTorrents)
 	v1Unmatched.POST("/torrent/contents", h.HandleGetUnmatchedTorrentContents)
 	v1Unmatched.POST("/match", h.HandleMatchUnmatchedTorrent)
+	v1Unmatched.POST("/family-search", h.HandleUnmatchedFamilySearch)
 	v1Unmatched.POST("/torrent/delete", h.HandleDeleteUnmatchedTorrent)
 	v1Unmatched.POST("/destination", h.HandleGetUnmatchedDestination)
 	v1Unmatched.GET("/scanner/status", h.HandleGetUnmatchedScannerStatus)
