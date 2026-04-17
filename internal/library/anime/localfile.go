@@ -107,7 +107,17 @@ func NewLocalFileParsedData(original string, elements *habari.Metadata) *LocalFi
 	i := new(LocalFileParsedData)
 	i.Original = original
 	i.Title = elements.FormattedTitle
-	i.ReleaseGroup = elements.ReleaseGroup
+
+	// When habari finds no title but has a release group, the "release group" is
+	// almost certainly the anime title in brackets (e.g. "[Oshi no Ko] - Episode 001.mkv").
+	// Promote it to title so the matcher can use it.
+	if len(i.Title) == 0 && len(elements.ReleaseGroup) > 0 {
+		i.Title = elements.ReleaseGroup
+		i.ReleaseGroup = "" // not a real release group
+	} else {
+		i.ReleaseGroup = elements.ReleaseGroup
+	}
+
 	i.EpisodeTitle = elements.EpisodeTitle
 	i.Year = elements.Year
 

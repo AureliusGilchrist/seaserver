@@ -747,6 +747,9 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.GET("/community/profiles", h.HandleGetCommunityProfiles)
 	v1.GET("/community/feed", h.HandleGetActivityFeed)
 
+	// Activity events
+	v1.GET("/activity-events", h.HandleGetActivityEvents)
+
 	// AniList profile sync
 	v1.POST("/profile/sync-anilist", h.HandleSyncAniListProfile)
 }

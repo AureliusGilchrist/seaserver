@@ -645,6 +645,10 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 		pdb := h.GetProfileDatabase(c)
 		if pdb != nil {
 			_ = pdb.RecordMangaActivity(1)
+			_ = pdb.RecordActivityEvent(models.ActivityEventMangaChapterRead, b.MediaId, map[string]interface{}{
+				"chapter":       b.ChapterNumber,
+				"totalChapters": b.TotalChapters,
+			})
 		}
 	}()
 	if b.TotalChapters > 0 && b.ChapterNumber >= b.TotalChapters {

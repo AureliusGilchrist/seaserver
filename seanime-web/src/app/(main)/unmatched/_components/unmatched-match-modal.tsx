@@ -88,6 +88,9 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     const [familySearchDone, setFamilySearchDone] = useState(false)
     const [familyResults, setFamilyResults] = useState<FamilyEntry[] | null>(null)
     const { mutate: runFamilySearch, isPending: isFamilySearchLoading } = useUnmatchedFamilySearch()
+    // Family detail fetch — when a family entry is clicked, fetch full details progressively
+    const [familyDetailId, setFamilyDetailId] = useState<number | null>(null)
+    const { data: familyAnimeDetails } = useGetAnilistAnimeDetails(familyDetailId)
 
     const { mutate: fetchTorrentContents } = useGetUnmatchedTorrentContents(torrent?.name || null)
 
@@ -129,6 +132,14 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             setHasAutoSelectedAnime(true)
         }
     }, [storedAnimeDetails, storedAnimeId, storedAnimeTitleRomaji, storedAnimeTitleNative, isLoadingStoredAnime, hasAutoSelectedAnime, selectedAnime])
+
+    // Enrich selected anime with full details when family detail fetch completes
+    useEffect(() => {
+        if (familyAnimeDetails && familyDetailId && selectedAnime?.id === familyDetailId) {
+            setSelectedAnime(familyAnimeDetails as AL_BaseAnime)
+            setFamilyDetailId(null)
+        }
+    }, [familyAnimeDetails, familyDetailId, selectedAnime?.id])
 
     // Fetch torrent contents when modal opens
     useEffect(() => {
@@ -193,6 +204,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setSearchQuery("")
         setDependOnIndex(false)
         setEpisodeOffset(1)
+        setFamilyDetailId(null)
         // Keep the files list but drop selections after a match
         setSelectedFiles(new Set())
     })
@@ -236,6 +248,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setHasAutoSelectedAnime(false)
         setFamilySearchDone(false)
         setFamilyResults(null)
+        setFamilyDetailId(null)
     }, [])
 
     const handleManualSearch = useCallback(() => {
@@ -651,7 +664,17 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                     <button
                                         key={entry.id}
                                         onClick={() => {
-                                            setSearchQuery(entry.title)
+                                            const syntheticAnime: AL_BaseAnime = {
+                                                id: entry.id,
+                                                title: {
+                                                    romaji: entry.title,
+                                                    english: undefined,
+                                                    native: undefined,
+                                                    userPreferred: entry.title,
+                                                },
+                                            }
+                                            setSelectedAnime(syntheticAnime)
+                                            setFamilyDetailId(entry.id)
                                         }}
                                         className={cn(
                                             "text-xs px-2 py-1 rounded border transition-colors",

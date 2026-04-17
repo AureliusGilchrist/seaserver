@@ -126,7 +126,7 @@ const (
 	CustomQueryBucket              = "custom-query"
 
 	maxNonCollectionCacheEntries      = 10
-	maxNonCollectionMediaCacheEntries = 50
+	maxNonCollectionMediaCacheEntries = 1000
 	// Collection update interval (refresh collection tracking every 30 minutes)
 	collectionUpdateInterval = 30 * time.Minute
 )

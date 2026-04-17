@@ -756,6 +756,25 @@ type ActivityLog struct {
 	AnimeMinutes  int    `gorm:"column:anime_minutes;default:0" json:"animeMinutes"`
 }
 
+// ActivityEvent stores individual, granular user actions (stored in per-profile DB).
+// Unlike ActivityLog (daily aggregates), each row is one discrete event.
+type ActivityEvent struct {
+	BaseModel
+	EventType string `gorm:"column:event_type;index" json:"eventType"`
+	MediaId   int    `gorm:"column:media_id;default:0;index" json:"mediaId"`
+	Metadata  string `gorm:"column:metadata;type:text" json:"metadata"` // JSON blob
+}
+
+const (
+	ActivityEventEpisodeWatched     = "episode_watched"
+	ActivityEventMangaChapterRead   = "manga_chapter_read"
+	ActivityEventLibraryScanned     = "library_scanned"
+	ActivityEventFileMatched        = "file_matched"
+	ActivityEventFileUnmatched      = "file_unmatched"
+	ActivityEventAnilistEntryEdited = "anilist_entry_edited"
+	ActivityEventAnilistEntryDeleted = "anilist_entry_deleted"
+)
+
 // LevelProgress tracks the user's XP and level for the leveling system (stored in per-profile DB).
 type LevelProgress struct {
 	BaseModel

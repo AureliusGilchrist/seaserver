@@ -214,6 +214,9 @@ func (e *Engine) computeProgress(def *Definition, tier int, event *AchievementEv
 	// Special/quirky
 	case CategoryAnimeSpecial, CategoryMangaSpecial:
 		return e.evalObscureFun(def, event, currentProgress)
+
+	case CategoryAnimeMeta, CategoryMangaMeta:
+		return e.evalMeta(def, threshold, event)
 	}
 
 	return 0, false
@@ -280,6 +283,26 @@ func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profil
 	}
 
 	e.logger.Info().Str("key", def.Key).Int("tier", tier).Int("xp", xp).Uint("profileID", profileID).Msg("achievement: unlocked")
+
+	// After unlocking a non-meta achievement, fire meta re-evaluation
+	if def.Category != CategoryAnimeMeta && def.Category != CategoryMangaMeta {
+		metaEvent := &AchievementEvent{
+			ProfileID: profileID,
+			Trigger:   TriggerAchievementUnlock,
+			Timestamp: time.Now(),
+			Metadata:  map[string]interface{}{"unlocked_key": def.Key},
+		}
+		for i := range AllDefinitions {
+			metaDef := &AllDefinitions[i]
+			if metaDef.Category != CategoryAnimeMeta && metaDef.Category != CategoryMangaMeta {
+				continue
+			}
+			if !e.triggerMatches(metaDef, TriggerAchievementUnlock) {
+				continue
+			}
+			e.evaluateDefinition(database, metaDef, metaEvent)
+		}
+	}
 }
 
 // ensureInitialized lazily creates missing achievement rows on first access.
@@ -531,43 +554,64 @@ func boolResult(ok bool) (float64, bool) {
 func (e *Engine) evalScoring(def *Definition, threshold int, meta map[string]interface{}) (float64, bool) {
 	// Strip prefix for generic matching
 	key := def.Key
+	isManga := len(key) > 2 && key[:2] == "m_"
 	if len(key) > 2 && (key[:2] == "a_" || key[:2] == "m_") {
 		key = key[2:]
 	}
 
+	// Helper to pick anime or manga metadata based on prefix
+	avgKey := "average_rating"
+	countKey := "rating_count"
+	bellKey := "bell_curve"
+	allScoresKey := "used_all_scores"
+	allRatedKey := "all_completed_rated"
+	maxSameKey := "max_same_score_count"
+	varianceKey := "score_variance"
+	mediocreKey := "mediocre_count"
+	if isManga {
+		avgKey = "manga_average_rating"
+		countKey = "manga_rating_count"
+		bellKey = "manga_bell_curve"
+		allScoresKey = "manga_used_all_scores"
+		allRatedKey = "manga_all_completed_rated"
+		maxSameKey = "manga_max_same_score_count"
+		varianceKey = "manga_score_variance"
+		mediocreKey = "manga_mediocre_count"
+	}
+
 	switch key {
 	case "fair_judge":
-		avg := getMetaFloat(meta, "average_rating")
-		count := getMetaFloat(meta, "rating_count")
+		avg := getMetaFloat(meta, avgKey)
+		count := getMetaFloat(meta, countKey)
 		if count >= 50 && avg >= 5.0 && avg <= 7.0 {
 			return 100, true
 		}
 		return 0, false
 	case "generous_spirit":
-		avg := getMetaFloat(meta, "average_rating")
-		count := getMetaFloat(meta, "rating_count")
+		avg := getMetaFloat(meta, avgKey)
+		count := getMetaFloat(meta, countKey)
 		if count >= 50 && avg > 8.0 {
 			return 100, true
 		}
 		return 0, false
 	case "picky_watcher", "picky_reader":
-		avg := getMetaFloat(meta, "average_rating")
-		count := getMetaFloat(meta, "rating_count")
+		avg := getMetaFloat(meta, avgKey)
+		count := getMetaFloat(meta, countKey)
 		if count >= 25 && avg < 5.0 {
 			return 100, true
 		}
 		return 0, false
 	case "bell_curve":
-		bellCurve := getMetaBool(meta, "bell_curve")
+		bellCurve := getMetaBool(meta, bellKey)
 		return boolResult(bellCurve)
 	case "wide_range":
-		usedAllScores := getMetaBool(meta, "used_all_scores")
+		usedAllScores := getMetaBool(meta, allScoresKey)
 		return boolResult(usedAllScores)
 	case "score_all":
-		allRated := getMetaBool(meta, "all_completed_rated")
+		allRated := getMetaBool(meta, allRatedKey)
 		return boolResult(allRated)
 	case "consistent_scorer":
-		maxSameScore := getMetaFloat(meta, "max_same_score_count")
+		maxSameScore := getMetaFloat(meta, maxSameKey)
 		return boolResult(maxSameScore >= 20)
 	case "controversial":
 		scoreDiff := getMetaFloat(meta, "score_diff_from_avg")
@@ -575,6 +619,36 @@ func (e *Engine) evalScoring(def *Definition, threshold int, meta map[string]int
 	case "score_sniper":
 		scoreDiff := getMetaFloat(meta, "score_diff_from_avg")
 		return boolResult(scoreDiff <= 0.1 && scoreDiff >= 0)
+	case "mean_above_8":
+		avg := getMetaFloat(meta, avgKey)
+		count := getMetaFloat(meta, countKey)
+		if count >= 50 && avg > 8.0 {
+			return 100, true
+		}
+		return 0, false
+	case "mediocre_majority":
+		mediocre := getMetaFloat(meta, mediocreKey)
+		count := getMetaFloat(meta, countKey)
+		if count >= 20 && mediocre > count*0.6 {
+			return 100, true
+		}
+		return 0, false
+	case "score_distributor":
+		usedAll := getMetaBool(meta, allScoresKey)
+		variance := getMetaFloat(meta, varianceKey)
+		// Scores spread relatively evenly (low variance relative to count)
+		if usedAll && variance < 3.0 {
+			return 100, true
+		}
+		return 0, false
+	case "score_variance":
+		variance := getMetaFloat(meta, varianceKey)
+		count := getMetaFloat(meta, countKey)
+		// High variance in scores indicates eclectic taste
+		if count >= 20 && variance >= 4.0 {
+			return 100, true
+		}
+		return 0, false
 	default:
 		// Tiered rating achievements (critic, perfect_ten, harsh_critic, evolving_taste, etc.)
 		val := getMetaFloat(meta, def.Key)
@@ -639,8 +713,243 @@ func (e *Engine) evalObscureFun(def *Definition, event *AchievementEvent, curren
 		return boolResult(totalCount > 9000)
 	case "leap_year", "leap_year_read":
 		return boolResult(t.Month() == time.February && t.Day() == 29)
+	case "all_tens":
+		// Complete an anime with exactly 10 episodes and rate it 10
+		completedCount := getMetaFloat(event.Metadata, "completed_count")
+		return boolResult(completedCount > 0) // simplified: check from event handler
+	case "answer_42":
+		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
+		return boolResult(completedCount == 42)
+	case "double_digits":
+		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
+		return boolResult(completedCount == 11)
+	case "exact_hundred_eps":
+		totalEps := int(getMetaFloat(event.Metadata, "total_episodes"))
+		return boolResult(totalEps == 100)
+	case "exact_hundred_ch":
+		totalCh := int(getMetaFloat(event.Metadata, "total_chapters"))
+		return boolResult(totalCh == 100)
+	case "lucky_seven":
+		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
+		return boolResult(completedCount == 7)
+	case "one_two_three":
+		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
+		return boolResult(completedCount == 123)
+	case "prime_count":
+		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
+		return boolResult(isPrime(completedCount) && completedCount >= 7)
+	case "square_number":
+		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
+		n := int(math.Sqrt(float64(completedCount)))
+		return boolResult(completedCount >= 4 && n*n == completedCount)
+	case "year_match_count":
+		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
+		return boolResult(completedCount == t.Year()%100)
+	case "pi_chapters":
+		totalCh := int(getMetaFloat(event.Metadata, "total_chapters"))
+		return boolResult(totalCh == 314)
 	}
 	return 0, false
+}
+
+// evalMeta evaluates meta-achievements by querying the achievement database.
+func (e *Engine) evalMeta(def *Definition, threshold int, event *AchievementEvent) (float64, bool) {
+	database, err := e.getDB(event.ProfileID)
+	if err != nil {
+		return 0, false
+	}
+
+	allAchievements, err := database.GetAllAchievements()
+	if err != nil {
+		return 0, false
+	}
+
+	key := def.Key
+	isManga := len(key) > 2 && key[:2] == "m_"
+	if len(key) > 2 && (key[:2] == "a_" || key[:2] == "m_") {
+		key = key[2:]
+	}
+
+	// Build stats from unlocked achievements
+	var unlocked int
+	var totalXP int
+	categoryUnlocks := make(map[string]int) // category -> unlock count
+	tierMaxCount := 0
+	tier5Count := 0
+	easyCount := 0
+	hardCount := 0
+
+	for _, ach := range allAchievements {
+		if !ach.IsUnlocked {
+			continue
+		}
+		// Find the definition for this achievement
+		achDef := findDefinition(ach.Key)
+		if achDef == nil {
+			continue
+		}
+
+		// Only count anime achievements for anime meta, manga for manga meta
+		isAchManga := len(achDef.Key) > 2 && achDef.Key[:2] == "m_"
+		if isManga != isAchManga {
+			continue
+		}
+
+		// Don't count meta achievements toward their own stats
+		if achDef.Category == CategoryAnimeMeta || achDef.Category == CategoryMangaMeta {
+			continue
+		}
+
+		unlocked++
+		categoryUnlocks[string(achDef.Category)]++
+
+		baseXP := achDef.XPReward
+		if baseXP <= 0 {
+			baseXP = DefaultTierXP(ach.Tier)
+		}
+		totalXP += int(float64(baseXP) * DifficultyMultiplier(achDef.Difficulty))
+
+		if achDef.MaxTier > 0 && ach.Tier >= achDef.MaxTier {
+			tierMaxCount++
+		}
+		if achDef.MaxTier > 0 && ach.Tier >= 5 {
+			tier5Count++
+		}
+
+		switch achDef.Difficulty {
+		case DifficultyEasy:
+			easyCount++
+		case DifficultyHard, DifficultyExtreme:
+			hardCount++
+		}
+	}
+
+	// Count total non-meta definitions to compute percentages
+	totalDefs := 0
+	for i := range AllDefinitions {
+		d := &AllDefinitions[i]
+		if d.Category == CategoryAnimeMeta || d.Category == CategoryMangaMeta {
+			continue
+		}
+		isDefManga := len(d.Key) > 2 && d.Key[:2] == "m_"
+		if isManga == isDefManga {
+			totalDefs++
+		}
+	}
+
+	// Count categories with 10+ unlocks (for diverse)
+	diverseCategories := 0
+	for _, count := range categoryUnlocks {
+		if count >= 10 {
+			diverseCategories++
+		}
+	}
+
+	switch key {
+	case "meta_first_unlock":
+		return boolResult(unlocked >= 1)
+	case "meta_collector":
+		if threshold <= 0 {
+			return boolResult(unlocked > 0)
+		}
+		if unlocked >= threshold {
+			return 100, true
+		}
+		return (float64(unlocked) / float64(threshold)) * 100, false
+	case "meta_category_starter":
+		startedCategories := len(categoryUnlocks)
+		if threshold <= 0 {
+			return boolResult(startedCategories > 0)
+		}
+		if startedCategories >= threshold {
+			return 100, true
+		}
+		return (float64(startedCategories) / float64(threshold)) * 100, false
+	case "meta_tier_climber":
+		if threshold <= 0 {
+			return boolResult(tier5Count > 0)
+		}
+		if tier5Count >= threshold {
+			return 100, true
+		}
+		return (float64(tier5Count) / float64(threshold)) * 100, false
+	case "meta_tier_max":
+		if threshold <= 0 {
+			return boolResult(tierMaxCount > 0)
+		}
+		if tierMaxCount >= threshold {
+			return 100, true
+		}
+		return (float64(tierMaxCount) / float64(threshold)) * 100, false
+	case "meta_xp_earner":
+		if threshold <= 0 {
+			return boolResult(totalXP > 0)
+		}
+		if totalXP >= threshold {
+			return 100, true
+		}
+		return (float64(totalXP) / float64(threshold)) * 100, false
+	case "meta_difficulty_easy":
+		if threshold <= 0 {
+			return boolResult(easyCount > 0)
+		}
+		if easyCount >= threshold {
+			return 100, true
+		}
+		return (float64(easyCount) / float64(threshold)) * 100, false
+	case "meta_difficulty_hard":
+		if threshold <= 0 {
+			return boolResult(hardCount > 0)
+		}
+		if hardCount >= threshold {
+			return 100, true
+		}
+		return (float64(hardCount) / float64(threshold)) * 100, false
+	case "meta_unlock_spree":
+		// Check unlocks from today
+		todayCount := 0
+		today := event.Timestamp.Format("2006-01-02")
+		for _, ach := range allAchievements {
+			if ach.IsUnlocked && ach.UnlockedAt != nil && ach.UnlockedAt.Format("2006-01-02") == today {
+				achDef := findDefinition(ach.Key)
+				if achDef != nil {
+					isAchManga := len(achDef.Key) > 2 && achDef.Key[:2] == "m_"
+					if isManga == isAchManga {
+						todayCount++
+					}
+				}
+			}
+		}
+		return boolResult(todayCount >= 5)
+	case "meta_completionist":
+		if totalDefs == 0 {
+			return 0, false
+		}
+		pct := float64(unlocked) / float64(totalDefs) * 100
+		return boolResult(pct >= 90)
+	case "meta_diverse":
+		if threshold <= 0 {
+			return boolResult(diverseCategories > 0)
+		}
+		if diverseCategories >= threshold {
+			return 100, true
+		}
+		return (float64(diverseCategories) / float64(threshold)) * 100, false
+	case "meta_dominator":
+		return boolResult(totalDefs > 0 && unlocked >= totalDefs)
+	}
+
+	return 0, false
+}
+
+// findDefinition returns the definition for a given key, or nil if not found.
+func findDefinition(key string) *Definition {
+	for i := range AllDefinitions {
+		if AllDefinitions[i].Key == key {
+			return &AllDefinitions[i]
+		}
+	}
+	return nil
 }
 
 // --- Metadata helper functions ---
@@ -734,6 +1043,24 @@ func boolToFloat(b bool) float64 {
 }
 
 // --- Math helpers ---
+
+func isPrime(n int) bool {
+	if n < 2 {
+		return false
+	}
+	if n < 4 {
+		return true
+	}
+	if n%2 == 0 || n%3 == 0 {
+		return false
+	}
+	for i := 5; i*i <= n; i += 6 {
+		if n%i == 0 || n%(i+2) == 0 {
+			return false
+		}
+	}
+	return true
+}
 
 func isPalindrome(s string) bool {
 	n := len(s)
@@ -855,9 +1182,42 @@ type CollectionStats struct {
 	AnimeGenreCounts   map[string]int
 	MangaGenreCounts   map[string]int
 
+	// Per-tag counts (from AniList media tags)
+	AnimeTagCounts     map[string]int
+	MangaTagCounts     map[string]int
+
 	// Per-format counts
 	AnimeFormatCounts  map[string]int
 	MangaFormatCounts  map[string]int
+
+	// Favourites
+	AnimeFavoriteCount int
+	MangaFavoriteCount int
+
+	// Unique format counts
+	AnimeUniqueFormatCount int
+	MangaUniqueFormatCount int
+
+	// Standard manga format count (not manhwa/manhua)
+	MangaStandardCount int
+
+	// Scoring metadata (pre-computed for evalScoring)
+	BellCurveAnime         bool
+	BellCurveManga         bool
+	UsedAllScoresAnime     bool
+	UsedAllScoresManga     bool
+	AllCompletedRatedAnime bool
+	AllCompletedRatedManga bool
+	MaxSameScoreAnime      int
+	MaxSameScoreManga      int
+	ScoreVarianceAnime     float64
+	ScoreVarianceManga     float64
+	MediocreCountAnime     int // count of anime rated 5-7
+	MediocreCountManga     int // count of manga rated 5-7
+
+	// Per-score histogram
+	AnimeScoreHist [11]int // index 0 unused, 1-10
+	MangaScoreHist [11]int
 }
 
 func (s *CollectionStats) toMetadata() map[string]interface{} {
@@ -894,6 +1254,17 @@ func (s *CollectionStats) toMetadata() map[string]interface{} {
 		"a_five_hundred_eps": boolToFloat(s.TotalEpisodes >= 500),
 		"a_thousand_eps":    boolToFloat(s.TotalEpisodes >= 1000),
 		"a_watching_ten":    boolToFloat(s.WatchingAnime >= 10),
+		// New milestones
+		"a_five_thousand_eps":      boolToFloat(s.TotalEpisodes >= 5000),
+		"a_ten_completed":          boolToFloat(s.CompletedAnime >= 10),
+		"a_fifty_completed":        boolToFloat(s.CompletedAnime >= 50),
+		"a_five_hundred_completed": boolToFloat(s.CompletedAnime >= 500),
+		"a_mean_score_tracker":     float64(s.AnimeRatingCount),
+		"a_unique_studios":         float64(s.StudioCount),
+		"a_days_spent_watching":    float64(s.TotalMinutes) / 1440.0,
+		"a_all_status":             boolToFloat(s.WatchingAnime > 0 && s.CompletedAnime > 0 && s.PausedAnime > 0 && s.DroppedAnime > 0 && s.PTWAnime > 0),
+		"a_first_favorite":         boolToFloat(s.AnimeFavoriteCount > 0),
+		"a_favorites_collector":    float64(s.AnimeFavoriteCount),
 
 		// ── Anime completion ─────────────────────────────────────────────────────
 		// Tiered
@@ -1031,13 +1402,95 @@ func (s *CollectionStats) toMetadata() map[string]interface{} {
 		"m_100_rated":    float64(s.MangaRatingCount),
 		"m_500_rated":    float64(s.MangaRatingCount),
 
+		// ── Manga milestones (new) ─────────────────────────────────────────────────
+		"m_all_status":             boolToFloat(s.ReadingManga > 0 && s.CompletedManga > 0 && s.PausedManga > 0 && s.DroppedManga > 0 && s.PTRManga > 0),
+		"m_fifty_completed":        boolToFloat(s.CompletedManga >= 50),
+		"m_first_favorite":         boolToFloat(s.MangaFavoriteCount > 0),
+		"m_five_hundred_completed": boolToFloat(s.CompletedManga >= 500),
+		"m_five_thousand_ch":       boolToFloat(s.TotalChapters >= 5000),
+		"m_ten_completed":          boolToFloat(s.CompletedManga >= 10),
+		"m_favorites_collector":    float64(s.MangaFavoriteCount),
+		"m_days_spent_reading":     float64(s.TotalChapters) * 7.0 / 1440.0,
+
 		// ── Manga dedication (tiered) ──────────────────────────────────────────────
 		"m_decade_reader": float64(s.DecadeCount),
+
+		// ── Anime tags (tiered) ────────────────────────────────────────────────────
+		"a_tag_isekai":           float64(s.AnimeTagCounts["Isekai"]),
+		"a_tag_harem":            float64(s.AnimeTagCounts["Harem"]),
+		"a_tag_bl":               float64(s.AnimeTagCounts["Boys' Love"]),
+		"a_tag_gl":               float64(s.AnimeTagCounts["Girls' Love"]),
+		"a_tag_historical":       float64(s.AnimeTagCounts["Historical"]),
+		"a_tag_military":         float64(s.AnimeTagCounts["Military"]),
+		"a_tag_school":           float64(s.AnimeTagCounts["School"]),
+		"a_tag_martial_arts":     float64(s.AnimeTagCounts["Martial Arts"]),
+		"a_tag_vampire":          float64(s.AnimeTagCounts["Vampire"]),
+		"a_tag_samurai":          float64(s.AnimeTagCounts["Samurai"]),
+		"a_tag_space":            float64(s.AnimeTagCounts["Space"]),
+		"a_tag_parody":           float64(s.AnimeTagCounts["Parody"]),
+		"a_tag_idol":             float64(s.AnimeTagCounts["Idol"]),
+		"a_tag_post_apocalyptic": float64(s.AnimeTagCounts["Post-Apocalyptic"]),
+		"a_tag_cyberpunk":        float64(s.AnimeTagCounts["Cyberpunk"]),
+		"a_tag_shounen":          float64(s.AnimeTagCounts["Shounen"]),
+		"a_tag_seinen":           float64(s.AnimeTagCounts["Seinen"]),
+		"a_tag_shoujo":           float64(s.AnimeTagCounts["Shoujo"]),
+		"a_tag_josei":            float64(s.AnimeTagCounts["Josei"]),
+		"a_tag_survival":         float64(s.AnimeTagCounts["Survival"]),
+
+		// ── Manga tags (tiered) ────────────────────────────────────────────────────
+		"m_tag_isekai_new":       float64(s.MangaTagCounts["Isekai"]),
+		"m_tag_harem":            float64(s.MangaTagCounts["Harem"]),
+		"m_tag_bl":               float64(s.MangaTagCounts["Boys' Love"]),
+		"m_tag_gl":               float64(s.MangaTagCounts["Girls' Love"]),
+		"m_tag_historical":       float64(s.MangaTagCounts["Historical"]),
+		"m_tag_military":         float64(s.MangaTagCounts["Military"]),
+		"m_tag_school":           float64(s.MangaTagCounts["School"]),
+		"m_tag_martial_arts":     float64(s.MangaTagCounts["Martial Arts"]),
+		"m_tag_vampire":          float64(s.MangaTagCounts["Vampire"]),
+		"m_tag_samurai":          float64(s.MangaTagCounts["Samurai"]),
+		"m_tag_space":            float64(s.MangaTagCounts["Space"]),
+		"m_tag_parody":           float64(s.MangaTagCounts["Parody"]),
+		"m_tag_idol":             float64(s.MangaTagCounts["Idol"]),
+		"m_tag_post_apocalyptic": float64(s.MangaTagCounts["Post-Apocalyptic"]),
+		"m_tag_cyberpunk":        float64(s.MangaTagCounts["Cyberpunk"]),
+		"m_tag_shoujo":           float64(s.MangaTagCounts["Shoujo"]),
+		"m_tag_survival":         float64(s.MangaTagCounts["Survival"]),
+		"m_tag_cooking":          float64(s.MangaTagCounts["Cooking"]),
+		"m_tag_medical":          float64(s.MangaTagCounts["Medicine"]),
+		"m_tag_villainess":       float64(s.MangaTagCounts["Villainess"]),
+
+		// ── Anime simple stat achievements ─────────────────────────────────────────
+		"a_ten_perfect_scores":  boolToFloat(s.PerfectTenAnime >= 10),
+		"a_variety_pack":        float64(s.AnimeUniqueFormatCount),
+		"a_format_balance":      boolToFloat(s.AnimeUniqueFormatCount >= 5),
+		"a_anthology":           float64(s.AnimeFormatCounts["TV"]), // placeholder: anthology not a distinct AniList format
+
+		// ── Manga simple stat achievements ─────────────────────────────────────────
+		"m_ten_perfect_scores":  boolToFloat(s.PerfectTenManga >= 10),
+		"m_format_variety":      float64(s.MangaUniqueFormatCount),
+		"m_anthology_reader":    float64(s.MangaFormatCounts["ONE_SHOT"]), // placeholder
+
+		// ── Scoring support metadata ───────────────────────────────────────────────
+		"manga_average_rating":       s.MangaAverageRating,
+		"manga_rating_count":         float64(s.MangaRatingCount),
+		"bell_curve":                 s.BellCurveAnime,
+		"manga_bell_curve":           s.BellCurveManga,
+		"used_all_scores":            s.UsedAllScoresAnime,
+		"manga_used_all_scores":      s.UsedAllScoresManga,
+		"all_completed_rated":        s.AllCompletedRatedAnime,
+		"manga_all_completed_rated":  s.AllCompletedRatedManga,
+		"max_same_score_count":       float64(s.MaxSameScoreAnime),
+		"manga_max_same_score_count": float64(s.MaxSameScoreManga),
+		"score_variance":             s.ScoreVarianceAnime,
+		"manga_score_variance":       s.ScoreVarianceManga,
+		"mediocre_count":             float64(s.MediocreCountAnime),
+		"manga_mediocre_count":       float64(s.MediocreCountManga),
 
 		// ── Shared metadata ────────────────────────────────────────────────────────
 		"completed_count": float64(s.CompletedAnime + s.CompletedManga),
 		"total_count":     float64(s.TotalEpisodes + s.TotalChapters),
 		"total_episodes":  float64(s.TotalEpisodes),
+		"total_chapters":  float64(s.TotalChapters),
 	}
 	return m
 }

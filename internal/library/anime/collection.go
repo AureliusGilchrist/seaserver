@@ -632,7 +632,7 @@ func (lc *LibraryCollection) hydrateUnknownGroups(localFiles []*LocalFile, anime
 
 	// Filter local files that have MediaId > 0 but aren't in the collection
 	unknownLocalFiles := lo.Filter(localFiles, func(lf *LocalFile, index int) bool {
-		return lf.MediaId > 0 && !lf.Ignored && !lf.Locked
+		return lf.MediaId > 0 && !lf.Ignored
 	})
 
 	unknownLocalFiles = lo.Filter(unknownLocalFiles, func(lf *LocalFile, index int) bool {

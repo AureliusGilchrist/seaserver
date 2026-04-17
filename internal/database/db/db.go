@@ -128,6 +128,7 @@ func migrateTables(db *gorm.DB) error {
 		&models.Achievement{},
 		&models.AchievementShowcase{},
 		&models.ActivityLog{},
+		&models.ActivityEvent{},
 		&models.LevelProgress{},
 		&models.AdminAnnouncement{},
 	)

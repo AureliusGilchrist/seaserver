@@ -341,30 +341,169 @@ var mangaDefinitions = []Definition{
 	{Key: "m_serialization_follower", Name: "Serialization Follower", Description: "Follow {threshold}+ serializing manga to completion", Category: CategoryMangaDedication, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerMangaComplete}},
 
 	// ═══════════════════════════════════════════════
-	// MANGA BINGE (additional)
+	// MANGA TAG GENRES (tag-based, 20 definitions)
 	// ═══════════════════════════════════════════════
 
-	{Key: "m_volume_rush", Name: "Volume Rush", Description: "Read {threshold}+ volumes worth of chapters in one day", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{3, 5, 8, 12, 20, 30, 50, 75, 100, 150}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
-	{Key: "m_series_sweep", Name: "Series Sweep", Description: "Complete 3+ manga in a single day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaComplete}},
+	{Key: "m_tag_isekai_new", Name: "Isekai Traveler Reader", Description: "Read {threshold}+ Isekai manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_harem", Name: "Harem Reader", Description: "Read {threshold}+ Harem manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_bl", Name: "Boys' Love Reader", Description: "Read {threshold}+ Boys' Love manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_gl", Name: "Girls' Love Reader", Description: "Read {threshold}+ Girls' Love manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_historical", Name: "History Buff Reader", Description: "Read {threshold}+ Historical manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_military", Name: "Military Reader", Description: "Read {threshold}+ Military manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_school", Name: "School Life Reader", Description: "Read {threshold}+ School manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 200, 325, 650, 1600, 4800, 17000}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_martial_arts", Name: "Martial Arts Reader", Description: "Read {threshold}+ Martial Arts manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_vampire", Name: "Vampire Reader", Description: "Read {threshold}+ Vampire manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_samurai", Name: "Samurai Reader", Description: "Read {threshold}+ Samurai manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_space", Name: "Space Reader", Description: "Read {threshold}+ Space manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_parody", Name: "Parody Reader", Description: "Read {threshold}+ Parody manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_idol", Name: "Idol Manga Fan", Description: "Read {threshold}+ Idol manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_post_apocalyptic", Name: "Post-Apocalyptic Reader", Description: "Read {threshold}+ Post-Apocalyptic manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_cyberpunk", Name: "Cyberpunk Reader", Description: "Read {threshold}+ Cyberpunk manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_shoujo", Name: "Shoujo Heart Reader", Description: "Read {threshold}+ Shoujo manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{5, 10, 20, 40, 75, 120, 250, 625, 1900, 6500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_survival", Name: "Survival Reader", Description: "Read {threshold}+ Survival manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_cooking", Name: "Cooking Manga Fan", Description: "Read {threshold}+ Cooking manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_medical", Name: "Medical Reader", Description: "Read {threshold}+ Medical manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_tag_villainess", Name: "Villainess Fan", Description: "Read {threshold}+ Villainess manga", Category: CategoryMangaGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
 
 	// ═══════════════════════════════════════════════
-	// MANGA COMPLETION (additional)
+	// MANGA ADDITIONAL MILESTONES (10 definitions)
 	// ═══════════════════════════════════════════════
 
-	{Key: "m_format_completionist", Name: "Format Completionist", Description: "Complete manga in {threshold}+ different formats", Category: CategoryMangaCompletion, MaxTier: 10, TierThresholds: []int{2, 3, 4, 5, 6, 7, 8, 9, 10, 10}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
-	{Key: "m_catch_up", Name: "Catch Up", Description: "Catch up to an ongoing manga with 100+ chapters", Category: CategoryMangaCompletion, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_five_thousand_ch", Name: "Chapter Legend", Description: "Read 5,000 chapters total", Category: CategoryMangaMilestones, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_ten_completed", Name: "First Ten Manga", Description: "Complete 10 manga series", Category: CategoryMangaMilestones, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_fifty_completed", Name: "Half Century Manga", Description: "Complete 50 manga series", Category: CategoryMangaMilestones, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_five_hundred_completed", Name: "Five Hundred Manga Club", Description: "Complete 500 manga series", Category: CategoryMangaMilestones, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_mean_score_tracker", Name: "Mean Score Tracker Reader", Description: "Have a mean score with {threshold}+ rated manga", Category: CategoryMangaMilestones, MaxTier: 10, TierThresholds: []int{10, 50, 100, 250, 500, 800, 1600, 4000, 12000, 42000}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_unique_authors", Name: "Author Counter", Description: "Read manga from {threshold}+ unique authors", Category: CategoryMangaMilestones, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 150, 200, 250, 300, 400, 500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_all_status", Name: "Every Status Manga", Description: "Have manga in all statuses", Category: CategoryMangaMilestones, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_first_favorite", Name: "First Favorite Manga", Description: "Add your first manga to favorites", Category: CategoryMangaMilestones, MaxTier: 0, Triggers: []EvalTrigger{TriggerFavoriteToggle, TriggerCollectionRefresh}},
+	{Key: "m_favorites_collector", Name: "Manga Favorites Collector", Description: "Have {threshold}+ manga in your favorites", Category: CategoryMangaMilestones, MaxTier: 10, TierThresholds: []int{5, 10, 20, 30, 50, 75, 100, 150, 200, 300}, TierNames: t10, Triggers: []EvalTrigger{TriggerFavoriteToggle, TriggerCollectionRefresh}},
+	{Key: "m_days_spent_reading", Name: "Days of Manga", Description: "Spend {threshold}+ full days reading manga", Category: CategoryMangaMilestones, MaxTier: 10, TierThresholds: []int{5, 10, 30, 60, 100, 200, 400, 800, 1500, 3000}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
 
 	// ═══════════════════════════════════════════════
-	// MANGA MILESTONES (additional)
+	// MANGA ADDITIONAL BINGE (8 definitions)
 	// ═══════════════════════════════════════════════
 
-	{Key: "m_season_reader", Name: "Season Reader", Description: "Read manga from {threshold}+ different publication seasons", Category: CategoryMangaMilestones, MaxTier: 10, TierThresholds: []int{4, 8, 16, 32, 50, 60, 70, 80, 90, 100}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
-	{Key: "m_active_reader", Name: "Active Reader", Description: "Have {threshold}+ manga with status Reading", Category: CategoryMangaMilestones, MaxTier: 10, TierThresholds: []int{5, 10, 20, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_genre_binge", Name: "Genre Binge Reader", Description: "Read {threshold}+ manga of the same genre in one week", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{5, 8, 12, 15, 20, 25, 30, 40, 50, 75}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_author_binge", Name: "Author Binge", Description: "Read 5+ manga by the same author in one week", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_chapter_counter_day", Name: "Daily Chapter Record", Description: "Read {threshold}+ chapters in a single calendar day", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{10, 25, 50, 75, 100, 150, 200, 300, 500, 750}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_multi_series_binge", Name: "Multi-Series Read", Description: "Read from {threshold}+ different manga in one day", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{3, 5, 7, 10, 15, 20, 25, 30, 40, 50}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_midnight_binge", Name: "Midnight Reading Binge", Description: "Read {threshold}+ chapters between midnight and 4 AM in one session", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{10, 25, 50, 75, 100, 125, 150, 200, 250, 300}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_new_year_binge", Name: "New Year Reading Binge", Description: "Read 50+ chapters on January 1st", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_forty_eight_hour", Name: "48-Hour Reading Marathon", Description: "Read manga for 48 cumulative hours in one week", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "m_oneshot_binge", Name: "Oneshot Binge", Description: "Read 10+ oneshot manga in a single day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaComplete}},
 
 	// ═══════════════════════════════════════════════
-	// MANGA STREAKS (additional)
+	// MANGA ADDITIONAL COMPLETION (8 definitions)
 	// ═══════════════════════════════════════════════
 
-	{Key: "m_chapter_a_day", Name: "Chapters a Day", Description: "Read at least 10 chapters every day for {threshold}+ days", Category: CategoryMangaStreaks, MaxTier: 10, TierThresholds: []int{7, 14, 30, 60, 100, 150, 200, 250, 300, 365}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
-	{Key: "m_genre_streak", Name: "Genre Streak Reader", Description: "Read manga from the same genre for {threshold}+ consecutive days", Category: CategoryMangaStreaks, MaxTier: 10, TierThresholds: []int{3, 7, 14, 21, 30, 45, 60, 90, 120, 180}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_multi_reread", Name: "Multi Reread Manga", Description: "Reread {threshold}+ manga more than once", Category: CategoryMangaCompletion, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_dropped_recovery", Name: "Dropped Recovery Reader", Description: "Complete a manga you previously dropped", Category: CategoryMangaCompletion, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaComplete}},
+	{Key: "m_ten_perfect_scores", Name: "Ten Masterpieces Manga", Description: "Complete 10 manga you rated 10/10", Category: CategoryMangaCompletion, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_complete_genre_span", Name: "Genre Completionist Reader", Description: "Complete manga in {threshold}+ different genres", Category: CategoryMangaCompletion, MaxTier: 10, TierThresholds: []int{5, 8, 10, 12, 15, 16, 18, 20, 22, 25}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_monthly_completions", Name: "Monthly Manga Completions", Description: "Complete {threshold}+ manga in a single month", Category: CategoryMangaCompletion, MaxTier: 10, TierThresholds: []int{5, 10, 15, 20, 30, 40, 50, 75, 100, 150}, TierNames: t10, Triggers: []EvalTrigger{TriggerMangaComplete}},
+	{Key: "m_yearly_completions", Name: "Yearly Manga Completions", Description: "Complete {threshold}+ manga in a calendar year", Category: CategoryMangaCompletion, MaxTier: 10, TierThresholds: []int{25, 50, 100, 200, 300, 500, 750, 1000, 1500, 2000}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_rapid_complete", Name: "Rapid Complete Reader", Description: "Complete 3+ manga in a single day", Category: CategoryMangaCompletion, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaComplete}},
+	{Key: "m_author_complete", Name: "Author Complete", Description: "Complete all works by a single mangaka", Category: CategoryMangaCompletion, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+
+	// ═══════════════════════════════════════════════
+	// MANGA ADDITIONAL DEDICATION (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "m_genre_master", Name: "Genre Master Reader", Description: "Read 50+ manga in any single genre", Category: CategoryMangaDedication, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_multi_series_author", Name: "Multi-Series Author Fan", Description: "Read {threshold}+ series by the same author", Category: CategoryMangaDedication, MaxTier: 10, TierThresholds: []int{3, 5, 8, 12, 20, 30, 50, 75, 100, 150}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_format_diversity", Name: "Format Diversity Reader", Description: "Read manga in {threshold}+ different formats from the same franchise", Category: CategoryMangaDedication, MaxTier: 10, TierThresholds: []int{2, 3, 4, 5, 6, 7, 8, 9, 10, 10}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_year_dedication", Name: "Year Dedication Reader", Description: "Read {threshold}+ manga from a single year", Category: CategoryMangaDedication, MaxTier: 10, TierThresholds: []int{5, 10, 20, 30, 50, 75, 100, 150, 200, 300}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_ongoing_follower", Name: "Ongoing Follower", Description: "Follow {threshold}+ ongoing manga to completion", Category: CategoryMangaDedication, MaxTier: 10, TierThresholds: []int{5, 10, 20, 40, 75, 120, 250, 625, 1900, 6500}, TierNames: t10, Triggers: []EvalTrigger{TriggerMangaComplete}},
+	{Key: "m_genre_loyalty_50", Name: "Genre Loyalty 50%", Description: "Have 50%+ of your manga in a single genre", Category: CategoryMangaDedication, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+
+	// ═══════════════════════════════════════════════
+	// MANGA ADDITIONAL DISCOVERY (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "m_top_rated_reader", Name: "Top Rated Reader", Description: "Read {threshold}+ of the top 50 highest-rated manga", Category: CategoryMangaDiscovery, MaxTier: 10, TierThresholds: []int{5, 10, 15, 20, 25, 30, 35, 40, 45, 50}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_source_variety", Name: "Source Variety Reader", Description: "Read manga adapted from {threshold}+ different source types", Category: CategoryMangaDiscovery, MaxTier: 10, TierThresholds: []int{2, 3, 4, 5, 6, 7, 8, 9, 10, 10}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_low_score_brave", Name: "Brave Reader", Description: "Complete {threshold}+ manga with average score below 6.0", Category: CategoryMangaDiscovery, MaxTier: 10, TierThresholds: []int{5, 10, 20, 40, 75, 120, 250, 625, 1900, 6500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_short_manga_explorer", Name: "Short Manga Explorer", Description: "Complete {threshold}+ manga with 1-10 chapters", Category: CategoryMangaDiscovery, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_long_manga_explorer", Name: "Long Manga Explorer", Description: "Complete {threshold}+ manga with 100+ chapters", Category: CategoryMangaDiscovery, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 40, 60, 100, 200, 400, 800}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_serialization_explorer", Name: "Serialization Explorer", Description: "Read manga from {threshold}+ different magazines/publications", Category: CategoryMangaDiscovery, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 30, 50, 75, 100, 150, 200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+
+	// ═══════════════════════════════════════════════
+	// MANGA ADDITIONAL TIME (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "m_weekend_binge_hours", Name: "Weekend Reading Hours", Description: "Spend {threshold}+ hours reading on a single weekend", Category: CategoryMangaTime, MaxTier: 10, TierThresholds: []int{3, 6, 10, 16, 24, 30, 36, 42, 48, 72}, TierNames: t10, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "m_late_night_regular", Name: "Late Night Regular Reader", Description: "Read manga past midnight on {threshold}+ different days", Category: CategoryMangaTime, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 200, 325, 650, 1600, 4800, 17000}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_sunrise_reader", Name: "Sunrise Reader", Description: "Read manga from 4 AM to 7 AM", Category: CategoryMangaTime, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_every_day_of_week", Name: "Every Day of Week Reader", Description: "Read manga on every day of the week in one week", Category: CategoryMangaTime, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_monthly_hours", Name: "Monthly Reading Hours", Description: "Spend {threshold}+ hours reading manga in a single month", Category: CategoryMangaTime, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 200, 325, 650, 1600, 4800, 17000}, TierNames: t10, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "m_bedtime_reader", Name: "Bedtime Reader", Description: "Read {threshold}+ chapters between 10 PM and midnight", Category: CategoryMangaTime, MaxTier: 10, TierThresholds: []int{50, 200, 500, 1000, 2500, 4000, 8000, 20000, 60000, 210000}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
+
+	// ═══════════════════════════════════════════════
+	// MANGA ADDITIONAL SPECIAL (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "m_double_digits", Name: "Double Digits Manga", Description: "Have exactly 11 manga completed", Category: CategoryMangaSpecial, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_one_two_three", Name: "One Two Three Manga", Description: "Have exactly 123 manga completed", Category: CategoryMangaSpecial, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_lucky_seven", Name: "Lucky Seven Manga", Description: "Have exactly 7 manga rated 7/10", Category: CategoryMangaSpecial, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_exact_hundred_ch", Name: "Exact Hundred Chapters", Description: "Have exactly 100 chapters read total", Category: CategoryMangaSpecial, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_year_match_count", Name: "Year Match Manga", Description: "Complete a manga count matching the current year's last 2 digits", Category: CategoryMangaSpecial, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_chapter_match_date", Name: "Chapter Match Date", Description: "Read exactly as many chapters in a day as the date number", Category: CategoryMangaSpecial, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
+
+	// ═══════════════════════════════════════════════
+	// MANGA ADDITIONAL STREAKS (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "m_completion_streak", Name: "Completion Streak Reader", Description: "Complete a manga every day for {threshold}+ consecutive days", Category: CategoryMangaStreaks, MaxTier: 10, TierThresholds: []int{3, 5, 7, 10, 14, 21, 30, 45, 60, 90}, TierNames: t10, Triggers: []EvalTrigger{TriggerMangaComplete}},
+	{Key: "m_rating_streak", Name: "Rating Streak Reader", Description: "Rate manga every day for {threshold}+ consecutive days", Category: CategoryMangaStreaks, MaxTier: 10, TierThresholds: []int{3, 7, 14, 21, 30, 45, 60, 90, 120, 180}, TierNames: t10, Triggers: []EvalTrigger{TriggerRatingChange}},
+	{Key: "m_multi_ch_streak", Name: "Multi-Chapter Streak", Description: "Read 10+ chapters every day for {threshold}+ days", Category: CategoryMangaStreaks, MaxTier: 10, TierThresholds: []int{7, 14, 30, 60, 100, 150, 200, 250, 300, 365}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_author_streak", Name: "Author Streak", Description: "Read the same author's manga for {threshold}+ consecutive days", Category: CategoryMangaStreaks, MaxTier: 10, TierThresholds: []int{3, 5, 7, 10, 14, 21, 30, 45, 60, 90}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_perfect_week_manga", Name: "Perfect Week Reader", Description: "Read manga, rate manga, and complete manga all in one week", Category: CategoryMangaStreaks, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_diverse_streak", Name: "Diverse Streak", Description: "Read from {threshold}+ different genres in consecutive days", Category: CategoryMangaStreaks, MaxTier: 10, TierThresholds: []int{3, 5, 7, 10, 12, 14, 16, 18, 20, 22}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
+
+	// ═══════════════════════════════════════════════
+	// MANGA ADDITIONAL SCORING (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "m_masterpiece_hunter", Name: "Masterpiece Hunter Manga", Description: "Read {threshold}+ manga with community score > 9.0", Category: CategoryMangaScoring, MaxTier: 10, TierThresholds: []int{3, 5, 10, 15, 20, 25, 30, 40, 50, 75}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_contrarian", Name: "Contrarian Reader", Description: "Rate {threshold}+ manga 3+ points below community average", Category: CategoryMangaScoring, MaxTier: 10, TierThresholds: []int{5, 10, 20, 40, 75, 120, 250, 625, 1900, 6500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_optimist", Name: "Optimist Reader", Description: "Rate {threshold}+ manga 2+ points above community average", Category: CategoryMangaScoring, MaxTier: 10, TierThresholds: []int{5, 10, 20, 40, 75, 120, 250, 625, 1900, 6500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_score_distributor", Name: "Score Distributor Reader", Description: "Have at least 5 manga at every score from 1-10", Category: CategoryMangaScoring, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_genre_critic", Name: "Genre Critic Reader", Description: "Rate 10+ manga in {threshold}+ different genres", Category: CategoryMangaScoring, MaxTier: 10, TierThresholds: []int{3, 5, 8, 10, 12, 14, 16, 18, 20, 22}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_mean_above_8", Name: "High Standards Manga", Description: "Maintain a mean score above 8.0 with 100+ rated manga", Category: CategoryMangaScoring, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+
+	// ═══════════════════════════════════════════════
+	// MANGA ADDITIONAL CREATIVE (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "m_vertical_scroll", Name: "Vertical Scroll Expert", Description: "Read {threshold}+ vertical-scroll manga", Category: CategoryMangaCreative, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_traditional_format", Name: "Traditional Format", Description: "Read {threshold}+ traditional right-to-left manga", Category: CategoryMangaCreative, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 200, 325, 650, 1600, 4800, 17000}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_cross_media", Name: "Cross Media", Description: "Read manga whose anime, movie, and game adaptations you also consumed", Category: CategoryMangaCreative, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_spinoff_reader", Name: "Spinoff Reader", Description: "Read {threshold}+ manga spinoffs", Category: CategoryMangaCreative, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_remake_reader", Name: "Remake Reader", Description: "Read both original and remake versions of a manga", Category: CategoryMangaCreative, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_collaboration_reader", Name: "Collaboration Reader", Description: "Read manga with {threshold}+ different writer-artist combinations", Category: CategoryMangaCreative, MaxTier: 10, TierThresholds: []int{5, 10, 20, 40, 75, 120, 250, 625, 1900, 6500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+
+	// ═══════════════════════════════════════════════
+	// MANGA ADDITIONAL HOLIDAY (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "m_earth_day", Name: "Earth Day Reader", Description: "Read a nature-themed manga on April 22nd", Category: CategoryMangaHoliday, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_labor_day", Name: "Labor Day Reader", Description: "Read manga on Labor Day", Category: CategoryMangaHoliday, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_winter_solstice", Name: "Winter Solstice Reader", Description: "Read manga on December 21st", Category: CategoryMangaHoliday, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_manga_birthday", Name: "Manga Birthday", Description: "Read manga on the anniversary of your first manga completion", Category: CategoryMangaHoliday, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_every_holiday_reader", Name: "Every Holiday Reader", Description: "Read manga on {threshold}+ different recognized holidays in a year", Category: CategoryMangaHoliday, MaxTier: 10, TierThresholds: []int{3, 5, 7, 10, 12, 14, 16, 18, 20, 25}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
+	{Key: "m_consecutive_holidays", Name: "Consecutive Holidays Reader", Description: "Read manga on 3+ consecutive recognized holidays", Category: CategoryMangaHoliday, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
+
+	// ═══════════════════════════════════════════════
+	// MANGA FORMATS (new section, 8 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "m_manga_format", Name: "Manga Format Reader", Description: "Read {threshold}+ standard manga", Category: CategoryMangaFormats, MaxTier: 10, TierThresholds: []int{10, 50, 100, 250, 500, 800, 1600, 4000, 12000, 42000}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_manhwa_format", Name: "Manhwa Format Reader", Description: "Read {threshold}+ manhwa", Category: CategoryMangaFormats, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_manhua_format", Name: "Manhua Format Reader", Description: "Read {threshold}+ manhua", Category: CategoryMangaFormats, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_ln_format", Name: "Light Novel Format", Description: "Read {threshold}+ light novels", Category: CategoryMangaFormats, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_oneshot_format", Name: "Oneshot Format Reader", Description: "Read {threshold}+ oneshots", Category: CategoryMangaFormats, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_doujin_format", Name: "Doujinshi Format", Description: "Read {threshold}+ doujinshi", Category: CategoryMangaFormats, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_novel_format", Name: "Novel Format", Description: "Read {threshold}+ novels", Category: CategoryMangaFormats, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "m_format_master_manga", Name: "Format Master Reader", Description: "Read entries in {threshold}+ different formats", Category: CategoryMangaFormats, MaxTier: 10, TierThresholds: []int{2, 3, 4, 5, 6, 7, 8, 9, 10, 10}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
 }

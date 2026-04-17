@@ -28,6 +28,7 @@ type (
 	ProviderImpl struct {
 		logger              *zerolog.Logger
 		fileCacher          *filecache.Cacher
+		metadataBucket      filecache.PermanentBucket
 		animeMetadataCache  *result.BoundedCache[string, *metadata.AnimeMetadata]
 		singleflight        *singleflight.Group
 		extensionBankRef    *util.Ref[*extension.UnifiedBank]
@@ -74,6 +75,7 @@ func NewProvider(options *NewProviderImplOptions) Provider {
 	ret := &ProviderImpl{
 		logger:              options.Logger,
 		fileCacher:          options.FileCacher,
+		metadataBucket:      filecache.NewPermanentBucket("anime-metadata"),
 		animeMetadataCache:  result.NewBoundedCache[string, *metadata.AnimeMetadata](100),
 		singleflight:        &singleflight.Group{},
 		db:                  options.Database,
@@ -115,6 +117,11 @@ func (p *ProviderImpl) GetAnimeMetadata(platform metadata.Platform, mId int) (re
 		return p.fetchAnimeMetadata(platform, mId)
 	})
 	if err != nil {
+		// Network fetch failed — try disk cache for offline resilience.
+		if diskMeta := p.loadMetadataFromDisk(cacheKey); diskMeta != nil {
+			p.animeMetadataCache.SetT(cacheKey, diskMeta, 1*time.Hour)
+			return diskMeta, nil
+		}
 		return nil, err
 	}
 
@@ -255,6 +262,8 @@ func (p *ProviderImpl) fetchAnimeMetadata(platform metadata.Platform, mId int) (
 	mId = event.MediaId
 
 	p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, 1*time.Hour)
+	// Write-through to disk for offline resilience.
+	p.saveMetadataToDisk(GetAnimeMetadataCacheKey(platform, mId), ret)
 
 	return ret, nil
 }
@@ -407,6 +416,31 @@ func (p *ProviderImpl) AnizipFallback(platform metadata.Platform, mId int) (ret 
 	mId = event.MediaId
 
 	p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, 1*time.Hour)
+	// Write-through to disk for offline resilience.
+	p.saveMetadataToDisk(GetAnimeMetadataCacheKey(platform, mId), ret)
 
 	return ret, nil
+}
+
+// saveMetadataToDisk persists anime metadata to the file cache.
+func (p *ProviderImpl) saveMetadataToDisk(cacheKey string, m *metadata.AnimeMetadata) {
+	if p.fileCacher == nil || m == nil {
+		return
+	}
+	if err := p.fileCacher.SetPerm(p.metadataBucket, cacheKey, m); err != nil {
+		p.logger.Warn().Err(err).Str("key", cacheKey).Msg("metadata_provider: Failed to persist metadata to disk")
+	}
+}
+
+// loadMetadataFromDisk loads previously cached anime metadata from disk.
+func (p *ProviderImpl) loadMetadataFromDisk(cacheKey string) *metadata.AnimeMetadata {
+	if p.fileCacher == nil {
+		return nil
+	}
+	var m metadata.AnimeMetadata
+	found, err := p.fileCacher.GetPerm(p.metadataBucket, cacheKey, &m)
+	if err != nil || !found {
+		return nil
+	}
+	return &m
 }

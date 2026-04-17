@@ -238,18 +238,18 @@ function BleachElements({ globalScale, ps: settings }: { globalScale: number; ps
             const s = (n: number) => ((i * 7919 + n * 104729) % 1000) / 1000
             return {
                 id: i,
-                startX: `${5 + s(1) * 90}%`,
-                startY: `${20 + s(2) * 60}%`,
+                startX: `${-15 + s(1) * 130}%`,
+                startY: `${-10 + s(2) * 120}%`,
                 delay: `${s(3) * 18}s`,
                 duration: `${8 + s(4) * 12}s`,
                 size: 22 + (i % 4) * 6,
                 wingPhase: s(5),
                 wingSpeed: 0.8 + s(6) * 0.8,
-                // Unique erratic path waypoints for each butterfly
+                // Unique erratic path waypoints for each butterfly — wide roaming including off-screen
                 path: Array.from({ length: 8 }, (_, k) => ({
-                    x: (s(k * 10 + 7) - 0.5) * 30,
-                    y: (s(k * 10 + 8) - 0.5) * 25,
-                    r: (s(k * 10 + 9) - 0.5) * 20,
+                    x: (s(k * 10 + 7) - 0.5) * 70,
+                    y: (s(k * 10 + 8) - 0.5) * 60,
+                    r: (s(k * 10 + 9) - 0.5) * 30,
                 })),
             }
         }),

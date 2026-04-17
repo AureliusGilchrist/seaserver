@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"math"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"strings"
@@ -16,11 +17,15 @@ func buildCollectionStats(
 		MangaGenreCounts:  make(map[string]int),
 		AnimeFormatCounts: make(map[string]int),
 		MangaFormatCounts: make(map[string]int),
+		AnimeTagCounts:    make(map[string]int),
+		MangaTagCounts:    make(map[string]int),
 	}
 
 	allGenreSet := make(map[string]struct{})
-	formatSet := make(map[string]struct{})
+	animeFormatSet := make(map[string]struct{})
+	mangaFormatSet := make(map[string]struct{})
 	decadeSet := make(map[int]struct{})
+	allTagSet := make(map[string]struct{})
 
 	var animeTotalScore float64
 	var animeScoreCount int
@@ -72,11 +77,18 @@ func buildCollectionStats(
 					stats.AnimeRatingCount++
 					animeTotalScore += *entry.Score
 					animeScoreCount++
+					score := normalizeScore(*entry.Score)
+					if score >= 1 && score <= 10 {
+						stats.AnimeScoreHist[score]++
+					}
 					if *entry.Score == 100 || *entry.Score == 10 {
 						stats.PerfectTenAnime++
 					}
 					if *entry.Score > 0 && *entry.Score <= 30 {
 						stats.HarshCriticAnime++
+					}
+					if score >= 5 && score <= 7 {
+						stats.MediocreCountAnime++
 					}
 				}
 
@@ -86,7 +98,7 @@ func buildCollectionStats(
 					if !isPlanning {
 						if media.Format != nil {
 							f := string(*media.Format)
-							formatSet[f] = struct{}{}
+							animeFormatSet[f] = struct{}{}
 							stats.AnimeFormatCounts[f]++
 							switch *media.Format {
 							case anilist.MediaFormatTv:
@@ -110,6 +122,13 @@ func buildCollectionStats(
 							if g != nil {
 								allGenreSet[*g] = struct{}{}
 								stats.AnimeGenreCounts[*g]++
+							}
+						}
+
+						for _, tag := range media.GetTags() {
+							if tag != nil {
+								stats.AnimeTagCounts[tag.Name]++
+								allTagSet[tag.Name] = struct{}{}
 							}
 						}
 
@@ -164,11 +183,18 @@ func buildCollectionStats(
 					stats.MangaRatingCount++
 					mangaTotalScore += *entry.Score
 					mangaScoreCount++
+					score := normalizeScore(*entry.Score)
+					if score >= 1 && score <= 10 {
+						stats.MangaScoreHist[score]++
+					}
 					if *entry.Score == 100 || *entry.Score == 10 {
 						stats.PerfectTenManga++
 					}
 					if *entry.Score > 0 && *entry.Score <= 30 {
 						stats.HarshCriticManga++
+					}
+					if score >= 5 && score <= 7 {
+						stats.MediocreCountManga++
 					}
 				}
 
@@ -183,8 +209,16 @@ func buildCollectionStats(
 							}
 						}
 
+						for _, tag := range media.GetTags() {
+							if tag != nil {
+								stats.MangaTagCounts[tag.Name]++
+								allTagSet[tag.Name] = struct{}{}
+							}
+						}
+
 						if media.Format != nil {
 							f := string(*media.Format)
+							mangaFormatSet[f] = struct{}{}
 							stats.MangaFormatCounts[f]++
 							fl := strings.ToUpper(f)
 							switch {
@@ -207,9 +241,12 @@ func buildCollectionStats(
 	}
 
 	stats.GenreCount = len(allGenreSet)
-	stats.FormatCount = len(formatSet)
+	stats.FormatCount = len(animeFormatSet) + len(mangaFormatSet)
 	stats.DecadeCount = len(decadeSet)
+	stats.TagCount = len(allTagSet)
 	stats.StudioCount = 0 // Studios not available from base anime query
+	stats.AnimeUniqueFormatCount = len(animeFormatSet)
+	stats.MangaUniqueFormatCount = len(mangaFormatSet)
 
 	if animeScoreCount > 0 {
 		stats.AnimeAverageRating = animeTotalScore / float64(animeScoreCount)
@@ -218,5 +255,81 @@ func buildCollectionStats(
 		stats.MangaAverageRating = mangaTotalScore / float64(mangaScoreCount)
 	}
 
+	// Compute scoring metadata
+	computeScoringMeta(stats)
+
 	return stats
+}
+
+// normalizeScore converts AniList scores (which can be on different scales) to 1-10.
+func normalizeScore(score float64) int {
+	if score > 10 {
+		return int(math.Round(score / 10))
+	}
+	return int(math.Round(score))
+}
+
+// computeScoringMeta derives scoring-related boolean/aggregate stats from histograms.
+func computeScoringMeta(s *achievement.CollectionStats) {
+	// Bell curve: check if middle scores (4-7) have more entries than extremes
+	computeBellCurve := func(hist [11]int, count int) bool {
+		if count < 20 {
+			return false
+		}
+		middle := 0
+		for i := 4; i <= 7; i++ {
+			middle += hist[i]
+		}
+		return float64(middle)/float64(count) > 0.5
+	}
+	s.BellCurveAnime = computeBellCurve(s.AnimeScoreHist, s.AnimeRatingCount)
+	s.BellCurveManga = computeBellCurve(s.MangaScoreHist, s.MangaRatingCount)
+
+	// Used all scores 1-10
+	computeUsedAll := func(hist [11]int) bool {
+		for i := 1; i <= 10; i++ {
+			if hist[i] == 0 {
+				return false
+			}
+		}
+		return true
+	}
+	s.UsedAllScoresAnime = computeUsedAll(s.AnimeScoreHist)
+	s.UsedAllScoresManga = computeUsedAll(s.MangaScoreHist)
+
+	// All completed rated
+	s.AllCompletedRatedAnime = s.CompletedAnime > 0 && s.AnimeRatingCount >= s.CompletedAnime
+	s.AllCompletedRatedManga = s.CompletedManga > 0 && s.MangaRatingCount >= s.CompletedManga
+
+	// Max same score
+	computeMaxSame := func(hist [11]int) int {
+		max := 0
+		for i := 1; i <= 10; i++ {
+			if hist[i] > max {
+				max = hist[i]
+			}
+		}
+		return max
+	}
+	s.MaxSameScoreAnime = computeMaxSame(s.AnimeScoreHist)
+	s.MaxSameScoreManga = computeMaxSame(s.MangaScoreHist)
+
+	// Score variance
+	computeVariance := func(hist [11]int, count int, avg float64) float64 {
+		if count < 2 {
+			return 0
+		}
+		normalizedAvg := avg
+		if avg > 10 {
+			normalizedAvg = avg / 10.0
+		}
+		var sumSqDiff float64
+		for i := 1; i <= 10; i++ {
+			diff := float64(i) - normalizedAvg
+			sumSqDiff += float64(hist[i]) * diff * diff
+		}
+		return sumSqDiff / float64(count)
+	}
+	s.ScoreVarianceAnime = computeVariance(s.AnimeScoreHist, s.AnimeRatingCount, s.AnimeAverageRating)
+	s.ScoreVarianceManga = computeVariance(s.MangaScoreHist, s.MangaRatingCount, s.MangaAverageRating)
 }

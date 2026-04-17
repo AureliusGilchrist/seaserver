@@ -4,6 +4,7 @@ import (
 	"errors"
 	"seanime/internal/achievement"
 	"seanime/internal/database/db_bridge"
+	"seanime/internal/database/models"
 	"seanime/internal/library/scanner"
 	"seanime/internal/library/summary"
 
@@ -147,6 +148,16 @@ func (h *Handler) HandleScanLocalFiles(c echo.Context) error {
 			"file_count": len(lfs),
 		},
 	})
+
+	// Record granular activity event
+	go func() {
+		pdb := h.GetProfileDatabase(c)
+		if pdb != nil {
+			_ = pdb.RecordActivityEvent(models.ActivityEventLibraryScanned, 0, map[string]interface{}{
+				"fileCount": len(lfs),
+			})
+		}
+	}()
 
 	return h.RespondWithData(c, lfs)
 

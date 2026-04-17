@@ -283,6 +283,10 @@ fragment baseAnime on Media {
   meanScore
   description
   genres
+  tags {
+    name
+    rank
+  }
   duration
   trailer {
     id
@@ -335,6 +339,10 @@ fragment completeAnime on Media {
   meanScore
   description
   genres
+  tags {
+    name
+    rank
+  }
   duration
   trailer {
     id

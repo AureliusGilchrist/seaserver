@@ -38,6 +38,10 @@ const (
 	CategoryMangaScoring     Category = "manga_scoring"
 	CategoryMangaCreative    Category = "manga_creative"
 	CategoryMangaHoliday     Category = "manga_holiday"
+
+	// Meta categories (achievements about the achievement system)
+	CategoryAnimeMeta Category = "anime_meta"
+	CategoryMangaMeta Category = "manga_meta"
 )
 
 // EvalTrigger defines what type of event triggers reevaluation.
@@ -56,6 +60,7 @@ const (
 	TriggerNakamaEvent       EvalTrigger = "nakama_event"
 	TriggerPlatformEvent     EvalTrigger = "platform_event"
 	TriggerComment           EvalTrigger = "comment"
+	TriggerAchievementUnlock EvalTrigger = "achievement_unlock"
 	TriggerAny               EvalTrigger = "any"
 )
 
@@ -175,6 +180,10 @@ var AllCategories = []CategoryInfo{
 	{CategoryMangaScoring, "Manga Scoring", "The literary critic", iconStar},
 	{CategoryMangaCreative, "Manga Creative", "Creative reading patterns", iconPen},
 	{CategoryMangaHoliday, "Manga Holiday", "Festive reading", iconCalendar},
+
+	// Meta
+	{CategoryAnimeMeta, "Anime Meta Mastery", "Achievements about achievements", iconCrown},
+	{CategoryMangaMeta, "Manga Meta Mastery", "Achievements about achievements", iconCrown},
 }
 
 // AllDefinitions contains every achievement definition.
@@ -184,6 +193,7 @@ func init() {
 	AllDefinitions = make([]Definition, 0, 1200)
 	AllDefinitions = append(AllDefinitions, animeDefinitions...)
 	AllDefinitions = append(AllDefinitions, mangaDefinitions...)
+	AllDefinitions = append(AllDefinitions, metaDefinitions...)
 
 	// Auto-assign difficulty where not explicitly set
 	for i := range AllDefinitions {
@@ -208,6 +218,16 @@ func inferDifficulty(def *Definition) Difficulty {
 		// Special number achievements (fibonacci, palindrome, pi, nice, etc.) are easy
 		if strings.HasSuffix(cat, "_special") {
 			return DifficultyEasy
+		}
+		// Meta achievements scale by what they require
+		if strings.HasSuffix(cat, "_meta") {
+			if strings.Contains(key, "first_") || strings.Contains(key, "collector") {
+				return DifficultyEasy
+			}
+			if strings.Contains(key, "dominator") || strings.Contains(key, "perfectionist") || strings.Contains(key, "completionist") {
+				return DifficultyExtreme
+			}
+			return DifficultyMedium
 		}
 		// First-time achievements are easy
 		if strings.Contains(key, "first_") || strings.HasSuffix(key, "_first") ||

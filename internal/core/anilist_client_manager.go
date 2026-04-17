@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"seanime/internal/api/anilist"
+	"seanime/internal/util/filecache"
+	"strconv"
 	"sync"
 	"time"
 
@@ -51,17 +54,31 @@ type AnilistClientManager struct {
 	app      *App
 	logger   *zerolog.Logger
 	cacheDir string
+
+	// Disk-backed cache for offline resilience.
+	fileCacher       *filecache.Cacher
+	animeColBucket   filecache.PermanentBucket
+	mangaColBucket   filecache.PermanentBucket
 }
 
 func NewAnilistClientManager(app *App) *AnilistClientManager {
+	profileCacheDir := filepath.Join(app.Config.Cache.Dir, "profile-collections")
+	fc, err := filecache.NewCacher(profileCacheDir)
+	if err != nil {
+		app.Logger.Warn().Err(err).Msg("anilist_client_manager: Failed to init disk cache, offline fallback disabled")
+	}
+
 	return &AnilistClientManager{
-		clients:       make(map[uint]anilist.AnilistClient),
-		usernames:     make(map[uint]string),
-		animeColCache: make(map[uint]*profileAnimeCache),
-		mangaColCache: make(map[uint]*profileMangaCache),
-		app:           app,
-		logger:        app.Logger,
-		cacheDir:      app.AnilistCacheDir,
+		clients:        make(map[uint]anilist.AnilistClient),
+		usernames:      make(map[uint]string),
+		animeColCache:  make(map[uint]*profileAnimeCache),
+		mangaColCache:  make(map[uint]*profileMangaCache),
+		app:            app,
+		logger:         app.Logger,
+		cacheDir:       app.AnilistCacheDir,
+		fileCacher:     fc,
+		animeColBucket: filecache.NewPermanentBucket("profile-anime-collection"),
+		mangaColBucket: filecache.NewPermanentBucket("profile-manga-collection"),
 	}
 }
 
@@ -231,6 +248,8 @@ func init() {
 // GetAnimeCollection returns the cached anime collection for a profile, or fetches
 // it from AniList if the cache is missing or expired. Concurrent calls for the same
 // profileID are collapsed into a single in-flight HTTP request via singleflight.
+// On successful fetch the collection is persisted to disk so it can be served when
+// the AniList API is unreachable (offline / internet outage).
 func (m *AnilistClientManager) GetAnimeCollection(profileID uint) (*anilist.AnimeCollection, error) {
 	// Fast path: return from cache if still fresh.
 	m.colMu.RLock()
@@ -254,6 +273,14 @@ func (m *AnilistClientManager) GetAnimeCollection(profileID uint) (*anilist.Anim
 		}
 		col, err := client.AnimeCollection(context.Background(), &username)
 		if err != nil {
+			// Network/API failed — try disk cache.
+			if diskCol := m.loadAnimeCollectionFromDisk(profileID); diskCol != nil {
+				m.logger.Info().Uint("profileID", profileID).Msg("anilist_client_manager: Serving anime collection from disk cache (API unreachable)")
+				m.colMu.Lock()
+				m.animeColCache[profileID] = &profileAnimeCache{data: diskCol, fetchedAt: time.Now()}
+				m.colMu.Unlock()
+				return diskCol, nil
+			}
 			return nil, err
 		}
 		// Filter out custom lists (lists whose status is nil) to match platform behaviour.
@@ -270,6 +297,8 @@ func (m *AnilistClientManager) GetAnimeCollection(profileID uint) (*anilist.Anim
 		m.colMu.Lock()
 		m.animeColCache[profileID] = &profileAnimeCache{data: col, fetchedAt: time.Now()}
 		m.colMu.Unlock()
+		// Write-through to disk for offline resilience.
+		m.saveAnimeCollectionToDisk(profileID, col)
 		return col, nil
 	})
 	if err != nil {
@@ -278,17 +307,44 @@ func (m *AnilistClientManager) GetAnimeCollection(profileID uint) (*anilist.Anim
 	return result.(*anilist.AnimeCollection), nil
 }
 
-// InvalidateAnimeCollection evicts the cached anime collection for a profile so
-// the next call to GetAnimeCollection fetches fresh data from AniList.
+// InvalidateAnimeCollection evicts the in-memory cached anime collection for a
+// profile so the next call fetches fresh data. The disk cache is intentionally
+// kept as a safety net for offline scenarios.
 func (m *AnilistClientManager) InvalidateAnimeCollection(profileID uint) {
 	m.colMu.Lock()
 	delete(m.animeColCache, profileID)
 	m.colMu.Unlock()
 }
 
+// saveAnimeCollectionToDisk persists the collection to the file cache.
+func (m *AnilistClientManager) saveAnimeCollectionToDisk(profileID uint, col *anilist.AnimeCollection) {
+	if m.fileCacher == nil || col == nil {
+		return
+	}
+	diskKey := "profile-" + strconv.FormatUint(uint64(profileID), 10)
+	if err := m.fileCacher.SetPerm(m.animeColBucket, diskKey, col); err != nil {
+		m.logger.Warn().Err(err).Uint("profileID", profileID).Msg("anilist_client_manager: Failed to persist anime collection to disk")
+	}
+}
+
+// loadAnimeCollectionFromDisk loads a previously cached collection from disk.
+func (m *AnilistClientManager) loadAnimeCollectionFromDisk(profileID uint) *anilist.AnimeCollection {
+	if m.fileCacher == nil {
+		return nil
+	}
+	diskKey := "profile-" + strconv.FormatUint(uint64(profileID), 10)
+	var col anilist.AnimeCollection
+	found, err := m.fileCacher.GetPerm(m.animeColBucket, diskKey, &col)
+	if err != nil || !found {
+		return nil
+	}
+	return &col
+}
+
 // GetMangaCollection returns the cached manga collection for a profile, or fetches
 // it from AniList if the cache is missing or expired. Concurrent calls are collapsed
 // into a single in-flight request via singleflight.
+// On successful fetch the collection is persisted to disk for offline resilience.
 func (m *AnilistClientManager) GetMangaCollection(profileID uint) (*anilist.MangaCollection, error) {
 	// Fast path.
 	m.colMu.RLock()
@@ -312,6 +368,14 @@ func (m *AnilistClientManager) GetMangaCollection(profileID uint) (*anilist.Mang
 		}
 		col, err := client.MangaCollection(context.Background(), &username)
 		if err != nil {
+			// Network/API failed — try disk cache.
+			if diskCol := m.loadMangaCollectionFromDisk(profileID); diskCol != nil {
+				m.logger.Info().Uint("profileID", profileID).Msg("anilist_client_manager: Serving manga collection from disk cache (API unreachable)")
+				m.colMu.Lock()
+				m.mangaColCache[profileID] = &profileMangaCache{data: diskCol, fetchedAt: time.Now()}
+				m.colMu.Unlock()
+				return diskCol, nil
+			}
 			return nil, err
 		}
 		// Filter out custom lists and novels to match platform behaviour.
@@ -328,6 +392,8 @@ func (m *AnilistClientManager) GetMangaCollection(profileID uint) (*anilist.Mang
 		m.colMu.Lock()
 		m.mangaColCache[profileID] = &profileMangaCache{data: col, fetchedAt: time.Now()}
 		m.colMu.Unlock()
+		// Write-through to disk for offline resilience.
+		m.saveMangaCollectionToDisk(profileID, col)
 		return col, nil
 	})
 	if err != nil {
@@ -336,11 +402,37 @@ func (m *AnilistClientManager) GetMangaCollection(profileID uint) (*anilist.Mang
 	return result.(*anilist.MangaCollection), nil
 }
 
-// InvalidateMangaCollection evicts the cached manga collection for a profile.
+// InvalidateMangaCollection evicts the in-memory cached manga collection for a
+// profile. The disk cache is intentionally kept as a safety net for offline scenarios.
 func (m *AnilistClientManager) InvalidateMangaCollection(profileID uint) {
 	m.colMu.Lock()
 	delete(m.mangaColCache, profileID)
 	m.colMu.Unlock()
+}
+
+// saveMangaCollectionToDisk persists the collection to the file cache.
+func (m *AnilistClientManager) saveMangaCollectionToDisk(profileID uint, col *anilist.MangaCollection) {
+	if m.fileCacher == nil || col == nil {
+		return
+	}
+	diskKey := "profile-" + strconv.FormatUint(uint64(profileID), 10)
+	if err := m.fileCacher.SetPerm(m.mangaColBucket, diskKey, col); err != nil {
+		m.logger.Warn().Err(err).Uint("profileID", profileID).Msg("anilist_client_manager: Failed to persist manga collection to disk")
+	}
+}
+
+// loadMangaCollectionFromDisk loads a previously cached manga collection from disk.
+func (m *AnilistClientManager) loadMangaCollectionFromDisk(profileID uint) *anilist.MangaCollection {
+	if m.fileCacher == nil {
+		return nil
+	}
+	diskKey := "profile-" + strconv.FormatUint(uint64(profileID), 10)
+	var col anilist.MangaCollection
+	found, err := m.fileCacher.GetPerm(m.mangaColBucket, diskKey, &col)
+	if err != nil || !found {
+		return nil
+	}
+	return &col
 }
 
 // String returns a debug representation.

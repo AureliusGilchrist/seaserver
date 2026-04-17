@@ -356,4 +356,169 @@ var animeDefinitions = []Definition{
 
 	{Key: "a_franchise_collector", Name: "Franchise Collector", Description: "Watch entries from {threshold}+ different franchises", Category: CategoryAnimeDedication, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 200, 325, 650, 1600, 4800, 17000}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
 	{Key: "a_airing_follower", Name: "Airing Follower", Description: "Follow {threshold}+ currently airing anime to completion", Category: CategoryAnimeDedication, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerSeriesComplete}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME TAG GENRES (tag-based, 20 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_tag_isekai", Name: "Isekai Traveler", Description: "Watch {threshold}+ Isekai anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_harem", Name: "Harem Collector", Description: "Watch {threshold}+ Harem anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_bl", Name: "Boys' Love Fan", Description: "Watch {threshold}+ Boys' Love anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_gl", Name: "Girls' Love Fan", Description: "Watch {threshold}+ Girls' Love anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_historical", Name: "History Buff", Description: "Watch {threshold}+ Historical anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_military", Name: "Military Strategist", Description: "Watch {threshold}+ Military anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_school", Name: "School Days", Description: "Watch {threshold}+ School anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 200, 325, 650, 1600, 4800, 17000}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_martial_arts", Name: "Martial Artist", Description: "Watch {threshold}+ Martial Arts anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_vampire", Name: "Vampire Hunter", Description: "Watch {threshold}+ Vampire anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_samurai", Name: "Samurai Path", Description: "Watch {threshold}+ Samurai anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_space", Name: "Space Explorer", Description: "Watch {threshold}+ Space anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_parody", Name: "Parody Lover", Description: "Watch {threshold}+ Parody anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_idol", Name: "Idol Fan", Description: "Watch {threshold}+ Idol anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_post_apocalyptic", Name: "Post-Apocalyptic Survivor", Description: "Watch {threshold}+ Post-Apocalyptic anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_cyberpunk", Name: "Cyberpunk Runner", Description: "Watch {threshold}+ Cyberpunk anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_shounen", Name: "Shounen Spirit", Description: "Watch {threshold}+ Shounen anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 200, 325, 650, 1600, 4800, 17000}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_seinen", Name: "Seinen Connoisseur", Description: "Watch {threshold}+ Seinen anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_shoujo", Name: "Shoujo Heart", Description: "Watch {threshold}+ Shoujo anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{5, 10, 20, 40, 75, 120, 250, 625, 1900, 6500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_josei", Name: "Josei Appreciator", Description: "Watch {threshold}+ Josei anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_tag_survival", Name: "Survival Expert", Description: "Watch {threshold}+ Survival anime", Category: CategoryAnimeGenres, MaxTier: 10, TierThresholds: []int{3, 8, 15, 30, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME ADDITIONAL MILESTONES (10 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_five_thousand_eps", Name: "Episode Legend", Description: "Watch 5,000 episodes total", Category: CategoryAnimeMilestones, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_ten_completed", Name: "First Ten", Description: "Complete 10 anime series", Category: CategoryAnimeMilestones, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_fifty_completed", Name: "Half Century", Description: "Complete 50 anime series", Category: CategoryAnimeMilestones, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_five_hundred_completed", Name: "Five Hundred Club", Description: "Complete 500 anime series", Category: CategoryAnimeMilestones, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_mean_score_tracker", Name: "Mean Score Tracker", Description: "Have a mean score with {threshold}+ rated anime", Category: CategoryAnimeMilestones, MaxTier: 10, TierThresholds: []int{10, 50, 100, 250, 500, 800, 1600, 4000, 12000, 42000}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_unique_studios", Name: "Studio Counter", Description: "Watch anime from {threshold}+ unique studios", Category: CategoryAnimeMilestones, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 150, 200, 250, 300, 400, 500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_days_spent_watching", Name: "Days of Anime", Description: "Spend {threshold}+ full days watching anime (24hr days)", Category: CategoryAnimeMilestones, MaxTier: 10, TierThresholds: []int{5, 10, 30, 60, 100, 200, 400, 800, 1500, 3000}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_all_status", Name: "Every Status", Description: "Have anime in all statuses (Watching, Completed, Paused, Dropped, Planning)", Category: CategoryAnimeMilestones, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_first_favorite", Name: "First Favorite", Description: "Add your first anime to favorites", Category: CategoryAnimeMilestones, MaxTier: 0, Triggers: []EvalTrigger{TriggerFavoriteToggle, TriggerCollectionRefresh}},
+	{Key: "a_favorites_collector", Name: "Favorites Collector", Description: "Have {threshold}+ anime in your favorites", Category: CategoryAnimeMilestones, MaxTier: 10, TierThresholds: []int{5, 10, 20, 30, 50, 75, 100, 150, 200, 300}, TierNames: t10, Triggers: []EvalTrigger{TriggerFavoriteToggle, TriggerCollectionRefresh}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME ADDITIONAL BINGE (8 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_genre_binge", Name: "Genre Binge", Description: "Watch {threshold}+ anime of the same genre in one week", Category: CategoryAnimeBinge, MaxTier: 10, TierThresholds: []int{5, 8, 12, 15, 20, 25, 30, 40, 50, 75}, TierNames: t10, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_studio_binge", Name: "Studio Binge", Description: "Watch 5+ anime from the same studio in one week", Category: CategoryAnimeBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_season_sweep", Name: "Season Sweep", Description: "Watch 10+ anime from the same season in one month", Category: CategoryAnimeBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_forty_eight_hour", Name: "48-Hour Marathon", Description: "Watch anime for 48 cumulative hours in one week", Category: CategoryAnimeBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "a_ep_counter_day", Name: "Daily Episode Record", Description: "Watch {threshold}+ episodes in a single calendar day", Category: CategoryAnimeBinge, MaxTier: 10, TierThresholds: []int{6, 12, 20, 30, 40, 50, 60, 75, 100, 150}, TierNames: t10, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_multi_series_binge", Name: "Multi-Series Binge", Description: "Watch episodes from {threshold}+ different series in one day", Category: CategoryAnimeBinge, MaxTier: 10, TierThresholds: []int{3, 5, 7, 10, 15, 20, 25, 30, 40, 50}, TierNames: t10, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_midnight_binge", Name: "Midnight Binge", Description: "Watch {threshold}+ episodes between midnight and 4 AM in one session", Category: CategoryAnimeBinge, MaxTier: 10, TierThresholds: []int{3, 6, 10, 15, 20, 25, 30, 40, 50, 75}, TierNames: t10, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_new_year_binge", Name: "New Year Binge", Description: "Watch 12+ episodes on January 1st", Category: CategoryAnimeBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME ADDITIONAL COMPLETION (8 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_multi_rewatch", Name: "Multi Rewatch", Description: "Rewatch {threshold}+ anime more than once", Category: CategoryAnimeCompletion, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_dropped_recovery", Name: "Dropped Recovery", Description: "Complete an anime you previously dropped", Category: CategoryAnimeCompletion, MaxTier: 0, Triggers: []EvalTrigger{TriggerSeriesComplete}},
+	{Key: "a_ten_perfect_scores", Name: "Ten Masterpieces", Description: "Complete 10 anime you rated 10/10", Category: CategoryAnimeCompletion, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_seasonal_clear", Name: "Seasonal Clear", Description: "Complete all anime you started from a single season", Category: CategoryAnimeCompletion, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_complete_genre_span", Name: "Genre Completionist", Description: "Complete anime in {threshold}+ different genres", Category: CategoryAnimeCompletion, MaxTier: 10, TierThresholds: []int{5, 8, 10, 12, 15, 16, 18, 20, 22, 25}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_monthly_completions", Name: "Monthly Completions", Description: "Complete {threshold}+ anime in a single month", Category: CategoryAnimeCompletion, MaxTier: 10, TierThresholds: []int{5, 10, 15, 20, 30, 40, 50, 75, 100, 150}, TierNames: t10, Triggers: []EvalTrigger{TriggerSeriesComplete}},
+	{Key: "a_yearly_completions", Name: "Yearly Completions", Description: "Complete {threshold}+ anime in a calendar year", Category: CategoryAnimeCompletion, MaxTier: 10, TierThresholds: []int{25, 50, 100, 200, 300, 500, 750, 1000, 1500, 2000}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_rapid_complete", Name: "Rapid Complete", Description: "Complete 3+ anime in a single day", Category: CategoryAnimeCompletion, MaxTier: 0, Triggers: []EvalTrigger{TriggerSeriesComplete}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME ADDITIONAL DEDICATION (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_genre_master", Name: "Genre Master", Description: "Watch 50+ anime in any single genre", Category: CategoryAnimeDedication, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_staff_follower", Name: "Staff Follower", Description: "Watch {threshold}+ anime sharing the same key staff member", Category: CategoryAnimeDedication, MaxTier: 10, TierThresholds: []int{5, 10, 15, 20, 30, 40, 50, 75, 100, 150}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_multi_season_fan", Name: "Multi-Season Fan", Description: "Watch all seasons of {threshold}+ multi-season anime", Category: CategoryAnimeDedication, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 30, 50, 75, 100, 150, 200}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_format_diversity", Name: "Format Diversity", Description: "Watch anime in {threshold}+ different formats from the same franchise", Category: CategoryAnimeDedication, MaxTier: 10, TierThresholds: []int{2, 3, 4, 5, 6, 7, 8, 9, 10, 10}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_year_dedication", Name: "Year Dedication", Description: "Watch {threshold}+ anime from a single year", Category: CategoryAnimeDedication, MaxTier: 10, TierThresholds: []int{5, 10, 20, 30, 50, 75, 100, 150, 200, 300}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_season_dedication", Name: "Season Dedication", Description: "Watch {threshold}+ anime from a single season of a year", Category: CategoryAnimeDedication, MaxTier: 10, TierThresholds: []int{3, 5, 8, 12, 20, 30, 50, 75, 100, 150}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME ADDITIONAL DISCOVERY (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_top_rated_viewer", Name: "Top Rated Viewer", Description: "Watch {threshold}+ of the top 50 highest-rated anime", Category: CategoryAnimeDiscovery, MaxTier: 10, TierThresholds: []int{5, 10, 15, 20, 25, 30, 35, 40, 45, 50}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_source_variety", Name: "Source Variety", Description: "Watch anime adapted from {threshold}+ different source types", Category: CategoryAnimeDiscovery, MaxTier: 10, TierThresholds: []int{2, 3, 4, 5, 6, 7, 8, 9, 10, 10}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_low_score_brave", Name: "Brave Viewer", Description: "Complete {threshold}+ anime with average score below 6.0", Category: CategoryAnimeDiscovery, MaxTier: 10, TierThresholds: []int{5, 10, 20, 40, 75, 120, 250, 625, 1900, 6500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_upcoming_watcher", Name: "Early Adopter", Description: "Watch {threshold}+ anime within their first airing season", Category: CategoryAnimeDiscovery, MaxTier: 10, TierThresholds: []int{5, 10, 25, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_short_series_explorer", Name: "Short Series Explorer", Description: "Complete {threshold}+ anime with 1-6 episodes", Category: CategoryAnimeDiscovery, MaxTier: 10, TierThresholds: []int{5, 15, 30, 50, 100, 160, 325, 800, 2400, 8500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_long_series_explorer", Name: "Long Series Explorer", Description: "Complete {threshold}+ anime with 50+ episodes", Category: CategoryAnimeDiscovery, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 40, 60, 100, 200, 400, 800}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME ADDITIONAL TIME (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_weekend_binge_hours", Name: "Weekend Binge Hours", Description: "Spend {threshold}+ hours watching on a single weekend", Category: CategoryAnimeTime, MaxTier: 10, TierThresholds: []int{3, 6, 10, 16, 24, 30, 36, 42, 48, 72}, TierNames: t10, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "a_late_night_regular", Name: "Late Night Regular", Description: "Watch anime past midnight on {threshold}+ different days", Category: CategoryAnimeTime, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 200, 325, 650, 1600, 4800, 17000}, TierNames: t10, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_sunrise_watcher", Name: "Sunrise Watcher", Description: "Watch anime from 4 AM to 7 AM", Category: CategoryAnimeTime, MaxTier: 0, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_holiday_watcher", Name: "Holiday Watcher Counter", Description: "Watch anime on {threshold}+ different holidays", Category: CategoryAnimeTime, MaxTier: 10, TierThresholds: []int{3, 5, 8, 10, 12, 14, 16, 18, 20, 25}, TierNames: t10, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_every_day_of_week", Name: "Every Day of Week", Description: "Watch anime on every day of the week in one week", Category: CategoryAnimeTime, MaxTier: 0, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_monthly_hours", Name: "Monthly Hours", Description: "Spend {threshold}+ hours watching anime in a single month", Category: CategoryAnimeTime, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 200, 325, 650, 1600, 4800, 17000}, TierNames: t10, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME ADDITIONAL SPECIAL (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_double_digits", Name: "Double Digits", Description: "Have exactly 11 anime completed", Category: CategoryAnimeSpecial, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_one_two_three", Name: "One Two Three", Description: "Have exactly 123 anime completed", Category: CategoryAnimeSpecial, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_lucky_seven", Name: "Lucky Seven", Description: "Have exactly 7 anime rated 7/10", Category: CategoryAnimeSpecial, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_all_tens", Name: "All Tens", Description: "Complete an anime with exactly 10 episodes and rate it 10", Category: CategoryAnimeSpecial, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_exact_hundred_eps", Name: "Exact Hundred", Description: "Have exactly 100 episodes watched total", Category: CategoryAnimeSpecial, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_year_match_count", Name: "Year Match", Description: "Complete an anime count matching the current year's last 2 digits", Category: CategoryAnimeSpecial, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME ADDITIONAL STREAKS (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_completion_streak", Name: "Completion Streak", Description: "Complete an anime every day for {threshold}+ consecutive days", Category: CategoryAnimeStreaks, MaxTier: 10, TierThresholds: []int{3, 5, 7, 10, 14, 21, 30, 45, 60, 90}, TierNames: t10, Triggers: []EvalTrigger{TriggerSeriesComplete}},
+	{Key: "a_rating_streak", Name: "Rating Streak", Description: "Rate anime every day for {threshold}+ consecutive days", Category: CategoryAnimeStreaks, MaxTier: 10, TierThresholds: []int{3, 7, 14, 21, 30, 45, 60, 90, 120, 180}, TierNames: t10, Triggers: []EvalTrigger{TriggerRatingChange}},
+	{Key: "a_multi_ep_streak", Name: "Multi-Episode Streak", Description: "Watch 3+ episodes every day for {threshold}+ days", Category: CategoryAnimeStreaks, MaxTier: 10, TierThresholds: []int{7, 14, 30, 60, 100, 150, 200, 250, 300, 365}, TierNames: t10, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_genre_streak", Name: "Genre Streak", Description: "Watch the same genre for {threshold}+ consecutive days", Category: CategoryAnimeStreaks, MaxTier: 10, TierThresholds: []int{3, 7, 14, 21, 30, 45, 60, 90, 120, 180}, TierNames: t10, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_studio_streak", Name: "Studio Streak", Description: "Watch the same studio's anime for {threshold}+ consecutive days", Category: CategoryAnimeStreaks, MaxTier: 10, TierThresholds: []int{3, 5, 7, 10, 14, 21, 30, 45, 60, 90}, TierNames: t10, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_perfect_week", Name: "Perfect Week", Description: "Watch anime, rate anime, and complete anime all in one week", Category: CategoryAnimeStreaks, MaxTier: 0, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME ADDITIONAL SCORING (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_masterpiece_hunter", Name: "Masterpiece Hunter", Description: "Watch {threshold}+ anime with community score > 9.0", Category: CategoryAnimeScoring, MaxTier: 10, TierThresholds: []int{3, 5, 10, 15, 20, 25, 30, 40, 50, 75}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_contrarian", Name: "Contrarian", Description: "Rate {threshold}+ anime 3+ points below community average", Category: CategoryAnimeScoring, MaxTier: 10, TierThresholds: []int{5, 10, 20, 40, 75, 120, 250, 625, 1900, 6500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_optimist", Name: "Optimist", Description: "Rate {threshold}+ anime 2+ points above community average", Category: CategoryAnimeScoring, MaxTier: 10, TierThresholds: []int{5, 10, 20, 40, 75, 120, 250, 625, 1900, 6500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_score_distributor", Name: "Score Distributor", Description: "Have at least 5 anime at every score from 1-10", Category: CategoryAnimeScoring, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_genre_critic", Name: "Genre Critic", Description: "Rate 10+ anime in {threshold}+ different genres", Category: CategoryAnimeScoring, MaxTier: 10, TierThresholds: []int{3, 5, 8, 10, 12, 14, 16, 18, 20, 22}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_mean_above_8", Name: "High Standards", Description: "Maintain a mean score above 8.0 with 100+ rated anime", Category: CategoryAnimeScoring, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME ADDITIONAL FORMATS (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_cm_watcher", Name: "CM Watcher", Description: "Watch {threshold}+ commercial anime (CMs)", Category: CategoryAnimeFormats, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_pv_collector", Name: "PV Collector", Description: "Watch {threshold}+ promotional videos/PVs", Category: CategoryAnimeFormats, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 35, 55, 110, 275, 825, 2900}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_format_balance", Name: "Format Balance", Description: "Have at least 5 anime in 3+ different formats", Category: CategoryAnimeFormats, MaxTier: 0, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_episodic_master", Name: "Episodic Master", Description: "Complete {threshold}+ episodic anime (standalone episodes)", Category: CategoryAnimeFormats, MaxTier: 10, TierThresholds: []int{5, 10, 20, 40, 75, 120, 250, 625, 1900, 6500}, TierNames: t10, Triggers: []EvalTrigger{TriggerCollectionRefresh}},
+	{Key: "a_sequel_movie", Name: "Sequel Movie", Description: "Watch a sequel movie after completing its TV series", Category: CategoryAnimeFormats, MaxTier: 0, Triggers: []EvalTrigger{TriggerSeriesComplete}},
+	{Key: "a_recap_watcher", Name: "Recap Watcher", Description: "Watch a recap/summary movie of an anime you completed", Category: CategoryAnimeFormats, MaxTier: 0, Triggers: []EvalTrigger{TriggerSeriesComplete}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME ADDITIONAL SOCIAL (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_genre_party", Name: "Genre Party", Description: "Host a watch party with a specific genre theme", Category: CategoryAnimeSocial, MaxTier: 0, Triggers: []EvalTrigger{TriggerNakamaEvent}},
+	{Key: "a_weekly_party", Name: "Weekly Watch Party", Description: "Host weekly watch parties for {threshold}+ weeks", Category: CategoryAnimeSocial, MaxTier: 10, TierThresholds: []int{4, 8, 12, 20, 30, 40, 52, 78, 104, 156}, TierNames: t10, Triggers: []EvalTrigger{TriggerNakamaEvent}},
+	{Key: "a_silent_viewer", Name: "Silent Viewer", Description: "Attend a watch party without posting any chat messages", Category: CategoryAnimeSocial, MaxTier: 0, Triggers: []EvalTrigger{TriggerNakamaEvent}},
+	{Key: "a_recommendation_giver", Name: "Recommendation Giver", Description: "Have {threshold}+ peers watch anime you recommended", Category: CategoryAnimeSocial, MaxTier: 10, TierThresholds: []int{3, 5, 10, 20, 50, 80, 160, 400, 1200, 4200}, TierNames: t10, Triggers: []EvalTrigger{TriggerNakamaEvent}},
+	{Key: "a_party_completionist", Name: "Party Completionist", Description: "Complete an entire series through watch parties only", Category: CategoryAnimeSocial, MaxTier: 0, Triggers: []EvalTrigger{TriggerNakamaEvent}},
+	{Key: "a_social_scorer", Name: "Social Scorer", Description: "Rate anime after discussing it in a watch party", Category: CategoryAnimeSocial, MaxTier: 0, Triggers: []EvalTrigger{TriggerNakamaEvent}},
+
+	// ═══════════════════════════════════════════════
+	// ANIME ADDITIONAL HOLIDAY (6 definitions)
+	// ═══════════════════════════════════════════════
+
+	{Key: "a_earth_day", Name: "Earth Day Watcher", Description: "Watch a nature-themed anime on April 22nd", Category: CategoryAnimeHoliday, MaxTier: 0, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_labor_day", Name: "Labor Day Anime", Description: "Watch anime on Labor Day", Category: CategoryAnimeHoliday, MaxTier: 0, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_winter_solstice", Name: "Winter Solstice Watch", Description: "Watch anime on December 21st", Category: CategoryAnimeHoliday, MaxTier: 0, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_anime_birthday", Name: "Anime Birthday", Description: "Watch anime on the anniversary of your first anime completion", Category: CategoryAnimeHoliday, MaxTier: 0, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_every_holiday", Name: "Every Holiday Watcher", Description: "Watch anime on {threshold}+ different recognized holidays in a year", Category: CategoryAnimeHoliday, MaxTier: 10, TierThresholds: []int{3, 5, 7, 10, 12, 14, 16, 18, 20, 25}, TierNames: t10, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
+	{Key: "a_consecutive_holidays", Name: "Consecutive Holidays", Description: "Watch anime on 3+ consecutive recognized holidays", Category: CategoryAnimeHoliday, MaxTier: 0, Triggers: []EvalTrigger{TriggerEpisodeProgress}},
 }

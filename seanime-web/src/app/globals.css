@@ -1297,6 +1297,32 @@ media-preview-chapter-display {
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   Hide default body backgrounds when an anime theme with wallpaper is active.
+   The theme's ThemeBackgroundImage component provides its own background.
+   ══════════════════════════════════════════════════════════════════ */
+
+[data-anime-theme="bleach"] body:before,
+[data-anime-theme="bleach"] body:after,
+[data-anime-theme="naruto"] body:before,
+[data-anime-theme="naruto"] body:after,
+[data-anime-theme="one-piece"] body:before,
+[data-anime-theme="one-piece"] body:after {
+    opacity: 0 !important;
+}
+
+[data-anime-theme="bleach"],
+[data-anime-theme="naruto"],
+[data-anime-theme="one-piece"] {
+    background-image: none !important;
+}
+
+[data-anime-theme="bleach"] body,
+[data-anime-theme="naruto"] body,
+[data-anime-theme="one-piece"] body {
+    background: var(--background) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
    Per-Theme Animated Text Effects
    Each theme gets distinct text animations that match its identity.
    Triggered by data-anime-theme="<id>" on :root.

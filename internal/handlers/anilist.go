@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
+	"seanime/internal/database/models"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util/result"
 	"seanime/internal/enmasse"
@@ -172,6 +173,22 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 			return h.RespondWithError(c, err)
 		}
 	}
+
+	// Record activity event
+	go func() {
+		pdb := h.GetProfileDatabase(c)
+		meta := map[string]interface{}{"type": p.Type}
+		if p.Status != nil {
+			meta["status"] = string(*p.Status)
+		}
+		if p.Score != nil {
+			meta["score"] = *p.Score
+		}
+		if p.Progress != nil {
+			meta["progress"] = *p.Progress
+		}
+		_ = pdb.RecordActivityEvent(models.ActivityEventAnilistEntryEdited, *p.MediaId, meta)
+	}()
 
 	// Fire achievement events for score/status changes
 	if p.Score != nil && *p.Score > 0 {
@@ -452,6 +469,12 @@ func (h *Handler) HandleDeleteAnilistListEntry(c echo.Context) error {
 			return h.RespondWithError(c, err)
 		}
 	}
+
+	// Record activity event for delete
+	go func() {
+		pdb := h.GetProfileDatabase(c)
+		_ = pdb.RecordActivityEvent(models.ActivityEventAnilistEntryDeleted, *p.MediaId, map[string]interface{}{"type": *p.Type})
+	}()
 
 	switch *p.Type {
 	case "anime":

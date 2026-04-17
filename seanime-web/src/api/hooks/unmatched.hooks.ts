@@ -124,13 +124,15 @@ export function useMatchUnmatchedTorrent(onSuccess?: () => void) {
             } else {
                 toast.error(data?.errorMessage || "Some files failed to move")
             }
-            await Promise.all([
+            // Close modal immediately — don't wait for query invalidations
+            onSuccess?.()
+            // Invalidate queries in the background so lists refresh after close
+            Promise.all([
                 queryClient.invalidateQueries({ queryKey: [UNMATCHED_ENDPOINTS.GetUnmatchedTorrents.key] }),
                 queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.key] }),
                 queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key] }),
                 queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.LIBRARY_EXPLORER.GetLibraryExplorerFileTree.key] }),
             ])
-            onSuccess?.()
         },
     })
 }

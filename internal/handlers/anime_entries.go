@@ -8,6 +8,7 @@ import (
 	"seanime/internal/api/anilist"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/database/db_bridge"
+	"seanime/internal/database/models"
 	"seanime/internal/customsource"
 	"seanime/internal/hook"
 	"seanime/internal/library/anime"
@@ -608,6 +609,13 @@ func (h *Handler) HandleAnimeEntryManualMatch(c echo.Context) error {
 
 	// Refresh anime collection in background so unmatched lists are rebuilt
 	go func() {
+		pdb := h.GetProfileDatabase(c)
+		if pdb != nil {
+			_ = pdb.RecordActivityEvent(models.ActivityEventFileMatched, b.MediaId, map[string]interface{}{
+				"paths":  b.Paths,
+				"action": "manual_match",
+			})
+		}
 		if _, err := h.App.RefreshAnimeCollection(); err != nil {
 			h.App.Logger.Warn().Err(err).Msg("manual-match: failed to refresh anime collection after match")
 		}
@@ -816,6 +824,11 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 				}
 			}
 			_ = pdb.RecordAnimeActivity(1, minutes)
+			_ = pdb.RecordActivityEvent(models.ActivityEventEpisodeWatched, b.MediaId, map[string]interface{}{
+				"episode":       b.EpisodeNumber,
+				"totalEpisodes": b.TotalEpisodes,
+				"duration":      minutes,
+			})
 		}
 	}()
 

@@ -2,6 +2,7 @@ package db
 
 import (
 	"seanime/internal/database/models"
+	"time"
 
 	"github.com/rs/zerolog"
 	"gorm.io/gorm"
@@ -26,6 +27,7 @@ func (cm *CleanupManager) RunAllCleanupOperations() {
 	cm.trimScanSummaryEntries()
 	cm.trimLocalFileEntries()
 	cm.trimTorrentstreamHistory()
+	cm.pruneOldActivityEvents()
 
 	cm.logger.Debug().Msg("database: Cleanup operations completed")
 }
@@ -144,5 +146,18 @@ func (cm *CleanupManager) trimTorrentstreamHistory() {
 			}
 			cm.logger.Debug().Int("deleted", len(idsToDelete)).Msg("database: Deleted old torrent stream history entries")
 		}
+	}
+}
+
+// pruneOldActivityEvents removes activity events older than 30 days.
+func (cm *CleanupManager) pruneOldActivityEvents() {
+	cutoff := time.Now().Add(-30 * 24 * time.Hour)
+	result := cm.gormdb.Where("created_at < ?", cutoff).Delete(&models.ActivityEvent{})
+	if result.Error != nil {
+		cm.logger.Error().Err(result.Error).Msg("database: Failed to prune old activity events")
+		return
+	}
+	if result.RowsAffected > 0 {
+		cm.logger.Debug().Int64("deleted", result.RowsAffected).Msg("database: Pruned old activity events")
 	}
 }

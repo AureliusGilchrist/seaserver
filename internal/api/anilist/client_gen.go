@@ -61,6 +61,7 @@ type BaseAnime struct {
 	MeanScore         *int                         "json:\"meanScore,omitempty\" graphql:\"meanScore\""
 	Description       *string                      "json:\"description,omitempty\" graphql:\"description\""
 	Genres            []*string                    "json:\"genres,omitempty\" graphql:\"genres\""
+	Tags              []*BaseAnime_Tag             "json:\"tags,omitempty\" graphql:\"tags\""
 	Duration          *int                         "json:\"duration,omitempty\" graphql:\"duration\""
 	Trailer           *BaseAnime_Trailer           "json:\"trailer,omitempty\" graphql:\"trailer\""
 	Title             *BaseAnime_Title             "json:\"title,omitempty\" graphql:\"title\""
@@ -166,6 +167,12 @@ func (t *BaseAnime) GetGenres() []*string {
 	}
 	return t.Genres
 }
+func (t *BaseAnime) GetTags() []*BaseAnime_Tag {
+	if t == nil {
+		t = &BaseAnime{}
+	}
+	return t.Tags
+}
 func (t *BaseAnime) GetDuration() *int {
 	if t == nil {
 		t = &BaseAnime{}
@@ -226,6 +233,7 @@ type CompleteAnime struct {
 	MeanScore         *int                             "json:\"meanScore,omitempty\" graphql:\"meanScore\""
 	Description       *string                          "json:\"description,omitempty\" graphql:\"description\""
 	Genres            []*string                        "json:\"genres,omitempty\" graphql:\"genres\""
+	Tags              []*CompleteAnime_Tag             "json:\"tags,omitempty\" graphql:\"tags\""
 	Duration          *int                             "json:\"duration,omitempty\" graphql:\"duration\""
 	Trailer           *CompleteAnime_Trailer           "json:\"trailer,omitempty\" graphql:\"trailer\""
 	Title             *CompleteAnime_Title             "json:\"title,omitempty\" graphql:\"title\""
@@ -331,6 +339,12 @@ func (t *CompleteAnime) GetGenres() []*string {
 		t = &CompleteAnime{}
 	}
 	return t.Genres
+}
+func (t *CompleteAnime) GetTags() []*CompleteAnime_Tag {
+	if t == nil {
+		t = &CompleteAnime{}
+	}
+	return t.Tags
 }
 func (t *CompleteAnime) GetDuration() *int {
 	if t == nil {
@@ -497,6 +511,7 @@ type BaseManga struct {
 	MeanScore       *int                  "json:\"meanScore,omitempty\" graphql:\"meanScore\""
 	Description     *string               "json:\"description,omitempty\" graphql:\"description\""
 	Genres          []*string             "json:\"genres,omitempty\" graphql:\"genres\""
+	Tags            []*BaseManga_Tag      "json:\"tags,omitempty\" graphql:\"tags\""
 	Title           *BaseManga_Title      "json:\"title,omitempty\" graphql:\"title\""
 	CoverImage      *BaseManga_CoverImage "json:\"coverImage,omitempty\" graphql:\"coverImage\""
 	StartDate       *BaseManga_StartDate  "json:\"startDate,omitempty\" graphql:\"startDate\""
@@ -598,6 +613,12 @@ func (t *BaseManga) GetGenres() []*string {
 		t = &BaseManga{}
 	}
 	return t.Genres
+}
+func (t *BaseManga) GetTags() []*BaseManga_Tag {
+	if t == nil {
+		t = &BaseManga{}
+	}
+	return t.Tags
 }
 func (t *BaseManga) GetTitle() *BaseManga_Title {
 	if t == nil {
@@ -950,6 +971,60 @@ type BaseAnime_Trailer struct {
 	ID        *string "json:\"id,omitempty\" graphql:\"id\""
 	Site      *string "json:\"site,omitempty\" graphql:\"site\""
 	Thumbnail *string "json:\"thumbnail,omitempty\" graphql:\"thumbnail\""
+}
+
+type BaseAnime_Tag struct {
+	Name string "json:\"name\" graphql:\"name\""
+	Rank *int   "json:\"rank,omitempty\" graphql:\"rank\""
+}
+
+func (t *BaseAnime_Tag) GetName() string {
+	if t == nil {
+		t = &BaseAnime_Tag{}
+	}
+	return t.Name
+}
+func (t *BaseAnime_Tag) GetRank() *int {
+	if t == nil {
+		t = &BaseAnime_Tag{}
+	}
+	return t.Rank
+}
+
+type CompleteAnime_Tag struct {
+	Name string "json:\"name\" graphql:\"name\""
+	Rank *int   "json:\"rank,omitempty\" graphql:\"rank\""
+}
+
+func (t *CompleteAnime_Tag) GetName() string {
+	if t == nil {
+		t = &CompleteAnime_Tag{}
+	}
+	return t.Name
+}
+func (t *CompleteAnime_Tag) GetRank() *int {
+	if t == nil {
+		t = &CompleteAnime_Tag{}
+	}
+	return t.Rank
+}
+
+type BaseManga_Tag struct {
+	Name string "json:\"name\" graphql:\"name\""
+	Rank *int   "json:\"rank,omitempty\" graphql:\"rank\""
+}
+
+func (t *BaseManga_Tag) GetName() string {
+	if t == nil {
+		t = &BaseManga_Tag{}
+	}
+	return t.Name
+}
+func (t *BaseManga_Tag) GetRank() *int {
+	if t == nil {
+		t = &BaseManga_Tag{}
+	}
+	return t.Rank
 }
 
 func (t *BaseAnime_Trailer) GetID() *string {
@@ -8061,6 +8136,10 @@ fragment baseAnime on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	duration
 	trailer {
 		id
@@ -8162,6 +8241,10 @@ fragment completeAnime on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	duration
 	trailer {
 		id
@@ -8221,6 +8304,10 @@ fragment baseAnime on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	duration
 	trailer {
 		id
@@ -8296,6 +8383,10 @@ fragment baseAnime on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	duration
 	trailer {
 		id
@@ -8371,6 +8462,10 @@ fragment baseAnime on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	duration
 	trailer {
 		id
@@ -8451,6 +8546,10 @@ fragment baseAnime on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	duration
 	trailer {
 		id
@@ -8535,6 +8634,10 @@ fragment completeAnime on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	duration
 	trailer {
 		id
@@ -8594,6 +8697,10 @@ fragment baseAnime on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	duration
 	trailer {
 		id
@@ -8798,6 +8905,10 @@ fragment baseAnime on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	duration
 	trailer {
 		id
@@ -8882,6 +8993,10 @@ fragment baseAnime on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	duration
 	trailer {
 		id
@@ -8982,6 +9097,10 @@ fragment baseAnime on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	duration
 	trailer {
 		id
@@ -9305,6 +9424,10 @@ fragment baseManga on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	title {
 		userPreferred
 		romaji
@@ -9374,6 +9497,10 @@ fragment baseManga on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	title {
 		userPreferred
 		romaji
@@ -9442,6 +9569,10 @@ fragment baseManga on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	title {
 		userPreferred
 		romaji
@@ -9616,6 +9747,10 @@ fragment baseManga on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	title {
 		userPreferred
 		romaji
@@ -9689,6 +9824,10 @@ fragment baseManga on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	title {
 		userPreferred
 		romaji
@@ -9907,6 +10046,10 @@ fragment baseAnime on Media {
 	meanScore
 	description
 	genres
+	tags {
+		name
+		rank
+	}
 	duration
 	trailer {
 		id
