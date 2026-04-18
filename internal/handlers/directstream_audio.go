@@ -109,6 +109,7 @@ func (h *Handler) HandleDirectstreamGetAudio(c echo.Context) error {
 		"-map", fmt.Sprintf("0:a:%d", trackIndex),
 		"-c:a", "aac",
 		"-b:a", "192k",
+		"-f", "adts",
 		"-y",
 		tmpPath,
 	)
@@ -215,6 +216,7 @@ func (h *Handler) HandleMediastreamGetAudio(c echo.Context) error {
 		"-map", fmt.Sprintf("0:a:%d", trackIndex),
 		"-c:a", "aac",
 		"-b:a", "192k",
+		"-f", "adts",
 		"-y",
 		tmpPath,
 	)

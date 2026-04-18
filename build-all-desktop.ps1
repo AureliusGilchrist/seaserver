@@ -272,7 +272,37 @@ Invoke-StepCmd 'npm ci (seanime-desktop)' {
 }
 Success 'Desktop dependencies installed'
 
-Step '5.2' "Tauri build (target: $TargetTriple)"
+Step '5.2' 'Tauri signing key'
+if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+    Warn 'TAURI_SIGNING_PRIVATE_KEY not set -- generating a throwaway key pair for local build'
+    SubStep 'Running cargo tauri signer generate...'
+    $signerOutput = cargo tauri signer generate -w 2>&1 | Out-String
+    # Extract the private key (base64 block between the markers)
+    if ($signerOutput -match '(?s)PRIVATE KEY:\s*\r?\n\s*(.+?)(?:\r?\n\s*\r?\n|$)') {
+        $env:TAURI_SIGNING_PRIVATE_KEY = $Matches[1].Trim()
+        $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ''
+        Success 'Throwaway signing key generated (updater artifacts will NOT match repo pubkey)'
+    } else {
+        # Fallback: try the newer tauri CLI output format
+        $lines = $signerOutput -split "`n" | Where-Object { $_.Trim() -and $_ -notmatch '^\s*(PUBLIC|PRIVATE|----)' }
+        foreach ($line in $lines) {
+            $trimmed = $line.Trim()
+            if ($trimmed.Length -gt 100 -and $trimmed -match '^[A-Za-z0-9+/=]+$') {
+                $env:TAURI_SIGNING_PRIVATE_KEY = $trimmed
+                $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ''
+                Success 'Throwaway signing key generated (updater artifacts will NOT match repo pubkey)'
+                break
+            }
+        }
+        if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            Warn 'Could not parse signer output -- trying build anyway'
+        }
+    }
+} else {
+    SubStep 'TAURI_SIGNING_PRIVATE_KEY is set'
+}
+
+Step '5.3' "Tauri build (target: $TargetTriple)"
 Invoke-StepCmd 'cargo tauri build' {
     Push-Location (Join-Path $ScriptDir 'seanime-desktop\src-tauri')
     try {

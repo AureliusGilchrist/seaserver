@@ -45,6 +45,51 @@ export function MediastreamVideoCore(props: MediastreamVideoCoreProps) {
         currentStreamType,
     } = props
 
+    // AniSkip data for skip opening/ending
+    const { data: aniSkipData } = useSkipData(
+        lifecycleState?.playbackInfo?.media?.idMal,
+        episode?.progressNumber ?? -1,
+    )
+
+    const handlePlayEpisode = React.useCallback((which: "previous" | "next") => {
+        if (which === "next" && hasNextEpisode) {
+            playNextEpisode()
+        } else if (which === "previous" && hasPreviousEpisode) {
+            playPreviousEpisode()
+        }
+    }, [hasNextEpisode, hasPreviousEpisode, playNextEpisode, playPreviousEpisode])
+
+    return (
+        <VideoCoreProvider id="mediastream">
+            <MediastreamDirectPlayEffects
+                handleChangeStreamType={handleChangeStreamType}
+                currentStreamType={currentStreamType}
+            />
+            <div className="relative w-full h-full aspect-video bg-black rounded-md overflow-hidden">
+                <VideoCore
+                    id="mediastream"
+                    state={lifecycleState}
+                    aniSkipData={aniSkipData}
+                    onTerminateStream={handleTerminateStream}
+                    onPlayEpisode={handlePlayEpisode}
+                    inline
+                />
+            </div>
+        </VideoCoreProvider>
+    )
+}
+
+/**
+ * Rendered inside VideoCoreProvider so that scoped atoms
+ * (vc_videoElement, vc_requestTranscodeForAudio) resolve to the correct scope.
+ */
+function MediastreamDirectPlayEffects({
+    handleChangeStreamType,
+    currentStreamType,
+}: {
+    handleChangeStreamType?: (type: Mediastream_StreamType) => void
+    currentStreamType?: Mediastream_StreamType
+}) {
     const videoElement = useAtomValue(vc_videoElement)
     const setRequestTranscodeForAudio = useSetAtom(vc_requestTranscodeForAudio)
     const setDirectPlayAudioUrl = useSetAtom(vc_directPlayAudioUrl)
@@ -193,32 +238,5 @@ export function MediastreamVideoCore(props: MediastreamVideoCoreProps) {
         }
     }, [videoElement, handleChangeStreamType, currentStreamType])
 
-    // AniSkip data for skip opening/ending
-    const { data: aniSkipData } = useSkipData(
-        lifecycleState?.playbackInfo?.media?.idMal,
-        episode?.progressNumber ?? -1,
-    )
-
-    const handlePlayEpisode = React.useCallback((which: "previous" | "next") => {
-        if (which === "next" && hasNextEpisode) {
-            playNextEpisode()
-        } else if (which === "previous" && hasPreviousEpisode) {
-            playPreviousEpisode()
-        }
-    }, [hasNextEpisode, hasPreviousEpisode, playNextEpisode, playPreviousEpisode])
-
-    return (
-        <VideoCoreProvider id="mediastream">
-            <div className="relative w-full h-full aspect-video bg-black rounded-md overflow-hidden">
-                <VideoCore
-                    id="mediastream"
-                    state={lifecycleState}
-                    aniSkipData={aniSkipData}
-                    onTerminateStream={handleTerminateStream}
-                    onPlayEpisode={handlePlayEpisode}
-                    inline
-                />
-            </div>
-        </VideoCoreProvider>
-    )
+    return null
 }
