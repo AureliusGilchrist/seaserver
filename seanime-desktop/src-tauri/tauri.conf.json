@@ -1,6 +1,6 @@
 {
-  "productName": "Seanime Desktop",
-  "version": "2.9.8",
+  "productName": "seaserver",
+  "version": "0.1.0",
   "identifier": "app.seanime.desktop",
   "build": {
     "frontendDist": "../../web-desktop",
@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Seanime",
+        "title": "seaserver",
         "width": 800,
         "height": 600,
         "resizable": true,
@@ -22,7 +22,7 @@
       },
       {
         "label": "splashscreen",
-        "title": "Seanime",
+        "title": "seaserver",
         "width": 800,
         "height": 600,
         "resizable": false,
@@ -32,7 +32,7 @@
       },
       {
         "label": "crash_screen",
-        "title": "Seanime",
+        "title": "seaserver",
         "width": 800,
         "height": 600,
         "resizable": false,
@@ -50,7 +50,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg4Q0RFQTc5NTQyRDU4RDYKUldUV1dDMVVlZXJOaU8xMlBhbU1xNG1IY2lLVG1oMXBnWm81VTNKem11N3EzcWk4NHI0SXhtbGkK",
       "endpoints": [
-        "https://github.com/5rahim/seanime/releases/latest/download/latest.json"
+        "https://github.com/AureliusGilchrist/seaserver/releases/latest/download/latest.json"
       ]
     }
   },

@@ -3,10 +3,14 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"seanime/internal/api/anilist"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/library/anime"
+	"seanime/internal/library/scanner"
 	"seanime/internal/unmatched"
+	"seanime/internal/util/limiter"
 	"sync"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -102,7 +106,7 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 			fullPath := result.Destination + "/" + name
 			lf := anime.NewLocalFile(fullPath, libraryPath)
 			lf.MediaId = req.AnimeID
-			lf.Locked = true
+			lf.Locked = false // Temporarily unlocked so hydrator processes it
 			lf.Ignored = false
 			lf.Metadata = &anime.LocalFileMetadata{
 				Episode:      0,
@@ -110,6 +114,32 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 				Type:         anime.LocalFileTypeMain,
 			}
 			newLFs = append(newLFs, lf)
+		}
+
+		// Hydrate episode metadata from parsed filenames before saving.
+		// NewLocalFile already parsed the episode number into ParsedData.Episode;
+		// run the hydrator to populate Metadata.Episode and Metadata.AniDBEpisode.
+		media, fetchErr := h.App.AnilistPlatformRef.Get().GetAnime(c.Request().Context(), req.AnimeID)
+		if fetchErr == nil && media != nil {
+			normalizedMedia := anime.NewNormalizedMedia(media)
+			fh := &scanner.FileHydrator{
+				AllMedia:            []*anime.NormalizedMedia{normalizedMedia},
+				LocalFiles:          newLFs,
+				MetadataProviderRef: h.App.MetadataProviderRef,
+				PlatformRef:         h.App.AnilistPlatformRef,
+				CompleteAnimeCache:  anilist.NewCompleteAnimeCache(),
+				AnilistRateLimiter:  limiter.NewLimiter(5*time.Second, 20),
+				Logger:              h.App.Logger,
+			}
+			fh.HydrateMetadata()
+		} else {
+			h.App.Logger.Warn().Err(fetchErr).Int("mediaId", req.AnimeID).
+				Msg("unmatched: failed to fetch media for episode hydration, episodes will be 0")
+		}
+
+		// Lock all files after hydration
+		for _, lf := range newLFs {
+			lf.Locked = true
 		}
 
 		existingLFs, lfsId, lfsErr := db_bridge.GetLocalFiles(h.App.Database)
@@ -128,6 +158,19 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 		}
 	}
 
+	// Auto-add to Planning Slut's PLANNING list so the shared library picks it up
+	if result.Success && req.AnimeID > 0 {
+		go func() {
+			if addErr := h.addAnimeToPlanningSlutPlanning(context.Background(), req.AnimeID); addErr != nil {
+				h.App.Logger.Warn().Err(addErr).Int("mediaId", req.AnimeID).
+					Msg("unmatched: failed to add anime to planning slut's PLANNING list")
+			} else {
+				h.App.Logger.Info().Int("mediaId", req.AnimeID).
+					Msg("unmatched: added anime to planning slut's PLANNING list")
+			}
+		}()
+	}
+
 	// Background: refresh collection and rescan unmatched (safe now that locked entries are in DB)
 	go func() {
 		if _, err := h.App.GetAnimeCollection(true); err != nil {
@@ -143,10 +186,10 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 
 // HandleUnmatchedFamilySearch
 //
-//	@summary fetches the full sequel/prequel relation tree for an anime.
-//	@desc Returns the root anime plus all related sequel/prequel entries from AniList.
+//	@summary fetches the full relation tree for an anime.
+//	@desc Returns the root anime plus all related entries from AniList with relation types.
 //	@route /api/v1/unmatched/family-search [POST]
-//	@returns []familyEntry
+//	@returns unmatchedFamilyResult
 func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 	type body struct {
 		AnimeID int `json:"animeId"`
@@ -160,18 +203,31 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 	}
 
 	type familyEntry struct {
-		ID    int    `json:"id"`
-		Title string `json:"title"`
+		ID           int    `json:"id"`
+		Title        string `json:"title"`
+		RelationType string `json:"relationType"` // "SEQUEL", "PREQUEL", "SIDE_STORY", "PARENT", "ALTERNATIVE", "SPIN_OFF", "SUMMARY", "CHARACTER", "OTHER", ""
+		Format       string `json:"format"`        // "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC"
+		ParentID     int    `json:"parentId"`       // ID of the parent entry in the tree (0 for root)
+	}
+
+	type unmatchedFamilyResult struct {
+		Root    familyEntry   `json:"root"`
+		Entries []familyEntry `json:"entries"`
 	}
 
 	platform := h.App.AnilistPlatformRef.Get()
 	ctx := context.Background()
 
 	visited := make(map[int]bool)
-	out := make([]familyEntry, 0)
+	entries := make([]familyEntry, 0)
 
-	type node struct{ id int }
-	queue := []node{{id: b.AnimeID}}
+	type node struct {
+		id       int
+		parentID int
+	}
+	queue := []node{{id: b.AnimeID, parentID: 0}}
+
+	var root familyEntry
 
 	for len(queue) > 0 {
 		cur := queue[0]
@@ -194,7 +250,23 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 				title = *media.GetTitle().GetRomaji()
 			}
 		}
-		out = append(out, familyEntry{ID: media.ID, Title: title})
+
+		format := ""
+		if media.GetFormat() != nil {
+			format = string(*media.GetFormat())
+		}
+
+		entry := familyEntry{
+			ID:       media.ID,
+			Title:    title,
+			Format:   format,
+			ParentID: cur.parentID,
+		}
+
+		if media.ID == b.AnimeID {
+			root = entry
+		}
+		entries = append(entries, entry)
 
 		if media.Relations == nil {
 			continue
@@ -207,22 +279,48 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 			if n == nil || visited[n.ID] {
 				continue
 			}
-			// Only follow sequels / prequels that have broad relation formats
-			if edge.RelationType == nil {
-				continue
+			relType := ""
+			if edge.RelationType != nil {
+				relType = string(*edge.RelationType)
 			}
-			rt := string(*edge.RelationType)
-			if rt != "SEQUEL" && rt != "PREQUEL" {
-				continue
+
+			childTitle := ""
+			if n.GetTitle() != nil {
+				if n.GetTitle().GetUserPreferred() != nil {
+					childTitle = *n.GetTitle().GetUserPreferred()
+				} else if n.GetTitle().GetRomaji() != nil {
+					childTitle = *n.GetTitle().GetRomaji()
+				}
 			}
-			if !edge.IsBroadRelationFormat() {
-				continue
+
+			childFormat := ""
+			if n.Format != nil {
+				childFormat = string(*n.Format)
 			}
-			queue = append(queue, node{id: n.ID})
+
+			// Add child entry with relation info
+			childEntry := familyEntry{
+				ID:           n.ID,
+				Title:        childTitle,
+				RelationType: relType,
+				Format:       childFormat,
+				ParentID:     media.ID,
+			}
+			entries = append(entries, childEntry)
+			visited[n.ID] = true
+
+			// Continue BFS for sequel/prequel chains to build deeper tree
+			if relType == "SEQUEL" || relType == "PREQUEL" {
+				queue = append(queue, node{id: n.ID, parentID: media.ID})
+				visited[n.ID] = false // Allow re-visit to discover its relations
+			}
 		}
 	}
 
-	return h.RespondWithData(c, out)
+	return h.RespondWithData(c, unmatchedFamilyResult{
+		Root:    root,
+		Entries: entries,
+	})
 }
 
 // HandleDeleteUnmatchedTorrent

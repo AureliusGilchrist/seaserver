@@ -112,6 +112,15 @@ func (h *Handler) HandleScanLocalFiles(c echo.Context) error {
 			if dbLf.IsLocked() && dbLf.MediaId != 0 {
 				npath := dbLf.GetNormalizedPath()
 				if idx, exists := scanResultPaths[npath]; exists {
+					scanLf := allLfs[idx]
+					// If the scan result was re-hydrated with richer metadata
+					// (e.g. episode numbers from re-hydration pass), prefer it
+					// over the stale DB version that may still have Episode=0.
+					if scanLf.IsLocked() && scanLf.MediaId == dbLf.MediaId &&
+						scanLf.Metadata != nil && scanLf.Metadata.Episode > 0 &&
+						(dbLf.Metadata == nil || dbLf.Metadata.Episode == 0) {
+						continue // keep re-hydrated scan result
+					}
 					// Replace scan result with the locked DB version
 					allLfs[idx] = dbLf
 				} else {

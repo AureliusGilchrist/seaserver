@@ -155,10 +155,18 @@ export function useDeleteUnmatchedTorrent(onSuccess?: () => void) {
 export interface FamilyEntry {
     id: number
     title: string
+    relationType: string // "SEQUEL", "PREQUEL", "SIDE_STORY", "PARENT", "ALTERNATIVE", "SPIN_OFF", "SUMMARY", "CHARACTER", "OTHER", ""
+    format: string       // "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC"
+    parentId: number     // ID of the parent entry in the tree (0 for root)
+}
+
+export interface FamilyResult {
+    root: FamilyEntry
+    entries: FamilyEntry[]
 }
 
 export function useUnmatchedFamilySearch() {
-    return useServerMutation<FamilyEntry[], { animeId: number }>({
+    return useServerMutation<FamilyResult, { animeId: number }>({
         endpoint: UNMATCHED_ENDPOINTS.FamilySearch.endpoint,
         method: UNMATCHED_ENDPOINTS.FamilySearch.methods[0],
         mutationKey: [UNMATCHED_ENDPOINTS.FamilySearch.key],

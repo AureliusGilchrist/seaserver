@@ -140,13 +140,14 @@ export function VideoCoreAudioMenu() {
                             setSelectedTrack(value)
                             action({ type: "seek", payload: { time: -1 } })
                         } else if (requestTranscodeForAudio) {
-                            // Direct play mode: the browser audioTracks API silently accepts
-                            // writes but never actually switches the decoded audio for MKV
-                            // files. Switch to transcode mode where HLS.js handles it properly.
-                            // The per-media language override saved above will be applied
-                            // when the transcode stream starts.
+                            // Direct play mode: extract the selected audio track via FFmpeg
+                            // and play it through a hidden <audio> element synced to the video.
+                            // Convert MKV track number to 0-based audio stream index.
+                            const audioStreamIndex = mkvAudioTracks
+                                ? mkvAudioTracks.findIndex(t => (t as MKVParser_TrackInfo).number === value)
+                                : -1
                             setSelectedTrack(value)
-                            requestTranscodeForAudio()
+                            requestTranscodeForAudio(audioStreamIndex >= 0 ? audioStreamIndex : 0)
                         }
                     }}
                     value={selectedTrack || 0}

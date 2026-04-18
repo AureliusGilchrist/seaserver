@@ -39,9 +39,10 @@ type UnlockPayload struct {
 
 // Engine evaluates achievement events and unlocks achievements in the profile DB.
 type Engine struct {
-	logger         *zerolog.Logger
-	wsEventManager events.WSEventManagerInterface
-	getDB          func(profileID uint) (*db.Database, error)
+	logger             *zerolog.Logger
+	wsEventManager     events.WSEventManagerInterface
+	getDB              func(profileID uint) (*db.Database, error)
+	isProfileEligible  func(profileID uint) bool
 
 	defMap     map[string]*Definition
 	mu         sync.Mutex
@@ -52,15 +53,19 @@ type NewEngineOptions struct {
 	Logger         *zerolog.Logger
 	WSEventManager events.WSEventManagerInterface
 	GetDB          func(profileID uint) (*db.Database, error)
+	// IsProfileEligible returns true if the profile should earn achievements.
+	// When nil, all profiles with ID > 0 are eligible.
+	IsProfileEligible func(profileID uint) bool
 }
 
 // NewEngine creates a new achievement engine.
 func NewEngine(opts *NewEngineOptions) *Engine {
 	return &Engine{
-		logger:         opts.Logger,
-		wsEventManager: opts.WSEventManager,
-		getDB:          opts.GetDB,
-		defMap:         DefinitionMap(),
+		logger:            opts.Logger,
+		wsEventManager:    opts.WSEventManager,
+		getDB:             opts.GetDB,
+		isProfileEligible: opts.IsProfileEligible,
+		defMap:            DefinitionMap(),
 	}
 }
 
@@ -68,6 +73,9 @@ func NewEngine(opts *NewEngineOptions) *Engine {
 // It evaluates all definitions that match the given trigger and updates progress/unlocks.
 func (e *Engine) ProcessEvent(event *AchievementEvent) {
 	if event.ProfileID == 0 {
+		return
+	}
+	if e.isProfileEligible != nil && !e.isProfileEligible(event.ProfileID) {
 		return
 	}
 	if event.Timestamp.IsZero() {
@@ -97,6 +105,9 @@ func (e *Engine) ProcessEvent(event *AchievementEvent) {
 // It receives aggregate stats and evaluates definitions that use TriggerCollectionRefresh.
 func (e *Engine) EvaluateCollectionStats(profileID uint, stats *CollectionStats) {
 	if profileID == 0 || stats == nil {
+		return
+	}
+	if e.isProfileEligible != nil && !e.isProfileEligible(profileID) {
 		return
 	}
 	database, err := e.getDB(profileID)

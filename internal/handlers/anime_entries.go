@@ -522,10 +522,11 @@ func (h *Handler) HandleAnimeEntryManualMatch(c echo.Context) error {
 	})
 
 	// Add the media id to the selected local files
-	// Also, lock the files
+	// Do NOT lock before hydration — the hydrator skips locked files.
+	// Files will be locked after hydration to preserve the manual match.
 	selectedLfs = lop.Map(selectedLfs, func(item *anime.LocalFile, _ int) *anime.LocalFile {
 		item.MediaId = b.MediaId
-		item.Locked = true
+		item.Locked = false
 		item.Ignored = false
 		return item
 	})
@@ -565,6 +566,11 @@ func (h *Handler) HandleAnimeEntryManualMatch(c echo.Context) error {
 	}
 
 	fh.HydrateMetadata()
+
+	// Lock files after hydration to preserve the manual match
+	for _, item := range selectedLfs {
+		item.Locked = true
+	}
 
 	// Hydrate the summary logger before merging files
 	fh.ScanSummaryLogger.HydrateData(selectedLfs, normalizedMedia, animeCollectionWithRelations)

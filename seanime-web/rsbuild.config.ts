@@ -66,7 +66,13 @@ export default defineConfig({
         entry: {
             index: "./src/main.tsx",
         },
-        define: publicVars,
+        define: {
+            ...publicVars,
+            // Mirror NEXT_PUBLIC_* env vars so legacy constants.ts refs still resolve
+            "process.env.NEXT_PUBLIC_PLATFORM": JSON.stringify(process.env.NEXT_PUBLIC_PLATFORM ?? ""),
+            "process.env.NEXT_PUBLIC_DESKTOP": JSON.stringify(process.env.NEXT_PUBLIC_DESKTOP ?? ""),
+            "process.env.NEXT_PUBLIC_DEVBUILD": JSON.stringify(process.env.NEXT_PUBLIC_DEVBUILD ?? ""),
+        },
     },
     resolve: {
         alias: {

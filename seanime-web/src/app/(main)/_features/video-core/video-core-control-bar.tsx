@@ -372,6 +372,13 @@ export function VideoCoreControlButtonIcon(props: VideoCoreControlButtonProps) {
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
     const isMobile = useAtomValue(vc_isMobile)
 
+    // Find the single matching icon for the current state.
+    // Rendering only the match (no null siblings) prevents Motion v12 AnimatePresence
+    // from misinterpreting null map results as exit triggers, which caused icons to
+    // stick at opacity:0 in Firefox/Opera GX.
+    const match = icons.find(([s]) => s === state)
+    const MatchIcon = match?.[1]
+
     return (
         <button
             role="button"
@@ -381,7 +388,6 @@ export function VideoCoreControlButtonIcon(props: VideoCoreControlButtonProps) {
             className={cn(
                 "vc-control-button flex items-center justify-center transition-opacity relative h-full",
                 "focus-visible:outline-none focus:outline-none focus-visible:opacity-50",
-                // Better touch targets on mobile
                 isMobile ? "px-1 text-2xl" : "px-2 text-3xl hover:opacity-80",
                 isMiniPlayer && !isMobile && "text-2xl",
                 className,
@@ -389,30 +395,26 @@ export function VideoCoreControlButtonIcon(props: VideoCoreControlButtonProps) {
             onClick={onClick}
             onWheel={onWheel}
         >
-            <AnimatePresence>
-                {icons.map(n => {
-                    const [iconState, Icon] = n
-                    if (state !== iconState) return null
-                    return (
-                        <motion.span
-                            key={iconState}
-                            data-vc-element="control-button-icon"
-                            data-vc-state={iconState}
-                            className="block"
-                            initial={{ opacity: 0, y: 10, position: "relative" }}
-                            animate={{ opacity: 1, y: 0, position: "relative" }}
-                            exit={{ opacity: 0, y: 10, position: "absolute" }}
-                            transition={{ duration: 0.15 }}
-                        >
-                            <Icon
-                                className={cn(
-                                    "vc-control-button-icon",
-                                    iconClass,
-                                )}
-                            />
-                        </motion.span>
-                    )
-                })}
+            <AnimatePresence initial={false} mode="popLayout">
+                {match && MatchIcon && (
+                    <motion.span
+                        key={match[0]}
+                        data-vc-element="control-button-icon"
+                        data-vc-state={match[0]}
+                        className="block relative"
+                        initial={{ y: 10 }}
+                        animate={{ y: 0 }}
+                        exit={{ opacity: 0, y: 10, position: "absolute" as any }}
+                        transition={{ duration: 0.15 }}
+                    >
+                        <MatchIcon
+                            className={cn(
+                                "vc-control-button-icon",
+                                iconClass,
+                            )}
+                        />
+                    </motion.span>
+                )}
             </AnimatePresence>
             {children}
         </button>

@@ -318,6 +318,21 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 								CompletedAt: anilist.ToEntryCompletionDate(entry.CompletedAt),
 							},
 						}
+					} else if *list.Status == anilist.MediaListStatusPlanning {
+						// Include all user's planning entries even without local files
+						return &LibraryCollectionEntry{
+							MediaId:          entry.Media.ID,
+							Media:            entry.Media,
+							EntryLibraryData: nil,
+							EntryListData: &EntryListData{
+								Progress:    entry.GetProgressSafe(),
+								Score:       entry.GetScoreSafe(),
+								Status:      entry.Status,
+								Repeat:      entry.GetRepeatSafe(),
+								StartedAt:   anilist.ToEntryStartDate(entry.StartedAt),
+								CompletedAt: anilist.ToEntryCompletionDate(entry.CompletedAt),
+							},
+						}
 					} else {
 						return nil
 					}

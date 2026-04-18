@@ -285,6 +285,54 @@ func (scn *Scanner) Scan(ctx context.Context) (lfs []*anime.LocalFile, err error
 		// Add remaining shelved files
 		scn.addRemainingShelvedFiles(skippedLfs, sortedLibraryPaths)
 
+		// Re-hydrate locked files with missing metadata (early-return path)
+		{
+			unhydrated := lo.Filter(localFiles, func(lf *anime.LocalFile, _ int) bool {
+				return lf.IsLocked() && lf.MediaId != 0 &&
+					lf.Metadata != nil &&
+					lf.Metadata.AniDBEpisode == "" &&
+					lf.Metadata.Episode == 0
+			})
+			if len(unhydrated) > 0 {
+				scn.Logger.Debug().
+					Int("count", len(unhydrated)).
+					Msg("scanner: Re-hydrating manually-matched files with missing episode metadata (early path)")
+
+				// Collect unique media IDs and fetch their data
+				mediaIds := lo.Uniq(lo.Map(unhydrated, func(lf *anime.LocalFile, _ int) int { return lf.MediaId }))
+				normalizedMedia := make([]*anime.NormalizedMedia, 0, len(mediaIds))
+				for _, mId := range mediaIds {
+					media, fetchErr := scn.PlatformRef.Get().GetAnime(ctx, mId)
+					if fetchErr != nil {
+						scn.Logger.Warn().Err(fetchErr).Int("mediaId", mId).Msg("scanner: Failed to fetch media for re-hydration")
+						continue
+					}
+					normalizedMedia = append(normalizedMedia, anime.NewNormalizedMedia(media))
+				}
+
+				if len(normalizedMedia) > 0 {
+					for _, lf := range unhydrated {
+						lf.Locked = false
+					}
+					reHydrator := &FileHydrator{
+						AllMedia:            normalizedMedia,
+						LocalFiles:          unhydrated,
+						MetadataProviderRef: scn.MetadataProviderRef,
+						PlatformRef:         scn.PlatformRef,
+						CompleteAnimeCache:  completeAnimeCache,
+						AnilistRateLimiter:  anilistRateLimiter,
+						Logger:              scn.Logger,
+						ScanLogger:          scn.ScanLogger,
+						ScanSummaryLogger:   scn.ScanSummaryLogger,
+					}
+					reHydrator.HydrateMetadata()
+					for _, lf := range unhydrated {
+						lf.Locked = true
+					}
+				}
+			}
+		}
+
 		scn.Logger.Debug().Msg("scanner: Scan completed")
 		scn.WSEventManager.SendEvent(events.EventScanProgress, 100)
 		scn.WSEventManager.SendEvent(events.EventScanStatus, "Scan completed")
@@ -463,6 +511,48 @@ func (scn *Scanner) Scan(ctx context.Context) (lfs []*anime.LocalFile, err error
 
 	// Add remaining shelved files
 	scn.addRemainingShelvedFiles(skippedLfs, sortedLibraryPaths)
+
+	// +--------------------------------------------------+
+	// |  Re-hydrate locked files with missing metadata   |
+	// +--------------------------------------------------+
+	// Files matched manually (via "Resolve unmatched" or library explorer) are
+	// locked to preserve the user's match, but they skip the hydrator so their
+	// episode metadata (Episode number, AniDBEpisode, Type) is never set.
+	// Detect these by AniDBEpisode=="" && Episode==0 and run the hydrator on them
+	// once using the media already loaded from the user's AniList collection.
+	{
+		unhydrated := lo.Filter(localFiles, func(lf *anime.LocalFile, _ int) bool {
+			return lf.IsLocked() && lf.MediaId != 0 &&
+				lf.Metadata != nil &&
+				lf.Metadata.AniDBEpisode == "" &&
+				lf.Metadata.Episode == 0
+		})
+		if len(unhydrated) > 0 {
+			scn.Logger.Debug().
+				Int("count", len(unhydrated)).
+				Msg("scanner: Re-hydrating manually-matched files with missing episode metadata")
+			// Temporarily unlock so the hydrator will process them.
+			for _, lf := range unhydrated {
+				lf.Locked = false
+			}
+			reHydrator := &FileHydrator{
+				AllMedia:            mc.NormalizedMedia,
+				LocalFiles:          unhydrated,
+				MetadataProviderRef: scn.MetadataProviderRef,
+				PlatformRef:         scn.PlatformRef,
+				CompleteAnimeCache:  completeAnimeCache,
+				AnilistRateLimiter:  anilistRateLimiter,
+				Logger:              scn.Logger,
+				ScanLogger:          scn.ScanLogger,
+				ScanSummaryLogger:   scn.ScanSummaryLogger,
+			}
+			reHydrator.HydrateMetadata()
+			// Re-lock after hydration to keep the user's manual match intact.
+			for _, lf := range unhydrated {
+				lf.Locked = true
+			}
+		}
+	}
 
 	scn.Logger.Info().Msg("scanner: Scan completed")
 	scn.WSEventManager.SendEvent(events.EventScanProgress, 100)

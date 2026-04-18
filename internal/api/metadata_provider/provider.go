@@ -76,7 +76,7 @@ func NewProvider(options *NewProviderImplOptions) Provider {
 		logger:              options.Logger,
 		fileCacher:          options.FileCacher,
 		metadataBucket:      filecache.NewPermanentBucket("anime-metadata"),
-		animeMetadataCache:  result.NewBoundedCache[string, *metadata.AnimeMetadata](100),
+		animeMetadataCache:  result.NewBoundedCache[string, *metadata.AnimeMetadata](500),
 		singleflight:        &singleflight.Group{},
 		db:                  options.Database,
 		extensionBankRef:    options.ExtensionBankRef,
@@ -119,7 +119,7 @@ func (p *ProviderImpl) GetAnimeMetadata(platform metadata.Platform, mId int) (re
 	if err != nil {
 		// Network fetch failed — try disk cache for offline resilience.
 		if diskMeta := p.loadMetadataFromDisk(cacheKey); diskMeta != nil {
-			p.animeMetadataCache.SetT(cacheKey, diskMeta, 1*time.Hour)
+			p.animeMetadataCache.SetT(cacheKey, diskMeta, 4*time.Hour)
 			return diskMeta, nil
 		}
 		return nil, err
@@ -168,7 +168,7 @@ func (p *ProviderImpl) fetchAnimeMetadata(platform metadata.Platform, mId int) (
 		if ret == nil {
 			return nil, errors.New("no metadata was returned")
 		}
-		p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, 1*time.Hour)
+		p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, 4*time.Hour)
 		return ret, nil
 	}
 
@@ -261,7 +261,7 @@ func (p *ProviderImpl) fetchAnimeMetadata(platform metadata.Platform, mId int) (
 	ret = event.AnimeMetadata
 	mId = event.MediaId
 
-	p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, 1*time.Hour)
+	p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, 4*time.Hour)
 	// Write-through to disk for offline resilience.
 	p.saveMetadataToDisk(GetAnimeMetadataCacheKey(platform, mId), ret)
 
@@ -347,7 +347,7 @@ func (p *ProviderImpl) AnizipFallback(platform metadata.Platform, mId int) (ret 
 		if ret == nil {
 			return nil, errors.New("no metadata was returned")
 		}
-		p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, 1*time.Hour)
+		p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, 4*time.Hour)
 		return ret, nil
 	}
 
@@ -415,7 +415,7 @@ func (p *ProviderImpl) AnizipFallback(platform metadata.Platform, mId int) (ret 
 	ret = event.AnimeMetadata
 	mId = event.MediaId
 
-	p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, 1*time.Hour)
+	p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, 4*time.Hour)
 	// Write-through to disk for offline resilience.
 	p.saveMetadataToDisk(GetAnimeMetadataCacheKey(platform, mId), ret)
 

@@ -17,7 +17,7 @@ import (
 
 // profileCollectionCacheTTL controls how long a per-profile collection is
 // served from memory before a fresh fetch is triggered.
-const profileCollectionCacheTTL = 5 * time.Minute
+const profileCollectionCacheTTL = 15 * time.Minute
 
 // profileAnimeCache is a time-stamped cache entry for an anime collection.
 type profileAnimeCache struct {

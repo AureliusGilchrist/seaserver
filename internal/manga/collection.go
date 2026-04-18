@@ -48,6 +48,9 @@ type (
 		MangaCollection *anilist.MangaCollection
 		PlatformRef     *util.Ref[platform.Platform]
 		MediaMap        *map[int]ProviderDownloadMap // Downloaded manga data
+		// MetadataTitles maps media IDs to their saved titles from DownloadedMangaMetadata.
+		// Used to resolve titles for manga not in the user's AniList collection.
+		MetadataTitles map[int]string
 	}
 )
 
@@ -176,9 +179,16 @@ func NewCollection(opts *NewCollectionOptions) (collection *Collection, err erro
 					Provider:     provider,
 					ChapterCount: totalChapters,
 				}
+
+				// Try to resolve the title from saved download metadata
+				if opts.MetadataTitles != nil {
+					if title, ok := opts.MetadataTitles[mediaId]; ok && title != "" {
+						unknownGroup.Title = title
+					}
+				}
 				
 				// If this is a synthetic manga (negative ID), try to get the title
-				if mediaId < 0 {
+				if mediaId < 0 && unknownGroup.Title == fmt.Sprintf("Media %d", mediaId) {
 					// TODO: Access database to get synthetic manga title
 					unknownGroup.Title = "Synthetic Manga"
 				}
