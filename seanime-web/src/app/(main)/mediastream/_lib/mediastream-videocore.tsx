@@ -150,47 +150,47 @@ function MediastreamDirectPlayEffects({
                 audioSyncRafRef.current = 0
             }
 
-            audioEl.src = audioUrl
-            audioEl.preload = "auto"
-
             const video = videoElement
             if (!video) return
 
-            const onCanPlay = () => {
-                setDirectPlayAudioLoading(false)
-                toast.success("Audio track switched")
+            // Use fetch() to wait for the full extraction, then point <audio> at the cached URL.
+            // This prevents the browser from aborting the HTTP connection (which would kill FFmpeg).
+            fetch(audioUrl).then(resp => {
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+                return resp.blob()
+            }).then(blob => {
+                const blobUrl = URL.createObjectURL(blob)
+                audioEl!.src = blobUrl
+                audioEl!.preload = "auto"
 
-                // Mute video, sync audio position
-                video.muted = true
-                audioEl!.currentTime = video.currentTime
-                if (!video.paused) audioEl!.play().catch(() => {})
+                const onCanPlay = () => {
+                    setDirectPlayAudioLoading(false)
+                    toast.success("Audio track switched")
 
-                // Start rAF sync loop
-                const syncLoop = () => {
-                    if (!audioEl || !video) return
-                    const drift = Math.abs(video.currentTime - audioEl.currentTime)
-                    if (drift > 0.3) {
-                        audioEl.currentTime = video.currentTime
+                    video.muted = true
+                    audioEl!.currentTime = video.currentTime
+                    if (!video.paused) audioEl!.play().catch(() => {})
+
+                    const syncLoop = () => {
+                        if (!audioEl || !video) return
+                        const drift = Math.abs(video.currentTime - audioEl.currentTime)
+                        if (drift > 0.3) {
+                            audioEl.currentTime = video.currentTime
+                        }
+                        if (video.paused && !audioEl.paused) audioEl.pause()
+                        if (!video.paused && audioEl.paused) audioEl.play().catch(() => {})
+                        audioSyncRafRef.current = requestAnimationFrame(syncLoop)
                     }
-                    if (video.paused && !audioEl.paused) audioEl.pause()
-                    if (!video.paused && audioEl.paused) audioEl.play().catch(() => {})
                     audioSyncRafRef.current = requestAnimationFrame(syncLoop)
                 }
-                audioSyncRafRef.current = requestAnimationFrame(syncLoop)
 
-                audioEl!.removeEventListener("canplay", onCanPlay)
-            }
-
-            const onError = () => {
+                audioEl!.addEventListener("canplay", onCanPlay, { once: true })
+                audioEl!.load()
+            }).catch(() => {
                 setDirectPlayAudioLoading(false)
                 toast.error("Failed to extract audio track")
                 setDirectPlayAudioUrl(null)
-                audioEl!.removeEventListener("error", onError)
-            }
-
-            audioEl.addEventListener("canplay", onCanPlay, { once: true })
-            audioEl.addEventListener("error", onError, { once: true })
-            audioEl.load()
+            })
         })
         return () => setRequestTranscodeForAudio(null)
     }, [handleChangeStreamType, currentStreamType, videoElement])

@@ -1,5 +1,5 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
-import { Anime_Episode, Mediastream_StreamType, MKVParser_Metadata, MKVParser_TrackInfo, Nullish } from "@/api/generated/types"
+import { Anime_Episode, Mediastream_StreamType, MKVParser_ChapterInfo, MKVParser_Metadata, MKVParser_TrackInfo, Nullish } from "@/api/generated/types"
 import { useHandleCurrentMediaContinuity } from "@/api/hooks/continuity.hooks"
 import { useGetMediastreamSettings, useMediastreamShutdownTranscodeStream, useRequestMediastreamMediaContainer } from "@/api/hooks/mediastream.hooks"
 import { usePlaylistManager } from "@/app/(main)/_features/playlists/_containers/global-playlist-manager"
@@ -263,9 +263,11 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     // Synthesize MKV metadata from mediastream MediaInfo for AudioManager
     const mkvMetadata = React.useMemo<MKVParser_Metadata | undefined>(() => {
         const audios = mediaContainer?.mediaInfo?.audios
-        if (!audios?.length) return undefined
+        const chapterList = mediaContainer?.mediaInfo?.chapters
 
-        const audioTracks: MKVParser_TrackInfo[] = audios.map((audio) => ({
+        if (!audios?.length && !chapterList?.length) return undefined
+
+        const audioTracks: MKVParser_TrackInfo[] = (audios ?? []).map((audio) => ({
             number: audio.index,
             uid: audio.index,
             type: "audio" as const,
@@ -277,12 +279,20 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
             enabled: true,
         }))
 
+        const chapters: MKVParser_ChapterInfo[] = (mediaContainer?.mediaInfo?.chapters ?? []).map((ch, i) => ({
+            uid: i,
+            start: ch.startTime,
+            end: ch.endTime,
+            text: ch.name,
+        }))
+
         return {
             duration: mediaContainer?.mediaInfo?.duration ?? 0,
             timecodeScale: 1000000,
             audioTracks: audioTracks,
+            chapters: chapters.length > 0 ? chapters : undefined,
         }
-    }, [mediaContainer?.mediaInfo?.audios, mediaContainer?.mediaInfo?.duration])
+    }, [mediaContainer?.mediaInfo?.audios, mediaContainer?.mediaInfo?.duration, mediaContainer?.mediaInfo?.chapters])
 
     // Build the VideoCore playback info
     const playbackInfo = React.useMemo<VideoCore_VideoPlaybackInfo | null>(() => {

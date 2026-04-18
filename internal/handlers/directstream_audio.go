@@ -99,25 +99,26 @@ func (h *Handler) HandleDirectstreamGetAudio(c echo.Context) error {
 		return h.RespondWithError(c, fmt.Errorf("could not create audio cache dir: %w", err))
 	}
 
-	// Extract audio track via FFmpeg
-	ctx, cancel := context.WithTimeout(c.Request().Context(), 10*time.Minute)
+	// Extract audio track via FFmpeg.
+	// Use background context so the browser closing the connection doesn't kill FFmpeg.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	tmpPath := outputPath + ".tmp"
 	cmd := util.NewCmdCtx(ctx, ffmpegPath,
-			      "-i", filePath,
-			      "-map", fmt.Sprintf("0:a:%d", trackIndex),
-			      "-c:a", "aac",
-			      "-b:a", "192k",
-			      "-f", "adts",
-			      "-y",
-			      tmpPath,
+		"-i", filePath,
+		"-map", fmt.Sprintf("0:a:%d", trackIndex),
+		"-c:a", "aac",
+		"-b:a", "192k",
+		"-f", "adts",
+		"-y",
+		tmpPath,
 	)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		h.App.Logger.Error().Err(err).Str("output", string(output)).
-		Msg("directstream: audio extraction failed")
+			Msg("directstream: audio extraction failed")
 		_ = os.Remove(tmpPath)
 		return h.RespondWithError(c, fmt.Errorf("audio extraction failed: %w", err))
 	}
@@ -207,24 +208,24 @@ func (h *Handler) HandleMediastreamGetAudio(c echo.Context) error {
 		return h.RespondWithError(c, fmt.Errorf("could not create audio cache dir: %w", err))
 	}
 
-	ctx, cancel := context.WithTimeout(c.Request().Context(), 10*time.Minute)
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	tmpPath := outputPath + ".tmp"
 	cmd := util.NewCmdCtx(ctx, ffmpegPath,
-			      "-i", filePath,
-		       "-map", fmt.Sprintf("0:a:%d", trackIndex),
-			      "-c:a", "aac",
-		       "-b:a", "192k",
-		       "-f", "adts",
-		       "-y",
-		       tmpPath,
+		"-i", filePath,
+		"-map", fmt.Sprintf("0:a:%d", trackIndex),
+		"-c:a", "aac",
+		"-b:a", "192k",
+		"-f", "adts",
+		"-y",
+		tmpPath,
 	)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		h.App.Logger.Error().Err(err).Str("output", string(output)).
-		Msg("mediastream: audio extraction failed")
+			Msg("mediastream: audio extraction failed")
 		_ = os.Remove(tmpPath)
 		return h.RespondWithError(c, fmt.Errorf("audio extraction failed: %w", err))
 	}
