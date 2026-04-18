@@ -21,26 +21,56 @@ export default function Page() {
         if (!__isTauriDesktop__) return
 
         let cleanup: (() => void)[] = []
+        let handled = false
 
         async function init() {
             const { listen } = await import("@tauri-apps/api/event")
+            const { invoke } = await import("@tauri-apps/api/core")
 
-            // Rust tells us to show setup screen (no config found)
+            // Register listeners for events that may arrive later (e.g. if Rust delays)
             const u1 = await listen("show-setup", () => {
-                setBootState("setup")
+                if (!handled) {
+                    handled = true
+                    setBootState("setup")
+                }
             })
             cleanup.push(u1)
 
-            // Rust tells us remote is ready (remembered config)
             const u2 = await listen<string>("remote-ready", (event) => {
-                const url = event.payload
-                // Store in localStorage so getServerBaseUrl() picks it up
-                localStorage.setItem("sea-remote-server-url", JSON.stringify(url))
-                localStorage.setItem("sea-server-connection-mode", JSON.stringify("remote"))
-                // Close splashscreen, show main window
-                proceedToMain()
+                if (!handled) {
+                    handled = true
+                    const url = event.payload
+                    localStorage.setItem("sea-remote-server-url", JSON.stringify(url))
+                    localStorage.setItem("sea-server-connection-mode", JSON.stringify("remote"))
+                    proceedToMain()
+                }
             })
             cleanup.push(u2)
+
+            // Also poll the config directly in case Rust already emitted before we registered listeners
+            try {
+                const cfg = await invoke<{ mode: string; remote_url?: string } | null>("get_server_config")
+                if (handled) return // event already handled above
+                handled = true
+
+                if (cfg && cfg.mode === "remote" && cfg.remote_url) {
+                    localStorage.setItem("sea-remote-server-url", JSON.stringify(cfg.remote_url))
+                    localStorage.setItem("sea-server-connection-mode", JSON.stringify("remote"))
+                    proceedToMain()
+                } else if (cfg && cfg.mode === "local") {
+                    // Local mode — sidecar should already be starting from Rust .setup()
+                    // Just wait; the existing server.rs flow will close splashscreen on "Client connected"
+                } else {
+                    // No config — show setup
+                    setBootState("setup")
+                }
+            } catch (e) {
+                console.error("Failed to get server config:", e)
+                if (!handled) {
+                    handled = true
+                    setBootState("setup")
+                }
+            }
         }
 
         init()

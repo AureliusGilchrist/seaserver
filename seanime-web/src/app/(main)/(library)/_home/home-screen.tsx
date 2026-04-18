@@ -760,7 +760,14 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
         if (!collectionList?.length) return []
         const allEntries: Anime_LibraryCollectionEntry[] = collectionList
             .filter(l => (l.type as string) !== "CURRENT")
-            .flatMap(l => l.entries ?? []).filter(Boolean)
+            .flatMap(l => {
+                const entries = l.entries ?? []
+                // For PLANNING lists, only include entries that have local files
+                if ((l.type as string) === "PLANNING") {
+                    return entries.filter(e => e.libraryData && e.libraryData.mainFileCount > 0)
+                }
+                return entries
+            }).filter(Boolean)
         const seen = new Set<number>()
         let filtered = allEntries.filter(e => {
             if (seen.has(e.mediaId)) return false

@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { MKVParser_SubtitleEvent, NativePlayer_PlaybackInfo, NativePlayer_ServerEvent } from "@/api/generated/types"
+import { getServerBaseUrl } from "@/api/client/server-url"
 import { vc_miniPlayer, vc_requestTranscodeForAudio, vc_videoElement, vc_directPlayAudioUrl, vc_directPlayAudioLoading } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_subtitleManager, VideoCore } from "@/app/(main)/_features/video-core/video-core"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
@@ -228,7 +229,7 @@ export function NativePlayer() {
             setDirectPlayAudioLoading(true)
 
             // Build the audio URL — the server will extract and cache the AAC file
-            const baseUrl = window.location.origin
+            const baseUrl = getServerBaseUrl()
             const audioUrl = `${baseUrl}/api/v1/directstream/audio?id=${encodeURIComponent(streamId)}&track=${audioTrackIdx}`
             setDirectPlayAudioUrl(audioUrl)
 

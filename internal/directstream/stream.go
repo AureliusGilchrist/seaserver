@@ -416,10 +416,15 @@ func loadContentType(path string, reader ...io.ReadSeekCloser) string {
 	case ".mp4":
 		return "video/mp4"
 	case ".mkv":
-		//return "video/x-matroska"
+		// Serve MKV as video/mp4 rather than video/webm.
+		// MKV commonly contains H.264/HEVC which video/mp4 handles correctly
+		// across all browsers and WebView2 (Tauri desktop).
+		// video/webm misleads clients into expecting VP8/VP9/AV1 codecs.
+		return "video/mp4"
+	case ".webm":
 		return "video/webm"
-	case ".webm", ".m4v":
-		return "video/webm"
+	case ".m4v":
+		return "video/mp4"
 	case ".avi":
 		return "video/x-msvideo"
 	case ".mov":
