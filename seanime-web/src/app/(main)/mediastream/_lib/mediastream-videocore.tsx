@@ -6,7 +6,7 @@ import { VideoCore, VideoCoreChapterCue, VideoCoreProvider } from "@/app/(main)/
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_requestTranscodeForAudio } from "@/app/(main)/_features/video-core/video-core-atoms"
-import { vc_directPlayAudioUrl, vc_directPlayAudioLoading } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_directPlayAudioUrl, vc_directPlayAudioLoading, vc_directPlayAudioElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { getMediastreamSessionId } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { useSkipData } from "@/app/(main)/_features/sea-media-player/aniskip"
 import { useAtomValue } from "jotai"
@@ -94,6 +94,7 @@ function MediastreamDirectPlayEffects({
     const setRequestTranscodeForAudio = useSetAtom(vc_requestTranscodeForAudio)
     const setDirectPlayAudioUrl = useSetAtom(vc_directPlayAudioUrl)
     const setDirectPlayAudioLoading = useSetAtom(vc_directPlayAudioLoading)
+    const setDirectPlayAudioElement = useSetAtom(vc_directPlayAudioElement)
 
     // Refs for the hidden audio element and rAF sync loop
     const audioElementRef = React.useRef<HTMLAudioElement | null>(null)
@@ -112,6 +113,7 @@ function MediastreamDirectPlayEffects({
                 audioElementRef.current.remove()
                 audioElementRef.current = null
             }
+            setDirectPlayAudioElement(null)
         }
     }, [])
 
@@ -128,7 +130,7 @@ function MediastreamDirectPlayEffects({
             if (trackIndex == null || trackIndex < 0) return
 
             log.info(`Audio track switch requested — extracting track ${trackIndex} via FFmpeg`)
-            toast.info("Extracting audio track...")
+            const toastId = toast.loading("Extracting audio track...")
             setDirectPlayAudioLoading(true)
 
             const baseUrl = getServerBaseUrl()
@@ -142,6 +144,7 @@ function MediastreamDirectPlayEffects({
                 audioEl.style.display = "none"
                 document.body.appendChild(audioEl)
                 audioElementRef.current = audioEl
+                setDirectPlayAudioElement(audioEl)
             }
 
             // Stop any previous sync loop
@@ -165,7 +168,7 @@ function MediastreamDirectPlayEffects({
 
                 const onCanPlay = () => {
                     setDirectPlayAudioLoading(false)
-                    toast.success("Audio track switched")
+                    toast.success("Audio track ready", { id: toastId })
 
                     video.muted = true
                     audioEl!.currentTime = video.currentTime
@@ -188,7 +191,7 @@ function MediastreamDirectPlayEffects({
                 audioEl!.load()
             }).catch(() => {
                 setDirectPlayAudioLoading(false)
-                toast.error("Failed to extract audio track")
+                toast.error("Failed to extract audio track", { id: toastId })
                 setDirectPlayAudioUrl(null)
             })
         })

@@ -70,3 +70,6 @@ export const vc_requestTranscodeForAudio = atom<((trackIndex?: number) => void) 
 // element plays a server-extracted AAC track synced to the video via requestAnimationFrame.
 export const vc_directPlayAudioUrl = atom<string | null>(null)
 export const vc_directPlayAudioLoading = atom(false)
+
+// Holds the hidden <audio> element so volume/mute sync in VideoCore can route to it.
+export const vc_directPlayAudioElement = atom<HTMLAudioElement | null>(null)
