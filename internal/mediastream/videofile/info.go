@@ -292,6 +292,29 @@ func FfprobeGetInfo(ffprobePath, path, hash string) (*MediaInfo, error) {
 		codecs = append(codecs, *mi.Audios[0].MimeCodec)
 	}
 	container := mime.TypeByExtension(fmt.Sprintf(".%s", mi.Extension))
+	if container == "" {
+		// Fallback for OSes where MIME types aren't registered (e.g. Windows without media apps)
+		switch strings.ToLower(mi.Extension) {
+		case "mkv", "mka", "mks":
+			container = "video/x-matroska"
+		case "mp4", "m4v":
+			container = "video/mp4"
+		case "webm":
+			container = "video/webm"
+		case "avi":
+			container = "video/x-msvideo"
+		case "mov":
+			container = "video/quicktime"
+		case "ts", "m2ts", "mts":
+			container = "video/mp2t"
+		case "flv":
+			container = "video/x-flv"
+		case "ogv":
+			container = "video/ogg"
+		case "wmv":
+			container = "video/x-ms-wmv"
+		}
+	}
 	if container != "" {
 		if len(codecs) > 0 {
 			codecsStr := strings.Join(codecs, ", ")
