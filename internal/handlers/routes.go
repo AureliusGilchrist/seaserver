@@ -532,6 +532,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.GET("/mediastream/att/:clientId/*", h.HandleMediastreamGetAttachments)
 	v1.GET("/mediastream/direct/:clientId", h.HandleMediastreamDirectPlay)
 	v1.HEAD("/mediastream/direct/:clientId", h.HandleMediastreamDirectPlay)
+	v1.GET("/mediastream/audio/:clientId", h.HandleMediastreamGetAudio)
 	v1.GET("/mediastream/file", h.HandleMediastreamFile)
 
 	//

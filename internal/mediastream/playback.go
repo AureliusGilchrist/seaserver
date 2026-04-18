@@ -160,19 +160,21 @@ func (p *PlaybackManager) newMediaContainer(filepath string, streamType StreamTy
 		return nil, err
 	}
 
-	p.logger.Debug().Msg("mediastream: Extracted media info, extracting attachments")
+	p.logger.Debug().Msg("mediastream: Extracted media info")
 
-	// Extract the attachments from the file.
-	err = videofile.ExtractAttachment(p.repository.settings.MustGet().FfmpegPath, filepath, hash, ret.MediaInfo, p.repository.cacheDir, p.logger)
-	if err != nil {
-		p.logger.Error().Err(err).Msg("mediastream: Failed to extract attachments")
-		return nil, err
-	}
-
-	p.logger.Debug().Msg("mediastream: Extracted attachments")
-
-	// Store the media container in the cache.
+	// Store the media container in the cache immediately so the frontend can start playback.
+	// Attachment extraction (subtitles + fonts) runs in the background — they are only
+	// needed when the player requests them via the /subs/ or /att/ endpoints.
 	p.mediaContainers.Set(hash, ret)
+
+	go func() {
+		err := videofile.ExtractAttachment(p.repository.settings.MustGet().FfmpegPath, filepath, hash, ret.MediaInfo, p.repository.cacheDir, p.logger)
+		if err != nil {
+			p.logger.Error().Err(err).Msg("mediastream: Background attachment extraction failed")
+		} else {
+			p.logger.Debug().Msg("mediastream: Background attachment extraction complete")
+		}
+	}()
 
 	return
 }

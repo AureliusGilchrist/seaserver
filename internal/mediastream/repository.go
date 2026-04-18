@@ -240,6 +240,15 @@ func (r *Repository) RequestPreloadDirectPlay(filepath string) (err error) {
 	return
 }
 
+// GetFilePathByClientId resolves the underlying file path for a given mediastream client session.
+func (r *Repository) GetFilePathByClientId(clientId string) (string, error) {
+	mc, found := r.playbackManager.GetActiveStream(clientId)
+	if !found {
+		return "", errors.New("no active stream for client")
+	}
+	return mc.Filepath, nil
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 func (r *Repository) initializeTranscoder(settings mo.Option[*models.MediastreamSettings]) bool {

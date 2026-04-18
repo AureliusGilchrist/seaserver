@@ -11,13 +11,12 @@ export function useIsCodecSupported() {
         // Treat both "probably" and "maybe" as acceptable to avoid false negatives on containers like MKV
         if (support === "probably" || support === "maybe") return true
 
-        // Heuristic: some browsers (Firefox/Opera GX) report empty for HEVC but can still play when system codecs exist.
+        // Optimistic HEVC: browsers/WebView2 may report empty for HEVC even when OS-level codecs
+        // (e.g. HEVC Video Extensions) can decode it. Try direct play; stall-detection will
+        // auto-switch to transcode if playback actually fails.
         const codecLower = codec.toLowerCase()
-        const ua = navigator.userAgent.toLowerCase()
         const isHevc = codecLower.includes("hvc1") || codecLower.includes("hev1") || codecLower.includes("hevc")
-        const isFirefox = ua.includes("firefox")
-        const isOpera = ua.includes("opr") || ua.includes("opera")
-        if (isHevc && (isFirefox || isOpera)) return true
+        if (isHevc) return true
 
         return false
     }

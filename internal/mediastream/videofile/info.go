@@ -379,9 +379,8 @@ func streamToMimeCodec(stream *ffprobe.Stream) *string {
 		return &ret
 
 	case "h265", "hevc":
-		// The h265 syntax is a bit of a mystery at the time this comment was written.
-		// This is what I've found through various sources:
-		// FORMAT: [codecTag].[profile].[constraint?].L[level * 30].[UNKNOWN]
+		// HEVC codec string per ISO 14496-15
+		// FORMAT: hvc1.[profile].[constraint_flags].L[level].[constraint_bytes]
 		ret := "hvc1"
 
 		if stream.Profile == "main 10" {
@@ -390,7 +389,7 @@ func streamToMimeCodec(stream *ffprobe.Stream) *string {
 			ret += ".1.4"
 		}
 
-		ret += fmt.Sprintf(".L%02X.BO", stream.Level)
+		ret += fmt.Sprintf(".L%d.B0", stream.Level)
 		return &ret
 
 	case "av1":

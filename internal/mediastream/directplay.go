@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"seanime/internal/events"
 	"seanime/internal/util"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -76,9 +77,25 @@ func (r *Repository) ServeEchoDirectPlay(c echo.Context, clientId string) error 
 			return c.NoContent(http.StatusInternalServerError)
 		}
 
+		// Determine content type from the file extension
+		ext := strings.ToLower(filepath.Ext(mediaContainer.Filepath))
+		contentType := "video/mp4"
+		switch ext {
+		case ".mkv":
+			contentType = "video/x-matroska"
+		case ".webm":
+			contentType = "video/webm"
+		case ".avi":
+			contentType = "video/x-msvideo"
+		case ".mov":
+			contentType = "video/quicktime"
+		case ".ts", ".m2ts", ".mts":
+			contentType = "video/mp2t"
+		}
+
 		// Set the content length
 		c.Response().Header().Set("Content-Length", fmt.Sprintf("%d", fileInfo.Size()))
-		c.Response().Header().Set("Content-Type", "video/mp4")
+		c.Response().Header().Set("Content-Type", contentType)
 		c.Response().Header().Set("Accept-Ranges", "bytes")
 		filename := filepath.Base(mediaContainer.Filepath)
 		c.Response().Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", filename))

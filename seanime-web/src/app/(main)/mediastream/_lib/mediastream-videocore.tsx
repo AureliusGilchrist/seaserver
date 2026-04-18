@@ -1,10 +1,13 @@
 "use client"
 import React from "react"
 import { Anime_Episode, Mediastream_StreamType } from "@/api/generated/types"
+import { getServerBaseUrl } from "@/api/client/server-url"
 import { VideoCore, VideoCoreChapterCue, VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_requestTranscodeForAudio } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_directPlayAudioUrl, vc_directPlayAudioLoading } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { getMediastreamSessionId } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { useSkipData } from "@/app/(main)/_features/sea-media-player/aniskip"
 import { useAtomValue } from "jotai"
 import { useSetAtom } from "jotai/react"
@@ -44,21 +47,108 @@ export function MediastreamVideoCore(props: MediastreamVideoCoreProps) {
 
     const videoElement = useAtomValue(vc_videoElement)
     const setRequestTranscodeForAudio = useSetAtom(vc_requestTranscodeForAudio)
+    const setDirectPlayAudioUrl = useSetAtom(vc_directPlayAudioUrl)
+    const setDirectPlayAudioLoading = useSetAtom(vc_directPlayAudioLoading)
 
-    // Wire the transcode-for-audio callback so the audio menu can trigger
-    // a switch from direct play to transcode when the user picks a different audio track.
+    // Refs for the hidden audio element and rAF sync loop
+    const audioElementRef = React.useRef<HTMLAudioElement | null>(null)
+    const audioSyncRafRef = React.useRef<number>(0)
+
+    // Cleanup hidden audio element on unmount
+    React.useEffect(() => {
+        return () => {
+            if (audioSyncRafRef.current) {
+                cancelAnimationFrame(audioSyncRafRef.current)
+                audioSyncRafRef.current = 0
+            }
+            if (audioElementRef.current) {
+                audioElementRef.current.pause()
+                audioElementRef.current.removeAttribute("src")
+                audioElementRef.current.remove()
+                audioElementRef.current = null
+            }
+        }
+    }, [])
+
+    // Wire the audio track switch callback: extract audio via FFmpeg and sync with hidden <audio>
     React.useEffect(() => {
         if (!handleChangeStreamType || currentStreamType !== "direct") {
             setRequestTranscodeForAudio(null)
             return
         }
-        setRequestTranscodeForAudio(() => () => {
-            log.info("Audio track switch requested — switching from direct play to transcode")
-            toast.info("Switching to transcode for audio track change...")
-            handleChangeStreamType("transcode")
+
+        const clientId = getMediastreamSessionId()
+
+        setRequestTranscodeForAudio(() => (trackIndex?: number) => {
+            if (trackIndex == null || trackIndex < 0) return
+
+            log.info(`Audio track switch requested — extracting track ${trackIndex} via FFmpeg`)
+            toast.info("Extracting audio track...")
+            setDirectPlayAudioLoading(true)
+
+            const baseUrl = getServerBaseUrl()
+            const audioUrl = `${baseUrl}/api/v1/mediastream/audio/${encodeURIComponent(clientId)}?track=${trackIndex}`
+            setDirectPlayAudioUrl(audioUrl)
+
+            // Create or reuse the hidden audio element
+            let audioEl = audioElementRef.current
+            if (!audioEl) {
+                audioEl = document.createElement("audio")
+                audioEl.style.display = "none"
+                document.body.appendChild(audioEl)
+                audioElementRef.current = audioEl
+            }
+
+            // Stop any previous sync loop
+            if (audioSyncRafRef.current) {
+                cancelAnimationFrame(audioSyncRafRef.current)
+                audioSyncRafRef.current = 0
+            }
+
+            audioEl.src = audioUrl
+            audioEl.preload = "auto"
+
+            const video = videoElement
+            if (!video) return
+
+            const onCanPlay = () => {
+                setDirectPlayAudioLoading(false)
+                toast.success("Audio track switched")
+
+                // Mute video, sync audio position
+                video.muted = true
+                audioEl!.currentTime = video.currentTime
+                if (!video.paused) audioEl!.play().catch(() => {})
+
+                // Start rAF sync loop
+                const syncLoop = () => {
+                    if (!audioEl || !video) return
+                    const drift = Math.abs(video.currentTime - audioEl.currentTime)
+                    if (drift > 0.3) {
+                        audioEl.currentTime = video.currentTime
+                    }
+                    if (video.paused && !audioEl.paused) audioEl.pause()
+                    if (!video.paused && audioEl.paused) audioEl.play().catch(() => {})
+                    audioSyncRafRef.current = requestAnimationFrame(syncLoop)
+                }
+                audioSyncRafRef.current = requestAnimationFrame(syncLoop)
+
+                audioEl!.removeEventListener("canplay", onCanPlay)
+            }
+
+            const onError = () => {
+                setDirectPlayAudioLoading(false)
+                toast.error("Failed to extract audio track")
+                setDirectPlayAudioUrl(null)
+                audioEl!.removeEventListener("error", onError)
+            }
+
+            audioEl.addEventListener("canplay", onCanPlay, { once: true })
+            audioEl.addEventListener("error", onError, { once: true })
+            audioEl.load()
         })
         return () => setRequestTranscodeForAudio(null)
-    }, [handleChangeStreamType, currentStreamType])
+    }, [handleChangeStreamType, currentStreamType, videoElement])
 
     // ── Stall detection: auto-switch from direct play to transcode ──
     const stallTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
