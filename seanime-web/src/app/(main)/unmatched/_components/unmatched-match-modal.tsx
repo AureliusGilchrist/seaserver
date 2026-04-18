@@ -4,6 +4,7 @@ import {
     UnmatchedTorrent,
     UnmatchedFile,
     FamilyEntry,
+    FamilyResult,
     useMatchUnmatchedTorrent,
     useGetUnmatchedTorrentContents,
     useUnmatchedFamilySearch,
@@ -86,7 +87,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     const [episodeOffset, setEpisodeOffset] = useState(1)
     // Family search (Feature 2)
     const [familySearchDone, setFamilySearchDone] = useState(false)
-    const [familyResults, setFamilyResults] = useState<FamilyEntry[] | null>(null)
+    const [familyResults, setFamilyResults] = useState<FamilyResult | null>(null)
     const { mutate: runFamilySearch, isPending: isFamilySearchLoading } = useUnmatchedFamilySearch()
     // Family detail fetch — when a family entry is clicked, fetch full details progressively
     const [familyDetailId, setFamilyDetailId] = useState<number | null>(null)
@@ -655,38 +656,29 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                         </div>
                     )}
 
-                    {/* Family search results */}
-                    {familyResults && familyResults.length > 0 && (
+                    {/* Family search results — indented tree */}
+                    {familyResults && familyResults.entries.length > 0 && (
                         <div className="p-3 border rounded-md bg-[--subtle] space-y-2">
                             <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Related entries — pick one to match</p>
-                            <div className="flex flex-wrap gap-2">
-                                {familyResults.map((entry) => (
-                                    <button
-                                        key={entry.id}
-                                        onClick={() => {
-                                            const syntheticAnime: AL_BaseAnime = {
-                                                id: entry.id,
-                                                title: {
-                                                    romaji: entry.title,
-                                                    english: undefined,
-                                                    native: undefined,
-                                                    userPreferred: entry.title,
-                                                },
-                                            }
-                                            setSelectedAnime(syntheticAnime)
-                                            setFamilyDetailId(entry.id)
-                                        }}
-                                        className={cn(
-                                            "text-xs px-2 py-1 rounded border transition-colors",
-                                            searchQuery === entry.title
-                                                ? "border-brand-500 bg-brand-900/30 text-brand-200"
-                                                : "border-[--border] bg-[--highlight] hover:border-brand-500/60 text-[--muted] hover:text-white",
-                                        )}
-                                    >
-                                        {entry.title}
-                                    </button>
-                                ))}
-                            </div>
+                            <ScrollArea className="max-h-[260px]">
+                                <FamilyTreeView
+                                    result={familyResults}
+                                    selectedAnimeId={selectedAnime?.id ?? null}
+                                    onSelect={(entry) => {
+                                        const syntheticAnime: AL_BaseAnime = {
+                                            id: entry.id,
+                                            title: {
+                                                romaji: entry.title,
+                                                english: undefined,
+                                                native: undefined,
+                                                userPreferred: entry.title,
+                                            },
+                                        }
+                                        setSelectedAnime(syntheticAnime)
+                                        setFamilyDetailId(entry.id)
+                                    }}
+                                />
+                            </ScrollArea>
                         </div>
                     )}
 
@@ -1052,5 +1044,141 @@ function AnimeSearchItem({ anime, selected, onSelect, libraryCollection }: {
                 </Button>
             </div>
         </div>
+    )
+}
+
+// ─── Family Tree View ────────────────────────────────────────────────
+
+interface FamilyTreeNode {
+    entry: FamilyEntry
+    children: FamilyTreeNode[]
+}
+
+function buildFamilyTree(result: FamilyResult): FamilyTreeNode {
+    const rootEntry = result.root
+    const byParent = new Map<number, FamilyEntry[]>()
+    for (const e of result.entries) {
+        if (e.id === rootEntry.id) continue
+        const pid = e.parentId || rootEntry.id
+        if (!byParent.has(pid)) byParent.set(pid, [])
+        byParent.get(pid)!.push(e)
+    }
+
+    const relationOrder: Record<string, number> = {
+        PREQUEL: 0, SEQUEL: 1, SIDE_STORY: 2, ALTERNATIVE: 3,
+        SPIN_OFF: 4, PARENT: 5, SUMMARY: 6, CHARACTER: 7, OTHER: 8,
+    }
+
+    function build(entry: FamilyEntry): FamilyTreeNode {
+        const kids = (byParent.get(entry.id) || [])
+            .sort((a, b) => (relationOrder[a.relationType] ?? 9) - (relationOrder[b.relationType] ?? 9))
+        return { entry, children: kids.map(build) }
+    }
+
+    return build(rootEntry)
+}
+
+const RELATION_COLORS: Record<string, string> = {
+    SEQUEL: "text-blue-400",
+    PREQUEL: "text-cyan-400",
+    SIDE_STORY: "text-amber-400",
+    ALTERNATIVE: "text-purple-400",
+    SPIN_OFF: "text-pink-400",
+    PARENT: "text-green-400",
+    SUMMARY: "text-gray-400",
+    CHARACTER: "text-gray-400",
+    OTHER: "text-gray-400",
+}
+
+function FamilyTreeView({ result, selectedAnimeId, onSelect }: {
+    result: FamilyResult
+    selectedAnimeId: number | null
+    onSelect: (entry: FamilyEntry) => void
+}) {
+    const tree = useMemo(() => buildFamilyTree(result), [result])
+    const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
+
+    const toggle = useCallback((id: number) => {
+        setCollapsed(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }, [])
+
+    return (
+        <div className="space-y-0.5">
+            <FamilyTreeNodeItem
+                node={tree}
+                depth={0}
+                selectedAnimeId={selectedAnimeId}
+                collapsed={collapsed}
+                toggleCollapse={toggle}
+                onSelect={onSelect}
+            />
+        </div>
+    )
+}
+
+function FamilyTreeNodeItem({ node, depth, selectedAnimeId, collapsed, toggleCollapse, onSelect }: {
+    node: FamilyTreeNode
+    depth: number
+    selectedAnimeId: number | null
+    collapsed: Set<number>
+    toggleCollapse: (id: number) => void
+    onSelect: (entry: FamilyEntry) => void
+}) {
+    const e = node.entry
+    const hasChildren = node.children.length > 0
+    const isCollapsed = collapsed.has(e.id)
+    const isSelected = selectedAnimeId === e.id
+
+    return (
+        <>
+            <div
+                className={cn(
+                    "flex items-center gap-1.5 py-1 px-1.5 rounded cursor-pointer text-xs transition-colors",
+                    isSelected ? "bg-brand-900/30 border border-brand-500" : "hover:bg-gray-800/50",
+                )}
+                style={{ paddingLeft: `${4 + depth * 18}px` }}
+            >
+                {hasChildren ? (
+                    <button onClick={() => toggleCollapse(e.id)} className="p-0.5 flex-shrink-0">
+                        {isCollapsed ? <LuChevronRight className="w-3.5 h-3.5" /> : <LuChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                ) : (
+                    <span className="w-4 flex-shrink-0" />
+                )}
+
+                <span className="flex-1 min-w-0 truncate" onClick={() => onSelect(e)}>
+                    {e.title}
+                </span>
+
+                {e.relationType && (
+                    <span className={cn("text-[10px] font-medium flex-shrink-0", RELATION_COLORS[e.relationType] || "text-gray-400")}>
+                        {e.relationType.replace(/_/g, " ")}
+                    </span>
+                )}
+
+                {e.format && (
+                    <span className="text-[10px] px-1 py-0.5 rounded bg-gray-800/70 text-gray-300 flex-shrink-0">
+                        {e.format}
+                    </span>
+                )}
+            </div>
+
+            {hasChildren && !isCollapsed && node.children.map(child => (
+                <FamilyTreeNodeItem
+                    key={child.entry.id}
+                    node={child}
+                    depth={depth + 1}
+                    selectedAnimeId={selectedAnimeId}
+                    collapsed={collapsed}
+                    toggleCollapse={toggleCollapse}
+                    onSelect={onSelect}
+                />
+            ))}
+        </>
     )
 }

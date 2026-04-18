@@ -64,4 +64,9 @@ export const vc_playbackInfo = atom<VideoCore_VideoPlaybackInfo | null>(null)
 // Callback atom set by mediastream adapter to switch from direct play to transcode.
 // Audio track switching doesn't work in direct play (browser audioTracks API is unreliable),
 // so the audio menu triggers this to reload the stream in transcode/HLS mode.
-export const vc_requestTranscodeForAudio = atom<(() => void) | null>(null)
+export const vc_requestTranscodeForAudio = atom<((trackIndex?: number) => void) | null>(null)
+
+// Direct-play audio override: when set, the video element is muted and a hidden <audio>
+// element plays a server-extracted AAC track synced to the video via requestAnimationFrame.
+export const vc_directPlayAudioUrl = atom<string | null>(null)
+export const vc_directPlayAudioLoading = atom(false)

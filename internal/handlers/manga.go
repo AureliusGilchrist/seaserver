@@ -165,10 +165,21 @@ func (h *Handler) HandleGetMangaCollection(c echo.Context) error {
 		sharedOnlyMangaIDs = mergePlanningSlutMangaCollection(mangaCollection, psMangaCollection, downloadedMediaIDs)
 	}
 
+	// Build title lookup from saved download metadata for manga not in AniList collection
+	metadataTitles := make(map[int]string)
+	if allMeta, metaErr := h.App.Database.GetAllDownloadedMangaMetadata(); metaErr == nil {
+		for _, m := range allMeta {
+			if m.Title != "" {
+				metadataTitles[m.MediaID] = m.Title
+			}
+		}
+	}
+
 	collection, err := manga.NewCollection(&manga.NewCollectionOptions{
 		MangaCollection: mangaCollection,
 		PlatformRef:     h.App.AnilistPlatformRef,
 		MediaMap:        &mediaMap,
+		MetadataTitles:  metadataTitles,
 	})
 	if err != nil {
 		return h.RespondWithError(c, err)

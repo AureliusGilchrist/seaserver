@@ -2,7 +2,7 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useMutation, UseMutationOptions, useQuery, UseQueryOptions } from "@tanstack/react-query"
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios"
+import axios, { AxiosError } from "axios"
 import { getDefaultStore } from "jotai"
 import { useAtomValue } from "jotai"
 import { useAtom } from "jotai/react"
@@ -80,22 +80,15 @@ export async function buildSeaQuery<T, D extends any = any>(
         profileToken,
     }: SeaQuery<D>): Promise<T | undefined> {
 
-    axios.interceptors.request.use((request: InternalAxiosRequestConfig) => {
-            if (password) {
-                request.headers.set("X-Seanime-Token", password)
-            }
-            if (profileToken) {
-                request.headers.set("X-Seanime-Profile-Token", profileToken)
-            }
-            return request
-        },
-    )
-
     const res = await axios<T>({
         url: getServerBaseUrl() + endpoint,
         method,
         data,
         params,
+        headers: {
+            ...(password ? { "X-Seanime-Token": password } : {}),
+            ...(profileToken ? { "X-Seanime-Profile-Token": profileToken } : {}),
+        },
     })
     const response = _handleSeaResponse<T>(res.data)
     return response.data

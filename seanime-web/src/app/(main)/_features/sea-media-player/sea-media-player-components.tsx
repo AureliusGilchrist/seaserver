@@ -243,10 +243,12 @@ function SeaMediaPlayerAudioTrackSubmenu() {
                                             setSelectedTrack(value)
                                             action({ type: "seek", payload: { time: -1 } })
                                         } else if (requestTranscodeForAudio) {
-                                            // Direct play: browser audioTracks API doesn't actually
-                                            // switch decoded audio for MKV. Switch to transcode.
+                                            // Direct play: extract audio track via FFmpeg.
+                                            const audioStreamIndex = mkvAudioTracks
+                                                ? mkvAudioTracks.findIndex(t => (t as MKVParser_TrackInfo).number === value)
+                                                : -1
                                             setSelectedTrack(value)
-                                            requestTranscodeForAudio()
+                                            requestTranscodeForAudio(audioStreamIndex >= 0 ? audioStreamIndex : 0)
                                         }
                                     }}
                                     className={cn(

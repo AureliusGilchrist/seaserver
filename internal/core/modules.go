@@ -408,6 +408,12 @@ func (a *App) initModulesOnce() {
 		GetDB: func(profileID uint) (*db.Database, error) {
 			return a.ProfileDatabaseManager.GetDatabase(profileID)
 		},
+		IsProfileEligible: func(profileID uint) bool {
+			if a.AnilistClientManager == nil {
+				return true
+			}
+			return a.AnilistClientManager.IsAuthenticated(profileID)
+		},
 	})
 
 	// Run XP migration for all known profile databases at startup

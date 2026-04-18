@@ -37,3 +37,16 @@ func (m *Manager) ServeEchoAttachments(streamID string, c echo.Context) error {
 
 	return c.Blob(200, attachment.Mimetype, attachment.Data)
 }
+
+// GetFilePathByStreamID resolves the underlying file path for a given stream ID.
+func (m *Manager) GetFilePathByStreamID(streamID string) (string, error) {
+	session, ok := m.getSessionByStreamID(streamID)
+	if !ok {
+		return "", errors.New("no stream")
+	}
+	info, _ := session.Stream.LoadPlaybackInfo()
+	if info == nil || info.FilePath == "" {
+		return "", errors.New("no file path for stream")
+	}
+	return info.FilePath, nil
+}

@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { MKVParser_SubtitleEvent, NativePlayer_PlaybackInfo, NativePlayer_ServerEvent } from "@/api/generated/types"
-import { vc_miniPlayer, vc_requestTranscodeForAudio, vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_miniPlayer, vc_requestTranscodeForAudio, vc_videoElement, vc_directPlayAudioUrl, vc_directPlayAudioLoading } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_subtitleManager, VideoCore } from "@/app/(main)/_features/video-core/video-core"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
@@ -33,6 +33,8 @@ export function NativePlayer() {
     const [miniPlayer, setMiniPlayer] = useAtom(vc_miniPlayer)
     const subtitleManager = useAtomValue(vc_subtitleManager)
     const setRequestTranscodeForAudio = useSetAtom(vc_requestTranscodeForAudio)
+    const setDirectPlayAudioUrl = useSetAtom(vc_directPlayAudioUrl)
+    const setDirectPlayAudioLoading = useSetAtom(vc_directPlayAudioLoading)
     const { setFilePath: setMediastreamFilePath } = useMediastreamCurrentFile()
 
     // AniSkip
@@ -202,36 +204,112 @@ export function NativePlayer() {
         })
     }
 
-    // Wire the transcode-for-audio callback so the audio menu can trigger
-    // a redirect from native player to mediastream transcode mode.
-    // This works for all native player stream types (local, torrent, debrid).
+    // Wire the audio track switch callback.
+    // Instead of redirecting to transcode, extract the audio track via FFmpeg on the server
+    // and play it through a hidden <audio> element synced to the video.
+    const audioElementRef = React.useRef<HTMLAudioElement | null>(null)
+    const audioSyncRafRef = React.useRef<number>(0)
+
     React.useEffect(() => {
-        const filePath = state.playbackInfo?.filePath
-        const mediaId = state.playbackInfo?.media?.id
+        const streamId = state.playbackInfo?.id
         const isNakama = state.playbackInfo?.isNakamaWatchParty
 
-        // Don't wire for Nakama watch parties (shared viewing, audio switch would only affect one user)
-        if (!filePath || !mediaId || isNakama) {
+        if (!streamId || isNakama) {
             setRequestTranscodeForAudio(null)
             return
         }
 
-        setRequestTranscodeForAudio(() => () => {
-            log.info("Audio track switch requested — redirecting to mediastream transcode")
-            toast.info("Switching to transcode for audio track change...")
+        setRequestTranscodeForAudio(() => (trackIndex?: number) => {
+            if (trackIndex == null || trackIndex < 0) return
 
-            // Terminate the native player stream
-            handleTerminateStream()
+            const audioTrackIdx = trackIndex
+            log.info(`Audio track switch requested — extracting track ${audioTrackIdx} via FFmpeg`)
+            toast.info("Extracting audio track...")
+            setDirectPlayAudioLoading(true)
 
-            // Set the file path for mediastream and navigate
-            setMediastreamFilePath(filePath)
-            React.startTransition(() => {
-                router.push(`/mediastream?id=${mediaId}`)
-            })
+            // Build the audio URL — the server will extract and cache the AAC file
+            const baseUrl = window.location.origin
+            const audioUrl = `${baseUrl}/api/v1/directstream/audio?id=${encodeURIComponent(streamId)}&track=${audioTrackIdx}`
+            setDirectPlayAudioUrl(audioUrl)
+
+            // Create or reuse the hidden audio element
+            let audioEl = audioElementRef.current
+            if (!audioEl) {
+                audioEl = document.createElement("audio")
+                audioEl.style.display = "none"
+                document.body.appendChild(audioEl)
+                audioElementRef.current = audioEl
+            }
+
+            // Stop any previous sync loop
+            if (audioSyncRafRef.current) {
+                cancelAnimationFrame(audioSyncRafRef.current)
+                audioSyncRafRef.current = 0
+            }
+
+            audioEl.src = audioUrl
+            audioEl.preload = "auto"
+
+            const video = videoElement
+            if (!video) return
+
+            const onCanPlay = () => {
+                setDirectPlayAudioLoading(false)
+                toast.success("Audio track switched")
+
+                // Mute video, sync audio position
+                video.muted = true
+                audioEl!.currentTime = video.currentTime
+                if (!video.paused) audioEl!.play().catch(() => {})
+
+                // Start rAF sync loop
+                const syncLoop = () => {
+                    if (!audioEl || !video) return
+                    const drift = Math.abs(video.currentTime - audioEl.currentTime)
+                    if (drift > 0.3) {
+                        audioEl.currentTime = video.currentTime
+                    }
+                    if (video.paused && !audioEl.paused) audioEl.pause()
+                    if (!video.paused && audioEl.paused) audioEl.play().catch(() => {})
+                    audioSyncRafRef.current = requestAnimationFrame(syncLoop)
+                }
+                audioSyncRafRef.current = requestAnimationFrame(syncLoop)
+
+                audioEl!.removeEventListener("canplay", onCanPlay)
+            }
+
+            const onError = () => {
+                setDirectPlayAudioLoading(false)
+                toast.error("Failed to extract audio track")
+                setDirectPlayAudioUrl(null)
+                audioEl!.removeEventListener("error", onError)
+            }
+
+            audioEl.addEventListener("canplay", onCanPlay, { once: true })
+            audioEl.addEventListener("error", onError, { once: true })
+            audioEl.load()
         })
 
-        return () => setRequestTranscodeForAudio(null)
-    }, [state.playbackInfo?.filePath, state.playbackInfo?.media?.id, state.playbackInfo?.isNakamaWatchParty])
+        return () => {
+            setRequestTranscodeForAudio(null)
+            // Cleanup audio element
+            if (audioSyncRafRef.current) {
+                cancelAnimationFrame(audioSyncRafRef.current)
+                audioSyncRafRef.current = 0
+            }
+            if (audioElementRef.current) {
+                audioElementRef.current.pause()
+                audioElementRef.current.src = ""
+                audioElementRef.current.remove()
+                audioElementRef.current = null
+            }
+            if (videoElement) {
+                videoElement.muted = false
+            }
+            setDirectPlayAudioUrl(null)
+            setDirectPlayAudioLoading(false)
+        }
+    }, [state.playbackInfo?.id, state.playbackInfo?.isNakamaWatchParty, videoElement])
 
     const ps = React.useMemo<VideoCoreLifecycleState>(() => {
         return {

@@ -15,6 +15,7 @@ import { Drawer } from "@/components/ui/drawer"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { NumberInput } from "@/components/ui/number-input"
 import { RadioGroup } from "@/components/ui/radio-group"
+import { Switch } from "@/components/ui/switch"
 import { upath } from "@/lib/helpers/upath"
 import { atom } from "jotai"
 import { useAtom } from "jotai/react"
@@ -44,6 +45,8 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
     const [selectedPaths, setSelectedPaths] = React.useState<string[]>([])
 
     const [anilistId, setAnilistId] = React.useState(0)
+    const [dependOnIndex, setDependOnIndex] = React.useState(false)
+    const [episodeOffset, setEpisodeOffset] = React.useState(1)
 
     const { data: customSources } = useListCustomSourceExtensions()
     const hasCustomSources = !!customSources?.length
@@ -89,6 +92,8 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
     React.useEffect(() => {
         setCurrentGroup(groups[page])
         setAnilistId(0)
+        setDependOnIndex(false)
+        setEpisodeOffset(1)
         resetSuggestions()
     }, [page, groups])
 
@@ -141,6 +146,8 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
             mutation({
                 paths: selectedPaths,
                 mediaId: anilistId,
+                useIndexBasedEpisodes: dependOnIndex,
+                episodeOffset: dependOnIndex ? (episodeOffset > 0 ? episodeOffset : 1) : undefined,
             }, {
                 onSuccess: () => {
                     pruneAndAdvance(selectedPaths)
@@ -266,8 +273,27 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
                     </div>
 
                     {/* Index-based episode matching controls */}
-                    {/*<div className="flex flex-1">*/}
-                    {/*</div>*/}
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-[--muted]">Depend on index</span>
+                            <Switch
+                                value={dependOnIndex}
+                                onValueChange={setDependOnIndex}
+                            />
+                        </div>
+                        {dependOnIndex && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-[--muted]">Start at ep</span>
+                                <div className="w-20">
+                                    <NumberInput
+                                        value={episodeOffset}
+                                        onValueChange={v => setEpisodeOffset(v > 0 ? v : 1)}
+                                        formatOptions={{ useGrouping: false }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="bg-gray-950 border p-2 px-2 divide-y divide-[--border] rounded-[--radius-md] max-h-[50vh] max-w-full overflow-x-auto overflow-y-auto text-sm">

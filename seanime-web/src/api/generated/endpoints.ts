@@ -2367,6 +2367,17 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/profile/stats",
         },
     },
+    ACTIVITY: {
+        /**
+         *  @description
+         *  Route backfills activity logs from AniList into the per-profile heatmap database.
+         */
+        BackfillActivity: {
+            key: "ACTIVITY-backfill-activity",
+            methods: ["POST"],
+            endpoint: "/api/v1/activity/backfill",
+        },
+    },
     RELEASES: {
         /**
          *  @description

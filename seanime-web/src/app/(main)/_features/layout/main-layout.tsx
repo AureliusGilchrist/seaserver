@@ -34,6 +34,8 @@ import { LoadingOverlayWithLogo } from "@/components/shared/loading-overlay-with
 import { AppLayout, AppLayoutContent, AppLayoutSidebar, AppSidebarProvider } from "@/components/ui/app-layout"
 import { __isElectronDesktop__ } from "@/types/constants"
 import { usePathname, useRouter } from "@/lib/navigation"
+import { API_ENDPOINTS } from "@/api/generated/endpoints"
+import { useServerMutation } from "@/api/client/requests"
 import React from "react"
 import { useServerStatus } from "../../_hooks/use-server-status"
 import { useInvalidateQueriesListener } from "../../_listeners/invalidate-queries.listeners"
@@ -104,6 +106,16 @@ function Loader() {
     useAnimeLibraryCollectionLoader()
     useAnimeCollectionLoader()
     useMissingEpisodesLoader()
+
+    // Backfill activity from AniList on startup (24h cooldown server-side)
+    const { mutate: backfillActivity } = useServerMutation({
+        endpoint: API_ENDPOINTS.ACTIVITY.BackfillActivity.endpoint,
+        method: API_ENDPOINTS.ACTIVITY.BackfillActivity.methods[0],
+        mutationKey: [API_ENDPOINTS.ACTIVITY.BackfillActivity.key],
+    })
+    React.useEffect(() => {
+        backfillActivity()
+    }, [])
 
     /**
      * Websocket listeners

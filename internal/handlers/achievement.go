@@ -18,12 +18,39 @@ import (
 //	@route /api/v1/achievements [GET]
 func (h *Handler) HandleGetAchievements(c echo.Context) error {
 	database := h.GetProfileDatabase(c)
+	profileID := h.GetProfileID(c)
 
 	// Lazily init rows via a no-op event
 	h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
-		ProfileID: h.GetProfileID(c),
+		ProfileID: profileID,
 		Trigger:   achievement.EvalTrigger("_init"),
 	})
+
+	// Evaluate stat-based achievements from collection data so the page
+	// always reflects up-to-date progress (not just after collection refresh).
+	if profileID > 0 {
+		var animeCollection *anilist.AnimeCollection
+		var mangaCollection *anilist.MangaCollection
+		profileClient := h.GetProfileAnilistClient(c)
+		if profileClient.IsAuthenticated() {
+			var profileUsername *string
+			if h.App.ProfileManager != nil {
+				if prof, err := h.App.ProfileManager.GetProfile(profileID); err == nil && prof.AniListUsername != "" {
+					profileUsername = &prof.AniListUsername
+				}
+			}
+			animeCollection, _ = profileClient.AnimeCollection(c.Request().Context(), profileUsername)
+			mangaCollection, _ = profileClient.MangaCollection(c.Request().Context(), profileUsername)
+		}
+		if animeCollection == nil {
+			animeCollection, _ = h.App.GetAnimeCollection(false)
+		}
+		if mangaCollection == nil {
+			mangaCollection, _ = h.App.GetMangaCollection(false)
+		}
+		stats := buildCollectionStats(animeCollection, mangaCollection)
+		h.App.AchievementEngine.EvaluateCollectionStats(profileID, stats)
+	}
 
 	dbAchievements, err := database.GetAllAchievements()
 	if err != nil {

@@ -40,9 +40,12 @@ func (db *Database) BulkUpsertAchievements(achievements []models.Achievement) er
 	if len(achievements) == 0 {
 		return nil
 	}
+	// Use DO NOTHING on conflict to avoid overwriting existing progress/unlock state.
+	// This is called from ensureInitialized to seed missing achievement rows;
+	// existing rows (including unlocked ones) must be preserved.
 	return db.gormdb.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "key"}, {Name: "tier"}},
-		DoUpdates: clause.AssignmentColumns([]string{"is_unlocked", "unlocked_at", "progress", "progress_data"}),
+		DoNothing: true,
 	}).CreateInBatches(achievements, 100).Error
 }
 

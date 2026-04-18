@@ -747,16 +747,20 @@ export function ComingSoonPlaceholder({ title }: { title: string }) {
 function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollectionProps, item: Models_HomeItem, index: number }) {
     const serverStatus = useServerStatus()
     const layout = props.item?.options?.layout || "grid"
-    const PAGE_SIZE = 12
+    const PAGE_SIZE = 28
     const collectionList = props.libraryCollectionProps.libraryCollectionList
+
+    // Search state
+    const [searchInput, setSearchInput] = React.useState("")
+    const [debouncedSearch] = useDebounce(searchInput, 250)
 
     // Use parent's data directly — light data arrives instantly, full data refines later.
     // In full mode, the backend already excludes entries without local files from lists.
     const localEntries: Anime_LibraryCollectionEntry[] = React.useMemo(() => {
         if (!collectionList?.length) return []
-        const allEntries: Anime_LibraryCollectionEntry[] = collectionList.flatMap(l => l.entries ?? []).filter(Boolean)
-
-        // Deduplicate by mediaId
+        const allEntries: Anime_LibraryCollectionEntry[] = collectionList
+            .filter(l => (l.type as string) !== "CURRENT")
+            .flatMap(l => l.entries ?? []).filter(Boolean)
         const seen = new Set<number>()
         let filtered = allEntries.filter(e => {
             if (seen.has(e.mediaId)) return false
@@ -767,10 +771,22 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
         if (!serverStatus?.settings?.anilist?.enableAdultContent) {
             filtered = filtered.filter(e => !e.media?.isAdult)
         }
+        // Apply search filter
+        if (debouncedSearch.trim()) {
+            const q = debouncedSearch.toLowerCase()
+            filtered = filtered.filter(e => {
+                const t = e.media?.title
+                return (t?.userPreferred?.toLowerCase().includes(q))
+                    || (t?.romaji?.toLowerCase().includes(q))
+                    || (t?.english?.toLowerCase().includes(q))
+                    || (t?.native?.toLowerCase().includes(q))
+                    || e.media?.synonyms?.some(s => s?.toLowerCase().includes(q))
+            })
+        }
         // Sort alphabetically
         filtered.sort((a, b) => (a.media?.title?.userPreferred ?? "").localeCompare(b.media?.title?.userPreferred ?? ""))
         return filtered
-    }, [collectionList, serverStatus?.settings?.anilist?.enableAdultContent])
+    }, [collectionList, serverStatus?.settings?.anilist?.enableAdultContent, debouncedSearch])
 
     // Lazy pagination state
     const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE)
@@ -834,6 +850,16 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
 
     return (
         <PageWrapper className="px-4 space-y-8">
+            <div className="relative max-w-sm">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[--muted] size-4" />
+                <input
+                    type="text"
+                    placeholder="Search local library..."
+                    value={searchInput}
+                    onChange={e => setSearchInput(e.target.value)}
+                    className="w-full pl-10 pr-3 py-2 rounded-lg bg-[--paper] border border-[--border] text-sm placeholder:text-[--muted] focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+            </div>
             <MediaCardLazyGrid itemCount={visibleEntries.length}>
                 {visibleEntries.map(entry => (
                     <MediaEntryCard

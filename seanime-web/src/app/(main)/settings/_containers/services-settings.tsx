@@ -38,8 +38,92 @@ export function ServicesSettings() {
 
     const isAnyPending = isUpdatingAnime || isUpdatingManga || isScanningAnime || isScanningManga || isFindingAnimeSorting || isFindingMangaSorting || isHydratingManga || !!hydrationStatus?.isRunning || isHydratingAnime || !!animeHydrationStatus?.isRunning
 
+    // "Run All" sequential chain state
+    const [animeAllStep, setAnimeAllStep] = React.useState<string | null>(null)
+    const [mangaAllStep, setMangaAllStep] = React.useState<string | null>(null)
+    const animeAllRef = React.useRef(false)
+    const mangaAllRef = React.useRef(false)
+
+    // Chain anime operations: update → scan → sorting → hydrate
+    const runAllAnime = React.useCallback(() => {
+        if (animeAllRef.current) return
+        animeAllRef.current = true
+        setAnimeAllStep("Updating anime library...")
+        updateAnime(undefined, {
+            onSettled: () => {
+                setAnimeAllStep("Scanning anime library...")
+                scanAnime(undefined, {
+                    onSettled: () => {
+                        setAnimeAllStep("Computing anime sorting...")
+                        findAnimeSorting(undefined, {
+                            onSettled: () => {
+                                setAnimeAllStep("Hydrating anime metadata...")
+                                hydrateAnime(undefined, {
+                                    onSettled: () => {
+                                        setAnimeAllStep(null)
+                                        animeAllRef.current = false
+                                    },
+                                })
+                            },
+                        })
+                    },
+                })
+            },
+        })
+    }, [updateAnime, scanAnime, findAnimeSorting, hydrateAnime])
+
+    // Chain manga operations: update → scan → sorting → hydrate
+    const runAllManga = React.useCallback(() => {
+        if (mangaAllRef.current) return
+        mangaAllRef.current = true
+        setMangaAllStep("Updating manga library...")
+        updateManga(undefined, {
+            onSettled: () => {
+                setMangaAllStep("Scanning manga library...")
+                scanManga(undefined, {
+                    onSettled: () => {
+                        setMangaAllStep("Computing manga sorting...")
+                        findMangaSorting(undefined, {
+                            onSettled: () => {
+                                setMangaAllStep("Hydrating manga metadata...")
+                                hydrateManga(undefined, {
+                                    onSettled: () => {
+                                        setMangaAllStep(null)
+                                        mangaAllRef.current = false
+                                    },
+                                })
+                            },
+                        })
+                    },
+                })
+            },
+        })
+    }, [updateManga, scanManga, findMangaSorting, hydrateManga])
+
     return (
         <div className="space-y-4">
+            <SettingsCard title="Run all services" description="Sequentially run update, scan, sorting, and metadata hydration.">
+                <div className="flex gap-2 flex-wrap items-center">
+                    <Button intent="primary" size="sm" onClick={runAllAnime} disabled={isAnyPending || !!animeAllStep}>
+                        Run all anime services
+                    </Button>
+                    <Button intent="primary" size="sm" onClick={runAllManga} disabled={isAnyPending || !!mangaAllStep}>
+                        Run all manga services
+                    </Button>
+                </div>
+                {animeAllStep && (
+                    <div className="flex items-center gap-2 mt-3 text-xs text-[--muted]">
+                        <LoadingSpinner />
+                        <span>{animeAllStep}</span>
+                    </div>
+                )}
+                {mangaAllStep && (
+                    <div className="flex items-center gap-2 mt-3 text-xs text-[--muted]">
+                        <LoadingSpinner />
+                        <span>{mangaAllStep}</span>
+                    </div>
+                )}
+            </SettingsCard>
             <SettingsCard title="Library updates" description="Refresh your AniList anime or manga collection.">
                 <div className="flex gap-2 flex-wrap items-center">
                     <Button intent="white-subtle" size="sm" onClick={() => updateAnime()} disabled={isAnyPending}>

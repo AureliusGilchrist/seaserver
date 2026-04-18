@@ -29,9 +29,9 @@ type PlatformHelper struct {
 func NewPlatformHelper(extensionBankRef *util.Ref[*extension.UnifiedBank], db *db.Database, logger *zerolog.Logger) *PlatformHelper {
 	helper := &PlatformHelper{
 		logger:              logger,
-		baseAnimeCache:      result.NewBoundedCache[int, *anilist.BaseAnime](50),
-		baseMangaCache:      result.NewBoundedCache[int, *anilist.BaseManga](50),
-		completeAnimeCache:  result.NewBoundedCache[int, *anilist.CompleteAnime](10),
+		baseAnimeCache:      result.NewBoundedCache[int, *anilist.BaseAnime](500),
+		baseMangaCache:      result.NewBoundedCache[int, *anilist.BaseManga](500),
+		completeAnimeCache:  result.NewBoundedCache[int, *anilist.CompleteAnime](100),
 		extensionBankRef:    extensionBankRef,
 		customSourceManager: customsource.NewManager(extensionBankRef, db, logger),
 	}
@@ -176,7 +176,7 @@ func (h *PlatformHelper) GetCachedBaseAnime(mediaID int) (*anilist.BaseAnime, bo
 }
 
 func (h *PlatformHelper) SetCachedBaseAnime(mediaID int, anime *anilist.BaseAnime) {
-	h.baseAnimeCache.SetT(mediaID, anime, time.Minute*30)
+	h.baseAnimeCache.SetT(mediaID, anime, time.Hour*2)
 }
 
 func (h *PlatformHelper) ClearBaseAnimeCache(mediaID int) {
@@ -188,7 +188,7 @@ func (h *PlatformHelper) GetCachedBaseManga(mediaID int) (*anilist.BaseManga, bo
 }
 
 func (h *PlatformHelper) SetCachedBaseManga(mediaID int, manga *anilist.BaseManga) {
-	h.baseMangaCache.SetT(mediaID, manga, time.Minute*30)
+	h.baseMangaCache.SetT(mediaID, manga, time.Hour*2)
 }
 
 func (h *PlatformHelper) ClearBaseMangaCache(mediaID int) {

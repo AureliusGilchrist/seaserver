@@ -542,6 +542,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.HEAD("/directstream/stream", h.HandleDirectstreamGetStream)
 	v1.GET("/directstream/att/*", h.HandleDirectstreamGetAttachments)
 	v1.POST("/directstream/subs/convert-subs", h.HandleDirectstreamConvertSubs)
+	v1.GET("/directstream/audio", h.HandleDirectstreamGetAudio)
 
 	//
 	// Torrent stream
@@ -749,6 +750,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	// Activity events
 	v1.GET("/activity-events", h.HandleGetActivityEvents)
+	v1.POST("/activity/backfill", h.HandleBackfillActivity)
 
 	// AniList profile sync
 	v1.POST("/profile/sync-anilist", h.HandleSyncAniListProfile)
