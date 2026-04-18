@@ -1,14 +1,70 @@
+mod config;
 mod constants;
 mod server;
 #[cfg(desktop)]
 mod tray;
 
+use config::ServerConfig;
 use constants::MAIN_WINDOW_LABEL;
 use std::sync::{Arc, Mutex};
 #[cfg(target_os = "macos")]
 use tauri::utils::TitleBarStyle;
 use tauri::{Emitter, Listener, Manager};
 use tauri_plugin_os;
+
+// ── Tauri commands exposed to the frontend ──────────────────────────────────
+
+#[tauri::command]
+fn get_server_config(app: tauri::AppHandle) -> Option<ServerConfig> {
+    config::load_config(&app)
+}
+
+#[tauri::command]
+fn save_server_config(app: tauri::AppHandle, mode: String, remote_url: Option<String>) -> Result<(), String> {
+    let cfg = ServerConfig {
+        mode,
+        remote_url,
+    };
+    config::save_config(&app, &cfg)
+}
+
+/// Validate a remote server by making an HTTP HEAD/GET request.
+/// Returns Ok(true) if any HTTP response is received (even 401/403).
+#[tauri::command]
+async fn validate_remote_server(url: String) -> Result<bool, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .danger_accept_invalid_certs(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let target = if url.ends_with('/') {
+        format!("{}api/v1/status", url)
+    } else {
+        format!("{}/api/v1/status", url)
+    };
+
+    match client.get(&target).send().await {
+        Ok(_) => Ok(true),
+        Err(e) => {
+            if e.is_timeout() {
+                Err("Connection timed out".to_string())
+            } else if e.is_connect() {
+                Err("Could not connect to server".to_string())
+            } else {
+                Err(format!("Connection failed: {}", e))
+            }
+        }
+    }
+}
+
+/// Called by the splashscreen after saving a "local" config to start the sidecar.
+#[tauri::command]
+fn start_local_server(app: tauri::AppHandle) -> Result<(), String> {
+    app.emit("launch-local-server", "").map_err(|e| e.to_string())
+}
+
+// ── Main entry point ────────────────────────────────────────────────────────
 
 pub fn run() {
     let server_process = Arc::new(Mutex::new(
@@ -36,6 +92,12 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .invoke_handler(tauri::generate_handler![
+            get_server_config,
+            save_server_config,
+            validate_remote_server,
+            start_local_server,
+        ])
         .setup(move |app| {
             #[cfg(all(desktop))]
             {
@@ -62,12 +124,47 @@ pub fn run() {
                 main_window.open_devtools();
             }
 
-            server::launch_seanime_server(
-                app.handle().clone(),
-                server_process_for_setup,
-                is_shutdown_for_setup,
-                server_started_for_setup,
-            );
+            // ── Boot flow: check saved config ──
+            let cfg = config::load_config(app.handle());
+
+            match cfg.as_ref().map(|c| c.mode.as_str()) {
+                Some("remote") => {
+                    // Remote mode — skip sidecar, tell splashscreen to proceed
+                    let url = cfg.unwrap().remote_url.unwrap_or_default();
+                    println!("Boot: remote mode -> {}", url);
+                    app.emit("remote-ready", url).ok();
+                }
+                Some("local") => {
+                    // Local mode — launch sidecar (existing behavior)
+                    println!("Boot: local mode");
+                    server::launch_seanime_server(
+                        app.handle().clone(),
+                        server_process_for_setup,
+                        is_shutdown_for_setup,
+                        server_started_for_setup,
+                    );
+                }
+                _ => {
+                    // No config yet — tell splashscreen to show the setup screen
+                    println!("Boot: no config, showing setup");
+                    app.emit("show-setup", "").ok();
+                }
+            }
+
+            // Listen for "launch-local-server" from the frontend (after user picks local in setup)
+            let app_handle_launch = app.handle().clone();
+            let sp_launch = Arc::clone(&server_process);
+            let is_launch = Arc::clone(&is_shutdown);
+            let ss_launch = Arc::clone(&server_started);
+            app.listen("launch-local-server", move |_| {
+                println!("EVENT launch-local-server");
+                server::launch_seanime_server(
+                    app_handle_launch.clone(),
+                    Arc::clone(&sp_launch),
+                    Arc::clone(&is_launch),
+                    Arc::clone(&ss_launch),
+                );
+            });
 
             let app_handle = app.handle().clone();
             app.listen("restart-server", move |_| {
@@ -162,16 +259,6 @@ pub fn run() {
                                 .unwrap();
                         }
                     }
-
-                    // tauri::RunEvent::Exit => {
-                    //     let mut child_guard = server_process_for_exit.lock().unwrap();
-                    //     if let Some(child) = child_guard.take() {
-                    //         // Kill server process
-                    //         if let Err(e) = child.kill() {
-                    //             eprintln!("Failed to kill server process: {}", e);
-                    //         }
-                    //     }
-                    // }
 
                     // The app is about to exit
                     tauri::RunEvent::ExitRequested { .. } => {

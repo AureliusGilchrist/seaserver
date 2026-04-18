@@ -1,5 +1,6 @@
 import { useGetAnilistCacheLayerStatus, useToggleAnilistCacheLayerStatus } from "@/api/hooks/anilist.hooks"
 import { useLocalSyncSimulatedDataToAnilist } from "@/api/hooks/local.hooks"
+import { remoteServerUrlAtom, serverConnectionModeAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { __seaCommand_shortcuts } from "@/app/(main)/_features/sea-command/sea-command"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
 import { SettingsSubmitButton } from "@/app/(main)/settings/_components/settings-submit-button"
@@ -10,12 +11,12 @@ import { cn } from "@/components/ui/core/styling"
 import { Field } from "@/components/ui/form"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
-import { __isElectronDesktop__ } from "@/types/constants"
-import { useAtom } from "jotai/react"
+import { __isElectronDesktop__, __isTauriDesktop__ } from "@/types/constants"
+import { useAtom, useAtomValue } from "jotai/react"
 import React from "react"
 import { useFormContext } from "react-hook-form"
 import { FaRedo } from "react-icons/fa"
-import { LuCircleAlert, LuCloudUpload } from "react-icons/lu"
+import { LuCircleAlert, LuCircleX, LuCloudUpload, LuGlobe, LuLoader, LuMonitor } from "react-icons/lu"
 import { useServerStatus } from "../../_hooks/use-server-status"
 
 type ServerSettingsProps = {
@@ -52,6 +53,8 @@ export function ServerSettings(props: ServerSettingsProps) {
 
     return (
         <div className="space-y-4">
+
+            {__isTauriDesktop__ && <TauriServerConnectionCard />}
 
             {(!isApiWorking && !isFetchingApiStatus) && (
                 <Alert
@@ -357,6 +360,165 @@ export function ServerSettings(props: ServerSettingsProps) {
             <SettingsSubmitButton isPending={isPending} />
 
         </div>
+    )
+}
+
+// ── Desktop "Connect to" card ────────────────────────────────────────────────
+
+function TauriServerConnectionCard() {
+    const [connectionMode, setConnectionMode] = useAtom(serverConnectionModeAtom)
+    const [remoteUrl, setRemoteUrl] = useAtom(remoteServerUrlAtom)
+
+    const [editing, setEditing] = React.useState(false)
+    const [chosenMode, setChosenMode] = React.useState<"local" | "remote">(connectionMode)
+    const [urlInput, setUrlInput] = React.useState(remoteUrl ?? "http://")
+    const [validating, setValidating] = React.useState(false)
+    const [validationError, setValidationError] = React.useState<string | null>(null)
+
+    // Listen for the tray "Change Server" event
+    React.useEffect(() => {
+        let cleanup: (() => void) | undefined
+        async function init() {
+            const { listen } = await import("@tauri-apps/api/event")
+            const unlisten = await listen("change-server", () => {
+                setEditing(true)
+            })
+            cleanup = unlisten
+        }
+        init()
+        return () => { cleanup?.() }
+    }, [])
+
+    function handleStartEdit() {
+        setChosenMode(connectionMode)
+        setUrlInput(remoteUrl ?? "http://")
+        setValidationError(null)
+        setEditing(true)
+    }
+
+    function handleCancel() {
+        setEditing(false)
+        setValidationError(null)
+    }
+
+    async function handleSave() {
+        try {
+            const { invoke } = await import("@tauri-apps/api/core")
+
+            if (chosenMode === "remote") {
+                if (!urlInput || urlInput === "http://" || urlInput === "https://") return
+                setValidating(true)
+                setValidationError(null)
+                const ok = await invoke<boolean>("validate_remote_server", { url: urlInput })
+                if (!ok) {
+                    setValidationError("Server did not respond")
+                    return
+                }
+                const cleanUrl = urlInput.replace(/\/+$/, "")
+                await invoke("save_server_config", { mode: "remote", remoteUrl: cleanUrl })
+                setRemoteUrl(cleanUrl)
+                setConnectionMode("remote")
+            } else {
+                await invoke("save_server_config", { mode: "local", remoteUrl: null })
+                setRemoteUrl(undefined)
+                setConnectionMode("local")
+            }
+
+            setEditing(false)
+            // Reload so that getServerBaseUrl() picks up the new value
+            window.location.reload()
+        } catch (e: any) {
+            setValidationError(typeof e === "string" ? e : e?.message || "Failed to save")
+        } finally {
+            setValidating(false)
+        }
+    }
+
+    return (
+        <SettingsCard title="Server Connection" description="Configure how Seanime Desktop connects.">
+            {!editing ? (
+                <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 text-sm">
+                        {connectionMode === "remote" ? (
+                            <>
+                                <LuGlobe className="text-blue-400 size-5" />
+                                <div>
+                                    <span className="font-medium">Remote</span>
+                                    {remoteUrl && <span className="text-[--muted] ml-2">{remoteUrl}</span>}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <LuMonitor className="text-green-400 size-5" />
+                                <span className="font-medium">Local Server</span>
+                            </>
+                        )}
+                    </div>
+                    <Button size="sm" intent="white-subtle" onClick={handleStartEdit}>
+                        Change
+                    </Button>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    <div className="flex gap-3">
+                        <button
+                            type="button"
+                            onClick={() => { setChosenMode("local"); setValidationError(null) }}
+                            className={cn(
+                                "flex flex-col items-center gap-2 p-4 rounded-lg border transition-all w-40 cursor-pointer",
+                                chosenMode === "local"
+                                    ? "border-brand-500 bg-brand-500/10"
+                                    : "border-gray-700 bg-gray-900/50 hover:border-gray-500",
+                            )}
+                        >
+                            <LuMonitor className="text-xl" />
+                            <span className="text-xs font-medium">Local</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setChosenMode("remote"); setValidationError(null) }}
+                            className={cn(
+                                "flex flex-col items-center gap-2 p-4 rounded-lg border transition-all w-40 cursor-pointer",
+                                chosenMode === "remote"
+                                    ? "border-brand-500 bg-brand-500/10"
+                                    : "border-gray-700 bg-gray-900/50 hover:border-gray-500",
+                            )}
+                        >
+                            <LuGlobe className="text-xl" />
+                            <span className="text-xs font-medium">Remote</span>
+                        </button>
+                    </div>
+
+                    {chosenMode === "remote" && (
+                        <div className="space-y-2">
+                            <input
+                                type="text"
+                                value={urlInput}
+                                onChange={(e) => { setUrlInput(e.target.value); setValidationError(null) }}
+                                onKeyDown={(e) => { if (e.key === "Enter") handleSave() }}
+                                placeholder="http://192.168.1.x:43211"
+                                className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-600 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-gray-400 transition-colors"
+                            />
+                            {validationError && (
+                                <div className="flex items-center gap-2 text-red-400 text-xs">
+                                    <LuCircleX className="shrink-0" />
+                                    <span>{validationError}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex gap-2">
+                        <Button size="sm" intent="primary" onClick={handleSave} loading={validating}>
+                            {validating ? <LuLoader className="animate-spin" /> : "Save & Reconnect"}
+                        </Button>
+                        <Button size="sm" intent="white-subtle" onClick={handleCancel} disabled={validating}>
+                            Cancel
+                        </Button>
+                    </div>
+                </div>
+            )}
+        </SettingsCard>
     )
 }
 

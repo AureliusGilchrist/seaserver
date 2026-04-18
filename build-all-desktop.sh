@@ -103,19 +103,48 @@ else
 fi
 
 step "0.5" "System dependencies (mingw-w64, nsis)"
-NEED_INSTALL=()
+
+# Helper: install packages via dnf, skipping unavailable repos gracefully
+_dnf_install() {
+  sudo dnf install -y --skip-unavailable --setopt=skip_if_unavailable=True "$@"
+}
+
 if ! type x86_64-w64-mingw32-gcc &>/dev/null; then
-  NEED_INSTALL+=("mingw64-gcc")
-fi
-if ! type makensis &>/dev/null; then
-  NEED_INSTALL+=("nsis")
-fi
-if [[ ${#NEED_INSTALL[@]} -gt 0 ]]; then
-  substep "Installing: ${NEED_INSTALL[*]}..."
-  sudo dnf install -y "${NEED_INSTALL[@]}"
-  success "System deps installed"
+  substep "Installing mingw64-gcc..."
+  _dnf_install mingw64-gcc
+  type x86_64-w64-mingw32-gcc &>/dev/null && success "mingw64-gcc installed" || fail "mingw64-gcc installation failed"
 else
-  substep "mingw-w64 and nsis already available"
+  substep "mingw-w64 already available"
+fi
+
+if ! type makensis &>/dev/null; then
+  substep "Installing nsis..."
+  # Try multiple package names — Fedora may use 'nsis' or 'mingw32-nsis'
+  _dnf_install nsis 2>/dev/null || _dnf_install mingw32-nsis 2>/dev/null || true
+  if ! type makensis &>/dev/null; then
+    warn "nsis not available from repos — downloading NSIS portable..."
+    NSIS_VER="3.10"
+    NSIS_DIR="/opt/nsis"
+    if [[ ! -x "$NSIS_DIR/makensis" ]]; then
+      NSIS_ZIP="/tmp/nsis-${NSIS_VER}.zip"
+      curl -sSfL "https://sourceforge.net/projects/nsis/files/NSIS%203/${NSIS_VER}/nsis-${NSIS_VER}.zip/download" -o "$NSIS_ZIP"
+      sudo mkdir -p "$NSIS_DIR"
+      sudo unzip -qo "$NSIS_ZIP" -d /opt
+      sudo mv "/opt/nsis-${NSIS_VER}"/* "$NSIS_DIR/" 2>/dev/null || true
+      sudo rmdir "/opt/nsis-${NSIS_VER}" 2>/dev/null || true
+      rm -f "$NSIS_ZIP"
+    fi
+    export PATH="$NSIS_DIR:$PATH"
+    if type makensis &>/dev/null; then
+      success "NSIS installed from portable: $(makensis -VERSION 2>/dev/null || echo "$NSIS_VER")"
+    else
+      warn "NSIS not available — Tauri NSIS bundler may download it automatically during build"
+    fi
+  else
+    success "nsis installed"
+  fi
+else
+  substep "nsis already available"
 fi
 
 step "0.6" "cargo-tauri CLI"

@@ -2,7 +2,7 @@ use crate::constants::MAIN_WINDOW_LABEL;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager, Runtime,
+    Emitter, Manager, Runtime,
 };
 
 pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
@@ -23,11 +23,18 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         true,
         None::<&str>,
     )?;
-    let mut items: Vec<&dyn tauri::menu::IsMenuItem<R>> = vec![&toggle_visibility_i, &quit_i];
+    let change_server_i = MenuItem::with_id(
+        app,
+        "change_server",
+        "Change Server",
+        true,
+        None::<&str>,
+    )?;
+    let mut items: Vec<&dyn tauri::menu::IsMenuItem<R>> = vec![&toggle_visibility_i, &change_server_i, &quit_i];
 
     #[cfg(target_os = "macos")]
     {
-        items = vec![&toggle_visibility_i, &accessory_mode_i, &quit_i];
+        items = vec![&toggle_visibility_i, &change_server_i, &accessory_mode_i, &quit_i];
     }
 
     let menu = Menu::with_items(app, &items)?;
@@ -61,6 +68,16 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                 #[cfg(target_os = "macos")]
                 app.set_activation_policy(tauri::ActivationPolicy::Accessory)
                     .unwrap();
+            }
+            "change_server" => {
+                if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                    #[cfg(target_os = "macos")]
+                    app.set_activation_policy(tauri::ActivationPolicy::Regular)
+                        .unwrap();
+                }
+                let _ = app.emit("change-server", "");
             }
             // "hide" => {
             //     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {

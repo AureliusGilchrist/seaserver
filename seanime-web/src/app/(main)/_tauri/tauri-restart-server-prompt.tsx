@@ -1,3 +1,4 @@
+import { serverConnectionModeAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { isUpdateInstalledAtom, isUpdatingAtom } from "@/app/(main)/_tauri/tauri-update-modal"
 import { websocketConnectedAtom, websocketConnectionErrorCountAtom } from "@/app/websocket-provider"
 import { LuffyError } from "@/components/shared/luffy-error"
@@ -19,6 +20,7 @@ export function TauriRestartServerPrompt() {
     const [hasClickedRestarted, setHasClickedRestarted] = React.useState(false)
     const isUpdatedInstalled = useAtomValue(isUpdateInstalledAtom)
     const isUpdating = useAtomValue(isUpdatingAtom)
+    const connectionMode = useAtomValue(serverConnectionModeAtom)
 
     React.useEffect(() => {
         if (getCurrentWebviewWindow().label === "main") {
@@ -27,6 +29,12 @@ export function TauriRestartServerPrompt() {
     }, [])
 
     const handleRestart = async () => {
+        if (connectionMode === "remote") {
+            // In remote mode, just reload to re-establish the connection
+            toast.info("Reconnecting...")
+            window.location.reload()
+            return
+        }
         setHasClickedRestarted(true)
         toast.info("Restarting server...")
         emit("restart-server").catch((error) => {
@@ -80,7 +88,9 @@ export function TauriRestartServerPrompt() {
                 <LuffyError>
                     <div className="space-y-4 flex flex-col items-center">
                         <p className="text-lg max-w-sm">
-                            The background server process has stopped responding. Please restart it to continue.
+                            {connectionMode === "remote"
+                                ? "The remote server connection has been lost."
+                                : "The background server process has stopped responding. Please restart it to continue."}
                         </p>
 
                         <Button
@@ -90,10 +100,12 @@ export function TauriRestartServerPrompt() {
                             size="lg"
                             className="rounded-full"
                         >
-                            Restart server
+                            {connectionMode === "remote" ? "Reconnect" : "Restart server"}
                         </Button>
                         <p className="text-[--muted] text-sm max-w-xl">
-                            If this message persists after multiple tries, please relaunch the application.
+                            {connectionMode === "remote"
+                                ? "If this message persists, check that the remote server is running and reachable."
+                                : "If this message persists after multiple tries, please relaunch the application."}
                         </p>
                     </div>
                 </LuffyError>

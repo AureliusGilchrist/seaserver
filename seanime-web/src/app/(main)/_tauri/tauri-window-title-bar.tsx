@@ -1,8 +1,11 @@
 "use client"
+import { remoteServerUrlAtom, serverConnectionModeAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { IconButton } from "@/components/ui/button"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
 import { platform } from "@tauri-apps/plugin-os"
+import { useAtomValue } from "jotai"
 import React from "react"
+import { LuGlobe } from "react-icons/lu"
 import { VscChromeClose, VscChromeMaximize, VscChromeMinimize, VscChromeRestore } from "react-icons/vsc"
 
 type TauriWindowTitleBarProps = {
@@ -18,6 +21,13 @@ export function TauriWindowTitleBar(props: TauriWindowTitleBarProps) {
 
     const [showTrafficLights, setShowTrafficLights] = React.useState(false)
     const [displayDragRegion, setDisplayDragRegion] = React.useState(true)
+
+    const connectionMode = useAtomValue(serverConnectionModeAtom)
+    const remoteUrl = useAtomValue(remoteServerUrlAtom)
+    const remoteHost = React.useMemo(() => {
+        if (connectionMode !== "remote" || !remoteUrl) return null
+        try { return new URL(remoteUrl).host } catch { return remoteUrl }
+    }, [connectionMode, remoteUrl])
     const dragRegionRef = React.useRef<HTMLDivElement>(null)
 
 
@@ -166,7 +176,14 @@ export function TauriWindowTitleBar(props: TauriWindowTitleBarProps) {
                     pointerEvents: "all",
                 }}
             >
-                {displayDragRegion && <div className="flex flex-1 cursor-grab active:cursor-grabbing" data-tauri-drag-region></div>}
+                {displayDragRegion && <div className="flex flex-1 items-center cursor-grab active:cursor-grabbing" data-tauri-drag-region>
+                    {remoteHost && (
+                        <span className="flex items-center gap-1.5 ml-3 text-[11px] text-gray-400 select-none pointer-events-none">
+                            <LuGlobe className="text-[10px]" />
+                            Remote: {remoteHost}
+                        </span>
+                    )}
+                </div>}
                 {(currentPlatform === "windows" && showTrafficLights) &&
                     <div className="flex h-10 items-center justify-center gap-1 mr-2 !cursor-default">
                         <IconButton
