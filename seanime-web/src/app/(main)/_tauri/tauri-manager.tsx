@@ -42,24 +42,26 @@ export function TauriManager(props: TauriManagerProps) {
         return () => {
             u.then((f) => f())
             mousetrap.unbind("f11")
+            mousetrap.unbind("esc")
             document.removeEventListener("fullscreenchange", toggleFullscreen)
         }
     }, [])
 
-    function toggleFullscreen() {
+    async function toggleFullscreen() {
         const appWindow = new Window("main")
 
         // Only toggle fullscreen on the main window
         if (getCurrentWebviewWindow().label !== "main") return
 
-        appWindow.isFullscreen().then((fullscreen) => {
-            // DEVNOTE: When decorations are not shown in fullscreen move there will be a gap at the bottom of the window (Windows)
-            // Hide the decorations when exiting fullscreen
-            // Show the decorations when entering fullscreen
-            appWindow.setDecorations(!fullscreen)
+        const fullscreen = await appWindow.isFullscreen()
+        // DEVNOTE: When decorations are not shown in fullscreen move there will be a gap at the bottom of the window (Windows)
+        // Hide the decorations when exiting fullscreen
+        // Show the decorations when entering fullscreen
+        await appWindow.setDecorations(!fullscreen)
+        await appWindow.setFullscreen(!fullscreen)
 
-            appWindow.setFullscreen(!fullscreen)
-        })
+        // Dispatch event so VideoCoreFullscreenManager can sync state
+        window.dispatchEvent(new CustomEvent("tauri:fullscreenchange", { detail: { isFullscreen: !fullscreen } }))
     }
 
     return (
