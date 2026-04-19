@@ -132,6 +132,9 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     // Remember the translated file tracks to avoid re-fetching them
     private translatedFileTracks = new Map<number, { translating: boolean }>()
 
+    // Per-series codec override for language+codec matching
+    private subtitleCodecOverride?: string
+
     constructor({
         videoElement,
         jassubOffscreenRender,
@@ -141,6 +144,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         sendTranslateRequest,
         translateTargetLang,
         hmacToken,
+        subtitleCodecOverride,
     }: {
         videoElement: HTMLVideoElement
         jassubOffscreenRender: boolean
@@ -150,6 +154,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
         translateTargetLang: string | null
         hmacToken?: string
+        subtitleCodecOverride?: string
     }) {
         super()
         this.videoElement = videoElement
@@ -161,6 +166,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.translationTargetLang = translateTargetLang
         this.fetchAndConvertToASS = fetchAndConvertToASS
         this.sendTranslateRequest = sendTranslateRequest
+        this.subtitleCodecOverride = subtitleCodecOverride
         this.translateFn = function (cached: CachedEvent) {
             cached.isTranslating = true
             // Send the request to the server
@@ -734,7 +740,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         }
 
         // Split preferred languages by comma and trim whitespace
-        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, tracks)
+        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, tracks, this.subtitleCodecOverride)
         subtitleLog.info("Default subtitle track number",
             defaultTrackNumber,
             this.settings.preferredSubtitleLanguage,
@@ -1161,7 +1167,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
 export function getDefaultSubtitleTrackNumber(
     settings: VideoCoreSettings,
-    _tracks: { label?: string, language?: string, number: number, forced?: boolean, default?: boolean }[] | null = null,
+    _tracks: { label?: string, language?: string, number: number, forced?: boolean, default?: boolean, codecID?: string }[] | null = null,
+    codecHint?: string,
 ): number {
     // Split preferred languages by comma and trim whitespace
     const preferredLanguages = settings.preferredSubtitleLanguage
@@ -1184,6 +1191,11 @@ export function getDefaultSubtitleTrackNumber(
     for (const preferredLang of preferredLanguages) {
         let foundTracks = tracks?.filter?.(t => t.language?.toLowerCase() === preferredLang?.toLowerCase())
         if (foundTracks?.length) {
+            // Prefer language + codec match (per-series override)
+            if (codecHint && foundTracks.length > 1) {
+                const codecMatch = foundTracks.find(t => t.codecID === codecHint)
+                if (codecMatch) return codecMatch.number
+            }
             // Find default or forced track
             const defaultIndex = foundTracks.findIndex(t => t.forced)
             return foundTracks[defaultIndex >= 0 ? defaultIndex : 0].number

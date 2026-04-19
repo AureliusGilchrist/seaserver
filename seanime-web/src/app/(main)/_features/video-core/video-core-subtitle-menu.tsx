@@ -175,16 +175,17 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                             setSelectedTrack(value)
                         }
 
-                        // Save per-media subtitle language override
+                        // Save per-media subtitle language + codec override
                         const mediaId = playbackInfo?.media?.id
                         if (mediaId) {
                             const subTrack = subtitleTracks.find(t => t.number === value)
                             const captionTrack = mediaCaptionsTracks.find(t => t.number === value)
                             const lang = subTrack?.language || captionTrack?.language
+                            const codecID = subTrack?.codecID
                             if (lang) {
                                 setPerMediaOverrides(prev => ({
                                     ...prev,
-                                    [String(mediaId)]: { ...prev[String(mediaId)], subtitleLanguage: lang },
+                                    [String(mediaId)]: { ...prev[String(mediaId)], subtitleLanguage: lang, subtitleCodecID: codecID },
                                 }))
                             }
                         }

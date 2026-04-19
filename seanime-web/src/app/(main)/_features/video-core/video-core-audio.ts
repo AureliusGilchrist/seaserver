@@ -27,6 +27,8 @@ export class VideoCoreAudioManager extends EventTarget {
     // When true, auto-selection (e.g. __selectDefaultHlsTrack) is skipped
     // so the user's choice is preserved across quality switches and re-renders.
     private _userHasSelectedTrack: boolean = false
+    // Per-series codec override for language+codec matching
+    private audioCodecOverride?: string
 
     constructor({
         videoElement,
@@ -36,6 +38,7 @@ export class VideoCoreAudioManager extends EventTarget {
         hlsSetAudioTrack,
         hlsAudioTracks,
         hlsCurrentAudioTrack,
+        audioCodecOverride,
     }: {
         videoElement: HTMLVideoElement
         settings: VideoCoreSettings
@@ -44,6 +47,7 @@ export class VideoCoreAudioManager extends EventTarget {
         hlsSetAudioTrack?: ((trackId: number) => void) | null
         hlsAudioTracks?: HlsAudioTrack[]
         hlsCurrentAudioTrack?: number
+        audioCodecOverride?: string
     }) {
         super()
         this.videoElement = videoElement
@@ -52,6 +56,7 @@ export class VideoCoreAudioManager extends EventTarget {
         this.hlsSetAudioTrack = hlsSetAudioTrack || null
         this.hlsAudioTracks = hlsAudioTracks || []
         this.hlsCurrentAudioTrack = hlsCurrentAudioTrack ?? -1
+        this.audioCodecOverride = audioCodecOverride
 
         // Check if we're dealing with HLS audio tracks
         const isHls = this.hlsSetAudioTrack !== null && this.hlsAudioTracks.length > 0
@@ -141,7 +146,16 @@ export class VideoCoreAudioManager extends EventTarget {
         for (const preferredLang of preferredLanguages) {
             const foundTracks = this.playbackInfo.mkvMetadata?.audioTracks?.filter?.(t => t.language && t.language === preferredLang)
             if (foundTracks?.length) {
-                // Find default track
+                // Prefer language + codec match (per-series override)
+                if (this.audioCodecOverride) {
+                    const codecMatch = foundTracks.find(t => t.codecID === this.audioCodecOverride)
+                    if (codecMatch) {
+                        audioLog.info("Selecting per-series codec override track", codecMatch)
+                        this.selectTrack(codecMatch.number)
+                        return
+                    }
+                }
+                // Fallback: default track or first
                 const defaultIndex = foundTracks.findIndex(t => t.default)
                 this.selectTrack(foundTracks[defaultIndex >= 0 ? defaultIndex : 0].number)
                 return

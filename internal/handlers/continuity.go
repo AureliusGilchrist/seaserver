@@ -59,6 +59,7 @@ func (h *Handler) HandleUpdateContinuityWatchHistoryItem(c echo.Context) error {
 //
 //	@summary Returns a watch history item.
 //	@desc This endpoint is used to retrieve a watch history item.
+//	@desc If the "episode" query param is provided, returns the per-episode position instead.
 //	@route /api/v1/continuity/item/{id} [GET]
 //	@param id - int - true - "AniList anime media ID"
 //	@returns continuity.WatchHistoryItemResponse
@@ -75,6 +76,39 @@ func (h *Handler) HandleGetContinuityWatchHistoryItem(c echo.Context) error {
 			Item:  nil,
 			Found: false,
 		})
+	}
+
+	// If episode query param is provided, return per-episode position
+	episodeParam := c.QueryParam("episode")
+	if episodeParam != "" {
+		episodeNum, epErr := strconv.Atoi(episodeParam)
+		if epErr != nil {
+			return h.RespondWithError(c, epErr)
+		}
+
+		profileID := h.GetProfileID(c)
+		var epResp *continuity.EpisodeWatchPositionResponse
+		if profileID > 0 {
+			epResp = h.App.ContinuityManager.GetEpisodeWatchPositionForProfile(profileID, id, episodeNum)
+		} else {
+			epResp = h.App.ContinuityManager.GetEpisodeWatchPosition(id, episodeNum)
+		}
+
+		if epResp.Found {
+			// Convert to WatchHistoryItemResponse for backward compatibility
+			return h.RespondWithData(c, &continuity.WatchHistoryItemResponse{
+				Item: &continuity.WatchHistoryItem{
+					MediaId:       id,
+					EpisodeNumber: episodeNum,
+					CurrentTime:   epResp.Item.CurrentTime,
+					Duration:      epResp.Item.Duration,
+					TimeUpdated:   epResp.Item.TimeUpdated,
+				},
+				Found: true,
+			})
+		}
+
+		// Fall through to series-level lookup if no per-episode entry
 	}
 
 	profileID := h.GetProfileID(c)

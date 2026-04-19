@@ -1,6 +1,6 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { useHandleCurrentMediaContinuity } from "@/api/hooks/continuity.hooks"
+import { useHandleCurrentMediaContinuity, useUpdateContinuityWatchHistoryItem } from "@/api/hooks/continuity.hooks"
 import { useDirectstreamConvertSubs } from "@/api/hooks/directstream.hooks"
 import { useCancelDiscordActivity } from "@/api/hooks/discord.hooks"
 import { useNakamaWatchParty } from "@/app/(main)/_features/nakama/nakama-manager"
@@ -88,6 +88,7 @@ import {
 import { VideoCoreKeybindingController, VideoCorePreferencesModal } from "@/app/(main)/_features/video-core/video-core-preferences"
 import { VideoCorePreviewManager } from "@/app/(main)/_features/video-core/video-core-preview"
 import { VideoCoreResolutionMenu } from "@/app/(main)/_features/video-core/video-core-resolution-menu"
+import { VideoCoreResumePrompt } from "@/app/(main)/_features/video-core/video-core-resume-prompt"
 import { VideoCoreSettingsMenu } from "@/app/(main)/_features/video-core/video-core-settings-menu"
 import { VideoCoreStatsForNerds } from "@/app/(main)/_features/video-core/video-core-stats"
 import { VideoCoreSubtitleMenu } from "@/app/(main)/_features/video-core/video-core-subtitle-menu"
@@ -100,6 +101,7 @@ import {
     vc_autoPlayVideoAtom,
     vc_beautifyImageAtom,
     vc_perMediaTrackOverrides,
+    vc_resumePrompt,
     vc_settings,
     vc_showStatsForNerdsAtom,
     vc_storedMutedAtom,
@@ -232,6 +234,7 @@ export function VideoCoreProvider(props: { id: string, children: React.ReactNode
                 vc_isMobile,
                 vc_swipeSeekTime,
                 vc_requestTranscodeForAudio,
+                vc_resumePrompt,
             ]}
         >
             {children}
@@ -406,6 +409,8 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 </div>
                             </div>
                         )}
+
+                        <VideoCoreResumePrompt videoRef={videoRef} />
 
                         {busy && (
                             <>
@@ -756,6 +761,7 @@ export function VideoCore(props: VideoCoreProps) {
     const { mutate: convertSubs } = useDirectstreamConvertSubs()
 
     const isFirstError = React.useRef(true)
+    const requestTranscodeForAudio = useAtomValue(vc_requestTranscodeForAudio)
     const shouldDispatchTerminatedOnUnmount = React.useRef(false)
     const [activePlayer, setActivePlayer] = useAtom(vc_activePlayerId)
 
@@ -880,12 +886,18 @@ export function VideoCore(props: VideoCoreProps) {
     }
 
     // Continuity
+    const currentEpisodeNumber = state?.playbackInfo?.episode?.progressNumber
     const {
         watchHistory,
         waitForWatchHistory,
         shouldWaitForWatchHistory,
         getEpisodeContinuitySeekTo,
-    } = useHandleCurrentMediaContinuity(state?.playbackInfo?.media?.id, vcWatchContinuity)
+    } = useHandleCurrentMediaContinuity(state?.playbackInfo?.media?.id, vcWatchContinuity, currentEpisodeNumber)
+
+    // Periodic watch history saving (for VideoCore-based playback: native player, direct play)
+    const { mutate: updateWatchHistoryContinuity } = useUpdateContinuityWatchHistoryItem()
+    const watchHistorySaveCountRef = React.useRef(0)
+    const setResumePrompt = useSetAtom(vc_resumePrompt)
 
     React.useEffect(() => {
         if (watchHistory) {
@@ -907,6 +919,8 @@ export function VideoCore(props: VideoCoreProps) {
             cancelDiscordActivity()
             hasSoughtRef.current = false
             isFirstError.current = true
+            setResumePrompt(null)
+            watchHistorySaveCountRef.current = 0
             if (videoRef.current) {
                 videoRef.current.pause()
                 videoRef.current.removeAttribute("src")
@@ -1068,6 +1082,7 @@ export function VideoCore(props: VideoCoreProps) {
                         ? serverStatus?.settings?.mediaPlayer?.vcTranslateTargetLanguage
                         : null,
                     settings: effectiveSettings,
+                    subtitleCodecOverride: perMediaOverride?.subtitleCodecID,
                     fetchAndConvertToASS: (url?: string, content?: string) => {
                         return new Promise((resolve, reject) => {
                             convertSubs({ url: url ?? "", content: content ?? "", to: "ass" }, {
@@ -1105,6 +1120,7 @@ export function VideoCore(props: VideoCoreProps) {
                     hlsSetAudioTrack: hlsSetAudioTrack,
                     hlsAudioTracks: hlsAudioTracks,
                     hlsCurrentAudioTrack: hlsCurrentAudioTrack,
+                    audioCodecOverride: perMediaOverride?.audioCodecID,
                 }))
             }
         } else if (!!state.playbackInfo?.mkvMetadata) {
@@ -1116,7 +1132,32 @@ export function VideoCore(props: VideoCoreProps) {
                     log.error("Audio manager error", error)
                     onError?.(error)
                 },
+                audioCodecOverride: perMediaOverride?.audioCodecID,
             }))
+
+            // Auto-trigger FFmpeg audio extraction for per-series overrides (direct play only).
+            // The browser audioTracks API is unreliable, so if the override resolves to a non-first
+            // audio track, trigger server-side extraction to guarantee the right track plays.
+            if (perMediaOverride?.audioLanguage && requestTranscodeForAudio) {
+                const audioTracks = state.playbackInfo.mkvMetadata?.audioTracks
+                if (audioTracks && audioTracks.length > 1) {
+                    let matchIdx = -1
+                    if (perMediaOverride.audioCodecID) {
+                        matchIdx = audioTracks.findIndex(t =>
+                            t.language === perMediaOverride.audioLanguage &&
+                            t.codecID === perMediaOverride.audioCodecID
+                        )
+                    }
+                    if (matchIdx < 0) {
+                        matchIdx = audioTracks.findIndex(t => t.language === perMediaOverride.audioLanguage)
+                    }
+                    // Only trigger if the matched track is not the first (default) one
+                    if (matchIdx > 0) {
+                        log.info("Auto-triggering FFmpeg audio extraction for per-series override, track index", matchIdx)
+                        requestTranscodeForAudio(matchIdx)
+                    }
+                }
+            }
         }
 
         // Initialize Anime4K manager
@@ -1220,6 +1261,21 @@ export function VideoCore(props: VideoCoreProps) {
             videoCompletedRef.current = true
             onCompleted?.()
             dispatchVideoCompletedEvent()
+        }
+
+        // Periodic watch history saving (covers VideoCore-based playback: native player, direct play)
+        watchHistorySaveCountRef.current++
+        if (watchHistorySaveCountRef.current >= 2000 && v.currentTime && v.duration && state?.playbackInfo?.media?.id) {
+            watchHistorySaveCountRef.current = 0
+            updateWatchHistoryContinuity({
+                options: {
+                    currentTime: v.currentTime,
+                    duration: v.duration,
+                    mediaId: Number(state.playbackInfo.media.id),
+                    episodeNumber: currentEpisodeNumber ?? 0,
+                    kind: "mediastream",
+                },
+            })
         }
     }
 
@@ -1395,16 +1451,24 @@ export function VideoCore(props: VideoCoreProps) {
 
             dispatchCanPlayEvent()
 
-            // Restore previous position if available
+            // Restore previous position if available — show resume prompt
             if (!state.playbackInfo.disableRestoreFromContinuity && !state.playbackInfo.initialState) {
-                if (state.playbackInfo?.episode?.progressNumber && watchHistory?.found && watchHistory.item?.episodeNumber === state.playbackInfo?.episode?.progressNumber) {
-                    const lastWatchedTime = getEpisodeContinuitySeekTo(state.playbackInfo?.episode?.progressNumber,
+                if (currentEpisodeNumber && watchHistory?.found && watchHistory.item?.episodeNumber === currentEpisodeNumber) {
+                    const lastWatchedTime = getEpisodeContinuitySeekTo(currentEpisodeNumber,
                         videoRef.current?.currentTime,
                         videoRef.current?.duration)
                     log.info("Watch continuity: Fetched last watched time", { lastWatchedTime })
                     if (lastWatchedTime > 0) {
-                        log.info("Watch continuity: Seeking to", lastWatchedTime)
-                        restoreSeekTime(lastWatchedTime, true)
+                        log.info("Watch continuity: Showing resume prompt for", lastWatchedTime)
+                        // Pause the video and show the resume prompt
+                        videoRef.current.pause()
+                        const mins = Math.floor(lastWatchedTime / 60)
+                        const secs = Math.floor(lastWatchedTime % 60)
+                        setResumePrompt({
+                            time: lastWatchedTime,
+                            formatted: `${mins}:${secs.toString().padStart(2, "0")}`,
+                        })
+                        return // Don't auto-play; wait for user action
                     }
                 }
             }

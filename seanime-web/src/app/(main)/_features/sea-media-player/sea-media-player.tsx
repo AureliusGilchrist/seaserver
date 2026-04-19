@@ -316,7 +316,12 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
     /**
      * Watch continuity
      */
-    const { watchHistory, waitForWatchHistory, getEpisodeContinuitySeekTo } = useHandleCurrentMediaContinuity(media?.id, watchContinuityOverride)
+    const { watchHistory, waitForWatchHistory, getEpisodeContinuitySeekTo } = useHandleCurrentMediaContinuity(media?.id, watchContinuityOverride, progress.currentEpisodeNumber)
+
+    // Resume prompt state (local — not shared with VideoCore's atom)
+    const [smpResumePrompt, setSmpResumePrompt] = React.useState<{ time: number, formatted: string } | null>(null)
+    const smpResumeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [smpResumeCountdown, setSmpResumeCountdown] = React.useState(30)
 
     const wentToNextEpisodeRef = React.useRef(false)
     const isTransitioningRef = React.useRef(false)
@@ -357,15 +362,22 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
         wentToNextEpisodeRef.current = false
         isTransitioningRef.current = false
 
-        // If the watch history is found and the episode number matches, seek to the last watched time
+        // If the watch history is found and the episode number matches, show resume prompt
         if (progress.currentEpisodeNumber && watchHistory?.found && watchHistory.item?.episodeNumber === progress.currentEpisodeNumber) {
             const lastWatchedTime = getEpisodeContinuitySeekTo(progress.currentEpisodeNumber,
                 playerRef.current?.currentTime,
                 playerRef.current?.duration)
-            logger("MEDIA PLAYER").info("Watch continuity: Seeking to last watched time", { lastWatchedTime })
+            logger("MEDIA PLAYER").info("Watch continuity: Fetched last watched time", { lastWatchedTime })
             if (lastWatchedTime > 0) {
-                logger("MEDIA PLAYER").info("Watch continuity: Seeking to", lastWatchedTime)
-                Object.assign(playerRef.current || {}, { currentTime: lastWatchedTime })
+                logger("MEDIA PLAYER").info("Watch continuity: Showing resume prompt for", lastWatchedTime)
+                // Pause and show prompt
+                playerRef.current?.pause()
+                const mins = Math.floor(lastWatchedTime / 60)
+                const secs = Math.floor(lastWatchedTime % 60)
+                setSmpResumePrompt({
+                    time: lastWatchedTime,
+                    formatted: `${mins}:${secs.toString().padStart(2, "0")}`,
+                })
             }
         }
 
@@ -528,11 +540,70 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
         return () => remove("media-player-controls")
     }, [url])
 
+    // Resume prompt auto-resume timer (30 seconds)
+    React.useEffect(() => {
+        if (!smpResumePrompt) return
+        setSmpResumeCountdown(30)
+        const countdownInterval = setInterval(() => {
+            setSmpResumeCountdown(prev => {
+                if (prev <= 1) { clearInterval(countdownInterval); return 0 }
+                return prev - 1
+            })
+        }, 1000)
+        smpResumeTimerRef.current = setTimeout(() => {
+            if (playerRef.current && smpResumePrompt) {
+                Object.assign(playerRef.current, { currentTime: smpResumePrompt.time })
+                playerRef.current.play?.()
+            }
+            setSmpResumePrompt(null)
+        }, 30_000)
+        return () => {
+            if (smpResumeTimerRef.current) clearTimeout(smpResumeTimerRef.current)
+            clearInterval(countdownInterval)
+        }
+    }, [smpResumePrompt?.time])
+
     const { onMediaEnterFullscreenRequest } = useFullscreenHandler(playerRef)
 
     return (
         <>
             <div data-sea-media-player-container className="aspect-video relative w-full self-start mx-auto">
+                {/* Resume prompt overlay */}
+                {smpResumePrompt && (
+                    <div className="absolute inset-0 flex items-center justify-center z-[55]">
+                        <div className="bg-gray-950/80 backdrop-blur-md rounded-xl p-6 text-center shadow-2xl border border-[--border] max-w-sm">
+                            <p className="text-white text-lg font-medium mb-1">Resume playback?</p>
+                            <p className="text-gray-300 text-sm mb-5">
+                                You left off at <span className="font-semibold text-white">{smpResumePrompt.formatted}</span>
+                            </p>
+                            <div className="flex gap-3 justify-center">
+                                <button
+                                    className="px-4 py-1.5 rounded-md bg-white text-black text-sm font-medium hover:bg-gray-200 transition"
+                                    onClick={() => {
+                                        if (smpResumeTimerRef.current) clearTimeout(smpResumeTimerRef.current)
+                                        if (playerRef.current) {
+                                            Object.assign(playerRef.current, { currentTime: smpResumePrompt.time })
+                                            playerRef.current.play?.()
+                                        }
+                                        setSmpResumePrompt(null)
+                                    }}
+                                >Resume</button>
+                                <button
+                                    className="px-4 py-1.5 rounded-md border border-gray-500 text-white text-sm font-medium hover:bg-gray-800 transition"
+                                    onClick={() => {
+                                        if (smpResumeTimerRef.current) clearTimeout(smpResumeTimerRef.current)
+                                        if (playerRef.current) {
+                                            Object.assign(playerRef.current, { currentTime: 0 })
+                                            playerRef.current.play?.()
+                                        }
+                                        setSmpResumePrompt(null)
+                                    }}
+                                >Start Over</button>
+                            </div>
+                            <p className="text-gray-500 text-xs mt-3">Auto-resuming in {smpResumeCountdown}s</p>
+                        </div>
+                    </div>
+                )}
                 {(!!isPlaybackError?.length) ? (
                     <LuffyError title="Oops!">
                         <p className="max-w-md">

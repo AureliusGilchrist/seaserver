@@ -4,6 +4,7 @@ import { submenuClass, VdsSubmenuButton } from "@/app/(main)/onlinestream/_compo
 import { vc_audioManager, vc_subtitleManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_perMediaTrackOverrides } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_requestTranscodeForAudio } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { HlsAudioTrack, vc_hlsAudioTracks, vc_hlsCurrentAudioTrack, vc_hlsSetAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
 import { NormalizedTrackInfo } from "@/app/(main)/_features/video-core/video-core-subtitles"
@@ -225,15 +226,18 @@ function SeaMediaPlayerAudioTrackSubmenu() {
                                         const mediaId = state.playbackInfo?.media?.id
                                         if (mediaId) {
                                             let lang: string | undefined
+                                            let codecID: string | undefined
                                             if (isHls) {
                                                 lang = (audioTracks as HlsAudioTrack[])?.find(t => t.id === value)?.language
                                             } else {
-                                                lang = (audioTracks as MKVParser_TrackInfo[])?.find(t => t.number === value)?.language
+                                                const track = (audioTracks as MKVParser_TrackInfo[])?.find(t => t.number === value)
+                                                lang = track?.language
+                                                codecID = track?.codecID
                                             }
                                             if (lang) {
                                                 setPerMediaOverrides(prev => ({
                                                     ...prev,
-                                                    [String(mediaId)]: { ...prev[String(mediaId)], audioLanguage: lang },
+                                                    [String(mediaId)]: { ...prev[String(mediaId)], audioLanguage: lang, audioCodecID: codecID },
                                                 }))
                                             }
                                         }
@@ -297,6 +301,8 @@ function formatAudioTrack(track: any, isHls: boolean): { label: string; value: n
 function SeaMediaPlayerSubtitleTrackSubmenu() {
     const subtitleManager = useAtomValue(vc_subtitleManager)
     const videoElement = useAtomValue(vc_videoElement)
+    const playbackInfo = useAtomValue(vc_playbackInfo)
+    const setPerMediaOverrides = useSetAtom(vc_perMediaTrackOverrides)
     const action = useSetAtom(vc_dispatchAction)
 
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
@@ -343,7 +349,16 @@ function SeaMediaPlayerSubtitleTrackSubmenu() {
                     ) : (
                         <>
                             <button
-                                onClick={() => { subtitleManager?.setNoTrack() }}
+                                onClick={() => {
+                                    subtitleManager?.setNoTrack()
+                                    const mediaId = playbackInfo?.media?.id
+                                    if (mediaId) {
+                                        setPerMediaOverrides(prev => ({
+                                            ...prev,
+                                            [String(mediaId)]: { ...prev[String(mediaId)], subtitleLanguage: "none", subtitleCodecID: undefined },
+                                        }))
+                                    }
+                                }}
                                 className={cn(
                                     "w-full flex items-center gap-2 px-2 py-1.5 text-left text-sm rounded-md transition-colors",
                                     (selectedTrack === null || selectedTrack === -1)
@@ -367,7 +382,16 @@ function SeaMediaPlayerSubtitleTrackSubmenu() {
                                 return (
                                     <button
                                         key={track.number}
-                                        onClick={() => { subtitleManager?.selectTrack(track.number) }}
+                                        onClick={() => {
+                                            subtitleManager?.selectTrack(track.number)
+                                            const mediaId = playbackInfo?.media?.id
+                                            if (mediaId && track.language) {
+                                                setPerMediaOverrides(prev => ({
+                                                    ...prev,
+                                                    [String(mediaId)]: { ...prev[String(mediaId)], subtitleLanguage: track.language, subtitleCodecID: track.codecID },
+                                                }))
+                                            }
+                                        }}
                                         className={cn(
                                             "w-full flex items-center gap-2 px-2 py-1.5 text-left text-sm rounded-md transition-colors",
                                             isSelected ? "bg-brand-500/20 text-brand-300" : "hover:bg-white/10 text-gray-300",

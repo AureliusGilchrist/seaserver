@@ -188,7 +188,9 @@ export const vc_showStatsForNerdsAtom = atomWithStorage("sea-video-core-show-sta
 
 export type PerMediaTrackOverride = {
     audioLanguage?: string
+    audioCodecID?: string
     subtitleLanguage?: string
+    subtitleCodecID?: string
 }
 
 export const vc_perMediaTrackOverrides = atomWithStorage<Record<string, PerMediaTrackOverride>>(
@@ -197,3 +199,13 @@ export const vc_perMediaTrackOverrides = atomWithStorage<Record<string, PerMedia
     undefined,
     { getOnInit: true },
 )
+
+/**
+ * Resume prompt state. When non-null, the video player shows a "Resume from X:XX?" dialog.
+ * Auto-resumes after 30 seconds if no user action.
+ */
+export type ResumePromptState = {
+    time: number
+    formatted: string
+}
+export const vc_resumePrompt = atom<ResumePromptState | null>(null)

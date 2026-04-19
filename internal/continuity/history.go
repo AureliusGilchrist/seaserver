@@ -13,18 +13,28 @@ import (
 )
 
 const (
-	MaxWatchHistoryItems   = 100
-	IgnoreRatioThreshold   = 0.9
-	WatchHistoryBucketName = "watch_history"
+	MaxWatchHistoryItems            = 100
+	IgnoreRatioThreshold            = 0.9
+	MinSaveTimeSeconds              = 30
+	WatchHistoryBucketName          = "watch_history"
+	EpisodeWatchPositionBucketName  = "episode_watch_positions"
 )
 
 // GetProfileBucket returns a file cache bucket namespaced by profile ID.
 // If profileID is 0, returns the default (global) bucket.
 func GetProfileBucket(profileID uint) filecache.Bucket {
 	if profileID == 0 {
-		return filecache.NewBucket(WatchHistoryBucketName, time.Hour*24*99999)
+		return filecache.NewBucket(WatchHistoryBucketName, time.Hour*24*180)
 	}
-	return filecache.NewBucket(fmt.Sprintf("%s_%d", WatchHistoryBucketName, profileID), time.Hour*24*99999)
+	return filecache.NewBucket(fmt.Sprintf("%s_%d", WatchHistoryBucketName, profileID), time.Hour*24*180)
+}
+
+// GetEpisodeProfileBucket returns a file cache bucket for per-episode watch positions, namespaced by profile ID.
+func GetEpisodeProfileBucket(profileID uint) filecache.Bucket {
+	if profileID == 0 {
+		return filecache.NewBucket(EpisodeWatchPositionBucketName, time.Hour*24*180)
+	}
+	return filecache.NewBucket(fmt.Sprintf("%s_%d", EpisodeWatchPositionBucketName, profileID), time.Hour*24*180)
 }
 
 type (
@@ -68,6 +78,19 @@ type (
 		Filepath      string  `json:"filepath,omitempty"`
 		Kind          Kind    `json:"kind"`
 	}
+
+	// EpisodeWatchPosition stores the playback position for a specific episode.
+	// Stored separately from WatchHistoryItem so per-episode resume survives episode changes.
+	EpisodeWatchPosition struct {
+		CurrentTime float64   `json:"currentTime"`
+		Duration    float64   `json:"duration"`
+		TimeUpdated time.Time `json:"timeUpdated"`
+	}
+
+	EpisodeWatchPositionResponse struct {
+		Item  *EpisodeWatchPosition `json:"item"`
+		Found bool                  `json:"found"`
+	}
 )
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,12 +128,65 @@ func (m *Manager) GetWatchHistoryItem(mediaId int) *WatchHistoryItemResponse {
 	}
 }
 
+// GetEpisodeWatchPosition returns the saved playback position for a specific episode.
+func (m *Manager) GetEpisodeWatchPosition(mediaId, episodeNumber int) *EpisodeWatchPositionResponse {
+	defer util.HandlePanicInModuleThen("continuity/GetEpisodeWatchPosition", func() {})
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.getEpisodeWatchPosition(*m.episodeWatchPositionFileCacheBucket, mediaId, episodeNumber)
+}
+
+// GetEpisodeWatchPositionForProfile returns the saved playback position for a specific episode, scoped to a profile.
+func (m *Manager) GetEpisodeWatchPositionForProfile(profileID uint, mediaId, episodeNumber int) *EpisodeWatchPositionResponse {
+	defer util.HandlePanicInModuleThen("continuity/GetEpisodeWatchPositionForProfile", func() {})
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	bucket := GetEpisodeProfileBucket(profileID)
+	return m.getEpisodeWatchPosition(bucket, mediaId, episodeNumber)
+}
+
+func (m *Manager) getEpisodeWatchPosition(bucket filecache.Bucket, mediaId, episodeNumber int) *EpisodeWatchPositionResponse {
+	key := fmt.Sprintf("%d_%d", mediaId, episodeNumber)
+
+	var pos *EpisodeWatchPosition
+	exists, _ := m.fileCacher.Get(bucket, key, &pos)
+
+	if exists && pos != nil && pos.Duration > 0 {
+		ratio := pos.CurrentTime / pos.Duration
+		if ratio >= IgnoreRatioThreshold {
+			go func() {
+				defer util.HandlePanicInModuleThen("continuity/getEpisodeWatchPosition", func() {})
+				_ = m.fileCacher.Delete(bucket, key)
+			}()
+			return &EpisodeWatchPositionResponse{Item: nil, Found: false}
+		}
+		if pos.CurrentTime < MinSaveTimeSeconds {
+			return &EpisodeWatchPositionResponse{Item: nil, Found: false}
+		}
+	}
+
+	if !exists || pos == nil {
+		return &EpisodeWatchPositionResponse{Item: nil, Found: false}
+	}
+
+	return &EpisodeWatchPositionResponse{Item: pos, Found: true}
+}
+
 // UpdateWatchHistoryItem updates the WatchHistoryItem in the file cache.
 func (m *Manager) UpdateWatchHistoryItem(opts *UpdateWatchHistoryItemOptions) (err error) {
 	defer util.HandlePanicInModuleWithError("continuity/UpdateWatchHistoryItem", &err)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	// Don't save if less than 30 seconds watched
+	if opts.CurrentTime < MinSaveTimeSeconds {
+		return nil
+	}
 
 	added := false
 
@@ -136,11 +212,14 @@ func (m *Manager) UpdateWatchHistoryItem(opts *UpdateWatchHistoryItemOptions) (e
 		i.TimeUpdated = time.Now()
 	}
 
-	// Save the i
+	// Save the series-level entry
 	err = m.fileCacher.Set(*m.watchHistoryFileCacheBucket, strconv.Itoa(opts.MediaId), i)
 	if err != nil {
 		return fmt.Errorf("continuity: Failed to save watch history item: %w", err)
 	}
+
+	// Also save per-episode position
+	m.saveEpisodeWatchPosition(*m.episodeWatchPositionFileCacheBucket, opts)
 
 	_ = hook.GlobalHookManager.OnWatchHistoryItemUpdated().Trigger(&WatchHistoryItemUpdatedEvent{
 		WatchHistoryItem: i,
@@ -313,6 +392,11 @@ func (m *Manager) UpdateExternalPlayerEpisodeWatchHistoryItem(currentTime, durat
 		return
 	}
 
+	// Don't save if less than 30 seconds watched
+	if currentTime < MinSaveTimeSeconds {
+		return
+	}
+
 	if m.externalPlayerEpisodeDetails.IsAbsent() {
 		return
 	}
@@ -349,6 +433,14 @@ func (m *Manager) UpdateExternalPlayerEpisodeWatchHistoryItem(currentTime, durat
 	// Save the i
 	_ = m.fileCacher.Set(*m.watchHistoryFileCacheBucket, strconv.Itoa(opts.MediaId), i)
 
+	// Also save per-episode position
+	m.saveEpisodeWatchPosition(*m.episodeWatchPositionFileCacheBucket, &UpdateWatchHistoryItemOptions{
+		CurrentTime:   currentTime,
+		Duration:      duration,
+		MediaId:       opts.MediaId,
+		EpisodeNumber: opts.EpisodeNumber,
+	})
+
 	// If the item was added, check if we need to remove the oldest item
 	if added {
 		_ = m.trimWatchHistoryItems()
@@ -358,6 +450,17 @@ func (m *Manager) UpdateExternalPlayerEpisodeWatchHistoryItem(currentTime, durat
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// saveEpisodeWatchPosition saves the playback position for a specific episode to the given bucket.
+func (m *Manager) saveEpisodeWatchPosition(bucket filecache.Bucket, opts *UpdateWatchHistoryItemOptions) {
+	key := fmt.Sprintf("%d_%d", opts.MediaId, opts.EpisodeNumber)
+	pos := &EpisodeWatchPosition{
+		CurrentTime: opts.CurrentTime,
+		Duration:    opts.Duration,
+		TimeUpdated: time.Now(),
+	}
+	_ = m.fileCacher.Set(bucket, key, pos)
+}
 
 func (m *Manager) getWatchHistory(mediaId int) (ret *WatchHistoryItem, exists bool) {
 	defer util.HandlePanicInModuleThen("continuity/getWatchHistory", func() {
@@ -482,6 +585,11 @@ func (m *Manager) UpdateWatchHistoryItemForProfile(profileID uint, opts *UpdateW
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// Don't save if less than 30 seconds watched
+	if opts.CurrentTime < MinSaveTimeSeconds {
+		return nil
+	}
+
 	bucket := GetProfileBucket(profileID)
 	added := false
 
@@ -515,6 +623,10 @@ func (m *Manager) UpdateWatchHistoryItemForProfile(profileID uint, opts *UpdateW
 
 	// Also update the global bucket so internal playback manager still works
 	_ = m.fileCacher.Set(*m.watchHistoryFileCacheBucket, strconv.Itoa(opts.MediaId), i)
+
+	// Also save per-episode position
+	epBucket := GetEpisodeProfileBucket(profileID)
+	m.saveEpisodeWatchPosition(epBucket, opts)
 
 	_ = hook.GlobalHookManager.OnWatchHistoryItemUpdated().Trigger(&WatchHistoryItemUpdatedEvent{
 		WatchHistoryItem: i,

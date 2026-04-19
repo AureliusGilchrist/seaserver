@@ -20,11 +20,16 @@ export function useUpdateContinuityWatchHistoryItem() {
     })
 }
 
-export function useGetContinuityWatchHistoryItem(mediaId: Nullish<number | string>, enabled = true, force = false) {
+export function useGetContinuityWatchHistoryItem(mediaId: Nullish<number | string>, enabled = true, force = false, episodeNumber?: Nullish<number>) {
+    let endpoint = `${API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.endpoint.replace("{id}", String(mediaId))}${force ? "?force=true" : ""}`
+    // Append episode param for per-episode query
+    if (episodeNumber != null && episodeNumber > 0) {
+        endpoint += (endpoint.includes("?") ? "&" : "?") + `episode=${episodeNumber}`
+    }
     return useServerQuery<Continuity_WatchHistoryItemResponse, GetContinuityWatchHistoryItem_Variables>({
-        endpoint: `${API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.endpoint.replace("{id}", String(mediaId))}${force ? "?force=true" : ""}`,
+        endpoint,
         method: API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.methods[0],
-        queryKey: [API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.key, String(mediaId), force ? "force" : "default"],
+        queryKey: [API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.key, String(mediaId), force ? "force" : "default", String(episodeNumber ?? 0)],
         enabled: enabled && !!mediaId,
     })
 }
@@ -105,11 +110,11 @@ export function useHandleContinuityWithMediaPlayer(playerRef: React.RefObject<Me
     return { handleUpdateWatchHistory }
 }
 
-export function useHandleCurrentMediaContinuity(mediaId: Nullish<number | string>, playerOverride?: "inherit" | "on" | "off") {
+export function useHandleCurrentMediaContinuity(mediaId: Nullish<number | string>, playerOverride?: "inherit" | "on" | "off", episodeNumber?: Nullish<number>) {
     const serverStatus = useServerStatus()
     const enabled = resolveContinuityEnabled(serverStatus?.settings?.library?.enableWatchContinuity, playerOverride)
 
-    const { data: watchHistory, isLoading: watchHistoryLoading } = useGetContinuityWatchHistoryItem(mediaId, enabled, playerOverride === "on")
+    const { data: watchHistory, isLoading: watchHistoryLoading } = useGetContinuityWatchHistoryItem(mediaId, enabled, playerOverride === "on", episodeNumber)
 
     const waitForWatchHistory = watchHistoryLoading && enabled
 

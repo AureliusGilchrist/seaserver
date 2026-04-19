@@ -18,9 +18,10 @@ const (
 type (
 	// Manager is used to manage the user's viewing history across different media types.
 	Manager struct {
-		fileCacher                  *filecache.Cacher
-		db                          *db.Database
-		watchHistoryFileCacheBucket *filecache.Bucket
+		fileCacher                       *filecache.Cacher
+		db                               *db.Database
+		watchHistoryFileCacheBucket       *filecache.Bucket
+		episodeWatchPositionFileCacheBucket *filecache.Bucket
 
 		externalPlayerEpisodeDetails mo.Option[*ExternalPlayerEpisodeDetails]
 
@@ -54,13 +55,15 @@ type (
 
 // NewManager creates a new Manager, it should be initialized once.
 func NewManager(opts *NewManagerOptions) *Manager {
-	watchHistoryFileCacheBucket := filecache.NewBucket(WatchHistoryBucketName, time.Hour*24*99999)
+	watchHistoryFileCacheBucket := filecache.NewBucket(WatchHistoryBucketName, time.Hour*24*180)
+	episodeWatchPositionBucket := filecache.NewBucket(EpisodeWatchPositionBucketName, time.Hour*24*180)
 
 	ret := &Manager{
-		fileCacher:                  opts.FileCacher,
-		logger:                      opts.Logger,
-		db:                          opts.Database,
-		watchHistoryFileCacheBucket: &watchHistoryFileCacheBucket,
+		fileCacher:                           opts.FileCacher,
+		logger:                               opts.Logger,
+		db:                                   opts.Database,
+		watchHistoryFileCacheBucket:           &watchHistoryFileCacheBucket,
+		episodeWatchPositionFileCacheBucket:   &episodeWatchPositionBucket,
 		settings: &Settings{
 			WatchContinuityEnabled: false,
 		},

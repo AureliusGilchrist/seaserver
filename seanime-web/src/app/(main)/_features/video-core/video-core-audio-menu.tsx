@@ -117,19 +117,22 @@ export function VideoCoreAudioMenu() {
                         }
                     })}
                     onValueChange={(value: number) => {
-                        // Save per-media audio language override FIRST so it persists across the stream switch
+                        // Save per-media audio language + codec override FIRST so it persists across the stream switch
                         const mediaId = playbackInfo?.media?.id
                         if (mediaId) {
                             let lang: string | undefined
+                            let codecID: string | undefined
                             if (isHls) {
                                 lang = (audioTracks as HlsAudioTrack[])?.find(t => t.id === value)?.language
                             } else {
-                                lang = (audioTracks as MKVParser_TrackInfo[])?.find(t => t.number === value)?.language
+                                const track = (audioTracks as MKVParser_TrackInfo[])?.find(t => t.number === value)
+                                lang = track?.language
+                                codecID = track?.codecID
                             }
                             if (lang) {
                                 setPerMediaOverrides(prev => ({
                                     ...prev,
-                                    [String(mediaId)]: { ...prev[String(mediaId)], audioLanguage: lang },
+                                    [String(mediaId)]: { ...prev[String(mediaId)], audioLanguage: lang, audioCodecID: codecID },
                                 }))
                             }
                         }
