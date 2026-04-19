@@ -43,6 +43,7 @@ import { vc_lastKnownProgress } from "@/app/(main)/_features/video-core/video-co
 import { vc_skipOpeningTime } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_skipEndingTime } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_directPlayAudioElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { VideoCoreAudioManager } from "@/app/(main)/_features/video-core/video-core-audio"
 import { VideoCoreAudioMenu } from "@/app/(main)/_features/video-core/video-core-audio-menu"
 import {
@@ -323,6 +324,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
     const [autoPlay] = useAtom(vc_autoPlayVideoAtom)
     const [muted] = useAtom(vc_storedMutedAtom)
     const showStats = useAtomValue(vc_showStatsForNerdsAtom)
+    const fullscreen = useAtomValue(vc_isFullscreen)
 
     return (
         <>
@@ -364,7 +366,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                 onMouseEnter={handleContainerMouseEnter}
                 onMouseLeave={handleContainerMouseLeave}
             >
-                {state.playbackInfo?.media?.coverImage?.extraLarge && (
+                {state.playbackInfo?.media?.coverImage?.extraLarge && !fullscreen && (
                     <div
                         data-vc-element="background-blur"
                         className="absolute inset-0 z-[0] overflow-hidden pointer-events-none"
@@ -755,6 +757,7 @@ export function VideoCore(props: VideoCoreProps) {
     const [volume] = useAtom(vc_storedVolumeAtom)
     const [muted] = useAtom(vc_storedMutedAtom)
     const [playbackRate, setPlaybackRate] = useAtom(vc_storedPlaybackRateAtom)
+    const directPlayAudioEl = useAtomValue(vc_directPlayAudioElement)
 
     const { mutate: cancelDiscordActivity } = useCancelDiscordActivity()
 
@@ -1491,19 +1494,28 @@ export function VideoCore(props: VideoCoreProps) {
 
     // external state
 
-    // Handle volume changes
+    // Handle volume changes — route to hidden audio element when active
     React.useEffect(() => {
-        if (videoRef.current && volume !== undefined && volume !== videoRef.current.volume) {
+        if (volume === undefined) return
+        if (directPlayAudioEl) {
+            directPlayAudioEl.volume = volume
+        }
+        if (videoRef.current && volume !== videoRef.current.volume) {
             videoRef.current.volume = volume
         }
-    }, [volume, videoRef.current])
+    }, [volume, videoRef.current, directPlayAudioEl])
 
-    // Handle mute changes
+    // Handle mute changes — when hidden audio is active, mute/unmute it instead of the video
     React.useEffect(() => {
-        if (videoRef.current && muted !== undefined && muted !== videoRef.current.muted) {
+        if (muted === undefined) return
+        if (directPlayAudioEl) {
+            // Route mute to the hidden audio; keep video always muted
+            directPlayAudioEl.muted = muted
+            if (videoRef.current) videoRef.current.muted = true
+        } else if (videoRef.current && muted !== videoRef.current.muted) {
             videoRef.current.muted = muted
         }
-    }, [muted, videoRef.current])
+    }, [muted, videoRef.current, directPlayAudioEl])
 
     // Handle playback rate changes
     React.useEffect(() => {
@@ -1647,7 +1659,7 @@ export function VideoCore(props: VideoCoreProps) {
                     className={cn(
                         "relative w-full h-full",
                         inlineClassName,
-                        fullscreen && "fixed z-[99999] inset-0",
+                        fullscreen && "fixed z-[99999] inset-0 bg-black",
                     )}
                 >
                     <PlayerContent

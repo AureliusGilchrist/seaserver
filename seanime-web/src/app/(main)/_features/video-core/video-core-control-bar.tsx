@@ -158,7 +158,7 @@ export function VideoCoreControlBar(props: {
                     "pointer-events-none",
                     "absolute bottom-0 left-0 right-0 w-full z-[5] h-28 transition-opacity duration-300 opacity-0",
                     "bg-gradient-to-t to-transparent",
-                    !isMiniPlayer ? "from-black/40" : "from-black/80 via-black/40",
+                    !isMiniPlayer ? "from-black/70" : "from-black/80 via-black/40",
                     isMiniPlayer && "h-20",
                     !hideShadow && "opacity-100",
                 )}
@@ -401,9 +401,9 @@ export function VideoCoreControlButtonIcon(props: VideoCoreControlButtonProps) {
                         key={match[0]}
                         data-vc-element="control-button-icon"
                         data-vc-state={match[0]}
-                        className="block relative"
-                        initial={{ y: 10 }}
-                        animate={{ y: 0 }}
+                        className="block relative text-inherit"
+                        initial={false}
+                        animate={{ y: 0, opacity: 1 }}
                         exit={{ opacity: 0, y: 10, position: "absolute" as any }}
                         transition={{ duration: 0.15 }}
                     >
@@ -412,6 +412,7 @@ export function VideoCoreControlButtonIcon(props: VideoCoreControlButtonProps) {
                                 "vc-control-button-icon",
                                 iconClass,
                             )}
+                            style={{ width: "1em", height: "1em" }}
                         />
                     </motion.span>
                 )}

@@ -23,6 +23,7 @@ export class VideoCoreFullscreenManager extends EventTarget {
     private controller = new AbortController()
     private onFullscreenChange: (isFullscreen: boolean) => void
     private isElectronNativeFullscreen = false
+    private isTauriNativeFullscreen = false
     private attachVideoListeners?: () => void
     private _isTransitioning = false
     private _wasFullscreenBeforeTransition = false
@@ -33,11 +34,18 @@ export class VideoCoreFullscreenManager extends EventTarget {
         this.attachDocumentListeners()
         this.attachElectronListeners()
         this.initElectronFullscreenState()
+        this.initTauriFullscreenState()
+        this.attachTauriListeners()
     }
 
     public get isFullscreen(): boolean {
         // Check Electron native fullscreen first
         if (this._isElectron() && this.isElectronNativeFullscreen) {
+            return true
+        }
+
+        // Check Tauri native fullscreen
+        if (this._isTauri() && this.isTauriNativeFullscreen) {
             return true
         }
 
@@ -126,6 +134,12 @@ export class VideoCoreFullscreenManager extends EventTarget {
                 return
             }
 
+            if (this._isTauri()) {
+                await this._exitTauriFullscreen()
+                this._focusVideo()
+                return
+            }
+
             if (isApple() && this.videoElement && (this.videoElement as any).webkitDisplayingFullscreen) {
                 await (this.videoElement as any).webkitExitFullscreen()
                 log.info("Exited iOS fullscreen")
@@ -162,6 +176,12 @@ export class VideoCoreFullscreenManager extends EventTarget {
         try {
             if (this._isElectron() && this._shouldUseElectronFullscreen()) {
                 await this._enterElectronFullscreen()
+                this._focusVideo()
+                return
+            }
+
+            if (this._isTauri()) {
+                await this._enterTauriFullscreen()
                 this._focusVideo()
                 return
             }
@@ -204,6 +224,10 @@ export class VideoCoreFullscreenManager extends EventTarget {
 
     private _isElectron(): boolean {
         return !!(window as any)?.electron
+    }
+
+    private _isTauri(): boolean {
+        return typeof window !== "undefined" && !!(window as any).__TAURI__
     }
 
     private async initElectronFullscreenState(): Promise<void> {
@@ -263,6 +287,64 @@ export class VideoCoreFullscreenManager extends EventTarget {
         catch (error) {
             log.error("Failed to exit Electron fullscreen", error)
         }
+    }
+
+    private async _enterTauriFullscreen(): Promise<void> {
+        try {
+            const { Window } = await import("@tauri-apps/api/window")
+            const appWindow = new Window("main")
+            // Workaround: set decorations before fullscreen to avoid Windows taskbar gap
+            await appWindow.setDecorations(true)
+            await appWindow.setFullscreen(true)
+            this.isTauriNativeFullscreen = true
+            this.onFullscreenChange(true)
+            log.info("Entered Tauri native fullscreen")
+        }
+        catch (error) {
+            log.error("Failed to enter Tauri fullscreen", error)
+        }
+    }
+
+    private async _exitTauriFullscreen(): Promise<void> {
+        try {
+            const { Window } = await import("@tauri-apps/api/window")
+            const appWindow = new Window("main")
+            await appWindow.setFullscreen(false)
+            await appWindow.setDecorations(false)
+            this.isTauriNativeFullscreen = false
+            this.onFullscreenChange(false)
+            log.info("Exited Tauri native fullscreen")
+        }
+        catch (error) {
+            log.error("Failed to exit Tauri fullscreen", error)
+        }
+    }
+
+    private async initTauriFullscreenState(): Promise<void> {
+        if (!this._isTauri()) return
+        try {
+            const { Window } = await import("@tauri-apps/api/window")
+            const appWindow = new Window("main")
+            this.isTauriNativeFullscreen = await appWindow.isFullscreen()
+            log.info("Initial Tauri fullscreen state:", this.isTauriNativeFullscreen)
+        }
+        catch (error) {
+            log.error("Failed to get initial Tauri fullscreen state", error)
+        }
+    }
+
+    private attachTauriListeners(): void {
+        if (!this._isTauri()) return
+        // Listen for fullscreen changes from TauriManager (F11/ESC)
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail
+            this.isTauriNativeFullscreen = detail.isFullscreen
+            log.info("Tauri fullscreen state changed (external):", detail.isFullscreen)
+            const event: FullscreenManagerChangedEvent = new CustomEvent("fullscreenchanged", { detail: { isFullscreen: detail.isFullscreen } })
+            this.dispatchEvent(event)
+            this.onFullscreenChange(detail.isFullscreen)
+        }
+        window.addEventListener("tauri:fullscreenchange", handler, { signal: this.controller.signal })
     }
 
     private attachElectronListeners() {
@@ -358,7 +440,7 @@ export class VideoCoreFullscreenManager extends EventTarget {
         if (shouldRestore) {
             log.info("Restoring fullscreen after source transition")
             // If we have a container and can use real fullscreen, do so
-            if (this.containerElement && (this._isElectron() || document.fullscreenEnabled)) {
+            if (this.containerElement && (this._isElectron() || this._isTauri() || document.fullscreenEnabled)) {
                 await this.enterFullscreen()
             } else {
                 // For CSS-based inline fullscreen, just restore the atom state
