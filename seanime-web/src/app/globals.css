@@ -1248,6 +1248,18 @@ media-preview-chapter-display {
     animation: butterflyGlow 2s ease-in-out infinite;
 }
 
+/* Hide sidebar and media player header when VideoCore is in fullscreen */
+body.vc-fullscreen .UI-AppLayoutSidebar__root {
+    display: none !important;
+}
+body.vc-fullscreen [data-sea-media-player-layout-header] {
+    display: none !important;
+}
+/* Remove sidebar left padding from content when fullscreen */
+body.vc-fullscreen .appLayout {
+    padding-left: 0 !important;
+}
+
 /* One Piece: wave layers drifting horizontally */
 @keyframes waveDriftSlow {
     0%   { transform: translateX(0); }

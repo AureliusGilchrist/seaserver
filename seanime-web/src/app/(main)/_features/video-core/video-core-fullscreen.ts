@@ -214,6 +214,7 @@ export class VideoCoreFullscreenManager extends EventTarget {
 
     destroy() {
         // this.exitFullscreen()
+        this._setBodyFullscreenClass(false)
         this.controller.abort()
         this.containerElement = null
         this.videoElement = null
@@ -297,6 +298,7 @@ export class VideoCoreFullscreenManager extends EventTarget {
             await appWindow.setDecorations(true)
             await appWindow.setFullscreen(true)
             this.isTauriNativeFullscreen = true
+            this._setBodyFullscreenClass(true)
             this.onFullscreenChange(true)
             log.info("Entered Tauri native fullscreen")
         }
@@ -312,6 +314,7 @@ export class VideoCoreFullscreenManager extends EventTarget {
             await appWindow.setFullscreen(false)
             await appWindow.setDecorations(false)
             this.isTauriNativeFullscreen = false
+            this._setBodyFullscreenClass(false)
             this.onFullscreenChange(false)
             log.info("Exited Tauri native fullscreen")
         }
@@ -330,6 +333,14 @@ export class VideoCoreFullscreenManager extends EventTarget {
         }
         catch (error) {
             log.error("Failed to get initial Tauri fullscreen state", error)
+        }
+    }
+
+    private _setBodyFullscreenClass(isFullscreen: boolean): void {
+        if (isFullscreen) {
+            document.body.classList.add("vc-fullscreen")
+        } else {
+            document.body.classList.remove("vc-fullscreen")
         }
     }
 
@@ -353,6 +364,8 @@ export class VideoCoreFullscreenManager extends EventTarget {
         const removeFullscreenListener = window.electron?.on?.("window:fullscreen", (isFullscreen: boolean) => {
             this.isElectronNativeFullscreen = isFullscreen
             log.info("Electron fullscreen state changed:", isFullscreen)
+
+            this._setBodyFullscreenClass(isFullscreen)
 
             const event: FullscreenManagerChangedEvent = new CustomEvent("fullscreenchanged", { detail: { isFullscreen } })
             this.dispatchEvent(event)
@@ -410,6 +423,8 @@ export class VideoCoreFullscreenManager extends EventTarget {
             log.info("Suppressing fullscreen exit during source transition")
             return
         }
+
+        this._setBodyFullscreenClass(isFullscreen)
 
         const event: FullscreenManagerChangedEvent = new CustomEvent("fullscreenchanged", { detail: { isFullscreen } })
         this.dispatchEvent(event)
