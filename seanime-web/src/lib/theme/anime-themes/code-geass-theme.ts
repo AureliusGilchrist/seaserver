@@ -1,7 +1,7 @@
 import { AnimeThemeConfig } from "./types"
 import {
     GiCrystalBall, GiChessKnight, GiChessRook, GiChessQueen,
-    GiThunder, GiSwordman, GiScrollUnfurled, GiSpellBook,
+    GiElectric, GiSwordman, GiScrollUnfurled, GiSpellBook,
     GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"

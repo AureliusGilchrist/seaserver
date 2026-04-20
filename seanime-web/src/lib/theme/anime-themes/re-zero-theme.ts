@@ -1,6 +1,6 @@
 import { AnimeThemeConfig } from "./types"
 import {
-    GiSnowflake1, GiCrystalBall, GiIceShard, GiSilverBullet,
+    GiSnowflake1, GiCrystalBall, GiIceSpear, GiSilverBullet,
     GiScrollUnfurled, GiSpellBook, GiHourglass, GiCrown,
     GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock,
 } from "react-icons/gi"
@@ -47,7 +47,7 @@ export const reZeroTheme: AnimeThemeConfig = {
         "manga":          { icon: GiScrollUnfurled,label: "Witch Archives" },
         "lists":          { icon: GiSpellBook,     label: "Spirit Registry" },
         "discover":       { icon: GiSnowflake1,    label: "Emilia's Path" },
-        "torrent-list":   { icon: GiIceShard,      label: "Sanctuary Ops" },
+        "torrent-list":   { icon: GiIceSpear,      label: "Sanctuary Ops" },
         "unmatched":      { icon: GiHourglass,     label: "Lost Checkpoints" },
         "scan-summaries": { icon: TbReportSearch,  label: "Mission Reports" },
         "auto-downloader":{ icon: LuRss,           label: "Beatrice's Library" },

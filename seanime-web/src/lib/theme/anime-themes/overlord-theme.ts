@@ -1,6 +1,6 @@
 import { AnimeThemeConfig } from "./types"
 import {
-    GiSkull, GiBoneKey, GiCrown, GiDeathZone,
+    GiSkullCrack, GiKeyLock, GiCrown, GiDeathZone,
     GiScrollUnfurled, GiSpellBook, GiCastle, GiHourglass,
     GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock,
 } from "react-icons/gi"
@@ -47,8 +47,8 @@ export const overlordTheme: AnimeThemeConfig = {
         "manga":          { icon: GiScrollUnfurled,label: "Supreme Being Files" },
         "lists":          { icon: GiSpellBook,     label: "Floor Guardian Registry" },
         "discover":       { icon: GiDeathZone,     label: "World Conquest" },
-        "torrent-list":   { icon: GiBoneKey,       label: "Ainz's Operations" },
-        "unmatched":      { icon: GiSkull,         label: "The Unmatched" },
+        "torrent-list":   { icon: GiKeyLock,       label: "Ainz's Operations" },
+        "unmatched":      { icon: GiSkullCrack,         label: "The Unmatched" },
         "scan-summaries": { icon: TbReportSearch,  label: "Nazarick Reports" },
         "auto-downloader":{ icon: LuRss,           label: "Intelligence Feed" },
         "search":         { icon: FiSearch,        label: "Search" },

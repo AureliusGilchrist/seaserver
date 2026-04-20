@@ -1,7 +1,7 @@
 import { AnimeThemeConfig } from "./types"
 import {
-    GiSpySpy, GiRing, GiScrollUnfurled, GiSpellBook,
-    GiPistolGun, GiHeartInside, GiBomb, GiStarMedal,
+    GiSpyglass, GiRing, GiScrollUnfurled, GiSpellBook,
+    GiPistolGun, GiHeartInside, GiGrenade, GiStarMedal,
     GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
@@ -42,12 +42,12 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "--color-gray-50":  "254 245 250",
     },
     sidebarOverrides: {
-        "home":           { icon: GiSpySpy,       label: "Mission: STRIX" },
+        "home":           { icon: GiSpyglass,       label: "Mission: STRIX" },
         "schedule":       { icon: GiAlarmClock,   label: "Operation Timeline" },
         "manga":          { icon: GiScrollUnfurled,label: "WISE Files" },
         "lists":          { icon: GiSpellBook,    label: "Target Registry" },
         "discover":       { icon: GiPistolGun,    label: "Fieldwork" },
-        "torrent-list":   { icon: GiBomb,         label: "SSS Ops" },
+        "torrent-list":   { icon: GiGrenade,         label: "SSS Ops" },
         "unmatched":      { icon: GiRing,         label: "Unmatched Aliases" },
         "scan-summaries": { icon: TbReportSearch, label: "Mission Reports" },
         "auto-downloader":{ icon: LuRss,          label: "Handler Feed" },

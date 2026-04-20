@@ -1,7 +1,7 @@
 import { AnimeThemeConfig } from "./types"
 import {
-    GiBrain, GiPsychicWaves, GiStarSwirl, GiFireFlake,
-    GiScrollUnfurled, GiSpellBook, GiSpiralArrow, GiWhirlpool,
+    GiBrain, GiPsychicWaves, GiStarSwirl, GiFireflake,
+    GiScrollUnfurled, GiSpellBook, GiSpiralArrow, GiTornado,
     GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
@@ -48,7 +48,7 @@ export const mobPsycho100Theme: AnimeThemeConfig = {
         "lists":          { icon: GiSpellBook,      label: "Esper Registry" },
         "discover":       { icon: GiPsychicWaves,   label: "Psychic Sight" },
         "torrent-list":   { icon: GiSpiralArrow,    label: "Psychic Ops" },
-        "unmatched":      { icon: GiFireFlake,      label: "Lost ???%" },
+        "unmatched":      { icon: GiFireflake,      label: "Lost ???%" },
         "scan-summaries": { icon: TbReportSearch,   label: "Reigen's Reports" },
         "auto-downloader":{ icon: LuRss,            label: "Telepathy Feed" },
         "search":         { icon: FiSearch,         label: "Search" },

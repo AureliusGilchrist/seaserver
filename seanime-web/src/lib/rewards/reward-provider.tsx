@@ -110,7 +110,7 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         try {
             const raw = localStorage.getItem(storageKey)
             if (!raw) return DEFAULTS
-            return { ...DEFAULTS, ...JSON.parse(raw) } as ActiveRewards
+            return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<ActiveRewards>) } as ActiveRewards
         } catch {
             return DEFAULTS
         }
@@ -123,7 +123,7 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
             if (!raw) {
                 setActive(DEFAULTS)
             } else {
-                setActive({ ...DEFAULTS, ...JSON.parse(raw) } as ActiveRewards)
+                setActive({ ...DEFAULTS, ...(JSON.parse(raw) as Partial<ActiveRewards>) } as ActiveRewards)
             }
         } catch { /* noop */ }
     }, [storageKey])

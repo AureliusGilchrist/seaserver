@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useCallback, useContext, useEffect, useRef } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname } from "@/lib/navigation"
 import { toast } from "sonner"
 import { useServerMutation } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"

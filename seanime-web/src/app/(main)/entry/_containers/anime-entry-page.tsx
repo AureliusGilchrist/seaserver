@@ -302,7 +302,7 @@ export function AnimeEntryPage() {
                                     <MediaEntryCharactersSection details={animeDetails} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                     <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
-                                </>
+                                </>}
                             />
                         </PageWrapper>}
 
@@ -315,7 +315,7 @@ export function AnimeEntryPage() {
                                     <MediaEntryCharactersSection details={animeDetails} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                     <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
-                                </>
+                                </>}
                             />}
 
                         {currentView === "debridstream" &&
@@ -327,7 +327,7 @@ export function AnimeEntryPage() {
                                     <MediaEntryCharactersSection details={animeDetails} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                     <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
-                                </>
+                                </>}
                             />}
 
                         {currentView === "onlinestream" && <PageWrapper

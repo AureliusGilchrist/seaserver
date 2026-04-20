@@ -1,6 +1,6 @@
 import { AnimeThemeConfig } from "./types"
 import {
-    GiComet, GiStarMedal, GiHeartInside, GiScrollUnfurled,
+    GiCometSpark, GiStarMedal, GiHeartInside, GiScrollUnfurled,
     GiSpellBook, GiMountainRoad, GiSewingNeedle, GiCloudRing,
     GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock,
 } from "react-icons/gi"
@@ -42,7 +42,7 @@ export const yourNameTheme: AnimeThemeConfig = {
         "--color-gray-50":  "245 250 255",
     },
     sidebarOverrides: {
-        "home":           { icon: GiComet,         label: "Itomori Town" },
+        "home":           { icon: GiCometSpark,         label: "Itomori Town" },
         "schedule":       { icon: GiAlarmClock,    label: "Twilight Times" },
         "manga":          { icon: GiScrollUnfurled,label: "Musubi Archive" },
         "lists":          { icon: GiSewingNeedle,  label: "Thread Registry" },

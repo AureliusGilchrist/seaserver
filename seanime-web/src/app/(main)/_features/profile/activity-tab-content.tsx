@@ -43,7 +43,7 @@ const EVENT_CONFIG: Record<string, { icon: React.ElementType; label: string; col
 }
 
 function parseMetadata(raw: string): Record<string, any> | null {
-  try { return JSON.parse(raw) } catch { return null }
+  try { return JSON.parse(raw) as Record<string, any> } catch { return null }
 }
 
 function formatEventDescription(event: Handlers_TimelineEvent): string {

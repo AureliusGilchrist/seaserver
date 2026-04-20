@@ -2,7 +2,7 @@ import { AnimeThemeConfig } from "./types"
 import {
     GiVortex,
     GiSandsOfTime,
-    GiSkull,
+    GiSkullCrack,
     GiEyeball,
     GiSpiderWeb,
     GiBrain,
@@ -56,7 +56,7 @@ export const junjiItoTheme: AnimeThemeConfig = {
         "home": { icon: GiVortex, label: "The Spiral" },
         "schedule": { icon: GiSandsOfTime, label: "Cursed Calendar" },
         "manga": { icon: LuBookOpen, label: "Forbidden Tomes" },
-        "lists": { icon: GiSkull, label: "Death Registry" },
+        "lists": { icon: GiSkullCrack, label: "Death Registry" },
         "discover": { icon: GiEyeball, label: "Glimpse Beyond" },
         "torrent-list": { icon: GiSpiderWeb, label: "Web of Flesh" },
         "debrid": { icon: GiBrain, label: "Neural Harvest" },

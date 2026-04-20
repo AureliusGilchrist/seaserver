@@ -23,6 +23,7 @@ import { Route as MainStaffIndexRouteImport } from './routes/_main/staff/index'
 import { Route as MainSettingsIndexRouteImport } from './routes/_main/settings/index'
 import { Route as MainSearchIndexRouteImport } from './routes/_main/search/index'
 import { Route as MainOfflineIndexRouteImport } from './routes/_main/offline/index'
+import { Route as MainMilestonesIndexRouteImport } from './routes/_main/milestones/index'
 import { Route as MainMediastreamIndexRouteImport } from './routes/_main/mediastream/index'
 import { Route as MainMedialinksIndexRouteImport } from './routes/_main/medialinks/index'
 import { Route as MainExtensionsIndexRouteImport } from './routes/_main/extensions/index'
@@ -260,6 +261,13 @@ const MainOfflineIndexRoute = MainOfflineIndexRouteImport.update({
   path: '/offline/',
   getParentRoute: () => MainRoute,
 } as any)
+const MainMilestonesIndexRoute = MainMilestonesIndexRouteImport.update({
+  id: '/milestones/',
+  path: '/milestones/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/milestones/index.lazy').then((d) => d.Route),
+)
 const MainMediastreamIndexRoute = MainMediastreamIndexRouteImport.update({
   id: '/mediastream/',
   path: '/mediastream/',
@@ -413,6 +421,7 @@ export interface FileRoutesByFullPath {
   '/extensions/': typeof MainExtensionsIndexRoute
   '/medialinks/': typeof MainMedialinksIndexRoute
   '/mediastream/': typeof MainMediastreamIndexRoute
+  '/milestones/': typeof MainMilestonesIndexRoute
   '/offline/': typeof MainOfflineIndexRoute
   '/search/': typeof MainSearchIndexRoute
   '/settings/': typeof MainSettingsIndexRoute
@@ -460,6 +469,7 @@ export interface FileRoutesByTo {
   '/extensions': typeof MainExtensionsIndexRoute
   '/medialinks': typeof MainMedialinksIndexRoute
   '/mediastream': typeof MainMediastreamIndexRoute
+  '/milestones': typeof MainMilestonesIndexRoute
   '/offline': typeof MainOfflineIndexRoute
   '/search': typeof MainSearchIndexRoute
   '/settings': typeof MainSettingsIndexRoute
@@ -509,6 +519,7 @@ export interface FileRoutesById {
   '/_main/extensions/': typeof MainExtensionsIndexRoute
   '/_main/medialinks/': typeof MainMedialinksIndexRoute
   '/_main/mediastream/': typeof MainMediastreamIndexRoute
+  '/_main/milestones/': typeof MainMilestonesIndexRoute
   '/_main/offline/': typeof MainOfflineIndexRoute
   '/_main/search/': typeof MainSearchIndexRoute
   '/_main/settings/': typeof MainSettingsIndexRoute
@@ -558,6 +569,7 @@ export interface FileRouteTypes {
     | '/extensions/'
     | '/medialinks/'
     | '/mediastream/'
+    | '/milestones/'
     | '/offline/'
     | '/search/'
     | '/settings/'
@@ -605,6 +617,7 @@ export interface FileRouteTypes {
     | '/extensions'
     | '/medialinks'
     | '/mediastream'
+    | '/milestones'
     | '/offline'
     | '/search'
     | '/settings'
@@ -653,6 +666,7 @@ export interface FileRouteTypes {
     | '/_main/extensions/'
     | '/_main/medialinks/'
     | '/_main/mediastream/'
+    | '/_main/milestones/'
     | '/_main/offline/'
     | '/_main/search/'
     | '/_main/settings/'
@@ -894,6 +908,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainOfflineIndexRouteImport
       parentRoute: typeof MainRoute
     }
+    '/_main/milestones/': {
+      id: '/_main/milestones/'
+      path: '/milestones'
+      fullPath: '/milestones/'
+      preLoaderRoute: typeof MainMilestonesIndexRouteImport
+      parentRoute: typeof MainRoute
+    }
     '/_main/mediastream/': {
       id: '/_main/mediastream/'
       path: '/mediastream'
@@ -1034,6 +1055,7 @@ interface MainRouteChildren {
   MainExtensionsIndexRoute: typeof MainExtensionsIndexRoute
   MainMedialinksIndexRoute: typeof MainMedialinksIndexRoute
   MainMediastreamIndexRoute: typeof MainMediastreamIndexRoute
+  MainMilestonesIndexRoute: typeof MainMilestonesIndexRoute
   MainOfflineIndexRoute: typeof MainOfflineIndexRoute
   MainSearchIndexRoute: typeof MainSearchIndexRoute
   MainSettingsIndexRoute: typeof MainSettingsIndexRoute
@@ -1076,6 +1098,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainExtensionsIndexRoute: MainExtensionsIndexRoute,
   MainMedialinksIndexRoute: MainMedialinksIndexRoute,
   MainMediastreamIndexRoute: MainMediastreamIndexRoute,
+  MainMilestonesIndexRoute: MainMilestonesIndexRoute,
   MainOfflineIndexRoute: MainOfflineIndexRoute,
   MainSearchIndexRoute: MainSearchIndexRoute,
   MainSettingsIndexRoute: MainSettingsIndexRoute,

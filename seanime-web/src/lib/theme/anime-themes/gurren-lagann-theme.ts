@@ -5,7 +5,7 @@ import {
     GiSunrise,
     GiMineralPearls,
     GiCrossedSwords,
-    GiSpiral,
+    GiSpiralArrow,
     GiFist,
     GiFireRing,
     GiTrophy,

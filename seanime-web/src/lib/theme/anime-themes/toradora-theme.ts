@@ -1,6 +1,6 @@
 import { AnimeThemeConfig } from "./types"
 import {
-    GiPalmTree, GiHolidayLight, GiScrollUnfurled, GiSpellBook,
+    GiPalmTree, GiLanternFlame, GiScrollUnfurled, GiSpellBook,
     GiFlame, GiHeartInside, GiSwordClash, GiStarMedal,
     GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock,
 } from "react-icons/gi"

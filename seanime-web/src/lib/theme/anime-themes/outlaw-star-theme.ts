@@ -14,7 +14,7 @@ import {
     GiResize,
     GiSettingsKnobs,
     GiSpiralArrow,
-    GiCatEar,
+    GiNinjaHead,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
@@ -67,7 +67,7 @@ export const outlawStarTheme: AnimeThemeConfig = {
         "enmasse": { icon: GiResize, label: "Fleet Deploy" },
         "scan-summaries": { icon: TbReportSearch, label: "Sensor Scans" },
         "auto-downloader": { icon: LuRss, label: "Signal Beacon" },
-        "community": { icon: GiCatEar, label: "Ctarl-Ctarl Hub" },
+        "community": { icon: GiNinjaHead, label: "Ctarl-Ctarl Hub" },
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Ship Alerts" },
         "achievements": { icon: GiTrophy, label: "Bounty Claims" },

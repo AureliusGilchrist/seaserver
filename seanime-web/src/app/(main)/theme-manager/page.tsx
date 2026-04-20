@@ -29,9 +29,9 @@ export default function ThemeManagerPage() {
 
     const unlockedHiddenThemes = React.useMemo(() => {
         const ids = new Set<AnimeThemeId>()
-        if (!mangaCollection?.lists) return ids
+        if (!mangaCollection?.MediaListCollection?.lists) return ids
         const userMangaIds = new Set<number>()
-        for (const list of mangaCollection.lists ?? []) {
+        for (const list of mangaCollection.MediaListCollection.lists ?? []) {
             for (const entry of list?.entries ?? []) {
                 if (entry?.media?.id) userMangaIds.add(entry.media.id)
             }

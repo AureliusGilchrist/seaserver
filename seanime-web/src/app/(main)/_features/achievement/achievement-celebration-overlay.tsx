@@ -165,16 +165,6 @@ export function AchievementCelebrationOverlay() {
                                 )}
                             </h2>
                             <p className="text-sm text-gray-300 mt-2">{currentUnlock.description}</p>
-                            {currentUnlock.xpAwarded > 0 && (
-                                <motion.p
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: 0.5 }}
-                                    className="text-sm font-bold text-yellow-300 mt-2"
-                                >
-                                    +{currentUnlock.xpAwarded} XP
-                                </motion.p>
-                            )}
                         </motion.div>
 
                         <motion.p

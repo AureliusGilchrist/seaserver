@@ -1,7 +1,7 @@
 import { AnimeThemeConfig } from "./types"
 import {
     GiAtomCore,
-    GiLabFlask,
+    GiChemicalDrop,
     GiHourglass,
     GiScrollUnfurled,
     GiSpellBook,
@@ -53,7 +53,7 @@ export const steinsGateTheme: AnimeThemeConfig = {
         "--color-gray-50": "230 250 238",
     },
     sidebarOverrides: {
-        "home": { icon: GiLabFlask, label: "Future Gadget Lab" },
+        "home": { icon: GiChemicalDrop, label: "Future Gadget Lab" },
         "schedule": { icon: GiAlarmClock, label: "Divergence Schedule" },
         "manga": { icon: GiSpellBook, label: "Lab Notebook" },
         "lists": { icon: GiScrollUnfurled, label: "Worldline Registry" },

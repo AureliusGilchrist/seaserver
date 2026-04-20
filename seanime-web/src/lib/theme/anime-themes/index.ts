@@ -138,7 +138,7 @@ import { berserkTheme } from "./berserk-theme"
 import { vinlandSagaTheme } from "./vinland-saga-theme"
 import { chainsawManTheme } from "./chainsaw-man-theme"
 import { madeInAbyssTheme } from "./made-in-abyss-theme"
-import { parasyteTheme } from "./parasyte-theme"
+import { parasiteTheme } from "./parasyte-theme"
 import { haikyuuTheme } from "./haikyuu-theme"
 import { frierenTheme } from "./frieren-theme"
 import { dandadanTheme } from "./dandadan-theme"
@@ -156,7 +156,7 @@ import { gantzTheme } from "./gantz-theme"
 import { dorohedoroTheme } from "./dorohedoro-theme"
 import { serialExperimentsLainTheme } from "./serial-experiments-lain-theme"
 import { trigunTheme } from "./trigun-theme"
-import { rurouniKenshinTheme } from "./rurouni-kenshin-theme"
+import { rourouniKenshinTheme } from "./rurouni-kenshin-theme"
 import { sailorMoonTheme } from "./sailor-moon-theme"
 import { cardcaptorSakuraTheme } from "./cardcaptor-sakura-theme"
 import { inuyashaTheme } from "./inuyasha-theme"
@@ -240,7 +240,7 @@ export const ANIME_THEMES: Record<AnimeThemeId, AnimeThemeConfig> = {
     "vinland-saga": vinlandSagaTheme,
     "chainsaw-man": chainsawManTheme,
     "made-in-abyss": madeInAbyssTheme,
-    "parasyte": parasyteTheme,
+    "parasyte": parasiteTheme,
     "haikyuu": haikyuuTheme,
     "frieren": frierenTheme,
     "dandadan": dandadanTheme,
@@ -258,7 +258,7 @@ export const ANIME_THEMES: Record<AnimeThemeId, AnimeThemeConfig> = {
     "dorohedoro": dorohedoroTheme,
     "serial-experiments-lain": serialExperimentsLainTheme,
     "trigun": trigunTheme,
-    "rurouni-kenshin": rurouniKenshinTheme,
+    "rurouni-kenshin": rourouniKenshinTheme,
     "sailor-moon": sailorMoonTheme,
     "cardcaptor-sakura": cardcaptorSakuraTheme,
     "inuyasha": inuyashaTheme,
@@ -342,7 +342,7 @@ export const ANIME_THEME_LIST: AnimeThemeConfig[] = [
     vinlandSagaTheme,
     chainsawManTheme,
     madeInAbyssTheme,
-    parasyteTheme,
+    parasiteTheme,
     haikyuuTheme,
     frierenTheme,
     dandadanTheme,
@@ -360,7 +360,7 @@ export const ANIME_THEME_LIST: AnimeThemeConfig[] = [
     dorohedoroTheme,
     serialExperimentsLainTheme,
     trigunTheme,
-    rurouniKenshinTheme,
+    rourouniKenshinTheme,
     sailorMoonTheme,
     cardcaptorSakuraTheme,
     inuyashaTheme,

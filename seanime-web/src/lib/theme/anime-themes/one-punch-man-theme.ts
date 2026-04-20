@@ -1,7 +1,7 @@
 import { AnimeThemeConfig } from "./types"
 import {
-    GiFist, GiArmoredFist, GiStarMedal, GiShield,
-    GiScrollUnfurled, GiSpellBook, GiAnvilImpact, GiSparks,
+    GiFist, GiArmorVest, GiStarMedal, GiShield,
+    GiScrollUnfurled, GiSpellBook, GiAnvilImpact, GiSparkles,
     GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
@@ -46,7 +46,7 @@ export const onePunchManTheme: AnimeThemeConfig = {
         "schedule":       { icon: GiAlarmClock,    label: "Monster Alert" },
         "manga":          { icon: GiScrollUnfurled,label: "Hero Registry" },
         "lists":          { icon: GiSpellBook,     label: "Association Files" },
-        "discover":       { icon: GiArmoredFist,   label: "Monster Hunt" },
+        "discover":       { icon: GiArmorVest,   label: "Monster Hunt" },
         "torrent-list":   { icon: GiAnvilImpact,   label: "Hero Ops" },
         "unmatched":      { icon: GiShield,        label: "Dragon-Level Threats" },
         "scan-summaries": { icon: TbReportSearch,  label: "Association Reports" },

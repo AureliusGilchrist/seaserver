@@ -2,7 +2,7 @@ import { AnimeThemeConfig } from "./types"
 import {
     GiBookshelf,
     GiGraduateCap,
-    GiMotorcycle,
+    GiScooter,
     GiPunch,
     GiFist,
     GiMuscleUp,
@@ -62,7 +62,7 @@ export const greatTeacherOnizukaTheme: AnimeThemeConfig = {
         "lists": { icon: GiBookshelf, label: "Class Roster" },
         "discover": { icon: GiBullseye, label: "After School" },
         "torrent-list": { icon: GiAnvilImpact, label: "Supply Closet" },
-        "debrid": { icon: GiMotorcycle, label: "Bike Garage" },
+        "debrid": { icon: GiScooter, label: "Bike Garage" },
         "unmatched": { icon: GiSchoolBag, label: "Lost & Found" },
         "enmasse": { icon: GiResize, label: "Mass Lesson" },
         "scan-summaries": { icon: TbReportSearch, label: "Report Cards" },

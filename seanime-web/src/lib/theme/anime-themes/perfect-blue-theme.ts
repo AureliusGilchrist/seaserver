@@ -2,7 +2,7 @@ import { AnimeThemeConfig } from "./types"
 import {
     GiMirrorMirror,
     GiTheaterCurtains,
-    GiSpotlightLamp,
+    GiLightBulb,
     GiBrokenShield,
     GiShadowFollower,
     GiEvilEyes,

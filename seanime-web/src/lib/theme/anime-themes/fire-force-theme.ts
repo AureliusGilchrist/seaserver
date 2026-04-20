@@ -1,6 +1,6 @@
 import { AnimeThemeConfig } from "./types"
 import {
-    GiFireFlake,
+    GiFireflake,
     GiMuscleUp,
     GiBullseye,
     GiAnvilImpact,
@@ -53,7 +53,7 @@ export const fireForceTheme: AnimeThemeConfig = {
         "--color-gray-50": "250 246 244",
     },
     sidebarOverrides: {
-        "home": { icon: GiFireFlake, label: "Company 8 HQ" },
+        "home": { icon: GiFireflake, label: "Company 8 HQ" },
         "schedule": { icon: GiAlarmClock, label: "Fire Ops Calendar" },
         "manga": { icon: LuBookOpen, label: "Infernal Reports" },
         "lists": { icon: GiMuscleUp, label: "Soldier Registry" },

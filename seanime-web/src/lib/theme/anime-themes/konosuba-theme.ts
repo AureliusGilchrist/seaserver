@@ -1,6 +1,6 @@
 import { AnimeThemeConfig } from "./types"
 import {
-    GiExplosion, GiMagicAxe, GiSpellBook, GiScrollUnfurled,
+    GiGooExplosion, GiMagicAxe, GiSpellBook, GiScrollUnfurled,
     GiFlame, GiWaterDrop, GiSwordClash, GiCrown,
     GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock,
 } from "react-icons/gi"
@@ -42,7 +42,7 @@ export const konosubaTheme: AnimeThemeConfig = {
         "--color-gray-50":  "254 248 235",
     },
     sidebarOverrides: {
-        "home":           { icon: GiExplosion,     label: "Axel Town" },
+        "home":           { icon: GiGooExplosion,     label: "Axel Town" },
         "schedule":       { icon: GiAlarmClock,    label: "Quest Board" },
         "manga":          { icon: GiScrollUnfurled,label: "Kazuma's Records" },
         "lists":          { icon: GiSpellBook,     label: "Guild Registry" },
