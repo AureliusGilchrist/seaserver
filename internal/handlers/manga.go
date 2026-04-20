@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"time"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/models"
@@ -21,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -617,14 +617,29 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 
 		// Determine status based on progress
 		status := anilist.MediaListStatusCurrent
-		if b.TotalChapters > 0 && b.ChapterNumber >= b.TotalChapters {
+		isCompleted := b.TotalChapters > 0 && b.ChapterNumber >= b.TotalChapters
+		if isCompleted {
 			status = anilist.MediaListStatusCompleted
 		}
-		_, err := profileClient.UpdateMediaListEntryProgress(
+
+		now := time.Now()
+		year, monthVal, day := now.Year(), int(now.Month()), now.Day()
+		var startedAt, completedAt *anilist.FuzzyDateInput
+		if b.ChapterNumber == 1 {
+			startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+		}
+		if isCompleted {
+			completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+		}
+
+		_, err := profileClient.UpdateMediaListEntry(
 			c.Request().Context(),
 			&b.MediaId,
-			&b.ChapterNumber,
 			&status,
+			nil, // scoreRaw
+			&b.ChapterNumber,
+			startedAt,
+			completedAt,
 		)
 		if err != nil {
 			return h.RespondWithError(c, err)
@@ -662,6 +677,14 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 			})
 		}
 	}()
+
+	// Evaluate milestones after activity is recorded
+	go func() {
+		if h.App.MilestoneEngine != nil {
+			h.App.MilestoneEngine.EvaluateProfile(profileID)
+		}
+	}()
+
 	if b.TotalChapters > 0 && b.ChapterNumber >= b.TotalChapters {
 		h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
 			ProfileID: profileID,

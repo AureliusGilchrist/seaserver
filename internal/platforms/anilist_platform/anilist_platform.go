@@ -3,6 +3,7 @@ package anilist_platform
 import (
 	"context"
 	"errors"
+	"time"
 	"seanime/internal/api/anilist"
 	"seanime/internal/customsource"
 	"seanime/internal/database/db"
@@ -13,7 +14,6 @@ import (
 	"seanime/internal/util"
 	"seanime/internal/util/limiter"
 	"sync"
-	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
@@ -139,11 +139,25 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 			*event.Progress = realTotalCount
 		}
 
-		_, err := ap.anilistClient.UpdateMediaListEntryProgress(
+		// Auto-set startedAt on first progress, completedAt on completion
+		now := time.Now()
+		year, monthVal, day := now.Year(), int(now.Month()), now.Day()
+		var startedAt, completedAt *anilist.FuzzyDateInput
+		if *event.Progress == 1 {
+			startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+		}
+		if realTotalCount > 0 && *event.Progress >= realTotalCount {
+			completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+		}
+
+		_, err := ap.anilistClient.UpdateMediaListEntry(
 			ctx,
 			event.MediaID,
-			event.Progress,
 			event.Status,
+			nil, // scoreRaw
+			event.Progress,
+			startedAt,
+			completedAt,
 		)
 		return err
 	})

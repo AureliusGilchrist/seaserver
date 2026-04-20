@@ -20,37 +20,16 @@ func (h *Handler) HandleGetAchievements(c echo.Context) error {
 	database := h.GetProfileDatabase(c)
 	profileID := h.GetProfileID(c)
 
-	// Lazily init rows via a no-op event
+	// Lazily init rows via a no-op event (does NOT evaluate/unlock anything)
 	h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
 		ProfileID: profileID,
 		Trigger:   achievement.EvalTrigger("_init"),
 	})
 
-	// Evaluate stat-based achievements from collection data so the page
-	// always reflects up-to-date progress (not just after collection refresh).
-	if profileID > 0 {
-		var animeCollection *anilist.AnimeCollection
-		var mangaCollection *anilist.MangaCollection
-		profileClient := h.GetProfileAnilistClient(c)
-		if profileClient.IsAuthenticated() {
-			var profileUsername *string
-			if h.App.ProfileManager != nil {
-				if prof, err := h.App.ProfileManager.GetProfile(profileID); err == nil && prof.AniListUsername != "" {
-					profileUsername = &prof.AniListUsername
-				}
-			}
-			animeCollection, _ = profileClient.AnimeCollection(c.Request().Context(), profileUsername)
-			mangaCollection, _ = profileClient.MangaCollection(c.Request().Context(), profileUsername)
-		}
-		if animeCollection == nil {
-			animeCollection, _ = h.App.GetAnimeCollection(false)
-		}
-		if mangaCollection == nil {
-			mangaCollection, _ = h.App.GetMangaCollection(false)
-		}
-		stats := buildCollectionStats(animeCollection, mangaCollection)
-		h.App.AchievementEngine.EvaluateCollectionStats(profileID, stats)
-	}
+	// NOTE: Retroactive collection-based evaluation removed.
+	// Achievements now only unlock from real-time events (watching, completing, rating, etc.)
+	// to prevent mass-unlocking the entire AniList history on every page load.
+	// Use the /api/v1/achievements/import endpoint for an explicit one-time retroactive import.
 
 	dbAchievements, err := database.GetAllAchievements()
 	if err != nil {

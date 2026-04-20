@@ -27,6 +27,7 @@ import (
 	"seanime/internal/mediaplayers/mpv"
 	"seanime/internal/mediaplayers/vlc"
 	"seanime/internal/mediastream"
+	"seanime/internal/milestone"
 	"seanime/internal/nakama"
 	"seanime/internal/nativeplayer"
 	"seanime/internal/notifier"
@@ -413,6 +414,29 @@ func (a *App) initModulesOnce() {
 				return true
 			}
 			return a.AnilistClientManager.IsAuthenticated(profileID)
+		},
+	})
+
+	// +---------------------+
+	// | Milestone Engine    |
+	// +---------------------+
+
+	a.MilestoneEngine = milestone.NewEngine(&milestone.EngineOptions{
+		Logger:         a.Logger,
+		WSEventManager: a.WSEventManager,
+		MainDB:         a.Database,
+		GetProfileDB: func(profileID uint) (*db.Database, error) {
+			return a.ProfileDatabaseManager.GetDatabase(profileID)
+		},
+		GetProfileName: func(profileID uint) string {
+			if a.ProfileManager == nil {
+				return "Unknown"
+			}
+			p, err := a.ProfileManager.GetProfile(profileID)
+			if err != nil || p == nil {
+				return "Unknown"
+			}
+			return p.Name
 		},
 	})
 

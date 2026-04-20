@@ -38,6 +38,7 @@ import (
 	"seanime/internal/mediaplayers/mpv"
 	"seanime/internal/mediaplayers/vlc"
 	"seanime/internal/mediastream"
+	"seanime/internal/milestone"
 	"seanime/internal/nakama"
 	"seanime/internal/nativeplayer"
 	"seanime/internal/onlinestream"
@@ -203,6 +204,9 @@ type (
 
 		// Achievement system
 		AchievementEngine *achievement.Engine
+
+		// Milestone system
+		MilestoneEngine *milestone.Engine
 
 		// Service runner
 		ServiceRunner *ServiceRunner

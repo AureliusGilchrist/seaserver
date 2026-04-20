@@ -716,6 +716,27 @@ type AnimeFavorite struct {
 	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
 }
 
+// CharacterFavorite stores a favorited character per profile (stored in per-profile DB).
+type CharacterFavorite struct {
+	BaseModel
+	CharacterID int       `gorm:"column:character_id;uniqueIndex" json:"characterId"`
+	AddedAt     time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
+// StaffFavorite stores a favorited staff member per profile (stored in per-profile DB).
+type StaffFavorite struct {
+	BaseModel
+	StaffID int       `gorm:"column:staff_id;uniqueIndex" json:"staffId"`
+	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
+// StudioFavorite stores a favorited studio per profile (stored in per-profile DB).
+type StudioFavorite struct {
+	BaseModel
+	StudioID int       `gorm:"column:studio_id;uniqueIndex" json:"studioId"`
+	AddedAt  time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
 // Notification stores a notification per profile (stored in per-profile DB).
 type Notification struct {
 	BaseModel
@@ -790,6 +811,35 @@ type AdminAnnouncement struct {
 	CreatedBy uint      `gorm:"column:created_by" json:"createdBy"`
 	ExpiresAt time.Time `gorm:"column:expires_at" json:"expiresAt"`
 	Dismissed string    `gorm:"column:dismissed;type:text" json:"-"` // comma-separated profile IDs
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+// GlobalMilestone tracks a milestone achievement in the main (global) database.
+// Individual milestones: one row per (profileID, key) pair.
+// First-to-achieve milestones: one row per key, first profile to reach it wins.
+type GlobalMilestone struct {
+	BaseModel
+	Key             string     `gorm:"column:key;index" json:"key"`                                         // e.g. "hours_watched_5000"
+	Category        string     `gorm:"column:category;index" json:"category"`                               // e.g. "hours_watched"
+	Tier            int        `gorm:"column:tier" json:"tier"`                                             // tier threshold value (10, 50, 100, 500, 1000, 5000)
+	IsFirstToAchieve bool      `gorm:"column:is_first_to_achieve;default:false" json:"isFirstToAchieve"`   // true for race milestones
+	ProfileID       uint       `gorm:"column:profile_id;index" json:"profileId"`                            // who achieved it
+	ProfileName     string     `gorm:"column:profile_name" json:"profileName"`                              // cached name for display
+	AchievedAt      *time.Time `gorm:"column:achieved_at" json:"achievedAt,omitempty"`                      // when achieved
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+// TrackPreference stores per-media audio/subtitle track overrides for the profile.
+// MediaID is the AniList media ID as a string key.
+type TrackPreference struct {
+	BaseModel
+	MediaID          string `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
+	AudioLanguage    string `gorm:"column:audio_language" json:"audioLanguage,omitempty"`
+	AudioCodecID     string `gorm:"column:audio_codec_id" json:"audioCodecId,omitempty"`
+	SubtitleLanguage string `gorm:"column:subtitle_language" json:"subtitleLanguage,omitempty"`
+	SubtitleCodecID  string `gorm:"column:subtitle_codec_id" json:"subtitleCodecId,omitempty"`
 }
 
 ///////////////////////////////////////////////////////////////////////////

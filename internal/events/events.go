@@ -111,4 +111,7 @@ const (
 
 	// Achievement events
 	AchievementUnlocked = "achievement-unlocked"
+
+	// Milestone events
+	MilestoneAchieved = "milestone-achieved"
 )

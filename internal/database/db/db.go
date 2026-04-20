@@ -124,6 +124,9 @@ func migrateTables(db *gorm.DB) error {
 		&models.CommentVote{},
 		&models.MangaFavorite{},
 		&models.AnimeFavorite{},
+		&models.CharacterFavorite{},
+		&models.StaffFavorite{},
+		&models.StudioFavorite{},
 		&models.Notification{},
 		&models.Achievement{},
 		&models.AchievementShowcase{},
@@ -131,6 +134,8 @@ func migrateTables(db *gorm.DB) error {
 		&models.ActivityEvent{},
 		&models.LevelProgress{},
 		&models.AdminAnnouncement{},
+		&models.TrackPreference{},
+		&models.GlobalMilestone{},
 	)
 	if err != nil {
 
