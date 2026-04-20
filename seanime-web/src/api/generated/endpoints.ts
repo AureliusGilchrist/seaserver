@@ -116,6 +116,16 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route returns details about a character.
+         *  This fetches media associated with the character, voice actors, and other info.
+         */
+        GetAnilistCharacterDetails: {
+            key: "ANILIST-get-anilist-character-details",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/character-details/{id}",
+        },
+        /**
+         *  @description
          *  Route deletes an entry from the user's AniList list.
          *  This is used to delete an entry on AniList.
          *  The "type" field is used to determine if the entry is an anime or manga and refreshes the collection accordingly.
@@ -198,6 +208,18 @@ export const API_ENDPOINTS = {
             key: "ANIME-get-anime-episode-collection",
             methods: ["GET"],
             endpoint: "/api/v1/anime/episode-collection/{id}",
+        },
+    },
+    ANIME_THEMES: {
+        /**
+         *  @description
+         *  Route returns opening/ending themes for an anime.
+         *  This proxies the animethemes.moe API using the anime's MAL ID.
+         */
+        GetAnimeThemes: {
+            key: "ANIME_THEMES-get-anime-themes",
+            methods: ["GET"],
+            endpoint: "/api/v1/anime-themes/{id}",
         },
     },
     ANIME_COLLECTION: {
@@ -1661,6 +1683,42 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/library/favorites/bulk",
         },
     },
+    CHARACTER_FAVORITE: {
+        GetCharacterFavorites: {
+            key: "CHARACTER-FAVORITE-get-character-favorites",
+            methods: ["GET"],
+            endpoint: "/api/v1/character/favorites",
+        },
+        ToggleCharacterFavorite: {
+            key: "CHARACTER-FAVORITE-toggle-character-favorite",
+            methods: ["POST"],
+            endpoint: "/api/v1/character/favorites/toggle",
+        },
+    },
+    STAFF_FAVORITE: {
+        GetStaffFavorites: {
+            key: "STAFF-FAVORITE-get-staff-favorites",
+            methods: ["GET"],
+            endpoint: "/api/v1/staff/favorites",
+        },
+        ToggleStaffFavorite: {
+            key: "STAFF-FAVORITE-toggle-staff-favorite",
+            methods: ["POST"],
+            endpoint: "/api/v1/staff/favorites/toggle",
+        },
+    },
+    STUDIO_FAVORITE: {
+        GetStudioFavorites: {
+            key: "STUDIO-FAVORITE-get-studio-favorites",
+            methods: ["GET"],
+            endpoint: "/api/v1/studio/favorites",
+        },
+        ToggleStudioFavorite: {
+            key: "STUDIO-FAVORITE-toggle-studio-favorite",
+            methods: ["POST"],
+            endpoint: "/api/v1/studio/favorites/toggle",
+        },
+    },
     MANGA_SCAN: {
         /**
          *  @description
@@ -2993,6 +3051,11 @@ export const API_ENDPOINTS = {
             key: "PROFILE-PAGE-get-level",
             methods: ["GET"],
             endpoint: "/api/v1/profile/level",
+        },
+        DiscoverEasterEgg: {
+            key: "PROFILE-PAGE-discover-easter-egg",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/easter-egg",
         },
         GetTimeline: {
             key: "PROFILE-PAGE-get-timeline",

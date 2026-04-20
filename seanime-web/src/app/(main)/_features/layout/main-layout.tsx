@@ -42,6 +42,8 @@ import { useInvalidateQueriesListener } from "../../_listeners/invalidate-querie
 import { AdminAnnouncementsBanner } from "../admin-announcements"
 import { Announcements } from "../announcements"
 import { AnimeThemeProvider } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { CursorProvider } from "@/lib/cursors/cursor-provider"
+import { EasterEggEngine } from "@/lib/easter-eggs/easter-egg-engine"
 import { NakamaManager } from "../nakama/nakama-manager"
 import { NakamaWatchPartyChat, NakamaWatchPartyChatProvider } from "../nakama/nakama-watch-party-chat"
 import { NativePlayer } from "../native-player/native-player"
@@ -52,6 +54,8 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
     return (
         <>
             <AnimeThemeProvider>
+            <EasterEggEngine>
+            <CursorProvider>
             <Loader />
             <ScanProgressBar />
             <MangaHydrationProgressBar />
@@ -94,6 +98,8 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
                     </AppLayout>
                 </AppLayout>
             </AppSidebarProvider>
+            </CursorProvider>
+            </EasterEggEngine>
             </AnimeThemeProvider>
         </>
     )

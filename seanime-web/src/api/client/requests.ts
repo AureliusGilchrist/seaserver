@@ -10,10 +10,19 @@ import { usePathname } from "@/lib/navigation"
 import { useEffect } from "react"
 import { toast } from "sonner"
 
+// CSRF token storage — updated from server response headers
+let _csrfToken: string | null = null
+
 // Sliding window: when the server emits a refreshed profile token in the response header,
 // update the in-memory atom and localStorage so the user stays logged in.
 // Also detect expired profile sessions and clear the stale token.
 axios.interceptors.response.use(response => {
+    // Capture CSRF token from response headers
+    const csrfToken = response.headers["x-csrf-token"]
+    if (csrfToken && typeof csrfToken === "string") {
+        _csrfToken = csrfToken
+    }
+
     const refreshed = response.headers["x-seanime-profile-token"]
     if (refreshed && typeof refreshed === "string") {
         getDefaultStore().set(profileSessionTokenAtom, refreshed)
@@ -88,6 +97,7 @@ export async function buildSeaQuery<T, D extends any = any>(
         headers: {
             ...(password ? { "X-Seanime-Token": password } : {}),
             ...(profileToken ? { "X-Seanime-Profile-Token": profileToken } : {}),
+            ...(_csrfToken && method !== "GET" ? { "X-CSRF-Token": _csrfToken } : {}),
         },
     })
     const response = _handleSeaResponse<T>(res.data)

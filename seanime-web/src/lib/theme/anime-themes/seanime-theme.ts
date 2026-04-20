@@ -14,4 +14,13 @@ export const seanimeTheme: AnimeThemeConfig = {
         secondary: "#8a7fe8",
         accent: "#4a3bbf",
     },
+    milestoneNames: {
+        1:   "Kouhai",
+        10:  "Senpai",
+        20:  "Sempai",
+        35:  "Sensei",
+        50:  "Shishou",
+        75:  "S\u014Dkoku",
+        100: "Megami",
+    },
 }

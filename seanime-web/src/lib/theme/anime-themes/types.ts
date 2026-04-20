@@ -129,4 +129,9 @@ export type AnimeThemeConfig = {
     particleTypes?: Record<string, ParticleTypeConfig>
     /** Player icon overrides for video player controls */
     playerIconOverrides?: PlayerIconOverrides
+    /**
+     * Level → rank name. Keys are level thresholds; the highest key ≤ current level wins.
+     * Example: { 1: "Genin", 15: "Chunin", 30: "Jonin" }
+     */
+    milestoneNames?: Record<number, string>
 }

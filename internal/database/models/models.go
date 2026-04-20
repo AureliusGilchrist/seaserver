@@ -716,6 +716,27 @@ type AnimeFavorite struct {
 	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
 }
 
+// CharacterFavorite stores a favorited character per profile (stored in per-profile DB).
+type CharacterFavorite struct {
+	BaseModel
+	CharacterID int       `gorm:"column:character_id;uniqueIndex" json:"characterId"`
+	AddedAt     time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
+// StaffFavorite stores a favorited staff member per profile (stored in per-profile DB).
+type StaffFavorite struct {
+	BaseModel
+	StaffID int       `gorm:"column:staff_id;uniqueIndex" json:"staffId"`
+	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
+// StudioFavorite stores a favorited studio per profile (stored in per-profile DB).
+type StudioFavorite struct {
+	BaseModel
+	StudioID int       `gorm:"column:studio_id;uniqueIndex" json:"studioId"`
+	AddedAt  time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
 // Notification stores a notification per profile (stored in per-profile DB).
 type Notification struct {
 	BaseModel

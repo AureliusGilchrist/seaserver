@@ -141,6 +141,8 @@ export function useGetAnilistStudioDetails(id: number) {
         method: API_ENDPOINTS.ANILIST.GetAnilistStudioDetails.methods[0],
         queryKey: [API_ENDPOINTS.ANILIST.GetAnilistStudioDetails.key, String(id)],
         enabled: true,
+        staleTime: 30 * 60 * 1000,  // 30 minutes — studio data rarely changes
+        gcTime: 60 * 60 * 1000,     // 1 hour in cache after unmount
     })
 }
 
@@ -150,6 +152,19 @@ export function useGetAnilistStaffDetails(id: number) {
         method: API_ENDPOINTS.ANILIST.GetAnilistStaffDetails.methods[0],
         queryKey: [API_ENDPOINTS.ANILIST.GetAnilistStaffDetails.key, String(id)],
         enabled: true,
+        staleTime: 30 * 60 * 1000,
+        gcTime: 60 * 60 * 1000,
+    })
+}
+
+export function useGetAnilistCharacterDetails(id: number) {
+    return useServerQuery<any>({
+        endpoint: API_ENDPOINTS.ANILIST.GetAnilistCharacterDetails.endpoint.replace("{id}", String(id)),
+        method: API_ENDPOINTS.ANILIST.GetAnilistCharacterDetails.methods[0],
+        queryKey: [API_ENDPOINTS.ANILIST.GetAnilistCharacterDetails.key, String(id)],
+        enabled: id > 0,
+        staleTime: 30 * 60 * 1000,
+        gcTime: 60 * 60 * 1000,
     })
 }
 

@@ -3,6 +3,18 @@
 import { useGetAchievements, useImportAchievements, AchievementUnlockPayload } from "@/api/hooks/achievement.hooks"
 import { useGetAniListStats } from "@/api/hooks/anilist.hooks"
 import { useGetMyProfile, useUpdateBio } from "@/api/hooks/community.hooks"
+import {
+    useGetAnimeFavorites,
+    useGetMangaFavorites,
+    useGetCharacterFavorites,
+    useGetStaffFavorites,
+    useGetStudioFavorites,
+    useToggleAnimeFavorite,
+    useToggleMangaFavorite,
+    useToggleCharacterFavorite,
+    useToggleStaffFavorite,
+    useToggleStudioFavorite,
+} from "@/api/hooks/favorites.hooks"
 import { useGetProfileStats } from "@/api/hooks/profile-stats.hooks"
 import {
     Achievement_Category,
@@ -32,11 +44,15 @@ import { Stats } from "@/components/ui/stats"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { CursorShop } from "@/app/(main)/profile/me/_components/cursor-shop"
+import { LuMousePointer2 } from "react-icons/lu"
+import { useEasterEggs } from "@/lib/easter-eggs/easter-egg-engine"
+import { EASTER_EGG_DEFINITIONS } from "@/lib/easter-eggs/easter-egg-definitions"
 import * as React from "react"
 import {
     LuTrophy, LuStar, LuPencil, LuCheck, LuX, LuFlame,
     LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity,
-    LuGlobe, LuHourglass, LuLock, LuZap, LuDownload, LuEye, LuEyeOff,
+    LuGlobe, LuHourglass, LuLock, LuZap, LuDownload, LuEye, LuEyeOff, LuHeart,
 } from "react-icons/lu"
 
 function formatDescription(desc: string, thresholds?: number[], tierIdx?: number): React.ReactNode {
@@ -219,6 +235,15 @@ export default function Page() {
                         <TabsTrigger value="achievements" className={tabsTriggerClass}>
                             <LuTrophy className="mr-1.5" /> Achievements
                         </TabsTrigger>
+                        <TabsTrigger value="favorites" className={tabsTriggerClass}>
+                            <LuHeart className="mr-1.5" /> Favorites
+                        </TabsTrigger>
+                        <TabsTrigger value="cursors" className={tabsTriggerClass}>
+                            <LuMousePointer2 className="mr-1.5" /> Cursors
+                        </TabsTrigger>
+                        <TabsTrigger value="secrets" className={tabsTriggerClass}>
+                            🥚 Secrets
+                        </TabsTrigger>
                     </TabsList>
                     <TabsContent value="activity" className="space-y-6 mt-6">
                         <ActivityTabContent
@@ -242,6 +267,15 @@ export default function Page() {
                     <TabsContent value="achievements" className="space-y-6 mt-6">
                         <AchievementsTabContent editable />
                     </TabsContent>
+                    <TabsContent value="favorites" className="space-y-6 mt-6">
+                        <FavoritesTabContent />
+                    </TabsContent>
+                    <TabsContent value="cursors" className="space-y-6 mt-6">
+                        <CursorShop currentLevel={level?.currentLevel ?? 1} />
+                    </TabsContent>
+                    <TabsContent value="secrets" className="space-y-6 mt-6">
+                        <EasterEggSecrets />
+                    </TabsContent>
                 </Tabs>
             </PageWrapper>
         </>
@@ -249,6 +283,73 @@ export default function Page() {
 }
 
 // ─────────────────────── Activity Buff Badge ───────────────────────
+
+// ─────────────────────── Easter Egg Secrets ────────────────────────
+
+function EasterEggSecrets() {
+    const { discovered } = useEasterEggs()
+    const total = EASTER_EGG_DEFINITIONS.length
+    const found = EASTER_EGG_DEFINITIONS.filter(e => discovered.has(e.id))
+    const missing = EASTER_EGG_DEFINITIONS.filter(e => !discovered.has(e.id))
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Secret Discoveries</h3>
+                <span className="text-sm text-gray-400">{found.length} / {total} found</span>
+            </div>
+            {/* Progress bar */}
+            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-800">
+                <div
+                    className="h-2 rounded-full bg-gradient-to-r from-yellow-500 to-amber-400 transition-all duration-500"
+                    style={{ width: `${(found.length / total) * 100}%` }}
+                />
+            </div>
+            {/* Found eggs */}
+            {found.length > 0 && (
+                <div className="space-y-2">
+                    <h4 className="text-sm font-semibold text-yellow-400 uppercase tracking-wider">Found</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {found.map(egg => (
+                            <div
+                                key={egg.id}
+                                className="flex items-start gap-3 rounded-lg border border-yellow-500/20 bg-gray-900/60 p-3"
+                            >
+                                <span className="text-2xl">{egg.icon}</span>
+                                <div>
+                                    <p className="font-semibold text-white text-sm">{egg.name}</p>
+                                    <p className="text-xs text-gray-400">{egg.description}</p>
+                                    <p className="text-xs text-yellow-300 font-semibold mt-1">+{egg.xp} XP</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+            {/* Undiscovered eggs — shown as redacted */}
+            {missing.length > 0 && (
+                <div className="space-y-2">
+                    <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Undiscovered</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {missing.map(egg => (
+                            <div
+                                key={egg.id}
+                                className="flex items-start gap-3 rounded-lg border border-gray-700/40 bg-gray-900/30 p-3 opacity-50"
+                            >
+                                <span className="text-2xl grayscale">🥚</span>
+                                <div>
+                                    <p className="font-semibold text-gray-500 text-sm">???</p>
+                                    <p className="text-xs text-gray-600 italic">{egg.hint}</p>
+                                    <p className="text-xs text-gray-600 font-semibold mt-1">+{egg.xp} XP</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
 
 export function ActivityBuffBadge({ multiplier }: { multiplier: number }) {
     const isMax = multiplier >= 2.0
@@ -877,4 +978,73 @@ export function getLevelColor(level: number): { ring: string; glow: string; labe
     if (level >= 50) return { ring: "stroke-purple-400", glow: "shadow-purple-400/50", label: "text-purple-400" }
     if (level >= 20) return { ring: "stroke-blue-400", glow: "shadow-blue-400/50", label: "text-blue-400" }
     return { ring: "stroke-gray-400", glow: "shadow-gray-400/30", label: "text-gray-400" }
+}
+
+// ─────────────────────── Favorites Tab ───────────────────────
+
+function FavoritesTabContent() {
+    const { data: animeIds } = useGetAnimeFavorites()
+    const { data: mangaIds } = useGetMangaFavorites()
+    const { data: characterIds } = useGetCharacterFavorites()
+    const { data: staffIds } = useGetStaffFavorites()
+    const { data: studioIds } = useGetStudioFavorites()
+
+    const sections = [
+        { label: "Anime", ids: animeIds, type: "anime" as const },
+        { label: "Manga", ids: mangaIds, type: "manga" as const },
+        { label: "Characters", ids: characterIds, type: "character" as const },
+        { label: "Staff", ids: staffIds, type: "staff" as const },
+        { label: "Studios", ids: studioIds, type: "studio" as const },
+    ]
+
+    const totalCount = sections.reduce((acc, s) => acc + (s.ids?.length ?? 0), 0)
+
+    return (
+        <div className="space-y-8">
+            <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <LuHeart className="text-red-400" /> My Favorites
+                </h2>
+                <span className="text-sm text-[--muted]">{totalCount} total</span>
+            </div>
+            {sections.map((section) => (
+                <FavoriteSection key={section.type} label={section.label} ids={section.ids ?? []} type={section.type} />
+            ))}
+        </div>
+    )
+}
+
+function FavoriteSection({ label, ids, type }: { label: string; ids: number[]; type: "anime" | "manga" | "character" | "staff" | "studio" }) {
+    if (ids.length === 0) {
+        return (
+            <div className="space-y-2">
+                <h3 className="text-lg font-medium text-[--muted]">{label}</h3>
+                <p className="text-sm text-[--muted] italic">No {label.toLowerCase()} favorited yet</p>
+            </div>
+        )
+    }
+
+    const linkBase = type === "anime" ? "/entry?id=" :
+        type === "manga" ? "/manga/entry?id=" :
+        type === "character" ? "/character?id=" :
+        type === "staff" ? "/staff?id=" :
+        "/studio?id="
+
+    return (
+        <div className="space-y-3">
+            <h3 className="text-lg font-medium">{label} <span className="text-[--muted] text-sm">({ids.length})</span></h3>
+            <div className="flex flex-wrap gap-2">
+                {ids.map((id) => (
+                    <a
+                        key={id}
+                        href={`${linkBase}${id}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[--subtle] hover:bg-[--subtle-highlight] border border-[--border] text-sm transition-colors"
+                    >
+                        <LuHeart className="size-3 text-red-400" />
+                        <span>#{id}</span>
+                    </a>
+                ))}
+            </div>
+        </div>
+    )
 }

@@ -12,6 +12,7 @@ import { MetaSection } from "@/app/(main)/entry/_components/meta-section"
 import { SyntheticAnimeEntryPage } from "@/app/(main)/entry/_containers/synthetic-anime-entry-page"
 import { CommentSection } from "@/app/(main)/_features/comment/comment-section"
 import { RelationsRecommendationsSection } from "@/app/(main)/entry/_components/relations-recommendations-section"
+import { AnimeThemesSection } from "@/app/(main)/entry/_components/anime-themes-section"
 import { DebridStreamPage } from "@/app/(main)/entry/_containers/debrid-stream/debrid-stream-page"
 import { EpisodeSection } from "@/app/(main)/entry/_containers/episode-list/episode-section"
 import { __torrentSearch_selectionAtom, TorrentSearchDrawer } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-drawer"
@@ -297,10 +298,11 @@ export function AnimeEntryPage() {
                                 details={animeDetails}
                                 bottomSection={<>
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
+                                    <AnimeThemesSection malId={animeEntry.media?.idMal} />
                                     <MediaEntryCharactersSection details={animeDetails} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                     <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
-                                </>}
+                                </>
                             />
                         </PageWrapper>}
 
@@ -309,10 +311,11 @@ export function AnimeEntryPage() {
                                 entry={animeEntry}
                                 bottomSection={<>
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
+                                    <AnimeThemesSection malId={animeEntry.media?.idMal} />
                                     <MediaEntryCharactersSection details={animeDetails} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                     <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
-                                </>}
+                                </>
                             />}
 
                         {currentView === "debridstream" &&
@@ -320,10 +323,11 @@ export function AnimeEntryPage() {
                                 entry={animeEntry}
                                 bottomSection={<>
                                     <PluginWebviewSlot slot="after-anime-entry-episode-list" />
+                                    <AnimeThemesSection malId={animeEntry.media?.idMal} />
                                     <MediaEntryCharactersSection details={animeDetails} />
                                     <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                     <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />
-                                </>}
+                                </>
                             />}
 
                         {currentView === "onlinestream" && <PageWrapper
@@ -361,6 +365,7 @@ export function AnimeEntryPage() {
                                 {/*    animeEntryLoading={animeEntryLoading}*/}
                                 {/*    hideBackButton*/}
                                 {/*/>*/}
+                                <AnimeThemesSection malId={animeEntry.media?.idMal} />
                                 <MediaEntryCharactersSection details={animeDetails} />
                                 <RelationsRecommendationsSection entry={animeEntry} details={animeDetails} />
                                 <CommentSection mediaId={animeEntry.mediaId} mediaType="anime" />

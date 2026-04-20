@@ -25,8 +25,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Cookie", "Authorization",
-			"X-Seanime-Token", "X-Seanime-Profile-Token", "X-Seanime-Nakama-Token", "X-Seanime-Nakama-Username", "X-Seanime-Nakama-Server-Version", "X-Seanime-Nakama-Peer-Id"},
-		ExposeHeaders:    []string{"X-Seanime-Profile-Token", "X-Seanime-Profile-Expired"},
+			"X-Seanime-Token", "X-Seanime-Profile-Token", "X-Seanime-Nakama-Token", "X-Seanime-Nakama-Username", "X-Seanime-Nakama-Server-Version", "X-Seanime-Nakama-Peer-Id", "X-CSRF-Token"},
+		ExposeHeaders:    []string{"X-Seanime-Profile-Token", "X-Seanime-Profile-Expired", "X-CSRF-Token"},
 		AllowCredentials: true,
 	}))
 
@@ -89,11 +89,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 				newCookie := new(http.Cookie)
 				newCookie.Name = "Seanime-Client-Id"
 				newCookie.Value = u
-				newCookie.HttpOnly = false // Make the cookie accessible via JS
+				newCookie.HttpOnly = true
 				newCookie.Expires = time.Now().Add(24 * time.Hour)
 				newCookie.Path = "/"
 				newCookie.Domain = ""
-				newCookie.SameSite = http.SameSiteDefaultMode
+				newCookie.SameSite = http.SameSiteLaxMode
 				newCookie.Secure = false
 
 				// Set the cookie
@@ -112,6 +112,13 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	e.Use(headMethodMiddleware)
 
+	// Secure headers middleware (always-on)
+	e.Use(SecureHeadersMiddleware)
+
+	// Rate limiting middleware (30 requests per minute per client session)
+	rateLimiter := NewRateLimiter(30, 1*time.Minute)
+	e.Use(RateLimitMiddleware(rateLimiter))
+
 	h := &Handler{App: app}
 
 	e.GET("/events", h.webSocketEventHandler)
@@ -124,6 +131,9 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.Use(h.OptionalAuthMiddleware)
 	v1.Use(h.FeaturesMiddleware)
 	v1.Use(h.ProfileSessionMiddleware)
+
+	// CSRF protection for state-changing requests
+	v1.Use(CSRFMiddleware)
 
 	imageProxy := &util.ImageProxy{}
 	v1.GET("/image-proxy", imageProxy.ProxyImage)
@@ -138,6 +148,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/status/home-items", h.HandleUpdateHomeItems)
 	v1.GET("/status/manga-home-items", h.HandleGetMangaHomeItems)
 	v1.POST("/status/manga-home-items", h.HandleUpdateMangaHomeItems)
+
+	v1.GET("/anime-themes/:id", h.HandleGetAnimeThemes)
 
 	v1.GET("/log/*", h.HandleGetLogContent)
 	v1.GET("/logs/filenames", h.HandleGetLogFilenames)
@@ -255,6 +267,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	v1Anilist.GET("/staff-details/:id", h.HandleGetAnilistStaffDetails)
 
+	v1Anilist.GET("/character-details/:id", h.HandleGetAnilistCharacterDetails)
+
 	v1Anilist.POST("/list-entry", h.HandleEditAnilistListEntry)
 
 	v1Anilist.DELETE("/list-entry", h.HandleDeleteAnilistListEntry)
@@ -270,6 +284,18 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Anilist.GET("/cache-layer/status", h.HandleGetAnilistCacheLayerStatus)
 
 	v1Anilist.POST("/cache-layer/status", h.HandleToggleAnilistCacheLayerStatus)
+
+	// Character Favorites (per-profile)
+	v1.GET("/character/favorites", h.HandleGetCharacterFavorites)
+	v1.POST("/character/favorites/toggle", h.HandleToggleCharacterFavorite)
+
+	// Staff Favorites (per-profile)
+	v1.GET("/staff/favorites", h.HandleGetStaffFavorites)
+	v1.POST("/staff/favorites/toggle", h.HandleToggleStaffFavorite)
+
+	// Studio Favorites (per-profile)
+	v1.GET("/studio/favorites", h.HandleGetStudioFavorites)
+	v1.POST("/studio/favorites/toggle", h.HandleToggleStudioFavorite)
 
 	//
 	// MAL
@@ -747,6 +773,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.GET("/profile/user/:id/stats", h.HandleGetUserProfileStats)
 	v1.PATCH("/profile/bio", h.HandleUpdateBio)
 	v1.GET("/profile/level", h.HandleGetLevel)
+	v1.POST("/profile/easter-egg", h.HandleDiscoverEasterEgg)
 
 	// Community
 	v1.GET("/community/profiles", h.HandleGetCommunityProfiles)

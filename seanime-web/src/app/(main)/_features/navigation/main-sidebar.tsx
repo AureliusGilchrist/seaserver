@@ -470,6 +470,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                     src="/seanime-logo.png"
                     alt="logo"
                     className="w-15 h-10 transition-all duration-300"
+                    data-easter-egg="logo"
                 />
             </div>
             <VerticalMenu
@@ -759,7 +760,7 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
                             { "hidden": ctx.isBelowBreakpoint },
                         )}
                     >
-                        <Avatar size="sm" className="cursor-pointer" src={user?.viewer?.avatar?.medium || undefined} />
+                        <span data-easter-egg="user-avatar"><Avatar size="sm" className="cursor-pointer" src={user?.viewer?.avatar?.medium || undefined} /></span>
                         {expandedSidebar && <p className="truncate text-sm text-[--muted]">{user?.viewer?.name}</p>}
                     </div>}
                     open={dropdownOpen}
