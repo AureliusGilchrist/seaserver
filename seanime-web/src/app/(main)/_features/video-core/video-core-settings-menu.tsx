@@ -240,6 +240,7 @@ export function VideoCoreSettingsMenu() {
     )
 
     const [editedSubtitleDelay, setEditedSubtitleDelay] = useState(settings.subtitleDelay ?? 0)
+    const [editedAudioDelay, setEditedAudioDelay] = useState(settings.audioDelay ?? 0)
 
     const [subFontName, setSubFontName] = useState<string>(editedSubCustomization?.fontName || "")
 
@@ -252,6 +253,9 @@ export function VideoCoreSettingsMenu() {
         }
         if (openMenuSection === "Subtitle Delay") {
             setEditedSubtitleDelay(settings.subtitleDelay)
+        }
+        if (openMenuSection === "Audio Delay") {
+            setEditedAudioDelay(settings.audioDelay ?? 0)
         }
     }, [openMenuSection, settings])
 
@@ -315,6 +319,15 @@ export function VideoCoreSettingsMenu() {
         mediaCaptionsManager?.updateSettings(newSettings)
     }
 
+    const handleAudioDelayChange = (delay: number): void => {
+        setEditedAudioDelay(delay)
+        const newSettings = {
+            ...settings,
+            audioDelay: delay,
+        }
+        setSettings(newSettings)
+    }
+
     if (isMiniPlayer) return null
 
     return (
@@ -357,6 +370,11 @@ export function VideoCoreSettingsMenu() {
                         icon={MdOutlineAccessTime}
                         value={`${settings.subtitleDelay.toFixed(1)}s`}
                     />}
+                    <VideoCoreMenuOption
+                        title="Audio Delay"
+                        icon={MdOutlineAccessTime}
+                        value={`${(settings.audioDelay ?? 0).toFixed(1)}s`}
+                    />
                     {subtitleManager && <VideoCoreMenuOption
                         title="Subtitle Styles"
                         icon={MdOutlineSubtitles}
@@ -515,6 +533,61 @@ export function VideoCoreSettingsMenu() {
                                 handleSubtitleDelayChange(v)
                             }}
                             value={[-2.0, -1.0, -0.5, 0, 0.5, 0.1, 2.0].includes(editedSubtitleDelay) ? editedSubtitleDelay : null}
+                        />
+                    </VideoCoreMenuOption>
+                    <VideoCoreMenuOption title="Audio Delay" icon={MdOutlineAccessTime}>
+                        <p className="text-sm text-[--muted] mb-2">Adjust audio sync offset. Positive values delay audio, negative values advance it.</p>
+                        <div className="flex gap-1.5 items-center mt-3">
+                            <Button
+                                className="px-1 !text-xs flex-1"
+                                intent="gray-subtle"
+                                size="sm"
+                                onClick={() => handleAudioDelayChange(parseFloat((editedAudioDelay - 0.5).toFixed(1)))}
+                            >
+                                −0.5
+                            </Button>
+                            <Button
+                                className="px-1 !text-xs flex-1"
+                                intent="gray-subtle"
+                                size="sm"
+                                onClick={() => handleAudioDelayChange(parseFloat((editedAudioDelay - 0.1).toFixed(1)))}
+                            >
+                                −0.1
+                            </Button>
+                            <span className="text-sm text-center text-[--muted] px-1 flex-1">
+                                {editedAudioDelay.toFixed(1)}s
+                            </span>
+                            <Button
+                                className="px-1 !text-xs flex-1"
+                                intent="gray-subtle"
+                                size="sm"
+                                onClick={() => handleAudioDelayChange(parseFloat((editedAudioDelay + 0.1).toFixed(1)))}
+                            >
+                                +0.1
+                            </Button>
+                            <Button
+                                className="px-1 !text-xs flex-1"
+                                intent="gray-subtle"
+                                size="sm"
+                                onClick={() => handleAudioDelayChange(parseFloat((editedAudioDelay + 0.5).toFixed(1)))}
+                            >
+                                +0.5
+                            </Button>
+                        </div>
+                        <VideoCoreSettingSelect
+                            options={[
+                                { label: "-2.0s", value: -2.0 },
+                                { label: "-1.0s", value: -1.0 },
+                                { label: "-0.5s", value: -0.5 },
+                                { label: "0s", value: 0 },
+                                { label: "0.5s", value: 0.5 },
+                                { label: "1.0s", value: 1.0 },
+                                { label: "2.0s", value: 2.0 },
+                            ]}
+                            onValueChange={(v: number) => {
+                                handleAudioDelayChange(v)
+                            }}
+                            value={[-2.0, -1.0, -0.5, 0, 0.5, 1.0, 2.0].includes(editedAudioDelay) ? editedAudioDelay : null}
                         />
                     </VideoCoreMenuOption>
                     <VideoCoreMenuOption title="Playback Speed" icon={MdSpeed}>

@@ -1707,6 +1707,24 @@ export const API_ENDPOINTS = {
     MEDIASTREAM: {
         /**
          *  @description
+         *  Returns all per-media track preferences for the current profile.
+         */
+        GetTrackPreferences: {
+            key: "MEDIASTREAM-get-track-preferences",
+            methods: ["GET"],
+            endpoint: "/api/v1/mediastream/track-preferences",
+        },
+        /**
+         *  @description
+         *  Creates or updates a per-media track preference.
+         */
+        UpsertTrackPreference: {
+            key: "MEDIASTREAM-upsert-track-preference",
+            methods: ["POST"],
+            endpoint: "/api/v1/mediastream/track-preferences",
+        },
+        /**
+         *  @description
          *  Route get mediastream settings.
          *  This returns the mediastream settings.
          */
@@ -2976,6 +2994,11 @@ export const API_ENDPOINTS = {
             methods: ["GET"],
             endpoint: "/api/v1/profile/level",
         },
+        GetTimeline: {
+            key: "PROFILE-PAGE-get-timeline",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/timeline",
+        },
     },
     COMMUNITY: {
         GetCommunityProfiles: {
@@ -2987,6 +3010,17 @@ export const API_ENDPOINTS = {
             key: "COMMUNITY-get-activity-feed",
             methods: ["GET"],
             endpoint: "/api/v1/community/feed",
+        },
+    },
+    MILESTONE: {
+        /**
+         *  @description
+         *  Route returns all milestone definitions and achieved milestones globally.
+         */
+        GetMilestones: {
+            key: "MILESTONE-get-milestones",
+            methods: ["GET"],
+            endpoint: "/api/v1/milestones",
         },
     },
 } satisfies ApiEndpoints

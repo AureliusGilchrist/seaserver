@@ -2303,6 +2303,80 @@ export type Handlers_ShowcaseEntry = {
     definition?: Achievement_Definition
 }
 
+export type Handlers_TimelineEvent = {
+    id: number
+    eventType: string
+    mediaId: number
+    metadata: string
+    createdAt: string
+    mediaTitle?: string
+    mediaImage?: string
+    mediaType: string
+}
+
+export type Handlers_TimelineResponse = {
+    events: Array<Handlers_TimelineEvent>
+    page: number
+    hasMore: boolean
+    total: number
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Milestone
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export type Milestone_Category = "hours_watched" | "episodes_watched" | "chapters_read" | "series_completed" | "library_files" | "genres_explored" | "days_active" | "achievements_unlocked"
+
+export type Milestone_CategoryInfo = {
+    key: Milestone_Category
+    name: string
+    description: string
+    iconSVG: string
+}
+
+export type Milestone_Definition = {
+    key: string
+    name: string
+    category: Milestone_Category
+    threshold: number
+    iconSVG: string
+}
+
+export type Milestone_FirstToAchieveDefinition = {
+    key: string
+    name: string
+    category: Milestone_Category
+    threshold: number
+    iconSVG: string
+}
+
+export type Milestone_AchievedMilestone = {
+    key: string
+    category: string
+    tier: number
+    isFirstToAchieve: boolean
+    profileId: number
+    profileName: string
+    achievedAt?: string
+}
+
+export type Milestone_ListResponse = {
+    definitions: Array<Milestone_Definition>
+    firstToAchieve: Array<Milestone_FirstToAchieveDefinition>
+    categories: Array<Milestone_CategoryInfo>
+    achieved: Array<Milestone_AchievedMilestone>
+}
+
+export type Milestone_UnlockPayload = {
+    key: string
+    name: string
+    category: string
+    threshold: number
+    iconSVG: string
+    isFirstToAchieve: boolean
+    profileName: string
+}
+
 /**
  * - Filepath: internal/handlers/community.go
  * - Package: handlers

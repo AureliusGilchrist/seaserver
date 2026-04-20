@@ -97,6 +97,7 @@ import { VideoCoreSubtitleManager } from "@/app/(main)/_features/video-core/vide
 import { vc_timeRangeElement, VideoCoreTimeRange } from "@/app/(main)/_features/video-core/video-core-time-range"
 import { VideoCoreTopPlaybackInfo, VideoCoreTopSection } from "@/app/(main)/_features/video-core/video-core-top-section"
 import { VideoCoreWatchPartyChat } from "@/app/(main)/_features/video-core/video-core-watch-party-chat"
+import { useTrackPreferenceSync } from "@/app/(main)/_features/video-core/video-core-track-sync"
 import {
     vc_autoNextAtom,
     vc_autoPlayVideoAtom,
@@ -697,6 +698,9 @@ export function VideoCore(props: VideoCoreProps) {
         dispatchTranslateTextEvent,
         dispatchTranslateSubtitleTrackEvent,
     } = useVideoCoreSetupEvents(props.id, state, videoRef, onTerminateStream)
+
+    // Sync per-media track preferences with server
+    useTrackPreferenceSync()
 
     const { width: windowWidth } = useWindowSize()
     const [isMobilePlayer, setIsMobilePlayer] = useAtom(vc_isMobile)

@@ -309,6 +309,13 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             addon: achievementUnlockedCount > 0 ? <Badge className="absolute right-0 top-0 bg-amber-500" size="sm" intent="alert-solid">{achievementUnlockedCount}</Badge> : undefined,
         },
         {
+            id: "milestones",
+            iconType: LuFlag,
+            name: "Milestones",
+            href: "/milestones",
+            isCurrent: pathname === "/milestones",
+        },
+        {
             id: "search",
             iconType: FiSearch,
             name: "Search",

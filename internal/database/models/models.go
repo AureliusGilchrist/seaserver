@@ -794,6 +794,35 @@ type AdminAnnouncement struct {
 
 ///////////////////////////////////////////////////////////////////////////
 
+// GlobalMilestone tracks a milestone achievement in the main (global) database.
+// Individual milestones: one row per (profileID, key) pair.
+// First-to-achieve milestones: one row per key, first profile to reach it wins.
+type GlobalMilestone struct {
+	BaseModel
+	Key             string     `gorm:"column:key;index" json:"key"`                                         // e.g. "hours_watched_5000"
+	Category        string     `gorm:"column:category;index" json:"category"`                               // e.g. "hours_watched"
+	Tier            int        `gorm:"column:tier" json:"tier"`                                             // tier threshold value (10, 50, 100, 500, 1000, 5000)
+	IsFirstToAchieve bool      `gorm:"column:is_first_to_achieve;default:false" json:"isFirstToAchieve"`   // true for race milestones
+	ProfileID       uint       `gorm:"column:profile_id;index" json:"profileId"`                            // who achieved it
+	ProfileName     string     `gorm:"column:profile_name" json:"profileName"`                              // cached name for display
+	AchievedAt      *time.Time `gorm:"column:achieved_at" json:"achievedAt,omitempty"`                      // when achieved
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+// TrackPreference stores per-media audio/subtitle track overrides for the profile.
+// MediaID is the AniList media ID as a string key.
+type TrackPreference struct {
+	BaseModel
+	MediaID          string `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
+	AudioLanguage    string `gorm:"column:audio_language" json:"audioLanguage,omitempty"`
+	AudioCodecID     string `gorm:"column:audio_codec_id" json:"audioCodecId,omitempty"`
+	SubtitleLanguage string `gorm:"column:subtitle_language" json:"subtitleLanguage,omitempty"`
+	SubtitleCodecID  string `gorm:"column:subtitle_codec_id" json:"subtitleCodecId,omitempty"`
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 type StringSlice []string
 
 func (o *StringSlice) Scan(src interface{}) error {

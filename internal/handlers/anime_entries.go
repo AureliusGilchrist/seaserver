@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/platforms/shared_platform"
@@ -786,14 +787,30 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 
 		// Determine status based on progress
 		status := anilist.MediaListStatusCurrent
-		if b.TotalEpisodes > 0 && b.EpisodeNumber >= b.TotalEpisodes {
+		isCompleted := b.TotalEpisodes > 0 && b.EpisodeNumber >= b.TotalEpisodes
+		if isCompleted {
 			status = anilist.MediaListStatusCompleted
 		}
-		_, err := profileClient.UpdateMediaListEntryProgress(
+
+		// Auto-set startedAt on first progress, completedAt on completion
+		now := time.Now()
+		year, monthVal, day := now.Year(), int(now.Month()), now.Day()
+		var startedAt, completedAt *anilist.FuzzyDateInput
+		if b.EpisodeNumber == 1 {
+			startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+		}
+		if isCompleted {
+			completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+		}
+
+		_, err := profileClient.UpdateMediaListEntry(
 			c.Request().Context(),
 			&b.MediaId,
-			&b.EpisodeNumber,
 			&status,
+			nil, // scoreRaw
+			&b.EpisodeNumber,
+			startedAt,
+			completedAt,
 		)
 		if err != nil {
 			return h.RespondWithError(c, err)
@@ -835,6 +852,13 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 				"totalEpisodes": b.TotalEpisodes,
 				"duration":      minutes,
 			})
+		}
+	}()
+
+	// Evaluate milestones after activity is recorded
+	go func() {
+		if h.App.MilestoneEngine != nil {
+			h.App.MilestoneEngine.EvaluateProfile(h.GetProfileID(c))
 		}
 	}()
 

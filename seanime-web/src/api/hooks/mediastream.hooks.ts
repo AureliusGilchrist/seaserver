@@ -64,3 +64,29 @@ export function useMediastreamShutdownTranscodeStream() {
         },
     })
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Per-media track preferences (server-synced)
+// ──────────────────────────────────────────────────────────────────────────────
+
+import { PerMediaTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
+
+export function useGetTrackPreferences() {
+    return useServerQuery<Record<string, PerMediaTrackOverride>>({
+        endpoint: API_ENDPOINTS.MEDIASTREAM.GetTrackPreferences.endpoint,
+        method: API_ENDPOINTS.MEDIASTREAM.GetTrackPreferences.methods[0],
+        queryKey: [API_ENDPOINTS.MEDIASTREAM.GetTrackPreferences.key],
+    })
+}
+
+export function useUpsertTrackPreference() {
+    const qc = useQueryClient()
+    return useServerMutation<boolean, { mediaId: string } & PerMediaTrackOverride>({
+        endpoint: API_ENDPOINTS.MEDIASTREAM.UpsertTrackPreference.endpoint,
+        method: API_ENDPOINTS.MEDIASTREAM.UpsertTrackPreference.methods[0],
+        mutationKey: [API_ENDPOINTS.MEDIASTREAM.UpsertTrackPreference.key],
+        onSuccess: async () => {
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MEDIASTREAM.GetTrackPreferences.key] })
+        },
+    })
+}

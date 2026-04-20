@@ -1,12 +1,15 @@
-import { useServerQuery, useServerMutation } from "@/api/client/requests"
+import { useServerQuery, useServerMutation, buildSeaQuery } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import {
     Handlers_ActivityFeedEntry,
     Handlers_CommunityResponse,
     Handlers_LevelResponse,
     Handlers_ProfilePageResponse,
+    Handlers_TimelineResponse,
 } from "@/api/generated/types"
-import { useQueryClient } from "@tanstack/react-query"
+import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
+import { useAtomValue } from "jotai/react"
 import { toast } from "sonner"
 
 export function useGetCommunityProfiles() {
@@ -59,6 +62,26 @@ export function useUpdateBio() {
         onSuccess: async () => {
             await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.PROFILE_PAGE.GetMyProfile.key] })
             toast.success("Bio updated")
+        },
+    })
+}
+
+export function useGetTimeline(pageSize = 50) {
+    const password = useAtomValue(serverAuthTokenAtom)
+    return useInfiniteQuery({
+        queryKey: [API_ENDPOINTS.PROFILE_PAGE.GetTimeline.key, pageSize],
+        initialPageParam: 1,
+        queryFn: async ({ pageParam }) => {
+            return buildSeaQuery<Handlers_TimelineResponse>({
+                endpoint: API_ENDPOINTS.PROFILE_PAGE.GetTimeline.endpoint,
+                method: "GET",
+                params: { page: pageParam, pageSize },
+                password: password,
+            })
+        },
+        getNextPageParam: (lastPage) => {
+            if (!lastPage?.hasMore) return undefined
+            return lastPage.page + 1
         },
     })
 }

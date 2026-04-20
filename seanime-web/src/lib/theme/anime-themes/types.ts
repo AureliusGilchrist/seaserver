@@ -1,6 +1,67 @@
 import type React from "react"
 
-export type AnimeThemeId = "seanime" | "naruto" | "bleach" | "one-piece"
+export type AnimeThemeId =
+    | "seanime"
+    | "naruto"
+    | "bleach"
+    | "one-piece"
+    // ── Shonen / Action ──
+    | "dragon-ball-z"
+    | "attack-on-titan"
+    | "my-hero-academia"
+    | "demon-slayer"
+    | "jujutsu-kaisen"
+    | "fullmetal-alchemist"
+    | "hunter-x-hunter"
+    | "black-clover"
+    | "fairy-tail"
+    | "sword-art-online"
+    | "death-note"
+    | "code-geass"
+    | "tokyo-ghoul"
+    | "mob-psycho-100"
+    | "one-punch-man"
+    // ── Isekai / Fantasy ──
+    | "re-zero"
+    | "konosuba"
+    | "mushoku-tensei"
+    | "slime-isekai"
+    | "overlord"
+    // ── Romance / Slice of Life ──
+    | "your-name"
+    | "violet-evergarden"
+    | "toradora"
+    | "spy-x-family"
+    | "bocchi-the-rock"
+    // ── Mecha / Sci-Fi ──
+    | "evangelion"
+    | "steins-gate"
+    | "cowboy-bebop"
+    | "psycho-pass"
+    | "ghost-in-the-shell"
+    // ── Dark / Seinen ──
+    | "berserk"
+    | "vinland-saga"
+    | "chainsaw-man"
+    | "made-in-abyss"
+    | "parasyte"
+    // ── Sports / Other ──
+    | "haikyuu"
+    | "frieren"
+    | "dandadan"
+    | "dr-stone"
+    | "fire-force"
+    // ── Manga ──
+    | "solo-leveling"
+    | "tower-of-god"
+    | "vagabond"
+    | "20th-century-boys"
+    | "monster"
+    | "goodnight-punpun"
+    | "slam-dunk"
+    | "akira"
+    | "gantz"
+    | "dorohedoro"
 
 export type SidebarItemOverride = {
     icon: React.ComponentType<{ className?: string }>

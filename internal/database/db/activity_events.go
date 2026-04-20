@@ -38,6 +38,18 @@ func (db *Database) GetActivityEvents(since time.Time, limit int, eventType stri
 	return events, err
 }
 
+// GetActivityEventsPaginated returns activity events with offset-based pagination, newest first.
+// Returns events and total count for has-more calculation.
+func (db *Database) GetActivityEventsPaginated(page, pageSize int) ([]*models.ActivityEvent, int64, error) {
+	var total int64
+	db.gormdb.Model(&models.ActivityEvent{}).Count(&total)
+
+	var events []*models.ActivityEvent
+	offset := (page - 1) * pageSize
+	err := db.gormdb.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&events).Error
+	return events, total, err
+}
+
 // PruneActivityEvents deletes activity events older than the given duration.
 func (db *Database) PruneActivityEvents(maxAge time.Duration) error {
 	cutoff := time.Now().Add(-maxAge)

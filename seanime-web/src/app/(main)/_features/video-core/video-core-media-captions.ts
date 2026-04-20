@@ -104,6 +104,7 @@ export class MediaCaptionsManager extends EventTarget {
     private overlayElement: HTMLDivElement | null = null
     private currentTrackIndex: number = NO_TRACK_IDX
     private timeUpdateListener: (() => void) | null = null
+    private seekedListener: (() => void) | null = null
     private readonly settings: VideoCoreSettings
     private captionCustomization: VideoCoreSettings["captionCustomization"]
     private subtitleDelay = 0
@@ -448,6 +449,11 @@ export class MediaCaptionsManager extends EventTarget {
             this.timeUpdateListener = null
         }
 
+        if (this.seekedListener) {
+            this.videoElement.removeEventListener("seeked", this.seekedListener)
+            this.seekedListener = null
+        }
+
         if (this.renderer) {
             this.renderer.destroy()
             this.renderer = null
@@ -661,6 +667,15 @@ export class MediaCaptionsManager extends EventTarget {
             }
         }
         this.videoElement.addEventListener("timeupdate", this.timeUpdateListener)
+
+        // Immediately resync subtitles after any seek (especially OP/ED skip)
+        // so there's no delay waiting for the next ~4Hz timeupdate tick
+        this.seekedListener = () => {
+            if (this.renderer && this.currentTrackIndex !== NO_TRACK_IDX) {
+                this.renderer.currentTime = this.videoElement.currentTime + (-this.subtitleDelay)
+            }
+        }
+        this.videoElement.addEventListener("seeked", this.seekedListener)
         this._onTracksLoaded?.(this.getTracks())
 
         const event: MediaCaptionsTracksLoadedEvent = new CustomEvent("tracksloaded", { detail: { tracks: this.getTracks() } })

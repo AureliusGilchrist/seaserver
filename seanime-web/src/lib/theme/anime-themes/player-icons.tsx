@@ -296,3 +296,108 @@ export const onePiecePlayerIcons: PlayerIconOverrides = {
     skipForward: OnePieceSkipForward,
     skipBack: OnePieceSkipBack,
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Dragon Ball Z Icons — Ki blast / energy / power-up inspired
+// ─────────────────────────────────────────────────────────────────
+
+const DBZPlay: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        {/* Ki blast play triangle */}
+        <path d="M6 2 L22 12 L6 22 Z" />
+        {/* Energy core glow */}
+        <circle cx="10" cy="12" r="2" fill="currentColor" opacity="0.4" />
+    </svg>
+)
+
+const DBZPause: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        {/* Power stance pause bars */}
+        <rect x="4" y="2" width="5" height="20" rx="1" />
+        <rect x="15" y="2" width="5" height="20" rx="1" />
+        {/* Energy aura accents */}
+        <line x1="6.5" y1="2" x2="6.5" y2="0" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
+        <line x1="17.5" y1="2" x2="17.5" y2="0" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
+    </svg>
+)
+
+const DBZVolumeHigh: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        <path d="M3 9v6h4l5 5V4L7 9H3z" />
+        {/* Ki energy waves */}
+        <path d="M16 6 C19 8 19 16 16 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M19 4 C23 7 23 17 19 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+)
+
+const DBZVolumeMid: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        <path d="M3 9v6h4l5 5V4L7 9H3z" />
+        <path d="M16 6 C19 8 19 16 16 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+)
+
+const DBZVolumeLow: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        <path d="M3 9v6h4l5 5V4L7 9H3z" />
+    </svg>
+)
+
+const DBZVolumeMuted: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        <path d="M3 9v6h4l5 5V4L7 9H3z" />
+        {/* X-shaped ki cancel */}
+        <line x1="16" y1="9" x2="22" y2="15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        <line x1="22" y1="9" x2="16" y2="15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+)
+
+const DBZFullscreenEnter: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={cn("size-[1em]", className)}>
+        {/* Power-up expanding aura */}
+        <polyline points="3,8 3,3 8,3" />
+        <polyline points="21,8 21,3 16,3" />
+        <polyline points="3,16 3,21 8,21" />
+        <polyline points="21,16 21,21 16,21" />
+        {/* Dragon Ball star */}
+        <circle cx="12" cy="12" r="2.5" strokeWidth="1.2" opacity="0.4" />
+        <circle cx="12" cy="12" r="1" fill="currentColor" opacity="0.3" />
+    </svg>
+)
+
+const DBZFullscreenExit: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={cn("size-[1em]", className)}>
+        <polyline points="8,3 8,8 3,8" />
+        <polyline points="16,3 16,8 21,8" />
+        <polyline points="8,21 8,16 3,16" />
+        <polyline points="16,21 16,16 21,16" />
+    </svg>
+)
+
+const DBZSkipForward: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        {/* Instant Transmission forward */}
+        <path d="M4 4 L14 12 L4 20 Z" />
+        <path d="M13 4 L23 12 L13 20 Z" opacity="0.65" />
+    </svg>
+)
+
+const DBZSkipBack: React.FC<{ className?: string }> = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-[1em]", className)}>
+        <path d="M20 4 L10 12 L20 20 Z" />
+        <path d="M11 4 L1 12 L11 20 Z" opacity="0.65" />
+    </svg>
+)
+
+export const dragonBallZPlayerIcons: PlayerIconOverrides = {
+    play: DBZPlay,
+    pause: DBZPause,
+    volumeHigh: DBZVolumeHigh,
+    volumeMid: DBZVolumeMid,
+    volumeLow: DBZVolumeLow,
+    volumeMuted: DBZVolumeMuted,
+    fullscreenEnter: DBZFullscreenEnter,
+    fullscreenExit: DBZFullscreenExit,
+    skipForward: DBZSkipForward,
+    skipBack: DBZSkipBack,
+}

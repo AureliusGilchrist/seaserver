@@ -525,6 +525,9 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.PATCH("/mediastream/settings", h.HandleSaveMediastreamSettings)
 	v1.POST("/mediastream/request", h.HandleRequestMediastreamMediaContainer)
 	v1.POST("/mediastream/preload", h.HandlePreloadMediastreamMediaContainer)
+	// Track preferences
+	v1.GET("/mediastream/track-preferences", h.HandleGetTrackPreferences)
+	v1.POST("/mediastream/track-preferences", h.HandleUpsertTrackPreference)
 	// Transcode
 	v1.POST("/mediastream/shutdown-transcode", h.HandleMediastreamShutdownTranscodeStream)
 	v1.GET("/mediastream/transcode/:clientId/*", h.HandleMediastreamTranscode)
@@ -752,6 +755,12 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// Activity events
 	v1.GET("/activity-events", h.HandleGetActivityEvents)
 	v1.POST("/activity/backfill", h.HandleBackfillActivity)
+
+	// Timeline
+	v1.GET("/profile/timeline", h.HandleGetTimeline)
+
+	// Milestones (global)
+	v1.GET("/milestones", h.HandleGetMilestones)
 
 	// AniList profile sync
 	v1.POST("/profile/sync-anilist", h.HandleSyncAniListProfile)

@@ -1,6 +1,6 @@
 import { vc_subtitleManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_mediaCaptionsManager } from "@/app/(main)/_features/video-core/video-core"
-import { vc_perMediaTrackOverrides } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_menuOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_menuSectionOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -31,7 +31,7 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const containerElement = useAtomValue(vc_containerElement)
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
-    const setPerMediaOverrides = useSetAtom(vc_perMediaTrackOverrides)
+    const saveTrackOverride = useAtomValue(vc_saveTrackOverride)
 
     const setMenuOpen = useSetAtom(vc_menuOpen)
     const setMenuSectionOpen = useSetAtom(vc_menuSectionOpen)
@@ -160,11 +160,8 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                             setSelectedTrack(null)
                             // Save "none" subtitle preference
                             const mediaId = playbackInfo?.media?.id
-                            if (mediaId) {
-                                setPerMediaOverrides(prev => ({
-                                    ...prev,
-                                    [String(mediaId)]: { ...prev[String(mediaId)], subtitleLanguage: "none" },
-                                }))
+                            if (mediaId && saveTrackOverride) {
+                                saveTrackOverride(String(mediaId), { subtitleLanguage: "none" })
                             }
                             return
                         }
@@ -177,16 +174,13 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
 
                         // Save per-media subtitle language + codec override
                         const mediaId = playbackInfo?.media?.id
-                        if (mediaId) {
+                        if (mediaId && saveTrackOverride) {
                             const subTrack = subtitleTracks.find(t => t.number === value)
                             const captionTrack = mediaCaptionsTracks.find(t => t.number === value)
                             const lang = subTrack?.language || captionTrack?.language
                             const codecID = subTrack?.codecID
                             if (lang) {
-                                setPerMediaOverrides(prev => ({
-                                    ...prev,
-                                    [String(mediaId)]: { ...prev[String(mediaId)], subtitleLanguage: lang, subtitleCodecID: codecID },
-                                }))
+                                saveTrackOverride(String(mediaId), { subtitleLanguage: lang, subtitleCodecID: codecID })
                             }
                         }
                     }}

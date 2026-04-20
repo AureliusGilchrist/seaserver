@@ -74,6 +74,7 @@ export const enum WSEvents {
     PLAYLIST = "playlist",
     NOTIFICATION_CREATED = "notification-created",
     ACHIEVEMENT_UNLOCKED = "achievement-unlocked",
+    MILESTONE_ACHIEVED = "milestone-achieved",
     MANGA_SCAN_PROGRESS = "manga-scan-progress",
     MANGA_SCAN_COMPLETED = "manga-scan-completed",
 }

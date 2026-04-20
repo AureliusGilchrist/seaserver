@@ -1,6 +1,6 @@
 import { MKVParser_TrackInfo } from "@/api/generated/types"
 import { vc_audioManager } from "@/app/(main)/_features/video-core/video-core"
-import { vc_perMediaTrackOverrides } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
 
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -26,7 +26,7 @@ export function VideoCoreAudioMenu() {
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const containerElement = useAtomValue(vc_containerElement)
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
-    const setPerMediaOverrides = useSetAtom(vc_perMediaTrackOverrides)
+    const saveTrackOverride = useAtomValue(vc_saveTrackOverride)
     const requestTranscodeForAudio = useAtomValue(vc_requestTranscodeForAudio)
 
     // Get MKV audio tracks
@@ -119,7 +119,7 @@ export function VideoCoreAudioMenu() {
                     onValueChange={(value: number) => {
                         // Save per-media audio language + codec override FIRST so it persists across the stream switch
                         const mediaId = playbackInfo?.media?.id
-                        if (mediaId) {
+                        if (mediaId && saveTrackOverride) {
                             let lang: string | undefined
                             let codecID: string | undefined
                             if (isHls) {
@@ -130,10 +130,7 @@ export function VideoCoreAudioMenu() {
                                 codecID = track?.codecID
                             }
                             if (lang) {
-                                setPerMediaOverrides(prev => ({
-                                    ...prev,
-                                    [String(mediaId)]: { ...prev[String(mediaId)], audioLanguage: lang, audioCodecID: codecID },
-                                }))
+                                saveTrackOverride(String(mediaId), { audioLanguage: lang, audioCodecID: codecID })
                             }
                         }
 

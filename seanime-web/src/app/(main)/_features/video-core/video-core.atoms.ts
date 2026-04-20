@@ -20,6 +20,7 @@ export type VideoCoreSettings = {
     preferredSubtitleBlacklist: string
     preferredAudioLanguage: string
     subtitleDelay: number // in seconds
+    audioDelay: number // in seconds, positive = audio ahead, negative = audio behind
     // Video enhancement settings
     videoEnhancement: {
         enabled: boolean
@@ -55,6 +56,7 @@ export const vc_initialSettings: VideoCoreSettings = {
     preferredSubtitleBlacklist: "",
     preferredAudioLanguage: "jpn,jp,jap,japanese",
     subtitleDelay: 0,
+    audioDelay: 0,
     videoEnhancement: {
         enabled: true,
         contrast: 1.05,
@@ -193,12 +195,15 @@ export type PerMediaTrackOverride = {
     subtitleCodecID?: string
 }
 
-export const vc_perMediaTrackOverrides = atomWithStorage<Record<string, PerMediaTrackOverride>>(
-    "sea-video-core-per-media-tracks",
-    {},
-    undefined,
-    { getOnInit: true },
-)
+// Server-synced atom: populated from GET /track-preferences, written through POST on change.
+// Falls back to localStorage for offline/unauthenticated use.
+export const vc_perMediaTrackOverrides = atom<Record<string, PerMediaTrackOverride>>({})
+
+// Flag to indicate server data has been loaded (prevents overwriting server state with empty default)
+export const vc_trackPrefsLoaded = atom<boolean>(false)
+
+// Callback atom for saving a track override (set by useTrackPreferenceSync)
+export const vc_saveTrackOverride = atom<((mediaId: string, override: Partial<PerMediaTrackOverride>) => void) | null>(null)
 
 /**
  * Resume prompt state. When non-null, the video player shows a "Resume from X:XX?" dialog.
