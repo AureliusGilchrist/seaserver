@@ -5,7 +5,7 @@ import {
     GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss } from "react-icons/lu"
+import { LuBell, LuRss, LuFlag } from "react-icons/lu"
 import { BiExtension } from "react-icons/bi"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { TbReportSearch } from "react-icons/tb"
@@ -54,6 +54,7 @@ export const tokyoGhoulTheme: AnimeThemeConfig = {
         "search":         { icon: FiSearch,          label: "Search" },
         "notifications":  { icon: LuBell,            label: "Alerts" },
         "achievements":   { icon: GiTrophyCup,       label: "Rank Board" },
+        "milestones": { icon: LuFlag, label: "Ghoul Goals" },
         "theme-manager":  { icon: GiPalette,         label: "Kagune Colors" },
         "extensions":     { icon: BiExtension,       label: "Contracts" },
         "settings":       { icon: GiSettingsKnobs,   label: "Director's Decree" },

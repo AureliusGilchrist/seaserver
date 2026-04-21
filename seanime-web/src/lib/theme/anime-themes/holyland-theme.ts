@@ -17,7 +17,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const holylandTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Street Alerts" },
         "achievements": { icon: GiTrophy, label: "Fight Record" },
+        "milestones": { icon: LuFlag, label: "Fighting Goals" },
         "theme-manager": { icon: GiPalette, label: "Neon Colors" },
         "extensions": { icon: BiExtension, label: "Gear Mods" },
         "sync": { icon: IoCloudOfflineOutline, label: "Shadow Sync" },

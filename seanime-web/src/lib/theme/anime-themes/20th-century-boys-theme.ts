@@ -14,7 +14,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -68,6 +68,7 @@ export const twentyCenturyBoysTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Friend Alerts" },
         "achievements": { icon: GiTrophy, label: "Resistance Honors" },
+        "milestones": { icon: LuFlag, label: "Friend Goals" },
         "theme-manager": { icon: GiPalette, label: "1969 Colors" },
         "extensions": { icon: BiExtension, label: "Resistance Tools" },
         "sync": { icon: IoCloudOfflineOutline, label: "Memory Sync" },

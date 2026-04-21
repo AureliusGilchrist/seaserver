@@ -16,7 +16,7 @@ import {
     GiFlame,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -68,6 +68,7 @@ export const yuyuHakushoTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Botan's Signals" },
         "achievements": { icon: GiTrophy, label: "Tournament Trophies" },
+        "milestones": { icon: LuFlag, label: "Spirit Goals" },
         "theme-manager": { icon: GiPalette, label: "Spirit Palette" },
         "extensions": { icon: BiExtension, label: "Psychic Extensions" },
         "sync": { icon: IoCloudOfflineOutline, label: "Spirit World Sync" },

@@ -16,7 +16,7 @@ import {
     GiEagleEmblem,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const myHeroAcademiaTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Hero Alerts" },
         "achievements": { icon: GiTrophy, label: "Hero Rankings" },
+        "milestones": { icon: LuFlag, label: "Hero Milestones" },
         "theme-manager": { icon: GiPalette, label: "Costume Design" },
         "extensions": { icon: BiExtension, label: "Support Items" },
         "sync": { icon: IoCloudOfflineOutline, label: "Agency Sync" },

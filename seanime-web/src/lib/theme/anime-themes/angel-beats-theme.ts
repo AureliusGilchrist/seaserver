@@ -17,7 +17,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const angelBeatsTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Angel Alerts" },
         "achievements": { icon: GiTrophy, label: "Soul Milestones" },
+        "milestones": { icon: LuFlag, label: "Battlefront Goals" },
         "theme-manager": { icon: GiPalette, label: "Stage Lights" },
         "extensions": { icon: BiExtension, label: "Skill Extensions" },
         "sync": { icon: IoCloudOfflineOutline, label: "Afterlife Sync" },

@@ -17,7 +17,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const claymoreTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Yoma Alerts" },
         "achievements": { icon: GiTrophy, label: "Silver Marks" },
+        "milestones": { icon: LuFlag, label: "Rank Goals" },
         "theme-manager": { icon: GiPalette, label: "Warrior Colors" },
         "extensions": { icon: BiExtension, label: "Yoki Extensions" },
         "sync": { icon: IoCloudOfflineOutline, label: "Ghosts' Sync" },

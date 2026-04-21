@@ -17,7 +17,7 @@ import {
     GiNinjaHead,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const outlawStarTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Ship Alerts" },
         "achievements": { icon: GiTrophy, label: "Bounty Claims" },
+        "milestones": { icon: LuFlag, label: "Space Goals" },
         "theme-manager": { icon: GiPalette, label: "Hull Paint" },
         "extensions": { icon: BiExtension, label: "Ship Mods" },
         "sync": { icon: IoCloudOfflineOutline, label: "Melfina Sync" },

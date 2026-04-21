@@ -14,7 +14,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -68,6 +68,7 @@ export const plutoTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Alert System" },
         "achievements": { icon: GiTrophy, label: "Case Medals" },
+        "milestones": { icon: LuFlag, label: "Robot Goals" },
         "theme-manager": { icon: GiPalette, label: "Visual Config" },
         "extensions": { icon: BiExtension, label: "Augmentations" },
         "sync": { icon: IoCloudOfflineOutline, label: "Neural Sync" },

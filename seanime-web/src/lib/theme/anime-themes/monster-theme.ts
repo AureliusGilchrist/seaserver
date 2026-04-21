@@ -15,7 +15,7 @@ import {
     GiCrossedSwords,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -69,6 +69,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Case Alerts" },
         "achievements": { icon: GiTrophy, label: "Cases Solved" },
+        "milestones": { icon: LuFlag, label: "Tenma Goals" },
         "theme-manager": { icon: GiPalette, label: "Disguises" },
         "extensions": { icon: BiExtension, label: "Forensic Tools" },
         "sync": { icon: IoCloudOfflineOutline, label: "Encrypted Sync" },

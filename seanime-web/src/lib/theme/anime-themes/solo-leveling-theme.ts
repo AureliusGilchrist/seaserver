@@ -17,7 +17,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const soloLevelingTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "System Alerts" },
         "achievements": { icon: GiTrophy, label: "Shadow Titles" },
+        "milestones": { icon: LuFlag, label: "Rank Milestones" },
         "theme-manager": { icon: GiPalette, label: "Shadow Palette" },
         "extensions": { icon: BiExtension, label: "System Modules" },
         "sync": { icon: IoCloudOfflineOutline, label: "Shadow Sync" },

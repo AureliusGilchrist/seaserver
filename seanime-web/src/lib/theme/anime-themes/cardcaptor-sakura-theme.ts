@@ -16,7 +16,7 @@ import {
     GiCrossedSwords,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -68,6 +68,7 @@ export const cardcaptorSakuraTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Kero's Alerts" },
         "achievements": { icon: GiTrophy, label: "Card Collection" },
+        "milestones": { icon: LuFlag, label: "Card Goals" },
         "theme-manager": { icon: GiPalette, label: "Magic Palette" },
         "extensions": { icon: BiExtension, label: "Card Extensions" },
         "sync": { icon: IoCloudOfflineOutline, label: "Star Sync" },

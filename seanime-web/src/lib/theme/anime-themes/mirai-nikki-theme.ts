@@ -17,7 +17,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const miraiNikkiTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Dead End Alerts" },
         "achievements": { icon: GiTrophy, label: "Survival Trophies" },
+        "milestones": { icon: LuFlag, label: "Survival Goals" },
         "theme-manager": { icon: GiPalette, label: "Diary Covers" },
         "extensions": { icon: BiExtension, label: "Diary Plugins" },
         "sync": { icon: IoCloudOfflineOutline, label: "Causality Sync" },

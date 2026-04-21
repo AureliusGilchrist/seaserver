@@ -16,7 +16,7 @@ import {
     GiPalette,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss } from "react-icons/lu"
+import { LuBell, LuRss, LuFlag } from "react-icons/lu"
 import { BiExtension } from "react-icons/bi"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { TbReportSearch } from "react-icons/tb"
@@ -68,6 +68,7 @@ export const bleachTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Alerts" },
         "achievements": { icon: GiTrophyCup, label: "Shinigami Ranks" },
+        "milestones": { icon: LuFlag, label: "Shinigami Milestones" },
         "theme-manager": { icon: GiPalette, label: "Reiatsu Colors" },
         "extensions": { icon: BiExtension, label: "Zanpakutō Mods" },
         "sync": { icon: IoCloudOfflineOutline, label: "Soul Link" },

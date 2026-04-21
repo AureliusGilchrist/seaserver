@@ -19,7 +19,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuFolderSearch, LuRefreshCw } from "react-icons/lu"
+import { LuBell, LuRss, LuFolderSearch, LuRefreshCw, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { HiOutlineServerStack } from "react-icons/hi2"
@@ -75,6 +75,7 @@ export const narutoTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Alerts" },
         "achievements": { icon: GiTrophyCup, label: "Rank Board" },
+        "milestones": { icon: LuFlag, label: "Ninja Milestones" },
         "theme-manager": { icon: GiPalette, label: "Clan Colors" },
         "extensions": { icon: BiExtension, label: "Contracts" },
         "sync": { icon: IoCloudOfflineOutline, label: "Shadow Clone" },

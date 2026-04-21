@@ -15,6 +15,7 @@ import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websocke
 import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loader"
 import { useCurrentUser, useServerStatus, useSetServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
+import { useGetLevel } from "@/api/hooks/community.hooks"
 import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
 import { useGetUnreadNotificationCount, useNotificationWSListener } from "@/api/hooks/notifications.hooks"
 import { NotificationDrawer } from "@/app/(main)/_features/notification/notification-drawer"
@@ -37,7 +38,7 @@ import { ANILIST_OAUTH_URL, ANILIST_PIN_URL } from "@/lib/server/config"
 import { TORRENT_CLIENT, TORRENT_PROVIDER } from "@/lib/server/settings"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useThemeSettings } from "@/lib/theme/hooks"
-import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { useAnimeThemeOrNull, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { __isDesktop__, __isElectronDesktop__, __isTauriDesktop__ } from "@/types/constants"
 import { useAtom, useSetAtom } from "jotai"
@@ -710,6 +711,11 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
     const serverStatus = useServerStatus()
     const router = useRouter()
 
+    // Level & rank
+    const { data: levelData } = useGetLevel()
+    const currentLevel = levelData?.currentLevel ?? 0
+    const rankName = useThemeMilestoneName(currentLevel)
+
     const [dropdownOpen, setDropdownOpen] = React.useState(false)
     const [loginModal, setLoginModal] = useAtom(isLoginModalOpenAtom)
     const [loggingIn, setLoggingIn] = React.useState(false)
@@ -761,7 +767,19 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
                         )}
                     >
                         <span data-easter-egg="user-avatar"><Avatar size="sm" className="cursor-pointer" src={user?.viewer?.avatar?.medium || undefined} /></span>
-                        {expandedSidebar && <p className="truncate text-sm text-[--muted]">{user?.viewer?.name}</p>}
+                        {expandedSidebar && (
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm text-[--muted]">{user?.viewer?.name}</p>
+                                {rankName && (
+                                    <p className="truncate text-xs font-semibold" style={{ color: "var(--color-brand-400)" }}>
+                                        {rankName} <span className="text-[--muted] font-normal">Lv. {currentLevel}</span>
+                                    </p>
+                                )}
+                                {!rankName && currentLevel > 0 && (
+                                    <p className="truncate text-xs text-[--muted]">Lv. {currentLevel}</p>
+                                )}
+                            </div>
+                        )}
                     </div>}
                     open={dropdownOpen}
                     onOpenChange={setDropdownOpen}

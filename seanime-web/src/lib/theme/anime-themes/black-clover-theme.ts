@@ -17,7 +17,7 @@ import {
     GiEagleEmblem,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -72,6 +72,7 @@ export const blackCloverTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Black Bulls Alerts" },
         "achievements": { icon: GiTrophy, label: "Wizard King Rankings" },
+        "milestones": { icon: LuFlag, label: "Magic Goals" },
         "theme-manager": { icon: GiPalette, label: "Grimoire Design" },
         "extensions": { icon: BiExtension, label: "Mana Upgrades" },
         "sync": { icon: IoCloudOfflineOutline, label: "Black Bulls HQ" },

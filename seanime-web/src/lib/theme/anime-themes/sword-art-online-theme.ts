@@ -17,7 +17,7 @@ import {
     GiDragonHead,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -72,6 +72,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "System Alerts" },
         "achievements": { icon: GiTrophy, label: "Gun Gale Rankings" },
+        "milestones": { icon: LuFlag, label: "Floor Goals" },
         "theme-manager": { icon: GiPalette, label: "Avatar Customizer" },
         "extensions": { icon: BiExtension, label: "Plugin Modules" },
         "sync": { icon: IoCloudOfflineOutline, label: "NerveGear Sync" },

@@ -17,7 +17,7 @@ import {
     GiSchoolBag,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const greatTeacherOnizukaTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "School Bell" },
         "achievements": { icon: GiTrophy, label: "Honor Roll" },
+        "milestones": { icon: LuFlag, label: "Student Goals" },
         "theme-manager": { icon: GiPalette, label: "Chalkboard" },
         "extensions": { icon: BiExtension, label: "Extra Credit" },
         "sync": { icon: IoCloudOfflineOutline, label: "Homework Sync" },

@@ -15,7 +15,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -69,6 +69,7 @@ export const graveOfTheFirefliesTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Siren Alerts" },
         "achievements": { icon: GiTrophy, label: "Memories Kept" },
+        "milestones": { icon: LuFlag, label: "Memory Goals" },
         "theme-manager": { icon: GiPalette, label: "Lantern Glow" },
         "extensions": { icon: BiExtension, label: "Field Gear" },
         "sync": { icon: IoCloudOfflineOutline, label: "Letter Sync" },

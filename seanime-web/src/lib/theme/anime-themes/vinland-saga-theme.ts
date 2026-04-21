@@ -17,7 +17,7 @@ import {
     GiSwordWound,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -69,6 +69,7 @@ export const vinlandSagaTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Longship Horn" },
         "achievements": { icon: GiTrophy, label: "Warrior Feats" },
+        "milestones": { icon: LuFlag, label: "Viking Milestones" },
         "theme-manager": { icon: GiPalette, label: "Shield Colors" },
         "extensions": { icon: BiExtension, label: "Axe Attachments" },
         "sync": { icon: IoCloudOfflineOutline, label: "North Star Sync" },

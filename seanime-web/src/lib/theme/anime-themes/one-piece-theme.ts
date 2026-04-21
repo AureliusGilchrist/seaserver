@@ -18,7 +18,7 @@ import {
     GiSpellBook,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss } from "react-icons/lu"
+import { LuBell, LuRss, LuFlag } from "react-icons/lu"
 
 export const onePieceTheme: AnimeThemeConfig = {
     id: "one-piece",
@@ -67,6 +67,7 @@ export const onePieceTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Alerts" },
         "achievements": { icon: GiSkullCrossedBones, label: "Berry Bounties" },
+        "milestones": { icon: LuFlag, label: "Grand Line Goals" },
         "theme-manager": { icon: GiPalette, label: "Jolly Roger" },
         "extensions": { icon: GiFireworkRocket, label: "Devil Fruit Mods" },
         "sync": { icon: GiSeagull, label: "Sea Link" },

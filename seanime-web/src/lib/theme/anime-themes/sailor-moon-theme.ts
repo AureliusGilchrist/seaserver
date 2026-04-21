@@ -16,7 +16,7 @@ import {
     GiSpellBook,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -68,6 +68,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Luna Alerts" },
         "achievements": { icon: GiTrophy, label: "Silver Crystal Trophies" },
+        "milestones": { icon: LuFlag, label: "Guardian Goals" },
         "theme-manager": { icon: GiPalette, label: "Moon Palette" },
         "extensions": { icon: BiExtension, label: "Sailor Extensions" },
         "sync": { icon: IoCloudOfflineOutline, label: "Cosmic Sync" },

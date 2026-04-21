@@ -16,7 +16,7 @@ import {
     GiShield,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -68,6 +68,7 @@ export const initialDTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Race Start Alerts" },
         "achievements": { icon: GiTrophy, label: "Stage Victories" },
+        "milestones": { icon: LuFlag, label: "Race Goals" },
         "theme-manager": { icon: GiPalette, label: "Drift Palette" },
         "extensions": { icon: BiExtension, label: "Tuning Extensions" },
         "sync": { icon: IoCloudOfflineOutline, label: "Akagi Sync" },

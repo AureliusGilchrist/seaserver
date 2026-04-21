@@ -17,7 +17,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const elfenLiedTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Horn Alerts" },
         "achievements": { icon: GiTrophy, label: "Tragic Milestones" },
+        "milestones": { icon: LuFlag, label: "Diclonius Goals" },
         "theme-manager": { icon: GiPalette, label: "Bloodstained Hues" },
         "extensions": { icon: BiExtension, label: "Vector Arms" },
         "sync": { icon: IoCloudOfflineOutline, label: "Nyu Sync" },

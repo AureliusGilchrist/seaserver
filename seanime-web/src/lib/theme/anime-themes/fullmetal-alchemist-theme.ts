@@ -16,7 +16,7 @@ import {
     GiEagleEmblem,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const fullmetalAlchemistTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Central Alerts" },
         "achievements": { icon: GiTrophy, label: "Alchemic Honors" },
+        "milestones": { icon: LuFlag, label: "Alchemy Goals" },
         "theme-manager": { icon: GiPalette, label: "Transmutation Design" },
         "extensions": { icon: BiExtension, label: "Automail Upgrades" },
         "sync": { icon: IoCloudOfflineOutline, label: "Gate Sync" },

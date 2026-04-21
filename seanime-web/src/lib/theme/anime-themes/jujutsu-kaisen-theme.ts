@@ -17,7 +17,7 @@ import {
     GiSkullCrossedBones,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -72,6 +72,7 @@ export const jujutsuKaisenTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Cursed Alerts" },
         "achievements": { icon: GiTrophy, label: "Sorcerer Grades" },
+        "milestones": { icon: LuFlag, label: "Grade Goals" },
         "theme-manager": { icon: GiPalette, label: "Cursed Aesthetics" },
         "extensions": { icon: BiExtension, label: "Binding Vow Plugins" },
         "sync": { icon: IoCloudOfflineOutline, label: "Tengen's Barrier Sync" },

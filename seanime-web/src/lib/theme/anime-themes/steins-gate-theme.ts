@@ -16,7 +16,7 @@ import {
     GiMusicalNotes,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -67,6 +67,7 @@ export const steinsGateTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "D-Mail Alerts" },
         "achievements": { icon: GiTrophy, label: "Divergence Medals" },
+        "milestones": { icon: LuFlag, label: "Timeline Goals" },
         "theme-manager": { icon: GiPalette, label: "Lab Colors" },
         "extensions": { icon: BiExtension, label: "Gadget Mods" },
         "sync": { icon: IoCloudOfflineOutline, label: "Worldline Sync" },

@@ -7,6 +7,7 @@ import { ANIME_THEMES, ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
 import type { AnimeThemeId, AnimeThemeConfig, ParticleTypeConfig } from "@/lib/theme/anime-themes"
 import { ThemeAnimatedOverlay } from "@/lib/theme/anime-themes/animated-elements"
 import { buildThemeCursorCSS } from "@/lib/theme/anime-themes/cursor-svgs"
+import { recordActivatedTheme } from "@/lib/theme/anime-themes/theme-prerequisites"
 
 // ─────────────────────────────────────────────────────────────────
 // Milestone name utility
@@ -122,6 +123,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setThemeIdRaw(id)
         try {
             localStorage.setItem(`sea-anime-theme-${profileKey}`, id)
+            recordActivatedTheme(id)
         } catch { /* noop */ }
     }, [profileKey])
 

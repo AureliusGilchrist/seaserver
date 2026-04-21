@@ -16,7 +16,7 @@ import {
     GiStarFormation,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -68,6 +68,7 @@ export const revolutionaryGirlUtenaTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Rose Seal Alerts" },
         "achievements": { icon: GiTrophy, label: "Duel Victories" },
+        "milestones": { icon: LuFlag, label: "Rose Goals" },
         "theme-manager": { icon: GiPalette, label: "Rose Palette" },
         "extensions": { icon: BiExtension, label: "Rose Bridge Extensions" },
         "sync": { icon: IoCloudOfflineOutline, label: "Fate Sync" },

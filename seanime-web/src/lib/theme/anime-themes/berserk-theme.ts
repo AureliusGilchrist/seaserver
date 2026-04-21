@@ -17,7 +17,7 @@ import {
     GiSkullCrossedBones,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -69,6 +69,7 @@ export const berserkTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Brand of Sacrifice" },
         "achievements": { icon: GiTrophy, label: "Demon Slayer Feats" },
+        "milestones": { icon: LuFlag, label: "Eclipse Milestones" },
         "theme-manager": { icon: GiPalette, label: "Berserker Armor" },
         "extensions": { icon: BiExtension, label: "Dragonslayer Blade" },
         "sync": { icon: IoCloudOfflineOutline, label: "Skull Knight Link" },

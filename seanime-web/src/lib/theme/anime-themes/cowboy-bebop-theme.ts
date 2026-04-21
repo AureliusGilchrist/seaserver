@@ -14,7 +14,7 @@ import {
     GiEagleEmblem,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -68,6 +68,7 @@ export const cowboyBebopTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Incoming Hails" },
         "achievements": { icon: GiTrophy, label: "Bounty Ledger" },
+        "milestones": { icon: LuFlag, label: "Bounty Goals" },
         "theme-manager": { icon: GiPalette, label: "Jukebox" },
         "extensions": { icon: BiExtension, label: "Ship Mods" },
         "sync": { icon: IoCloudOfflineOutline, label: "Astral Gate Sync" },

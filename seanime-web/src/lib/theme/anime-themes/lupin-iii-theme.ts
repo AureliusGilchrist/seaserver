@@ -14,7 +14,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -68,6 +68,7 @@ export const lupinIiiTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Tip-Offs" },
         "achievements": { icon: GiTrophy, label: "Heist Trophies" },
+        "milestones": { icon: LuFlag, label: "Heist Goals" },
         "theme-manager": { icon: GiPalette, label: "Disguise Kit" },
         "extensions": { icon: BiExtension, label: "Gadgets" },
         "sync": { icon: IoCloudOfflineOutline, label: "Safehouse Sync" },

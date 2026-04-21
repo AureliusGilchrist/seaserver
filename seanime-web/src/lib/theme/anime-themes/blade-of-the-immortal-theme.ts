@@ -19,7 +19,7 @@ import {
     GiScrollUnfurled,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -73,6 +73,7 @@ export const bladeOfTheImmortalTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Death Omens" },
         "achievements": { icon: GiTrophy, label: "Kill Trophies" },
+        "milestones": { icon: LuFlag, label: "Sword Goals" },
         "theme-manager": { icon: GiPalette, label: "Ink & Blood" },
         "extensions": { icon: BiExtension, label: "Hidden Blades" },
         "sync": { icon: IoCloudOfflineOutline, label: "Worm Sync" },

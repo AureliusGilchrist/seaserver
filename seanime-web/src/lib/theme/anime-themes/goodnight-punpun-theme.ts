@@ -12,7 +12,7 @@ import {
     GiResize,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen, LuList, LuUsers } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuList, LuUsers, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -66,6 +66,7 @@ export const goodnightPunpunTheme: AnimeThemeConfig = {
         "search":          { icon: FiSearch,              label: "Search" },
         "notifications":   { icon: LuBell,                label: "God Speaks" },
         "achievements":    { icon: GiTrophy,              label: "Punpun Earned" },
+        "milestones": { icon: LuFlag, label: "Life Goals" },
         "theme-manager":   { icon: GiPalette,             label: "Paper Tones" },
         "extensions":      { icon: BiExtension,           label: "Feather Wings" },
         "sync":            { icon: IoCloudOfflineOutline, label: "Fading Echo" },

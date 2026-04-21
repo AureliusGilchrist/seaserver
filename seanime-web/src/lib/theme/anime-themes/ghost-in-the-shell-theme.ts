@@ -14,7 +14,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -68,6 +68,7 @@ export const ghostInTheShellTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Ghost Alert" },
         "achievements": { icon: GiTrophy, label: "Shell Trophies" },
+        "milestones": { icon: LuFlag, label: "Cyborg Goals" },
         "theme-manager": { icon: GiPalette, label: "Shell Designer" },
         "extensions": { icon: BiExtension, label: "Cyber Mods" },
         "sync": { icon: IoCloudOfflineOutline, label: "Net Sync" },

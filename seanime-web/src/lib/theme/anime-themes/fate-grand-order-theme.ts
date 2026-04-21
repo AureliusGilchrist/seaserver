@@ -17,7 +17,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const fateGrandOrderTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Chaldea Alerts" },
         "achievements": { icon: GiTrophy, label: "Holy Grails" },
+        "milestones": { icon: LuFlag, label: "Singularity Goals" },
         "theme-manager": { icon: GiPalette, label: "Mystic Codes" },
         "extensions": { icon: BiExtension, label: "Craft Essences" },
         "sync": { icon: IoCloudOfflineOutline, label: "SHEBA Sync" },

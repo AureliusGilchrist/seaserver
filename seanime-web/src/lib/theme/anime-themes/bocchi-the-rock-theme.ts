@@ -17,7 +17,7 @@ import {
     GiSpellBook,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -69,6 +69,7 @@ export const bocchiTheRockTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Stage Alerts" },
         "achievements": { icon: GiTrophyCup, label: "Performance Trophies" },
+        "milestones": { icon: LuFlag, label: "Band Goals" },
         "theme-manager": { icon: GiPalette, label: "Stage Colors" },
         "extensions": { icon: BiExtension, label: "Guitar Pedals" },
         "sync": { icon: IoCloudOfflineOutline, label: "Band Sync" },

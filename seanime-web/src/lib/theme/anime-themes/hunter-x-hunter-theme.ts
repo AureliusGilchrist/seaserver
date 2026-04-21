@@ -16,7 +16,7 @@ import {
     GiEagleEmblem,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const hunterXHunterTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Hunter Alerts" },
         "achievements": { icon: GiTrophy, label: "Hunter Honors" },
+        "milestones": { icon: LuFlag, label: "Hunter Goals" },
         "theme-manager": { icon: GiPalette, label: "Nen Customization" },
         "extensions": { icon: BiExtension, label: "Hatsu Extensions" },
         "sync": { icon: IoCloudOfflineOutline, label: "Dark Continent Sync" },

@@ -1,14 +1,28 @@
 "use client"
 import React from "react"
+import ReactDOM from "react-dom"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
 import type { AnimeThemeId, AnimeThemeConfig } from "@/lib/theme/anime-themes"
 import { HIDDEN_THEMES, HIDDEN_THEME_IDS } from "@/lib/theme/anime-themes/hidden-themes"
-import { LuSettings2 } from "react-icons/lu"
+import {
+    THEME_PREREQUISITES,
+    PREREQUISITE_THEME_IDS,
+    loadActivatedThemes,
+    isThemePrerequisiteMet,
+} from "@/lib/theme/anime-themes/theme-prerequisites"
+import { WALLHAVEN_CURATED_QUERY } from "@/lib/theme/anime-themes/wallhaven-curated"
+import { LuSettings2, LuSparkles } from "react-icons/lu"
 import { useGetRawAnilistMangaCollection } from "@/api/hooks/manga.hooks"
 import { cn } from "@/components/ui/core/styling"
 import { PageWrapper } from "@/components/shared/page-wrapper"
-import { useListThemeBackgrounds, useDeleteThemeBackground } from "@/api/hooks/theme_backgrounds.hooks"
+import {
+    useListThemeBackgrounds,
+    useDeleteThemeBackground,
+    useDownloadThemeBackground,
+    useSearchWallhaven,
+    type WallhavenWallpaper,
+} from "@/api/hooks/theme_backgrounds.hooks"
 import { WallhavenPickerModal } from "./_components/wallhaven-picker"
 
 export default function ThemeManagerPage() {
@@ -40,9 +54,36 @@ export default function ThemeManagerPage() {
     const [pickerOpen, setPickerOpen] = React.useState(false)
     const { data: downloadedBgs, isLoading: bgsLoading } = useListThemeBackgrounds()
     const deleteMutation = useDeleteThemeBackground()
+    const downloadBgMutation = useDownloadThemeBackground()
+    const [downloadingBgId, setDownloadingBgId] = React.useState<string | null>(null)
+
+    // Wallhaven curated suggestions for the active theme
+    const curatedQuery = config.id !== "seanime" ? (WALLHAVEN_CURATED_QUERY[themeId] ?? "") : ""
+    const { data: suggestedData, isFetching: loadingSuggestions } = useSearchWallhaven(
+        curatedQuery, 1, config.id !== "seanime" && !!curatedQuery,
+    )
+    const suggestions: WallhavenWallpaper[] = suggestedData?.data?.slice(0, 10) ?? []
+
+    const handleSuggestionClick = async (w: WallhavenWallpaper) => {
+        if (downloadingBgId) return
+        setDownloadingBgId(w.id)
+        try {
+            const result = await downloadBgMutation.mutateAsync({ url: w.path })
+            if (result) setActiveBackgroundUrl(result.url)
+        } catch { /* ignored */ } finally {
+            setDownloadingBgId(null)
+        }
+    }
 
     // Fetch manga collection for hidden theme unlock detection
     const { data: mangaCollection } = useGetRawAnilistMangaCollection()
+
+    // Load set of themes the user has ever activated
+    const [activatedThemes, setActivatedThemes] = React.useState(() => loadActivatedThemes())
+    // Refresh when the active theme changes (user just activated it)
+    React.useEffect(() => {
+        setActivatedThemes(loadActivatedThemes())
+    }, [themeId])
 
     const unlockedHiddenThemes = React.useMemo(() => {
         const ids = new Set<AnimeThemeId>()
@@ -80,6 +121,13 @@ export default function ThemeManagerPage() {
                     const isUnlocked = !isHidden || unlockedHiddenThemes.has(theme.id)
                     const isActive = theme.id === themeId
 
+                    // Check sequel prerequisite
+                    const hasPrereq = PREREQUISITE_THEME_IDS.has(theme.id)
+                    const prereqMet = !hasPrereq || isThemePrerequisiteMet(theme.id, activatedThemes)
+                    const prereqInfo = hasPrereq
+                        ? THEME_PREREQUISITES.find((p) => p.themeId === theme.id)
+                        : undefined
+
                     if (isHidden && !isUnlocked) {
                         const req = HIDDEN_THEMES.find((h) => h.themeId === theme.id)
                         return (
@@ -97,6 +145,33 @@ export default function ThemeManagerPage() {
                                 </div>
                                 <div className="font-bold text-lg text-[--muted]">???</div>
                                 <p className="text-[--muted] text-xs mt-1">{req?.hint ?? "Unlock this hidden theme."}</p>
+                            </div>
+                        )
+                    }
+
+                    if (!prereqMet) {
+                        return (
+                            <div
+                                key={theme.id}
+                                className="relative rounded-2xl p-5 text-left border-2 border-[--border] bg-[--paper] opacity-50 cursor-not-allowed select-none"
+                            >
+                                <div className="flex gap-1.5 mb-3">
+                                    {(theme.previewColors
+                                        ? [theme.previewColors.primary, theme.previewColors.secondary, theme.previewColors.accent]
+                                        : ["#555", "#444", "#333"]
+                                    ).map((c, i) => (
+                                        <div
+                                            key={i}
+                                            className="w-5 h-5 rounded-full opacity-40"
+                                            style={{ background: c }}
+                                        />
+                                    ))}
+                                    <span className="ml-auto text-[--muted] text-xs">🔒</span>
+                                </div>
+                                <div className="font-bold text-lg text-[--foreground]">{theme.displayName}</div>
+                                <p className="text-[--muted] text-xs mt-1">
+                                    {prereqInfo?.hint ?? `Activate the ${prereqInfo?.requiresDisplayName ?? "prequel"} theme first.`}
+                                </p>
                             </div>
                         )
                     }
@@ -245,51 +320,101 @@ export default function ThemeManagerPage() {
                     </div>
 
                     {/* Thumbnail strip */}
-                    <div className="bg-[--paper] border-t border-[--border] p-4 space-y-3">
-                        <p className="text-xs text-[--muted] font-medium uppercase tracking-wider">Select Background</p>
-                        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "thin" }}>
-                            {/* Bundled default */}
-                            {config.backgroundImageUrl && (
-                                <ThumbnailSlot
-                                    url={config.backgroundImageUrl}
-                                    label="Default"
-                                    isActive={activeBackgroundUrl === config.backgroundImageUrl}
-                                    onClick={() => setActiveBackgroundUrl(config.backgroundImageUrl!)}
-                                />
-                            )}
+                    <div className="bg-[--paper] border-t border-[--border] p-4 space-y-4">
+                        {/* Downloaded / bundled */}
+                        <div className="space-y-2">
+                            <p className="text-xs text-[--muted] font-medium uppercase tracking-wider">Your Backgrounds</p>
+                            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "thin" }}>
+                                {/* Bundled default */}
+                                {config.backgroundImageUrl && (
+                                    <ThumbnailSlot
+                                        url={config.backgroundImageUrl}
+                                        label="Default"
+                                        isActive={activeBackgroundUrl === config.backgroundImageUrl}
+                                        onClick={() => setActiveBackgroundUrl(config.backgroundImageUrl!)}
+                                    />
+                                )}
 
-                            {/* Downloaded wallpapers */}
-                            {bgsLoading && !downloadedBgs && (
-                                <>{Array.from({ length: 3 }).map((_, i) => (
-                                    <div key={i} className="shrink-0 w-28 h-[70px] rounded-xl bg-white/5 animate-pulse" />
-                                ))}</>
-                            )}
-                            {(downloadedBgs ?? []).map(bg => (
-                                <ThumbnailSlot
-                                    key={bg.filename}
-                                    url={bg.url}
-                                    isActive={activeBackgroundUrl === bg.url}
-                                    deletable
-                                    onClick={() => setActiveBackgroundUrl(bg.url)}
-                                    onDelete={() => {
-                                        deleteMutation.mutate(bg.filename)
-                                        if (activeBackgroundUrl === bg.url) {
-                                            setActiveBackgroundUrl(config.backgroundImageUrl ?? null)
-                                        }
-                                    }}
-                                />
-                            ))}
+                                {/* Downloaded wallpapers */}
+                                {bgsLoading && !downloadedBgs && (
+                                    <>{Array.from({ length: 3 }).map((_, i) => (
+                                        <div key={i} className="shrink-0 w-28 h-[70px] rounded-xl bg-white/5 animate-pulse" />
+                                    ))}</>
+                                )}
+                                {(downloadedBgs ?? []).map(bg => (
+                                    <ThumbnailSlot
+                                        key={bg.filename}
+                                        url={bg.url}
+                                        isActive={activeBackgroundUrl === bg.url}
+                                        deletable
+                                        onClick={() => setActiveBackgroundUrl(bg.url)}
+                                        onDelete={() => {
+                                            deleteMutation.mutate(bg.filename)
+                                            if (activeBackgroundUrl === bg.url) {
+                                                setActiveBackgroundUrl(config.backgroundImageUrl ?? null)
+                                            }
+                                        }}
+                                    />
+                                ))}
 
-                            {/* Browse CTA slot when list is empty */}
-                            {!bgsLoading && !downloadedBgs?.length && !config.backgroundImageUrl && (
-                                <button
-                                    onClick={() => setPickerOpen(true)}
-                                    className="shrink-0 w-28 h-[70px] rounded-xl border-2 border-dashed border-white/20 hover:border-[--color-brand-500] flex flex-col items-center justify-center gap-1 text-[--muted] hover:text-[--color-brand-400] transition-colors text-xs"
-                                >
-                                    <span className="text-lg">+</span>
-                                    <span>Add</span>
-                                </button>
-                            )}
+                                {/* Browse CTA slot when list is empty */}
+                                {!bgsLoading && !downloadedBgs?.length && !config.backgroundImageUrl && (
+                                    <button
+                                        onClick={() => setPickerOpen(true)}
+                                        className="shrink-0 w-28 h-[70px] rounded-xl border-2 border-dashed border-white/20 hover:border-[--color-brand-500] flex flex-col items-center justify-center gap-1 text-[--muted] hover:text-[--color-brand-400] transition-colors text-xs"
+                                    >
+                                        <span className="text-lg">+</span>
+                                        <span>Add</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Curated suggestions */}
+                        <div className="space-y-2 border-t border-white/5 pt-3">
+                            <div className="flex items-center gap-1.5">
+                                <LuSparkles className="w-3 h-3 text-[--color-brand-400]" />
+                                <p className="text-xs text-[--muted] font-medium uppercase tracking-wider">Top Picks for This Theme</p>
+                            </div>
+                            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "thin" }}>
+                                {loadingSuggestions && suggestions.length === 0 && (
+                                    <>{Array.from({ length: 10 }).map((_, i) => (
+                                        <div key={i} className="shrink-0 w-28 h-[70px] rounded-xl bg-white/5 animate-pulse" />
+                                    ))}</>
+                                )}
+                                {suggestions.map(w => (
+                                    <button
+                                        key={w.id}
+                                        onClick={() => handleSuggestionClick(w)}
+                                        disabled={!!downloadingBgId}
+                                        title={`${w.resolution} — click to download & apply`}
+                                        className={cn(
+                                            "relative shrink-0 w-28 h-[70px] rounded-xl overflow-hidden border-2 transition-all duration-150",
+                                            downloadingBgId === w.id
+                                                ? "border-[--color-brand-400] opacity-70"
+                                                : "border-transparent hover:border-[--color-brand-500]",
+                                        )}
+                                    >
+                                        <img
+                                            src={w.thumbs.small}
+                                            alt={w.id}
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                        />
+                                        {downloadingBgId === w.id && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            </div>
+                                        )}
+                                        <div className="absolute bottom-1 right-1 bg-black/50 text-white/70 text-[9px] px-1 rounded leading-tight">
+                                            {w.resolution}
+                                        </div>
+                                    </button>
+                                ))}
+                                {!loadingSuggestions && suggestions.length === 0 && (
+                                    <p className="text-xs text-[--muted] py-4">No suggestions available.</p>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -562,12 +687,18 @@ function ThemeCard({
     backgroundSaturation, setBackgroundSaturation,
 }: ThemeCardProps) {
     const [gearOpen, setGearOpen] = React.useState(false)
+    const gearBtnRef = React.useRef<HTMLButtonElement>(null)
     const popoverRef = React.useRef<HTMLDivElement>(null)
+    const [popoverStyle, setPopoverStyle] = React.useState<React.CSSProperties>({})
 
+    // Close on outside click
     React.useEffect(() => {
         if (!gearOpen) return
         const handler = (e: MouseEvent) => {
-            if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+            if (
+                popoverRef.current && !popoverRef.current.contains(e.target as Node) &&
+                gearBtnRef.current && !gearBtnRef.current.contains(e.target as Node)
+            ) {
                 setGearOpen(false)
             }
         }
@@ -578,6 +709,14 @@ function ThemeCard({
     const handleGearClick = (e: React.MouseEvent) => {
         e.stopPropagation()
         onSelect()
+        if (!gearOpen && gearBtnRef.current) {
+            const rect = gearBtnRef.current.getBoundingClientRect()
+            setPopoverStyle({
+                position: "fixed",
+                top: rect.bottom + 8,
+                right: window.innerWidth - rect.right,
+            })
+        }
         setGearOpen(v => !v)
     }
 
@@ -614,61 +753,64 @@ function ThemeCard({
                     ))}
                 </div>
 
-                {/* Gear + popover anchor */}
-                <div ref={popoverRef} className="relative ml-auto">
-                    <button
-                        onClick={handleGearClick}
-                        title="Background adjustments"
-                        className={cn(
-                            "w-5 h-5 flex items-center justify-center text-white/40 hover:text-white/90 rounded transition-all duration-150",
-                            "opacity-0 group-hover/card:opacity-100",
-                            (isActive || gearOpen) && "opacity-100",
-                        )}
-                    >
-                        <LuSettings2 className="w-3.5 h-3.5" />
-                    </button>
-
-                    {gearOpen && (
-                        <div
-                            className="absolute right-0 top-full mt-2 z-[9999] w-72 rounded-xl bg-gray-950 border border-white/10 p-4 shadow-2xl space-y-3"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-2">Background adjustments</p>
-                            <InlineSliderRow
-                                label="Dim"
-                                value={backgroundDim}
-                                onChange={setBackgroundDim}
-                                min={0} max={1} step={0.01}
-                                display={v => `${Math.round(v * 100)}%`}
-                                onReset={() => setBackgroundDim(activeConfig.backgroundDim ?? 0.30)}
-                            />
-                            <InlineSliderRow
-                                label="Blur"
-                                value={backgroundBlur}
-                                onChange={setBackgroundBlur}
-                                min={0} max={60} step={1}
-                                display={v => `${v}px`}
-                                onReset={() => setBackgroundBlur(activeConfig.backgroundBlur ?? 30)}
-                            />
-                            <InlineSliderRow
-                                label="Exposure"
-                                value={backgroundExposure}
-                                onChange={setBackgroundExposure}
-                                min={0.1} max={2.5} step={0.05}
-                                display={v => `${Math.round(v * 100)}%`}
-                                onReset={() => setBackgroundExposure(1.0)}
-                            />
-                            <InlineSliderRow
-                                label="Saturation"
-                                value={backgroundSaturation}
-                                onChange={setBackgroundSaturation}
-                                min={0} max={3.0} step={0.05}
-                                display={v => `${Math.round(v * 100)}%`}
-                                onReset={() => setBackgroundSaturation(1.0)}
-                            />
-                        </div>
+                {/* Gear button */}
+                <button
+                    ref={gearBtnRef}
+                    onClick={handleGearClick}
+                    title="Background adjustments"
+                    className={cn(
+                        "ml-auto w-6 h-6 flex items-center justify-center text-white/40 hover:text-white/90 rounded-md hover:bg-white/10 transition-all duration-150",
+                        "opacity-0 group-hover/card:opacity-100",
+                        (isActive || gearOpen) && "opacity-100",
                     )}
-                </div>
+                >
+                    <LuSettings2 className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Portal popover — escapes CSS transform stacking context */}
+                {gearOpen && ReactDOM.createPortal(
+                    <div
+                        ref={popoverRef}
+                        className="z-[99999] w-80 rounded-xl bg-gray-950 border border-white/10 p-4 shadow-2xl space-y-3"
+                        style={popoverStyle}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-2">Background adjustments</p>
+                        <InlineSliderRow
+                            label="Dim"
+                            value={backgroundDim}
+                            onChange={setBackgroundDim}
+                            min={0} max={1} step={0.01}
+                            display={v => `${Math.round(v * 100)}%`}
+                            onReset={() => setBackgroundDim(activeConfig.backgroundDim ?? 0.30)}
+                        />
+                        <InlineSliderRow
+                            label="Blur"
+                            value={backgroundBlur}
+                            onChange={setBackgroundBlur}
+                            min={0} max={60} step={1}
+                            display={v => `${v}px`}
+                            onReset={() => setBackgroundBlur(activeConfig.backgroundBlur ?? 30)}
+                        />
+                        <InlineSliderRow
+                            label="Exposure"
+                            value={backgroundExposure}
+                            onChange={setBackgroundExposure}
+                            min={0.1} max={2.5} step={0.05}
+                            display={v => `${Math.round(v * 100)}%`}
+                            onReset={() => setBackgroundExposure(1.0)}
+                        />
+                        <InlineSliderRow
+                            label="Saturation"
+                            value={backgroundSaturation}
+                            onChange={setBackgroundSaturation}
+                            min={0} max={3.0} step={0.05}
+                            display={v => `${Math.round(v * 100)}%`}
+                            onReset={() => setBackgroundSaturation(1.0)}
+                        />
+                    </div>,
+                    document.body,
+                )}
             </div>
 
             <div

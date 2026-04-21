@@ -17,7 +17,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const samuraiChamplooTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Temple Bell" },
         "achievements": { icon: GiTrophy, label: "Bushido Honor" },
+        "milestones": { icon: LuFlag, label: "Journey Goals" },
         "theme-manager": { icon: GiPalette, label: "Ink Wash" },
         "extensions": { icon: BiExtension, label: "Hidden Blades" },
         "sync": { icon: IoCloudOfflineOutline, label: "Drift Sync" },

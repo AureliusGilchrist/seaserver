@@ -17,7 +17,7 @@ import {
     GiFlame,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -69,6 +69,7 @@ export const evangelionTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Angel Alert" },
         "achievements": { icon: GiTrophy, label: "Synch Rate Rewards" },
+        "milestones": { icon: LuFlag, label: "Angel Goals" },
         "theme-manager": { icon: GiPalette, label: "Eva Unit Colors" },
         "extensions": { icon: BiExtension, label: "Prog Knife Mods" },
         "sync": { icon: IoCloudOfflineOutline, label: "Dirac Sea Sync" },

@@ -17,7 +17,7 @@ import {
     GiStarFormation,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const blueLockTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Facility Alerts" },
         "achievements": { icon: GiTrophy, label: "Striker Records" },
+        "milestones": { icon: LuFlag, label: "Striker Goals" },
         "theme-manager": { icon: GiPalette, label: "Kit Colors" },
         "extensions": { icon: BiExtension, label: "Gear Upgrades" },
         "sync": { icon: IoCloudOfflineOutline, label: "Data Sync" },

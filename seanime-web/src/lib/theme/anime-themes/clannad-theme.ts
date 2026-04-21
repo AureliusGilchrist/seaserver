@@ -17,7 +17,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const clannadTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "School Bell" },
         "achievements": { icon: GiTrophy, label: "Wishes Granted" },
+        "milestones": { icon: LuFlag, label: "Town Goals" },
         "theme-manager": { icon: GiPalette, label: "Season Colors" },
         "extensions": { icon: BiExtension, label: "Drama Props" },
         "sync": { icon: IoCloudOfflineOutline, label: "Family Sync" },

@@ -17,7 +17,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const higurashiTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Shrine Bells" },
         "achievements": { icon: GiTrophy, label: "Sin Ledger" },
+        "milestones": { icon: LuFlag, label: "Club Goals" },
         "theme-manager": { icon: GiPalette, label: "Fragment Colors" },
         "extensions": { icon: BiExtension, label: "Curse Tools" },
         "sync": { icon: IoCloudOfflineOutline, label: "Timeline Sync" },

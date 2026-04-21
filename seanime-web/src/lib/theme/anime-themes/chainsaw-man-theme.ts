@@ -16,7 +16,7 @@ import {
     GiBrain,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -68,6 +68,7 @@ export const chainsawManTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Pochita's Warning" },
         "achievements": { icon: GiTrophy, label: "Contract Feats" },
+        "milestones": { icon: LuFlag, label: "Devil Goals" },
         "theme-manager": { icon: GiPalette, label: "Chainsaw Colors" },
         "extensions": { icon: BiExtension, label: "Devil Attachments" },
         "sync": { icon: IoCloudOfflineOutline, label: "Denji Link" },

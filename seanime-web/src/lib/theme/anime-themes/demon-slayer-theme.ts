@@ -16,7 +16,7 @@ import {
     GiEagleEmblem,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const demonSlayerTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Crow Alerts" },
         "achievements": { icon: GiTrophy, label: "Hashira Rankings" },
+        "milestones": { icon: LuFlag, label: "Slayer Milestones" },
         "theme-manager": { icon: GiPalette, label: "Haori Design" },
         "extensions": { icon: BiExtension, label: "Nichirin Upgrades" },
         "sync": { icon: IoCloudOfflineOutline, label: "Corps Sync" },

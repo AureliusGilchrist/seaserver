@@ -17,7 +17,7 @@ import {
     GiSettingsKnobs,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -71,6 +71,7 @@ export const homunculusTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Psyche Alerts" },
         "achievements": { icon: GiTrophy, label: "Inner Visions" },
+        "milestones": { icon: LuFlag, label: "Mind Goals" },
         "theme-manager": { icon: GiPalette, label: "Sand Palette" },
         "extensions": { icon: BiExtension, label: "Cranial Plugs" },
         "sync": { icon: IoCloudOfflineOutline, label: "Neural Sync" },

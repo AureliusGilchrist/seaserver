@@ -5,7 +5,7 @@ import {
     GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss } from "react-icons/lu"
+import { LuBell, LuRss, LuFlag } from "react-icons/lu"
 import { BiExtension } from "react-icons/bi"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { TbReportSearch } from "react-icons/tb"
@@ -54,6 +54,7 @@ export const yourNameTheme: AnimeThemeConfig = {
         "search":         { icon: FiSearch,        label: "Search" },
         "notifications":  { icon: LuBell,          label: "Thread Alerts" },
         "achievements":   { icon: GiStarMedal,     label: "Musubi Rank" },
+        "milestones": { icon: LuFlag, label: "Connection Goals" },
         "theme-manager":  { icon: GiPalette,       label: "Shinkai Colors" },
         "extensions":     { icon: BiExtension,     label: "Contracts" },
         "settings":       { icon: GiSettingsKnobs, label: "Thread Config" },

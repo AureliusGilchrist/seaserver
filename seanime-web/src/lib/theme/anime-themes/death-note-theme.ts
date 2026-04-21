@@ -17,7 +17,7 @@ import {
     GiLockedChest,
 } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
-import { LuBell, LuRss, LuBookOpen } from "react-icons/lu"
+import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
 import { BiExtension } from "react-icons/bi"
 import { TbReportSearch } from "react-icons/tb"
@@ -72,6 +72,7 @@ export const deathNoteTheme: AnimeThemeConfig = {
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Shinigami Alerts" },
         "achievements": { icon: GiCrown, label: "God of New World" },
+        "milestones": { icon: LuFlag, label: "Kira Goals" },
         "theme-manager": { icon: GiCandleLight, label: "Realm Aesthetics" },
         "extensions": { icon: BiExtension, label: "Notebook Rules" },
         "sync": { icon: IoCloudOfflineOutline, label: "Ryuk's Apples" },
