@@ -59,6 +59,10 @@ type AnimeThemeContextValue = {
     particleSettings: ParticleSettings
     setParticleTypeEnabled: (typeId: string, enabled: boolean) => void
     setParticleTypeIntensity: (typeId: string, intensity: number) => void
+    backgroundDim: number
+    setBackgroundDim: (v: number) => void
+    backgroundBlur: number
+    setBackgroundBlur: (v: number) => void
 }
 
 const AnimeThemeContext = React.createContext<AnimeThemeContextValue | null>(null)
@@ -228,6 +232,55 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         })
     }, [particleStorageKey])
 
+    // ── Background dim / blur (per-theme, user-overridable) ──
+    const [backgroundDim, setBackgroundDimRaw] = React.useState<number>(() => {
+        if (typeof window === "undefined") return config.backgroundDim ?? 0.30
+        try {
+            const stored = localStorage.getItem(`sea-anime-bgdim-${profileKey}-${themeId}`)
+            if (stored !== null) {
+                const v = parseFloat(stored)
+                if (!isNaN(v)) return Math.max(0, Math.min(1, v))
+            }
+        } catch { }
+        return config.backgroundDim ?? 0.30
+    })
+
+    const [backgroundBlur, setBackgroundBlurRaw] = React.useState<number>(() => {
+        if (typeof window === "undefined") return config.backgroundBlur ?? 30
+        try {
+            const stored = localStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
+            if (stored !== null) {
+                const v = parseFloat(stored)
+                if (!isNaN(v)) return Math.max(0, Math.min(100, v))
+            }
+        } catch { }
+        return config.backgroundBlur ?? 30
+    })
+
+    // Reload dim/blur when theme or profile changes
+    React.useEffect(() => {
+        try {
+            const s = localStorage.getItem(`sea-anime-bgdim-${profileKey}-${themeId}`)
+            setBackgroundDimRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(1, parseFloat(s))) : (config.backgroundDim ?? 0.30))
+        } catch { setBackgroundDimRaw(config.backgroundDim ?? 0.30) }
+        try {
+            const s = localStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
+            setBackgroundBlurRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(100, parseFloat(s))) : (config.backgroundBlur ?? 30))
+        } catch { setBackgroundBlurRaw(config.backgroundBlur ?? 30) }
+    }, [themeId, profileKey, config.backgroundDim, config.backgroundBlur])
+
+    const setBackgroundDim = React.useCallback((v: number) => {
+        const clamped = Math.max(0, Math.min(1, v))
+        setBackgroundDimRaw(clamped)
+        try { localStorage.setItem(`sea-anime-bgdim-${profileKey}-${themeId}`, String(clamped)) } catch { }
+    }, [profileKey, themeId])
+
+    const setBackgroundBlur = React.useCallback((v: number) => {
+        const clamped = Math.max(0, Math.min(100, v))
+        setBackgroundBlurRaw(clamped)
+        try { localStorage.setItem(`sea-anime-bgblur-${profileKey}-${themeId}`, String(clamped)) } catch { }
+    }, [profileKey, themeId])
+
     // ── CSS var injection ──
     React.useEffect(() => {
         const root = document.documentElement
@@ -324,13 +377,17 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         particleSettings,
         setParticleTypeEnabled,
         setParticleTypeIntensity,
-    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity])
+        backgroundDim,
+        setBackgroundDim,
+        backgroundBlur,
+        setBackgroundBlur,
+    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur])
 
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
             <AnimeThemeMusicPlayer />
-            {config.backgroundImageUrl && <ThemeBackgroundImage url={config.backgroundImageUrl} dim={config.backgroundDim} blur={config.backgroundBlur} />}
+            {config.backgroundImageUrl && <ThemeBackgroundImage url={config.backgroundImageUrl} dim={backgroundDim} blur={backgroundBlur} />}
             {config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
         </AnimeThemeContext.Provider>
     )
@@ -383,7 +440,7 @@ function ThemeBackgroundImage({ url, dim, blur }: { url: string; dim?: number; b
             style={{
                 position: "fixed",
                 inset: 0,
-                zIndex: -2,
+                zIndex: -1,
                 pointerEvents: "none",
                 backgroundImage: `url("${url}")`,
                 backgroundSize: "cover",

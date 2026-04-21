@@ -22,6 +22,10 @@ export default function ThemeManagerPage() {
         particleSettings,
         setParticleTypeEnabled,
         setParticleTypeIntensity,
+        backgroundDim,
+        setBackgroundDim,
+        backgroundBlur,
+        setBackgroundBlur,
     } = useAnimeTheme()
 
     // Fetch manga collection for hidden theme unlock detection
@@ -192,6 +196,58 @@ export default function ThemeManagerPage() {
                         <div className="font-semibold text-[--foreground] mb-2">Audio file slots</div>
                         <div>Opening music: <code className="text-[--color-brand-400]">{config.musicUrl.replace("/public", "seanime-web/public")}</code></div>
                         <div className="pt-1 text-white/40">Drop your own files at those paths — they will be played automatically.</div>
+                    </div>
+                </div>
+            )}
+
+            {/* Background */}
+            {config.backgroundImageUrl && (
+                <div className="rounded-2xl border border-[--border] bg-[--paper] p-6 space-y-5">
+                    <h2
+                        className="text-xl font-semibold"
+                        style={{ fontFamily: config.fontFamily }}
+                    >
+                        Background
+                    </h2>
+
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm text-[--muted] w-20 shrink-0">Dim</span>
+                        <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.01}
+                            value={backgroundDim}
+                            onChange={e => setBackgroundDim(Number(e.target.value))}
+                            className="w-56 accent-[--color-brand-500]"
+                        />
+                        <span className="text-sm text-[--muted] w-10 text-right">{Math.round(backgroundDim * 100)}%</span>
+                        <button
+                            onClick={() => setBackgroundDim(config.backgroundDim ?? 0.30)}
+                            className="text-xs text-[--muted] hover:text-[--foreground] transition-colors px-2 py-0.5 rounded bg-[--background] border border-[--border]"
+                        >
+                            Reset
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm text-[--muted] w-20 shrink-0">Blur</span>
+                        <input
+                            type="range"
+                            min={0}
+                            max={60}
+                            step={1}
+                            value={backgroundBlur}
+                            onChange={e => setBackgroundBlur(Number(e.target.value))}
+                            className="w-56 accent-[--color-brand-500]"
+                        />
+                        <span className="text-sm text-[--muted] w-10 text-right">{backgroundBlur}px</span>
+                        <button
+                            onClick={() => setBackgroundBlur(config.backgroundBlur ?? 30)}
+                            className="text-xs text-[--muted] hover:text-[--foreground] transition-colors px-2 py-0.5 rounded bg-[--background] border border-[--border]"
+                        >
+                            Reset
+                        </button>
                     </div>
                 </div>
             )}

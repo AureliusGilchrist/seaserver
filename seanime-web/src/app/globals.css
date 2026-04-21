@@ -1309,29 +1309,24 @@ body.vc-fullscreen .appLayout {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   Hide default body backgrounds when an anime theme with wallpaper is active.
+   Hide default body backgrounds when ANY anime theme is active.
    The theme's ThemeBackgroundImage component provides its own background.
    ══════════════════════════════════════════════════════════════════ */
 
-[data-anime-theme="bleach"] body:before,
-[data-anime-theme="bleach"] body:after,
-[data-anime-theme="naruto"] body:before,
-[data-anime-theme="naruto"] body:after,
-[data-anime-theme="one-piece"] body:before,
-[data-anime-theme="one-piece"] body:after {
+:root[data-anime-theme]:not([data-anime-theme="seanime"]) body:before,
+:root[data-anime-theme]:not([data-anime-theme="seanime"]) body:after {
     opacity: 0 !important;
 }
 
-[data-anime-theme="bleach"],
-[data-anime-theme="naruto"],
-[data-anime-theme="one-piece"] {
+:root[data-anime-theme]:not([data-anime-theme="seanime"]) {
     background-image: none !important;
 }
 
-[data-anime-theme="bleach"] body,
-[data-anime-theme="naruto"] body,
-[data-anime-theme="one-piece"] body {
-    background: var(--background) !important;
+/* Body must be transparent so ThemeBackgroundImage (z-index:-1, step 2) isn't
+   painted over by body's opaque background-color which paints in step 6. */
+:root[data-anime-theme]:not([data-anime-theme="seanime"]) body {
+    background: transparent !important;
+    background-color: transparent !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════
