@@ -45,9 +45,23 @@ export default function Page() {
 
     const staff = data.Staff
 
+    const bgImage = staff.image?.large
+
     return (
         <PageWrapper className="p-4 sm:p-8 space-y-6">
-            <div className="flex items-center gap-4">
+            {bgImage && (
+                <div
+                    aria-hidden
+                    style={{
+                        position: "fixed", inset: 0, zIndex: 0,
+                        backgroundImage: `url(${bgImage})`,
+                        backgroundSize: "cover", backgroundPosition: "center top",
+                        opacity: 0.12, filter: "blur(28px)", pointerEvents: "none",
+                        transform: "scale(1.05)",
+                    }}
+                />
+            )}
+            <div className="relative z-[1] flex items-center gap-4">
                 <SeaLink href="/" className="text-[--muted] hover:text-white transition">
                     <LuArrowLeft className="text-2xl" />
                 </SeaLink>

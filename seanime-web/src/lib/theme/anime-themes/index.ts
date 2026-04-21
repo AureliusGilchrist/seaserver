@@ -98,6 +98,208 @@ export * from "./hellsing-theme"
 export * from "./homunculus-theme"
 export * from "./holyland-theme"
 export * from "./berserk-of-gluttony-theme"
+// ── Wave 2 exports ──
+export * from "./mazinger-z-theme"
+export * from "./space-battleship-yamato-theme"
+export * from "./galaxy-express-999-theme"
+export * from "./future-boy-conan-theme"
+export * from "./gundam-theme"
+export * from "./dr-slump-theme"
+export * from "./urusei-yatsura-theme"
+export * from "./macross-theme"
+export * from "./nausicaa-theme"
+export * from "./fist-of-the-north-star-theme"
+export * from "./dirty-pair-theme"
+export * from "./dragon-ball-theme"
+export * from "./castle-in-the-sky-theme"
+export * from "./maison-ikkoku-theme"
+export * from "./saint-seiya-theme"
+export * from "./city-hunter-theme"
+export * from "./my-neighbor-totoro-theme"
+export * from "./patlabor-theme"
+export * from "./legend-of-galactic-heroes-theme"
+export * from "./kiki-delivery-service-theme"
+export * from "./porco-rosso-theme"
+export * from "./magic-knight-rayearth-theme"
+export * from "./whisper-of-the-heart-theme"
+export * from "./kare-kano-theme"
+export * from "./dragon-ball-gt-theme"
+export * from "./s-cry-ed-theme"
+export * from "./shaman-king-theme"
+export * from "./fruits-basket-theme"
+export * from "./twelve-kingdoms-theme"
+export * from "./wolf-rain-theme"
+export * from "./school-rumble-theme"
+export * from "./eureka-seven-theme"
+export * from "./black-lagoon-theme"
+export * from "./d-gray-man-theme"
+export * from "./katekyo-hitman-reborn-theme"
+export * from "./ouran-host-club-theme"
+export * from "./moribito-theme"
+export * from "./darker-than-black-theme"
+export * from "./baccano-theme"
+export * from "./fate-stay-night-theme"
+export * from "./lovely-complex-theme"
+export * from "./natsume-yujincho-theme"
+export * from "./skip-beat-theme"
+export * from "./black-butler-theme"
+export * from "./soul-eater-theme"
+export * from "./pandora-hearts-theme"
+export * from "./durarara-theme"
+export * from "./fate-zero-theme"
+export * from "./madoka-magica-theme"
+export * from "./ao-no-exorcist-theme"
+export * from "./anohana-theme"
+export * from "./magi-theme"
+export * from "./kids-on-the-slope-theme"
+export * from "./log-horizon-theme"
+export * from "./gintama-theme"
+export * from "./kill-la-kill-theme"
+export * from "./nichijou-theme"
+export * from "./seven-deadly-sins-theme"
+export * from "./akame-ga-kill-theme"
+export * from "./noragami-theme"
+export * from "./your-lie-in-april-theme"
+export * from "./golden-time-theme"
+export * from "./arslan-senki-theme"
+export * from "./owari-no-seraph-theme"
+export * from "./danmachi-theme"
+export * from "./hibike-euphonium-theme"
+export * from "./re-creators-theme"
+export * from "./net-juu-no-susume-theme"
+export * from "./wotakoi-theme"
+export * from "./kaguya-sama-theme"
+export * from "./quintessential-quintuplets-theme"
+export * from "./horimiya-theme"
+export * from "./lycoris-recoil-theme"
+export * from "./my-dress-up-darling-theme"
+export * from "./the-eminence-in-shadow-theme"
+export * from "./to-your-eternity-theme"
+export * from "./rent-a-girlfriend-theme"
+export * from "./oshi-no-ko-theme"
+export * from "./dungeon-meshi-theme"
+export * from "./shangri-la-frontier-theme"
+export * from "./kaiju-8-theme"
+export * from "./wind-breaker-theme"
+export * from "./sakamoto-days-theme"
+export * from "./zom-100-theme"
+export * from "./omniscient-reader-theme"
+export * from "./high-school-dxd-theme"
+export * from "./blue-box-theme"
+export * from "./skip-and-loafer-theme"
+export * from "./beelzebub-theme"
+export * from "./toriko-theme"
+export * from "./zatch-bell-theme"
+export * from "./arifureta-theme"
+export * from "./death-march-theme"
+export * from "./the-rising-of-the-shield-hero-theme"
+export * from "./greatest-demon-lord-theme"
+export * from "./candy-candy-theme"
+export * from "./now-and-then-here-and-there-theme"
+export * from "./trigun-stampede-theme"
+export * from "./blue-period-theme"
+export * from "./metallic-rouge-theme"
+// ── Wave 2 exports ──
+export * from "./mazinger-z-theme"
+export * from "./space-battleship-yamato-theme"
+export * from "./galaxy-express-999-theme"
+export * from "./future-boy-conan-theme"
+export * from "./gundam-theme"
+export * from "./dr-slump-theme"
+export * from "./urusei-yatsura-theme"
+export * from "./macross-theme"
+export * from "./nausicaa-theme"
+export * from "./fist-of-the-north-star-theme"
+export * from "./dirty-pair-theme"
+export * from "./dragon-ball-theme"
+export * from "./castle-in-the-sky-theme"
+export * from "./maison-ikkoku-theme"
+export * from "./saint-seiya-theme"
+export * from "./city-hunter-theme"
+export * from "./my-neighbor-totoro-theme"
+export * from "./patlabor-theme"
+export * from "./legend-of-galactic-heroes-theme"
+export * from "./kiki-delivery-service-theme"
+export * from "./porco-rosso-theme"
+export * from "./magic-knight-rayearth-theme"
+export * from "./whisper-of-the-heart-theme"
+export * from "./kare-kano-theme"
+export * from "./dragon-ball-gt-theme"
+export * from "./s-cry-ed-theme"
+export * from "./shaman-king-theme"
+export * from "./fruits-basket-theme"
+export * from "./twelve-kingdoms-theme"
+export * from "./wolf-rain-theme"
+export * from "./school-rumble-theme"
+export * from "./eureka-seven-theme"
+export * from "./black-lagoon-theme"
+export * from "./d-gray-man-theme"
+export * from "./katekyo-hitman-reborn-theme"
+export * from "./ouran-host-club-theme"
+export * from "./moribito-theme"
+export * from "./darker-than-black-theme"
+export * from "./baccano-theme"
+export * from "./fate-stay-night-theme"
+export * from "./lovely-complex-theme"
+export * from "./natsume-yujincho-theme"
+export * from "./skip-beat-theme"
+export * from "./black-butler-theme"
+export * from "./soul-eater-theme"
+export * from "./pandora-hearts-theme"
+export * from "./durarara-theme"
+export * from "./fate-zero-theme"
+export * from "./madoka-magica-theme"
+export * from "./ao-no-exorcist-theme"
+export * from "./anohana-theme"
+export * from "./magi-theme"
+export * from "./kids-on-the-slope-theme"
+export * from "./log-horizon-theme"
+export * from "./gintama-theme"
+export * from "./kill-la-kill-theme"
+export * from "./nichijou-theme"
+export * from "./seven-deadly-sins-theme"
+export * from "./akame-ga-kill-theme"
+export * from "./noragami-theme"
+export * from "./your-lie-in-april-theme"
+export * from "./golden-time-theme"
+export * from "./arslan-senki-theme"
+export * from "./owari-no-seraph-theme"
+export * from "./danmachi-theme"
+export * from "./hibike-euphonium-theme"
+export * from "./re-creators-theme"
+export * from "./net-juu-no-susume-theme"
+export * from "./wotakoi-theme"
+export * from "./kaguya-sama-theme"
+export * from "./quintessential-quintuplets-theme"
+export * from "./horimiya-theme"
+export * from "./lycoris-recoil-theme"
+export * from "./my-dress-up-darling-theme"
+export * from "./the-eminence-in-shadow-theme"
+export * from "./to-your-eternity-theme"
+export * from "./rent-a-girlfriend-theme"
+export * from "./oshi-no-ko-theme"
+export * from "./dungeon-meshi-theme"
+export * from "./shangri-la-frontier-theme"
+export * from "./kaiju-8-theme"
+export * from "./wind-breaker-theme"
+export * from "./sakamoto-days-theme"
+export * from "./zom-100-theme"
+export * from "./omniscient-reader-theme"
+export * from "./high-school-dxd-theme"
+export * from "./blue-box-theme"
+export * from "./skip-and-loafer-theme"
+export * from "./beelzebub-theme"
+export * from "./toriko-theme"
+export * from "./zatch-bell-theme"
+export * from "./arifureta-theme"
+export * from "./death-march-theme"
+export * from "./the-rising-of-the-shield-hero-theme"
+export * from "./greatest-demon-lord-theme"
+export * from "./candy-candy-theme"
+export * from "./now-and-then-here-and-there-theme"
+export * from "./trigun-stampede-theme"
+export * from "./blue-period-theme"
+export * from "./metallic-rouge-theme"
 export * from "./player-icons"
 
 import { seanimeTheme } from "./seanime-theme"
@@ -199,6 +401,107 @@ import { hellsingTheme } from "./hellsing-theme"
 import { homunculusTheme } from "./homunculus-theme"
 import { holylandTheme } from "./holyland-theme"
 import { berserkOfGluttonyTheme } from "./berserk-of-gluttony-theme"
+// ── Wave 2 imports ──
+import { mazingerZTheme } from "./mazinger-z-theme"
+import { spaceBattleshipYamatoTheme } from "./space-battleship-yamato-theme"
+import { galaxyExpress999Theme } from "./galaxy-express-999-theme"
+import { futureBoyConanTheme } from "./future-boy-conan-theme"
+import { gundamTheme } from "./gundam-theme"
+import { drSlumpTheme } from "./dr-slump-theme"
+import { urusei_yatsuraTheme } from "./urusei-yatsura-theme"
+import { macrossTheme } from "./macross-theme"
+import { nausicaaTheme } from "./nausicaa-theme"
+import { fistOfTheNorthStarTheme } from "./fist-of-the-north-star-theme"
+import { dirtyPairTheme } from "./dirty-pair-theme"
+import { dragonBallTheme } from "./dragon-ball-theme"
+import { castleInTheSkyTheme } from "./castle-in-the-sky-theme"
+import { maisonIkkokuTheme } from "./maison-ikkoku-theme"
+import { saintSeiyaTheme } from "./saint-seiya-theme"
+import { cityHunterTheme } from "./city-hunter-theme"
+import { myNeighborTotoroTheme } from "./my-neighbor-totoro-theme"
+import { patlaborTheme } from "./patlabor-theme"
+import { legendOfGalacticHeroesTheme } from "./legend-of-galactic-heroes-theme"
+import { kikiDeliveryServiceTheme } from "./kiki-delivery-service-theme"
+import { porcoRossoTheme } from "./porco-rosso-theme"
+import { magicKnightRayearthTheme } from "./magic-knight-rayearth-theme"
+import { whisperOfTheHeartTheme } from "./whisper-of-the-heart-theme"
+import { kareKanoTheme } from "./kare-kano-theme"
+import { dragonBallGtTheme } from "./dragon-ball-gt-theme"
+import { sCryEdTheme } from "./s-cry-ed-theme"
+import { shamanKingTheme } from "./shaman-king-theme"
+import { fruitsBasketTheme } from "./fruits-basket-theme"
+import { twelveKingdomsTheme } from "./twelve-kingdoms-theme"
+import { wolfRainTheme } from "./wolf-rain-theme"
+import { schoolRumbleTheme } from "./school-rumble-theme"
+import { eurekaSevenTheme } from "./eureka-seven-theme"
+import { blackLagoonTheme } from "./black-lagoon-theme"
+import { dGrayManTheme } from "./d-gray-man-theme"
+import { katekyoHitmanRebornTheme } from "./katekyo-hitman-reborn-theme"
+import { ouranHostClubTheme } from "./ouran-host-club-theme"
+import { moribitoTheme } from "./moribito-theme"
+import { darkerThanBlackTheme } from "./darker-than-black-theme"
+import { baccanoTheme } from "./baccano-theme"
+import { fateStayNightTheme } from "./fate-stay-night-theme"
+import { lovelyComplexTheme } from "./lovely-complex-theme"
+import { natsumeYujinchoTheme } from "./natsume-yujincho-theme"
+import { skipBeatTheme } from "./skip-beat-theme"
+import { blackButlerTheme } from "./black-butler-theme"
+import { soulEaterTheme } from "./soul-eater-theme"
+import { pandoraHeartsTheme } from "./pandora-hearts-theme"
+import { durararaTheme } from "./durarara-theme"
+import { fateZeroTheme } from "./fate-zero-theme"
+import { madokaMagicaTheme } from "./madoka-magica-theme"
+import { aoNoExorcistTheme } from "./ao-no-exorcist-theme"
+import { anohanaTheme } from "./anohana-theme"
+import { magiTheme } from "./magi-theme"
+import { kidsOnTheSlopeTheme } from "./kids-on-the-slope-theme"
+import { logHorizonTheme } from "./log-horizon-theme"
+import { gintamaTheme } from "./gintama-theme"
+import { killLaKillTheme } from "./kill-la-kill-theme"
+import { nichijouTheme } from "./nichijou-theme"
+import { sevenDeadlySinsTheme } from "./seven-deadly-sins-theme"
+import { akameGaKillTheme } from "./akame-ga-kill-theme"
+import { noragamiTheme } from "./noragami-theme"
+import { yourLieInAprilTheme } from "./your-lie-in-april-theme"
+import { goldenTimeTheme } from "./golden-time-theme"
+import { arslanSenkiTheme } from "./arslan-senki-theme"
+import { owariNoSeraphTheme } from "./owari-no-seraph-theme"
+import { danmachiTheme } from "./danmachi-theme"
+import { hibikeEuphoniumTheme } from "./hibike-euphonium-theme"
+import { reCreatorsTheme } from "./re-creators-theme"
+import { netJuuNoSusumeTheme } from "./net-juu-no-susume-theme"
+import { wotakoiTheme } from "./wotakoi-theme"
+import { kaguyaSamaTheme } from "./kaguya-sama-theme"
+import { quintessentialQuintupletsTheme } from "./quintessential-quintuplets-theme"
+import { horimiyaTheme } from "./horimiya-theme"
+import { lycorisRecoilTheme } from "./lycoris-recoil-theme"
+import { myDressUpDarlingTheme } from "./my-dress-up-darling-theme"
+import { theEminenceInShadowTheme } from "./the-eminence-in-shadow-theme"
+import { toYourEternityTheme } from "./to-your-eternity-theme"
+import { rentAGirlfriendTheme } from "./rent-a-girlfriend-theme"
+import { oshinoKoTheme } from "./oshi-no-ko-theme"
+import { dungeonMeshiTheme } from "./dungeon-meshi-theme"
+import { shangriLaFrontierTheme } from "./shangri-la-frontier-theme"
+import { kaiju8Theme } from "./kaiju-8-theme"
+import { windBreakerTheme } from "./wind-breaker-theme"
+import { sakamotoDaysTheme } from "./sakamoto-days-theme"
+import { zom100Theme } from "./zom-100-theme"
+import { omniscientReaderTheme } from "./omniscient-reader-theme"
+import { highSchoolDxdTheme } from "./high-school-dxd-theme"
+import { blueBoxTheme } from "./blue-box-theme"
+import { skipAndLoaferTheme } from "./skip-and-loafer-theme"
+import { beelzebubTheme } from "./beelzebub-theme"
+import { torikoTheme } from "./toriko-theme"
+import { zatchBellTheme } from "./zatch-bell-theme"
+import { arifuretaTheme } from "./arifureta-theme"
+import { deathMarchTheme } from "./death-march-theme"
+import { theRisingOfTheShieldHeroTheme } from "./the-rising-of-the-shield-hero-theme"
+import { greatestDemonLordTheme } from "./greatest-demon-lord-theme"
+import { candyCandyTheme } from "./candy-candy-theme"
+import { nowAndThenHereAndThereTheme } from "./now-and-then-here-and-there-theme"
+import { trigunStampedeTheme } from "./trigun-stampede-theme"
+import { bluePeriodTheme } from "./blue-period-theme"
+import { metallicRougeTheme } from "./metallic-rouge-theme"
 import type { AnimeThemeConfig, AnimeThemeId } from "./types"
 
 export const ANIME_THEMES: Record<AnimeThemeId, AnimeThemeConfig> = {
@@ -301,6 +604,107 @@ export const ANIME_THEMES: Record<AnimeThemeId, AnimeThemeConfig> = {
     "homunculus": homunculusTheme,
     "holyland": holylandTheme,
     "berserk-of-gluttony": berserkOfGluttonyTheme,
+    // ── Wave 2 ──
+    "mazinger-z": mazingerZTheme,
+    "space-battleship-yamato": spaceBattleshipYamatoTheme,
+    "galaxy-express-999": galaxyExpress999Theme,
+    "future-boy-conan": futureBoyConanTheme,
+    "gundam": gundamTheme,
+    "dr-slump": drSlumpTheme,
+    "urusei-yatsura": urusei_yatsuraTheme,
+    "macross": macrossTheme,
+    "nausicaa": nausicaaTheme,
+    "fist-of-the-north-star": fistOfTheNorthStarTheme,
+    "dirty-pair": dirtyPairTheme,
+    "dragon-ball": dragonBallTheme,
+    "castle-in-the-sky": castleInTheSkyTheme,
+    "maison-ikkoku": maisonIkkokuTheme,
+    "saint-seiya": saintSeiyaTheme,
+    "city-hunter": cityHunterTheme,
+    "my-neighbor-totoro": myNeighborTotoroTheme,
+    "patlabor": patlaborTheme,
+    "legend-of-galactic-heroes": legendOfGalacticHeroesTheme,
+    "kiki-delivery-service": kikiDeliveryServiceTheme,
+    "porco-rosso": porcoRossoTheme,
+    "magic-knight-rayearth": magicKnightRayearthTheme,
+    "whisper-of-the-heart": whisperOfTheHeartTheme,
+    "kare-kano": kareKanoTheme,
+    "dragon-ball-gt": dragonBallGtTheme,
+    "s-cry-ed": sCryEdTheme,
+    "shaman-king": shamanKingTheme,
+    "fruits-basket": fruitsBasketTheme,
+    "twelve-kingdoms": twelveKingdomsTheme,
+    "wolf-rain": wolfRainTheme,
+    "school-rumble": schoolRumbleTheme,
+    "eureka-seven": eurekaSevenTheme,
+    "black-lagoon": blackLagoonTheme,
+    "d-gray-man": dGrayManTheme,
+    "katekyo-hitman-reborn": katekyoHitmanRebornTheme,
+    "ouran-host-club": ouranHostClubTheme,
+    "moribito": moribitoTheme,
+    "darker-than-black": darkerThanBlackTheme,
+    "baccano": baccanoTheme,
+    "fate-stay-night": fateStayNightTheme,
+    "lovely-complex": lovelyComplexTheme,
+    "natsume-yujincho": natsumeYujinchoTheme,
+    "skip-beat": skipBeatTheme,
+    "black-butler": blackButlerTheme,
+    "soul-eater": soulEaterTheme,
+    "pandora-hearts": pandoraHeartsTheme,
+    "durarara": durararaTheme,
+    "fate-zero": fateZeroTheme,
+    "madoka-magica": madokaMagicaTheme,
+    "ao-no-exorcist": aoNoExorcistTheme,
+    "anohana": anohanaTheme,
+    "magi": magiTheme,
+    "kids-on-the-slope": kidsOnTheSlopeTheme,
+    "log-horizon": logHorizonTheme,
+    "gintama": gintamaTheme,
+    "kill-la-kill": killLaKillTheme,
+    "nichijou": nichijouTheme,
+    "seven-deadly-sins": sevenDeadlySinsTheme,
+    "akame-ga-kill": akameGaKillTheme,
+    "noragami": noragamiTheme,
+    "your-lie-in-april": yourLieInAprilTheme,
+    "golden-time": goldenTimeTheme,
+    "arslan-senki": arslanSenkiTheme,
+    "owari-no-seraph": owariNoSeraphTheme,
+    "danmachi": danmachiTheme,
+    "hibike-euphonium": hibikeEuphoniumTheme,
+    "re-creators": reCreatorsTheme,
+    "net-juu-no-susume": netJuuNoSusumeTheme,
+    "wotakoi": wotakoiTheme,
+    "kaguya-sama": kaguyaSamaTheme,
+    "quintessential-quintuplets": quintessentialQuintupletsTheme,
+    "horimiya": horimiyaTheme,
+    "lycoris-recoil": lycorisRecoilTheme,
+    "my-dress-up-darling": myDressUpDarlingTheme,
+    "the-eminence-in-shadow": theEminenceInShadowTheme,
+    "to-your-eternity": toYourEternityTheme,
+    "rent-a-girlfriend": rentAGirlfriendTheme,
+    "oshi-no-ko": oshinoKoTheme,
+    "dungeon-meshi": dungeonMeshiTheme,
+    "shangri-la-frontier": shangriLaFrontierTheme,
+    "kaiju-8": kaiju8Theme,
+    "wind-breaker": windBreakerTheme,
+    "sakamoto-days": sakamotoDaysTheme,
+    "zom-100": zom100Theme,
+    "omniscient-reader": omniscientReaderTheme,
+    "high-school-dxd": highSchoolDxdTheme,
+    "blue-box": blueBoxTheme,
+    "skip-and-loafer": skipAndLoaferTheme,
+    "beelzebub": beelzebubTheme,
+    "toriko": torikoTheme,
+    "zatch-bell": zatchBellTheme,
+    "arifureta": arifuretaTheme,
+    "death-march": deathMarchTheme,
+    "the-rising-of-the-shield-hero": theRisingOfTheShieldHeroTheme,
+    "greatest-demon-lord": greatestDemonLordTheme,
+    "candy-candy": candyCandyTheme,
+    "now-and-then-here-and-there": nowAndThenHereAndThereTheme,
+    "trigun-stampede": trigunStampedeTheme,
+    "blue-period": bluePeriodTheme,
+    "metallic-rouge": metallicRougeTheme,
 }
 
 export const ANIME_THEME_LIST: AnimeThemeConfig[] = [
@@ -403,4 +807,105 @@ export const ANIME_THEME_LIST: AnimeThemeConfig[] = [
     homunculusTheme,
     holylandTheme,
     berserkOfGluttonyTheme,
+    // ── Wave 2 ──
+    mazingerZTheme,
+    spaceBattleshipYamatoTheme,
+    galaxyExpress999Theme,
+    futureBoyConanTheme,
+    gundamTheme,
+    drSlumpTheme,
+    urusei_yatsuraTheme,
+    macrossTheme,
+    nausicaaTheme,
+    fistOfTheNorthStarTheme,
+    dirtyPairTheme,
+    dragonBallTheme,
+    castleInTheSkyTheme,
+    maisonIkkokuTheme,
+    saintSeiyaTheme,
+    cityHunterTheme,
+    myNeighborTotoroTheme,
+    patlaborTheme,
+    legendOfGalacticHeroesTheme,
+    kikiDeliveryServiceTheme,
+    porcoRossoTheme,
+    magicKnightRayearthTheme,
+    whisperOfTheHeartTheme,
+    kareKanoTheme,
+    dragonBallGtTheme,
+    sCryEdTheme,
+    shamanKingTheme,
+    fruitsBasketTheme,
+    twelveKingdomsTheme,
+    wolfRainTheme,
+    schoolRumbleTheme,
+    eurekaSevenTheme,
+    blackLagoonTheme,
+    dGrayManTheme,
+    katekyoHitmanRebornTheme,
+    ouranHostClubTheme,
+    moribitoTheme,
+    darkerThanBlackTheme,
+    baccanoTheme,
+    fateStayNightTheme,
+    lovelyComplexTheme,
+    natsumeYujinchoTheme,
+    skipBeatTheme,
+    blackButlerTheme,
+    soulEaterTheme,
+    pandoraHeartsTheme,
+    durararaTheme,
+    fateZeroTheme,
+    madokaMagicaTheme,
+    aoNoExorcistTheme,
+    anohanaTheme,
+    magiTheme,
+    kidsOnTheSlopeTheme,
+    logHorizonTheme,
+    gintamaTheme,
+    killLaKillTheme,
+    nichijouTheme,
+    sevenDeadlySinsTheme,
+    akameGaKillTheme,
+    noragamiTheme,
+    yourLieInAprilTheme,
+    goldenTimeTheme,
+    arslanSenkiTheme,
+    owariNoSeraphTheme,
+    danmachiTheme,
+    hibikeEuphoniumTheme,
+    reCreatorsTheme,
+    netJuuNoSusumeTheme,
+    wotakoiTheme,
+    kaguyaSamaTheme,
+    quintessentialQuintupletsTheme,
+    horimiyaTheme,
+    lycorisRecoilTheme,
+    myDressUpDarlingTheme,
+    theEminenceInShadowTheme,
+    toYourEternityTheme,
+    rentAGirlfriendTheme,
+    oshinoKoTheme,
+    dungeonMeshiTheme,
+    shangriLaFrontierTheme,
+    kaiju8Theme,
+    windBreakerTheme,
+    sakamotoDaysTheme,
+    zom100Theme,
+    omniscientReaderTheme,
+    highSchoolDxdTheme,
+    blueBoxTheme,
+    skipAndLoaferTheme,
+    beelzebubTheme,
+    torikoTheme,
+    zatchBellTheme,
+    arifuretaTheme,
+    deathMarchTheme,
+    theRisingOfTheShieldHeroTheme,
+    greatestDemonLordTheme,
+    candyCandyTheme,
+    nowAndThenHereAndThereTheme,
+    trigunStampedeTheme,
+    bluePeriodTheme,
+    metallicRougeTheme,
 ]

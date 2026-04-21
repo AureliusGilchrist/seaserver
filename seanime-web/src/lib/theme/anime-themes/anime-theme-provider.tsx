@@ -63,6 +63,10 @@ type AnimeThemeContextValue = {
     setBackgroundDim: (v: number) => void
     backgroundBlur: number
     setBackgroundBlur: (v: number) => void
+    backgroundExposure: number
+    setBackgroundExposure: (v: number) => void
+    backgroundSaturation: number
+    setBackgroundSaturation: (v: number) => void
     activeBackgroundUrl: string | null
     setActiveBackgroundUrl: (url: string | null) => void
 }
@@ -259,7 +263,32 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         return config.backgroundBlur ?? 30
     })
 
-    // Reload dim/blur when theme or profile changes
+    // ── Background exposure / saturation (per-theme, user-overridable) ──
+    const [backgroundExposure, setBackgroundExposureRaw] = React.useState<number>(() => {
+        if (typeof window === "undefined") return 1.0
+        try {
+            const stored = localStorage.getItem(`sea-anime-bgexposure-${profileKey}-${themeId}`)
+            if (stored !== null) {
+                const v = parseFloat(stored)
+                if (!isNaN(v)) return Math.max(0.1, Math.min(2.5, v))
+            }
+        } catch { }
+        return 1.0
+    })
+
+    const [backgroundSaturation, setBackgroundSaturationRaw] = React.useState<number>(() => {
+        if (typeof window === "undefined") return 1.0
+        try {
+            const stored = localStorage.getItem(`sea-anime-bgsat-${profileKey}-${themeId}`)
+            if (stored !== null) {
+                const v = parseFloat(stored)
+                if (!isNaN(v)) return Math.max(0, Math.min(3.0, v))
+            }
+        } catch { }
+        return 1.0
+    })
+
+    // Reload dim/blur/exposure/saturation when theme or profile changes
     React.useEffect(() => {
         try {
             const s = localStorage.getItem(`sea-anime-bgdim-${profileKey}-${themeId}`)
@@ -269,6 +298,14 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             const s = localStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
             setBackgroundBlurRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(100, parseFloat(s))) : (config.backgroundBlur ?? 30))
         } catch { setBackgroundBlurRaw(config.backgroundBlur ?? 30) }
+        try {
+            const s = localStorage.getItem(`sea-anime-bgexposure-${profileKey}-${themeId}`)
+            setBackgroundExposureRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0.1, Math.min(2.5, parseFloat(s))) : 1.0)
+        } catch { setBackgroundExposureRaw(1.0) }
+        try {
+            const s = localStorage.getItem(`sea-anime-bgsat-${profileKey}-${themeId}`)
+            setBackgroundSaturationRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(3.0, parseFloat(s))) : 1.0)
+        } catch { setBackgroundSaturationRaw(1.0) }
     }, [themeId, profileKey, config.backgroundDim, config.backgroundBlur])
 
     const setBackgroundDim = React.useCallback((v: number) => {
@@ -281,6 +318,18 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         const clamped = Math.max(0, Math.min(100, v))
         setBackgroundBlurRaw(clamped)
         try { localStorage.setItem(`sea-anime-bgblur-${profileKey}-${themeId}`, String(clamped)) } catch { }
+    }, [profileKey, themeId])
+
+    const setBackgroundExposure = React.useCallback((v: number) => {
+        const clamped = Math.max(0.1, Math.min(2.5, v))
+        setBackgroundExposureRaw(clamped)
+        try { localStorage.setItem(`sea-anime-bgexposure-${profileKey}-${themeId}`, String(clamped)) } catch { }
+    }, [profileKey, themeId])
+
+    const setBackgroundSaturation = React.useCallback((v: number) => {
+        const clamped = Math.max(0, Math.min(3.0, v))
+        setBackgroundSaturationRaw(clamped)
+        try { localStorage.setItem(`sea-anime-bgsat-${profileKey}-${themeId}`, String(clamped)) } catch { }
     }, [profileKey, themeId])
 
     // ── Active background URL (per-theme, per-profile, user-selectable) ──
@@ -420,15 +469,19 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setBackgroundDim,
         backgroundBlur,
         setBackgroundBlur,
+        backgroundExposure,
+        setBackgroundExposure,
+        backgroundSaturation,
+        setBackgroundSaturation,
         activeBackgroundUrl,
         setActiveBackgroundUrl,
-    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, activeBackgroundUrl, setActiveBackgroundUrl])
+    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, activeBackgroundUrl, setActiveBackgroundUrl])
 
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
             <AnimeThemeMusicPlayer />
-            {config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} />}
+            {config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} />}
             {config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
         </AnimeThemeContext.Provider>
     )
@@ -473,8 +526,12 @@ function AnimeThemeMusicPlayer() {
 // Theme Background Image
 // ─────────────────────────────────────────────────────────────────
 
-function ThemeBackgroundImage({ url, dim, blur }: { url: string; dim?: number; blur?: number }) {
+function ThemeBackgroundImage({ url, dim, blur, exposure, saturation }: { url: string; dim?: number; blur?: number; exposure?: number; saturation?: number }) {
     const opacity = dim != null ? (1 - dim) : 0.35
+    const filterParts: string[] = []
+    if (blur) filterParts.push(`blur(${blur}px)`)
+    if (exposure != null && exposure !== 1) filterParts.push(`brightness(${exposure})`)
+    if (saturation != null && saturation !== 1) filterParts.push(`saturate(${saturation})`)
     return (
         <div
             aria-hidden
@@ -488,7 +545,7 @@ function ThemeBackgroundImage({ url, dim, blur }: { url: string; dim?: number; b
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",
                 opacity,
-                filter: blur ? `blur(${blur}px)` : undefined,
+                filter: filterParts.length > 0 ? filterParts.join(" ") : undefined,
                 boxShadow: "inset 0 0 120px 40px rgba(0,0,0,0.5), inset 0 0 40px 20px rgba(0,0,0,0.3)",
             }}
         />

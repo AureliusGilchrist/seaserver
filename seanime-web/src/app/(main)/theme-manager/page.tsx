@@ -2,8 +2,9 @@
 import React from "react"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
-import type { AnimeThemeId } from "@/lib/theme/anime-themes"
+import type { AnimeThemeId, AnimeThemeConfig } from "@/lib/theme/anime-themes"
 import { HIDDEN_THEMES, HIDDEN_THEME_IDS } from "@/lib/theme/anime-themes/hidden-themes"
+import { LuSettings2 } from "react-icons/lu"
 import { useGetRawAnilistMangaCollection } from "@/api/hooks/manga.hooks"
 import { cn } from "@/components/ui/core/styling"
 import { PageWrapper } from "@/components/shared/page-wrapper"
@@ -28,6 +29,10 @@ export default function ThemeManagerPage() {
         setBackgroundDim,
         backgroundBlur,
         setBackgroundBlur,
+        backgroundExposure,
+        setBackgroundExposure,
+        backgroundSaturation,
+        setBackgroundSaturation,
         activeBackgroundUrl,
         setActiveBackgroundUrl,
     } = useAnimeTheme()
@@ -97,49 +102,21 @@ export default function ThemeManagerPage() {
                     }
 
                     return (
-                        <button
+                        <ThemeCard
                             key={theme.id}
-                            onClick={() => setThemeId(theme.id as AnimeThemeId)}
-                            className={cn(
-                                "relative rounded-2xl p-5 text-left transition-all duration-200 border-2",
-                                "hover:scale-[1.02] active:scale-[0.98]",
-                                isActive
-                                    ? "border-[--color-brand-500] shadow-lg shadow-[rgba(0,0,0,0.4)]"
-                                    : "border-[--border] hover:border-[--color-brand-700]",
-                            )}
-                            style={{
-                                background: `linear-gradient(135deg, ${theme.previewColors.bg} 0%, color-mix(in srgb, ${theme.previewColors.bg} 85%, ${theme.previewColors.primary}) 100%)`,
-                            }}
-                        >
-                            {isActive && (
-                                <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[--color-brand-400] shadow-[0_0_8px_2px_var(--tw-shadow-color)] shadow-[--color-brand-400]" />
-                            )}
-
-                            {/* Color swatches */}
-                            <div className="flex gap-1.5 mb-3">
-                                {[
-                                    theme.previewColors.primary,
-                                    theme.previewColors.secondary,
-                                    theme.previewColors.accent,
-                                ].map((color, i) => (
-                                    <div
-                                        key={i}
-                                        className="w-5 h-5 rounded-full border border-white/10"
-                                        style={{ background: color }}
-                                    />
-                                ))}
-                            </div>
-
-                            <div
-                                className="font-bold text-lg text-white"
-                                style={{ fontFamily: theme.fontFamily ?? "inherit" }}
-                            >
-                                {theme.displayName}
-                            </div>
-                            <p className="text-white/60 text-xs mt-1 line-clamp-2">
-                                {theme.description}
-                            </p>
-                        </button>
+                            theme={theme}
+                            isActive={isActive}
+                            onSelect={() => setThemeId(theme.id as AnimeThemeId)}
+                            activeConfig={config}
+                            backgroundDim={backgroundDim}
+                            setBackgroundDim={setBackgroundDim}
+                            backgroundBlur={backgroundBlur}
+                            setBackgroundBlur={setBackgroundBlur}
+                            backgroundExposure={backgroundExposure}
+                            setBackgroundExposure={setBackgroundExposure}
+                            backgroundSaturation={backgroundSaturation}
+                            setBackgroundSaturation={setBackgroundSaturation}
+                        />
                     )
                 })}
             </div>
@@ -359,6 +336,48 @@ export default function ThemeManagerPage() {
                                 className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors"
                             >Reset</button>
                         </div>
+
+                        <div className="flex items-center gap-4">
+                            <span className="text-sm text-[--muted] w-16 shrink-0">Exposure</span>
+                            <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                <div
+                                    className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all"
+                                    style={{ width: `${((backgroundExposure - 0.1) / (2.4)) * 100}%` }}
+                                />
+                                <input
+                                    type="range" min={0.1} max={2.5} step={0.05}
+                                    value={backgroundExposure}
+                                    onChange={e => setBackgroundExposure(Number(e.target.value))}
+                                    className="absolute inset-0 w-full opacity-0 cursor-pointer h-full"
+                                />
+                            </div>
+                            <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(backgroundExposure * 100)}%</span>
+                            <button
+                                onClick={() => setBackgroundExposure(1.0)}
+                                className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors"
+                            >Reset</button>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <span className="text-sm text-[--muted] w-16 shrink-0">Saturation</span>
+                            <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                <div
+                                    className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all"
+                                    style={{ width: `${(backgroundSaturation / 3.0) * 100}%` }}
+                                />
+                                <input
+                                    type="range" min={0} max={3.0} step={0.05}
+                                    value={backgroundSaturation}
+                                    onChange={e => setBackgroundSaturation(Number(e.target.value))}
+                                    className="absolute inset-0 w-full opacity-0 cursor-pointer h-full"
+                                />
+                            </div>
+                            <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(backgroundSaturation * 100)}%</span>
+                            <button
+                                onClick={() => setBackgroundSaturation(1.0)}
+                                className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors"
+                            >Reset</button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -468,6 +487,200 @@ export default function ThemeManagerPage() {
                 <div>One Piece: <span className="text-[--foreground]">Boogaloo</span> by John Vargas Beltrán</div>
             </div>
         </PageWrapper>
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Inline slider row — used inside the per-card gear popover
+// ─────────────────────────────────────────────────────────────────
+
+type InlineSliderRowProps = {
+    label: string
+    value: number
+    onChange: (v: number) => void
+    min: number
+    max: number
+    step: number
+    display: (v: number) => string
+    onReset: () => void
+}
+
+function InlineSliderRow({ label, value, onChange, min, max, step, display, onReset }: InlineSliderRowProps) {
+    return (
+        <div className="flex items-center gap-2">
+            <span className="text-[11px] text-white/50 w-16 shrink-0">{label}</span>
+            <div className="flex-1 relative h-1 bg-white/10 rounded-full overflow-hidden">
+                <div
+                    className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full"
+                    style={{ width: `${((value - min) / (max - min)) * 100}%` }}
+                />
+                <input
+                    type="range"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={value}
+                    onChange={e => onChange(Number(e.target.value))}
+                    onClick={e => e.stopPropagation()}
+                    className="absolute inset-0 w-full opacity-0 cursor-pointer h-full"
+                />
+            </div>
+            <span className="text-[11px] text-white/50 w-9 text-right tabular-nums">{display(value)}</span>
+            <button
+                onClick={e => { e.stopPropagation(); onReset() }}
+                className="text-[10px] text-white/30 hover:text-white/70 px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 transition-colors leading-none"
+            >↺</button>
+        </div>
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Theme card with hover-reveal gear popover
+// ─────────────────────────────────────────────────────────────────
+
+interface ThemeCardProps {
+    theme: AnimeThemeConfig
+    isActive: boolean
+    onSelect: () => void
+    activeConfig: AnimeThemeConfig
+    backgroundDim: number
+    setBackgroundDim: (v: number) => void
+    backgroundBlur: number
+    setBackgroundBlur: (v: number) => void
+    backgroundExposure: number
+    setBackgroundExposure: (v: number) => void
+    backgroundSaturation: number
+    setBackgroundSaturation: (v: number) => void
+}
+
+function ThemeCard({
+    theme, isActive, onSelect,
+    activeConfig,
+    backgroundDim, setBackgroundDim,
+    backgroundBlur, setBackgroundBlur,
+    backgroundExposure, setBackgroundExposure,
+    backgroundSaturation, setBackgroundSaturation,
+}: ThemeCardProps) {
+    const [gearOpen, setGearOpen] = React.useState(false)
+    const popoverRef = React.useRef<HTMLDivElement>(null)
+
+    React.useEffect(() => {
+        if (!gearOpen) return
+        const handler = (e: MouseEvent) => {
+            if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+                setGearOpen(false)
+            }
+        }
+        document.addEventListener("mousedown", handler)
+        return () => document.removeEventListener("mousedown", handler)
+    }, [gearOpen])
+
+    const handleGearClick = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        onSelect()
+        setGearOpen(v => !v)
+    }
+
+    return (
+        <div
+            role="button"
+            tabIndex={0}
+            onClick={onSelect}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect() }}
+            className={cn(
+                "group/card relative rounded-2xl p-5 text-left cursor-pointer transition-all duration-200 border-2",
+                "hover:scale-[1.02] active:scale-[0.98]",
+                isActive
+                    ? "border-[--color-brand-500] shadow-lg shadow-[rgba(0,0,0,0.4)]"
+                    : "border-[--border] hover:border-[--color-brand-700]",
+            )}
+            style={{
+                background: `linear-gradient(135deg, ${theme.previewColors.bg} 0%, color-mix(in srgb, ${theme.previewColors.bg} 85%, ${theme.previewColors.primary}) 100%)`,
+            }}
+        >
+            {isActive && (
+                <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[--color-brand-400] shadow-[0_0_8px_2px_var(--tw-shadow-color)] shadow-[--color-brand-400]" />
+            )}
+
+            {/* Color swatches + gear icon */}
+            <div className="flex items-center mb-3">
+                <div className="flex items-center gap-1.5">
+                    {[theme.previewColors.primary, theme.previewColors.secondary, theme.previewColors.accent].map((color, i) => (
+                        <div
+                            key={i}
+                            className="w-5 h-5 rounded-full border border-white/10 shrink-0"
+                            style={{ background: color }}
+                        />
+                    ))}
+                </div>
+
+                {/* Gear + popover anchor */}
+                <div ref={popoverRef} className="relative ml-auto">
+                    <button
+                        onClick={handleGearClick}
+                        title="Background adjustments"
+                        className={cn(
+                            "w-5 h-5 flex items-center justify-center text-white/40 hover:text-white/90 rounded transition-all duration-150",
+                            "opacity-0 group-hover/card:opacity-100",
+                            (isActive || gearOpen) && "opacity-100",
+                        )}
+                    >
+                        <LuSettings2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    {gearOpen && (
+                        <div
+                            className="absolute right-0 top-full mt-2 z-[9999] w-72 rounded-xl bg-gray-950 border border-white/10 p-4 shadow-2xl space-y-3"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-2">Background adjustments</p>
+                            <InlineSliderRow
+                                label="Dim"
+                                value={backgroundDim}
+                                onChange={setBackgroundDim}
+                                min={0} max={1} step={0.01}
+                                display={v => `${Math.round(v * 100)}%`}
+                                onReset={() => setBackgroundDim(activeConfig.backgroundDim ?? 0.30)}
+                            />
+                            <InlineSliderRow
+                                label="Blur"
+                                value={backgroundBlur}
+                                onChange={setBackgroundBlur}
+                                min={0} max={60} step={1}
+                                display={v => `${v}px`}
+                                onReset={() => setBackgroundBlur(activeConfig.backgroundBlur ?? 30)}
+                            />
+                            <InlineSliderRow
+                                label="Exposure"
+                                value={backgroundExposure}
+                                onChange={setBackgroundExposure}
+                                min={0.1} max={2.5} step={0.05}
+                                display={v => `${Math.round(v * 100)}%`}
+                                onReset={() => setBackgroundExposure(1.0)}
+                            />
+                            <InlineSliderRow
+                                label="Saturation"
+                                value={backgroundSaturation}
+                                onChange={setBackgroundSaturation}
+                                min={0} max={3.0} step={0.05}
+                                display={v => `${Math.round(v * 100)}%`}
+                                onReset={() => setBackgroundSaturation(1.0)}
+                            />
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div
+                className="font-bold text-lg text-white"
+                style={{ fontFamily: theme.fontFamily ?? "inherit" }}
+            >
+                {theme.displayName}
+            </div>
+            <p className="text-white/60 text-xs mt-1 line-clamp-2">
+                {theme.description}
+            </p>
+        </div>
     )
 }
 

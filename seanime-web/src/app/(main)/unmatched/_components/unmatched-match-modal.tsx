@@ -660,7 +660,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                     {familyResults && familyResults.entries.length > 0 && (
                         <div className="p-3 border rounded-md bg-[--subtle] space-y-2">
                             <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Related entries — pick one to match</p>
-                            <ScrollArea className="max-h-[260px]">
+                            <div className="max-h-[220px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                                 <FamilyTreeView
                                     result={familyResults}
                                     selectedAnimeId={selectedAnime?.id ?? null}
@@ -678,7 +678,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                         setFamilyDetailId(entry.id)
                                     }}
                                 />
-                            </ScrollArea>
+                            </div>
                         </div>
                     )}
 
@@ -1056,9 +1056,15 @@ interface FamilyTreeNode {
 
 function buildFamilyTree(result: FamilyResult): FamilyTreeNode {
     const rootEntry = result.root
+    // Deduplicate: an entry can appear via multiple relation paths
+    const seenIds = new Set<number>([rootEntry.id])
+    const uniqueEntries = result.entries.filter(e => {
+        if (seenIds.has(e.id)) return false
+        seenIds.add(e.id)
+        return true
+    })
     const byParent = new Map<number, FamilyEntry[]>()
-    for (const e of result.entries) {
-        if (e.id === rootEntry.id) continue
+    for (const e of uniqueEntries) {
         const pid = e.parentId || rootEntry.id
         if (!byParent.has(pid)) byParent.set(pid, [])
         byParent.get(pid)!.push(e)
@@ -1069,7 +1075,10 @@ function buildFamilyTree(result: FamilyResult): FamilyTreeNode {
         SPIN_OFF: 4, PARENT: 5, SUMMARY: 6, CHARACTER: 7, OTHER: 8,
     }
 
+    const builtIds = new Set<number>()
     function build(entry: FamilyEntry): FamilyTreeNode {
+        if (builtIds.has(entry.id)) return { entry, children: [] }
+        builtIds.add(entry.id)
         const kids = (byParent.get(entry.id) || [])
             .sort((a, b) => (relationOrder[a.relationType] ?? 9) - (relationOrder[b.relationType] ?? 9))
         return { entry, children: kids.map(build) }
