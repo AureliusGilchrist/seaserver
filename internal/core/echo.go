@@ -72,6 +72,9 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	app.Logger.Info().Msgf("app: Offline assets path: %s", app.Config.Offline.AssetDir)
 	e.Static("/offline-assets", app.Config.Offline.AssetDir)
 
+	// Serve user-downloaded theme backgrounds
+	e.Static("/theme-bg", filepath.Join(app.Config.Data.AppDataDir, "theme-backgrounds"))
+
 	return e
 }
 

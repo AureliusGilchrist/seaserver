@@ -152,6 +152,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	v1.GET("/anime-themes/:id", h.HandleGetAnimeThemes)
 
+	v1.GET("/theme-backgrounds", h.HandleListThemeBackgrounds)
+	v1.POST("/theme-backgrounds/download", h.HandleDownloadThemeBackground)
+	v1.DELETE("/theme-backgrounds/:filename", h.HandleDeleteThemeBackground)
+	v1.GET("/theme-backgrounds/wallhaven/search", h.HandleSearchWallhaven)
+
 	v1.GET("/log/*", h.HandleGetLogContent)
 	v1.GET("/logs/filenames", h.HandleGetLogFilenames)
 	v1.DELETE("/logs", h.HandleDeleteLogs)

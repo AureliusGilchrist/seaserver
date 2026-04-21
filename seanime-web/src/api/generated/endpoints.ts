@@ -222,6 +222,28 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/anime-themes/{id}",
         },
     },
+    THEME_BACKGROUNDS: {
+        ListThemeBackgrounds: {
+            key: "THEME_BACKGROUNDS-list",
+            methods: ["GET"],
+            endpoint: "/api/v1/theme-backgrounds",
+        },
+        DownloadThemeBackground: {
+            key: "THEME_BACKGROUNDS-download",
+            methods: ["POST"],
+            endpoint: "/api/v1/theme-backgrounds/download",
+        },
+        DeleteThemeBackground: {
+            key: "THEME_BACKGROUNDS-delete",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/theme-backgrounds",
+        },
+        SearchWallhaven: {
+            key: "THEME_BACKGROUNDS-wallhaven-search",
+            methods: ["GET"],
+            endpoint: "/api/v1/theme-backgrounds/wallhaven/search",
+        },
+    },
     ANIME_COLLECTION: {
         /**
          *  @description

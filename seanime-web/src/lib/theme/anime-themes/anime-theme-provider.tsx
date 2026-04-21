@@ -63,6 +63,8 @@ type AnimeThemeContextValue = {
     setBackgroundDim: (v: number) => void
     backgroundBlur: number
     setBackgroundBlur: (v: number) => void
+    activeBackgroundUrl: string | null
+    setActiveBackgroundUrl: (url: string | null) => void
 }
 
 const AnimeThemeContext = React.createContext<AnimeThemeContextValue | null>(null)
@@ -281,6 +283,43 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         try { localStorage.setItem(`sea-anime-bgblur-${profileKey}-${themeId}`, String(clamped)) } catch { }
     }, [profileKey, themeId])
 
+    // ── Active background URL (per-theme, per-profile, user-selectable) ──
+    const [activeBackgroundUrl, setActiveBackgroundUrlRaw] = React.useState<string | null>(() => {
+        if (typeof window === "undefined") return ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null
+        if (themeId === "seanime") return null
+        try {
+            const stored = localStorage.getItem(`sea-anime-bgurl-${profileKey}-${themeId}`)
+            if (stored !== null) return stored
+        } catch { }
+        return ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null
+    })
+
+    // Reload active background when theme or profile changes
+    React.useEffect(() => {
+        if (themeId === "seanime") {
+            setActiveBackgroundUrlRaw(null)
+            return
+        }
+        try {
+            const stored = localStorage.getItem(`sea-anime-bgurl-${profileKey}-${themeId}`)
+            setActiveBackgroundUrlRaw(stored !== null ? stored : (ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null))
+        } catch {
+            setActiveBackgroundUrlRaw(ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null)
+        }
+    }, [themeId, profileKey])
+
+    const setActiveBackgroundUrl = React.useCallback((url: string | null) => {
+        if (themeId === "seanime") return
+        setActiveBackgroundUrlRaw(url)
+        try {
+            if (url === null || url === (ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null)) {
+                localStorage.removeItem(`sea-anime-bgurl-${profileKey}-${themeId}`)
+            } else {
+                localStorage.setItem(`sea-anime-bgurl-${profileKey}-${themeId}`, url)
+            }
+        } catch { }
+    }, [profileKey, themeId])
+
     // ── CSS var injection ──
     React.useEffect(() => {
         const root = document.documentElement
@@ -293,10 +332,10 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         }
     }, [config])
 
-    // ── Background image: hide default body:before AND body:after when theme bg is active ──
+    // ── Background image: hide default body:before AND body:after when a custom bg is active ──
     React.useEffect(() => {
         const root = document.documentElement
-        if (config.backgroundImageUrl) {
+        if (config.id !== "seanime" && activeBackgroundUrl) {
             root.style.setProperty("--body-bg-opacity", "0")
             root.style.setProperty("--body-after-opacity", "0")
         } else {
@@ -307,7 +346,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             root.style.removeProperty("--body-bg-opacity")
             root.style.removeProperty("--body-after-opacity")
         }
-    }, [config.backgroundImageUrl])
+    }, [config.id, activeBackgroundUrl])
 
     // ── Google Font injection ──
     React.useEffect(() => {
@@ -381,13 +420,15 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setBackgroundDim,
         backgroundBlur,
         setBackgroundBlur,
-    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur])
+        activeBackgroundUrl,
+        setActiveBackgroundUrl,
+    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, activeBackgroundUrl, setActiveBackgroundUrl])
 
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
             <AnimeThemeMusicPlayer />
-            {config.backgroundImageUrl && <ThemeBackgroundImage url={config.backgroundImageUrl} dim={backgroundDim} blur={backgroundBlur} />}
+            {config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} />}
             {config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
         </AnimeThemeContext.Provider>
     )

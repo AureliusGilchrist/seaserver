@@ -7,6 +7,8 @@ import { HIDDEN_THEMES, HIDDEN_THEME_IDS } from "@/lib/theme/anime-themes/hidden
 import { useGetRawAnilistMangaCollection } from "@/api/hooks/manga.hooks"
 import { cn } from "@/components/ui/core/styling"
 import { PageWrapper } from "@/components/shared/page-wrapper"
+import { useListThemeBackgrounds, useDeleteThemeBackground } from "@/api/hooks/theme_backgrounds.hooks"
+import { WallhavenPickerModal } from "./_components/wallhaven-picker"
 
 export default function ThemeManagerPage() {
     const {
@@ -26,7 +28,13 @@ export default function ThemeManagerPage() {
         setBackgroundDim,
         backgroundBlur,
         setBackgroundBlur,
+        activeBackgroundUrl,
+        setActiveBackgroundUrl,
     } = useAnimeTheme()
+
+    const [pickerOpen, setPickerOpen] = React.useState(false)
+    const { data: downloadedBgs, isLoading: bgsLoading } = useListThemeBackgrounds()
+    const deleteMutation = useDeleteThemeBackground()
 
     // Fetch manga collection for hidden theme unlock detection
     const { data: mangaCollection } = useGetRawAnilistMangaCollection()
@@ -201,56 +209,161 @@ export default function ThemeManagerPage() {
             )}
 
             {/* Background */}
-            {config.backgroundImageUrl && (
-                <div className="rounded-2xl border border-[--border] bg-[--paper] p-6 space-y-5">
-                    <h2
-                        className="text-xl font-semibold"
-                        style={{ fontFamily: config.fontFamily }}
+            {config.id !== "seanime" && (
+                <div className="rounded-2xl border border-[--border] overflow-hidden">
+                    {/* Live preview banner */}
+                    <div
+                        className="relative w-full overflow-hidden"
+                        style={{ height: "160px" }}
                     >
-                        Background
-                    </h2>
-
-                    <div className="flex items-center gap-4">
-                        <span className="text-sm text-[--muted] w-20 shrink-0">Dim</span>
-                        <input
-                            type="range"
-                            min={0}
-                            max={1}
-                            step={0.01}
-                            value={backgroundDim}
-                            onChange={e => setBackgroundDim(Number(e.target.value))}
-                            className="w-56 accent-[--color-brand-500]"
-                        />
-                        <span className="text-sm text-[--muted] w-10 text-right">{Math.round(backgroundDim * 100)}%</span>
-                        <button
-                            onClick={() => setBackgroundDim(config.backgroundDim ?? 0.30)}
-                            className="text-xs text-[--muted] hover:text-[--foreground] transition-colors px-2 py-0.5 rounded bg-[--background] border border-[--border]"
-                        >
-                            Reset
-                        </button>
+                        {activeBackgroundUrl ? (
+                            <>
+                                <div
+                                    className="absolute inset-0 bg-cover bg-center transition-all duration-500"
+                                    style={{
+                                        backgroundImage: `url("${activeBackgroundUrl}")`,
+                                        filter: `blur(${backgroundBlur * 0.3}px)`,
+                                        opacity: 1 - backgroundDim * 0.6,
+                                        transform: `scale(1.05)`,
+                                    }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[--background] via-[--background]/40 to-transparent" />
+                            </>
+                        ) : (
+                            <div className="absolute inset-0 flex items-center justify-center bg-[--paper]">
+                                <div className="text-center space-y-1">
+                                    <div className="text-3xl opacity-20">🖼</div>
+                                    <p className="text-xs text-[--muted]">No background set — browse Wallhaven below</p>
+                                </div>
+                            </div>
+                        )}
+                        {/* Title overlay */}
+                        <div className="absolute bottom-4 left-6 right-6 flex items-end justify-between">
+                            <div>
+                                <h2
+                                    className="text-xl font-semibold text-white drop-shadow"
+                                    style={{ fontFamily: config.fontFamily }}
+                                >
+                                    Background
+                                </h2>
+                                {activeBackgroundUrl && (
+                                    <p className="text-xs text-white/50 mt-0.5 truncate max-w-xs">
+                                        {activeBackgroundUrl.startsWith("/theme-bg/")
+                                            ? "Downloaded wallpaper"
+                                            : "Bundled background"}
+                                    </p>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => setPickerOpen(true)}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-lg",
+                                    "bg-[--color-brand-600] hover:bg-[--color-brand-500] text-white",
+                                )}
+                            >
+                                <span>Browse Wallhaven</span>
+                                <span className="text-base leading-none">↗</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <span className="text-sm text-[--muted] w-20 shrink-0">Blur</span>
-                        <input
-                            type="range"
-                            min={0}
-                            max={60}
-                            step={1}
-                            value={backgroundBlur}
-                            onChange={e => setBackgroundBlur(Number(e.target.value))}
-                            className="w-56 accent-[--color-brand-500]"
-                        />
-                        <span className="text-sm text-[--muted] w-10 text-right">{backgroundBlur}px</span>
-                        <button
-                            onClick={() => setBackgroundBlur(config.backgroundBlur ?? 30)}
-                            className="text-xs text-[--muted] hover:text-[--foreground] transition-colors px-2 py-0.5 rounded bg-[--background] border border-[--border]"
-                        >
-                            Reset
-                        </button>
+                    {/* Thumbnail strip */}
+                    <div className="bg-[--paper] border-t border-[--border] p-4 space-y-3">
+                        <p className="text-xs text-[--muted] font-medium uppercase tracking-wider">Select Background</p>
+                        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "thin" }}>
+                            {/* Bundled default */}
+                            {config.backgroundImageUrl && (
+                                <ThumbnailSlot
+                                    url={config.backgroundImageUrl}
+                                    label="Default"
+                                    isActive={activeBackgroundUrl === config.backgroundImageUrl}
+                                    onClick={() => setActiveBackgroundUrl(config.backgroundImageUrl!)}
+                                />
+                            )}
+
+                            {/* Downloaded wallpapers */}
+                            {bgsLoading && !downloadedBgs && (
+                                <>{Array.from({ length: 3 }).map((_, i) => (
+                                    <div key={i} className="shrink-0 w-28 h-[70px] rounded-xl bg-white/5 animate-pulse" />
+                                ))}</>
+                            )}
+                            {(downloadedBgs ?? []).map(bg => (
+                                <ThumbnailSlot
+                                    key={bg.filename}
+                                    url={bg.url}
+                                    isActive={activeBackgroundUrl === bg.url}
+                                    deletable
+                                    onClick={() => setActiveBackgroundUrl(bg.url)}
+                                    onDelete={() => {
+                                        deleteMutation.mutate(bg.filename)
+                                        if (activeBackgroundUrl === bg.url) {
+                                            setActiveBackgroundUrl(config.backgroundImageUrl ?? null)
+                                        }
+                                    }}
+                                />
+                            ))}
+
+                            {/* Browse CTA slot when list is empty */}
+                            {!bgsLoading && !downloadedBgs?.length && !config.backgroundImageUrl && (
+                                <button
+                                    onClick={() => setPickerOpen(true)}
+                                    className="shrink-0 w-28 h-[70px] rounded-xl border-2 border-dashed border-white/20 hover:border-[--color-brand-500] flex flex-col items-center justify-center gap-1 text-[--muted] hover:text-[--color-brand-400] transition-colors text-xs"
+                                >
+                                    <span className="text-lg">+</span>
+                                    <span>Add</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Dim & Blur controls */}
+                    <div className="bg-[--background] border-t border-[--border] p-5 space-y-4">
+                        <div className="flex items-center gap-4">
+                            <span className="text-sm text-[--muted] w-12 shrink-0">Dim</span>
+                            <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                <div
+                                    className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all"
+                                    style={{ width: `${backgroundDim * 100}%` }}
+                                />
+                                <input
+                                    type="range" min={0} max={1} step={0.01}
+                                    value={backgroundDim}
+                                    onChange={e => setBackgroundDim(Number(e.target.value))}
+                                    className="absolute inset-0 w-full opacity-0 cursor-pointer h-full"
+                                />
+                            </div>
+                            <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(backgroundDim * 100)}%</span>
+                            <button
+                                onClick={() => setBackgroundDim(config.backgroundDim ?? 0.30)}
+                                className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors"
+                            >Reset</button>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            <span className="text-sm text-[--muted] w-12 shrink-0">Blur</span>
+                            <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                <div
+                                    className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all"
+                                    style={{ width: `${(backgroundBlur / 60) * 100}%` }}
+                                />
+                                <input
+                                    type="range" min={0} max={60} step={1}
+                                    value={backgroundBlur}
+                                    onChange={e => setBackgroundBlur(Number(e.target.value))}
+                                    className="absolute inset-0 w-full opacity-0 cursor-pointer h-full"
+                                />
+                            </div>
+                            <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{backgroundBlur}px</span>
+                            <button
+                                onClick={() => setBackgroundBlur(config.backgroundBlur ?? 30)}
+                                className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors"
+                            >Reset</button>
+                        </div>
                     </div>
                 </div>
             )}
+
+            <WallhavenPickerModal open={pickerOpen} onClose={() => setPickerOpen(false)} />
 
             {/* Animated Elements */}
             {config.hasAnimatedElements && (
@@ -355,5 +468,71 @@ export default function ThemeManagerPage() {
                 <div>One Piece: <span className="text-[--foreground]">Boogaloo</span> by John Vargas Beltrán</div>
             </div>
         </PageWrapper>
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Thumbnail slot component
+// ─────────────────────────────────────────────────────────────────
+
+type ThumbnailSlotProps = {
+    url: string
+    label?: string
+    isActive: boolean
+    deletable?: boolean
+    onClick: () => void
+    onDelete?: () => void
+}
+
+function ThumbnailSlot({ url, label, isActive, deletable, onClick, onDelete }: ThumbnailSlotProps) {
+    const [loaded, setLoaded] = React.useState(false)
+    return (
+        <div
+            className={cn(
+                "relative shrink-0 w-28 h-[70px] rounded-xl overflow-hidden cursor-pointer transition-all duration-200",
+                "border-2",
+                isActive
+                    ? "border-[--color-brand-400] shadow-[0_0_0_1px_var(--color-brand-400),0_0_12px_2px_rgba(0,0,0,0.5)]"
+                    : "border-transparent hover:border-white/30",
+            )}
+            onClick={onClick}
+        >
+            {!loaded && <div className="absolute inset-0 bg-white/5 animate-pulse" />}
+            <img
+                src={url}
+                alt=""
+                loading="lazy"
+                onLoad={() => setLoaded(true)}
+                className={cn(
+                    "w-full h-full object-cover transition-opacity duration-300",
+                    loaded ? "opacity-100" : "opacity-0",
+                )}
+            />
+            {/* Active checkmark */}
+            {isActive && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full bg-[--color-brand-500]/90 flex items-center justify-center shadow-lg">
+                        <span className="text-white text-xs font-bold">✓</span>
+                    </div>
+                </div>
+            )}
+            {/* Label badge */}
+            {label && (
+                <div className="absolute bottom-1 left-1">
+                    <span className="text-[9px] font-semibold bg-black/70 text-white/90 px-1.5 py-0.5 rounded-md backdrop-blur-sm">
+                        {label}
+                    </span>
+                </div>
+            )}
+            {/* Delete button */}
+            {deletable && onDelete && (
+                <button
+                    onClick={e => { e.stopPropagation(); onDelete() }}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center text-white/70 hover:bg-red-600 hover:text-white transition-colors text-[10px] leading-none backdrop-blur-sm"
+                >
+                    ✕
+                </button>
+            )}
+        </div>
     )
 }

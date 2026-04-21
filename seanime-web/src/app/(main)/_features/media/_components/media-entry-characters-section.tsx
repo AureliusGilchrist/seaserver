@@ -85,7 +85,7 @@ export function MediaEntryCharactersSection(props: RelationsRecommendationsSecti
                             </div>
 
                             <div data-media-entry-characters-section-grid-item-content>
-                                <SeaLink href={edge?.node?.siteUrl || "#"} target="_blank" data-media-entry-characters-section-grid-item-content-link>
+                                <SeaLink href={edge?.node?.id ? `/character?id=${edge.node.id}` : "#"} data-media-entry-characters-section-grid-item-content-link>
                                     <p
                                         className={cn(
                                             "text-lg font-semibold transition line-clamp-2 leading-5 hover:text-brand-100",
