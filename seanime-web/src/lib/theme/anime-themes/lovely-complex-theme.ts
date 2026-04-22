@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiRose, GiHeartKey, GiMusicNotes, GiBalloonDog, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiTaiko } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiRose, GiHeartKey, GiMusicalNotes, GiBalloonDog, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiDrumKit } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,9 +43,9 @@ export const lovelyComplexTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Love Notes" },
         "lists": { icon: GiHeartKey, label: "Crush List" },
         "discover": { icon: GiBullseye, label: "New Crushes" },
-        "torrent-list": { icon: GiMusicNotes, label: "Umibozu Cache" },
+        "torrent-list": { icon: GiMusicalNotes, label: "Umibozu Cache" },
         "debrid": { icon: GiBalloonDog, label: "Love Items" },
-        "unmatched": { icon: GiTaiko, label: "Unmatched Hearts" },
+        "unmatched": { icon: GiDrumKit, label: "Unmatched Hearts" },
         "enmasse": { icon: GiResize, label: "Group Events" },
         "scan-summaries": { icon: TbReportSearch, label: "Love Reports" },
         "auto-downloader": { icon: LuRss, label: "Gossip Feed" },

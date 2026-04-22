@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiRobotLeg, GiMissileSwarm, GiShield, GiCrossedSwords, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiArmor } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiRobotLeg, GiMissileSwarm, GiShield, GiCrossedSwords, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiArmorVest } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,7 +44,7 @@ export const gundamTheme: AnimeThemeConfig = {
         "lists": { icon: GiShield, label: "Federation Roster" },
         "discover": { icon: GiBullseye, label: "Enemy Recon" },
         "torrent-list": { icon: GiMissileSwarm, label: "Beam Cache" },
-        "debrid": { icon: GiArmor, label: "MS Hangar" },
+        "debrid": { icon: GiArmorVest, label: "MS Hangar" },
         "unmatched": { icon: GiCrossedSwords, label: "Unidentified Units" },
         "enmasse": { icon: GiResize, label: "Fleet Mobilize" },
         "scan-summaries": { icon: TbReportSearch, label: "Battle Reports" },

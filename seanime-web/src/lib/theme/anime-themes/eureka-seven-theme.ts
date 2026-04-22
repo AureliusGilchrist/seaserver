@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiSteampunkGoggles, GiWings, GiSkyDive, GiLightningBolt, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiWaves } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiSteampunkGoggles, GiFairyWings, GiParachute, GiLightningBow, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiWaves } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -41,11 +41,11 @@ export const eurekaSevenTheme: AnimeThemeConfig = {
         "home": { icon: GiSteampunkGoggles, label: "Gekkostate" },
         "schedule": { icon: GiAlarmClock, label: "Lift Schedule" },
         "manga": { icon: LuBookOpen, label: "Ray=Out Zine" },
-        "lists": { icon: GiWings, label: "LFO Registry" },
+        "lists": { icon: GiFairyWings, label: "LFO Registry" },
         "discover": { icon: GiBullseye, label: "Trapar Scouting" },
-        "torrent-list": { icon: GiSkyDive, label: "Lift Cache" },
+        "torrent-list": { icon: GiParachute, label: "Lift Cache" },
         "debrid": { icon: GiWaves, label: "Trapar Network" },
-        "unmatched": { icon: GiLightningBolt, label: "Unknown LFOs" },
+        "unmatched": { icon: GiLightningBow, label: "Unknown LFOs" },
         "enmasse": { icon: GiResize, label: "Gekkostate Deploy" },
         "scan-summaries": { icon: TbReportSearch, label: "Mission Reports" },
         "auto-downloader": { icon: LuRss, label: "Broadcast Feed" },

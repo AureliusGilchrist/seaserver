@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiSamurai, GiAlienEgg, GiNoodles, GiSword, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiWoodBeam } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiSamuraiHelmet, GiAlienEgg, GiNoodles, GiBroadsword, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiWoodBeam } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,18 +38,18 @@ export const gintamaTheme: AnimeThemeConfig = {
         "--color-gray-50": "238 235 215",
     },
     sidebarOverrides: {
-        "home": { icon: GiSamurai, label: "Kabuki District" },
+        "home": { icon: GiSamuraiHelmet, label: "Kabuki District" },
         "schedule": { icon: GiAlarmClock, label: "Odd Jobs Schedule" },
         "manga": { icon: LuBookOpen, label: "Jump Issues" },
         "lists": { icon: GiNoodles, label: "Job List" },
         "discover": { icon: GiBullseye, label: "New Clients" },
-        "torrent-list": { icon: GiSword, label: "Bokken Cache" },
+        "torrent-list": { icon: GiBroadsword, label: "Bokken Cache" },
         "debrid": { icon: GiAlienEgg, label: "Alien Market" },
         "unmatched": { icon: GiWoodBeam, label: "Lost Jobs" },
         "enmasse": { icon: GiResize, label: "Yorozuya Events" },
         "scan-summaries": { icon: TbReportSearch, label: "Job Reports" },
         "auto-downloader": { icon: LuRss, label: "Weekly Jump Feed" },
-        "community": { icon: GiSamurai, label: "Yorozuya" },
+        "community": { icon: GiSamuraiHelmet, label: "Yorozuya" },
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Odd Job Alerts" },
         "achievements": { icon: GiTrophy, label: "Gintoki's Trophies" },

@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiFist, GiDeathSkull, GiFlame, GiWasteland, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiSpikyExplosion } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiFist, GiDeathSkull, GiFlame, GiDesert, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiSpikyExplosion } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,7 +38,7 @@ export const fistOfTheNorthStarTheme: AnimeThemeConfig = {
         "--color-gray-50": "248 238 228",
     },
     sidebarOverrides: {
-        "home": { icon: GiWasteland, label: "Nuclear Wasteland" },
+        "home": { icon: GiDesert, label: "Nuclear Wasteland" },
         "schedule": { icon: GiAlarmClock, label: "Warrior's Schedule" },
         "manga": { icon: LuBookOpen, label: "Secret Scrolls" },
         "lists": { icon: GiDeathSkull, label: "Enemies Roster" },

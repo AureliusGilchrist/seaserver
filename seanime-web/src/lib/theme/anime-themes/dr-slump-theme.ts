@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiRobotGolem, GiWrench, GiFlask, GiSparkles, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiLightBulb } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiRobotGolem, GiWrench, GiChemicalDrop, GiSparkles, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiLightBulb } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,7 +43,7 @@ export const drSlumpTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Senbei's Notes" },
         "lists": { icon: GiWrench, label: "Invention List" },
         "discover": { icon: GiBullseye, label: "Village Explore" },
-        "torrent-list": { icon: GiFlask, label: "Experiment Cache" },
+        "torrent-list": { icon: GiChemicalDrop, label: "Experiment Cache" },
         "debrid": { icon: GiLightBulb, label: "Genius Lab" },
         "unmatched": { icon: GiSparkles, label: "Lost Robots" },
         "enmasse": { icon: GiResize, label: "Mass Invention" },

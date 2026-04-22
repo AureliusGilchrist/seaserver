@@ -3,6 +3,7 @@ package anilist
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -46,10 +47,12 @@ func customQuery(body []byte, logger *zerolog.Logger, token ...string) (data int
 		err = errors.New("panic in customQuery")
 	})
 
-	client := http.DefaultClient
+	client := newAnilistHTTPClient()
 
 	var req *http.Request
-	req, err = http.NewRequest("POST", constants.AnilistApiUrl, bytes.NewBuffer(body))
+	requestCtx, cancel := context.WithTimeout(context.Background(), anilistRequestTimeout)
+	defer cancel()
+	req, err = http.NewRequestWithContext(requestCtx, "POST", constants.AnilistApiUrl, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
@@ -86,20 +89,18 @@ func customQuery(body []byte, logger *zerolog.Logger, token ...string) (data int
 		}
 
 		rlRemainingStr = resp.Header.Get("X-Ratelimit-Remaining")
-		rlRetryAfterStr := resp.Header.Get("Retry-After")
-		rlRetryAfter, err := strconv.Atoi(rlRetryAfterStr)
-		if err == nil {
-			logger.Warn().Msgf("anilist: Rate limited, retrying in %d seconds", rlRetryAfter+1)
-
-			select {
-			case <-time.After(time.Duration(rlRetryAfter+1) * time.Second):
-				continue
+		if resp.StatusCode == http.StatusTooManyRequests {
+			rlRetryAfterStr := resp.Header.Get("Retry-After")
+			rlRetryAfter, convErr := strconv.Atoi(rlRetryAfterStr)
+			if convErr != nil || rlRetryAfter <= 0 {
+				rlRetryAfter = 60
 			}
-		}
+			logger.Warn().Msgf("anilist: Rate limited (429), retrying in %d seconds", rlRetryAfter+1)
 
-		if rlRemainingStr == "" {
 			select {
-			case <-time.After(5 * time.Second):
+			case <-requestCtx.Done():
+				return nil, requestCtx.Err()
+			case <-time.After(time.Duration(rlRetryAfter+1) * time.Second):
 				continue
 			}
 		}

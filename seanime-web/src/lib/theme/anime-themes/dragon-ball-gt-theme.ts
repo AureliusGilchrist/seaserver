@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiDragonHead, GiFist, GiLightningBolt, GiFlame, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiStarFormation } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiDragonHead, GiFist, GiLightningBow, GiFlame, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiStarFormation } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,7 +44,7 @@ export const dragonBallGtTheme: AnimeThemeConfig = {
         "lists": { icon: GiFist, label: "GT Roster" },
         "discover": { icon: GiBullseye, label: "Ball Hunt" },
         "torrent-list": { icon: GiFlame, label: "GT Cache" },
-        "debrid": { icon: GiLightningBolt, label: "Super Saiyan 4" },
+        "debrid": { icon: GiLightningBow, label: "Super Saiyan 4" },
         "unmatched": { icon: GiStarFormation, label: "Shadow Dragons" },
         "enmasse": { icon: GiResize, label: "Team Deploy" },
         "scan-summaries": { icon: TbReportSearch, label: "GT Reports" },

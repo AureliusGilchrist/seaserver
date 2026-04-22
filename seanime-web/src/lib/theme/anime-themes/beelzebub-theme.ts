@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiDevilMask, GiBabyFace, GiLightningStorm, GiSword, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiFist, GiHeartKey, GiCrown } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiDevilMask, GiBabyFace, GiLightningStorm, GiBroadsword, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiFist, GiHeartKey, GiCrown } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,7 +43,7 @@ export const beelzebubTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Demon Scripture" },
         "lists": { icon: GiFlowerEmblem, label: "Delinquent Registry" },
         "discover": { icon: GiBullseye, label: "New Rivals" },
-        "torrent-list": { icon: GiSword, label: "Demon Cache" },
+        "torrent-list": { icon: GiBroadsword, label: "Demon Cache" },
         "debrid": { icon: GiDevilMask, label: "Demon Vault" },
         "unmatched": { icon: GiHeartKey, label: "Lost Demons" },
         "enmasse": { icon: GiResize, label: "Demon Army" },

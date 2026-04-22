@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiCrown, GiSwords, GiShield, GiHorseHead, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiScrollUnfurled } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiCrown, GiCrossedSwords, GiShield, GiHorseHead, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiScrollUnfurled } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,7 +43,7 @@ export const arslanSenkiTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Kingdom Records" },
         "lists": { icon: GiScrollUnfurled, label: "Retainer Registry" },
         "discover": { icon: GiBullseye, label: "New Allies" },
-        "torrent-list": { icon: GiSwords, label: "Weapon Cache" },
+        "torrent-list": { icon: GiCrossedSwords, label: "Weapon Cache" },
         "debrid": { icon: GiShield, label: "Royal Armory" },
         "unmatched": { icon: GiHorseHead, label: "Lost Knights" },
         "enmasse": { icon: GiResize, label: "Great Battles" },

@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiRobotLeg, GiLaserWarning, GiMissileSwarm, GiRadarCrossing, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiPadlock } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiRobotLeg, GiLaserWarning, GiMissileSwarm, GiRadarCrossSection, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiPadlock } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -45,7 +45,7 @@ export const mazingerZTheme: AnimeThemeConfig = {
         "discover": { icon: GiBullseye, label: "Enemy Recon" },
         "torrent-list": { icon: GiMissileSwarm, label: "Rocket Punch Cache" },
         "debrid": { icon: GiLaserWarning, label: "Photon Energy" },
-        "unmatched": { icon: GiRadarCrossing, label: "Lost Signals" },
+        "unmatched": { icon: GiRadarCrossSection, label: "Lost Signals" },
         "enmasse": { icon: GiResize, label: "Fortress Deployment" },
         "scan-summaries": { icon: TbReportSearch, label: "Battle Reports" },
         "auto-downloader": { icon: LuRss, label: "HQ Transmissions" },

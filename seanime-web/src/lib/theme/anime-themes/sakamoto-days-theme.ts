@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiGun, GiSupermarket, GiKnifeFork, GiNinjaStar, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiPistolGun, GiHeartKey, GiHypodermicTest } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiSawedOffShotgun, GiTavernSign, GiKnifeFork, GiNinjaStar, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiPistolGun, GiHeartKey, GiHypodermicTest } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,12 +38,12 @@ export const sakamotoDaysTheme: AnimeThemeConfig = {
         "--color-gray-50": "248 248 252",
     },
     sidebarOverrides: {
-        "home": { icon: GiSupermarket, label: "Sakamoto Store" },
+        "home": { icon: GiTavernSign, label: "Sakamoto Store" },
         "schedule": { icon: GiAlarmClock, label: "Op Schedule" },
         "manga": { icon: LuBookOpen, label: "Hitman Files" },
         "lists": { icon: GiFlowerEmblem, label: "Target List" },
         "discover": { icon: GiBullseye, label: "New Contracts" },
-        "torrent-list": { icon: GiGun, label: "Arsenal" },
+        "torrent-list": { icon: GiSawedOffShotgun, label: "Arsenal" },
         "debrid": { icon: GiNinjaStar, label: "Shadow Vault" },
         "unmatched": { icon: GiHeartKey, label: "Lost Files" },
         "enmasse": { icon: GiResize, label: "Joint Ops" },

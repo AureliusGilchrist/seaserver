@@ -1,4 +1,4 @@
-import { useServerQuery, buildSeaQuery } from "@/api/client/requests"
+﻿import { useServerQuery, buildSeaQuery } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import {
     Achievement_Entry,
@@ -73,7 +73,7 @@ export function useGetAchievements() {
     if (!query.data) return query
 
     // Merge: if cache says unlocked, honour it regardless of server value
-    const mergedAchievements: Achievement_Entry[] = query.data.achievements.map(a => {
+    const mergedAchievements: Achievement_Entry[] = (query.data.achievements ?? []).map(a => {
         const k = `${a.key}:${a.tier}`
         if (!a.isUnlocked && cachedUnlocked.has(k)) {
             return { ...a, isUnlocked: true }

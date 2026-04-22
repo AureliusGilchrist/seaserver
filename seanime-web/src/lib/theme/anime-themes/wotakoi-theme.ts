@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiComputerFan, GiGamepad, GiHeartKey, GiCoffee, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiBookCover } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiComputerFan, GiGamepad, GiHeartKey, GiCoffeeCup, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiBookCover } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,7 +44,7 @@ export const wotakoiTheme: AnimeThemeConfig = {
         "lists": { icon: GiGamepad, label: "Game List" },
         "discover": { icon: GiBullseye, label: "New Events" },
         "torrent-list": { icon: GiBookCover, label: "Manga Cache" },
-        "debrid": { icon: GiCoffee, label: "Otaku Shop" },
+        "debrid": { icon: GiCoffeeCup, label: "Otaku Shop" },
         "unmatched": { icon: GiHeartKey, label: "Lost Episodes" },
         "enmasse": { icon: GiResize, label: "Comiket Events" },
         "scan-summaries": { icon: TbReportSearch, label: "Office Reports" },

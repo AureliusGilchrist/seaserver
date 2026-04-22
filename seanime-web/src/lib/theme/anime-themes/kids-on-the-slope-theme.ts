@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiMusicalNotes, GiGuitar, GiMusicNotes, GiPiano, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiHeartKey } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiMusicalNotes, GiGuitar, GiGrandPiano, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiHeartKey } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,8 +43,8 @@ export const kidsOnTheSlopeTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Jazz Notes" },
         "lists": { icon: GiGuitar, label: "Jazz Playlist" },
         "discover": { icon: GiBullseye, label: "New Sessions" },
-        "torrent-list": { icon: GiMusicNotes, label: "Sheet Music" },
-        "debrid": { icon: GiPiano, label: "Jazz Store" },
+        "torrent-list": { icon: GiMusicalNotes, label: "Sheet Music" },
+        "debrid": { icon: GiGrandPiano, label: "Jazz Store" },
         "unmatched": { icon: GiHeartKey, label: "Lost Notes" },
         "enmasse": { icon: GiResize, label: "Band Events" },
         "scan-summaries": { icon: TbReportSearch, label: "Session Records" },

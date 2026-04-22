@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiBasketballBall, GiBadmintonShuttle, GiRunningShoe, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiSoccerBall, GiHeartKey, GiWhistle, GiStopwatch } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiBasketballBall, GiFeather, GiRunningShoe, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiSoccerBall, GiHeartKey, GiWhistle, GiStopwatch } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,7 +38,7 @@ export const blueBoxTheme: AnimeThemeConfig = {
         "--color-gray-50": "220 240 255",
     },
     sidebarOverrides: {
-        "home": { icon: GiBadmintonShuttle, label: "Sports Club" },
+        "home": { icon: GiFeather, label: "Sports Club" },
         "schedule": { icon: GiAlarmClock, label: "Practice Schedule" },
         "manga": { icon: LuBookOpen, label: "Sports Journal" },
         "lists": { icon: GiFlowerEmblem, label: "Team Registry" },

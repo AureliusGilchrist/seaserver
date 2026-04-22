@@ -38,16 +38,24 @@ func NewLimiter(tick time.Duration, count uint) *Limiter {
 
 func (l *Limiter) Wait() {
 	l.mu.Lock()
-	defer l.mu.Unlock()
-	last := &l.entries[l.index]
+	idx := l.index
+	last := l.entries[idx]
 	next := last.Add(l.tick)
 	now := time.Now()
+
+	reservedAt := now
 	if now.Before(next) {
-		time.Sleep(next.Sub(now))
+		reservedAt = next
 	}
-	*last = time.Now()
+
+	l.entries[idx] = reservedAt
 	l.index = l.index + 1
 	if l.index == l.count {
 		l.index = 0
+	}
+	l.mu.Unlock()
+
+	if now.Before(next) {
+		time.Sleep(next.Sub(now))
 	}
 }

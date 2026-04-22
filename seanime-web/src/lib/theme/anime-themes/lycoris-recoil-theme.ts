@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiGun, GiCherryBlossoms, GiCoffee, GiTargetArrows, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiMask, GiHeartKey, GiStar } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiSawedOffShotgun, GiCherish, GiCoffeeCup, GiTargetArrows, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiDramaMasks, GiHeartKey, GiStarFormation } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,18 +38,18 @@ export const lycorisRecoilTheme: AnimeThemeConfig = {
         "--color-gray-50": "250 228 235",
     },
     sidebarOverrides: {
-        "home": { icon: GiCoffee, label: "LycoReco Café" },
+        "home": { icon: GiCoffeeCup, label: "LycoReco Café" },
         "schedule": { icon: GiAlarmClock, label: "Mission Schedule" },
         "manga": { icon: LuBookOpen, label: "Field Reports" },
         "lists": { icon: GiFlowerEmblem, label: "Target Registry" },
         "discover": { icon: GiBullseye, label: "New Missions" },
-        "torrent-list": { icon: GiGun, label: "Weapon Cache" },
-        "debrid": { icon: GiMask, label: "Covert Vault" },
+        "torrent-list": { icon: GiSawedOffShotgun, label: "Weapon Cache" },
+        "debrid": { icon: GiDramaMasks, label: "Covert Vault" },
         "unmatched": { icon: GiHeartKey, label: "Lost Packages" },
         "enmasse": { icon: GiResize, label: "Joint Operations" },
         "scan-summaries": { icon: TbReportSearch, label: "Mission Logs" },
         "auto-downloader": { icon: LuRss, label: "DA Intel Feed" },
-        "community": { icon: GiCherryBlossoms, label: "Chisato's Circle" },
+        "community": { icon: GiCherish, label: "Chisato's Circle" },
         "achievements": { icon: GiTrophy, label: "Lycoris Awards" },
         "milestones": { icon: LuFlag, label: "DA Milestones" },
         "search": { icon: FiSearch, label: "Target Search" },

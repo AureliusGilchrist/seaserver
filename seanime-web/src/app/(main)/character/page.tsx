@@ -5,14 +5,21 @@ import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-e
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Badge } from "@/components/ui/badge"
-import { useSearchParams } from "@/lib/navigation"
+import { usePathname, useSearchParams } from "@/lib/navigation"
 import React, { useMemo } from "react"
 import { LuArrowLeft, LuHeart } from "react-icons/lu"
 import { SeaLink } from "@/components/shared/sea-link"
 
 export default function Page() {
     const searchParams = useSearchParams()
-    const id = Number(searchParams.get("id")) || 0
+    const pathname = usePathname()
+    const idFromQuery = Number(searchParams.get("id"))
+    const idFromPath = useMemo(() => {
+        const match = pathname.match(/\/character\/(\d+)$/)
+        if (!match) return 0
+        return Number(match[1]) || 0
+    }, [pathname])
+    const id = idFromQuery || idFromPath || 0
 
     const { data, isLoading } = useGetAnilistCharacterDetails(id)
 

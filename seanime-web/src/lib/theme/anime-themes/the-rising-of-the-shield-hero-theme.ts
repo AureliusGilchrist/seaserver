@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiShield, GiTurtle, GiSword, GiCrown, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiMorrisonShield, GiHeartKey, GiAnchor } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiShield, GiTurtle, GiBroadsword, GiCrown, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiRibbonShield, GiHeartKey, GiAnchor } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,7 +38,7 @@ export const theRisingOfTheShieldHeroTheme: AnimeThemeConfig = {
         "--color-gray-50": "244 250 255",
     },
     sidebarOverrides: {
-        "home": { icon: GiMorrisonShield, label: "Shield's Domain" },
+        "home": { icon: GiRibbonShield, label: "Shield's Domain" },
         "schedule": { icon: GiAlarmClock, label: "Wave Schedule" },
         "manga": { icon: LuBookOpen, label: "Hero Records" },
         "lists": { icon: GiFlowerEmblem, label: "Companion Registry" },
@@ -49,7 +49,7 @@ export const theRisingOfTheShieldHeroTheme: AnimeThemeConfig = {
         "enmasse": { icon: GiResize, label: "Hero Ops" },
         "scan-summaries": { icon: TbReportSearch, label: "Wave Reports" },
         "auto-downloader": { icon: LuRss, label: "Wave Intel" },
-        "community": { icon: GiSword, label: "Shield's Circle" },
+        "community": { icon: GiBroadsword, label: "Shield's Circle" },
         "achievements": { icon: GiTrophy, label: "Hero Trophies" },
         "milestones": { icon: LuFlag, label: "Wave Goals" },
         "search": { icon: FiSearch, label: "Search" },

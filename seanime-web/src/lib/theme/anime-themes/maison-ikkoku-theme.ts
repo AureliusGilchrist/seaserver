@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiHouseKeys, GiCookingPot, GiCherries, GiRose, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiHeartKey } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiHouseKeys, GiCookingPot, GiCherish, GiRose, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiHeartKey } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,7 +44,7 @@ export const maisonIkkokuTheme: AnimeThemeConfig = {
         "lists": { icon: GiHeartKey, label: "Tenant Roster" },
         "discover": { icon: GiBullseye, label: "Neighborhood Walk" },
         "torrent-list": { icon: GiCookingPot, label: "Meal Cache" },
-        "debrid": { icon: GiCherries, label: "Pantry" },
+        "debrid": { icon: GiCherish, label: "Pantry" },
         "unmatched": { icon: GiRose, label: "Unrequited" },
         "enmasse": { icon: GiResize, label: "House Gathering" },
         "scan-summaries": { icon: TbReportSearch, label: "Diary Entries" },

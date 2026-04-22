@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiDesert, GiLightningBolt, GiExplosion, GiFist, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiRadar } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiDesert, GiLightningBow, GiGooExplosion, GiFist, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiRadarDish } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,9 +43,9 @@ export const sCryEdTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Alter Files" },
         "lists": { icon: GiFist, label: "Alter Users" },
         "discover": { icon: GiBullseye, label: "Lost Ground Recon" },
-        "torrent-list": { icon: GiExplosion, label: "Alter Cache" },
-        "debrid": { icon: GiLightningBolt, label: "Alter Power" },
-        "unmatched": { icon: GiRadar, label: "Unknown Alters" },
+        "torrent-list": { icon: GiGooExplosion, label: "Alter Cache" },
+        "debrid": { icon: GiLightningBow, label: "Alter Power" },
+        "unmatched": { icon: GiRadarDish, label: "Unknown Alters" },
         "enmasse": { icon: GiResize, label: "HOLD Ops" },
         "scan-summaries": { icon: TbReportSearch, label: "Incident Reports" },
         "auto-downloader": { icon: LuRss, label: "HOLD Feed" },

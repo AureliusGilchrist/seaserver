@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiMotorbike, GiNightSleep, GiHandcuffs, GiKatana, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiPoliceBadge } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiScooter, GiNightSleep, GiHandcuffs, GiKatana, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiPoliceBadge } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,7 +43,7 @@ export const durararaTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Info Files" },
         "lists": { icon: GiHandcuffs, label: "Character Web" },
         "discover": { icon: GiBullseye, label: "City Scouting" },
-        "torrent-list": { icon: GiMotorbike, label: "Dullahan Cache" },
+        "torrent-list": { icon: GiScooter, label: "Dullahan Cache" },
         "debrid": { icon: GiKatana, label: "Saika Store" },
         "unmatched": { icon: GiPoliceBadge, label: "Unknown Persons" },
         "enmasse": { icon: GiResize, label: "Gang Deploy" },

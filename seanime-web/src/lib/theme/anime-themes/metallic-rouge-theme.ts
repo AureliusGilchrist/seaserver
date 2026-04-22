@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiRobotAntennas, GiDagger, GiShield, GiGears, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiCircuitry, GiSteeltoeBoots, GiHeavyBullets } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiRobotAntennas, GiDaggers, GiShield, GiGears, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiCircuitry, GiSteeltoeBoots, GiHeavyBullets } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,7 +43,7 @@ export const metallicRougeTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Nean Files" },
         "lists": { icon: GiFlowerEmblem, label: "Target Registry" },
         "discover": { icon: GiBullseye, label: "New Targets" },
-        "torrent-list": { icon: GiDagger, label: "Arsenal Cache" },
+        "torrent-list": { icon: GiDaggers, label: "Arsenal Cache" },
         "debrid": { icon: GiCircuitry, label: "Chrome Vault" },
         "unmatched": { icon: GiGears, label: "Lost Neans" },
         "enmasse": { icon: GiResize, label: "Mars Ops" },

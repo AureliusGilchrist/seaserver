@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiLightningBolt, GiHorns, GiHeartKey, GiCrown, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiStar } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiLightningBow, GiBullHorns, GiHeartKey, GiCrown, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiStarFormation } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,18 +38,18 @@ export const urusei_yatsuraTheme: AnimeThemeConfig = {
         "--color-gray-50": "246 244 228",
     },
     sidebarOverrides: {
-        "home": { icon: GiHorns, label: "Tomobiki Town" },
+        "home": { icon: GiBullHorns, label: "Tomobiki Town" },
         "schedule": { icon: GiAlarmClock, label: "Lum's Schedule" },
         "manga": { icon: LuBookOpen, label: "Oni Archives" },
         "lists": { icon: GiHeartKey, label: "Darling's List" },
         "discover": { icon: GiBullseye, label: "Space Scouting" },
-        "torrent-list": { icon: GiLightningBolt, label: "Thunder Cache" },
-        "debrid": { icon: GiStar, label: "Oni Technology" },
+        "torrent-list": { icon: GiLightningBow, label: "Thunder Cache" },
+        "debrid": { icon: GiStarFormation, label: "Oni Technology" },
         "unmatched": { icon: GiCrown, label: "Lost Aliens" },
         "enmasse": { icon: GiResize, label: "Alien Gathering" },
         "scan-summaries": { icon: TbReportSearch, label: "Class Reports" },
         "auto-downloader": { icon: LuRss, label: "Alien Signals" },
-        "community": { icon: GiHorns, label: "Tomobiki Class" },
+        "community": { icon: GiBullHorns, label: "Tomobiki Class" },
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Lum's Zap" },
         "achievements": { icon: GiTrophy, label: "Darling's Wins" },

@@ -29,7 +29,6 @@ import { DebridStreamOverlay } from "@/app/(main)/entry/_containers/debrid-strea
 import { useTorrentStreamListener } from "@/app/(main)/entry/_containers/torrent-stream/_lib/handle-torrent-stream"
 import { TorrentStreamOverlay } from "@/app/(main)/entry/_containers/torrent-stream/torrent-stream-overlay"
 import { ChapterDownloadsDrawer } from "@/app/(main)/manga/_containers/chapter-downloads/chapter-downloads-drawer"
-import { MangaChapterMigrationProgressBar } from "@/app/(main)/manga/_containers/manga-chapter-migration-progress-bar"
 import { LoadingOverlayWithLogo } from "@/components/shared/loading-overlay-with-logo"
 import { AppLayout, AppLayoutContent, AppLayoutSidebar, AppSidebarProvider } from "@/components/ui/app-layout"
 import { __isElectronDesktop__ } from "@/types/constants"
@@ -61,7 +60,6 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <Loader />
             <ScanProgressBar />
             <MangaHydrationProgressBar />
-            <MangaChapterMigrationProgressBar />
             <LibraryWatcher />
             <ScannerModal />
             <PlaylistListModal />

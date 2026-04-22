@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiMicrophone, GiStar, GiFilmProjector, GiStarMedal, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiMask, GiHeartKey, GiDiamondRing } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiMicrophone, GiStarFormation, GiFilmProjector, GiStarMedal, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiDramaMasks, GiHeartKey, GiDiamondRing } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,13 +38,13 @@ export const oshinoKoTheme: AnimeThemeConfig = {
         "--color-gray-50": "248 232 255",
     },
     sidebarOverrides: {
-        "home": { icon: GiStar, label: "Idol Stage" },
+        "home": { icon: GiStarFormation, label: "Idol Stage" },
         "schedule": { icon: GiAlarmClock, label: "Showtime" },
         "manga": { icon: LuBookOpen, label: "Scripts" },
         "lists": { icon: GiFlowerEmblem, label: "Idol Registry" },
         "discover": { icon: GiBullseye, label: "New Stars" },
         "torrent-list": { icon: GiFilmProjector, label: "Reel Cache" },
-        "debrid": { icon: GiMask, label: "Secret Vault" },
+        "debrid": { icon: GiDramaMasks, label: "Secret Vault" },
         "unmatched": { icon: GiHeartKey, label: "Lost Idols" },
         "enmasse": { icon: GiResize, label: "Agency Op" },
         "scan-summaries": { icon: TbReportSearch, label: "Audit Reports" },

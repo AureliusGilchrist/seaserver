@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiSchoolBag, GiTea, GiFlowerEmblem, GiSun, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiPencilBrush, GiMask, GiHeartKey, GiCycling } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiSchoolBag, GiTeapot, GiFlowerEmblem, GiSun, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiPencilBrush, GiDramaMasks, GiHeartKey, GiCycling } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,7 +44,7 @@ export const skipAndLoaferTheme: AnimeThemeConfig = {
         "lists": { icon: GiFlowerEmblem, label: "Friends List" },
         "discover": { icon: GiBullseye, label: "New Encounters" },
         "torrent-list": { icon: GiSchoolBag, label: "School Cache" },
-        "debrid": { icon: GiTea, label: "Warm Vault" },
+        "debrid": { icon: GiTeapot, label: "Warm Vault" },
         "unmatched": { icon: GiHeartKey, label: "Lost Moments" },
         "enmasse": { icon: GiResize, label: "Friend Group" },
         "scan-summaries": { icon: TbReportSearch, label: "Life Reports" },

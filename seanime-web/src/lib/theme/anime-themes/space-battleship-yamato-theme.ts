@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiSpaceship, GiSatellite, GiAstronautHelmet, GiMissileSwarm, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiAnchor } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiSpaceship, GiSattelite, GiAstronautHelmet, GiMissileSwarm, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiAnchor } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,7 +44,7 @@ export const spaceBattleshipYamatoTheme: AnimeThemeConfig = {
         "lists": { icon: GiAnchor, label: "Crew Roster" },
         "discover": { icon: GiBullseye, label: "Deep Space Scan" },
         "torrent-list": { icon: GiMissileSwarm, label: "Wave-Motion Cache" },
-        "debrid": { icon: GiSatellite, label: "Cosmo DNS" },
+        "debrid": { icon: GiSattelite, label: "Cosmo DNS" },
         "unmatched": { icon: GiAstronautHelmet, label: "Lost in Space" },
         "enmasse": { icon: GiResize, label: "Fleet Deployment" },
         "scan-summaries": { icon: TbReportSearch, label: "Mission Reports" },

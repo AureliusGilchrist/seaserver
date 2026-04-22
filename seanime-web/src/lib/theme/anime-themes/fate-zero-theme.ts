@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiHolyGrail, GiAncientSword, GiMagicPortal, GiCastle, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiLightningBolt } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiHolyGrail, GiAncientSword, GiMagicPortal, GiCastle, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiLightningBow } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -45,7 +45,7 @@ export const fateZeroTheme: AnimeThemeConfig = {
         "discover": { icon: GiBullseye, label: "Enemy Scouting" },
         "torrent-list": { icon: GiMagicPortal, label: "Magic Cache" },
         "debrid": { icon: GiHolyGrail, label: "Grail Store" },
-        "unmatched": { icon: GiLightningBolt, label: "Unknown Servants" },
+        "unmatched": { icon: GiLightningBow, label: "Unknown Servants" },
         "enmasse": { icon: GiResize, label: "War Deploy" },
         "scan-summaries": { icon: TbReportSearch, label: "Battle Records" },
         "auto-downloader": { icon: LuRss, label: "Mage Association" },

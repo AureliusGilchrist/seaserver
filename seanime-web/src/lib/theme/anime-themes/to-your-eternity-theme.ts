@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiWolfHead, GiForestCamp, GiHourglass, GiLeaf, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiMountain, GiHeartKey, GiBear } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiWolfHead, GiForestCamp, GiHourglass, GiFallingLeaf, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiMountains, GiHeartKey, GiBearFace } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,12 +44,12 @@ export const toYourEternityTheme: AnimeThemeConfig = {
         "lists": { icon: GiFlowerEmblem, label: "Those Met" },
         "discover": { icon: GiBullseye, label: "New Faces" },
         "torrent-list": { icon: GiWolfHead, label: "Wolf Cache" },
-        "debrid": { icon: GiMountain, label: "Ancient Vault" },
+        "debrid": { icon: GiMountains, label: "Ancient Vault" },
         "unmatched": { icon: GiHeartKey, label: "Lost Souls" },
         "enmasse": { icon: GiResize, label: "Life's Journey" },
         "scan-summaries": { icon: TbReportSearch, label: "Memory Logs" },
         "auto-downloader": { icon: LuRss, label: "Eternity Feed" },
-        "community": { icon: GiBear, label: "Companions" },
+        "community": { icon: GiBearFace, label: "Companions" },
         "achievements": { icon: GiTrophy, label: "Eternal Marks" },
         "milestones": { icon: LuFlag, label: "Life Milestones" },
         "search": { icon: FiSearch, label: "Search" },

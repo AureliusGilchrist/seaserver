@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiMonster, GiShield, GiSoldier, GiHelmet, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiCrossSwords, GiHeartKey, GiLaserWarning } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiKrakenTentacle, GiShield, GiArmorVest, GiHelmet, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiCrossedSwords, GiHeartKey, GiLaserWarning } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,7 +38,7 @@ export const kaiju8Theme: AnimeThemeConfig = {
         "--color-gray-50": "220 240 255",
     },
     sidebarOverrides: {
-        "home": { icon: GiSoldier, label: "Corps HQ" },
+        "home": { icon: GiArmorVest, label: "Corps HQ" },
         "schedule": { icon: GiAlarmClock, label: "Alert Schedule" },
         "manga": { icon: LuBookOpen, label: "Corps Docs" },
         "lists": { icon: GiFlowerEmblem, label: "Kaiju Registry" },
@@ -49,7 +49,7 @@ export const kaiju8Theme: AnimeThemeConfig = {
         "enmasse": { icon: GiResize, label: "Joint Ops" },
         "scan-summaries": { icon: TbReportSearch, label: "Battle Reports" },
         "auto-downloader": { icon: LuRss, label: "Kaiju Feed" },
-        "community": { icon: GiCrossSwords, label: "Platoon" },
+        "community": { icon: GiCrossedSwords, label: "Platoon" },
         "achievements": { icon: GiTrophy, label: "Corps Awards" },
         "milestones": { icon: LuFlag, label: "Defence Milestones" },
         "search": { icon: FiSearch, label: "Search" },

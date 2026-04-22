@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiNinja, GiDagger, GiShadowGrasp, GiCrown, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiMask, GiHeartKey, GiSword } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiNinjaHead, GiDaggers, GiShadowGrasp, GiCrown, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiDramaMasks, GiHeartKey, GiBroadsword } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,13 +43,13 @@ export const theEminenceInShadowTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Ancient Texts" },
         "lists": { icon: GiFlowerEmblem, label: "Cult Registry" },
         "discover": { icon: GiBullseye, label: "New Targets" },
-        "torrent-list": { icon: GiDagger, label: "Shadow Arsenal" },
-        "debrid": { icon: GiMask, label: "Shadow Vault" },
+        "torrent-list": { icon: GiDaggers, label: "Shadow Arsenal" },
+        "debrid": { icon: GiDramaMasks, label: "Shadow Vault" },
         "unmatched": { icon: GiHeartKey, label: "Lost Shadows" },
         "enmasse": { icon: GiResize, label: "Shadow Ops" },
         "scan-summaries": { icon: TbReportSearch, label: "Op Reports" },
         "auto-downloader": { icon: LuRss, label: "Cult Intel" },
-        "community": { icon: GiNinja, label: "Shadow Circle" },
+        "community": { icon: GiNinjaHead, label: "Shadow Circle" },
         "achievements": { icon: GiTrophy, label: "Shadow Trophies" },
         "milestones": { icon: LuFlag, label: "Shadow Milestones" },
         "search": { icon: FiSearch, label: "Shadow Search" },

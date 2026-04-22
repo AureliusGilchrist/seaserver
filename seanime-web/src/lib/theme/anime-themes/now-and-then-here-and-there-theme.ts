@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiDesert, GiSun, GiSword, GiFlame, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiDustCloud, GiChild, GiSandstorm } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiDesert, GiSun, GiBroadsword, GiFlame, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiDustCloud, GiRun, GiSandstorm } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,9 +43,9 @@ export const nowAndThenHereAndThereTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Sand Records" },
         "lists": { icon: GiFlowerEmblem, label: "Survivor Registry" },
         "discover": { icon: GiBullseye, label: "New Worlds" },
-        "torrent-list": { icon: GiSword, label: "War Cache" },
+        "torrent-list": { icon: GiBroadsword, label: "War Cache" },
         "debrid": { icon: GiSandstorm, label: "Sand Vault" },
-        "unmatched": { icon: GiChild, label: "Lost Children" },
+        "unmatched": { icon: GiRun, label: "Lost Children" },
         "enmasse": { icon: GiResize, label: "Desert Ops" },
         "scan-summaries": { icon: TbReportSearch, label: "War Reports" },
         "auto-downloader": { icon: LuRss, label: "Desert Intel" },

@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiMoonBats, GiLightningBolt, GiGhost, GiStarShuriken, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiNightSleep } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiMoonBats, GiLightningBow, GiGhost, GiStarShuriken, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiNightSleep } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,7 +43,7 @@ export const darkerThanBlackTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Syndicate Files" },
         "lists": { icon: GiGhost, label: "Contractor List" },
         "discover": { icon: GiBullseye, label: "Star Map" },
-        "torrent-list": { icon: GiLightningBolt, label: "Gate Cache" },
+        "torrent-list": { icon: GiLightningBow, label: "Gate Cache" },
         "debrid": { icon: GiMoonBats, label: "Contractor Store" },
         "unmatched": { icon: GiStarShuriken, label: "False Stars" },
         "enmasse": { icon: GiResize, label: "Syndicate Deploy" },

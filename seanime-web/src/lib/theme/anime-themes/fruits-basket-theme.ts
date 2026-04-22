@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiBasket, GiFlower, GiZodiacAries, GiHeartKey, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiCherries } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiBasket, GiFlowers, GiAries, GiHeartKey, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiCherish } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -41,10 +41,10 @@ export const fruitsBasketTheme: AnimeThemeConfig = {
         "home": { icon: GiBasket, label: "Soma Estate" },
         "schedule": { icon: GiAlarmClock, label: "Family Schedule" },
         "manga": { icon: LuBookOpen, label: "Zodiac Scrolls" },
-        "lists": { icon: GiZodiacAries, label: "Zodiac Registry" },
+        "lists": { icon: GiAries, label: "Zodiac Registry" },
         "discover": { icon: GiBullseye, label: "Zodiac Discover" },
-        "torrent-list": { icon: GiFlower, label: "Memory Cache" },
-        "debrid": { icon: GiCherries, label: "Soma Pantry" },
+        "torrent-list": { icon: GiFlowers, label: "Memory Cache" },
+        "debrid": { icon: GiCherish, label: "Soma Pantry" },
         "unmatched": { icon: GiHeartKey, label: "Broken Curses" },
         "enmasse": { icon: GiResize, label: "Zodiac Gathering" },
         "scan-summaries": { icon: TbReportSearch, label: "Family Records" },

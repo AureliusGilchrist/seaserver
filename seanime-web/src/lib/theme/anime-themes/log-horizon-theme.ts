@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiComputerFan, GiSwords, GiGuild, GiShield, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiScrollUnfurled } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiComputerFan, GiCrossedSwords, GiKnightBanner, GiShield, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiScrollUnfurled } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,18 +38,18 @@ export const logHorizonTheme: AnimeThemeConfig = {
         "--color-gray-50": "218 232 245",
     },
     sidebarOverrides: {
-        "home": { icon: GiGuild, label: "Akiba" },
+        "home": { icon: GiKnightBanner, label: "Akiba" },
         "schedule": { icon: GiAlarmClock, label: "Council Schedule" },
         "manga": { icon: LuBookOpen, label: "Elder Tale Files" },
         "lists": { icon: GiScrollUnfurled, label: "Guild Registry" },
         "discover": { icon: GiBullseye, label: "Quest Board" },
-        "torrent-list": { icon: GiSwords, label: "Item Cache" },
+        "torrent-list": { icon: GiCrossedSwords, label: "Item Cache" },
         "debrid": { icon: GiShield, label: "Guild Store" },
         "unmatched": { icon: GiComputerFan, label: "Unknown Players" },
         "enmasse": { icon: GiResize, label: "Round Table" },
         "scan-summaries": { icon: TbReportSearch, label: "Strategy Reports" },
         "auto-downloader": { icon: LuRss, label: "Game Feed" },
-        "community": { icon: GiGuild, label: "Log Horizon" },
+        "community": { icon: GiKnightBanner, label: "Log Horizon" },
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Council Alerts" },
         "achievements": { icon: GiTrophy, label: "Strategy Trophies" },

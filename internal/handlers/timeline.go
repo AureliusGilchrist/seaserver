@@ -124,7 +124,7 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 			}
 		} else {
 			// Infer type from event
-			te.MediaType = inferMediaType(ev.EventType)
+			te.MediaType = inferMediaType(ev.EventType, ev.Metadata)
 		}
 
 		resolved = append(resolved, te)
@@ -138,13 +138,26 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 	})
 }
 
-// inferMediaType guesses media type from event type string.
-func inferMediaType(eventType string) string {
+// inferMediaType guesses media type from event type and metadata payload.
+func inferMediaType(eventType string, metadata string) string {
 	switch eventType {
 	case models.ActivityEventEpisodeWatched:
 		return "anime"
 	case models.ActivityEventMangaChapterRead:
 		return "manga"
+	case models.ActivityEventAnilistEntryEdited, models.ActivityEventAnilistEntryDeleted:
+		meta := ParseEventMetadata(metadata)
+		if meta != nil {
+			if t, ok := meta["type"].(string); ok {
+				switch t {
+				case "anime":
+					return "anime"
+				case "manga":
+					return "manga"
+				}
+			}
+		}
+		return ""
 	default:
 		return ""
 	}

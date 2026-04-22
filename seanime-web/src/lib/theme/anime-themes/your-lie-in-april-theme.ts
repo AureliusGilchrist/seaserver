@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiMusicalNotes, GiFlowerEmblem, GiViolin, GiHeartKey, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiCherryBlossoms } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiMusicalNotes, GiFlowerEmblem, GiViolin, GiHeartKey, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiCherish } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -45,7 +45,7 @@ export const yourLieInAprilTheme: AnimeThemeConfig = {
         "discover": { icon: GiBullseye, label: "New Concerts" },
         "torrent-list": { icon: GiFlowerEmblem, label: "Kaori's Pieces" },
         "debrid": { icon: GiHeartKey, label: "Music Store" },
-        "unmatched": { icon: GiCherryBlossoms, label: "Lost Notes" },
+        "unmatched": { icon: GiCherish, label: "Lost Notes" },
         "enmasse": { icon: GiResize, label: "Recitals" },
         "scan-summaries": { icon: TbReportSearch, label: "Performance Records" },
         "auto-downloader": { icon: LuRss, label: "Music Feed" },

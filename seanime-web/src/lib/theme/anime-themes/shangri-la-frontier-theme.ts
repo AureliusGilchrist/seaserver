@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiJoystick, GiCastle, GiArrowhead, GiLightningTrio, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiSword, GiHeartKey, GiCrown } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiJoystick, GiCastle, GiArrowhead, GiLightningTrio, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiBroadsword, GiHeartKey, GiCrown } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -49,7 +49,7 @@ export const shangriLaFrontierTheme: AnimeThemeConfig = {
         "enmasse": { icon: GiResize, label: "Party Finder" },
         "scan-summaries": { icon: TbReportSearch, label: "Server Logs" },
         "auto-downloader": { icon: LuRss, label: "Patch Feed" },
-        "community": { icon: GiSword, label: "Player Guild" },
+        "community": { icon: GiBroadsword, label: "Player Guild" },
         "achievements": { icon: GiTrophy, label: "Achievement Scores" },
         "milestones": { icon: LuFlag, label: "Rank Milestones" },
         "search": { icon: FiSearch, label: "Search" },

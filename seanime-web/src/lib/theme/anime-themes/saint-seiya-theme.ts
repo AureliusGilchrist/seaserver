@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiArmorVest, GiShield, GiGoldBar, GiLightningBolt, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiCrown } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiArmorVest, GiShield, GiGoldBar, GiLightningBow, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiCrown } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,7 +44,7 @@ export const saintSeiyaTheme: AnimeThemeConfig = {
         "lists": { icon: GiShield, label: "Saint Registry" },
         "discover": { icon: GiBullseye, label: "Cloth Scouting" },
         "torrent-list": { icon: GiGoldBar, label: "Cloth Cache" },
-        "debrid": { icon: GiLightningBolt, label: "Cosmo Energy" },
+        "debrid": { icon: GiLightningBow, label: "Cosmo Energy" },
         "unmatched": { icon: GiCrown, label: "Unknown Saints" },
         "enmasse": { icon: GiResize, label: "Army Deploy" },
         "scan-summaries": { icon: TbReportSearch, label: "Battle Reports" },

@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiGhost, GiShuriken, GiMoonBats, GiSword, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiSpiralShell } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiGhost, GiShuriken, GiMoonBats, GiBroadsword, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiSpiralShell } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -45,7 +45,7 @@ export const noragamiTheme: AnimeThemeConfig = {
         "discover": { icon: GiBullseye, label: "New Requests" },
         "torrent-list": { icon: GiShuriken, label: "Spirit Cache" },
         "debrid": { icon: GiMoonBats, label: "Divine Store" },
-        "unmatched": { icon: GiSword, label: "Lost Spirits" },
+        "unmatched": { icon: GiBroadsword, label: "Lost Spirits" },
         "enmasse": { icon: GiResize, label: "Divine Battles" },
         "scan-summaries": { icon: TbReportSearch, label: "Shrine Reports" },
         "auto-downloader": { icon: LuRss, label: "Divine Feed" },

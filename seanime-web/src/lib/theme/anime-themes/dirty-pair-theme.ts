@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiBinoculars, GiMagnifyingGlass, GiSpyCam, GiExplosion, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiWomanElfFace } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiBinoculars, GiMagnifyingGlass, GiSpyglass, GiGooExplosion, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiWomanElfFace } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,8 +43,8 @@ export const dirtyPairTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Agent Files" },
         "lists": { icon: GiBinoculars, label: "Case Roster" },
         "discover": { icon: GiBullseye, label: "Target Recon" },
-        "torrent-list": { icon: GiExplosion, label: "Explosion Cache" },
-        "debrid": { icon: GiSpyCam, label: "Surveillance" },
+        "torrent-list": { icon: GiGooExplosion, label: "Explosion Cache" },
+        "debrid": { icon: GiSpyglass, label: "Surveillance" },
         "unmatched": { icon: GiMagnifyingGlass, label: "Cold Cases" },
         "enmasse": { icon: GiResize, label: "Mass Deploy" },
         "scan-summaries": { icon: TbReportSearch, label: "Mission Reports" },

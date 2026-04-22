@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiHeartKey, GiFlower, GiCandy, GiSun, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiCupcake, GiBow, GiButterfly } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiHeartKey, GiFlowers, GiCandyCanes, GiSun, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiCupcake, GiBowTieRibbon, GiButterfly } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,7 +38,7 @@ export const candyCandyTheme: AnimeThemeConfig = {
         "--color-gray-50": "255 238 248",
     },
     sidebarOverrides: {
-        "home": { icon: GiCandy, label: "Candy's World" },
+        "home": { icon: GiCandyCanes, label: "Candy's World" },
         "schedule": { icon: GiAlarmClock, label: "Daily Schedule" },
         "manga": { icon: LuBookOpen, label: "Candy's Diary" },
         "lists": { icon: GiFlowerEmblem, label: "Friends List" },
@@ -49,7 +49,7 @@ export const candyCandyTheme: AnimeThemeConfig = {
         "enmasse": { icon: GiResize, label: "Candy Group" },
         "scan-summaries": { icon: TbReportSearch, label: "Diary Reports" },
         "auto-downloader": { icon: LuRss, label: "Candy's Letters" },
-        "community": { icon: GiFlower, label: "Candy's Circle" },
+        "community": { icon: GiFlowers, label: "Candy's Circle" },
         "achievements": { icon: GiTrophy, label: "Sweet Trophies" },
         "milestones": { icon: LuFlag, label: "Life Milestones" },
         "search": { icon: FiSearch, label: "Search" },

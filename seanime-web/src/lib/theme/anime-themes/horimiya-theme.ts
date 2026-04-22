@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiSchoolBag, GiHeartKey, GiPaintBrush, GiMask, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiSchoolBag, GiHeartKey, GiPaintBrush, GiDramaMasks, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,7 +44,7 @@ export const horimiyaTheme: AnimeThemeConfig = {
         "lists": { icon: GiFlowerEmblem, label: "Friend Registry" },
         "discover": { icon: GiBullseye, label: "New Friends" },
         "torrent-list": { icon: GiPaintBrush, label: "Art Cache" },
-        "debrid": { icon: GiMask, label: "Hidden Store" },
+        "debrid": { icon: GiDramaMasks, label: "Hidden Store" },
         "unmatched": { icon: GiHeartKey, label: "Lost Moments" },
         "enmasse": { icon: GiResize, label: "School Events" },
         "scan-summaries": { icon: TbReportSearch, label: "School Reports" },

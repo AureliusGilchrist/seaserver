@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiChainedHeart, GiClock, GiMagicPortal, GiRabbit, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiDoorRingHandle } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiChainedHeart, GiPocketWatch, GiMagicPortal, GiRabbit, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiDoorRingHandle } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -39,7 +39,7 @@ export const pandoraHeartsTheme: AnimeThemeConfig = {
     },
     sidebarOverrides: {
         "home": { icon: GiDoorRingHandle, label: "Pandora HQ" },
-        "schedule": { icon: GiClock, label: "Abyss Time" },
+        "schedule": { icon: GiPocketWatch, label: "Abyss Time" },
         "manga": { icon: LuBookOpen, label: "Chain Contracts" },
         "lists": { icon: GiChainedHeart, label: "Chain Registry" },
         "discover": { icon: GiBullseye, label: "Memory Search" },

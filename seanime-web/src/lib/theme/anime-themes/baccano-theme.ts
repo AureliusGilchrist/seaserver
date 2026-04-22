@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiOldWagon, GiTrain, GiDeathSkull, GiPistolGun, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiWhistle } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiOldWagon, GiSteamLocomotive, GiDeathSkull, GiPistolGun, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiWhistle } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,7 +44,7 @@ export const baccanoTheme: AnimeThemeConfig = {
         "lists": { icon: GiDeathSkull, label: "Immortal Registry" },
         "discover": { icon: GiBullseye, label: "Scouting" },
         "torrent-list": { icon: GiPistolGun, label: "Contraband" },
-        "debrid": { icon: GiTrain, label: "Flying Pussyfoot" },
+        "debrid": { icon: GiSteamLocomotive, label: "Flying Pussyfoot" },
         "unmatched": { icon: GiWhistle, label: "Unresolved" },
         "enmasse": { icon: GiResize, label: "Gang Deploy" },
         "scan-summaries": { icon: TbReportSearch, label: "Case Files" },

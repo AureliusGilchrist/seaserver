@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiCaveEntrance, GiDagger, GiCrystalGrowth, GiGun, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiSword, GiHeartKey, GiCrown } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiCaveEntrance, GiDaggers, GiCrystalGrowth, GiSawedOffShotgun, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiBroadsword, GiHeartKey, GiCrown } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,13 +43,13 @@ export const arifuretaTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Dungeon Notes" },
         "lists": { icon: GiFlowerEmblem, label: "Party Registry" },
         "discover": { icon: GiBullseye, label: "New Floors" },
-        "torrent-list": { icon: GiGun, label: "Arsenal Cache" },
+        "torrent-list": { icon: GiSawedOffShotgun, label: "Arsenal Cache" },
         "debrid": { icon: GiCrystalGrowth, label: "Dungeon Vault" },
         "unmatched": { icon: GiHeartKey, label: "Lost Members" },
         "enmasse": { icon: GiResize, label: "Party Ops" },
         "scan-summaries": { icon: TbReportSearch, label: "Floor Reports" },
         "auto-downloader": { icon: LuRss, label: "Dungeon Intel" },
-        "community": { icon: GiDagger, label: "Survivor Circle" },
+        "community": { icon: GiDaggers, label: "Survivor Circle" },
         "achievements": { icon: GiTrophy, label: "Survivor Trophies" },
         "milestones": { icon: LuFlag, label: "Escape Goals" },
         "search": { icon: FiSearch, label: "Search" },

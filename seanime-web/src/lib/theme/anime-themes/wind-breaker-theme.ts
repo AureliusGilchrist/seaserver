@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiBicycle, GiWindSlap, GiSneaker, GiPunch, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiHelmet, GiHeartKey, GiRoad } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiCycle, GiWindSlap, GiRunningShoe, GiPunch, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiHelmet, GiHeartKey, GiRoad } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"

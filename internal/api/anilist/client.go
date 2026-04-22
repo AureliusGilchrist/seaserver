@@ -18,6 +18,32 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const anilistRequestTimeout = 45 * time.Second
+
+func newAnilistHTTPClient() *http.Client {
+	if base, ok := http.DefaultTransport.(*http.Transport); ok {
+		tr := base.Clone()
+		// Prefer HTTP/1.1 for AniList requests to avoid long-lived HTTP/2 read stalls.
+		tr.ForceAttemptHTTP2 = false
+		tr.MaxIdleConns = 64
+		tr.MaxConnsPerHost = 24
+		tr.MaxIdleConnsPerHost = 24
+		tr.IdleConnTimeout = 30 * time.Second
+		return &http.Client{Transport: tr, Timeout: anilistRequestTimeout}
+	}
+
+	return &http.Client{
+		Timeout: anilistRequestTimeout,
+		Transport: &http.Transport{
+			ForceAttemptHTTP2:   false,
+			MaxIdleConns:        64,
+			MaxConnsPerHost:     24,
+			MaxIdleConnsPerHost: 24,
+			IdleConnTimeout:     30 * time.Second,
+		},
+	}
+}
+
 var (
 	// ErrNotAuthenticated is returned when trying to access an Anilist API endpoint that requires authentication,
 	// but the client is not authenticated.
@@ -71,7 +97,7 @@ func NewAnilistClient(token string, cacheDir string) *AnilistClientImpl {
 		token:    token,
 		cacheDir: cacheDir,
 		Client: &Client{
-			Client: clientv2.NewClient(http.DefaultClient, constants.AnilistApiUrl, nil,
+			Client: clientv2.NewClient(newAnilistHTTPClient(), constants.AnilistApiUrl, nil,
 				func(ctx context.Context, req *http.Request, gqlInfo *clientv2.GQLRequestInfo, res interface{}, next clientv2.RequestInterceptorFunc) error {
 					req.Header.Set("Content-Type", "application/json")
 					req.Header.Set("Accept", "application/json")
@@ -288,7 +314,14 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 		}
 	}()
 
-	client := http.DefaultClient
+	client := newAnilistHTTPClient()
+	reqCtx := ctx
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		reqCtx, cancel = context.WithTimeout(ctx, anilistRequestTimeout)
+		defer cancel()
+	}
+	req = req.Clone(reqCtx)
 	var resp *http.Response
 
 	retryCount := 2
@@ -327,8 +360,8 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 			}
 			ac.logger.Warn().Msgf("anilist: Rate limited (429), waiting %ds before retry", waitSec)
 			select {
-			case <-ctx.Done():
-				return ctx.Err()
+			case <-reqCtx.Done():
+				return reqCtx.Err()
 			case <-time.After(time.Duration(waitSec) * time.Second):
 			}
 			continue

@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiPistolGun, GiDetective, GiBinoculars, GiHeartKey, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiSmokeBomb } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiPistolGun, GiSpy, GiBinoculars, GiHeartKey, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiSmokeBomb } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,7 +38,7 @@ export const cityHunterTheme: AnimeThemeConfig = {
         "--color-gray-50": "246 240 226",
     },
     sidebarOverrides: {
-        "home": { icon: GiDetective, label: "Shinjuku Station" },
+        "home": { icon: GiSpy, label: "Shinjuku Station" },
         "schedule": { icon: GiAlarmClock, label: "Job Schedule" },
         "manga": { icon: LuBookOpen, label: "Case Files" },
         "lists": { icon: GiPistolGun, label: "Client Roster" },
@@ -49,7 +49,7 @@ export const cityHunterTheme: AnimeThemeConfig = {
         "enmasse": { icon: GiResize, label: "Mass Op" },
         "scan-summaries": { icon: TbReportSearch, label: "Client Reports" },
         "auto-downloader": { icon: LuRss, label: "XYZ Messages" },
-        "community": { icon: GiDetective, label: "City Network" },
+        "community": { icon: GiSpy, label: "City Network" },
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "XYZ Alert" },
         "achievements": { icon: GiTrophy, label: "Sweeper Medals" },

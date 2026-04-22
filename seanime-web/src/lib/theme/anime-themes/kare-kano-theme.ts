@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiRose, GiHeartKey, GiSchoolBag, GiMusicNotes, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiCherries } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiRose, GiHeartKey, GiSchoolBag, GiMusicalNotes, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiCherish } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,9 +43,9 @@ export const kareKanoTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Manga Club" },
         "lists": { icon: GiSchoolBag, label: "Class Roster" },
         "discover": { icon: GiBullseye, label: "Discover Hearts" },
-        "torrent-list": { icon: GiMusicNotes, label: "Drama Club" },
+        "torrent-list": { icon: GiMusicalNotes, label: "Drama Club" },
         "debrid": { icon: GiRose, label: "Secret Feelings" },
-        "unmatched": { icon: GiCherries, label: "Unspoken" },
+        "unmatched": { icon: GiCherish, label: "Unspoken" },
         "enmasse": { icon: GiResize, label: "School Events" },
         "scan-summaries": { icon: TbReportSearch, label: "Diary" },
         "auto-downloader": { icon: LuRss, label: "Gossip Feed" },

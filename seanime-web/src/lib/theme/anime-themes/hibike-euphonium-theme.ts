@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiMusicalNotes, GiTrumpet, GiBrassInstrument, GiFlute, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiMusicNotes } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiMusicalNotes, GiTrumpet, GiTuba, GiFlute, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,18 +38,18 @@ export const hibikeEuphoniumTheme: AnimeThemeConfig = {
         "--color-gray-50": "240 220 255",
     },
     sidebarOverrides: {
-        "home": { icon: GiBrassInstrument, label: "Kitauji Band" },
+        "home": { icon: GiTuba, label: "Kitauji Band" },
         "schedule": { icon: GiAlarmClock, label: "Practice Schedule" },
         "manga": { icon: LuBookOpen, label: "Score Library" },
         "lists": { icon: GiMusicalNotes, label: "Setlist" },
         "discover": { icon: GiBullseye, label: "Nationals" },
         "torrent-list": { icon: GiTrumpet, label: "Instrument Cache" },
         "debrid": { icon: GiFlute, label: "Music Store" },
-        "unmatched": { icon: GiMusicNotes, label: "Missed Notes" },
+        "unmatched": { icon: GiMusicalNotes, label: "Missed Notes" },
         "enmasse": { icon: GiResize, label: "Competitions" },
         "scan-summaries": { icon: TbReportSearch, label: "Practice Reports" },
         "auto-downloader": { icon: LuRss, label: "Band Feed" },
-        "community": { icon: GiBrassInstrument, label: "Concert Band" },
+        "community": { icon: GiTuba, label: "Concert Band" },
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Practice Alerts" },
         "achievements": { icon: GiTrophy, label: "Band Trophies" },

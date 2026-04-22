@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiZombie, GiBucketHat, GiDrinking, GiBottleFlip, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiChopperHelmet, GiHeartKey, GiSun } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiShamblingZombie, GiCorkHat, GiDrinking, GiWaterBottle, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiHelmet, GiHeartKey, GiSun } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,13 +38,13 @@ export const zom100Theme: AnimeThemeConfig = {
         "--color-gray-50": "235 250 235",
     },
     sidebarOverrides: {
-        "home": { icon: GiBucketHat, label: "Bucket List HQ" },
+        "home": { icon: GiCorkHat, label: "Bucket List HQ" },
         "schedule": { icon: GiAlarmClock, label: "No Work Schedule" },
         "manga": { icon: LuBookOpen, label: "Bucket List" },
         "lists": { icon: GiFlowerEmblem, label: "Survivor Registry" },
         "discover": { icon: GiBullseye, label: "New Goals" },
-        "torrent-list": { icon: GiZombie, label: "Zombie Cache" },
-        "debrid": { icon: GiChopperHelmet, label: "Escape Vault" },
+        "torrent-list": { icon: GiShamblingZombie, label: "Zombie Cache" },
+        "debrid": { icon: GiHelmet, label: "Escape Vault" },
         "unmatched": { icon: GiHeartKey, label: "Lost Friends" },
         "enmasse": { icon: GiResize, label: "Survivor Group" },
         "scan-summaries": { icon: TbReportSearch, label: "Bucket Logs" },

@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiTrain, GiPlanetCore, GiGhost, GiCrown, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiStar } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiSteamLocomotive, GiPlanetCore, GiGhost, GiCrown, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiStarFormation } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,10 +38,10 @@ export const galaxyExpress999Theme: AnimeThemeConfig = {
         "--color-gray-50": "242 238 250",
     },
     sidebarOverrides: {
-        "home": { icon: GiTrain, label: "Platform 999" },
+        "home": { icon: GiSteamLocomotive, label: "Platform 999" },
         "schedule": { icon: GiAlarmClock, label: "Departure Times" },
         "manga": { icon: LuBookOpen, label: "Traveler's Journal" },
-        "lists": { icon: GiStar, label: "Star Registry" },
+        "lists": { icon: GiStarFormation, label: "Star Registry" },
         "discover": { icon: GiBullseye, label: "Galaxy Map" },
         "torrent-list": { icon: GiPlanetCore, label: "Planet Cache" },
         "debrid": { icon: GiGhost, label: "Phantom Stations" },
@@ -49,7 +49,7 @@ export const galaxyExpress999Theme: AnimeThemeConfig = {
         "enmasse": { icon: GiResize, label: "Mass Transit" },
         "scan-summaries": { icon: TbReportSearch, label: "Station Reports" },
         "auto-downloader": { icon: LuRss, label: "Express Signals" },
-        "community": { icon: GiTrain, label: "Fellow Travelers" },
+        "community": { icon: GiSteamLocomotive, label: "Fellow Travelers" },
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Departure Bells" },
         "achievements": { icon: GiTrophy, label: "Journey Medals" },

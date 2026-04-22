@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiRose, GiCrown, GiGoldBar, GiCherries, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiDiamondHard } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiRose, GiCrown, GiGoldBar, GiCherish, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiDiamondHard } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -45,7 +45,7 @@ export const ouranHostClubTheme: AnimeThemeConfig = {
         "discover": { icon: GiBullseye, label: "New Clients" },
         "torrent-list": { icon: GiGoldBar, label: "Club Treasury" },
         "debrid": { icon: GiDiamondHard, label: "Elite Store" },
-        "unmatched": { icon: GiCherries, label: "New Members" },
+        "unmatched": { icon: GiCherish, label: "New Members" },
         "enmasse": { icon: GiResize, label: "Club Events" },
         "scan-summaries": { icon: TbReportSearch, label: "Guest Reports" },
         "auto-downloader": { icon: LuRss, label: "Club Announcements" },

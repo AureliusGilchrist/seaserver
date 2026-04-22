@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiFlame, GiDemonSkull, GiCrossedSwords, GiMagicPortal, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiSwordClash } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiFlame, GiDaemonSkull, GiCrossedSwords, GiMagicPortal, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiSwordClash } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,7 +43,7 @@ export const aoNoExorcistTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Exorcist Files" },
         "lists": { icon: GiCrossedSwords, label: "Cram School" },
         "discover": { icon: GiBullseye, label: "Demon Hunt" },
-        "torrent-list": { icon: GiDemonSkull, label: "Demon Cache" },
+        "torrent-list": { icon: GiDaemonSkull, label: "Demon Cache" },
         "debrid": { icon: GiFlame, label: "Satan's Flame" },
         "unmatched": { icon: GiSwordClash, label: "Unknown Demons" },
         "enmasse": { icon: GiResize, label: "Order Deploy" },

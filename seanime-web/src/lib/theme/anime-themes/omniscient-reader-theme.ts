@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiBookCover, GiQuill, GiSpellBook, GiSword, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiBookAura, GiHeartKey, GiCrown } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiBookCover, GiQuill, GiSpellBook, GiBroadsword, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiBookAura, GiHeartKey, GiCrown } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"

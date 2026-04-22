@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiMusicNotes, GiBookshelf, GiRose, GiHeartKey, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiCherries } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiMusicalNotes, GiBookshelf, GiRose, GiHeartKey, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiCherish } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,8 +43,8 @@ export const whisperOfTheHeartTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Shizuku's Books" },
         "lists": { icon: GiHeartKey, label: "Reading List" },
         "discover": { icon: GiBullseye, label: "Bookshop Explore" },
-        "torrent-list": { icon: GiMusicNotes, label: "Music Cache" },
-        "debrid": { icon: GiCherries, label: "Antique Store" },
+        "torrent-list": { icon: GiMusicalNotes, label: "Music Cache" },
+        "debrid": { icon: GiCherish, label: "Antique Store" },
         "unmatched": { icon: GiRose, label: "Unread Books" },
         "enmasse": { icon: GiResize, label: "Book Club" },
         "scan-summaries": { icon: TbReportSearch, label: "Reading Notes" },

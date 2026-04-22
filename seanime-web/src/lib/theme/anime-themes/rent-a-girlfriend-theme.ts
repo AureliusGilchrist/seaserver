@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiHeartKey, GiDress, GiCoin, GiStar, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiMask, GiFilmProjector, GiCrown } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiHeartKey, GiDress, GiCoins, GiStarFormation, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiDramaMasks, GiFilmProjector, GiCrown } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,13 +43,13 @@ export const rentAGirlfriendTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Chizuru's Scripts" },
         "lists": { icon: GiFlowerEmblem, label: "Girlfriend List" },
         "discover": { icon: GiBullseye, label: "New Faces" },
-        "torrent-list": { icon: GiCoin, label: "Rental Cache" },
-        "debrid": { icon: GiMask, label: "Secret Vault" },
+        "torrent-list": { icon: GiCoins, label: "Rental Cache" },
+        "debrid": { icon: GiDramaMasks, label: "Secret Vault" },
         "unmatched": { icon: GiDress, label: "Lost Matches" },
         "enmasse": { icon: GiResize, label: "Group Dates" },
         "scan-summaries": { icon: TbReportSearch, label: "Date Reports" },
         "auto-downloader": { icon: LuRss, label: "Chizuru's Feed" },
-        "community": { icon: GiStar, label: "Date Circle" },
+        "community": { icon: GiStarFormation, label: "Date Circle" },
         "achievements": { icon: GiTrophy, label: "Romance Awards" },
         "milestones": { icon: LuFlag, label: "Relationship Goals" },
         "search": { icon: FiSearch, label: "Search" },

@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiRobot, GiCat, GiDeer, GiMilkCarton, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiPencilBrush } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiRobotGolem, GiCat, GiDeer, GiMilkCarton, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiPencilBrush } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,7 +38,7 @@ export const nichijouTheme: AnimeThemeConfig = {
         "--color-gray-50": "240 230 250",
     },
     sidebarOverrides: {
-        "home": { icon: GiRobot, label: "Nano's World" },
+        "home": { icon: GiRobotGolem, label: "Nano's World" },
         "schedule": { icon: GiAlarmClock, label: "Class Schedule" },
         "manga": { icon: LuBookOpen, label: "Arawi's Manga" },
         "lists": { icon: GiPencilBrush, label: "Daily Events" },
@@ -49,7 +49,7 @@ export const nichijouTheme: AnimeThemeConfig = {
         "enmasse": { icon: GiResize, label: "School Events" },
         "scan-summaries": { icon: TbReportSearch, label: "Daily Reports" },
         "auto-downloader": { icon: LuRss, label: "Life Feed" },
-        "community": { icon: GiRobot, label: "Hakase's Lab" },
+        "community": { icon: GiRobotGolem, label: "Hakase's Lab" },
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Daily Alerts" },
         "achievements": { icon: GiTrophy, label: "Daily Trophies" },

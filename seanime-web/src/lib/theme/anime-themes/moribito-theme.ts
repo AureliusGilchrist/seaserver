@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiSpearHook, GiForestCamp, GiAncientSword, GiWater, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiMountainRoad } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiSpearHook, GiForestCamp, GiAncientSword, GiWaterDrop, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiMountainRoad } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,7 +44,7 @@ export const moribitoTheme: AnimeThemeConfig = {
         "lists": { icon: GiAncientSword, label: "Guardian Registry" },
         "discover": { icon: GiBullseye, label: "Empire Scouting" },
         "torrent-list": { icon: GiSpearHook, label: "Spear Cache" },
-        "debrid": { icon: GiWater, label: "Water Spirit" },
+        "debrid": { icon: GiWaterDrop, label: "Water Spirit" },
         "unmatched": { icon: GiMountainRoad, label: "Lost Paths" },
         "enmasse": { icon: GiResize, label: "Empire Forces" },
         "scan-summaries": { icon: TbReportSearch, label: "Journey Records" },

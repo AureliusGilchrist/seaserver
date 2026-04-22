@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiCrown, GiDragonBreath, GiShield, GiSwords, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiGoldBar } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiCrown, GiDragonBreath, GiShield, GiCrossedSwords, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiGoldBar } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,7 +43,7 @@ export const sevenDeadlySinsTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Kingdom Records" },
         "lists": { icon: GiShield, label: "Sins Registry" },
         "discover": { icon: GiBullseye, label: "New Quests" },
-        "torrent-list": { icon: GiSwords, label: "Weapon Cache" },
+        "torrent-list": { icon: GiCrossedSwords, label: "Weapon Cache" },
         "debrid": { icon: GiGoldBar, label: "Royal Store" },
         "unmatched": { icon: GiDragonBreath, label: "Unknown Demons" },
         "enmasse": { icon: GiResize, label: "Great Battles" },

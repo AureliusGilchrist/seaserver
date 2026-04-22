@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiFlame, GiFist, GiDeathSkull, GiBullets, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiLightningBolt } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiFlame, GiFist, GiDeathSkull, GiBullets, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiLightningBow } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,7 +44,7 @@ export const katekyoHitmanRebornTheme: AnimeThemeConfig = {
         "lists": { icon: GiFist, label: "Guardian Registry" },
         "discover": { icon: GiBullseye, label: "Enemy Scouting" },
         "torrent-list": { icon: GiBullets, label: "Flame Cache" },
-        "debrid": { icon: GiLightningBolt, label: "Dying Will" },
+        "debrid": { icon: GiLightningBow, label: "Dying Will" },
         "unmatched": { icon: GiDeathSkull, label: "Unknown Family" },
         "enmasse": { icon: GiResize, label: "Family Deploy" },
         "scan-summaries": { icon: TbReportSearch, label: "Battle Reports" },

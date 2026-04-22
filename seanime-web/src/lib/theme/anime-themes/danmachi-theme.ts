@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiSwordwoman, GiShield, GiDungeon, GiGoldBar, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiMagicSwirl } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiSwordwoman, GiShield, GiDungeonGate, GiGoldBar, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiMagicSwirl } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,7 +38,7 @@ export const danmachiTheme: AnimeThemeConfig = {
         "--color-gray-50": "238 230 248",
     },
     sidebarOverrides: {
-        "home": { icon: GiDungeon, label: "Orario" },
+        "home": { icon: GiDungeonGate, label: "Orario" },
         "schedule": { icon: GiAlarmClock, label: "Dungeon Schedule" },
         "manga": { icon: LuBookOpen, label: "Familia Files" },
         "lists": { icon: GiShield, label: "Adventurer Registry" },
@@ -49,7 +49,7 @@ export const danmachiTheme: AnimeThemeConfig = {
         "enmasse": { icon: GiResize, label: "Dungeon Excursions" },
         "scan-summaries": { icon: TbReportSearch, label: "Adventure Reports" },
         "auto-downloader": { icon: LuRss, label: "Familia Feed" },
-        "community": { icon: GiDungeon, label: "Hestia Familia" },
+        "community": { icon: GiDungeonGate, label: "Hestia Familia" },
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Dungeon Alerts" },
         "achievements": { icon: GiTrophy, label: "Adventure Trophies" },

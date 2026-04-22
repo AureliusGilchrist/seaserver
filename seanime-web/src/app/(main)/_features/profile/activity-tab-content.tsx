@@ -65,6 +65,22 @@ function formatEventDescription(event: Handlers_TimelineEvent): string {
       const filepath = meta?.filepath || meta?.filename || ""
       return filepath ? `${cfg?.label}: ${filepath}` : cfg?.label || event.eventType
     }
+    case "anilist_entry_edited": {
+      const status = typeof meta?.status === "string" ? meta.status : ""
+      const progress = typeof meta?.progress === "number" ? meta.progress : null
+      const score = typeof meta?.score === "number" ? meta.score : null
+
+      if (status === "CURRENT") return `Started${title ? ` ${title}` : ""}`
+      if (status === "PLANNING") return `Planned${title ? ` ${title}` : ""}`
+      if (status === "COMPLETED") return `Completed${title ? ` ${title}` : ""}`
+      if (status === "PAUSED") return `Paused${title ? ` ${title}` : ""}`
+      if (status === "DROPPED") return `Dropped${title ? ` ${title}` : ""}`
+
+      if (progress != null) return `Updated progress to ${progress}${title ? ` for ${title}` : ""}`
+      if (score != null) return `Rated ${score}${title ? ` for ${title}` : ""}`
+
+      return `Updated entry${title ? ` for ${title}` : ""}`
+    }
     default:
       return cfg?.label || event.eventType
   }

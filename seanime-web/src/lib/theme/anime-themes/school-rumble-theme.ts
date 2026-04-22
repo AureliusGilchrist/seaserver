@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiSchoolBag, GiHeartKey, GiMusicNotes, GiCherries, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiRose } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiSchoolBag, GiHeartKey, GiMusicalNotes, GiCherish, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiRose } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,8 +43,8 @@ export const schoolRumbleTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Manga Club" },
         "lists": { icon: GiHeartKey, label: "Love Chart" },
         "discover": { icon: GiBullseye, label: "School Explore" },
-        "torrent-list": { icon: GiMusicNotes, label: "Culture Fest" },
-        "debrid": { icon: GiCherries, label: "Lunch Cache" },
+        "torrent-list": { icon: GiMusicalNotes, label: "Culture Fest" },
+        "debrid": { icon: GiCherish, label: "Lunch Cache" },
         "unmatched": { icon: GiRose, label: "Unrequited" },
         "enmasse": { icon: GiResize, label: "School Events" },
         "scan-summaries": { icon: TbReportSearch, label: "Grade Reports" },

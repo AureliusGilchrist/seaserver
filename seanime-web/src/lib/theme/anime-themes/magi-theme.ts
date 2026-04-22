@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiLanternFlame, GiGenie, GiAncientSword, GiCrown, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiPyramids } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiLanternFlame, GiMagicLamp, GiAncientSword, GiCrown, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiObelisk } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,10 +38,10 @@ export const magiTheme: AnimeThemeConfig = {
         "--color-gray-50": "245 238 225",
     },
     sidebarOverrides: {
-        "home": { icon: GiPyramids, label: "Dungeon Gate" },
+        "home": { icon: GiObelisk, label: "Dungeon Gate" },
         "schedule": { icon: GiAlarmClock, label: "Dungeon Schedule" },
         "manga": { icon: LuBookOpen, label: "Magi Files" },
-        "lists": { icon: GiGenie, label: "Djinn Registry" },
+        "lists": { icon: GiMagicLamp, label: "Djinn Registry" },
         "discover": { icon: GiBullseye, label: "Dungeon Hunt" },
         "torrent-list": { icon: GiLanternFlame, label: "Magic Cache" },
         "debrid": { icon: GiCrown, label: "King Store" },
@@ -49,7 +49,7 @@ export const magiTheme: AnimeThemeConfig = {
         "enmasse": { icon: GiResize, label: "Kingdom Deploy" },
         "scan-summaries": { icon: TbReportSearch, label: "Dungeon Reports" },
         "auto-downloader": { icon: LuRss, label: "Magic Feed" },
-        "community": { icon: GiGenie, label: "Dungeon Conquerors" },
+        "community": { icon: GiMagicLamp, label: "Dungeon Conquerors" },
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Djinn Alerts" },
         "achievements": { icon: GiTrophy, label: "King Vessels" },

@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiGhost, GiForestCamp, GiCrystalBall, GiScrollUnfurled, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiFeatherWing } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiGhost, GiForestCamp, GiCrystalBall, GiScrollUnfurled, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiFeatheredWing } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -45,7 +45,7 @@ export const natsumeYujinchoTheme: AnimeThemeConfig = {
         "discover": { icon: GiBullseye, label: "Spirit Search" },
         "torrent-list": { icon: GiGhost, label: "Spirit Cache" },
         "debrid": { icon: GiCrystalBall, label: "Spirit Store" },
-        "unmatched": { icon: GiFeatherWing, label: "Unknown Names" },
+        "unmatched": { icon: GiFeatheredWing, label: "Unknown Names" },
         "enmasse": { icon: GiResize, label: "Spirit Network" },
         "scan-summaries": { icon: TbReportSearch, label: "Encounter Records" },
         "auto-downloader": { icon: LuRss, label: "Spirit News" },

@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiSpiritBlade, GiGhost, GiCrystalBall, GiFlame, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiAcorn } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiShiningSword, GiGhost, GiCrystalBall, GiFlame, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiAcorn } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -38,7 +38,7 @@ export const shamanKingTheme: AnimeThemeConfig = {
         "--color-gray-50": "246 242 235",
     },
     sidebarOverrides: {
-        "home": { icon: GiSpiritBlade, label: "Spirit World" },
+        "home": { icon: GiShiningSword, label: "Spirit World" },
         "schedule": { icon: GiAlarmClock, label: "Tournament Draw" },
         "manga": { icon: LuBookOpen, label: "Spirit Scrolls" },
         "lists": { icon: GiGhost, label: "Spirit Registry" },
@@ -49,7 +49,7 @@ export const shamanKingTheme: AnimeThemeConfig = {
         "enmasse": { icon: GiResize, label: "Team Deploy" },
         "scan-summaries": { icon: TbReportSearch, label: "Battle Reports" },
         "auto-downloader": { icon: LuRss, label: "Spirit Feed" },
-        "community": { icon: GiSpiritBlade, label: "Shaman Community" },
+        "community": { icon: GiShiningSword, label: "Shaman Community" },
         "search": { icon: FiSearch, label: "Search" },
         "notifications": { icon: LuBell, label: "Spirit Calls" },
         "achievements": { icon: GiTrophy, label: "Shaman Titles" },

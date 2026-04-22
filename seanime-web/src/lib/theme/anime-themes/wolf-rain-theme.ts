@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiWolfHowl, GiSnowflake, GiMoonBats, GiCrystalBall, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiMountainRoad } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiWolfHowl, GiSnowflake1, GiMoonBats, GiCrystalBall, GiSettingsKnobs, GiPalette, GiTrophy, GiAlarmClock, GiBullseye, GiResize, GiMountainRoad } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -43,7 +43,7 @@ export const wolfRainTheme: AnimeThemeConfig = {
         "manga": { icon: LuBookOpen, label: "Pack Lore" },
         "lists": { icon: GiMoonBats, label: "Pack Registry" },
         "discover": { icon: GiBullseye, label: "Paradise Hunt" },
-        "torrent-list": { icon: GiSnowflake, label: "Trail Cache" },
+        "torrent-list": { icon: GiSnowflake1, label: "Trail Cache" },
         "debrid": { icon: GiCrystalBall, label: "Moon Flower" },
         "unmatched": { icon: GiMountainRoad, label: "Lost Pack" },
         "enmasse": { icon: GiResize, label: "Pack Deploy" },

@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiCookingPot, GiMeat, GiFoodChain, GiForest, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiMuscleUp, GiHeartKey, GiEagle } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiCookingPot, GiMeat, GiFoodChain, GiForest, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiMuscleUp, GiHeartKey, GiEagleHead } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -49,7 +49,7 @@ export const torikoTheme: AnimeThemeConfig = {
         "enmasse": { icon: GiResize, label: "Combo Hunt" },
         "scan-summaries": { icon: TbReportSearch, label: "Hunt Reports" },
         "auto-downloader": { icon: LuRss, label: "Gourmet Feed" },
-        "community": { icon: GiEagle, label: "Hunter Circle" },
+        "community": { icon: GiEagleHead, label: "Hunter Circle" },
         "achievements": { icon: GiTrophy, label: "Gourmet Trophies" },
         "milestones": { icon: LuFlag, label: "Full Course Goals" },
         "search": { icon: FiSearch, label: "Search" },

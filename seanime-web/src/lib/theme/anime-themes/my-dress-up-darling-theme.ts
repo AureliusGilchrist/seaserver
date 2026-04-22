@@ -1,5 +1,5 @@
-import { AnimeThemeConfig } from "./types"
-import { GiSewingNeedle, GiDress, GiHeartKey, GiSparkles, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiMask, GiNeedle, GiStar } from "react-icons/gi"
+﻿import { AnimeThemeConfig } from "./types"
+import { GiSewingNeedle, GiDress, GiHeartKey, GiSparkles, GiTrophy, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiFlowerEmblem, GiDramaMasks, GiTripleNeedle, GiStarFormation } from "react-icons/gi"
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"
@@ -44,7 +44,7 @@ export const myDressUpDarlingTheme: AnimeThemeConfig = {
         "lists": { icon: GiFlowerEmblem, label: "Cosplay Registry" },
         "discover": { icon: GiBullseye, label: "New Designs" },
         "torrent-list": { icon: GiDress, label: "Costume Cache" },
-        "debrid": { icon: GiMask, label: "Character Vault" },
+        "debrid": { icon: GiDramaMasks, label: "Character Vault" },
         "unmatched": { icon: GiHeartKey, label: "Lost Patterns" },
         "enmasse": { icon: GiResize, label: "Group Shoots" },
         "scan-summaries": { icon: TbReportSearch, label: "Shoot Reports" },
