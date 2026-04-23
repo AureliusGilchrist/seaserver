@@ -10,6 +10,21 @@ export const THEME_BG_LIST_KEY = "theme-backgrounds-list"
 export type ThemeBgFile = {
     filename: string
     url: string
+    canDelete: boolean
+}
+
+export type ThemeBgListResponse = {
+    files: ThemeBgFile[]
+    userCount: number
+    limit: number
+    isAdmin: boolean
+}
+
+export type ThemeBgDownloadResponse = {
+    filename: string
+    url: string
+    userCount: number
+    limit: number
 }
 
 export type WallhavenThumb = {
@@ -43,7 +58,7 @@ export type WallhavenSearchResponse = {
 }
 
 export function useListThemeBackgrounds() {
-    return useServerQuery<ThemeBgFile[]>({
+    return useServerQuery<ThemeBgListResponse>({
         endpoint: API_ENDPOINTS.THEME_BACKGROUNDS.ListThemeBackgrounds.endpoint,
         method: "GET",
         queryKey: [THEME_BG_LIST_KEY],
@@ -52,7 +67,7 @@ export function useListThemeBackgrounds() {
 
 export function useDownloadThemeBackground() {
     const queryClient = useQueryClient()
-    return useServerMutation<ThemeBgFile, { url: string }>({
+    return useServerMutation<ThemeBgDownloadResponse, { url: string }>({
         endpoint: API_ENDPOINTS.THEME_BACKGROUNDS.DownloadThemeBackground.endpoint,
         method: "POST",
         onSuccess: () => {

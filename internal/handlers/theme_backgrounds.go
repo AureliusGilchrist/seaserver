@@ -7,7 +7,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -15,7 +17,41 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// HandleListThemeBackgrounds returns all downloaded background images from datadir/theme-backgrounds/.
+const wallpaperDownloadLimit = 5
+
+// bgMetadata tracks per-profile wallpaper downloads.
+type bgMetadata struct {
+	mu        sync.Mutex
+	Downloads map[string][]string `json:"downloads"` // profileID string -> filenames
+}
+
+var (
+	bgMeta     *bgMetadata
+	bgMetaOnce sync.Once
+)
+
+func loadBgMetadata(dir string) *bgMetadata {
+	bgMetaOnce.Do(func() {
+		bgMeta = &bgMetadata{Downloads: make(map[string][]string)}
+		path := filepath.Join(dir, "bg-metadata.json")
+		data, err := os.ReadFile(path)
+		if err == nil {
+			_ = json.Unmarshal(data, bgMeta)
+			if bgMeta.Downloads == nil {
+				bgMeta.Downloads = make(map[string][]string)
+			}
+		}
+	})
+	return bgMeta
+}
+
+func saveBgMetadata(dir string, m *bgMetadata) {
+	path := filepath.Join(dir, "bg-metadata.json")
+	data, _ := json.MarshalIndent(m, "", "  ")
+	_ = os.WriteFile(path, data, 0644)
+}
+
+// HandleListThemeBackgrounds returns all downloaded background images with per-profile download count.
 func (h *Handler) HandleListThemeBackgrounds(c echo.Context) error {
 	dir := filepath.Join(h.App.Config.Data.AppDataDir, "theme-backgrounds")
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -27,9 +63,23 @@ func (h *Handler) HandleListThemeBackgrounds(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	session := h.GetProfileSession(c)
+	isAdmin := session == nil || session.IsAdmin
+	profileKey := "0"
+	if session != nil {
+		profileKey = strconv.FormatUint(uint64(session.ProfileID), 10)
+	}
+
+	meta := loadBgMetadata(dir)
+	meta.mu.Lock()
+	userDownloads := len(meta.Downloads[profileKey])
+	meta.mu.Unlock()
+
 	type BgFile struct {
-		Filename string `json:"filename"`
-		URL      string `json:"url"`
+		Filename      string `json:"filename"`
+		URL           string `json:"url"`
+		DownloadedBy  string `json:"downloadedBy,omitempty"`
+		CanDelete     bool   `json:"canDelete"`
 	}
 
 	files := make([]BgFile, 0, len(entries))
@@ -41,16 +91,31 @@ func (h *Handler) HandleListThemeBackgrounds(c echo.Context) error {
 		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp" {
 			continue
 		}
+		canDelete := isAdmin
 		files = append(files, BgFile{
-			Filename: entry.Name(),
-			URL:      "/theme-bg/" + entry.Name(),
+			Filename:  entry.Name(),
+			URL:       "/theme-bg/" + entry.Name(),
+			CanDelete: canDelete,
 		})
 	}
 
-	return h.RespondWithData(c, files)
+	type Response struct {
+		Files         []BgFile `json:"files"`
+		UserCount     int      `json:"userCount"`
+		Limit         int      `json:"limit"`
+		IsAdmin       bool     `json:"isAdmin"`
+	}
+
+	return h.RespondWithData(c, Response{
+		Files:     files,
+		UserCount: userDownloads,
+		Limit:     wallpaperDownloadLimit,
+		IsAdmin:   isAdmin,
+	})
 }
 
-// HandleDownloadThemeBackground downloads a full-res wallpaper from Wallhaven and saves it to datadir/theme-backgrounds/.
+// HandleDownloadThemeBackground downloads a full-res wallpaper from Wallhaven.
+// Non-admins are limited to wallpaperDownloadLimit downloads.
 func (h *Handler) HandleDownloadThemeBackground(c echo.Context) error {
 	type body struct {
 		URL string `json:"url"`
@@ -62,23 +127,35 @@ func (h *Handler) HandleDownloadThemeBackground(c echo.Context) error {
 	if b.URL == "" {
 		return h.RespondWithError(c, fmt.Errorf("url is required"))
 	}
-	// Only allow Wallhaven full-resolution CDN paths.
 	if !strings.HasPrefix(b.URL, "https://w.wallhaven.cc/") {
 		return h.RespondWithError(c, fmt.Errorf("only Wallhaven full-res URLs (https://w.wallhaven.cc/...) are accepted"))
 	}
 
-	// Preserve original file extension.
-	ext := strings.ToLower(filepath.Ext(b.URL))
-	switch ext {
-	case ".jpg", ".jpeg", ".png", ".webp":
-		// accepted
-	default:
-		ext = ".jpg"
+	session := h.GetProfileSession(c)
+	isAdmin := session == nil || session.IsAdmin
+	profileKey := "0"
+	if session != nil {
+		profileKey = strconv.FormatUint(uint64(session.ProfileID), 10)
 	}
 
 	dir := filepath.Join(h.App.Config.Data.AppDataDir, "theme-backgrounds")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return h.RespondWithError(c, err)
+	}
+
+	meta := loadBgMetadata(dir)
+	meta.mu.Lock()
+	if !isAdmin && len(meta.Downloads[profileKey]) >= wallpaperDownloadLimit {
+		meta.mu.Unlock()
+		return h.RespondWithError(c, fmt.Errorf("download limit reached: you can only save %d wallpapers", wallpaperDownloadLimit))
+	}
+	meta.mu.Unlock()
+
+	ext := strings.ToLower(filepath.Ext(b.URL))
+	switch ext {
+	case ".jpg", ".jpeg", ".png", ".webp":
+	default:
+		ext = ".jpg"
 	}
 
 	filename := uuid.New().String() + ext
@@ -107,18 +184,39 @@ func (h *Handler) HandleDownloadThemeBackground(c echo.Context) error {
 	}
 	f.Close()
 
+	meta.mu.Lock()
+	meta.Downloads[profileKey] = append(meta.Downloads[profileKey], filename)
+	saveBgMetadata(dir, meta)
+	meta.mu.Unlock()
+
 	type BgFile struct {
-		Filename string `json:"filename"`
-		URL      string `json:"url"`
+		Filename  string `json:"filename"`
+		URL       string `json:"url"`
+		UserCount int    `json:"userCount"`
+		Limit     int    `json:"limit"`
 	}
-	return h.RespondWithData(c, BgFile{Filename: filename, URL: "/theme-bg/" + filename})
+
+	meta.mu.Lock()
+	count := len(meta.Downloads[profileKey])
+	meta.mu.Unlock()
+
+	return h.RespondWithData(c, BgFile{
+		Filename:  filename,
+		URL:       "/theme-bg/" + filename,
+		UserCount: count,
+		Limit:     wallpaperDownloadLimit,
+	})
 }
 
-// HandleDeleteThemeBackground removes a downloaded wallpaper from datadir/theme-backgrounds/.
+// HandleDeleteThemeBackground removes a downloaded wallpaper. Admin only.
 func (h *Handler) HandleDeleteThemeBackground(c echo.Context) error {
-	filename := c.Param("filename")
+	session := h.GetProfileSession(c)
+	isAdmin := session == nil || session.IsAdmin
+	if !isAdmin {
+		return h.RespondWithError(c, fmt.Errorf("only admins can delete wallpapers"))
+	}
 
-	// Prevent path traversal.
+	filename := c.Param("filename")
 	if filename == "" || strings.ContainsAny(filename, "/\\") || strings.Contains(filename, "..") {
 		return h.RespondWithError(c, fmt.Errorf("invalid filename"))
 	}
@@ -129,6 +227,22 @@ func (h *Handler) HandleDeleteThemeBackground(c echo.Context) error {
 	if err := os.Remove(dest); err != nil && !os.IsNotExist(err) {
 		return h.RespondWithError(c, err)
 	}
+
+	// Remove from all user download records
+	meta := loadBgMetadata(dir)
+	meta.mu.Lock()
+	for key, files := range meta.Downloads {
+		updated := files[:0]
+		for _, f := range files {
+			if f != filename {
+				updated = append(updated, f)
+			}
+		}
+		meta.Downloads[key] = updated
+	}
+	saveBgMetadata(dir, meta)
+	meta.mu.Unlock()
+
 	return h.RespondWithData(c, true)
 }
 

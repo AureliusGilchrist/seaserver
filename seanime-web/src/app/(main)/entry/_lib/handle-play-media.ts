@@ -17,7 +17,7 @@ import { ExternalPlayerLink } from "@/lib/external-player-link/external-player-l
 import { openTab } from "@/lib/helpers/browser"
 import { logger } from "@/lib/helpers/debug"
 import { displayTitle } from "@/lib/helpers/media"
-import { __isElectronDesktop__ } from "@/types/constants"
+import { __isElectronDesktop__, __isTauriDesktop__ } from "@/types/constants"
 import { useAtomValue, useSetAtom } from "jotai"
 import { useRouter } from "@/lib/navigation"
 import React from "react"
@@ -134,7 +134,7 @@ export function useHandlePlayMedia() {
             return
         }
 
-        // Handle media streaming
+        // Handle media streaming (transcoding/direct play)
         if (serverStatus?.mediastreamSettings?.transcodeEnabled && mediastreamActiveOnDevice) {
             setMediastreamFilePath(path)
             React.startTransition(() => {
@@ -143,11 +143,17 @@ export function useHandlePlayMedia() {
             return
         }
 
+        // Tauri desktop fallback: use built-in player if no other method is available
+        if (__isTauriDesktop__) {
+            directstreamPlayLocalFile({ path, clientId: clientId ?? "" })
+            return
+        }
+
         return playVideo({ path, clientId: clientId || "" })
     }
 
     return {
-        isUsingNativePlayer: __isElectronDesktop__ && electronPlaybackMethod === ElectronPlaybackMethod.NativePlayer,
+        isUsingNativePlayer: __isTauriDesktop__ || (__isElectronDesktop__ && electronPlaybackMethod === ElectronPlaybackMethod.NativePlayer),
         playMediaFile,
     }
 }

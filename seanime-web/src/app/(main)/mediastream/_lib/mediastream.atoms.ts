@@ -1,4 +1,5 @@
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { __isTauriDesktop__ } from "@/types/constants"
 import { useAtom } from "jotai/react"
 import { atomWithStorage, createJSONStorage } from "jotai/utils"
 import React from "react"
@@ -64,8 +65,10 @@ export function useMediastreamActiveOnDevice() {
 
                 if (serverStatus?.clientDevice !== "desktop") {
                     setActiveOnDevice(true) // Always active on mobile devices
+                } else if (__isTauriDesktop__) {
+                    setActiveOnDevice(true) // Active by default on Tauri desktop
                 } else {
-                    setActiveOnDevice(false) // Always inactive on desktop devices
+                    setActiveOnDevice(false) // Always inactive on non-Tauri desktop devices
                 }
 
             }
