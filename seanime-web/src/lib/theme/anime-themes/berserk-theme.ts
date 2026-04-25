@@ -1,6 +1,5 @@
 import { AnimeThemeConfig } from "./types"
 import {
-    GiCrossedSwords,
     GiBattleAxe,
     GiChainedHeart,
     GiEagleEmblem,
@@ -54,7 +53,7 @@ export const berserkTheme: AnimeThemeConfig = {
         "--color-gray-50": "248 243 241",
     },
     sidebarOverrides: {
-        "home": { icon: GiCrossedSwords, label: "Midland Outskirts" },
+        "home": { icon: GiBattleAxe, label: "Midland Outskirts" },
         "schedule": { icon: GiAlarmClock, label: "Eclipse Calendar" },
         "manga": { icon: LuBookOpen, label: "Branded Scrolls" },
         "lists": { icon: GiBattleAxe, label: "Mercenary Roster" },

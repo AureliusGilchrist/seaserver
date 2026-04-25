@@ -29,8 +29,8 @@ func (db *Database) RecordAnimeActivity(episodes int, minutes int) error {
 	}).Error
 }
 
-// RecordMangaActivity increments the manga chapter count for today's activity log.
-func (db *Database) RecordMangaActivity(chapters int) error {
+// RecordMangaActivity increments the manga chapter count and reading minutes for today's activity log.
+func (db *Database) RecordMangaActivity(chapters int, minutes int) error {
 	today := time.Now().Format("2006-01-02")
 
 	var log models.ActivityLog
@@ -42,14 +42,19 @@ func (db *Database) RecordMangaActivity(chapters int) error {
 			AnimeEpisodes: 0,
 			MangaChapters: chapters,
 			AnimeMinutes:  0,
+			MangaMinutes:  minutes,
 		}
 		return db.gormdb.Create(&log).Error
 	}
 
 	// Update existing row
-	return db.gormdb.Model(&log).Updates(map[string]interface{}{
+	updates := map[string]interface{}{
 		"manga_chapters": log.MangaChapters + chapters,
-	}).Error
+	}
+	if minutes > 0 {
+		updates["manga_minutes"] = log.MangaMinutes + minutes
+	}
+	return db.gormdb.Model(&log).Updates(updates).Error
 }
 
 // GetActivityLogs returns activity logs between startDate and endDate (inclusive), ordered by date ascending.

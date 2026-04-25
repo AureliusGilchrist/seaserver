@@ -126,6 +126,86 @@ func (h *Handler) HandleUpdateBio(c echo.Context) error {
 	return h.RespondWithData(c, profile.ToSummary())
 }
 
+// HandleSetDisplayTitle
+//
+//	@summary set the user's global display title.
+//	@desc Stores the plain-text title and its color globally so all users see the same title on this profile.
+//	@returns core.ProfileSummary
+//	@route /api/v1/profile/display-title [PATCH]
+func (h *Handler) HandleSetDisplayTitle(c echo.Context) error {
+	profileID := h.GetProfileID(c)
+	if profileID == 0 {
+		return h.RespondWithError(c, echo.NewHTTPError(401, "Not authenticated"))
+	}
+	if h.App.ProfileManager == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "Profiles not active"))
+	}
+
+	type body struct {
+		Title string `json:"title"`
+		Color string `json:"color"`
+	}
+	b := new(body)
+	if err := c.Bind(b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	// Sanitize: max 60 chars
+	if len(b.Title) > 60 {
+		b.Title = b.Title[:60]
+	}
+
+	profile, err := h.App.ProfileManager.UpdateProfile(profileID, map[string]interface{}{
+		"display_title":       b.Title,
+		"display_title_color": b.Color,
+	})
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	return h.RespondWithData(c, profile.ToSummary())
+}
+
+// HandleSetDisplayCosmetics
+//
+//	@summary save all global profile cosmetics at once.
+//	@desc Stores the resolved XP bar fill CSS, animation class, and name color so all users see them.
+//	@returns core.ProfileSummary
+//	@route /api/v1/profile/display-cosmetics [PATCH]
+func (h *Handler) HandleSetDisplayCosmetics(c echo.Context) error {
+	profileID := h.GetProfileID(c)
+	if profileID == 0 {
+		return h.RespondWithError(c, echo.NewHTTPError(401, "Not authenticated"))
+	}
+	if h.App.ProfileManager == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "Profiles not active"))
+	}
+
+	type body struct {
+		XPBarFillCss    string `json:"xpBarFillCss"`
+		XPBarAnimClass  string `json:"xpBarAnimClass"`
+		NameColorCss    string `json:"nameColorCss"`
+		NameGradientCss string `json:"nameGradientCss"`
+	}
+	b := new(body)
+	if err := c.Bind(b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	updates := map[string]interface{}{
+		"xpbar_fill_css":   b.XPBarFillCss,
+		"xpbar_anim_class": b.XPBarAnimClass,
+		"name_color_css":   b.NameColorCss,
+		"name_gradient_css": b.NameGradientCss,
+	}
+
+	profile, err := h.App.ProfileManager.UpdateProfile(profileID, updates)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, profile.ToSummary())
+}
+
 // HandleGetLevel
 //
 //	@summary get level/XP data for the current profile.

@@ -100,6 +100,12 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
      */
     const { mutate: updateProgress, isPending: isUpdatingProgress } = useUpdateMangaProgress(entry.mediaId)
 
+    // Track reading session start time per chapter (reset when chapter changes)
+    const chapterOpenTimeRef = React.useRef<number>(Date.now())
+    React.useEffect(() => {
+        chapterOpenTimeRef.current = Date.now()
+    }, [currentChapter?.chapterId])
+
     /**
      * Switch back to PAGED mode if the page dimensions could not be fetched efficiently
      */
@@ -137,12 +143,14 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
 
     const handleUpdateProgress = (goToNext: boolean = true) => {
         if (shouldUpdateProgress && !isUpdatingProgress) {
+            const readingMinutes = Math.round((Date.now() - chapterOpenTimeRef.current) / 60000)
 
             updateProgress({
                 chapterNumber: chapterIdToNumbersMap.get(currentChapter?.chapterId || "") || 0,
                 mediaId: entry.mediaId,
                 malId: entry.media?.idMal || undefined,
                 totalChapters: entry.media?.chapters || 0,
+                readingMinutes: readingMinutes > 0 ? readingMinutes : undefined,
             }, {
                 onSuccess: () => {
                     if (goToNext) {

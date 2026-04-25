@@ -18,6 +18,7 @@ import (
 	"seanime/internal/util/result"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -106,6 +107,24 @@ type (
 		playbackStatusSubscribers *result.Map[string, *PlaybackStatusSubscriber]
 
 		isPlaylistActive atomic.Bool
+
+		// Activity tracking — set via SetActivityTracker after construction
+		activityTracker   ActivityTrackerFunc
+		activityTrackerMu sync.RWMutex
+
+		// activeProfileID is set from the HTTP handler before each playback session.
+		activeProfileID   uint
+		activeProfileIDMu sync.RWMutex
+
+		// activityRecorded prevents double-recording for a single episode completion event
+		activityRecorded bool
+
+		// Session tracking — tracks continuous viewing within 30-minute gaps
+		sessionMu             sync.Mutex
+		sessionStartTime      time.Time
+		sessionEpisodeCount   int
+		sessionMinutes        int
+		sessionLastCompletion time.Time
 	}
 
 	// PlaybackStatusSubscriber provides a single event channel for all playback events
@@ -198,6 +217,23 @@ type (
 	Settings struct {
 		AutoPlayNextEpisode bool
 	}
+
+	// PlaybackActivityEvent carries all context needed for activity recording and achievement evaluation.
+	PlaybackActivityEvent struct {
+		ProfileID       uint
+		MediaID         int
+		EpisodeNumber   int
+		TotalEpisodes   int
+		DurationMinutes int
+		// Session stats for binge/streak achievements
+		SessionEpisodeCount int
+		SessionMinutes      int
+		SessionStartTime    time.Time
+	}
+
+	// ActivityTrackerFunc is called after a progress update succeeds.
+	// It records activity logs, fires achievement events, and evaluates milestones for the profile.
+	ActivityTrackerFunc func(event *PlaybackActivityEvent)
 )
 
 // Event type implementations
@@ -244,6 +280,23 @@ func New(opts *NewPlaybackManagerOptions) *PlaybackManager {
 
 func (pm *PlaybackManager) SetAnimeCollection(ac *anilist.AnimeCollection) {
 	pm.animeCollection = mo.Some(ac)
+}
+
+// SetActivityTracker registers a callback that fires after each successful progress update.
+// This connects the PlaybackManager to the activity log, achievement engine, and milestone engine.
+func (pm *PlaybackManager) SetActivityTracker(fn ActivityTrackerFunc) {
+	pm.activityTrackerMu.Lock()
+	defer pm.activityTrackerMu.Unlock()
+	pm.activityTracker = fn
+}
+
+// SetActiveProfileID records which profile initiated the current playback session.
+// Call this from HTTP handlers before starting any kind of playback.
+func (pm *PlaybackManager) SetActiveProfileID(profileID uint) {
+	pm.activeProfileIDMu.Lock()
+	defer pm.activeProfileIDMu.Unlock()
+	pm.activeProfileID = profileID
+	pm.activityRecorded = false // reset for new session
 }
 
 // SetCurrentClientID sets the client ID for the current playback session.

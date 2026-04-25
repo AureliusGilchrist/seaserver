@@ -47,6 +47,10 @@ const (
 	WarningToast = "warning-toast"
 	SuccessToast = "success-toast"
 
+	// AniList API status events
+	AnilistRateLimited = "anilist-rate-limited" // Payload: { retryAfter: number (seconds) }
+	AnilistAPIOnline   = "anilist-api-online"   // Sent once the client successfully recovers
+
 	CheckForUpdates       = "check-for-updates"
 	CheckForAnnouncements = "check-for-announcements"
 

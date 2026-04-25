@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build *)",
+      "PowerShell(Set-Location \"E:\\\\Main\\\\seaserver\\\\seanime-web\"; $out = npx tsc --noEmit 2>&1; $errors = $out | Where-Object { $_ -match \"error TS\" }; if \\($errors\\) { $errors | Select-Object -First 20 } else { \"No TypeScript errors\" })",
+      "PowerShell(Set-Location \"E:\\\\Main\\\\seaserver\\\\seanime-web\"; $out = npx tsc --noEmit 2>&1; $errors = $out | Where-Object { $_ -match \"error TS\" }; if \\($errors\\) { $errors | Select-Object -First 15 } else { \"No TypeScript errors\" })",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ],
+    "additionalDirectories": [
+      "E:\\Main\\seaserver\\seanime-web\\src\\lib\\ui-customize",
+      "E:\\Main\\seaserver\\internal\\util\\limiter",
+      "E:\\Main\\seaserver\\internal\\events",
+      "E:\\Main\\seaserver\\internal\\api\\anilist",
+      "E:\\Main\\seaserver\\internal\\core",
+      "E:\\Main\\seaserver\\seanime-web\\src\\lib\\server",
+      "E:\\Main\\seaserver\\seanime-web\\src\\api\\generated",
+      "E:\\Main\\seaserver\\internal\\database\\db"
+    ]
+  }
+}

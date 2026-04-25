@@ -74,6 +74,8 @@ export const enum WSEvents {
     PLAYLIST = "playlist",
     NOTIFICATION_CREATED = "notification-created",
     ACHIEVEMENT_UNLOCKED = "achievement-unlocked",
+    ANILIST_RATE_LIMITED = "anilist-rate-limited",
+    ANILIST_API_ONLINE = "anilist-api-online",
     MILESTONE_ACHIEVED = "milestone-achieved",
     MANGA_SCAN_PROGRESS = "manga-scan-progress",
     MANGA_SCAN_COMPLETED = "manga-scan-completed",

@@ -6,10 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"seanime/internal/constants"
+	"seanime/internal/events"
 	"seanime/internal/util"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/Yamashou/gqlgenc/clientv2"
@@ -21,25 +24,22 @@ import (
 const anilistRequestTimeout = 45 * time.Second
 
 func newAnilistHTTPClient() *http.Client {
-	if base, ok := http.DefaultTransport.(*http.Transport); ok {
-		tr := base.Clone()
-		// Prefer HTTP/1.1 for AniList requests to avoid long-lived HTTP/2 read stalls.
-		tr.ForceAttemptHTTP2 = false
-		tr.MaxIdleConns = 64
-		tr.MaxConnsPerHost = 24
-		tr.MaxIdleConnsPerHost = 24
-		tr.IdleConnTimeout = 30 * time.Second
-		return &http.Client{Transport: tr, Timeout: anilistRequestTimeout}
-	}
-
+	// Use a fresh transport — never clone http.DefaultTransport, which inherits
+	// HTTP/2 handlers in TLSNextProto. When that cloned transport negotiates h2
+	// via ALPN and something (e.g. a TLS-intercepting proxy) returns an HTTP/2
+	// SETTINGS frame on what the HTTP/1.x reader expects, you get:
+	//   "malformed HTTP response \x00\x00\x12\x04..."
+	// A fresh Transport{} has no TLSNextProto entries, so it stays HTTP/1.1.
 	return &http.Client{
 		Timeout: anilistRequestTimeout,
 		Transport: &http.Transport{
-			ForceAttemptHTTP2:   false,
-			MaxIdleConns:        64,
-			MaxConnsPerHost:     24,
-			MaxIdleConnsPerHost: 24,
-			IdleConnTimeout:     30 * time.Second,
+			ForceAttemptHTTP2:     false,
+			MaxIdleConns:          64,
+			MaxConnsPerHost:       24,
+			MaxIdleConnsPerHost:   24,
+			IdleConnTimeout:       30 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
 		},
 	}
 }
@@ -83,12 +83,40 @@ type AnilistClient interface {
 type (
 	// AnilistClientImpl is a wrapper around the AniList API client.
 	AnilistClientImpl struct {
-		Client   *Client
-		logger   *zerolog.Logger
-		token    string // The token used for authentication with the AniList API
-		cacheDir string
+		Client         *Client
+		logger         *zerolog.Logger
+		token          string
+		cacheDir       string
+		wsEventManager events.WSEventManagerInterface
+		// rateLimited tracks whether we are currently in a rate-limited state so we
+		// only send the recovery "online" event once.
+		rateLimited atomic.Bool
 	}
 )
+
+// SetWSEventManager wires in the WebSocket event manager after construction so that
+// rate-limit / recovery notifications can be broadcast to all connected clients.
+func (ac *AnilistClientImpl) SetWSEventManager(wsem events.WSEventManagerInterface) {
+	ac.wsEventManager = wsem
+}
+
+func (ac *AnilistClientImpl) broadcastRateLimited(retryAfterSec int) {
+	if ac.wsEventManager == nil {
+		return
+	}
+	ac.rateLimited.Store(true)
+	ac.wsEventManager.SendEvent(events.AnilistRateLimited, map[string]interface{}{
+		"retryAfter": retryAfterSec,
+	})
+}
+
+func (ac *AnilistClientImpl) broadcastOnline() {
+	if ac.wsEventManager == nil || !ac.rateLimited.Load() {
+		return
+	}
+	ac.rateLimited.Store(false)
+	ac.wsEventManager.SendEvent(events.AnilistAPIOnline, nil)
+}
 
 // NewAnilistClient creates a new AnilistClientImpl with the given token.
 // The token is used for authorization when making requests to the AniList API.
@@ -295,26 +323,33 @@ func (ac *AnilistClientImpl) AnimeAiringScheduleRaw(ctx context.Context, ids []*
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// customDoFunc is a custom request interceptor function that handles rate limiting and retries.
+// customDoFunc is a custom request interceptor that handles rate limiting and retries
+// with exponential back-off.  It retries on:
+//   - HTTP 429 (AniList rate limit) — honours the Retry-After header, broadcasts a WS event
+//   - HTTP 500/502/503/504 (transient server errors)
+//   - Network / connection errors
+//
+// Maximum 5 attempts total; back-off caps at 60 s.
 func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request, gqlInfo *clientv2.GQLRequestInfo, res interface{}) (err error) {
 	var rlRemainingStr string
 
 	reqTime := time.Now()
 	defer func() {
 		timeSince := time.Since(reqTime)
-		formattedDur := timeSince.Truncate(time.Millisecond).String()
+		dur := timeSince.Truncate(time.Millisecond).String()
 		if err != nil {
-			ac.logger.Error().Str("duration", formattedDur).Str("rlr", rlRemainingStr).Err(err).Msg("anilist: Failed Request")
+			ac.logger.Error().Str("duration", dur).Str("rlr", rlRemainingStr).Err(err).Msg("anilist: Failed Request")
 		} else {
+			ac.broadcastOnline()
 			if timeSince > 900*time.Millisecond {
-				ac.logger.Warn().Str("rtt", formattedDur).Str("rlr", rlRemainingStr).Msg("anilist: Successful Request (slow)")
+				ac.logger.Warn().Str("rtt", dur).Str("rlr", rlRemainingStr).Msg("anilist: Successful Request (slow)")
 			} else {
-				ac.logger.Info().Str("rtt", formattedDur).Str("rlr", rlRemainingStr).Msg("anilist: Successful Request")
+				ac.logger.Info().Str("rtt", dur).Str("rlr", rlRemainingStr).Msg("anilist: Successful Request")
 			}
 		}
 	}()
 
-	client := newAnilistHTTPClient()
+	httpClient := newAnilistHTTPClient()
 	reqCtx := ctx
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
 		var cancel context.CancelFunc
@@ -322,43 +357,53 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 		defer cancel()
 	}
 	req = req.Clone(reqCtx)
+
+	const maxAttempts = 5
 	var resp *http.Response
 
-	retryCount := 2
-
-	for i := 0; i < retryCount; i++ {
-
-		// Reset response body for retry
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		// Close previous response body before each retry.
 		if resp != nil && resp.Body != nil {
 			resp.Body.Close()
+			resp = nil
 		}
 
-		// Recreate the request body if it was read in a previous attempt
-		if req.GetBody != nil {
-			newBody, err := req.GetBody()
-			if err != nil {
-				return fmt.Errorf("failed to get request body: %w", err)
+		// Rebuild the request body on subsequent attempts.
+		if attempt > 0 && req.GetBody != nil {
+			newBody, bodyErr := req.GetBody()
+			if bodyErr != nil {
+				return fmt.Errorf("anilist: rebuild request body: %w", bodyErr)
 			}
 			req.Body = newBody
 		}
 
-		resp, err = client.Do(req)
+		resp, err = httpClient.Do(req)
+
+		// ── Network / transport error ─────────────────────────────────────
 		if err != nil {
-			return fmt.Errorf("request failed: %w", err)
+			backoff := backoffDuration(attempt, 2*time.Second, 60*time.Second)
+			ac.logger.Warn().Err(err).Int("attempt", attempt+1).
+				Msgf("anilist: network error, retrying in %s", backoff)
+			select {
+			case <-reqCtx.Done():
+				return fmt.Errorf("anilist: request failed: %w", err)
+			case <-time.After(backoff):
+			}
+			continue
 		}
 
 		rlRemainingStr = resp.Header.Get("X-Ratelimit-Remaining")
-		rlRetryAfterStr := resp.Header.Get("Retry-After")
 
-		// Handle HTTP 429 explicitly: wait for the server-specified retry-after
-		// (or a safe 60 s default) then retry once.  Do NOT fall through to
-		// parseResponse because the body will be an nginx HTML error page.
+		// ── HTTP 429 – Rate limited ───────────────────────────────────────
 		if resp.StatusCode == 429 {
-			waitSec := 60
-			if ra, e := strconv.Atoi(rlRetryAfterStr); e == nil && ra > 0 {
-				waitSec = ra + 1
+			resp.Body.Close()
+			waitSec := 65 // safe default: AniList resets after 60 s
+			if ra, e := strconv.Atoi(resp.Header.Get("Retry-After")); e == nil && ra > 0 {
+				waitSec = ra + 2
 			}
-			ac.logger.Warn().Msgf("anilist: Rate limited (429), waiting %ds before retry", waitSec)
+			ac.logger.Warn().Int("attempt", attempt+1).
+				Msgf("anilist: rate limited (429), waiting %ds", waitSec)
+			ac.broadcastRateLimited(waitSec)
 			select {
 			case <-reqCtx.Done():
 				return reqCtx.Err()
@@ -367,7 +412,27 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 			continue
 		}
 
+		// ── Transient server errors (5xx) ────────────────────────────────
+		if resp.StatusCode == 500 || resp.StatusCode == 502 ||
+			resp.StatusCode == 503 || resp.StatusCode == 504 {
+			resp.Body.Close()
+			backoff := backoffDuration(attempt, 3*time.Second, 60*time.Second)
+			ac.logger.Warn().Int("status", resp.StatusCode).Int("attempt", attempt+1).
+				Msgf("anilist: server error, retrying in %s", backoff)
+			select {
+			case <-reqCtx.Done():
+				return reqCtx.Err()
+			case <-time.After(backoff):
+			}
+			continue
+		}
+
+		// Success or a non-retryable HTTP error — exit the loop.
 		break
+	}
+
+	if resp == nil {
+		return fmt.Errorf("anilist: all %d attempts exhausted with no response", 5)
 	}
 
 	defer resp.Body.Close()
@@ -387,6 +452,15 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 
 	err = parseResponse(body, resp.StatusCode, res)
 	return
+}
+
+// backoffDuration returns min(base * 2^attempt, max) for exponential back-off.
+func backoffDuration(attempt int, base, max time.Duration) time.Duration {
+	d := time.Duration(float64(base) * math.Pow(2, float64(attempt)))
+	if d > max {
+		return max
+	}
+	return d
 }
 
 func parseResponse(body []byte, httpCode int, result interface{}) error {

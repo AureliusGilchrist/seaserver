@@ -91,11 +91,6 @@ export function MangaHydrationProgressBar() {
 
     return (
         <>
-            {hydrationStatus.isRunning && (
-                <div className="w-full bg-gray-950 fixed top-0 left-0 z-[99]" data-manga-hydration-progress-bar-container>
-                    <ProgressBar size="xs" value={hydrationStatus.progress} />
-                </div>
-            )}
             <div className="z-50 fixed bottom-4 right-4" data-manga-hydration-status-card-container>
                 <PageWrapper>
                     <Card className="w-[440px] max-w-[calc(100vw-2rem)]" data-manga-hydration-status-card>

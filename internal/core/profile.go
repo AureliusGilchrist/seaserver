@@ -33,34 +33,55 @@ type Profile struct {
 	AvatarPath      string    `gorm:"column:avatar_path" json:"avatarPath"`
 	Bio             string    `gorm:"column:bio;type:text" json:"bio"`
 	BannerImage     string    `gorm:"column:banner_image" json:"bannerImage"`
+	// DisplayTitle is the plain-text title the user chose, stored globally so all users see the same title.
+	DisplayTitle      string `gorm:"column:display_title" json:"displayTitle"`
+	DisplayTitleColor string `gorm:"column:display_title_color" json:"displayTitleColor"`
+	// XP bar cosmetic — stored so all users see your chosen bar on your profile.
+	XPBarFillCss   string `gorm:"column:xpbar_fill_css" json:"xpBarFillCss"`
+	XPBarAnimClass string `gorm:"column:xpbar_anim_class" json:"xpBarAnimClass"`
+	// Name color cosmetic — stored globally so other users see your chosen name color.
+	NameColorCss    string `gorm:"column:name_color_css" json:"nameColorCss"`
+	NameGradientCss string `gorm:"column:name_gradient_css" json:"nameGradientCss"`
 }
 
 // ProfileSummary is a safe projection of Profile for API responses (never includes PIN data).
 type ProfileSummary struct {
-	ID              uint      `json:"id"`
-	Name            string    `json:"name"`
-	IsAdmin         bool      `json:"isAdmin"`
-	AniListUsername string    `json:"anilistUsername"`
-	AniListAvatar   string    `json:"anilistAvatar"`
-	AvatarPath      string    `json:"avatarPath"`
-	Bio             string    `json:"bio"`
-	BannerImage     string    `json:"bannerImage"`
-	CreatedAt       time.Time `json:"createdAt"`
-	HasPIN          bool      `json:"hasPIN"`
+	ID                uint      `json:"id"`
+	Name              string    `json:"name"`
+	IsAdmin           bool      `json:"isAdmin"`
+	AniListUsername   string    `json:"anilistUsername"`
+	AniListAvatar     string    `json:"anilistAvatar"`
+	AvatarPath        string    `json:"avatarPath"`
+	Bio               string    `json:"bio"`
+	BannerImage       string    `json:"bannerImage"`
+	CreatedAt         time.Time `json:"createdAt"`
+	HasPIN            bool      `json:"hasPIN"`
+	DisplayTitle      string    `json:"displayTitle"`
+	DisplayTitleColor string    `json:"displayTitleColor"`
+	XPBarFillCss      string    `json:"xpBarFillCss"`
+	XPBarAnimClass    string    `json:"xpBarAnimClass"`
+	NameColorCss      string    `json:"nameColorCss"`
+	NameGradientCss   string    `json:"nameGradientCss"`
 }
 
 func (p *Profile) ToSummary() *ProfileSummary {
 	return &ProfileSummary{
-		ID:              p.ID,
-		Name:            p.Name,
-		IsAdmin:         p.IsAdmin,
-		AniListUsername: p.AniListUsername,
-		AniListAvatar:   p.AniListAvatar,
-		AvatarPath:      p.AvatarPath,
-		Bio:             p.Bio,
-		BannerImage:     p.BannerImage,
-		CreatedAt:       p.CreatedAt,
-		HasPIN:          p.PINHash != "",
+		ID:                p.ID,
+		Name:              p.Name,
+		IsAdmin:           p.IsAdmin,
+		AniListUsername:   p.AniListUsername,
+		AniListAvatar:     p.AniListAvatar,
+		AvatarPath:        p.AvatarPath,
+		Bio:               p.Bio,
+		BannerImage:       p.BannerImage,
+		CreatedAt:         p.CreatedAt,
+		HasPIN:            p.PINHash != "",
+		DisplayTitle:      p.DisplayTitle,
+		DisplayTitleColor: p.DisplayTitleColor,
+		XPBarFillCss:      p.XPBarFillCss,
+		XPBarAnimClass:    p.XPBarAnimClass,
+		NameColorCss:      p.NameColorCss,
+		NameGradientCss:   p.NameGradientCss,
 	}
 }
 

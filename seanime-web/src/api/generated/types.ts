@@ -2393,6 +2393,12 @@ export type Handlers_CommunityProfile = {
     currentLevel: number
     totalXP: number
     achievementCount: number
+    displayTitle?: string
+    displayTitleColor?: string
+    xpBarFillCss?: string
+    xpBarAnimClass?: string
+    nameColorCss?: string
+    nameGradientCss?: string
 }
 
 export type Handlers_CommunityResponse = {
@@ -5430,6 +5436,8 @@ export type ProfileStats_ProfileStats = {
     totalMangaDays: number
     personality?: ProfileStats_PersonalityResult
     watchPatterns?: ProfileStats_WatchPatterns
+    animeHoursPerWeek?: number
+    mangaChaptersPerWeek?: number
 }
 
 /**

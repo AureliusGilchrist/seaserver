@@ -47,6 +47,53 @@ export function useThemeMilestoneName(level: number): string | null {
 
 type ParticleSettings = Record<string, { enabled: boolean; intensity: number }>
 
+// ─────────────────────────────────────────────────────────────────
+// Brand color utilities
+// ─────────────────────────────────────────────────────────────────
+
+function hexToHSL(hex: string): [number, number, number] {
+    const r = parseInt(hex.slice(1, 3), 16) / 255
+    const g = parseInt(hex.slice(3, 5), 16) / 255
+    const b = parseInt(hex.slice(5, 7), 16) / 255
+    const max = Math.max(r, g, b), min = Math.min(r, g, b)
+    let h = 0, s = 0
+    const l = (max + min) / 2
+    if (max !== min) {
+        const d = max - min
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+        switch (max) {
+            case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
+            case g: h = ((b - r) / d + 2) / 6; break
+            case b: h = ((r - g) / d + 4) / 6; break
+        }
+    }
+    return [h * 360, s * 100, l * 100]
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+    const lN = l / 100, sN = s / 100
+    const a = sN * Math.min(lN, 1 - lN)
+    const f = (n: number) => {
+        const k = (n + h / 30) % 12
+        return Math.round(255 * (lN - a * Math.max(Math.min(k - 3, 9 - k, 1), -1))).toString(16).padStart(2, "0")
+    }
+    return `#${f(0)}${f(8)}${f(4)}`
+}
+
+export function deriveBrandShades(hex: string): Record<string, string> {
+    try {
+        if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return {}
+        const [h, s] = hexToHSL(hex)
+        return {
+            "--color-brand-300": hslToHex(h, s, 75),
+            "--color-brand-400": hslToHex(h, s, 65),
+            "--color-brand-500": hex,
+            "--color-brand-600": hslToHex(h, s, 45),
+            "--color-brand-700": hslToHex(h, s, 35),
+        }
+    } catch { return {} }
+}
+
 type AnimeThemeContextValue = {
     themeId: AnimeThemeId
     config: AnimeThemeConfig
@@ -68,8 +115,12 @@ type AnimeThemeContextValue = {
     setBackgroundExposure: (v: number) => void
     backgroundSaturation: number
     setBackgroundSaturation: (v: number) => void
+    backgroundContrast: number
+    setBackgroundContrast: (v: number) => void
     activeBackgroundUrl: string | null
     setActiveBackgroundUrl: (url: string | null) => void
+    brandColorOverride: string | null
+    setBrandColorOverride: (v: string | null) => void
 }
 
 const AnimeThemeContext = React.createContext<AnimeThemeContextValue | null>(null)
@@ -290,7 +341,27 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         return 1.0
     })
 
-    // Reload dim/blur/exposure/saturation when theme or profile changes
+    const [backgroundContrast, setBackgroundContrastRaw] = React.useState<number>(() => {
+        if (typeof window === "undefined") return 1.0
+        try {
+            const stored = localStorage.getItem(`sea-anime-bgcontrast-${profileKey}-${themeId}`)
+            if (stored !== null) {
+                const v = parseFloat(stored)
+                if (!isNaN(v)) return Math.max(0, Math.min(3.0, v))
+            }
+        } catch { }
+        return 1.0
+    })
+
+    // ── Brand color override (per-theme, per-profile) ──
+    const [brandColorOverride, setBrandColorOverrideRaw] = React.useState<string | null>(() => {
+        if (typeof window === "undefined") return null
+        try {
+            return localStorage.getItem(`sea-anime-color-${profileKey}-${themeId}`) ?? null
+        } catch { return null }
+    })
+
+    // Reload dim/blur/exposure/saturation/brand when theme or profile changes
     React.useEffect(() => {
         try {
             const s = localStorage.getItem(`sea-anime-bgdim-${profileKey}-${themeId}`)
@@ -308,6 +379,13 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             const s = localStorage.getItem(`sea-anime-bgsat-${profileKey}-${themeId}`)
             setBackgroundSaturationRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(3.0, parseFloat(s))) : 1.0)
         } catch { setBackgroundSaturationRaw(1.0) }
+        try {
+            const s = localStorage.getItem(`sea-anime-bgcontrast-${profileKey}-${themeId}`)
+            setBackgroundContrastRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(3.0, parseFloat(s))) : 1.0)
+        } catch { setBackgroundContrastRaw(1.0) }
+        try {
+            setBrandColorOverrideRaw(localStorage.getItem(`sea-anime-color-${profileKey}-${themeId}`) ?? null)
+        } catch { setBrandColorOverrideRaw(null) }
     }, [themeId, profileKey, config.backgroundDim, config.backgroundBlur])
 
     const setBackgroundDim = React.useCallback((v: number) => {
@@ -332,6 +410,23 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         const clamped = Math.max(0, Math.min(3.0, v))
         setBackgroundSaturationRaw(clamped)
         try { localStorage.setItem(`sea-anime-bgsat-${profileKey}-${themeId}`, String(clamped)) } catch { }
+    }, [profileKey, themeId])
+
+    const setBackgroundContrast = React.useCallback((v: number) => {
+        const clamped = Math.max(0, Math.min(3.0, v))
+        setBackgroundContrastRaw(clamped)
+        try { localStorage.setItem(`sea-anime-bgcontrast-${profileKey}-${themeId}`, String(clamped)) } catch { }
+    }, [profileKey, themeId])
+
+    const setBrandColorOverride = React.useCallback((color: string | null) => {
+        setBrandColorOverrideRaw(color)
+        try {
+            if (color === null) {
+                localStorage.removeItem(`sea-anime-color-${profileKey}-${themeId}`)
+            } else {
+                localStorage.setItem(`sea-anime-color-${profileKey}-${themeId}`, color)
+            }
+        } catch { }
     }, [profileKey, themeId])
 
     // ── Active background URL (per-theme, per-profile, user-selectable) ──
@@ -376,12 +471,17 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         const root = document.documentElement
         const vars = config.cssVars
         Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v as string))
+        // Apply brand color override (derived shades) after base vars
+        if (brandColorOverride) {
+            const shades = deriveBrandShades(brandColorOverride)
+            Object.entries(shades).forEach(([k, v]) => root.style.setProperty(k, v))
+        }
 
         return () => {
             // On cleanup, clear only the vars this theme set (next theme will overwrite)
             Object.keys(vars).forEach(k => root.style.removeProperty(k))
         }
-    }, [config])
+    }, [config, brandColorOverride])
 
     // ── Background image: hide default body:before AND body:after when a custom bg is active ──
     React.useEffect(() => {
@@ -475,15 +575,19 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setBackgroundExposure,
         backgroundSaturation,
         setBackgroundSaturation,
+        backgroundContrast,
+        setBackgroundContrast,
         activeBackgroundUrl,
         setActiveBackgroundUrl,
-    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, activeBackgroundUrl, setActiveBackgroundUrl])
+        brandColorOverride,
+        setBrandColorOverride,
+    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, backgroundContrast, setBackgroundContrast, activeBackgroundUrl, setActiveBackgroundUrl, brandColorOverride, setBrandColorOverride])
 
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
             <AnimeThemeMusicPlayer />
-            {config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} />}
+            {config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} />}
             {config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
         </AnimeThemeContext.Provider>
     )
@@ -528,12 +632,13 @@ function AnimeThemeMusicPlayer() {
 // Theme Background Image
 // ─────────────────────────────────────────────────────────────────
 
-function ThemeBackgroundImage({ url, dim, blur, exposure, saturation }: { url: string; dim?: number; blur?: number; exposure?: number; saturation?: number }) {
+function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast }: { url: string; dim?: number; blur?: number; exposure?: number; saturation?: number; contrast?: number }) {
     const opacity = dim != null ? (1 - dim) : 0.35
     const filterParts: string[] = []
     if (blur) filterParts.push(`blur(${blur}px)`)
     if (exposure != null && exposure !== 1) filterParts.push(`brightness(${exposure})`)
     if (saturation != null && saturation !== 1) filterParts.push(`saturate(${saturation})`)
+    if (contrast != null && contrast !== 1) filterParts.push(`contrast(${contrast})`)
     return (
         <div
             aria-hidden

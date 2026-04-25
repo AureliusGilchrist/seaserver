@@ -311,13 +311,14 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 
 	anilistCacheDir := filepath.Join(cfg.Cache.Dir, "anilist")
 
+	// Initialize WebSocket event manager for real-time communication
+	wsEventManager := events.NewWSEventManager(logger)
+
 	// Initialize Anilist API client with the token
 	// If the token is empty, the client will not be authenticated
 	anilistCW := anilist.NewAnilistClient(anilistToken, anilistCacheDir)
+	anilistCW.SetWSEventManager(wsEventManager)
 	anilistCWRef := util.NewRef[anilist.AnilistClient](anilistCW)
-
-	// Initialize WebSocket event manager for real-time communication
-	wsEventManager := events.NewWSEventManager(logger)
 
 	// Exit if no WebSocket connections in desktop sidecar mode
 	if configOpts.Flags.IsDesktopSidecar {

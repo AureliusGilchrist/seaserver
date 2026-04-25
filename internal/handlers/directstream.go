@@ -31,10 +31,11 @@ func (h *Handler) HandleDirectstreamPlayLocalFile(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	// Set the client ID for session isolation
+	// Set the client ID and active profile for session isolation and activity tracking
 	if b.ClientId != "" {
 		h.App.PlaybackManager.SetCurrentClientID(b.ClientId)
 	}
+	h.App.PlaybackManager.SetActiveProfileID(h.GetProfileID(c))
 
 	return h.App.DirectStreamManager.PlayLocalFile(c.Request().Context(), directstream.PlayLocalFileOptions{
 		ClientId:   b.ClientId,

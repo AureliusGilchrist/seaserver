@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"seanime/internal/api/anilist"
+	"seanime/internal/database/models"
 	"seanime/internal/profilestats"
 	"strconv"
 	"time"
@@ -79,6 +80,8 @@ func (h *Handler) HandleGetProfileStats(c echo.Context) error {
 	totalWatchMinWithRewatches := h.computeWatchMinutesWithRewatches(animeCol)
 	estimatedReadingMin := h.computeEstimatedReadingMinutes(mangaCol)
 
+	animeHoursPerWeek, mangaChaptersPerWeek := computeWeeklyAverages(allLogs)
+
 	result := &profilestats.ProfileStats{
 		ActivityHeatmap:                heatmap,
 		AnimeStreak:                    animeStreak,
@@ -90,6 +93,8 @@ func (h *Handler) HandleGetProfileStats(c echo.Context) error {
 		WatchPatterns:                  watchPatterns,
 		TotalWatchMinutesWithRewatches: totalWatchMinWithRewatches,
 		EstimatedReadingMinutes:        estimatedReadingMin,
+		AnimeHoursPerWeek:              animeHoursPerWeek,
+		MangaChaptersPerWeek:           mangaChaptersPerWeek,
 	}
 
 	return h.RespondWithData(c, result)
@@ -150,18 +155,58 @@ func (h *Handler) HandleGetUserProfileStats(c echo.Context) error {
 	mangaStreak := profilestats.ComputeStreaks(allLogs, false)
 	watchPatterns := profilestats.ComputeWatchPatterns(heatmapLogs)
 	totalActive, animeDays, mangaDays := profilestats.CountActiveDays(allLogs)
+	animeHoursPerWeek, mangaChaptersPerWeek := computeWeeklyAverages(allLogs)
 
 	result := &profilestats.ProfileStats{
-		ActivityHeatmap: heatmap,
-		AnimeStreak:     animeStreak,
-		MangaStreak:     mangaStreak,
-		TotalActiveDays: totalActive,
-		TotalAnimeDays:  animeDays,
-		TotalMangaDays:  mangaDays,
-		WatchPatterns:   watchPatterns,
+		ActivityHeatmap:      heatmap,
+		AnimeStreak:          animeStreak,
+		MangaStreak:          mangaStreak,
+		TotalActiveDays:      totalActive,
+		TotalAnimeDays:       animeDays,
+		TotalMangaDays:       mangaDays,
+		WatchPatterns:        watchPatterns,
+		AnimeHoursPerWeek:    animeHoursPerWeek,
+		MangaChaptersPerWeek: mangaChaptersPerWeek,
 	}
 
 	return h.RespondWithData(c, result)
+}
+
+// computeWeeklyAverages returns average anime hours/week and manga chapters/week
+// based on all activity logs, using a rolling 4-week window from the most recent activity.
+func computeWeeklyAverages(logs []*models.ActivityLog) (animeHoursPerWeek float64, mangaChaptersPerWeek float64) {
+	if len(logs) == 0 {
+		return 0, 0
+	}
+
+	cutoff := time.Now().AddDate(0, 0, -28).Format("2006-01-02")
+	var totalAnimeMinutes, totalMangaChapters int
+	for _, l := range logs {
+		if l.Date < cutoff {
+			continue
+		}
+		totalAnimeMinutes += l.AnimeMinutes
+		totalMangaChapters += l.MangaChapters
+	}
+
+	if totalAnimeMinutes == 0 && totalMangaChapters == 0 {
+		// Fall back to all-time average
+		for _, l := range logs {
+			totalAnimeMinutes += l.AnimeMinutes
+			totalMangaChapters += l.MangaChapters
+		}
+		weeks := float64(len(logs)) / 7.0
+		if weeks < 1 {
+			weeks = 1
+		}
+		animeHoursPerWeek = float64(totalAnimeMinutes) / 60.0 / weeks
+		mangaChaptersPerWeek = float64(totalMangaChapters) / weeks
+		return
+	}
+
+	animeHoursPerWeek = float64(totalAnimeMinutes) / 60.0 / 4.0
+	mangaChaptersPerWeek = float64(totalMangaChapters) / 4.0
+	return
 }
 
 // computePersonality extracts genre counts and collection stats from the AniList collection

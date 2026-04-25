@@ -364,10 +364,11 @@ func (h *Handler) HandleDebridStartStream(c echo.Context) error {
 		b.Torrent.MagnetLink = magnet
 	}
 
-	// Set the client ID for session isolation
+	// Set the client ID and active profile for session isolation and activity tracking
 	if b.ClientId != "" {
 		h.App.PlaybackManager.SetCurrentClientID(b.ClientId)
 	}
+	h.App.PlaybackManager.SetActiveProfileID(h.GetProfileID(c))
 
 	err := h.App.DebridClientRepository.StartStream(c.Request().Context(), &debrid_client.StartStreamOptions{
 		MediaId:           b.MediaId,

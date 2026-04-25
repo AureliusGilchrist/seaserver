@@ -41,6 +41,7 @@ func (a *App) UpdatePlatform(platform platform.Platform) {
 // This function should be called when a user logs in
 func (a *App) UpdateAnilistClientToken(token string) {
 	ac := anilist.NewAnilistClient(token, a.AnilistCacheDir)
+	ac.SetWSEventManager(a.WSEventManager)
 	a.AnilistClientRef.Set(ac)
 }
 

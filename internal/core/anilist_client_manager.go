@@ -110,12 +110,14 @@ func (m *AnilistClientManager) GetClient(profileID uint) anilist.AnilistClient {
 	if err != nil {
 		m.logger.Error().Err(err).Uint("profileID", profileID).Msg("anilist_client_manager: Failed to get profile DB, returning unauthenticated client")
 		client := anilist.NewAnilistClient("", m.cacheDir)
+		client.SetWSEventManager(m.app.WSEventManager)
 		m.clients[profileID] = client
 		return client
 	}
 	token := profileDB.GetAnilistToken()
 
 	client := anilist.NewAnilistClient(token, m.cacheDir)
+	client.SetWSEventManager(m.app.WSEventManager)
 	m.clients[profileID] = client
 
 	m.logger.Debug().Uint("profileID", profileID).Bool("authenticated", client.IsAuthenticated()).Msg("anilist_client_manager: Loaded client for profile")
@@ -127,6 +129,7 @@ func (m *AnilistClientManager) GetClient(profileID uint) anilist.AnilistClient {
 // and caches it. Called when a profile logs in to AniList.
 func (m *AnilistClientManager) UpdateClient(profileID uint, token string) {
 	client := anilist.NewAnilistClient(token, m.cacheDir)
+	client.SetWSEventManager(m.app.WSEventManager)
 
 	m.mu.Lock()
 	m.clients[profileID] = client

@@ -216,9 +216,6 @@ type (
 
 // Start is called once to start the Chapter downloader 's main goroutine.
 func (d *Downloader) Start() {
-	// Run migration on start to convert old format to new format
-	go d.migrateToNewFormat()
-	
 	d.chapterDownloader.Start()
 	// Ensure the download queue is not active on startup — user must start it explicitly
 	d.chapterDownloader.Stop()

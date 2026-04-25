@@ -100,6 +100,23 @@ func (db *Database) AchievementRowCount() (int64, error) {
 	return count, nil
 }
 
+// ResetAllAchievements clears every achievement row so the profile starts fresh.
+// This wipes unlock status, progress, and XP — used when a user wants a clean slate.
+func (db *Database) ResetAllAchievements() error {
+	if err := db.gormdb.Session(&gorm.Session{AllowGlobalUpdate: true}).
+		Model(&models.Achievement{}).
+		Updates(map[string]interface{}{
+			"is_unlocked":   false,
+			"unlocked_at":   nil,
+			"progress":      0,
+			"progress_data": "",
+		}).Error; err != nil {
+		return err
+	}
+	// Also reset XP and level to zero
+	return db.SetXP(0)
+}
+
 // GetAchievementShowcase returns the user's selected showcase achievements.
 func (db *Database) GetAchievementShowcase() ([]models.AchievementShowcase, error) {
 	var showcase []models.AchievementShowcase

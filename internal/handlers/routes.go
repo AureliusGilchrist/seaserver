@@ -774,6 +774,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.GET("/profile/user/:id", h.HandleGetUserProfile)
 	v1.GET("/profile/user/:id/stats", h.HandleGetUserProfileStats)
 	v1.PATCH("/profile/bio", h.HandleUpdateBio)
+	v1.PATCH("/profile/display-title", h.HandleSetDisplayTitle)
 	v1.GET("/profile/level", h.HandleGetLevel)
 	v1.POST("/profile/easter-egg", h.HandleDiscoverEasterEgg)
 

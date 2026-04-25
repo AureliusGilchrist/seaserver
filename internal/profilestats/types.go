@@ -12,6 +12,9 @@ type ProfileStats struct {
 	WatchPatterns              *WatchPatterns     `json:"watchPatterns"`
 	TotalWatchMinutesWithRewatches int            `json:"totalWatchMinutesWithRewatches"`
 	EstimatedReadingMinutes    int                `json:"estimatedReadingMinutes"`
+	// Weekly averages over the last 4 weeks
+	AnimeHoursPerWeek   float64 `json:"animeHoursPerWeek"`
+	MangaChaptersPerWeek float64 `json:"mangaChaptersPerWeek"`
 }
 
 // ActivityDay represents one day's activity for the heatmap.

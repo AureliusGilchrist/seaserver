@@ -33,30 +33,42 @@ import { LoadingOverlayWithLogo } from "@/components/shared/loading-overlay-with
 import { AppLayout, AppLayoutContent, AppLayoutSidebar, AppSidebarProvider } from "@/components/ui/app-layout"
 import { __isElectronDesktop__ } from "@/types/constants"
 import { usePathname, useRouter } from "@/lib/navigation"
-import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { useServerMutation } from "@/api/client/requests"
 import React from "react"
 import { useServerStatus } from "../../_hooks/use-server-status"
 import { useInvalidateQueriesListener } from "../../_listeners/invalidate-queries.listeners"
 import { AdminAnnouncementsBanner } from "../admin-announcements"
+import { AnilistStatusBanner } from "../anilist-status-banner"
+import { OSTPlayer } from "../ost-player/ost-player"
 import { Announcements } from "../announcements"
 import { AnimeThemeProvider } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { CursorProvider } from "@/lib/cursors/cursor-provider"
 import { RewardProvider } from "@/lib/rewards/reward-provider"
+import { UICustomizeProvider } from "@/lib/ui-customize/ui-customize-provider"
+import { SoundProvider } from "@/lib/sounds/sound-provider"
 import { EasterEggEngine } from "@/lib/easter-eggs/easter-egg-engine"
 import { NakamaManager } from "../nakama/nakama-manager"
 import { NakamaWatchPartyChat, NakamaWatchPartyChatProvider } from "../nakama/nakama-watch-party-chat"
 import { NativePlayer } from "../native-player/native-player"
 import { TopIndefiniteLoader } from "../top-indefinite-loader"
+import { GlobalRewardShopButton } from "../navigation/global-reward-shop-button"
+import { RewardParticlesLayer } from "@/lib/rewards/reward-particles"
+import { WorkspaceBar, WORKSPACE_BAR_HEIGHT } from "../navigation/workspace-bar"
+import { useGetProfiles } from "@/api/hooks/profiles.hooks"
 
 export const MainLayout = ({ children }: { children: React.ReactNode }) => {
+    const { data: profiles } = useGetProfiles(true)
+    const hasMultipleProfiles = (profiles?.length ?? 0) > 1
+    const topOffset = hasMultipleProfiles ? WORKSPACE_BAR_HEIGHT : 0
 
     return (
         <>
             <AnimeThemeProvider>
+            <UICustomizeProvider>
+            <RewardProvider>
             <EasterEggEngine>
             <CursorProvider>
-            <RewardProvider>
+            <SoundProvider>
+            <RewardParticlesLayer />
             <Loader />
             <ScanProgressBar />
             <MangaHydrationProgressBar />
@@ -81,13 +93,17 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <NakamaWatchPartyChatProvider />
             <NakamaWatchPartyChat />
             <TopIndefiniteLoader />
+            <AnilistStatusBanner />
             <Announcements />
             <AdminAnnouncementsBanner />
             <LibraryExplorerDrawer />
             <PluginWebviewSlot slot="fixed" />
+            <GlobalRewardShopButton />
+            <OSTPlayer />
+            <WorkspaceBar />
 
             <AppSidebarProvider>
-                <AppLayout withSidebar sidebarSize="slim">
+                <AppLayout withSidebar sidebarSize="slim" style={{ paddingTop: topOffset }}>
                     <AppLayoutSidebar>
                         <MainSidebar />
                     </AppLayoutSidebar>
@@ -98,9 +114,11 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
                     </AppLayout>
                 </AppLayout>
             </AppSidebarProvider>
-            </RewardProvider>
+            </SoundProvider>
             </CursorProvider>
             </EasterEggEngine>
+            </RewardProvider>
+            </UICustomizeProvider>
             </AnimeThemeProvider>
         </>
     )
@@ -113,16 +131,6 @@ function Loader() {
     useAnimeLibraryCollectionLoader()
     useAnimeCollectionLoader()
     useMissingEpisodesLoader()
-
-    // Backfill activity from AniList on startup (24h cooldown server-side)
-    const { mutate: backfillActivity } = useServerMutation({
-        endpoint: API_ENDPOINTS.ACTIVITY.BackfillActivity.endpoint,
-        method: API_ENDPOINTS.ACTIVITY.BackfillActivity.methods[0],
-        mutationKey: [API_ENDPOINTS.ACTIVITY.BackfillActivity.key],
-    })
-    React.useEffect(() => {
-        backfillActivity()
-    }, [])
 
     /**
      * Websocket listeners

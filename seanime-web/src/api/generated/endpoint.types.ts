@@ -1311,6 +1311,7 @@ export type UpdateMangaProgress_Variables = {
     malId?: number
     chapterNumber: number
     totalChapters: number
+    readingMinutes?: number
 }
 
 /**

@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"time"
 	"seanime/internal/continuity"
 	discordrpc_presence "seanime/internal/discordrpc/presence"
 	"seanime/internal/events"
@@ -68,6 +69,11 @@ func (pm *PlaybackManager) handleTrackingStarted(status *mediaplayer.PlaybackSta
 	// Reset the history map
 	pm.historyMap = make(map[string]PlaybackState)
 
+	// Reset activity recording flag for this new session
+	pm.activeProfileIDMu.Lock()
+	pm.activityRecorded = false
+	pm.activeProfileIDMu.Unlock()
+
 	// Set the current media playback status
 	pm.currentMediaPlaybackStatus = status
 	// Get the playback state
@@ -93,11 +99,10 @@ func (pm *PlaybackManager) handleTrackingStarted(status *mediaplayer.PlaybackSta
 	// Set PlaybackManager.currentMediaListEntry to the list entry of the current video
 	currentMediaListEntry, currentLocalFile, currentLocalFileWrapperEntry, err := pm.getLocalFilePlaybackDetails(status.Filepath)
 	if err != nil {
-		pm.Logger.Error().Err(err).Msg("playback manager: Failed to get media data")
-		// Send error event to the client
-		pm.sendEventToCurrentClient(events.ErrorToast, err.Error())
-		//
-		pm.MediaPlayerRepository.Cancel()
+		pm.Logger.Warn().Err(err).Msg("playback manager: Could not match file for tracking — playback continues without progress tracking")
+		// Show a warning (not an error) so the player keeps playing
+		pm.sendEventToCurrentClient(events.WarningToast, "Playing without tracking: "+err.Error())
+		// Do not cancel the player — user can still watch untracked
 		return
 	}
 
@@ -282,6 +287,11 @@ func (pm *PlaybackManager) handleStreamingTrackingStarted(status *mediaplayer.Pl
 
 	// Reset the history map
 	pm.historyMap = make(map[string]PlaybackState)
+
+	// Reset activity recording flag for this new session
+	pm.activeProfileIDMu.Lock()
+	pm.activityRecorded = false
+	pm.activeProfileIDMu.Unlock()
 
 	// Set the current media playback status
 	pm.currentMediaPlaybackStatus = status
@@ -681,6 +691,56 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 	pm.refreshAnimeCollectionFunc() // Refresh the AniList collection
 
 	pm.Logger.Info().Msg("playback manager: Updated progress on AniList")
+
+	// Record activity + fire achievements exactly once per episode completion
+	pm.activeProfileIDMu.RLock()
+	profileID := pm.activeProfileID
+	alreadyRecorded := pm.activityRecorded
+	pm.activeProfileIDMu.RUnlock()
+
+	if profileID > 0 && !alreadyRecorded {
+		pm.activeProfileIDMu.Lock()
+		pm.activityRecorded = true
+		pm.activeProfileIDMu.Unlock()
+
+		durationMinutes := 0
+		if pm.currentMediaPlaybackStatus != nil {
+			durationMinutes = int(pm.currentMediaPlaybackStatus.DurationInSeconds / 60)
+		}
+
+		// Update session tracking
+		now := time.Now()
+		pm.sessionMu.Lock()
+		const sessionGapMinutes = 30
+		if pm.sessionStartTime.IsZero() || now.Sub(pm.sessionLastCompletion) > time.Duration(sessionGapMinutes)*time.Minute {
+			// Start a new session
+			pm.sessionStartTime = now
+			pm.sessionEpisodeCount = 0
+			pm.sessionMinutes = 0
+		}
+		pm.sessionEpisodeCount++
+		pm.sessionMinutes += durationMinutes
+		pm.sessionLastCompletion = now
+		activityEvt := &PlaybackActivityEvent{
+			ProfileID:           profileID,
+			MediaID:             mediaId,
+			EpisodeNumber:       epNum,
+			TotalEpisodes:       totalEpisodes,
+			DurationMinutes:     durationMinutes,
+			SessionEpisodeCount: pm.sessionEpisodeCount,
+			SessionMinutes:      pm.sessionMinutes,
+			SessionStartTime:    pm.sessionStartTime,
+		}
+		pm.sessionMu.Unlock()
+
+		pm.activityTrackerMu.RLock()
+		tracker := pm.activityTracker
+		pm.activityTrackerMu.RUnlock()
+
+		if tracker != nil {
+			go tracker(activityEvt)
+		}
+	}
 
 	return nil
 }

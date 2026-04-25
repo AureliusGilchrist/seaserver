@@ -10,21 +10,6 @@ export const THEME_BG_LIST_KEY = "theme-backgrounds-list"
 export type ThemeBgFile = {
     filename: string
     url: string
-    canDelete: boolean
-}
-
-export type ThemeBgListResponse = {
-    files: ThemeBgFile[]
-    userCount: number
-    limit: number
-    isAdmin: boolean
-}
-
-export type ThemeBgDownloadResponse = {
-    filename: string
-    url: string
-    userCount: number
-    limit: number
 }
 
 export type WallhavenThumb = {
@@ -58,7 +43,7 @@ export type WallhavenSearchResponse = {
 }
 
 export function useListThemeBackgrounds() {
-    return useServerQuery<ThemeBgListResponse>({
+    return useServerQuery<ThemeBgFile[]>({
         endpoint: API_ENDPOINTS.THEME_BACKGROUNDS.ListThemeBackgrounds.endpoint,
         method: "GET",
         queryKey: [THEME_BG_LIST_KEY],
@@ -67,7 +52,7 @@ export function useListThemeBackgrounds() {
 
 export function useDownloadThemeBackground() {
     const queryClient = useQueryClient()
-    return useServerMutation<ThemeBgDownloadResponse, { url: string }>({
+    return useServerMutation<ThemeBgFile, { url: string }>({
         endpoint: API_ENDPOINTS.THEME_BACKGROUNDS.DownloadThemeBackground.endpoint,
         method: "POST",
         onSuccess: () => {
@@ -102,6 +87,7 @@ export function useSearchWallhaven(q: string, page: number, enabled: boolean) {
         method: "GET",
         queryKey: ["wallhaven-search", q, page],
         enabled: enabled && !!q,
-        staleTime: 5 * 60 * 1000, // cache search results for 5 min
+        staleTime: 10 * 60 * 1000,
+        retry: false,
     })
 }

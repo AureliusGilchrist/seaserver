@@ -23,10 +23,11 @@ func (h *Handler) HandlePlaybackPlayVideo(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	// Set the client ID for session isolation
+	// Set the client ID and active profile for session isolation and activity tracking
 	if b.ClientId != "" {
 		h.App.PlaybackManager.SetCurrentClientID(b.ClientId)
 	}
+	h.App.PlaybackManager.SetActiveProfileID(h.GetProfileID(c))
 
 	err := h.App.PlaybackManager.StartPlayingUsingMediaPlayer(&playbackmanager.StartPlayingOptions{
 		Payload:   b.Path,
@@ -211,10 +212,11 @@ func (h *Handler) HandlePlaybackStartManualTracking(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	// Set the client ID for session isolation
+	// Set the client ID and active profile for session isolation and activity tracking
 	if b.ClientId != "" {
 		h.App.PlaybackManager.SetCurrentClientID(b.ClientId)
 	}
+	h.App.PlaybackManager.SetActiveProfileID(h.GetProfileID(c))
 
 	err := h.App.PlaybackManager.StartManualProgressTracking(&playbackmanager.StartManualProgressTrackingOptions{
 		ClientId:      b.ClientId,

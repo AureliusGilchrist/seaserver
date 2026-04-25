@@ -57,6 +57,7 @@ type ProfileStats struct {
 	TotalAnimeMinutes    int
 	TotalAnimeEpisodes   int
 	TotalMangaChapters   int
+	TotalMangaMinutes    int
 	TotalSeriesCompleted int
 	TotalLibraryFiles    int
 	TotalGenresExplored  int
@@ -158,6 +159,7 @@ func (e *Engine) gatherStats(profileID uint) (*ProfileStats, error) {
 			stats.TotalAnimeMinutes += log.AnimeMinutes
 			stats.TotalAnimeEpisodes += log.AnimeEpisodes
 			stats.TotalMangaChapters += log.MangaChapters
+			stats.TotalMangaMinutes += log.MangaMinutes
 		}
 		stats.TotalDaysActive = len(logs)
 	}

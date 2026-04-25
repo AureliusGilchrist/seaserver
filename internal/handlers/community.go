@@ -12,17 +12,19 @@ import (
 
 // CommunityProfile is a single entry in the community profiles list.
 type CommunityProfile struct {
-	ID               uint   `json:"id"`
-	Name             string `json:"name"`
-	AniListUsername  string `json:"anilistUsername"`
-	AniListAvatar    string `json:"anilistAvatar"`
-	AvatarPath       string `json:"avatarPath"`
-	Bio              string `json:"bio"`
-	BannerImage      string `json:"bannerImage"`
-	IsAdmin          bool   `json:"isAdmin"`
-	CurrentLevel     int    `json:"currentLevel"`
-	TotalXP          int    `json:"totalXP"`
-	AchievementCount int64  `json:"achievementCount"`
+	ID                uint   `json:"id"`
+	Name              string `json:"name"`
+	AniListUsername   string `json:"anilistUsername"`
+	AniListAvatar     string `json:"anilistAvatar"`
+	AvatarPath        string `json:"avatarPath"`
+	Bio               string `json:"bio"`
+	BannerImage       string `json:"bannerImage"`
+	IsAdmin           bool   `json:"isAdmin"`
+	CurrentLevel      int    `json:"currentLevel"`
+	TotalXP           int    `json:"totalXP"`
+	AchievementCount  int64  `json:"achievementCount"`
+	DisplayTitle      string `json:"displayTitle"`
+	DisplayTitleColor string `json:"displayTitleColor"`
 }
 
 // CommunityResponse wraps the profiles list with aggregate statistics.
@@ -81,15 +83,17 @@ func (h *Handler) HandleGetCommunityProfiles(c echo.Context) error {
 	result := make([]*CommunityProfile, 0, len(profiles))
 	for _, p := range profiles {
 		cp := &CommunityProfile{
-			ID:              p.ID,
-			Name:            p.Name,
-			AniListUsername: p.AniListUsername,
-			AniListAvatar:   p.AniListAvatar,
-			AvatarPath:      p.AvatarPath,
-			Bio:             p.Bio,
-			BannerImage:     p.BannerImage,
-			IsAdmin:         p.IsAdmin,
-			CurrentLevel:    1,
+			ID:                p.ID,
+			Name:              p.Name,
+			AniListUsername:   p.AniListUsername,
+			AniListAvatar:     p.AniListAvatar,
+			AvatarPath:        p.AvatarPath,
+			Bio:               p.Bio,
+			BannerImage:       p.BannerImage,
+			IsAdmin:           p.IsAdmin,
+			CurrentLevel:      1,
+			DisplayTitle:      p.DisplayTitle,
+			DisplayTitleColor: p.DisplayTitleColor,
 		}
 
 		if database, dbErr := h.App.ProfileDatabaseManager.GetDatabase(p.ID); dbErr == nil {

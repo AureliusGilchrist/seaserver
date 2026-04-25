@@ -1484,3 +1484,48 @@ body.vc-fullscreen .appLayout {
 [data-anime-theme="one-piece"] [class*="achievement"] h4 {
     animation: onePieceTreasureGleam 3s ease-in-out infinite;
 }
+
+
+/* ── Page transition animations ─────────────────────────────────────────── */
+@keyframes seaPageFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+@keyframes seaPageSlideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes seaPageScale {
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@keyframes seaPageSlideRight {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.sea-page-fade       { animation: seaPageFadeIn    0.22s ease-out both; }
+.sea-page-slide-up   { animation: seaPageSlideUp   0.25s ease-out both; }
+.sea-page-scale      { animation: seaPageScale     0.2s  ease-out both; }
+.sea-page-slide-right{ animation: seaPageSlideRight 0.24s ease-out both; }
+
+/* ── XP Bar shimmer animations ─────────────────────────────────────────── */
+@keyframes sea-xpbar-shimmer {
+    0%   { background-position: 200% center; }
+    100% { background-position: -200% center; }
+}
+@keyframes sea-xpbar-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.75; }
+}
+.sea-xpbar-shimmer {
+    background-size: 300% 100% !important;
+    animation: sea-xpbar-shimmer 2.5s linear infinite !important;
+}
+.sea-xpbar-shimmer-fast {
+    background-size: 300% 100% !important;
+    animation: sea-xpbar-shimmer 1.5s linear infinite !important;
+}
+.sea-xpbar-pulse {
+    animation: sea-xpbar-pulse 1.8s ease-in-out infinite !important;
+}

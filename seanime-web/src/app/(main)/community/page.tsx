@@ -162,11 +162,31 @@ function formatTimeAgo(date: Date): string {
     return `${months}mo ago`
 }
 
+// Tier data drives both the ring SVG color and the label text color.
+// Tiers 0-7 are solid; tiers 8+ use animated SVG gradients (see LevelRingAvatar).
+export function getLevelTier(level: number): {
+    tier: string
+    ringClass: string   // Tailwind SVG stroke class (used for solid tiers)
+    glow: string        // Tailwind shadow class
+    label: string       // Tailwind text color class
+    animated: boolean   // true → use SVG gradient in LevelRingAvatar
+} {
+    if (level >= 200) return { tier: "prismatic",      ringClass: "stroke-fuchsia-400", glow: "shadow-fuchsia-400/60", label: "text-fuchsia-400",   animated: true  }
+    if (level >= 150) return { tier: "gold-rose",      ringClass: "stroke-yellow-300",  glow: "shadow-yellow-400/60",  label: "text-yellow-300",    animated: true  }
+    if (level >= 100) return { tier: "gold-shimmer",   ringClass: "stroke-yellow-400",  glow: "shadow-yellow-400/50",  label: "text-yellow-400",    animated: true  }
+    if (level >=  80) return { tier: "gold",           ringClass: "stroke-yellow-400",  glow: "shadow-yellow-400/50",  label: "text-yellow-400",    animated: false }
+    if (level >=  65) return { tier: "purple",         ringClass: "stroke-purple-400",  glow: "shadow-purple-400/50",  label: "text-purple-400",    animated: false }
+    if (level >=  50) return { tier: "indigo",         ringClass: "stroke-indigo-400",  glow: "shadow-indigo-400/50",  label: "text-indigo-400",    animated: false }
+    if (level >=  35) return { tier: "blue",           ringClass: "stroke-blue-400",    glow: "shadow-blue-400/50",    label: "text-blue-400",      animated: false }
+    if (level >=  20) return { tier: "teal",           ringClass: "stroke-teal-400",    glow: "shadow-teal-400/40",    label: "text-teal-400",      animated: false }
+    if (level >=  10) return { tier: "green",          ringClass: "stroke-green-400",   glow: "shadow-green-400/30",   label: "text-green-400",     animated: false }
+    return               { tier: "gray",           ringClass: "stroke-gray-400",    glow: "shadow-gray-400/30",    label: "text-gray-400",      animated: false }
+}
+
+/** @deprecated use getLevelTier */
 function getLevelColor(level: number): { ring: string; glow: string; label: string } {
-    if (level >= 100) return { ring: "stroke-yellow-400", glow: "shadow-yellow-400/50", label: "text-yellow-400" }
-    if (level >= 50) return { ring: "stroke-purple-400", glow: "shadow-purple-400/50", label: "text-purple-400" }
-    if (level >= 20) return { ring: "stroke-blue-400", glow: "shadow-blue-400/50", label: "text-blue-400" }
-    return { ring: "stroke-gray-400", glow: "shadow-gray-400/30", label: "text-gray-400" }
+    const t = getLevelTier(level)
+    return { ring: t.ringClass, glow: t.glow, label: t.label }
 }
 
 export function xpForLevel(level: number): number {
@@ -174,12 +194,27 @@ export function xpForLevel(level: number): number {
     return Math.floor(100 * Math.pow(level - 1, 1.5))
 }
 
+// Gradient stop definitions per animated tier
+const RING_GRADIENTS: Record<string, { stops: string[]; dur: string }> = {
+    "gold-shimmer": {
+        stops: ["#78350f", "#fbbf24", "#fde68a", "#fbbf24", "#78350f"],
+        dur: "2s",
+    },
+    "gold-rose": {
+        stops: ["#fbbf24", "#f9a8d4", "#fde68a", "#f9a8d4", "#fbbf24"],
+        dur: "2.5s",
+    },
+    "prismatic": {
+        stops: ["#f43f5e", "#f97316", "#facc15", "#4ade80", "#60a5fa", "#a78bfa", "#f43f5e"],
+        dur: "3s",
+    },
+}
+
 export function LevelRingAvatar({ profile, size = 80 }: { profile: { currentLevel: number; totalXP?: number; avatarPath?: string; anilistAvatar?: string; name: string }; size?: number }) {
-    const colors = getLevelColor(profile.currentLevel)
+    const tierInfo = getLevelTier(profile.currentLevel)
     const avatarSrc = profile.avatarPath || profile.anilistAvatar
     const radius = (size - 6) / 2
     const circumference = 2 * Math.PI * radius
-    // XP-based ring progress: derive from totalXP and currentLevel using the level formula
     const currentLevelXP = xpForLevel(profile.currentLevel)
     const nextLevelXP = xpForLevel(profile.currentLevel + 1)
     const xpRange = nextLevelXP - currentLevelXP
@@ -187,29 +222,45 @@ export function LevelRingAvatar({ profile, size = 80 }: { profile: { currentLeve
     const progress = xpRange > 0 ? Math.max(0, Math.min(xpInLevel / xpRange, 1)) : 0
     const strokeDashoffset = circumference * (1 - progress)
 
+    const gradId = `lvring-${tierInfo.tier}-${size}`
+    const gradDef = RING_GRADIENTS[tierInfo.tier]
+
     return (
-        <div className={cn("relative inline-flex items-center justify-center rounded-full", `shadow-lg ${colors.glow}`)} style={{ width: size, height: size }}>
+        <div className={cn("relative inline-flex items-center justify-center rounded-full", `shadow-lg ${tierInfo.glow}`)} style={{ width: size, height: size }}>
             <svg className="absolute inset-0" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+                {gradDef && (
+                    <defs>
+                        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%" gradientUnits="objectBoundingBox">
+                            {gradDef.stops.map((color, i) => (
+                                <stop key={i} offset={`${(i / (gradDef.stops.length - 1)) * 100}%`} stopColor={color} />
+                            ))}
+                            {/* Animate the gradient sweep for a shimmer effect */}
+                            <animateTransform
+                                attributeName="gradientTransform"
+                                type="translate"
+                                from="-1 0"
+                                to="1 0"
+                                dur={gradDef.dur}
+                                repeatCount="indefinite"
+                            />
+                        </linearGradient>
+                    </defs>
+                )}
+                {/* Track */}
+                <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={3} className="stroke-gray-700/50" />
+                {/* Progress ring */}
                 <circle
                     cx={size / 2}
                     cy={size / 2}
                     r={radius}
                     fill="none"
-                    strokeWidth={3}
-                    className="stroke-gray-700/50"
-                />
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    fill="none"
-                    strokeWidth={3}
-                    className={colors.ring}
+                    strokeWidth={tierInfo.animated ? 4 : 3}
+                    className={tierInfo.animated ? "" : tierInfo.ringClass}
+                    style={tierInfo.animated ? { stroke: `url(#${gradId})`, transition: "stroke-dashoffset 0.6s ease" } : { transition: "stroke-dashoffset 0.6s ease" }}
                     strokeLinecap="round"
                     strokeDasharray={circumference}
                     strokeDashoffset={strokeDashoffset}
                     transform={`rotate(-90 ${size / 2} ${size / 2})`}
-                    style={{ transition: "stroke-dashoffset 0.6s ease" }}
                 />
             </svg>
             {avatarSrc ? (
@@ -246,12 +297,34 @@ function CommunityProfileCard({ profile }: { profile: Handlers_CommunityProfile 
                         <div className="absolute inset-0 bg-gradient-to-t from-[--subtle] via-[--subtle]/80 to-transparent" />
                     </>
                 )}
-                <div className="relative z-10 flex flex-col items-center gap-3">
+                <div className="relative z-10 flex flex-col items-center gap-3 w-full">
                     <LevelRingAvatar profile={profile} size={80} />
                     <div className="text-center min-w-0 w-full">
-                        <p className="font-semibold text-sm truncate">{profile.name}</p>
+                        {/* Global name color */}
+                        <p
+                            className="font-semibold text-sm truncate"
+                            style={profile.nameGradientCss
+                                ? { backgroundImage: profile.nameGradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }
+                                : profile.nameColorCss ? { color: profile.nameColorCss } : {}}
+                        >
+                            {profile.name}
+                        </p>
+                        {profile.displayTitle && (
+                            <p className="text-[10px] font-semibold truncate mb-0.5" style={{ color: profile.displayTitleColor || "#94a3b8" }}>
+                                {profile.displayTitle}
+                            </p>
+                        )}
                         <p className={cn("text-xs font-bold", colors.label)}>Lv. {profile.currentLevel}</p>
                     </div>
+                    {/* Global XP bar */}
+                    {profile.xpBarFillCss && (
+                        <div className="w-full h-1.5 rounded-full overflow-hidden bg-white/10">
+                            <div
+                                className={cn("h-full rounded-full", profile.xpBarAnimClass)}
+                                style={{ width: "100%", background: profile.xpBarFillCss }}
+                            />
+                        </div>
+                    )}
                     <div className="flex items-center gap-3 text-xs text-[--muted]">
                         <span className="flex items-center gap-1">
                             <LuTrophy className="size-3" />
@@ -303,7 +376,14 @@ function LeaderboardRow({ profile, rank }: { profile: Handlers_CommunityProfile;
                 <div className="flex items-center gap-3 min-w-0">
                     <LevelRingAvatar profile={profile} size={40} />
                     <div className="min-w-0">
-                        <p className="font-semibold text-sm truncate">{profile.name}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm truncate">{profile.name}</p>
+                            {profile.displayTitle && (
+                                <span className="text-[10px] font-semibold shrink-0" style={{ color: profile.displayTitleColor || "#94a3b8" }}>
+                                    {profile.displayTitle}
+                                </span>
+                            )}
+                        </div>
                         {profile.bio && (
                             <p className="text-xs text-[--muted] truncate max-w-[200px]">{profile.bio}</p>
                         )}

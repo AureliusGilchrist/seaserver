@@ -26,6 +26,40 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// ── Manga session tracker ──────────────────────────────────────────────────────
+// Tracks per-profile reading sessions in memory. A session resets after a 30-minute
+// gap, enabling binge/streak achievement evaluation.
+
+const mangaSessionGap = 30 * time.Minute
+
+type mangaSession struct {
+	Chapters  int
+	Minutes   int
+	StartedAt time.Time
+	LastAt    time.Time
+}
+
+var (
+	mangaSessionsMu sync.Mutex
+	mangaSessions   = make(map[uint]*mangaSession)
+)
+
+func getMangaSession(profileID uint, readingMinutes int) (sessionChapters int, sessionMinutes int) {
+	mangaSessionsMu.Lock()
+	defer mangaSessionsMu.Unlock()
+
+	now := time.Now()
+	s, ok := mangaSessions[profileID]
+	if !ok || now.Sub(s.LastAt) > mangaSessionGap {
+		s = &mangaSession{StartedAt: now}
+		mangaSessions[profileID] = s
+	}
+	s.Chapters++
+	s.Minutes += readingMinutes
+	s.LastAt = now
+	return s.Chapters, s.Minutes
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 var (
@@ -594,10 +628,11 @@ func (h *Handler) HandleAnilistListManga(c echo.Context) error {
 func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 
 	type body struct {
-		MediaId       int `json:"mediaId"`
-		MalId         int `json:"malId,omitempty"`
-		ChapterNumber int `json:"chapterNumber"`
-		TotalChapters int `json:"totalChapters"`
+		MediaId        int `json:"mediaId"`
+		MalId          int `json:"malId,omitempty"`
+		ChapterNumber  int `json:"chapterNumber"`
+		TotalChapters  int `json:"totalChapters"`
+		ReadingMinutes int `json:"readingMinutes,omitempty"`
 	}
 
 	b := new(body)
@@ -656,45 +691,88 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 		}
 	}
 
-	// Fire achievement events for chapter progress
-	h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
-		ProfileID: profileID,
-		Trigger:   achievement.TriggerChapterProgress,
-		MediaID:   b.MediaId,
-		Metadata: map[string]interface{}{
-			"chapter": b.ChapterNumber,
-		},
-	})
+	// Update session tracker
+	sessionChapters, sessionMinutes := getMangaSession(profileID, b.ReadingMinutes)
+	sessionHours := float64(sessionMinutes) / 60.0
+	now := time.Now()
+	isCompleted := b.TotalChapters > 0 && b.ChapterNumber >= b.TotalChapters
 
-	// Record activity for stats heatmap/streaks
+	// Record activity (heatmap + granular event)
 	go func() {
 		pdb := h.GetProfileDatabase(c)
-		if pdb != nil {
-			_ = pdb.RecordMangaActivity(1)
-			_ = pdb.RecordActivityEvent(models.ActivityEventMangaChapterRead, b.MediaId, map[string]interface{}{
-				"chapter":       b.ChapterNumber,
-				"totalChapters": b.TotalChapters,
+		if pdb == nil {
+			return
+		}
+		_ = pdb.RecordMangaActivity(1, b.ReadingMinutes)
+		_ = pdb.RecordActivityEvent(models.ActivityEventMangaChapterRead, b.MediaId, map[string]interface{}{
+			"chapter":         b.ChapterNumber,
+			"totalChapters":   b.TotalChapters,
+			"readingMinutes":  b.ReadingMinutes,
+			"sessionChapters": sessionChapters,
+			"sessionMinutes":  sessionMinutes,
+		})
+		if isCompleted {
+			_ = pdb.RecordActivityEvent("series_complete", b.MediaId, map[string]interface{}{
+				"type":     "manga",
+				"chapters": b.TotalChapters,
 			})
 		}
 	}()
 
-	// Evaluate milestones after activity is recorded
+	// Fire chapter progress achievement with full metadata
+	h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+		ProfileID: profileID,
+		Trigger:   achievement.TriggerChapterProgress,
+		MediaID:   b.MediaId,
+		Timestamp: now,
+		Metadata: map[string]interface{}{
+			"chapter":         b.ChapterNumber,
+			"total_chapters":  b.TotalChapters,
+			"reading_minutes": b.ReadingMinutes,
+			"session_chapters": float64(sessionChapters),
+			"session_hours":   sessionHours,
+			"hour":            now.Hour(),
+			"day_of_week":     int(now.Weekday()),
+			"count":           float64(1),
+		},
+	})
+
+	// Fire session update for binge/continuous reading achievements
+	if sessionChapters > 1 {
+		h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+			ProfileID: profileID,
+			Trigger:   achievement.TriggerSessionUpdate,
+			MediaID:   b.MediaId,
+			Timestamp: now,
+			Metadata: map[string]interface{}{
+				"count":           float64(1),
+				"session_chapters": float64(sessionChapters),
+				"session_hours":   sessionHours,
+				"session_minutes": float64(sessionMinutes),
+			},
+		})
+	}
+
+	// Fire manga complete achievement
+	if isCompleted {
+		h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+			ProfileID: profileID,
+			Trigger:   achievement.TriggerMangaComplete,
+			MediaID:   b.MediaId,
+			Timestamp: now,
+			Metadata: map[string]interface{}{
+				"chapters":      b.TotalChapters,
+				"session_hours": sessionHours,
+			},
+		})
+	}
+
+	// Evaluate milestones
 	go func() {
 		if h.App.MilestoneEngine != nil {
 			h.App.MilestoneEngine.EvaluateProfile(profileID)
 		}
 	}()
-
-	if b.TotalChapters > 0 && b.ChapterNumber >= b.TotalChapters {
-		h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
-			ProfileID: profileID,
-			Trigger:   achievement.TriggerMangaComplete,
-			MediaID:   b.MediaId,
-			Metadata: map[string]interface{}{
-				"chapters": b.TotalChapters,
-			},
-		})
-	}
 
 	if profileID > 0 {
 		h.App.AnilistClientManager.InvalidateMangaCollection(profileID)

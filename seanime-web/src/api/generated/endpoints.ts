@@ -3069,6 +3069,16 @@ export const API_ENDPOINTS = {
             methods: ["PATCH"],
             endpoint: "/api/v1/profile/bio",
         },
+        SetDisplayTitle: {
+            key: "PROFILE-PAGE-set-display-title",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/profile/display-title",
+        },
+        SetDisplayCosmetics: {
+            key: "PROFILE-PAGE-set-display-cosmetics",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/profile/display-cosmetics",
+        },
         GetLevel: {
             key: "PROFILE-PAGE-get-level",
             methods: ["GET"],
@@ -3083,6 +3093,20 @@ export const API_ENDPOINTS = {
             key: "PROFILE-PAGE-get-timeline",
             methods: ["GET"],
             endpoint: "/api/v1/profile/timeline",
+        },
+    },
+    ACHIEVEMENTS_EXTRA: {
+        ResetAchievements: {
+            key: "ACHIEVEMENTS-reset",
+            methods: ["POST"],
+            endpoint: "/api/v1/achievements/reset",
+        },
+    },
+    THEME_MUSIC: {
+        ListTracks: {
+            key: "THEME_MUSIC-list-tracks",
+            methods: ["GET"],
+            endpoint: "/api/v1/theme-music/tracks",
         },
     },
     COMMUNITY: {

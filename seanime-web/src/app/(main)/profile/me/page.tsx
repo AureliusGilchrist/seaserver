@@ -1,6 +1,8 @@
 "use client"
 
-import { useGetAchievements, useImportAchievements, AchievementUnlockPayload } from "@/api/hooks/achievement.hooks"
+import { useGetAchievements } from "@/api/hooks/achievement.hooks"
+import { useServerMutation } from "@/api/client/requests"
+import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { useGetAniListStats } from "@/api/hooks/anilist.hooks"
 import { useGetMyProfile, useUpdateBio } from "@/api/hooks/community.hooks"
 import {
@@ -45,6 +47,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAnimeTheme, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { RewardShop } from "@/app/(main)/profile/me/_components/reward-shop"
+import { useRewards } from "@/lib/rewards/reward-provider"
 import { LuGift } from "react-icons/lu"
 import { useEasterEggs } from "@/lib/easter-eggs/easter-egg-engine"
 import { EASTER_EGG_DEFINITIONS } from "@/lib/easter-eggs/easter-egg-definitions"
@@ -106,6 +109,28 @@ export default function Page() {
     const currentLevel = level?.currentLevel ?? 1
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const milestoneName = useThemeMilestoneName(currentLevel)
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const { activeTitle, activeNameColor, activeBorder, activeXPBarSkin } = useRewards()
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const { config: themeConfig } = useAnimeTheme()
+
+    // Resolve display text for milestone-based titles (e.g. "milestone-naruto-15")
+    const resolvedTitleText = React.useMemo(() => {
+        if (!activeTitle) return null
+        const m = activeTitle.id.match(/^milestone-(.+)-(\d+)$/)
+        if (m && themeConfig.milestoneNames) {
+            return themeConfig.milestoneNames[Number(m[2])] ?? activeTitle.text
+        }
+        return activeTitle.text
+    }, [activeTitle, themeConfig.milestoneNames])
+
+    const nameStyle: React.CSSProperties = activeNameColor?.gradientCss
+        ? { backgroundImage: activeNameColor.gradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }
+        : activeNameColor ? { color: activeNameColor.color } : {}
+
+    const avatarBorderStyle: React.CSSProperties = activeBorder && activeBorder.borderCss !== "none"
+        ? { outline: activeBorder.borderCss, outlineOffset: "3px", boxShadow: activeBorder.glowCss ?? "none" }
+        : {}
 
     return (
         <>
@@ -116,7 +141,14 @@ export default function Page() {
                         className="absolute inset-0 bg-cover bg-center"
                         style={{ backgroundImage: `url(${profile!.bannerImage})` }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[--background] via-[--background]/30 to-transparent" />
+                    {/* Gradient fade to background — bottom heavy for readability */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[--background] via-[--background]/40 to-transparent" />
+                    {/* Side fades so the banner blends into the page layout */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-[--background]/60 via-transparent to-[--background]/60" />
+                    {/* Drop shadow strip at the bottom edge */}
+                    <div className="absolute bottom-0 left-0 right-0 h-16"
+                        style={{ boxShadow: "0 8px 32px 8px var(--background)", backdropFilter: "none" }}
+                    />
                 </div>
             ) : (
                 <CustomLibraryBanner discrete />
@@ -124,21 +156,34 @@ export default function Page() {
             <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-36 relative z-10")}> 
                 {/* Unified Profile Header */}
                 <div className="flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border] relative">
-                    <LevelRingAvatar
-                        profile={{
-                            currentLevel: level?.currentLevel ?? 1,
-                            totalXP: level?.totalXP ?? 0,
-                            avatarPath: profile!.avatarPath,
-                            anilistAvatar: profile!.anilistAvatar,
-                            name: profile!.name,
-                        }}
-                        size={120}
-                    />
+                    <div style={avatarBorderStyle} className="rounded-full shrink-0">
+                        <LevelRingAvatar
+                            profile={{
+                                currentLevel: level?.currentLevel ?? 1,
+                                totalXP: level?.totalXP ?? 0,
+                                avatarPath: profile!.avatarPath,
+                                anilistAvatar: profile!.anilistAvatar,
+                                name: profile!.name,
+                            }}
+                            size={120}
+                        />
+                    </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            <h1 className="text-3xl font-bold truncate">{profile!.name}{profile!.anilistUsername && (
-                                <span className="text-[--muted] font-normal"> ({profile!.anilistUsername})</span>
-                            )}</h1>
+                            <h1 className="text-3xl font-bold truncate" style={nameStyle}>
+                                {profile!.name}
+                                {profile!.anilistUsername && (
+                                    <span className="text-[--muted] font-normal" style={{}}> ({profile!.anilistUsername})</span>
+                                )}
+                            </h1>
+                            {activeTitle && resolvedTitleText && (
+                                <span
+                                    className="text-sm font-semibold px-2.5 py-0.5 rounded-full border border-white/10 bg-white/5"
+                                    style={{ color: activeTitle.color ?? "#fff" }}
+                                >
+                                    {resolvedTitleText}
+                                </span>
+                            )}
                             <span className={cn("text-lg font-bold", levelColors.label)}>
                                 {milestoneName ?? `Level ${currentLevel}`}
                             </span>
@@ -215,10 +260,16 @@ export default function Page() {
                             <span>{milestoneName ?? `Level ${level.currentLevel}`}</span>
                             <span>Level {level.currentLevel + 1}</span>
                         </div>
-                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                            className="h-2 rounded-full overflow-hidden"
+                            style={{ background: activeXPBarSkin?.trackCss ?? "rgba(255,255,255,0.1)" }}
+                        >
                             <div
-                                className={cn("h-full rounded-full transition-all duration-500", levelColors.ring.replace("stroke-", "bg-"))}
-                                style={{ width: `${level.xpNeededForLevel > 0 ? (level.xpInCurrentLevel / level.xpNeededForLevel) * 100 : 100}%` }}
+                                className={cn("h-full rounded-full transition-all duration-500", activeXPBarSkin?.animClass)}
+                                style={{
+                                    width: `${level.xpNeededForLevel > 0 ? (level.xpInCurrentLevel / level.xpNeededForLevel) * 100 : 100}%`,
+                                    background: activeXPBarSkin?.fillCss ?? `var(--sea-xpbar-fill, ${levelColors.ring.replace("stroke-", "")})`,
+                                }}
                             />
                         </div>
                         <div className="text-xs text-[--muted] text-center">
@@ -271,7 +322,7 @@ export default function Page() {
                         <StatsTabContent />
                     </TabsContent>
                     <TabsContent value="achievements" className="space-y-6 mt-6">
-                        <AchievementsTabContent editable />
+                        <AchievementsTabContent editable isAdmin={profile?.isAdmin ?? false} />
                     </TabsContent>
                     <TabsContent value="favorites" className="space-y-6 mt-6">
                         <FavoritesTabContent />
@@ -445,12 +496,15 @@ function StatsTabContent() {
 
 // ─────────────────────── Achievements Tab (lazy) ───────────────────────
 
-function AchievementsTabContent({ editable }: { editable?: boolean }) {
+function AchievementsTabContent({ editable, isAdmin }: { editable?: boolean; isAdmin?: boolean }) {
     const { data, isLoading } = useGetAchievements()
     const { config: animeConfig } = useAnimeTheme()
     const [selectedCategory, setSelectedCategory] = React.useState<Achievement_Category | "all">("all")
-    const { mutate: importAchievements, isPending: isImporting } = useImportAchievements()
-    const [importResults, setImportResults] = React.useState<AchievementUnlockPayload[] | null>(null)
+    const { mutate: resetAchievements, isPending: isResetting } = useServerMutation({
+        endpoint: API_ENDPOINTS.ACHIEVEMENTS_EXTRA.ResetAchievements.endpoint,
+        method: "POST",
+        onSuccess: () => { window.location.reload() },
+    })
     const [showUnlockedOnly, setShowUnlockedOnly] = React.useState(false)
 
     if (isLoading) {
@@ -497,49 +551,28 @@ function AchievementsTabContent({ editable }: { editable?: boolean }) {
                     <p className="text-[--muted]">{unlockedCount} / {totalCount} unlocked</p>
                 </div>
                 <div className="ml-auto flex items-center gap-3">
-                    {editable && (
+                    {editable && isAdmin && (
                         <button
                             className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                                "bg-brand-500/15 text-brand-300 border border-brand-500/30 hover:bg-brand-500/25",
-                                isImporting && "opacity-50 pointer-events-none",
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                                "text-red-400/70 border border-red-500/20 hover:bg-red-900/20 hover:text-red-300",
+                                isResetting && "opacity-50 pointer-events-none",
                             )}
-                            onClick={() => importAchievements(undefined, {
-                                onSuccess: (res: any) => setImportResults(res ?? []),
-                            })}
-                            disabled={isImporting}
+                            onClick={() => {
+                                if (confirm("Reset ALL achievements and XP? This cannot be undone.")) {
+                                    resetAchievements()
+                                }
+                            }}
+                            disabled={isResetting}
+                            title="Admin: clear all achievements and XP"
                         >
-                            {isImporting ? <LoadingSpinner className="size-4" /> : <LuDownload className="size-4" />}
-                            Import
+                            {isResetting ? <LoadingSpinner className="size-3" /> : <LuX className="size-3" />}
+                            Reset
                         </button>
                     )}
                     <ProgressRing value={totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0} />
                 </div>
             </div>
-
-            {/* Import Results Modal */}
-            <Modal open={importResults !== null} onOpenChange={() => setImportResults(null)} title="Import Results" contentClass="max-w-lg" onPointerDownCapture={() => {}} onOpenAutoFocus={() => {}} onCloseAutoFocus={() => {}} onEscapeKeyDown={() => {}} onInteractOutside={() => {}}>
-                {importResults && importResults.length === 0 ? (
-                    <p className="text-[--muted] text-center py-6">No new achievements unlocked.</p>
-                ) : (
-                    <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-                        <p className="text-sm text-[--muted] mb-3">{importResults?.length} achievement{(importResults?.length ?? 0) !== 1 ? "s" : ""} unlocked!</p>
-                        {importResults?.map(a => (
-                            <div key={`${a.key}-${a.tier}`} className="flex items-center gap-3 p-3 rounded-lg bg-[--subtle]">
-                                {a.iconSVG && (
-                                    <div className="w-7 h-7 shrink-0 text-yellow-500 [&>svg]:size-5" dangerouslySetInnerHTML={{ __html: a.iconSVG }} />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold truncate">{animeConfig.achievementNames[a.key] ?? a.name}</p>
-                                    <p className="text-xs text-[--muted] truncate">{a.description}</p>
-                                    {a.tier > 0 && <p className="text-xs text-[--muted]">{a.tierName || `Tier ${a.tier}`}</p>}
-                                </div>
-                                <span className="text-xs text-[--muted] shrink-0">{a.category}</span>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </Modal>
 
             {editable && <AchievementShowcase />}
 
@@ -660,6 +693,10 @@ function HeroStats({ anilistStats, profileStats }: { anilistStats?: AL_Stats; pr
                 { icon: <LuTrophy />, name: "Active Days", value: profileStats?.totalActiveDays ?? 0 },
                 { icon: <LuTv />, name: "Anime Days", value: profileStats?.totalAnimeDays ?? 0 },
                 { icon: <LuBookOpen />, name: "Manga Days", value: profileStats?.totalMangaDays ?? 0 },
+            ]} />
+            <Stats className="w-full" size="md" items={[
+                { icon: <LuClock />, name: "Anime hrs/week", value: (profileStats?.animeHoursPerWeek ?? 0).toFixed(1), unit: "hrs" },
+                { icon: <LuBookOpen />, name: "Manga ch/week", value: (profileStats?.mangaChaptersPerWeek ?? 0).toFixed(1), unit: "ch" },
             ]} />
         </div>
     )
@@ -980,10 +1017,15 @@ export function formatTimeAgo(date: Date): string {
 }
 
 export function getLevelColor(level: number): { ring: string; glow: string; label: string } {
-    if (level >= 100) return { ring: "stroke-yellow-400", glow: "shadow-yellow-400/50", label: "text-yellow-400" }
-    if (level >= 50) return { ring: "stroke-purple-400", glow: "shadow-purple-400/50", label: "text-purple-400" }
-    if (level >= 20) return { ring: "stroke-blue-400", glow: "shadow-blue-400/50", label: "text-blue-400" }
-    return { ring: "stroke-gray-400", glow: "shadow-gray-400/30", label: "text-gray-400" }
+    if (level >= 200) return { ring: "stroke-fuchsia-400", glow: "shadow-fuchsia-400/60", label: "text-fuchsia-400" }
+    if (level >= 100) return { ring: "stroke-yellow-400",  glow: "shadow-yellow-400/50",  label: "text-yellow-400"  }
+    if (level >=  80) return { ring: "stroke-yellow-400",  glow: "shadow-yellow-400/40",  label: "text-yellow-400"  }
+    if (level >=  65) return { ring: "stroke-purple-400",  glow: "shadow-purple-400/50",  label: "text-purple-400"  }
+    if (level >=  50) return { ring: "stroke-indigo-400",  glow: "shadow-indigo-400/50",  label: "text-indigo-400"  }
+    if (level >=  35) return { ring: "stroke-blue-400",    glow: "shadow-blue-400/50",    label: "text-blue-400"    }
+    if (level >=  20) return { ring: "stroke-teal-400",    glow: "shadow-teal-400/40",    label: "text-teal-400"    }
+    if (level >=  10) return { ring: "stroke-green-400",   glow: "shadow-green-400/30",   label: "text-green-400"   }
+    return                   { ring: "stroke-gray-400",    glow: "shadow-gray-400/30",    label: "text-gray-400"    }
 }
 
 // ─────────────────────── Favorites Tab ───────────────────────

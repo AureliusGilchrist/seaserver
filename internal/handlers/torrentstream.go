@@ -148,10 +148,11 @@ func (h *Handler) HandleTorrentstreamStartStream(c echo.Context) error {
 
 	userAgent := c.Request().Header.Get("User-Agent")
 
-	// Set the client ID for session isolation
+	// Set the client ID and active profile for session isolation and activity tracking
 	if b.ClientId != "" {
 		h.App.PlaybackManager.SetCurrentClientID(b.ClientId)
 	}
+	h.App.PlaybackManager.SetActiveProfileID(h.GetProfileID(c))
 
 	opts := &torrentstream.StartStreamOptions{
 		MediaId:           b.MediaId,

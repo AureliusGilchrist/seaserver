@@ -775,6 +775,7 @@ type ActivityLog struct {
 	AnimeEpisodes int    `gorm:"column:anime_episodes;default:0" json:"animeEpisodes"`
 	MangaChapters int    `gorm:"column:manga_chapters;default:0" json:"mangaChapters"`
 	AnimeMinutes  int    `gorm:"column:anime_minutes;default:0" json:"animeMinutes"`
+	MangaMinutes  int    `gorm:"column:manga_minutes;default:0" json:"mangaMinutes"`
 }
 
 // ActivityEvent stores individual, granular user actions (stored in per-profile DB).
@@ -787,13 +788,14 @@ type ActivityEvent struct {
 }
 
 const (
-	ActivityEventEpisodeWatched     = "episode_watched"
-	ActivityEventMangaChapterRead   = "manga_chapter_read"
-	ActivityEventLibraryScanned     = "library_scanned"
-	ActivityEventFileMatched        = "file_matched"
-	ActivityEventFileUnmatched      = "file_unmatched"
-	ActivityEventAnilistEntryEdited = "anilist_entry_edited"
+	ActivityEventEpisodeWatched      = "episode_watched"
+	ActivityEventMangaChapterRead    = "manga_chapter_read"
+	ActivityEventLibraryScanned      = "library_scanned"
+	ActivityEventFileMatched         = "file_matched"
+	ActivityEventFileUnmatched       = "file_unmatched"
+	ActivityEventAnilistEntryEdited  = "anilist_entry_edited"
 	ActivityEventAnilistEntryDeleted = "anilist_entry_deleted"
+	ActivityEventStatusChanged       = "status_changed"
 )
 
 // LevelProgress tracks the user's XP and level for the leveling system (stored in per-profile DB).

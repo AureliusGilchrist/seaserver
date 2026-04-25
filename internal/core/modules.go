@@ -440,6 +440,79 @@ func (a *App) initModulesOnce() {
 		},
 	})
 
+	// Wire the activity tracker into the PlaybackManager.
+	// This runs after every successful AniList progress update (local file, stream, torrent stream, manual).
+	a.PlaybackManager.SetActivityTracker(func(evt *playbackmanager.PlaybackActivityEvent) {
+		pdb, err := a.ProfileDatabaseManager.GetDatabase(evt.ProfileID)
+		if err != nil {
+			return
+		}
+
+		// Daily heatmap / streak stats
+		_ = pdb.RecordAnimeActivity(1, evt.DurationMinutes)
+		_ = pdb.RecordActivityEvent(models.ActivityEventEpisodeWatched, evt.MediaID, map[string]interface{}{
+			"episode":       evt.EpisodeNumber,
+			"totalEpisodes": evt.TotalEpisodes,
+			"duration":      evt.DurationMinutes,
+		})
+
+		// Session-based metadata for binge/streak achievement evaluation
+		sessionHours := float64(evt.SessionMinutes) / 60.0
+
+		// Achievement: episode progress — with rich metadata for all episode-triggered achievements
+		a.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+			ProfileID: evt.ProfileID,
+			Trigger:   achievement.TriggerEpisodeProgress,
+			MediaID:   evt.MediaID,
+			Metadata: map[string]interface{}{
+				"episode_number":  evt.EpisodeNumber,
+				"total_episodes":  evt.TotalEpisodes,
+				"duration":        evt.DurationMinutes,
+				"session_episodes": evt.SessionEpisodeCount,
+				"session_hours":   sessionHours,
+			},
+		})
+
+		// Achievement: session update — triggers binge/continuous-watch achievements.
+		// count = 1 means "one more episode in session"; the engine accumulates this.
+		// session_hours lets the evaluator check time-based thresholds via metadata.
+		if evt.SessionEpisodeCount >= 1 {
+			a.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+				ProfileID: evt.ProfileID,
+				Trigger:   achievement.TriggerSessionUpdate,
+				MediaID:   evt.MediaID,
+				Metadata: map[string]interface{}{
+					"count":           float64(1),
+					"session_episodes": float64(evt.SessionEpisodeCount),
+					"session_hours":   sessionHours,
+					"session_minutes": float64(evt.SessionMinutes),
+				},
+			})
+		}
+
+		// Achievement + activity event: series completed
+		if evt.TotalEpisodes > 0 && evt.EpisodeNumber >= evt.TotalEpisodes {
+			a.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+				ProfileID: evt.ProfileID,
+				Trigger:   achievement.TriggerSeriesComplete,
+				MediaID:   evt.MediaID,
+				Metadata: map[string]interface{}{
+					"episodes":        evt.TotalEpisodes,
+					"duration":        evt.DurationMinutes,
+					"session_hours":   sessionHours,
+				},
+			})
+			_ = pdb.RecordActivityEvent("series_complete", evt.MediaID, map[string]interface{}{
+				"episodes": evt.TotalEpisodes,
+			})
+		}
+
+		// Milestone evaluation
+		if a.MilestoneEngine != nil {
+			a.MilestoneEngine.EvaluateProfile(evt.ProfileID)
+		}
+	})
+
 	// Run XP migration for all known profile databases at startup
 	go func() {
 		var dbs []*db.Database

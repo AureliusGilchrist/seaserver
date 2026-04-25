@@ -78,9 +78,20 @@ func (h *Handler) HandleGetAnimeCollection(c echo.Context) error {
 		}()
 	}
 
-	// Evaluate collection-based achievements using the per-profile collection.
+	// Evaluate collection-based achievements only for profiles that have already
+	// recorded in-Seanime activity. This prevents a brand-new profile from
+	// retroactively unlocking hundreds of achievements the moment they first
+	// connect their AniList account.
 	if profileID > 0 {
 		go func() {
+			pdb, dbErr := h.App.ProfileDatabaseManager.GetDatabase(profileID)
+			if dbErr != nil {
+				return
+			}
+			allLogs, logsErr := pdb.GetAllActivityLogs()
+			if logsErr != nil || len(allLogs) == 0 {
+				return // fresh profile — skip retroactive collection evaluation
+			}
 			profileMangaCol, mangaErr := h.App.AnilistClientManager.GetMangaCollection(profileID)
 			var mangaCol *anilist.MangaCollection
 			if mangaErr == nil {

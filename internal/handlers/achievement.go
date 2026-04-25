@@ -287,3 +287,24 @@ func (h *Handler) HandleImportAchievements(c echo.Context) error {
 
 	return h.RespondWithData(c, newlyUnlocked)
 }
+
+// HandleResetAchievements wipes all achievement progress for the current profile.
+//
+//	@summary reset all achievements for the current profile.
+//	@desc Clears unlock status, progress, and XP so the profile starts fresh.
+//	@returns bool
+//	@route /api/v1/achievements/reset [POST]
+func (h *Handler) HandleResetAchievements(c echo.Context) error {
+	profileID := h.GetProfileID(c)
+	if profileID == 0 {
+		return h.RespondWithError(c, echo.NewHTTPError(401, "Not authenticated"))
+	}
+	pdb, err := h.App.ProfileDatabaseManager.GetDatabase(profileID)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if err := pdb.ResetAllAchievements(); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, true)
+}
