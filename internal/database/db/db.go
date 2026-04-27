@@ -19,6 +19,7 @@ type Database struct {
 	Logger           *zerolog.Logger
 	CurrMediaFillers mo.Option[map[int]*MediaFillerItem]
 	cleanupManager   *CleanupManager
+	accountCache     *models.Account
 }
 
 func (db *Database) Gorm() *gorm.DB {

@@ -90,6 +90,14 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
         onTextTrackChange()
     }, [subtitleManager])
 
+    // When the stream URL changes (e.g. after audio-track retranscode), reset subtitle
+    // state so the menu re-syncs from the new manager once tracks are loaded.
+    React.useEffect(() => {
+        setSelectedTrack(null)
+        setSubtitleTracks([])
+        setMediaCaptionsTracks([])
+    }, [playbackInfo?.streamUrl])
+
     // Get active manager
     const activeManager = subtitleManager || mediaCaptionsManager
     const activeTracks = subtitleManager ? subtitleTracks : mediaCaptionsTracks

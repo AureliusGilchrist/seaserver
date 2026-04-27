@@ -1,6 +1,7 @@
 import { AL_BaseAnime } from "@/api/generated/types"
 import { useUpdateAnimeEntryProgress } from "@/api/hooks/anime_entries.hooks"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { toast } from "sonner"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -33,12 +34,14 @@ export function VideoCoreInlineHelpers({
     url,
 }: VideoCoreInlineHelpers) {
     const serverStatus = useServerStatus()
+    const autoUpdateProgress = serverStatus?.settings?.library?.autoUpdateProgress ?? false
 
-    // Track progress update state
     const [hasUpdatedProgress, setHasUpdateProgress] = useAtom(vc_inlineHelper_hasUpdatedProgress)
     const [progressUpdateData, setProgressUpdateData] = useAtom(vc_inlineHelper_progressUpdateData)
 
-    // Reset state when media, episode, or update completes
+    const { mutate: autoUpdate } = useUpdateAnimeEntryProgress(media?.id, currentEpisodeNumber ?? 0)
+
+    // Reset state when media, episode, or URL changes
     React.useEffect(() => {
         setProgressUpdateData(null)
         setHasUpdateProgress(false)
@@ -48,52 +51,43 @@ export function VideoCoreInlineHelpers({
         if (!playerRef.current || !media || currentEpisodeNumber === null || !url) return
 
         const PROGRESS_THRESHOLD = 0.8
-        const CHECK_INTERVAL = 1000 // Check every second
+        const CHECK_INTERVAL = 1000
         const MIN_VALID_TIME = 1
 
         const checkProgress = () => {
             const player = playerRef.current
-            if (!player || serverStatus?.settings?.library?.autoUpdateProgress) return
-
-            // Skip if already updated or currently updating
-            if (hasUpdatedProgress) return
-
-            // Skip if progress update data already exists
-            if (progressUpdateData !== null) return
+            if (!player || hasUpdatedProgress) return
 
             const { currentTime, duration } = player
-
             if (!(currentTime > MIN_VALID_TIME && duration > MIN_VALID_TIME && isFinite(duration))) return
-
             if (currentProgress >= currentEpisodeNumber) return
 
             const watchedRatio = currentTime / duration
             if (watchedRatio < PROGRESS_THRESHOLD) return
 
-            // prompt user
-            setProgressUpdateData({
-                media,
-                currentProgress,
-                currentEpisodeNumber,
-            })
+            if (autoUpdateProgress) {
+                // Auto-update without prompting
+                setHasUpdateProgress(true)
+                autoUpdate({
+                    episodeNumber: currentEpisodeNumber,
+                    mediaId: media.id,
+                    totalEpisodes: media.episodes || 0,
+                    malId: media.idMal || undefined,
+                }, {
+                    onSuccess: () => toast.success(`Updated progress: Episode ${currentEpisodeNumber}`),
+                })
+            } else {
+                // Manual mode: show update button
+                if (progressUpdateData !== null) return
+                setProgressUpdateData({ media, currentProgress, currentEpisodeNumber })
+            }
         }
 
-        // Start interval
         const intervalId = setInterval(checkProgress, CHECK_INTERVAL)
-
-        // Cleanup
-        return () => {
-            clearInterval(intervalId)
-        }
+        return () => clearInterval(intervalId)
     }, [
-        currentEpisodeNumber,
-        media,
-        playerRef,
-        hasUpdatedProgress,
-        serverStatus?.settings?.library?.autoUpdateProgress,
-        currentProgress,
-        progressUpdateData,
-        url,
+        currentEpisodeNumber, media, playerRef, hasUpdatedProgress,
+        autoUpdateProgress, currentProgress, progressUpdateData, url, autoUpdate,
     ])
 
     return null

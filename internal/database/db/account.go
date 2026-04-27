@@ -7,8 +7,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-var accountCache *models.Account
-
 func (db *Database) UpsertAccount(acc *models.Account) (*models.Account, error) {
 	err := db.gormdb.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
@@ -21,9 +19,9 @@ func (db *Database) UpsertAccount(acc *models.Account) (*models.Account, error) 
 	}
 
 	if acc.Username != "" {
-		accountCache = acc
+		db.accountCache = acc
 	} else {
-		accountCache = nil
+		db.accountCache = nil
 	}
 
 	return acc, nil
@@ -31,8 +29,8 @@ func (db *Database) UpsertAccount(acc *models.Account) (*models.Account, error) 
 
 func (db *Database) GetAccount() (*models.Account, error) {
 
-	if accountCache != nil {
-		return accountCache, nil
+	if db.accountCache != nil {
+		return db.accountCache, nil
 	}
 
 	var acc models.Account
@@ -44,7 +42,7 @@ func (db *Database) GetAccount() (*models.Account, error) {
 		return nil, errors.New("account not found")
 	}
 
-	accountCache = &acc
+	db.accountCache = &acc
 
 	return &acc, err
 }

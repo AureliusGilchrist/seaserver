@@ -42,6 +42,8 @@ type Profile struct {
 	// Name color cosmetic — stored globally so other users see your chosen name color.
 	NameColorCss    string `gorm:"column:name_color_css" json:"nameColorCss"`
 	NameGradientCss string `gorm:"column:name_gradient_css" json:"nameGradientCss"`
+	// Theme selection — persisted so cross-device/cross-browser viewers see correct milestone names.
+	ThemeID string `gorm:"column:theme_id;default:'seanime'" json:"themeId"`
 }
 
 // ProfileSummary is a safe projection of Profile for API responses (never includes PIN data).
@@ -62,6 +64,8 @@ type ProfileSummary struct {
 	XPBarAnimClass    string    `json:"xpBarAnimClass"`
 	NameColorCss      string    `json:"nameColorCss"`
 	NameGradientCss   string    `json:"nameGradientCss"`
+	ThemeID           string    `json:"themeId"`
+	AnilistAuthenticated bool   `json:"anilistAuthenticated"`
 }
 
 func (p *Profile) ToSummary() *ProfileSummary {
@@ -82,6 +86,7 @@ func (p *Profile) ToSummary() *ProfileSummary {
 		XPBarAnimClass:    p.XPBarAnimClass,
 		NameColorCss:      p.NameColorCss,
 		NameGradientCss:   p.NameGradientCss,
+		ThemeID:           func() string { if p.ThemeID == "" { return "seanime" }; return p.ThemeID }(),
 	}
 }
 

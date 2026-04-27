@@ -9,7 +9,7 @@ import { GiTrophyCup } from "react-icons/gi"
 export function GlobalRewardShopButton() {
     const [open, setOpen] = React.useState(false)
     const { data: levelData } = useGetLevel()
-    const level = levelData?.level ?? 0
+    const level = levelData?.currentLevel ?? 0
 
     return (
         <>

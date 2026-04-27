@@ -41,6 +41,15 @@ export function useThemeMilestoneName(level: number): string | null {
     return getMilestoneName(level, ctx.config.milestoneNames)
 }
 
+/**
+ * Returns the milestone name for a profile given its server-stored themeId.
+ * Works across any browser/device since it reads from the API response, not localStorage.
+ */
+export function getProfileOwnerMilestoneName(themeId: string | undefined, level: number): string | null {
+    const resolvedId = (themeId && themeId in ANIME_THEMES) ? themeId as AnimeThemeId : "seanime"
+    return getMilestoneName(level, ANIME_THEMES[resolvedId]?.milestoneNames ?? undefined)
+}
+
 // ─────────────────────────────────────────────────────────────────
 // Context
 // ─────────────────────────────────────────────────────────────────
@@ -121,6 +130,21 @@ type AnimeThemeContextValue = {
     setActiveBackgroundUrl: (url: string | null) => void
     brandColorOverride: string | null
     setBrandColorOverride: (v: string | null) => void
+    // ── Vignette effect ──
+    vignetteStrength: number
+    setVignetteStrength: (v: number) => void
+    vignetteSize: number
+    setVignetteSize: (v: number) => void
+    // ── Glow effect ──
+    glowStrength: number
+    setGlowStrength: (v: number) => void
+    glowSpeed: number
+    setGlowSpeed: (v: number) => void
+    glowScale: number
+    setGlowScale: (v: number) => void
+    // ── Custom theme ──
+    customThemeData: import("./custom-theme").CustomThemeData | null
+    setCustomThemeData: (data: import("./custom-theme").CustomThemeData) => void
 }
 
 const AnimeThemeContext = React.createContext<AnimeThemeContextValue | null>(null)
@@ -563,6 +587,37 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         }
     }, [config.id, config.particleColor])
 
+    // ── Vignette / Glow effects ──
+    const [vignetteStrength, setVignetteStrengthRaw] = React.useState<number>(() => {
+        try { const v = parseFloat(localStorage.getItem(`sea-anime-vignette-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
+    })
+    const [vignetteSize, setVignetteSizeRaw] = React.useState<number>(() => {
+        try { const v = parseFloat(localStorage.getItem(`sea-anime-vsize-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0.5 : Math.max(0, Math.min(1, v)) } catch { return 0.5 }
+    })
+    const [glowStrength, setGlowStrengthRaw] = React.useState<number>(() => {
+        try { const v = parseFloat(localStorage.getItem(`sea-anime-glow-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
+    })
+    const [glowSpeed, setGlowSpeedRaw] = React.useState<number>(() => {
+        try { const v = parseFloat(localStorage.getItem(`sea-anime-gspeed-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 2 : Math.max(0.2, Math.min(5, v)) } catch { return 2 }
+    })
+    const [glowScale, setGlowScaleRaw] = React.useState<number>(() => {
+        try { const v = parseFloat(localStorage.getItem(`sea-anime-gscale-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0.5 : Math.max(0, Math.min(1, v)) } catch { return 0.5 }
+    })
+    const setVignetteStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setVignetteStrengthRaw(c); try { localStorage.setItem(`sea-anime-vignette-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setVignetteSize = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setVignetteSizeRaw(c); try { localStorage.setItem(`sea-anime-vsize-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setGlowStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setGlowStrengthRaw(c); try { localStorage.setItem(`sea-anime-glow-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setGlowSpeed = React.useCallback((v: number) => { const c = Math.max(0.2, Math.min(5, v)); setGlowSpeedRaw(c); try { localStorage.setItem(`sea-anime-gspeed-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setGlowScale = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setGlowScaleRaw(c); try { localStorage.setItem(`sea-anime-gscale-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+
+    // ── Custom theme data ──
+    const [customThemeData, setCustomThemeDataRaw] = React.useState<import("./custom-theme").CustomThemeData | null>(() => {
+        try { const raw = localStorage.getItem(`sea-custom-theme-${profileKey}`); return raw ? JSON.parse(raw) as import("./custom-theme").CustomThemeData : null } catch { return null }
+    })
+    const setCustomThemeData = React.useCallback((data: import("./custom-theme").CustomThemeData) => {
+        setCustomThemeDataRaw(data)
+        try { localStorage.setItem(`sea-custom-theme-${profileKey}`, JSON.stringify(data)) } catch { }
+    }, [profileKey])
+
     const value = React.useMemo<AnimeThemeContextValue>(() => ({
         themeId,
         config,
@@ -590,7 +645,19 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setActiveBackgroundUrl,
         brandColorOverride,
         setBrandColorOverride,
-    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, backgroundContrast, setBackgroundContrast, activeBackgroundUrl, setActiveBackgroundUrl, brandColorOverride, setBrandColorOverride])
+        vignetteStrength,
+        setVignetteStrength,
+        vignetteSize,
+        setVignetteSize,
+        glowStrength,
+        setGlowStrength,
+        glowSpeed,
+        setGlowSpeed,
+        glowScale,
+        setGlowScale,
+        customThemeData,
+        setCustomThemeData,
+    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, backgroundContrast, setBackgroundContrast, activeBackgroundUrl, setActiveBackgroundUrl, brandColorOverride, setBrandColorOverride, vignetteStrength, setVignetteStrength, vignetteSize, setVignetteSize, glowStrength, setGlowStrength, glowSpeed, setGlowSpeed, glowScale, setGlowScale, customThemeData, setCustomThemeData])
 
     return (
         <AnimeThemeContext.Provider value={value}>

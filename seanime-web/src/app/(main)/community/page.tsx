@@ -210,7 +210,7 @@ const RING_GRADIENTS: Record<string, { stops: string[]; dur: string }> = {
     },
 }
 
-export function LevelRingAvatar({ profile, size = 80 }: { profile: { currentLevel: number; totalXP?: number; avatarPath?: string; anilistAvatar?: string; name: string }; size?: number }) {
+export function LevelRingAvatar({ profile, size = 80, xpBarFillOverride }: { profile: { currentLevel: number; totalXP?: number; avatarPath?: string; anilistAvatar?: string; name: string }; size?: number; xpBarFillOverride?: string }) {
     const tierInfo = getLevelTier(profile.currentLevel)
     const avatarSrc = profile.avatarPath || profile.anilistAvatar
     const radius = (size - 6) / 2
@@ -225,8 +225,18 @@ export function LevelRingAvatar({ profile, size = 80 }: { profile: { currentLeve
     const gradId = `lvring-${tierInfo.tier}-${size}`
     const gradDef = RING_GRADIENTS[tierInfo.tier]
 
+    // xpBarFillOverride support — extract first colour stop for glow
+    const overrideGlowColor = xpBarFillOverride
+        ? (xpBarFillOverride.startsWith("linear-gradient")
+            ? (xpBarFillOverride.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)?.[0] ?? null)
+            : xpBarFillOverride)
+        : null
+
+    const glowColor = overrideGlowColor ?? gradDef?.stops?.[0] ?? null
+    const glowStyle = glowColor ? { boxShadow: `0 0 16px 4px ${glowColor}60` } : {}
+
     return (
-        <div className={cn("relative inline-flex items-center justify-center rounded-full", `shadow-lg ${tierInfo.glow}`)} style={{ width: size, height: size }}>
+        <div className={cn("relative inline-flex items-center justify-center rounded-full", !glowColor && `shadow-lg ${tierInfo.glow}`)} style={{ width: size, height: size, ...glowStyle }}>
             <svg className="absolute inset-0" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
                 {gradDef && (
                     <defs>
@@ -255,8 +265,13 @@ export function LevelRingAvatar({ profile, size = 80 }: { profile: { currentLeve
                     r={radius}
                     fill="none"
                     strokeWidth={tierInfo.animated ? 4 : 3}
-                    className={tierInfo.animated ? "" : tierInfo.ringClass}
-                    style={tierInfo.animated ? { stroke: `url(#${gradId})`, transition: "stroke-dashoffset 0.6s ease" } : { transition: "stroke-dashoffset 0.6s ease" }}
+                    className={!xpBarFillOverride && !tierInfo.animated ? tierInfo.ringClass : ""}
+                    style={{
+                        stroke: xpBarFillOverride
+                            ? (xpBarFillOverride.startsWith("linear-gradient") ? overrideGlowColor ?? undefined : xpBarFillOverride)
+                            : (tierInfo.animated ? `url(#${gradId})` : undefined),
+                        transition: "stroke-dashoffset 0.6s ease",
+                    }}
                     strokeLinecap="round"
                     strokeDasharray={circumference}
                     strokeDashoffset={strokeDashoffset}

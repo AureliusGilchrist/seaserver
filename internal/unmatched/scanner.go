@@ -18,12 +18,15 @@ type Scanner struct {
 	logger     *zerolog.Logger
 	repository *Repository
 
-	mu              sync.Mutex
-	isRunning       bool
-	cancelFunc      context.CancelFunc
+	mu                sync.Mutex
+	isRunning         bool
+	cancelFunc        context.CancelFunc
 	completedTorrents []string
-	scanInterval    time.Duration
-	verifyDelay     time.Duration
+	scanInterval      time.Duration
+	verifyDelay       time.Duration
+
+	// debounceCh coalesces rapid file-system events into a single scan
+	debounceCh chan struct{}
 }
 
 // addRecursiveWatch registers the base directory and all existing subdirectories with the watcher.
@@ -59,8 +62,9 @@ func NewScanner(logger *zerolog.Logger, repository *Repository) *Scanner {
 		logger:            logger,
 		repository:        repository,
 		completedTorrents: make([]string, 0),
-		scanInterval:      30 * time.Minute, // fallback polling every 30 minutes
+		scanInterval:      30 * time.Minute,
 		verifyDelay:       5 * time.Second,
+		debounceCh:        make(chan struct{}, 1),
 	}
 }
 
@@ -134,7 +138,48 @@ func (s *Scanner) run(ctx context.Context) {
 	ticker := time.NewTicker(s.scanInterval)
 	defer ticker.Stop()
 
+	// Debounce goroutine: coalesces rapid file events into one scan per 3-second window.
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case _, ok := <-s.debounceCh:
+				if !ok {
+					return
+				}
+				timer := time.NewTimer(3 * time.Second)
+			drain:
+				for {
+					select {
+					case <-s.debounceCh:
+					case <-timer.C:
+						break drain
+					case <-ctx.Done():
+						timer.Stop()
+						return
+					}
+				}
+				timer.Stop()
+				go s.scanForCompletedDownloads()
+			}
+		}
+	}()
+
+	noEvents := make(<-chan fsnotify.Event)
+	noErrors := make(<-chan error)
+
 	for {
+		var watchEvents <-chan fsnotify.Event
+		var watchErrors <-chan error
+		if watcher != nil {
+			watchEvents = watcher.Events
+			watchErrors = watcher.Errors
+		} else {
+			watchEvents = noEvents
+			watchErrors = noErrors
+		}
+
 		select {
 		case <-ctx.Done():
 			if watcher != nil {
@@ -142,30 +187,19 @@ func (s *Scanner) run(ctx context.Context) {
 			}
 			return
 		case <-ticker.C:
-			s.scanForCompletedDownloads()
-		case event := <-func() <-chan fsnotify.Event {
-			if watcher == nil {
-				return make(<-chan fsnotify.Event)
-			}
-			return watcher.Events
-		}():
-			// On any file change under base path, trigger a scan
-			// If a new directory is created, start watching it too.
+			go s.scanForCompletedDownloads()
+		case event := <-watchEvents:
 			if event.Op&fsnotify.Create == fsnotify.Create {
 				if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
-					if err := watcher.Add(event.Name); err == nil {
-						// s.logger.Debug().Str("dir", event.Name).Msg("unmatched scanner: added watcher for new directory")
-					}
+					_ = watcher.Add(event.Name)
 				}
 			}
-			// s.logger.Debug().Str("event", event.Name).Msg("unmatched scanner: file event detected, triggering scan")
-			s.scanForCompletedDownloads()
-		case err := <-func() <-chan error {
-			if watcher == nil {
-				return make(<-chan error)
+			// Signal the debouncer (non-blocking)
+			select {
+			case s.debounceCh <- struct{}{}:
+			default:
 			}
-			return watcher.Errors
-		}():
+		case err := <-watchErrors:
 			if err != nil {
 				s.logger.Warn().Err(err).Msg("unmatched scanner: watcher error")
 			}
@@ -189,32 +223,9 @@ func (s *Scanner) scanForCompletedDownloads() {
 		if !entry.IsDir() {
 			continue
 		}
-
-		path := filepath.Join(UnmatchedBasePath, entry.Name())
-
-		// Check if this top-level torrent folder has any temp files
-		if s.hasTempFiles(path) {
-			continue
-		}
-
-		// No temp files found - wait and double-check
-		time.Sleep(s.verifyDelay)
-		if s.hasTempFiles(path) {
-			continue
-		}
-
-		// Triple-check with recursive deep scan
-		if s.deepScanForTempFiles(path) {
-			continue
-		}
-
-		// Check if torrent has any video files
-		if !s.hasVideoFiles(path) {
-			continue
-		}
-
-		// Torrent is complete!
 		rel := entry.Name()
+
+		// Skip torrents already confirmed complete — fast O(n) check avoids the 5-second verify-delay re-running.
 		s.mu.Lock()
 		alreadyTracked := false
 		for _, t := range s.completedTorrents {
@@ -223,11 +234,43 @@ func (s *Scanner) scanForCompletedDownloads() {
 				break
 			}
 		}
-		if !alreadyTracked {
-			s.completedTorrents = append(s.completedTorrents, rel)
-			s.logger.Info().Str("torrent", rel).Msg("unmatched scanner: Download completed!")
-		}
 		s.mu.Unlock()
+		if alreadyTracked {
+			continue
+		}
+
+		path := filepath.Join(UnmatchedBasePath, rel)
+
+		// Quick skip: no video files means it's empty or already moved
+		if !s.hasVideoFiles(path) {
+			continue
+		}
+
+		// Still downloading if temp files present
+		if s.hasTempFiles(path) {
+			continue
+		}
+
+		// No temp files detected — verify asynchronously to avoid blocking other directories
+		go func(torrentRel, torrentPath string) {
+			time.Sleep(s.verifyDelay)
+			if s.hasTempFiles(torrentPath) {
+				return
+			}
+			if s.deepScanForTempFiles(torrentPath) {
+				return
+			}
+
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			for _, t := range s.completedTorrents {
+				if t == torrentRel {
+					return
+				}
+			}
+			s.completedTorrents = append(s.completedTorrents, torrentRel)
+			s.logger.Info().Str("torrent", torrentRel).Msg("unmatched scanner: Download completed!")
+		}(rel, path)
 	}
 }
 

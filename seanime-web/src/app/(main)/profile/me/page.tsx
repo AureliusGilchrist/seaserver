@@ -136,24 +136,21 @@ export default function Page() {
         <>
             {/* Banner */}
             {profile!.bannerImage ? (
-                <div className="relative h-[320px] w-full overflow-hidden">
+                <div
+                    className="relative h-[400px] overflow-hidden"
+                    style={{ width: "calc(100% + 5rem)", marginLeft: "-5rem" }}
+                >
                     <div
-                        className="absolute inset-0 bg-cover bg-center"
-                        style={{ backgroundImage: `url(${profile!.bannerImage})` }}
+                        className="absolute inset-0 bg-no-repeat bg-cover"
+                        style={{ backgroundImage: `url(${profile!.bannerImage})`, backgroundPosition: "center center", backgroundSize: "cover" }}
                     />
-                    {/* Gradient fade to background — bottom heavy for readability */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[--background] via-[--background]/40 to-transparent" />
-                    {/* Side fades so the banner blends into the page layout */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-[--background]/60 via-transparent to-[--background]/60" />
-                    {/* Drop shadow strip at the bottom edge */}
-                    <div className="absolute bottom-0 left-0 right-0 h-16"
-                        style={{ boxShadow: "0 8px 32px 8px var(--background)", backdropFilter: "none" }}
-                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[--background] via-[--background]/30 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[--background]/40" />
                 </div>
             ) : (
                 <CustomLibraryBanner discrete />
             )}
-            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-36 relative z-10")}> 
+            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-44 relative z-10")}>
                 {/* Unified Profile Header */}
                 <div className="flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border] relative">
                     <div style={avatarBorderStyle} className="rounded-full shrink-0">

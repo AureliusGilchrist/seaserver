@@ -865,6 +865,17 @@ export const ANIME_THEMES: Record<AnimeThemeId, AnimeThemeConfig> = {
     "amagi-brilliant-park": amagiBrilliantParkTheme,
     "accel-world": accelWorldTheme,
     "infinite-stratos": infiniteStratosTheme,
+    "custom": {
+        id: "custom",
+        displayName: "Custom",
+        description: "Your custom theme.",
+        cssVars: {},
+        musicUrl: "",
+        sidebarOverrides: {},
+        achievementNames: {},
+        milestoneNames: {},
+        previewColors: { bg: "#0c1018", primary: "#8b5cf6", secondary: "#6d28d9", accent: "#a78bfa" },
+    },
 }
 
 export const ANIME_THEME_LIST: AnimeThemeConfig[] = [

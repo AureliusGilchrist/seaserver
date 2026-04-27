@@ -1313,7 +1313,7 @@ function CustomThemeBuilder({ themeId, setThemeId, customThemeData, setCustomThe
         document.head.appendChild(el)
     }, [previewFontHref])
 
-    const selectedFont = CUSTOM_THEME_FONT_OPTIONS.find(f => f.value === (draft.fontFamily ?? "")) ?? CUSTOM_THEME_FONT_OPTIONS[0]
+    const selectedFont = CUSTOM_THEME_FONT_OPTIONS.find((f: { value: string }) => f.value === (draft.fontFamily ?? "")) ?? CUSTOM_THEME_FONT_OPTIONS[0]
 
     return (
         <div className="rounded-2xl border border-[--border] bg-[--paper] p-6 space-y-6">
@@ -1419,7 +1419,7 @@ function CustomThemeBuilder({ themeId, setThemeId, customThemeData, setCustomThe
                     <div className="space-y-1.5">
                         <label className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Font</label>
                         <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
-                            {CUSTOM_THEME_FONT_OPTIONS.map(opt => (
+                            {CUSTOM_THEME_FONT_OPTIONS.map((opt: { label: string; value: string; href: string }) => (
                                 <button
                                     key={opt.value}
                                     onClick={() => {

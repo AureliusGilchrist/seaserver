@@ -8,6 +8,7 @@ import {
     useListThemeBackgrounds,
     useSearchWallhaven,
     type WallhavenWallpaper,
+    type ThemeBgFile,
 } from "@/api/hooks/theme_backgrounds.hooks"
 import { cn } from "@/components/ui/core/styling"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
@@ -36,9 +37,9 @@ export function WallhavenPickerModal({ open, onClose }: Props) {
     const { data: listData, refetch: refetchList } = useListThemeBackgrounds()
     const inputRef = React.useRef<HTMLInputElement>(null)
 
-    const userCount = listData?.userCount ?? 0
-    const limit = listData?.limit ?? 5
-    const savedFiles = listData?.files ?? []
+    const savedFiles: ThemeBgFile[] = listData ?? []
+    const userCount = savedFiles.length
+    const limit = 20
 
     // When the modal opens: seed the query from curated map and auto-search.
     React.useEffect(() => {
@@ -282,7 +283,7 @@ export function WallhavenPickerModal({ open, onClose }: Props) {
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {savedFiles.map(file => (
+                                {savedFiles.map((file: ThemeBgFile) => (
                                     <SavedWallpaperCard
                                         key={file.filename}
                                         file={file}
@@ -378,7 +379,7 @@ function SavedWallpaperCard({
     onDelete,
     deleting,
 }: {
-    file: { filename: string; url: string; canDelete: boolean }
+    file: { filename: string; url: string; canDelete?: boolean }
     isAdmin: boolean
     onApply: (url: string) => void
     onDelete: (filename: string) => void

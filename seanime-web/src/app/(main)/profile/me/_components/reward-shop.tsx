@@ -9,6 +9,7 @@ import {
 } from "@/lib/ui-customize/ui-customize-definitions"
 import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { LevelRingAvatar } from "@/app/(main)/community/page"
 import { useSound } from "@/lib/sounds/sound-provider"
 import { cn } from "@/components/ui/core/styling"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -371,15 +372,21 @@ function XPBarsTab({ currentLevel }: { currentLevel: number }) {
                     return (
                         <CardBase key={reward.id} isActive={isActive} isUnlocked={isUnlocked} onClick={() => setActiveXPBarSkin(reward.id)} className="items-start">
                             <div className="w-full space-y-2">
-                                {/* XP bar preview */}
-                                <div
-                                    className="w-full h-3 rounded-full overflow-hidden"
-                                    style={{ background: reward.trackCss ?? "rgba(255,255,255,0.1)" }}
-                                >
-                                    <div
-                                        className="h-full rounded-full"
-                                        style={{ width: "65%", background: reward.fillCss }}
+                                {/* Ring + bar preview */}
+                                <div className="flex items-center gap-3">
+                                    <LevelRingAvatar
+                                        profile={{ currentLevel, name: "?" }}
+                                        size={44}
+                                        xpBarFillOverride={reward.fillCss}
                                     />
+                                    <div className="flex-1">
+                                        <div
+                                            className="w-full h-3 rounded-full overflow-hidden"
+                                            style={{ background: reward.trackCss ?? "rgba(255,255,255,0.1)" }}
+                                        >
+                                            <div className="h-full rounded-full" style={{ width: "65%", background: reward.fillCss }} />
+                                        </div>
+                                    </div>
                                 </div>
                                 <p className="text-xs font-medium leading-tight">{reward.icon && <span className="mr-1">{reward.icon}</span>}{reward.name}</p>
                                 <p className="text-xs text-[--muted] leading-tight">{reward.description}</p>
@@ -474,10 +481,10 @@ function SoundPackTab({ currentLevel }: { currentLevel: number }) {
             {/* Pack grid */}
             <div className="flex items-center gap-2 text-sm text-[--muted]">
                 <LuVolume2 />
-                <span>{soundPacks.filter(p => p.requiredLevel <= currentLevel).length}/{soundPacks.length} unlocked</span>
+                <span>{soundPacks.filter((p: { requiredLevel: number }) => p.requiredLevel <= currentLevel).length}/{soundPacks.length} unlocked</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                {soundPacks.map(pack => {
+                {soundPacks.map((pack: { id: string; name: string; emoji: string; description: string; requiredLevel: number }) => {
                     const isUnlocked = pack.requiredLevel <= currentLevel
                     const isActive = activeSoundPackId === pack.id
                     return (

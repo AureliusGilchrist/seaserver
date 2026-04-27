@@ -2263,6 +2263,14 @@ export type INTERNAL_ProfileSummary = {
     bannerImage: string
     createdAt?: string
     hasPIN: boolean
+    anilistAuthenticated: boolean
+    themeId: string
+    displayTitle: string
+    displayTitleColor: string
+    xpBarFillCss: string
+    xpBarAnimClass: string
+    nameColorCss: string
+    nameGradientCss: string
 }
 
 /**
@@ -2399,6 +2407,7 @@ export type Handlers_CommunityProfile = {
     xpBarAnimClass?: string
     nameColorCss?: string
     nameGradientCss?: string
+    themeId: string
 }
 
 export type Handlers_CommunityResponse = {

@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
 import { ActivityBuffBadge, StreakCard, StatsActivityHeatmap, DayOfWeekChart, CategoryPill, AchievementCard, ProgressRing, getLevelColor } from "@/app/(main)/profile/me/page"
+import { getProfileOwnerMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import * as React from "react"
 import {
     LuTrophy, LuStar, LuArrowLeft, LuCalendar, LuBookOpen,
@@ -59,21 +60,26 @@ export default function Page() {
 
     const { profile, level, showcase, achievementSummary, activityHeatmap, animeStreak, mangaStreak, recentAchievements } = data
     const levelColors = getLevelColor(level?.currentLevel ?? 1)
+    const milestoneName = getProfileOwnerMilestoneName(profile?.themeId, level?.currentLevel ?? 1)
 
     return (
         <>
             {profile!.bannerImage ? (
-                <div className="relative h-48 w-full overflow-hidden">
+                <div
+                    className="relative h-[360px] overflow-hidden"
+                    style={{ width: "calc(100% + 5rem)", marginLeft: "-5rem" }}
+                >
                     <div
-                        className="absolute inset-0 bg-cover bg-center"
-                        style={{ backgroundImage: `url(${profile!.bannerImage})` }}
+                        className="absolute inset-0 bg-no-repeat bg-cover"
+                        style={{ backgroundImage: `url(${profile!.bannerImage})`, backgroundPosition: "center center", backgroundSize: "cover" }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[--background] via-[--background]/60 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[--background] via-[--background]/40 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[--background]/40" />
                 </div>
             ) : (
                 <CustomLibraryBanner discrete />
             )}
-            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-20 relative z-10")}> 
+            <PageWrapper className={cn("p-4 sm:p-8 space-y-6", profile!.bannerImage && "-mt-40 relative z-10")}>
                 <SeaLink href="/community">
                     <span className="text-[--muted] hover:text-white text-sm flex items-center gap-1 mb-4">
                         <LuArrowLeft className="size-4" /> Community
@@ -97,8 +103,11 @@ export default function Page() {
                                 <span className="text-[--muted] font-normal"> ({profile!.anilistUsername})</span>
                             )}</h1>
                             <span className={cn("text-lg font-bold", levelColors.label)}>
-                                Level {level?.currentLevel ?? 1}
+                                {milestoneName ?? `Level ${level?.currentLevel ?? 1}`}
                             </span>
+                            {milestoneName && (
+                                <span className="text-sm text-[--muted]">Lv. {level?.currentLevel ?? 1}</span>
+                            )}
                             {level && level.multiplier > 1 && (
                                 <ActivityBuffBadge multiplier={level.multiplier} />
                             )}

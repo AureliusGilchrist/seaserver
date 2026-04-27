@@ -12,6 +12,12 @@ export type ThemeBgFile = {
     url: string
 }
 
+export type ThemeBgListResponse = {
+    files: ThemeBgFile[]
+    userCount: number
+    limit: number
+}
+
 export type WallhavenThumb = {
     large: string
     original: string

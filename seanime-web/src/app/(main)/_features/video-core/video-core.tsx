@@ -588,24 +588,12 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                         />}
                     </>
                 ) : (
-                    <div
-                        data-vc-element="loading-overlay"
-                        className="w-full h-full absolute flex justify-center items-center flex-col space-y-4 bg-black rounded-md"
-                    >
-                        {!inline && <FloatingButtons part="loading" onTerminateStream={onTerminateStream} />}
-                        {state.loadingState && (
-                            <LoadingSpinner
-                                title={state.loadingState || "Loading..."}
-                                spinner={<ImSpinner2 className="size-20 text-white animate-spin" />}
-                                containerClass="z-[1]"
-                            />
-                        )}
-                        {!isMiniPlayer && !inline && (
-                            <div className="opacity-50 absolute inset-0 z-[0] overflow-hidden" data-vc-element="loading-overlay-gradient">
-                                <SeanimeGradientBackground />
-                            </div>
-                        )}
-                    </div>
+                    <LoadingOverlay
+                        inline={inline}
+                        loadingState={state.loadingState}
+                        isMiniPlayer={isMiniPlayer}
+                        onTerminateStream={onTerminateStream}
+                    />
                 )}
             </div>
         </>
@@ -613,6 +601,63 @@ const PlayerContent = React.memo<PlayerContentProps>(({
 })
 
 PlayerContent.displayName = "PlayerContent"
+
+function LoadingOverlay({
+    inline,
+    loadingState,
+    isMiniPlayer,
+    onTerminateStream,
+}: {
+    inline?: boolean
+    loadingState: string | null
+    isMiniPlayer: boolean
+    onTerminateStream: () => void
+}) {
+    React.useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                onTerminateStream()
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(() => {})
+                }
+            }
+        }
+        window.addEventListener("keydown", handler)
+        return () => window.removeEventListener("keydown", handler)
+    }, [onTerminateStream])
+
+    return (
+        <div
+            data-vc-element="loading-overlay"
+            className="w-full h-full absolute flex justify-center items-center flex-col space-y-4 bg-black rounded-md"
+        >
+            {!inline && <FloatingButtons part="loading" onTerminateStream={onTerminateStream} />}
+            {loadingState && (
+                <LoadingSpinner
+                    title={loadingState}
+                    spinner={<ImSpinner2 className="size-20 text-white animate-spin" />}
+                    containerClass="z-[1]"
+                />
+            )}
+            <button
+                className="z-[2] mt-2 px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors border border-white/20"
+                onClick={() => {
+                    onTerminateStream()
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen().catch(() => {})
+                    }
+                }}
+            >
+                Cancel (Esc)
+            </button>
+            {!isMiniPlayer && !inline && (
+                <div className="opacity-50 absolute inset-0 z-[0] overflow-hidden" data-vc-element="loading-overlay-gradient">
+                    <SeanimeGradientBackground />
+                </div>
+            )}
+        </div>
+    )
+}
 
 export interface VideoCoreProps {
     id: string

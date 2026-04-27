@@ -33,7 +33,7 @@ export interface ActivityTabContentProps {
 // ────────────────────────── Event rendering helpers ──────────────────────────
 
 const EVENT_CONFIG: Record<string, { icon: React.ElementType; label: string; color: string; bgColor: string }> = {
-  episode_watched:      { icon: LuTv,        label: "Watched",        color: "text-blue-300",    bgColor: "bg-blue-500/10" },
+  episode_watched:      { icon: LuTv,        label: "Watched",        color: "text-emerald-300", bgColor: "bg-emerald-500/10" },
   manga_chapter_read:   { icon: LuBookOpen,  label: "Read",           color: "text-emerald-300", bgColor: "bg-emerald-500/10" },
   library_scanned:      { icon: LuScan,      label: "Library scan",   color: "text-yellow-300",  bgColor: "bg-yellow-500/10" },
   file_matched:         { icon: LuFileCheck, label: "File matched",   color: "text-cyan-300",    bgColor: "bg-cyan-500/10" },
@@ -97,7 +97,7 @@ function TimelineEventCard({ event }: { event: Handlers_TimelineEvent }) {
     <div className="flex items-start gap-3 group">
       <div className="flex flex-col items-center shrink-0 pt-1">
         <div className={cn("w-2.5 h-2.5 rounded-full ring-2 shrink-0",
-          event.mediaType === "anime" ? "bg-blue-400 ring-blue-400/30" :
+          event.mediaType === "anime" ? "bg-emerald-400 ring-emerald-400/30" :
           event.mediaType === "manga" ? "bg-emerald-400 ring-emerald-400/30" :
           "bg-gray-400 ring-gray-400/30"
         )} />

@@ -25,6 +25,7 @@ type CommunityProfile struct {
 	AchievementCount  int64  `json:"achievementCount"`
 	DisplayTitle      string `json:"displayTitle"`
 	DisplayTitleColor string `json:"displayTitleColor"`
+	ThemeID           string `json:"themeId"`
 }
 
 // CommunityResponse wraps the profiles list with aggregate statistics.
@@ -94,6 +95,7 @@ func (h *Handler) HandleGetCommunityProfiles(c echo.Context) error {
 			CurrentLevel:      1,
 			DisplayTitle:      p.DisplayTitle,
 			DisplayTitleColor: p.DisplayTitleColor,
+			ThemeID:           func() string { if p.ThemeID == "" { return "seanime" }; return p.ThemeID }(),
 		}
 
 		if database, dbErr := h.App.ProfileDatabaseManager.GetDatabase(p.ID); dbErr == nil {

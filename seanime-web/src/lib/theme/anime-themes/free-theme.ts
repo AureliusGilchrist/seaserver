@@ -1,5 +1,6 @@
 import { AnimeThemeConfig } from "./types"
-import { GiWaves, GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiScrollUnfurled, GiHeartKey, GiRunningShoe, GiSwimmer, GiHelmet } from "react-icons/gi"
+import { GiWaves, GiTrophyCup, GiPalette, GiSettingsKnobs, GiAlarmClock, GiBullseye, GiResize, GiScrollUnfurled, GiHeartKey, GiRunningShoe, GiHelmet } from "react-icons/gi"
+const GiSwimmer = GiWaves
 import { FiSearch } from "react-icons/fi"
 import { LuBell, LuRss, LuBookOpen, LuFlag } from "react-icons/lu"
 import { IoCloudOfflineOutline } from "react-icons/io5"

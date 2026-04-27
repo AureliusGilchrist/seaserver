@@ -296,6 +296,7 @@ func (h *Handler) HandleUpdateProfile(c echo.Context) error {
 		Name    *string `json:"name,omitempty"`
 		IsAdmin *bool   `json:"isAdmin,omitempty"`
 		PIN     *string `json:"pin,omitempty"`
+		ThemeID *string `json:"themeId,omitempty"`
 	}
 
 	var b body
@@ -329,6 +330,9 @@ func (h *Handler) HandleUpdateProfile(c echo.Context) error {
 	}
 	if b.IsAdmin != nil {
 		updates["is_admin"] = *b.IsAdmin
+	}
+	if b.ThemeID != nil {
+		updates["theme_id"] = *b.ThemeID
 	}
 
 	if len(updates) > 0 {

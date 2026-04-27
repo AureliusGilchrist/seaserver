@@ -303,6 +303,7 @@ export type AnimeThemeId =
     | "amagi-brilliant-park"
     | "accel-world"
     | "infinite-stratos"
+    | "custom"
 
 export type SidebarItemOverride = {
     icon: React.ComponentType<{ className?: string }>
