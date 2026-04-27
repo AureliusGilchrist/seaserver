@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build *)",
+      "PowerShell(Set-Location \"E:\\\\Main\\\\seaserver\\\\seanime-web\"; $out = npx tsc --noEmit 2>&1; $errors = $out | Where-Object { $_ -match \"error TS\" }; if \\($errors\\) { $errors | Select-Object -First 20 } else { \"No TypeScript errors\" })",
+      "PowerShell(Set-Location \"E:\\\\Main\\\\seaserver\\\\seanime-web\"; $out = npx tsc --noEmit 2>&1; $errors = $out | Where-Object { $_ -match \"error TS\" }; if \\($errors\\) { $errors | Select-Object -First 15 } else { \"No TypeScript errors\" })",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git ls-tree *)",
+      "Bash(pip show *)",
+      "Bash(git filter-branch *)",
+      "Bash(git stash *)",
+      "Bash(FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --index-filter \"git rm --cached --ignore-unmatch seanime.exe\" --prune-empty --tag-name-filter cat -- --branches)",
+      "Bash(git config *)",
+      "Bash(git remote *)",
+      "Bash(git credential *)",
+      "Bash(xargs grep *)"
+    ],
+    "additionalDirectories": [
+      "E:\\Main\\seaserver\\seanime-web\\src\\lib\\ui-customize",
+      "E:\\Main\\seaserver\\internal\\util\\limiter",
+      "E:\\Main\\seaserver\\internal\\events",
+      "E:\\Main\\seaserver\\internal\\api\\anilist",
+      "E:\\Main\\seaserver\\internal\\core",
+      "E:\\Main\\seaserver\\seanime-web\\src\\lib\\server",
+      "E:\\Main\\seaserver\\seanime-web\\src\\api\\generated",
+      "E:\\Main\\seaserver\\internal\\database\\db"
+    ]
+  },
+  "CLAUDE_CODE_MAX_OUTPUT_TOKENS": 32000000
+}

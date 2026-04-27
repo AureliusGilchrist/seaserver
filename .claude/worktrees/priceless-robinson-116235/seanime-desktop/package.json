@@ -1,0 +1,15 @@
+{
+  "name": "seanime-desktop",
+  "version": "0.1.0",
+  "description": "seaserver desktop (Tauri)",
+  "private": true,
+  "scripts": {
+    "start": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/cli": "^2.10.1"
+  }
+}

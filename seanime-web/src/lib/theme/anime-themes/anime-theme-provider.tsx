@@ -7,7 +7,10 @@ import { ANIME_THEMES, ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
 import type { AnimeThemeId, AnimeThemeConfig, ParticleTypeConfig } from "@/lib/theme/anime-themes"
 import { ThemeAnimatedOverlay } from "@/lib/theme/anime-themes/animated-elements"
 import { buildThemeCursorCSS } from "@/lib/theme/anime-themes/cursor-svgs"
+<<<<<<< Updated upstream
 import { recordActivatedTheme } from "@/lib/theme/anime-themes/theme-prerequisites"
+=======
+>>>>>>> Stashed changes
 
 // ─────────────────────────────────────────────────────────────────
 // Milestone name utility
@@ -147,6 +150,10 @@ export function useAnimeThemeOrNull(): AnimeThemeContextValue | null {
 export function AnimeThemeProvider({ children }: { children: React.ReactNode }) {
     const currentProfile = useAtomValue(currentProfileAtom)
     const profileKey = currentProfile?.id ? String(currentProfile.id) : "default"
+<<<<<<< Updated upstream
+=======
+    const profileId = currentProfile?.id ?? 0
+>>>>>>> Stashed changes
 
     // ── Theme persistence ──
     const [themeId, setThemeIdRaw] = React.useState<AnimeThemeId>(() => {
@@ -176,7 +183,19 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             localStorage.setItem(`sea-anime-theme-${profileKey}`, id)
             recordActivatedTheme(id)
         } catch { /* noop */ }
+<<<<<<< Updated upstream
     }, [profileKey])
+=======
+        // Persist to server so other devices / browsers see the same theme
+        if (profileId > 0) {
+            fetch(`/api/v1/profiles/${profileId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ themeId: id }),
+            }).catch(() => { /* best-effort */ })
+        }
+    }, [profileKey, profileId])
+>>>>>>> Stashed changes
 
     const config = ANIME_THEMES[themeId as AnimeThemeId] ?? ANIME_THEMES["seanime"]
 

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
+      "Read(//e/Main/seaserver/seanime-web/src/app/\\(main\\)/unmatched/**)",
+      "Read(//e/Main/seaserver/seanime-web/src/api/hooks/**)",
+      "Read(//e/Main/seaserver/seanime-web/src/api/generated/**)"
+    ]
+  }
+}

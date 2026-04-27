@@ -101,3 +101,4 @@ build-all-stats.json
 local_testing
 dist-server
 scripts/build.go
+seanime.exe

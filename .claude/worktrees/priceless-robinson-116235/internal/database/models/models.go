@@ -1,0 +1,864 @@
+package models
+
+import (
+	"database/sql/driver"
+	"errors"
+	"strconv"
+	"strings"
+	"time"
+)
+
+type BaseModel struct {
+	ID        uint      `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type Token struct {
+	BaseModel
+	Value string `json:"value"`
+}
+
+type Account struct {
+	BaseModel
+	Username string `gorm:"column:username" json:"username"`
+	Token    string `gorm:"column:token" json:"token"`
+	Viewer   []byte `gorm:"column:viewer" json:"viewer"`
+}
+
+// +---------------------+
+// |     LocalFiles      |
+// +---------------------+
+
+type LocalFiles struct {
+	BaseModel
+	Value []byte `gorm:"column:value" json:"value"`
+}
+
+type ShelvedLocalFiles struct {
+	BaseModel
+	Value []byte `gorm:"column:value" json:"value"`
+}
+
+// +---------------------+
+// |       Settings      |
+// +---------------------+
+
+type Settings struct {
+	BaseModel
+	Library        *LibrarySettings        `gorm:"embedded" json:"library"`
+	MediaPlayer    *MediaPlayerSettings    `gorm:"embedded" json:"mediaPlayer"`
+	Torrent        *TorrentSettings        `gorm:"embedded" json:"torrent"`
+	Manga          *MangaSettings          `gorm:"embedded" json:"manga"`
+	Anilist        *AnilistSettings        `gorm:"embedded" json:"anilist"`
+	ListSync       *ListSyncSettings       `gorm:"embedded" json:"listSync"`
+	AutoDownloader *AutoDownloaderSettings `gorm:"embedded" json:"autoDownloader"`
+	Discord        *DiscordSettings        `gorm:"embedded" json:"discord"`
+	Notifications  *NotificationSettings   `gorm:"embedded" json:"notifications"`
+	Nakama         *NakamaSettings         `gorm:"embedded;embeddedPrefix:nakama_" json:"nakama"`
+}
+
+type AnilistSettings struct {
+	//AnilistClientId    string `gorm:"column:anilist_client_id" json:"anilistClientId"`
+	HideAudienceScore  bool `gorm:"column:hide_audience_score" json:"hideAudienceScore"`
+	EnableAdultContent bool `gorm:"column:enable_adult_content" json:"enableAdultContent"`
+	BlurAdultContent   bool `gorm:"column:blur_adult_content" json:"blurAdultContent"`
+	DisableCacheLayer  bool `gorm:"column:disable_cache_layer" json:"disableCacheLayer"`
+}
+
+type LibrarySettings struct {
+	LibraryPath        string `gorm:"column:library_path" json:"libraryPath"`
+	AutoUpdateProgress bool   `gorm:"column:auto_update_progress" json:"autoUpdateProgress"`
+	DisableUpdateCheck bool   `gorm:"column:disable_update_check" json:"disableUpdateCheck"`
+	TorrentProvider    string `gorm:"column:torrent_provider" json:"torrentProvider"`
+	// DEPRECATED
+	AutoSelectTorrentProvider       string `gorm:"column:auto_select_torrent_provider" json:"autoSelectTorrentProvider"`
+	AutoScan                        bool   `gorm:"column:auto_scan" json:"autoScan"`
+	EnableOnlinestream              bool   `gorm:"column:enable_onlinestream" json:"enableOnlinestream"`
+	IncludeOnlineStreamingInLibrary bool   `gorm:"column:include_online_streaming_in_library" json:"includeOnlineStreamingInLibrary"`
+	DisableAnimeCardTrailers        bool   `gorm:"column:disable_anime_card_trailers" json:"disableAnimeCardTrailers"`
+	EnableManga                     bool   `gorm:"column:enable_manga" json:"enableManga"`
+	DOHProvider                     string `gorm:"column:doh_provider" json:"dohProvider"`
+	OpenTorrentClientOnStart        bool   `gorm:"column:open_torrent_client_on_start" json:"openTorrentClientOnStart"`
+	OpenWebURLOnStart               bool   `gorm:"column:open_web_url_on_start" json:"openWebURLOnStart"`
+	RefreshLibraryOnStart           bool   `gorm:"column:refresh_library_on_start" json:"refreshLibraryOnStart"`
+	// v2.1+
+	AutoPlayNextEpisode bool `gorm:"column:auto_play_next_episode" json:"autoPlayNextEpisode"`
+	// v2.2+
+	EnableWatchContinuity    bool         `gorm:"column:enable_watch_continuity" json:"enableWatchContinuity"`
+	LibraryPaths             LibraryPaths `gorm:"column:library_paths;type:text" json:"libraryPaths"`
+	AutoSyncOfflineLocalData bool         `gorm:"column:auto_sync_offline_local_data" json:"autoSyncOfflineLocalData"`
+	// v2.6+
+	ScannerMatchingThreshold float64 `gorm:"column:scanner_matching_threshold" json:"scannerMatchingThreshold"`
+	ScannerMatchingAlgorithm string  `gorm:"column:scanner_matching_algorithm" json:"scannerMatchingAlgorithm"`
+	// v2.9+
+	AutoSyncToLocalAccount      bool `gorm:"column:auto_sync_to_local_account" json:"autoSyncToLocalAccount"`
+	AutoSaveCurrentMediaOffline bool `gorm:"column:auto_save_current_media_offline" json:"autoSaveCurrentMediaOffline"`
+	// v3+
+	UseFallbackMetadataProvider bool `gorm:"column:use_fallback_metadata_provider" json:"useFallbackMetadataProvider"`
+	// v3.5+
+	ScannerUseLegacyMatching bool   `gorm:"column:scanner_use_legacy_matching" json:"scannerUseLegacyMatching"`
+	ScannerConfig            string `gorm:"column:scanner_config" json:"scannerConfig"`
+	// v3.6.0+
+	UpdateChannel string `gorm:"column:update_channel" json:"updateChannel"` // "github", "seanime", "seanime_nightly"
+	// Planning Slut: shared AniList account token for the global library
+	PlanningSlutToken string `gorm:"column:planning_slut_token" json:"planningSlutToken"`
+}
+
+func (o *LibrarySettings) GetLibraryPaths() (ret []string) {
+	ret = make([]string, len(o.LibraryPaths)+1)
+	ret[0] = o.LibraryPath
+	if len(o.LibraryPaths) > 0 {
+		copy(ret[1:], o.LibraryPaths)
+	}
+	return
+}
+
+type LibraryPaths []string
+
+func (o *LibraryPaths) Scan(src interface{}) error {
+	str, ok := src.(string)
+	if !ok {
+		return errors.New("src value cannot cast to string")
+	}
+	*o = strings.Split(str, ",")
+	return nil
+}
+func (o LibraryPaths) Value() (driver.Value, error) {
+	if len(o) == 0 {
+		return nil, nil
+	}
+	return strings.Join(o, ","), nil
+}
+
+type NakamaSettings struct {
+	Enabled bool `gorm:"column:enabled" json:"enabled"`
+	// Username is the name used to identify a peer or host.
+	Username string `gorm:"column:username" json:"username"`
+	// IsHost allows the server to act as a host for other clients. This requires a password to be set.
+	IsHost               bool   `gorm:"column:is_host" json:"isHost"`
+	HostPassword         string `gorm:"column:host_password" json:"hostPassword"`
+	RemoteServerURL      string `gorm:"column:remote_server_url" json:"remoteServerURL"`
+	RemoteServerPassword string `gorm:"column:remote_server_password" json:"remoteServerPassword"`
+	// IncludeNakamaAnimeLibrary adds the local anime library of the host to the connected clients.
+	IncludeNakamaAnimeLibrary bool `gorm:"column:include_nakama_anime_library" json:"includeNakamaAnimeLibrary"`
+	// HostShareLocalAnimeLibrary shares the local anime library to connected clients
+	HostShareLocalAnimeLibrary bool `gorm:"column:host_share_local_anime_library" json:"hostShareLocalAnimeLibrary"`
+	// HostUnsharedAnimeIds is a list of anime IDs that should not be shared with connected clients.
+	HostUnsharedAnimeIds IntSlice `gorm:"column:host_unshared_anime_ids;type:text" json:"hostUnsharedAnimeIds"`
+	// HostEnablePortForwarding enables port forwarding.
+	HostEnablePortForwarding bool `gorm:"column:host_enable_port_forwarding" json:"hostEnablePortForwarding"`
+}
+
+type IntSlice []int
+
+func (o *IntSlice) Scan(src interface{}) error {
+	str, ok := src.(string)
+	if !ok {
+		return errors.New("src value cannot cast to string")
+	}
+	ids := strings.Split(str, ",")
+	*o = make(IntSlice, len(ids))
+	for i, id := range ids {
+		(*o)[i], _ = strconv.Atoi(id)
+	}
+	return nil
+}
+func (o IntSlice) Value() (driver.Value, error) {
+	if len(o) == 0 {
+		return nil, nil
+	}
+	strs := make([]string, len(o))
+	for i, id := range o {
+		strs[i] = strconv.Itoa(id)
+	}
+	return strings.Join(strs, ","), nil
+}
+
+type MangaSettings struct {
+	DefaultProvider      string `gorm:"column:default_manga_provider" json:"defaultMangaProvider"`
+	AutoUpdateProgress   bool   `gorm:"column:manga_auto_update_progress" json:"mangaAutoUpdateProgress"`
+	LocalSourceDirectory string `gorm:"column:manga_local_source_directory" json:"mangaLocalSourceDirectory"`
+}
+
+type MediaPlayerSettings struct {
+	Default                   string `gorm:"column:default_player" json:"defaultPlayer"` // "vlc" or "mpc-hc"
+	Host                      string `gorm:"column:player_host" json:"host"`
+	VlcUsername               string `gorm:"column:vlc_username" json:"vlcUsername"`
+	VlcPassword               string `gorm:"column:vlc_password" json:"vlcPassword"`
+	VlcPort                   int    `gorm:"column:vlc_port" json:"vlcPort"`
+	VlcPath                   string `gorm:"column:vlc_path" json:"vlcPath"`
+	MpcPort                   int    `gorm:"column:mpc_port" json:"mpcPort"`
+	MpcPath                   string `gorm:"column:mpc_path" json:"mpcPath"`
+	MpvSocket                 string `gorm:"column:mpv_socket" json:"mpvSocket"`
+	MpvPath                   string `gorm:"column:mpv_path" json:"mpvPath"`
+	MpvArgs                   string `gorm:"column:mpv_args" json:"mpvArgs"`
+	IinaSocket                string `gorm:"column:iina_socket" json:"iinaSocket"`
+	IinaPath                  string `gorm:"column:iina_path" json:"iinaPath"`
+	IinaArgs                  string `gorm:"column:iina_args" json:"iinaArgs"`
+	VcTranslate               bool   `gorm:"column:vc_translate" json:"vcTranslate"`
+	VcTranslateTargetLanguage string `gorm:"column:vc_translate_target_language" json:"vcTranslateTargetLanguage"`
+	VcTranslateProvider       string `gorm:"column:vc_translate_provider" json:"vcTranslateProvider"`
+	VcTranslateApiKey         string `gorm:"column:vc_translate_api_key" json:"vcTranslateApiKey"`
+}
+
+type TorrentSettings struct {
+	Default              string `gorm:"column:default_torrent_client" json:"defaultTorrentClient"`
+	QBittorrentPath      string `gorm:"column:qbittorrent_path" json:"qbittorrentPath"`
+	QBittorrentHost      string `gorm:"column:qbittorrent_host" json:"qbittorrentHost"`
+	QBittorrentPort      int    `gorm:"column:qbittorrent_port" json:"qbittorrentPort"`
+	QBittorrentUsername  string `gorm:"column:qbittorrent_username" json:"qbittorrentUsername"`
+	QBittorrentPassword  string `gorm:"column:qbittorrent_password" json:"qbittorrentPassword"`
+	QBittorrentTags      string `gorm:"column:qbittorrent_tags" json:"qbittorrentTags"`
+	QBittorrentCategory  string `gorm:"column:qbittorrent_category" json:"qbittorrentCategory"`
+	TransmissionPath     string `gorm:"column:transmission_path" json:"transmissionPath"`
+	TransmissionHost     string `gorm:"column:transmission_host" json:"transmissionHost"`
+	TransmissionPort     int    `gorm:"column:transmission_port" json:"transmissionPort"`
+	TransmissionUsername string `gorm:"column:transmission_username" json:"transmissionUsername"`
+	TransmissionPassword string `gorm:"column:transmission_password" json:"transmissionPassword"`
+	// v2.1+
+	ShowActiveTorrentCount bool `gorm:"column:show_active_torrent_count" json:"showActiveTorrentCount"`
+	// v2.2+
+	// DEPRECATED, no longer used
+	HideTorrentList bool `gorm:"column:hide_torrent_list" json:"hideTorrentList"`
+}
+
+type ListSyncSettings struct {
+	Automatic bool   `gorm:"column:automatic_sync" json:"automatic"`
+	Origin    string `gorm:"column:sync_origin" json:"origin"`
+}
+
+type DiscordSettings struct {
+	EnableRichPresence                      bool `gorm:"column:enable_rich_presence" json:"enableRichPresence"`
+	EnableAnimeRichPresence                 bool `gorm:"column:enable_anime_rich_presence" json:"enableAnimeRichPresence"`
+	EnableMangaRichPresence                 bool `gorm:"column:enable_manga_rich_presence" json:"enableMangaRichPresence"`
+	RichPresenceHideSeanimeRepositoryButton bool `gorm:"column:rich_presence_hide_seanime_repository_button" json:"richPresenceHideSeanimeRepositoryButton"`
+	RichPresenceShowAniListMediaButton      bool `gorm:"column:rich_presence_show_anilist_media_button" json:"richPresenceShowAniListMediaButton"`
+	RichPresenceShowAniListProfileButton    bool `gorm:"column:rich_presence_show_anilist_profile_button" json:"richPresenceShowAniListProfileButton"`
+	RichPresenceUseMediaTitleStatus         bool `gorm:"column:rich_presence_use_media_title_status;default:true" json:"richPresenceUseMediaTitleStatus"`
+}
+
+type NotificationSettings struct {
+	DisableNotifications               bool `gorm:"column:disable_notifications" json:"disableNotifications"`
+	DisableAutoDownloaderNotifications bool `gorm:"column:disable_auto_downloader_notifications" json:"disableAutoDownloaderNotifications"`
+	DisableAutoScannerNotifications    bool `gorm:"column:disable_auto_scanner_notifications" json:"disableAutoScannerNotifications"`
+}
+
+// +---------------------+
+// |         MAL         |
+// +---------------------+
+
+type Mal struct {
+	BaseModel
+	Username       string    `gorm:"column:username" json:"username"`
+	AccessToken    string    `gorm:"column:access_token" json:"accessToken"`
+	RefreshToken   string    `gorm:"column:refresh_token" json:"refreshToken"`
+	TokenExpiresAt time.Time `gorm:"column:token_expires_at" json:"tokenExpiresAt"`
+}
+
+// +---------------------+
+// |    Scan Summary     |
+// +---------------------+
+
+type ScanSummary struct {
+	BaseModel
+	Value []byte `gorm:"column:value" json:"value"`
+}
+
+// +---------------------+
+// |   Auto Downloader   |
+// +---------------------+
+
+type AutoDownloaderRule struct {
+	BaseModel
+	Value []byte `gorm:"column:value" json:"value"`
+}
+
+type AutoDownloaderProfile struct {
+	BaseModel
+	Value []byte `gorm:"column:value" json:"value"`
+}
+
+// +---------------------+
+// |     Auto Select     |
+// +---------------------+
+
+type AutoSelectProfile struct {
+	BaseModel
+	Value []byte `gorm:"column:value" json:"value"`
+}
+
+type AutoDownloaderItem struct {
+	BaseModel
+	RuleID      uint      `gorm:"column:rule_id" json:"ruleId"`
+	MediaID     int       `gorm:"column:media_id" json:"mediaId"`
+	Episode     int       `gorm:"column:episode" json:"episode"`
+	Link        string    `gorm:"column:link" json:"link"`
+	Hash        string    `gorm:"column:hash" json:"hash"`
+	Magnet      string    `gorm:"column:magnet" json:"magnet"`
+	TorrentName string    `gorm:"column:torrent_name" json:"torrentName"`
+	Downloaded  bool      `gorm:"column:downloaded" json:"downloaded"`
+	IsDelayed   bool      `gorm:"column:is_delayed" json:"isDelayed"`
+	DelayUntil  time.Time `gorm:"column:delay_until" json:"delayUntil"`
+	Score       int       `gorm:"column:score" json:"score"`
+	TorrentData []byte    `gorm:"column:torrent_data" json:"-"` // Serialized NormalizedTorrent
+}
+
+type AutoDownloaderSettings struct {
+	Provider              string `gorm:"column:auto_downloader_provider" json:"provider"`
+	Interval              int    `gorm:"column:auto_downloader_interval" json:"interval"`
+	Enabled               bool   `gorm:"column:auto_downloader_enabled" json:"enabled"`
+	DownloadAutomatically bool   `gorm:"column:auto_downloader_download_automatically" json:"downloadAutomatically"`
+	// DEPRECATED v3.4+
+	EnableEnhancedQueries bool `gorm:"column:auto_downloader_enable_enhanced_queries" json:"enableEnhancedQueries"`
+	EnableSeasonCheck     bool `gorm:"column:auto_downloader_enable_season_check" json:"enableSeasonCheck"`
+	UseDebrid             bool `gorm:"column:auto_downloader_use_debrid" json:"useDebrid"`
+}
+
+// +---------------------+
+// |     Media Entry     |
+// +---------------------+
+
+type SilencedMediaEntry struct {
+	BaseModel
+}
+
+// +---------------------+
+// |        Theme        |
+// +---------------------+
+
+type Theme struct {
+	BaseModel
+	// Main
+	EnableColorSettings              bool   `gorm:"column:enable_color_settings" json:"enableColorSettings"`
+	BackgroundColor                  string `gorm:"column:background_color" json:"backgroundColor"`
+	AccentColor                      string `gorm:"column:accent_color" json:"accentColor"`
+	SidebarBackgroundColor           string `gorm:"column:sidebar_background_color" json:"sidebarBackgroundColor"`  // DEPRECATED
+	AnimeEntryScreenLayout           string `gorm:"column:anime_entry_screen_layout" json:"animeEntryScreenLayout"` // DEPRECATED
+	ExpandSidebarOnHover             bool   `gorm:"column:expand_sidebar_on_hover" json:"expandSidebarOnHover"`
+	HideTopNavbar                    bool   `gorm:"column:hide_top_navbar" json:"hideTopNavbar"`
+	EnableMediaCardBlurredBackground bool   `gorm:"column:enable_media_card_blurred_background" json:"enableMediaCardBlurredBackground"`
+	// Note: These are named "libraryScreen" but are used on all pages
+	LibraryScreenCustomBackgroundImage   string `gorm:"column:library_screen_custom_background_image" json:"libraryScreenCustomBackgroundImage"`
+	LibraryScreenCustomBackgroundOpacity int    `gorm:"column:library_screen_custom_background_opacity" json:"libraryScreenCustomBackgroundOpacity"`
+	// Anime
+	SmallerEpisodeCarouselSize bool `gorm:"column:smaller_episode_carousel_size" json:"smallerEpisodeCarouselSize"`
+	// Library Screen (Anime & Manga)
+	// LibraryScreenBannerType: "dynamic", "custom"
+	LibraryScreenBannerType           string `gorm:"column:library_screen_banner_type" json:"libraryScreenBannerType"`
+	LibraryScreenCustomBannerImage    string `gorm:"column:library_screen_custom_banner_image" json:"libraryScreenCustomBannerImage"`
+	LibraryScreenCustomBannerPosition string `gorm:"column:library_screen_custom_banner_position" json:"libraryScreenCustomBannerPosition"`
+	LibraryScreenCustomBannerOpacity  int    `gorm:"column:library_screen_custom_banner_opacity" json:"libraryScreenCustomBannerOpacity"`
+	DisableLibraryScreenGenreSelector bool   `gorm:"column:disable_library_screen_genre_selector" json:"disableLibraryScreenGenreSelector"`
+
+	LibraryScreenCustomBackgroundBlur string `gorm:"column:library_screen_custom_background_blur" json:"libraryScreenCustomBackgroundBlur"`
+	EnableMediaPageBlurredBackground  bool   `gorm:"column:enable_media_page_blurred_background" json:"enableMediaPageBlurredBackground"`
+	DisableSidebarTransparency        bool   `gorm:"column:disable_sidebar_transparency" json:"disableSidebarTransparency"`
+	UseLegacyEpisodeCard              bool   `gorm:"column:use_legacy_episode_card" json:"useLegacyEpisodeCard"` // DEPRECATED
+	DisableCarouselAutoScroll         bool   `gorm:"column:disable_carousel_auto_scroll" json:"disableCarouselAutoScroll"`
+
+	// v2.6+
+	MediaPageBannerType        string `gorm:"column:media_page_banner_type" json:"mediaPageBannerType"`
+	MediaPageBannerSize        string `gorm:"column:media_page_banner_size" json:"mediaPageBannerSize"`
+	MediaPageBannerInfoBoxSize string `gorm:"column:media_page_banner_info_box_size" json:"mediaPageBannerInfoBoxSize"`
+
+	// v2.7+
+	ShowEpisodeCardAnimeInfo             bool   `gorm:"column:show_episode_card_anime_info" json:"showEpisodeCardAnimeInfo"`
+	ContinueWatchingDefaultSorting       string `gorm:"column:continue_watching_default_sorting" json:"continueWatchingDefaultSorting"`
+	AnimeLibraryCollectionDefaultSorting string `gorm:"column:anime_library_collection_default_sorting" json:"animeLibraryCollectionDefaultSorting"`
+	MangaLibraryCollectionDefaultSorting string `gorm:"column:manga_library_collection_default_sorting" json:"mangaLibraryCollectionDefaultSorting"`
+	ShowAnimeUnwatchedCount              bool   `gorm:"column:show_anime_unwatched_count" json:"showAnimeUnwatchedCount"`
+	ShowMangaUnreadCount                 bool   `gorm:"column:show_manga_unread_count" json:"showMangaUnreadCount"`
+
+	// v2.8+
+	HideEpisodeCardDescription        bool   `gorm:"column:hide_episode_card_description" json:"hideEpisodeCardDescription"`
+	HideDownloadedEpisodeCardFilename bool   `gorm:"column:hide_downloaded_episode_card_filename" json:"hideDownloadedEpisodeCardFilename"`
+	CustomCSS                         string `gorm:"column:custom_css" json:"customCSS"`
+	MobileCustomCSS                   string `gorm:"column:mobile_custom_css" json:"mobileCustomCSS"`
+
+	// v2.9+
+	UnpinnedMenuItems StringSlice `gorm:"column:unpinned_menu_items;type:text" json:"unpinnedMenuItems"`
+
+	// v3+
+	HomeItems              []byte `gorm:"column:home_items;type:text" json:"homeItems"`
+	MangaHomeItems         []byte `gorm:"column:manga_home_items;type:text" json:"mangaHomeItems"`
+	EnableBlurringEffects  bool   `gorm:"column:enable_blurring_effects" json:"enableBlurringEffects"`
+}
+
+type HomeItem struct {
+	ID            string      `json:"id"`
+	Type          string      `json:"type"`
+	Options       interface{} `json:"options,omitempty"` // options chosen by the user
+	SchemaVersion int         `json:"schemaVersion"`     // checks if it's still valid on the client
+}
+
+// +---------------------+
+// |      Playlist       |
+// +---------------------+
+
+// PlaylistEntry legacy playlists
+// DEPRECATED
+type PlaylistEntry struct {
+	BaseModel
+	Name  string `gorm:"column:name" json:"name"`
+	Value []byte `gorm:"column:value" json:"value"`
+}
+
+type Playlist struct {
+	BaseModel
+	Name  string `gorm:"column:name" json:"name"`
+	Value []byte `gorm:"column:value" json:"value"`
+}
+
+// +------------------------+
+// | Chapter Download Queue |
+// +------------------------+
+
+type ChapterDownloadQueueItem struct {
+	BaseModel
+	ProfileID       uint   `gorm:"column:profile_id;index" json:"profileId"`
+	Provider        string `gorm:"column:provider" json:"provider"`
+	MediaID         int    `gorm:"column:media_id" json:"mediaId"`
+	ChapterID       string `gorm:"column:chapter_id" json:"chapterId"`
+	ChapterNumber   string `gorm:"column:chapter_number" json:"chapterNumber"`
+	ChapterTitle    string `gorm:"column:chapter_title" json:"chapterTitle"`       // Chapter title from provider
+	MediaTitle      string `gorm:"column:media_title" json:"mediaTitle"`           // Title for folder naming
+	PageData        []byte `gorm:"column:page_data" json:"pageData"`               // Contains map of page index to page details
+	Status          string `gorm:"column:status" json:"status"`
+	DownloadedPages int    `gorm:"column:downloaded_pages;default:0" json:"downloadedPages"` // Number of pages downloaded
+	TotalPages      int    `gorm:"column:total_pages;default:0" json:"totalPages"`           // Total number of pages
+}
+
+// +---------------------+
+// |     MediaStream     |
+// +---------------------+
+
+type MediastreamSettings struct {
+	BaseModel
+	// DEVNOTE: Should really be "Enabled"
+	TranscodeEnabled              bool   `gorm:"column:transcode_enabled" json:"transcodeEnabled"`
+	TranscodeHwAccel              string `gorm:"column:transcode_hw_accel" json:"transcodeHwAccel"`
+	TranscodeThreads              int    `gorm:"column:transcode_threads" json:"transcodeThreads"`
+	TranscodePreset               string `gorm:"column:transcode_preset" json:"transcodePreset"`
+	DisableAutoSwitchToDirectPlay bool   `gorm:"column:disable_auto_switch_to_direct_play" json:"disableAutoSwitchToDirectPlay"`
+	DirectPlayOnly                bool   `gorm:"column:direct_play_only" json:"directPlayOnly"`
+	PreTranscodeEnabled           bool   `gorm:"column:pre_transcode_enabled" json:"preTranscodeEnabled"`
+	PreTranscodeLibraryDir        string `gorm:"column:pre_transcode_library_dir" json:"preTranscodeLibraryDir"`
+	FfmpegPath                    string `gorm:"column:ffmpeg_path" json:"ffmpegPath"`
+	FfprobePath                   string `gorm:"column:ffprobe_path" json:"ffprobePath"`
+	// v2.2+
+	TranscodeHwAccelCustomSettings string `gorm:"column:transcode_hw_accel_custom_settings" json:"transcodeHwAccelCustomSettings"`
+
+	//TranscodeTempDir              string `gorm:"column:transcode_temp_dir" json:"transcodeTempDir"` // DEPRECATED
+}
+
+// +---------------------+
+// |    TorrentStream    |
+// +---------------------+
+
+type TorrentstreamSettings struct {
+	BaseModel
+	Enabled             bool   `gorm:"column:enabled" json:"enabled"`
+	AutoSelect          bool   `gorm:"column:auto_select" json:"autoSelect"`
+	PreferredResolution string `gorm:"column:preferred_resolution" json:"preferredResolution"`
+	DisableIPV6         bool   `gorm:"column:disable_ipv6" json:"disableIPV6"`
+	DownloadDir         string `gorm:"column:download_dir" json:"downloadDir"`
+	AddToLibrary        bool   `gorm:"column:add_to_library" json:"addToLibrary"`
+	TorrentClientHost   string `gorm:"column:torrent_client_host" json:"torrentClientHost"`
+	TorrentClientPort   int    `gorm:"column:torrent_client_port" json:"torrentClientPort"`
+	StreamingServerHost string `gorm:"column:streaming_server_host" json:"streamingServerHost"`
+	StreamingServerPort int    `gorm:"column:streaming_server_port" json:"streamingServerPort"`
+	//FallbackToTorrentStreamingView bool   `gorm:"column:fallback_to_torrent_streaming_view" json:"fallbackToTorrentStreamingView"` // DEPRECATED
+	IncludeInLibrary bool `gorm:"column:include_in_library" json:"includeInLibrary"`
+	// v2.6+
+	StreamUrlAddress string `gorm:"column:stream_url_address" json:"streamUrlAddress"`
+	// v2.7+
+	SlowSeeding bool `gorm:"column:slow_seeding" json:"slowSeeding"`
+	// v3+
+	PreloadNextStream bool `gorm:"column:preload_next_stream" json:"preloadNextStream"`
+}
+
+// TorrentstreamHistory used by both torrent streaming and debrid streaming to store the last selected batch that was used for each media.
+type TorrentstreamHistory struct {
+	BaseModel
+	MediaId           int    `gorm:"column:media_id" json:"mediaId"`
+	Torrent           []byte `gorm:"column:torrent" json:"torrent"`
+	BatchEpisodeFiles []byte `gorm:"column:batch_episode_files" json:"batchEpisodeFiles"`
+}
+
+// +---------------------+
+// |        Filler       |
+// +---------------------+
+
+type MediaFiller struct {
+	BaseModel
+	Provider      string    `gorm:"column:provider" json:"provider"`
+	Slug          string    `gorm:"column:slug" json:"slug"`
+	MediaID       int       `gorm:"column:media_id" json:"mediaId"`
+	LastFetchedAt time.Time `gorm:"column:last_fetched_at" json:"lastFetchedAt"`
+	Data          []byte    `gorm:"column:data" json:"data"`
+}
+
+// +---------------------+
+// |        Manga        |
+// +---------------------+
+
+type MangaMapping struct {
+	BaseModel
+	Provider string `gorm:"column:provider" json:"provider"`
+	MediaID  int    `gorm:"column:media_id" json:"mediaId"`
+	MangaID  string `gorm:"column:manga_id" json:"mangaId"` // ID from search result, used to fetch chapters
+}
+
+// SyntheticManga stores metadata for manga not found on AniList
+// These are assigned synthetic IDs (negative numbers) and displayed in the UI
+type SyntheticManga struct {
+	BaseModel
+	SyntheticID int    `gorm:"column:synthetic_id;uniqueIndex" json:"syntheticId"` // Negative ID to avoid collision with AniList
+	Title       string `gorm:"column:title" json:"title"`
+	CoverImage  string `gorm:"column:cover_image" json:"coverImage"`
+	Provider    string `gorm:"column:provider" json:"provider"`           // e.g., "weebcentral"
+	ProviderID  string `gorm:"column:provider_id" json:"providerId"`      // ID on the provider (e.g., WeebCentral manga ID)
+	Description string `gorm:"column:description;type:text" json:"description"`
+	Status      string `gorm:"column:status" json:"status"`               // e.g., "RELEASING", "FINISHED"
+	Chapters    int    `gorm:"column:chapters" json:"chapters"`           // Total chapter count if known
+}
+
+type MangaChapterContainer struct {
+	BaseModel
+	Provider  string `gorm:"column:provider" json:"provider"`
+	MediaID   int    `gorm:"column:media_id" json:"mediaId"`
+	ChapterID string `gorm:"column:chapter_id" json:"chapterId"`
+	Data      []byte `gorm:"column:data" json:"data"`
+}
+
+// MangaIDMapping stores conversions from synthetic manga IDs to AniList IDs
+// This allows downloaded files to remain in their original locations while
+// presenting them as AniList entries in the UI
+type MangaIDMapping struct {
+	BaseModel
+	SyntheticID int    `gorm:"column:synthetic_id;uniqueIndex" json:"syntheticId"` // Original synthetic ID (negative)
+	AnilistID   int    `gorm:"column:anilist_id" json:"anilistId"`                  // Mapped AniList ID (positive)
+	ProviderID  string `gorm:"column:provider_id" json:"providerId"`                // Provider ID for reference
+}
+
+// MangaReadingHistory tracks when manga (including synthetic) was last read
+// Used to show "Continue Reading" section with most recently read manga first
+type MangaReadingHistory struct {
+	BaseModel
+	MediaID           int       `gorm:"column:media_id;uniqueIndex" json:"mediaId"` // Can be negative for synthetic manga
+	LastReadAt        time.Time `gorm:"column:last_read_at" json:"lastReadAt"`
+	LastChapterNumber string    `gorm:"column:last_chapter_number" json:"lastChapterNumber"`
+	IsSynthetic       bool      `gorm:"column:is_synthetic" json:"isSynthetic"`
+}
+
+// DownloadedMangaMetadata stores metadata for downloaded manga that may not be in the user's AniList collection
+// This ensures titles and cover images display correctly in the download queue and local library
+type DownloadedMangaMetadata struct {
+	BaseModel
+	MediaID    int    `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
+	Title      string `gorm:"column:title" json:"title"`
+	CoverImage string `gorm:"column:cover_image" json:"coverImage"`
+	Provider   string `gorm:"column:provider" json:"provider"`
+}
+
+// SyntheticAnime stores metadata for anime from anime-offline-database not found on AniList
+// These are assigned synthetic IDs (negative numbers) and displayed in the UI
+type SyntheticAnime struct {
+	BaseModel
+	SyntheticID  int    `gorm:"column:synthetic_id;uniqueIndex" json:"syntheticId"` // Negative ID to avoid collision with AniList
+	Title        string `gorm:"column:title" json:"title"`
+	TitleEnglish string `gorm:"column:title_english" json:"titleEnglish"`
+	CoverImage   string `gorm:"column:cover_image" json:"coverImage"`
+	Thumbnail    string `gorm:"column:thumbnail" json:"thumbnail"`
+	Type         string `gorm:"column:type" json:"type"`           // TV, MOVIE, OVA, ONA, SPECIAL
+	Episodes     int    `gorm:"column:episodes" json:"episodes"`
+	Status       string `gorm:"column:status" json:"status"`       // FINISHED, ONGOING, UPCOMING
+	Season       string `gorm:"column:season" json:"season"`       // SPRING, SUMMER, FALL, WINTER
+	SeasonYear   int    `gorm:"column:season_year" json:"seasonYear"`
+	Description  string `gorm:"column:description;type:text" json:"description"`
+	Synonyms     string `gorm:"column:synonyms;type:text" json:"synonyms"` // JSON array of synonyms
+	Tags         string `gorm:"column:tags;type:text" json:"tags"`         // JSON array of tags
+	Studios      string `gorm:"column:studios;type:text" json:"studios"`   // JSON array of studios
+	Sources      string `gorm:"column:sources;type:text" json:"sources"`   // JSON array of source URLs (MAL, AniDB, etc.)
+	AnilistID    int    `gorm:"column:anilist_id" json:"anilistId"`        // AniList ID if available from sources
+	MalID        int    `gorm:"column:mal_id" json:"malId"`                // MAL ID if available from sources
+}
+
+// +---------------------+
+// |  Online streaming   |
+// +---------------------+
+
+type OnlinestreamMapping struct {
+	BaseModel
+	Provider string `gorm:"column:provider" json:"provider"`
+	MediaID  int    `gorm:"column:media_id" json:"mediaId"`
+	AnimeID  string `gorm:"column:anime_id" json:"anime_id"` // ID from search result, used to fetch episodes
+}
+
+// +---------------------+
+// |       Debrid        |
+// +---------------------+
+
+type DebridSettings struct {
+	BaseModel
+	Enabled  bool   `gorm:"column:enabled" json:"enabled"`
+	Provider string `gorm:"column:provider" json:"provider"`
+	ApiKey   string `gorm:"column:api_key" json:"apiKey"`
+	//FallbackToDebridStreamingView bool   `gorm:"column:fallback_to_debrid_streaming_view" json:"fallbackToDebridStreamingView"` // DEPRECATED
+	IncludeDebridStreamInLibrary bool   `gorm:"column:include_debrid_stream_in_library" json:"includeDebridStreamInLibrary"`
+	StreamAutoSelect             bool   `gorm:"column:stream_auto_select" json:"streamAutoSelect"`
+	StreamPreferredResolution    string `gorm:"column:stream_preferred_resolution" json:"streamPreferredResolution"`
+}
+
+type DebridTorrentItem struct {
+	BaseModel
+	TorrentItemID string `gorm:"column:torrent_item_id" json:"torrentItemId"`
+	Destination   string `gorm:"column:destination" json:"destination"`
+	Provider      string `gorm:"column:provider" json:"provider"`
+	MediaId       int    `gorm:"column:media_id" json:"mediaId"`
+}
+
+// +---------------------+
+// |       Plugin        |
+// +---------------------+
+
+type PluginData struct {
+	BaseModel
+	PluginID string `gorm:"column:plugin_id;index" json:"pluginId"`
+	Data     []byte `gorm:"column:data" json:"data"`
+}
+
+// +---------------------+
+// |    Custom Source    |
+// +---------------------+
+
+// CustomSourceCollection is parallel to the AniList collection, it stores custom source media.
+type CustomSourceCollection struct {
+	BaseModel
+	ExtensionId string `gorm:"column:extension_id;index" json:"extensionId"`
+	Type        string `gorm:"column:type" json:"type"`   // "anime" or "manga"
+	Value       []byte `gorm:"column:value" json:"value"` // Marshalled struct
+}
+
+type CustomSourceIdentifier struct {
+	BaseModel
+	ExtensionId string `gorm:"column:extension_id;index" json:"extensionId"`
+	Value       int    `gorm:"column:value;index" json:"value"`
+}
+
+// +---------------------+
+// |      Metadata       |
+// +---------------------+
+
+type MediaMetadataParent struct {
+	BaseModel
+	MediaId       int `gorm:"column:media_id;index" json:"mediaId"`
+	ParentId      int `gorm:"column:parent_id;index" json:"parentId"`
+	SpecialOffset int `gorm:"column:special_offset" json:"specialOffset"`
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+// +---------------------+
+// |      Privacy        |
+// +---------------------+
+
+type PrivacySettings struct {
+	BaseModel
+	DoHEnabled      bool   `gorm:"column:doh_enabled" json:"dohEnabled"`
+	DoHProviders    string `gorm:"column:doh_providers;type:text" json:"dohProviders"` // Comma-separated URLs
+	Socks5Enabled   bool   `gorm:"column:socks5_enabled" json:"socks5Enabled"`
+	Socks5Address   string `gorm:"column:socks5_address" json:"socks5Address"`
+	Socks5Port      int    `gorm:"column:socks5_port" json:"socks5Port"`
+	DNSCryptEnabled bool   `gorm:"column:dnscrypt_enabled" json:"dnsCryptEnabled"`
+	FailMode        string `gorm:"column:fail_mode" json:"failMode"` // "open" or "closed"
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+// +---------------------+
+// |      Comments       |
+// +---------------------+
+
+// Comment represents a user comment on an anime or manga.
+// Stored in the global database (shared across all profiles).
+type Comment struct {
+	BaseModel
+	MediaID   int    `gorm:"column:media_id;index" json:"mediaId"`
+	MediaType string `gorm:"column:media_type;index" json:"mediaType"` // "anime" or "manga"
+	ProfileID uint   `gorm:"column:profile_id;index" json:"profileId"`
+	ParentID  *uint  `gorm:"column:parent_id;index" json:"parentId"` // nil for top-level comments
+	Content   string `gorm:"column:content;type:text" json:"content"`
+	IsEdited  bool   `gorm:"column:is_edited;default:false" json:"isEdited"`
+	IsSpoiler bool   `gorm:"column:is_spoiler;default:false" json:"isSpoiler"`
+}
+
+// CommentVote tracks upvotes/downvotes per profile per comment.
+type CommentVote struct {
+	BaseModel
+	CommentID uint `gorm:"column:comment_id;uniqueIndex:idx_comment_vote" json:"commentId"`
+	ProfileID uint `gorm:"column:profile_id;uniqueIndex:idx_comment_vote" json:"profileId"`
+	Value     int  `gorm:"column:value" json:"value"` // +1 or -1
+}
+
+// MangaFavorite stores a favorited manga per profile (stored in per-profile DB).
+type MangaFavorite struct {
+	BaseModel
+	MediaID int       `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
+	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
+// AnimeFavorite stores a favorited anime per profile (stored in per-profile DB).
+type AnimeFavorite struct {
+	BaseModel
+	MediaID int       `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
+	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
+// CharacterFavorite stores a favorited character per profile (stored in per-profile DB).
+type CharacterFavorite struct {
+	BaseModel
+	CharacterID int       `gorm:"column:character_id;uniqueIndex" json:"characterId"`
+	AddedAt     time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
+// StaffFavorite stores a favorited staff member per profile (stored in per-profile DB).
+type StaffFavorite struct {
+	BaseModel
+	StaffID int       `gorm:"column:staff_id;uniqueIndex" json:"staffId"`
+	AddedAt time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
+// StudioFavorite stores a favorited studio per profile (stored in per-profile DB).
+type StudioFavorite struct {
+	BaseModel
+	StudioID int       `gorm:"column:studio_id;uniqueIndex" json:"studioId"`
+	AddedAt  time.Time `gorm:"column:added_at" json:"addedAt"`
+}
+
+// Notification stores a notification per profile (stored in per-profile DB).
+type Notification struct {
+	BaseModel
+	Type     string `gorm:"column:type" json:"type"`         // new_episode, sequel_announced, related_airing, character_birthday, achievement_unlocked, manga_chapter
+	Title    string `gorm:"column:title" json:"title"`
+	Body     string `gorm:"column:body" json:"body"`
+	ImageURL string `gorm:"column:image_url" json:"imageUrl"`
+	MediaID  int    `gorm:"column:media_id" json:"mediaId"` // 0 if not media-related
+	IsRead   bool   `gorm:"column:is_read;default:false" json:"isRead"`
+	Metadata string `gorm:"column:metadata;type:text" json:"metadata"` // JSON string for extra data
+}
+
+// Achievement stores per-profile achievement progress and unlock state (stored in per-profile DB).
+type Achievement struct {
+	BaseModel
+	Key          string     `gorm:"column:key;uniqueIndex:idx_achievement_key_tier" json:"key"`
+	Tier         int        `gorm:"column:tier;uniqueIndex:idx_achievement_key_tier;default:0" json:"tier"` // 0 for untiered, 1-5 for tiered
+	IsUnlocked   bool       `gorm:"column:is_unlocked;default:false" json:"isUnlocked"`
+	UnlockedAt   *time.Time `gorm:"column:unlocked_at" json:"unlockedAt"`
+	Progress     float64    `gorm:"column:progress;default:0" json:"progress"`         // 0.0 - 1.0
+	ProgressData string     `gorm:"column:progress_data;type:text" json:"progressData"` // JSON blob for tracking state
+}
+
+// AchievementShowcase stores the user's selected achievement badges for profile display (stored in per-profile DB).
+type AchievementShowcase struct {
+	BaseModel
+	Slot           int    `gorm:"column:slot;uniqueIndex" json:"slot"` // 0-4 (5 slots)
+	AchievementKey string `gorm:"column:achievement_key" json:"achievementKey"`
+	AchievementTier int   `gorm:"column:achievement_tier;default:0" json:"achievementTier"`
+}
+
+// ActivityLog tracks daily anime/manga activity for heatmap and streak data (stored in per-profile DB).
+type ActivityLog struct {
+	BaseModel
+	Date          string `gorm:"column:date;uniqueIndex" json:"date"` // "2006-01-02" format
+	AnimeEpisodes int    `gorm:"column:anime_episodes;default:0" json:"animeEpisodes"`
+	MangaChapters int    `gorm:"column:manga_chapters;default:0" json:"mangaChapters"`
+	AnimeMinutes  int    `gorm:"column:anime_minutes;default:0" json:"animeMinutes"`
+	MangaMinutes  int    `gorm:"column:manga_minutes;default:0" json:"mangaMinutes"`
+}
+
+// ActivityEvent stores individual, granular user actions (stored in per-profile DB).
+// Unlike ActivityLog (daily aggregates), each row is one discrete event.
+type ActivityEvent struct {
+	BaseModel
+	EventType string `gorm:"column:event_type;index" json:"eventType"`
+	MediaId   int    `gorm:"column:media_id;default:0;index" json:"mediaId"`
+	Metadata  string `gorm:"column:metadata;type:text" json:"metadata"` // JSON blob
+}
+
+const (
+	ActivityEventEpisodeWatched      = "episode_watched"
+	ActivityEventMangaChapterRead    = "manga_chapter_read"
+	ActivityEventLibraryScanned      = "library_scanned"
+	ActivityEventFileMatched         = "file_matched"
+	ActivityEventFileUnmatched       = "file_unmatched"
+	ActivityEventAnilistEntryEdited  = "anilist_entry_edited"
+	ActivityEventAnilistEntryDeleted = "anilist_entry_deleted"
+	ActivityEventStatusChanged       = "status_changed"
+)
+
+// LevelProgress tracks the user's XP and level for the leveling system (stored in per-profile DB).
+type LevelProgress struct {
+	BaseModel
+	TotalXP      int `gorm:"column:total_xp;default:0" json:"totalXP"`
+	CurrentLevel int `gorm:"column:current_level;default:1" json:"currentLevel"`
+	XPVersion    int `gorm:"column:xp_version;default:0" json:"xpVersion"`
+}
+
+// AdminAnnouncement is a server-local announcement created by an admin, shown as a dismissible banner.
+type AdminAnnouncement struct {
+	BaseModel
+	Message   string    `gorm:"column:message" json:"message"`
+	CreatedBy uint      `gorm:"column:created_by" json:"createdBy"`
+	ExpiresAt time.Time `gorm:"column:expires_at" json:"expiresAt"`
+	Dismissed string    `gorm:"column:dismissed;type:text" json:"-"` // comma-separated profile IDs
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+// GlobalMilestone tracks a milestone achievement in the main (global) database.
+// Individual milestones: one row per (profileID, key) pair.
+// First-to-achieve milestones: one row per key, first profile to reach it wins.
+type GlobalMilestone struct {
+	BaseModel
+	Key             string     `gorm:"column:key;index" json:"key"`                                         // e.g. "hours_watched_5000"
+	Category        string     `gorm:"column:category;index" json:"category"`                               // e.g. "hours_watched"
+	Tier            int        `gorm:"column:tier" json:"tier"`                                             // tier threshold value (10, 50, 100, 500, 1000, 5000)
+	IsFirstToAchieve bool      `gorm:"column:is_first_to_achieve;default:false" json:"isFirstToAchieve"`   // true for race milestones
+	ProfileID       uint       `gorm:"column:profile_id;index" json:"profileId"`                            // who achieved it
+	ProfileName     string     `gorm:"column:profile_name" json:"profileName"`                              // cached name for display
+	AchievedAt      *time.Time `gorm:"column:achieved_at" json:"achievedAt,omitempty"`                      // when achieved
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+// TrackPreference stores per-media audio/subtitle track overrides for the profile.
+// MediaID is the AniList media ID as a string key.
+type TrackPreference struct {
+	BaseModel
+	MediaID          string `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
+	AudioLanguage    string `gorm:"column:audio_language" json:"audioLanguage,omitempty"`
+	AudioCodecID     string `gorm:"column:audio_codec_id" json:"audioCodecId,omitempty"`
+	SubtitleLanguage string `gorm:"column:subtitle_language" json:"subtitleLanguage,omitempty"`
+	SubtitleCodecID  string `gorm:"column:subtitle_codec_id" json:"subtitleCodecId,omitempty"`
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+type StringSlice []string
+
+func (o *StringSlice) Scan(src interface{}) error {
+	str, ok := src.(string)
+	if !ok {
+		return errors.New("src value cannot cast to string")
+	}
+	*o = strings.Split(str, ",")
+	return nil
+}
+func (o StringSlice) Value() (driver.Value, error) {
+	if len(o) == 0 {
+		return nil, nil
+	}
+	return strings.Join(o, ","), nil
+}
