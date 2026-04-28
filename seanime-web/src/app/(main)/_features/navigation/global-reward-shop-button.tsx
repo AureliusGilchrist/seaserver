@@ -27,9 +27,16 @@ export function GlobalRewardShopButton() {
         return fill
     }, [activeXPBarSkin])
 
-    const badgeStyle: React.CSSProperties = badgeBg
-        ? { background: activeXPBarSkin?.fillCss ?? badgeBg, borderColor: "transparent" }
-        : {}
+    const badgeStyle: React.CSSProperties = {
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        background: badgeBg
+            ? `color-mix(in srgb, ${badgeBg} 30%, transparent)`
+            : "rgba(255,255,255,0.08)",
+        borderColor: badgeBg
+            ? `color-mix(in srgb, ${badgeBg} 50%, transparent)`
+            : "rgba(255,255,255,0.12)",
+    }
 
     // In fullscreen: raise the button up from the bottom (animated)
     const bottomPosition = isFullscreen ? "bottom-16" : "bottom-5"
@@ -44,8 +51,7 @@ export function GlobalRewardShopButton() {
                 className={cn(
                     "fixed left-5 z-50 flex items-center gap-2 px-3 py-2 rounded-2xl",
                     "border shadow-xl transition-all duration-300 ease-out",
-                    !badgeBg && "bg-[--paper] border-[--border] hover:border-[--color-brand-500] hover:bg-[--color-brand-900]",
-                    badgeBg && "hover:opacity-90",
+                    "hover:brightness-125",
                     "text-[--foreground] text-sm font-semibold group",
                     bottomPosition,
                 )}

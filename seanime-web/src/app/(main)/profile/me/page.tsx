@@ -124,9 +124,13 @@ export default function Page() {
         return activeTitle.text
     }, [activeTitle, themeConfig.milestoneNames])
 
-    const nameStyle: React.CSSProperties = activeNameColor?.gradientCss
-        ? { backgroundImage: activeNameColor.gradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }
-        : activeNameColor ? { color: activeNameColor.color } : {}
+    const nameStyle: React.CSSProperties = activeXPBarSkin?.fillCss
+        ? activeXPBarSkin.fillCss.startsWith("linear-gradient")
+            ? { backgroundImage: activeXPBarSkin.fillCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
+            : { color: activeXPBarSkin.fillCss }
+        : activeNameColor?.gradientCss
+            ? { backgroundImage: activeNameColor.gradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
+            : activeNameColor ? { color: activeNameColor.color } : {}
 
     const avatarBorderStyle: React.CSSProperties = activeBorder && activeBorder.borderCss !== "none"
         ? { outline: activeBorder.borderCss, outlineOffset: "3px", boxShadow: activeBorder.glowCss ?? "none" }
@@ -195,18 +199,19 @@ export default function Page() {
                                     <span className="text-[--muted] font-normal" style={{}}> ({profile!.anilistUsername})</span>
                                 )}
                             </h1>
-                            {activeTitle && resolvedTitleText && (
-                                <span
-                                    className="text-sm font-semibold px-2.5 py-0.5 rounded-full border border-white/10 bg-white/5"
-                                    style={{ color: activeTitle.color ?? "#fff" }}
-                                >
-                                    {resolvedTitleText}
-                                </span>
-                            )}
-                            <span className={cn("text-lg font-bold", levelColors.label)}>
-                                {milestoneName ?? `Level ${currentLevel}`}
+                            <span
+                                className="text-lg font-bold"
+                                style={
+                                    activeXPBarSkin?.fillCss
+                                        ? activeXPBarSkin.fillCss.startsWith("linear-gradient")
+                                            ? { backgroundImage: activeXPBarSkin.fillCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
+                                            : { color: activeXPBarSkin.fillCss }
+                                        : undefined
+                                }
+                            >
+                                {resolvedTitleText ?? milestoneName ?? `Level ${currentLevel}`}
                             </span>
-                            {milestoneName && (
+                            {(milestoneName || resolvedTitleText) && (
                                 <span className="text-sm text-[--muted]">Lv. {currentLevel}</span>
                             )}
                             {level && level.multiplier > 1 && (
@@ -452,6 +457,7 @@ function StatsTabContent() {
     const [selectedYear, setSelectedYear] = React.useState<number | undefined>(undefined)
     const { data: profileStats, isLoading: profileLoading } = useGetProfileStats(selectedYear)
     const { data: anilistStats, isLoading: anilistLoading } = useGetAniListStats(true)
+    const { activeXPBarSkin } = useRewards()
 
     const currentYear = new Date().getFullYear()
     const yearOptions = React.useMemo(() => {
@@ -495,7 +501,7 @@ function StatsTabContent() {
                         ))}
                     </select>
                 </div>
-                <StatsActivityHeatmap days={profileStats?.activityHeatmap} />
+                <StatsActivityHeatmap days={profileStats?.activityHeatmap} fillCss={activeXPBarSkin?.fillCss} />
                 <DayOfWeekChart patterns={profileStats?.watchPatterns?.byDayOfWeek} />
             </div>
 
@@ -721,9 +727,23 @@ function HeroStats({ anilistStats, profileStats }: { anilistStats?: AL_Stats; pr
     )
 }
 
-export function StatsActivityHeatmap({ days }: { days?: ProfileStats_ActivityDay[] }) {
+export function StatsActivityHeatmap({ days, fillCss }: { days?: ProfileStats_ActivityDay[]; fillCss?: string }) {
     if (!days || days.length === 0) {
         return <p className="text-[--muted] text-sm">No activity data yet.</p>
+    }
+
+    const baseColor = React.useMemo(() => {
+        if (!fillCss) return null
+        const stops = fillCss.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)
+        return stops?.[0] ?? (fillCss.startsWith("linear-gradient") ? null : fillCss)
+    }, [fillCss])
+
+    const getCellFill = (intensity: number): { className?: string; style?: React.CSSProperties } => {
+        if (baseColor) {
+            if (intensity <= 0) return { style: { fill: "rgba(255,255,255,0.04)" } }
+            return { style: { fill: baseColor, opacity: 0.15 + intensity * 0.85 } }
+        }
+        return { className: getHeatmapColor(intensity) }
     }
 
     const firstDate = new Date(days[0].date + "T00:00:00")
@@ -765,11 +785,13 @@ export function StatsActivityHeatmap({ days }: { days?: ProfileStats_ActivityDay
                 {columns.map((col, ci) =>
                     col.map((cell, ri) => {
                         if (!cell) {
-                            return <rect key={`${ci}-${ri}`} x={dayLabelWidth + ci * (cellSize + gap)} y={ri * (cellSize + gap)} width={cellSize} height={cellSize} rx={2} className="fill-gray-800/50" />
+                            const { className, style } = getCellFill(0)
+                            return <rect key={`${ci}-${ri}`} x={dayLabelWidth + ci * (cellSize + gap)} y={ri * (cellSize + gap)} width={cellSize} height={cellSize} rx={2} className={className ?? "fill-gray-800/50"} style={style} />
                         }
                         const intensity = cell.totalActivity / maxActivity
+                        const { className, style } = getCellFill(intensity)
                         return (
-                            <rect key={`${ci}-${ri}`} x={dayLabelWidth + ci * (cellSize + gap)} y={ri * (cellSize + gap)} width={cellSize} height={cellSize} rx={2} className={getHeatmapColor(intensity)}>
+                            <rect key={`${ci}-${ri}`} x={dayLabelWidth + ci * (cellSize + gap)} y={ri * (cellSize + gap)} width={cellSize} height={cellSize} rx={2} className={className} style={style}>
                                 <title>{cell.date}: {cell.animeEpisodes} ep, {cell.mangaChapters} ch</title>
                             </rect>
                         )
@@ -778,9 +800,10 @@ export function StatsActivityHeatmap({ days }: { days?: ProfileStats_ActivityDay
             </svg>
             <div className="flex items-center gap-1 mt-1 text-xs text-[--muted]">
                 <span>Less</span>
-                {[0, 0.25, 0.5, 0.75, 1].map((v, i) => (
-                    <span key={i} className={cn("inline-block w-3 h-3 rounded-sm", getHeatmapColor(v))} />
-                ))}
+                {[0, 0.25, 0.5, 0.75, 1].map((v, i) => {
+                    const { className, style } = getCellFill(v)
+                    return <span key={i} className={cn("inline-block w-3 h-3 rounded-sm", className)} style={style} />
+                })}
                 <span>More</span>
             </div>
         </div>

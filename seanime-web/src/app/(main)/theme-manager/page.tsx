@@ -1,6 +1,7 @@
 "use client"
 import React from "react"
-import { useAnimeTheme, deriveBrandShades } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { useAnimeTheme, deriveBrandShades, wallpaperPreviewModeAtom } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { useSetAtom } from "jotai"
 import { ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
 import type { AnimeThemeId, AnimeThemeConfig } from "@/lib/theme/anime-themes"
 import {
@@ -87,6 +88,12 @@ export default function ThemeManagerPage() {
         noiseSpeed,
         setNoiseSpeed,
     } = useAnimeTheme()
+
+    const setWallpaperPreviewMode = useSetAtom(wallpaperPreviewModeAtom)
+    React.useEffect(() => {
+        setWallpaperPreviewMode(true)
+        return () => setWallpaperPreviewMode(false)
+    }, [setWallpaperPreviewMode])
 
     const [pickerOpen, setPickerOpen] = React.useState(false)
     const [searchQuery, setSearchQuery] = React.useState("")
@@ -710,6 +717,24 @@ export default function ThemeManagerPage() {
                 setBackgroundSaturation={setBackgroundSaturation}
                 backgroundContrast={backgroundContrast}
                 setBackgroundContrast={setBackgroundContrast}
+                vignetteStrength={vignetteStrength}
+                setVignetteStrength={setVignetteStrength}
+                vignetteSize={vignetteSize}
+                setVignetteSize={setVignetteSize}
+                glowStrength={glowStrength}
+                setGlowStrength={setGlowStrength}
+                glowSpeed={glowSpeed}
+                setGlowSpeed={setGlowSpeed}
+                glowScale={glowScale}
+                setGlowScale={setGlowScale}
+                scanlinesStrength={scanlinesStrength}
+                setScanlinesStrength={setScanlinesStrength}
+                scanlinesSize={scanlinesSize}
+                setScanlinesSize={setScanlinesSize}
+                noiseStrength={noiseStrength}
+                setNoiseStrength={setNoiseStrength}
+                noiseSpeed={noiseSpeed}
+                setNoiseSpeed={setNoiseSpeed}
                 activeBackgroundUrl={activeBackgroundUrl}
                 setActiveBackgroundUrl={setActiveBackgroundUrl}
                 downloadedBgs={downloadedBgs ?? undefined}
@@ -986,13 +1011,14 @@ function SidePanelWallpaperPicker({
         }
     }
 
-    // Map wallhaven ID → local URL (filenames are now "wh-{id}.ext" or legacy UUID)
+    // Map wallhaven ID → resolved local URL
     const downloadedIdMap = React.useMemo(() => {
         const m = new Map<string, string>()
         ;(downloadedBgs ?? []).forEach(bg => {
+            const resolved = resolveThemeBgUrl(bg.url)
             const m2 = bg.url.match(/\/wh-([a-zA-Z0-9]+)\.[a-z]+$/)
-            if (m2) m.set(m2[1], bg.url)
-            else m.set(bg.url, bg.url) // legacy: use full URL as key
+            if (m2) m.set(m2[1], resolved)
+            else m.set(bg.url, resolved)
         })
         return m
     }, [downloadedBgs])
@@ -1014,18 +1040,21 @@ function SidePanelWallpaperPicker({
                                 onClick={() => setActiveBackgroundUrl(config.backgroundImageUrl!)}
                             />
                         )}
-                        {(downloadedBgs ?? []).map(bg => (
-                            <ThumbnailSlot
-                                key={bg.filename}
-                                url={bg.url}
-                                isActive={activeBackgroundUrl === bg.url}
-                                deletable
-                                onClick={() => setActiveBackgroundUrl(bg.url)}
-                                onDelete={() => {
-                                    if (activeBackgroundUrl === bg.url) setActiveBackgroundUrl(config.backgroundImageUrl ?? null)
-                                }}
-                            />
-                        ))}
+                        {(downloadedBgs ?? []).map(bg => {
+                            const resolvedUrl = resolveThemeBgUrl(bg.url)
+                            return (
+                                <ThumbnailSlot
+                                    key={bg.filename}
+                                    url={resolvedUrl}
+                                    isActive={activeBackgroundUrl === resolvedUrl}
+                                    deletable
+                                    onClick={() => setActiveBackgroundUrl(resolvedUrl)}
+                                    onDelete={() => {
+                                        if (activeBackgroundUrl === resolvedUrl) setActiveBackgroundUrl(config.backgroundImageUrl ?? null)
+                                    }}
+                                />
+                            )
+                        })}
                     </div>
                 </div>
             )}
@@ -1109,6 +1138,24 @@ interface ThemeSettingsPanelProps {
     setBackgroundSaturation: (v: number) => void
     backgroundContrast: number
     setBackgroundContrast: (v: number) => void
+    vignetteStrength: number
+    setVignetteStrength: (v: number) => void
+    vignetteSize: number
+    setVignetteSize: (v: number) => void
+    glowStrength: number
+    setGlowStrength: (v: number) => void
+    glowSpeed: number
+    setGlowSpeed: (v: number) => void
+    glowScale: number
+    setGlowScale: (v: number) => void
+    scanlinesStrength: number
+    setScanlinesStrength: (v: number) => void
+    scanlinesSize: number
+    setScanlinesSize: (v: number) => void
+    noiseStrength: number
+    setNoiseStrength: (v: number) => void
+    noiseSpeed: number
+    setNoiseSpeed: (v: number) => void
     activeBackgroundUrl: string | null
     setActiveBackgroundUrl: (url: string | null) => void
     downloadedBgs: ThemeBgFile[] | undefined
@@ -1123,6 +1170,15 @@ function ThemeSettingsPanel({
     backgroundExposure, setBackgroundExposure,
     backgroundSaturation, setBackgroundSaturation,
     backgroundContrast, setBackgroundContrast,
+    vignetteStrength, setVignetteStrength,
+    vignetteSize, setVignetteSize,
+    glowStrength, setGlowStrength,
+    glowSpeed, setGlowSpeed,
+    glowScale, setGlowScale,
+    scanlinesStrength, setScanlinesStrength,
+    scanlinesSize, setScanlinesSize,
+    noiseStrength, setNoiseStrength,
+    noiseSpeed, setNoiseSpeed,
     activeBackgroundUrl, setActiveBackgroundUrl,
     downloadedBgs, downloadBgMutation,
 }: ThemeSettingsPanelProps) {
@@ -1228,7 +1284,46 @@ function ThemeSettingsPanel({
                                 )}
                             </section>
 
-                            {/* ── Wallpaper ── */}
+                            {/* ── Background sliders (at top) ── */}
+                            <section className="space-y-3">
+                                <p className="text-[10px] font-semibold text-[--muted] uppercase tracking-widest">Background</p>
+                                <InlineSliderRow label="Dim" value={backgroundDim} onChange={setBackgroundDim} min={0} max={1} step={0.01} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundDim(config.backgroundDim ?? 0.30)} />
+                                <InlineSliderRow label="Blur" value={backgroundBlur} onChange={setBackgroundBlur} min={0} max={60} step={1} display={v => `${v}px`} onReset={() => setBackgroundBlur(config.backgroundBlur ?? 30)} />
+                                <InlineSliderRow label="Exposure" value={backgroundExposure} onChange={setBackgroundExposure} min={0.1} max={2.5} step={0.05} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundExposure(1.0)} />
+                                <InlineSliderRow label="Saturation" value={backgroundSaturation} onChange={setBackgroundSaturation} min={0} max={3.0} step={0.05} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundSaturation(1.0)} />
+                                <InlineSliderRow label="Contrast" value={backgroundContrast} onChange={setBackgroundContrast} min={0} max={3.0} step={0.05} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundContrast(1.0)} />
+                            </section>
+
+                            {/* ── Vignette ── */}
+                            <section className="space-y-3">
+                                <p className="text-[10px] font-semibold text-[--muted] uppercase tracking-widest">Vignette</p>
+                                <InlineSliderRow label="Strength" value={vignetteStrength} onChange={setVignetteStrength} min={0} max={1} step={0.01} display={v => `${Math.round(v * 100)}%`} onReset={() => setVignetteStrength(0)} />
+                                <InlineSliderRow label="Size" value={vignetteSize} onChange={setVignetteSize} min={0} max={1} step={0.01} display={v => `${Math.round(v * 100)}%`} onReset={() => setVignetteSize(0.5)} />
+                            </section>
+
+                            {/* ── Shimmer Glow ── */}
+                            <section className="space-y-3">
+                                <p className="text-[10px] font-semibold text-[--muted] uppercase tracking-widest">Shimmer Glow</p>
+                                <InlineSliderRow label="Strength" value={glowStrength} onChange={setGlowStrength} min={0} max={1} step={0.01} display={v => `${Math.round(v * 100)}%`} onReset={() => setGlowStrength(0)} />
+                                <InlineSliderRow label="Speed" value={glowSpeed} onChange={setGlowSpeed} min={0.2} max={5} step={0.1} display={v => `${v.toFixed(1)}x`} onReset={() => setGlowSpeed(2)} />
+                                <InlineSliderRow label="Scale" value={glowScale} onChange={setGlowScale} min={0} max={1} step={0.01} display={v => `${Math.round(v * 100)}%`} onReset={() => setGlowScale(0.5)} />
+                            </section>
+
+                            {/* ── Scanlines ── */}
+                            <section className="space-y-3">
+                                <p className="text-[10px] font-semibold text-[--muted] uppercase tracking-widest">Scanlines</p>
+                                <InlineSliderRow label="Strength" value={scanlinesStrength} onChange={setScanlinesStrength} min={0} max={1} step={0.01} display={v => `${Math.round(v * 100)}%`} onReset={() => setScanlinesStrength(0)} />
+                                <InlineSliderRow label="Spacing" value={scanlinesSize} onChange={setScanlinesSize} min={0} max={1} step={0.01} display={v => `${Math.round(v * 100)}%`} onReset={() => setScanlinesSize(0.5)} />
+                            </section>
+
+                            {/* ── Film Noise ── */}
+                            <section className="space-y-3">
+                                <p className="text-[10px] font-semibold text-[--muted] uppercase tracking-widest">Film Noise</p>
+                                <InlineSliderRow label="Strength" value={noiseStrength} onChange={setNoiseStrength} min={0} max={1} step={0.01} display={v => `${Math.round(v * 100)}%`} onReset={() => setNoiseStrength(0)} />
+                                <InlineSliderRow label="Speed" value={noiseSpeed} onChange={setNoiseSpeed} min={0.1} max={5} step={0.1} display={v => `${v.toFixed(1)}x`} onReset={() => setNoiseSpeed(1)} />
+                            </section>
+
+                            {/* ── Wallpaper (below sliders) ── */}
                             <section className="space-y-3">
                                 <p className="text-[10px] font-semibold text-[--muted] uppercase tracking-widest">Wallpaper</p>
                                 <SidePanelWallpaperPicker
@@ -1238,16 +1333,6 @@ function ThemeSettingsPanel({
                                     downloadedBgs={downloadedBgs}
                                     downloadBgMutation={downloadBgMutation}
                                 />
-                            </section>
-
-                            {/* ── Background ── */}
-                            <section className="space-y-4">
-                                <p className="text-[10px] font-semibold text-[--muted] uppercase tracking-widest">Background</p>
-                                <InlineSliderRow label="Dim" value={backgroundDim} onChange={setBackgroundDim} min={0} max={1} step={0.01} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundDim(config.backgroundDim ?? 0.30)} />
-                                <InlineSliderRow label="Blur" value={backgroundBlur} onChange={setBackgroundBlur} min={0} max={60} step={1} display={v => `${v}px`} onReset={() => setBackgroundBlur(config.backgroundBlur ?? 30)} />
-                                <InlineSliderRow label="Exposure" value={backgroundExposure} onChange={setBackgroundExposure} min={0.1} max={2.5} step={0.05} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundExposure(1.0)} />
-                                <InlineSliderRow label="Saturation" value={backgroundSaturation} onChange={setBackgroundSaturation} min={0} max={3.0} step={0.05} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundSaturation(1.0)} />
-                                <InlineSliderRow label="Contrast" value={backgroundContrast} onChange={setBackgroundContrast} min={0} max={3.0} step={0.05} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundContrast(1.0)} />
                             </section>
                         </>
                     )}

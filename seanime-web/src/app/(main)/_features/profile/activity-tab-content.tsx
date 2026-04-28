@@ -2,6 +2,7 @@ import { AchievementShowcase } from "@/app/(main)/_features/achievement/achievem
 import { useGetTimeline } from "@/api/hooks/community.hooks"
 import * as React from "react"
 import { cn } from "@/components/ui/core/styling"
+import { useRewards } from "@/lib/rewards/reward-provider"
 import { LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuScan, LuFileCheck, LuFileX, LuPencil, LuTrash } from "react-icons/lu"
 import { ActivityHeatmap } from "@/app/(main)/_features/profile/activity-heatmap"
 import { StreakCard, ShowcaseCard, RecentAchievementRow } from "./shared-cards"
@@ -92,15 +93,32 @@ function TimelineEventCard({ event }: { event: Handlers_TimelineEvent }) {
   const cfg = EVENT_CONFIG[event.eventType] || { icon: LuActivity, label: event.eventType, color: "text-gray-300", bgColor: "bg-gray-500/10" }
   const Icon = cfg.icon
   const time = new Date(event.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+  const { activeXPBarSkin } = useRewards()
+
+  // Extract a solid accent color from the XP bar fill gradient
+  const accentColor = React.useMemo(() => {
+    const fill = activeXPBarSkin?.fillCss
+    if (!fill) return null
+    if (fill.startsWith("linear-gradient")) {
+      return fill.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)?.[0] ?? null
+    }
+    return fill
+  }, [activeXPBarSkin])
+
+  const isMedia = event.mediaType === "anime" || event.mediaType === "manga"
+  const dotStyle = accentColor && isMedia ? { backgroundColor: accentColor, boxShadow: `0 0 0 2px ${accentColor}40` } : undefined
+  const badgeIsMedia = event.eventType === "episode_watched" || event.eventType === "manga_chapter_read"
+  const badgeStyle = accentColor && badgeIsMedia ? { color: accentColor, backgroundColor: accentColor + "1a" } : undefined
 
   return (
     <div className="flex items-start gap-3 group">
       <div className="flex flex-col items-center shrink-0 pt-1">
-        <div className={cn("w-2.5 h-2.5 rounded-full ring-2 shrink-0",
-          event.mediaType === "anime" ? "bg-emerald-400 ring-emerald-400/30" :
-          event.mediaType === "manga" ? "bg-emerald-400 ring-emerald-400/30" :
-          "bg-gray-400 ring-gray-400/30"
-        )} />
+        <div
+          className={cn("w-2.5 h-2.5 rounded-full ring-2 shrink-0",
+            !accentColor && (isMedia ? "bg-emerald-400 ring-emerald-400/30" : "bg-gray-400 ring-gray-400/30"),
+          )}
+          style={dotStyle}
+        />
         <div className="w-px flex-1 bg-[--border] mt-1 min-h-[1rem]" />
       </div>
       <div className="flex-1 min-w-0 pb-3">
@@ -116,7 +134,10 @@ function TimelineEventCard({ event }: { event: Handlers_TimelineEvent }) {
           <div className="min-w-0 flex-1">
             <p className="text-sm leading-snug">{formatEventDescription(event)}</p>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className={cn("inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full", cfg.color, cfg.bgColor)}>
+              <span
+                className={cn("inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full", !badgeStyle && cn(cfg.color, cfg.bgColor))}
+                style={badgeStyle}
+              >
                 <Icon className="size-3 shrink-0" />
                 {cfg.label}
               </span>

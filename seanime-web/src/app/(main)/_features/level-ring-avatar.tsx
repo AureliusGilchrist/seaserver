@@ -55,14 +55,28 @@ export function LevelRingAvatar({
     const gradId = `lvring-${tierInfo.tier}-${size}`
     const gradDef = RING_GRADIENTS[tierInfo.tier]
 
-    const overrideGlowColor = xpBarFillOverride
-        ? (xpBarFillOverride.startsWith("linear-gradient")
-            ? (xpBarFillOverride.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)?.[0] ?? null)
-            : xpBarFillOverride)
-        : null
+    // Parse color stops from an xpBarFillOverride CSS gradient
+    const overrideStops = React.useMemo<string[] | null>(() => {
+        if (!xpBarFillOverride) return null
+        if (!xpBarFillOverride.startsWith("linear-gradient")) return null
+        const matches = xpBarFillOverride.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)
+        return matches && matches.length >= 2 ? matches : null
+    }, [xpBarFillOverride])
+
+    const overrideGradId = `lvring-override-${size}`
+    const overrideSolid = xpBarFillOverride && !xpBarFillOverride.startsWith("linear-gradient")
+        ? xpBarFillOverride : null
+    const overrideGlowColor = overrideStops?.[0] ?? overrideSolid ?? null
 
     const glowColor = overrideGlowColor ?? gradDef?.stops?.[0] ?? null
     const glowStyle = glowColor ? { boxShadow: `0 0 16px 4px ${glowColor}60` } : {}
+
+    // Determine stroke reference
+    const strokeRef = overrideStops
+        ? `url(#${overrideGradId})`
+        : overrideSolid
+            ? overrideSolid
+            : tierInfo.animated ? `url(#${gradId})` : undefined
 
     return (
         <div
@@ -70,8 +84,15 @@ export function LevelRingAvatar({
             style={{ width: size, height: size, ...glowStyle }}
         >
             <svg className="absolute inset-0" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-                {gradDef && (
-                    <defs>
+                <defs>
+                    {overrideStops && (
+                        <linearGradient id={overrideGradId} x1="0%" y1="0%" x2="100%" y2="0%">
+                            {overrideStops.map((color, i) => (
+                                <stop key={i} offset={`${(i / (overrideStops.length - 1)) * 100}%`} stopColor={color} />
+                            ))}
+                        </linearGradient>
+                    )}
+                    {gradDef && !overrideStops && (
                         <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%" gradientUnits="objectBoundingBox">
                             {gradDef.stops.map((color, i) => (
                                 <stop key={i} offset={`${(i / (gradDef.stops.length - 1)) * 100}%`} stopColor={color} />
@@ -85,20 +106,18 @@ export function LevelRingAvatar({
                                 repeatCount="indefinite"
                             />
                         </linearGradient>
-                    </defs>
-                )}
+                    )}
+                </defs>
                 <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={3} className="stroke-gray-700/50" />
                 <circle
                     cx={size / 2}
                     cy={size / 2}
                     r={radius}
                     fill="none"
-                    strokeWidth={tierInfo.animated ? 4 : 3}
-                    className={!xpBarFillOverride && !tierInfo.animated ? tierInfo.ringClass : ""}
+                    strokeWidth={tierInfo.animated || overrideStops ? 4 : 3}
+                    className={!strokeRef ? tierInfo.ringClass : ""}
                     style={{
-                        stroke: xpBarFillOverride
-                            ? (xpBarFillOverride.startsWith("linear-gradient") ? overrideGlowColor ?? undefined : xpBarFillOverride)
-                            : (tierInfo.animated ? `url(#${gradId})` : undefined),
+                        stroke: strokeRef,
                         transition: "stroke-dashoffset 0.6s ease",
                     }}
                     strokeLinecap="round"
