@@ -1,7 +1,10 @@
 "use client"
 import React from "react"
-import { useAtomValue } from "jotai"
+import { atom, useAtomValue } from "jotai"
 import { atomWithStorage } from "jotai/utils"
+
+// Signals that a page wants to show wallpaper at near-full opacity (e.g. theme manager)
+export const wallpaperPreviewModeAtom = atom(false)
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ANIME_THEMES, ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
 import type { AnimeThemeId, AnimeThemeConfig, ParticleTypeConfig } from "@/lib/theme/anime-themes"
@@ -632,8 +635,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         try { const v = parseFloat(localStorage.getItem(`sea-anime-scansize-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0.5 : Math.max(0, Math.min(1, v)) } catch { return 0.5 }
     })
     const setScanlinesStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setScanlinesStrengthRaw(c); try { localStorage.setItem(`sea-anime-scan-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
-    const setScanlinesSize = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setScanlinesRawSize(c); try { localStorage.setItem(`sea-anime-scansize-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
-    const setScanlinesRawSize = setScanlinesSize as unknown as typeof setScanlinesSizeRaw
+    const setScanlinesSize = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setScanlinesSizeRaw(c); try { localStorage.setItem(`sea-anime-scansize-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
 
     // ── Noise ──
     const [noiseStrength, setNoiseStrengthRaw] = React.useState<number>(() => {
@@ -693,13 +695,21 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setGlowScale,
         customThemeData,
         setCustomThemeData,
-    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, backgroundContrast, setBackgroundContrast, activeBackgroundUrl, setActiveBackgroundUrl, brandColorOverride, setBrandColorOverride, vignetteStrength, setVignetteStrength, vignetteSize, setVignetteSize, glowStrength, setGlowStrength, glowSpeed, setGlowSpeed, glowScale, setGlowScale, customThemeData, setCustomThemeData])
+        scanlinesStrength,
+        setScanlinesStrength,
+        scanlinesSize,
+        setScanlinesSize,
+        noiseStrength,
+        setNoiseStrength,
+        noiseSpeed,
+        setNoiseSpeed,
+    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, backgroundContrast, setBackgroundContrast, activeBackgroundUrl, setActiveBackgroundUrl, brandColorOverride, setBrandColorOverride, vignetteStrength, setVignetteStrength, vignetteSize, setVignetteSize, glowStrength, setGlowStrength, glowSpeed, setGlowSpeed, glowScale, setGlowScale, customThemeData, setCustomThemeData, scanlinesStrength, setScanlinesStrength, scanlinesSize, setScanlinesSize, noiseStrength, setNoiseStrength, noiseSpeed, setNoiseSpeed])
 
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
             <AnimeThemeMusicPlayer />
-            {config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} />}
+            {config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} />}
             {config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
         </AnimeThemeContext.Provider>
     )
@@ -744,30 +754,60 @@ function AnimeThemeMusicPlayer() {
 // Theme Background Image
 // ─────────────────────────────────────────────────────────────────
 
-function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast }: { url: string; dim?: number; blur?: number; exposure?: number; saturation?: number; contrast?: number }) {
-    const opacity = dim != null ? (1 - dim) : 0.35
+function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, scanlinesStrength = 0, scanlinesSize = 0.5, noiseStrength = 0, noiseSpeed = 1 }: { url: string; dim?: number; blur?: number; exposure?: number; saturation?: number; contrast?: number; scanlinesStrength?: number; scanlinesSize?: number; noiseStrength?: number; noiseSpeed?: number }) {
+    const previewMode = useAtomValue(wallpaperPreviewModeAtom)
+    const effectiveDim = previewMode ? 0.05 : (dim ?? 0.65)
+    const opacity = 1 - effectiveDim
     const filterParts: string[] = []
     if (blur) filterParts.push(`blur(${blur}px)`)
     if (exposure != null && exposure !== 1) filterParts.push(`brightness(${exposure})`)
     if (saturation != null && saturation !== 1) filterParts.push(`saturate(${saturation})`)
     if (contrast != null && contrast !== 1) filterParts.push(`contrast(${contrast})`)
+    const lineHeight = Math.round(2 + scanlinesSize * 6)
+    const noiseAnimDuration = `${(1 / noiseSpeed).toFixed(2)}s`
     return (
-        <div
-            aria-hidden
-            style={{
-                position: "fixed",
-                inset: 0,
-                zIndex: -1,
-                pointerEvents: "none",
-                backgroundImage: `url("${url}")`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundRepeat: "no-repeat",
-                opacity,
-                filter: filterParts.length > 0 ? filterParts.join(" ") : undefined,
-                boxShadow: "inset 0 0 120px 40px rgba(0,0,0,0.5), inset 0 0 40px 20px rgba(0,0,0,0.3)",
-            }}
-        />
+        <div aria-hidden style={{ position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none" }}>
+            {/* Wallpaper image */}
+            <div
+                style={{
+                    position: "absolute",
+                    inset: 0,
+                    backgroundImage: `url("${url}")`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat",
+                    opacity,
+                    filter: filterParts.length > 0 ? filterParts.join(" ") : undefined,
+                    boxShadow: "inset 0 0 120px 40px rgba(0,0,0,0.5), inset 0 0 40px 20px rgba(0,0,0,0.3)",
+                }}
+            />
+            {/* Scanlines */}
+            {scanlinesStrength > 0 && (
+                <div
+                    style={{
+                        position: "absolute",
+                        inset: 0,
+                        backgroundImage: `repeating-linear-gradient(0deg, rgba(0,0,0,${scanlinesStrength * 0.6}) 0px, rgba(0,0,0,${scanlinesStrength * 0.6}) 1px, transparent 1px, transparent ${lineHeight}px)`,
+                    }}
+                />
+            )}
+            {/* Film noise */}
+            {noiseStrength > 0 && (
+                <>
+                    <style>{`@keyframes sea-noise{0%{background-position:0 0}20%{background-position:-20% -20%}40%{background-position:40% 10%}60%{background-position:-10% 30%}80%{background-position:20% -10%}100%{background-position:0 0}}`}</style>
+                    <div
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            opacity: noiseStrength * 0.4,
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                            backgroundSize: "200px 200px",
+                            animation: `sea-noise ${noiseAnimDuration} steps(2) infinite`,
+                        }}
+                    />
+                </>
+            )}
+        </div>
     )
 }
 

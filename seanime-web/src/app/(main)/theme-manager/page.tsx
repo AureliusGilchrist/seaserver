@@ -78,6 +78,14 @@ export default function ThemeManagerPage() {
         setBrandColorOverride,
         customThemeData,
         setCustomThemeData,
+        scanlinesStrength,
+        setScanlinesStrength,
+        scanlinesSize,
+        setScanlinesSize,
+        noiseStrength,
+        setNoiseStrength,
+        noiseSpeed,
+        setNoiseSpeed,
     } = useAnimeTheme()
 
     const [pickerOpen, setPickerOpen] = React.useState(false)
@@ -518,6 +526,52 @@ export default function ThemeManagerPage() {
                                 </div>
                                 <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(glowScale * 100)}%</span>
                                 <button onClick={() => setGlowScale(0.5)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
+                            </div>
+                        </div>
+
+                        {/* Scanlines section */}
+                        <div className="pt-3 border-t border-white/5 space-y-4">
+                            <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Scanlines</p>
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm text-[--muted] w-16 shrink-0">Strength</span>
+                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${scanlinesStrength * 100}%` }} />
+                                    <input type="range" min={0} max={1} step={0.01} value={scanlinesStrength} onChange={e => setScanlinesStrength(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
+                                </div>
+                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(scanlinesStrength * 100)}%</span>
+                                <button onClick={() => setScanlinesStrength(0)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm text-[--muted] w-16 shrink-0">Spacing</span>
+                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${scanlinesSize * 100}%` }} />
+                                    <input type="range" min={0} max={1} step={0.01} value={scanlinesSize} onChange={e => setScanlinesSize(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
+                                </div>
+                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(scanlinesSize * 100)}%</span>
+                                <button onClick={() => setScanlinesSize(0.5)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
+                            </div>
+                        </div>
+
+                        {/* Film Noise section */}
+                        <div className="pt-3 border-t border-white/5 space-y-4">
+                            <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Film Noise</p>
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm text-[--muted] w-16 shrink-0">Strength</span>
+                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${noiseStrength * 100}%` }} />
+                                    <input type="range" min={0} max={1} step={0.01} value={noiseStrength} onChange={e => setNoiseStrength(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
+                                </div>
+                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(noiseStrength * 100)}%</span>
+                                <button onClick={() => setNoiseStrength(0)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm text-[--muted] w-16 shrink-0">Speed</span>
+                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${((noiseSpeed - 0.1) / 4.9) * 100}%` }} />
+                                    <input type="range" min={0.1} max={5} step={0.1} value={noiseSpeed} onChange={e => setNoiseSpeed(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
+                                </div>
+                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{noiseSpeed.toFixed(1)}x</span>
+                                <button onClick={() => setNoiseSpeed(1)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
                             </div>
                         </div>
                     </div>

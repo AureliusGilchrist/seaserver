@@ -5,7 +5,8 @@
       "PowerShell(Set-Location \"E:\\\\Main\\\\seaserver\\\\seanime-web\"; $out = npx tsc --noEmit 2>&1; $errors = $out | Where-Object { $_ -match \"error TS\" }; if \\($errors\\) { $errors | Select-Object -First 20 } else { \"No TypeScript errors\" })",
       "PowerShell(Set-Location \"E:\\\\Main\\\\seaserver\\\\seanime-web\"; $out = npx tsc --noEmit 2>&1; $errors = $out | Where-Object { $_ -match \"error TS\" }; if \\($errors\\) { $errors | Select-Object -First 15 } else { \"No TypeScript errors\" })",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(npx tsc *)"
     ],
     "additionalDirectories": [
       "E:\\Main\\seaserver\\seanime-web\\src\\lib\\ui-customize",
