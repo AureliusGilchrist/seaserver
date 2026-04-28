@@ -10,7 +10,7 @@ import {
     Achievement_Entry,
 } from "@/api/generated/types"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
-import { LevelRingAvatar } from "@/app/(main)/community/page"
+import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { tabsTriggerClass, tabsListClass } from "@/components/shared/classnames"
 import { cn } from "@/components/ui/core/styling"
@@ -96,6 +96,7 @@ export default function Page() {
                             name: profile!.name,
                         }}
                         size={120}
+                        xpBarFillOverride={profile?.xpBarFillCss || undefined}
                     />
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">

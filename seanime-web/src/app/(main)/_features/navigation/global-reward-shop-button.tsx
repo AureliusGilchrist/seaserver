@@ -2,14 +2,37 @@
 import React from "react"
 import { useGetLevel } from "@/api/hooks/community.hooks"
 import { RewardShop } from "@/app/(main)/profile/me/_components/reward-shop"
+import { useRewards } from "@/lib/rewards/reward-provider"
 import { cn } from "@/components/ui/core/styling"
 import { LuShoppingBag, LuX } from "react-icons/lu"
 import { GiTrophyCup } from "react-icons/gi"
+import { useAtomValue } from "jotai"
+import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 
 export function GlobalRewardShopButton() {
     const [open, setOpen] = React.useState(false)
     const { data: levelData } = useGetLevel()
     const level = levelData?.currentLevel ?? 0
+    const { activeXPBarSkin } = useRewards()
+    const isFullscreen = useAtomValue(vc_isFullscreen)
+
+    // Extract a solid color from the XP bar fill CSS for use as the badge background
+    const badgeBg = React.useMemo(() => {
+        const fill = activeXPBarSkin?.fillCss
+        if (!fill) return null
+        if (fill.startsWith("linear-gradient")) {
+            const stops = fill.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)
+            return stops?.[0] ?? null
+        }
+        return fill
+    }, [activeXPBarSkin])
+
+    const badgeStyle: React.CSSProperties = badgeBg
+        ? { background: activeXPBarSkin?.fillCss ?? badgeBg, borderColor: "transparent" }
+        : {}
+
+    // In fullscreen: raise the button up from the bottom (animated)
+    const bottomPosition = isFullscreen ? "bottom-16" : "bottom-5"
 
     return (
         <>
@@ -17,16 +40,19 @@ export function GlobalRewardShopButton() {
             <button
                 onClick={() => setOpen(true)}
                 title="Reward Shop"
+                style={badgeStyle}
                 className={cn(
-                    "fixed bottom-5 left-5 z-50 flex items-center gap-2 px-3 py-2 rounded-2xl",
-                    "bg-[--paper] border border-[--border] shadow-xl",
-                    "hover:border-[--color-brand-500] hover:bg-[--color-brand-900] transition-all duration-200",
+                    "fixed left-5 z-50 flex items-center gap-2 px-3 py-2 rounded-2xl",
+                    "border shadow-xl transition-all duration-300 ease-out",
+                    !badgeBg && "bg-[--paper] border-[--border] hover:border-[--color-brand-500] hover:bg-[--color-brand-900]",
+                    badgeBg && "hover:opacity-90",
                     "text-[--foreground] text-sm font-semibold group",
+                    bottomPosition,
                 )}
             >
-                <GiTrophyCup className="w-4 h-4 text-[--color-brand-400] group-hover:text-[--color-brand-300]" />
-                <span className="text-xs tabular-nums text-[--muted] group-hover:text-[--foreground]">Lv.{level}</span>
-                <LuShoppingBag className="w-3.5 h-3.5 text-[--muted] group-hover:text-[--color-brand-400]" />
+                <GiTrophyCup className="w-4 h-4 text-white/80 group-hover:text-white" />
+                <span className="text-xs tabular-nums text-white/80 group-hover:text-white">Lv.{level}</span>
+                <LuShoppingBag className="w-3.5 h-3.5 text-white/60 group-hover:text-white" />
             </button>
 
             {/* Full-screen modal drawer */}

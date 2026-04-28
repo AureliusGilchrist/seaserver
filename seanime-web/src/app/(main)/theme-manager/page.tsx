@@ -20,6 +20,13 @@ import { WALLHAVEN_CURATED_QUERY } from "@/lib/theme/anime-themes/wallhaven-cura
 import { LuSettings2, LuSparkles, LuSearch, LuX, LuPalette, LuCheck, LuDownload, LuImage } from "react-icons/lu"
 import { useGetRawAnilistMangaCollection } from "@/api/hooks/manga.hooks"
 import { cn } from "@/components/ui/core/styling"
+import { getServerBaseUrl } from "@/api/client/server-url"
+
+function resolveThemeBgUrl(url: string): string {
+    if (!url) return url
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url
+    return `${getServerBaseUrl()}${url}`
+}
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import {
     useListThemeBackgrounds,
@@ -102,7 +109,7 @@ export default function ThemeManagerPage() {
 
     const handleDownloadAllSuggestions = async () => {
         if (!suggestions.length || batchProgress) return
-        const alreadyDownloaded = new Set((downloadedBgs ?? []).map(b => b.url))
+        const alreadyDownloaded = new Set((downloadedBgs ?? []).map(b => resolveThemeBgUrl(b.url)))
         const toDownload = suggestions.filter(w => !alreadyDownloaded.has(w.path))
         if (!toDownload.length) return
         setBatchProgress({ done: 0, total: toDownload.length })
@@ -565,20 +572,20 @@ export default function ThemeManagerPage() {
                                 {(downloadedBgs ?? []).map(bg => (
                                     <div key={bg.filename} className="relative group">
                                         <button
-                                            onClick={() => setActiveBackgroundUrl(bg.url)}
+                                            onClick={() => setActiveBackgroundUrl(resolveThemeBgUrl(bg.url))}
                                             className={cn(
                                                 "relative aspect-video w-full rounded-lg overflow-hidden border-2 transition-all",
-                                                activeBackgroundUrl === bg.url
+                                                activeBackgroundUrl === resolveThemeBgUrl(bg.url)
                                                     ? "border-[--color-brand-400]"
                                                     : "border-transparent hover:border-white/30",
                                             )}
                                         >
-                                            <img src={bg.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                            <img src={resolveThemeBgUrl(bg.url)} alt="" className="w-full h-full object-cover" loading="lazy" onError={e => { (e.target as HTMLImageElement).style.opacity = "0.3" }} />
                                         </button>
                                         <button
                                             onClick={() => {
                                                 deleteMutation.mutate(bg.filename)
-                                                if (activeBackgroundUrl === bg.url) setActiveBackgroundUrl(config.backgroundImageUrl ?? null)
+                                                if (activeBackgroundUrl === resolveThemeBgUrl(bg.url)) setActiveBackgroundUrl(config.backgroundImageUrl ?? null)
                                             }}
                                             className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px]"
                                         >✕</button>

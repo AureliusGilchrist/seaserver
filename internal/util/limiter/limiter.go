@@ -8,9 +8,8 @@ import (
 // https://stackoverflow.com/a/72452542
 
 func NewAnilistLimiter() *Limiter {
-	// 26 requests per minute — stays safely under AniList's 90/min hard cap even
-	// when several profiles are active simultaneously.
-	return NewLimiter(time.Minute, 26)
+	// 30 requests per 10 seconds (user-requested rate)
+	return NewLimiter(10*time.Second, 30)
 }
 
 //----------------------------------------------------------------------------------------------------------------------

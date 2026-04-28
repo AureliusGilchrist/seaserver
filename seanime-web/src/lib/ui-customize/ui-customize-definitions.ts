@@ -203,11 +203,8 @@ export const UI_CUSTOMIZE_CATEGORIES = [
     { id: "animations",  label: "Animations",      icon: "✨", presets: ANIMATION_PRESETS      },
     { id: "cards",       label: "Card Style",       icon: "🃏", presets: CARD_STYLE_PRESETS     },
     { id: "radius",      label: "Border Radius",    icon: "⬜", presets: RADIUS_PRESETS         },
-    { id: "trail",       label: "Mouse Trail",      icon: "🖱️", presets: MOUSE_TRAIL_PRESETS   },
     { id: "hover",       label: "Hover Effects",    icon: "👆", presets: HOVER_EFFECT_PRESETS   },
-    { id: "effects",     label: "Visual Effects",   icon: "💫", presets: EFFECTS_PRESETS        },
     { id: "layout",      label: "Layout Density",   icon: "📐", presets: LAYOUT_PRESETS         },
-    { id: "sidebar",     label: "Sidebar Style",    icon: "📋", presets: SIDEBAR_PRESETS        },
     { id: "transitions", label: "Page Transitions", icon: "🎬", presets: PAGE_TRANSITION_PRESETS },
     { id: "scrollbar",   label: "Scrollbar",        icon: "↕️", presets: SCROLLBAR_PRESETS     },
 ] as const

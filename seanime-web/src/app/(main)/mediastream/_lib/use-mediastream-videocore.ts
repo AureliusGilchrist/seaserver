@@ -78,10 +78,10 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
     }
 
     React.useEffect(() => {
-        if (isPending) {
+        if (isPending || isFetching) {
             changeUrl(undefined)
         }
-    }, [isPending])
+    }, [isPending, isFetching])
 
     // Handle stream URL from media container
     React.useEffect(() => {
@@ -321,7 +321,7 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         active: !!url && !!episode,
         playbackInfo: playbackInfo,
         playbackError: (isMediaContainerError || isStreamError) ? "Playback error" : null,
-        loadingState: isPending ? "Extracting video metadata..." : null,
+        loadingState: (isPending || isFetching) ? "Extracting audio and subs, please wait..." : null,
     }), [url, episode, playbackInfo, isMediaContainerError, isStreamError, isPending])
 
     // ── Stream Management ───────────────────────────────────────────────

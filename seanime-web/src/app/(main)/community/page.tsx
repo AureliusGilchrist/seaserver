@@ -313,7 +313,7 @@ function CommunityProfileCard({ profile }: { profile: Handlers_CommunityProfile 
                     </>
                 )}
                 <div className="relative z-10 flex flex-col items-center gap-3 w-full">
-                    <LevelRingAvatar profile={profile} size={80} />
+                    <LevelRingAvatar profile={profile} size={80} xpBarFillOverride={profile.xpBarFillCss || undefined} />
                     <div className="text-center min-w-0 w-full">
                         {/* Global name color */}
                         <p
@@ -389,7 +389,7 @@ function LeaderboardRow({ profile, rank }: { profile: Handlers_CommunityProfile;
                     {rank}
                 </span>
                 <div className="flex items-center gap-3 min-w-0">
-                    <LevelRingAvatar profile={profile} size={40} />
+                    <LevelRingAvatar profile={profile} size={40} xpBarFillOverride={profile.xpBarFillCss || undefined} />
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
                             <p className="font-semibold text-sm truncate">{profile.name}</p>

@@ -2,10 +2,11 @@
 
 import React from "react"
 import { atom, useAtom } from "jotai"
+import { atomWithStorage } from "jotai/utils"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { WSEvents } from "@/lib/server/ws-events"
 import { cn } from "@/components/ui/core/styling"
-import { LuWifi, LuWifiOff, LuX } from "react-icons/lu"
+import { LuWifiOff, LuX, LuBellOff } from "react-icons/lu"
 
 // ─── State ─────────────────────────────────────────────────────────────────
 
@@ -21,12 +22,23 @@ const anilistBannerAtom = atom<AnilistBannerState>({
     dismissed: false,
 })
 
+// Stores the timestamp (ms) until which the banner is muted
+const anilistBannerMutedUntilAtom = atomWithStorage<number>("sea-anilist-banner-muted-until", 0)
+
 // ─── Component ─────────────────────────────────────────────────────────────
 
 export function AnilistStatusBanner() {
     const [state, setState] = useAtom(anilistBannerAtom)
+    const [mutedUntil, setMutedUntil] = useAtom(anilistBannerMutedUntilAtom)
     const [countdown, setCountdown] = React.useState(0)
     const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
+
+    const isMuted = Date.now() < mutedUntil
+
+    const handleMute = () => {
+        setMutedUntil(Date.now() + 3 * 60 * 60 * 1000) // 3 hours
+        setState(s => ({ ...s, dismissed: true }))
+    }
 
     // Listen for rate-limited event
     useWebsocketMessageListener<{ retryAfter: number }>({
@@ -68,7 +80,7 @@ export function AnilistStatusBanner() {
         return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
     }, [state.visible, countdown > 0 && state.retryAfter])
 
-    if (!state.visible || state.dismissed) return null
+    if (!state.visible || state.dismissed || isMuted) return null
 
     // Compute the absolute "resumes at" clock time from when the event was received
     const resumesAt = React.useMemo(() => {
@@ -112,6 +124,14 @@ export function AnilistStatusBanner() {
                 <p className="text-xs text-amber-500/60 hidden md:block">
                     Collection syncing paused
                 </p>
+                <button
+                    onClick={handleMute}
+                    className="flex items-center gap-1 px-2 py-1 rounded text-amber-400/70 hover:text-amber-300 hover:bg-amber-800/50 transition-colors text-xs"
+                    title="Mute for 3 hours"
+                >
+                    <LuBellOff className="w-3 h-3" />
+                    <span className="hidden sm:inline">3h</span>
+                </button>
                 <button
                     onClick={() => setState(s => ({ ...s, dismissed: true }))}
                     className="p-1 rounded text-amber-400/60 hover:text-amber-300 hover:bg-amber-800/50 transition-colors"

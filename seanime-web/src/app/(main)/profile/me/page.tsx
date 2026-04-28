@@ -32,7 +32,7 @@ import {
 } from "@/api/generated/types"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { AchievementShowcase } from "@/app/(main)/_features/achievement/achievement-showcase"
-import { LevelRingAvatar } from "@/app/(main)/community/page"
+import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
 import { ActivityHeatmap } from "@/app/(main)/_features/profile/activity-heatmap"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { tabsTriggerClass, tabsListClass } from "@/components/shared/classnames"
@@ -132,8 +132,29 @@ export default function Page() {
         ? { outline: activeBorder.borderCss, outlineOffset: "3px", boxShadow: activeBorder.glowCss ?? "none" }
         : {}
 
+    // Derive a solid accent color from XP bar fill for scoped brand overrides
+    const profileAccentColor = React.useMemo<string | null>(() => {
+        const fill = activeXPBarSkin?.fillCss
+        if (!fill) return null
+        if (fill.startsWith("linear-gradient")) {
+            return fill.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)?.[0] ?? null
+        }
+        return fill
+    }, [activeXPBarSkin])
+
+    // Inject scoped brand shades derived from the XP bar color on the profile page
+    const profileAccentVars: React.CSSProperties = profileAccentColor ? {
+        ["--color-brand-300" as string]: profileAccentColor + "bf",
+        ["--color-brand-400" as string]: profileAccentColor + "cc",
+        ["--color-brand-500" as string]: profileAccentColor,
+        ["--color-brand-600" as string]: profileAccentColor + "99",
+        ["--color-brand-700" as string]: profileAccentColor + "66",
+        ["--color-brand-800" as string]: profileAccentColor + "33",
+        ["--color-brand-900" as string]: profileAccentColor + "1a",
+    } : {}
+
     return (
-        <>
+        <div style={profileAccentVars}>
             {/* Banner */}
             {profile!.bannerImage ? (
                 <div
@@ -163,6 +184,7 @@ export default function Page() {
                                 name: profile!.name,
                             }}
                             size={120}
+                            xpBarFillOverride={activeXPBarSkin?.fillCss || undefined}
                         />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -332,7 +354,7 @@ export default function Page() {
                     </TabsContent>
                 </Tabs>
             </PageWrapper>
-        </>
+        </div>
     )
 }
 

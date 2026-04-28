@@ -94,8 +94,8 @@ func (ad *AutoDownloader) fetchTorrentsFromProviders(
 		go func(pExt extension.AnimeTorrentProviderExtension) {
 			defer wg.Done()
 
-			// Set up a rate limiter for a single provider
-			rateLimiter := limiter.NewLimiter(time.Second, 2) // 2 reqs per sec
+			// No rate limiting on the torrent client (removed per user request)
+			rateLimiter := limiter.NewLimiter(time.Millisecond, 1000) // effectively unlimited
 
 			// Step 1: Get all latest torrents
 			ad.logger.Debug().Str("provider", pExt.GetName()).Msg("autodownloader: Getting latest torrents")

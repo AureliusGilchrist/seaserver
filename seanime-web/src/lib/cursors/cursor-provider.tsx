@@ -55,9 +55,12 @@ export function CursorProvider({ children }: { children: React.ReactNode }) {
 
         if (cursorCss === "auto" || cursorCss === "default") {
             document.documentElement.style.removeProperty("cursor")
-            // Also clear on all interactive elements
             document.documentElement.style.setProperty("--sea-cursor", "auto")
+            // Let the theme cursor take effect (remove the theme override suppression)
         } else {
+            // Remove any theme cursor style so the reward-shop cursor wins
+            const themeCursorStyle = document.getElementById("anime-theme-cursors")
+            if (themeCursorStyle) themeCursorStyle.remove()
             document.documentElement.style.setProperty("cursor", cursorCss)
             document.documentElement.style.setProperty("--sea-cursor", cursorCss)
         }

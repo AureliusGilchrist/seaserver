@@ -153,7 +153,7 @@ const log = logger("VIDEO CORE")
 
 export const VIDEOCORE_DEBUG_ELEMENTS = false
 
-const DELAY_BEFORE_NOT_BUSY = 1_000 //ms
+const DELAY_BEFORE_NOT_BUSY = 2_000 //ms — hide cursor after 2 s of no movement
 
 export const vc_subtitleManager = atom<VideoCoreSubtitleManager | null>(null)
 export const vc_mediaCaptionsManager = atom<MediaCaptionsManager | null>(null)
@@ -363,6 +363,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                     "relative w-full h-full bg-black overflow-clip flex items-center justify-center",
                     (!busy && !isMiniPlayer) && "cursor-none",
                 )}
+                style={(!busy && !isMiniPlayer) ? { cursor: "none" } : undefined}
                 onPointerMove={handleContainerPointerMove}
                 onMouseEnter={handleContainerMouseEnter}
                 onMouseLeave={handleContainerMouseLeave}

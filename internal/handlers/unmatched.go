@@ -10,7 +10,6 @@ import (
 	"seanime/internal/unmatched"
 	"seanime/internal/util/limiter"
 	"sync"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -128,7 +127,7 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 				MetadataProviderRef: h.App.MetadataProviderRef,
 				PlatformRef:         h.App.AnilistPlatformRef,
 				CompleteAnimeCache:  anilist.NewCompleteAnimeCache(),
-				AnilistRateLimiter:  limiter.NewLimiter(5*time.Second, 20),
+				AnilistRateLimiter:  limiter.NewAnilistLimiter(),
 				Logger:              h.App.Logger,
 			}
 			fh.HydrateMetadata()

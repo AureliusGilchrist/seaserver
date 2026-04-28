@@ -12,7 +12,14 @@ import {
 } from "@/api/hooks/theme_backgrounds.hooks"
 import { cn } from "@/components/ui/core/styling"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { getServerBaseUrl } from "@/api/client/server-url"
 import { toast } from "sonner"
+
+function resolveUrl(url: string): string {
+    if (!url) return url
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url
+    return `${getServerBaseUrl()}${url}`
+}
 
 type Props = {
     open: boolean
@@ -104,7 +111,7 @@ export function WallhavenPickerModal({ open, onClose }: Props) {
     }
 
     const handleApplySaved = (url: string) => {
-        setActiveBackgroundUrl(url)
+        setActiveBackgroundUrl(resolveUrl(url))
         toast.success("Wallpaper applied")
         onClose()
     }
@@ -392,10 +399,11 @@ function SavedWallpaperCard({
             {!imgLoaded && <div className="absolute inset-0 bg-white/5 animate-pulse" />}
 
             <img
-                src={file.url}
+                src={resolveUrl(file.url)}
                 alt=""
                 loading="lazy"
                 onLoad={() => setImgLoaded(true)}
+                onError={() => setImgLoaded(true)}
                 className={cn("w-full h-full object-cover transition-all duration-300 group-hover:scale-105", !imgLoaded && "opacity-0")}
             />
 
@@ -403,7 +411,7 @@ function SavedWallpaperCard({
 
             <div className="absolute inset-x-0 bottom-0 p-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1.5">
                 <button
-                    onClick={() => onApply(file.url)}
+                    onClick={() => onApply(resolveUrl(file.url))}
                     className="flex-1 py-1.5 text-xs font-semibold bg-[--color-brand-600]/90 hover:bg-[--color-brand-500]/90 backdrop-blur-sm text-white rounded-lg transition-colors"
                 >
                     Apply

@@ -168,13 +168,29 @@ export function AnimeEntryPage() {
 
     }, [animeEntry, animeEntryLoading, mediaId, searchParams, serverStatus, currentView, tab])
 
+    // Redirect guard: only redirect once the query has settled (not loading) AND we've
+    // waited at least 1 s to avoid false positives from stale-while-revalidate flicker.
+    const settledTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     React.useEffect(() => {
-        // Don't redirect if we're viewing a synthetic anime
         if (isSynthetic) return
-        if (!mediaId || (!animeEntryLoading && !animeEntry)) {
-            router.push("/")
+        if (!mediaId) { router.push("/"); return }
+
+        if (!animeEntryLoading && !animeEntry) {
+            // Query completed with no data — wait 1 s before redirecting in case a
+            // background refetch is about to fill in the entry.
+            settledTimer.current = setTimeout(() => {
+                if (!animeEntry) router.push("/")
+            }, 1000)
+        } else {
+            if (settledTimer.current) {
+                clearTimeout(settledTimer.current)
+                settledTimer.current = null
+            }
         }
-    }, [animeEntry, animeEntryLoading, isSynthetic])
+        return () => {
+            if (settledTimer.current) clearTimeout(settledTimer.current)
+        }
+    }, [animeEntry, animeEntryLoading, isSynthetic, mediaId])
 
     // Reset view when unmounting
     useUnmount(() => {

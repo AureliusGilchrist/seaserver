@@ -68,6 +68,12 @@ export default function Page() {
         return episodes.find(ep => !!ep.localFile?.path && ep.localFile?.path === filePath)?.episodeNumber || -1
     }, [episodes, filePath])
 
+    // progressNumber is the AniList-facing episode number (may differ from episodeNumber for specials/batches)
+    const progressNumber = React.useMemo(() => {
+        const ep = episodes.find(ep => !!ep.localFile?.path && ep.localFile?.path === filePath)
+        return ep?.progressNumber ?? ep?.episodeNumber ?? -1
+    }, [episodes, filePath])
+
     const progress = animeEntry?.listData?.progress
 
     /**
@@ -102,7 +108,7 @@ export default function Page() {
             media={animeEntry?.media}
             progress={{
                 currentProgress: progress ?? 0,
-                currentEpisodeNumber: episodeNumber === -1 ? null : episodeNumber,
+                currentEpisodeNumber: progressNumber === -1 ? null : progressNumber,
                 currentEpisodeTitle: currentEpisode?.displayTitle || currentEpisode?.episodeTitle || null,
             }}
         >

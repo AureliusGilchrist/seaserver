@@ -145,6 +145,16 @@ type AnimeThemeContextValue = {
     // ── Custom theme ──
     customThemeData: import("./custom-theme").CustomThemeData | null
     setCustomThemeData: (data: import("./custom-theme").CustomThemeData) => void
+    // ── Scanlines ──
+    scanlinesStrength: number
+    setScanlinesStrength: (v: number) => void
+    scanlinesSize: number
+    setScanlinesSize: (v: number) => void
+    // ── Noise ──
+    noiseStrength: number
+    setNoiseStrength: (v: number) => void
+    noiseSpeed: number
+    setNoiseSpeed: (v: number) => void
 }
 
 const AnimeThemeContext = React.createContext<AnimeThemeContextValue | null>(null)
@@ -570,10 +580,15 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     }, [config.id])
 
     // ── Themed cursor CSS injection ──
+    // Skip if the user has chosen a custom cursor from the reward shop (--sea-cursor is set)
     React.useEffect(() => {
         const prevStyle = document.getElementById("anime-theme-cursors")
         if (prevStyle) prevStyle.remove()
         if (config.id === "seanime") return
+
+        // If the user has a reward-shop cursor active, don't override it with the theme cursor
+        const seaCursor = document.documentElement.style.getPropertyValue("--sea-cursor")
+        if (seaCursor && seaCursor !== "auto") return
 
         const color = config.particleColor ?? "#ffffff"
         const style = document.createElement("style")
@@ -608,6 +623,27 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const setGlowStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setGlowStrengthRaw(c); try { localStorage.setItem(`sea-anime-glow-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
     const setGlowSpeed = React.useCallback((v: number) => { const c = Math.max(0.2, Math.min(5, v)); setGlowSpeedRaw(c); try { localStorage.setItem(`sea-anime-gspeed-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
     const setGlowScale = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setGlowScaleRaw(c); try { localStorage.setItem(`sea-anime-gscale-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+
+    // ── Scanlines ──
+    const [scanlinesStrength, setScanlinesStrengthRaw] = React.useState<number>(() => {
+        try { const v = parseFloat(localStorage.getItem(`sea-anime-scan-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
+    })
+    const [scanlinesSize, setScanlinesSizeRaw] = React.useState<number>(() => {
+        try { const v = parseFloat(localStorage.getItem(`sea-anime-scansize-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0.5 : Math.max(0, Math.min(1, v)) } catch { return 0.5 }
+    })
+    const setScanlinesStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setScanlinesStrengthRaw(c); try { localStorage.setItem(`sea-anime-scan-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setScanlinesSize = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setScanlinesRawSize(c); try { localStorage.setItem(`sea-anime-scansize-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setScanlinesRawSize = setScanlinesSize as unknown as typeof setScanlinesSizeRaw
+
+    // ── Noise ──
+    const [noiseStrength, setNoiseStrengthRaw] = React.useState<number>(() => {
+        try { const v = parseFloat(localStorage.getItem(`sea-anime-noise-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
+    })
+    const [noiseSpeed, setNoiseSpeedRaw] = React.useState<number>(() => {
+        try { const v = parseFloat(localStorage.getItem(`sea-anime-nspeed-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 1 : Math.max(0.1, Math.min(5, v)) } catch { return 1 }
+    })
+    const setNoiseStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setNoiseStrengthRaw(c); try { localStorage.setItem(`sea-anime-noise-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setNoiseSpeed = React.useCallback((v: number) => { const c = Math.max(0.1, Math.min(5, v)); setNoiseSpeedRaw(c); try { localStorage.setItem(`sea-anime-nspeed-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
 
     // ── Custom theme data ──
     const [customThemeData, setCustomThemeDataRaw] = React.useState<import("./custom-theme").CustomThemeData | null>(() => {

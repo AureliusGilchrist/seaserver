@@ -9,7 +9,7 @@ import {
 } from "@/lib/ui-customize/ui-customize-definitions"
 import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
-import { LevelRingAvatar } from "@/app/(main)/community/page"
+import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
 import { useSound } from "@/lib/sounds/sound-provider"
 import { cn } from "@/components/ui/core/styling"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -669,29 +669,28 @@ export function RewardShop({ currentLevel }: Props) {
                 {section === "profile" && (
                     <Tabs defaultValue="titles" className="w-full">
                         <TabsList className="mb-4 flex flex-wrap gap-1 h-auto bg-transparent border border-[--border] p-1 rounded-lg">
-                            <TabsTrigger value="titles"      className="flex items-center gap-1.5 text-xs"><LuTag           className="shrink-0" /> Titles</TabsTrigger>
-                            <TabsTrigger value="namecolors"  className="flex items-center gap-1.5 text-xs"><LuPalette       className="shrink-0" /> Name Colors</TabsTrigger>
-                            <TabsTrigger value="borders"     className="flex items-center gap-1.5 text-xs"><LuFrame         className="shrink-0" /> Borders</TabsTrigger>
-                            <TabsTrigger value="backgrounds" className="flex items-center gap-1.5 text-xs"><LuImage         className="shrink-0" /> Backgrounds</TabsTrigger>
-                            <TabsTrigger value="xpbars"      className="flex items-center gap-1.5 text-xs"><LuZap           className="shrink-0" /> XP Bars</TabsTrigger>
-                            <TabsTrigger value="particles"   className="flex items-center gap-1.5 text-xs"><LuSparkles      className="shrink-0" /> Particles</TabsTrigger>
-                            <TabsTrigger value="cursors"     className="flex items-center gap-1.5 text-xs"><LuMousePointer2 className="shrink-0" /> Cursors</TabsTrigger>
-                            <TabsTrigger value="sounds"      className="flex items-center gap-1.5 text-xs"><LuVolume2       className="shrink-0" /> Sounds</TabsTrigger>
+                            <TabsTrigger value="titles"  className="flex items-center gap-1.5 text-xs"><LuTag       className="shrink-0" /> Titles</TabsTrigger>
+                            <TabsTrigger value="xpbars"  className="flex items-center gap-1.5 text-xs"><LuZap       className="shrink-0" /> XP Bars</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="titles">      <TitlesTab       currentLevel={currentLevel} /> </TabsContent>
-                        <TabsContent value="namecolors">  <NameColorsTab   currentLevel={currentLevel} /> </TabsContent>
-                        <TabsContent value="borders">     <BordersTab      currentLevel={currentLevel} /> </TabsContent>
-                        <TabsContent value="backgrounds"> <BackgroundsTab  currentLevel={currentLevel} /> </TabsContent>
-                        <TabsContent value="xpbars">      <XPBarsTab       currentLevel={currentLevel} /> </TabsContent>
-                        <TabsContent value="particles">   <ParticlesTab    currentLevel={currentLevel} /> </TabsContent>
-                        <TabsContent value="cursors">     <CursorTab       currentLevel={currentLevel} /> </TabsContent>
-                        <TabsContent value="sounds">      <SoundPackTab    currentLevel={currentLevel} /> </TabsContent>
+                        <TabsContent value="titles">  <TitlesTab  currentLevel={currentLevel} /> </TabsContent>
+                        <TabsContent value="xpbars">  <XPBarsTab  currentLevel={currentLevel} /> </TabsContent>
                     </Tabs>
                 )}
 
                 {section === "ui" && (
-                    <UIEnhancementsSection currentLevel={currentLevel} />
+                    <Tabs defaultValue="enhancements" className="w-full">
+                        <TabsList className="mb-4 flex flex-wrap gap-1 h-auto bg-transparent border border-[--border] p-1 rounded-lg">
+                            <TabsTrigger value="enhancements" className="flex items-center gap-1.5 text-xs"><LuWand          className="shrink-0" /> Enhancements</TabsTrigger>
+                            <TabsTrigger value="particles"    className="flex items-center gap-1.5 text-xs"><LuSparkles      className="shrink-0" /> Particles</TabsTrigger>
+                            <TabsTrigger value="cursors"      className="flex items-center gap-1.5 text-xs"><LuMousePointer2 className="shrink-0" /> Cursors</TabsTrigger>
+                            <TabsTrigger value="sounds"       className="flex items-center gap-1.5 text-xs"><LuVolume2       className="shrink-0" /> Sounds</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="enhancements"><UIEnhancementsSection currentLevel={currentLevel} /></TabsContent>
+                        <TabsContent value="particles">   <ParticlesTab currentLevel={currentLevel} /></TabsContent>
+                        <TabsContent value="cursors">     <CursorTab    currentLevel={currentLevel} /></TabsContent>
+                        <TabsContent value="sounds">      <SoundPackTab currentLevel={currentLevel} /></TabsContent>
+                    </Tabs>
                 )}
             </div>
         </div>

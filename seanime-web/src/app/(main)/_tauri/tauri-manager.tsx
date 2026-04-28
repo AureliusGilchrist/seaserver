@@ -24,11 +24,18 @@ export function TauriManager(props: TauriManagerProps) {
             console.log("Received message from Rust:", message)
         })
 
-        mousetrap.bind("f11", () => {
-            toggleFullscreen()
+        // F11 toggles the Tauri native window fullscreen (not video browser fullscreen)
+        mousetrap.bind("f11", (e) => {
+            e.preventDefault()
+            // Don't toggle app fullscreen if the video player has browser fullscreen
+            if (!document.fullscreenElement) {
+                toggleFullscreen()
+            }
         })
 
         mousetrap.bind("esc", () => {
+            // Only exit app fullscreen if there's no active browser fullscreen element
+            if (document.fullscreenElement) return
             const appWindow = new Window("main")
             appWindow.isFullscreen().then((isFullscreen) => {
                 if (isFullscreen) {
@@ -37,13 +44,13 @@ export function TauriManager(props: TauriManagerProps) {
             })
         })
 
-        document.addEventListener("fullscreenchange", toggleFullscreen)
+        // NOTE: Do NOT listen to fullscreenchange here — that would conflict with the
+        // video player's browser fullscreen and cause the app window to toggle too.
 
         return () => {
             u.then((f) => f())
             mousetrap.unbind("f11")
             mousetrap.unbind("esc")
-            document.removeEventListener("fullscreenchange", toggleFullscreen)
         }
     }, [])
 
