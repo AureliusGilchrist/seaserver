@@ -125,7 +125,6 @@ export const WALLHAVEN_CURATED_QUERY: Record<AnimeThemeId, string> = {
     "legend-of-galactic-heroes": "legend of galactic heroes",
     "kiki-delivery-service": "kiki delivery service",
     "porco-rosso": "porco rosso",
-    "magic-knight-rayearth": "magic knight rayearth",
     "whisper-of-the-heart": "whisper of the heart",
     "kare-kano": "kare kano",
     "dragon-ball-gt": "dragon ball gt",

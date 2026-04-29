@@ -134,7 +134,6 @@ export type AnimeThemeId =
     | "kiki-delivery-service"
     // ── Wave 2: 1990s–2000s ──
     | "porco-rosso"
-    | "magic-knight-rayearth"
     | "whisper-of-the-heart"
     | "kare-kano"
     | "dragon-ball-gt"

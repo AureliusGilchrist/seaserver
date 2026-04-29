@@ -120,7 +120,6 @@ export * from "./patlabor-theme"
 export * from "./legend-of-galactic-heroes-theme"
 export * from "./kiki-delivery-service-theme"
 export * from "./porco-rosso-theme"
-export * from "./magic-knight-rayearth-theme"
 export * from "./whisper-of-the-heart-theme"
 export * from "./kare-kano-theme"
 export * from "./dragon-ball-gt-theme"
@@ -409,7 +408,6 @@ import { patlaborTheme } from "./patlabor-theme"
 import { legendOfGalacticHeroesTheme } from "./legend-of-galactic-heroes-theme"
 import { kikiDeliveryServiceTheme } from "./kiki-delivery-service-theme"
 import { porcoRossoTheme } from "./porco-rosso-theme"
-import { magicKnightRayearthTheme } from "./magic-knight-rayearth-theme"
 import { whisperOfTheHeartTheme } from "./whisper-of-the-heart-theme"
 import { kareKanoTheme } from "./kare-kano-theme"
 import { dragonBallGtTheme } from "./dragon-ball-gt-theme"
@@ -699,7 +697,6 @@ export const ANIME_THEMES: Record<AnimeThemeId, AnimeThemeConfig> = {
     "legend-of-galactic-heroes": legendOfGalacticHeroesTheme,
     "kiki-delivery-service": kikiDeliveryServiceTheme,
     "porco-rosso": porcoRossoTheme,
-    "magic-knight-rayearth": magicKnightRayearthTheme,
     "whisper-of-the-heart": whisperOfTheHeartTheme,
     "kare-kano": kareKanoTheme,
     "dragon-ball-gt": dragonBallGtTheme,
@@ -1000,7 +997,6 @@ export const ANIME_THEME_LIST: AnimeThemeConfig[] = [
     legendOfGalacticHeroesTheme,
     kikiDeliveryServiceTheme,
     porcoRossoTheme,
-    magicKnightRayearthTheme,
     whisperOfTheHeartTheme,
     kareKanoTheme,
     dragonBallGtTheme,
