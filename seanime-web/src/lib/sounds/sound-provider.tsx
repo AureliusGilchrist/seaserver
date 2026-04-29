@@ -115,25 +115,34 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
     const [soundVolume, setSoundVolume] = useAtom(soundVolumeAtom)
     const audioCtxRef = React.useRef<AudioContext | null>(null)
 
-    const getCtx = React.useCallback(() => {
-        if (!audioCtxRef.current) {
-            audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
-        }
-        // Resume if suspended (browser autoplay policy)
-        if (audioCtxRef.current.state === "suspended") {
-            audioCtxRef.current.resume()
-        }
-        return audioCtxRef.current
-    }, [])
-
-    const playSound = React.useCallback((name: SoundName) => {
+    const playSound = React.useCallback(async (name: SoundName) => {
         if (soundVolume <= 0) return
         try {
-            const ctx = getCtx()
+            if (!audioCtxRef.current) {
+                audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+            }
+            if (audioCtxRef.current.state === "suspended") {
+                await audioCtxRef.current.resume()
+            }
             const pack = PACK_SOUNDS[activeSoundPackId] ?? PACK_SOUNDS["default"]
-            pack[name]?.(ctx, soundVolume)
+            pack[name]?.(audioCtxRef.current, soundVolume)
         } catch { /* noop — audio not available */ }
-    }, [activeSoundPackId, soundVolume, getCtx])
+    }, [activeSoundPackId, soundVolume])
+
+    // Global button-click sounds
+    React.useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (soundVolume <= 0) return
+            const target = e.target as Element | null
+            if (!target) return
+            const el = target.closest("button, [role='button'], [role='tab'], [role='option'], [role='menuitem']")
+            if (el && !el.hasAttribute("disabled") && !(el as HTMLElement).dataset.noSound) {
+                playSound("buttonClick")
+            }
+        }
+        window.addEventListener("click", handleClick)
+        return () => window.removeEventListener("click", handleClick)
+    }, [playSound, soundVolume])
 
     const value = React.useMemo<SoundContextValue>(() => ({
         activeSoundPackId,

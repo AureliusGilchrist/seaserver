@@ -161,14 +161,10 @@ function Loader() {
     }, [pathname])
 
     React.useEffect(() => {
-        if (!serverStatus?.isOffline && pathname.startsWith("/offline")) {
+        if (pathname.startsWith("/offline")) {
             router.push("/")
         }
-    }, [serverStatus?.isOffline, pathname])
-
-    if (serverStatus?.isOffline) {
-        return <LoadingOverlayWithLogo />
-    }
+    }, [pathname])
 
     return null
 }

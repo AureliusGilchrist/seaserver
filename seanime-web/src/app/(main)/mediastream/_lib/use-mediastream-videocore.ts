@@ -321,8 +321,10 @@ export function useMediastreamVideoCore(props: UseMediastreamVideoCoreProps) {
         active: !!url && !!episode,
         playbackInfo: playbackInfo,
         playbackError: (isMediaContainerError || isStreamError) ? "Playback error" : null,
-        loadingState: (isPending || isFetching) ? "Extracting audio and subs, please wait..." : null,
-    }), [url, episode, playbackInfo, isMediaContainerError, isStreamError, isPending])
+        loadingState: (isPending || isFetching)
+            ? (streamType === "transcode" ? "Extracting audio and subs, please wait..." : "Loading stream...")
+            : null,
+    }), [url, episode, playbackInfo, isMediaContainerError, isStreamError, isPending, isFetching, streamType])
 
     // ── Stream Management ───────────────────────────────────────────────
 

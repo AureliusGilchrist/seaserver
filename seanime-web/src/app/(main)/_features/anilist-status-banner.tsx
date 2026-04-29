@@ -1,12 +1,13 @@
 "use client"
 
 import React from "react"
-import { atom, useAtom } from "jotai"
+import { atom, useAtom, useAtomValue } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { WSEvents } from "@/lib/server/ws-events"
 import { cn } from "@/components/ui/core/styling"
-import { LuWifiOff, LuX, LuBellOff } from "react-icons/lu"
+import { LuWifiOff, LuX, LuBellOff, LuCloudOff } from "react-icons/lu"
+import { anilistOutageAtom } from "@/api/client/requests"
 
 // ─── State ─────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ const anilistBannerMutedUntilAtom = atomWithStorage<number>("sea-anilist-banner-
 export function AnilistStatusBanner() {
     const [state, setState] = useAtom(anilistBannerAtom)
     const [mutedUntil, setMutedUntil] = useAtom(anilistBannerMutedUntilAtom)
+    const anilistDown = useAtomValue(anilistOutageAtom)
     const [countdown, setCountdown] = React.useState(0)
     const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -79,6 +81,31 @@ export function AnilistStatusBanner() {
 
         return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
     }, [state.visible, countdown > 0 && state.retryAfter])
+
+    // AniList outage banner — shown independently of rate-limit banner
+    if (anilistDown && !isMuted) {
+        return (
+            <div className={cn(
+                "fixed top-0 left-0 right-0 z-[99999] flex items-center justify-between gap-3 px-4 py-2",
+                "bg-red-950/95 border-b border-red-700/60 backdrop-blur-sm",
+                "shadow-[0_2px_16px_rgba(0,0,0,0.5)]",
+            )}>
+                <div className="flex items-center gap-2">
+                    <LuCloudOff className="w-3.5 h-3.5 text-red-400 shrink-0 animate-pulse" />
+                    <p className="text-sm font-medium text-red-200">AniList API is currently down</p>
+                    <span className="text-xs text-red-400/70 hidden sm:inline">— your local library still works</span>
+                </div>
+                <button
+                    onClick={handleMute}
+                    className="flex items-center gap-1 px-2 py-1 rounded text-red-400/70 hover:text-red-300 hover:bg-red-800/50 transition-colors text-xs"
+                    title="Mute for 3 hours"
+                >
+                    <LuBellOff className="w-3 h-3" />
+                    <span className="hidden sm:inline">3h</span>
+                </button>
+            </div>
+        )
+    }
 
     if (!state.visible || state.dismissed || isMuted) return null
 

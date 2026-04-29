@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_main/entry/")({
                         password: serverAuthToken,
                     }) as Promise<Anime_Entry>
                 },
-                staleTime: 0,
+                staleTime: 2 * 60 * 1000,
             }),
             context.queryClient.ensureQueryData<AL_AnimeDetailsById_Media>({
                 queryKey: [API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.key, String(id)],
@@ -42,7 +42,7 @@ export const Route = createFileRoute("/_main/entry/")({
                         password: serverAuthToken,
                     }) as Promise<AL_AnimeDetailsById_Media>
                 },
-                staleTime: 0,
+                staleTime: 2 * 60 * 1000,
             }),
         ]).catch(() => {
         })

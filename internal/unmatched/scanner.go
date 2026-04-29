@@ -62,7 +62,7 @@ func NewScanner(logger *zerolog.Logger, repository *Repository) *Scanner {
 		logger:            logger,
 		repository:        repository,
 		completedTorrents: make([]string, 0),
-		scanInterval:      30 * time.Minute,
+		scanInterval:      3 * time.Minute,
 		verifyDelay:       5 * time.Second,
 		debounceCh:        make(chan struct{}, 1),
 	}

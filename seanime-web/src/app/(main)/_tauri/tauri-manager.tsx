@@ -3,7 +3,6 @@
 import { listen } from "@tauri-apps/api/event"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
 import { Window } from "@tauri-apps/api/window"
-import mousetrap from "mousetrap"
 import React from "react"
 
 type TauriManagerProps = {
@@ -24,33 +23,43 @@ export function TauriManager(props: TauriManagerProps) {
             console.log("Received message from Rust:", message)
         })
 
-        // F11 toggles the Tauri native window fullscreen (not video browser fullscreen)
-        mousetrap.bind("f11", (e) => {
-            e.preventDefault()
-            // Don't toggle app fullscreen if the video player has browser fullscreen
-            if (!document.fullscreenElement) {
-                toggleFullscreen()
+        // WebView2 on Windows intercepts F11 and calls documentElement.requestFullscreen()
+        // before any JS keydown fires. We intercept fullscreenchange instead: if the ROOT
+        // element entered fullscreen (WebView2 F11), undo it and use Tauri native fullscreen.
+        // Video player fullscreen uses a specific container element, so they're distinguishable.
+        const handleFullscreenChange = async () => {
+            if (!document.fullscreenElement) return
+            if (document.fullscreenElement === document.documentElement) {
+                // WebView2 F11 — swap for Tauri native fullscreen
+                await document.exitFullscreen().catch(() => {})
+                await toggleFullscreen()
             }
-        })
+            // Any other element = video player — leave it alone
+        }
 
-        mousetrap.bind("esc", () => {
-            // Only exit app fullscreen if there's no active browser fullscreen element
-            if (document.fullscreenElement) return
-            const appWindow = new Window("main")
-            appWindow.isFullscreen().then((isFullscreen) => {
-                if (isFullscreen) {
+        // Fallback keydown handler for cases where WebView2 doesn't auto-fullscreen
+        const handleKeydown = (e: KeyboardEvent) => {
+            if (e.key === "F11") {
+                e.preventDefault()
+                e.stopPropagation()
+                if (!document.fullscreenElement) {
                     toggleFullscreen()
                 }
-            })
-        })
+                return
+            }
+            if (e.key === "Escape" && !document.fullscreenElement) {
+                const appWindow = new Window("main")
+                appWindow.isFullscreen().then((isFs) => { if (isFs) toggleFullscreen() })
+            }
+        }
 
-        // NOTE: Do NOT listen to fullscreenchange here — that would conflict with the
-        // video player's browser fullscreen and cause the app window to toggle too.
+        document.addEventListener("fullscreenchange", handleFullscreenChange)
+        window.addEventListener("keydown", handleKeydown, { capture: true })
 
         return () => {
             u.then((f) => f())
-            mousetrap.unbind("f11")
-            mousetrap.unbind("esc")
+            document.removeEventListener("fullscreenchange", handleFullscreenChange)
+            window.removeEventListener("keydown", handleKeydown, { capture: true })
         }
     }, [])
 
@@ -61,11 +70,17 @@ export function TauriManager(props: TauriManagerProps) {
         if (getCurrentWebviewWindow().label !== "main") return
 
         const fullscreen = await appWindow.isFullscreen()
-        // DEVNOTE: When decorations are not shown in fullscreen move there will be a gap at the bottom of the window (Windows)
-        // Hide the decorations when exiting fullscreen
-        // Show the decorations when entering fullscreen
-        await appWindow.setDecorations(!fullscreen)
-        await appWindow.setFullscreen(!fullscreen)
+        if (!fullscreen) {
+            // Entering fullscreen: alwaysOnTop lets the window cover the Windows taskbar
+            await appWindow.setDecorations(false)
+            await appWindow.setAlwaysOnTop(true)
+            await appWindow.setFullscreen(true)
+        } else {
+            // Exiting fullscreen: restore decorations and normal stacking order
+            await appWindow.setAlwaysOnTop(false)
+            await appWindow.setDecorations(true)
+            await appWindow.setFullscreen(false)
+        }
 
         // Dispatch event so VideoCoreFullscreenManager can sync state
         window.dispatchEvent(new CustomEvent("tauri:fullscreenchange", { detail: { isFullscreen: !fullscreen } }))

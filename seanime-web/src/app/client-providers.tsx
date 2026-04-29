@@ -19,6 +19,10 @@ export const queryClient = new QueryClient({
         queries: {
             refetchOnWindowFocus: false,
             retry: 0,
+            // Keep data fresh for 3 minutes — prevents refetch on every navigation
+            staleTime: 3 * 60 * 1000,
+            // Keep unused cache for 10 minutes so back-navigation is instant
+            gcTime: 10 * 60 * 1000,
         },
     },
 })

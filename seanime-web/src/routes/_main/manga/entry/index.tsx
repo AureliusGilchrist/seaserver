@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_main/manga/entry/")({
                         password: serverAuthToken,
                     }) as Promise<Manga_Entry>
                 },
-                staleTime: 0,
+                staleTime: 2 * 60 * 1000,
             }),
             context.queryClient.ensureQueryData<AL_MangaDetailsById_Media>({
                 queryKey: [API_ENDPOINTS.MANGA.GetMangaEntryDetails.key, String(id)],
@@ -41,7 +41,7 @@ export const Route = createFileRoute("/_main/manga/entry/")({
                         password: serverAuthToken,
                     }) as Promise<AL_MangaDetailsById_Media>
                 },
-                staleTime: 0,
+                staleTime: 2 * 60 * 1000,
             }),
         ]).catch(() => {
         })

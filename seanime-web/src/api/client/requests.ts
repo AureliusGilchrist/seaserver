@@ -13,10 +13,31 @@ import { toast } from "sonner"
 // CSRF token storage — updated from server response headers
 let _csrfToken: string | null = null
 
+// ─── AniList outage detection ───────────────────────────────────────────────
+// Exported so the banner component can subscribe to it.
+import { atom } from "jotai"
+export const anilistOutageAtom = atom(false)
+
+// Track consecutive AniList failures to avoid false positives from single blips
+let _anilistFailCount = 0
+const ANILIST_FAIL_THRESHOLD = 2
+
+function isAnilistUrl(url: string | undefined): boolean {
+    if (!url) return false
+    return url.includes("/anilist/") || url.includes("/api/v1/anilist")
+}
+
 // Sliding window: when the server emits a refreshed profile token in the response header,
 // update the in-memory atom and localStorage so the user stays logged in.
 // Also detect expired profile sessions and clear the stale token.
 axios.interceptors.response.use(response => {
+    // Clear outage flag on any successful AniList response
+    if (isAnilistUrl(response.config?.url)) {
+        _anilistFailCount = 0
+        if (getDefaultStore().get(anilistOutageAtom)) {
+            getDefaultStore().set(anilistOutageAtom, false)
+        }
+    }
     // Capture CSRF token from response headers
     const csrfToken = response.headers["x-csrf-token"]
     if (csrfToken && typeof csrfToken === "string") {
@@ -43,6 +64,22 @@ axios.interceptors.response.use(response => {
     }
 
     return response
+})
+
+// Error interceptor — detect AniList API outages (503, 504, network failure)
+axios.interceptors.response.use(undefined, (error: AxiosError) => {
+    const url = (error.config as any)?.url as string | undefined
+    if (isAnilistUrl(url)) {
+        const status = error.response?.status
+        const isOutage = !status || status === 503 || status === 504 || status === 502
+        if (isOutage) {
+            _anilistFailCount++
+            if (_anilistFailCount >= ANILIST_FAIL_THRESHOLD) {
+                getDefaultStore().set(anilistOutageAtom, true)
+            }
+        }
+    }
+    return Promise.reject(error)
 })
 
 type SeaError = AxiosError<{ error: string }>

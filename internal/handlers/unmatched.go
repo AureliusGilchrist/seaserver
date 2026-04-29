@@ -170,18 +170,19 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 		}()
 	}
 
-	// Background: refresh collection and rescan unmatched (safe now that locked entries are in DB)
+	// Re-enable scanning immediately — don't wait on AniList
 	matchedTorrent := req.TorrentName
+	if matchedTorrent != "" {
+		h.App.UnmatchedScanner.ClearCompletedTorrent(matchedTorrent)
+	}
+	h.App.UnmatchedRepository.InvalidateCache()
+	h.App.UnmatchedScanner.TriggerScan()
+
+	// Background: refresh AniList collection (may be slow; don't block re-matching)
 	go func() {
 		if _, err := h.App.GetAnimeCollection(true); err != nil {
 			h.App.Logger.Warn().Err(err).Msg("unmatched: failed to refresh anime collection after match")
 		}
-		// Remove from completed list so the scanner re-evaluates the now-partial directory
-		if matchedTorrent != "" {
-			h.App.UnmatchedScanner.ClearCompletedTorrent(matchedTorrent)
-		}
-		h.App.UnmatchedRepository.InvalidateCache()
-		h.App.UnmatchedScanner.TriggerScan()
 	}()
 
 	return h.RespondWithData(c, result)

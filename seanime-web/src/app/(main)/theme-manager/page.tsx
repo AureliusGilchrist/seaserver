@@ -104,10 +104,11 @@ export default function ThemeManagerPage() {
     const downloadBgMutation = useDownloadThemeBackground()
     const [downloadingBgId, setDownloadingBgId] = React.useState<string | null>(null)
 
-    // Wallhaven curated suggestions for the active theme
+    // Wallhaven curated suggestions — only fetch when user explicitly loads them
     const curatedQuery = config.id !== "seanime" ? (WALLHAVEN_CURATED_QUERY[themeId] ?? "") : ""
+    const [suggestionsEnabled, setSuggestionsEnabled] = React.useState(false)
     const { data: suggestedData, isFetching: loadingSuggestions, isError: suggestionsError } = useSearchWallhaven(
-        curatedQuery, 1, config.id !== "seanime" && !!curatedQuery,
+        curatedQuery, 1, suggestionsEnabled && config.id !== "seanime" && !!curatedQuery,
     )
     const suggestions: WallhavenWallpaper[] = suggestedData?.data?.slice(0, 10) ?? []
 
@@ -653,8 +654,17 @@ export default function ThemeManagerPage() {
                                     </div>
                                 ))}
 
-                                {/* Top picks */}
-                                {loadingSuggestions && suggestions.length === 0 && Array.from({ length: 6 }).map((_, i) => (
+                                {/* Top picks — lazy loaded */}
+                                {!suggestionsEnabled && curatedQuery && (
+                                    <button
+                                        onClick={() => setSuggestionsEnabled(true)}
+                                        className="col-span-full py-3 text-xs text-[--color-brand-400] hover:text-[--color-brand-300] border border-dashed border-[--border] rounded-lg transition-colors"
+                                    >
+                                        <LuSparkles className="w-3 h-3 inline mr-1" />
+                                        Load top picks
+                                    </button>
+                                )}
+                                {suggestionsEnabled && loadingSuggestions && suggestions.length === 0 && Array.from({ length: 6 }).map((_, i) => (
                                     <div key={`sk-${i}`} className="aspect-video rounded-lg bg-white/5 animate-pulse" />
                                 ))}
                                 {suggestions.map(w => (
@@ -995,7 +1005,8 @@ function SidePanelWallpaperPicker({
 }) {
     const curatedQuery = config.id !== "seanime" ? (WALLHAVEN_CURATED_QUERY[config.id as AnimeThemeId] ?? "") : ""
     const [page, setPage] = React.useState(1)
-    const { data: wallData, isFetching } = useSearchWallhaven(curatedQuery, page, config.id !== "seanime" && !!curatedQuery)
+    const [wallEnabled, setWallEnabled] = React.useState(false)
+    const { data: wallData, isFetching } = useSearchWallhaven(curatedQuery, page, wallEnabled && config.id !== "seanime" && !!curatedQuery)
     const wallpapers: WallhavenWallpaper[] = wallData?.data ?? []
     const hasMore = wallData?.meta && page < wallData.meta.last_page
     const [downloadingId, setDownloadingId] = React.useState<string | null>(null)
@@ -1059,15 +1070,18 @@ function SidePanelWallpaperPicker({
                 </div>
             )}
 
-            {/* Wallhaven top picks */}
+            {/* Wallhaven top picks — lazy */}
             {curatedQuery && (
                 <div className="space-y-1.5">
                     <div className="flex items-center gap-1.5">
                         <LuSparkles className="w-3 h-3 text-[--color-brand-400]" />
                         <p className="text-[10px] text-[--muted] uppercase tracking-wider font-semibold">Top Picks</p>
+                        {!wallEnabled && (
+                            <button onClick={() => setWallEnabled(true)} className="ml-auto text-[10px] text-[--color-brand-400] hover:text-[--color-brand-300] transition-colors">Load</button>
+                        )}
                     </div>
                     <div className="flex gap-1.5 flex-wrap">
-                        {isFetching && wallpapers.length === 0 && (
+                        {wallEnabled && isFetching && wallpapers.length === 0 && (
                             Array.from({ length: 5 }).map((_, i) => (
                                 <div key={i} className="w-[86px] h-[54px] rounded-lg bg-white/5 animate-pulse shrink-0" />
                             ))
