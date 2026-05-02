@@ -4803,6 +4803,7 @@ export type Models_Theme = {
     libraryScreenCustomBannerOpacity: number
     disableLibraryScreenGenreSelector: boolean
     libraryScreenCustomBackgroundBlur: string
+    libraryScreenCustomBackgroundGlow: number
     enableMediaPageBlurredBackground: boolean
     disableSidebarTransparency: boolean
     /**

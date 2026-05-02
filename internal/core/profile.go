@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -168,8 +169,13 @@ func NewProfileManager(dataDir string, logger *zerolog.Logger) (*ProfileManager,
 func loadOrCreateJWTSecret(dataDir string) ([]byte, error) {
 	secretPath := filepath.Join(dataDir, ".jwt_secret")
 	data, err := os.ReadFile(secretPath)
-	if err == nil && len(data) == 64 { // hex-encoded 32 bytes
-		return hexDecode(data)
+	if err == nil {
+		// Trim any whitespace (trailing newlines added by editors / git line-ending settings)
+		// before checking the length so we don't accidentally regenerate the secret.
+		trimmed := bytes.TrimSpace(data)
+		if len(trimmed) == 64 {
+			return hexDecode(trimmed)
+		}
 	}
 	secret := make([]byte, 32)
 	if _, err := rand.Read(secret); err != nil {

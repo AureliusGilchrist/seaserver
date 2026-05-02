@@ -50,6 +50,7 @@ const themeSchema = defineSchema(({ z }) => z.object({
         .transform(v => v === 0 ? 100 : v)
         .default(THEME_DEFAULT_VALUES.libraryScreenCustomBackgroundOpacity),
     libraryScreenCustomBackgroundBlur: z.string().default(THEME_DEFAULT_VALUES.libraryScreenCustomBackgroundBlur),
+    libraryScreenCustomBackgroundGlow: z.number().min(0).max(100).default(0),
     enableMediaPageBlurredBackground: z.boolean().default(THEME_DEFAULT_VALUES.enableMediaPageBlurredBackground),
     disableSidebarTransparency: z.boolean().default(THEME_DEFAULT_VALUES.disableSidebarTransparency),
     disableLibraryScreenGenreSelector: z.boolean().default(false),
@@ -252,6 +253,7 @@ export function UISettings() {
                 libraryScreenCustomBackgroundOpacity: themeSettings?.libraryScreenCustomBackgroundOpacity,
                 disableLibraryScreenGenreSelector: themeSettings?.disableLibraryScreenGenreSelector,
                 libraryScreenCustomBackgroundBlur: themeSettings?.libraryScreenCustomBackgroundBlur || "-",
+                libraryScreenCustomBackgroundGlow: themeSettings?.libraryScreenCustomBackgroundGlow ?? 0,
                 enableMediaPageBlurredBackground: themeSettings?.enableMediaPageBlurredBackground,
                 disableSidebarTransparency: themeSettings?.disableSidebarTransparency,
                 useLegacyEpisodeCard: themeSettings?.useLegacyEpisodeCard,
@@ -401,6 +403,15 @@ export function UISettings() {
                                         name="libraryScreenCustomBackgroundOpacity"
                                         placeholder="Default: 10"
                                         min={1}
+                                        max={100}
+                                    />
+
+                                    <Field.Number
+                                        label="Glow"
+                                        name="libraryScreenCustomBackgroundGlow"
+                                        placeholder="Default: 0"
+                                        help="Bloom glow radiating from the background."
+                                        min={0}
                                         max={100}
                                     />
 

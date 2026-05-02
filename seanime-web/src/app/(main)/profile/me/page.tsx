@@ -46,6 +46,7 @@ import { Stats } from "@/components/ui/stats"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAnimeTheme, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { RewardShop } from "@/app/(main)/profile/me/_components/reward-shop"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { LuGift } from "react-icons/lu"
@@ -114,12 +115,23 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const { config: themeConfig } = useAnimeTheme()
 
-    // Resolve display text for milestone-based titles (e.g. "milestone-naruto-15")
+    // Resolve display text for milestone-based titles (e.g. "milestone-tokyo-ghoul-75")
+    // activeTitle.text is already the resolved name (set at selection time via lookupTitle),
+    // but fall back to the theme config lookup for legacy stored titles that still carry the raw ID.
     const resolvedTitleText = React.useMemo(() => {
         if (!activeTitle) return null
         const m = activeTitle.id.match(/^milestone-(.+)-(\d+)$/)
-        if (m && themeConfig.milestoneNames) {
-            return themeConfig.milestoneNames[Number(m[2])] ?? activeTitle.text
+        if (m) {
+            // Prefer the name embedded in the title object (resolved at selection time)
+            if (activeTitle.text && activeTitle.text !== activeTitle.id) return activeTitle.text
+            // Legacy fallback: try the current theme's milestone names
+            if (themeConfig.milestoneNames) {
+                const fromCurrentTheme = themeConfig.milestoneNames[Number(m[2])]
+                if (fromCurrentTheme) return fromCurrentTheme
+            }
+            // Last resort: look up from ANIME_THEMES using the title's own themeId
+            const name = ANIME_THEMES?.[m[1] as keyof typeof ANIME_THEMES]?.milestoneNames?.[Number(m[2])]
+            if (name) return name
         }
         return activeTitle.text
     }, [activeTitle, themeConfig.milestoneNames])
@@ -298,10 +310,16 @@ export default function Page() {
                             style={{ background: activeXPBarSkin?.trackCss ?? "rgba(255,255,255,0.1)" }}
                         >
                             <div
-                                className={cn("h-full rounded-full transition-all duration-500", activeXPBarSkin?.animClass)}
+                                className={cn(
+                                    "h-full rounded-full",
+                                    // Only transition width so moving-gradient animations aren't interrupted
+                                    activeXPBarSkin?.animClass ? "" : "transition-[width] duration-500",
+                                    activeXPBarSkin?.animClass,
+                                )}
                                 style={{
                                     width: `${level.xpNeededForLevel > 0 ? (level.xpInCurrentLevel / level.xpNeededForLevel) * 100 : 100}%`,
                                     background: activeXPBarSkin?.fillCss ?? `var(--sea-xpbar-fill, ${levelColors.ring.replace("stroke-", "")})`,
+                                    backgroundSize: activeXPBarSkin?.animClass ? "300% 100%" : undefined,
                                 }}
                             />
                         </div>

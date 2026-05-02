@@ -336,7 +336,7 @@ function CommunityProfileCard({ profile }: { profile: Handlers_CommunityProfile 
                         <div className="w-full h-1.5 rounded-full overflow-hidden bg-white/10">
                             <div
                                 className={cn("h-full rounded-full", profile.xpBarAnimClass)}
-                                style={{ width: "100%", background: profile.xpBarFillCss }}
+                                style={{ width: "100%", background: profile.xpBarFillCss, backgroundSize: profile.xpBarAnimClass ? "300% 100%" : undefined }}
                             />
                         </div>
                     )}

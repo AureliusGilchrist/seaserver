@@ -26,6 +26,11 @@ type CommunityProfile struct {
 	DisplayTitle      string `json:"displayTitle"`
 	DisplayTitleColor string `json:"displayTitleColor"`
 	ThemeID           string `json:"themeId"`
+	// Cosmetics — copied from profile so all viewers see the chosen look
+	XPBarFillCss    string `json:"xpBarFillCss"`
+	XPBarAnimClass  string `json:"xpBarAnimClass"`
+	NameColorCss    string `json:"nameColorCss"`
+	NameGradientCss string `json:"nameGradientCss"`
 }
 
 // CommunityResponse wraps the profiles list with aggregate statistics.
@@ -96,6 +101,10 @@ func (h *Handler) HandleGetCommunityProfiles(c echo.Context) error {
 			DisplayTitle:      p.DisplayTitle,
 			DisplayTitleColor: p.DisplayTitleColor,
 			ThemeID:           func() string { if p.ThemeID == "" { return "seanime" }; return p.ThemeID }(),
+			XPBarFillCss:      p.XPBarFillCss,
+			XPBarAnimClass:    p.XPBarAnimClass,
+			NameColorCss:      p.NameColorCss,
+			NameGradientCss:   p.NameGradientCss,
 		}
 
 		if database, dbErr := h.App.ProfileDatabaseManager.GetDatabase(p.ID); dbErr == nil {

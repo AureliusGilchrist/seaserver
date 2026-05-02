@@ -106,7 +106,17 @@ export function useVideoCoreHls({
                 lowLatencyMode: false,
                 backBufferLength: 90,
                 enableWebVTT: true,
-                renderTextTracksNatively: false, // don't use native text tracks for subtitles
+                renderTextTracksNatively: false,
+                // Generous timeouts for online streams — default 10 s is too short for slow providers
+                manifestLoadingTimeOut: 30000,
+                manifestLoadingMaxRetry: 4,
+                manifestLoadingRetryDelay: 1000,
+                levelLoadingTimeOut: 30000,
+                levelLoadingMaxRetry: 4,
+                levelLoadingRetryDelay: 1000,
+                fragLoadingTimeOut: 30000,
+                fragLoadingMaxRetry: 4,
+                fragLoadingRetryDelay: 1000,
             })
 
             hlsRef.current = hls
@@ -212,25 +222,36 @@ export function useVideoCoreHls({
                 setCurrentAudioTrack(hls.audioTrack)
             })
 
+            let mediaErrorRecoveryAttempted = false
+
             hls.on(Events.ERROR, (event, data: ErrorData) => {
-                hlsLog.error("HLS error", data)
-                if (data.fatal) {
-                    hlsLog.error("Fatal error, cannot recover")
-                    hls.destroy()
-                    hlsRef.current = null
-                    onFatalError?.(data)
-                    // switch (data.type) {
-                    //     case Hls.ErrorTypes.NETWORK_ERROR:
-                    //         hlsLog.error("Fatal network error, trying to recover")
-                    //         hls.startLoad()
-                    //         break
-                    //     case Hls.ErrorTypes.MEDIA_ERROR:
-                    //         hlsLog.error("Fatal media error, trying to recover")
-                    //         hls.recoverMediaError()
-                    //         break
-                    //     default:
-                    //         break
-                    // }
+                hlsLog.error("HLS error", data.type, data.details, data.fatal)
+                if (!data.fatal) return
+
+                switch (data.type) {
+                    case Hls.ErrorTypes.NETWORK_ERROR:
+                        // Network errors (including timeouts) — attempt a reload before giving up
+                        hlsLog.warn("Fatal network error, attempting startLoad recovery")
+                        hls.startLoad()
+                        break
+                    case Hls.ErrorTypes.MEDIA_ERROR:
+                        if (!mediaErrorRecoveryAttempted) {
+                            hlsLog.warn("Fatal media error, attempting recoverMediaError")
+                            mediaErrorRecoveryAttempted = true
+                            hls.recoverMediaError()
+                        } else {
+                            hlsLog.error("Media error recovery failed, destroying HLS instance")
+                            hls.destroy()
+                            hlsRef.current = null
+                            onFatalError?.(data)
+                        }
+                        break
+                    default:
+                        hlsLog.error("Unrecoverable HLS error, destroying instance")
+                        hls.destroy()
+                        hlsRef.current = null
+                        onFatalError?.(data)
+                        break
                 }
             })
 

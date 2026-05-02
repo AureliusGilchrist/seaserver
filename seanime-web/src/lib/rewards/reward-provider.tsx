@@ -20,6 +20,12 @@ import {
     type XPBarSkinReward,
     type ParticleSetReward,
 } from "@/lib/rewards/reward-definitions"
+import { ANIME_THEMES } from "@/lib/theme/anime-themes"
+
+// Pre-build a lookup: { themeId -> { level -> rankName } } for milestone title resolution
+const MILESTONE_NAMES: Record<string, Record<number, string>> = Object.fromEntries(
+    Object.entries(ANIME_THEMES).map(([id, cfg]) => [id, cfg.milestoneNames ?? {}]),
+)
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -96,18 +102,23 @@ export function useRewards() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function lookupTitle(id: string): TitleReward | null {
+function lookupTitle(id: string, milestoneNames?: Record<string, Record<number, string>>): TitleReward | null {
     const found = TITLE_REWARDS.find(r => r.id === id)
     if (found) return found
     // Handle dynamic milestone titles: "milestone-{themeId}-{level}"
     const m = id.match(/^milestone-(.+)-(\d+)$/)
     if (m) {
+        const themeId = m[1]
+        const level = Number(m[2])
+        // Resolve the human-readable name from the pre-passed milestone map so
+        // displayTitle stored on the backend is the actual rank name, not the raw ID.
+        const name: string = milestoneNames?.[themeId]?.[level] ?? id
         return {
             id,
             type: "title",
-            name: id, // placeholder; actual display name resolved in shop
-            text: id,
-            requiredLevel: Number(m[2]),
+            name,
+            text: name,
+            requiredLevel: level,
             color: "#ffffff",
             description: "",
         }
@@ -222,7 +233,7 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
 
     const setActiveTitle = React.useCallback((id: string) => {
         persist({ ...active, titleId: id })
-        const resolved = lookupTitle(id)
+        const resolved = lookupTitle(id, MILESTONE_NAMES)
         if (resolved) {
             saveDisplayTitle({ title: resolved.text, color: resolved.color ?? "#ffffff" })
         }
@@ -343,7 +354,7 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
     )
 
     const value: RewardContextValue = {
-        activeTitle:        lookupTitle(active.titleId),
+        activeTitle:        lookupTitle(active.titleId, MILESTONE_NAMES),
         activeNameColor:    nameColorDef,
         activeBorder:       borderDef,
         activeBackground:   bgDef,

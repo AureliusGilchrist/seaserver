@@ -1039,7 +1039,16 @@ export function VideoCore(props: VideoCoreProps) {
         streamUrl: streamUrl,
         streamType: streamType,
         onMediaDetached: onHlsMediaDetached,
-        onFatalError: onHlsFatalError,
+        onFatalError: (error) => {
+            // Exit fullscreen so the user isn't stuck on a black screen after an HLS error
+            if (fullscreenManager) {
+                fullscreenManager.exitFullscreen().catch(() => {})
+            } else if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {})
+            }
+            setIsFullscreen(false)
+            onHlsFatalError?.(error)
+        },
     })
 
     const [anime4kOption, setAnime4kOption] = useAtom(vc_anime4kOption)
