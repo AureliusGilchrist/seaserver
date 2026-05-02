@@ -87,7 +87,7 @@ function CardBase({
             disabled={!isUnlocked}
             onClick={onClick}
             className={cn(
-                "relative flex flex-col items-center gap-2 p-3 rounded-lg border transition-all text-left",
+                "sea-hoverable relative flex flex-col items-center gap-2 p-3 rounded-lg border transition-all text-left",
                 isActive
                     ? "border-brand-500 bg-brand-500/15 shadow-lg shadow-brand-500/20"
                     : isUnlocked
@@ -359,46 +359,95 @@ function BackgroundsTab({ currentLevel }: { currentLevel: number }) {
 
 // ─── XP Bar Skins Tab ─────────────────────────────────────────────────────────
 
-function XPBarsTab({ currentLevel }: { currentLevel: number }) {
+type XPBarCategory = "colors" | "gradients" | "moving" | "effects"
+
+const XP_BAR_CATEGORY_META: { id: XPBarCategory; label: string; description: string }[] = [
+    { id: "colors",    label: "Colors",    description: "Solid single-color fills." },
+    { id: "gradients", label: "Gradients", description: "Static multi-color gradient fills." },
+    { id: "moving",    label: "Moving",    description: "Animated, shimmering fills." },
+    { id: "effects",   label: "Effects",   description: "Fills that bleed into the surrounding UI." },
+]
+
+function XPBarSkinCard({ reward, currentLevel }: { reward: XPBarSkinReward; currentLevel: number }) {
     const { activeXPBarSkin, setActiveXPBarSkin } = useRewards()
+    const isUnlocked = reward.requiredLevel <= currentLevel
+    const isActive = activeXPBarSkin?.id === reward.id
+    return (
+        <CardBase isActive={isActive} isUnlocked={isUnlocked} onClick={() => setActiveXPBarSkin(reward.id)} className="items-start">
+            <div className="w-full space-y-2">
+                {/* Ring + bar preview */}
+                <div className="flex items-center gap-3">
+                    <LevelRingAvatar
+                        profile={{ currentLevel, name: "?" }}
+                        size={44}
+                        xpBarFillOverride={reward.fillCss}
+                    />
+                    <div className="flex-1">
+                        <div
+                            className="w-full h-3 rounded-full overflow-hidden"
+                            style={{ background: reward.trackCss ?? "rgba(255,255,255,0.1)" }}
+                        >
+                            <div
+                                className={cn("h-full rounded-full", reward.animClass)}
+                                style={{ width: "65%", background: reward.fillCss }}
+                            />
+                        </div>
+                    </div>
+                </div>
+                <p className="text-xs font-medium leading-tight">{reward.icon && <span className="mr-1">{reward.icon}</span>}{reward.name}</p>
+                <p className="text-xs text-[--muted] leading-tight">{reward.description}</p>
+                {!isUnlocked && <LevelTag level={reward.requiredLevel} />}
+            </div>
+        </CardBase>
+    )
+}
+
+function XPBarsTab({ currentLevel }: { currentLevel: number }) {
+    const [activeCategory, setActiveCategory] = React.useState<XPBarCategory>("colors")
     const unlocked = XP_BAR_SKIN_REWARDS.filter(r => r.requiredLevel <= currentLevel).length
+    const visible = XP_BAR_SKIN_REWARDS.filter(r => r.category === activeCategory)
+    const catMeta = XP_BAR_CATEGORY_META.find(c => c.id === activeCategory)!
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm text-[--muted]">
-                <LuZap />
-                <span>{unlocked}/{XP_BAR_SKIN_REWARDS.length} unlocked</span>
+            {/* Header */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2 text-sm text-[--muted]">
+                    <LuZap />
+                    <span>{unlocked}/{XP_BAR_SKIN_REWARDS.length} unlocked</span>
+                </div>
             </div>
+
+            {/* Category tabs */}
+            <div className="flex flex-wrap gap-1 p-1 bg-[--background] border border-[--border] rounded-lg">
+                {XP_BAR_CATEGORY_META.map(cat => (
+                    <button
+                        key={cat.id}
+                        onClick={() => setActiveCategory(cat.id)}
+                        className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                            activeCategory === cat.id
+                                ? "bg-[--color-brand-800]/60 text-[--color-brand-200] border border-[--color-brand-700]/50"
+                                : "text-[--muted] hover:text-[--foreground] hover:bg-white/5",
+                        )}
+                    >
+                        {cat.id === "colors"    && <LuPalette   className="w-3 h-3" />}
+                        {cat.id === "gradients" && <LuImage     className="w-3 h-3" />}
+                        {cat.id === "moving"    && <LuSparkles  className="w-3 h-3" />}
+                        {cat.id === "effects"   && <LuZap       className="w-3 h-3" />}
+                        {cat.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Category description */}
+            <p className="text-xs text-[--muted] italic">{catMeta.description}</p>
+
+            {/* Skin grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {XP_BAR_SKIN_REWARDS.map((reward: XPBarSkinReward) => {
-                    const isUnlocked = reward.requiredLevel <= currentLevel
-                    const isActive = activeXPBarSkin?.id === reward.id
-                    return (
-                        <CardBase key={reward.id} isActive={isActive} isUnlocked={isUnlocked} onClick={() => setActiveXPBarSkin(reward.id)} className="items-start">
-                            <div className="w-full space-y-2">
-                                {/* Ring + bar preview */}
-                                <div className="flex items-center gap-3">
-                                    <LevelRingAvatar
-                                        profile={{ currentLevel, name: "?" }}
-                                        size={44}
-                                        xpBarFillOverride={reward.fillCss}
-                                    />
-                                    <div className="flex-1">
-                                        <div
-                                            className="w-full h-3 rounded-full overflow-hidden"
-                                            style={{ background: reward.trackCss ?? "rgba(255,255,255,0.1)" }}
-                                        >
-                                            <div className="h-full rounded-full" style={{ width: "65%", background: reward.fillCss }} />
-                                        </div>
-                                    </div>
-                                </div>
-                                <p className="text-xs font-medium leading-tight">{reward.icon && <span className="mr-1">{reward.icon}</span>}{reward.name}</p>
-                                <p className="text-xs text-[--muted] leading-tight">{reward.description}</p>
-                                {!isUnlocked && <LevelTag level={reward.requiredLevel} />}
-                            </div>
-                        </CardBase>
-                    )
-                })}
+                {visible.map((reward: XPBarSkinReward) => (
+                    <XPBarSkinCard key={reward.id} reward={reward} currentLevel={currentLevel} />
+                ))}
             </div>
         </div>
     )
@@ -637,7 +686,7 @@ function UIPresetsGrid({ category, currentLevel }: { category: typeof UI_CUSTOMI
                         disabled={!isUnlocked}
                         onClick={() => isUnlocked && setPreset(category.id as UICustomizeCategoryId, preset.id)}
                         className={cn(
-                            "relative flex flex-col items-start gap-1.5 p-2.5 rounded-xl border text-left transition-all",
+                            "sea-hoverable relative flex flex-col items-start gap-1.5 p-2.5 rounded-xl border text-left transition-all",
                             isActive
                                 ? "border-[--color-brand-500] bg-[--color-brand-900]/30 shadow-[0_0_12px_rgba(139,92,246,0.15)]"
                                 : isUnlocked

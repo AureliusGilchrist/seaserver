@@ -132,7 +132,7 @@ export default function Page() {
                     <h2 className="text-xl font-semibold">Voice Actors</h2>
                     <div className="flex flex-wrap gap-4">
                         {voiceActors.map((va: any) => (
-                            <SeaLink key={va.id} href={`/staff?id=${va.id}`} className="flex items-center gap-3 bg-gray-900 rounded-lg p-3 hover:bg-gray-800 transition">
+                            <SeaLink key={va.id} href={`/staff?id=${va.id}`} className="sea-hoverable flex items-center gap-3 bg-gray-900 rounded-lg p-3 hover:bg-gray-800 transition">
                                 {va.image?.large && (
                                     <img src={va.image.large} alt={va.name?.full ?? ""} className="w-12 h-12 object-cover rounded-full" />
                                 )}

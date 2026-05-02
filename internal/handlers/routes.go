@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"path/filepath"
+	"seanime/internal/achievement"
 	"seanime/internal/core"
 	util "seanime/internal/util/proxies"
 	"strings"
@@ -18,6 +19,12 @@ import (
 
 type Handler struct {
 	App *core.App
+}
+
+// loadExpBarProgression initializes the exp bar progression data from JSON
+func loadExpBarProgression(app *core.App) error {
+	_, err := achievement.LoadExpBarProgression(app.DataDirPath)
+	return err
 }
 
 func InitRoutes(app *core.App, e *echo.Echo) {
@@ -120,6 +127,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	e.Use(RateLimitMiddleware(rateLimiter))
 
 	h := &Handler{App: app}
+
+	// Load exp bar progression data
+	if err := loadExpBarProgression(app); err != nil {
+		app.Logger.Error().Err(err).Msg("Failed to load exp bar progression data")
+	}
 
 	e.GET("/events", h.webSocketEventHandler)
 
@@ -776,6 +788,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.PATCH("/profile/bio", h.HandleUpdateBio)
 	v1.PATCH("/profile/display-title", h.HandleSetDisplayTitle)
 	v1.GET("/profile/level", h.HandleGetLevel)
+	v1.GET("/profile/exp-bar/all", h.HandleGetExpBarProgression)
+	v1.GET("/profile/exp-bar/level/:level", h.HandleGetExpBarForLevel)
 	v1.POST("/profile/easter-egg", h.HandleDiscoverEasterEgg)
 
 	// Community

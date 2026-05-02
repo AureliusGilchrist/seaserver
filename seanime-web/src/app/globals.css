@@ -1563,6 +1563,17 @@ body.vc-fullscreen .appLayout {
     box-shadow: var(--sea-hover-glow, none);
 }
 
+/* Extend sea-hoverable to episode image containers */
+[data-episode-grid-item-image-container][class*="cursor-pointer"] {
+    transition:
+        transform  var(--sea-hover-dur) var(--sea-ease, ease),
+        box-shadow var(--sea-hover-dur) var(--sea-ease, ease);
+}
+[data-episode-grid-item-image-container][class*="cursor-pointer"]:hover {
+    transform:  scale(var(--sea-hover-scale, 1)) translateY(var(--sea-hover-lift, 0px));
+    box-shadow: var(--sea-hover-glow, none);
+}
+
 /* Animation-preview swatch — sliding highlight bar */
 @keyframes sea-anim-preview {
     from { left: -35%; }

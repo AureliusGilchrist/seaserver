@@ -302,7 +302,7 @@ function CommunityProfileCard({ profile }: { profile: Handlers_CommunityProfile 
 
     return (
         <SeaLink href={`/profile/user?id=${profile.id}`}>
-            <div className="relative flex flex-col items-center gap-3 p-4 rounded-lg bg-[--subtle] hover:bg-[--subtle-highlight] transition-colors cursor-pointer group overflow-hidden">
+            <div className="sea-hoverable relative flex flex-col items-center gap-3 p-4 rounded-lg bg-[--subtle] hover:bg-[--subtle-highlight] transition-colors cursor-pointer group overflow-hidden">
                 {profile.bannerImage && (
                     <>
                         <div
@@ -378,7 +378,7 @@ function LeaderboardRow({ profile, rank }: { profile: Handlers_CommunityProfile;
 
     return (
         <SeaLink href={`/profile/user?id=${profile.id}`}>
-            <div className="grid grid-cols-[3rem_1fr_6rem_6rem_7rem] gap-4 items-center px-4 py-3 rounded-lg bg-[--subtle] hover:bg-[--subtle-highlight] transition-colors cursor-pointer">
+            <div className="sea-hoverable grid grid-cols-[3rem_1fr_6rem_6rem_7rem] gap-4 items-center px-4 py-3 rounded-lg bg-[--subtle] hover:bg-[--subtle-highlight] transition-colors cursor-pointer">
                 <span className={cn(
                     "text-lg font-bold",
                     rank === 1 && "text-yellow-400",

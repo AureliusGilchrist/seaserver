@@ -14,8 +14,54 @@ import { __isDesktop__ } from "@/types/constants"
 import { useSetAtom } from "jotai/react"
 import { usePathname } from "@/lib/navigation"
 import React from "react"
-import { LuFolderDown } from "react-icons/lu"
+import { LuFolderDown, LuChevronLeft, LuChevronRight } from "react-icons/lu"
 import { PluginSidebarTray } from "../plugin/tray/plugin-sidebar-tray"
+import { Tooltip } from "@/components/ui/tooltip"
+
+function NavHistoryButtons({ vertical = false }: { vertical?: boolean }) {
+    const [canGoBack, setCanGoBack] = React.useState(false)
+    const [canGoForward, setCanGoForward] = React.useState(false)
+    const pathname = usePathname()
+
+    React.useEffect(() => {
+        setCanGoBack(window.history.length > 1)
+        // No standard API to detect forward availability; track it with popstate
+        const onPop = () => {
+            setCanGoBack(window.history.length > 1)
+        }
+        window.addEventListener("popstate", onPop)
+        return () => window.removeEventListener("popstate", onPop)
+    }, [pathname])
+
+    const btnClass = cn(
+        "flex items-center justify-center rounded-md transition-colors",
+        "text-[--muted] hover:text-[--foreground] hover:bg-white/10",
+        vertical ? "w-9 h-9" : "w-8 h-8",
+    )
+
+    return (
+        <div className={cn("flex items-center gap-0.5", vertical && "flex-col")}>
+            <Tooltip trigger={
+                <button
+                    className={cn(btnClass, !canGoBack && "opacity-30 pointer-events-none")}
+                    onClick={() => window.history.back()}
+                    aria-label="Go back"
+                >
+                    <LuChevronLeft className="w-4 h-4" />
+                </button>
+            }>Back</Tooltip>
+            <Tooltip trigger={
+                <button
+                    className={cn(btnClass)}
+                    onClick={() => window.history.forward()}
+                    aria-label="Go forward"
+                >
+                    <LuChevronRight className="w-4 h-4" />
+                </button>
+            }>Forward</Tooltip>
+        </div>
+    )
+}
 
 type TopNavbarProps = {
     children?: React.ReactNode
@@ -47,6 +93,7 @@ export function TopNavbar(props: TopNavbarProps) {
                 >
                     <div data-top-navbar-content className="flex items-center w-full gap-3">
                         <AppSidebarTrigger />
+                        <NavHistoryButtons />
                         {!isOffline ? <TopMenu /> : <OfflineTopMenu />}
                         <PlaybackManagerProgressTrackingButton />
                         <ManualProgressTrackingButton />
@@ -86,9 +133,9 @@ export function SidebarNavbar(props: SidebarNavbarProps) {
 
     return (
         <div data-sidebar-navbar className="flex flex-col gap-1">
-            {/*<div data-sidebar-navbar-spacer className="px-4 lg:py-1">*/}
-            {/*    <Separator className="px-4" />*/}
-            {/*</div>*/}
+            <div className="flex justify-center py-1">
+                <NavHistoryButtons vertical />
+            </div>
             {!serverStatus?.isOffline && <VerticalMenu
                 data-sidebar-navbar-vertical-menu
                 className="px-4"

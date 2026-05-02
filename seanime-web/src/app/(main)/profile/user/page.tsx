@@ -60,10 +60,56 @@ export default function Page() {
 
     const { profile, level, showcase, achievementSummary, activityHeatmap, animeStreak, mangaStreak, recentAchievements } = data
     const levelColors = getLevelColor(level?.currentLevel ?? 1)
-    const milestoneName = getProfileOwnerMilestoneName(profile?.themeId, level?.currentLevel ?? 1)
+    const currentLevel = level?.currentLevel ?? 1
+    const milestoneName = getProfileOwnerMilestoneName(profile?.themeId, currentLevel)
+
+    // Resolve XP bar fill from the profile's stored skin CSS
+    const xpBarFillCss = profile?.xpBarFillCss || undefined
+    const xpBarAnimClass = profile?.xpBarAnimClass || undefined
+
+    // Derive a solid accent color from the XP bar fill for scoped brand overrides
+    const profileAccentColor = React.useMemo<string | null>(() => {
+        if (!xpBarFillCss) return null
+        if (xpBarFillCss.startsWith("linear-gradient")) {
+            return xpBarFillCss.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)?.[0] ?? null
+        }
+        return xpBarFillCss
+    }, [xpBarFillCss])
+
+    // Inject scoped brand shades derived from the XP bar color
+    const profileAccentVars: React.CSSProperties = profileAccentColor ? {
+        ["--color-brand-300" as string]: profileAccentColor + "bf",
+        ["--color-brand-400" as string]: profileAccentColor + "cc",
+        ["--color-brand-500" as string]: profileAccentColor,
+        ["--color-brand-600" as string]: profileAccentColor + "99",
+        ["--color-brand-700" as string]: profileAccentColor + "66",
+        ["--color-brand-800" as string]: profileAccentColor + "33",
+        ["--color-brand-900" as string]: profileAccentColor + "1a",
+    } : {}
+
+    // Name style: driven by xpBarFillCss skin first, then nameGradientCss/nameColorCss
+    const nameStyle: React.CSSProperties = xpBarFillCss
+        ? xpBarFillCss.startsWith("linear-gradient")
+            ? { backgroundImage: xpBarFillCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
+            : { color: xpBarFillCss }
+        : profile?.nameGradientCss
+            ? { backgroundImage: profile.nameGradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
+            : profile?.nameColorCss
+                ? { color: profile.nameColorCss }
+                : {}
+
+    // Title/level label style: same fill as XP bar skin
+    const titleStyle: React.CSSProperties = xpBarFillCss
+        ? xpBarFillCss.startsWith("linear-gradient")
+            ? { backgroundImage: xpBarFillCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
+            : { color: xpBarFillCss }
+        : {}
+
+    // Resolved display title text (falls back to milestone name or level label)
+    const displayTitleText = profile?.displayTitle || null
 
     return (
-        <>
+        <div style={profileAccentVars}>
             {profile!.bannerImage ? (
                 <div
                     className="relative h-[360px] overflow-hidden"
@@ -86,7 +132,7 @@ export default function Page() {
                     </span>
                 </SeaLink>
                 {/* Unified Profile Header */}
-                <div className="flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border]">
+                <div className="flex flex-col sm:flex-row items-center gap-6 pb-2 border-b border-[--border] relative">
                     <LevelRingAvatar
                         profile={{
                             currentLevel: level?.currentLevel ?? 1,
@@ -96,18 +142,24 @@ export default function Page() {
                             name: profile!.name,
                         }}
                         size={120}
-                        xpBarFillOverride={profile?.xpBarFillCss || undefined}
+                        xpBarFillOverride={xpBarFillCss}
                     />
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            <h1 className="text-3xl font-bold truncate">{profile!.name}{profile!.anilistUsername && (
-                                <span className="text-[--muted] font-normal"> ({profile!.anilistUsername})</span>
-                            )}</h1>
-                            <span className={cn("text-lg font-bold", levelColors.label)}>
-                                {milestoneName ?? `Level ${level?.currentLevel ?? 1}`}
+                            <h1 className="text-3xl font-bold truncate" style={nameStyle}>
+                                {profile!.name}
+                                {profile!.anilistUsername && (
+                                    <span className="text-[--muted] font-normal" style={{}}> ({profile!.anilistUsername})</span>
+                                )}
+                            </h1>
+                            <span
+                                className={cn("text-lg font-bold", !xpBarFillCss && levelColors.label)}
+                                style={titleStyle}
+                            >
+                                {displayTitleText ?? milestoneName ?? `Level ${currentLevel}`}
                             </span>
-                            {milestoneName && (
-                                <span className="text-sm text-[--muted]">Lv. {level?.currentLevel ?? 1}</span>
+                            {(milestoneName || displayTitleText) && (
+                                <span className="text-sm text-[--muted]">Lv. {currentLevel}</span>
                             )}
                             {level && level.multiplier > 1 && (
                                 <ActivityBuffBadge multiplier={level.multiplier} />
@@ -138,13 +190,23 @@ export default function Page() {
                 {level && (
                     <div className="space-y-1">
                         <div className="flex justify-between text-xs text-[--muted]">
-                            <span>Level {level.currentLevel}</span>
+                            <span>{milestoneName ?? `Level ${level.currentLevel}`}</span>
                             <span>Level {level.currentLevel + 1}</span>
                         </div>
-                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                            className="h-2 rounded-full overflow-hidden"
+                            style={{ background: "rgba(255,255,255,0.1)" }}
+                        >
                             <div
-                                className={cn("h-full rounded-full transition-all duration-500", levelColors.ring.replace("stroke-", "bg-"))}
-                                style={{ width: `${level.xpNeededForLevel > 0 ? (level.xpInCurrentLevel / level.xpNeededForLevel) * 100 : 100}%` }}
+                                className={cn(
+                                    "h-full rounded-full transition-all duration-500",
+                                    xpBarAnimClass,
+                                    !xpBarFillCss && levelColors.ring.replace("stroke-", "bg-"),
+                                )}
+                                style={{
+                                    width: `${level.xpNeededForLevel > 0 ? (level.xpInCurrentLevel / level.xpNeededForLevel) * 100 : 100}%`,
+                                    ...(xpBarFillCss ? { background: xpBarFillCss } : {}),
+                                }}
                             />
                         </div>
                         <div className="text-xs text-[--muted] text-center">
@@ -184,20 +246,20 @@ export default function Page() {
                         />
                     </TabsContent>
                     <TabsContent value="stats" className="space-y-6 mt-6">
-                        <UserStatsTabContent userId={id} />
+                        <UserStatsTabContent userId={id} xpBarFillCss={xpBarFillCss} />
                     </TabsContent>
                     <TabsContent value="achievements" className="space-y-6 mt-6">
                         <UserAchievementsTabContent userId={id} />
                     </TabsContent>
                 </Tabs>
             </PageWrapper>
-        </>
+        </div>
     )
 }
 
 // ─────────────────────── Stats Tab ───────────────────────
 
-function UserStatsTabContent({ userId }: { userId: number }) {
+function UserStatsTabContent({ userId, xpBarFillCss }: { userId: number; xpBarFillCss?: string }) {
     const [selectedYear, setSelectedYear] = React.useState<number | undefined>(undefined)
     const { data: profileStats, isLoading } = useGetUserProfileStats(userId, selectedYear)
 
@@ -247,7 +309,7 @@ function UserStatsTabContent({ userId }: { userId: number }) {
                         ))}
                     </select>
                 </div>
-                <StatsActivityHeatmap days={profileStats?.activityHeatmap} />
+                <StatsActivityHeatmap days={profileStats?.activityHeatmap} fillCss={xpBarFillCss} />
                 <DayOfWeekChart patterns={profileStats?.watchPatterns?.byDayOfWeek} />
             </div>
         </>

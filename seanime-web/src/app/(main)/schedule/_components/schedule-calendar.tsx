@@ -398,7 +398,7 @@ function MobileEventItem({ event, calendarParams }: MobileEventItemProps) {
     return (
         <SeaLink href={event.href} className="block" data-schedule-calendar-mobile-list-day-item-event-link>
             <div
-                className="flex items-start gap-2 lg:gap-3 p-2 lg:p-3 rounded-lg bg-gray-900/50 hover:bg-gray-800/50 transition-colors"
+                className="sea-hoverable flex items-start gap-2 lg:gap-3 p-2 lg:p-3 rounded-lg bg-gray-900/50 hover:bg-gray-800/50 transition-colors"
                 data-schedule-calendar-mobile-list-day-item-event-content
             >
                 <div
@@ -543,7 +543,7 @@ function CalendarEventList({ events, onEventHover }: CalendarEventListProps) {
                     onMouseLeave={handleEventMouseLeave}
                     data-schedule-calendar-event-list-item
                 >
-                    <SeaLink className="group flex" href={event.href} data-schedule-calendar-event-item-link>
+                    <SeaLink className="sea-hoverable group flex" href={event.href} data-schedule-calendar-event-item-link>
                         <div className="flex-auto truncate" data-schedule-calendar-event-item-content>
                             <p
                                 className={cn(

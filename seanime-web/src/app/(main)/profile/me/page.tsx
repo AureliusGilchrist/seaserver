@@ -157,8 +157,17 @@ export default function Page() {
         ["--color-brand-900" as string]: profileAccentColor + "1a",
     } : {}
 
+    // Merge any page-level effect vars from the active XP bar skin (effects category)
+    const pageEffectVarsStyle: React.CSSProperties = activeXPBarSkin?.pageEffectVars
+        ? Object.fromEntries(
+            Object.entries(activeXPBarSkin.pageEffectVars).map(([k, v]) => [k as string, v]),
+        ) as React.CSSProperties
+        : {}
+
+    const profilePageStyle: React.CSSProperties = { ...profileAccentVars, ...pageEffectVarsStyle }
+
     return (
-        <div style={profileAccentVars}>
+        <div style={profilePageStyle}>
             {/* Banner */}
             {profile!.bannerImage ? (
                 <div

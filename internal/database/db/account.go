@@ -38,7 +38,10 @@ func (db *Database) GetAccount() (*models.Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	if acc.Username == "" || acc.Token == "" || acc.Viewer == nil {
+	// Only require a token — Username and Viewer may be absent on first login
+	// or if viewer marshaling failed. Blocking on nil Viewer would silently
+	// discard a valid token after every backend restart.
+	if acc.Token == "" {
 		return nil, errors.New("account not found")
 	}
 

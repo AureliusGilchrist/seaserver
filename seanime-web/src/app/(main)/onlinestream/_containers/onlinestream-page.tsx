@@ -358,7 +358,10 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
     }, [videoSource])
 
     const episodeListLoading = isFetchingEpisodeList || isLoadingEpisodeList
-    const episodeLoading = isLoadingEpisodeSource || isFetchingEpisodeSource
+    // Only block interaction during the initial load (no cached data yet).
+    // Background refetches (isFetching without isLoading) must NOT disable
+    // episode clicks — that caused permanently-locked episode lists.
+    const episodeLoading = isLoadingEpisodeSource
 
     /*
      * Set episode number on mount

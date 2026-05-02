@@ -22,6 +22,7 @@ type ProfilePageResponse struct {
 	AnimeStreak        *profilestats.StreakInfo     `json:"animeStreak"`
 	MangaStreak        *profilestats.StreakInfo     `json:"mangaStreak"`
 	RecentAchievements []RecentAchievementEntry     `json:"recentAchievements"`
+	CurrentExpBar      *achievement.ExpBarProgressionEntry `json:"currentExpBar"`
 }
 
 // LevelResponse returns the current level/XP state.
@@ -318,6 +319,9 @@ func (h *Handler) buildProfileResponse(c echo.Context, profileID uint) error {
 		recentAchievements = append(recentAchievements, entry)
 	}
 
+	// Current exp bar styling based on level
+	currentExpBar := achievement.GetExpBarForLevel(level)
+
 	return h.RespondWithData(c, &ProfilePageResponse{
 		Profile:  profile.ToSummary(),
 		Level:    levelResp,
@@ -330,5 +334,38 @@ func (h *Handler) buildProfileResponse(c echo.Context, profileID uint) error {
 		AnimeStreak:        animeStreak,
 		MangaStreak:        mangaStreak,
 		RecentAchievements: recentAchievements,
+		CurrentExpBar:      currentExpBar,
 	})
+}
+
+// HandleGetExpBarProgression
+//
+//	@summary get all exp bar progression entries for the shop/selector.
+//	@desc Returns all 400 exp bar progression entries with their styling data.
+//	@returns []achievement.ExpBarProgressionEntry
+//	@route /api/v1/profile/exp-bar/all [GET]
+func (h *Handler) HandleGetExpBarProgression(c echo.Context) error {
+	entries := achievement.GetAllExpBarEntries()
+	return h.RespondWithData(c, entries)
+}
+
+// HandleGetExpBarForLevel
+//
+//	@summary get the exp bar styling for a specific level.
+//	@desc Returns the exp bar progression entry for the given level.
+//	@returns achievement.ExpBarProgressionEntry
+//	@route /api/v1/profile/exp-bar/level/{level} [GET]
+func (h *Handler) HandleGetExpBarForLevel(c echo.Context) error {
+	levelStr := c.Param("level")
+	if levelStr == "" {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "Missing level parameter"))
+	}
+
+	level, err := strconv.Atoi(levelStr)
+	if err != nil || level < 1 || level > 1000 {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "Invalid level (must be 1-1000)"))
+	}
+
+	entry := achievement.GetExpBarForLevel(level)
+	return h.RespondWithData(c, entry)
 }
