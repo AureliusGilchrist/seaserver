@@ -50,6 +50,7 @@ import { NakamaManager } from "../nakama/nakama-manager"
 import { NakamaWatchPartyChat, NakamaWatchPartyChatProvider } from "../nakama/nakama-watch-party-chat"
 import { NativePlayer } from "../native-player/native-player"
 import { TopIndefiniteLoader } from "../top-indefinite-loader"
+import { NewEpisodeNotifier } from "../new-episode-notifier"
 import { GlobalRewardShopButton } from "../navigation/global-reward-shop-button"
 import { RewardParticlesLayer } from "@/lib/rewards/reward-particles"
 import { WorkspaceBar, WORKSPACE_BAR_HEIGHT } from "../navigation/workspace-bar"
@@ -93,6 +94,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <NakamaWatchPartyChatProvider />
             <NakamaWatchPartyChat />
             <TopIndefiniteLoader />
+            <NewEpisodeNotifier />
             <AnilistStatusBanner />
             <Announcements />
             <AdminAnnouncementsBanner />

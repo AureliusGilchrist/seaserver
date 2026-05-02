@@ -198,16 +198,39 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         }
     })
 
-    // Reload when profile changes
+    // Reload when profile changes and sync current cosmetics to the backend
+    // so the community page always reflects the user's actual active rewards.
     React.useEffect(() => {
+        let loaded: ActiveRewards = DEFAULTS
         try {
             const raw = localStorage.getItem(storageKey)
-            if (!raw) {
-                setActive(DEFAULTS)
-            } else {
-                setActive({ ...DEFAULTS, ...(JSON.parse(raw) as Partial<ActiveRewards>) } as ActiveRewards)
+            if (raw) {
+                loaded = { ...DEFAULTS, ...(JSON.parse(raw) as Partial<ActiveRewards>) } as ActiveRewards
             }
+            setActive(loaded)
         } catch { /* noop */ }
+
+        // Skip sync if not attached to a real profile
+        if (!profileKey || profileKey === "default") return
+
+        // Push current cosmetics so the backend is up-to-date even if
+        // previous saves were lost due to the 404 bug.
+        const skin = lookupXPBarSkin(loaded.xpBarSkinId)
+        if (skin) {
+            const nameColor = lookupNameColor(loaded.nameColorId)
+            saveDisplayCosmetics({
+                xpBarFillCss:    skin.fillCss,
+                xpBarAnimClass:  skin.animClass ?? "",
+                nameColorCss:    nameColor?.color ?? "#ffffff",
+                nameGradientCss: nameColor?.gradientCss ?? "",
+            })
+        }
+
+        // Also sync the display title (resolves raw milestone IDs to rank names)
+        const title = lookupTitle(loaded.titleId, MILESTONE_NAMES)
+        if (title) {
+            saveDisplayTitle({ title: title.text, color: title.color ?? "#ffffff" })
+        }
     }, [storageKey])
 
     function persist(next: ActiveRewards) {

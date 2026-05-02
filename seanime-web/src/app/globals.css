@@ -1530,6 +1530,97 @@ body.vc-fullscreen .appLayout {
     animation: sea-xpbar-pulse 1.8s ease-in-out infinite !important;
 }
 
+/* ── XP Bar extended animation classes ─────────────────────────────────── */
+
+/* Flow: smooth left-to-right gradient drift using sine-like cubic ease */
+@keyframes sea-xpbar-flow-kf {
+    0%   { background-position: 200% center; }
+    50%  { background-position: 0% center; }
+    100% { background-position: -200% center; }
+}
+.sea-xpbar-flow {
+    background-size: 300% 100% !important;
+    animation: sea-xpbar-flow-kf 3.5s cubic-bezier(0.37, 0, 0.63, 1) infinite !important;
+}
+
+/* Pulse Glow: combined opacity pulse + expanding box-shadow glow */
+@keyframes sea-xpbar-pulse-glow-kf {
+    0%, 100% { opacity: 1;    box-shadow: 0 0 4px 1px rgba(255,255,255,0.2), 0 0 10px 2px rgba(139,92,246,0.25); }
+    50%       { opacity: 0.8; box-shadow: 0 0 12px 4px rgba(255,255,255,0.45), 0 0 28px 8px rgba(139,92,246,0.55); }
+}
+.sea-xpbar-pulse-glow {
+    animation: sea-xpbar-pulse-glow-kf 2s ease-in-out infinite !important;
+}
+
+/* Wave: radial-gradient ripple that sweeps across the bar */
+@keyframes sea-xpbar-wave-kf {
+    0%   { background-position: -100% center; }
+    100% { background-position: 200% center; }
+}
+.sea-xpbar-wave {
+    background-image: radial-gradient(ellipse 60px 100% at var(--x, 50%) 50%, rgba(255,255,255,0.35) 0%, transparent 70%) !important;
+    background-size: 200% 100% !important;
+    animation: sea-xpbar-wave-kf 2.2s ease-in-out infinite !important;
+}
+
+/* Plasma: rapid hue-rotation for color-shifting effect */
+@keyframes sea-xpbar-plasma-kf {
+    0%   { filter: hue-rotate(0deg) saturate(1.4); }
+    100% { filter: hue-rotate(360deg) saturate(1.4); }
+}
+.sea-xpbar-plasma {
+    animation: sea-xpbar-plasma-kf 1.8s linear infinite !important;
+}
+
+/* Aurora: dual-layer shimmer + slow hue drift */
+@keyframes sea-xpbar-aurora-kf {
+    0%   { background-position: 200% center; filter: hue-rotate(0deg) saturate(1.3); }
+    50%  { background-position: -100% center; filter: hue-rotate(60deg) saturate(1.6); }
+    100% { background-position: 200% center; filter: hue-rotate(120deg) saturate(1.3); }
+}
+.sea-xpbar-aurora {
+    background-size: 300% 100% !important;
+    animation: sea-xpbar-aurora-kf 5s ease-in-out infinite !important;
+}
+
+/* Lightning: rapid step-burst opacity flashing */
+@keyframes sea-xpbar-lightning-kf {
+    0%   { opacity: 1; }
+    8%   { opacity: 0.3; }
+    16%  { opacity: 1; }
+    22%  { opacity: 0.5; }
+    28%  { opacity: 1; }
+    34%  { opacity: 0.2; }
+    40%  { opacity: 1; }
+    100% { opacity: 1; }
+}
+.sea-xpbar-lightning {
+    animation: sea-xpbar-lightning-kf 0.9s steps(1) infinite !important;
+}
+
+/* Fire: warm radial ripple simulating flickering flame */
+@keyframes sea-xpbar-fire-kf {
+    0%   { background-position: 0% 100%;   filter: hue-rotate(0deg) brightness(1.1); }
+    25%  { background-position: 20% 80%;   filter: hue-rotate(-10deg) brightness(1.25); }
+    50%  { background-position: 60% 60%;   filter: hue-rotate(5deg) brightness(1.05); }
+    75%  { background-position: 40% 80%;   filter: hue-rotate(-5deg) brightness(1.3); }
+    100% { background-position: 0% 100%;   filter: hue-rotate(0deg) brightness(1.1); }
+}
+.sea-xpbar-fire {
+    background-size: 300% 200% !important;
+    animation: sea-xpbar-fire-kf 1.4s ease-in-out infinite !important;
+}
+
+/* Void: dark undulating pulse with a subtle purple/black glow */
+@keyframes sea-xpbar-void-kf {
+    0%, 100% { opacity: 1;    box-shadow: 0 0 6px 2px rgba(88,28,135,0.3),  inset 0 0 8px rgba(0,0,0,0.5); }
+    33%       { opacity: 0.7; box-shadow: 0 0 14px 5px rgba(88,28,135,0.55), inset 0 0 16px rgba(0,0,0,0.7); }
+    66%       { opacity: 0.85;box-shadow: 0 0 8px 3px rgba(55,48,163,0.4),   inset 0 0 10px rgba(0,0,0,0.6); }
+}
+.sea-xpbar-void {
+    animation: sea-xpbar-void-kf 2.8s ease-in-out infinite !important;
+}
+
 /* ── Sea Animation System ─────────────────────────────────────────────────── */
 /* Defaults — overridden per-profile by UICustomizeProvider on :root */
 :root {

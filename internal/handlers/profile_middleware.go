@@ -34,9 +34,9 @@ func (h *Handler) ProfileSessionMiddleware(next echo.HandlerFunc) echo.HandlerFu
 
 		c.Set("profileSession", payload)
 
-		// Sliding window renewal: if more than 6 hours have passed since issue,
-		// emit a fresh token so the client stays logged in on access.
-		if time.Now().Unix()-payload.IssuedAt > int64((6 * time.Hour).Seconds()) {
+		// Sliding window renewal: if more than 24 hours have passed since issue,
+		// emit a fresh 1-year token so the client stays logged in on regular access.
+		if time.Now().Unix()-payload.IssuedAt > int64((24 * time.Hour).Seconds()) {
 			if newToken, err := core.CreateProfileSessionToken(
 				h.App.ProfileManager.GetJWTSecret(),
 				payload.ProfileID,

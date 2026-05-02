@@ -150,12 +150,13 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 			completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
 		}
 
-		_, err := ap.anilistClient.UpdateMediaListEntry(
+		// Use UpdateMediaListEntryProgress (no scoreRaw field) to avoid AniList
+		// validation errors when scoreRaw is null. Dates are passed directly.
+		_, err := ap.anilistClient.UpdateMediaListEntryProgress(
 			ctx,
 			event.MediaID,
-			event.Status,
-			nil, // scoreRaw
 			event.Progress,
+			event.Status,
 			startedAt,
 			completedAt,
 		)

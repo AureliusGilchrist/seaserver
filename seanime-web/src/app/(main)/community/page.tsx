@@ -2,13 +2,26 @@
 
 import { useGetCommunityProfiles, useGetActivityFeed } from "@/api/hooks/community.hooks"
 import { Handlers_CommunityProfile, Handlers_AggregateStats, Handlers_ActivityFeedEntry } from "@/api/generated/types"
+import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { useRewards } from "@/lib/rewards/reward-provider"
+import { ANIME_THEMES } from "@/lib/theme/anime-themes"
+import { useAtomValue } from "jotai"
 import * as React from "react"
 import { LuUsers, LuLayoutGrid, LuList, LuTrophy, LuStar, LuActivity, LuZap } from "react-icons/lu"
 import { SeaLink } from "@/components/shared/sea-link"
+
+/** Resolve a stored displayTitle — turns raw milestone IDs like "milestone-tokyo-ghoul-75"
+ *  into the actual rank name from the theme config. */
+function resolveDisplayTitle(title: string): string {
+    const m = title.match(/^milestone-(.+)-(\d+)$/)
+    if (!m) return title
+    const name = ANIME_THEMES?.[m[1] as keyof typeof ANIME_THEMES]?.milestoneNames?.[Number(m[2])]
+    return name ?? title
+}
 
 export default function Page() {
     const { data, isLoading } = useGetCommunityProfiles()
@@ -299,6 +312,18 @@ export function LevelRingAvatar({ profile, size = 80, xpBarFillOverride }: { pro
 
 function CommunityProfileCard({ profile }: { profile: Handlers_CommunityProfile }) {
     const colors = getLevelColor(profile.currentLevel)
+    const currentProfile = useAtomValue(currentProfileAtom)
+    const { activeXPBarSkin, activeNameColor, activeTitle } = useRewards()
+
+    // For the current user, prefer local reward state over potentially-stale backend data
+    const isSelf = currentProfile?.id === profile.id
+    const xpBarFillCss   = isSelf ? (activeXPBarSkin?.fillCss   ?? profile.xpBarFillCss)   : profile.xpBarFillCss
+    const xpBarAnimClass = isSelf ? (activeXPBarSkin?.animClass  ?? profile.xpBarAnimClass) : profile.xpBarAnimClass
+    const nameColorCss   = isSelf ? (activeNameColor?.color      ?? profile.nameColorCss)   : profile.nameColorCss
+    const nameGradientCss= isSelf ? (activeNameColor?.gradientCss ?? profile.nameGradientCss) : profile.nameGradientCss
+    // Resolve the display title — converts raw IDs like "milestone-tokyo-ghoul-75" to the rank name
+    const rawTitle       = isSelf ? (activeTitle?.text ?? profile.displayTitle) : profile.displayTitle
+    const displayTitle   = rawTitle ? resolveDisplayTitle(rawTitle) : ""
 
     return (
         <SeaLink href={`/profile/user?id=${profile.id}`}>
@@ -313,30 +338,28 @@ function CommunityProfileCard({ profile }: { profile: Handlers_CommunityProfile 
                     </>
                 )}
                 <div className="relative z-10 flex flex-col items-center gap-3 w-full">
-                    <LevelRingAvatar profile={profile} size={80} xpBarFillOverride={profile.xpBarFillCss || undefined} />
+                    <LevelRingAvatar profile={profile} size={80} xpBarFillOverride={xpBarFillCss || undefined} />
                     <div className="text-center min-w-0 w-full">
-                        {/* Global name color */}
                         <p
                             className="font-semibold text-sm truncate"
-                            style={profile.nameGradientCss
-                                ? { backgroundImage: profile.nameGradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }
-                                : profile.nameColorCss ? { color: profile.nameColorCss } : {}}
+                            style={nameGradientCss
+                                ? { backgroundImage: nameGradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }
+                                : nameColorCss ? { color: nameColorCss } : {}}
                         >
                             {profile.name}
                         </p>
-                        {profile.displayTitle && (
+                        {displayTitle && (
                             <p className="text-[10px] font-semibold truncate mb-0.5" style={{ color: profile.displayTitleColor || "#94a3b8" }}>
-                                {profile.displayTitle}
+                                {displayTitle}
                             </p>
                         )}
                         <p className={cn("text-xs font-bold", colors.label)}>Lv. {profile.currentLevel}</p>
                     </div>
-                    {/* Global XP bar */}
-                    {profile.xpBarFillCss && (
+                    {xpBarFillCss && (
                         <div className="w-full h-1.5 rounded-full overflow-hidden bg-white/10">
                             <div
-                                className={cn("h-full rounded-full", profile.xpBarAnimClass)}
-                                style={{ width: "100%", background: profile.xpBarFillCss, backgroundSize: profile.xpBarAnimClass ? "300% 100%" : undefined }}
+                                className={cn("h-full rounded-full", xpBarAnimClass)}
+                                style={{ width: "100%", background: xpBarFillCss, backgroundSize: xpBarAnimClass ? "300% 100%" : undefined }}
                             />
                         </div>
                     )}
@@ -375,6 +398,12 @@ function LeaderboardView({ profiles }: { profiles: Handlers_CommunityProfile[] }
 
 function LeaderboardRow({ profile, rank }: { profile: Handlers_CommunityProfile; rank: number }) {
     const colors = getLevelColor(profile.currentLevel)
+    const currentProfile = useAtomValue(currentProfileAtom)
+    const { activeXPBarSkin, activeTitle } = useRewards()
+    const isSelf = currentProfile?.id === profile.id
+    const xpBarFillCss   = isSelf ? (activeXPBarSkin?.fillCss ?? profile.xpBarFillCss) : profile.xpBarFillCss
+    const rawTitle       = isSelf ? (activeTitle?.text ?? profile.displayTitle) : profile.displayTitle
+    const displayTitle   = rawTitle ? resolveDisplayTitle(rawTitle) : ""
 
     return (
         <SeaLink href={`/profile/user?id=${profile.id}`}>
@@ -389,13 +418,13 @@ function LeaderboardRow({ profile, rank }: { profile: Handlers_CommunityProfile;
                     {rank}
                 </span>
                 <div className="flex items-center gap-3 min-w-0">
-                    <LevelRingAvatar profile={profile} size={40} xpBarFillOverride={profile.xpBarFillCss || undefined} />
+                    <LevelRingAvatar profile={profile} size={40} xpBarFillOverride={xpBarFillCss || undefined} />
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
                             <p className="font-semibold text-sm truncate">{profile.name}</p>
-                            {profile.displayTitle && (
+                            {displayTitle && (
                                 <span className="text-[10px] font-semibold shrink-0" style={{ color: profile.displayTitleColor || "#94a3b8" }}>
-                                    {profile.displayTitle}
+                                    {displayTitle}
                                 </span>
                             )}
                         </div>

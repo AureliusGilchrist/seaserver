@@ -22,11 +22,15 @@ mutation UpdateMediaListEntryProgress (
     $mediaId: Int
     $progress: Int
     $status: MediaListStatus
+    $startedAt: FuzzyDateInput
+    $completedAt: FuzzyDateInput
 ) {
     SaveMediaListEntry(
         mediaId: $mediaId
         progress: $progress
         status: $status
+        startedAt: $startedAt
+        completedAt: $completedAt
     ) {
         id
     }

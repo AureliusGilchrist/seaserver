@@ -22,7 +22,7 @@ type ProfileSessionPayload struct {
 	ClientID  string `json:"cid"` // ties to the Seanime-Client-Id cookie
 }
 
-const profileSessionDuration = 7 * 24 * time.Hour // 7 days with sliding window
+const profileSessionDuration = 365 * 24 * time.Hour // 1 year — backend reboots must not force re-login
 
 // CreateProfileSessionToken creates a signed session token for a profile.
 func CreateProfileSessionToken(secret []byte, profileID uint, isAdmin bool, clientID string) (string, error) {
