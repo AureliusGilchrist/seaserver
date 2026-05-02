@@ -208,6 +208,10 @@ function TitlesTab({ currentLevel }: { currentLevel: number }) {
 
     const titles = themeSpecificTitles ?? TITLE_REWARDS
     const unlocked = titles.filter(r => r.requiredLevel <= currentLevel).length
+    // Hide locked rank titles until earned — non-rank (TITLE_REWARDS) entries are always shown
+    const displayTitles = themeSpecificTitles
+        ? titles.filter(r => r.requiredLevel <= currentLevel)
+        : titles
 
     return (
         <div className="space-y-4">
@@ -223,7 +227,7 @@ function TitlesTab({ currentLevel }: { currentLevel: number }) {
                 )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {titles.map((reward: TitleReward) => {
+                {displayTitles.map((reward: TitleReward) => {
                     const isUnlocked = reward.requiredLevel <= currentLevel
                     const isActive = activeTitle?.id === reward.id
                     return (
@@ -513,7 +517,7 @@ function SoundPackTab({ currentLevel }: { currentLevel: number }) {
     )
 }
 
-// ─── Preview swatch that safely applies arbitrary CSS ────────────────────────
+// ─── Preview swatches ────────────────────────────────────────────────────────
 
 function UIPreviewSwatch({ previewCss }: { previewCss?: string }) {
     const id = React.useId().replace(/:/g, "")
@@ -525,6 +529,70 @@ function UIPreviewSwatch({ previewCss }: { previewCss?: string }) {
             <div className={cn("w-full h-8 rounded-lg overflow-hidden border border-white/10", previewCss && `sea-swatch-${id}`)}
                 style={!previewCss ? { background: "#374151" } : undefined}
             />
+        </>
+    )
+}
+
+// Animated bar that slides left→right using the preset's exact duration+easing
+function AnimationPreviewSwatch({ preset }: { preset: UIPreset }) {
+    const dur  = preset.cssVars?.["--sea-dur"]  ?? "200ms"
+    const ease = preset.cssVars?.["--sea-ease"] ?? "ease"
+    const id   = React.useId().replace(/:/g, "")
+    return (
+        <>
+            <style>{`.sea-ap-${id}{animation:sea-anim-preview ${dur} ${ease} infinite alternate;}`}</style>
+            <div className="w-full h-8 rounded-lg overflow-hidden border border-white/10 relative bg-[#111827]">
+                <div className={`sea-ap-${id} absolute inset-y-1 w-1/3 rounded bg-gradient-to-r from-indigo-500 to-purple-500`} />
+            </div>
+        </>
+    )
+}
+
+// Mini card that auto-plays the hover animation in a slow loop
+function HoverPreviewSwatch({ preset }: { preset: UIPreset }) {
+    const scale = preset.cssVars?.["--sea-hover-scale"] ?? "1"
+    const lift  = preset.cssVars?.["--sea-hover-lift"]  ?? "0px"
+    const glow  = preset.cssVars?.["--sea-hover-glow"]  ?? "none"
+    const dur   = preset.cssVars?.["--sea-hover-dur"]   ?? "200ms"
+    const id    = React.useId().replace(/:/g, "")
+    const loopDur = `${(parseFloat(dur) * 6).toFixed(0)}ms`
+    return (
+        <>
+            <style>{`
+                @keyframes sea-hp-${id} {
+                    0%,100%{transform:scale(1) translateY(0);box-shadow:none;}
+                    50%{transform:scale(${scale}) translateY(${lift});box-shadow:${glow};}
+                }
+                .sea-hp-${id}{animation:sea-hp-${id} ${loopDur} ease-in-out infinite;}
+            `}</style>
+            <div className="w-full h-8 rounded-lg overflow-hidden border border-white/10 bg-[#111827] flex items-center justify-center">
+                <div className={`sea-hp-${id} w-4/5 h-5 rounded-md bg-[#252840] border border-white/10`} />
+            </div>
+        </>
+    )
+}
+
+// Mini card that replays the chosen page-transition animation on loop
+function TransitionPreviewSwatch({ preset }: { preset: UIPreset }) {
+    const transClass = preset.cssVars?.["--sea-page-transition"] ?? ""
+    const id = React.useId().replace(/:/g, "")
+    const kfMap: Record<string, string> = {
+        "sea-page-fade":        `0%,100%{opacity:0}40%{opacity:1}70%{opacity:1}`,
+        "sea-page-slide-up":    `0%,100%{opacity:0;transform:translateY(8px)}40%{opacity:1;transform:translateY(0)}70%{opacity:1;transform:translateY(0)}`,
+        "sea-page-scale":       `0%,100%{opacity:0;transform:scale(0.92)}40%{opacity:1;transform:scale(1)}70%{opacity:1;transform:scale(1)}`,
+        "sea-page-slide-right": `0%,100%{opacity:0;transform:translateX(-8px)}40%{opacity:1;transform:translateX(0)}70%{opacity:1;transform:translateX(0)}`,
+        "":                     `0%,100%{opacity:1}`,
+    }
+    const kf = kfMap[transClass] ?? kfMap["sea-page-fade"]
+    return (
+        <>
+            <style>{`
+                @keyframes sea-tp-${id} { ${kf} }
+                .sea-tp-${id}{animation:sea-tp-${id} 2.2s ease-in-out infinite;}
+            `}</style>
+            <div className="w-full h-8 rounded-lg overflow-hidden border border-white/10 bg-[#0e0e17] flex items-center justify-center">
+                <div className={`sea-tp-${id} w-4/5 h-5 rounded-md bg-[#252840] border border-white/10`} />
+            </div>
         </>
     )
 }
@@ -548,6 +616,15 @@ function UIPresetsGrid({ category, currentLevel }: { category: typeof UI_CUSTOMI
     const { state, setPreset } = useUICustomize()
     const activeId = state[category.id as UICustomizeCategoryId]
 
+    const renderSwatch = (preset: UIPreset) => {
+        switch (category.id) {
+            case "animations":   return <AnimationPreviewSwatch preset={preset} />
+            case "hover":        return <HoverPreviewSwatch preset={preset} />
+            case "transitions":  return <TransitionPreviewSwatch preset={preset} />
+            default:             return <UIPreviewSwatch previewCss={preset.previewCss} />
+        }
+    }
+
     return (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
             {(category.presets as readonly UIPreset[]).map(preset => {
@@ -568,8 +645,7 @@ function UIPresetsGrid({ category, currentLevel }: { category: typeof UI_CUSTOMI
                                     : "border-[--border] bg-[--paper]/50 opacity-50 cursor-not-allowed",
                         )}
                     >
-                        {/* Preview swatch */}
-                        <UIPreviewSwatch previewCss={preset.previewCss} />
+                        {renderSwatch(preset)}
                         <div className="w-full">
                             <div className="flex items-center justify-between gap-1">
                                 <span className="text-[11px] font-semibold truncate leading-tight">{preset.name}</span>

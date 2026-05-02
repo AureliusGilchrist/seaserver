@@ -212,6 +212,7 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 		RelationType string `json:"relationType"` // "SEQUEL", "PREQUEL", "SIDE_STORY", "PARENT", "ALTERNATIVE", "SPIN_OFF", "SUMMARY", "CHARACTER", "OTHER", ""
 		Format       string `json:"format"`        // "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC"
 		ParentID     int    `json:"parentId"`       // ID of the parent entry in the tree (0 for root)
+		Episodes     int    `json:"episodes"`       // 0 if unknown
 	}
 
 	type unmatchedFamilyResult struct {
@@ -260,11 +261,17 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 			format = string(*media.GetFormat())
 		}
 
+		episodes := 0
+		if media.GetEpisodes() != nil {
+			episodes = *media.GetEpisodes()
+		}
+
 		entry := familyEntry{
 			ID:       media.ID,
 			Title:    title,
 			Format:   format,
 			ParentID: cur.parentID,
+			Episodes: episodes,
 		}
 
 		if media.ID == b.AnimeID {
@@ -302,6 +309,11 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 				childFormat = string(*n.Format)
 			}
 
+			childEpisodes := 0
+			if n.GetEpisodes() != nil {
+				childEpisodes = *n.GetEpisodes()
+			}
+
 			// Add child entry with relation info
 			childEntry := familyEntry{
 				ID:           n.ID,
@@ -309,6 +321,7 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 				RelationType: relType,
 				Format:       childFormat,
 				ParentID:     media.ID,
+				Episodes:     childEpisodes,
 			}
 			entries = append(entries, childEntry)
 			visited[n.ID] = true

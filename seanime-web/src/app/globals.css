@@ -1529,3 +1529,42 @@ body.vc-fullscreen .appLayout {
 .sea-xpbar-pulse {
     animation: sea-xpbar-pulse 1.8s ease-in-out infinite !important;
 }
+
+/* ── Sea Animation System ─────────────────────────────────────────────────── */
+/* Defaults — overridden per-profile by UICustomizeProvider on :root */
+:root {
+    --sea-dur:          200ms;
+    --sea-ease:         ease;
+    --sea-hover-scale:  1;
+    --sea-hover-lift:   0px;
+    --sea-hover-glow:   none;
+    --sea-hover-dur:    200ms;
+}
+
+/* Drive all Tailwind transition classes with the user's chosen timing */
+.transition,
+.transition-all,
+.transition-colors,
+.transition-opacity,
+.transition-shadow,
+.transition-transform {
+    transition-duration:        var(--sea-dur) !important;
+    transition-timing-function: var(--sea-ease) !important;
+}
+
+/* Card / interactive-element hover effects */
+.sea-hoverable {
+    transition:
+        transform  var(--sea-hover-dur) var(--sea-ease),
+        box-shadow var(--sea-hover-dur) var(--sea-ease);
+}
+.sea-hoverable:hover {
+    transform:  scale(var(--sea-hover-scale, 1)) translateY(var(--sea-hover-lift, 0px));
+    box-shadow: var(--sea-hover-glow, none);
+}
+
+/* Animation-preview swatch — sliding highlight bar */
+@keyframes sea-anim-preview {
+    from { left: -35%; }
+    to   { left:  100%; }
+}

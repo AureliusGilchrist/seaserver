@@ -280,7 +280,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
 
     const selectAll = useCallback(() => {
         if (torrentContents?.files) {
-            setSelectedFiles(new Set(torrentContents.files.map(f => f.relativePath)))
+            setSelectedFiles(new Set(torrentContents.files.filter(f => f.isVideo).map(f => f.relativePath)))
         }
     }, [torrentContents])
 
@@ -405,7 +405,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setExpandedSeasons(new Set())
     }, [])
 
-    // Get all file paths under a folder path
+    // Get all file paths under a folder path (all files, for tree display)
     const getFilesUnderPath = useCallback((path: string): string[] => {
         if (!torrentContents?.files) return []
         const prefix = path ? path + "/" : ""
@@ -414,33 +414,39 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             .map(f => f.relativePath)
     }, [torrentContents])
 
-    // Toggle folder selection (XOR operation)
+    // Get only video file paths under a folder path (for episode counting and selection)
+    const getVideoFilesUnderPath = useCallback((path: string): string[] => {
+        if (!torrentContents?.files) return []
+        const prefix = path ? path + "/" : ""
+        return torrentContents.files
+            .filter(f => f.isVideo && (f.relativePath.startsWith(prefix) || f.relativePath === path))
+            .map(f => f.relativePath)
+    }, [torrentContents])
+
+    // Toggle folder selection (XOR operation — video files only)
     const toggleFolder = useCallback((folderPath: string) => {
-        const filesUnder = getFilesUnderPath(folderPath)
+        const videoFiles = getVideoFilesUnderPath(folderPath)
         setSelectedFiles(prev => {
             const next = new Set(prev)
-            const allSelected = filesUnder.every(f => next.has(f))
-
+            const allSelected = videoFiles.every(f => next.has(f))
             if (allSelected) {
-                // Deselect all files under this folder
-                filesUnder.forEach(f => next.delete(f))
+                videoFiles.forEach(f => next.delete(f))
             } else {
-                // Select all files under this folder
-                filesUnder.forEach(f => next.add(f))
+                videoFiles.forEach(f => next.add(f))
             }
             return next
         })
-    }, [getFilesUnderPath])
+    }, [getVideoFilesUnderPath])
 
-    // Check folder selection state
+    // Check folder selection state (based on video files only)
     const getFolderSelectionState = useCallback((folderPath: string): "all" | "some" | "none" => {
-        const filesUnder = getFilesUnderPath(folderPath)
-        if (filesUnder.length === 0) return "none"
-        const selectedCount = filesUnder.filter(f => selectedFiles.has(f)).length
+        const videoFiles = getVideoFilesUnderPath(folderPath)
+        if (videoFiles.length === 0) return "none"
+        const selectedCount = videoFiles.filter(f => selectedFiles.has(f)).length
         if (selectedCount === 0) return "none"
-        if (selectedCount === filesUnder.length) return "all"
+        if (selectedCount === videoFiles.length) return "all"
         return "some"
-    }, [getFilesUnderPath, selectedFiles])
+    }, [getVideoFilesUnderPath, selectedFiles])
 
     if (!torrent) return null
 
@@ -673,6 +679,8 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                                 native: undefined,
                                                 userPreferred: entry.title,
                                             },
+                                            episodes: entry.episodes || undefined,
+                                            format: entry.format as AL_BaseAnime["format"] || undefined,
                                         }
                                         setSelectedAnime(syntheticAnime)
                                         setFamilyDetailId(entry.id)
@@ -1174,6 +1182,9 @@ function FamilyTreeNodeItem({ node, depth, selectedAnimeId, collapsed, toggleCol
                     <span className="text-[10px] px-1 py-0.5 rounded bg-gray-800/70 text-gray-300 flex-shrink-0">
                         {e.format}
                     </span>
+                )}
+                {e.episodes > 0 && (
+                    <span className="text-[10px] text-[--muted] flex-shrink-0">{e.episodes} eps</span>
                 )}
             </div>
 

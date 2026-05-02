@@ -76,10 +76,28 @@ func (pm *PlaybackManager) handleTrackingStarted(status *mediaplayer.PlaybackSta
 
 	// Set the current media playback status
 	pm.currentMediaPlaybackStatus = status
-	// Get the playback state
-	_ps := pm.getLocalFilePlaybackState(status)
-	// Log
+
+	// Resolve the local file details FIRST so the playback state has real data.
+	// Previously this was done after building the state, causing the client to
+	// receive an empty PlaybackState{} on the TrackingStarted event.
 	pm.Logger.Debug().Msg("playback manager: Tracking started, extracting metadata...")
+	currentMediaListEntry, currentLocalFile, currentLocalFileWrapperEntry, err := pm.getLocalFilePlaybackDetails(status.Filepath)
+	if err != nil {
+		pm.Logger.Warn().Err(err).Msg("playback manager: Could not match file for tracking — playback continues without progress tracking")
+		pm.sendEventToCurrentClient(events.WarningToast, "Playing without tracking: "+err.Error())
+		return
+	}
+
+	pm.currentMediaListEntry = mo.Some(currentMediaListEntry)
+	pm.currentLocalFile = mo.Some(currentLocalFile)
+	pm.currentLocalFileWrapperEntry = mo.Some(currentLocalFileWrapperEntry)
+	pm.Logger.Debug().
+		Str("media", pm.currentMediaListEntry.MustGet().GetMedia().GetPreferredTitle()).
+		Int("episode", pm.currentLocalFile.MustGet().GetEpisodeNumber()).
+		Msg("playback manager: Playback started")
+
+	// Now build the playback state — fields are populated, so this has real values.
+	_ps := pm.getLocalFilePlaybackState(status)
 	// Send event to the client
 	pm.sendEventToCurrentClient(events.PlaybackManagerProgressTrackingStarted, _ps)
 
@@ -94,25 +112,6 @@ func (pm *PlaybackManager) handleTrackingStarted(status *mediaplayer.PlaybackSta
 			return true
 		})
 	}()
-
-	// Retrieve data about the current video playback
-	// Set PlaybackManager.currentMediaListEntry to the list entry of the current video
-	currentMediaListEntry, currentLocalFile, currentLocalFileWrapperEntry, err := pm.getLocalFilePlaybackDetails(status.Filepath)
-	if err != nil {
-		pm.Logger.Warn().Err(err).Msg("playback manager: Could not match file for tracking — playback continues without progress tracking")
-		// Show a warning (not an error) so the player keeps playing
-		pm.sendEventToCurrentClient(events.WarningToast, "Playing without tracking: "+err.Error())
-		// Do not cancel the player — user can still watch untracked
-		return
-	}
-
-	pm.currentMediaListEntry = mo.Some(currentMediaListEntry)
-	pm.currentLocalFile = mo.Some(currentLocalFile)
-	pm.currentLocalFileWrapperEntry = mo.Some(currentLocalFileWrapperEntry)
-	pm.Logger.Debug().
-		Str("media", pm.currentMediaListEntry.MustGet().GetMedia().GetPreferredTitle()).
-		Int("episode", pm.currentLocalFile.MustGet().GetEpisodeNumber()).
-		Msg("playback manager: Playback started")
 
 	pm.continuityManager.SetExternalPlayerEpisodeDetails(&continuity.ExternalPlayerEpisodeDetails{
 		EpisodeNumber: pm.currentLocalFile.MustGet().GetEpisodeNumber(),

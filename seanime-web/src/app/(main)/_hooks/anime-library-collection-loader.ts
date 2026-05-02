@@ -2,7 +2,7 @@
 import { buildSeaQuery } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { Anime_Entry, Manga_Entry, AL_AnimeDetailsById_Media, AL_MangaDetailsById_Media } from "@/api/generated/types"
-import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetRawAnilistMangaCollection } from "@/api/hooks/manga.hooks"
 import { animeLibraryCollectionAtom } from "@/app/(main)/_atoms/anime-library-collection.atoms"
@@ -14,49 +14,32 @@ const PREFETCH_STALE = 3 * 60 * 1000
 const BATCH_SIZE = 5
 const BATCH_GAP_MS = 120
 
+type QueryDef = { key: string; endpoint: string; method: string }
+
 async function prefetchIds(
     ids: number[],
     queryClient: ReturnType<typeof useQueryClient>,
     password: string | undefined,
-    entryKey: string,
-    entryEndpoint: string,
-    entryMethod: string,
-    detailsKey: string,
-    detailsEndpoint: string,
-    detailsMethod: string,
+    profileToken: string | undefined,
+    queries: QueryDef[],
 ) {
     for (let i = 0; i < ids.length; i += BATCH_SIZE) {
         const batch = ids.slice(i, i + BATCH_SIZE)
         await Promise.allSettled(
             batch.flatMap(id => {
                 const sid = String(id)
-                const tasks: Promise<unknown>[] = []
-
-                if (!queryClient.getQueryData([entryKey, sid])) {
-                    tasks.push(queryClient.prefetchQuery({
-                        queryKey: [entryKey, sid],
+                return queries
+                    .filter(q => !queryClient.getQueryData([q.key, sid]))
+                    .map(q => queryClient.prefetchQuery({
+                        queryKey: [q.key, sid],
                         queryFn: () => buildSeaQuery({
-                            endpoint: entryEndpoint.replace("{id}", sid),
-                            method: entryMethod as "GET",
+                            endpoint: q.endpoint.replace("{id}", sid),
+                            method: q.method as "GET",
                             password,
+                            profileToken,
                         }),
                         staleTime: PREFETCH_STALE,
                     }))
-                }
-
-                if (!queryClient.getQueryData([detailsKey, sid])) {
-                    tasks.push(queryClient.prefetchQuery({
-                        queryKey: [detailsKey, sid],
-                        queryFn: () => buildSeaQuery({
-                            endpoint: detailsEndpoint.replace("{id}", sid),
-                            method: detailsMethod as "GET",
-                            password,
-                        }),
-                        staleTime: PREFETCH_STALE,
-                    }))
-                }
-
-                return tasks
             }),
         )
         if (i + BATCH_SIZE < ids.length) {
@@ -73,6 +56,7 @@ export function useAnimeLibraryCollectionLoader() {
     const setter = useSetAtom(animeLibraryCollectionAtom)
     const queryClient = useQueryClient()
     const password = useAtomValue(serverAuthTokenAtom)
+    const profileToken = useAtomValue(profileSessionTokenAtom)
 
     const { data, status } = useGetLibraryCollection()
     const { data: mangaCollection } = useGetRawAnilistMangaCollection()
@@ -94,17 +78,28 @@ export function useAnimeLibraryCollectionLoader() {
 
         if (ids.length === 0) return
 
-        prefetchIds(
-            ids,
-            queryClient,
-            password ?? undefined,
-            API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key,
-            API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.endpoint,
-            API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.methods[0],
-            API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.key,
-            API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.endpoint,
-            API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.methods[0],
-        )
+        prefetchIds(ids, queryClient, password ?? undefined, profileToken ?? undefined, [
+            {
+                key: API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key,
+                endpoint: API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.endpoint,
+                method: API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.methods[0],
+            },
+            {
+                key: API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.key,
+                endpoint: API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.endpoint,
+                method: API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.methods[0],
+            },
+            {
+                key: API_ENDPOINTS.METADATA.GetMediaMetadataParent.key,
+                endpoint: API_ENDPOINTS.METADATA.GetMediaMetadataParent.endpoint,
+                method: API_ENDPOINTS.METADATA.GetMediaMetadataParent.methods[0],
+            },
+            {
+                key: API_ENDPOINTS.ANIME.GetAnimeEpisodeCollection.key,
+                endpoint: API_ENDPOINTS.ANIME.GetAnimeEpisodeCollection.endpoint,
+                method: API_ENDPOINTS.ANIME.GetAnimeEpisodeCollection.methods[0],
+            },
+        ])
     }, [status])
 
     // Prefetch manga entries after manga collection loads
@@ -118,17 +113,18 @@ export function useAnimeLibraryCollectionLoader() {
 
         if (ids.length === 0) return
 
-        prefetchIds(
-            ids,
-            queryClient,
-            password ?? undefined,
-            API_ENDPOINTS.MANGA.GetMangaEntry.key,
-            API_ENDPOINTS.MANGA.GetMangaEntry.endpoint,
-            API_ENDPOINTS.MANGA.GetMangaEntry.methods[0],
-            API_ENDPOINTS.MANGA.GetMangaEntryDetails.key,
-            API_ENDPOINTS.MANGA.GetMangaEntryDetails.endpoint,
-            API_ENDPOINTS.MANGA.GetMangaEntryDetails.methods[0],
-        )
+        prefetchIds(ids, queryClient, password ?? undefined, profileToken ?? undefined, [
+            {
+                key: API_ENDPOINTS.MANGA.GetMangaEntry.key,
+                endpoint: API_ENDPOINTS.MANGA.GetMangaEntry.endpoint,
+                method: API_ENDPOINTS.MANGA.GetMangaEntry.methods[0],
+            },
+            {
+                key: API_ENDPOINTS.MANGA.GetMangaEntryDetails.key,
+                endpoint: API_ENDPOINTS.MANGA.GetMangaEntryDetails.endpoint,
+                method: API_ENDPOINTS.MANGA.GetMangaEntryDetails.methods[0],
+            },
+        ])
     }, [mangaCollection])
 
     return null

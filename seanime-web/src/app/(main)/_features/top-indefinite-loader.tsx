@@ -2,6 +2,7 @@ import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websocke
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { logger } from "@/lib/helpers/debug"
 import { WSEvents } from "@/lib/server/ws-events"
+import { useRouterState } from "@tanstack/react-router"
 import React from "react"
 
 const log = logger("IndefiniteLoader")
@@ -46,9 +47,13 @@ export function TopIndefiniteLoader() {
         },
     })
 
+    const isRouterPending = useRouterState({ select: (s) => s.status === "pending" })
+
+    const show = showStack.length > 0 || isRouterPending
+
     return (
         <>
-            {showStack.length > 0 && <div className="w-full bg-gray-950 fixed top-0 left-0 z-[100]">
+            {show && <div className="w-full bg-gray-950 fixed top-0 left-0 z-[100]">
                 <ProgressBar size="xs" isIndeterminate />
             </div>}
         </>

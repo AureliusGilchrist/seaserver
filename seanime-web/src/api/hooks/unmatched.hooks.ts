@@ -158,6 +158,7 @@ export interface FamilyEntry {
     relationType: string // "SEQUEL", "PREQUEL", "SIDE_STORY", "PARENT", "ALTERNATIVE", "SPIN_OFF", "SUMMARY", "CHARACTER", "OTHER", ""
     format: string       // "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC"
     parentId: number     // ID of the parent entry in the tree (0 for root)
+    episodes: number     // 0 if unknown
 }
 
 export interface FamilyResult {

@@ -353,7 +353,7 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
             <SeaLink
                 href={!onClick ? link : undefined}
                 onClick={onClick}
-                className="w-full relative focus-visible:ring-2 ring-[--brand]"
+                className="w-full relative focus-visible:ring-2 ring-[--brand] sea-hoverable"
                 data-media-entry-card-body-link
             >
                 <div

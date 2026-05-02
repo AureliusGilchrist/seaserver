@@ -102,3 +102,4 @@ local_testing
 dist-server
 scripts/build.go
 seanime.exe
+build-all-desktop-stats.json
