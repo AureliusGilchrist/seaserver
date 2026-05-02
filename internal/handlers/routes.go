@@ -23,7 +23,7 @@ type Handler struct {
 
 // loadExpBarProgression initializes the exp bar progression data from JSON
 func loadExpBarProgression(app *core.App) error {
-	_, err := achievement.LoadExpBarProgression(app.DataDirPath)
+	_, err := achievement.LoadExpBarProgression(app.Config.Data.AppDataDir)
 	return err
 }
 
