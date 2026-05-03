@@ -1,10 +1,20 @@
 package anime
 
 import (
+	"regexp"
 	"seanime/internal/library/filesystem"
 
 	"github.com/5rahim/habari"
 )
+
+// Fallback patterns applied when habari fails to extract an episode number.
+// Ordered from most specific to most general.
+var episodeFallbackPatterns = []*regexp.Regexp{
+	// "Episode 001", "Ep. 01", "EP01", "ep 1" — captures the number after the keyword
+	regexp.MustCompile(`(?i)(?:episode|ep\.?)\s*(\d+)`),
+	// Bare padded number between separators: "- 001 -", "- 01 -", " 001 ", etc.
+	regexp.MustCompile(`(?:^|[\s\-_\[\(])(\d{2,4})(?:[\s\-_\]\)]|$)`),
+}
 
 const (
 	LocalFileTypeMain    LocalFileType = "main"    // Main episodes that are trackable
@@ -134,6 +144,17 @@ func NewLocalFileParsedData(original string, elements *habari.Metadata) *LocalFi
 			i.Episode = elements.EpisodeNumber[0]
 		} else {
 			i.EpisodeRange = elements.EpisodeNumber
+		}
+	}
+
+	// Fallback: habari sometimes misses triple-padded episode numbers (e.g. "Episode 001").
+	// Try our own patterns if no episode was extracted.
+	if len(i.Episode) == 0 && len(i.EpisodeRange) == 0 {
+		for _, re := range episodeFallbackPatterns {
+			if m := re.FindStringSubmatch(original); len(m) >= 2 {
+				i.Episode = m[1]
+				break
+			}
 		}
 	}
 

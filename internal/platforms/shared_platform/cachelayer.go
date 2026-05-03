@@ -2,6 +2,7 @@ package shared_platform
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"seanime/internal/api/anilist"
@@ -17,6 +18,12 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
 )
+
+// MediaCacheStore is implemented by *db.Database to provide SQLite-backed unlimited media caching.
+type MediaCacheStore interface {
+	GetMediaCache(bucket, key string) ([]byte, bool)
+	SetMediaCache(bucket, key string, data []byte) error
+}
 
 // devnote: I got lazy and used global variables
 
@@ -99,6 +106,7 @@ type (
 		logger               *zerolog.Logger
 		collectionMediaIDs   *result.Map[int, struct{}] // Track which media IDs are in collections
 		lastCollectionUpdate time.Time                  // When collections were last fetched
+		db                   MediaCacheStore            // Optional SQLite-backed unlimited media cache
 	}
 )
 
@@ -125,8 +133,7 @@ const (
 	SearchBaseAnimeByIdsBucket     = "search-base-anime-by-ids"
 	CustomQueryBucket              = "custom-query"
 
-	maxNonCollectionCacheEntries      = 10
-	maxNonCollectionMediaCacheEntries = 1000
+	maxNonCollectionCacheEntries = 10
 	// Collection update interval (refresh collection tracking every 30 minutes)
 	collectionUpdateInterval = 30 * time.Minute
 )
@@ -191,7 +198,10 @@ func clearFailureTracking() {
 	failureTracking = failureTracking[:0]
 }
 
-func NewCacheLayer(anilistClientRef *util.Ref[anilist.AnilistClient]) anilist.AnilistClient {
+// NewCacheLayer creates a CacheLayer wrapping the given AniList client.
+// An optional MediaCacheStore (e.g. *db.Database) can be passed to enable
+// SQLite-backed unlimited caching for individual media entries.
+func NewCacheLayer(anilistClientRef *util.Ref[anilist.AnilistClient], mediaDB ...MediaCacheStore) anilist.AnilistClient {
 	fileCacher, err := filecache.NewCacher(anilistClientRef.Get().GetCacheDir())
 	if err != nil {
 		return anilistClientRef.Get()
@@ -222,12 +232,18 @@ func NewCacheLayer(anilistClientRef *util.Ref[anilist.AnilistClient]) anilist.An
 
 	logger := util.NewLogger()
 
+	var db MediaCacheStore
+	if len(mediaDB) > 0 {
+		db = mediaDB[0]
+	}
+
 	cl := &CacheLayer{
 		anilistClientRef:   anilistClientRef,
 		fileCacher:         fileCacher,
 		buckets:            buckets,
 		logger:             logger,
 		collectionMediaIDs: result.NewMap[int, struct{}](),
+		db:                 db,
 	}
 
 	AnilistClient.Store(anilistClientRef.Get())
@@ -489,36 +505,65 @@ func networkFirstGet[T any](c *CacheLayer, bucketName string, cacheKey string, n
 	return &cached, nil
 }
 
-// boundedCacheSet caches data with a limit on non-collection entries
-func (c *CacheLayer) boundedCacheSet(bucketName string, cacheKey string, data interface{}, mediaID int) error {
-	if !ShouldCache.Load() {
-		return nil
+// networkFirstGetSQLite is like networkFirstGet but uses SQLite (via c.db) for
+// unlimited media caching instead of the bounded file cache. Falls back to
+// file cache for backward-compat with existing cached data.
+func networkFirstGetSQLite[T any](c *CacheLayer, bucketName string, cacheKey string, networkFn func() (*T, error)) (*T, error) {
+	if !ShouldCache.Load() || c.db == nil {
+		return networkFirstGet(c, bucketName, cacheKey, networkFn)
 	}
 
 	bucket := c.buckets[bucketName]
 
-	// Always cache collection media
-	if c.isInCollection(mediaID) {
-		return c.fileCacher.SetPerm(bucket, cacheKey, data)
-	}
-
-	// For non-collection media, enforce the limit
-	allData, err := filecache.GetAll[interface{}](c.fileCacher, filecache.NewBucket(bucket.Name(), 0))
-	if err != nil {
-		return err
-	}
-
-	// If we're at the limit, remove the oldest entry (simple FIFO for now)
-	if len(allData) >= maxNonCollectionMediaCacheEntries {
-		// Remove the first key we find (this is a simple implementation)
-		for key := range allData {
-			if err := c.fileCacher.DeletePerm(bucket, key); err == nil {
-				break
+	// Network-first: try API if working
+	if IsWorking.Load() {
+		result, err := networkFn()
+		c.checkAndUpdateWorkingState(err)
+		if err == nil && result != nil {
+			// Persist to SQLite (async, non-blocking)
+			go func() {
+				if data, marshalErr := json.Marshal(result); marshalErr == nil {
+					_ = c.db.SetMediaCache(bucketName, cacheKey, data)
+				}
+			}()
+			// Also keep file cache current for other tooling
+			_ = c.fileCacher.SetPerm(bucket, cacheKey, result)
+			return result, nil
+		}
+	} else {
+		// Background recovery attempt
+		go func() {
+			result, err := networkFn()
+			c.checkAndUpdateWorkingState(err)
+			if err == nil && result != nil {
+				if data, marshalErr := json.Marshal(result); marshalErr == nil {
+					_ = c.db.SetMediaCache(bucketName, cacheKey, data)
+				}
+				_ = c.fileCacher.SetPerm(bucket, cacheKey, result)
 			}
+		}()
+	}
+
+	// SQLite fallback first (indexed, fast even at 100K+ entries)
+	if data, ok := c.db.GetMediaCache(bucketName, cacheKey); ok {
+		var cached T
+		if err := json.Unmarshal(data, &cached); err == nil {
+			c.logger.Debug().Str("bucket", bucketName).Str("key", cacheKey).Msg("anilist cache: Serving from SQLite cache")
+			return &cached, nil
 		}
 	}
 
-	return c.fileCacher.SetPerm(bucket, cacheKey, data)
+	// File cache fallback (backward-compat for data cached before SQLite migration)
+	var cached T
+	found, err := c.fileCacher.GetPerm(bucket, cacheKey, &cached)
+	if err != nil {
+		return nil, fmt.Errorf("cache lookup failed: %w", err)
+	}
+	if !found {
+		return nil, fmt.Errorf("no cached data available")
+	}
+	c.logger.Debug().Str("bucket", bucketName).Str("key", cacheKey).Msg("anilist cache: Serving from file cache")
+	return &cached, nil
 }
 
 // updateCollectionTrackingFromAnimeCollection updates collection tracking from anime collection
@@ -806,7 +851,7 @@ func (c *CacheLayer) BaseAnimeByID(ctx context.Context, id *int, interceptors ..
 	}
 
 	cacheKey := c.generateCacheKey(id)
-	result, err := networkFirstGet(c, BaseAnimeBucket, cacheKey, func() (*anilist.BaseAnimeByID, error) {
+	result, err := networkFirstGetSQLite(c, BaseAnimeBucket, cacheKey, func() (*anilist.BaseAnimeByID, error) {
 		return c.anilistClientRef.Get().BaseAnimeByID(ctx, id, interceptors...)
 	})
 
@@ -816,15 +861,6 @@ func (c *CacheLayer) BaseAnimeByID(ctx context.Context, id *int, interceptors ..
 			c.logger.Debug().Int("mediaID", *id).Msg("anilist cache: Extracted BaseAnime from collection cache")
 			return collectionResult, nil
 		}
-	}
-
-	// If successful, update bounded cache for non-collection media
-	if err == nil && result != nil {
-		go func() {
-			if err := c.boundedCacheSet(BaseAnimeBucket, cacheKey, result, *id); err != nil {
-				c.logger.Warn().Err(err).Msg("anilist cache: Failed to update bounded cache")
-			}
-		}()
 	}
 
 	return result, err
@@ -843,20 +879,9 @@ func (c *CacheLayer) CompleteAnimeByID(ctx context.Context, id *int, interceptor
 	}
 
 	cacheKey := c.generateCacheKey(id)
-	result, err := networkFirstGet(c, CompleteAnimeBucket, cacheKey, func() (*anilist.CompleteAnimeByID, error) {
+	return networkFirstGetSQLite(c, CompleteAnimeBucket, cacheKey, func() (*anilist.CompleteAnimeByID, error) {
 		return c.anilistClientRef.Get().CompleteAnimeByID(ctx, id, interceptors...)
 	})
-
-	// If successful, update bounded cache for non-collection media
-	if err == nil && result != nil {
-		go func() {
-			if err := c.boundedCacheSet(CompleteAnimeBucket, cacheKey, result, *id); err != nil {
-				c.logger.Warn().Err(err).Msg("anilist cache: failed to update bounded cache")
-			}
-		}()
-	}
-
-	return result, err
 }
 
 func (c *CacheLayer) AnimeDetailsByID(ctx context.Context, id *int, interceptors ...clientv2.RequestInterceptor) (*anilist.AnimeDetailsByID, error) {
@@ -865,20 +890,9 @@ func (c *CacheLayer) AnimeDetailsByID(ctx context.Context, id *int, interceptors
 	}
 
 	cacheKey := c.generateCacheKey(id)
-	result, err := networkFirstGet(c, AnimeDetailsBucket, cacheKey, func() (*anilist.AnimeDetailsByID, error) {
+	return networkFirstGetSQLite(c, AnimeDetailsBucket, cacheKey, func() (*anilist.AnimeDetailsByID, error) {
 		return c.anilistClientRef.Get().AnimeDetailsByID(ctx, id, interceptors...)
 	})
-
-	// If successful, update bounded cache for non-collection media
-	if err == nil && result != nil {
-		go func() {
-			if err := c.boundedCacheSet(AnimeDetailsBucket, cacheKey, result, *id); err != nil {
-				c.logger.Warn().Err(err).Msg("anilist cache: failed to update bounded cache")
-			}
-		}()
-	}
-
-	return result, err
 }
 
 func (c *CacheLayer) ListAnime(ctx context.Context, page *int, search *string, perPage *int, sort []*anilist.MediaSort, status []*anilist.MediaStatus, genres []*string, averageScoreGreater *int, season *anilist.MediaSeason, seasonYear *int, format *anilist.MediaFormat, isAdult *bool, interceptors ...clientv2.RequestInterceptor) (*anilist.ListAnime, error) {
@@ -993,7 +1007,7 @@ func (c *CacheLayer) BaseMangaByID(ctx context.Context, id *int, interceptors ..
 	}
 
 	cacheKey := c.generateCacheKey(id)
-	result, err := networkFirstGet(c, BaseMangaBucket, cacheKey, func() (*anilist.BaseMangaByID, error) {
+	result, err := networkFirstGetSQLite(c, BaseMangaBucket, cacheKey, func() (*anilist.BaseMangaByID, error) {
 		return c.anilistClientRef.Get().BaseMangaByID(ctx, id, interceptors...)
 	})
 
@@ -1005,15 +1019,6 @@ func (c *CacheLayer) BaseMangaByID(ctx context.Context, id *int, interceptors ..
 		}
 	}
 
-	// If successful, update bounded cache for non-collection media
-	if err == nil && result != nil {
-		go func() {
-			if err := c.boundedCacheSet(BaseMangaBucket, cacheKey, result, *id); err != nil {
-				c.logger.Warn().Err(err).Msg("anilist cache: Failed to update bounded cache")
-			}
-		}()
-	}
-
 	return result, err
 }
 
@@ -1023,20 +1028,9 @@ func (c *CacheLayer) MangaDetailsByID(ctx context.Context, id *int, interceptors
 	}
 
 	cacheKey := c.generateCacheKey(id)
-	result, err := networkFirstGet(c, MangaDetailsBucket, cacheKey, func() (*anilist.MangaDetailsByID, error) {
+	return networkFirstGetSQLite(c, MangaDetailsBucket, cacheKey, func() (*anilist.MangaDetailsByID, error) {
 		return c.anilistClientRef.Get().MangaDetailsByID(ctx, id, interceptors...)
 	})
-
-	// If successful, update bounded cache for non-collection media
-	if err == nil && result != nil {
-		go func() {
-			if err := c.boundedCacheSet(MangaDetailsBucket, cacheKey, result, *id); err != nil {
-				c.logger.Warn().Err(err).Msg("anilist cache: failed to update bounded cache")
-			}
-		}()
-	}
-
-	return result, err
 }
 
 func (c *CacheLayer) ListManga(ctx context.Context, page *int, search *string, perPage *int, sort []*anilist.MediaSort, status []*anilist.MediaStatus, genres []*string, averageScoreGreater *int, startDateGreater *string, startDateLesser *string, format *anilist.MediaFormat, countryOfOrigin *string, isAdult *bool, interceptors ...clientv2.RequestInterceptor) (*anilist.ListManga, error) {

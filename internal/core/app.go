@@ -439,11 +439,13 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		logger.Fatal().Err(err).Msgf("app: Failed to initialize simulated platform")
 	}
 
-	// Change active platform if offline mode is enabled
+	// Offline mode is handled transparently by the CacheLayer — the OfflinePlatform
+	// is no longer used. Always start on AnilistPlatform and clear any stale flag.
 	if cfg.Server.Offline {
-		logger.Warn().Msg("app: Offline mode is active, using offline platform")
-		activePlatformRef.Set(offlinePlatform)
-	} else if !anilistCWRef.Get().IsAuthenticated() {
+		cfg.Server.Offline = false
+		logger.Info().Msg("app: Cleared stale offline mode flag — using cache-backed AnilistPlatform")
+	}
+	if !anilistCWRef.Get().IsAuthenticated() {
 		logger.Warn().Msg("app: Anilist client is not authenticated, using simulated platform")
 		activePlatformRef.Set(simulatedPlatform)
 	}

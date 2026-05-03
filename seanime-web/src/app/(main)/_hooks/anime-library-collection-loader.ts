@@ -1,7 +1,6 @@
 "use client"
 import { buildSeaQuery } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { Anime_Entry, Manga_Entry, AL_AnimeDetailsById_Media, AL_MangaDetailsById_Media } from "@/api/generated/types"
 import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetRawAnilistMangaCollection } from "@/api/hooks/manga.hooks"
@@ -10,7 +9,7 @@ import { useAtomValue, useSetAtom } from "jotai/react"
 import { useQueryClient } from "@tanstack/react-query"
 import React from "react"
 
-const PREFETCH_STALE = 3 * 60 * 1000
+const PREFETCH_STALE = 30 * 60 * 1000
 const BATCH_SIZE = 5
 const BATCH_GAP_MS = 120
 

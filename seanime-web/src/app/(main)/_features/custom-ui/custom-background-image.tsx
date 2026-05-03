@@ -11,7 +11,6 @@ import React from "react"
 type CustomBackgroundImageProps = React.ComponentPropsWithoutRef<"div"> & {}
 
 // ── Deep Sea bubble overlay ──────────────────────────────────────────────────
-// Renders a set of animated circles that slowly rise up the screen.
 const BUBBLE_COUNT = 14
 
 function DeepSeaBubbles() {
@@ -28,7 +27,7 @@ function DeepSeaBubbles() {
 
     return (
         <div
-            className="fixed w-full h-full inset-0 z-[2] pointer-events-none overflow-hidden"
+            className="fixed w-full h-full inset-0 z-[4] pointer-events-none overflow-hidden"
             aria-hidden="true"
         >
             {bubbles.map(b => (
@@ -52,8 +51,6 @@ function DeepSeaBubbles() {
                     }}
                 />
             ))}
-
-            {/* Inline keyframe — injected once alongside the bubbles */}
             <style>{`
                 @keyframes sea-bg-bubble-rise {
                     0%   { transform: translateY(0) translateX(0) scale(0.85); opacity: 0; }
@@ -66,6 +63,9 @@ function DeepSeaBubbles() {
         </div>
     )
 }
+
+// Grain SVG data URL (shared between wallpaper and effects)
+const GRAIN_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`
 
 export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
 
@@ -80,21 +80,21 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
 
     // Exclude specific pages from background effects
     const isExcludedPage = React.useMemo(() => {
-        return pathname.includes('/manga/entry') ||
-               pathname.includes('/entry') ||
-               pathname.includes('/manga/_containers/chapter-reader')
+        return pathname.includes("/manga/entry") ||
+               pathname.includes("/entry") ||
+               pathname.includes("/manga/_containers/chapter-reader")
     }, [pathname])
 
     // Read active visual effects preset values
-    const effectPreset  = EFFECTS_PRESETS.find(p => p.id === uiState.effects)
-    const vignetteStr   = parseFloat(effectPreset?.cssVars?.["--sea-vignette"]  ?? "0")
-    const glowStr       = parseFloat(effectPreset?.cssVars?.["--sea-glow"]      ?? "0")
-    const grainStr      = parseFloat(effectPreset?.cssVars?.["--sea-grain"]     ?? "0")
-    const hasScanning   = effectPreset?.cssVars?.["--sea-scanlines"] === "1"
-    const hasBlurEdge   = effectPreset?.cssVars?.["--sea-blur-edge"] === "1"
-    const hasDeepSea    = effectPreset?.cssVars?.["--sea-deep-sea"]  === "1"
-    const hasInkWash    = effectPreset?.cssVars?.["--sea-ink-wash"]  === "1"
-    const hueRotate     = effectPreset?.cssVars?.["--sea-hue-rotate"] ?? ""
+    const effectPreset = EFFECTS_PRESETS.find(p => p.id === uiState.effects)
+    const vignetteStr  = parseFloat(effectPreset?.cssVars?.["--sea-vignette"]  ?? "0")
+    const glowStr      = parseFloat(effectPreset?.cssVars?.["--sea-glow"]      ?? "0")
+    const grainStr     = parseFloat(effectPreset?.cssVars?.["--sea-grain"]     ?? "0")
+    const hasScanning  = effectPreset?.cssVars?.["--sea-scanlines"] === "1"
+    const hasBlurEdge  = effectPreset?.cssVars?.["--sea-blur-edge"] === "1"
+    const hasDeepSea   = effectPreset?.cssVars?.["--sea-deep-sea"]  === "1"
+    const hasInkWash   = effectPreset?.cssVars?.["--sea-ink-wash"]  === "1"
+    const hueRotate    = effectPreset?.cssVars?.["--sea-hue-rotate"] ?? ""
 
     // Build image filter string — combines slider glow, hue-rotate, and ink-wash
     const buildImageFilter = React.useCallback(() => {
@@ -113,10 +113,19 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
         return parts.length > 0 ? parts.join(" ") : undefined
     }, [ts.libraryScreenCustomBackgroundGlow, hueRotate, hasInkWash])
 
+    // Dim alpha: derived from opacity slider so the overlay darkens/lightens visibly
+    // opacity=10  → dimAlpha ≈ 0.845  (very dark)
+    // opacity=50  → dimAlpha ≈ 0.505  (half visible)
+    // opacity=100 → dimAlpha ≈ 0.08   (mostly visible)
+    const dimAlpha = (100 - ts.libraryScreenCustomBackgroundOpacity) / 100 * 0.85 + 0.08
+
+    const hasAnyEffect = effectPreset && effectPreset.id !== "fx-none"
+
     if (isExcludedPage) return null
 
     return (
         <>
+            {/* ── Section A: Wallpaper image + dim overlay ── */}
             {!!ts.libraryScreenCustomBackgroundImage && (
                 <motion.div
                     initial={{ opacity: 0 }}
@@ -126,13 +135,14 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                     className="fixed w-full h-full inset-0 pointer-events-none"
                     data-custom-background-image
                 >
-                    {/* Dim/blur overlay */}
+                    {/* Dim/blur overlay — opacity driven by the settings slider */}
                     <div
                         data-custom-background-image-blur
-                        className="fixed w-full h-full inset-0 z-[0] backdrop-blur-2xl bg-black/80 transition-all duration-1000"
+                        className="fixed w-full h-full inset-0 z-[0] backdrop-blur-2xl transition-all duration-1000"
+                        style={{ backgroundColor: `rgba(0,0,0,${dimAlpha})` }}
                     />
 
-                    {/* Base wallpaper — hue-rotate and ink-wash applied here */}
+                    {/* Base wallpaper */}
                     <div
                         data-custom-background-image-cover
                         className={cn(
@@ -141,13 +151,12 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                         )}
                         style={{
                             backgroundImage: `url(${getAssetUrl(ts.libraryScreenCustomBackgroundImage)})`,
-                            opacity: ts.libraryScreenCustomBackgroundOpacity / 100,
                             filter: buildImageFilter(),
                         }}
                         {...rest}
                     />
 
-                    {/* ── Bloom/glow from settings slider ─────────────────── */}
+                    {/* ── Bloom/glow from settings slider ── */}
                     {ts.libraryScreenCustomBackgroundGlow > 0 && (
                         <div
                             className="fixed w-full h-full inset-0 z-[0] pointer-events-none"
@@ -161,37 +170,41 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                             }}
                         />
                     )}
+                </motion.div>
+            )}
 
-                    {/* ── Visual effects preset — applied to wallpaper only ── */}
-
-                    {/* Vignette: dark radial frame around the edges */}
+            {/* ── Section B: Visual effects — render independently of wallpaper ── */}
+            {!!hasAnyEffect && (
+                <>
+                    {/* Vignette: dark radial frame around edges */}
                     {vignetteStr > 0 && (
                         <div
-                            className="fixed w-full h-full inset-0 z-[1] pointer-events-none"
+                            className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
                             style={{
                                 background: `radial-gradient(ellipse at center, transparent ${Math.max(0, 60 - vignetteStr * 30)}%, rgba(0,0,0,${Math.min(0.92, vignetteStr * 0.85)}) 100%)`,
                             }}
                         />
                     )}
 
-                    {/* Glow: soft radial light from the center */}
+                    {/* Glow: animated soft radial light from center */}
                     {glowStr > 0 && (
                         <div
-                            className="fixed w-full h-full inset-0 z-[1] pointer-events-none"
+                            className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
                             style={{
-                                background: `radial-gradient(ellipse at center, rgba(255,255,255,${glowStr * 0.12}) 0%, transparent 65%)`,
+                                background: `radial-gradient(ellipse at center, rgba(255,255,255,${glowStr * 0.40}) 0%, transparent 65%)`,
                                 mixBlendMode: "screen",
+                                animation: "sea-bg-glow-pulse 4s ease-in-out infinite",
                             }}
                         />
                     )}
 
-                    {/* Film grain: SVG turbulence noise texture */}
+                    {/* Film grain: SVG turbulence noise */}
                     {grainStr > 0 && (
                         <div
-                            className="fixed w-full h-full inset-0 z-[1] pointer-events-none"
+                            className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
                             style={{
                                 opacity: grainStr * 0.55,
-                                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`,
+                                backgroundImage: GRAIN_SVG,
                                 backgroundRepeat: "repeat",
                                 backgroundSize: "128px 128px",
                                 mixBlendMode: "overlay",
@@ -202,7 +215,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                     {/* Scan lines: fine horizontal lines */}
                     {hasScanning && (
                         <div
-                            className="fixed w-full h-full inset-0 z-[1] pointer-events-none"
+                            className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
                             style={{
                                 background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px)",
                             }}
@@ -212,7 +225,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                     {/* Blur edges: soft mask at screen perimeter */}
                     {hasBlurEdge && (
                         <div
-                            className="fixed w-full h-full inset-0 z-[1] pointer-events-none"
+                            className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
                             style={{
                                 boxShadow: "inset 0 0 120px 60px rgba(0,0,0,0.65)",
                                 borderRadius: 0,
@@ -225,7 +238,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                         <>
                             {/* Blue tint layer */}
                             <div
-                                className="fixed w-full h-full inset-0 z-[1] pointer-events-none"
+                                className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
                                 style={{
                                     background: "linear-gradient(180deg, rgba(3,105,161,0.22) 0%, rgba(7,89,133,0.35) 100%)",
                                     mixBlendMode: "multiply",
@@ -233,10 +246,11 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                             />
                             {/* Caustic-light shimmer ripple */}
                             <div
-                                className="fixed w-full h-full inset-0 z-[1] pointer-events-none"
+                                className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
                                 style={{
                                     background: "radial-gradient(ellipse 80% 40% at 50% 30%, rgba(125,211,252,0.08), transparent 70%)",
                                     mixBlendMode: "screen",
+                                    animation: "sea-bg-glow-pulse 6s ease-in-out infinite",
                                 }}
                             />
                             {/* Rising bubbles */}
@@ -244,10 +258,10 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                         </>
                     )}
 
-                    {/* Ink Wash: secondary grain pass to reinforce the monochrome feel */}
+                    {/* Ink Wash: secondary grain pass for monochrome feel */}
                     {hasInkWash && grainStr === 0 && (
                         <div
-                            className="fixed w-full h-full inset-0 z-[1] pointer-events-none"
+                            className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
                             style={{
                                 opacity: 0.28,
                                 backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`,
@@ -257,7 +271,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                             }}
                         />
                     )}
-                </motion.div>
+                </>
             )}
         </>
     )

@@ -847,6 +847,18 @@ type TrackPreference struct {
 
 ///////////////////////////////////////////////////////////////////////////
 
+// MediaCacheEntry stores AniList media metadata in SQLite for fast unlimited caching.
+// Replaces the file-based bounded cache for base-anime, complete-anime, anime-details,
+// base-manga, and manga-details buckets.
+type MediaCacheEntry struct {
+	Bucket   string    `gorm:"primaryKey;not null"`
+	CacheKey string    `gorm:"primaryKey;not null"`
+	Data     []byte    `gorm:"type:blob;not null"`
+	CachedAt time.Time `gorm:"autoCreateTime"`
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 type StringSlice []string
 
 func (o *StringSlice) Scan(src interface{}) error {

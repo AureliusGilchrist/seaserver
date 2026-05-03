@@ -646,6 +646,59 @@ function TransitionPreviewSwatch({ preset }: { preset: UIPreset }) {
     )
 }
 
+// ─── Visual Effects preview swatch ───────────────────────────────────────────
+
+function EffectsPreviewSwatch({ preset }: { preset: UIPreset }) {
+    const vignette   = parseFloat(preset.cssVars?.["--sea-vignette"]  ?? "0")
+    const glow       = parseFloat(preset.cssVars?.["--sea-glow"]      ?? "0")
+    const grain      = parseFloat(preset.cssVars?.["--sea-grain"]     ?? "0")
+    const hasLines   = preset.cssVars?.["--sea-scanlines"] === "1"
+    const hasDeepSea = preset.cssVars?.["--sea-deep-sea"]  === "1"
+    const hasInkWash = preset.cssVars?.["--sea-ink-wash"]  === "1"
+    const id = React.useId().replace(/:/g, "")
+    return (
+        <div className="w-full h-8 rounded-lg overflow-hidden border border-white/10 relative" style={{ background: "#120a20" }}>
+            {/* Base gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/50 via-purple-900/30 to-blue-900/40" />
+            {/* Deep Sea tint */}
+            {hasDeepSea && <div className="absolute inset-0" style={{ background: "linear-gradient(180deg,rgba(3,105,161,0.55),rgba(7,89,133,0.75))", mixBlendMode: "multiply" }} />}
+            {/* Ink Wash */}
+            {hasInkWash && <div className="absolute inset-0" style={{ background: "linear-gradient(135deg,#111,#222 50%,#0d0d0d)", opacity: 0.7 }} />}
+            {/* Vignette */}
+            {vignette > 0 && (
+                <div className="absolute inset-0" style={{
+                    background: `radial-gradient(ellipse at center, transparent ${Math.max(0, 60 - vignette * 30)}%, rgba(0,0,0,${vignette * 0.85}) 100%)`
+                }} />
+            )}
+            {/* Glow — animated */}
+            {glow > 0 && (
+                <>
+                    <style>{`@keyframes efx-${id}{0%,100%{opacity:0.45}50%{opacity:1}}.efx-g-${id}{animation:efx-${id} 2s ease-in-out infinite}`}</style>
+                    <div className={`efx-g-${id} absolute inset-0`} style={{
+                        background: `radial-gradient(ellipse at center, rgba(139,92,246,${glow * 0.75}) 0%, transparent 75%)`,
+                        mixBlendMode: "screen",
+                    }} />
+                </>
+            )}
+            {/* Grain */}
+            {grain > 0 && (
+                <div className="absolute inset-0" style={{
+                    opacity: grain * 0.85,
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                    backgroundSize: "32px 32px",
+                    mixBlendMode: "overlay",
+                }} />
+            )}
+            {/* Scanlines */}
+            {hasLines && (
+                <div className="absolute inset-0" style={{
+                    background: "repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.3) 2px,rgba(0,0,0,0.3) 4px)"
+                }} />
+            )}
+        </div>
+    )
+}
+
 // ─── UI Enhancements tab (10 horizontal inner tabs) ──────────────────────────
 
 const UI_TAB_ICONS: Record<string, React.ReactNode> = {
@@ -670,6 +723,7 @@ function UIPresetsGrid({ category, currentLevel }: { category: typeof UI_CUSTOMI
             case "animations":   return <AnimationPreviewSwatch preset={preset} />
             case "hover":        return <HoverPreviewSwatch preset={preset} />
             case "transitions":  return <TransitionPreviewSwatch preset={preset} />
+            case "effects":      return <EffectsPreviewSwatch preset={preset} />
             default:             return <UIPreviewSwatch previewCss={preset.previewCss} />
         }
     }

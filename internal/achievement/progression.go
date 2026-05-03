@@ -1,35 +1,37 @@
 package achievement
 
 import (
+	_ "embed"
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"sync"
 )
 
+//go:embed exp_bar_progression.json
+var expBarProgressionJSON []byte
+
 // ExpBarProgressionEntry represents a single level's exp bar styling
 type ExpBarProgressionEntry struct {
-	Entry          int    `json:"entry"`
-	LevelRange     string `json:"level_range"`
-	Color          string `json:"color,omitempty"`
-	Gradient       string `json:"gradient,omitempty"`
-	Name           string `json:"name"`
-	Effect         string `json:"effect"`
-	Shadow         string `json:"shadow,omitempty"`
-	Animation      string `json:"animation,omitempty"`
-	Sparkles       bool   `json:"sparkles,omitempty"`
-	ParticleCount  int    `json:"particle_count,omitempty"`
+	Entry         int    `json:"entry"`
+	LevelRange    string `json:"level_range"`
+	Color         string `json:"color,omitempty"`
+	Gradient      string `json:"gradient,omitempty"`
+	Name          string `json:"name"`
+	Effect        string `json:"effect"`
+	Shadow        string `json:"shadow,omitempty"`
+	Animation     string `json:"animation,omitempty"`
+	Sparkles      bool   `json:"sparkles,omitempty"`
+	ParticleCount int    `json:"particle_count,omitempty"`
 }
 
 // ExpBarProgression is the full progression data
 type ExpBarProgression struct {
-	Metadata               map[string]interface{}        `json:"metadata"`
-	Phase1PureColors       []ExpBarProgressionEntry      `json:"phase_1_pure_colors"`
-	Phase2Gradients        []ExpBarProgressionEntry      `json:"phase_2_gradients"`
-	Phase3GradientEffects  []ExpBarProgressionEntry      `json:"phase_3_gradient_effects"`
-	Phase4AdvancedEffects  []ExpBarProgressionEntry      `json:"phase_4_advanced_effects"`
-	AnimationKeyframes     map[string]string             `json:"animation_keyframes"`
-	UsageNotes             map[string]interface{}        `json:"usage_notes"`
+	Metadata              map[string]interface{}   `json:"metadata"`
+	Phase1PureColors      []ExpBarProgressionEntry `json:"phase_1_pure_colors"`
+	Phase2Gradients       []ExpBarProgressionEntry `json:"phase_2_gradients"`
+	Phase3GradientEffects []ExpBarProgressionEntry `json:"phase_3_gradient_effects"`
+	Phase4AdvancedEffects []ExpBarProgressionEntry `json:"phase_4_advanced_effects"`
+	AnimationKeyframes    map[string]string        `json:"animation_keyframes"`
+	UsageNotes            map[string]interface{}   `json:"usage_notes"`
 }
 
 var (
@@ -37,23 +39,16 @@ var (
 	progressionOnce sync.Once
 )
 
-// LoadExpBarProgression loads the exp bar progression data from JSON file
-func LoadExpBarProgression(basePath string) (*ExpBarProgression, error) {
+// LoadExpBarProgression parses the embedded exp_bar_progression.json.
+// The basePath argument is kept for API compatibility but is no longer used.
+func LoadExpBarProgression(_ string) (*ExpBarProgression, error) {
 	var err error
 	progressionOnce.Do(func() {
-		progressionPath := filepath.Join(basePath, "internal", "achievement", "exp_bar_progression.json")
-		data, readErr := os.ReadFile(progressionPath)
-		if readErr != nil {
-			err = readErr
-			return
-		}
-
 		progression := &ExpBarProgression{}
-		if unmarshalErr := json.Unmarshal(data, progression); unmarshalErr != nil {
+		if unmarshalErr := json.Unmarshal(expBarProgressionJSON, progression); unmarshalErr != nil {
 			err = unmarshalErr
 			return
 		}
-
 		progressionData = progression
 	})
 	return progressionData, err
@@ -122,7 +117,6 @@ func BuildXPBarCSS(entry *ExpBarProgressionEntry) string {
 	if entry == nil {
 		return ""
 	}
-
 	if entry.Gradient != "" {
 		return entry.Gradient
 	}
@@ -137,8 +131,6 @@ func BuildXPBarAnimation(entry *ExpBarProgressionEntry) string {
 	if entry == nil {
 		return ""
 	}
-
-	// Convert animation name to CSS class format
 	if entry.Animation != "" {
 		return entry.Animation
 	}
