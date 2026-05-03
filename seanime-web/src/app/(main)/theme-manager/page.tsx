@@ -18,7 +18,8 @@ import {
     isThemePrerequisiteMet,
 } from "@/lib/theme/anime-themes/theme-prerequisites"
 import { WALLHAVEN_CURATED_QUERY } from "@/lib/theme/anime-themes/wallhaven-curated"
-import { LuSettings2, LuSparkles, LuSearch, LuX, LuPalette, LuCheck, LuDownload, LuImage } from "react-icons/lu"
+import { LuSettings2, LuSparkles, LuSearch, LuX, LuPalette, LuCheck, LuDownload, LuImage, LuBookmark } from "react-icons/lu"
+import { PresetsPanel } from "./_components/presets-panel"
 import { useGetRawAnilistMangaCollection } from "@/api/hooks/manga.hooks"
 import { cn } from "@/components/ui/core/styling"
 import { getServerBaseUrl } from "@/api/client/server-url"
@@ -98,6 +99,7 @@ export default function ThemeManagerPage() {
     const [pickerOpen, setPickerOpen] = React.useState(false)
     const [searchQuery, setSearchQuery] = React.useState("")
     const [settingsPanelOpen, setSettingsPanelOpen] = React.useState(false)
+    const [activeTab, setActiveTab] = React.useState<"themes" | "presets">("themes")
     const [batchProgress, setBatchProgress] = React.useState<{ done: number; total: number } | null>(null)
     const { data: downloadedBgs, isLoading: bgsLoading } = useListThemeBackgrounds()
     const deleteMutation = useDeleteThemeBackground()
@@ -176,6 +178,34 @@ export default function ThemeManagerPage() {
                     <p className="text-[--muted] text-sm">Choose an anime theme to customize colors, navigation labels, and achievement names.</p>
                 </div>
             </div>
+
+            {/* Tab navigation */}
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-[--paper] border border-[--border] w-fit">
+                {([
+                    { id: "themes",  label: "Themes",  icon: <LuSparkles className="w-3.5 h-3.5" /> },
+                    { id: "presets", label: "Presets", icon: <LuBookmark className="w-3.5 h-3.5" /> },
+                ] as const).map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                            activeTab === tab.id
+                                ? "bg-[--color-brand-600] text-white shadow-sm"
+                                : "text-[--muted] hover:text-[--foreground]",
+                        )}
+                    >
+                        {tab.icon}
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Presets tab */}
+            {activeTab === "presets" && <PresetsPanel />}
+
+            {/* Themes tab content (hidden when Presets is active) */}
+            {activeTab === "themes" && <>
 
             {/* Search bar */}
             <div className="relative">
@@ -861,6 +891,8 @@ export default function ThemeManagerPage() {
                 <div>Bleach: <span className="text-[--foreground]">Cinzel Decorative</span> by Natanael Gama</div>
                 <div>One Piece: <span className="text-[--foreground]">Boogaloo</span> by John Vargas Beltrán</div>
             </div>
+
+            </> /* end themes tab */}
         </PageWrapper>
     )
 }

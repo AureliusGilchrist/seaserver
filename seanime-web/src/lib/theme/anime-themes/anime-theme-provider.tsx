@@ -11,6 +11,8 @@ import type { AnimeThemeId, AnimeThemeConfig, ParticleTypeConfig } from "@/lib/t
 import { ThemeAnimatedOverlay } from "@/lib/theme/anime-themes/animated-elements"
 import { buildThemeCursorCSS } from "@/lib/theme/anime-themes/cursor-svgs"
 import { recordActivatedTheme } from "@/lib/theme/anime-themes/theme-prerequisites"
+import { fetchMarketplaceThemeMeta, getCachedMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
+import { applyRootCssVars } from "@/lib/helpers/css"
 
 // ─────────────────────────────────────────────────────────────────
 // Milestone name utility
@@ -187,11 +189,12 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const profileId = currentProfile?.id ?? 0
 
     // ── Theme persistence ──
+    // Allow any string theme ID (including marketplace themes not bundled in-app)
     const [themeId, setThemeIdRaw] = React.useState<AnimeThemeId>(() => {
         if (typeof window === "undefined") return "seanime"
         try {
             const stored = localStorage.getItem(`sea-anime-theme-${profileKey}`)
-            if (stored && stored in ANIME_THEMES) return stored as AnimeThemeId
+            if (stored) return stored as AnimeThemeId
         } catch { /* noop */ }
         return "seanime"
     })
@@ -200,13 +203,31 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     React.useEffect(() => {
         try {
             const stored = localStorage.getItem(`sea-anime-theme-${profileKey}`)
-            if (stored && stored in ANIME_THEMES) {
+            if (stored) {
                 setThemeIdRaw(stored as AnimeThemeId)
             } else {
                 setThemeIdRaw("seanime")
             }
         } catch { /* noop */ }
     }, [profileKey])
+
+    // When themeId is not in bundled ANIME_THEMES, fetch from marketplace and apply CSS vars + font.
+    // The `cancelled` flag prevents a stale fetch from overwriting vars set by a newer theme.
+    React.useEffect(() => {
+        if (themeId in ANIME_THEMES) return
+        let cancelled = false
+        fetchMarketplaceThemeMeta(themeId).then(meta => {
+            if (cancelled || !meta) return
+            if (meta.cssVars) applyRootCssVars(meta.cssVars)
+            if (meta.fontHref && !document.querySelector(`link[href="${meta.fontHref}"]`)) {
+                const link = document.createElement("link")
+                link.rel = "stylesheet"
+                link.href = meta.fontHref
+                document.head.appendChild(link)
+            }
+        })
+        return () => { cancelled = true }
+    }, [themeId])
 
     const setThemeId = React.useCallback((id: AnimeThemeId) => {
         setThemeIdRaw(id)

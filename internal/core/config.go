@@ -63,6 +63,9 @@ type Config struct {
 	Experimental struct {
 		MainServerTorrentStreaming bool
 	}
+	Marketplace struct {
+		Dir string // Path to the seanime-themes marketplace directory
+	}
 	Privacy struct {
 		Socks5Address string
 		Socks5Port    int

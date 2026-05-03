@@ -9,16 +9,19 @@ import {
     type UICustomizeState,
     type UICustomizeCategoryId,
 } from "./ui-customize-definitions"
+import { applyRootCssVars } from "@/lib/helpers/css"
 
 interface UICustomizeContextValue {
     state: UICustomizeState
     setPreset: (category: UICustomizeCategoryId, presetId: string) => void
+    setAllState: (next: Partial<UICustomizeState>) => void
     getActivePreset: (category: UICustomizeCategoryId) => string
 }
 
 const UICustomizeContext = React.createContext<UICustomizeContextValue>({
     state: UI_CUSTOMIZE_DEFAULTS,
     setPreset: () => {},
+    setAllState: () => {},
     getActivePreset: () => "",
 })
 
@@ -52,15 +55,11 @@ export function UICustomizeProvider({ children }: { children: React.ReactNode })
 
     // Apply all active CSS vars whenever state changes
     React.useEffect(() => {
-        const root = document.documentElement
         for (const category of UI_CUSTOMIZE_CATEGORIES) {
             const activeId = state[category.id as UICustomizeCategoryId]
             const preset = (category.presets as readonly any[]).find(p => p.id === activeId)
             if (preset?.cssVars) {
-                for (const [key, value] of Object.entries(preset.cssVars as Record<string, string>)) {
-                    if (value) root.style.setProperty(key, value)
-                    else root.style.removeProperty(key)
-                }
+                applyRootCssVars(preset.cssVars as Record<string, string>)
             }
             // Apply body class if any
             if (preset?.bodyClass) {
@@ -80,12 +79,20 @@ export function UICustomizeProvider({ children }: { children: React.ReactNode })
         })
     }, [storageKey])
 
+    const setAllState = React.useCallback((next: Partial<UICustomizeState>) => {
+        setState(prev => {
+            const merged = { ...prev, ...next }
+            try { localStorage.setItem(storageKey, JSON.stringify(merged)) } catch {}
+            return merged
+        })
+    }, [storageKey])
+
     const getActivePreset = React.useCallback((category: UICustomizeCategoryId) => {
         return state[category]
     }, [state])
 
     return (
-        <UICustomizeContext.Provider value={{ state, setPreset, getActivePreset }}>
+        <UICustomizeContext.Provider value={{ state, setPreset, setAllState, getActivePreset }}>
             {children}
         </UICustomizeContext.Provider>
     )

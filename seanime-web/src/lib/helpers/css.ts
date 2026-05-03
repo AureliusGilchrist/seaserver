@@ -1,3 +1,12 @@
+/** Apply a record of CSS custom properties to the document root. */
+export function applyRootCssVars(vars: Record<string, string>): void {
+    const root = document.documentElement
+    for (const [key, value] of Object.entries(vars)) {
+        if (value) root.style.setProperty(key, value)
+        else root.style.removeProperty(key)
+    }
+}
+
 const PIXELS_PER_INCH = 96
 const MILLIMETRES_PER_INCH = 25.4
 const POINTS_PER_INCH = 72

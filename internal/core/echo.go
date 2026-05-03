@@ -75,6 +75,12 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	// Serve user-downloaded theme backgrounds
 	e.Static("/theme-bg", filepath.Join(app.Config.Data.AppDataDir, "theme-backgrounds"))
 
+	// Serve marketplace theme files (if configured)
+	if app.Config.Marketplace.Dir != "" {
+		app.Logger.Info().Msgf("app: Marketplace themes path: %s", app.Config.Marketplace.Dir)
+		e.Static("/marketplace", app.Config.Marketplace.Dir)
+	}
+
 	return e
 }
 

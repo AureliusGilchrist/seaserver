@@ -21,11 +21,22 @@ import {
     type ParticleSetReward,
 } from "@/lib/rewards/reward-definitions"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
+import { getCachedMarketplaceThemeMeta, fetchMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 
-// Pre-build a lookup: { themeId -> { level -> rankName } } for milestone title resolution
+// Pre-build a lookup: { themeId -> { level -> rankName } } from bundled themes
 const MILESTONE_NAMES: Record<string, Record<number, string>> = Object.fromEntries(
     Object.entries(ANIME_THEMES).map(([id, cfg]) => [id, cfg.milestoneNames ?? {}]),
 )
+
+// Extended milestone resolution: checks bundled themes first, then marketplace cache
+function getMilestoneNames(themeId: string): Record<number, string> {
+    if (MILESTONE_NAMES[themeId]) return MILESTONE_NAMES[themeId]
+    const market = getCachedMarketplaceThemeMeta(themeId)
+    if (market?.milestoneNames) return market.milestoneNames
+    // Not cached yet — trigger background fetch so next render has it
+    void fetchMarketplaceThemeMeta(themeId)
+    return {}
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -112,7 +123,10 @@ function lookupTitle(id: string, milestoneNames?: Record<string, Record<number, 
         const level = Number(m[2])
         // Resolve the human-readable name from the pre-passed milestone map so
         // displayTitle stored on the backend is the actual rank name, not the raw ID.
-        const name: string = milestoneNames?.[themeId]?.[level] ?? id
+        // Check passed-in map first, then marketplace cache fallback
+        const name: string = milestoneNames?.[themeId]?.[level]
+            ?? getMilestoneNames(themeId)[level]
+            ?? id
         return {
             id,
             type: "title",
