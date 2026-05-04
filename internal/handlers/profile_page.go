@@ -27,12 +27,13 @@ type ProfilePageResponse struct {
 
 // LevelResponse returns the current level/XP state.
 type LevelResponse struct {
-	CurrentLevel    int     `json:"currentLevel"`
-	TotalXP         int     `json:"totalXP"`
-	XPToNext        int     `json:"xpToNext"`
-	XPInCurrentLvl  int     `json:"xpInCurrentLevel"`
-	XPNeededForLvl  int     `json:"xpNeededForLevel"`
-	Multiplier      float64 `json:"multiplier"`
+	CurrentLevel         int     `json:"currentLevel"`
+	TotalXP              int     `json:"totalXP"`
+	XPToNext             int     `json:"xpToNext"`
+	XPInCurrentLvl       int     `json:"xpInCurrentLevel"`
+	XPNeededForLvl       int     `json:"xpNeededForLevel"`
+	Multiplier           float64 `json:"multiplier"`
+	CurrentMilestoneName string  `json:"currentMilestoneName"` // Publicly visible milestone title from the user's theme
 }
 
 // ShowcaseEntry is a showcase slot with its definition resolved.
@@ -227,12 +228,13 @@ func (h *Handler) HandleGetLevel(c echo.Context) error {
 	mult, _ := database.ComputeActivityBuff()
 
 	return h.RespondWithData(c, &LevelResponse{
-		CurrentLevel:   level,
-		TotalXP:        progress.TotalXP,
-		XPToNext:       xpToNext,
-		XPInCurrentLvl: xpInLevel,
-		XPNeededForLvl: xpNeeded,
-		Multiplier:     mult,
+		CurrentLevel:         level,
+		TotalXP:              progress.TotalXP,
+		XPToNext:             xpToNext,
+		XPInCurrentLvl:       xpInLevel,
+		XPNeededForLvl:       xpNeeded,
+		Multiplier:           mult,
+		CurrentMilestoneName: progress.CurrentMilestoneName,
 	})
 }
 
@@ -261,12 +263,13 @@ func (h *Handler) buildProfileResponse(c echo.Context, profileID uint) error {
 	mult, _ := database.ComputeActivityBuff()
 
 	levelResp := &LevelResponse{
-		CurrentLevel:   level,
-		TotalXP:        progress.TotalXP,
-		XPToNext:       xpToNext,
-		XPInCurrentLvl: xpInLevel,
-		XPNeededForLvl: xpNeeded,
-		Multiplier:     mult,
+		CurrentLevel:         level,
+		TotalXP:              progress.TotalXP,
+		XPToNext:             xpToNext,
+		XPInCurrentLvl:       xpInLevel,
+		XPNeededForLvl:       xpNeeded,
+		Multiplier:           mult,
+		CurrentMilestoneName: progress.CurrentMilestoneName,
 	}
 
 	// Achievement showcase

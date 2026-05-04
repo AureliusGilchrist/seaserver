@@ -7,12 +7,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"seanime/internal/database/db"
+	"seanime/internal/database/models"
 )
 
 // HandleListThemeBackgrounds returns all downloaded background images from datadir/theme-backgrounds/.
@@ -358,6 +361,305 @@ func (h *Handler) HandleDeleteSharedTheme(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 	return h.RespondWithData(c, true)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PER-PROFILE THEME STORAGE (Cloud)
+// Themes are stored per-profile in the database, surviving client rebuilds
+// ─────────────────────────────────────────────────────────────────────────────
+
+// getProfileDB extracts the profile ID from context and returns the per-profile database
+func (h *Handler) getProfileDB(c echo.Context) (*db.Database, error) {
+	profileID := c.Get("profile_id")
+	if profileID == nil || profileID.(uint) == 0 {
+		return nil, fmt.Errorf("profile session required")
+	}
+	return h.App.ProfileDatabaseManager.GetDatabase(profileID.(uint))
+}
+
+// HandleListUserThemes returns all themes downloaded by the current profile (stored in per-profile DB).
+func (h *Handler) HandleListUserThemes(c echo.Context) error {
+	profileDB, err := h.getProfileDB(c)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	type ThemeInfo struct {
+		ID          string `json:"id"`
+		DisplayName string `json:"displayName"`
+		URL         string `json:"url"`
+		IsActive    bool   `json:"isActive"`
+	}
+
+	var themes []models.UserTheme
+	if err := profileDB.Gorm().Find(&themes).Error; err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	result := make([]ThemeInfo, 0, len(themes))
+	for _, t := range themes {
+		result = append(result, ThemeInfo{
+			ID:          t.ThemeID,
+			DisplayName: t.DisplayName,
+			URL:         "/user-themes/" + t.ThemeID + "/theme.json",
+			IsActive:    t.IsActive,
+		})
+	}
+
+	return h.RespondWithData(c, result)
+}
+
+// HandleDownloadUserTheme downloads a theme from the marketplace and stores it in the user's profile DB.
+func (h *Handler) HandleDownloadUserTheme(c echo.Context) error {
+	profileDB, err := h.getProfileDB(c)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	type body struct {
+		ThemeID string `json:"themeId"`
+	}
+	b := new(body)
+	if err := c.Bind(b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if b.ThemeID == "" {
+		return h.RespondWithError(c, fmt.Errorf("themeId is required"))
+	}
+
+	// Sanitize themeId
+	themeID := b.ThemeID
+	for _, ch := range []string{"/", "\\", "..", ":", "*", "?", "\"", "<", ">", "|"} {
+		themeID = strings.ReplaceAll(themeID, ch, "")
+	}
+	if themeID == "" {
+		return h.RespondWithError(c, fmt.Errorf("invalid themeId"))
+	}
+
+	// Check if marketplace is configured
+	if h.App.Config.Marketplace.Dir == "" {
+		return h.RespondWithError(c, fmt.Errorf("marketplace not configured"))
+	}
+
+	// Source: marketplace themes directory
+	sourceJson := filepath.Join(h.App.Config.Marketplace.Dir, "themes", themeID, "theme.json")
+
+	// Verify source exists
+	data, err := os.ReadFile(sourceJson)
+	if err != nil {
+		return h.RespondWithError(c, fmt.Errorf("theme not found in marketplace: %s", themeID))
+	}
+
+	// Parse to get display name
+	var themeData struct {
+		DisplayName string `json:"displayName"`
+	}
+	var displayName = themeID
+	if json.Unmarshal(data, &themeData) == nil && themeData.DisplayName != "" {
+		displayName = themeData.DisplayName
+	}
+
+	// Upsert into user's profile database
+	userTheme := models.UserTheme{
+		ThemeID:      themeID,
+		DisplayName:  displayName,
+		ThemeJSON:    string(data),
+		IsActive:     false,
+		DownloadedAt: time.Now(),
+	}
+
+	// Save or update (upsert)
+	if err := profileDB.Gorm().Where("theme_id = ?", themeID).
+		Assign(userTheme).
+		FirstOrCreate(&userTheme).Error; err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	type Result struct {
+		ID          string `json:"id"`
+		DisplayName string `json:"displayName"`
+		URL         string `json:"url"`
+	}
+	return h.RespondWithData(c, Result{
+		ID:          themeID,
+		DisplayName: displayName,
+		URL:         "/user-themes/" + themeID + "/theme.json",
+	})
+}
+
+// HandleDeleteUserTheme removes a theme from the user's profile database.
+func (h *Handler) HandleDeleteUserTheme(c echo.Context) error {
+	profileDB, err := h.getProfileDB(c)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	themeID := c.Param("id")
+	if themeID == "" || strings.ContainsAny(themeID, "/\\") || strings.Contains(themeID, "..") {
+		return h.RespondWithError(c, fmt.Errorf("invalid theme id"))
+	}
+
+	if err := profileDB.Gorm().Where("theme_id = ?", themeID).Delete(&models.UserTheme{}).Error; err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, true)
+}
+
+// HandleGetUserTheme serves a theme.json from the user's profile database.
+func (h *Handler) HandleGetUserTheme(c echo.Context) error {
+	profileDB, err := h.getProfileDB(c)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	themeID := c.Param("id")
+	if themeID == "" || strings.ContainsAny(themeID, "/\\") || strings.Contains(themeID, "..") {
+		return h.RespondWithError(c, fmt.Errorf("invalid theme id"))
+	}
+
+	var userTheme models.UserTheme
+	if err := profileDB.Gorm().Where("theme_id = ?", themeID).First(&userTheme).Error; err != nil {
+		return h.RespondWithError(c, fmt.Errorf("theme not found"))
+	}
+
+	return c.Blob(http.StatusOK, "application/json", []byte(userTheme.ThemeJSON))
+}
+
+// HandleGetProfileThemePreference returns the active theme for the current profile.
+func (h *Handler) HandleGetProfileThemePreference(c echo.Context) error {
+	profileDB, err := h.getProfileDB(c)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	var pref models.ProfileThemePreference
+	if err := profileDB.Gorm().First(&pref).Error; err != nil {
+		// No preference set yet, return empty
+		return h.RespondWithData(c, map[string]string{"themeId": ""})
+	}
+
+	return h.RespondWithData(c, map[string]string{"themeId": pref.ThemeID})
+}
+
+// HandleSetProfileThemePreference sets the active theme for the current profile.
+// Also recalculates and stores the milestone name based on the theme's milestones and current level.
+func (h *Handler) HandleSetProfileThemePreference(c echo.Context) error {
+	profileDB, err := h.getProfileDB(c)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	type body struct {
+		ThemeID string `json:"themeId"`
+	}
+	b := new(body)
+	if err := c.Bind(b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	// Validate themeId format
+	if b.ThemeID == "" || strings.ContainsAny(b.ThemeID, "/\\..") {
+		return h.RespondWithError(c, fmt.Errorf("invalid themeId"))
+	}
+
+	// Upsert the preference
+	pref := models.ProfileThemePreference{ThemeID: b.ThemeID}
+	if err := profileDB.Gorm().Where("1=1"). // There's only ever one row
+					Assign(pref).
+					FirstOrCreate(&pref).Error; err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	// Get current level
+	lp, _ := profileDB.GetLevelProgress()
+	currentLevel := lp.CurrentLevel
+
+	// Calculate milestone name from the theme
+	milestoneName := h.calculateMilestoneName(b.ThemeID, currentLevel)
+	if milestoneName != "" {
+		profileDB.SetCurrentMilestoneName(milestoneName)
+	}
+
+	return h.RespondWithData(c, map[string]string{
+		"themeId":           b.ThemeID,
+		"currentMilestoneName": milestoneName,
+	})
+}
+
+// HandleUpdateMilestoneName allows the user to manually set their publicly visible milestone title.
+// This overrides the automatically calculated one from their theme.
+func (h *Handler) HandleUpdateMilestoneName(c echo.Context) error {
+	profileDB, err := h.getProfileDB(c)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	type body struct {
+		MilestoneName string `json:"milestoneName"`
+	}
+	b := new(body)
+	if err := c.Bind(b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	// Validate - max 50 chars
+	if len(b.MilestoneName) > 50 {
+		b.MilestoneName = b.MilestoneName[:50]
+	}
+
+	if err := profileDB.SetCurrentMilestoneName(b.MilestoneName); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	return h.RespondWithData(c, map[string]string{
+		"currentMilestoneName": b.MilestoneName,
+	})
+}
+
+// calculateMilestoneName looks up the milestone name for a given level from a theme.
+func (h *Handler) calculateMilestoneName(themeID string, level int) string {
+	if themeID == "" || themeID == "seanime" {
+		return "" // Default theme has no milestone names
+	}
+
+	// Try to find theme in user's downloaded themes first
+	var userTheme models.UserTheme
+	// Note: This requires access to the profileDB which we don't have in this context
+	// So we'll try marketplace themes instead
+
+	// Try marketplace themes directory
+	if h.App.Config.Marketplace.Dir == "" {
+		return ""
+	}
+
+	themeJsonPath := filepath.Join(h.App.Config.Marketplace.Dir, "themes", themeID, "theme.json")
+	data, err := os.ReadFile(themeJsonPath)
+	if err != nil {
+		return ""
+	}
+
+	var theme struct {
+		MilestoneNames map[string]string `json:"milestoneNames"`
+	}
+	if err := json.Unmarshal(data, &theme); err != nil {
+		return ""
+	}
+
+	// Find the highest milestone threshold <= current level
+	var milestoneName string
+	var maxThreshold int
+	for thresholdStr, name := range theme.MilestoneNames {
+		threshold, err := strconv.Atoi(thresholdStr)
+		if err != nil {
+			continue
+		}
+		if threshold <= level && threshold > maxThreshold {
+			maxThreshold = threshold
+			milestoneName = name
+		}
+	}
+
+	return milestoneName
 }
 
 // copyFile copies a file from src to dst

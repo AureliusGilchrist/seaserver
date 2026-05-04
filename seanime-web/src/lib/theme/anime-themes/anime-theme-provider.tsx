@@ -155,11 +155,15 @@ type AnimeThemeContextValue = {
     setScanlinesStrength: (v: number) => void
     scanlinesSize: number
     setScanlinesSize: (v: number) => void
+    scanlinesSpeed: number
+    setScanlinesSpeed: (v: number) => void
     // ── Noise ──
     noiseStrength: number
     setNoiseStrength: (v: number) => void
     noiseSpeed: number
     setNoiseSpeed: (v: number) => void
+    noiseScale: number
+    setNoiseScale: (v: number) => void
 }
 
 const AnimeThemeContext = React.createContext<AnimeThemeContextValue | null>(null)
@@ -655,8 +659,12 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const [scanlinesSize, setScanlinesSizeRaw] = React.useState<number>(() => {
         try { const v = parseFloat(localStorage.getItem(`sea-anime-scansize-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0.5 : Math.max(0, Math.min(1, v)) } catch { return 0.5 }
     })
+    const [scanlinesSpeed, setScanlinesSpeedRaw] = React.useState<number>(() => {
+        try { const v = parseFloat(localStorage.getItem(`sea-anime-scanspeed-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 1 : Math.max(0.1, Math.min(5, v)) } catch { return 1 }
+    })
     const setScanlinesStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setScanlinesStrengthRaw(c); try { localStorage.setItem(`sea-anime-scan-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
     const setScanlinesSize = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setScanlinesSizeRaw(c); try { localStorage.setItem(`sea-anime-scansize-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setScanlinesSpeed = React.useCallback((v: number) => { const c = Math.max(0.1, Math.min(5, v)); setScanlinesSpeedRaw(c); try { localStorage.setItem(`sea-anime-scanspeed-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
 
     // ── Noise ──
     const [noiseStrength, setNoiseStrengthRaw] = React.useState<number>(() => {
@@ -665,8 +673,12 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const [noiseSpeed, setNoiseSpeedRaw] = React.useState<number>(() => {
         try { const v = parseFloat(localStorage.getItem(`sea-anime-nspeed-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 1 : Math.max(0.1, Math.min(5, v)) } catch { return 1 }
     })
+    const [noiseScale, setNoiseScaleRaw] = React.useState<number>(() => {
+        try { const v = parseFloat(localStorage.getItem(`sea-anime-nscale-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 1 : Math.max(0.5, Math.min(3, v)) } catch { return 1 }
+    })
     const setNoiseStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setNoiseStrengthRaw(c); try { localStorage.setItem(`sea-anime-noise-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
     const setNoiseSpeed = React.useCallback((v: number) => { const c = Math.max(0.1, Math.min(5, v)); setNoiseSpeedRaw(c); try { localStorage.setItem(`sea-anime-nspeed-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setNoiseScale = React.useCallback((v: number) => { const c = Math.max(0.5, Math.min(3, v)); setNoiseScaleRaw(c); try { localStorage.setItem(`sea-anime-nscale-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
 
     // ── Custom theme data ──
     const [customThemeData, setCustomThemeDataRaw] = React.useState<import("./custom-theme").CustomThemeData | null>(() => {
@@ -720,11 +732,15 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setScanlinesStrength,
         scanlinesSize,
         setScanlinesSize,
+        scanlinesSpeed,
+        setScanlinesSpeed,
         noiseStrength,
         setNoiseStrength,
         noiseSpeed,
         setNoiseSpeed,
-    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, backgroundContrast, setBackgroundContrast, activeBackgroundUrl, setActiveBackgroundUrl, brandColorOverride, setBrandColorOverride, vignetteStrength, setVignetteStrength, vignetteSize, setVignetteSize, glowStrength, setGlowStrength, glowSpeed, setGlowSpeed, glowScale, setGlowScale, customThemeData, setCustomThemeData, scanlinesStrength, setScanlinesStrength, scanlinesSize, setScanlinesSize, noiseStrength, setNoiseStrength, noiseSpeed, setNoiseSpeed])
+        noiseScale,
+        setNoiseScale,
+    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, backgroundContrast, setBackgroundContrast, activeBackgroundUrl, setActiveBackgroundUrl, brandColorOverride, setBrandColorOverride, vignetteStrength, setVignetteStrength, vignetteSize, setVignetteSize, glowStrength, setGlowStrength, glowSpeed, setGlowSpeed, glowScale, setGlowScale, customThemeData, setCustomThemeData, scanlinesStrength, setScanlinesStrength, scanlinesSize, setScanlinesSize, scanlinesSpeed, setScanlinesSpeed, noiseStrength, setNoiseStrength, noiseSpeed, setNoiseSpeed, noiseScale, setNoiseScale])
 
     return (
         <AnimeThemeContext.Provider value={value}>
@@ -775,7 +791,7 @@ function AnimeThemeMusicPlayer() {
 // Theme Background Image
 // ─────────────────────────────────────────────────────────────────
 
-function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, scanlinesStrength = 0, scanlinesSize = 0.5, noiseStrength = 0, noiseSpeed = 1, vignetteStrength = 0, vignetteSize = 0.5, glowStrength = 0, glowSpeed = 2, glowScale = 0.5 }: { url: string; dim?: number; blur?: number; exposure?: number; saturation?: number; contrast?: number; scanlinesStrength?: number; scanlinesSize?: number; noiseStrength?: number; noiseSpeed?: number; vignetteStrength?: number; vignetteSize?: number; glowStrength?: number; glowSpeed?: number; glowScale?: number }) {
+function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, scanlinesStrength = 0, scanlinesSize = 0.5, noiseStrength = 0, noiseSpeed = 1, noiseScale = 1, vignetteStrength = 0, vignetteSize = 0.5, glowStrength = 0, glowSpeed = 2, glowScale = 0.5 }: { url: string; dim?: number; blur?: number; exposure?: number; saturation?: number; contrast?: number; scanlinesStrength?: number; scanlinesSize?: number; noiseStrength?: number; noiseSpeed?: number; noiseScale?: number; vignetteStrength?: number; vignetteSize?: number; glowStrength?: number; glowSpeed?: number; glowScale?: number }) {
     const previewMode = useAtomValue(wallpaperPreviewModeAtom)
     const effectiveDim = previewMode ? 0.05 : (dim ?? 0.65)
     const opacity = 1 - effectiveDim
@@ -802,17 +818,22 @@ function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, 
                     boxShadow: "inset 0 0 120px 40px rgba(0,0,0,0.5), inset 0 0 40px 20px rgba(0,0,0,0.3)",
                 }}
             />
-            {/* Scanlines */}
+            {/* Scanlines - animated rolling effect */}
             {scanlinesStrength > 0 && (
-                <div
-                    style={{
-                        position: "absolute",
-                        inset: 0,
-                        backgroundImage: `repeating-linear-gradient(0deg, rgba(0,0,0,${scanlinesStrength * 0.6}) 0px, rgba(0,0,0,${scanlinesStrength * 0.6}) 1px, transparent 1px, transparent ${lineHeight}px)`,
-                    }}
-                />
+                <>
+                    <style>{`@keyframes sea-scanlines{0%{background-position:0 0}100%{background-position:0 ${lineHeight * 2}px}}`}</style>
+                    <div
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            backgroundImage: `repeating-linear-gradient(0deg, rgba(0,0,0,${scanlinesStrength * 0.6}) 0px, rgba(0,0,0,${scanlinesStrength * 0.6}) 1px, transparent 1px, transparent ${lineHeight}px)`,
+                            animation: `sea-scanlines 0.1s linear infinite`,
+                            pointerEvents: "none",
+                        }}
+                    />
+                </>
             )}
-            {/* Film noise */}
+            {/* Film noise - fixed to not increase brightness */}
             {noiseStrength > 0 && (
                 <>
                     <style>{`@keyframes sea-noise{0%{background-position:0 0}20%{background-position:-20% -20%}40%{background-position:40% 10%}60%{background-position:-10% 30%}80%{background-position:20% -10%}100%{background-position:0 0}}`}</style>
@@ -820,34 +841,35 @@ function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, 
                         style={{
                             position: "absolute",
                             inset: 0,
-                            opacity: noiseStrength * 0.4,
+                            opacity: noiseStrength * 0.25,
+                            mixBlendMode: "overlay",
                             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-                            backgroundSize: "200px 200px",
+                            backgroundSize: `${200 * noiseScale}px ${200 * noiseScale}px`,
                             animation: `sea-noise ${noiseAnimDuration} steps(2) infinite`,
                         }}
                     />
                 </>
             )}
-            {/* Vignette effect */}
+            {/* Vignette effect - fixed visibility at high size */}
             {vignetteStrength > 0 && (
                 <div
                     style={{
                         position: "absolute",
                         inset: 0,
-                        background: `radial-gradient(ellipse at center, transparent ${Math.max(0, 60 - vignetteSize * 30)}%, rgba(0,0,0,${Math.min(0.92, vignetteStrength * 0.85)}) 100%)`,
+                        background: `radial-gradient(ellipse at center, transparent ${Math.max(0, 50 - vignetteSize * 50)}%, rgba(0,0,0,${Math.min(0.95, vignetteStrength * 0.95)}) 100%)`,
                         pointerEvents: "none",
                     }}
                 />
             )}
-            {/* Shimmer Glow effect */}
+            {/* Shimmer Glow effect - increased visibility */}
             {glowStrength > 0 && (
                 <>
-                    <style>{`@keyframes sea-shimmer-glow{0%{opacity:0.4;transform:scale(0.9)}50%{opacity:1;transform:scale(1.1)}100%{opacity:0.4;transform:scale(0.9)}}`}</style>
+                    <style>{`@keyframes sea-shimmer-glow{0%{opacity:0.3;transform:scale(0.95)}50%{opacity:0.9;transform:scale(1.05)}100%{opacity:0.3;transform:scale(0.95)}}`}</style>
                     <div
                         style={{
                             position: "absolute",
                             inset: 0,
-                            background: `radial-gradient(ellipse at center, rgba(255,255,255,${glowStrength * 0.40}) 0%, transparent 65%)`,
+                            background: `radial-gradient(ellipse at center, rgba(255,255,255,${glowStrength * 0.70}) 0%, transparent 70%)`,
                             mixBlendMode: "screen",
                             animation: `sea-shimmer-glow ${(2 / glowSpeed).toFixed(2)}s ease-in-out infinite`,
                             transform: `scale(${glowScale})`,

@@ -445,68 +445,159 @@ export default function ThemeManagerPage() {
                     ))}
                 </div>
 
-                {/* Installed Themes Tab */}
+                {/* Installed Themes Tab - Show only Seanime and Marketplace cards */}
                 {activeMarketplaceTab === "installed" && (
                     <div className="space-y-4">
-                        {sharedThemes.length === 0 ? (
-                            <div className="text-center py-8 text-[--muted]">
-                                <LuStore className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                                <p>No themes installed yet.</p>
-                                <p className="text-xs mt-1">Browse the marketplace to download themes.</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                                {sharedThemes.map(theme => (
-                                    <div
-                                        key={theme.id}
-                                        className={cn(
-                                            "relative group rounded-xl border-2 overflow-hidden transition-all",
-                                            themeId === theme.id
-                                                ? "border-[--color-brand-400] shadow-[0_0_16px_2px_rgba(0,0,0,0.4)]"
-                                                : "border-[--border] hover:border-[--color-brand-600]",
-                                        )}
-                                    >
-                                        <button
-                                            onClick={() => setThemeId(theme.id as AnimeThemeId)}
-                                            className="w-full text-left"
-                                        >
-                                            {/* Background swatch */}
-                                            <div
-                                                className="h-16 w-full"
-                                                style={{ background: `linear-gradient(135deg, ${theme.previewColors?.bg ?? "#0a0a0a"} 0%, ${theme.previewColors?.primary ?? "#333"} 100%)` }}
-                                            >
-                                                <div className="h-full w-full flex items-end p-2 gap-1">
-                                                    {[theme.previewColors?.primary, theme.previewColors?.secondary, theme.previewColors?.accent].map((c, i) => c && (
-                                                        <div key={i} className="w-3 h-3 rounded-full border border-white/20 shrink-0" style={{ background: c }} />
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            {/* Info row */}
-                                            <div className="px-3 py-2 bg-[--paper] border-t border-[--border]">
-                                                <p className="text-xs font-semibold truncate">{theme.displayName}</p>
-                                            </div>
-                                        </button>
-                                        {/* Active indicator */}
-                                        {themeId === theme.id && (
-                                            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[--color-brand-500] flex items-center justify-center">
-                                                <LuCheck className="w-2.5 h-2.5 text-white" />
-                                            </div>
-                                        )}
-                                        {/* Delete button */}
-                                        <button
-                                            onClick={() => handleDeleteTheme(theme.id)}
-                                            disabled={deletingId === theme.id}
-                                            className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/60 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                            title="Delete theme"
-                                        >
-                                            {deletingId === theme.id ? (
-                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            ) : (
-                                                <LuTrash2 className="w-3 h-3" />
-                                            )}
-                                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto">
+                            {/* Seanime Theme Card */}
+                            <button
+                                onClick={() => setThemeId("seanime")}
+                                className={cn(
+                                    "relative group rounded-2xl overflow-hidden transition-all duration-300",
+                                    "hover:scale-[1.02] hover:shadow-xl",
+                                    themeId === "seanime"
+                                        ? "ring-2 ring-[--color-brand-400] shadow-[0_0_24px_4px_rgba(0,0,0,0.5)]"
+                                        : "ring-1 ring-[--border] hover:ring-[--color-brand-600]",
+                                )}
+                                style={{ aspectRatio: "16/9" }}
+                            >
+                                {/* Background gradient */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-[--color-brand-900] via-[--color-brand-700] to-[--color-brand-500]" />
+                                {/* Grid pattern overlay */}
+                                <div 
+                                    className="absolute inset-0 opacity-20"
+                                    style={{ 
+                                        backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+                                        backgroundSize: '40px 40px'
+                                    }}
+                                />
+                                {/* Glow effect */}
+                                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.15),transparent_50%)]" />
+                                
+                                {/* Content */}
+                                <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
+                                    <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center mb-4 ring-1 ring-white/20">
+                                        <span className="text-4xl">🌊</span>
                                     </div>
-                                ))}
+                                    <h3 className="text-2xl font-bold text-white mb-2">Seanime</h3>
+                                    <p className="text-white/70 text-sm text-center">Default theme</p>
+                                </div>
+                                
+                                {/* Active indicator */}
+                                {themeId === "seanime" && (
+                                    <div className="absolute top-4 right-4 flex items-center gap-2 bg-[--color-brand-500] text-white px-3 py-1.5 rounded-full text-sm font-medium">
+                                        <LuCheck className="w-4 h-4" />
+                                        Active
+                                    </div>
+                                )}
+                            </button>
+
+                            {/* Marketplace Card - Link to browse more */}
+                            <button
+                                onClick={() => setActiveMarketplaceTab("browse")}
+                                className={cn(
+                                    "relative group rounded-2xl overflow-hidden transition-all duration-300",
+                                    "hover:scale-[1.02] hover:shadow-xl",
+                                    "ring-1 ring-[--border] hover:ring-[--color-brand-600]",
+                                )}
+                                style={{ aspectRatio: "16/9" }}
+                            >
+                                {/* Background gradient */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-purple-900/90 via-indigo-900/90 to-blue-900/90" />
+                                
+                                {/* Animated dots pattern */}
+                                <div className="absolute inset-0 opacity-30">
+                                    <div className="absolute top-1/4 left-1/4 w-2 h-2 rounded-full bg-white/40 animate-pulse" />
+                                    <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 rounded-full bg-white/30 animate-pulse delay-75" />
+                                    <div className="absolute bottom-1/4 left-1/3 w-1 h-1 rounded-full bg-white/50 animate-pulse delay-150" />
+                                    <div className="absolute bottom-1/3 right-1/4 w-2 h-2 rounded-full bg-white/20 animate-pulse delay-300" />
+                                </div>
+                                
+                                {/* Shine effect */}
+                                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                
+                                {/* Content */}
+                                <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
+                                    <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center mb-4 ring-1 ring-white/20 group-hover:bg-white/15 transition-colors">
+                                        <LuStore className="w-10 h-10 text-white" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-white mb-2">Marketplace</h3>
+                                    <p className="text-white/70 text-sm text-center">
+                                        {marketplaceThemes.length > 0 ? `${marketplaceThemes.length} themes available` : "Browse & download themes"}
+                                    </p>
+                                    
+                                    {/* Arrow indicator */}
+                                    <div className="mt-4 flex items-center gap-2 text-white/60 group-hover:text-white transition-colors">
+                                        <span className="text-sm">Explore</span>
+                                        <LuCloudDownload className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                    </div>
+                                </div>
+                                
+                                {/* Theme count badge */}
+                                {marketplaceThemes.length > 0 && (
+                                    <div className="absolute top-4 right-4 bg-black/40 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-sm font-medium ring-1 ring-white/10">
+                                        {marketplaceThemes.length} themes
+                                    </div>
+                                )}
+                            </button>
+                        </div>
+                        
+                        {/* Downloaded themes section (if any) */}
+                        {sharedThemes.length > 0 && (
+                            <div className="mt-8">
+                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                    <LuCheck className="w-5 h-5 text-[--color-brand-400]" />
+                                    Downloaded Themes ({sharedThemes.length})
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                    {sharedThemes.map(theme => (
+                                        <div
+                                            key={theme.id}
+                                            className={cn(
+                                                "relative group rounded-xl border-2 overflow-hidden transition-all",
+                                                themeId === theme.id
+                                                    ? "border-[--color-brand-400] shadow-[0_0_16px_2px_rgba(0,0,0,0.4)]"
+                                                    : "border-[--border] hover:border-[--color-brand-600]",
+                                            )}
+                                        >
+                                            <button
+                                                onClick={() => setThemeId(theme.id as AnimeThemeId)}
+                                                className="w-full text-left"
+                                            >
+                                                <div
+                                                    className="h-16 w-full"
+                                                    style={{ background: `linear-gradient(135deg, ${theme.previewColors?.bg ?? "#0a0a0a"} 0%, ${theme.previewColors?.primary ?? "#333"} 100%)` }}
+                                                >
+                                                    <div className="h-full w-full flex items-end p-2 gap-1">
+                                                        {[theme.previewColors?.primary, theme.previewColors?.secondary, theme.previewColors?.accent].map((c, i) => c && (
+                                                            <div key={i} className="w-3 h-3 rounded-full border border-white/20 shrink-0" style={{ background: c }} />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div className="px-3 py-2 bg-[--paper] border-t border-[--border]">
+                                                    <p className="text-xs font-semibold truncate">{theme.displayName}</p>
+                                                </div>
+                                            </button>
+                                            {themeId === theme.id && (
+                                                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[--color-brand-500] flex items-center justify-center">
+                                                    <LuCheck className="w-2.5 h-2.5 text-white" />
+                                                </div>
+                                            )}
+                                            <button
+                                                onClick={() => handleDeleteTheme(theme.id)}
+                                                disabled={deletingId === theme.id}
+                                                className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/60 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                                title="Delete theme"
+                                            >
+                                                {deletingId === theme.id ? (
+                                                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                ) : (
+                                                    <LuTrash2 className="w-3 h-3" />
+                                                )}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>

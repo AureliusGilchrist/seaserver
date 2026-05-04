@@ -174,6 +174,19 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/shared-themes/download", h.HandleDownloadSharedTheme)
 	v1.DELETE("/shared-themes/:id", h.HandleDeleteSharedTheme)
 
+	// Per-profile themes (cloud storage - survives client rebuilds)
+	v1.GET("/user-themes", h.HandleListUserThemes)
+	v1.POST("/user-themes/download", h.HandleDownloadUserTheme)
+	v1.DELETE("/user-themes/:id", h.HandleDeleteUserTheme)
+	v1.GET("/user-themes/:id", h.HandleGetUserTheme)
+
+	// Per-profile theme preference (active theme selection)
+	v1.GET("/user-theme-preference", h.HandleGetProfileThemePreference)
+	v1.POST("/user-theme-preference", h.HandleSetProfileThemePreference)
+
+	// Per-profile milestone name (publicly visible title)
+	v1.POST("/user-milestone-name", h.HandleUpdateMilestoneName)
+
 	v1.GET("/log/*", h.HandleGetLogContent)
 	v1.GET("/logs/filenames", h.HandleGetLogFilenames)
 	v1.DELETE("/logs", h.HandleDeleteLogs)

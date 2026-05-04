@@ -1,8 +1,8 @@
 [package]
 name = "seanime-desktop"
-version = "0.1.0"
-description = "seaserver Desktop"
-authors = ["you"]
+version = "1.0.0"
+description = "Seaserver Desktop"
+authors = ["Aurelius Gilchrist"]
 license = ""
 repository = ""
 edition = "2021"

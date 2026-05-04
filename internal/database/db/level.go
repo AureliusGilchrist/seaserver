@@ -107,6 +107,17 @@ func (db *Database) SetXPVersion(version int) error {
 	return db.gormdb.Save(lp).Error
 }
 
+// SetCurrentMilestoneName updates the publicly visible milestone title for the profile.
+// This should be called whenever the level changes or the active theme changes.
+func (db *Database) SetCurrentMilestoneName(name string) error {
+	lp, err := db.GetLevelProgress()
+	if err != nil {
+		return err
+	}
+	lp.CurrentMilestoneName = name
+	return db.gormdb.Save(lp).Error
+}
+
 // ComputeActivityBuff calculates the Activity Buff XP multiplier based on rolling 30-day active days.
 //
 // Rules:

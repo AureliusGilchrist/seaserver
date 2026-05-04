@@ -303,7 +303,7 @@ export default function Page() {
                     <div className="space-y-1">
                         <div className="flex justify-between text-xs text-[--muted]">
                             <span>{milestoneName ?? `Level ${level.currentLevel}`}</span>
-                            <span>Level {level.currentLevel + 1}</span>
+                            <span>???</span>
                         </div>
                         <div
                             className="h-2 rounded-full overflow-hidden"

@@ -12,20 +12,21 @@ import (
 
 // CommunityProfile is a single entry in the community profiles list.
 type CommunityProfile struct {
-	ID                uint   `json:"id"`
-	Name              string `json:"name"`
-	AniListUsername   string `json:"anilistUsername"`
-	AniListAvatar     string `json:"anilistAvatar"`
-	AvatarPath        string `json:"avatarPath"`
-	Bio               string `json:"bio"`
-	BannerImage       string `json:"bannerImage"`
-	IsAdmin           bool   `json:"isAdmin"`
-	CurrentLevel      int    `json:"currentLevel"`
-	TotalXP           int    `json:"totalXP"`
-	AchievementCount  int64  `json:"achievementCount"`
-	DisplayTitle      string `json:"displayTitle"`
-	DisplayTitleColor string `json:"displayTitleColor"`
-	ThemeID           string `json:"themeId"`
+	ID                   uint   `json:"id"`
+	Name                 string `json:"name"`
+	AniListUsername      string `json:"anilistUsername"`
+	AniListAvatar        string `json:"anilistAvatar"`
+	AvatarPath           string `json:"avatarPath"`
+	Bio                  string `json:"bio"`
+	BannerImage          string `json:"bannerImage"`
+	IsAdmin              bool   `json:"isAdmin"`
+	CurrentLevel         int    `json:"currentLevel"`
+	TotalXP              int    `json:"totalXP"`
+	AchievementCount     int64  `json:"achievementCount"`
+	DisplayTitle         string `json:"displayTitle"`
+	DisplayTitleColor    string `json:"displayTitleColor"`
+	ThemeID              string `json:"themeId"`
+	CurrentMilestoneName string `json:"currentMilestoneName"` // Publicly visible milestone title
 	// Cosmetics — copied from profile so all viewers see the chosen look
 	XPBarFillCss    string `json:"xpBarFillCss"`
 	XPBarAnimClass  string `json:"xpBarAnimClass"`
@@ -111,6 +112,7 @@ func (h *Handler) HandleGetCommunityProfiles(c echo.Context) error {
 			if progress, lpErr := database.GetLevelProgress(); lpErr == nil {
 				cp.CurrentLevel = db.ComputeLevel(progress.TotalXP)
 				cp.TotalXP = progress.TotalXP
+				cp.CurrentMilestoneName = progress.CurrentMilestoneName // Include milestone name for everyone to see
 				totalXP += progress.TotalXP
 				if cp.CurrentLevel > highestLevel {
 					highestLevel = cp.CurrentLevel

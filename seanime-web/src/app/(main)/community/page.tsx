@@ -348,9 +348,10 @@ function CommunityProfileCard({ profile }: { profile: Handlers_CommunityProfile 
                         >
                             {profile.name}
                         </p>
-                        {displayTitle && (
-                            <p className="text-[10px] font-semibold truncate mb-0.5" style={{ color: profile.displayTitleColor || "#94a3b8" }}>
-                                {displayTitle}
+                        {/* Show milestone name (currentMilestoneName) publicly visible to all viewers */}
+                        {(profile as any).currentMilestoneName && (
+                            <p className="text-[10px] font-semibold truncate mb-0.5 text-[--color-brand-300]">
+                                {(profile as any).currentMilestoneName}
                             </p>
                         )}
                         <p className={cn("text-xs font-bold", colors.label)}>Lv. {profile.currentLevel}</p>
@@ -422,9 +423,10 @@ function LeaderboardRow({ profile, rank }: { profile: Handlers_CommunityProfile;
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
                             <p className="font-semibold text-sm truncate">{profile.name}</p>
-                            {displayTitle && (
-                                <span className="text-[10px] font-semibold shrink-0" style={{ color: profile.displayTitleColor || "#94a3b8" }}>
-                                    {displayTitle}
+                            {/* Show milestone name (currentMilestoneName) publicly visible to all viewers */}
+                            {(profile as any).currentMilestoneName && (
+                                <span className="text-[10px] font-semibold shrink-0 text-[--color-brand-300]">
+                                    {(profile as any).currentMilestoneName}
                                 </span>
                             )}
                         </div>

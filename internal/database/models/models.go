@@ -802,9 +802,10 @@ const (
 // LevelProgress tracks the user's XP and level for the leveling system (stored in per-profile DB).
 type LevelProgress struct {
 	BaseModel
-	TotalXP      int `gorm:"column:total_xp;default:0" json:"totalXP"`
-	CurrentLevel int `gorm:"column:current_level;default:1" json:"currentLevel"`
-	XPVersion    int `gorm:"column:xp_version;default:0" json:"xpVersion"`
+	TotalXP            int    `gorm:"column:total_xp;default:0" json:"totalXP"`
+	CurrentLevel       int    `gorm:"column:current_level;default:1" json:"currentLevel"`
+	XPVersion          int    `gorm:"column:xp_version;default:0" json:"xpVersion"`
+	CurrentMilestoneName string `gorm:"column:current_milestone_name" json:"currentMilestoneName"` // Publicly visible milestone title
 }
 
 // AdminAnnouncement is a server-local announcement created by an admin, shown as a dismissible banner.
@@ -855,6 +856,25 @@ type MediaCacheEntry struct {
 	CacheKey string    `gorm:"primaryKey;not null"`
 	Data     []byte    `gorm:"type:blob;not null"`
 	CachedAt time.Time `gorm:"autoCreateTime"`
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+// UserTheme stores downloaded marketplace themes per-profile.
+// This enables "cloud" theme storage that survives client rebuilds.
+type UserTheme struct {
+	BaseModel
+	ThemeID      string    `gorm:"column:theme_id;uniqueIndex:idx_user_theme" json:"themeId"`
+	DisplayName  string    `gorm:"column:display_name" json:"displayName"`
+	ThemeJSON    string    `gorm:"column:theme_json;type:text" json:"themeJson"` // Full theme.json content
+	DownloadedAt time.Time `gorm:"column:downloaded_at" json:"downloadedAt"`
+}
+
+// ProfileThemePreference stores the active theme selection per-profile.
+// Each profile can have their own active theme, independent of other profiles.
+type ProfileThemePreference struct {
+	BaseModel
+	ThemeID string `gorm:"column:theme_id" json:"themeId"` // Currently active theme for this profile
 }
 
 ///////////////////////////////////////////////////////////////////////////
