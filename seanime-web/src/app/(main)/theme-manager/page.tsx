@@ -18,7 +18,7 @@ import {
     isThemePrerequisiteMet,
 } from "@/lib/theme/anime-themes/theme-prerequisites"
 import { WALLHAVEN_CURATED_QUERY } from "@/lib/theme/anime-themes/wallhaven-curated"
-import { LuSettings2, LuSparkles, LuSearch, LuX, LuPalette, LuCheck, LuDownload, LuImage, LuBookmark } from "react-icons/lu"
+import { LuSettings2, LuSparkles, LuSearch, LuX, LuPalette, LuCheck, LuDownload, LuImage, LuBookmark, LuStore, LuCloudDownload, LuTrash2 } from "react-icons/lu"
 import { PresetsPanel } from "./_components/presets-panel"
 import { useGetRawAnilistMangaCollection } from "@/api/hooks/manga.hooks"
 import { cn } from "@/components/ui/core/styling"
@@ -40,8 +40,73 @@ import {
 } from "@/api/hooks/theme_backgrounds.hooks"
 import { WallhavenPickerModal } from "./_components/wallhaven-picker"
 import { WallpaperShop } from "./_components/wallpaper-shop"
+import { fetchSharedThemesList, downloadSharedTheme, deleteSharedTheme, type SharedThemeInfo, type MarketplaceThemeMeta, fetchMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 
 export default function ThemeManagerPage() {
+    // ── Shared/Marketplace themes state ──
+    const [sharedThemes, setSharedThemes] = React.useState<SharedThemeInfo[]>([])
+    const [marketplaceThemes, setMarketplaceThemes] = React.useState<MarketplaceThemeMeta[]>([])
+    const [isLoadingMarketplace, setIsLoadingMarketplace] = React.useState(false)
+    const [marketplaceError, setMarketplaceError] = React.useState<string | null>(null)
+    const [activeMarketplaceTab, setActiveMarketplaceTab] = React.useState<"installed" | "browse">("installed")
+    const [downloadingId, setDownloadingId] = React.useState<string | null>(null)
+    const [deletingId, setDeletingId] = React.useState<string | null>(null)
+
+    // Load shared themes on mount
+    React.useEffect(() => {
+        fetchSharedThemesList().then(setSharedThemes)
+    }, [])
+
+    // Fetch available marketplace themes from index
+    React.useEffect(() => {
+        setIsLoadingMarketplace(true)
+        fetch(`${getServerBaseUrl()}/marketplace/index.json`)
+            .then(r => r.ok ? r.json() as Promise<{themes?: {id: string}[]}> : null)
+            .then(data => {
+                if (data?.themes) {
+                    // Load full metadata for each theme
+                    const promises = data.themes.map((t) => 
+                        fetchMarketplaceThemeMeta(t.id).then(meta => meta || null)
+                    )
+                    Promise.all(promises).then(results => {
+                        setMarketplaceThemes(results.filter(Boolean) as MarketplaceThemeMeta[])
+                        setIsLoadingMarketplace(false)
+                    })
+                } else {
+                    setMarketplaceError("No marketplace themes found")
+                    setIsLoadingMarketplace(false)
+                }
+            })
+            .catch(err => {
+                setMarketplaceError("Failed to load marketplace")
+                setIsLoadingMarketplace(false)
+            })
+    }, [])
+
+    const handleDownloadTheme = async (themeId: string) => {
+        setDownloadingId(themeId)
+        try {
+            const result = await downloadSharedTheme(themeId)
+            if (result) {
+                setSharedThemes(prev => [...prev.filter(t => t.id !== themeId), result])
+            }
+        } finally {
+            setDownloadingId(null)
+        }
+    }
+
+    const handleDeleteTheme = async (themeId: string) => {
+        setDeletingId(themeId)
+        try {
+            const success = await deleteSharedTheme(themeId)
+            if (success) {
+                setSharedThemes(prev => prev.filter(t => t.id !== themeId))
+            }
+        } finally {
+            setDeletingId(null)
+        }
+    }
+
     const {
         themeId,
         setThemeId,
@@ -344,6 +409,170 @@ export default function ThemeManagerPage() {
                         />
                     )
                 })}
+            </div>
+
+            {/* ── MARKETPLACE THEMES SECTION ── */}
+            <div className="rounded-2xl border border-[--border] bg-[--paper] p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <LuStore className="w-5 h-5 text-[--color-brand-400]" />
+                        <h2 className="text-xl font-semibold">Theme Marketplace</h2>
+                    </div>
+                    <div className="text-sm text-[--muted]">
+                        {sharedThemes.length} installed · {marketplaceThemes.length} available
+                    </div>
+                </div>
+
+                {/* Tab navigation for marketplace */}
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-[--background] border border-[--border] w-fit">
+                    {[
+                        { id: "installed", label: "Installed", icon: <LuCheck className="w-3.5 h-3.5" /> },
+                        { id: "browse", label: "Browse", icon: <LuCloudDownload className="w-3.5 h-3.5" /> },
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveMarketplaceTab(tab.id as "installed" | "browse")}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                                activeMarketplaceTab === tab.id
+                                    ? "bg-[--color-brand-600] text-white shadow-sm"
+                                    : "text-[--muted] hover:text-[--foreground]",
+                            )}
+                        >
+                            {tab.icon}
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Installed Themes Tab */}
+                {activeMarketplaceTab === "installed" && (
+                    <div className="space-y-4">
+                        {sharedThemes.length === 0 ? (
+                            <div className="text-center py-8 text-[--muted]">
+                                <LuStore className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                                <p>No themes installed yet.</p>
+                                <p className="text-xs mt-1">Browse the marketplace to download themes.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                {sharedThemes.map(theme => (
+                                    <div
+                                        key={theme.id}
+                                        className={cn(
+                                            "relative group rounded-xl border-2 overflow-hidden transition-all",
+                                            themeId === theme.id
+                                                ? "border-[--color-brand-400] shadow-[0_0_16px_2px_rgba(0,0,0,0.4)]"
+                                                : "border-[--border] hover:border-[--color-brand-600]",
+                                        )}
+                                    >
+                                        <button
+                                            onClick={() => setThemeId(theme.id as AnimeThemeId)}
+                                            className="w-full text-left"
+                                        >
+                                            {/* Background swatch */}
+                                            <div
+                                                className="h-16 w-full"
+                                                style={{ background: `linear-gradient(135deg, ${theme.previewColors?.bg ?? "#0a0a0a"} 0%, ${theme.previewColors?.primary ?? "#333"} 100%)` }}
+                                            >
+                                                <div className="h-full w-full flex items-end p-2 gap-1">
+                                                    {[theme.previewColors?.primary, theme.previewColors?.secondary, theme.previewColors?.accent].map((c, i) => c && (
+                                                        <div key={i} className="w-3 h-3 rounded-full border border-white/20 shrink-0" style={{ background: c }} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            {/* Info row */}
+                                            <div className="px-3 py-2 bg-[--paper] border-t border-[--border]">
+                                                <p className="text-xs font-semibold truncate">{theme.displayName}</p>
+                                            </div>
+                                        </button>
+                                        {/* Active indicator */}
+                                        {themeId === theme.id && (
+                                            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[--color-brand-500] flex items-center justify-center">
+                                                <LuCheck className="w-2.5 h-2.5 text-white" />
+                                            </div>
+                                        )}
+                                        {/* Delete button */}
+                                        <button
+                                            onClick={() => handleDeleteTheme(theme.id)}
+                                            disabled={deletingId === theme.id}
+                                            className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/60 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                            title="Delete theme"
+                                        >
+                                            {deletingId === theme.id ? (
+                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                <LuTrash2 className="w-3 h-3" />
+                                            )}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Browse Tab */}
+                {activeMarketplaceTab === "browse" && (
+                    <div className="space-y-4">
+                        {isLoadingMarketplace ? (
+                            <div className="flex items-center justify-center py-12">
+                                <div className="w-8 h-8 border-2 border-[--color-brand-500] border-t-transparent rounded-full animate-spin" />
+                            </div>
+                        ) : marketplaceError ? (
+                            <div className="text-center py-8 text-red-400">
+                                <p>{marketplaceError}</p>
+                            </div>
+                        ) : marketplaceThemes.length === 0 ? (
+                            <div className="text-center py-8 text-[--muted]">
+                                <p>No themes available in marketplace.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                {marketplaceThemes
+                                    .filter(theme => !sharedThemes.some(st => st.id === theme.id))
+                                    .map(theme => (
+                                        <div
+                                            key={theme.id}
+                                            className="relative group rounded-xl border-2 border-[--border] hover:border-[--color-brand-600] overflow-hidden transition-all"
+                                        >
+                                            {/* Background swatch */}
+                                            <div
+                                                className="h-16 w-full"
+                                                style={{ background: `linear-gradient(135deg, ${theme.previewColors?.bg ?? "#0a0a0a"} 0%, ${theme.previewColors?.primary ?? "#333"} 100%)` }}
+                                            >
+                                                <div className="h-full w-full flex items-end p-2 gap-1">
+                                                    {[theme.previewColors?.primary, theme.previewColors?.secondary, theme.previewColors?.accent].map((c, i) => c && (
+                                                        <div key={i} className="w-3 h-3 rounded-full border border-white/20 shrink-0" style={{ background: c }} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            {/* Info row */}
+                                            <div className="px-3 py-2 bg-[--paper] border-t border-[--border] space-y-1">
+                                                <p className="text-xs font-semibold truncate">{theme.displayName}</p>
+                                                <p className="text-[10px] text-[--muted] line-clamp-2">{theme.description}</p>
+                                            </div>
+                                            {/* Download button */}
+                                            <button
+                                                onClick={() => handleDownloadTheme(theme.id)}
+                                                disabled={downloadingId === theme.id}
+                                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                            >
+                                                {downloadingId === theme.id ? (
+                                                    <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                ) : (
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <LuCloudDownload className="w-8 h-8 text-white" />
+                                                        <span className="text-xs text-white font-medium">Download</span>
+                                                    </div>
+                                                )}
+                                            </button>
+                                        </div>
+                                    ))}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Music & Event Controls */}

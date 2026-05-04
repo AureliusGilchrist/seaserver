@@ -11,6 +11,7 @@ import { getServerBaseUrl } from "@/api/client/server-url"
 export interface MarketplaceThemeMeta {
     id: string
     displayName: string
+    description?: string
     milestoneNames: Record<number, string>
     achievementNames: Record<string, string>
     sidebarLabels: Record<string, string>
@@ -24,6 +25,8 @@ export interface SharedThemeInfo {
     id: string
     displayName: string
     url: string
+    previewColors?: { bg: string; primary: string; secondary: string; accent: string }
+    description?: string
 }
 
 // In-memory cache: themeId → MarketplaceThemeMeta | null (null = 404/unavailable)
@@ -53,6 +56,7 @@ export async function fetchMarketplaceThemeMeta(themeId: string): Promise<Market
             const raw = await res.json() as {
                 id?: string
                 displayName?: string
+                description?: string
                 milestoneNames?: Record<string | number, string>
                 achievementNames?: Record<string, string>
                 sidebarOverrides?: Record<string, { label?: string }>
@@ -77,6 +81,7 @@ export async function fetchMarketplaceThemeMeta(themeId: string): Promise<Market
             const meta: MarketplaceThemeMeta = {
                 id: raw.id ?? themeId,
                 displayName: raw.displayName ?? themeId,
+                description: raw.description,
                 milestoneNames,
                 achievementNames: raw.achievementNames ?? {},
                 sidebarLabels,
