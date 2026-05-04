@@ -75,7 +75,15 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	// Serve user-downloaded theme backgrounds
 	e.Static("/theme-bg", filepath.Join(app.Config.Data.AppDataDir, "theme-backgrounds"))
 
-	// Serve marketplace theme files (if configured)
+	// Serve downloaded theme music
+	e.Static("/theme-music", filepath.Join(app.Config.Data.AppDataDir, "theme-music"))
+
+	// Serve shared downloaded themes (profile-shared, not bundled)
+	sharedThemesDir := filepath.Join(app.Config.Data.AppDataDir, "themes")
+	app.Logger.Info().Msgf("app: Shared themes path: %s", sharedThemesDir)
+	e.Static("/shared-themes", sharedThemesDir)
+
+	// Serve marketplace theme files (if configured) - this is the seanime-themes repo
 	if app.Config.Marketplace.Dir != "" {
 		app.Logger.Info().Msgf("app: Marketplace themes path: %s", app.Config.Marketplace.Dir)
 		e.Static("/marketplace", app.Config.Marketplace.Dir)

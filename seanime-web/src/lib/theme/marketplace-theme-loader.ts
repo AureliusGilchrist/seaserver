@@ -20,10 +20,19 @@ export interface MarketplaceThemeMeta {
     fontHref?: string
 }
 
+export interface SharedThemeInfo {
+    id: string
+    displayName: string
+    url: string
+}
+
 // In-memory cache: themeId → MarketplaceThemeMeta | null (null = 404/unavailable)
 const cache = new Map<string, MarketplaceThemeMeta | null>()
 // Track in-flight fetches to prevent duplicate requests
 const inflight = new Map<string, Promise<MarketplaceThemeMeta | null>>()
+// Cache for shared themes list
+let sharedThemesCache: SharedThemeInfo[] | null = null
+let sharedThemesInflight: Promise<SharedThemeInfo[]> | null = null
 
 /**
  * Fetch and cache a marketplace theme's metadata.

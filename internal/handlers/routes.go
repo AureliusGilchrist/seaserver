@@ -169,6 +169,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.DELETE("/theme-backgrounds/:filename", h.HandleDeleteThemeBackground)
 	v1.GET("/theme-backgrounds/wallhaven/search", h.HandleSearchWallhaven)
 
+	// Shared themes (downloaded from marketplace, visible to all profiles)
+	v1.GET("/shared-themes", h.HandleListSharedThemes)
+	v1.POST("/shared-themes/download", h.HandleDownloadSharedTheme)
+	v1.DELETE("/shared-themes/:id", h.HandleDeleteSharedTheme)
+
 	v1.GET("/log/*", h.HandleGetLogContent)
 	v1.GET("/logs/filenames", h.HandleGetLogFilenames)
 	v1.DELETE("/logs", h.HandleDeleteLogs)

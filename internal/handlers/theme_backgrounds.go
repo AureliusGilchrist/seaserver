@@ -219,6 +219,165 @@ func (h *Handler) HandleListThemeMusicTracks(c echo.Context) error {
 	return h.RespondWithData(c, tracks)
 }
 
+// HandleListSharedThemes returns all downloaded themes from datadir/themes/.
+// These themes are shared across all profiles.
+func (h *Handler) HandleListSharedThemes(c echo.Context) error {
+	dir := filepath.Join(h.App.Config.Data.AppDataDir, "themes")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	type ThemeInfo struct {
+		ID          string `json:"id"`
+		DisplayName string `json:"displayName"`
+		URL         string `json:"url"`
+	}
+
+	themes := make([]ThemeInfo, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		// Check if theme.json exists in the directory
+		themeJsonPath := filepath.Join(dir, entry.Name(), "theme.json")
+		if _, statErr := os.Stat(themeJsonPath); statErr != nil {
+			continue // Skip directories without theme.json
+		}
+		
+		// Try to read theme.json to get display name
+		displayName := entry.Name()
+		if data, readErr := os.ReadFile(themeJsonPath); readErr == nil {
+			var theme struct {
+				DisplayName string `json:"displayName"`
+			}
+			if json.Unmarshal(data, &theme) == nil && theme.DisplayName != "" {
+				displayName = theme.DisplayName
+			}
+		}
+		
+		themes = append(themes, ThemeInfo{
+			ID:          entry.Name(),
+			DisplayName: displayName,
+			URL:         "/shared-themes/" + entry.Name() + "/theme.json",
+		})
+	}
+
+	return h.RespondWithData(c, themes)
+}
+
+// HandleDownloadSharedTheme downloads a theme from the marketplace to the shared themes directory.
+// This makes the theme available to all profiles.
+func (h *Handler) HandleDownloadSharedTheme(c echo.Context) error {
+	type body struct {
+		ThemeID string `json:"themeId"`
+	}
+	b := new(body)
+	if err := c.Bind(b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if b.ThemeID == "" {
+		return h.RespondWithError(c, fmt.Errorf("themeId is required"))
+	}
+
+	// Sanitize themeId
+	themeID := b.ThemeID
+	for _, ch := range []string{"/", "\\", "..", ":", "*", "?", "\"", "<", ">", "|"} {
+		themeID = strings.ReplaceAll(themeID, ch, "")
+	}
+	if themeID == "" {
+		return h.RespondWithError(c, fmt.Errorf("invalid themeId"))
+	}
+
+	// Check if marketplace is configured
+	if h.App.Config.Marketplace.Dir == "" {
+		return h.RespondWithError(c, fmt.Errorf("marketplace not configured"))
+	}
+
+	// Source: marketplace themes directory
+	sourceDir := filepath.Join(h.App.Config.Marketplace.Dir, "themes", themeID)
+	sourceJson := filepath.Join(sourceDir, "theme.json")
+	
+	// Verify source exists
+	if _, statErr := os.Stat(sourceJson); statErr != nil {
+		return h.RespondWithError(c, fmt.Errorf("theme not found in marketplace: %s", themeID))
+	}
+
+	// Destination: shared themes directory
+	destDir := filepath.Join(h.App.Config.Data.AppDataDir, "themes", themeID)
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	// Copy theme.json
+	if err := copyFile(sourceJson, filepath.Join(destDir, "theme.json")); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	// Copy all files from source directory
+	sourceEntries, err := os.ReadDir(sourceDir)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	for _, entry := range sourceEntries {
+		if entry.IsDir() {
+			continue
+		}
+		srcPath := filepath.Join(sourceDir, entry.Name())
+		dstPath := filepath.Join(destDir, entry.Name())
+		if err := copyFile(srcPath, dstPath); err != nil {
+			// Log error but continue
+			h.App.Logger.Warn().Err(err).Str("file", entry.Name()).Msg("Failed to copy theme file")
+		}
+	}
+
+	type Result struct {
+		ID  string `json:"id"`
+		URL string `json:"url"`
+	}
+	return h.RespondWithData(c, Result{
+		ID:  themeID,
+		URL: "/shared-themes/" + themeID + "/theme.json",
+	})
+}
+
+// HandleDeleteSharedTheme removes a downloaded theme from the shared themes directory.
+func (h *Handler) HandleDeleteSharedTheme(c echo.Context) error {
+	themeID := c.Param("id")
+	if themeID == "" || strings.ContainsAny(themeID, "/\\") || strings.Contains(themeID, "..") {
+		return h.RespondWithError(c, fmt.Errorf("invalid theme id"))
+	}
+
+	dir := filepath.Join(h.App.Config.Data.AppDataDir, "themes", themeID)
+	if err := os.RemoveAll(dir); err != nil && !os.IsNotExist(err) {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, true)
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	return err
+}
+
 // HandleSearchWallhaven proxies a search query to the Wallhaven public API (SFW anime wallpapers).
 // Uses relevance sorting so specific anime name queries return plentiful, on-target results.
 func (h *Handler) HandleSearchWallhaven(c echo.Context) error {
