@@ -21,11 +21,12 @@ import {
     type ParticleSetReward,
 } from "@/lib/rewards/reward-definitions"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
+import type { AnimeThemeConfig } from "@/lib/theme/anime-themes"
 import { getCachedMarketplaceThemeMeta, fetchMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 
 // Pre-build a lookup: { themeId -> { level -> rankName } } from bundled themes
 const MILESTONE_NAMES: Record<string, Record<number, string>> = Object.fromEntries(
-    Object.entries(ANIME_THEMES).map(([id, cfg]) => [id, cfg.milestoneNames ?? {}]),
+    Object.entries(ANIME_THEMES).map(([id, cfg]: [string, AnimeThemeConfig]) => [id, cfg.milestoneNames ?? {}]),
 )
 
 // Extended milestone resolution: checks bundled themes first, then marketplace cache

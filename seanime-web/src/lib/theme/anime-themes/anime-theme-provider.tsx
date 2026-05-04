@@ -293,7 +293,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const buildDefaultParticleSettings = React.useCallback((): ParticleSettings => {
         const types = config.particleTypes ?? {}
         const out: ParticleSettings = {}
-        for (const [k, v] of Object.entries(types)) {
+        for (const [k, v] of Object.entries(types) as [string, ParticleTypeConfig][]) {
             out[k] = { enabled: v.defaultEnabled, intensity: v.defaultIntensity }
         }
         return out
@@ -303,7 +303,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         const defaults = (() => {
             const types = (ANIME_THEMES[themeId as AnimeThemeId]?.particleTypes ?? {}) as Record<string, ParticleTypeConfig>
             const out: ParticleSettings = {}
-            for (const [k, v] of Object.entries(types)) {
+            for (const [k, v] of Object.entries(types) as [string, ParticleTypeConfig][]) {
                 out[k] = { enabled: v.defaultEnabled, intensity: v.defaultIntensity }
             }
             return out

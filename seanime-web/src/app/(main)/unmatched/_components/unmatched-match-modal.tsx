@@ -110,9 +110,10 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     const [hasAutoSelectedAnime, setHasAutoSelectedAnime] = useState(false)
     const [dependOnIndex, setDependOnIndex] = useState(false)
     const [episodeOffset, setEpisodeOffset] = useState(1)
-    // Family search (Feature 2)
+    // Family search (Feature 2) - now works for any selected anime
     const [familySearchDone, setFamilySearchDone] = useState(false)
     const [familyResults, setFamilyResults] = useState<FamilyResult | null>(null)
+    const [familySearchTargetId, setFamilySearchTargetId] = useState<number | null>(null)
     const { mutate: runFamilySearch, isPending: isFamilySearchLoading } = useUnmatchedFamilySearch()
     // Family detail fetch — when a family entry is clicked, fetch full details progressively
     const [familyDetailId, setFamilyDetailId] = useState<number | null>(null)
@@ -255,6 +256,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setHasAutoSelectedAnime(false)
         setFamilySearchDone(false)
         setFamilyResults(null)
+        setFamilySearchTargetId(null)
         setFamilyDetailId(null)
     }, [])
 
@@ -262,6 +264,10 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         if (!searchInputValue || searchInputValue.length < 2) return
         setSearchQuery(searchInputValue)
         setHasSearched(true)
+        // Reset family search when doing new search
+        setFamilySearchDone(false)
+        setFamilyResults(null)
+        setFamilySearchTargetId(null)
         // Trigger refetch
         setTimeout(() => refetchSearch(), 0)
     }, [searchInputValue, refetchSearch])
@@ -276,6 +282,15 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         resetState()
         onClose()
     }, [onClose, resetState])
+
+    // Handle selecting anime from search - also sets up family search target
+    const handleSelectSearchAnime = useCallback((anime: AL_BaseAnime) => {
+        setSelectedAnime(anime)
+        // Reset family search for new selection
+        setFamilySearchDone(false)
+        setFamilyResults(null)
+        setFamilySearchTargetId(anime.id)
+    }, [])
 
     const toggleFile = useCallback((relativePath: string) => {
         setSelectedFiles(prev => {
@@ -643,8 +658,8 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                 </AppLayoutStack>
             ) : (
                 <AppLayoutStack className="space-y-4">
-                    {/* Feature 2: Family / relation search prompt */}
-                    {!familySearchDone && storedAnimeId && (
+                    {/* Feature 2: Family / relation search prompt - works with stored anime or selected from search */}
+                    {!familySearchDone && (familySearchTargetId || storedAnimeId) && (
                         <div className="flex items-center justify-between p-3 border rounded-md bg-[--subtle] gap-3">
                             <div>
                                 <p className="text-sm font-medium">Load full anime family?</p>
@@ -658,7 +673,9 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                     intent="primary"
                                     loading={isFamilySearchLoading}
                                     onClick={() => {
-                                        runFamilySearch({ animeId: storedAnimeId }, {
+                                        const targetId = familySearchTargetId || storedAnimeId
+                                        if (!targetId) return
+                                        runFamilySearch({ animeId: targetId }, {
                                             onSuccess: (data) => {
                                                 setFamilyResults(data || null)
                                                 setFamilySearchDone(true)
@@ -738,7 +755,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                             key={anime?.id}
                                             anime={anime as AL_BaseAnime}
                                             selected={selectedAnime?.id === anime?.id}
-                                            onSelect={() => setSelectedAnime(anime as AL_BaseAnime)}
+                                            onSelect={() => handleSelectSearchAnime(anime as AL_BaseAnime)}
                                             libraryCollection={libraryCollection}
                                         />
                                     ))}
@@ -965,7 +982,7 @@ function TreeNodeItem({
 }
 
 function AnimeSearchItem({ anime, selected, onSelect, libraryCollection }: { 
-    anime: AL_BaseAnime; 
+    anime: AL_BaseAnime & { studios?: { nodes?: { name: string }[] }, synonyms?: string[] }; 
     selected: boolean; 
     onSelect: () => void; 
     libraryCollection?: any 
@@ -976,6 +993,12 @@ function AnimeSearchItem({ anime, selected, onSelect, libraryCollection }: {
     const format = anime.format
     
     const isInLibrary = anime?.id ? isAnimeInLibrary(anime.id, libraryCollection) : false
+    
+    // Get studios
+    const studios = anime.studios?.nodes?.map(s => s.name).slice(0, 2) || []
+    
+    // Get synonyms (alternative titles)
+    const synonyms = (anime.synonyms || []).slice(0, 2)
     
     const getStatusColor = (status?: string) => {
         switch (status) {
@@ -1015,6 +1038,13 @@ function AnimeSearchItem({ anime, selected, onSelect, libraryCollection }: {
                 <p className="text-xs text-[--muted] line-clamp-1">
                     {anime.title?.romaji}
                 </p>
+                
+                {/* Alternative titles / Synonyms */}
+                {synonyms.length > 0 && (
+                    <p className="text-[10px] text-[--muted] line-clamp-1 italic">
+                        aka: {synonyms.join(", ")}
+                    </p>
+                )}
 
                 {/* Season/Year and Status */}
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1033,7 +1063,7 @@ function AnimeSearchItem({ anime, selected, onSelect, libraryCollection }: {
                     )}
                 </div>
                 
-                {/* Format, Episodes, Score */}
+                {/* Format, Episodes, Score, Studios */}
                 <div className="flex items-center gap-2 flex-wrap text-xs text-[--muted]">
                     <span>{anime.episodes ? `${anime.episodes} eps` : "Unknown eps"}</span>
                     {anime.meanScore && (
@@ -1043,6 +1073,12 @@ function AnimeSearchItem({ anime, selected, onSelect, libraryCollection }: {
                                 <BiSolidStar className="text-yellow-500" />
                                 {anime.meanScore}%
                             </span>
+                        </>
+                    )}
+                    {studios.length > 0 && (
+                        <>
+                            <span>•</span>
+                            <span className="text-[--muted]">{studios.join(", ")}</span>
                         </>
                     )}
                 </div>

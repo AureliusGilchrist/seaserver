@@ -559,10 +559,10 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
     // Anime theme overrides (safe: null if provider not yet mounted — prevents crash hiding avatar)
     const animeTheme = useAnimeThemeOrNull()
     const animeConfig = animeTheme?.config ?? ANIME_THEMES["seanime"]
-    const applyFooterOverride = React.useCallback((item: { id: string, iconType: any, name: string, [k: string]: any }) => {
+    const applyFooterOverride = React.useCallback((item: VerticalMenuItem & { id: string }): VerticalMenuItem & { id: string } => {
         const ov = animeConfig.sidebarOverrides[item.id]
         if (!ov) return item
-        return { ...item, iconType: ov.icon, name: ov.label }
+        return { ...item, iconType: ov.icon ?? item.iconType, name: ov.label ?? item.name }
     }, [animeConfig.sidebarOverrides])
 
     // Extensions
