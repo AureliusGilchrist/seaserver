@@ -156,6 +156,8 @@ func NewConfig(options *ConfigOptions, logger *zerolog.Logger) (*Config, error) 
 	viper.SetDefault("offline.dir", "$SEANIME_DATA_DIR/offline")
 	viper.SetDefault("offline.assetDir", "$SEANIME_DATA_DIR/offline/assets")
 	viper.SetDefault("extensions.dir", "$SEANIME_DATA_DIR/extensions")
+	// Default to the seanime-themes submodule directory for marketplace themes
+	viper.SetDefault("marketplace.dir", "$SEANIME_WORKING_DIR/seanime-themes")
 
 	// Create and populate the config file if it doesn't exist
 	if err = createConfigFile(configPath); err != nil {
