@@ -396,13 +396,20 @@ func (h *Handler) HandleListUserThemes(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	// Get the active theme preference
+	var activeThemeID string
+	var pref models.ProfileThemePreference
+	if err := profileDB.Gorm().First(&pref).Error; err == nil {
+		activeThemeID = pref.ThemeID
+	}
+
 	result := make([]ThemeInfo, 0, len(themes))
 	for _, t := range themes {
 		result = append(result, ThemeInfo{
 			ID:          t.ThemeID,
 			DisplayName: t.DisplayName,
 			URL:         "/user-themes/" + t.ThemeID + "/theme.json",
-			IsActive:    t.IsActive,
+			IsActive:    t.ThemeID == activeThemeID,
 		})
 	}
 
@@ -464,7 +471,6 @@ func (h *Handler) HandleDownloadUserTheme(c echo.Context) error {
 		ThemeID:      themeID,
 		DisplayName:  displayName,
 		ThemeJSON:    string(data),
-		IsActive:     false,
 		DownloadedAt: time.Now(),
 	}
 
@@ -622,10 +628,8 @@ func (h *Handler) calculateMilestoneName(themeID string, level int) string {
 		return "" // Default theme has no milestone names
 	}
 
-	// Try to find theme in user's downloaded themes first
-	var userTheme models.UserTheme
-	// Note: This requires access to the profileDB which we don't have in this context
-	// So we'll try marketplace themes instead
+	// Note: Finding theme in user's downloaded themes requires access to the profileDB
+	// which we don't have in this context, so we'll try marketplace themes instead
 
 	// Try marketplace themes directory
 	if h.App.Config.Marketplace.Dir == "" {
