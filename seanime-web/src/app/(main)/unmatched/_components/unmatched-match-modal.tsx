@@ -54,6 +54,29 @@ function getAniListTitle(details: AL_AnimeDetailsById_Media | null | undefined):
     return title.romaji || title.english || title.native || title.userPreferred || null
 }
 
+// Extract episode number from filename using common patterns
+function extractEpisodeNumber(filename: string): number | null {
+    // Common patterns: E01, EP01, Episode 01, - 01, [01], S01E01, etc.
+    const patterns = [
+        /[Ee][Pp]?(\d{1,3})/,           // E01, EP01, e01, ep01
+        /[Ee]pisode\s*(\d{1,3})/i,      // Episode 01, episode 1
+        /-\s*(\d{1,3})\s*\./,           // - 01., - 1.
+        /\[(\d{1,3})\]/,                // [01], [1]
+        /\s(\d{1,3})\s*\./,             //  01.,  1.
+        /S\d{1,2}[Ee](\d{1,3})/,        // S01E01, s1e1
+        /\s(\d{2,3})\s*-\s*\d{1,2}/,    //  01 - 02 (multi-episode)
+    ]
+    
+    for (const pattern of patterns) {
+        const match = filename.match(pattern)
+        if (match) {
+            const num = parseInt(match[1], 10)
+            if (num > 0 && num < 1000) return num
+        }
+    }
+    return null
+}
+
 // Check if anime is already in the local library
 function isAnimeInLibrary(animeId: number, libraryCollection: any): boolean {
     if (!libraryCollection?.lists) return false
@@ -77,6 +100,8 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
     const [selectedAnime, setSelectedAnime] = useState<AL_BaseAnime | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
+    const [searchInputValue, setSearchInputValue] = useState("")
+    const [hasSearched, setHasSearched] = useState(false)
     const [expandedSeasons, setExpandedSeasons] = useState<Set<string>>(new Set())
     const [torrentContents, setTorrentContents] = useState<UnmatchedTorrent | null>(null)
     const [isLoadingContents, setIsLoadingContents] = useState(false)
@@ -210,39 +235,20 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setSelectedFiles(new Set())
     })
 
-    // Auto-search query: use the displayed anime title if no anime is selected yet
-    const autoSearchQuery = useMemo(() => {
-        if (selectedAnime || hasAutoSelectedAnime) return null
-
-        // Prefer AniList-fetched title if available
-        const aniListTitle = getAniListTitle(storedAnimeDetails)
-        if (aniListTitle) return aniListTitle
-
-        // Fall back to stored/torrent metadata
-        return torrentContents?.animeTitleRomaji || torrent?.animeTitleRomaji || null
-    }, [selectedAnime, hasAutoSelectedAnime, storedAnimeDetails, torrentContents?.animeTitleRomaji, torrent?.animeTitleRomaji])
-
-    // Use either manual search query or auto-search query
-    const effectiveSearchQuery = searchQuery || autoSearchQuery || ""
-
-    const { data: searchResults, isLoading: isSearching } = useAnilistListAnime({
-        search: effectiveSearchQuery,
+    // Search only triggers when user hits Enter or clicks Search button
+    const { data: searchResults, isLoading: isSearching, refetch: refetchSearch } = useAnilistListAnime({
+        search: searchQuery,
         page: 1,
         perPage: 20,
-    }, !!effectiveSearchQuery && effectiveSearchQuery.length >= 2)
-
-    // Pre-fill search input with torrent metadata to avoid manual typing
-    useEffect(() => {
-        if (!searchQuery && autoSearchQuery) {
-            setSearchQuery(autoSearchQuery)
-        }
-    }, [searchQuery, autoSearchQuery])
+    }, hasSearched && !!searchQuery && searchQuery.length >= 2)
 
     const resetState = useCallback(() => {
         setStep("select-files")
         setSelectedFiles(new Set())
         setSelectedAnime(null)
         setSearchQuery("")
+        setSearchInputValue("")
+        setHasSearched(false)
         setExpandedSeasons(new Set())
         setTorrentContents(null)
         setFetchedName(null)
@@ -252,14 +258,19 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setFamilyDetailId(null)
     }, [])
 
-    const handleManualSearch = useCallback(() => {
-        if (!searchQuery || searchQuery.length < 2) return
-        
-        // Invalidate the search query to trigger a refetch
-        queryClient.invalidateQueries({ 
-            queryKey: ["ANILIST-anilist-list-anime", { search: searchQuery, page: 1, perPage: 20 }] 
-        })
-    }, [searchQuery, queryClient])
+    const handleSearch = useCallback(() => {
+        if (!searchInputValue || searchInputValue.length < 2) return
+        setSearchQuery(searchInputValue)
+        setHasSearched(true)
+        // Trigger refetch
+        setTimeout(() => refetchSearch(), 0)
+    }, [searchInputValue, refetchSearch])
+
+    const handleSearchInputKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === "Enter") {
+            handleSearch()
+        }
+    }, [handleSearch])
 
     const handleClose = useCallback(() => {
         resetState()
@@ -504,13 +515,16 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                 <p className="text-xs text-[--muted]">Matching to:</p>
                                 <p className="font-semibold text-brand-200 line-clamp-1 flex items-center gap-2">
                                     <span>{displayAnimeTitle || torrent.name}</span>
-                                    {(displayEpisodeCount || displayStartYear || selectedAnime?.format) && (
+                                    {(displayEpisodeCount || displayStartYear || selectedAnime?.format || selectedFiles.size > 0) && (
                                         <span className="text-xs text-[--muted] flex items-center gap-2">
                                             {selectedAnime?.format && (
                                                 <span>{selectedAnime.format}</span>
                                             )}
                                             {typeof displayEpisodeCount === "number" && (
                                                 <span>· {displayEpisodeCount} eps</span>
+                                            )}
+                                            {selectedFiles.size > 0 && (
+                                                <span className="text-brand-300">· {selectedFiles.size} selected</span>
                                             )}
                                             {displayStartYear && (
                                                 <span>· {displayStartYear}</span>
@@ -691,23 +705,25 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                     )}
 
                     <div className="flex gap-2">
-                    <TextInput
-                        leftIcon={<BiSearch />}
-                        placeholder="Search for anime..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1"
-                    />
-                    <Button
-                        size="sm"
-                        intent="primary"
-                        onClick={handleManualSearch}
-                        disabled={!searchQuery || searchQuery.length < 2}
-                        leftIcon={<BiSearch />}
-                        className="px-3"
-                    >
-                    </Button>
-                </div>
+                        <TextInput
+                            leftIcon={<BiSearch />}
+                            placeholder="Search for anime..."
+                            value={searchInputValue}
+                            onChange={(e) => setSearchInputValue(e.target.value)}
+                            onKeyDown={handleSearchInputKeyDown}
+                            className="flex-1"
+                        />
+                        <Button
+                            size="sm"
+                            intent="primary"
+                            onClick={handleSearch}
+                            disabled={!searchInputValue || searchInputValue.length < 2}
+                            leftIcon={<BiSearch />}
+                            className="px-3"
+                        >
+                            Search
+                        </Button>
+                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <ScrollArea className="h-[400px] border rounded-md">
@@ -727,7 +743,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                         />
                                     ))}
                                 </div>
-                            ) : searchQuery.length >= 2 ? (
+                            ) : hasSearched ? (
                                 <div className="flex justify-center py-10 text-[--muted]">
                                     No results found
                                 </div>
@@ -916,6 +932,7 @@ function TreeNodeItem({
 
     // File node
     const isSelected = node.file ? selectedFiles.has(node.file.relativePath) : false
+    const episodeNum = extractEpisodeNumber(node.name)
 
     return (
         <div
@@ -926,7 +943,7 @@ function TreeNodeItem({
             style={{ paddingLeft: `${8 + depth * 16}px` }}
             onClick={() => node.file && toggleFile(node.file.relativePath)}
         >
-            <div className="flex items-start gap-2">
+            <div className="flex items-center gap-2">
                 <div className="flex-shrink-0">
                     <Checkbox
                         value={isSelected}
@@ -935,8 +952,13 @@ function TreeNodeItem({
                         fieldClass="w-auto"
                     />
                 </div>
-                <BiFile className="text-gray-400 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-gray-200">{node.name}</span>
+                <BiFile className="text-gray-400 flex-shrink-0" />
+                <span className="text-sm text-gray-200 flex-1 min-w-0 truncate">{node.name}</span>
+                {episodeNum !== null && (
+                    <span className="text-xs text-brand-300 flex-shrink-0 ml-2">
+                        Ep {episodeNum}
+                    </span>
+                )}
             </div>
         </div>
     )

@@ -111,3 +111,74 @@ export function prefetchMarketplaceThemeMeta(themeId: string): void {
         void fetchMarketplaceThemeMeta(themeId)
     }
 }
+
+/**
+ * Fetch the list of shared downloaded themes.
+ * These themes are available to all profiles.
+ */
+export async function fetchSharedThemesList(): Promise<SharedThemeInfo[]> {
+    if (sharedThemesCache !== null) return sharedThemesCache
+    if (sharedThemesInflight !== null) return sharedThemesInflight
+
+    const promise = (async () => {
+        try {
+            const url = `${getServerBaseUrl()}/api/v1/shared-themes`
+            const res = await fetch(url, { cache: "force-cache" })
+            if (!res.ok) { sharedThemesCache = []; return [] }
+            const themes = await res.json() as SharedThemeInfo[]
+            sharedThemesCache = themes
+            return themes
+        } catch {
+            sharedThemesCache = []
+            return []
+        } finally {
+            sharedThemesInflight = null
+        }
+    })()
+
+    sharedThemesInflight = promise
+    return promise
+}
+
+/** Clear the shared themes cache (call after downloading or deleting a theme). */
+export function clearSharedThemesCache(): void {
+    sharedThemesCache = null
+}
+
+/**
+ * Download a theme from the marketplace to the shared themes directory.
+ * Returns the downloaded theme info on success.
+ */
+export async function downloadSharedTheme(themeId: string): Promise<SharedThemeInfo | null> {
+    try {
+        const url = `${getServerBaseUrl()}/api/v1/shared-themes/download`
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ themeId }),
+        })
+        if (!res.ok) return null
+        const result = await res.json() as SharedThemeInfo
+        clearSharedThemesCache() // Clear cache so list refreshes
+        return result
+    } catch {
+        return null
+    }
+}
+
+/**
+ * Delete a shared theme from the shared themes directory.
+ */
+export async function deleteSharedTheme(themeId: string): Promise<boolean> {
+    try {
+        const url = `${getServerBaseUrl()}/api/v1/shared-themes/${encodeURIComponent(themeId)}`
+        const res = await fetch(url, { method: "DELETE" })
+        if (res.ok) {
+            clearSharedThemesCache() // Clear cache so list refreshes
+            return true
+        }
+        return false
+    } catch {
+        return false
+    }
+}
