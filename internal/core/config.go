@@ -470,6 +470,7 @@ func expandEnvironmentValues(cfg *Config) {
 	cfg.Extensions.Dir = filepath.FromSlash(os.ExpandEnv(cfg.Extensions.Dir))
 	cfg.Server.Tls.CertPath = filepath.FromSlash(os.ExpandEnv(cfg.Server.Tls.CertPath))
 	cfg.Server.Tls.KeyPath = filepath.FromSlash(os.ExpandEnv(cfg.Server.Tls.KeyPath))
+	cfg.Marketplace.Dir = filepath.FromSlash(os.ExpandEnv(cfg.Marketplace.Dir))
 }
 
 // createConfigFile creates a default config file if it doesn't exist
