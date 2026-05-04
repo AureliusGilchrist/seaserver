@@ -88,15 +88,41 @@ function WebsocketManagement() {
     // next reconnect succeeds.
     const serverAuthToken = useAtomValue(serverAuthTokenAtom)
     const serverAuthTokenRef = React.useRef(serverAuthToken)
+    const prevServerTokenRef = React.useRef(serverAuthToken)
     React.useEffect(() => {
         serverAuthTokenRef.current = serverAuthToken
+    }, [serverAuthToken])
+
+    // Reconnect websocket when server auth token changes
+    React.useEffect(() => {
+        if (serverAuthToken !== prevServerTokenRef.current) {
+            logger("WebsocketProvider").info("Server auth token changed, reconnecting websocket")
+            prevServerTokenRef.current = serverAuthToken
+            if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+                socketRef.current.close(1000, "Server auth token changed")
+            }
+        }
     }, [serverAuthToken])
 
     // Profile session token for profile-scoped WS events
     const profileSessionToken = useAtomValue(profileSessionTokenAtom)
     const profileSessionTokenRef = React.useRef(profileSessionToken)
+    const prevProfileTokenRef = React.useRef(profileSessionToken)
     React.useEffect(() => {
         profileSessionTokenRef.current = profileSessionToken
+    }, [profileSessionToken])
+
+    // Reconnect websocket when profile token changes to establish correct profile context
+    React.useEffect(() => {
+        // Only reconnect if token actually changed and we had a previous value
+        if (profileSessionToken !== prevProfileTokenRef.current) {
+            logger("WebsocketProvider").info("Profile token changed, reconnecting websocket")
+            prevProfileTokenRef.current = profileSessionToken
+            // Trigger reconnection by closing current socket
+            if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+                socketRef.current.close(1000, "Profile token changed")
+            }
+        }
     }, [profileSessionToken])
 
     const [, setClientId] = useAtom(clientIdAtom)

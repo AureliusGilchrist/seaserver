@@ -730,7 +730,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         <AnimeThemeContext.Provider value={value}>
             {children}
             <AnimeThemeMusicPlayer />
-            {config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} />}
+            {config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} vignetteStrength={vignetteStrength} vignetteSize={vignetteSize} glowStrength={glowStrength} glowSpeed={glowSpeed} glowScale={glowScale} />}
             {config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
         </AnimeThemeContext.Provider>
     )
@@ -775,7 +775,7 @@ function AnimeThemeMusicPlayer() {
 // Theme Background Image
 // ─────────────────────────────────────────────────────────────────
 
-function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, scanlinesStrength = 0, scanlinesSize = 0.5, noiseStrength = 0, noiseSpeed = 1 }: { url: string; dim?: number; blur?: number; exposure?: number; saturation?: number; contrast?: number; scanlinesStrength?: number; scanlinesSize?: number; noiseStrength?: number; noiseSpeed?: number }) {
+function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, scanlinesStrength = 0, scanlinesSize = 0.5, noiseStrength = 0, noiseSpeed = 1, vignetteStrength = 0, vignetteSize = 0.5, glowStrength = 0, glowSpeed = 2, glowScale = 0.5 }: { url: string; dim?: number; blur?: number; exposure?: number; saturation?: number; contrast?: number; scanlinesStrength?: number; scanlinesSize?: number; noiseStrength?: number; noiseSpeed?: number; vignetteStrength?: number; vignetteSize?: number; glowStrength?: number; glowSpeed?: number; glowScale?: number }) {
     const previewMode = useAtomValue(wallpaperPreviewModeAtom)
     const effectiveDim = previewMode ? 0.05 : (dim ?? 0.65)
     const opacity = 1 - effectiveDim
@@ -824,6 +824,34 @@ function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, 
                             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
                             backgroundSize: "200px 200px",
                             animation: `sea-noise ${noiseAnimDuration} steps(2) infinite`,
+                        }}
+                    />
+                </>
+            )}
+            {/* Vignette effect */}
+            {vignetteStrength > 0 && (
+                <div
+                    style={{
+                        position: "absolute",
+                        inset: 0,
+                        background: `radial-gradient(ellipse at center, transparent ${Math.max(0, 60 - vignetteSize * 30)}%, rgba(0,0,0,${Math.min(0.92, vignetteStrength * 0.85)}) 100%)`,
+                        pointerEvents: "none",
+                    }}
+                />
+            )}
+            {/* Shimmer Glow effect */}
+            {glowStrength > 0 && (
+                <>
+                    <style>{`@keyframes sea-shimmer-glow{0%{opacity:0.4;transform:scale(0.9)}50%{opacity:1;transform:scale(1.1)}100%{opacity:0.4;transform:scale(0.9)}}`}</style>
+                    <div
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            background: `radial-gradient(ellipse at center, rgba(255,255,255,${glowStrength * 0.40}) 0%, transparent 65%)`,
+                            mixBlendMode: "screen",
+                            animation: `sea-shimmer-glow ${(2 / glowSpeed).toFixed(2)}s ease-in-out infinite`,
+                            transform: `scale(${glowScale})`,
+                            pointerEvents: "none",
                         }}
                     />
                 </>

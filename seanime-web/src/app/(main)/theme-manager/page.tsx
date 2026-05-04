@@ -2,7 +2,7 @@
 import React from "react"
 import { useAnimeTheme, deriveBrandShades, wallpaperPreviewModeAtom } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { useSetAtom } from "jotai"
-import { ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
+import { ANIME_THEMES, ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
 import type { AnimeThemeId, AnimeThemeConfig } from "@/lib/theme/anime-themes"
 import {
     DEFAULT_CUSTOM_THEME_DATA,
@@ -959,104 +959,238 @@ function WallpaperShopTab({
     setActiveBackgroundUrl: (url: string | null) => void
     deleteMutation: ReturnType<typeof useDeleteThemeBackground>
     downloadBgMutation: ReturnType<typeof useDownloadThemeBackground>
-    config: { backgroundImageUrl?: string; fontFamily?: string }
+    config: { backgroundImageUrl?: string; fontFamily?: string; id?: string; displayName?: string }
     resolveThemeBgUrl: (url: string) => string
 }) {
     const [pickerOpen, setPickerOpen] = React.useState(false)
+    const theme = ANIME_THEMES[themeId as AnimeThemeId]
 
     return (
-        <div className="space-y-8">
-            {/* Downloaded wallpapers for this theme */}
-            <div className="rounded-2xl border border-[--border] bg-[--paper] p-6 space-y-4">
+        <div className="space-y-6">
+            {/* Your Downloads — half-height scrollable for current theme only */}
+            <div className="rounded-2xl border border-[--border] bg-[--paper] p-4 space-y-3">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-lg font-semibold">Your Wallpapers</h2>
+                        <h2 className="text-base font-semibold">Your Downloads</h2>
                         <p className="text-xs text-[--muted] mt-0.5">
-                            Showing {themedDownloadedBgs.length} wallpaper{themedDownloadedBgs.length !== 1 ? "s" : ""} for this theme
-                            {downloadedBgs.length !== themedDownloadedBgs.length && (
-                                <span> · {downloadedBgs.length} total across all themes</span>
-                            )}
+                            {themedDownloadedBgs.length} wallpaper{themedDownloadedBgs.length !== 1 ? "s" : ""} for {theme?.displayName ?? "this theme"}
                         </p>
                     </div>
                     <button
                         onClick={() => setPickerOpen(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[--color-brand-600] hover:bg-[--color-brand-500] text-white text-xs font-medium transition-colors"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[--color-brand-600] hover:bg-[--color-brand-500] text-white text-xs font-medium transition-colors"
                     >
                         <LuSearch className="w-3 h-3" />
-                        Browse Wallhaven
+                        Search Wallhaven
                     </button>
                 </div>
 
-                {themedDownloadedBgs.length === 0 && !bgsLoading ? (
-                    <div className="text-center py-12 text-[--muted] text-sm border border-dashed border-[--border] rounded-xl">
-                        <LuImage className="w-8 h-8 mx-auto mb-3 opacity-40" />
-                        <p>No wallpapers downloaded for this theme yet.</p>
-                        <p className="text-xs mt-1">Browse the shop below or search Wallhaven to add some.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                        {config.backgroundImageUrl && (
-                            <button
-                                onClick={() => setActiveBackgroundUrl(config.backgroundImageUrl!)}
-                                className={cn(
-                                    "relative aspect-video rounded-lg overflow-hidden border-2 transition-all",
-                                    activeBackgroundUrl === config.backgroundImageUrl
-                                        ? "border-[--color-brand-400]"
-                                        : "border-transparent hover:border-white/30",
-                                )}
-                            >
-                                <img src={config.backgroundImageUrl} alt="Default" className="w-full h-full object-cover" loading="lazy" />
-                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-[9px] text-white/70 text-center py-0.5">Default</div>
-                            </button>
-                        )}
-                        {bgsLoading && !downloadedBgs.length && Array.from({ length: 4 }).map((_, i) => (
-                            <div key={i} className="aspect-video rounded-lg bg-white/5 animate-pulse" />
-                        ))}
-                        {themedDownloadedBgs.map(bg => (
-                            <div key={bg.filename} className="relative group">
+                {/* Half-height scrollable container */}
+                <div className="max-h-[50vh] overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
+                    {themedDownloadedBgs.length === 0 && !bgsLoading ? (
+                        <div className="text-center py-8 text-[--muted] text-sm border border-dashed border-[--border] rounded-xl">
+                            <LuImage className="w-6 h-6 mx-auto mb-2 opacity-40" />
+                            <p>No wallpapers downloaded yet.</p>
+                            <p className="text-xs mt-1">Search Wallhaven or browse new wallpapers below.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                            {config.backgroundImageUrl && (
                                 <button
-                                    onClick={() => setActiveBackgroundUrl(resolveThemeBgUrl(bg.url))}
+                                    onClick={() => setActiveBackgroundUrl(config.backgroundImageUrl!)}
                                     className={cn(
-                                        "relative aspect-video w-full rounded-lg overflow-hidden border-2 transition-all",
-                                        activeBackgroundUrl === resolveThemeBgUrl(bg.url)
+                                        "relative aspect-video rounded-lg overflow-hidden border-2 transition-all",
+                                        activeBackgroundUrl === config.backgroundImageUrl
                                             ? "border-[--color-brand-400]"
                                             : "border-transparent hover:border-white/30",
                                     )}
                                 >
-                                    <img src={resolveThemeBgUrl(bg.url)} alt="" className="w-full h-full object-cover" loading="lazy" />
-                                    {activeBackgroundUrl === resolveThemeBgUrl(bg.url) && (
-                                        <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-[--color-brand-500] flex items-center justify-center">
-                                            <LuCheck className="w-2.5 h-2.5 text-white" />
-                                        </div>
-                                    )}
+                                    <img src={config.backgroundImageUrl} alt="Default" className="w-full h-full object-cover" loading="lazy" />
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-[9px] text-white/70 text-center py-0.5">Default</div>
                                 </button>
-                                <button
-                                    onClick={() => {
-                                        deleteMutation.mutate(bg.filename)
-                                        if (activeBackgroundUrl === resolveThemeBgUrl(bg.url)) setActiveBackgroundUrl(config.backgroundImageUrl ?? null)
-                                    }}
-                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px]"
-                                >✕</button>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                            )}
+                            {bgsLoading && !downloadedBgs.length && Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className="aspect-video rounded-lg bg-white/5 animate-pulse" />
+                            ))}
+                            {themedDownloadedBgs.map(bg => (
+                                <div key={bg.filename} className="relative group">
+                                    <button
+                                        onClick={() => setActiveBackgroundUrl(resolveThemeBgUrl(bg.url))}
+                                        className={cn(
+                                            "relative aspect-video w-full rounded-lg overflow-hidden border-2 transition-all",
+                                            activeBackgroundUrl === resolveThemeBgUrl(bg.url)
+                                                ? "border-[--color-brand-400]"
+                                                : "border-transparent hover:border-white/30",
+                                        )}
+                                    >
+                                        <img src={resolveThemeBgUrl(bg.url)} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                        {activeBackgroundUrl === resolveThemeBgUrl(bg.url) && (
+                                            <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-[--color-brand-500] flex items-center justify-center">
+                                                <LuCheck className="w-2.5 h-2.5 text-white" />
+                                            </div>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            deleteMutation.mutate(bg.filename)
+                                            if (activeBackgroundUrl === resolveThemeBgUrl(bg.url)) setActiveBackgroundUrl(config.backgroundImageUrl ?? null)
+                                        }}
+                                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px]"
+                                    >✕</button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Wallpaper shop — browse by theme */}
-            <div className="rounded-2xl border border-[--border] bg-[--paper] overflow-hidden">
-                <div className="px-6 py-4 border-b border-[--border]">
-                    <h2 className="text-lg font-semibold">Wallpaper Shop</h2>
-                    <p className="text-xs text-[--muted] mt-0.5">Browse curated wallpapers by anime theme. Click a theme card to open its wallpaper collection.</p>
+            {/* New Wallpapers — current theme only */}
+            {config.id !== "seanime" && (
+                <div className="rounded-2xl border border-[--border] bg-[--paper] overflow-hidden">
+                    <div className="px-4 py-3 border-b border-[--border] bg-[--paper]">
+                        <h2 className="text-base font-semibold">New Wallpapers</h2>
+                        <p className="text-xs text-[--muted] mt-0.5">Discover and download new wallpapers for {theme?.displayName ?? "this theme"}</p>
+                    </div>
+                    <div className="p-4">
+                        <CurrentThemeWallpaperRow
+                            themeId={themeId as AnimeThemeId}
+                            downloadedBgs={downloadedBgs}
+                            activeBackgroundUrl={activeBackgroundUrl}
+                            setActiveBackgroundUrl={setActiveBackgroundUrl}
+                            downloadBgMutation={downloadBgMutation}
+                        />
+                    </div>
                 </div>
-                <div className="p-6">
-                    <WallpaperShop />
-                </div>
-            </div>
+            )}
 
             <WallhavenPickerModal open={pickerOpen} onClose={() => setPickerOpen(false)} />
         </div>
     )
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Current Theme Wallpaper Row — shows Wallhaven wallpapers for current theme
+// ─────────────────────────────────────────────────────────────────
+
+function CurrentThemeWallpaperRow({
+    themeId,
+    downloadedBgs,
+    activeBackgroundUrl,
+    setActiveBackgroundUrl,
+    downloadBgMutation,
+}: {
+    themeId: AnimeThemeId
+    downloadedBgs: ThemeBgFile[]
+    activeBackgroundUrl: string | null
+    setActiveBackgroundUrl: (url: string | null) => void
+    downloadBgMutation: ReturnType<typeof useDownloadThemeBackground>
+}) {
+    const [downloadingIds, setDownloadingIds] = React.useState<Set<string>>(new Set())
+    const theme = ANIME_THEMES[themeId]
+    const query = WALLHAVEN_CURATED_QUERY[themeId]
+
+    const { data, isFetching, isError } = useSearchWallhaven(query, 1, !!query)
+    const wallpapers: WallhavenWallpaper[] = data?.data?.slice(0, 12) ?? []
+
+    // Map from wallhaven ID → local URL
+    const downloadedIdMap = React.useMemo(() => {
+        const m = new Map<string, string>()
+        downloadedBgs.forEach(bg => {
+            const id = extractWallhavenId(bg.url)
+            m.set(id, bg.url)
+        })
+        return m
+    }, [downloadedBgs])
+
+    const isDownloaded = (w: WallhavenWallpaper) => downloadedIdMap.has(w.id)
+    const localUrl = (w: WallhavenWallpaper) => downloadedIdMap.get(w.id) ?? null
+
+    const handleDownload = async (w: WallhavenWallpaper) => {
+        setDownloadingIds(prev => new Set(prev).add(w.id))
+        try {
+            const result = await downloadBgMutation.mutateAsync({ url: w.path, themeId })
+            if (result) setActiveBackgroundUrl(result.url)
+        } catch { /* ignored */ } finally {
+            setDownloadingIds(prev => { const s = new Set(prev); s.delete(w.id); return s })
+        }
+    }
+
+    if (isError) {
+        return <p className="text-xs text-red-400 py-2">Could not load wallpapers.</p>
+    }
+
+    if (!query) {
+        return (
+            <div className="text-center py-6 text-[--muted] text-sm">
+                <p>No curated wallpapers available for this theme.</p>
+                <p className="text-xs mt-1">Use the search button above to find wallpapers on Wallhaven.</p>
+            </div>
+        )
+    }
+
+    return (
+        <div className="space-y-3">
+            {isFetching && wallpapers.length === 0 && (
+                <div className="flex gap-2 overflow-x-auto">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="shrink-0 rounded-xl bg-white/5 animate-pulse" style={{ width: 160, height: 100 }} />
+                    ))}
+                </div>
+            )}
+
+            {wallpapers.length > 0 && (
+                <>
+                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "thin" }}>
+                        {wallpapers.map(w => (
+                            <div key={w.id} className="relative group shrink-0 rounded-xl overflow-hidden border-2 transition-all"
+                                style={{ width: 160, height: 100, borderColor: activeBackgroundUrl && (activeBackgroundUrl === localUrl(w) || activeBackgroundUrl.includes(w.id)) ? "var(--color-brand-400)" : "transparent" }}
+                            >
+                                <img src={w.thumbs.small} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                {isDownloaded(w) && !downloadingIds.has(w.id) && (
+                                    <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-green-500/90 flex items-center justify-center">
+                                        <LuCheck className="w-3 h-3 text-white" />
+                                    </div>
+                                )}
+                                <div className="absolute bottom-1 left-1 bg-black/60 text-white/60 text-[9px] px-1 rounded">{w.resolution}</div>
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                    {downloadingIds.has(w.id) && (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    )}
+                                    {!downloadingIds.has(w.id) && !isDownloaded(w) && (
+                                        <button onClick={() => handleDownload(w)}
+                                            className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center transition-colors">
+                                            <LuDownload className="w-4 h-4 text-white" />
+                                        </button>
+                                    )}
+                                    {!downloadingIds.has(w.id) && isDownloaded(w) && (
+                                        <button onClick={() => { const url = localUrl(w); if (url) setActiveBackgroundUrl(url) }}
+                                            className="w-9 h-9 rounded-full bg-[--color-brand-500]/80 hover:bg-[--color-brand-400] flex items-center justify-center transition-colors">
+                                            <LuImage className="w-4 h-4 text-white" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="text-[10px] text-[--muted]">{wallpapers.length} curated wallpapers from Wallhaven</p>
+                </>
+            )}
+        </div>
+    )
+}
+
+/** Extract the Wallhaven wallpaper ID from either a CDN URL or a local /theme-bg/ URL. */
+function extractWallhavenId(url: string): string {
+    // CDN URL: https://w.wallhaven.cc/full/ab/wallhaven-abc123.jpg  → "abc123"
+    const cdnMatch = url.match(/wallhaven-([a-zA-Z0-9]+)\.[a-z]+$/)
+    if (cdnMatch) return cdnMatch[1]
+    // New themed local URL: /theme-bg/wh-{themeId}-abc123.jpg  → "abc123"
+    const themedMatch = url.match(/\/wh-[^-]+-([a-zA-Z0-9]+)\.[a-z]+$/)
+    if (themedMatch) return themedMatch[1]
+    // Legacy local URL: /theme-bg/wh-abc123.jpg  → "abc123"
+    const localMatch = url.match(/\/wh-([a-zA-Z0-9]+)\.[a-z]+$/)
+    if (localMatch) return localMatch[1]
+    return url // fallback: use full URL as key
 }
 
 // ─────────────────────────────────────────────────────────────────
