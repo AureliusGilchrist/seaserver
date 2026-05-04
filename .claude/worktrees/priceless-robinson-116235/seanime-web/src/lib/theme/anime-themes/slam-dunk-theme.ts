@@ -1,4 +1,4 @@
-import { AnimeThemeConfig } from "./types"
+﻿import { AnimeThemeConfig } from "./types"
 import {
     GiMuscleUp,
     GiTrophyCup,
@@ -26,7 +26,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
     fontFamily: "'Fredoka One', sans-serif",
     fontHref: "https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap",
     cssVars: {
-        // Brand → fiery court red
+        // Brand â†’ fiery court red
         "--color-brand-200": "255 185 175",
         "--color-brand-300": "255 130 115",
         "--color-brand-400": "235 75 55",
@@ -75,7 +75,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "settings": { icon: GiSettingsKnobs, label: "Coach's Office" },
     },
     achievementNames: {
-        // ── ANIME MILESTONES ──
+        // â”€â”€ ANIME MILESTONES â”€â”€
         "a_first_episode": "First Day at Shohoku",
         "a_episode_counter": "Episode Rebound Count",
         "a_episode_titan": "Blockbuster Dunk Episode",
@@ -107,7 +107,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_first_favorite": "First Teammate Bond",
         "a_favorites_collector": "Shohoku Bond Collector",
 
-        // ── ANIME BINGE ──
+        // â”€â”€ ANIME BINGE â”€â”€
         "a_binge_watcher": "Non-Stop Practice Run",
         "a_marathon_runner": "Full Court Marathon",
         "a_weekend_warrior": "Weekend Tournament Fighter",
@@ -137,7 +137,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_midnight_binge": "Midnight Gym Session",
         "a_new_year_binge": "New Year's Training Blitz",
 
-        // ── ANIME GENRES ──
+        // â”€â”€ ANIME GENRES â”€â”€
         "a_genre_action": "High-Flying Action Plays",
         "a_genre_adventure": "Road to the Nationals",
         "a_genre_comedy": "Sakuragi's Gag Moment",
@@ -177,7 +177,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_tag_josei": "Deep Devotion to the Game",
         "a_tag_survival": "Survival on the Court",
 
-        // ── ANIME COMPLETION ──
+        // â”€â”€ ANIME COMPLETION â”€â”€
         "a_completionist": "Full Season Report Card",
         "a_mega_completionist": "National Champion Status",
         "a_completion_rate_50": "Halfway to the Nationals",
@@ -207,7 +207,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_yearly_completions": "Yearly Season Champion",
         "a_rapid_complete": "Lightning Fast Win",
 
-        // ── ANIME DEDICATION ──
+        // â”€â”€ ANIME DEDICATION â”€â”€
         "a_loyal_fan": "Loyal Shohoku Supporter",
         "a_studio_devotee": "Toei Animation Devotee",
         "a_rewatcher": "Game Tape Rewatcher",
@@ -237,7 +237,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_year_dedication": "Year of Shohoku Devotion",
         "a_season_dedication": "Season of Unwavering Support",
 
-        // ── ANIME DISCOVERY ──
+        // â”€â”€ ANIME DISCOVERY â”€â”€
         "a_genre_explorer": "Scout Beyond the Court",
         "a_studio_hopper": "Team Transfer Scout",
         "a_tag_explorer": "Tag Recon Scouting Mission",
@@ -267,7 +267,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_short_series_explorer": "Short Match Explorer",
         "a_long_series_explorer": "Long Season Explorer",
 
-        // ── ANIME TIME ──
+        // â”€â”€ ANIME TIME â”€â”€
         "a_night_owl": "Late Night Practice Run",
         "a_early_bird": "Dawn Warm-Up Routine",
         "a_lunch_break": "Lunch Break Pickup Game",
@@ -295,7 +295,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_every_day_of_week": "Every Day on the Court",
         "a_monthly_hours": "Monthly Court Hours",
 
-        // ── ANIME SOCIAL ──
+        // â”€â”€ ANIME SOCIAL â”€â”€
         "a_first_party": "First Team Formation",
         "a_party_host": "Team Captain Leader",
         "a_social_butterfly": "Locker Room Socialite",
@@ -317,7 +317,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_party_completionist": "Party Watch Completionist",
         "a_social_scorer": "Social Play Scorer",
 
-        // ── ANIME SPECIAL ──
+        // â”€â”€ ANIME SPECIAL â”€â”€
         "a_round_number": "Round Number Milestone",
         "a_fibonacci": "Fibonacci Score Sequence",
         "a_palindrome_day": "Palindrome Game Day",
@@ -345,7 +345,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_exact_hundred_eps": "Exact Hundred Episodes",
         "a_year_match_count": "Year Match Point Count",
 
-        // ── ANIME FORMATS ──
+        // â”€â”€ ANIME FORMATS â”€â”€
         "a_tv_watcher": "TV Broadcast Fan",
         "a_movie_buff": "Basketball Movie Fan",
         "a_ova_hunter": "OVA Content Hunter",
@@ -371,7 +371,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_sequel_movie": "Sequel Movie Viewer",
         "a_recap_watcher": "Recap Episode Viewer",
 
-        // ── ANIME STREAKS ──
+        // â”€â”€ ANIME STREAKS â”€â”€
         "a_daily_streak": "Daily Practice Streak",
         "a_mega_streak": "Mega Season Streak",
         "a_weekly_warrior": "Weekly Court Warrior",
@@ -399,7 +399,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_studio_streak": "Studio Loyalty Streak",
         "a_perfect_week": "Perfect Week of Play",
 
-        // ── ANIME SCORING ──
+        // â”€â”€ ANIME SCORING â”€â”€
         "a_critic": "Harsh Game Critic",
         "a_perfect_ten": "Perfect Ten Performance",
         "a_harsh_critic": "Rukawa's Critical Eye",
@@ -425,7 +425,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_genre_critic": "Genre Tactical Critic",
         "a_mean_above_8": "Elite Performance Average",
 
-        // ── ANIME HOLIDAY ──
+        // â”€â”€ ANIME HOLIDAY â”€â”€
         "a_new_years_resolution": "New Year's Basketball Vow",
         "a_valentines_weeb": "Valentine's Game Day",
         "a_pi_day": "Pi Day Court Calculation",
@@ -451,7 +451,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_every_holiday": "Every Holiday Player",
         "a_consecutive_holidays": "Consecutive Holiday Games",
 
-        // ── ANIME META ──
+        // â”€â”€ ANIME META â”€â”€
         "a_meta_first_unlock": "First Skill Unlocked on Court",
         "a_meta_collector": "Achievement Badge Collector",
         "a_meta_category_starter": "Category Starter Award",
@@ -465,7 +465,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "a_meta_diverse": "Diverse Achievement Portfolio",
         "a_meta_dominator": "Meta Dominator Player",
 
-        // ── MANGA MILESTONES ──
+        // â”€â”€ MANGA MILESTONES â”€â”€
         "m_first_chapter": "First Chapter on the Court",
         "m_chapter_counter": "Chapter Play Counter",
         "m_chapter_titan": "Blockbuster Chapter Dunk",
@@ -499,7 +499,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_favorites_collector": "Manga Favorites Roster",
         "m_days_spent_reading": "Days in the Reading Gym",
 
-        // ── MANGA BINGE ──
+        // â”€â”€ MANGA BINGE â”€â”€
         "m_binge_reader": "Binge Read Fast Break",
         "m_marathon_reader": "Wall-to-Wall Reading Marathon",
         "m_weekend_reader": "Weekend Manga Session",
@@ -531,7 +531,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_forty_eight_hour": "Forty-Eight Hour Read",
         "m_oneshot_binge": "Oneshot Binge Attack",
 
-        // ── MANGA GENRES ──
+        // â”€â”€ MANGA GENRES â”€â”€
         "m_genre_action": "Action Chapter Specialist",
         "m_genre_adventure": "Adventure on the Court",
         "m_genre_comedy": "Comedy Panel Moment",
@@ -573,7 +573,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_tag_medical": "Sports Medicine Manual",
         "m_tag_villainess": "Rival School Villain",
 
-        // ── MANGA COMPLETION ──
+        // â”€â”€ MANGA COMPLETION â”€â”€
         "m_completionist": "Full Volume Completionist",
         "m_mega_completionist": "Supreme Reader Champion",
         "m_completion_rate_50": "Halfway to the Finals",
@@ -605,7 +605,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_rapid_complete": "Rapid Volume Clear",
         "m_author_complete": "Inoue Complete Works",
 
-        // ── MANGA DEDICATION ──
+        // â”€â”€ MANGA DEDICATION â”€â”€
         "m_loyal_reader": "Loyal Shohoku Reader",
         "m_mangaka_lover": "Inoue Takehiko Devotee",
         "m_rereader": "Tape Review Rereader",
@@ -635,7 +635,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_ongoing_follower": "Ongoing Series Follower",
         "m_genre_loyalty_50": "Fifty Chapters Loyal",
 
-        // ── MANGA DISCOVERY ──
+        // â”€â”€ MANGA DISCOVERY â”€â”€
         "m_genre_explorer": "Genre Scout Beyond Court",
         "m_publisher_hopper": "Publisher Transfer Scout",
         "m_tag_explorer": "Tag Recon Reader",
@@ -665,7 +665,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_long_manga_explorer": "Long Manga Explorer",
         "m_serialization_explorer": "Serialization Explorer",
 
-        // ── MANGA TIME ──
+        // â”€â”€ MANGA TIME â”€â”€
         "m_night_owl": "Late Night Reading",
         "m_early_bird": "Early Morning Read",
         "m_lunch_reader": "Lunch Break Reader",
@@ -693,7 +693,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_monthly_hours": "Monthly Read Hours",
         "m_bedtime_reader": "Bedtime Barracks Reader",
 
-        // ── MANGA CREATIVE ──
+        // â”€â”€ MANGA CREATIVE â”€â”€
         "m_art_appreciator": "Inoue Court Art Appreciator",
         "m_webtoon_reader": "Webtoon Reader",
         "m_full_color": "Full Color Volume",
@@ -721,7 +721,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_remake_reader": "Remake Edition Reader",
         "m_collaboration_reader": "Collaboration Work Reader",
 
-        // ── MANGA STREAKS ──
+        // â”€â”€ MANGA STREAKS â”€â”€
         "m_daily_streak": "Daily Chapter Streak",
         "m_mega_streak": "Mega Read Streak",
         "m_weekly_warrior": "Weekly Read Warrior",
@@ -751,7 +751,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_perfect_week_manga": "Perfect Reading Week",
         "m_diverse_streak": "Diverse Read Streak",
 
-        // ── MANGA SCORING ──
+        // â”€â”€ MANGA SCORING â”€â”€
         "m_critic": "Chapter Critic Badge",
         "m_perfect_ten": "Perfect Ten Chapter",
         "m_harsh_critic": "Harsh Read Critic",
@@ -779,7 +779,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_genre_critic": "Genre Critic Badge",
         "m_mean_above_8": "Above Average Reader",
 
-        // ── MANGA HOLIDAY ──
+        // â”€â”€ MANGA HOLIDAY â”€â”€
         "m_new_years_resolution": "New Year's Read Goal",
         "m_valentines_read": "Valentine's Read Day",
         "m_pi_day": "Pi Day Read Count",
@@ -805,7 +805,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_every_holiday_reader": "Every Holiday Reader",
         "m_consecutive_holidays": "Consecutive Holiday Reads",
 
-        // ── MANGA SPECIAL ──
+        // â”€â”€ MANGA SPECIAL â”€â”€
         "m_round_number": "Round Number Read",
         "m_fibonacci": "Fibonacci Chapter Pattern",
         "m_palindrome_day": "Palindrome Read Day",
@@ -833,7 +833,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_year_match_count": "Year Match Chapter",
         "m_chapter_match_date": "Chapter Date Match",
 
-        // ── MANGA FORMATS ──
+        // â”€â”€ MANGA FORMATS â”€â”€
         "m_manga_format": "Manga Format Specialist",
         "m_manhwa_format": "Manhwa Format Reader",
         "m_manhua_format": "Manhua Format Reader",
@@ -843,7 +843,7 @@ export const slamDunkTheme: AnimeThemeConfig = {
         "m_novel_format": "Novel Format Reader",
         "m_format_master_manga": "Format Master Reader",
 
-        // ── MANGA META ──
+        // â”€â”€ MANGA META â”€â”€
         "m_meta_first_unlock": "First Reader Power Unlocked",
         "m_meta_collector": "Badge Collector Reader",
         "m_meta_category_starter": "Category Start Badge",
@@ -876,13 +876,155 @@ export const slamDunkTheme: AnimeThemeConfig = {
         net_swoosh: { label: "Net Swoosh", maxCount: 8, defaultEnabled: true, defaultIntensity: 50 },
     },
     milestoneNames: {
-        1:   "Complete Beginner",
-        5:   "Shohoku Freshman",
-        15:  "Sakuragi the Rookie",
-        30:  "First Game Win",
-        45:  "Acknowledged by Akagi",
-        60:  "Interhigh Qualifier",
-        80:  "National Tournament",
-        100: "Japan's Best",
+        1:   "Basketball Manager",
+        8:   "Team Substitute",
+        14:  "Regular Player",
+        21:  "Starting Five",
+        28:  "Prefectural Qualifier",
+        35:  "Prefectural Tournament",
+        41:  "Prefectural Semifinalist",
+        48:  "Prefectural Finalist",
+        55:  "Prefectural Champion",
+        61:  "Regional Qualifier",
+        68:  "Regional Tournament",
+        75:  "Regional Champion",
+        81:  "National Qualifier",
+        88:  "National Tournament",
+        95:  "National Top 16",
+        102: "National Top 8",
+        108: "National Quarterfinal",
+        115: "National Semifinal",
+        122: "National Final",
+        128: "National Champion",
+        135: "Sakuragi Hanamichi — Freshman",
+        142: "Sakuragi — 100 Practice Shots",
+        149: "Sakuragi — 20000 Shots",
+        155: "Sakuragi — Rebound King",
+        162: "Rukawa Kaede — Ace",
+        169: "Rukawa — All-Japan Candidate",
+        175: "Akagi Takenori — Center",
+        182: "Akagi — Captain",
+        189: "Miyagi Ryota — Guard",
+        195: "Mitsui Hisashi — 3-Point King",
+        202: "Anzai Mitsuyoshi — Coach",
+        209: "Shohoku First Year — Starting",
+        216: "Shohoku Top Form",
+        222: "Shoyo — Defeated",
+        229: "Ryonan — Defeated",
+        236: "Kainan — Defeated",
+        242: "Takezato — Defeated",
+        249: "Sannoh — Challenged",
+        256: "Sannoh — Defeated",
+        262: "Akira Sendoh — Rival",
+        269: "Fujima Kenji — Rival",
+        276: "Sawakita Eiji — Encountered",
+        283: "Uozumi Jun — Encountered",
+        289: "Maki Shinichi — Encountered",
+        296: "Shohoku — Best Five",
+        303: "Prefectural MVP",
+        309: "Regional MVP",
+        316: "National MVP",
+        323: "Rising Star",
+        330: "All-Japan Candidate",
+        336: "All-Japan — Selected",
+        343: "Japan's Best Player",
+        350: "World Stage Aspirant",
+        356: "Under-18 National",
+        363: "Under-20 National",
+        370: "Senior National Team",
+        376: "NBA Draft Candidate",
+        383: "NBA Overseas Player",
+        390: "NBA Drafted",
+        397: "NBA Starter",
+        403: "NBA All-Star",
+        410: "International Legend",
+        417: "Rebound Specialist",
+        423: "Scoring Specialist",
+        430: "Defense Specialist",
+        437: "Point Guard Legend",
+        444: "Center Legend",
+        450: "Small Forward Legend",
+        457: "Power Forward Legend",
+        464: "Shooting Guard Legend",
+        470: "Full Court Warrior",
+        477: "Last Second Scorer",
+        484: "Clutch Player",
+        490: "Comeback King",
+        497: "Injury Overcomer",
+        504: "Physical Limit — Broken",
+        511: "Team Leader",
+        517: "Captain",
+        524: "Coach",
+        531: "Head Coach",
+        537: "National Coach",
+        544: "Championship Tactician",
+        551: "Hall of Fame",
+        557: "Legendary Player",
+        564: "League Record",
+        571: "All-Time Scorer",
+        578: "All-Time Rebounder",
+        584: "Career Perfect Record",
+        591: "Shohoku — National Glory",
+        598: "Legendary Season",
+        604: "Undefeated Season",
+        611: "Back-to-Back Champion",
+        618: "Three-Peat Champion",
+        625: "Dynasty Team",
+        631: "All-Time Great",
+        638: "Basketball God",
+        645: "Court Legend",
+        651: "Rebound God",
+        658: "Scoring God",
+        665: "Three-Point God",
+        671: "Dunk God",
+        678: "Defense God",
+        685: "Passing God",
+        692: "Full-Court God",
+        698: "Basketball's Answer",
+        705: "Court's Sovereign",
+        712: "Championship Dynasty",
+        718: "Eternal Champion",
+        725: "Unbeatable",
+        732: "Sakuragi — Genius",
+        739: "Hanamichi — World Class",
+        745: "Rukawa — World Star",
+        752: "Shohoku Eternal",
+        759: "Anzai's Legacy",
+        765: "Japan Basketball Legend",
+        772: "Sannoh Conqueror",
+        779: "National Champion Eternal",
+        785: "Basketball Pioneer",
+        792: "Court God",
+        799: "Ball God",
+        806: "Hoop God",
+        812: "Net God",
+        819: "NBA Legend",
+        826: "World Champion",
+        832: "Tournament Legend",
+        839: "Slam Dunk — Final",
+        846: "Japanese Basketball Pride",
+        852: "Interhigh Legend",
+        859: "Sakuragi's Vow — Kept",
+        866: "Hanamichi — Greatest",
+        873: "Shohoku — Immortal",
+        879: "Basketball — Eternal",
+        886: "Court — Sacred",
+        893: "Ball — Sacred",
+        899: "Hoop — Sacred",
+        906: "Game — Sacred",
+        913: "Player God",
+        920: "Team God",
+        926: "Coach God",
+        933: "Sport God",
+        940: "Basketball God — Final",
+        946: "Japan's Finest",
+        953: "World's Finest",
+        960: "Championship Eternal",
+        966: "Slam Dunk God",
+        973: "Shohoku Sovereign",
+        980: "Inoue Takehiko — Honored",
+        987: "Court Eternal",
+        993: "Championship Dream — Lived",
+        1000: "National Champion",
     },
 }

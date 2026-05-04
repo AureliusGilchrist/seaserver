@@ -1,4 +1,4 @@
-import { AnimeThemeConfig } from "./types"
+﻿import { AnimeThemeConfig } from "./types"
 import { fairyTailPlayerIcons } from "./player-icons"
 import {
     GiCastle,
@@ -29,7 +29,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
     fontFamily: "'Boogaloo', cursive",
     fontHref: "https://fonts.googleapis.com/css2?family=Boogaloo&display=swap",
     cssVars: {
-        // Brand → warm pink / magenta guild palette
+        // Brand â†’ warm pink / magenta guild palette
         "--color-brand-200": "220 120 180",
         "--color-brand-300": "210 100 160",
         "--color-brand-400": "200 80 140",
@@ -79,7 +79,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "settings": { icon: GiCastle, label: "Master's Orders" },
     },
     achievementNames: {
-        // ── ANIME MILESTONES ──
+        // â”€â”€ ANIME MILESTONES â”€â”€
         "a_first_episode": "First Quest Accepted",
         "a_episode_counter": "Job Request Counter",
         "a_episode_titan": "Dragon Force Unleashed",
@@ -111,7 +111,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_first_favorite": "First Nakama Bond",
         "a_favorites_collector": "Fairy Tail Family Bonds",
 
-        // ── ANIME BINGE ──
+        // â”€â”€ ANIME BINGE â”€â”€
         "a_binge_watcher": "Non-Stop Guild Brawl",
         "a_marathon_runner": "Grand Magic Games Marathon",
         "a_weekend_warrior": "Weekend S-Class Trial",
@@ -141,7 +141,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_midnight_binge": "Midnight Dragon Slayer Watch",
         "a_new_year_binge": "New Year's Ethernano Surge",
 
-        // ── ANIME GENRES ──
+        // â”€â”€ ANIME GENRES â”€â”€
         "a_genre_action": "Dragon Slayer Combat Specialist",
         "a_genre_adventure": "Journey Across Fiore",
         "a_genre_comedy": "Natsu & Happy Comedy Hour",
@@ -181,7 +181,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_tag_josei": "Bisca's Perspective",
         "a_tag_survival": "Survival on Tenrou Island",
 
-        // ── ANIME COMPLETION ──
+        // â”€â”€ ANIME COMPLETION â”€â”€
         "a_completionist": "Full Guild Wizard License",
         "a_mega_completionist": "Wizard Saint Achieved",
         "a_completion_rate_50": "Halfway to S-Class",
@@ -211,7 +211,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_yearly_completions": "Annual Fiore Review",
         "a_rapid_complete": "Lightning Flame Dragon Complete",
 
-        // ── ANIME DEDICATION ──
+        // â”€â”€ ANIME DEDICATION â”€â”€
         "a_loyal_fan": "Loyal Fairy Tail Member",
         "a_studio_devotee": "A-1 Pictures Devotee",
         "a_rewatcher": "Fairy Tail Rewatch Wizard",
@@ -241,7 +241,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_year_dedication": "Year of Burning Resolve",
         "a_season_dedication": "Season of the Dragon Festival",
 
-        // ── ANIME DISCOVERY ──
+        // â”€â”€ ANIME DISCOVERY â”€â”€
         "a_genre_explorer": "Magic Type Explorer",
         "a_studio_hopper": "Guild Transfer Wizard",
         "a_tag_explorer": "Tag Reconnaissance Wizard",
@@ -271,7 +271,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_short_series_explorer": "Short Quest Explorer",
         "a_long_series_explorer": "Long Arc Explorer",
 
-        // ── ANIME TIME ──
+        // â”€â”€ ANIME TIME â”€â”€
         "a_night_owl": "Night Patrol Dragon Slayer",
         "a_early_bird": "Dawn Patrol Wizard",
         "a_lunch_break": "Lunch at the Guild Bar",
@@ -299,7 +299,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_every_day_of_week": "Every Day a Fairy Tail Wizard",
         "a_monthly_hours": "Monthly Training Hours",
 
-        // ── ANIME SOCIAL ──
+        // â”€â”€ ANIME SOCIAL â”€â”€
         "a_first_party": "First Guild Banquet",
         "a_party_host": "Master Makarov's Party Call",
         "a_social_butterfly": "Mirajane's Social Charm",
@@ -321,7 +321,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_party_completionist": "Social Wizard Completionist",
         "a_social_scorer": "Social Guild Scorer",
 
-        // ── ANIME SPECIAL ──
+        // â”€â”€ ANIME SPECIAL â”€â”€
         "a_round_number": "Round Number Formation",
         "a_fibonacci": "Fibonacci Ethernano Sequence",
         "a_palindrome_day": "Palindrome Time Eclipse",
@@ -349,7 +349,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_exact_hundred_eps": "Exact Hundred Magic Deeds",
         "a_year_match_count": "Year Match Guild Count",
 
-        // ── ANIME FORMATS ──
+        // â”€â”€ ANIME FORMATS â”€â”€
         "a_tv_watcher": "Lacrima TV Wizard",
         "a_movie_buff": "Dragon Cry Movie Mission",
         "a_ova_hunter": "OVA Memory Days Hunter",
@@ -375,7 +375,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_sequel_movie": "Sequel Magic Movie",
         "a_recap_watcher": "Recap Briefing Wizard",
 
-        // ── ANIME STREAKS ──
+        // â”€â”€ ANIME STREAKS â”€â”€
         "a_daily_streak": "Daily Guild Patrol Streak",
         "a_mega_streak": "Mega Dragon Slayer Streak",
         "a_weekly_warrior": "Weekly Warrior Wizard",
@@ -403,7 +403,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_studio_streak": "Studio Loyalty Wizard",
         "a_perfect_week": "Perfect Week of Guild Questing",
 
-        // ── ANIME SCORING ──
+        // â”€â”€ ANIME SCORING â”€â”€
         "a_critic": "Magic Council Critic",
         "a_perfect_ten": "Perfect 10 Wizard Score",
         "a_harsh_critic": "Laxus's Harsh Judgment",
@@ -429,7 +429,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_genre_critic": "Genre Magic Critic",
         "a_mean_above_8": "Elite S-Class Average",
 
-        // ── ANIME HOLIDAY ──
+        // â”€â”€ ANIME HOLIDAY â”€â”€
         "a_new_years_resolution": "New Year's Wizard Resolution",
         "a_valentines_weeb": "Valentine's Celestial Heart",
         "a_pi_day": "Pi Day Ethernano Calculation",
@@ -455,7 +455,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_every_holiday": "Every Holiday Wizard",
         "a_consecutive_holidays": "Consecutive Holiday Quests",
 
-        // ── ANIME META ──
+        // â”€â”€ ANIME META â”€â”€
         "a_meta_first_unlock": "First Magic Awakened",
         "a_meta_collector": "Wizard License Collector",
         "a_meta_category_starter": "Magic Category Initiation",
@@ -469,7 +469,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "a_meta_diverse": "Diverse Wizard Portfolio",
         "a_meta_dominator": "Meta Pillar of Fairy Tail",
 
-        // ── MANGA MILESTONES ──
+        // â”€â”€ MANGA MILESTONES â”€â”€
         "m_first_chapter": "First Chapter: The Fairy Tail",
         "m_chapter_counter": "Sorcerer Magazine Page Counter",
         "m_chapter_titan": "Dragon King-Class Chapter",
@@ -503,7 +503,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_favorites_collector": "Manga Favorites Arsenal",
         "m_days_spent_reading": "Days in Fiore Reading Hall",
 
-        // ── MANGA BINGE ──
+        // â”€â”€ MANGA BINGE â”€â”€
         "m_binge_reader": "Non-Stop Fairy Reading",
         "m_marathon_reader": "Grand Magic Games Reading Marathon",
         "m_weekend_reader": "Weekend Guild Reading",
@@ -535,7 +535,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_forty_eight_hour": "Forty-Eight Hour Magic Read",
         "m_oneshot_binge": "Oneshot Fairy Blitz",
 
-        // ── MANGA GENRES ──
+        // â”€â”€ MANGA GENRES â”€â”€
         "m_genre_action": "Action Magic Manga Specialist",
         "m_genre_adventure": "Wizard Adventure Manga",
         "m_genre_comedy": "Comedy at the Fairy Tail Guild",
@@ -577,7 +577,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_tag_medical": "Wendy's Healing Magic Manga",
         "m_tag_villainess": "Zeref Redemption Manga",
 
-        // ── MANGA COMPLETION ──
+        // â”€â”€ MANGA COMPLETION â”€â”€
         "m_completionist": "Full Fiore Manga License",
         "m_mega_completionist": "Supreme Fairy Reader",
         "m_completion_rate_50": "Halfway to S-Class Reader",
@@ -609,7 +609,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_rapid_complete": "Rapid Dragon Slayer Clear",
         "m_author_complete": "Mashima's Complete Works",
 
-        // ── MANGA DEDICATION ──
+        // â”€â”€ MANGA DEDICATION â”€â”€
         "m_loyal_reader": "Loyal Fiore Manga Reader",
         "m_mangaka_lover": "Mashima Devotee",
         "m_rereader": "Fairy Manga Rereader",
@@ -639,7 +639,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_ongoing_follower": "Ongoing Fairy Series Follower",
         "m_genre_loyalty_50": "Fifty Fairy Genre Chapters",
 
-        // ── MANGA DISCOVERY ──
+        // â”€â”€ MANGA DISCOVERY â”€â”€
         "m_genre_explorer": "Magic Type Genre Explorer",
         "m_publisher_hopper": "Fiore Publisher Transfer",
         "m_tag_explorer": "Wizard Tag Recon Mission",
@@ -669,7 +669,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_long_manga_explorer": "Long Fairy Manga Campaign",
         "m_serialization_explorer": "Fairy Serialization Explorer",
 
-        // ── MANGA TIME ──
+        // â”€â”€ MANGA TIME â”€â”€
         "m_night_owl": "Night Owl Fairy Reader",
         "m_early_bird": "Dawn Patrol Fairy Reader",
         "m_lunch_reader": "Lunch at the Guild Bar Reader",
@@ -697,7 +697,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_monthly_hours": "Monthly Fairy Reading Hours",
         "m_bedtime_reader": "Bedtime Guild Reader",
 
-        // ── MANGA CREATIVE ──
+        // â”€â”€ MANGA CREATIVE â”€â”€
         "m_art_appreciator": "Mashima Art Appreciator",
         "m_webtoon_reader": "Fairy Webtoon Reader",
         "m_full_color": "Full Color Fairy Manga",
@@ -725,7 +725,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_remake_reader": "Fairy Remake Reader",
         "m_collaboration_reader": "Fairy Collaboration Manga",
 
-        // ── MANGA STREAKS ──
+        // â”€â”€ MANGA STREAKS â”€â”€
         "m_daily_streak": "Daily Fairy Reading Streak",
         "m_mega_streak": "Mega Dragon Slayer Reading Streak",
         "m_weekly_warrior": "Weekly Warrior Fairy Reader",
@@ -755,7 +755,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_perfect_week_manga": "Perfect Fairy Reading Week",
         "m_diverse_streak": "Diverse Fairy Reading Streak",
 
-        // ── MANGA SCORING ──
+        // â”€â”€ MANGA SCORING â”€â”€
         "m_critic": "Fairy Manga Critic",
         "m_perfect_ten": "Perfect 10 Fairy Manga",
         "m_harsh_critic": "Laxus's Reading Standards",
@@ -783,7 +783,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_genre_critic": "Genre Fairy Manga Critic",
         "m_mean_above_8": "Elite Fairy Reading Average",
 
-        // ── MANGA HOLIDAY ──
+        // â”€â”€ MANGA HOLIDAY â”€â”€
         "m_new_years_resolution": "New Year's Fairy Reading Vow",
         "m_valentines_read": "Valentine's Fairy Reading",
         "m_pi_day": "Pi Day Fairy Chapter Count",
@@ -809,7 +809,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_every_holiday_reader": "Every Holiday Fairy Reader",
         "m_consecutive_holidays": "Consecutive Holiday Fairy Reads",
 
-        // ── MANGA SPECIAL ──
+        // â”€â”€ MANGA SPECIAL â”€â”€
         "m_round_number": "Round Number Wizard Milestone",
         "m_fibonacci": "Fibonacci Ethernano Pattern",
         "m_palindrome_day": "Palindrome Fairy Reading Day",
@@ -837,7 +837,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_year_match_count": "Year Match Fairy Chapter Count",
         "m_chapter_match_date": "Chapter Date Fairy Match",
 
-        // ── MANGA FORMATS ──
+        // â”€â”€ MANGA FORMATS â”€â”€
         "m_manga_format": "Fairy Manga Format",
         "m_manhwa_format": "Manhwa Fairy Format",
         "m_manhua_format": "Manhua Fairy Format",
@@ -847,7 +847,7 @@ export const fairyTailTheme: AnimeThemeConfig = {
         "m_novel_format": "Novel Fairy Format",
         "m_format_master_manga": "Format Master Fairy Reader",
 
-        // ── MANGA META ──
+        // â”€â”€ MANGA META â”€â”€
         "m_meta_first_unlock": "First Fairy Reading Awakened",
         "m_meta_collector": "Fairy Reading Badge Collector",
         "m_meta_category_starter": "Fairy Category Initiation",
@@ -882,14 +882,155 @@ export const fairyTailTheme: AnimeThemeConfig = {
     },
     playerIconOverrides: fairyTailPlayerIcons,
     milestoneNames: {
-        1:   "Apprentice Mage",
-        8:   "Mage",
-        20:  "S-Class Candidate",
-        32:  "S-Class Mage",
-        46:  "Wizard Saint",
-        60:  "Spriggan 12",
-        75:  "Etherion",
-        90:  "Fairy King",
-        100: "Dragon Slayer Legend",
+        1:   "D-Rank Mage",
+        8:   "C-Rank Mage",
+        14:  "B-Rank Mage",
+        21:  "A-Rank Mage",
+        28:  "S-Rank Candidate",
+        35:  "S-Class Mage",
+        41:  "SS-Class Mage",
+        48:  "10-Year Quest Taker",
+        55:  "100-Year Quest Taker",
+        61:  "Guild Ace",
+        68:  "Fairy Tail Member",
+        75:  "Lamia Scale Member",
+        81:  "Blue Pegasus Member",
+        88:  "Sabertooth Member",
+        95:  "Crime Sorciere Member",
+        102: "Guild Master",
+        108: "Magic Council Member",
+        115: "Magic Council Chairman",
+        122: "Ten Wizard Saints",
+        128: "Spriggan 12",
+        135: "Emperor's Shield",
+        142: "Shield of Spriggan",
+        149: "Alvarez General",
+        155: "Emperor's Avatar",
+        162: "First Generation Dragon Slayer",
+        169: "Second Generation Dragon Slayer",
+        175: "Third Generation Dragon Slayer",
+        182: "Dragon Force",
+        189: "Dragon Force — Full",
+        195: "Lightning Fire Dragon Mode",
+        202: "Ice Dragon Slayer",
+        209: "Shadow Dragon Mode",
+        216: "God Slayer",
+        222: "Demon Slayer",
+        229: "Angel Slayer",
+        236: "God Seed — Lumen Histoire",
+        242: "Fairy Heart",
+        249: "Zeref's Immortal Enemy",
+        256: "Acnologia's Target",
+        262: "Dragon King — Challenged",
+        269: "Acnologia — Defeated",
+        276: "Zeref — Ended",
+        283: "Irene Belserion — Dragon",
+        289: "August — Magic King",
+        296: "Brandish — Spriggan",
+        303: "E.N.D. — Etherious",
+        309: "Natsu Dragneel — E.N.D.",
+        316: "Gray Fullbuster — Devil Slayer",
+        323: "Erza Scarlet — Fairy Queen",
+        330: "Titania — Title",
+        336: "Lucy Heartfilia — Celestial Mage",
+        343: "Celestial Spirit King",
+        350: "Celestial Spirit — Opened",
+        356: "Wendy Marvell — Sky Maiden",
+        363: "Gajeel Redfox — Iron Shadow",
+        370: "Laxus Dreyar — Thunder God",
+        376: "Thunder God Tribe",
+        383: "Makarov Dreyar — Master",
+        390: "Erza — Requip Master",
+        397: "Heart Kreuz Armor",
+        403: "Nakagami Armor",
+        410: "Fairy Armor",
+        417: "Adamantine Armor",
+        423: "Eclipse Scorpio Armor",
+        430: "Celestial Spirit Gate — Open",
+        437: "Open — Aquarius",
+        444: "Aquarius Key — Broken",
+        450: "Celestial King — Called",
+        457: "Silver Key — Collected",
+        464: "Exceed — Ally",
+        470: "Carla — Dragon Slayer Ally",
+        477: "Happy — Bond",
+        484: "Pantherlily — Partner",
+        490: "Dragon Slayer Motion Sickness",
+        497: "Fairy Tail Mark — Worn",
+        504: "Fairy Tail — S-Class Trial",
+        511: "Tenrou Island Survivor",
+        517: "Grand Magic Games — Entered",
+        524: "Grand Magic Games — Won",
+        531: "Avatar Cult — Infiltrated",
+        537: "Tartaros — Fought",
+        544: "Tartaros HQ — Destroyed",
+        551: "Face — Disarmed",
+        557: "Cube — Destroyed",
+        564: "Cube — Fallen",
+        571: "E.N.D. Book — Found",
+        578: "Natsu — Identity Known",
+        584: "Igneel — Farewell",
+        591: "Igneel's Power — Inherited",
+        598: "Dragon King Festival",
+        604: "Acnologia — Dragon King",
+        611: "Time Lapse — Survived",
+        618: "Alvarez Empire Invasion",
+        625: "Fiore — Defended",
+        631: "Brandish — Befriended",
+        638: "August — Defeated",
+        645: "Irene — Defeated",
+        651: "Zeref — Fallen",
+        658: "Acnologia — Slain",
+        665: "Dragon King — Slain",
+        671: "Fairy Tail — Reformed",
+        678: "100-Year Quest — Begun",
+        685: "Elemental Four — Defeated",
+        692: "Oracion Seis — Defeated",
+        698: "Grimoire Heart — Defeated",
+        705: "Raven Tail — Defeated",
+        712: "Crime Sorciere — Joined",
+        718: "Magnolia — Protected",
+        725: "Fiore — Protected",
+        732: "Ishgar — Protected",
+        739: "World — Protected",
+        745: "Exceed Kingdom — Found",
+        752: "Edolas — Saved",
+        759: "Celestial Spirit World — Entered",
+        765: "Mavis Vermillion — Met",
+        772: "Mavis — Freed",
+        779: "Fairy Glitter — Cast",
+        785: "Fairy Law — Cast",
+        792: "Fairy Sphere — Cast",
+        799: "Three Great Fairy Magics",
+        806: "Lumen Histoire — Activated",
+        812: "Fairy Heart — Wielded",
+        819: "God Seed — Held",
+        826: "Wizard King — Title",
+        832: "Dragon King — Surpassed",
+        839: "Magic King — Exceeded",
+        846: "S-Class — Eternal",
+        852: "Dragon Force — Eternal",
+        859: "Fairy Tail Legend",
+        866: "Guild Legend",
+        873: "Ishgar Legend",
+        879: "World Legend",
+        886: "Dragon Slayer God",
+        893: "Magic God",
+        899: "Guild God",
+        906: "Fairy Tail — Eternal",
+        913: "Natsu — Legend",
+        920: "Erza — Legend",
+        926: "Gray — Legend",
+        933: "Lucy — Legend",
+        940: "Wendy — Legend",
+        946: "Fairy Tail Guild — Eternal",
+        953: "Friendship — Sacred",
+        960: "Bond — Eternal",
+        966: "Nakama — Eternal",
+        973: "Magic — Eternal",
+        980: "Dragon Slayer Supreme",
+        987: "Fairy Tail God",
+        993: "Magic World God",
+        1000: "Fairy Tail Wizard King",
     },
 }

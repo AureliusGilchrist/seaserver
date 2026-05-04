@@ -1,4 +1,4 @@
-import { AnimeThemeConfig } from "./types"
+﻿import { AnimeThemeConfig } from "./types"
 import { swordArtOnlinePlayerIcons } from "./player-icons"
 import {
     GiSwordBrandish,
@@ -29,7 +29,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
     fontFamily: "'Exo 2', sans-serif",
     fontHref: "https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&display=swap",
     cssVars: {
-        // Brand → electric blue / cyan digital palette
+        // Brand â†’ electric blue / cyan digital palette
         "--color-brand-200": "160 216 248",
         "--color-brand-300": "120 200 244",
         "--color-brand-400": "80 184 240",
@@ -79,7 +79,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "settings": { icon: GiSettingsKnobs, label: "System Console" },
     },
     achievementNames: {
-        // ── ANIME MILESTONES ──
+        // â”€â”€ ANIME MILESTONES â”€â”€
         "a_first_episode": "First Login to Aincrad",
         "a_episode_counter": "Quest Completion Counter",
         "a_episode_titan": "Floor Boss Titan Slain",
@@ -111,7 +111,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_first_favorite": "First Party Member Bond",
         "a_favorites_collector": "Friends List Collector",
 
-        // ── ANIME BINGE ──
+        // â”€â”€ ANIME BINGE â”€â”€
         "a_binge_watcher": "Non-Stop Dungeon Crawl",
         "a_marathon_runner": "Marathon Floor Clearing",
         "a_weekend_warrior": "Weekend Raid Event",
@@ -141,7 +141,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_midnight_binge": "Midnight Server Maintenance Watch",
         "a_new_year_binge": "New Year's System Update Surge",
 
-        // ── ANIME GENRES ──
+        // â”€â”€ ANIME GENRES â”€â”€
         "a_genre_action": "Sword Skill Combat Specialist",
         "a_genre_adventure": "Journey Through Aincrad",
         "a_genre_comedy": "Klein's Comedy Relief Hour",
@@ -181,7 +181,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_tag_josei": "Sinon's Perspective",
         "a_tag_survival": "Survival in the Death Game",
 
-        // ── ANIME COMPLETION ──
+        // â”€â”€ ANIME COMPLETION â”€â”€
         "a_completionist": "Full Game Clear Badge",
         "a_mega_completionist": "All Floors Conquered",
         "a_completion_rate_50": "Halfway Up the Tower",
@@ -211,7 +211,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_yearly_completions": "Annual Server Review",
         "a_rapid_complete": "Rapid Boss Rush Clear",
 
-        // ── ANIME DEDICATION ──
+        // â”€â”€ ANIME DEDICATION â”€â”€
         "a_loyal_fan": "Loyal Clearer of Aincrad",
         "a_studio_devotee": "A-1 Pictures Devotee",
         "a_rewatcher": "SAO Rewatch Player",
@@ -241,7 +241,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_year_dedication": "Year of the Black Swordsman",
         "a_season_dedication": "Season of the Underworld",
 
-        // ── ANIME DISCOVERY ──
+        // â”€â”€ ANIME DISCOVERY â”€â”€
         "a_genre_explorer": "Skill Tree Explorer",
         "a_studio_hopper": "Server Transfer Player",
         "a_tag_explorer": "Tag Reconnaissance Protocol",
@@ -271,7 +271,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_short_series_explorer": "Short Dungeon Explorer",
         "a_long_series_explorer": "Long Campaign Explorer",
 
-        // ── ANIME TIME ──
+        // â”€â”€ ANIME TIME â”€â”€
         "a_night_owl": "Night Owl Player",
         "a_early_bird": "Early Bird Login Bonus",
         "a_lunch_break": "Lunch Break at the Inn",
@@ -299,7 +299,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_every_day_of_week": "Every Day a Clearer",
         "a_monthly_hours": "Monthly Playtime Report",
 
-        // ── ANIME SOCIAL ──
+        // â”€â”€ ANIME SOCIAL â”€â”€
         "a_first_party": "First Guild Formation",
         "a_party_host": "Raid Leader Assembled",
         "a_social_butterfly": "Social Player Butterfly",
@@ -321,7 +321,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_party_completionist": "Social Player Completionist",
         "a_social_scorer": "Social Guild Scorer",
 
-        // ── ANIME SPECIAL ──
+        // â”€â”€ ANIME SPECIAL â”€â”€
         "a_round_number": "Round Number HP Milestone",
         "a_fibonacci": "Fibonacci Sequence Algorithm",
         "a_palindrome_day": "Palindrome Time Loop",
@@ -349,7 +349,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_exact_hundred_eps": "Exact Hundred System Logs",
         "a_year_match_count": "Year Match Quest Count",
 
-        // ── ANIME FORMATS ──
+        // â”€â”€ ANIME FORMATS â”€â”€
         "a_tv_watcher": "Broadcast Data Stream",
         "a_movie_buff": "Ordinal Scale Movie Mission",
         "a_ova_hunter": "Extra Edition OVA Hunter",
@@ -375,7 +375,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_sequel_movie": "Sequel World Movie",
         "a_recap_watcher": "Recap Data Briefing",
 
-        // ── ANIME STREAKS ──
+        // â”€â”€ ANIME STREAKS â”€â”€
         "a_daily_streak": "Daily Login Streak",
         "a_mega_streak": "Mega Clearing Streak",
         "a_weekly_warrior": "Weekly Warrior Player",
@@ -403,7 +403,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_studio_streak": "Studio Loyalty Chain",
         "a_perfect_week": "Perfect Week of Clearing",
 
-        // ── ANIME SCORING ──
+        // â”€â”€ ANIME SCORING â”€â”€
         "a_critic": "Cardinal System Critic",
         "a_perfect_ten": "Perfect 10 S-Rank Score",
         "a_harsh_critic": "Heathcliff's Harsh Judgment",
@@ -429,7 +429,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_genre_critic": "Genre System Critic",
         "a_mean_above_8": "Elite Clearer Average",
 
-        // ── ANIME HOLIDAY ──
+        // â”€â”€ ANIME HOLIDAY â”€â”€
         "a_new_years_resolution": "New Year's Server Resolution",
         "a_valentines_weeb": "Valentine's Heart Crystal",
         "a_pi_day": "Pi Day Algorithm",
@@ -455,7 +455,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_every_holiday": "Every Holiday Event Complete",
         "a_consecutive_holidays": "Consecutive Holiday Logins",
 
-        // ── ANIME META ──
+        // â”€â”€ ANIME META â”€â”€
         "a_meta_first_unlock": "First Skill Unlocked",
         "a_meta_collector": "Achievement Badge Collector",
         "a_meta_category_starter": "Skill Category Initiated",
@@ -469,7 +469,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "a_meta_diverse": "Diverse Player Portfolio",
         "a_meta_dominator": "Meta Commander of Aincrad",
 
-        // ── MANGA MILESTONES ──
+        // â”€â”€ MANGA MILESTONES â”€â”€
         "m_first_chapter": "First Chapter: The Floating Castle",
         "m_chapter_counter": "Page Scan Counter",
         "m_chapter_titan": "Floor Boss Chapter Cleared",
@@ -503,7 +503,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_favorites_collector": "Manga Favorites Inventory",
         "m_days_spent_reading": "Days Spent in the Archive",
 
-        // ── MANGA BINGE ──
+        // â”€â”€ MANGA BINGE â”€â”€
         "m_binge_reader": "Non-Stop Archive Crawl",
         "m_marathon_reader": "Marathon Reading Session",
         "m_weekend_reader": "Weekend Archive Raid",
@@ -535,7 +535,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_forty_eight_hour": "Forty-Eight Hour Read-a-thon",
         "m_oneshot_binge": "Oneshot Blitz Clear",
 
-        // ── MANGA GENRES ──
+        // â”€â”€ MANGA GENRES â”€â”€
         "m_genre_action": "Action Sword Skill Manga",
         "m_genre_adventure": "Adventure Through Aincrad Manga",
         "m_genre_comedy": "Comedy at the NPC Inn",
@@ -577,7 +577,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_tag_medical": "HP Recovery Healing Manga",
         "m_tag_villainess": "Villain Redemption Arc Manga",
 
-        // ── MANGA COMPLETION ──
+        // â”€â”€ MANGA COMPLETION â”€â”€
         "m_completionist": "Full Game Clear Manga Badge",
         "m_mega_completionist": "Supreme Archive Reader",
         "m_completion_rate_50": "Halfway Up the Reading Tower",
@@ -609,7 +609,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_rapid_complete": "Rapid Reading Clear",
         "m_author_complete": "Kawahara's Complete Works",
 
-        // ── MANGA DEDICATION ──
+        // â”€â”€ MANGA DEDICATION â”€â”€
         "m_loyal_reader": "Loyal SAO Archive Reader",
         "m_mangaka_lover": "Kawahara & Abec Devotee",
         "m_rereader": "SAO Manga Rereader",
@@ -639,7 +639,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_ongoing_follower": "Ongoing Series Follower",
         "m_genre_loyalty_50": "Fifty Genre Chapters Read",
 
-        // ── MANGA DISCOVERY ──
+        // â”€â”€ MANGA DISCOVERY â”€â”€
         "m_genre_explorer": "Skill Tree Genre Explorer",
         "m_publisher_hopper": "Server Transfer Reader",
         "m_tag_explorer": "Tag Recon Reading Mission",
@@ -669,7 +669,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_long_manga_explorer": "Long Campaign Reader",
         "m_serialization_explorer": "Serialization Archive Explorer",
 
-        // ── MANGA TIME ──
+        // â”€â”€ MANGA TIME â”€â”€
         "m_night_owl": "Night Owl Archive Reader",
         "m_early_bird": "Early Bird Login Reader",
         "m_lunch_reader": "Lunch Break at the Inn Reader",
@@ -697,7 +697,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_monthly_hours": "Monthly Reading Playtime",
         "m_bedtime_reader": "Bedtime Archive Reader",
 
-        // ── MANGA CREATIVE ──
+        // â”€â”€ MANGA CREATIVE â”€â”€
         "m_art_appreciator": "Abec Art Appreciator",
         "m_webtoon_reader": "SAO Webtoon Reader",
         "m_full_color": "Full Color SAO Manga",
@@ -725,7 +725,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_remake_reader": "SAO Remake Reader",
         "m_collaboration_reader": "SAO Collaboration Manga",
 
-        // ── MANGA STREAKS ──
+        // â”€â”€ MANGA STREAKS â”€â”€
         "m_daily_streak": "Daily Reading Login Streak",
         "m_mega_streak": "Mega Archive Reading Streak",
         "m_weekly_warrior": "Weekly Warrior Reader",
@@ -755,7 +755,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_perfect_week_manga": "Perfect Reading Week",
         "m_diverse_streak": "Diverse Reading Streak",
 
-        // ── MANGA SCORING ──
+        // â”€â”€ MANGA SCORING â”€â”€
         "m_critic": "Archive System Critic",
         "m_perfect_ten": "Perfect 10 S-Rank Reading",
         "m_harsh_critic": "Heathcliff's Reading Standards",
@@ -783,7 +783,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_genre_critic": "Genre Archive Critic",
         "m_mean_above_8": "Elite Reading Average",
 
-        // ── MANGA HOLIDAY ──
+        // â”€â”€ MANGA HOLIDAY â”€â”€
         "m_new_years_resolution": "New Year's Reading Resolution",
         "m_valentines_read": "Valentine's Virtual Heart Read",
         "m_pi_day": "Pi Day Chapter Calculation",
@@ -809,7 +809,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_every_holiday_reader": "Every Holiday Archive Reader",
         "m_consecutive_holidays": "Consecutive Holiday Reading",
 
-        // ── MANGA SPECIAL ──
+        // â”€â”€ MANGA SPECIAL â”€â”€
         "m_round_number": "Round Number Player Milestone",
         "m_fibonacci": "Fibonacci Algorithm Pattern",
         "m_palindrome_day": "Palindrome Reading Day",
@@ -837,7 +837,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_year_match_count": "Year Match Chapter Count",
         "m_chapter_match_date": "Chapter Date System Match",
 
-        // ── MANGA FORMATS ──
+        // â”€â”€ MANGA FORMATS â”€â”€
         "m_manga_format": "SAO Manga Format",
         "m_manhwa_format": "Manhwa Server Format",
         "m_manhua_format": "Manhua Server Format",
@@ -847,7 +847,7 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
         "m_novel_format": "Novel Archive Format",
         "m_format_master_manga": "Format Master Reader",
 
-        // ── MANGA META ──
+        // â”€â”€ MANGA META â”€â”€
         "m_meta_first_unlock": "First Reading Skill Unlocked",
         "m_meta_collector": "Reading Badge Collector",
         "m_meta_category_starter": "Reading Category Initiated",
@@ -882,14 +882,155 @@ export const swordArtOnlineTheme: AnimeThemeConfig = {
     },
     playerIconOverrides: swordArtOnlinePlayerIcons,
     milestoneNames: {
-        1:   "Beta Tester",
-        8:   "Starting City Survivor",
-        18:  "Floor Clearer",
-        30:  "KoB Member",
-        44:  "Beater",
-        58:  "ALfheim Flyer",
-        70:  "Integrity Knight",
-        84:  "Alicization Veteran",
-        100: "Administrator Realm",
+        1:   "SAO Beta Tester",
+        8:   "SAO Floor 1 Clearer",
+        14:  "SAO Floor 5 Clearer",
+        21:  "SAO Floor 10 Clearer",
+        28:  "SAO Floor 25 Clearer",
+        35:  "Clearing Group Member",
+        41:  "Clearers Guild Member",
+        48:  "Moonlit Black Cats",
+        55:  "Knights of Blood Member",
+        61:  "Beater",
+        68:  "Black Swordsman",
+        75:  "Dual Wielder",
+        81:  "Strongest SAO Player",
+        88:  "SAO Floor 75 Boss",
+        95:  "SAO Floor 100 Cleared",
+        102: "GGO F-Rank Player",
+        108: "GGO E-Rank Player",
+        115: "GGO D-Rank Player",
+        122: "GGO C-Rank Player",
+        128: "GGO B-Rank Player",
+        135: "GGO A-Rank Player",
+        142: "GGO S-Rank Player",
+        149: "GGO Bullet of Bullets",
+        155: "GGO Finalist",
+        162: "ALO Salamander",
+        169: "ALO Sylph",
+        175: "ALO Undine",
+        182: "ALO Spriggan",
+        189: "ALO Cait Sith",
+        195: "ALO Leprechaun",
+        202: "ALO Pooka",
+        209: "ALO Gnome",
+        216: "ALO Imp",
+        222: "ALO Fairy King",
+        229: "New Aincrad — Cleared",
+        236: "Ordinal Scale — Augma",
+        242: "Ordinal Scale — Top 10",
+        249: "Ordinal Scale — Top 5",
+        256: "Ordinal Scale — Top 1",
+        262: "Underworld — Arrived",
+        269: "Underworld — Human Territory",
+        276: "Synthesis Candidate",
+        283: "Integrity Knight",
+        289: "Integrity Knight — Commander",
+        296: "Ultimate Integrity Knight",
+        303: "Dark Territory — Enemy",
+        309: "Emperor Vector — Encountered",
+        316: "Administrator — Encountered",
+        323: "Administrator — Defeated",
+        330: "Quinella — Ended",
+        336: "Dark General — Fought",
+        343: "Vassago — Enemy",
+        350: "Underworld War — Survived",
+        356: "STL — User",
+        363: "Fluctlight — Understood",
+        370: "Soul Translator Veteran",
+        376: "Project Alicization",
+        383: "Project Alicization — Complete",
+        390: "Alice — Freed",
+        397: "Eugeo — Lost",
+        403: "Kirito — Awakened",
+        410: "Asuna — Underworld",
+        417: "Asuna — Stacia",
+        423: "Divine Object — Wielder",
+        430: "Blue Rose Sword",
+        437: "Night Sky Sword",
+        444: "Divine Object Master",
+        450: "Perfect Weapon Control — Art",
+        457: "Armament Full Control Art",
+        464: "Sacred Arts — Master",
+        470: "Synthesis Ritual — Survived",
+        477: "Fragmented Fluctlight",
+        484: "200-Year Wait — Endured",
+        490: "Fluctlight — Restored",
+        497: "Kirito — Reawakened",
+        504: "Vector — Defeated",
+        511: "Underworld — Saved",
+        517: "New Human Empire",
+        524: "Kirito and Alice",
+        531: "Kirito and Asuna — Reunited",
+        537: "SAO — Survived",
+        544: "GGO — Survived",
+        551: "ALO — Survived",
+        557: "Ordinal Scale — Survived",
+        564: "Alicization — Survived",
+        571: "War of Underworld — Survived",
+        578: "Unital Ring — Entered",
+        584: "All Games — Veteran",
+        591: "VR Pioneer",
+        598: "VRMMO Legend",
+        604: "Black Swordsman — Eternal",
+        611: "Dual Wielder — Eternal",
+        618: "Strongest Player — Eternal",
+        625: "The Kirito — Legend",
+        631: "Asuna — The Flash",
+        638: "Sinon — Sniper",
+        645: "Klein — Samurai",
+        651: "Agil — Merchant",
+        658: "Lisbeth — Blacksmith",
+        665: "Silica — Beast Tamer",
+        671: "Leafa — ALO Ace",
+        678: "Alice — Integrity Knight",
+        685: "Eugeo — Blue Rose",
+        692: "Yui — Navigation Pixie",
+        698: "Party — Complete",
+        705: "SAO Survivors — All Safe",
+        712: "Floor 100 — Eternal",
+        718: "Aincrad — Cleared",
+        725: "Fairy Dance — Cleared",
+        732: "Phantom Bullet — Cleared",
+        739: "Alicization — Complete",
+        745: "VR God",
+        752: "Digital World God",
+        759: "Fluctlight God",
+        765: "Soul God",
+        772: "Sword Skills — Eternal",
+        779: "Dual Blades — Eternal",
+        785: "Unique Skills — Mastered",
+        792: "All VRMMOs — Master",
+        799: "System Outside — Legend",
+        806: "Unique Extra Skill",
+        812: "Dual Blades — Unique",
+        819: "Healing — Unique",
+        826: "Grand Heroic Chronicles",
+        832: "SAO Legend",
+        839: "GGO Legend",
+        846: "ALO Legend",
+        852: "Underworld Legend",
+        859: "Unital Ring Legend",
+        866: "VR World Legend",
+        873: "Kirito — God",
+        879: "Asuna — God",
+        886: "Integrity Knight God",
+        893: "VR Pioneer God",
+        899: "Sword Art God",
+        906: "Soul Translator God",
+        913: "Nerve Gear — Legacy",
+        920: "Amusphere — Legacy",
+        926: "AmuSphere — Transcended",
+        933: "Fulldive — Eternal",
+        940: "Cardinal System — Broken",
+        946: "Mnemonic Visual — Final",
+        953: "Kirito and Asuna — Eternal",
+        960: "Aincrad — In Memory",
+        966: "The Black Swordsman — Forever",
+        973: "VRMMO God",
+        980: "Digital Soul — Eternal",
+        987: "Sword Art — Eternal",
+        993: "Player One — Final",
+        1000: "Sword Art Online",
     },
 }

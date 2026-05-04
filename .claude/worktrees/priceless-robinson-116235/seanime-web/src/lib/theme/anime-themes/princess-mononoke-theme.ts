@@ -1,4 +1,4 @@
-import { AnimeThemeConfig } from "./types"
+﻿import { AnimeThemeConfig } from "./types"
 import {
     GiCastle,
     GiSwordWound,
@@ -29,7 +29,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
     fontFamily: "'Cinzel', serif",
     fontHref: "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&display=swap",
     cssVars: {
-        // Brand → deep forest green
+        // Brand â†’ deep forest green
         "--color-brand-200": "144 218 144",
         "--color-brand-300": "100 190 100",
         "--color-brand-400": "60 160 60",
@@ -78,7 +78,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "settings": { icon: GiSettingsKnobs, label: "Elder Tree" },
     },
     achievementNames: {
-        // ── ANIME MILESTONES ──
+        // â”€â”€ ANIME MILESTONES â”€â”€
         "a_first_episode": "First Leaf",
         "a_episode_counter": "Growth Rings",
         "a_episode_titan": "Ancient Oak",
@@ -110,7 +110,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_first_favorite": "First Bond",
         "a_favorites_collector": "Spirit Bonds",
 
-        // ── ANIME BINGE ──
+        // â”€â”€ ANIME BINGE â”€â”€
         "a_binge_watcher": "Moonlit Vigil",
         "a_marathon_runner": "Forest Marathon",
         "a_weekend_warrior": "Weekend Wanderer",
@@ -140,7 +140,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_midnight_binge": "Midnight Glow",
         "a_new_year_binge": "New Year Sprout",
 
-        // ── ANIME GENRES ──
+        // â”€â”€ ANIME GENRES â”€â”€
         "a_genre_action": "Wolf Strike",
         "a_genre_adventure": "Deep Expedition",
         "a_genre_comedy": "Kodama Dance",
@@ -180,7 +180,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_tag_josei": "Eboshi's Will",
         "a_tag_survival": "Wild Survival",
 
-        // ── ANIME COMPLETION ──
+        // â”€â”€ ANIME COMPLETION â”€â”€
         "a_completionist": "Full Cycle",
         "a_mega_completionist": "Forest Sovereign",
         "a_completion_rate_50": "Halfway Home",
@@ -210,7 +210,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_yearly_completions": "Yearly Bounty",
         "a_rapid_complete": "Swift Current",
 
-        // ── ANIME DEDICATION ──
+        // â”€â”€ ANIME DEDICATION â”€â”€
         "a_loyal_fan": "Loyal Guardian",
         "a_studio_devotee": "Ghibli Devotee",
         "a_rewatcher": "Revisited Path",
@@ -240,7 +240,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_year_dedication": "Year Devoted",
         "a_season_dedication": "Season Devoted",
 
-        // ── ANIME DISCOVERY ──
+        // â”€â”€ ANIME DISCOVERY â”€â”€
         "a_genre_explorer": "Uncharted Woods",
         "a_studio_hopper": "Grove Hopper",
         "a_tag_explorer": "Tag Forager",
@@ -270,7 +270,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_short_series_explorer": "Short Trail",
         "a_long_series_explorer": "Long Trail",
 
-        // ── ANIME TIME ──
+        // â”€â”€ ANIME TIME â”€â”€
         "a_night_owl": "Night Owl",
         "a_early_bird": "Dawn Bird",
         "a_lunch_break": "Midday Rest",
@@ -298,7 +298,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_every_day_of_week": "Every Day",
         "a_monthly_hours": "Monthly Moons",
 
-        // ── ANIME SOCIAL ──
+        // â”€â”€ ANIME SOCIAL â”€â”€
         "a_first_party": "First Gathering",
         "a_party_host": "Grove Host",
         "a_social_butterfly": "Social Firefly",
@@ -320,7 +320,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_party_completionist": "Full Circle",
         "a_social_scorer": "Social Harmony",
 
-        // ── ANIME SPECIAL ──
+        // â”€â”€ ANIME SPECIAL â”€â”€
         "a_round_number": "Perfect Circle",
         "a_fibonacci": "Golden Spiral",
         "a_palindrome_day": "Mirror Lake",
@@ -348,7 +348,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_exact_hundred_eps": "Exact Hundred",
         "a_year_match_count": "Year Matched",
 
-        // ── ANIME FORMATS ──
+        // â”€â”€ ANIME FORMATS â”€â”€
         "a_tv_watcher": "Fireside Viewer",
         "a_movie_buff": "Sacred Film",
         "a_ova_hunter": "Hidden Reel",
@@ -374,7 +374,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_sequel_movie": "Sequel Spirit",
         "a_recap_watcher": "Recap Glow",
 
-        // ── ANIME STREAKS ──
+        // â”€â”€ ANIME STREAKS â”€â”€
         "a_daily_streak": "Daily Trail",
         "a_mega_streak": "Mega Growth",
         "a_weekly_warrior": "Weekly Walker",
@@ -402,7 +402,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_studio_streak": "Studio Roots",
         "a_perfect_week": "Perfect Week",
 
-        // ── ANIME SCORING ──
+        // â”€â”€ ANIME SCORING â”€â”€
         "a_critic": "Nature's Judge",
         "a_perfect_ten": "Perfect Bloom",
         "a_harsh_critic": "Harsh Winter",
@@ -428,7 +428,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_genre_critic": "Genre Critic",
         "a_mean_above_8": "Elite Average",
 
-        // ── ANIME HOLIDAY ──
+        // â”€â”€ ANIME HOLIDAY â”€â”€
         "a_new_years_resolution": "New Year Oath",
         "a_valentines_weeb": "Valentine Spirit",
         "a_pi_day": "Pi Day Spiral",
@@ -454,7 +454,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_every_holiday": "Every Festival",
         "a_consecutive_holidays": "Linked Festivals",
 
-        // ── ANIME META ──
+        // â”€â”€ ANIME META â”€â”€
         "a_meta_first_unlock": "First Awakening",
         "a_meta_collector": "Mark Collector",
         "a_meta_category_starter": "Branch Begun",
@@ -468,7 +468,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "a_meta_diverse": "Diverse Roots",
         "a_meta_dominator": "Forest Dominator",
 
-        // ── MANGA MILESTONES ──
+        // â”€â”€ MANGA MILESTONES â”€â”€
         "m_first_chapter": "First Page",
         "m_chapter_counter": "Chapter Rings",
         "m_chapter_titan": "Ancient Scroll",
@@ -502,7 +502,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_favorites_collector": "Beloved Archive",
         "m_days_spent_reading": "Days Reading",
 
-        // ── MANGA BINGE ──
+        // â”€â”€ MANGA BINGE â”€â”€
         "m_binge_reader": "Moonlit Reading",
         "m_marathon_reader": "Reading Marathon",
         "m_weekend_reader": "Weekend Reader",
@@ -534,7 +534,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_forty_eight_hour": "Two-Day Marathon",
         "m_oneshot_binge": "Oneshot Burst",
 
-        // ── MANGA GENRES ──
+        // â”€â”€ MANGA GENRES â”€â”€
         "m_genre_action": "Action Scroll",
         "m_genre_adventure": "Adventure Tome",
         "m_genre_comedy": "Comedy Scroll",
@@ -576,7 +576,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_tag_medical": "Herb Lore",
         "m_tag_villainess": "Lady's Scroll",
 
-        // ── MANGA COMPLETION ──
+        // â”€â”€ MANGA COMPLETION â”€â”€
         "m_completionist": "Full Archive",
         "m_mega_completionist": "Supreme Archivist",
         "m_completion_rate_50": "Halfway Read",
@@ -608,7 +608,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_rapid_complete": "Rapid Finish",
         "m_author_complete": "Author Complete",
 
-        // ── MANGA DEDICATION ──
+        // â”€â”€ MANGA DEDICATION â”€â”€
         "m_loyal_reader": "Loyal Reader",
         "m_mangaka_lover": "Mangaka Devotee",
         "m_rereader": "Path Retraced",
@@ -638,7 +638,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_ongoing_follower": "Ongoing Follower",
         "m_genre_loyalty_50": "Fifty Loyal",
 
-        // ── MANGA DISCOVERY ──
+        // â”€â”€ MANGA DISCOVERY â”€â”€
         "m_genre_explorer": "Genre Forager",
         "m_publisher_hopper": "Publisher Hopper",
         "m_tag_explorer": "Tag Explorer",
@@ -668,7 +668,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_long_manga_explorer": "Long Explorer",
         "m_serialization_explorer": "Serial Explorer",
 
-        // ── MANGA TIME ──
+        // â”€â”€ MANGA TIME â”€â”€
         "m_night_owl": "Night Reader",
         "m_early_bird": "Dawn Reader",
         "m_lunch_reader": "Midday Reader",
@@ -696,7 +696,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_monthly_hours": "Monthly Hours",
         "m_bedtime_reader": "Bedtime Reader",
 
-        // ── MANGA CREATIVE ──
+        // â”€â”€ MANGA CREATIVE â”€â”€
         "m_art_appreciator": "Art Admirer",
         "m_webtoon_reader": "Webtoon Reader",
         "m_full_color": "Full Color",
@@ -724,7 +724,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_remake_reader": "Remake Reader",
         "m_collaboration_reader": "Collab Reader",
 
-        // ── MANGA STREAKS ──
+        // â”€â”€ MANGA STREAKS â”€â”€
         "m_daily_streak": "Daily Read Streak",
         "m_mega_streak": "Mega Read Streak",
         "m_weekly_warrior": "Weekly Reader",
@@ -754,7 +754,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_perfect_week_manga": "Perfect Week",
         "m_diverse_streak": "Diverse Streak",
 
-        // ── MANGA SCORING ──
+        // â”€â”€ MANGA SCORING â”€â”€
         "m_critic": "Scroll Critic",
         "m_perfect_ten": "Perfect Score",
         "m_harsh_critic": "Harsh Critic",
@@ -782,7 +782,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_genre_critic": "Genre Critic",
         "m_mean_above_8": "Elite Reader",
 
-        // ── MANGA HOLIDAY ──
+        // â”€â”€ MANGA HOLIDAY â”€â”€
         "m_new_years_resolution": "New Year Vow",
         "m_valentines_read": "Valentine Read",
         "m_pi_day": "Pi Day Pages",
@@ -808,7 +808,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_every_holiday_reader": "Every Festival",
         "m_consecutive_holidays": "Linked Holidays",
 
-        // ── MANGA SPECIAL ──
+        // â”€â”€ MANGA SPECIAL â”€â”€
         "m_round_number": "Round Number",
         "m_fibonacci": "Golden Ratio",
         "m_palindrome_day": "Mirror Day",
@@ -836,7 +836,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_year_match_count": "Year Match",
         "m_chapter_match_date": "Chapter Date",
 
-        // ── MANGA FORMATS ──
+        // â”€â”€ MANGA FORMATS â”€â”€
         "m_manga_format": "Manga Format",
         "m_manhwa_format": "Manhwa Format",
         "m_manhua_format": "Manhua Format",
@@ -846,7 +846,7 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         "m_novel_format": "Novel Format",
         "m_format_master_manga": "Format Master",
 
-        // ── MANGA META ──
+        // â”€â”€ MANGA META â”€â”€
         "m_meta_first_unlock": "First Unlock",
         "m_meta_collector": "Badge Collector",
         "m_meta_category_starter": "Branch Started",
@@ -879,13 +879,155 @@ export const princessMononokeTheme: AnimeThemeConfig = {
         spirit_wisps: { label: "Spirit Wisps", maxCount: 8, defaultEnabled: true, defaultIntensity: 45 },
     },
     milestoneNames: {
-        1:   "Villager",
-        5:   "Traveler",
-        15:  "Cursed",
-        30:  "Forest Dweller",
-        45:  "Wolf Rider",
-        60:  "Mediator",
-        80:  "Spirit Touched",
-        100: "Mononoke",
+        1:   "Human",
+        8:   "Outcast",
+        14:  "Forest Walker",
+        21:  "Spirit-Touched Human",
+        28:  "Cursed One",
+        35:  "Forest Spirit's Ally",
+        41:  "God-Killer's Companion",
+        48:  "Deer God's Witness",
+        55:  "Kami-Level",
+        61:  "The Forest's Voice",
+        68:  "Emishi Prince",
+        75:  "Curse Bearer",
+        81:  "Nightwalker's Target",
+        88:  "Iron Town — Arrived",
+        95:  "Iron Town Worker",
+        102: "Lady Eboshi's Ward",
+        108: "Lady Eboshi's Rival",
+        115: "San's Enemy",
+        122: "San's Ally",
+        128: "San — Mononoke Hime",
+        135: "Wolf Clan Ally",
+        142: "Wolf Rider",
+        149: "Moro's Pack Member",
+        155: "Forest Creature Ally",
+        162: "Kodama Witness",
+        169: "Forest Spirit — Seen",
+        175: "Deer God — Approached",
+        182: "Deer God — Witnessed",
+        189: "Night Walker — Encountered",
+        195: "Didarabocchi",
+        202: "Forest God's Presence",
+        209: "Forest God — Wrath",
+        216: "Forest God — Decapitated",
+        222: "Forest God — Searching Head",
+        229: "Forest God — Restored",
+        236: "Forest God's Death",
+        242: "Life Force — Losing",
+        249: "Life Force — Fighting",
+        256: "Forest Healing — Begun",
+        262: "Kodama — Returned",
+        269: "Forest — Healing",
+        276: "Nature — Recovering",
+        283: "Curse — Lifted",
+        289: "San — Found",
+        296: "San — Loved",
+        303: "Ashitaka — Named",
+        309: "Forest — Named",
+        316: "San's World — Seen",
+        323: "Ashitaka's World — Seen",
+        330: "Iron Town — Changed",
+        336: "Lady Eboshi — Humbled",
+        343: "Jigo's Plot — Foiled",
+        350: "Samurai — Repelled",
+        356: "Iron Town — Rebuilt",
+        363: "San — Free",
+        370: "Ashitaka — Free",
+        376: "Forest — Free",
+        383: "Humanity and Nature",
+        390: "Balance — Restored",
+        397: "Wolf God — Honored",
+        403: "Moro — Honored",
+        410: "Forest Guardian",
+        417: "Nature's Champion",
+        423: "Human-Nature Bridge",
+        430: "Spirit Mediator",
+        437: "Kami Ally",
+        444: "Forest Warden",
+        450: "Nature's Protector",
+        457: "Balance Keeper",
+        464: "Deer God's Guardian",
+        470: "Wolf Clan — Honor",
+        477: "Boar God — Remembered",
+        484: "Okkoto — Honored",
+        490: "Moro — Farewell",
+        497: "San — Found Peace",
+        504: "Forest — Eternal",
+        511: "Nature — Eternal",
+        517: "Kodama — Everywhere",
+        524: "Spirit World — Open",
+        531: "Human World — Changed",
+        537: "Iron Town — With Nature",
+        544: "Lady Eboshi — Healed",
+        551: "Lepers — Freed",
+        557: "Women Workers — Freed",
+        564: "Jigo — Stopped",
+        571: "Deer God's Life Force — Back",
+        578: "Death — Returned to Forest",
+        584: "Life — Renewed",
+        591: "Forest Legend",
+        598: "Kami Legend",
+        604: "Nature Legend",
+        611: "Spirit World Legend",
+        618: "Deer God Legend",
+        625: "Wolf God Legend",
+        631: "San — Princess Legend",
+        638: "Ashitaka — Hero",
+        645: "Eboshi — Changed",
+        651: "Iron Town — Green",
+        658: "Forest — Dense Again",
+        665: "Deer God's Domain",
+        671: "Nature's Sovereign",
+        678: "Spirit World Sovereign",
+        685: "Kami Supreme",
+        692: "Forest God Level",
+        698: "Night Walker — Honored",
+        705: "Deer God — Revered",
+        712: "Wolf God — Revered",
+        718: "All Kami — United",
+        725: "Nature — Healed",
+        732: "Forest — Eternal Peace",
+        739: "San and Ashitaka — Eternal",
+        745: "Mononoke — Legend",
+        752: "Forest God — Eternal",
+        759: "Kami — Eternal",
+        765: "Nature — Eternal",
+        772: "Deer God — Eternal",
+        779: "Wolf God — Eternal",
+        785: "Spirit World — Eternal",
+        792: "Human-Nature — Eternal",
+        799: "Balance — Eternal",
+        806: "Kodama — Everywhere",
+        812: "Forest — Sacred",
+        819: "Mountain — Sacred",
+        826: "River — Sacred",
+        832: "Nature — Sacred",
+        839: "Kami — Sacred",
+        846: "Deer God — Sacred",
+        852: "Wolf God — Sacred",
+        859: "San — Sacred",
+        866: "Forest Princess — Eternal",
+        873: "Ashitaka — Eternal",
+        879: "Balance — Perfect",
+        886: "Nature God",
+        893: "Kami God",
+        899: "Forest God",
+        906: "Deer God's Successor",
+        913: "Wolf God's Heir",
+        920: "Spirit World Master",
+        926: "Nature's Master",
+        933: "Forest's Heart",
+        940: "Balance's Core",
+        946: "Kami Supreme God",
+        953: "Nature Supreme God",
+        960: "Forest Supreme God",
+        966: "Mononoke — Eternal",
+        973: "San — Beyond Human",
+        980: "Ashitaka — Beyond Curse",
+        987: "Nature — Beyond Time",
+        993: "Forest — Beyond Death",
+        1000: "Princess Mononoke",
     },
 }

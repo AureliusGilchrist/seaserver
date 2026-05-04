@@ -1,4 +1,4 @@
-import { AnimeThemeConfig } from "./types"
+﻿import { AnimeThemeConfig } from "./types"
 import {
     GiSpyglass, GiRing, GiScrollUnfurled, GiSpellBook,
     GiPistolGun, GiHeartInside, GiGrenade, GiStarMedal,
@@ -12,7 +12,7 @@ import { TbReportSearch } from "react-icons/tb"
 
 export const spyXFamilyTheme: AnimeThemeConfig = {
     id: "spy-x-family",
-    displayName: "Spy × Family",
+    displayName: "Spy Ã— Family",
     description: "Forger Family mission: peace. Espionage pink & agent gray.",
     fontFamily: "'Nunito', sans-serif",
     fontHref: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap",
@@ -60,7 +60,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "settings":       { icon: GiSettingsKnobs,label: "WISE Config" },
     },
     achievementNames: {
-        // ── ANIME MILESTONES ──
+        // â”€â”€ ANIME MILESTONES â”€â”€
         "a_first_episode": "Operation Strix Begins",
         "a_episode_counter": "Mission Ops Tally",
         "a_episode_titan": "S-Rank Operation",
@@ -92,7 +92,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_first_favorite": "First Safe House",
         "a_favorites_collector": "Favorite Assets",
 
-        // ── ANIME BINGE ──
+        // â”€â”€ ANIME BINGE â”€â”€
         "a_binge_watcher": "Forger Family Marathon",
         "a_marathon_runner": "Operation Strix Sprint",
         "a_weekend_warrior": "Weekend Field Op",
@@ -122,7 +122,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_midnight_binge": "Midnight Recon Run",
         "a_new_year_binge": "New Year Offensive",
 
-        // ── ANIME GENRES ──
+        // â”€â”€ ANIME GENRES â”€â”€
         "a_genre_action": "Thorn Princess Strike",
         "a_genre_adventure": "Beyond Ostania",
         "a_genre_comedy": "Anya's Waku Waku",
@@ -162,7 +162,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_tag_josei": "Yor's Resolve",
         "a_tag_survival": "Survival Mission",
 
-        // ── ANIME COMPLETION ──
+        // â”€â”€ ANIME COMPLETION â”€â”€
         "a_completionist": "Full Mission Report",
         "a_mega_completionist": "Legendary Agent",
         "a_completion_rate_50": "Halfway to Peace",
@@ -192,7 +192,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_yearly_completions": "Yearly Debriefing",
         "a_rapid_complete": "Flash Mission Done",
 
-        // ── ANIME DEDICATION ──
+        // â”€â”€ ANIME DEDICATION â”€â”€
         "a_loyal_fan": "Forger Family Ally",
         "a_studio_devotee": "Studio Loyalist",
         "a_rewatcher": "Rewatch Operative",
@@ -222,7 +222,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_year_dedication": "Year of Service",
         "a_season_dedication": "Season of Duty",
 
-        // ── ANIME DISCOVERY ──
+        // â”€â”€ ANIME DISCOVERY â”€â”€
         "a_genre_explorer": "Genre Fieldwork",
         "a_studio_hopper": "Agency Transfer",
         "a_tag_explorer": "Tag Recon Mission",
@@ -252,7 +252,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_short_series_explorer": "Short Op Scout",
         "a_long_series_explorer": "Long Op Scout",
 
-        // ── ANIME TIME ──
+        // â”€â”€ ANIME TIME â”€â”€
         "a_night_owl": "Night Mission Watch",
         "a_early_bird": "Dawn Briefing Hour",
         "a_lunch_break": "Lunch Cover Shift",
@@ -280,7 +280,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_every_day_of_week": "Every Day Active",
         "a_monthly_hours": "Monthly Hours Filed",
 
-        // ── ANIME SOCIAL ──
+        // â”€â”€ ANIME SOCIAL â”€â”€
         "a_first_party": "First Squad Formation",
         "a_party_host": "Handler's Gathering",
         "a_social_butterfly": "Berlint Gala Socialite",
@@ -302,7 +302,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_party_completionist": "Party Completionist",
         "a_social_scorer": "Social Scorer",
 
-        // ── ANIME SPECIAL ──
+        // â”€â”€ ANIME SPECIAL â”€â”€
         "a_round_number": "Round Number Op",
         "a_fibonacci": "Fibonacci Cipher",
         "a_palindrome_day": "Palindrome Code Day",
@@ -330,7 +330,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_exact_hundred_eps": "Exact Hundred Ops",
         "a_year_match_count": "Year Match Count",
 
-        // ── ANIME FORMATS ──
+        // â”€â”€ ANIME FORMATS â”€â”€
         "a_tv_watcher": "TV Broadcast Agent",
         "a_movie_buff": "Movie Night Forger",
         "a_ova_hunter": "OVA Hunter Op",
@@ -356,7 +356,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_sequel_movie": "Sequel Film Op",
         "a_recap_watcher": "Debriefing Recap",
 
-        // ── ANIME STREAKS ──
+        // â”€â”€ ANIME STREAKS â”€â”€
         "a_daily_streak": "Daily Op Streak",
         "a_mega_streak": "Mega Mission Streak",
         "a_weekly_warrior": "Weekly Warrior Agent",
@@ -384,7 +384,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_studio_streak": "Studio Loyalty Streak",
         "a_perfect_week": "Perfect Eden Week",
 
-        // ── ANIME SCORING ──
+        // â”€â”€ ANIME SCORING â”€â”€
         "a_critic": "WISE Evaluator",
         "a_perfect_ten": "Perfect Stella Star",
         "a_harsh_critic": "Harsh Handler",
@@ -410,7 +410,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_genre_critic": "Genre Intel Critic",
         "a_mean_above_8": "Elite Average Score",
 
-        // ── ANIME HOLIDAY ──
+        // â”€â”€ ANIME HOLIDAY â”€â”€
         "a_new_years_resolution": "New Year's Vow",
         "a_valentines_weeb": "Valentine's Cover Op",
         "a_pi_day": "Pi Day Cipher",
@@ -436,7 +436,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_every_holiday": "Every Holiday Agent",
         "a_consecutive_holidays": "Holiday Op Streak",
 
-        // ── ANIME META ──
+        // â”€â”€ ANIME META â”€â”€
         "a_meta_first_unlock": "First Power Awakened",
         "a_meta_collector": "Spy Badge Collector",
         "a_meta_category_starter": "Category Initiation",
@@ -450,7 +450,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "a_meta_diverse": "Diverse Portfolio",
         "a_meta_dominator": "Meta Op Dominator",
 
-        // ── MANGA MILESTONES ──
+        // â”€â”€ MANGA MILESTONES â”€â”€
         "m_first_chapter": "First Dead Drop Read",
         "m_chapter_counter": "Chapter Tally Count",
         "m_chapter_titan": "S-Class Chapter Op",
@@ -484,7 +484,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_favorites_collector": "Favorites Archive",
         "m_days_spent_reading": "Days Reading Intel",
 
-        // ── MANGA BINGE ──
+        // â”€â”€ MANGA BINGE â”€â”€
         "m_binge_reader": "Binge Reading Op",
         "m_marathon_reader": "Reading Marathon Run",
         "m_weekend_reader": "Weekend Reading Op",
@@ -516,7 +516,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_forty_eight_hour": "48-Hour Read Op",
         "m_oneshot_binge": "Oneshot Blitz Read",
 
-        // ── MANGA GENRES ──
+        // â”€â”€ MANGA GENRES â”€â”€
         "m_genre_action": "Action Dossier Filed",
         "m_genre_adventure": "Adventure Intel File",
         "m_genre_comedy": "Comedy Intercept",
@@ -558,7 +558,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_tag_medical": "Medic Intel File",
         "m_tag_villainess": "Villainess Dossier",
 
-        // ── MANGA COMPLETION ──
+        // â”€â”€ MANGA COMPLETION â”€â”€
         "m_completionist": "File Completionist",
         "m_mega_completionist": "Master Archivist",
         "m_completion_rate_50": "Halfway Decoded",
@@ -590,7 +590,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_rapid_complete": "Rapid Decode Op",
         "m_author_complete": "Author Complete File",
 
-        // ── MANGA DEDICATION ──
+        // â”€â”€ MANGA DEDICATION â”€â”€
         "m_loyal_reader": "Loyal WISE Reader",
         "m_mangaka_lover": "Mangaka Devotee",
         "m_rereader": "Rereader Agent",
@@ -620,7 +620,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_ongoing_follower": "Ongoing Op Follower",
         "m_genre_loyalty_50": "Fifty Genre Files",
 
-        // ── MANGA DISCOVERY ──
+        // â”€â”€ MANGA DISCOVERY â”€â”€
         "m_genre_explorer": "Genre Recon Scout",
         "m_publisher_hopper": "Publisher Transfer",
         "m_tag_explorer": "Tag Recon Op",
@@ -650,7 +650,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_long_manga_explorer": "Long File Scout",
         "m_serialization_explorer": "Serial Explorer",
 
-        // ── MANGA TIME ──
+        // â”€â”€ MANGA TIME â”€â”€
         "m_night_owl": "Night Owl Reader",
         "m_early_bird": "Dawn Read Briefing",
         "m_lunch_reader": "Lunch Break Read",
@@ -678,7 +678,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_monthly_hours": "Monthly Hours Filed",
         "m_bedtime_reader": "Bedtime Intel Read",
 
-        // ── MANGA CREATIVE ──
+        // â”€â”€ MANGA CREATIVE â”€â”€
         "m_art_appreciator": "Art Appreciator",
         "m_webtoon_reader": "Webtoon Intel Source",
         "m_full_color": "Full Color Dossier",
@@ -706,7 +706,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_remake_reader": "Remake Reader Op",
         "m_collaboration_reader": "Collab Read Op",
 
-        // ── MANGA STREAKS ──
+        // â”€â”€ MANGA STREAKS â”€â”€
         "m_daily_streak": "Daily Read Streak",
         "m_mega_streak": "Mega Read Streak",
         "m_weekly_warrior": "Weekly Reader Agent",
@@ -736,7 +736,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_perfect_week_manga": "Perfect Read Week",
         "m_diverse_streak": "Diverse Read Streak",
 
-        // ── MANGA SCORING ──
+        // â”€â”€ MANGA SCORING â”€â”€
         "m_critic": "Dossier Critic",
         "m_perfect_ten": "Perfect File Score",
         "m_harsh_critic": "Harsh Evaluator",
@@ -764,7 +764,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_genre_critic": "Genre Dossier Critic",
         "m_mean_above_8": "Elite Read Average",
 
-        // ── MANGA HOLIDAY ──
+        // â”€â”€ MANGA HOLIDAY â”€â”€
         "m_new_years_resolution": "New Year Read Vow",
         "m_valentines_read": "Valentine's Reading",
         "m_pi_day": "Pi Day Chapter Op",
@@ -790,7 +790,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_every_holiday_reader": "Every Holiday Read",
         "m_consecutive_holidays": "Holiday Read Streak",
 
-        // ── MANGA SPECIAL ──
+        // â”€â”€ MANGA SPECIAL â”€â”€
         "m_round_number": "Round Number File",
         "m_fibonacci": "Fibonacci Code Read",
         "m_palindrome_day": "Palindrome Read Day",
@@ -818,7 +818,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_year_match_count": "Year Match Chapters",
         "m_chapter_match_date": "Chapter Date Match",
 
-        // ── MANGA FORMATS ──
+        // â”€â”€ MANGA FORMATS â”€â”€
         "m_manga_format": "Manga Format Agent",
         "m_manhwa_format": "Manhwa Format Op",
         "m_manhua_format": "Manhua Format Op",
@@ -828,7 +828,7 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
         "m_novel_format": "Novel Format Op",
         "m_format_master_manga": "Format Master Read",
 
-        // ── MANGA META ──
+        // â”€â”€ MANGA META â”€â”€
         "m_meta_first_unlock": "First Read Awakened",
         "m_meta_collector": "Read Badge Collector",
         "m_meta_category_starter": "Category Initiated",
@@ -856,13 +856,154 @@ export const spyXFamilyTheme: AnimeThemeConfig = {
     backgroundBlur: 30,
     milestoneNames: {
         1:   "Civilian",
-        5:   "WISE Recruit",
-        14:  "Agent Twilight's Partner",
-        26:  "Thorn Princess Ally",
-        40:  "Forger Family Member",
-        55:  "Secret Keeper",
-        70:  "Handler's Trusted",
-        85:  "Donovan's Shadow",
-        100: "World Peace Mission Complete",
+        8:   "WISE Recruit",
+        14:  "WISE Field Agent",
+        21:  "WISE Senior Field Agent",
+        28:  "WISE Handler",
+        35:  "WISE Operations Chief",
+        41:  "WISE Director",
+        48:  "SSS Investigator",
+        55:  "SSS Senior Investigator",
+        61:  "SSS Section Chief",
+        68:  "SSS Division Head",
+        75:  "Garden Assassin",
+        81:  "Garden Senior Killer",
+        88:  "Garden Elite Assassin",
+        95:  "Thorn Princess",
+        102: "Agent Twilight",
+        108: "Loid Forger — Persona",
+        115: "Yor Forger — Persona",
+        122: "Forger Family",
+        128: "Mission: Strix",
+        135: "Operation Strix — Active",
+        142: "Donovan Target — Located",
+        149: "Eden Academy — Enrolled",
+        155: "Ordinary Student",
+        162: "Imperial Scholar Candidate",
+        169: "Stella Star — 1",
+        175: "Stella Star — 2",
+        182: "Stella Star — 3",
+        189: "Stella Star — 4",
+        195: "Stella Star — 5",
+        202: "Stella Star — 6",
+        209: "Stella Star — 7",
+        216: "Stella Star — 8",
+        222: "Imperial Scholar",
+        229: "Top of Class",
+        236: "Tonitrus Bolt — 1",
+        242: "Tonitrus Bolt — 2",
+        249: "Tonitrus Bolt — 3",
+        256: "Tonitrus Bolt — Expelled",
+        262: "Social Climbing — Master",
+        269: "Parent Interview — Passed",
+        276: "Reception Party — Infiltrated",
+        283: "Donovan Desmond — Proximate",
+        289: "Donovan — Observed",
+        296: "Donovan — Analyzed",
+        303: "Donovan — Target Locked",
+        309: "Heartguard — Enemy",
+        316: "SSS Task Force",
+        323: "SSS — Counterintelligence",
+        330: "WISE and SSS — Conflict",
+        336: "Yuri Briar — SSS",
+        343: "Yuri — Family Secret",
+        350: "Yor's Brother — Unknown",
+        356: "Forger Secret — Safe",
+        363: "Anya — Telepath",
+        370: "Anya — Project Apple",
+        376: "Anya — Mind Reader",
+        383: "Anya — Agent in Training",
+        390: "Anya — Future Spy",
+        397: "Damian Desmond — Target",
+        403: "Becky Blackbell — Friend",
+        410: "Eden Academy — Social Map",
+        417: "Wise Guy — Decoded",
+        423: "Nightfall — Rival",
+        430: "Franky — Informant",
+        437: "Handler Sylvia — Direct",
+        444: "Handler — Trusted",
+        450: "WISE Network — Full",
+        457: "Eastern Country — Infiltrated",
+        464: "Westalis Intelligence",
+        470: "Ostania Intelligence",
+        477: "Cold War — Manipulated",
+        484: "Peace — Maintained",
+        490: "War — Averted",
+        497: "Forger Family — Stable",
+        504: "Family Bond — Real",
+        511: "Loid's Feelings — Growing",
+        517: "Yor's Feelings — Growing",
+        524: "Anya's Wish — Family",
+        531: "Bond Forger — Dog",
+        537: "Bond — Precognition",
+        544: "Penguin Park — Infiltrated",
+        551: "Museum — Operation",
+        557: "Cruise Ship — Operation",
+        564: "Assassination Attempt — Foiled",
+        571: "Elegance — Maintained",
+        578: "Cover — Unbroken",
+        584: "Mission Strix — Advanced",
+        591: "Donovan — Getting Closer",
+        598: "World Situation — Controlled",
+        604: "WISE Master Spy",
+        611: "Garden Master Killer",
+        618: "SSS Master Agent",
+        625: "Triple Agent",
+        631: "Twilight — Legend",
+        638: "Thorn Princess — Legend",
+        645: "Forger Family — Legend",
+        651: "Operation Strix — Near Complete",
+        658: "World Peace — Protected",
+        665: "Donovan — Neutralized",
+        671: "War — Permanently Averted",
+        678: "Wise Director — Trust",
+        685: "Garden — Retired",
+        692: "WISE — Retired",
+        698: "Forger Family — Real",
+        705: "Family Love — Real",
+        712: "Loid — Real Feelings",
+        718: "Yor — Real Heart",
+        725: "Anya — Spy Dream",
+        732: "Bond — Loyal",
+        739: "Mission — Complete",
+        745: "Family — Complete",
+        752: "World Peace — Secured",
+        759: "Cover — Blown? Never",
+        765: "Spy Family — Eternal",
+        772: "Eden Academy — Graduated",
+        779: "Imperial Scholar — Achieved",
+        785: "Stella Stars — Complete",
+        792: "Donovan — Defeated",
+        799: "Operation Strix — Success",
+        806: "Westalis-Ostania Peace",
+        812: "Cold War — Ended",
+        819: "Spy Legend",
+        826: "Assassin Legend",
+        832: "Family Legend",
+        839: "Twilight — Unmasked",
+        846: "Thorn Princess — Known",
+        852: "Forger Family — Open",
+        859: "Anya — Telepath Legend",
+        866: "Bond — World Saved",
+        873: "Forger Love — Confirmed",
+        879: "Marriage — Real",
+        886: "WISE God",
+        893: "Garden God",
+        899: "SSS God",
+        906: "Peace Guardian",
+        913: "World's Protector",
+        920: "Spy Master — Final",
+        926: "Twilight — Eternal",
+        933: "Thorn Princess — Eternal",
+        940: "Anya's Father — Best",
+        946: "Yor's Husband — Real",
+        953: "Loid's Family — Treasured",
+        960: "World Peace — Forever",
+        966: "Forger Family — Forever",
+        973: "Mission Strix — Eternal",
+        980: "Peace — God",
+        987: "Spy God",
+        993: "Family God",
+        1000: "Operation Strix — Complete",
     },
 }

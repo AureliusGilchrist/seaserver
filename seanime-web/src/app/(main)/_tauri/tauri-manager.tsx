@@ -37,16 +37,16 @@ export function TauriManager(props: TauriManagerProps) {
             // Any other element = video player — leave it alone
         }
 
-        // Keydown handler: F11 toggles Tauri native fullscreen in both directions.
-        // Escape exits Tauri fullscreen only when the video player is NOT in DOM fullscreen.
+        // Keydown handler: F11 always toggles Tauri native window fullscreen,
+        // even when the video player is in DOM fullscreen (both can be active at once).
+        // Escape exits Tauri fullscreen only when video is NOT in DOM fullscreen
+        // (video's own Escape handler covers the video-fullscreen case).
         const handleKeydown = (e: KeyboardEvent) => {
             if (e.key === "F11") {
                 e.preventDefault()
                 e.stopPropagation()
-                // Don't override F11 when the video player owns DOM fullscreen
-                if (!document.fullscreenElement) {
-                    toggleFullscreen()
-                }
+                // Always toggle window fullscreen — independent of video DOM fullscreen state
+                toggleFullscreen()
                 return
             }
             if (e.key === "Escape" && !document.fullscreenElement) {
@@ -73,18 +73,25 @@ export function TauriManager(props: TauriManagerProps) {
 
         const fullscreen = await appWindow.isFullscreen()
         if (!fullscreen) {
-            // Entering: remove decorations first, then go fullscreen with alwaysOnTop
-            // so the window fills the entire screen including the Windows taskbar area.
+            // Entering fullscreen:
+            // 1. Remove decorations first to eliminate the title bar gap at the top.
+            // 2. Set fullscreen — on Windows this alone can still leave a taskbar gap.
+            // 3. setAlwaysOnTop(true) causes the window to render over the taskbar,
+            //    filling the full screen area including where the taskbar sits.
             await appWindow.setDecorations(false)
             await appWindow.setFullscreen(true)
             await appWindow.setAlwaysOnTop(true)
         } else {
-            // Exiting: clear alwaysOnTop, exit fullscreen, restore decorations.
+            // Exiting fullscreen:
+            // 1. Clear alwaysOnTop so the taskbar regains its normal z-order.
+            // 2. Exit fullscreen — window returns to its previous size.
+            // 3. Restore decorations (title bar).
             await appWindow.setAlwaysOnTop(false)
             await appWindow.setFullscreen(false)
             await appWindow.setDecorations(true)
         }
 
+        // Notify all listeners (title bar, video manager, etc.) of the new state.
         window.dispatchEvent(new CustomEvent("tauri:fullscreenchange", { detail: { isFullscreen: !fullscreen } }))
     }
 

@@ -39,6 +39,7 @@ import {
     type ThemeBgFile,
 } from "@/api/hooks/theme_backgrounds.hooks"
 import { WallhavenPickerModal } from "./_components/wallhaven-picker"
+import { WallpaperShop } from "./_components/wallpaper-shop"
 
 export default function ThemeManagerPage() {
     const {
@@ -99,12 +100,34 @@ export default function ThemeManagerPage() {
     const [pickerOpen, setPickerOpen] = React.useState(false)
     const [searchQuery, setSearchQuery] = React.useState("")
     const [settingsPanelOpen, setSettingsPanelOpen] = React.useState(false)
-    const [activeTab, setActiveTab] = React.useState<"themes" | "presets">("themes")
+    const [activeTab, setActiveTab] = React.useState<"themes" | "presets" | "wallpapers">("themes")
     const [batchProgress, setBatchProgress] = React.useState<{ done: number; total: number } | null>(null)
     const { data: downloadedBgs, isLoading: bgsLoading } = useListThemeBackgrounds()
     const deleteMutation = useDeleteThemeBackground()
     const downloadBgMutation = useDownloadThemeBackground()
     const [downloadingBgId, setDownloadingBgId] = React.useState<string | null>(null)
+
+    // Filter downloaded wallpapers to only show ones tagged for the current theme.
+    // Legacy files (wh-{id}.ext, no theme prefix) are shown under all themes.
+    const themedDownloadedBgs = React.useMemo(() => {
+        if (!downloadedBgs) return []
+        return downloadedBgs.filter(bg => {
+            const name = bg.filename
+            // New format: wh-{themeId}-{wallhavenId}.ext
+            if (name.startsWith("wh-")) {
+                const withoutPrefix = name.slice(3) // "{themeId}-{wallhavenId}.ext" or "{wallhavenId}.ext"
+                const parts = withoutPrefix.split("-")
+                // If second segment looks like a wallhaven ID (alphanumeric, ~6 chars), it's legacy
+                // Legacy: wh-abc123.ext → parts = ["abc123.ext"] (no dash in id part)
+                // New: wh-naruto-abc123.ext → parts = ["naruto", "abc123.ext"]
+                if (parts.length === 1) return true // legacy — show everywhere
+                // First part is themeId
+                const fileThemeId = parts[0]
+                return fileThemeId === themeId
+            }
+            return true // non-wh files always shown
+        })
+    }, [downloadedBgs, themeId])
 
     // Wallhaven curated suggestions — only fetch when user explicitly loads them
     const curatedQuery = config.id !== "seanime" ? (WALLHAVEN_CURATED_QUERY[themeId] ?? "") : ""
@@ -118,7 +141,7 @@ export default function ThemeManagerPage() {
         if (downloadingBgId) return
         setDownloadingBgId(w.id)
         try {
-            const result = await downloadBgMutation.mutateAsync({ url: w.path })
+            const result = await downloadBgMutation.mutateAsync({ url: w.path, themeId })
             if (result) setActiveBackgroundUrl(result.url)
         } catch { /* ignored */ } finally {
             setDownloadingBgId(null)
@@ -132,7 +155,7 @@ export default function ThemeManagerPage() {
         if (!toDownload.length) return
         setBatchProgress({ done: 0, total: toDownload.length })
         for (let i = 0; i < toDownload.length; i++) {
-            try { await downloadBgMutation.mutateAsync({ url: toDownload[i].path }) } catch { /* ignored */ }
+            try { await downloadBgMutation.mutateAsync({ url: toDownload[i].path, themeId }) } catch { /* ignored */ }
             setBatchProgress({ done: i + 1, total: toDownload.length })
         }
         setBatchProgress(null)
@@ -182,8 +205,9 @@ export default function ThemeManagerPage() {
             {/* Tab navigation */}
             <div className="flex items-center gap-1 p-1 rounded-xl bg-[--paper] border border-[--border] w-fit">
                 {([
-                    { id: "themes",  label: "Themes",  icon: <LuSparkles className="w-3.5 h-3.5" /> },
-                    { id: "presets", label: "Presets", icon: <LuBookmark className="w-3.5 h-3.5" /> },
+                    { id: "themes",     label: "Themes",     icon: <LuSparkles className="w-3.5 h-3.5" /> },
+                    { id: "wallpapers", label: "Wallpapers",  icon: <LuImage className="w-3.5 h-3.5" /> },
+                    { id: "presets",    label: "Presets",    icon: <LuBookmark className="w-3.5 h-3.5" /> },
                 ] as const).map(tab => (
                     <button
                         key={tab.id}
@@ -203,6 +227,20 @@ export default function ThemeManagerPage() {
 
             {/* Presets tab */}
             {activeTab === "presets" && <PresetsPanel />}
+
+            {/* Wallpapers tab */}
+            {activeTab === "wallpapers" && <WallpaperShopTab
+                themeId={themeId}
+                downloadedBgs={downloadedBgs ?? []}
+                themedDownloadedBgs={themedDownloadedBgs}
+                bgsLoading={bgsLoading}
+                activeBackgroundUrl={activeBackgroundUrl}
+                setActiveBackgroundUrl={setActiveBackgroundUrl}
+                deleteMutation={deleteMutation}
+                downloadBgMutation={downloadBgMutation}
+                config={config}
+                resolveThemeBgUrl={resolveThemeBgUrl}
+            />}
 
             {/* Themes tab content (hidden when Presets is active) */}
             {activeTab === "themes" && <>
@@ -657,11 +695,11 @@ export default function ThemeManagerPage() {
                                     </button>
                                 )}
 
-                                {/* Downloaded wallpapers */}
+                                {/* Downloaded wallpapers — filtered to current theme */}
                                 {bgsLoading && !downloadedBgs && Array.from({ length: 4 }).map((_, i) => (
                                     <div key={i} className="aspect-video rounded-lg bg-white/5 animate-pulse" />
                                 ))}
-                                {(downloadedBgs ?? []).map(bg => (
+                                {themedDownloadedBgs.map(bg => (
                                     <div key={bg.filename} className="relative group">
                                         <button
                                             onClick={() => setActiveBackgroundUrl(resolveThemeBgUrl(bg.url))}
@@ -894,6 +932,130 @@ export default function ThemeManagerPage() {
 
             </> /* end themes tab */}
         </PageWrapper>
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Wallpapers tab — per-theme wallpaper shop + downloaded grid
+// ─────────────────────────────────────────────────────────────────
+
+function WallpaperShopTab({
+    themeId,
+    downloadedBgs,
+    themedDownloadedBgs,
+    bgsLoading,
+    activeBackgroundUrl,
+    setActiveBackgroundUrl,
+    deleteMutation,
+    downloadBgMutation,
+    config,
+    resolveThemeBgUrl,
+}: {
+    themeId: string
+    downloadedBgs: import("@/api/hooks/theme_backgrounds.hooks").ThemeBgFile[]
+    themedDownloadedBgs: import("@/api/hooks/theme_backgrounds.hooks").ThemeBgFile[]
+    bgsLoading: boolean
+    activeBackgroundUrl: string | null
+    setActiveBackgroundUrl: (url: string | null) => void
+    deleteMutation: ReturnType<typeof useDeleteThemeBackground>
+    downloadBgMutation: ReturnType<typeof useDownloadThemeBackground>
+    config: { backgroundImageUrl?: string; fontFamily?: string }
+    resolveThemeBgUrl: (url: string) => string
+}) {
+    const [pickerOpen, setPickerOpen] = React.useState(false)
+
+    return (
+        <div className="space-y-8">
+            {/* Downloaded wallpapers for this theme */}
+            <div className="rounded-2xl border border-[--border] bg-[--paper] p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-semibold">Your Wallpapers</h2>
+                        <p className="text-xs text-[--muted] mt-0.5">
+                            Showing {themedDownloadedBgs.length} wallpaper{themedDownloadedBgs.length !== 1 ? "s" : ""} for this theme
+                            {downloadedBgs.length !== themedDownloadedBgs.length && (
+                                <span> · {downloadedBgs.length} total across all themes</span>
+                            )}
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => setPickerOpen(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[--color-brand-600] hover:bg-[--color-brand-500] text-white text-xs font-medium transition-colors"
+                    >
+                        <LuSearch className="w-3 h-3" />
+                        Browse Wallhaven
+                    </button>
+                </div>
+
+                {themedDownloadedBgs.length === 0 && !bgsLoading ? (
+                    <div className="text-center py-12 text-[--muted] text-sm border border-dashed border-[--border] rounded-xl">
+                        <LuImage className="w-8 h-8 mx-auto mb-3 opacity-40" />
+                        <p>No wallpapers downloaded for this theme yet.</p>
+                        <p className="text-xs mt-1">Browse the shop below or search Wallhaven to add some.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                        {config.backgroundImageUrl && (
+                            <button
+                                onClick={() => setActiveBackgroundUrl(config.backgroundImageUrl!)}
+                                className={cn(
+                                    "relative aspect-video rounded-lg overflow-hidden border-2 transition-all",
+                                    activeBackgroundUrl === config.backgroundImageUrl
+                                        ? "border-[--color-brand-400]"
+                                        : "border-transparent hover:border-white/30",
+                                )}
+                            >
+                                <img src={config.backgroundImageUrl} alt="Default" className="w-full h-full object-cover" loading="lazy" />
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-[9px] text-white/70 text-center py-0.5">Default</div>
+                            </button>
+                        )}
+                        {bgsLoading && !downloadedBgs.length && Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="aspect-video rounded-lg bg-white/5 animate-pulse" />
+                        ))}
+                        {themedDownloadedBgs.map(bg => (
+                            <div key={bg.filename} className="relative group">
+                                <button
+                                    onClick={() => setActiveBackgroundUrl(resolveThemeBgUrl(bg.url))}
+                                    className={cn(
+                                        "relative aspect-video w-full rounded-lg overflow-hidden border-2 transition-all",
+                                        activeBackgroundUrl === resolveThemeBgUrl(bg.url)
+                                            ? "border-[--color-brand-400]"
+                                            : "border-transparent hover:border-white/30",
+                                    )}
+                                >
+                                    <img src={resolveThemeBgUrl(bg.url)} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                    {activeBackgroundUrl === resolveThemeBgUrl(bg.url) && (
+                                        <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-[--color-brand-500] flex items-center justify-center">
+                                            <LuCheck className="w-2.5 h-2.5 text-white" />
+                                        </div>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        deleteMutation.mutate(bg.filename)
+                                        if (activeBackgroundUrl === resolveThemeBgUrl(bg.url)) setActiveBackgroundUrl(config.backgroundImageUrl ?? null)
+                                    }}
+                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px]"
+                                >✕</button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Wallpaper shop — browse by theme */}
+            <div className="rounded-2xl border border-[--border] bg-[--paper] overflow-hidden">
+                <div className="px-6 py-4 border-b border-[--border]">
+                    <h2 className="text-lg font-semibold">Wallpaper Shop</h2>
+                    <p className="text-xs text-[--muted] mt-0.5">Browse curated wallpapers by anime theme. Click a theme card to open its wallpaper collection.</p>
+                </div>
+                <div className="p-6">
+                    <WallpaperShop />
+                </div>
+            </div>
+
+            <WallhavenPickerModal open={pickerOpen} onClose={() => setPickerOpen(false)} />
+        </div>
     )
 }
 

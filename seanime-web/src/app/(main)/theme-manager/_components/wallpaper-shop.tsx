@@ -210,12 +210,14 @@ function ThemeWallpaperRow({
     activeBackgroundUrl,
     onApply,
     defaultOpen,
+    expanded,
 }: {
     themeId: AnimeThemeId
     downloadedIdMap: Map<string, string>
     activeBackgroundUrl: string | null
     onApply: (url: string) => void
     defaultOpen?: boolean
+    expanded?: boolean
 }) {
     const [open, setOpen] = React.useState(defaultOpen ?? false)
     const [downloadingIds, setDownloadingIds] = React.useState<Set<string>>(new Set())
@@ -224,7 +226,7 @@ function ThemeWallpaperRow({
     const theme = ANIME_THEMES[themeId]
     const query = WALLHAVEN_CURATED_QUERY[themeId]
 
-    const { data, isFetching, isError } = useSearchWallhaven(query, 1, open && !!query)
+    const { data, isFetching, isError } = useSearchWallhaven(query, 1, (open || !!expanded) && !!query)
     const wallpapers: WallhavenWallpaper[] = data?.data?.slice(0, 10) ?? []
 
     const downloadMutation = useDownloadThemeBackground()
@@ -235,7 +237,7 @@ function ThemeWallpaperRow({
     const handleDownload = async (w: WallhavenWallpaper) => {
         setDownloadingIds(prev => new Set(prev).add(w.id))
         try {
-            const result = await downloadMutation.mutateAsync({ url: w.path })
+            const result = await downloadMutation.mutateAsync({ url: w.path, themeId })
             if (result) onApply(result.url)
         } catch { /* ignored */ } finally {
             setDownloadingIds(prev => { const s = new Set(prev); s.delete(w.id); return s })
@@ -251,7 +253,7 @@ function ThemeWallpaperRow({
             const w = toDownload[i]
             setDownloadingIds(prev => new Set(prev).add(w.id))
             try {
-                await downloadMutation.mutateAsync({ url: w.path })
+                await downloadMutation.mutateAsync({ url: w.path, themeId })
             } catch { /* ignored */ } finally {
                 setDownloadingIds(prev => { const s = new Set(prev); s.delete(w.id); return s })
                 setBatchProgress(prev => prev ? { ...prev, done: i + 1 } : null)
@@ -262,6 +264,97 @@ function ThemeWallpaperRow({
 
     const downloadedCount = wallpapers.filter(w => isDownloaded(w)).length
 
+    // When expanded=true, show full-page view with grid layout
+    if (expanded) {
+        return (
+            <div className="space-y-4">
+                {/* Theme header */}
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div>
+                        <h3 className="text-xl font-bold" style={{ fontFamily: theme?.fontFamily }}>
+                            {theme?.displayName ?? themeId}
+                        </h3>
+                        {theme && (
+                            <div className="flex gap-1.5 mt-1">
+                                {[theme.previewColors?.primary, theme.previewColors?.secondary, theme.previewColors?.accent].map((c, i) => c && (
+                                    <div key={i} className="w-4 h-4 rounded-full border border-white/20" style={{ background: c }} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div className="ml-auto flex items-center gap-3">
+                        {wallpapers.length > 0 && (
+                            <span className="text-xs text-[--muted]">{downloadedCount}/{wallpapers.length} downloaded</span>
+                        )}
+                        {batchProgress ? (
+                            <div className="flex items-center gap-2 text-xs text-[--muted]">
+                                <div className="w-3 h-3 border-2 border-[--muted] border-t-[--color-brand-400] rounded-full animate-spin" />
+                                {batchProgress.done}/{batchProgress.total}
+                            </div>
+                        ) : wallpapers.length > 0 && downloadedCount < wallpapers.length ? (
+                            <button
+                                onClick={handleBatchDownload}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[--color-brand-700] hover:bg-[--color-brand-600] text-white transition-all"
+                            >
+                                <LuDownload className="w-3 h-3" />
+                                Download all {wallpapers.length - downloadedCount}
+                            </button>
+                        ) : null}
+                    </div>
+                </div>
+
+                {/* Loading */}
+                {isFetching && wallpapers.length === 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        {Array.from({ length: 10 }).map((_, i) => (
+                            <div key={i} className="aspect-video rounded-xl bg-white/5 animate-pulse" />
+                        ))}
+                    </div>
+                )}
+                {isError && <p className="text-sm text-red-400 py-4">Could not load wallpapers — check your connection.</p>}
+                {!isFetching && !isError && wallpapers.length === 0 && (
+                    <p className="text-sm text-[--muted] py-4 text-center">No wallpapers found for this theme.</p>
+                )}
+
+                {/* Wallpaper grid */}
+                {wallpapers.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        {wallpapers.map(w => (
+                            <div key={w.id} className="relative group aspect-video rounded-xl overflow-hidden border-2 transition-all"
+                                style={{ borderColor: activeBackgroundUrl && (activeBackgroundUrl === localUrl(w) || activeBackgroundUrl.includes(w.id)) ? "var(--color-brand-400)" : "transparent" }}
+                            >
+                                <img src={w.thumbs.small} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                {isDownloaded(w) && !downloadingIds.has(w.id) && (
+                                    <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-green-500/90 flex items-center justify-center">
+                                        <LuCheck className="w-3 h-3 text-white" />
+                                    </div>
+                                )}
+                                <div className="absolute bottom-1 left-1 bg-black/60 text-white/60 text-[9px] px-1 rounded">{w.resolution}</div>
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                    {downloadingIds.has(w.id) && (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    )}
+                                    {!downloadingIds.has(w.id) && !isDownloaded(w) && (
+                                        <button onClick={() => handleDownload(w)}
+                                            className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center transition-colors">
+                                            <LuDownload className="w-4 h-4 text-white" />
+                                        </button>
+                                    )}
+                                    {!downloadingIds.has(w.id) && isDownloaded(w) && (
+                                        <button onClick={() => { const url = localUrl(w); if (url) onApply(url) }}
+                                            className="w-9 h-9 rounded-full bg-[--color-brand-500]/80 hover:bg-[--color-brand-400] flex items-center justify-center transition-colors">
+                                            <LuImage className="w-4 h-4 text-white" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        )
+    }
+
     return (
         <div className="border border-[--border] rounded-xl overflow-hidden">
             {/* Row header */}
@@ -270,28 +363,21 @@ function ThemeWallpaperRow({
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition-colors"
             >
                 {open ? <LuChevronDown className="w-3.5 h-3.5 text-[--muted] shrink-0" /> : <LuChevronRight className="w-3.5 h-3.5 text-[--muted] shrink-0" />}
-                <span
-                    className="font-semibold text-sm"
-                    style={{ fontFamily: theme?.fontFamily }}
-                >
+                <span className="font-semibold text-sm" style={{ fontFamily: theme?.fontFamily }}>
                     {theme?.displayName ?? themeId}
                 </span>
-                {/* Color swatches */}
                 {theme && (
                     <div className="flex gap-1 ml-1">
-                        {[theme.previewColors.primary, theme.previewColors.secondary, theme.previewColors.accent].map((c, i) => (
+                        {[theme.previewColors?.primary, theme.previewColors?.secondary, theme.previewColors?.accent].map((c, i) => c && (
                             <div key={i} className="w-3 h-3 rounded-full border border-white/10" style={{ background: c }} />
                         ))}
                     </div>
                 )}
                 {open && wallpapers.length > 0 && (
-                    <span className="text-xs text-[--muted] ml-auto">
-                        {downloadedCount}/{wallpapers.length} downloaded
-                    </span>
+                    <span className="text-xs text-[--muted] ml-auto">{downloadedCount}/{wallpapers.length} downloaded</span>
                 )}
             </button>
 
-            {/* Wallpaper strip */}
             {open && (
                 <div className="border-t border-[--border] bg-[--background]/60 p-3 space-y-3">
                     {isFetching && wallpapers.length === 0 && (
@@ -301,35 +387,23 @@ function ThemeWallpaperRow({
                             ))}
                         </div>
                     )}
-                    {isError && (
-                        <p className="text-xs text-red-400 py-2">Could not load wallpapers — check your connection and try again.</p>
-                    )}
-                    {!isFetching && !isError && wallpapers.length === 0 && !query && (
-                        <p className="text-xs text-[--muted] py-2">No search query configured for this theme.</p>
-                    )}
-                    {!isFetching && !isError && wallpapers.length === 0 && !!query && (
-                        <p className="text-xs text-[--muted] py-2">No wallpapers found for this theme.</p>
+                    {isError && <p className="text-xs text-red-400 py-2">Could not load wallpapers.</p>}
+                    {!isFetching && !isError && wallpapers.length === 0 && (
+                        <p className="text-xs text-[--muted] py-2">No wallpapers found.</p>
                     )}
                     {wallpapers.length > 0 && (
                         <>
                             <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "thin" }}>
                                 {wallpapers.map(w => (
-                                    <WallpaperCard
-                                        key={w.id}
-                                        wallpaper={w}
+                                    <WallpaperCard key={w.id} wallpaper={w}
                                         isDownloaded={isDownloaded(w)}
                                         isActive={activeBackgroundUrl !== null && (activeBackgroundUrl === localUrl(w) || !!activeBackgroundUrl?.includes(w.id))}
                                         isDownloading={downloadingIds.has(w.id)}
                                         onDownload={() => handleDownload(w)}
-                                        onApply={() => {
-                                            const url = localUrl(w)
-                                            if (url) onApply(url)
-                                        }}
+                                        onApply={() => { const url = localUrl(w); if (url) onApply(url) }}
                                     />
                                 ))}
                             </div>
-
-                            {/* Batch download bar */}
                             <div className="flex items-center gap-3">
                                 {batchProgress ? (
                                     <div className="flex items-center gap-2 text-xs text-[--muted]">
@@ -337,16 +411,9 @@ function ThemeWallpaperRow({
                                         Downloading {batchProgress.done}/{batchProgress.total}…
                                     </div>
                                 ) : (
-                                    <button
-                                        onClick={handleBatchDownload}
-                                        disabled={downloadedCount === wallpapers.length}
-                                        className={cn(
-                                            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
-                                            downloadedCount === wallpapers.length
-                                                ? "text-[--muted] bg-white/5 cursor-default"
-                                                : "bg-[--color-brand-700] hover:bg-[--color-brand-600] text-white",
-                                        )}
-                                    >
+                                    <button onClick={handleBatchDownload} disabled={downloadedCount === wallpapers.length}
+                                        className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                                            downloadedCount === wallpapers.length ? "text-[--muted] bg-white/5 cursor-default" : "bg-[--color-brand-700] hover:bg-[--color-brand-600] text-white")}>
                                         <LuDownload className="w-3 h-3" />
                                         {downloadedCount === wallpapers.length ? "All downloaded" : `Download all ${wallpapers.length - downloadedCount} remaining`}
                                     </button>
@@ -368,17 +435,73 @@ function extractWallhavenId(url: string): string {
     // CDN URL: https://w.wallhaven.cc/full/ab/wallhaven-abc123.jpg  → "abc123"
     const cdnMatch = url.match(/wallhaven-([a-zA-Z0-9]+)\.[a-z]+$/)
     if (cdnMatch) return cdnMatch[1]
-    // Local URL: /theme-bg/wh-abc123.jpg  → "abc123"
+    // New themed local URL: /theme-bg/wh-{themeId}-abc123.jpg  → "abc123"
+    const themedMatch = url.match(/\/wh-[^-]+-([a-zA-Z0-9]+)\.[a-z]+$/)
+    if (themedMatch) return themedMatch[1]
+    // Legacy local URL: /theme-bg/wh-abc123.jpg  → "abc123"
     const localMatch = url.match(/\/wh-([a-zA-Z0-9]+)\.[a-z]+$/)
     if (localMatch) return localMatch[1]
     return url // fallback: use full URL as key
+}
+
+// ── Theme card for the shop grid ──────────────────────────────────────────────
+
+function ThemeShopCard({
+    themeId: cardThemeId,
+    isActive,
+    downloadedCount,
+    onClick,
+}: {
+    themeId: AnimeThemeId
+    isActive: boolean
+    downloadedCount: number
+    onClick: () => void
+}) {
+    const theme = ANIME_THEMES[cardThemeId]
+    if (!theme) return null
+    return (
+        <button
+            onClick={onClick}
+            className={cn(
+                "relative group text-left rounded-xl border-2 overflow-hidden transition-all hover:scale-[1.02]",
+                isActive
+                    ? "border-[--color-brand-400] shadow-[0_0_16px_2px_rgba(0,0,0,0.4)]"
+                    : "border-[--border] hover:border-[--color-brand-600]",
+            )}
+        >
+            {/* Background swatch */}
+            <div
+                className="h-16 w-full"
+                style={{ background: `linear-gradient(135deg, ${theme.previewColors?.bg ?? "#0a0a0a"} 0%, ${theme.previewColors?.primary ?? "#333"} 100%)` }}
+            >
+                <div className="h-full w-full flex items-end p-2 gap-1">
+                    {[theme.previewColors?.primary, theme.previewColors?.secondary, theme.previewColors?.accent].map((c, i) => c && (
+                        <div key={i} className="w-3 h-3 rounded-full border border-white/20 shrink-0" style={{ background: c }} />
+                    ))}
+                </div>
+            </div>
+            {/* Info row */}
+            <div className="px-3 py-2 bg-[--paper] border-t border-[--border]">
+                <p className="text-xs font-semibold truncate" style={{ fontFamily: theme.fontFamily }}>{theme.displayName}</p>
+                {downloadedCount > 0 && (
+                    <p className="text-[10px] text-[--color-brand-400] mt-0.5">{downloadedCount} saved</p>
+                )}
+            </div>
+            {/* Active indicator */}
+            {isActive && (
+                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[--color-brand-500] flex items-center justify-center">
+                    <LuCheck className="w-2.5 h-2.5 text-white" />
+                </div>
+            )}
+        </button>
+    )
 }
 
 export function WallpaperShop() {
     const { activeBackgroundUrl, setActiveBackgroundUrl, themeId } = useAnimeTheme()
     const { data: downloadedBgs } = useListThemeBackgrounds()
 
-    // Map from wallhaven ID → local URL (for matching and applying downloaded wallpapers)
+    // Map from wallhaven ID → local URL
     const downloadedIdMap = React.useMemo(() => {
         const m = new Map<string, string>()
         if (downloadedBgs) downloadedBgs.forEach(bg => {
@@ -388,102 +511,126 @@ export function WallpaperShop() {
         return m
     }, [downloadedBgs])
 
-    // Keep Set<localUrl> for backward compat
-    const downloadedUrls = React.useMemo(() => new Set(downloadedIdMap.values()), [downloadedIdMap])
-
-    const [selectedCategory, setSelectedCategory] = React.useState("shonen")
+    const [selectedCategory, setSelectedCategory] = React.useState(() => {
+        for (const cat of WALLPAPER_SHOP_CATEGORIES) {
+            if (cat.themeIds.includes(themeId as AnimeThemeId)) return cat.id
+        }
+        return "shonen"
+    })
     const [search, setSearch] = React.useState("")
+    // null = show grid, string = show that theme's wallpapers
+    const [openThemeId, setOpenThemeId] = React.useState<AnimeThemeId | null>(null)
 
     const category = WALLPAPER_SHOP_CATEGORIES.find(c => c.id === selectedCategory)!
 
     const filteredThemeIds = React.useMemo(() => {
         if (!search.trim()) return category.themeIds
         const q = search.toLowerCase()
-        return category.themeIds.filter(id => {
-            const theme = ANIME_THEMES[id]
-            return theme?.displayName.toLowerCase().includes(q) || id.includes(q)
+        // Search across all categories when there's a query
+        const all = WALLPAPER_SHOP_CATEGORIES.flatMap(c => c.themeIds)
+        return all.filter(id => {
+            const t = ANIME_THEMES[id]
+            return t?.displayName.toLowerCase().includes(q) || id.includes(q)
         })
     }, [category, search])
 
-    // Find the category containing the active theme
-    const activeThemeCategory = React.useMemo(() => {
-        for (const cat of WALLPAPER_SHOP_CATEGORIES) {
-            if (cat.themeIds.includes(themeId as AnimeThemeId)) return cat.id
-        }
-        return null
-    }, [themeId])
+    // Count downloaded wallpapers per theme
+    const downloadedPerTheme = React.useMemo(() => {
+        const counts = new Map<string, number>()
+        if (!downloadedBgs) return counts
+        downloadedBgs.forEach(bg => {
+            // New format: wh-{themeId}-{id}.ext
+            const match = bg.filename.match(/^wh-([^-]+)-[a-zA-Z0-9]+\.[a-z]+$/)
+            if (match) {
+                const tid = match[1]
+                counts.set(tid, (counts.get(tid) ?? 0) + 1)
+            }
+        })
+        return counts
+    }, [downloadedBgs])
+
+    // If a theme is open, show its wallpaper detail view
+    if (openThemeId) {
+        return (
+            <div className="space-y-4">
+                <button
+                    onClick={() => setOpenThemeId(null)}
+                    className="flex items-center gap-2 text-sm text-[--muted] hover:text-[--foreground] transition-colors"
+                >
+                    ← Back to shop
+                </button>
+                <ThemeWallpaperRow
+                    themeId={openThemeId}
+                    downloadedIdMap={downloadedIdMap}
+                    activeBackgroundUrl={activeBackgroundUrl}
+                    onApply={url => setActiveBackgroundUrl(url)}
+                    defaultOpen={true}
+                    expanded={true}
+                />
+                <p className="text-[10px] text-[--muted] text-center pt-2">
+                    Wallpapers sourced from Wallhaven.cc · All rights belong to their respective creators
+                </p>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-4">
-            {/* Header */}
-            <div className="flex items-center gap-3 flex-wrap">
-                {/* Search */}
-                <div className="relative flex-1 min-w-[200px]">
-                    <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[--muted] pointer-events-none" />
-                    <input
-                        type="text"
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Search themes…"
-                        className="w-full pl-8 pr-8 py-2 rounded-xl bg-[--background] border border-[--border] text-sm text-[--foreground] placeholder:text-[--muted] focus:outline-none focus:border-[--color-brand-500] transition-colors"
-                    />
-                    {search && (
-                        <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[--muted] hover:text-[--foreground]">
-                            <LuX className="w-3.5 h-3.5" />
+            {/* Search */}
+            <div className="relative">
+                <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[--muted] pointer-events-none" />
+                <input
+                    type="text"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search themes…"
+                    className="w-full pl-8 pr-8 py-2 rounded-xl bg-[--background] border border-[--border] text-sm text-[--foreground] placeholder:text-[--muted] focus:outline-none focus:border-[--color-brand-500] transition-colors"
+                />
+                {search && (
+                    <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[--muted] hover:text-[--foreground]">
+                        <LuX className="w-3.5 h-3.5" />
+                    </button>
+                )}
+            </div>
+
+            {/* Category tabs — hidden when searching */}
+            {!search && (
+                <div className="flex gap-1.5 flex-wrap">
+                    {WALLPAPER_SHOP_CATEGORIES.map(cat => (
+                        <button
+                            key={cat.id}
+                            onClick={() => setSelectedCategory(cat.id)}
+                            className={cn(
+                                "px-3 py-1.5 rounded-full text-xs font-semibold border transition-all",
+                                selectedCategory === cat.id
+                                    ? "border-[--color-brand-500] bg-[--color-brand-900]/40 text-[--color-brand-300]"
+                                    : "border-[--border] text-[--muted] hover:border-[--color-brand-700] hover:text-[--foreground]",
+                            )}
+                        >
+                            {cat.label}
                         </button>
-                    )}
+                    ))}
                 </div>
+            )}
 
-                {/* Active theme shortcut */}
-                {activeThemeCategory && themeId !== "seanime" && (
-                    <button
-                        onClick={() => setSelectedCategory(activeThemeCategory)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-[--color-brand-700]/40 hover:bg-[--color-brand-700]/60 text-[--color-brand-300] border border-[--color-brand-700]/40 transition-colors"
-                    >
-                        <LuLayoutGrid className="w-3 h-3" />
-                        Jump to active theme
-                    </button>
-                )}
-            </div>
-
-            {/* Category tabs */}
-            <div className="flex gap-1.5 flex-wrap">
-                {WALLPAPER_SHOP_CATEGORIES.map(cat => (
-                    <button
-                        key={cat.id}
-                        onClick={() => setSelectedCategory(cat.id)}
-                        className={cn(
-                            "px-3 py-1.5 rounded-full text-xs font-semibold border transition-all",
-                            selectedCategory === cat.id
-                                ? "border-[--color-brand-500] bg-[--color-brand-900]/40 text-[--color-brand-300]"
-                                : "border-[--border] text-[--muted] hover:border-[--color-brand-700] hover:text-[--foreground]",
-                        )}
-                    >
-                        {cat.label}
-                    </button>
-                ))}
-            </div>
-
-            {/* Theme rows */}
-            <div className="space-y-2">
-                {filteredThemeIds.length === 0 && (
-                    <p className="text-sm text-[--muted] text-center py-8">No themes match your search.</p>
-                )}
+            {/* Theme cards grid */}
+            {filteredThemeIds.length === 0 && (
+                <p className="text-sm text-[--muted] text-center py-8">No themes match your search.</p>
+            )}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                 {filteredThemeIds.map(id => (
-                    <ThemeWallpaperRow
+                    <ThemeShopCard
                         key={id}
                         themeId={id}
-                        downloadedIdMap={downloadedIdMap}
-                        activeBackgroundUrl={activeBackgroundUrl}
-                        onApply={url => setActiveBackgroundUrl(url)}
-                        defaultOpen={id === themeId}
+                        isActive={id === themeId}
+                        downloadedCount={downloadedPerTheme.get(id) ?? 0}
+                        onClick={() => setOpenThemeId(id)}
                     />
                 ))}
             </div>
 
-            {/* Footer info */}
             <p className="text-[10px] text-[--muted] text-center pt-2">
-                Wallpapers sourced from Wallhaven.cc · All rights belong to their respective creators
+                Wallpapers sourced from Wallhaven.cc · Click a theme to browse its wallpapers
             </p>
         </div>
     )

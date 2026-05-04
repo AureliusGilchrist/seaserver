@@ -1,4 +1,4 @@
-import { AnimeThemeConfig } from "./types"
+﻿import { AnimeThemeConfig } from "./types"
 import {
     GiCastle,
     GiCrossedSwords,
@@ -75,7 +75,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "settings": { icon: GiSettingsKnobs, label: "Village Command" },
     },
     achievementNames: {
-        // ── ANIME MILESTONES ──
+        // â”€â”€ ANIME MILESTONES â”€â”€
         "a_first_episode": "First Journey Through the Well",
         "a_episode_counter": "Tessaiga Strike Count",
         "a_episode_titan": "Full Demon-Class Engagement",
@@ -107,7 +107,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_first_favorite": "First Feudal Bond",
         "a_favorites_collector": "Bonds of Inuyasha's Group",
 
-        // ── ANIME BINGE ──
+        // â”€â”€ ANIME BINGE â”€â”€
         "a_binge_watcher": "Non-Stop Wind Scar Release",
         "a_marathon_runner": "Well-to-Well Marathon",
         "a_weekend_warrior": "Weekend Warrior Demon Slayer",
@@ -137,7 +137,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_midnight_binge": "Midnight Feudal Reconnaissance",
         "a_new_year_binge": "New Year's Wind Scar Charge",
 
-        // ── ANIME GENRES ──
+        // â”€â”€ ANIME GENRES â”€â”€
         "a_genre_action": "Tessaiga Action Specialist",
         "a_genre_adventure": "Beyond the Bone-Eater's Well",
         "a_genre_comedy": "Shippo's Potato Moment",
@@ -177,7 +177,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_tag_josei": "Sango's Obsession",
         "a_tag_survival": "Survival in Feudal Japan",
 
-        // ── ANIME COMPLETION ──
+        // â”€â”€ ANIME COMPLETION â”€â”€
         "a_completionist": "Full Feudal Expedition Report",
         "a_mega_completionist": "Demon King Complete",
         "a_completion_rate_50": "Halfway to the Jewel",
@@ -207,7 +207,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_yearly_completions": "Yearly Feudal Campaign Victor",
         "a_rapid_complete": "Lightning Demon Raid Complete",
 
-        // ── ANIME DEDICATION ──
+        // â”€â”€ ANIME DEDICATION â”€â”€
         "a_loyal_fan": "Loyal Inuyasha Group Member",
         "a_studio_devotee": "Sunrise/Viz Devotee",
         "a_rewatcher": "Feudal Recon Rewatch",
@@ -237,7 +237,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_year_dedication": "Year of Dedication to the Jewel",
         "a_season_dedication": "Season of Unwavering Service",
 
-        // ── ANIME DISCOVERY ──
+        // â”€â”€ ANIME DISCOVERY â”€â”€
         "a_genre_explorer": "Scout Beyond the Well",
         "a_studio_hopper": "Feudal Clan Transfer",
         "a_tag_explorer": "Tag Reconnaissance Mission",
@@ -267,7 +267,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_short_series_explorer": "Short Demon Skirmish Explorer",
         "a_long_series_explorer": "Long Feudal Campaign Explorer",
 
-        // ── ANIME TIME ──
+        // â”€â”€ ANIME TIME â”€â”€
         "a_night_owl": "Night Watch in Feudal Japan",
         "a_early_bird": "Dawn Demon Patrol",
         "a_lunch_break": "Kaede's Lunch Break",
@@ -295,7 +295,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_every_day_of_week": "Every Day Deployed",
         "a_monthly_hours": "Monthly Feudal Duty Hours",
 
-        // ── ANIME SOCIAL ──
+        // â”€â”€ ANIME SOCIAL â”€â”€
         "a_first_party": "First Demon Slayer Formation",
         "a_party_host": "Feudal Group Commander",
         "a_social_butterfly": "Feudal Village Socialite",
@@ -317,7 +317,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_party_completionist": "Party Demon Hunt Completionist",
         "a_social_scorer": "Social Combat Scorer",
 
-        // ── ANIME SPECIAL ──
+        // â”€â”€ ANIME SPECIAL â”€â”€
         "a_round_number": "Round Number Demon Formation",
         "a_fibonacci": "Fibonacci Jewel Shard Sequence",
         "a_palindrome_day": "Palindrome Time Rift",
@@ -345,7 +345,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_exact_hundred_eps": "Exact Hundred Demon Engagements",
         "a_year_match_count": "Year Match Demon Kill Count",
 
-        // ── ANIME FORMATS ──
+        // â”€â”€ ANIME FORMATS â”€â”€
         "a_tv_watcher": "TV Broadcast Demon Slayer",
         "a_movie_buff": "Inuyasha Movie Operations",
         "a_ova_hunter": "OVA Yashahime Hunter",
@@ -371,7 +371,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_sequel_movie": "Sequel Feudal Operation Film",
         "a_recap_watcher": "Recap Briefing Watcher",
 
-        // ── ANIME STREAKS ──
+        // â”€â”€ ANIME STREAKS â”€â”€
         "a_daily_streak": "Daily Demon Patrol Streak",
         "a_mega_streak": "Mega Feudal Expedition Streak",
         "a_weekly_warrior": "Weekly Warrior of the Jewel",
@@ -399,7 +399,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_studio_streak": "Studio Loyalty Streak",
         "a_perfect_week": "Perfect Week of Feudal Service",
 
-        // ── ANIME SCORING ──
+        // â”€â”€ ANIME SCORING â”€â”€
         "a_critic": "Sesshomaru Tribunal Judge",
         "a_perfect_ten": "Perfect 10 Demon Rating",
         "a_harsh_critic": "Sesshomaru's Harsh Standards",
@@ -425,7 +425,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_genre_critic": "Genre Feudal Critic",
         "a_mean_above_8": "Elite Demon Combat Average",
 
-        // ── ANIME HOLIDAY ──
+        // â”€â”€ ANIME HOLIDAY â”€â”€
         "a_new_years_resolution": "New Year's Vow for the Jewel",
         "a_valentines_weeb": "Valentine's Feudal Dedication",
         "a_pi_day": "Pi Day Jewel Shard Calc",
@@ -451,7 +451,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_every_holiday": "Every Holiday Demon Slayer",
         "a_consecutive_holidays": "Consecutive Holiday Deployments",
 
-        // ── ANIME META ──
+        // â”€â”€ ANIME META â”€â”€
         "a_meta_first_unlock": "First Demon Power Awakened",
         "a_meta_collector": "Inuyasha Group Badge Collector",
         "a_meta_category_starter": "Category Initiation Rite",
@@ -465,7 +465,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "a_meta_diverse": "Diverse Feudal Portfolio",
         "a_meta_dominator": "Meta Dominator of Demons",
 
-        // ── MANGA MILESTONES ──
+        // â”€â”€ MANGA MILESTONES â”€â”€
         "m_first_chapter": "First Chapter of the Feudal Era",
         "m_chapter_counter": "Chapter Demon Sortie Counter",
         "m_chapter_titan": "Chapter Demon Assault",
@@ -499,7 +499,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_favorites_collector": "Demon Manga Favorites Arsenal",
         "m_days_spent_reading": "Days in the Feudal Archives",
 
-        // ── MANGA BINGE ──
+        // â”€â”€ MANGA BINGE â”€â”€
         "m_binge_reader": "Demon Binge Reading Advance",
         "m_marathon_reader": "Well-to-Well Reading Marathon",
         "m_weekend_reader": "Weekend Demon Reading",
@@ -531,7 +531,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_forty_eight_hour": "Forty-Eight Hour Demon Reading Siege",
         "m_oneshot_binge": "Oneshot Demon Blitz Attack",
 
-        // ── MANGA GENRES ──
+        // â”€â”€ MANGA GENRES â”€â”€
         "m_genre_action": "Action Demon Manuscript Specialist",
         "m_genre_adventure": "Adventure Beyond the Well",
         "m_genre_comedy": "Comedy in the Feudal Era",
@@ -573,7 +573,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_tag_medical": "Field Medic Manga",
         "m_tag_villainess": "Demon Candidate Manga",
 
-        // ── MANGA COMPLETION ──
+        // â”€â”€ MANGA COMPLETION â”€â”€
         "m_completionist": "Demon Manga Campaign Completionist",
         "m_mega_completionist": "Supreme Demon Manga Commander",
         "m_completion_rate_50": "Halfway to the Jewel",
@@ -605,7 +605,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_rapid_complete": "Rapid Demon Intel Processing",
         "m_author_complete": "Takahashi's Complete Works",
 
-        // ── MANGA DEDICATION ──
+        // â”€â”€ MANGA DEDICATION â”€â”€
         "m_loyal_reader": "Loyal Feudal Reader",
         "m_mangaka_lover": "Takahashi Devotee",
         "m_rereader": "Feudal Scout Rereader",
@@ -635,7 +635,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_ongoing_follower": "Ongoing Demon Series Follower",
         "m_genre_loyalty_50": "Fifty Genre Feudal Loyalty Chapters",
 
-        // ── MANGA DISCOVERY ──
+        // â”€â”€ MANGA DISCOVERY â”€â”€
         "m_genre_explorer": "Genre Feudal Territory Scout",
         "m_publisher_hopper": "Publisher Feudal Transfer",
         "m_tag_explorer": "Demon Manga Tag Recon Mission",
@@ -665,7 +665,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_long_manga_explorer": "Long Feudal Campaign Manuscript",
         "m_serialization_explorer": "Feudal Serialization Explorer",
 
-        // ── MANGA TIME ──
+        // â”€â”€ MANGA TIME â”€â”€
         "m_night_owl": "Night Owl Feudal Reader",
         "m_early_bird": "Dawn Demon Patrol Reader",
         "m_lunch_reader": "Kaede's Lunch Reader",
@@ -693,7 +693,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_monthly_hours": "Monthly Feudal Reading Hours Logged",
         "m_bedtime_reader": "Bedtime Feudal Reader",
 
-        // ── MANGA CREATIVE ──
+        // â”€â”€ MANGA CREATIVE â”€â”€
         "m_art_appreciator": "Takahashi Art Appreciator",
         "m_webtoon_reader": "Webtoon Intelligence",
         "m_full_color": "Full Color Feudal Manuscript",
@@ -721,7 +721,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_remake_reader": "Remake Feudal Reading Assignment",
         "m_collaboration_reader": "Joint Feudal Operation Manuscript",
 
-        // ── MANGA STREAKS ──
+        // â”€â”€ MANGA STREAKS â”€â”€
         "m_daily_streak": "Daily Demon Reading Patrol Streak",
         "m_mega_streak": "Mega Demon Reading Campaign Streak",
         "m_weekly_warrior": "Weekly Demon Warrior Reader",
@@ -751,7 +751,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_perfect_week_manga": "Perfect Demon Reading Week",
         "m_diverse_streak": "Diverse Demon Reading Streak",
 
-        // ── MANGA SCORING ──
+        // â”€â”€ MANGA SCORING â”€â”€
         "m_critic": "Feudal Demon Manuscript Critic",
         "m_perfect_ten": "Perfect 10 Demon Manuscript",
         "m_harsh_critic": "Sesshomaru's Demon Reading Standards",
@@ -779,7 +779,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_genre_critic": "Genre Feudal Reading Critic",
         "m_mean_above_8": "Elite Demon Reading Average",
 
-        // ── MANGA HOLIDAY ──
+        // â”€â”€ MANGA HOLIDAY â”€â”€
         "m_new_years_resolution": "New Year's Demon Reading Vow",
         "m_valentines_read": "Valentine's Feudal Reading Bond",
         "m_pi_day": "Pi Day Jewel Shard Chapter Count",
@@ -805,7 +805,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_every_holiday_reader": "Every Holiday Demon Reader",
         "m_consecutive_holidays": "Consecutive Holiday Demon Reads",
 
-        // ── MANGA SPECIAL ──
+        // â”€â”€ MANGA SPECIAL â”€â”€
         "m_round_number": "Round Number Demon Milestone",
         "m_fibonacci": "Fibonacci Jewel Shard Chapter Pattern",
         "m_palindrome_day": "Palindrome Demon Reading Day",
@@ -833,7 +833,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_year_match_count": "Year Match Demon Chapter Count",
         "m_chapter_match_date": "Demon Chapter Date Match",
 
-        // ── MANGA FORMATS ──
+        // â”€â”€ MANGA FORMATS â”€â”€
         "m_manga_format": "Manga Format Specialist",
         "m_manhwa_format": "Manhwa Format Reader",
         "m_manhua_format": "Manhua Format Reader",
@@ -843,7 +843,7 @@ export const inuyashaTheme: AnimeThemeConfig = {
         "m_novel_format": "Novel Format Reader",
         "m_format_master_manga": "Format Master Demon Reader",
 
-        // ── MANGA META ──
+        // â”€â”€ MANGA META â”€â”€
         "m_meta_first_unlock": "First Demon Reading Power Unlocked",
         "m_meta_collector": "Feudal Reading Badge Collector",
         "m_meta_category_starter": "Category Initiation",
@@ -876,13 +876,155 @@ export const inuyashaTheme: AnimeThemeConfig = {
         feudal_dust: { label: "Feudal Dust", maxCount: 14, defaultEnabled: true, defaultIntensity: 40 },
     },
     milestoneNames: {
-        1:   "Modern Schoolgirl",
-        5:   "Time Slip Survivor",
-        15:  "Inuyasha's Ally",
-        30:  "Jewel Shard Seeker",
-        45:  "Naraku's Target",
-        60:  "Half-Demon Party",
-        80:  "Jewel Complete",
-        100: "Bond Beyond Time",
+        1:   "Human",
+        8:   "Half-Demon — New Moon",
+        14:  "Half-Demon",
+        21:  "Lesser Demon",
+        28:  "Mid-Level Demon",
+        35:  "Greater Demon",
+        41:  "Demon Lord",
+        48:  "Great Demon Lord — Daiyoukai",
+        55:  "E-Rank Demon Hunter",
+        61:  "D-Rank Demon Hunter",
+        68:  "C-Rank Demon Hunter",
+        75:  "B-Rank Demon Hunter",
+        81:  "A-Rank Demon Hunter",
+        88:  "S-Rank Demon Hunter",
+        95:  "Miko — Awakened",
+        102: "Miko — Spiritual Power",
+        108: "Miko — Purification Master",
+        115: "Miko — Living God",
+        122: "Shikon Jewel — Shattered",
+        128: "Shikon Shard — Holder",
+        135: "Shikon Shards — Collected",
+        142: "Shikon Jewel — Complete",
+        149: "Shikon Jewel — Corrupted",
+        155: "Shikon Jewel — Purified",
+        162: "Naraku — First Encounter",
+        169: "Naraku's Incarnation",
+        175: "Naraku — Confronted",
+        182: "Naraku — True Form",
+        189: "Naraku's Heart — Found",
+        195: "Naraku — Defeated",
+        202: "Tessaiga — Inherited",
+        209: "Tessaiga — Wind Scar",
+        216: "Tessaiga — Backlash Wave",
+        222: "Tessaiga — Dragon Scale",
+        229: "Tessaiga — Adamant Barrage",
+        236: "Tenseiga — Reviving Sword",
+        242: "Sounga — Dark Blade",
+        249: "Demon Sword — Master",
+        256: "Wind Scar — Unleashed",
+        262: "Backlash Wave — Mastered",
+        269: "Iron Reaper — Active",
+        276: "Claws of Steel — Active",
+        283: "Full Demon Form",
+        289: "Full Demon — Uncontrolled",
+        296: "Human Form — Accepted",
+        303: "Half-Demon Balance",
+        309: "Sesshomaru — Rival",
+        316: "Sesshomaru — Uneasy Ally",
+        323: "Sesshomaru — Ally",
+        330: "Tenseiga — Sesshomaru",
+        336: "Bakusaiga — Sesshomaru",
+        343: "InuTaisho's Will",
+        350: "Great Dog Demon — Legacy",
+        356: "Kikyo — Past",
+        363: "Kikyo — Soul",
+        370: "Kikyo — Departed",
+        376: "Kagome — Present",
+        383: "Kagome — Future",
+        390: "Shikon Well — Closed",
+        397: "Feudal Era — Saved",
+        403: "Modern Era — Protected",
+        410: "Miroku — Wind Tunnel",
+        417: "Miroku — Wind Tunnel Closed",
+        423: "Sango — Demon Slayer",
+        430: "Sango — Hiraikotsu",
+        437: "Kirara — Companion",
+        444: "Shippo — Fox Demon",
+        450: "Kohaku — Resurrected",
+        457: "Rin — Sesshomaru's Ward",
+        464: "Jaken — Servant",
+        470: "Jaken — Staff of Skulls",
+        477: "A-Un — Mount",
+        484: "Band of Seven",
+        490: "Band of Seven — Defeated",
+        497: "Mount Hakurei",
+        504: "Barrier — Broken",
+        511: "Purified Mount",
+        517: "Bankotsu — Defeated",
+        524: "Hakudoshi — Ended",
+        531: "Kanna — Freed",
+        537: "Kagura — Freed",
+        544: "Byakuya — Stopped",
+        551: "Moryomaru — Defeated",
+        557: "Magatsuhi — Purified",
+        564: "Naraku's Miasma — Cleansed",
+        571: "Shikon Jewel — Wish Made",
+        578: "Jewel — Destroyed",
+        584: "Feudal Era — Peaceful",
+        591: "Half-Demon — Accepted",
+        598: "Shard Collector — Complete",
+        604: "Half-Demon Party — Complete",
+        611: "Inuyasha's Family — Formed",
+        618: "Shippo's Fox Tricks",
+        625: "Kohaku's Redemption",
+        631: "Wind Tunnel — Healed",
+        638: "Sango's Brother — Alive",
+        645: "Demon Slayer Village — Rebuilt",
+        651: "Feudal Demons — Defeated",
+        658: "Greater Demon — Surpassed",
+        665: "Daiyoukai — Surpassed",
+        671: "Demon Lord — Overcome",
+        678: "Inuyasha — Accepted",
+        685: "Sesshomaru — Complete",
+        692: "The Shikon Jewel — Ended",
+        698: "Both Eras — Connected",
+        705: "Higurashi Shrine — Home",
+        712: "Bone Eater's Well — Bridge",
+        718: "Feudal Era — Home",
+        725: "Modern Era — Memory",
+        732: "Kagome's Choice — Feudal",
+        739: "Inuyasha and Kagome — Together",
+        745: "Half-Demon Legend",
+        752: "Demon Hunter Legend",
+        759: "Miko Legend",
+        765: "Shikon Jewel — Legend",
+        772: "Tessaiga — Legend",
+        779: "Feudal Japan — Legend",
+        785: "Daiyoukai — Level",
+        792: "Inuyasha's Demon Level",
+        799: "S-Rank Demon Hunter — God",
+        806: "Purification Master",
+        812: "Demon Sword God",
+        819: "Shikon Power — Full",
+        826: "Naraku — Beyond",
+        832: "Jewel's Power — Full",
+        839: "Inuyasha — Legend",
+        846: "Feudal Era — Eternal",
+        852: "Demon Slayer — Eternal",
+        859: "Half-Demon — Eternal",
+        866: "Kagome — Eternal Bond",
+        873: "Inuyasha and Kagome — Eternal",
+        879: "Jewel — Eternal Memory",
+        886: "Tessaiga — Eternal",
+        893: "Wind Scar — Eternal",
+        899: "Feudal Japan — God Level",
+        906: "Naraku — Final",
+        913: "Shikon Wish — Final",
+        920: "Half-Demon God",
+        926: "Daiyoukai God",
+        933: "Miko God",
+        940: "Demon Sword God",
+        946: "Feudal Era God",
+        953: "Shikon God",
+        960: "InuTaisho's Legacy — Complete",
+        966: "Sesshomaru's Power — Surpassed",
+        973: "Naraku's Evil — Erased",
+        980: "Feudal Japan — Eternal",
+        987: "Bond Across Time — Eternal",
+        993: "Half-Demon — Eternal Legend",
+        1000: "Great Dog Demon's Heir",
     },
 }

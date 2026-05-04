@@ -58,7 +58,7 @@ export function useListThemeBackgrounds() {
 
 export function useDownloadThemeBackground() {
     const queryClient = useQueryClient()
-    return useServerMutation<ThemeBgFile, { url: string }>({
+    return useServerMutation<ThemeBgFile, { url: string; themeId?: string }>({
         endpoint: API_ENDPOINTS.THEME_BACKGROUNDS.DownloadThemeBackground.endpoint,
         method: "POST",
         onSuccess: () => {

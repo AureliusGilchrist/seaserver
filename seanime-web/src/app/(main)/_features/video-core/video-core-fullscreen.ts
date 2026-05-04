@@ -44,16 +44,16 @@ export class VideoCoreFullscreenManager extends EventTarget {
             return true
         }
 
-        // Check Tauri native fullscreen
-        if (this._isTauri() && this.isTauriNativeFullscreen) {
-            return true
-        }
+        // On Tauri, video uses DOM fullscreen — do NOT check isTauriNativeFullscreen
+        // here because that tracks the window (F11) state, not the video state.
+        // The window being fullscreened doesn't mean the video player is fullscreened.
 
         // Check iOS video fullscreen
         if (isApple() && this.videoElement) {
             return !!(this.videoElement as any).webkitDisplayingFullscreen
         }
 
+        // DOM fullscreen: covers both Tauri video fullscreen and browser fullscreen
         return !!(
             document.fullscreenElement ||
             (document as any).webkitFullscreenElement ||
@@ -134,12 +134,9 @@ export class VideoCoreFullscreenManager extends EventTarget {
                 return
             }
 
-            if (this._isTauri()) {
-                await this._exitTauriFullscreen()
-                this._focusVideo()
-                return
-            }
-
+            // On Tauri: video uses DOM fullscreen, so exit DOM fullscreen only.
+            // The window's native fullscreen (F11) is managed separately and must
+            // not be touched here — it should remain active if it was set.
             if (isApple() && this.videoElement && (this.videoElement as any).webkitDisplayingFullscreen) {
                 await (this.videoElement as any).webkitExitFullscreen()
                 log.info("Exited iOS fullscreen")
@@ -147,14 +144,16 @@ export class VideoCoreFullscreenManager extends EventTarget {
                 return
             }
 
-            if (document.exitFullscreen) {
-                await document.exitFullscreen()
-            } else if ((document as any).webkitExitFullscreen) {
-                await (document as any).webkitExitFullscreen()
-            } else if ((document as any).mozCancelFullScreen) {
-                await (document as any).mozCancelFullScreen()
-            } else if ((document as any).msExitFullscreen) {
-                await (document as any).msExitFullscreen()
+            if (document.fullscreenElement) {
+                if (document.exitFullscreen) {
+                    await document.exitFullscreen()
+                } else if ((document as any).webkitExitFullscreen) {
+                    await (document as any).webkitExitFullscreen()
+                } else if ((document as any).mozCancelFullScreen) {
+                    await (document as any).mozCancelFullScreen()
+                } else if ((document as any).msExitFullscreen) {
+                    await (document as any).msExitFullscreen()
+                }
             }
             log.info("Exited fullscreen")
             this._focusVideo()
@@ -180,12 +179,10 @@ export class VideoCoreFullscreenManager extends EventTarget {
                 return
             }
 
-            if (this._isTauri()) {
-                await this._enterTauriFullscreen()
-                this._focusVideo()
-                return
-            }
-
+            // On Tauri: use DOM fullscreen for the video container so the window's
+            // native fullscreen (F11) can remain active independently.
+            // Do NOT use _enterTauriFullscreen() here — that would conflict with
+            // the window-level fullscreen toggle.
             if (isApple() && this.videoElement) {
                 if ((this.videoElement as any).webkitEnterFullscreen) {
                     await (this.videoElement as any).webkitEnterFullscreen()
@@ -346,14 +343,15 @@ export class VideoCoreFullscreenManager extends EventTarget {
 
     private attachTauriListeners(): void {
         if (!this._isTauri()) return
-        // Listen for fullscreen changes from TauriManager (F11/ESC)
+        // Listen for window fullscreen changes from TauriManager (F11/ESC).
+        // Only track the window state — do NOT propagate to onFullscreenChange
+        // because window fullscreen (F11) is independent of video fullscreen.
         const handler = (e: Event) => {
             const detail = (e as CustomEvent).detail
             this.isTauriNativeFullscreen = detail.isFullscreen
-            log.info("Tauri fullscreen state changed (external):", detail.isFullscreen)
-            const event: FullscreenManagerChangedEvent = new CustomEvent("fullscreenchanged", { detail: { isFullscreen: detail.isFullscreen } })
-            this.dispatchEvent(event)
-            this.onFullscreenChange(detail.isFullscreen)
+            log.info("Tauri window fullscreen state changed (external):", detail.isFullscreen)
+            // Do not call onFullscreenChange or dispatch fullscreenchanged —
+            // video player UI should not react to window fullscreen events.
         }
         window.addEventListener("tauri:fullscreenchange", handler, { signal: this.controller.signal })
     }

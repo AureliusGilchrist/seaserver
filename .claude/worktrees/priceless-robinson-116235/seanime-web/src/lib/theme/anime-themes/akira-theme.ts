@@ -1,4 +1,4 @@
-import { AnimeThemeConfig } from "./types"
+﻿import { AnimeThemeConfig } from "./types"
 import {
     GiFireworkRocket,
     GiSkullCrossedBones,
@@ -26,7 +26,7 @@ export const akiraTheme: AnimeThemeConfig = {
     fontFamily: "'Bebas Neue', sans-serif",
     fontHref: "https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap",
     cssVars: {
-        // Brand → neon red
+        // Brand â†’ neon red
         "--color-brand-200": "255 155 170",
         "--color-brand-300": "255 85 105",
         "--color-brand-400": "255 32 62",
@@ -75,7 +75,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "settings": { icon: GiSettingsKnobs, label: "Lab Control" },
     },
     achievementNames: {
-        // ── ANIME MILESTONES ──
+        // â”€â”€ ANIME MILESTONES â”€â”€
         "a_first_episode": "First Night in Neo-Tokyo",
         "a_episode_counter": "Psychic Encounter Count",
         "a_episode_titan": "AKIRA-Class Event",
@@ -107,7 +107,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_first_favorite": "First Gang Bond",
         "a_favorites_collector": "Gang Bond Collector",
 
-        // ── ANIME BINGE ──
+        // â”€â”€ ANIME BINGE â”€â”€
         "a_binge_watcher": "Non-Stop Neon Run",
         "a_marathon_runner": "City-to-City Marathon",
         "a_weekend_warrior": "Weekend Biker Warrior",
@@ -137,7 +137,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_midnight_binge": "Midnight Neon Session",
         "a_new_year_binge": "New Year's Detonation Binge",
 
-        // ── ANIME GENRES ──
+        // â”€â”€ ANIME GENRES â”€â”€
         "a_genre_action": "Street War Action Fan",
         "a_genre_adventure": "Beyond the Ruins",
         "a_genre_comedy": "Kaneda's Reckless Gag",
@@ -177,7 +177,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_tag_josei": "Kei's Deep Devotion",
         "a_tag_survival": "Survival in Neo-Tokyo",
 
-        // ── ANIME COMPLETION ──
+        // â”€â”€ ANIME COMPLETION â”€â”€
         "a_completionist": "Full Mission Report",
         "a_mega_completionist": "Supreme Neo-Tokyo Commander",
         "a_completion_rate_50": "Halfway to AKIRA's Core",
@@ -207,7 +207,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_yearly_completions": "Yearly Campaign Victor",
         "a_rapid_complete": "Lightning Raid Complete",
 
-        // ── ANIME DEDICATION ──
+        // â”€â”€ ANIME DEDICATION â”€â”€
         "a_loyal_fan": "Loyal Neo-Tokyo Resident",
         "a_studio_devotee": "Madhouse Production Devotee",
         "a_rewatcher": "Ruins Recon Rewatch",
@@ -237,7 +237,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_year_dedication": "Year of Neon Dedication",
         "a_season_dedication": "Season of Unwavering Watch",
 
-        // ── ANIME DISCOVERY ──
+        // â”€â”€ ANIME DISCOVERY â”€â”€
         "a_genre_explorer": "Scout Beyond the Ruins",
         "a_studio_hopper": "Faction Transfer Scout",
         "a_tag_explorer": "Tag Recon Mission",
@@ -267,7 +267,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_short_series_explorer": "Short Skirmish Explorer",
         "a_long_series_explorer": "Long Campaign Explorer",
 
-        // ── ANIME TIME ──
+        // â”€â”€ ANIME TIME â”€â”€
         "a_night_owl": "Night Watch in the Ruins",
         "a_early_bird": "Dawn Patrol Neon",
         "a_lunch_break": "Ruins Mess Hall Break",
@@ -295,7 +295,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_every_day_of_week": "Every Day Deployed",
         "a_monthly_hours": "Monthly Neon Hours",
 
-        // ── ANIME SOCIAL ──
+        // â”€â”€ ANIME SOCIAL â”€â”€
         "a_first_party": "First Gang Formation",
         "a_party_host": "Gang Commander",
         "a_social_butterfly": "Neon Bar Socialite",
@@ -317,7 +317,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_party_completionist": "Party Completionist",
         "a_social_scorer": "Social Neon Scorer",
 
-        // ── ANIME SPECIAL ──
+        // â”€â”€ ANIME SPECIAL â”€â”€
         "a_round_number": "Round Number Formation",
         "a_fibonacci": "Fibonacci Psychic Sequence",
         "a_palindrome_day": "Palindrome Time Rift",
@@ -345,7 +345,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_exact_hundred_eps": "Exact Hundred Engagements",
         "a_year_match_count": "Year Match Count",
 
-        // ── ANIME FORMATS ──
+        // â”€â”€ ANIME FORMATS â”€â”€
         "a_tv_watcher": "TV Broadcast Survivor",
         "a_movie_buff": "AKIRA Film Operations",
         "a_ova_hunter": "OVA Intel Hunter",
@@ -371,7 +371,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_sequel_movie": "Sequel Operation Film",
         "a_recap_watcher": "Briefing Recap Watcher",
 
-        // ── ANIME STREAKS ──
+        // â”€â”€ ANIME STREAKS â”€â”€
         "a_daily_streak": "Daily Neon Patrol Streak",
         "a_mega_streak": "Mega Psychic Streak",
         "a_weekly_warrior": "Weekly Warrior of Ruins",
@@ -399,7 +399,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_studio_streak": "Studio Loyalty Streak",
         "a_perfect_week": "Perfect Week of Service",
 
-        // ── ANIME SCORING ──
+        // â”€â”€ ANIME SCORING â”€â”€
         "a_critic": "Military Tribunal Judge",
         "a_perfect_ten": "Perfect Psychic Rating",
         "a_harsh_critic": "Tetsuo's Harsh Standards",
@@ -425,7 +425,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_genre_critic": "Genre Psychic Critic",
         "a_mean_above_8": "Elite Neon Average",
 
-        // ── ANIME HOLIDAY ──
+        // â”€â”€ ANIME HOLIDAY â”€â”€
         "a_new_years_resolution": "New Year's Neon Vow",
         "a_valentines_weeb": "Valentine's Neon Dedication",
         "a_pi_day": "Pi Day Psychic Calculation",
@@ -451,7 +451,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_every_holiday": "Every Holiday Survivor",
         "a_consecutive_holidays": "Consecutive Holiday Watch",
 
-        // ── ANIME META ──
+        // â”€â”€ ANIME META â”€â”€
         "a_meta_first_unlock": "First Psychic Power Awakened",
         "a_meta_collector": "Neo-Tokyo Badge Collector",
         "a_meta_category_starter": "Category Initiation Rite",
@@ -465,7 +465,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "a_meta_diverse": "Diverse Neon Portfolio",
         "a_meta_dominator": "Meta Dominator of Neo-Tokyo",
 
-        // ── MANGA MILESTONES ──
+        // â”€â”€ MANGA MILESTONES â”€â”€
         "m_first_chapter": "First Chapter in Ruins",
         "m_chapter_counter": "Chapter Sortie Counter",
         "m_chapter_titan": "Blockbuster Chapter Assault",
@@ -499,7 +499,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_favorites_collector": "Manga Arsenal Collector",
         "m_days_spent_reading": "Days in the Reading Ruins",
 
-        // ── MANGA BINGE ──
+        // â”€â”€ MANGA BINGE â”€â”€
         "m_binge_reader": "Binge Reading Advance",
         "m_marathon_reader": "Ruins Reading Marathon",
         "m_weekend_reader": "Weekend Neon Reading",
@@ -531,7 +531,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_forty_eight_hour": "Forty-Eight Hour Reading Siege",
         "m_oneshot_binge": "Oneshot Blitz Attack",
 
-        // ── MANGA GENRES ──
+        // â”€â”€ MANGA GENRES â”€â”€
         "m_genre_action": "Action Manuscript Specialist",
         "m_genre_adventure": "Adventure Beyond Ruins",
         "m_genre_comedy": "Comedy in the Wreckage",
@@ -573,7 +573,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_tag_medical": "Field Medic Manga",
         "m_tag_villainess": "Government Experiment Manga",
 
-        // ── MANGA COMPLETION ──
+        // â”€â”€ MANGA COMPLETION â”€â”€
         "m_completionist": "Manga Campaign Completionist",
         "m_mega_completionist": "Supreme Manga Commander",
         "m_completion_rate_50": "Halfway to the Truth",
@@ -605,7 +605,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_rapid_complete": "Rapid Intel Processing",
         "m_author_complete": "Otomo's Complete Works",
 
-        // ── MANGA DEDICATION ──
+        // â”€â”€ MANGA DEDICATION â”€â”€
         "m_loyal_reader": "Loyal Neon Reader",
         "m_mangaka_lover": "Katsuhiro Otomo Devotee",
         "m_rereader": "Ruins Rereader",
@@ -635,7 +635,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_ongoing_follower": "Ongoing Series Follower",
         "m_genre_loyalty_50": "Fifty Genre Loyalty Chapters",
 
-        // ── MANGA DISCOVERY ──
+        // â”€â”€ MANGA DISCOVERY â”€â”€
         "m_genre_explorer": "Genre Territory Scout",
         "m_publisher_hopper": "Publisher Faction Transfer",
         "m_tag_explorer": "Manga Tag Recon Mission",
@@ -665,7 +665,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_long_manga_explorer": "Long Campaign Manuscript",
         "m_serialization_explorer": "Serialization Explorer",
 
-        // ── MANGA TIME ──
+        // â”€â”€ MANGA TIME â”€â”€
         "m_night_owl": "Night Owl Neon Reader",
         "m_early_bird": "Dawn Patrol Reader",
         "m_lunch_reader": "Ruins Mess Reader",
@@ -693,7 +693,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_monthly_hours": "Monthly Reading Hours Logged",
         "m_bedtime_reader": "Bedtime Neon Reader",
 
-        // ── MANGA CREATIVE ──
+        // â”€â”€ MANGA CREATIVE â”€â”€
         "m_art_appreciator": "Otomo Art Appreciator",
         "m_webtoon_reader": "Webtoon Intelligence",
         "m_full_color": "Full Color Manuscript",
@@ -721,7 +721,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_remake_reader": "Remake Reading Assignment",
         "m_collaboration_reader": "Joint Operation Manuscript",
 
-        // ── MANGA STREAKS ──
+        // â”€â”€ MANGA STREAKS â”€â”€
         "m_daily_streak": "Daily Reading Neon Streak",
         "m_mega_streak": "Mega Reading Streak",
         "m_weekly_warrior": "Weekly Warrior Reader",
@@ -751,7 +751,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_perfect_week_manga": "Perfect Reading Week",
         "m_diverse_streak": "Diverse Reading Streak",
 
-        // ── MANGA SCORING ──
+        // â”€â”€ MANGA SCORING â”€â”€
         "m_critic": "Neon Manuscript Critic",
         "m_perfect_ten": "Perfect 10 Manuscript",
         "m_harsh_critic": "Tetsuo's Reading Standards",
@@ -779,7 +779,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_genre_critic": "Genre Neon Critic",
         "m_mean_above_8": "Elite Neon Reading Average",
 
-        // ── MANGA HOLIDAY ──
+        // â”€â”€ MANGA HOLIDAY â”€â”€
         "m_new_years_resolution": "New Year's Neon Vow",
         "m_valentines_read": "Valentine's Neon Bond",
         "m_pi_day": "Pi Day Chapter Count",
@@ -805,7 +805,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_every_holiday_reader": "Every Holiday Reader",
         "m_consecutive_holidays": "Consecutive Holiday Reads",
 
-        // ── MANGA SPECIAL ──
+        // â”€â”€ MANGA SPECIAL â”€â”€
         "m_round_number": "Round Number Milestone",
         "m_fibonacci": "Fibonacci Psychic Pattern",
         "m_palindrome_day": "Palindrome Reading Day",
@@ -833,7 +833,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_year_match_count": "Year Match Chapter Count",
         "m_chapter_match_date": "Chapter Date Match",
 
-        // ── MANGA FORMATS ──
+        // â”€â”€ MANGA FORMATS â”€â”€
         "m_manga_format": "Manga Format Specialist",
         "m_manhwa_format": "Manhwa Format Reader",
         "m_manhua_format": "Manhua Format Reader",
@@ -843,7 +843,7 @@ export const akiraTheme: AnimeThemeConfig = {
         "m_novel_format": "Novel Format Reader",
         "m_format_master_manga": "Format Master Reader",
 
-        // ── MANGA META ──
+        // â”€â”€ MANGA META â”€â”€
         "m_meta_first_unlock": "First Psychic Power Unlocked",
         "m_meta_collector": "Neon Badge Collector",
         "m_meta_category_starter": "Category Initiation",
@@ -876,13 +876,155 @@ export const akiraTheme: AnimeThemeConfig = {
         explosion_debris: { label: "Explosion Debris", maxCount: 12, defaultEnabled: true, defaultIntensity: 55 },
     },
     milestoneNames: {
-        1:   "Neo-Tokyo Biker",
-        5:   "Kaneda's Gang",
-        15:  "Tetsuo's Ally",
-        30:  "ESP Witness",
-        45:  "Government Target",
-        60:  "Psychic Awakening",
-        80:  "AKIRA's Power",
-        100: "Neo-Tokyo Reborn",
+        1:   "Neo-Tokyo Civilian",
+        8:   "Capsule Gang Recruit",
+        14:  "Capsule Gang Member",
+        21:  "Capsule Gang Officer",
+        28:  "Capsule Gang Captain",
+        35:  "Capsule Gang Leader",
+        41:  "Clown Gang Rival",
+        48:  "Biker War Veteran",
+        55:  "Tetsuo's Ally",
+        61:  "Military Conscript",
+        68:  "Government Subject",
+        75:  "Esper Subject — Numbered",
+        81:  "Esper 26 — Takashi",
+        88:  "Esper 27 — Kiyoko",
+        95:  "Esper 28 — Masaru",
+        102: "Esper — Awakened",
+        108: "ESP — Manifested",
+        115: "Psychic Power — Unstable",
+        122: "Psychic Power — Growing",
+        128: "Psychic Power — Uncontrolled",
+        135: "Catastrophe Level — Candidate",
+        142: "Tetsuo — Awakened",
+        149: "Tetsuo — Transformed",
+        155: "Government Lab Subject",
+        162: "Colonel Shikishima's Asset",
+        169: "Government Experiment",
+        175: "Esper Recovery Unit",
+        182: "Olympic Stadium — Evacuated",
+        189: "Old Tokyo — Destroyed",
+        195: "Neo-Tokyo — Threatened",
+        202: "AKIRA — Named",
+        209: "AKIRA — Found",
+        216: "AKIRA — Cell Samples",
+        222: "AKIRA — Awakened",
+        229: "AKIRA — Destruction",
+        236: "Second Impact — Caused",
+        242: "God Level — Approaching",
+        249: "God-Level Threat",
+        256: "Esper Network — Linked",
+        262: "Psychic Resonance",
+        269: "Matter Manipulation",
+        276: "Tetsuo — Mutating",
+        283: "Tetsuo — Uncontrolled",
+        289: "Tetsuo — Flesh Expansion",
+        296: "Tetsuo — Mass",
+        303: "Tetsuo — Consumed",
+        309: "Universe Creation",
+        316: "Alternative Dimension",
+        323: "Big Bang Level",
+        330: "Espers — Intervened",
+        336: "Power — Contained",
+        343: "Tetsuo — Disappeared",
+        350: "New Universe — Created",
+        356: "Neo-Tokyo — Rebuilt",
+        363: "Great Tokyo Empire — Founded",
+        370: "Tetsuo — Emperor",
+        376: "Kaneda — Leader",
+        383: "Resistance — Formed",
+        390: "Army — Fought",
+        397: "Colonel's Faction",
+        403: "Government — Collapsed",
+        410: "Military — Fractured",
+        417: "Neo-Tokyo Empire — Risen",
+        423: "Great Tokyo Empire",
+        430: "Empire Soldier",
+        437: "Empire Captain",
+        444: "Empire General",
+        450: "AKIRA Cultist",
+        457: "AKIRA Worshipper",
+        464: "AKIRA Temple",
+        470: "Psychic Cult Member",
+        477: "Psychic Cult Leader",
+        484: "SOL Weapon Survivor",
+        490: "Satellite Weapon — Hit",
+        497: "Capsule — Bikes",
+        504: "Classic Custom Bike Rider",
+        511: "Kaneda's Red Bike",
+        517: "Future City — Survivor",
+        524: "Dystopia Survivor",
+        531: "Post-Apocalypse Survivor",
+        537: "Neo-Tokyo — Second Time",
+        544: "City Rebuilt — Again",
+        551: "ESP Research Lab",
+        557: "Cloak-and-Dagger Operative",
+        564: "Underground Revolutionary",
+        571: "Resistance Fighter",
+        578: "City Freedom Fighter",
+        584: "Neo-Tokyo Liberator",
+        591: "Empire Destroyer",
+        598: "Military Overthrower",
+        604: "AKIRA — Understood",
+        611: "Esper Children — Protected",
+        618: "Kay — Revolutionary",
+        625: "Ryu — Revolutionary",
+        631: "Chiyoko — Rebel",
+        638: "Nezu — Senator",
+        645: "Nezu — Dead",
+        651: "Doctor Onishi's Work",
+        658: "Secret Laboratory Found",
+        665: "Cryogenic Pod — Opened",
+        671: "AKIRA's True Power",
+        678: "Cosmic Level — Reached",
+        685: "Universe — Destroyed",
+        692: "Universe — Created",
+        698: "Tetsuo — Gone",
+        705: "AKIRA — Gone",
+        712: "Kaneda — Alone",
+        718: "Neo-Tokyo — Silent",
+        725: "New City — Beginning",
+        732: "Civilization — Again",
+        739: "Humanity — Persists",
+        745: "Empire — Ended",
+        752: "Military — Gone",
+        759: "ESP Program — Closed",
+        765: "AKIRA Files — Sealed",
+        772: "Neo-Tokyo — Free",
+        779: "All Espers — Freed",
+        785: "New Society — Born",
+        792: "Second Neo-Tokyo",
+        799: "Third Neo-Tokyo",
+        806: "Akira — Memory",
+        812: "Tetsuo — Mourned",
+        819: "Kaneda — Moving On",
+        826: "City — Future",
+        832: "Humanity — Future",
+        839: "Technology — Future",
+        846: "Psychics — Future",
+        852: "Post-Human — Beginning",
+        859: "New Human — Rising",
+        866: "Esper Descendant",
+        873: "Power — Harmonized",
+        879: "AKIRA Legend — Lives",
+        886: "God Level — Human",
+        893: "Cosmic Level — Human",
+        899: "Universe Creator",
+        906: "New Reality — Author",
+        913: "Neo-Tokyo God",
+        920: "Esper God",
+        926: "AKIRA God",
+        933: "Tetsuo Shima — Eternal",
+        940: "Shotaro Kaneda — Eternal",
+        946: "AKIRA — Eternal",
+        953: "Neo-Tokyo — Eternal",
+        960: "Capsule Gang — Legend",
+        966: "Biker Legend",
+        973: "Psychic Legend",
+        980: "God-Level Threat — Eternal",
+        987: "Neo-Tokyo — Final",
+        993: "AKIRA — Final",
+        1000: "AKIRA",
     },
 }

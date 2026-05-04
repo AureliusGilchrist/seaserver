@@ -53,7 +53,8 @@ func (h *Handler) HandleListThemeBackgrounds(c echo.Context) error {
 // HandleDownloadThemeBackground downloads a full-res wallpaper from Wallhaven and saves it to datadir/theme-backgrounds/.
 func (h *Handler) HandleDownloadThemeBackground(c echo.Context) error {
 	type body struct {
-		URL string `json:"url"`
+		URL     string `json:"url"`
+		ThemeID string `json:"themeId"`
 	}
 	b := new(body)
 	if err := c.Bind(b); err != nil {
@@ -65,6 +66,12 @@ func (h *Handler) HandleDownloadThemeBackground(c echo.Context) error {
 	// Only allow Wallhaven full-resolution CDN paths.
 	if !strings.HasPrefix(b.URL, "https://w.wallhaven.cc/") {
 		return h.RespondWithError(c, fmt.Errorf("only Wallhaven full-res URLs (https://w.wallhaven.cc/...) are accepted"))
+	}
+
+	// Sanitise optional themeId so it is safe for filenames.
+	themeID := b.ThemeID
+	for _, ch := range []string{"/", "\\", "..", ":", "*", "?", "\"", "<", ">", "|"} {
+		themeID = strings.ReplaceAll(themeID, ch, "")
 	}
 
 	// Preserve original file extension.
@@ -88,12 +95,16 @@ func (h *Handler) HandleDownloadThemeBackground(c echo.Context) error {
 	wallhavenID := strings.TrimPrefix(base, "wallhaven-")                  // "abc123"
 	var filename string
 	if wallhavenID != "" && wallhavenID != base {
-		filename = "wh-" + wallhavenID + ext // "wh-abc123.jpg" — recognisable + de-dupable
+		if themeID != "" {
+			filename = "wh-" + themeID + "-" + wallhavenID + ext // "wh-naruto-abc123.jpg"
+		} else {
+			filename = "wh-" + wallhavenID + ext // "wh-abc123.jpg" — legacy / no theme
+		}
 	} else {
 		filename = uuid.New().String() + ext
 	}
 
-	// Skip download if already on disk (idempotent).
+	// Skip download if already on disk (idempotent). Also check legacy name without themeId prefix.
 	dest := filepath.Join(dir, filename)
 	if _, statErr := os.Stat(dest); statErr == nil {
 		type BgFile struct {
@@ -101,6 +112,19 @@ func (h *Handler) HandleDownloadThemeBackground(c echo.Context) error {
 			URL      string `json:"url"`
 		}
 		return h.RespondWithData(c, BgFile{Filename: filename, URL: "/theme-bg/" + filename})
+	}
+	// Check legacy filename (no theme prefix) and rename it if found.
+	if themeID != "" && wallhavenID != "" {
+		legacyFilename := "wh-" + wallhavenID + ext
+		legacyDest := filepath.Join(dir, legacyFilename)
+		if _, statErr := os.Stat(legacyDest); statErr == nil {
+			_ = os.Rename(legacyDest, dest)
+			type BgFile struct {
+				Filename string `json:"filename"`
+				URL      string `json:"url"`
+			}
+			return h.RespondWithData(c, BgFile{Filename: filename, URL: "/theme-bg/" + filename})
+		}
 	}
 
 	client := &http.Client{Timeout: 60 * time.Second}

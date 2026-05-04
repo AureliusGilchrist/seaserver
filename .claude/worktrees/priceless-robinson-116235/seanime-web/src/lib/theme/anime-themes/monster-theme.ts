@@ -1,4 +1,4 @@
-import { AnimeThemeConfig } from "./types"
+﻿import { AnimeThemeConfig } from "./types"
 import {
     GiMicroscope,
     GiChessKing,
@@ -27,7 +27,7 @@ export const monsterTheme: AnimeThemeConfig = {
     fontFamily: "'Cormorant Garamond', serif",
     fontHref: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&display=swap",
     cssVars: {
-        // Brand → deep forest green (26 74 26 base)
+        // Brand â†’ deep forest green (26 74 26 base)
         "--color-brand-200": "120 170 120",
         "--color-brand-300": "85 138 85",
         "--color-brand-400": "52 105 52",
@@ -76,7 +76,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "settings": { icon: GiSettingsKnobs, label: "Headquarters" },
     },
     achievementNames: {
-        // ── ANIME MILESTONES ──
+        // â”€â”€ ANIME MILESTONES â”€â”€
         "a_first_episode": "First Operation",
         "a_episode_counter": "Case Counter",
         "a_episode_titan": "Monster Encounter",
@@ -86,7 +86,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_library_legend": "Library Phantom",
         "a_first_complete": "Case Closed",
         "a_hundred_club": "Hundred Cases",
-        "a_first_day": "Düsseldorf Arrival",
+        "a_first_day": "DÃ¼sseldorf Arrival",
         "a_first_rating": "First Diagnosis",
         "a_ten_thousand_min": "Tenma's Vigil",
         "a_season_veteran": "Veteran Inspector",
@@ -108,7 +108,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_first_favorite": "First Suspect",
         "a_favorites_collector": "Persons of Interest",
 
-        // ── ANIME BINGE ──
+        // â”€â”€ ANIME BINGE â”€â”€
         "a_binge_watcher": "Obsessive Pursuit",
         "a_marathon_runner": "Prague Marathon",
         "a_weekend_warrior": "Weekend Stakeout",
@@ -138,7 +138,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_midnight_binge": "Midnight Research",
         "a_new_year_binge": "New Year's Chase",
 
-        // ── ANIME GENRES ──
+        // â”€â”€ ANIME GENRES â”€â”€
         "a_genre_action": "Violent Encounter",
         "a_genre_adventure": "European Odyssey",
         "a_genre_comedy": "Grimmer's Laugh",
@@ -178,7 +178,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_tag_josei": "Eva's Obsession",
         "a_tag_survival": "Survival Instinct",
 
-        // ── ANIME COMPLETION ──
+        // â”€â”€ ANIME COMPLETION â”€â”€
         "a_completionist": "Full Dossier",
         "a_mega_completionist": "Master Investigator",
         "a_completion_rate_50": "Halfway Truth",
@@ -208,7 +208,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_yearly_completions": "Annual Review",
         "a_rapid_complete": "Rapid Closure",
 
-        // ── ANIME DEDICATION ──
+        // â”€â”€ ANIME DEDICATION â”€â”€
         "a_loyal_fan": "Loyal Associate",
         "a_studio_devotee": "Madhouse Devotee",
         "a_rewatcher": "Case Review",
@@ -238,7 +238,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_year_dedication": "Year Dedicated",
         "a_season_dedication": "Season Devoted",
 
-        // ── ANIME DISCOVERY ──
+        // â”€â”€ ANIME DISCOVERY â”€â”€
         "a_genre_explorer": "Unknown Territory",
         "a_studio_hopper": "Agency Transfer",
         "a_tag_explorer": "Tag Reconnaissance",
@@ -268,7 +268,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_short_series_explorer": "Short Case File",
         "a_long_series_explorer": "Long Case File",
 
-        // ── ANIME TIME ──
+        // â”€â”€ ANIME TIME â”€â”€
         "a_night_owl": "Night Owl",
         "a_early_bird": "Dawn Patrol",
         "a_lunch_break": "Cafeteria Break",
@@ -296,7 +296,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_every_day_of_week": "Every Day Active",
         "a_monthly_hours": "Monthly Hours",
 
-        // ── ANIME SOCIAL ──
+        // â”€â”€ ANIME SOCIAL â”€â”€
         "a_first_party": "First Meeting",
         "a_party_host": "Case Leader",
         "a_social_butterfly": "Social Contact",
@@ -318,7 +318,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_party_completionist": "Party Complete",
         "a_social_scorer": "Social Rating",
 
-        // ── ANIME SPECIAL ──
+        // â”€â”€ ANIME SPECIAL â”€â”€
         "a_round_number": "Round Number",
         "a_fibonacci": "Fibonacci Pattern",
         "a_palindrome_day": "Palindrome Day",
@@ -346,7 +346,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_exact_hundred_eps": "Exact Hundred",
         "a_year_match_count": "Year Match",
 
-        // ── ANIME FORMATS ──
+        // â”€â”€ ANIME FORMATS â”€â”€
         "a_tv_watcher": "TV Broadcast",
         "a_movie_buff": "Film Noir",
         "a_ova_hunter": "OVA Hunter",
@@ -372,7 +372,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_sequel_movie": "Sequel Film",
         "a_recap_watcher": "Recap Session",
 
-        // ── ANIME STREAKS ──
+        // â”€â”€ ANIME STREAKS â”€â”€
         "a_daily_streak": "Daily Patrol",
         "a_mega_streak": "Mega Streak",
         "a_weekly_warrior": "Weekly Warrior",
@@ -400,7 +400,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_studio_streak": "Studio Streak",
         "a_perfect_week": "Perfect Week",
 
-        // ── ANIME SCORING ──
+        // â”€â”€ ANIME SCORING â”€â”€
         "a_critic": "Harsh Critic",
         "a_perfect_ten": "Perfect Ten",
         "a_harsh_critic": "Lunge's Standards",
@@ -426,7 +426,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_genre_critic": "Genre Critic",
         "a_mean_above_8": "Elite Average",
 
-        // ── ANIME HOLIDAY ──
+        // â”€â”€ ANIME HOLIDAY â”€â”€
         "a_new_years_resolution": "New Year's Vow",
         "a_valentines_weeb": "Valentine's Case",
         "a_pi_day": "Pi Day",
@@ -452,7 +452,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_every_holiday": "Every Holiday",
         "a_consecutive_holidays": "Consecutive Holidays",
 
-        // ── ANIME META ──
+        // â”€â”€ ANIME META â”€â”€
         "a_meta_first_unlock": "First Awakening",
         "a_meta_collector": "Badge Collector",
         "a_meta_category_starter": "Category Initiated",
@@ -466,7 +466,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "a_meta_diverse": "Diverse Portfolio",
         "a_meta_dominator": "Meta Dominator",
 
-        // ── MANGA MILESTONES ──
+        // â”€â”€ MANGA MILESTONES â”€â”€
         "m_first_chapter": "First Chapter Read",
         "m_chapter_counter": "Chapter Counter",
         "m_chapter_titan": "Monster Chapter",
@@ -500,7 +500,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_favorites_collector": "Favorites Collected",
         "m_days_spent_reading": "Days Reading",
 
-        // ── MANGA BINGE ──
+        // â”€â”€ MANGA BINGE â”€â”€
         "m_binge_reader": "Binge Reader",
         "m_marathon_reader": "Marathon Reader",
         "m_weekend_reader": "Weekend Reader",
@@ -532,7 +532,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_forty_eight_hour": "Forty-Eight Read",
         "m_oneshot_binge": "Oneshot Blitz",
 
-        // ── MANGA GENRES ──
+        // â”€â”€ MANGA GENRES â”€â”€
         "m_genre_action": "Action Manuscript",
         "m_genre_adventure": "Adventure Abroad",
         "m_genre_comedy": "Dark Comedy",
@@ -574,7 +574,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_tag_medical": "Medical Record",
         "m_tag_villainess": "Villainess Dossier",
 
-        // ── MANGA COMPLETION ──
+        // â”€â”€ MANGA COMPLETION â”€â”€
         "m_completionist": "Manga Completionist",
         "m_mega_completionist": "Supreme Reader",
         "m_completion_rate_50": "Halfway Through",
@@ -606,7 +606,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_rapid_complete": "Rapid Complete",
         "m_author_complete": "Author Complete",
 
-        // ── MANGA DEDICATION ──
+        // â”€â”€ MANGA DEDICATION â”€â”€
         "m_loyal_reader": "Loyal Reader",
         "m_mangaka_lover": "Urasawa Devotee",
         "m_rereader": "Case Rereader",
@@ -636,7 +636,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_ongoing_follower": "Ongoing Follower",
         "m_genre_loyalty_50": "Fifty Genre Loyal",
 
-        // ── MANGA DISCOVERY ──
+        // â”€â”€ MANGA DISCOVERY â”€â”€
         "m_genre_explorer": "Genre Explorer",
         "m_publisher_hopper": "Publisher Hopper",
         "m_tag_explorer": "Tag Explorer",
@@ -666,7 +666,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_long_manga_explorer": "Long Manga Read",
         "m_serialization_explorer": "Serial Explorer",
 
-        // ── MANGA TIME ──
+        // â”€â”€ MANGA TIME â”€â”€
         "m_night_owl": "Night Owl Reader",
         "m_early_bird": "Dawn Reader",
         "m_lunch_reader": "Lunch Reader",
@@ -694,7 +694,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_monthly_hours": "Monthly Hours Read",
         "m_bedtime_reader": "Bedtime Reader",
 
-        // ── MANGA CREATIVE ──
+        // â”€â”€ MANGA CREATIVE â”€â”€
         "m_art_appreciator": "Art Appreciator",
         "m_webtoon_reader": "Webtoon Reader",
         "m_full_color": "Full Color Read",
@@ -722,7 +722,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_remake_reader": "Remake Reader",
         "m_collaboration_reader": "Collaboration Read",
 
-        // ── MANGA STREAKS ──
+        // â”€â”€ MANGA STREAKS â”€â”€
         "m_daily_streak": "Daily Read Streak",
         "m_mega_streak": "Mega Read Streak",
         "m_weekly_warrior": "Weekly Reader",
@@ -752,7 +752,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_perfect_week_manga": "Perfect Read Week",
         "m_diverse_streak": "Diverse Read Streak",
 
-        // ── MANGA SCORING ──
+        // â”€â”€ MANGA SCORING â”€â”€
         "m_critic": "Manuscript Critic",
         "m_perfect_ten": "Perfect Ten Read",
         "m_harsh_critic": "Harsh Read Critic",
@@ -780,7 +780,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_genre_critic": "Genre Read Critic",
         "m_mean_above_8": "Elite Read Average",
 
-        // ── MANGA HOLIDAY ──
+        // â”€â”€ MANGA HOLIDAY â”€â”€
         "m_new_years_resolution": "New Year Read Vow",
         "m_valentines_read": "Valentine's Read",
         "m_pi_day": "Pi Day Read",
@@ -806,7 +806,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_every_holiday_reader": "Every Holiday Read",
         "m_consecutive_holidays": "Consecutive Reads",
 
-        // ── MANGA SPECIAL ──
+        // â”€â”€ MANGA SPECIAL â”€â”€
         "m_round_number": "Round Number Read",
         "m_fibonacci": "Fibonacci Chapters",
         "m_palindrome_day": "Palindrome Read",
@@ -834,7 +834,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_year_match_count": "Year Match Read",
         "m_chapter_match_date": "Chapter Date Match",
 
-        // ── MANGA FORMATS ──
+        // â”€â”€ MANGA FORMATS â”€â”€
         "m_manga_format": "Manga Specialist",
         "m_manhwa_format": "Manhwa Specialist",
         "m_manhua_format": "Manhua Specialist",
@@ -844,7 +844,7 @@ export const monsterTheme: AnimeThemeConfig = {
         "m_novel_format": "Novel Specialist",
         "m_format_master_manga": "Format Master Read",
 
-        // ── MANGA META ──
+        // â”€â”€ MANGA META â”€â”€
         "m_meta_first_unlock": "First Read Unlock",
         "m_meta_collector": "Read Badge Collector",
         "m_meta_category_starter": "Category Started",
@@ -877,13 +877,155 @@ export const monsterTheme: AnimeThemeConfig = {
         paper_trail: { label: "Paper Trail", maxCount: 12, defaultEnabled: true, defaultIntensity: 40 },
     },
     milestoneNames: {
-        1:   "Doctor",
-        5:   "Surgeon",
-        15:  "Creator",
-        30:  "Fugitive",
-        45:  "Seeker",
-        60:  "Hunter",
-        80:  "Confronted",
-        100: "Defeated",
+        1:   "Dr. Tenma",
+        8:   "Neurosurgeon",
+        14:  "Chief Surgeon",
+        21:  "Hospital Director Rival",
+        28:  "Unknown Subject",
+        35:  "Person of Interest",
+        41:  "BKA Constable",
+        48:  "BKA Detective Constable",
+        55:  "BKA Detective Sergeant",
+        61:  "BKA Detective Inspector",
+        68:  "BKA Chief Inspector",
+        75:  "BKA Superintendent",
+        81:  "BKA Commissioner",
+        88:  "Interpol Liaison",
+        95:  "Interpol Operative",
+        102: "Fugitive — Wanted",
+        108: "Suspect — Prime",
+        115: "Ghost — Disappeared",
+        122: "The Monster — Named",
+        128: "The Abyss Itself",
+        135: "Johan Liebert — Found",
+        142: "Johan Liebert — Lost",
+        149: "Johan's Trail — Cold",
+        155: "Johan's Trail — Warm",
+        162: "Johan's Past — Investigated",
+        169: "Kinderheim 511 — Revealed",
+        175: "Johan's Sister — Anna",
+        182: "Anna — Nina Fortner",
+        189: "Nina Fortner — Searching",
+        195: "The Monster — Confronted",
+        202: "Perfect Monster — Understood",
+        209: "Brain Trauma Surgeon",
+        216: "Fugitive Doctor",
+        222: "Franz Bonaparta — Found",
+        229: "The Rose Mansion",
+        236: "Nihilism — Faced",
+        242: "Nothingness — Stared Into",
+        249: "Johan's Philosophy — Heard",
+        256: "Grimmer — Met",
+        262: "Tenma — Hunter",
+        269: "Inspector Lunge — Rival",
+        276: "Inspector Lunge — Convinced",
+        283: "Monster's Origin",
+        289: "Ruhenheim — Arrived",
+        296: "Ruhenheim Massacre",
+        303: "Johan — Cornered",
+        309: "Johan — Fallen",
+        316: "Johan — Survived",
+        323: "Monster — Ended?",
+        330: "Tenma — Cleared",
+        336: "Dr. Reichwein — Ally",
+        343: "Dieter — Protected",
+        350: "Eva Heinemann — Changed",
+        356: "Roberto — Stopped",
+        363: "Johann Wolfgang — True Name",
+        370: "Monster's True Face — Seen",
+        376: "The Name — Unknown",
+        383: "The Birth — Revealed",
+        390: "The Book — Found",
+        397: "The Monster's Book",
+        403: "Name Without A Monster",
+        410: "The Perfect Suicide",
+        417: "The Perfect Despair",
+        423: "Johan — Alone",
+        430: "Johan's World — Empty",
+        437: "Johan's Philosophy — Broken",
+        444: "Monster — Humanized",
+        450: "Monster — Pitied",
+        457: "Monster — Understood",
+        464: "Child's Drawing — Found",
+        470: "Kinderheim 511 Survivor",
+        477: "Czech Republic — Investigated",
+        484: "Germany — Traversed",
+        490: "Cold Case — Solved",
+        497: "Murder Chain — Traced",
+        504: "Disappearance Chain — Solved",
+        511: "Witness — Protected",
+        517: "Innocent — Saved",
+        524: "Medical Oath — Kept",
+        531: "Hippocratic Oath — Restored",
+        537: "Tenma's Regret — Carried",
+        544: "Tenma's Guilt — Resolved",
+        551: "The Monster's Last Victim",
+        557: "Survivor of Johan",
+        564: "Johan's Living Legacy",
+        571: "Naoki Urasawa's World",
+        578: "Perfect Thriller — Level",
+        584: "Detective Lunge — Redeemed",
+        591: "Wolfgang Grimmer — Honored",
+        598: "Lotte Frank — Safe",
+        604: "Karl Neumann — Saved",
+        611: "Verdacht — Cleared",
+        618: "Final Truth — Known",
+        625: "Case — Complete",
+        631: "Monster — Last Seen",
+        638: "Johan — In Coma",
+        645: "Johan — Woke",
+        651: "Monster — Gone",
+        658: "Tenma's Journey — Done",
+        665: "Truth — Fully Known",
+        671: "Monster's Origin — Full",
+        678: "Kinderheim — Understood",
+        685: "Perfect Manipulation — Beaten",
+        692: "Psychology — Mastered",
+        698: "Detection — Perfected",
+        705: "Surgical Skill — Legend",
+        712: "Medical Legend",
+        718: "Detective Legend",
+        725: "Monster Hunter — Legend",
+        732: "One Truth — Prevailed",
+        739: "Nihilism — Defeated",
+        745: "Monster — Humanized",
+        752: "Johan — Pitied",
+        759: "Anna — Healed",
+        765: "Tenma — Redeemed",
+        772: "Ruhenheim — Rebuilt",
+        779: "Bombarta's Legacy — Ended",
+        785: "511 Kinderheim — Closed",
+        792: "Monster Program — Over",
+        799: "Perfect Child — Failed",
+        806: "Johan's Philosophy — Void",
+        812: "The Name — Whispered",
+        819: "The Monster — Defeated",
+        826: "Death — Chosen",
+        832: "Life — Chosen",
+        839: "Monster — Quiet",
+        846: "Johan — Silent",
+        852: "Eva — Changed",
+        859: "Lunge — Humbled",
+        866: "Tenma — Hero",
+        873: "Nina — Peace",
+        879: "Dieter — Grown",
+        886: "Grimmer — Honored",
+        893: "Franz Bonaparta — Reckoned",
+        899: "The Book — Burned",
+        906: "The Perfect Suicide — Refused",
+        913: "Monster's Last Breath",
+        920: "One Truth — Eternal",
+        926: "Monster — Myth",
+        933: "The Abyss — Closed",
+        940: "MONSTER — Complete",
+        946: "Naoki Urasawa — Honored",
+        953: "Perfect Work — Witnessed",
+        960: "Johan Liebert — Legend",
+        966: "Tenma Kenzo — Legend",
+        973: "Truth — Eternal",
+        980: "Monster — Eternal Warning",
+        987: "The Name — Final",
+        993: "One Truth Prevails",
+        1000: "The Monster",
     },
 }

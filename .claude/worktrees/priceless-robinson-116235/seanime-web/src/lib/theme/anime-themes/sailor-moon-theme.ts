@@ -1,4 +1,4 @@
-import { AnimeThemeConfig } from "./types"
+﻿import { AnimeThemeConfig } from "./types"
 import {
     GiCastle,
     GiStarFormation,
@@ -75,7 +75,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "settings": { icon: GiSettingsKnobs, label: "Moon Palace HQ" },
     },
     achievementNames: {
-        // ── ANIME MILESTONES ──
+        // â”€â”€ ANIME MILESTONES â”€â”€
         "a_first_episode": "First Moonbeam Awakening",
         "a_episode_counter": "Silver Crystal Charge Count",
         "a_episode_titan": "Sailor Senshi-Class Battle",
@@ -107,7 +107,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_first_favorite": "First Senshi Bond",
         "a_favorites_collector": "Bonds of the Inner Senshi",
 
-        // ── ANIME BINGE ──
+        // â”€â”€ ANIME BINGE â”€â”€
         "a_binge_watcher": "Non-Stop Moon Prism Power",
         "a_marathon_runner": "Moon-to-Moon Marathon",
         "a_weekend_warrior": "Weekend Warrior Sailor Scout",
@@ -137,7 +137,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_midnight_binge": "Midnight Moon Reconnaissance",
         "a_new_year_binge": "New Year's Moon Prism Charge",
 
-        // ── ANIME GENRES ──
+        // â”€â”€ ANIME GENRES â”€â”€
         "a_genre_action": "Moon Tiara Action Specialist",
         "a_genre_adventure": "Beyond Crystal Tokyo",
         "a_genre_comedy": "Usagi's Crybaby Moment",
@@ -177,7 +177,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_tag_josei": "Hotaru's Obsession",
         "a_tag_survival": "Survival of the Senshi",
 
-        // ── ANIME COMPLETION ──
+        // â”€â”€ ANIME COMPLETION â”€â”€
         "a_completionist": "Full Senshi Expedition Report",
         "a_mega_completionist": "Neo-Queen of Completions",
         "a_completion_rate_50": "Halfway to Crystal Tokyo",
@@ -207,7 +207,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_yearly_completions": "Yearly Moon Campaign Victor",
         "a_rapid_complete": "Lightning Moon Raid Complete",
 
-        // ── ANIME DEDICATION ──
+        // â”€â”€ ANIME DEDICATION â”€â”€
         "a_loyal_fan": "Loyal Sailor Senshi Member",
         "a_studio_devotee": "Toei Animation Devotee",
         "a_rewatcher": "Senshi Recon Rewatch",
@@ -237,7 +237,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_year_dedication": "Year of Dedication to Love",
         "a_season_dedication": "Season of Unwavering Service",
 
-        // ── ANIME DISCOVERY ──
+        // â”€â”€ ANIME DISCOVERY â”€â”€
         "a_genre_explorer": "Scout Beyond Crystal Tokyo",
         "a_studio_hopper": "Senshi Corps Transfer",
         "a_tag_explorer": "Tag Reconnaissance Mission",
@@ -267,7 +267,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_short_series_explorer": "Short Moon Skirmish Explorer",
         "a_long_series_explorer": "Long Campaign Explorer",
 
-        // ── ANIME TIME ──
+        // â”€â”€ ANIME TIME â”€â”€
         "a_night_owl": "Night Watch Under the Moon",
         "a_early_bird": "Dawn Senshi Patrol",
         "a_lunch_break": "Juuban Lunch Break",
@@ -295,7 +295,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_every_day_of_week": "Every Day Moon Deployed",
         "a_monthly_hours": "Monthly Moon Duty Hours",
 
-        // ── ANIME SOCIAL ──
+        // â”€â”€ ANIME SOCIAL â”€â”€
         "a_first_party": "First Inner Senshi Formation",
         "a_party_host": "Senshi Commander",
         "a_social_butterfly": "Juuban Socialite",
@@ -317,7 +317,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_party_completionist": "Party Operation Completionist",
         "a_social_scorer": "Social Combat Scorer",
 
-        // ── ANIME SPECIAL ──
+        // â”€â”€ ANIME SPECIAL â”€â”€
         "a_round_number": "Round Number Formation",
         "a_fibonacci": "Fibonacci Silver Crystal Sequence",
         "a_palindrome_day": "Palindrome Time Rift",
@@ -345,7 +345,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_exact_hundred_eps": "Exact Hundred Engagements",
         "a_year_match_count": "Year Match Moon Count",
 
-        // ── ANIME FORMATS ──
+        // â”€â”€ ANIME FORMATS â”€â”€
         "a_tv_watcher": "TV Broadcast Moon Scout",
         "a_movie_buff": "Sailor Moon Movie Operations",
         "a_ova_hunter": "OVA Sailor Stars Hunter",
@@ -371,7 +371,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_sequel_movie": "Sequel Moon Operation Film",
         "a_recap_watcher": "Recap Briefing Watcher",
 
-        // ── ANIME STREAKS ──
+        // â”€â”€ ANIME STREAKS â”€â”€
         "a_daily_streak": "Daily Moon Patrol Streak",
         "a_mega_streak": "Mega Moon Expedition Streak",
         "a_weekly_warrior": "Weekly Warrior of the Moon",
@@ -399,7 +399,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_studio_streak": "Studio Loyalty Streak",
         "a_perfect_week": "Perfect Week of Moon Service",
 
-        // ── ANIME SCORING ──
+        // â”€â”€ ANIME SCORING â”€â”€
         "a_critic": "Senshi Tribunal Judge",
         "a_perfect_ten": "Perfect 10 Moon Rating",
         "a_harsh_critic": "Haruka's Harsh Standards",
@@ -425,7 +425,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_genre_critic": "Genre Moon Critic",
         "a_mean_above_8": "Elite Moon Combat Average",
 
-        // ── ANIME HOLIDAY ──
+        // â”€â”€ ANIME HOLIDAY â”€â”€
         "a_new_years_resolution": "New Year's Vow for the Moon",
         "a_valentines_weeb": "Valentine's Moon Dedication",
         "a_pi_day": "Pi Day Crystal Calc",
@@ -451,7 +451,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_every_holiday": "Every Holiday Senshi",
         "a_consecutive_holidays": "Consecutive Holiday Deployments",
 
-        // ── ANIME META ──
+        // â”€â”€ ANIME META â”€â”€
         "a_meta_first_unlock": "First Senshi Power Awakened",
         "a_meta_collector": "Moon Kingdom Badge Collector",
         "a_meta_category_starter": "Category Initiation Rite",
@@ -465,7 +465,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "a_meta_diverse": "Diverse Moon Portfolio",
         "a_meta_dominator": "Meta Dominator of the Moon",
 
-        // ── MANGA MILESTONES ──
+        // â”€â”€ MANGA MILESTONES â”€â”€
         "m_first_chapter": "First Chapter of the Silver Millennium",
         "m_chapter_counter": "Chapter Moon Sortie Counter",
         "m_chapter_titan": "Chapter Senshi Assault",
@@ -499,7 +499,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_favorites_collector": "Manga Favorites Arsenal",
         "m_days_spent_reading": "Days in the Moon Kingdom Archives",
 
-        // ── MANGA BINGE ──
+        // â”€â”€ MANGA BINGE â”€â”€
         "m_binge_reader": "Binge Reading Moon Advance",
         "m_marathon_reader": "Moon-to-Moon Reading Marathon",
         "m_weekend_reader": "Weekend Moon Reading",
@@ -531,7 +531,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_forty_eight_hour": "Forty-Eight Hour Reading Siege",
         "m_oneshot_binge": "Oneshot Blitz Attack",
 
-        // ── MANGA GENRES ──
+        // â”€â”€ MANGA GENRES â”€â”€
         "m_genre_action": "Action Manuscript Specialist",
         "m_genre_adventure": "Adventure Beyond Crystal Tokyo",
         "m_genre_comedy": "Comedy in the Moon Kingdom",
@@ -573,7 +573,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_tag_medical": "Field Medic Manga",
         "m_tag_villainess": "Dark Senshi Candidate Manga",
 
-        // ── MANGA COMPLETION ──
+        // â”€â”€ MANGA COMPLETION â”€â”€
         "m_completionist": "Manga Moon Campaign Completionist",
         "m_mega_completionist": "Supreme Moon Manga Commander",
         "m_completion_rate_50": "Halfway to Crystal Tokyo",
@@ -605,7 +605,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_rapid_complete": "Rapid Moon Intel Processing",
         "m_author_complete": "Author's Complete Moon Works",
 
-        // ── MANGA DEDICATION ──
+        // â”€â”€ MANGA DEDICATION â”€â”€
         "m_loyal_reader": "Loyal Moon Kingdom Reader",
         "m_mangaka_lover": "Takeuchi Devotee",
         "m_rereader": "Senshi Rereader",
@@ -635,7 +635,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_ongoing_follower": "Ongoing Moon Series Follower",
         "m_genre_loyalty_50": "Fifty Genre Loyalty Moon Chapters",
 
-        // ── MANGA DISCOVERY ──
+        // â”€â”€ MANGA DISCOVERY â”€â”€
         "m_genre_explorer": "Genre Territory Moon Scout",
         "m_publisher_hopper": "Publisher Moon Transfer",
         "m_tag_explorer": "Manga Tag Moon Recon Mission",
@@ -665,7 +665,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_long_manga_explorer": "Long Moon Campaign Manuscript",
         "m_serialization_explorer": "Serialization Explorer",
 
-        // ── MANGA TIME ──
+        // â”€â”€ MANGA TIME â”€â”€
         "m_night_owl": "Night Owl Moon Reader",
         "m_early_bird": "Dawn Moon Patrol Reader",
         "m_lunch_reader": "Juuban Lunch Reader",
@@ -693,7 +693,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_monthly_hours": "Monthly Moon Reading Hours Logged",
         "m_bedtime_reader": "Bedtime Moon Reader",
 
-        // ── MANGA CREATIVE ──
+        // â”€â”€ MANGA CREATIVE â”€â”€
         "m_art_appreciator": "Takeuchi Art Appreciator",
         "m_webtoon_reader": "Webtoon Intelligence",
         "m_full_color": "Full Color Moon Manuscript",
@@ -721,7 +721,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_remake_reader": "Remake Moon Reading Assignment",
         "m_collaboration_reader": "Joint Moon Operation Manuscript",
 
-        // ── MANGA STREAKS ──
+        // â”€â”€ MANGA STREAKS â”€â”€
         "m_daily_streak": "Daily Moon Reading Patrol Streak",
         "m_mega_streak": "Mega Moon Reading Campaign Streak",
         "m_weekly_warrior": "Weekly Moon Warrior Reader",
@@ -751,7 +751,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_perfect_week_manga": "Perfect Moon Reading Week",
         "m_diverse_streak": "Diverse Moon Reading Streak",
 
-        // ── MANGA SCORING ──
+        // â”€â”€ MANGA SCORING â”€â”€
         "m_critic": "Moon Manuscript Critic",
         "m_perfect_ten": "Perfect 10 Moon Manuscript",
         "m_harsh_critic": "Haruka's Moon Reading Standards",
@@ -779,7 +779,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_genre_critic": "Genre Moon Reading Critic",
         "m_mean_above_8": "Elite Moon Reading Average",
 
-        // ── MANGA HOLIDAY ──
+        // â”€â”€ MANGA HOLIDAY â”€â”€
         "m_new_years_resolution": "New Year's Moon Reading Vow",
         "m_valentines_read": "Valentine's Moon Reading Bond",
         "m_pi_day": "Pi Day Moon Chapter Count",
@@ -805,7 +805,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_every_holiday_reader": "Every Moon Holiday Reader",
         "m_consecutive_holidays": "Consecutive Holiday Moon Reads",
 
-        // ── MANGA SPECIAL ──
+        // â”€â”€ MANGA SPECIAL â”€â”€
         "m_round_number": "Round Number Milestone",
         "m_fibonacci": "Fibonacci Crystal Chapter Pattern",
         "m_palindrome_day": "Palindrome Moon Reading Day",
@@ -833,7 +833,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_year_match_count": "Year Match Moon Chapter Count",
         "m_chapter_match_date": "Chapter Moon Date Match",
 
-        // ── MANGA FORMATS ──
+        // â”€â”€ MANGA FORMATS â”€â”€
         "m_manga_format": "Manga Format Specialist",
         "m_manhwa_format": "Manhwa Format Reader",
         "m_manhua_format": "Manhua Format Reader",
@@ -843,7 +843,7 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         "m_novel_format": "Novel Format Reader",
         "m_format_master_manga": "Format Master Moon Reader",
 
-        // ── MANGA META ──
+        // â”€â”€ MANGA META â”€â”€
         "m_meta_first_unlock": "First Moon Reading Power Unlocked",
         "m_meta_collector": "Moon Reading Badge Collector",
         "m_meta_category_starter": "Category Initiation",
@@ -876,13 +876,155 @@ export const sailorMoonTheme: AnimeThemeConfig = {
         star_prisms: { label: "Star Prisms", maxCount: 10, defaultEnabled: true, defaultIntensity: 45 },
     },
     milestoneNames: {
-        1:   "Crybaby Schoolgirl",
-        5:   "Sailor Moon Awakened",
-        15:  "Inner Senshi Assembled",
-        30:  "Silver Crystal Found",
-        45:  "Neo-Queen Serenity",
-        60:  "Outer Senshi Alliance",
-        80:  "Star Seed Guardian",
-        100: "Eternal Sailor Moon",
+        1:   "Ordinary Girl",
+        8:   "Magical Girl",
+        14:  "Sailor Guardian",
+        21:  "Sailor Moon",
+        28:  "Inner Senshi",
+        35:  "Inner Senshi Assembled",
+        41:  "Outer Senshi",
+        48:  "Outer Senshi Alliance",
+        55:  "Dark Kingdom — Enemy",
+        61:  "Nephrite — Defeated",
+        68:  "Kunzite — Defeated",
+        75:  "Queen Beryl — Defeated",
+        81:  "Black Moon Clan",
+        88:  "Wiseman — Defeated",
+        95:  "Pharaoh 90 — Defeated",
+        102: "Mistress 9 — Ended",
+        108: "Death Busters — Destroyed",
+        115: "Amazon Quartet",
+        122: "Dead Moon Circus",
+        128: "Zirconia — Defeated",
+        135: "Queen Nehellenia — Ended",
+        142: "Shadow Galactica — Enemy",
+        149: "Sailor Starlights",
+        155: "Sailor Star Fighter",
+        162: "Sailor Star Maker",
+        169: "Sailor Star Healer",
+        175: "Sailor Galaxia — Confronted",
+        182: "Sailor Galaxia — Corrupted",
+        189: "Sailor Galaxia — Freed",
+        195: "Chaos — Defeated",
+        202: "Silver Crystal — Found",
+        209: "Silver Crystal — Wielded",
+        216: "Silver Crystal — Full Power",
+        222: "Legendary Silver Crystal",
+        229: "Princess Serenity",
+        236: "Princess Serenity — Remembered",
+        242: "Neo-Queen Serenity",
+        249: "30th Century — Visited",
+        256: "Crystal Tokyo",
+        262: "Small Lady — Known",
+        269: "Chibiusa — Protected",
+        276: "Rini — Future Self",
+        283: "Super Sailor Moon",
+        289: "Eternal Sailor Moon",
+        296: "Sailor Moon — Full Form",
+        303: "Moon Prism Power",
+        309: "Moon Crystal Power",
+        316: "Moon Cosmic Power",
+        323: "Crisis Power",
+        330: "Eternal Power",
+        336: "Sailor Mars",
+        343: "Sailor Mercury",
+        350: "Sailor Jupiter",
+        356: "Sailor Venus",
+        363: "Sailor Pluto — Guardian of Time",
+        370: "Sailor Uranus",
+        376: "Sailor Neptune",
+        383: "Sailor Saturn — Silence",
+        390: "Sailor Saturn — Reborn",
+        397: "Sailor Chibi Moon",
+        403: "Sailor Chibi Chibi",
+        410: "Luna — Human Form",
+        417: "Artemis — Human Form",
+        423: "Diana — Guardian Cat",
+        430: "Tuxedo Mask",
+        437: "Prince Endymion",
+        444: "King Endymion",
+        450: "Dark Endymion — Freed",
+        457: "Sailor Quartet — Ally",
+        464: "Amazon Quartet — Redeemed",
+        470: "Star Seeds — Collected",
+        477: "Star Seeds — Freed",
+        484: "Sailor Crystals — Returned",
+        490: "True Stars — Restored",
+        497: "Galaxy — Saved",
+        504: "Silver Millennium",
+        511: "Silver Millennium — Memory",
+        517: "Moon Kingdom — Remembered",
+        524: "Moon Kingdom — Reborn",
+        531: "Earth Kingdom — Peaceful",
+        537: "Crystal Tokyo — Eternal",
+        544: "Sailor Galaxia's True Star Seed",
+        551: "Chaos — True Form",
+        557: "Cosmos — Called",
+        564: "Sailor Cosmos",
+        571: "Sailor Moon Cosmos",
+        578: "All Senshi — Unified",
+        584: "All Sailors — Restored",
+        591: "Chaos — Final",
+        598: "Galaxy — Peaceful",
+        604: "Star Seeds — Free",
+        611: "Cosmos Level",
+        618: "Moon Eternal",
+        625: "Princess Eternal",
+        631: "Queen Eternal",
+        638: "Neo-Queen — Crowned",
+        645: "Crystal Tokyo — Founded",
+        651: "Silver Crystal Eternal",
+        658: "Silver Millennium Reborn",
+        665: "Moon Kingdom Eternal",
+        671: "All Kingdoms — United",
+        678: "Usagi — Legend",
+        685: "Sailor Moon — Legend",
+        692: "Princess Serenity — Eternal",
+        698: "Neo-Queen — Eternal",
+        705: "Moon Light Eternal",
+        712: "All Sailor Guardians — Eternal",
+        718: "Cosmos — Eternal",
+        725: "Chaos — Never More",
+        732: "Galaxy — Forever Peaceful",
+        739: "Love and Justice — Eternal",
+        745: "Pretty Soldier — Final",
+        752: "Pretty Guardian — Final",
+        759: "Sailor Moon — Final",
+        765: "Eternal Sailor Moon — Final",
+        772: "Cosmos — Embodied",
+        779: "Silver Crystal God",
+        785: "Moon Kingdom God",
+        792: "Sailor Moon God",
+        799: "Princess God",
+        806: "Queen God",
+        812: "Love — Weapon",
+        819: "Justice — Weapon",
+        826: "Friendship — Power",
+        832: "Love — Ultimate Power",
+        839: "Cosmos — Power",
+        846: "Galaxy — Owned",
+        852: "Universe — Loved",
+        859: "Stars — Protected",
+        866: "All Senshi — Pride",
+        873: "Moon Kingdom — Complete",
+        879: "Silver Millennium — Eternal",
+        886: "Neo-Silver Millennium",
+        893: "All Dark Kingdoms — Gone",
+        899: "Universe — At Peace",
+        906: "Sailor Moon Final — Complete",
+        913: "Sailor Cosmos — Final Form",
+        920: "Love — Absolute",
+        926: "Justice — Absolute",
+        933: "Moon — Absolute",
+        940: "Crystal — Eternal",
+        946: "Silver Crystal — Final",
+        953: "Sailor Moon — God",
+        960: "Galaxy's Protector",
+        966: "Universe's Guardian",
+        973: "Cosmos Eternal",
+        980: "Silver Millennium — God",
+        987: "Moon Queen — Final",
+        993: "Moon Kingdom — Eternal",
+        1000: "Eternal Sailor Moon",
     },
 }
