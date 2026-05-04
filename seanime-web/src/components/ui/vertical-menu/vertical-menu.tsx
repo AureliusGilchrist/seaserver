@@ -132,6 +132,7 @@ export const VerticalMenuAnatomy = defineStyleAnatomy({
 const __VerticalMenuContext = React.createContext<Pick<VerticalMenuProps, "onAnyItemClick" | "onLinkItemClick"> & { collapsed?: boolean }>({})
 
 export type VerticalMenuItem = {
+    id?: string
     name: string
     href?: string | null | undefined
     iconType?: React.ElementType
