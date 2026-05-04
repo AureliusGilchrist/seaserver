@@ -1,3 +1,6 @@
 [submodule "electron"]
 	path = electron
 	url = https://github.com/5rahim/seanime-electron.git
+[submodule "seanime-themes"]
+	path = seanime-themes
+	url = https://github.com/AureliusGilchrist/seanime-themes.git
