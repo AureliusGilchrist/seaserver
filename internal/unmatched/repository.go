@@ -216,6 +216,12 @@ func (r *Repository) setCachedTorrents(torrents []*UnmatchedTorrent) {
 	defer r.cacheMu.Unlock()
 	r.cachedTorrents = torrents
 	r.cacheExpiry = time.Now().Add(10 * time.Second)
+	// Store full contents for instant retrieval by GetTorrentContents
+	for _, t := range torrents {
+		if t != nil {
+			r.contentCache[t.Name] = t
+		}
+	}
 }
 
 func (r *Repository) invalidateCache() {
@@ -285,8 +291,19 @@ func hasVideoFiles(path string) bool {
 	return hasVideo
 }
 
-// GetTorrentContents returns the detailed contents of a specific torrent
+// GetTorrentContents returns the detailed contents of a specific torrent.
+// It first checks the in-memory content cache (populated during list scans)
+// for instant response, falling back to filesystem scan only if needed.
 func (r *Repository) GetTorrentContents(torrentName string) (*UnmatchedTorrent, error) {
+	// Fast path: return from cache if available
+	r.cacheMu.Lock()
+	if cached, ok := r.contentCache[torrentName]; ok && cached != nil {
+		r.cacheMu.Unlock()
+		return cached, nil
+	}
+	r.cacheMu.Unlock()
+
+	// Slow path: scan from filesystem (cache miss or fresh request)
 	torrentPath := filepath.Join(UnmatchedBasePath, torrentName)
 	info, err := os.Stat(torrentPath)
 	if os.IsNotExist(err) {
