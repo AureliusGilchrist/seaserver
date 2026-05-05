@@ -1,32 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
-
-interface MousePosition {
-    x: number;
-    y: number;
-}
-
-function useMousePosition(): MousePosition {
-    const [mousePosition, setMousePosition] = useState<MousePosition>({
-        x: 0,
-        y: 0,
-    })
-
-    useEffect(() => {
-        const handleMouseMove = (event: MouseEvent) => {
-            setMousePosition({ x: event.clientX, y: event.clientY })
-        }
-
-        window.addEventListener("mousemove", handleMouseMove)
-
-        return () => {
-            window.removeEventListener("mousemove", handleMouseMove)
-        }
-    }, [])
-
-    return mousePosition
-}
+import React, { useEffect, useRef } from "react"
 
 interface ParticleBackgroundProps {
     className?: string;
@@ -72,13 +46,12 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
     const canvasContainerRef = useRef<HTMLDivElement>(null)
     const context = useRef<CanvasRenderingContext2D | null>(null)
     const circles = useRef<any[]>([])
-    const mousePosition = useMousePosition()
     const mouse = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
     const canvasSize = useRef<{ w: number; h: number }>({ w: 0, h: 0 })
     const dpr = typeof window !== "undefined" ? window.devicePixelRatio : 1
     const animFrameRef = useRef<number>(0)
-
-    const [bgMousePosition, setBgMousePosition] = useState({ x: 0, y: 0 })
+    const rawMouse = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
+    const mouseRafPending = useRef(false)
 
     useEffect(() => {
         if (canvasRef.current) {
@@ -88,15 +61,24 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
         animate()
         window.addEventListener("resize", initCanvas)
 
+        const handleMouseMove = (event: MouseEvent) => {
+            rawMouse.current = { x: event.clientX, y: event.clientY }
+            if (!mouseRafPending.current) {
+                mouseRafPending.current = true
+                requestAnimationFrame(() => {
+                    mouseRafPending.current = false
+                    onMouseMove(rawMouse.current.x, rawMouse.current.y)
+                })
+            }
+        }
+        window.addEventListener("mousemove", handleMouseMove)
+
         return () => {
             window.removeEventListener("resize", initCanvas)
+            window.removeEventListener("mousemove", handleMouseMove)
             cancelAnimationFrame(animFrameRef.current)
         }
     }, [color])
-
-    useEffect(() => {
-        onMouseMove()
-    }, [mousePosition.x, mousePosition.y])
 
     useEffect(() => {
         initCanvas()
@@ -107,22 +89,17 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
         drawParticleBackground()
     }
 
-    const onMouseMove = () => {
+    const onMouseMove = (clientX: number, clientY: number) => {
         if (canvasRef.current) {
             const rect = canvasRef.current.getBoundingClientRect()
             const { w, h } = canvasSize.current
-            const x = mousePosition.x - rect.left - w / 2
-            const y = mousePosition.y - rect.top - h / 2
+            const x = clientX - rect.left - w / 2
+            const y = clientY - rect.top - h / 2
             const inside = x < w / 2 && x > -w / 2 && y < h / 2 && y > -h / 2
             if (inside) {
                 mouse.current.x = x
                 mouse.current.y = y
             }
-
-            ///
-            const x2 = Math.min((mousePosition.x - (rect.left + rect.width / 2)) / 60, 20)
-            const y2 = Math.min((mousePosition.y - (rect.top + rect.height / 2)) / 60, 20)
-            setBgMousePosition({ x: x2, y: y2 })
         }
     }
 

@@ -1359,29 +1359,35 @@ body.vc-fullscreen .appLayout {
 [data-anime-theme="naruto"] h2,
 [data-anime-theme="naruto"] h3 {
     animation: narutoChakraPulse 3s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="naruto"] h4,
 [data-anime-theme="naruto"] h5,
 [data-anime-theme="naruto"] h6 {
     animation: narutoChakraPulse 3.5s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="naruto"] .UI-VerticalMenu__item,
 [data-anime-theme="naruto"] .UI-VerticalMenu__itemContent {
     animation: narutoFireFlicker 2.5s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="naruto"] [class*="UI-Button"] {
     animation: narutoSealPulse 3s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="naruto"] [class*="TabsTrigger"] {
     animation: narutoSealPulse 3.2s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="naruto"] [class*="achievement"] h4 {
     animation: narutoChakraPulse 2.8s ease-in-out infinite;
+    contain: style;
 }
 
 /* ── BLEACH ── Soul Society text: cold silver reiatsu sweep across headings,
@@ -1412,29 +1418,35 @@ body.vc-fullscreen .appLayout {
 [data-anime-theme="bleach"] h2,
 [data-anime-theme="bleach"] h3 {
     animation: bleachReiatsuSweep 4s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="bleach"] h4,
 [data-anime-theme="bleach"] h5,
 [data-anime-theme="bleach"] h6 {
     animation: bleachReiatsuSweep 4.5s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="bleach"] .UI-VerticalMenu__item,
 [data-anime-theme="bleach"] .UI-VerticalMenu__itemContent {
     animation: bleachEtherealFade 5s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="bleach"] [class*="UI-Button"] {
     animation: bleachSpectralFlicker 3.5s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="bleach"] [class*="TabsTrigger"] {
     animation: bleachSpectralFlicker 3.8s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="bleach"] [class*="achievement"] h4 {
     animation: bleachReiatsuSweep 3.5s ease-in-out infinite;
+    contain: style;
 }
 
 /* ── ONE PIECE ── Treasure/adventure text: warm gold shimmer on headings,
@@ -1460,29 +1472,35 @@ body.vc-fullscreen .appLayout {
 [data-anime-theme="one-piece"] h2,
 [data-anime-theme="one-piece"] h3 {
     animation: onePieceTreasureGleam 3.5s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="one-piece"] h4,
 [data-anime-theme="one-piece"] h5,
 [data-anime-theme="one-piece"] h6 {
     animation: onePieceTreasureGleam 4s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="one-piece"] .UI-VerticalMenu__item,
 [data-anime-theme="one-piece"] .UI-VerticalMenu__itemContent {
     animation: onePieceLanternGlow 4s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="one-piece"] [class*="UI-Button"] {
     animation: onePieceBounceShimmer 2.8s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="one-piece"] [class*="TabsTrigger"] {
     animation: onePieceBounceShimmer 3s ease-in-out infinite;
+    contain: style;
 }
 
 [data-anime-theme="one-piece"] [class*="achievement"] h4 {
     animation: onePieceTreasureGleam 3s ease-in-out infinite;
+    contain: style;
 }
 
 

@@ -163,9 +163,41 @@ func (g *gojaProviderBase) callClassMethod(ctx context.Context, methodName strin
 		return nil, fmt.Errorf("method %s execution failed: %w", methodName, err)
 	}
 
-	// g.runtimeManager.PrintBasePoolMetrics()
+	// If the result is a Promise, wait for it to settle HERE while we still hold the VM.
+	// Returning the pending Promise and putting the VM back into the pool first is unsafe:
+	// another goroutine can grab the same VM and both goroutines end up running the goja
+	// runtime concurrently, which causes "concurrent map writes" panics inside goja.
+	result, err = g.waitForPromiseOnVM(result)
+	if err != nil {
+		return nil, err
+	}
 
 	return result, nil
+}
+
+// waitForPromiseOnVM waits for a goja Promise to settle while the caller still holds
+// the VM (i.e. has NOT yet returned it to the pool). Must only be called from within
+// callClassMethod before the deferred pool.Put fires.
+func (g *gojaProviderBase) waitForPromiseOnVM(value goja.Value) (goja.Value, error) {
+	if value == nil {
+		return nil, nil
+	}
+	promise, ok := value.Export().(*goja.Promise)
+	if !ok {
+		// Not a promise — return as-is.
+		return value, nil
+	}
+	deadline := time.Now().Add(gojaPromiseWaitTimeout)
+	for promise.State() == goja.PromiseStatePending {
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("promise timed out after %s", gojaPromiseWaitTimeout)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if promise.State() == goja.PromiseStateRejected {
+		return nil, fmt.Errorf("promise rejected: %v", promise.Result())
+	}
+	return promise.Result(), nil
 }
 
 // unmarshalValue unmarshals a Goja value to a target interface

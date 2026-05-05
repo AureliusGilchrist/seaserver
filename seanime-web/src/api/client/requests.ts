@@ -164,12 +164,12 @@ export function useServerMutation<R = void, V = void>(
     return useMutation<R | undefined, SeaError, V>({
         onError: error => {
             console.log("Mutation error", error)
-            const errorMsg = _handleSeaError(error.response?.data)
-            if (errorMsg.includes("feature disabled")) {
+            const { title, description } = _handleSeaError(error.response?.data)
+            if (title.includes("feature disabled") || description?.includes("feature disabled")) {
                 toast.warning("This feature is disabled")
                 return
             }
-            toast.error(errorMsg)
+            if (title) toast.error(title, { description })
         },
         mutationFn: async (variables) => {
             return buildSeaQuery<R, V>({
@@ -234,12 +234,12 @@ export function useServerQuery<R, V = any>(
                 return
             }
             console.log("Server error", props.error)
-            const errorMsg = _handleSeaError(props.error?.response?.data)
-            if (errorMsg.includes("feature disabled")) {
+            const { title, description } = _handleSeaError(props.error?.response?.data)
+            if (title.includes("feature disabled") || description?.includes("feature disabled")) {
                 return
             }
-            if (!!errorMsg) {
-                toast.error(errorMsg)
+            if (title) {
+                toast.error(title, { description })
             }
         }
     }, [props.error, props.isError, muteError])
@@ -249,29 +249,37 @@ export function useServerQuery<R, V = any>(
 
 //----------------------------------------------------------------------------------------------------------------------
 
-function _handleSeaError(data: any): string {
-    if (typeof data === "string") return "Server Error: " + data
+type SeaErrorDetail = { title: string; description?: string }
+
+function _handleSeaError(data: any): SeaErrorDetail {
+    if (typeof data === "string") return { title: "Server Error", description: data }
 
     const err = data?.error as string
 
-    if (!err) return "Unknown error"
+    if (!err) return { title: "Unknown error" }
 
     if (err.includes("Too many requests"))
-        return "AniList: Too many requests, please wait a moment and try again."
+        return { title: "AniList: Too many requests", description: "Please wait a moment and try again." }
 
     try {
         const graphqlErr = JSON.parse(err) as any
         console.log("AniList error", graphqlErr)
         if (graphqlErr.graphqlErrors && graphqlErr.graphqlErrors.length > 0 && !!graphqlErr.graphqlErrors[0]?.message) {
-            return "AniList error: " + graphqlErr.graphqlErrors[0]?.message
+            return { title: "AniList error", description: graphqlErr.graphqlErrors[0]?.message }
         }
-        return "AniList error"
+        return { title: "AniList error" }
     }
     catch (e) {
         if (err.includes("no cached data") || err.includes("cache lookup failed")) {
-            return ""
+            return { title: "" }
         }
-        return "Error: " + err
+        // Truncate very long raw errors to avoid giant toasts
+        const detail = err.length > 300 ? err.slice(0, 300) + "…" : err
+        // Derive a short human-readable title from the first sentence / line
+        const firstLine = detail.split(/[\n:]/)[0]?.trim()
+        const title = firstLine && firstLine.length < 80 ? firstLine : "Server error"
+        const description = firstLine && firstLine !== detail ? detail : undefined
+        return { title, description }
     }
 }
 

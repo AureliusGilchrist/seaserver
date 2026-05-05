@@ -845,20 +845,16 @@ function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, 
                     boxShadow: "inset 0 0 120px 40px rgba(0,0,0,0.5), inset 0 0 40px 20px rgba(0,0,0,0.3)",
                 }}
             />
-            {/* Scanlines - animated rolling effect */}
+            {/* Scanlines - static overlay (no animation to avoid lag) */}
             {scanlinesStrength > 0 && (
-                <>
-                    <style>{`@keyframes sea-scanlines{0%{background-position:0 0}100%{background-position:0 ${lineHeight * 2}px}}`}</style>
-                    <div
-                        style={{
-                            position: "absolute",
-                            inset: 0,
-                            backgroundImage: `repeating-linear-gradient(0deg, rgba(0,0,0,${scanlinesStrength * 0.6}) 0px, rgba(0,0,0,${scanlinesStrength * 0.6}) 1px, transparent 1px, transparent ${lineHeight}px)`,
-                            animation: `sea-scanlines 0.1s linear infinite`,
-                            pointerEvents: "none",
-                        }}
-                    />
-                </>
+                <div
+                    style={{
+                        position: "absolute",
+                        inset: 0,
+                        backgroundImage: `repeating-linear-gradient(0deg, rgba(0,0,0,${scanlinesStrength * 0.6}) 0px, rgba(0,0,0,${scanlinesStrength * 0.6}) 1px, transparent 1px, transparent ${lineHeight}px)`,
+                        pointerEvents: "none",
+                    }}
+                />
             )}
             {/* Film noise - fixed to not increase brightness */}
             {noiseStrength > 0 && (
@@ -872,7 +868,8 @@ function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, 
                             mixBlendMode: "overlay",
                             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
                             backgroundSize: `${200 * noiseScale}px ${200 * noiseScale}px`,
-                            animation: `sea-noise ${noiseAnimDuration} steps(2) infinite`,
+                            animation: `sea-noise ${noiseAnimDuration} steps(4) infinite`,
+                            willChange: "transform",
                         }}
                     />
                 </>
@@ -901,6 +898,7 @@ function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, 
                             animation: `sea-shimmer-glow ${(2 / glowSpeed).toFixed(2)}s ease-in-out infinite`,
                             transform: `scale(${glowScale})`,
                             pointerEvents: "none",
+                            willChange: "transform, opacity",
                         }}
                     />
                 </>

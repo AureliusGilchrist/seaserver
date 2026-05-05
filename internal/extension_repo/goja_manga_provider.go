@@ -49,14 +49,12 @@ func (g *GojaMangaProvider) GetSettings() (ret hibikemanga.Settings) {
 func (g *GojaMangaProvider) Search(opts hibikemanga.SearchOptions) (ret []*hibikemanga.SearchResult, err error) {
 	defer util.HandlePanicInModuleWithError(g.ext.ID+".Search", &err)
 
-	method, err := g.callClassMethod(context.Background(), "search", structToMap(opts))
-
-	promiseRes, err := g.waitForPromise(method)
+	result, err := g.callClassMethod(context.Background(), "search", structToMap(opts))
 	if err != nil {
 		return nil, err
 	}
 
-	err = g.unmarshalValue(promiseRes, &ret)
+	err = g.unmarshalValue(result, &ret)
 	if err != nil {
 		return nil, err
 	}
@@ -87,14 +85,12 @@ func (g *GojaMangaProvider) Search(opts hibikemanga.SearchOptions) (ret []*hibik
 func (g *GojaMangaProvider) FindChapters(id string) (ret []*hibikemanga.ChapterDetails, err error) {
 	defer util.HandlePanicInModuleWithError(g.ext.ID+".FindChapters", &err)
 
-	method, err := g.callClassMethod(context.Background(), "findChapters", id)
-
-	promiseRes, err := g.waitForPromise(method)
+	result, err := g.callClassMethod(context.Background(), "findChapters", id)
 	if err != nil {
 		return nil, err
 	}
 
-	err = g.unmarshalValue(promiseRes, &ret)
+	err = g.unmarshalValue(result, &ret)
 	if err != nil {
 		return nil, err
 	}
@@ -110,14 +106,12 @@ func (g *GojaMangaProvider) FindChapters(id string) (ret []*hibikemanga.ChapterD
 func (g *GojaMangaProvider) FindChapterPages(id string) (ret []*hibikemanga.ChapterPage, err error) {
 	defer util.HandlePanicInModuleWithError(g.ext.ID+".FindChapterPages", &err)
 
-	method, err := g.callClassMethod(context.Background(), "findChapterPages", id)
-
-	promiseRes, err := g.waitForPromise(method)
+	result, err := g.callClassMethod(context.Background(), "findChapterPages", id)
 	if err != nil {
 		return nil, err
 	}
 
-	err = g.unmarshalValue(promiseRes, &ret)
+	err = g.unmarshalValue(result, &ret)
 	if err != nil {
 		return nil, err
 	}

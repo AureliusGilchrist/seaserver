@@ -194,6 +194,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                                 background: `radial-gradient(ellipse at center, rgba(255,255,255,${glowStr * 0.40}) 0%, transparent 65%)`,
                                 mixBlendMode: "screen",
                                 animation: "sea-bg-glow-pulse 4s ease-in-out infinite",
+                                willChange: "opacity",
                             }}
                         />
                     )}
@@ -251,6 +252,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                                     background: "radial-gradient(ellipse 80% 40% at 50% 30%, rgba(125,211,252,0.08), transparent 70%)",
                                     mixBlendMode: "screen",
                                     animation: "sea-bg-glow-pulse 6s ease-in-out infinite",
+                                    willChange: "opacity",
                                 }}
                             />
                             {/* Rising bubbles */}

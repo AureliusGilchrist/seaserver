@@ -113,7 +113,7 @@ export default function Page() {
             {profile!.bannerImage ? (
                 <div
                     className="relative h-[360px] overflow-hidden"
-                    style={{ width: "calc(100% + 5rem)", marginLeft: "-5rem" }}
+                    style={{ width: "calc(100% + 5rem)", marginLeft: "-5rem", marginTop: "-1rem" }}
                 >
                     <div
                         className="absolute inset-0 bg-no-repeat bg-cover"
