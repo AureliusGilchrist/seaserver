@@ -81,6 +81,22 @@ func (h *Handler) HandleProfileLogin(c echo.Context) error {
 	authenticated := h.App.AnilistClientManager.IsAuthenticated(profile.ID)
 	h.App.Logger.Debug().Uint("profileID", profile.ID).Bool("anilist_authenticated", authenticated).Msg("profile_login: AniList authentication check")
 
+	// If not authenticated via client cache, double-check the database directly
+	// The client might have been removed from cache or have stale state
+	if !authenticated && b.AnilistToken == "" {
+		if h.App.ProfileDatabaseManager != nil {
+			targetDB, dbErr := h.App.ProfileDatabaseManager.GetDatabase(profile.ID)
+			if dbErr == nil {
+				token := targetDB.GetAnilistToken()
+				if token != "" {
+					h.App.Logger.Info().Uint("profileID", profile.ID).Msg("profile_login: Found existing AniList token in database, restoring client")
+					h.App.AnilistClientManager.UpdateClient(profile.ID, token)
+					authenticated = true
+				}
+			}
+		}
+	}
+
 	if !authenticated && b.AnilistToken != "" {
 		// Validate the provided token with AniList
 		tempClient := anilist.NewAnilistClient(b.AnilistToken, h.App.AnilistCacheDir)

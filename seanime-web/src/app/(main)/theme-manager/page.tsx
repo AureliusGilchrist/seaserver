@@ -54,7 +54,7 @@ export default function ThemeManagerPage() {
 
     // Load shared themes on mount
     React.useEffect(() => {
-        fetchSharedThemesList().then(setSharedThemes)
+        fetchSharedThemesList().then(res => setSharedThemes(Array.isArray(res) ? res : []))
     }, [])
 
     // Fetch available marketplace themes from index
@@ -621,7 +621,7 @@ export default function ThemeManagerPage() {
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                                 {marketplaceThemes
-                                    .filter(theme => !sharedThemes.some(st => st.id === theme.id))
+                                    .filter(theme => !Array.isArray(sharedThemes) || !sharedThemes.some(st => st.id === theme.id))
                                     .map(theme => (
                                         <div
                                             key={theme.id}

@@ -130,7 +130,9 @@ export async function fetchSharedThemesList(): Promise<SharedThemeInfo[]> {
             const url = `${getServerBaseUrl()}/api/v1/shared-themes`
             const res = await fetch(url, { cache: "force-cache" })
             if (!res.ok) { sharedThemesCache = []; return [] }
-            const themes = await res.json() as SharedThemeInfo[]
+            const json = await res.json() as any
+            const unwrapped = json?.data ?? json
+            const themes = Array.isArray(unwrapped) ? unwrapped as SharedThemeInfo[] : []
             sharedThemesCache = themes
             return themes
         } catch {
