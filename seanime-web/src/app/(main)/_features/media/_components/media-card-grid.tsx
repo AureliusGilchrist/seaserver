@@ -1,8 +1,11 @@
 import { LuffyError } from "@/components/shared/luffy-error"
 import { cn } from "@/components/ui/core/styling"
 import { Skeleton } from "@/components/ui/skeleton"
+import { animeCardSizeAtom, getGridSizeClasses } from "@/app/(main)/_atoms/card-size.atoms"
+import { useAtomValue } from "jotai/react"
 import React from "react"
 
+// Fallback grid classes when card size atom is not available (server-side)
 const gridClass = cn(
     "grid grid-cols-2 min-[768px]:grid-cols-3 min-[1080px]:grid-cols-4 min-[1320px]:grid-cols-5 min-[1750px]:grid-cols-6 min-[1850px]:grid-cols-7 min-[2000px]:grid-cols-8 gap-4",
 )
@@ -32,21 +35,30 @@ export function MediaCardGrid(props: MediaCardGridProps) {
         ...rest
     } = props
 
+    const cardSize = useAtomValue(animeCardSizeAtom)
+    const sizeGridClasses = getGridSizeClasses(cardSize)
+
     if (React.Children.toArray(children).length === 0) {
         return <LuffyError title={null}>
             <p>Nothing to see</p>
         </LuffyError>
     }
 
+    // Apply maxCol limit to size-based grid classes
+    const limitedGridClasses = cn(
+        "grid gap-4",
+        sizeGridClasses,
+        maxCol === 4 && "min-[1320px]:grid-cols-4 min-[1750px]:grid-cols-4 min-[1850px]:grid-cols-4 min-[2000px]:grid-cols-4",
+        maxCol === 5 && "min-[1750px]:grid-cols-5 min-[1850px]:grid-cols-5 min-[2000px]:grid-cols-5",
+        maxCol === 6 && "min-[1750px]:grid-cols-6 min-[1850px]:grid-cols-6 min-[2000px]:grid-cols-6",
+        maxCol === 7 && "min-[1850px]:grid-cols-7 min-[2000px]:grid-cols-7",
+    )
+
     return (
         <>
             <div
                 data-media-card-grid
-                className={cn(
-                    maxCol === 7 ? gridClassMax7 : maxCol === 6 ? gridClassMax6 : maxCol === 5 ? gridClassMax5 : maxCol === 4
-                        ? gridClassMax4
-                        : gridClass,
-                )}
+                className={limitedGridClasses}
                 {...rest}
             >
                 {children}
@@ -88,16 +100,6 @@ export function MediaCardLazyGrid({
     )
 }
 
-const colClasses = [
-    { min: 0, cols: 2 },
-    { min: 768, cols: 3 },
-    { min: 1080, cols: 4 },
-    { min: 1320, cols: 5 },
-    { min: 1750, cols: 6 },
-    { min: 1850, cols: 7 },
-    { min: 2000, cols: 8 },
-]
-
 export function MediaCardLazyGridRenderer({
     children,
     itemCount,
@@ -110,10 +112,37 @@ export function MediaCardLazyGridRenderer({
     const itemRefs = React.useRef<(HTMLDivElement | null)[]>([])
     const observerRef = React.useRef<IntersectionObserver | null>(null)
 
-    const _colClasses = colClasses.map(n => ({ min: n.min, cols: n.cols > maxCol ? maxCol : n.cols }))
+    const cardSize = useAtomValue(animeCardSizeAtom)
+    const sizeGridClasses = getGridSizeClasses(cardSize)
 
-    // Determine initial columns based on window width
-    const initialColumns = _colClasses.find(c => window.innerWidth >= c.min)?.cols ?? 8
+    // Determine initial columns based on window width and card size
+    const getInitialColumns = () => {
+        const width = window.innerWidth
+        // Map card size to approximate column count at 1750px breakpoint
+        let baseCols: number
+        if (cardSize <= 0.7) baseCols = 8
+        else if (cardSize <= 0.85) baseCols = 7
+        else if (cardSize <= 1.0) baseCols = 6
+        else if (cardSize <= 1.15) baseCols = 5
+        else baseCols = 4
+
+        // Adjust for screen width
+        if (width < 768) baseCols = 2
+        else if (width < 1080) baseCols = Math.min(baseCols, 3)
+        else if (width < 1320) baseCols = Math.min(baseCols, 4)
+        else if (width < 1750) baseCols = Math.min(baseCols, 5)
+        else if (width < 1850) baseCols = Math.min(baseCols, 6)
+        else if (width < 2000) baseCols = Math.min(baseCols, 7)
+
+        return Math.min(baseCols, maxCol)
+    }
+
+    const [initialColumns, setInitialColumns] = React.useState(getInitialColumns)
+
+    // Update columns when card size changes
+    React.useEffect(() => {
+        setInitialColumns(getInitialColumns())
+    }, [cardSize, maxCol])
 
     // Initialize visible indices with first row
     React.useEffect(() => {
@@ -182,12 +211,20 @@ export function MediaCardLazyGridRenderer({
         })
     }, [])
 
+    // Apply maxCol limit to size-based grid classes
+    const limitedLazyGridClasses = cn(
+        "grid gap-4",
+        sizeGridClasses,
+        maxCol === 4 && "min-[1320px]:grid-cols-4 min-[1750px]:grid-cols-4 min-[1850px]:grid-cols-4 min-[2000px]:grid-cols-4",
+        maxCol === 5 && "min-[1750px]:grid-cols-5 min-[1850px]:grid-cols-5 min-[2000px]:grid-cols-5",
+        maxCol === 6 && "min-[1750px]:grid-cols-6 min-[1850px]:grid-cols-6 min-[2000px]:grid-cols-6",
+        maxCol === 7 && "min-[1850px]:grid-cols-7 min-[2000px]:grid-cols-7",
+    )
+
     return (
         <div data-media-card-lazy-grid-renderer {...rest}>
             <div
-                data-media-card-lazy-grid className={cn(
-                maxCol === 7 ? gridClassMax7 : maxCol === 6 ? gridClassMax6 : maxCol === 5 ? gridClassMax5 : maxCol === 4 ? gridClassMax4 : gridClass,
-            )} ref={gridRef}
+                data-media-card-lazy-grid className={limitedLazyGridClasses} ref={gridRef}
             >
                 {React.Children.map(children, (child, index) => {
                     const isVisible = visibleIndices.has(index)

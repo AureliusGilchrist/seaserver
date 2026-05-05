@@ -1,3 +1,4 @@
+"use client"
 import { AL_AnimeDetailsById_Media, AL_MangaDetailsById_Media } from "@/api/generated/types"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -6,6 +7,8 @@ import { cn } from "@/components/ui/core/styling"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import React from "react"
 import { BiSolidHeart } from "react-icons/bi"
+import { animeCardSizeAtom, getGridSizeClasses } from "@/app/(main)/_atoms/card-size.atoms"
+import { useAtomValue } from "jotai/react"
 
 type RelationsRecommendationsSectionProps = {
     details: AL_AnimeDetailsById_Media | AL_MangaDetailsById_Media | undefined
@@ -21,6 +24,8 @@ export function MediaEntryCharactersSection(props: RelationsRecommendationsSecti
     } = props
 
     const ts = useThemeSettings()
+    const cardSize = useAtomValue(animeCardSizeAtom)
+    const gridClasses = getGridSizeClasses(cardSize)
 
     const characters = React.useMemo(() => {
         return details?.characters?.edges?.filter(n => n.role === "MAIN" || n.role === "SUPPORTING") || []
@@ -37,8 +42,9 @@ export function MediaEntryCharactersSection(props: RelationsRecommendationsSecti
             <div
                 data-media-entry-characters-section-grid
                 className={cn(
-                    "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4",
-                    isMangaPage && "grid-cols-1 md:grid-col-2 lg:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-2",
+                    "gap-4",
+                    gridClasses,
+                    isMangaPage && "grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-2",
                 )}
             >
                 {characters?.slice(0, 10).map(edge => {
@@ -59,7 +65,7 @@ export function MediaEntryCharactersSection(props: RelationsRecommendationsSecti
                             <div
                                 data-media-entry-characters-section-grid-item-image-container
                                 className={cn(
-                                    "size-20 flex-none rounded-[--radius-md] object-cover object-center relative overflow-hidden",
+                                    "aspect-[6/8] w-20 flex-none rounded-[--radius-md] object-cover object-center relative overflow-hidden",
                                     "group/ep-item-img-container",
                                 )}
                             >
@@ -74,7 +80,7 @@ export function MediaEntryCharactersSection(props: RelationsRecommendationsSecti
                                 {(edge?.node?.image?.large) && <SeaImage
                                     data-media-entry-characters-section-grid-item-image
                                     src={edge?.node?.image?.large || ""}
-                                    alt="episode image"
+                                    alt="character image"
                                     fill
                                     quality={60}
                                     placeholder={imageShimmer(700, 475)}

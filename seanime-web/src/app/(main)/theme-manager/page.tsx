@@ -658,23 +658,29 @@ export default function ThemeManagerPage() {
                         <button
                             onClick={() => setThemeId("seanime")}
                             className={cn(
-                                "relative group rounded-xl border-2 overflow-hidden transition-all text-left",
+                                "relative group rounded-xl border-2 overflow-hidden transition-all text-left isolate",
                                 themeId === "seanime"
                                     ? "border-[--color-brand-400] shadow-[0_0_16px_2px_rgba(0,0,0,0.4)]"
                                     : "border-[--border] hover:border-[--color-brand-600]",
                             )}
                         >
-                            <div className="relative h-20 w-full overflow-hidden">
-                                <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #1a0a2e 0%, #4c1d95 50%, #7c3aed 100%)" }} />
-                                <div className="absolute bottom-2 left-2 flex gap-1">
+                            <div className="relative aspect-[4/3] w-full overflow-hidden">
+                                {/* Background gradient */}
+                                <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110" style={{ background: "linear-gradient(135deg, #1a0a2e 0%, #4c1d95 50%, #7c3aed 100%)" }} />
+                                {/* Bottom gradient for text readability */}
+                                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                                {/* Color dots */}
+                                <div className="absolute top-2 left-2 flex gap-1">
                                     {["#7c3aed", "#a78bfa", "#c4b5fd"].map((c, i) => (
-                                        <div key={i} className="w-2.5 h-2.5 rounded-full border border-white/20" style={{ background: c }} />
+                                        <div key={i} className="w-2.5 h-2.5 rounded-full border border-white/20 shadow-sm" style={{ background: c }} />
                                     ))}
                                 </div>
-                                {themeId === "seanime" && <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[--color-brand-400]" />}
-                            </div>
-                            <div className="px-2 py-1.5 bg-[--paper] border-t border-[--border]">
-                                <p className="text-[11px] font-semibold truncate">Seanime</p>
+                                {/* Active indicator */}
+                                {themeId === "seanime" && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[--color-brand-400] shadow-lg" />}
+                                {/* Title overlay */}
+                                <div className="absolute inset-x-0 bottom-0 p-2.5">
+                                    <p className="text-xs font-semibold truncate text-white drop-shadow-md">Seanime</p>
+                                </div>
                             </div>
                         </button>
 
@@ -683,7 +689,7 @@ export default function ThemeManagerPage() {
                             <div
                                 key={theme.id}
                                 className={cn(
-                                    "relative group rounded-xl border-2 overflow-hidden transition-all",
+                                    "relative group rounded-xl border-2 overflow-hidden transition-all isolate",
                                     themeId === theme.id
                                         ? "border-[--color-brand-400] shadow-[0_0_16px_2px_rgba(0,0,0,0.4)]"
                                         : "border-[--border] hover:border-[--color-brand-600]",
@@ -693,39 +699,49 @@ export default function ThemeManagerPage() {
                                     onClick={() => setThemeId(theme.id as AnimeThemeId)}
                                     className="w-full text-left"
                                 >
-                                    <div className="relative h-20 w-full overflow-hidden">
+                                    <div className="relative aspect-[4/3] w-full overflow-hidden">
+                                        {/* Background image or gradient */}
                                         {theme.backgroundImageUrl ? (
-                                            <img
-                                                src={theme.backgroundImageUrl.startsWith("/") ? `${getServerBaseUrl()}${theme.backgroundImageUrl}` : theme.backgroundImageUrl}
-                                                alt=""
-                                                className="absolute inset-0 w-full h-full object-cover scale-110"
-                                                style={{ filter: "blur(5px) brightness(0.5) saturate(1.4)" }}
-                                                loading="lazy"
-                                            />
+                                            <>
+                                                <img
+                                                    src={theme.backgroundImageUrl.startsWith("/") ? `${getServerBaseUrl()}${theme.backgroundImageUrl}` : theme.backgroundImageUrl}
+                                                    alt=""
+                                                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                    loading="lazy"
+                                                />
+                                                {/* Dim overlay for better text contrast */}
+                                                <div className="absolute inset-0 bg-black/20" />
+                                            </>
                                         ) : (
-                                            <div className="absolute inset-0" style={{ background: theme.previewColors
+                                            <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110" style={{ background: theme.previewColors
                                                 ? `linear-gradient(135deg, ${theme.previewColors.bg} 0%, color-mix(in srgb, ${theme.previewColors.bg} 50%, ${theme.previewColors.primary}) 100%)`
                                                 : "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)"
                                             }} />
                                         )}
-                                        <div className="absolute bottom-2 left-2 flex gap-1">
+                                        {/* Bottom gradient for text readability */}
+                                        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                                        {/* Color dots */}
+                                        <div className="absolute top-2 left-2 flex gap-1">
                                             {theme.previewColors
                                                 ? [theme.previewColors.primary, theme.previewColors.secondary, theme.previewColors.accent].map((c, i) => (
-                                                    <div key={i} className="w-2.5 h-2.5 rounded-full border border-white/20" style={{ background: c }} />
+                                                    <div key={i} className="w-2.5 h-2.5 rounded-full border border-white/20 shadow-sm" style={{ background: c }} />
                                                 ))
                                                 : null
                                             }
                                         </div>
-                                        {themeId === theme.id && <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[--color-brand-400]" />}
-                                    </div>
-                                    <div className="px-2 py-1.5 bg-[--paper] border-t border-[--border]" style={{ background: theme.previewColors ? `linear-gradient(180deg, ${theme.previewColors.bg} 0%, color-mix(in srgb, ${theme.previewColors.bg} 90%, ${theme.previewColors.primary}) 100%)` : undefined }}>
-                                        <p className="text-[11px] font-semibold truncate text-white">{theme.displayName || theme.id}</p>
+                                        {/* Active indicator */}
+                                        {themeId === theme.id && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[--color-brand-400] shadow-lg" />}
+                                        {/* Title overlay */}
+                                        <div className="absolute inset-x-0 bottom-0 p-2.5">
+                                            <p className="text-xs font-semibold truncate text-white drop-shadow-md">{theme.displayName || theme.id}</p>
+                                        </div>
                                     </div>
                                 </button>
+                                {/* Delete button */}
                                 <button
                                     onClick={() => handleDeleteTheme(theme.id)}
                                     disabled={deletingId === theme.id}
-                                    className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-black/60 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                    className="absolute top-2 left-2 w-5 h-5 rounded-full bg-black/60 text-white/60 hover:text-white hover:bg-red-500/80 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center z-10"
                                     title="Delete theme"
                                 >
                                     {deletingId === theme.id ? (
@@ -802,43 +818,49 @@ export default function ThemeManagerPage() {
                                     {browseable.map(theme => (
                                         <div
                                             key={theme.id}
-                                            className="group relative rounded-xl border-2 border-[--border] hover:border-[--color-brand-600] overflow-hidden transition-all"
+                                            className="group relative rounded-xl border-2 border-[--border] hover:border-[--color-brand-600] overflow-hidden transition-all isolate"
                                         >
-                                            {/* Banner art */}
-                                            <div className="relative h-20 w-full overflow-hidden">
+                                            {/* Banner art - library style */}
+                                            <div className="relative aspect-[4/3] w-full overflow-hidden">
                                                 {theme.backgroundImageUrl ? (
-                                                    <img
-                                                        src={theme.backgroundImageUrl.startsWith("/") ? `${getServerBaseUrl()}${theme.backgroundImageUrl}` : theme.backgroundImageUrl}
-                                                        alt=""
-                                                        className="absolute inset-0 w-full h-full object-cover scale-110"
-                                                        style={{ filter: "blur(5px) brightness(0.5) saturate(1.4)" }}
-                                                        loading="lazy"
-                                                    />
+                                                    <>
+                                                        <img
+                                                            src={theme.backgroundImageUrl.startsWith("/") ? `${getServerBaseUrl()}${theme.backgroundImageUrl}` : theme.backgroundImageUrl}
+                                                            alt=""
+                                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                            loading="lazy"
+                                                        />
+                                                        {/* Subtle dim overlay */}
+                                                        <div className="absolute inset-0 bg-black/20" />
+                                                    </>
                                                 ) : (
-                                                    <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${theme.previewColors?.bg ?? "#0a0a0a"} 0%, color-mix(in srgb, ${theme.previewColors?.bg ?? "#0a0a0a"} 50%, ${theme.previewColors?.primary ?? "#333"}) 100%)` }} />
+                                                    <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-110" style={{ background: `linear-gradient(135deg, ${theme.previewColors?.bg ?? "#0a0a0a"} 0%, color-mix(in srgb, ${theme.previewColors?.bg ?? "#0a0a0a"} 50%, ${theme.previewColors?.primary ?? "#333"}) 100%)` }} />
                                                 )}
-                                                <div className="absolute bottom-2 left-2 flex gap-1">
+                                                {/* Bottom gradient for text readability */}
+                                                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                                                {/* Color dots */}
+                                                <div className="absolute top-2 left-2 flex gap-1">
                                                     {[theme.previewColors?.primary, theme.previewColors?.secondary, theme.previewColors?.accent].map((c, i) => c && (
-                                                        <div key={i} className="w-2.5 h-2.5 rounded-full border border-white/20" style={{ background: c }} />
+                                                        <div key={i} className="w-2.5 h-2.5 rounded-full border border-white/20 shadow-sm" style={{ background: c }} />
                                                     ))}
                                                 </div>
                                                 {/* Download button overlay */}
                                                 <button
                                                     onClick={() => handleDownloadTheme(theme.id)}
                                                     disabled={downloadingId === theme.id}
-                                                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-lg bg-[--color-brand-600]/90 hover:bg-[--color-brand-500] disabled:opacity-60 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                                                    className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-[--color-brand-600]/90 hover:bg-[--color-brand-500] disabled:opacity-60 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 z-10 shadow-lg"
                                                     title="Download theme"
                                                 >
                                                     {downloadingId === theme.id ? (
-                                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                                     ) : (
-                                                        <LuCloudDownload className="w-3 h-3 text-white" />
+                                                        <LuCloudDownload className="w-4 h-4 text-white" />
                                                     )}
                                                 </button>
-                                            </div>
-                                            {/* Label */}
-                                            <div className="px-2 py-1.5 border-t border-[--border]" style={{ background: theme.previewColors ? `linear-gradient(180deg, ${theme.previewColors.bg} 0%, color-mix(in srgb, ${theme.previewColors.bg} 90%, ${theme.previewColors.primary}) 100%)` : "var(--paper)" }}>
-                                                <p className="text-[11px] font-semibold truncate text-white">{theme.displayName}</p>
+                                                {/* Title overlay */}
+                                                <div className="absolute inset-x-0 bottom-0 p-2.5">
+                                                    <p className="text-xs font-semibold truncate text-white drop-shadow-md">{theme.displayName}</p>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
