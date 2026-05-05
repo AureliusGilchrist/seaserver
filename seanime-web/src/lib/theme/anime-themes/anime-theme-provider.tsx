@@ -168,6 +168,23 @@ type AnimeThemeContextValue = {
 
 const AnimeThemeContext = React.createContext<AnimeThemeContextValue | null>(null)
 
+/** Build a full AnimeThemeConfig from marketplace meta so the provider uses it like any bundled theme. */
+function buildConfigFromMeta(meta: import("@/lib/theme/marketplace-theme-loader").MarketplaceThemeMeta): AnimeThemeConfig {
+    return {
+        id: meta.id as AnimeThemeId,
+        displayName: meta.displayName,
+        description: meta.description ?? "",
+        cssVars: meta.cssVars ?? {},
+        fontFamily: meta.fontFamily,
+        fontHref: meta.fontHref,
+        sidebarOverrides: {},
+        achievementNames: meta.achievementNames ?? {},
+        musicUrl: `/theme-music/${meta.id}/opening.mp3`,
+        previewColors: meta.previewColors ?? { primary: "#333", secondary: "#444", accent: "#555", bg: "#0a0a0a" },
+        milestoneNames: meta.milestoneNames,
+    }
+}
+
 export function useAnimeTheme(): AnimeThemeContextValue {
     const ctx = React.useContext(AnimeThemeContext)
     if (!ctx) throw new Error("useAnimeTheme must be used inside AnimeThemeProvider")
@@ -215,20 +232,30 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         } catch { /* noop */ }
     }, [profileKey])
 
-    // When themeId is not in bundled ANIME_THEMES, fetch from marketplace and apply CSS vars + font.
-    // The `cancelled` flag prevents a stale fetch from overwriting vars set by a newer theme.
+    // When themeId is a marketplace theme (not bundled), build a full AnimeThemeConfig from its meta
+    // so that config.id, config.cssVars, config.backgroundImageUrl etc. are all correct.
+    const [marketplaceConfig, setMarketplaceConfig] = React.useState<AnimeThemeConfig | null>(() => {
+        if (typeof window === "undefined") return null
+        if (themeId in ANIME_THEMES) return null
+        const cached = getCachedMarketplaceThemeMeta(themeId)
+        if (!cached) return null
+        return buildConfigFromMeta(cached)
+    })
+
     React.useEffect(() => {
-        if (themeId in ANIME_THEMES) return
+        if (themeId in ANIME_THEMES) {
+            setMarketplaceConfig(null)
+            return
+        }
+        const cached = getCachedMarketplaceThemeMeta(themeId)
+        if (cached) {
+            setMarketplaceConfig(buildConfigFromMeta(cached))
+            return
+        }
         let cancelled = false
         fetchMarketplaceThemeMeta(themeId).then(meta => {
             if (cancelled || !meta) return
-            if (meta.cssVars) applyRootCssVars(meta.cssVars)
-            if (meta.fontHref && !document.querySelector(`link[href="${meta.fontHref}"]`)) {
-                const link = document.createElement("link")
-                link.rel = "stylesheet"
-                link.href = meta.fontHref
-                document.head.appendChild(link)
-            }
+            setMarketplaceConfig(buildConfigFromMeta(meta))
         })
         return () => { cancelled = true }
     }, [themeId])
@@ -249,7 +276,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         }
     }, [profileKey, profileId])
 
-    const config = ANIME_THEMES[themeId as AnimeThemeId] ?? ANIME_THEMES["seanime"]
+    const config: AnimeThemeConfig = ANIME_THEMES[themeId as AnimeThemeId] ?? marketplaceConfig ?? ANIME_THEMES["seanime"]
 
     // ── Music state ──
     const [musicEnabled, setMusicEnabledRaw] = React.useState<boolean>(() => {

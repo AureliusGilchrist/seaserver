@@ -18,7 +18,7 @@ import {
     isThemePrerequisiteMet,
 } from "@/lib/theme/anime-themes/theme-prerequisites"
 import { WALLHAVEN_CURATED_QUERY } from "@/lib/theme/anime-themes/wallhaven-curated"
-import { LuSettings2, LuSparkles, LuSearch, LuX, LuPalette, LuCheck, LuDownload, LuImage, LuBookmark, LuStore, LuCloudDownload, LuTrash2 } from "react-icons/lu"
+import { LuSettings2, LuSparkles, LuSearch, LuX, LuPalette, LuCheck, LuDownload, LuImage, LuBookmark, LuStore, LuCloudDownload, LuTrash2, LuSlidersHorizontal } from "react-icons/lu"
 import { PresetsPanel } from "./_components/presets-panel"
 import { useGetRawAnilistMangaCollection } from "@/api/hooks/manga.hooks"
 import { cn } from "@/components/ui/core/styling"
@@ -70,15 +70,22 @@ export default function ThemeManagerPage() {
                         fetchMarketplaceThemeMeta(t.id).then(meta => meta || null)
                     )
                     Promise.all(promises).then(results => {
-                        setMarketplaceThemes(results.filter(Boolean) as MarketplaceThemeMeta[])
+                        const loaded = results.filter(Boolean) as MarketplaceThemeMeta[]
+                        setMarketplaceThemes(loaded)
                         setIsLoadingMarketplace(false)
+                        // Enrich already-downloaded themes with previewColors from meta
+                        setSharedThemes(prev => prev.map(st => {
+                            if (st.previewColors) return st
+                            const meta = loaded.find(m => m.id === st.id)
+                            return meta?.previewColors ? { ...st, previewColors: meta.previewColors } : st
+                        }))
                     })
                 } else {
                     setMarketplaceError("No marketplace themes found")
                     setIsLoadingMarketplace(false)
                 }
             })
-            .catch(err => {
+            .catch(() => {
                 setMarketplaceError("Failed to load marketplace")
                 setIsLoadingMarketplace(false)
             })
@@ -166,7 +173,7 @@ export default function ThemeManagerPage() {
     const [pickerOpen, setPickerOpen] = React.useState(false)
     const [searchQuery, setSearchQuery] = React.useState("")
     const [settingsPanelOpen, setSettingsPanelOpen] = React.useState(false)
-    const [activeTab, setActiveTab] = React.useState<"themes" | "presets" | "wallpapers">("themes")
+    const [activeTab, setActiveTab] = React.useState<"themes" | "presets" | "wallpapers" | "effects">("themes")
     const [batchProgress, setBatchProgress] = React.useState<{ done: number; total: number } | null>(null)
     const { data: downloadedBgs, isLoading: bgsLoading } = useListThemeBackgrounds()
     const deleteMutation = useDeleteThemeBackground()
@@ -272,6 +279,7 @@ export default function ThemeManagerPage() {
             <div className="flex items-center gap-1 p-1 rounded-xl bg-[--paper] border border-[--border] w-fit">
                 {([
                     { id: "themes",     label: "Themes",     icon: <LuSparkles className="w-3.5 h-3.5" /> },
+                    { id: "effects",    label: "Effects",    icon: <LuSlidersHorizontal className="w-3.5 h-3.5" /> },
                     { id: "wallpapers", label: "Wallpapers",  icon: <LuImage className="w-3.5 h-3.5" /> },
                     { id: "presets",    label: "Presets",    icon: <LuBookmark className="w-3.5 h-3.5" /> },
                 ] as const).map(tab => (
@@ -293,6 +301,88 @@ export default function ThemeManagerPage() {
 
             {/* Presets tab */}
             {activeTab === "presets" && <PresetsPanel />}
+
+            {/* Effects tab */}
+            {activeTab === "effects" && (
+                config.id === "seanime" ? (
+                    <div className="rounded-2xl border border-dashed border-[--border] bg-[--paper] p-10 flex flex-col items-center justify-center gap-3 text-center">
+                        <LuSlidersHorizontal className="w-8 h-8 text-[--muted] opacity-40" />
+                        <p className="text-sm text-[--muted]">Select a theme first to configure effects.</p>
+                        <button onClick={() => setActiveTab("themes")} className="text-xs text-[--color-brand-400] hover:text-[--color-brand-300] transition-colors">Go to Themes →</button>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {/* Background preview strip */}
+                        <div className="rounded-2xl border border-[--border] overflow-hidden">
+                            <div className="relative w-full overflow-hidden" style={{ height: "120px" }}>
+                                {activeBackgroundUrl ? (
+                                    <>
+                                        <div className="absolute inset-0 bg-cover bg-center transition-all duration-500" style={{ backgroundImage: `url("${activeBackgroundUrl}")`, filter: `blur(${backgroundBlur * 0.3}px)`, opacity: 1 - backgroundDim * 0.6, transform: "scale(1.05)" }} />
+                                        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[--background]/80 to-transparent" />
+                                    </>
+                                ) : (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-[--paper]">
+                                        <div className="text-center space-y-1">
+                                            <div className="text-3xl opacity-20">🖼</div>
+                                            <p className="text-xs text-[--muted]">No background — set one in Wallpapers</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="absolute bottom-3 left-5 flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-white drop-shadow">{config.displayName} — Effects</span>
+                                </div>
+                                {activeBackgroundUrl && (
+                                    <button onClick={() => setActiveTab("wallpapers")} className="absolute bottom-3 right-4 text-[10px] text-white/60 hover:text-white/90 transition-colors">Change wallpaper →</button>
+                                )}
+                            </div>
+
+                            {/* All sliders */}
+                            <div className="bg-[--background] border-t border-[--border] p-5 space-y-6">
+
+                                {/* Background section */}
+                                <div className="space-y-3">
+                                    <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Background</p>
+                                    <EffectSlider label="Dim" value={backgroundDim} min={0} max={1} step={0.01} display={`${Math.round(backgroundDim * 100)}%`} onChange={setBackgroundDim} onReset={() => setBackgroundDim(config.backgroundDim ?? 0.30)} />
+                                    <EffectSlider label="Blur" value={backgroundBlur} min={0} max={60} step={1} display={`${backgroundBlur}px`} fillPct={(backgroundBlur / 60) * 100} onChange={setBackgroundBlur} onReset={() => setBackgroundBlur(config.backgroundBlur ?? 0)} />
+                                    <EffectSlider label="Exposure" value={backgroundExposure} min={0.1} max={2.5} step={0.05} display={`${Math.round(backgroundExposure * 100)}%`} fillPct={((backgroundExposure - 0.1) / 2.4) * 100} onChange={setBackgroundExposure} onReset={() => setBackgroundExposure(1.0)} />
+                                    <EffectSlider label="Saturation" value={backgroundSaturation} min={0} max={3.0} step={0.05} display={`${Math.round(backgroundSaturation * 100)}%`} fillPct={(backgroundSaturation / 3.0) * 100} onChange={setBackgroundSaturation} onReset={() => setBackgroundSaturation(1.0)} />
+                                    <EffectSlider label="Contrast" value={backgroundContrast} min={0} max={3.0} step={0.05} display={`${Math.round(backgroundContrast * 100)}%`} fillPct={(backgroundContrast / 3.0) * 100} onChange={setBackgroundContrast} onReset={() => setBackgroundContrast(1.0)} />
+                                </div>
+
+                                {/* Vignette */}
+                                <div className="space-y-3 pt-4 border-t border-white/5">
+                                    <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Vignette</p>
+                                    <EffectSlider label="Strength" value={vignetteStrength} min={0} max={1} step={0.01} display={`${Math.round(vignetteStrength * 100)}%`} onChange={setVignetteStrength} onReset={() => setVignetteStrength(0)} />
+                                    <EffectSlider label="Size" value={vignetteSize} min={0} max={1} step={0.01} display={`${Math.round(vignetteSize * 100)}%`} onChange={setVignetteSize} onReset={() => setVignetteSize(0.6)} />
+                                </div>
+
+                                {/* Shimmer Glow */}
+                                <div className="space-y-3 pt-4 border-t border-white/5">
+                                    <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Shimmer Glow</p>
+                                    <EffectSlider label="Strength" value={glowStrength} min={0} max={1} step={0.01} display={`${Math.round(glowStrength * 100)}%`} onChange={setGlowStrength} onReset={() => setGlowStrength(0)} />
+                                    <EffectSlider label="Speed" value={glowSpeed} min={0.2} max={5} step={0.1} display={`${glowSpeed.toFixed(1)}x`} fillPct={((glowSpeed - 0.2) / 4.8) * 100} onChange={setGlowSpeed} onReset={() => setGlowSpeed(1)} />
+                                    <EffectSlider label="Scale" value={glowScale} min={0} max={1} step={0.01} display={`${Math.round(glowScale * 100)}%`} onChange={setGlowScale} onReset={() => setGlowScale(0.5)} />
+                                </div>
+
+                                {/* Scanlines */}
+                                <div className="space-y-3 pt-4 border-t border-white/5">
+                                    <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Scanlines</p>
+                                    <EffectSlider label="Strength" value={scanlinesStrength} min={0} max={1} step={0.01} display={`${Math.round(scanlinesStrength * 100)}%`} onChange={setScanlinesStrength} onReset={() => setScanlinesStrength(0)} />
+                                    <EffectSlider label="Spacing" value={scanlinesSize} min={0} max={1} step={0.01} display={`${Math.round(scanlinesSize * 100)}%`} onChange={setScanlinesSize} onReset={() => setScanlinesSize(0.5)} />
+                                </div>
+
+                                {/* Film Noise */}
+                                <div className="space-y-3 pt-4 border-t border-white/5">
+                                    <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Film Noise</p>
+                                    <EffectSlider label="Strength" value={noiseStrength} min={0} max={1} step={0.01} display={`${Math.round(noiseStrength * 100)}%`} onChange={setNoiseStrength} onReset={() => setNoiseStrength(0)} />
+                                    <EffectSlider label="Speed" value={noiseSpeed} min={0.1} max={5} step={0.1} display={`${noiseSpeed.toFixed(1)}x`} fillPct={((noiseSpeed - 0.1) / 4.9) * 100} onChange={setNoiseSpeed} onReset={() => setNoiseSpeed(1)} />
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                )
+            )}
 
             {/* Wallpapers tab */}
             {activeTab === "wallpapers" && <WallpaperShopTab
@@ -446,161 +536,99 @@ export default function ThemeManagerPage() {
                     ))}
                 </div>
 
-                {/* Installed Themes Tab - Show only Seanime and Marketplace cards */}
+                {/* Installed Themes Tab */}
                 {activeMarketplaceTab === "installed" && (
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto">
-                            {/* Seanime Theme Card */}
-                            <button
-                                onClick={() => setThemeId("seanime")}
-                                className={cn(
-                                    "relative group rounded-2xl overflow-hidden transition-all duration-300",
-                                    "hover:scale-[1.02] hover:shadow-xl",
-                                    themeId === "seanime"
-                                        ? "ring-2 ring-[--color-brand-400] shadow-[0_0_24px_4px_rgba(0,0,0,0.5)]"
-                                        : "ring-1 ring-[--border] hover:ring-[--color-brand-600]",
-                                )}
-                                style={{ aspectRatio: "16/9" }}
-                            >
-                                {/* Background gradient */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-[--color-brand-900] via-[--color-brand-700] to-[--color-brand-500]" />
-                                {/* Grid pattern overlay */}
-                                <div 
-                                    className="absolute inset-0 opacity-20"
-                                    style={{ 
-                                        backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-                                        backgroundSize: '40px 40px'
-                                    }}
-                                />
-                                {/* Glow effect */}
-                                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.15),transparent_50%)]" />
-                                
-                                {/* Content */}
-                                <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
-                                    <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center mb-4 ring-1 ring-white/20">
-                                        <span className="text-4xl">🌊</span>
-                                    </div>
-                                    <h3 className="text-2xl font-bold text-white mb-2">Seanime</h3>
-                                    <p className="text-white/70 text-sm text-center">Default theme</p>
-                                </div>
-                                
-                                {/* Active indicator */}
-                                {themeId === "seanime" && (
-                                    <div className="absolute top-4 right-4 flex items-center gap-2 bg-[--color-brand-500] text-white px-3 py-1.5 rounded-full text-sm font-medium">
-                                        <LuCheck className="w-4 h-4" />
-                                        Active
-                                    </div>
-                                )}
-                            </button>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
 
-                            {/* Marketplace Card - Link to browse more */}
-                            <button
-                                onClick={() => setActiveMarketplaceTab("browse")}
-                                className={cn(
-                                    "relative group rounded-2xl overflow-hidden transition-all duration-300",
-                                    "hover:scale-[1.02] hover:shadow-xl",
-                                    "ring-1 ring-[--border] hover:ring-[--color-brand-600]",
-                                )}
-                                style={{ aspectRatio: "16/9" }}
+                        {/* Seanime (built-in) */}
+                        <button
+                            onClick={() => setThemeId("seanime")}
+                            className={cn(
+                                "relative group rounded-xl border-2 overflow-hidden transition-all text-left",
+                                themeId === "seanime"
+                                    ? "border-[--color-brand-400] shadow-[0_0_16px_2px_rgba(0,0,0,0.4)]"
+                                    : "border-[--border] hover:border-[--color-brand-600]",
+                            )}
+                        >
+                            <div
+                                className="h-16 w-full"
+                                style={{ background: "linear-gradient(135deg, #1a0a2e 0%, #4c1d95 50%, #7c3aed 100%)" }}
                             >
-                                {/* Background gradient */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-purple-900/90 via-indigo-900/90 to-blue-900/90" />
-                                
-                                {/* Animated dots pattern */}
-                                <div className="absolute inset-0 opacity-30">
-                                    <div className="absolute top-1/4 left-1/4 w-2 h-2 rounded-full bg-white/40 animate-pulse" />
-                                    <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 rounded-full bg-white/30 animate-pulse delay-75" />
-                                    <div className="absolute bottom-1/4 left-1/3 w-1 h-1 rounded-full bg-white/50 animate-pulse delay-150" />
-                                    <div className="absolute bottom-1/3 right-1/4 w-2 h-2 rounded-full bg-white/20 animate-pulse delay-300" />
-                                </div>
-                                
-                                {/* Shine effect */}
-                                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                                
-                                {/* Content */}
-                                <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
-                                    <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center mb-4 ring-1 ring-white/20 group-hover:bg-white/15 transition-colors">
-                                        <LuStore className="w-10 h-10 text-white" />
-                                    </div>
-                                    <h3 className="text-2xl font-bold text-white mb-2">Marketplace</h3>
-                                    <p className="text-white/70 text-sm text-center">
-                                        {marketplaceThemes.length > 0 ? `${marketplaceThemes.length} themes available` : "Browse & download themes"}
-                                    </p>
-                                    
-                                    {/* Arrow indicator */}
-                                    <div className="mt-4 flex items-center gap-2 text-white/60 group-hover:text-white transition-colors">
-                                        <span className="text-sm">Explore</span>
-                                        <LuCloudDownload className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                    </div>
-                                </div>
-                                
-                                {/* Theme count badge */}
-                                {marketplaceThemes.length > 0 && (
-                                    <div className="absolute top-4 right-4 bg-black/40 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-sm font-medium ring-1 ring-white/10">
-                                        {marketplaceThemes.length} themes
-                                    </div>
-                                )}
-                            </button>
-                        </div>
-                        
-                        {/* Downloaded themes section (if any) */}
-                        {sharedThemes.length > 0 && (
-                            <div className="mt-8">
-                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                    <LuCheck className="w-5 h-5 text-[--color-brand-400]" />
-                                    Downloaded Themes ({sharedThemes.length})
-                                </h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                                    {sharedThemes.map(theme => (
-                                        <div
-                                            key={theme.id}
-                                            className={cn(
-                                                "relative group rounded-xl border-2 overflow-hidden transition-all",
-                                                themeId === theme.id
-                                                    ? "border-[--color-brand-400] shadow-[0_0_16px_2px_rgba(0,0,0,0.4)]"
-                                                    : "border-[--border] hover:border-[--color-brand-600]",
-                                            )}
-                                        >
-                                            <button
-                                                onClick={() => setThemeId(theme.id as AnimeThemeId)}
-                                                className="w-full text-left"
-                                            >
-                                                <div
-                                                    className="h-16 w-full"
-                                                    style={{ background: `linear-gradient(135deg, ${theme.previewColors?.bg ?? "#0a0a0a"} 0%, ${theme.previewColors?.primary ?? "#333"} 100%)` }}
-                                                >
-                                                    <div className="h-full w-full flex items-end p-2 gap-1">
-                                                        {[theme.previewColors?.primary, theme.previewColors?.secondary, theme.previewColors?.accent].map((c, i) => c && (
-                                                            <div key={i} className="w-3 h-3 rounded-full border border-white/20 shrink-0" style={{ background: c }} />
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                                <div className="px-3 py-2 bg-[--paper] border-t border-[--border]">
-                                                    <p className="text-xs font-semibold truncate">{theme.displayName}</p>
-                                                </div>
-                                            </button>
-                                            {themeId === theme.id && (
-                                                <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[--color-brand-500] flex items-center justify-center">
-                                                    <LuCheck className="w-2.5 h-2.5 text-white" />
-                                                </div>
-                                            )}
-                                            <button
-                                                onClick={() => handleDeleteTheme(theme.id)}
-                                                disabled={deletingId === theme.id}
-                                                className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/60 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                                title="Delete theme"
-                                            >
-                                                {deletingId === theme.id ? (
-                                                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                ) : (
-                                                    <LuTrash2 className="w-3 h-3" />
-                                                )}
-                                            </button>
-                                        </div>
+                                <div className="h-full w-full flex items-end p-2 gap-1">
+                                    {["#7c3aed", "#a78bfa", "#c4b5fd"].map((c, i) => (
+                                        <div key={i} className="w-3 h-3 rounded-full border border-white/20 shrink-0" style={{ background: c }} />
                                     ))}
                                 </div>
                             </div>
-                        )}
+                            <div className="px-3 py-2 bg-[--paper] border-t border-[--border] flex items-center justify-between gap-1">
+                                <p className="text-xs font-semibold truncate">Seanime</p>
+                                {themeId === "seanime" && <LuCheck className="w-3 h-3 text-[--color-brand-400] shrink-0" />}
+                            </div>
+                        </button>
+
+                        {/* Downloaded themes */}
+                        {sharedThemes.map(theme => (
+                            <div
+                                key={theme.id}
+                                className={cn(
+                                    "relative group rounded-xl border-2 overflow-hidden transition-all",
+                                    themeId === theme.id
+                                        ? "border-[--color-brand-400] shadow-[0_0_16px_2px_rgba(0,0,0,0.4)]"
+                                        : "border-[--border] hover:border-[--color-brand-600]",
+                                )}
+                            >
+                                <button
+                                    onClick={() => setThemeId(theme.id as AnimeThemeId)}
+                                    className="w-full text-left"
+                                >
+                                    <div
+                                        className="h-16 w-full"
+                                        style={{ background: theme.previewColors
+                                            ? `linear-gradient(135deg, ${theme.previewColors.bg} 0%, ${theme.previewColors.primary} 100%)`
+                                            : "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)"
+                                        }}
+                                    >
+                                        <div className="h-full w-full flex items-end p-2 gap-1">
+                                            {theme.previewColors
+                                                ? [theme.previewColors.primary, theme.previewColors.secondary, theme.previewColors.accent].map((c, i) => (
+                                                    <div key={i} className="w-3 h-3 rounded-full border border-white/20 shrink-0" style={{ background: c }} />
+                                                ))
+                                                : <div className="w-3 h-3 rounded-full border border-white/20 shrink-0 bg-white/20" />
+                                            }
+                                        </div>
+                                    </div>
+                                    <div className="px-3 py-2 bg-[--paper] border-t border-[--border] flex items-center justify-between gap-1">
+                                        <p className="text-xs font-semibold truncate">{theme.displayName || theme.id}</p>
+                                        {themeId === theme.id && <LuCheck className="w-3 h-3 text-[--color-brand-400] shrink-0" />}
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteTheme(theme.id)}
+                                    disabled={deletingId === theme.id}
+                                    className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/60 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                    title="Delete theme"
+                                >
+                                    {deletingId === theme.id ? (
+                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <LuTrash2 className="w-3 h-3" />
+                                    )}
+                                </button>
+                            </div>
+                        ))}
+
+                        {/* Browse more tile */}
+                        <button
+                            onClick={() => setActiveMarketplaceTab("browse")}
+                            className="rounded-xl border-2 border-dashed border-[--border] hover:border-[--color-brand-500] overflow-hidden transition-all flex flex-col items-center justify-center gap-2 py-6 text-[--muted] hover:text-[--foreground]"
+                        >
+                            <LuStore className="w-5 h-5" />
+                            <span className="text-xs font-medium">Browse more</span>
+                            {marketplaceThemes.length > 0 && (
+                                <span className="text-[10px] text-[--muted]">{marketplaceThemes.length} available</span>
+                            )}
+                        </button>
+
                     </div>
                 )}
 
@@ -759,248 +787,8 @@ export default function ThemeManagerPage() {
                 </div>
             )}
 
-            {/* Background */}
             {config.id !== "seanime" && (
                 <div className="rounded-2xl border border-[--border] overflow-hidden">
-                    {/* Live preview banner */}
-                    <div className="relative w-full overflow-hidden" style={{ height: "140px" }}>
-                        {activeBackgroundUrl ? (
-                            <>
-                                <div
-                                    className="absolute inset-0 bg-cover bg-center transition-all duration-500"
-                                    style={{
-                                        backgroundImage: `url("${activeBackgroundUrl}")`,
-                                        filter: `blur(${backgroundBlur * 0.3}px)`,
-                                        opacity: 1 - backgroundDim * 0.6,
-                                        transform: `scale(1.05)`,
-                                    }}
-                                />
-                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[--background]/80 to-transparent" />
-                            </>
-                        ) : (
-                            <div className="absolute inset-0 flex items-center justify-center bg-[--paper]">
-                                <div className="text-center space-y-1">
-                                    <div className="text-3xl opacity-20">🖼</div>
-                                    <p className="text-xs text-[--muted]">No background set — browse below</p>
-                                </div>
-                            </div>
-                        )}
-                        <div className="absolute bottom-3 left-5">
-                            <h2 className="text-lg font-semibold text-white drop-shadow" style={{ fontFamily: config.fontFamily }}>
-                                Background
-                            </h2>
-                        </div>
-                    </div>
-
-                    {/* ── SLIDERS FIRST ─────────────────────────────────────────── */}
-                    <div className="bg-[--background] border-t border-[--border] p-5 space-y-4">
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-[--muted] w-12 shrink-0">Dim</span>
-                            <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                    className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all"
-                                    style={{ width: `${backgroundDim * 100}%` }}
-                                />
-                                <input
-                                    type="range" min={0} max={1} step={0.01}
-                                    value={backgroundDim}
-                                    onChange={e => setBackgroundDim(Number(e.target.value))}
-                                    className="absolute inset-0 w-full opacity-0 cursor-pointer h-full"
-                                />
-                            </div>
-                            <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(backgroundDim * 100)}%</span>
-                            <button
-                                onClick={() => setBackgroundDim(config.backgroundDim ?? 0.30)}
-                                className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors"
-                            >Reset</button>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-[--muted] w-12 shrink-0">Blur</span>
-                            <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                    className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all"
-                                    style={{ width: `${(backgroundBlur / 60) * 100}%` }}
-                                />
-                                <input
-                                    type="range" min={0} max={60} step={1}
-                                    value={backgroundBlur}
-                                    onChange={e => setBackgroundBlur(Number(e.target.value))}
-                                    className="absolute inset-0 w-full opacity-0 cursor-pointer h-full"
-                                />
-                            </div>
-                            <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{backgroundBlur}px</span>
-                            <button
-                                onClick={() => setBackgroundBlur(config.backgroundBlur ?? 30)}
-                                className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors"
-                            >Reset</button>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-[--muted] w-16 shrink-0">Exposure</span>
-                            <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                    className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all"
-                                    style={{ width: `${((backgroundExposure - 0.1) / (2.4)) * 100}%` }}
-                                />
-                                <input
-                                    type="range" min={0.1} max={2.5} step={0.05}
-                                    value={backgroundExposure}
-                                    onChange={e => setBackgroundExposure(Number(e.target.value))}
-                                    className="absolute inset-0 w-full opacity-0 cursor-pointer h-full"
-                                />
-                            </div>
-                            <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(backgroundExposure * 100)}%</span>
-                            <button
-                                onClick={() => setBackgroundExposure(1.0)}
-                                className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors"
-                            >Reset</button>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-[--muted] w-16 shrink-0">Saturation</span>
-                            <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                    className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all"
-                                    style={{ width: `${(backgroundSaturation / 3.0) * 100}%` }}
-                                />
-                                <input
-                                    type="range" min={0} max={3.0} step={0.05}
-                                    value={backgroundSaturation}
-                                    onChange={e => setBackgroundSaturation(Number(e.target.value))}
-                                    className="absolute inset-0 w-full opacity-0 cursor-pointer h-full"
-                                />
-                            </div>
-                            <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(backgroundSaturation * 100)}%</span>
-                            <button
-                                onClick={() => setBackgroundSaturation(1.0)}
-                                className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors"
-                            >Reset</button>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-[--muted] w-16 shrink-0">Contrast</span>
-                            <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                    className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all"
-                                    style={{ width: `${(backgroundContrast / 3.0) * 100}%` }}
-                                />
-                                <input
-                                    type="range" min={0} max={3.0} step={0.05}
-                                    value={backgroundContrast}
-                                    onChange={e => setBackgroundContrast(Number(e.target.value))}
-                                    className="absolute inset-0 w-full opacity-0 cursor-pointer h-full"
-                                />
-                            </div>
-                            <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(backgroundContrast * 100)}%</span>
-                            <button
-                                onClick={() => setBackgroundContrast(1.0)}
-                                className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors"
-                            >Reset</button>
-                        </div>
-
-                        {/* Vignette section */}
-                        <div className="pt-3 border-t border-white/5 space-y-4">
-                            <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Vignette</p>
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm text-[--muted] w-16 shrink-0">Strength</span>
-                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${vignetteStrength * 100}%` }} />
-                                    <input type="range" min={0} max={1} step={0.01} value={vignetteStrength} onChange={e => setVignetteStrength(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
-                                </div>
-                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(vignetteStrength * 100)}%</span>
-                                <button onClick={() => setVignetteStrength(0.5)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm text-[--muted] w-16 shrink-0">Size</span>
-                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${vignetteSize * 100}%` }} />
-                                    <input type="range" min={0} max={1} step={0.01} value={vignetteSize} onChange={e => setVignetteSize(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
-                                </div>
-                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(vignetteSize * 100)}%</span>
-                                <button onClick={() => setVignetteSize(0.6)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
-                            </div>
-                        </div>
-
-                        {/* Glow / Shimmer section */}
-                        <div className="pt-3 border-t border-white/5 space-y-4">
-                            <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Shimmer Glow</p>
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm text-[--muted] w-16 shrink-0">Strength</span>
-                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${glowStrength * 100}%` }} />
-                                    <input type="range" min={0} max={1} step={0.01} value={glowStrength} onChange={e => setGlowStrength(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
-                                </div>
-                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(glowStrength * 100)}%</span>
-                                <button onClick={() => setGlowStrength(0)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm text-[--muted] w-16 shrink-0">Speed</span>
-                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${((glowSpeed - 0.2) / 4.8) * 100}%` }} />
-                                    <input type="range" min={0.2} max={5} step={0.1} value={glowSpeed} onChange={e => setGlowSpeed(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
-                                </div>
-                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{glowSpeed.toFixed(1)}x</span>
-                                <button onClick={() => setGlowSpeed(1)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm text-[--muted] w-16 shrink-0">Scale</span>
-                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${glowScale * 100}%` }} />
-                                    <input type="range" min={0} max={1} step={0.01} value={glowScale} onChange={e => setGlowScale(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
-                                </div>
-                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(glowScale * 100)}%</span>
-                                <button onClick={() => setGlowScale(0.5)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
-                            </div>
-                        </div>
-
-                        {/* Scanlines section */}
-                        <div className="pt-3 border-t border-white/5 space-y-4">
-                            <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Scanlines</p>
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm text-[--muted] w-16 shrink-0">Strength</span>
-                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${scanlinesStrength * 100}%` }} />
-                                    <input type="range" min={0} max={1} step={0.01} value={scanlinesStrength} onChange={e => setScanlinesStrength(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
-                                </div>
-                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(scanlinesStrength * 100)}%</span>
-                                <button onClick={() => setScanlinesStrength(0)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm text-[--muted] w-16 shrink-0">Spacing</span>
-                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${scanlinesSize * 100}%` }} />
-                                    <input type="range" min={0} max={1} step={0.01} value={scanlinesSize} onChange={e => setScanlinesSize(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
-                                </div>
-                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(scanlinesSize * 100)}%</span>
-                                <button onClick={() => setScanlinesSize(0.5)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
-                            </div>
-                        </div>
-
-                        {/* Film Noise section */}
-                        <div className="pt-3 border-t border-white/5 space-y-4">
-                            <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Film Noise</p>
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm text-[--muted] w-16 shrink-0">Strength</span>
-                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${noiseStrength * 100}%` }} />
-                                    <input type="range" min={0} max={1} step={0.01} value={noiseStrength} onChange={e => setNoiseStrength(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
-                                </div>
-                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(noiseStrength * 100)}%</span>
-                                <button onClick={() => setNoiseStrength(0)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm text-[--muted] w-16 shrink-0">Speed</span>
-                                <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                    <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${((noiseSpeed - 0.1) / 4.9) * 100}%` }} />
-                                    <input type="range" min={0.1} max={5} step={0.1} value={noiseSpeed} onChange={e => setNoiseSpeed(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
-                                </div>
-                                <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{noiseSpeed.toFixed(1)}x</span>
-                                <button onClick={() => setNoiseSpeed(1)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors">Reset</button>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* ── WALLPAPER SCROLLABLE BOX ───────────────────────────────── */}
                     <div className="bg-[--paper] border-t border-[--border] p-4 space-y-3">
                         <div className="flex items-center justify-between">
@@ -1281,6 +1069,37 @@ export default function ThemeManagerPage() {
 
             </> /* end themes tab */}
         </PageWrapper>
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Reusable slider row for the Effects tab
+// ─────────────────────────────────────────────────────────────────
+
+function EffectSlider({
+    label, value, min, max, step, display, fillPct, onChange, onReset,
+}: {
+    label: string
+    value: number
+    min: number
+    max: number
+    step: number
+    display: string
+    fillPct?: number
+    onChange: (v: number) => void
+    onReset: () => void
+}) {
+    const pct = fillPct ?? ((value - min) / (max - min)) * 100
+    return (
+        <div className="flex items-center gap-4">
+            <span className="text-sm text-[--muted] w-20 shrink-0">{label}</span>
+            <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${pct}%` }} />
+                <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
+            </div>
+            <span className="text-sm text-[--muted] w-12 text-right tabular-nums">{display}</span>
+            <button onClick={onReset} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors shrink-0">Reset</button>
+        </div>
     )
 }
 
