@@ -223,6 +223,7 @@ func (r *Repository) invalidateCache() {
 	defer r.cacheMu.Unlock()
 	r.cachedTorrents = nil
 	r.cacheExpiry = time.Time{}
+	r.contentCache = make(map[string]*UnmatchedTorrent)
 }
 
 // InvalidateCache clears the cached unmatched torrents so a fresh scan is used.
