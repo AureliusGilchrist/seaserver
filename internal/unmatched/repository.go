@@ -35,6 +35,8 @@ type Repository struct {
 	cacheMu        sync.Mutex
 	cachedTorrents []*UnmatchedTorrent
 	cacheExpiry    time.Time
+	// contentCache stores full torrent contents (files + seasons) for instant retrieval
+	contentCache   map[string]*UnmatchedTorrent
 }
 
 func NewRepository(logger *zerolog.Logger, database *db.Database) *Repository {
@@ -42,6 +44,7 @@ func NewRepository(logger *zerolog.Logger, database *db.Database) *Repository {
 		logger:        logger,
 		database:      database,
 		metadataCache: &animap.Cache{Cache: result.NewCache[string, *animap.Anime]()},
+		contentCache:  make(map[string]*UnmatchedTorrent),
 	}
 }
 
