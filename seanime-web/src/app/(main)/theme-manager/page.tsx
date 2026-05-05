@@ -556,7 +556,7 @@ export default function ThemeManagerPage() {
                         <h2 className="text-xl font-semibold">Theme Marketplace</h2>
                     </div>
                     <div className="text-sm text-[--muted]">
-                        {sharedThemes.length} installed · {marketplaceThemes.length} available
+                        {sharedThemes.length} installed · {Math.max(0, marketplaceThemes.length - sharedThemes.length)} available
                     </div>
                 </div>
 
