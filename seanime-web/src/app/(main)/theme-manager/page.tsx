@@ -166,6 +166,8 @@ export default function ThemeManagerPage() {
         setNoiseStrength,
         noiseSpeed,
         setNoiseSpeed,
+        hologramStrength,
+        setHologramStrength,
     } = useAnimeTheme()
 
     const setWallpaperPreviewMode = useSetAtom(wallpaperPreviewModeAtom)
@@ -343,27 +345,84 @@ export default function ThemeManagerPage() {
                     )}
                     {config.id !== "seanime" && (
                     <div className="space-y-4">
-                        {/* Background preview strip */}
+                        {/* Large Live Background Preview Panel */}
                         <div className="rounded-2xl border border-[--border] overflow-hidden">
-                            <div className="relative w-full overflow-hidden" style={{ height: "120px" }}>
+                            <div className="relative w-full overflow-hidden" style={{ height: "300px" }}>
                                 {activeBackgroundUrl ? (
                                     <>
-                                        <div className="absolute inset-0 bg-cover bg-center transition-all duration-500" style={{ backgroundImage: `url("${activeBackgroundUrl}")`, filter: `blur(${backgroundBlur * 0.3}px)`, opacity: 1 - backgroundDim * 0.6, transform: "scale(1.05)" }} />
-                                        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[--background]/80 to-transparent" />
+                                        {/* Wallpaper with live effects applied */}
+                                        <div
+                                            className="absolute inset-0 bg-cover bg-center transition-all duration-300"
+                                            style={{
+                                                backgroundImage: `url("${activeBackgroundUrl}")`,
+                                                filter: `blur(${backgroundBlur}px) brightness(${backgroundExposure}) saturate(${backgroundSaturation}) contrast(${backgroundContrast})`,
+                                                opacity: 1 - backgroundDim,
+                                                transform: "scale(1.02)",
+                                            }}
+                                        />
+                                        {/* Vignette overlay */}
+                                        {vignetteStrength > 0 && (
+                                            <div
+                                                className="absolute inset-0 pointer-events-none"
+                                                style={{
+                                                    background: `radial-gradient(ellipse at center, transparent ${Math.max(0, 50 - vignetteSize * 50)}%, rgba(0,0,0,${Math.min(0.95, vignetteStrength * 0.95)}) 100%)`,
+                                                }}
+                                            />
+                                        )}
+                                        {/* Scanlines overlay */}
+                                        {scanlinesStrength > 0 && (
+                                            <div
+                                                className="absolute inset-0 pointer-events-none"
+                                                style={{
+                                                    backgroundImage: `repeating-linear-gradient(0deg, rgba(0,0,0,${scanlinesStrength * 0.6}) 0px, rgba(0,0,0,${scanlinesStrength * 0.6}) 1px, transparent 1px, transparent ${Math.round(2 + scanlinesSize * 6)}px)`,
+                                                }}
+                                            />
+                                        )}
+                                        {/* Static Glow overlay */}
+                                        {glowStrength > 0 && (
+                                            <div
+                                                className="absolute inset-0 pointer-events-none"
+                                                style={{
+                                                    background: `radial-gradient(ellipse at center, rgba(255,255,255,${glowStrength * 0.60}) 0%, transparent ${60 + glowScale * 30}%)`,
+                                                    mixBlendMode: "screen",
+                                                }}
+                                            />
+                                        )}
+                                        {/* Hologram overlay */}
+                                        {hologramStrength > 0 && (
+                                            <>
+                                                <div
+                                                    className="absolute inset-0 pointer-events-none"
+                                                    style={{
+                                                        background: `linear-gradient(180deg, rgba(100,200,255,${hologramStrength * 0.15}) 0%, rgba(50,150,200,${hologramStrength * 0.10}) 50%, transparent 100%)`,
+                                                        mixBlendMode: "overlay",
+                                                    }}
+                                                />
+                                                <div
+                                                    className="absolute inset-0 pointer-events-none"
+                                                    style={{
+                                                        background: `radial-gradient(ellipse at center, rgba(200,240,255,${hologramStrength * 0.25}) 0%, transparent 60%)`,
+                                                        mixBlendMode: "screen",
+                                                    }}
+                                                />
+                                            </>
+                                        )}
+                                        {/* Bottom fade for text readability */}
+                                        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[--background] to-transparent" />
                                     </>
                                 ) : (
                                     <div className="absolute inset-0 flex items-center justify-center bg-[--paper]">
-                                        <div className="text-center space-y-1">
-                                            <div className="text-3xl opacity-20">🖼</div>
-                                            <p className="text-xs text-[--muted]">No background — set one in Wallpapers</p>
+                                        <div className="text-center space-y-2">
+                                            <div className="text-4xl opacity-20">🖼</div>
+                                            <p className="text-sm text-[--muted]">No background — set one in Wallpapers</p>
                                         </div>
                                     </div>
                                 )}
-                                <div className="absolute bottom-3 left-5 flex items-center gap-2">
-                                    <span className="text-sm font-semibold text-white drop-shadow">{config.displayName} — Effects</span>
+                                <div className="absolute bottom-4 left-5 flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-white drop-shadow-md">{config.displayName} — Live Preview</span>
                                 </div>
                                 {activeBackgroundUrl && (
-                                    <button onClick={() => setActiveTab("wallpapers")} className="absolute bottom-3 right-4 text-[10px] text-white/60 hover:text-white/90 transition-colors">Change wallpaper →</button>
+                                    <button onClick={() => setActiveTab("wallpapers")} className="absolute bottom-4 right-4 text-xs text-white/70 hover:text-white transition-colors bg-black/30 hover:bg-black/50 px-3 py-1.5 rounded-full backdrop-blur-sm">Change wallpaper →</button>
                                 )}
                             </div>
 
@@ -387,11 +446,10 @@ export default function ThemeManagerPage() {
                                     <EffectSlider label="Size" value={vignetteSize} min={0} max={1} step={0.01} display={`${Math.round(vignetteSize * 100)}%`} onChange={setVignetteSize} onReset={() => setVignetteSize(0.6)} />
                                 </div>
 
-                                {/* Shimmer Glow */}
+                                {/* Glow (Static - no animation) */}
                                 <div className="space-y-3 pt-4 border-t border-white/5">
-                                    <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Shimmer Glow</p>
+                                    <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Glow</p>
                                     <EffectSlider label="Strength" value={glowStrength} min={0} max={1} step={0.01} display={`${Math.round(glowStrength * 100)}%`} onChange={setGlowStrength} onReset={() => setGlowStrength(0)} />
-                                    <EffectSlider label="Speed" value={glowSpeed} min={0.2} max={5} step={0.1} display={`${glowSpeed.toFixed(1)}x`} fillPct={((glowSpeed - 0.2) / 4.8) * 100} onChange={setGlowSpeed} onReset={() => setGlowSpeed(1)} />
                                     <EffectSlider label="Scale" value={glowScale} min={0} max={1} step={0.01} display={`${Math.round(glowScale * 100)}%`} onChange={setGlowScale} onReset={() => setGlowScale(0.5)} />
                                 </div>
 
@@ -407,6 +465,12 @@ export default function ThemeManagerPage() {
                                     <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Film Noise</p>
                                     <EffectSlider label="Strength" value={noiseStrength} min={0} max={1} step={0.01} display={`${Math.round(noiseStrength * 100)}%`} onChange={setNoiseStrength} onReset={() => setNoiseStrength(0)} />
                                     <EffectSlider label="Speed" value={noiseSpeed} min={0.1} max={5} step={0.1} display={`${noiseSpeed.toFixed(1)}x`} fillPct={((noiseSpeed - 0.1) / 4.9) * 100} onChange={setNoiseSpeed} onReset={() => setNoiseSpeed(1)} />
+                                </div>
+
+                                {/* Hologram */}
+                                <div className="space-y-3 pt-4 border-t border-white/5">
+                                    <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Hologram</p>
+                                    <EffectSlider label="Strength" value={hologramStrength} min={0} max={1} step={0.01} display={`${Math.round(hologramStrength * 100)}%`} onChange={setHologramStrength} onReset={() => setHologramStrength(0)} />
                                 </div>
 
                             </div>

@@ -3,6 +3,8 @@
 import { listen } from "@tauri-apps/api/event"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
 import { Window } from "@tauri-apps/api/window"
+import { vc_fullscreenManager } from "@/app/(main)/_features/video-core/video-core-fullscreen"
+import { getDefaultStore } from "jotai"
 import React from "react"
 
 type TauriManagerProps = {
@@ -37,16 +39,39 @@ export function TauriManager(props: TauriManagerProps) {
             // Any other element = video player — leave it alone
         }
 
-        // Keydown handler: F11 always toggles Tauri native window fullscreen,
-        // even when the video player is in DOM fullscreen (both can be active at once).
+        // Get video fullscreen manager from jotai store
+        const getVideoFullscreenManager = () => {
+            return getDefaultStore().get(vc_fullscreenManager)
+        }
+
+        // Keydown handler: F11 coordinates between window fullscreen and video fullscreen.
+        // - If window is NOT fullscreen: toggle window fullscreen
+        // - If window IS fullscreen and video is NOT fullscreen: toggle video fullscreen (illusion)
+        // - If window IS fullscreen and video IS fullscreen: exit video fullscreen (window stays fullscreen)
         // Escape exits Tauri fullscreen only when video is NOT in DOM fullscreen
-        // (video's own Escape handler covers the video-fullscreen case).
-        const handleKeydown = (e: KeyboardEvent) => {
+        const handleKeydown = async (e: KeyboardEvent) => {
             if (e.key === "F11") {
                 e.preventDefault()
                 e.stopPropagation()
-                // Always toggle window fullscreen — independent of video DOM fullscreen state
-                toggleFullscreen()
+
+                const appWindow = new Window("main")
+                const isWindowFullscreen = await appWindow.isFullscreen()
+                const videoManager = getVideoFullscreenManager()
+                const isVideoFullscreen = !!document.fullscreenElement && document.fullscreenElement !== document.documentElement
+
+                if (!isWindowFullscreen) {
+                    // Window not fullscreen yet — toggle window fullscreen
+                    await toggleFullscreen()
+                } else if (videoManager && !isVideoFullscreen) {
+                    // Window is fullscreen, video exists but not fullscreen — fullscreen the video
+                    await videoManager.enterFullscreen()
+                } else if (videoManager && isVideoFullscreen) {
+                    // Window is fullscreen, video is fullscreen — exit video fullscreen (keep window fullscreen)
+                    await videoManager.exitFullscreen()
+                } else {
+                    // Window is fullscreen, no video — exit window fullscreen
+                    await toggleFullscreen()
+                }
                 return
             }
             if (e.key === "Escape" && !document.fullscreenElement) {

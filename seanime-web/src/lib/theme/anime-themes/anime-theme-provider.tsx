@@ -164,6 +164,9 @@ type AnimeThemeContextValue = {
     setNoiseSpeed: (v: number) => void
     noiseScale: number
     setNoiseScale: (v: number) => void
+    // ── Hologram ──
+    hologramStrength: number
+    setHologramStrength: (v: number) => void
 }
 
 const AnimeThemeContext = React.createContext<AnimeThemeContextValue | null>(null)
@@ -679,6 +682,12 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const setGlowSpeed = React.useCallback((v: number) => { const c = Math.max(0.2, Math.min(5, v)); setGlowSpeedRaw(c); try { localStorage.setItem(`sea-anime-gspeed-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
     const setGlowScale = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setGlowScaleRaw(c); try { localStorage.setItem(`sea-anime-gscale-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
 
+    // ── Hologram effect ──
+    const [hologramStrength, setHologramStrengthRaw] = React.useState<number>(() => {
+        try { const v = parseFloat(localStorage.getItem(`sea-anime-hologram-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
+    })
+    const setHologramStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setHologramStrengthRaw(c); try { localStorage.setItem(`sea-anime-hologram-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+
     // ── Scanlines ──
     const [scanlinesStrength, setScanlinesStrengthRaw] = React.useState<number>(() => {
         try { const v = parseFloat(localStorage.getItem(`sea-anime-scan-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
@@ -767,13 +776,15 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setNoiseSpeed,
         noiseScale,
         setNoiseScale,
-    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, backgroundContrast, setBackgroundContrast, activeBackgroundUrl, setActiveBackgroundUrl, brandColorOverride, setBrandColorOverride, vignetteStrength, setVignetteStrength, vignetteSize, setVignetteSize, glowStrength, setGlowStrength, glowSpeed, setGlowSpeed, glowScale, setGlowScale, customThemeData, setCustomThemeData, scanlinesStrength, setScanlinesStrength, scanlinesSize, setScanlinesSize, scanlinesSpeed, setScanlinesSpeed, noiseStrength, setNoiseStrength, noiseSpeed, setNoiseSpeed, noiseScale, setNoiseScale])
+        hologramStrength,
+        setHologramStrength,
+    }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, backgroundContrast, setBackgroundContrast, activeBackgroundUrl, setActiveBackgroundUrl, brandColorOverride, setBrandColorOverride, vignetteStrength, setVignetteStrength, vignetteSize, setVignetteSize, glowStrength, setGlowStrength, glowSpeed, setGlowSpeed, glowScale, setGlowScale, customThemeData, setCustomThemeData, scanlinesStrength, setScanlinesStrength, scanlinesSize, setScanlinesSize, scanlinesSpeed, setScanlinesSpeed, noiseStrength, setNoiseStrength, noiseSpeed, setNoiseSpeed, noiseScale, setNoiseScale, hologramStrength, setHologramStrength])
 
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
             <AnimeThemeMusicPlayer />
-            {config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} vignetteStrength={vignetteStrength} vignetteSize={vignetteSize} glowStrength={glowStrength} glowSpeed={glowSpeed} glowScale={glowScale} />}
+            {config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} vignetteStrength={vignetteStrength} vignetteSize={vignetteSize} glowStrength={glowStrength} glowSpeed={glowSpeed} glowScale={glowScale} hologramStrength={hologramStrength} />}
             {config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
         </AnimeThemeContext.Provider>
     )
@@ -818,7 +829,7 @@ function AnimeThemeMusicPlayer() {
 // Theme Background Image
 // ─────────────────────────────────────────────────────────────────
 
-function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, scanlinesStrength = 0, scanlinesSize = 0.5, noiseStrength = 0, noiseSpeed = 1, noiseScale = 1, vignetteStrength = 0, vignetteSize = 0.5, glowStrength = 0, glowSpeed = 2, glowScale = 0.5 }: { url: string; dim?: number; blur?: number; exposure?: number; saturation?: number; contrast?: number; scanlinesStrength?: number; scanlinesSize?: number; noiseStrength?: number; noiseSpeed?: number; noiseScale?: number; vignetteStrength?: number; vignetteSize?: number; glowStrength?: number; glowSpeed?: number; glowScale?: number }) {
+function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, scanlinesStrength = 0, scanlinesSize = 0.5, noiseStrength = 0, noiseSpeed = 1, noiseScale = 1, vignetteStrength = 0, vignetteSize = 0.5, glowStrength = 0, glowSpeed = 2, glowScale = 0.5, hologramStrength = 0 }: { url: string; dim?: number; blur?: number; exposure?: number; saturation?: number; contrast?: number; scanlinesStrength?: number; scanlinesSize?: number; noiseStrength?: number; noiseSpeed?: number; noiseScale?: number; vignetteStrength?: number; vignetteSize?: number; glowStrength?: number; glowSpeed?: number; glowScale?: number; hologramStrength?: number }) {
     const previewMode = useAtomValue(wallpaperPreviewModeAtom)
     const effectiveDim = previewMode ? 0.05 : (dim ?? 0.65)
     const opacity = 1 - effectiveDim
@@ -885,20 +896,37 @@ function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, 
                     }}
                 />
             )}
-            {/* Shimmer Glow effect - increased visibility */}
+            {/* Static Glow effect - brightens bright spots, no animation */}
             {glowStrength > 0 && (
+                <div
+                    style={{
+                        position: "absolute",
+                        inset: 0,
+                        background: `radial-gradient(ellipse at center, rgba(255,255,255,${glowStrength * 0.60}) 0%, transparent ${60 + glowScale * 30}%)`,
+                        mixBlendMode: "screen",
+                        pointerEvents: "none",
+                    }}
+                />
+            )}
+            {/* Hologram effect - ghost hologram: cool tint with edge glow on bright spots */}
+            {hologramStrength > 0 && (
                 <>
-                    <style>{`@keyframes sea-shimmer-glow{0%{opacity:0.3;transform:scale(0.95)}50%{opacity:0.9;transform:scale(1.05)}100%{opacity:0.3;transform:scale(0.95)}}`}</style>
                     <div
                         style={{
                             position: "absolute",
                             inset: 0,
-                            background: `radial-gradient(ellipse at center, rgba(255,255,255,${glowStrength * 0.70}) 0%, transparent 70%)`,
-                            mixBlendMode: "screen",
-                            animation: `sea-shimmer-glow ${(2 / glowSpeed).toFixed(2)}s ease-in-out infinite`,
-                            transform: `scale(${glowScale})`,
+                            background: `linear-gradient(180deg, rgba(100,200,255,${hologramStrength * 0.15}) 0%, rgba(50,150,200,${hologramStrength * 0.10}) 50%, transparent 100%)`,
+                            mixBlendMode: "overlay",
                             pointerEvents: "none",
-                            willChange: "transform, opacity",
+                        }}
+                    />
+                    <div
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            background: `radial-gradient(ellipse at center, rgba(200,240,255,${hologramStrength * 0.25}) 0%, transparent 60%)`,
+                            mixBlendMode: "screen",
+                            pointerEvents: "none",
                         }}
                     />
                 </>

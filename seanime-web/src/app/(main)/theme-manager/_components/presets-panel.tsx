@@ -34,6 +34,7 @@ export interface UISetupPreset {
         scanlinesSize: number
         noiseStrength: number
         noiseSpeed: number
+        hologramStrength: number
     }
     uiCustomize: UICustomizeState
 }
@@ -77,6 +78,7 @@ export function PresetsPanel() {
         scanlinesSize, setScanlinesSize,
         noiseStrength, setNoiseStrength,
         noiseSpeed, setNoiseSpeed,
+        hologramStrength, setHologramStrength,
     } = useAnimeTheme()
 
     const { state: uiState, setAllState } = useUICustomize()
@@ -113,6 +115,7 @@ export function PresetsPanel() {
             scanlinesSize,
             noiseStrength,
             noiseSpeed,
+            hologramStrength,
         },
         uiCustomize: { ...uiState },
     })
@@ -154,6 +157,7 @@ export function PresetsPanel() {
         setScanlinesSize(e.scanlinesSize ?? 0.5)
         setNoiseStrength(e.noiseStrength ?? 0)
         setNoiseSpeed(e.noiseSpeed ?? 1)
+        setHologramStrength(e.hologramStrength ?? 0)
         // Apply UI customize
         if (preset.uiCustomize) setAllState(preset.uiCustomize)
 

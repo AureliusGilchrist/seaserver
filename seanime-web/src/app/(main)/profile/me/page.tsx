@@ -190,8 +190,12 @@ export default function Page() {
                         className="absolute inset-0 bg-no-repeat bg-cover"
                         style={{ backgroundImage: `url(${profile!.bannerImage})`, backgroundPosition: "center center", backgroundSize: "cover" }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[--background] via-[--background]/30 to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[--background]/40" />
+                    {/* Top gradient - fade from background to transparent */}
+                    <div className="absolute top-0 left-0 right-0 h-[8rem] bg-gradient-to-b from-[--background] to-transparent z-[2]" />
+                    {/* Left fade - for sidebar transparency */}
+                    <div className="hidden lg:block absolute left-0 top-0 w-[20rem] h-full bg-gradient-to-r from-[--background] to-transparent z-[2] opacity-80" />
+                    {/* Bottom gradient - same style as anime banner, covers PFP/exp bar/names area */}
+                    <div className="absolute bottom-0 left-0 right-0 h-[70%] bg-gradient-to-t from-[--background] from-0% via-[--background]/80 via-30% to-transparent to-100% z-[3]" />
                 </div>
             ) : (
                 <CustomLibraryBanner discrete />
