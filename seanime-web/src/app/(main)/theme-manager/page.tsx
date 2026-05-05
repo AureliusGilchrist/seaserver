@@ -51,6 +51,7 @@ export default function ThemeManagerPage() {
     const [activeMarketplaceTab, setActiveMarketplaceTab] = React.useState<"installed" | "browse">("installed")
     const [downloadingId, setDownloadingId] = React.useState<string | null>(null)
     const [deletingId, setDeletingId] = React.useState<string | null>(null)
+    const [marketplaceSearchQuery, setMarketplaceSearchQuery] = React.useState("")
 
     // Load shared themes on mount
     React.useEffect(() => {
@@ -606,6 +607,25 @@ export default function ThemeManagerPage() {
                 {/* Browse Tab */}
                 {activeMarketplaceTab === "browse" && (
                     <div className="space-y-4">
+                        {/* Search bar */}
+                        <div className="relative">
+                            <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[--muted] pointer-events-none" />
+                            <input
+                                type="text"
+                                value={marketplaceSearchQuery}
+                                onChange={e => setMarketplaceSearchQuery(e.target.value)}
+                                placeholder="Search marketplace themes…"
+                                className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-[--background] border border-[--border] text-sm text-[--foreground] placeholder:text-[--muted] focus:outline-none focus:border-[--color-brand-500] transition-colors"
+                            />
+                            {marketplaceSearchQuery && (
+                                <button
+                                    onClick={() => setMarketplaceSearchQuery("")}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[--muted] hover:text-[--foreground] transition-colors"
+                                >
+                                    <LuX className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
                         {isLoadingMarketplace ? (
                             <div className="flex items-center justify-center py-12">
                                 <div className="w-8 h-8 border-2 border-[--color-brand-500] border-t-transparent rounded-full animate-spin" />
@@ -618,14 +638,23 @@ export default function ThemeManagerPage() {
                             <div className="text-center py-8 text-[--muted]">
                                 <p>No themes available in marketplace.</p>
                             </div>
-                        ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                                {marketplaceThemes
-                                    .filter(theme => !Array.isArray(sharedThemes) || !sharedThemes.some(st => st.id === theme.id))
-                                    .map(theme => (
+                        ) : (() => {
+                            const browseable = marketplaceThemes
+                                .filter(theme => !Array.isArray(sharedThemes) || !sharedThemes.some(st => st.id === theme.id))
+                                .filter(theme => !marketplaceSearchQuery ||
+                                    theme.displayName.toLowerCase().includes(marketplaceSearchQuery.toLowerCase()) ||
+                                    (theme.description ?? "").toLowerCase().includes(marketplaceSearchQuery.toLowerCase())
+                                )
+                            return browseable.length === 0 ? (
+                                <div className="text-center py-8 text-[--muted]">
+                                    <p>No themes match your search.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                    {browseable.map(theme => (
                                         <div
                                             key={theme.id}
-                                            className="relative group rounded-xl border-2 border-[--border] hover:border-[--color-brand-600] overflow-hidden transition-all"
+                                            className="rounded-xl border-2 border-[--border] hover:border-[--color-brand-600] overflow-hidden transition-all"
                                         >
                                             {/* Background swatch */}
                                             <div
@@ -638,30 +667,30 @@ export default function ThemeManagerPage() {
                                                     ))}
                                                 </div>
                                             </div>
-                                            {/* Info row */}
-                                            <div className="px-3 py-2 bg-[--paper] border-t border-[--border] space-y-1">
-                                                <p className="text-xs font-semibold truncate">{theme.displayName}</p>
-                                                <p className="text-[10px] text-[--muted] line-clamp-2">{theme.description}</p>
+                                            {/* Info row + download button */}
+                                            <div className="px-3 py-2 bg-[--paper] border-t border-[--border] flex items-start gap-2">
+                                                <div className="flex-1 min-w-0 space-y-0.5">
+                                                    <p className="text-xs font-semibold truncate">{theme.displayName}</p>
+                                                    <p className="text-[10px] text-[--muted] line-clamp-2">{theme.description}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDownloadTheme(theme.id)}
+                                                    disabled={downloadingId === theme.id}
+                                                    className="shrink-0 mt-0.5 w-7 h-7 rounded-lg bg-[--color-brand-600] hover:bg-[--color-brand-500] disabled:opacity-60 flex items-center justify-center transition-colors"
+                                                    title="Download theme"
+                                                >
+                                                    {downloadingId === theme.id ? (
+                                                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    ) : (
+                                                        <LuCloudDownload className="w-3.5 h-3.5 text-white" />
+                                                    )}
+                                                </button>
                                             </div>
-                                            {/* Download button */}
-                                            <button
-                                                onClick={() => handleDownloadTheme(theme.id)}
-                                                disabled={downloadingId === theme.id}
-                                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                            >
-                                                {downloadingId === theme.id ? (
-                                                    <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                ) : (
-                                                    <div className="flex flex-col items-center gap-1">
-                                                        <LuCloudDownload className="w-8 h-8 text-white" />
-                                                        <span className="text-xs text-white font-medium">Download</span>
-                                                    </div>
-                                                )}
-                                            </button>
                                         </div>
                                     ))}
-                            </div>
-                        )}
+                                </div>
+                            )
+                        })()}
                     </div>
                 )}
             </div>

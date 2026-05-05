@@ -165,7 +165,16 @@ export async function downloadSharedTheme(themeId: string): Promise<SharedThemeI
             body: JSON.stringify({ themeId }),
         })
         if (!res.ok) return null
-        const result = await res.json() as SharedThemeInfo
+        const json = await res.json() as any
+        const raw = json?.data ?? json
+        const meta = cache.get(themeId) ?? null
+        const result: SharedThemeInfo = {
+            id: raw.id ?? themeId,
+            displayName: raw.displayName ?? meta?.displayName ?? themeId,
+            url: raw.url ?? "",
+            previewColors: raw.previewColors ?? meta?.previewColors,
+            description: raw.description ?? meta?.description,
+        }
         clearSharedThemesCache() // Clear cache so list refreshes
         return result
     } catch {
