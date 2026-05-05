@@ -1,10 +1,12 @@
 import { AnimeThemeConfig } from "./types"
+import { DEFAULT_THEME_FONTS } from "./fonts-registry"
 
 export const seanimeTheme: AnimeThemeConfig = {
     id: "seanime",
     displayName: "Seanime",
     description: "The classic Seanime look. Clean, minimal, purple.",
     cssVars: {},
+    fonts: DEFAULT_THEME_FONTS,
     sidebarOverrides: {},
     achievementNames: {
         // ── ANIME MILESTONES ──

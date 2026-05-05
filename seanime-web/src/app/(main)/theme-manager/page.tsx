@@ -174,31 +174,56 @@ export default function ThemeManagerPage() {
     const [searchQuery, setSearchQuery] = React.useState("")
     const [settingsPanelOpen, setSettingsPanelOpen] = React.useState(false)
     const [activeTab, setActiveTab] = React.useState<"themes" | "presets" | "wallpapers" | "effects">("themes")
+    const [fontSearch, setFontSearch] = React.useState("")
+
+    // Custom font override — persisted, overrides the theme font globally
+    const [customFont, setCustomFontRaw] = React.useState<string | null>(() => {
+        try { return localStorage.getItem("sea-custom-font") ?? null } catch { return null }
+    })
+    const setCustomFont = React.useCallback((font: string | null) => {
+        setCustomFontRaw(font)
+        try {
+            if (font) localStorage.setItem("sea-custom-font", font)
+            else localStorage.removeItem("sea-custom-font")
+        } catch { /* ignore */ }
+    }, [])
+
+    // Inject Google Font link + apply --font-anime-theme for custom font
+    React.useEffect(() => {
+        const existing = document.getElementById("sea-custom-font-link")
+        if (existing) existing.remove()
+        if (!customFont) {
+            document.documentElement.style.removeProperty("--font-anime-theme")
+            return
+        }
+        const fontEntry = FONT_PICKER_LIST.find(f => f.family === customFont)
+        if (fontEntry?.href) {
+            const link = document.createElement("link")
+            link.id = "sea-custom-font-link"
+            link.rel = "stylesheet"
+            link.href = fontEntry.href
+            document.head.appendChild(link)
+        }
+        document.documentElement.style.setProperty("--font-anime-theme", customFont)
+    }, [customFont])
     const [batchProgress, setBatchProgress] = React.useState<{ done: number; total: number } | null>(null)
     const { data: downloadedBgs, isLoading: bgsLoading } = useListThemeBackgrounds()
     const deleteMutation = useDeleteThemeBackground()
     const downloadBgMutation = useDownloadThemeBackground()
     const [downloadingBgId, setDownloadingBgId] = React.useState<string | null>(null)
 
-    // Filter downloaded wallpapers to only show ones tagged for the current theme.
-    // Legacy files (wh-{id}.ext, no theme prefix) are shown under all themes.
+    // Strict: only show wallpapers tagged for the current theme, nothing else.
     const themedDownloadedBgs = React.useMemo(() => {
         if (!downloadedBgs) return []
         return downloadedBgs.filter(bg => {
             const name = bg.filename
-            // New format: wh-{themeId}-{wallhavenId}.ext
             if (name.startsWith("wh-")) {
-                const withoutPrefix = name.slice(3) // "{themeId}-{wallhavenId}.ext" or "{wallhavenId}.ext"
+                const withoutPrefix = name.slice(3)
                 const parts = withoutPrefix.split("-")
-                // If second segment looks like a wallhaven ID (alphanumeric, ~6 chars), it's legacy
-                // Legacy: wh-abc123.ext → parts = ["abc123.ext"] (no dash in id part)
-                // New: wh-naruto-abc123.ext → parts = ["naruto", "abc123.ext"]
-                if (parts.length === 1) return true // legacy — show everywhere
-                // First part is themeId
-                const fileThemeId = parts[0]
-                return fileThemeId === themeId
+                if (parts.length === 1) return false // legacy untagged — hidden in strict mode
+                return parts[0] === themeId
             }
-            return true // non-wh files always shown
+            return false
         })
     }, [downloadedBgs, themeId])
 
@@ -262,27 +287,16 @@ export default function ThemeManagerPage() {
     }, [mangaCollection])
 
     return (
-        <PageWrapper className="p-4 sm:p-8 max-w-5xl mx-auto space-y-10">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div>
-                    <h1
-                        className="text-4xl font-bold mb-1"
-                        style={{ fontFamily: config.fontFamily }}
-                    >
-                        Theme Manager
-                    </h1>
-                    <p className="text-[--muted] text-sm">Choose an anime theme to customize colors, navigation labels, and achievement names.</p>
-                </div>
-            </div>
-
-            {/* Tab navigation */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-[--paper] border border-[--border] w-fit">
-                {([
-                    { id: "themes",     label: "Themes",     icon: <LuSparkles className="w-3.5 h-3.5" /> },
-                    { id: "effects",    label: "Effects",    icon: <LuSlidersHorizontal className="w-3.5 h-3.5" /> },
-                    { id: "wallpapers", label: "Wallpapers",  icon: <LuImage className="w-3.5 h-3.5" /> },
-                    { id: "presets",    label: "Presets",    icon: <LuBookmark className="w-3.5 h-3.5" /> },
-                ] as const).map(tab => (
+        <PageWrapper className="p-0 h-screen max-w-none mx-auto flex flex-col">
+            {/* Fixed Tab Navigation */}
+            <div className="sticky top-0 z-40 flex items-center gap-1 p-4 sm:px-8 bg-[--background]/95 backdrop-blur-sm border-b border-[--border]">
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-[--paper] border border-[--border]">
+                    {([
+                        { id: "themes",     label: "Themes",     icon: <LuSparkles className="w-3.5 h-3.5" /> },
+                        { id: "effects",    label: "Effects",    icon: <LuSlidersHorizontal className="w-3.5 h-3.5" /> },
+                        { id: "wallpapers", label: "Wallpapers",  icon: <LuImage className="w-3.5 h-3.5" /> },
+                        { id: "presets",    label: "Presets",    icon: <LuBookmark className="w-3.5 h-3.5" /> },
+                    ] as const).map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
@@ -297,20 +311,29 @@ export default function ThemeManagerPage() {
                         {tab.label}
                     </button>
                 ))}
+                </div>
             </div>
+
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto">
+                <div className="p-4 sm:p-8 space-y-10">
 
             {/* Presets tab */}
             {activeTab === "presets" && <PresetsPanel />}
 
             {/* Effects tab */}
             {activeTab === "effects" && (
-                config.id === "seanime" ? (
-                    <div className="rounded-2xl border border-dashed border-[--border] bg-[--paper] p-10 flex flex-col items-center justify-center gap-3 text-center">
-                        <LuSlidersHorizontal className="w-8 h-8 text-[--muted] opacity-40" />
-                        <p className="text-sm text-[--muted]">Select a theme first to configure effects.</p>
-                        <button onClick={() => setActiveTab("themes")} className="text-xs text-[--color-brand-400] hover:text-[--color-brand-300] transition-colors">Go to Themes →</button>
-                    </div>
-                ) : (
+                <div className="space-y-4">
+                    {config.id === "seanime" && (
+                        <div className="rounded-2xl border border-dashed border-[--border] bg-[--paper] px-5 py-4 flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <LuSlidersHorizontal className="w-5 h-5 text-[--muted] opacity-40 shrink-0" />
+                                <p className="text-sm text-[--muted]">Background effects require an active theme. Font picker is available below.</p>
+                            </div>
+                            <button onClick={() => setActiveTab("themes")} className="text-xs text-[--color-brand-400] hover:text-[--color-brand-300] transition-colors shrink-0">Pick a theme →</button>
+                        </div>
+                    )}
+                    {config.id !== "seanime" && (
                     <div className="space-y-4">
                         {/* Background preview strip */}
                         <div className="rounded-2xl border border-[--border] overflow-hidden">
@@ -380,8 +403,51 @@ export default function ThemeManagerPage() {
 
                             </div>
                         </div>
+
                     </div>
-                )
+                    )}
+
+                    {/* Font Picker — available for all themes */}
+                    <div className="rounded-2xl border border-[--border] overflow-hidden">
+                        <div className="bg-[--paper] border-b border-[--border] px-5 py-4 flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Global Font Override</p>
+                                <p className="text-xs text-[--muted] mt-0.5">Overrides the theme font everywhere</p>
+                            </div>
+                            {customFont && (
+                                <button onClick={() => setCustomFont(null)} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-1 rounded border border-[--border] bg-[--background] transition-colors shrink-0">Reset to theme font</button>
+                            )}
+                        </div>
+                        <div className="bg-[--background] p-4 space-y-3">
+                            <div className="rounded-xl border border-[--border] bg-[--paper] p-4 text-center">
+                                <p className="text-2xl font-bold text-[--foreground]" style={{ fontFamily: customFont ?? config.fontFamily ?? "inherit" }}>
+                                    {config.displayName}
+                                </p>
+                                <p className="text-xs text-[--muted] mt-1">{customFont ?? config.fontFamily ?? "Default system font"}</p>
+                            </div>
+                            <div className="relative">
+                                <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[--muted] pointer-events-none" />
+                                <input type="text" value={fontSearch} onChange={e => setFontSearch(e.target.value)} placeholder="Search fonts…" className="w-full pl-9 pr-4 py-2 rounded-xl bg-[--paper] border border-[--border] text-sm text-[--foreground] placeholder:text-[--muted] focus:outline-none focus:border-[--color-brand-500] transition-colors" />
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 max-h-72 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                                {FONT_PICKER_LIST.filter(f => !fontSearch || f.family.toLowerCase().includes(fontSearch.toLowerCase()) || f.label.toLowerCase().includes(fontSearch.toLowerCase())).map(f => (
+                                    <button
+                                        key={f.family}
+                                        onClick={() => setCustomFont(f.family)}
+                                        className={cn(
+                                            "rounded-xl border-2 px-3 py-2.5 text-left transition-all",
+                                            customFont === f.family
+                                                ? "border-[--color-brand-500] bg-[--color-brand-900]/30"
+                                                : "border-[--border] bg-[--paper] hover:border-[--color-brand-700]",
+                                        )}
+                                    >
+                                        <FontPreviewTile family={f.family} href={f.href} label={f.label} isSelected={customFont === f.family} />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Wallpapers tab */}
@@ -401,33 +467,9 @@ export default function ThemeManagerPage() {
             {/* Themes tab content (hidden when Presets is active) */}
             {activeTab === "themes" && <>
 
-            {/* Search bar */}
-            <div className="relative">
-                <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[--muted] pointer-events-none" />
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    placeholder={`Search ${ANIME_THEME_LIST.length} themes…`}
-                    className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-[--paper] border border-[--border] text-sm text-[--foreground] placeholder:text-[--muted] focus:outline-none focus:border-[--color-brand-500] transition-colors"
-                />
-                {searchQuery && (
-                    <button
-                        onClick={() => setSearchQuery("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[--muted] hover:text-[--foreground] transition-colors"
-                    >
-                        <LuX className="w-4 h-4" />
-                    </button>
-                )}
-            </div>
-
-            {/* Theme Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {ANIME_THEME_LIST.filter(t =>
-                    !searchQuery ||
-                    t.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    t.description.toLowerCase().includes(searchQuery.toLowerCase()),
-                ).map((theme) => {
+            {/* Theme Cards - Full Width Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
+                {ANIME_THEME_LIST.map((theme) => {
                     const isHidden = HIDDEN_THEME_IDS.has(theme.id)
                     const isUnlocked = !isHidden || unlockedHiddenThemes.has(theme.id)
                     const isActive = theme.id === themeId
@@ -1068,6 +1110,8 @@ export default function ThemeManagerPage() {
             </div>
 
             </> /* end themes tab */}
+                </div>
+                </div>
         </PageWrapper>
     )
 }
@@ -1099,6 +1143,130 @@ function EffectSlider({
             </div>
             <span className="text-sm text-[--muted] w-12 text-right tabular-nums">{display}</span>
             <button onClick={onReset} className="text-xs text-[--muted] hover:text-[--foreground] px-2 py-0.5 rounded bg-[--paper] border border-[--border] transition-colors shrink-0">Reset</button>
+        </div>
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Font picker data + preview tile
+// ─────────────────────────────────────────────────────────────────
+
+const FONT_PICKER_LIST: { family: string; label: string; href: string }[] = [
+    { family: "'Bangers', cursive",           label: "Bangers",           href: "https://fonts.googleapis.com/css2?family=Bangers&display=swap" },
+    { family: "'Rajdhani', sans-serif",        label: "Rajdhani",          href: "https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&display=swap" },
+    { family: "'Cinzel Decorative', cursive",  label: "Cinzel Decorative", href: "https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&display=swap" },
+    { family: "'Boogaloo', cursive",           label: "Boogaloo",          href: "https://fonts.googleapis.com/css2?family=Boogaloo&display=swap" },
+    { family: "'Oswald', sans-serif",          label: "Oswald",            href: "https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap" },
+    { family: "'Bebas Neue', cursive",         label: "Bebas Neue",        href: "https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" },
+    { family: "'Black Han Sans', sans-serif",  label: "Black Han Sans",    href: "https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" },
+    { family: "'Press Start 2P', cursive",     label: "Press Start 2P",    href: "https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" },
+    { family: "'Orbitron', sans-serif",        label: "Orbitron",          href: "https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" },
+    { family: "'Exo 2', sans-serif",           label: "Exo 2",             href: "https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;800&display=swap" },
+    { family: "'Russo One', sans-serif",       label: "Russo One",         href: "https://fonts.googleapis.com/css2?family=Russo+One&display=swap" },
+    { family: "'Righteous', cursive",          label: "Righteous",         href: "https://fonts.googleapis.com/css2?family=Righteous&display=swap" },
+    { family: "'Permanent Marker', cursive",   label: "Permanent Marker",  href: "https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" },
+    { family: "'Rock Salt', cursive",          label: "Rock Salt",         href: "https://fonts.googleapis.com/css2?family=Rock+Salt&display=swap" },
+    { family: "'Special Elite', cursive",      label: "Special Elite",     href: "https://fonts.googleapis.com/css2?family=Special+Elite&display=swap" },
+    { family: "'Cinzel', serif",               label: "Cinzel",            href: "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&display=swap" },
+    { family: "'Playfair Display', serif",     label: "Playfair Display",  href: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&display=swap" },
+    { family: "'Abril Fatface', cursive",      label: "Abril Fatface",     href: "https://fonts.googleapis.com/css2?family=Abril+Fatface&display=swap" },
+    { family: "'Fredoka One', cursive",        label: "Fredoka One",       href: "https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" },
+    { family: "'Pacifico', cursive",           label: "Pacifico",          href: "https://fonts.googleapis.com/css2?family=Pacifico&display=swap" },
+    { family: "'Lobster', cursive",            label: "Lobster",           href: "https://fonts.googleapis.com/css2?family=Lobster&display=swap" },
+    { family: "'Satisfy', cursive",            label: "Satisfy",           href: "https://fonts.googleapis.com/css2?family=Satisfy&display=swap" },
+    { family: "'Dancing Script', cursive",     label: "Dancing Script",    href: "https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap" },
+    { family: "'Caveat', cursive",             label: "Caveat",            href: "https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" },
+    { family: "'Kalam', cursive",              label: "Kalam",             href: "https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" },
+    { family: "'Quicksand', sans-serif",       label: "Quicksand",         href: "https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" },
+    { family: "'Nunito', sans-serif",          label: "Nunito",            href: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" },
+    { family: "'Poppins', sans-serif",         label: "Poppins",           href: "https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" },
+    { family: "'Inter', sans-serif",           label: "Inter",             href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" },
+    { family: "'Roboto', sans-serif",          label: "Roboto",            href: "https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" },
+    { family: "'Montserrat', sans-serif",      label: "Montserrat",        href: "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" },
+    { family: "'Lato', sans-serif",            label: "Lato",              href: "https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" },
+    { family: "'Source Sans 3', sans-serif",   label: "Source Sans 3",     href: "https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;700;900&display=swap" },
+    { family: "'Raleway', sans-serif",         label: "Raleway",           href: "https://fonts.googleapis.com/css2?family=Raleway:wght@400;700;900&display=swap" },
+    { family: "'Ubuntu', sans-serif",          label: "Ubuntu",            href: "https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;700&display=swap" },
+    { family: "'Barlow', sans-serif",          label: "Barlow",            href: "https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;800&display=swap" },
+    { family: "'Sora', sans-serif",            label: "Sora",              href: "https://fonts.googleapis.com/css2?family=Sora:wght@400;700;800&display=swap" },
+    { family: "'DM Sans', sans-serif",         label: "DM Sans",           href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&display=swap" },
+    { family: "'Space Grotesk', sans-serif",   label: "Space Grotesk",     href: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" },
+    { family: "'Space Mono', monospace",       label: "Space Mono",        href: "https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" },
+    { family: "'JetBrains Mono', monospace",   label: "JetBrains Mono",    href: "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" },
+    { family: "'Fira Code', monospace",        label: "Fira Code",         href: "https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" },
+    { family: "'Share Tech Mono', monospace",  label: "Share Tech Mono",   href: "https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" },
+    { family: "'VT323', monospace",            label: "VT323",             href: "https://fonts.googleapis.com/css2?family=VT323&display=swap" },
+    { family: "'Chakra Petch', sans-serif",    label: "Chakra Petch",      href: "https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&display=swap" },
+    { family: "'Audiowide', sans-serif",       label: "Audiowide",         href: "https://fonts.googleapis.com/css2?family=Audiowide&display=swap" },
+    { family: "'Syncopate', sans-serif",       label: "Syncopate",         href: "https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&display=swap" },
+    { family: "'Teko', sans-serif",            label: "Teko",              href: "https://fonts.googleapis.com/css2?family=Teko:wght@400;600;700&display=swap" },
+    { family: "'Barlow Condensed', sans-serif",label: "Barlow Condensed",  href: "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;900&display=swap" },
+    { family: "'Anton', sans-serif",           label: "Anton",             href: "https://fonts.googleapis.com/css2?family=Anton&display=swap" },
+    { family: "'Black Ops One', cursive",      label: "Black Ops One",     href: "https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap" },
+    { family: "'Bungee', cursive",             label: "Bungee",            href: "https://fonts.googleapis.com/css2?family=Bungee&display=swap" },
+    { family: "'Bungee Shade', cursive",       label: "Bungee Shade",      href: "https://fonts.googleapis.com/css2?family=Bungee+Shade&display=swap" },
+    { family: "'Squada One', cursive",         label: "Squada One",        href: "https://fonts.googleapis.com/css2?family=Squada+One&display=swap" },
+    { family: "'Tilt Neon', cursive",          label: "Tilt Neon",         href: "https://fonts.googleapis.com/css2?family=Tilt+Neon&display=swap" },
+    { family: "'Changa', sans-serif",          label: "Changa",            href: "https://fonts.googleapis.com/css2?family=Changa:wght@400;700;800&display=swap" },
+    { family: "'Graduate', serif",             label: "Graduate",          href: "https://fonts.googleapis.com/css2?family=Graduate&display=swap" },
+    { family: "'Limelight', cursive",          label: "Limelight",         href: "https://fonts.googleapis.com/css2?family=Limelight&display=swap" },
+    { family: "'Poiret One', cursive",         label: "Poiret One",        href: "https://fonts.googleapis.com/css2?family=Poiret+One&display=swap" },
+    { family: "'Comfortaa', cursive",          label: "Comfortaa",         href: "https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&display=swap" },
+    { family: "'Varela Round', sans-serif",    label: "Varela Round",      href: "https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" },
+    { family: "'Josefin Sans', sans-serif",    label: "Josefin Sans",      href: "https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;600;700&display=swap" },
+    { family: "'Josefin Slab', serif",         label: "Josefin Slab",      href: "https://fonts.googleapis.com/css2?family=Josefin+Slab:wght@400;700&display=swap" },
+    { family: "'Alfa Slab One', cursive",      label: "Alfa Slab One",     href: "https://fonts.googleapis.com/css2?family=Alfa+Slab+One&display=swap" },
+    { family: "'Calistoga', cursive",          label: "Calistoga",         href: "https://fonts.googleapis.com/css2?family=Calistoga&display=swap" },
+    { family: "'Titan One', cursive",          label: "Titan One",         href: "https://fonts.googleapis.com/css2?family=Titan+One&display=swap" },
+    { family: "'Monoton', cursive",            label: "Monoton",           href: "https://fonts.googleapis.com/css2?family=Monoton&display=swap" },
+    { family: "'Megrim', cursive",             label: "Megrim",            href: "https://fonts.googleapis.com/css2?family=Megrim&display=swap" },
+    { family: "'Henny Penny', cursive",        label: "Henny Penny",       href: "https://fonts.googleapis.com/css2?family=Henny+Penny&display=swap" },
+    { family: "'Pirata One', cursive",         label: "Pirata One",        href: "https://fonts.googleapis.com/css2?family=Pirata+One&display=swap" },
+    { family: "'MedievalSharp', cursive",      label: "MedievalSharp",     href: "https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" },
+    { family: "'Caesar Dressing', cursive",    label: "Caesar Dressing",   href: "https://fonts.googleapis.com/css2?family=Caesar+Dressing&display=swap" },
+    { family: "'Vast Shadow', cursive",        label: "Vast Shadow",       href: "https://fonts.googleapis.com/css2?family=Vast+Shadow&display=swap" },
+    { family: "'Eater', cursive",              label: "Eater",             href: "https://fonts.googleapis.com/css2?family=Eater&display=swap" },
+    { family: "'Creepster', cursive",          label: "Creepster",         href: "https://fonts.googleapis.com/css2?family=Creepster&display=swap" },
+    { family: "'Nosifer', cursive",            label: "Nosifer",           href: "https://fonts.googleapis.com/css2?family=Nosifer&display=swap" },
+    { family: "'Rye', cursive",                label: "Rye",               href: "https://fonts.googleapis.com/css2?family=Rye&display=swap" },
+    { family: "'UnifrakturMaguntia', cursive", label: "UnifrakturMaguntia",href: "https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap" },
+    { family: "'MedievalSharp', cursive",      label: "Medieval Sharp",    href: "https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" },
+    { family: "'Yusei Magic', sans-serif",     label: "Yusei Magic",       href: "https://fonts.googleapis.com/css2?family=Yusei+Magic&display=swap" },
+    { family: "'Zen Dots', cursive",           label: "Zen Dots",          href: "https://fonts.googleapis.com/css2?family=Zen+Dots&display=swap" },
+    { family: "'Zen Tokyo Zoo', cursive",      label: "Zen Tokyo Zoo",     href: "https://fonts.googleapis.com/css2?family=Zen+Tokyo+Zoo&display=swap" },
+    { family: "'Stick', sans-serif",           label: "Stick",             href: "https://fonts.googleapis.com/css2?family=Stick&display=swap" },
+    { family: "'New Tegomin', serif",          label: "New Tegomin",       href: "https://fonts.googleapis.com/css2?family=New+Tegomin&display=swap" },
+    { family: "'Syne', sans-serif",            label: "Syne",              href: "https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&display=swap" },
+    { family: "'Syne Mono', monospace",        label: "Syne Mono",         href: "https://fonts.googleapis.com/css2?family=Syne+Mono&display=swap" },
+    { family: "'Outfit', sans-serif",          label: "Outfit",            href: "https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" },
+    { family: "'Plus Jakarta Sans', sans-serif",label: "Plus Jakarta Sans",href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap" },
+    { family: "'Bricolage Grotesque', sans-serif",label: "Bricolage Grotesque",href: "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;700;800&display=swap" },
+    { family: "'Lexend', sans-serif",          label: "Lexend",            href: "https://fonts.googleapis.com/css2?family=Lexend:wght@400;700;900&display=swap" },
+    { family: "'Familjen Grotesk', sans-serif",label: "Familjen Grotesk",  href: "https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;700&display=swap" },
+    { family: "'Geist', sans-serif",           label: "Geist",             href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;700;900&display=swap" },
+    { family: "'Sono', monospace",             label: "Sono",              href: "https://fonts.googleapis.com/css2?family=Sono:wght@400;700&display=swap" },
+    { family: "'Tourney', cursive",            label: "Tourney",           href: "https://fonts.googleapis.com/css2?family=Tourney:wght@400;700;900&display=swap" },
+    { family: "'Saira Condensed', sans-serif", label: "Saira Condensed",   href: "https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;700;900&display=swap" },
+    { family: "'Big Shoulders Display', cursive",label: "Big Shoulders Display",href: "https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@400;700;900&display=swap" },
+    { family: "'Chivo Mono', monospace",       label: "Chivo Mono",        href: "https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@400;700&display=swap" },
+]
+
+function FontPreviewTile({ family, href, label, isSelected }: { family: string; label: string; href: string; isSelected: boolean }) {
+    const [loaded, setLoaded] = React.useState(false)
+    React.useEffect(() => {
+        if (loaded) return
+        const existing = document.querySelector(`link[href="${href}"]`)
+        if (existing) { setLoaded(true); return }
+        const link = document.createElement("link")
+        link.rel = "stylesheet"
+        link.href = href
+        link.onload = () => setLoaded(true)
+        document.head.appendChild(link)
+    }, [href, loaded])
+    return (
+        <div>
+            <p className="text-xs font-bold leading-tight truncate" style={{ fontFamily: loaded ? family : "inherit" }}>Aa</p>
+            <p className={cn("text-[10px] mt-0.5 truncate leading-tight", isSelected ? "text-[--color-brand-300]" : "text-[--muted]")}>{label}</p>
         </div>
     )
 }
@@ -1417,6 +1585,7 @@ interface ThemeCardProps {
 }
 
 function ThemeCard({ theme, isActive, onSelect, onSettingsClick }: ThemeCardProps) {
+    const bgUrl = theme.backgroundImageUrl
     return (
         <div
             role="button"
@@ -1424,38 +1593,43 @@ function ThemeCard({ theme, isActive, onSelect, onSettingsClick }: ThemeCardProp
             onClick={onSelect}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect() }}
             className={cn(
-                "group/card relative rounded-2xl p-5 text-left cursor-pointer transition-all duration-200 border-2",
+                "group/card relative rounded-xl overflow-hidden text-left cursor-pointer transition-all duration-200 border-2",
                 "hover:scale-[1.02] active:scale-[0.98]",
                 isActive
-                    ? "border-[--color-brand-500] shadow-lg shadow-[rgba(0,0,0,0.4)]"
+                    ? "border-[--color-brand-500] shadow-lg shadow-[rgba(0,0,0,0.5)]"
                     : "border-[--border] hover:border-[--color-brand-700]",
             )}
-            style={{
-                background: `linear-gradient(135deg, ${theme.previewColors.bg} 0%, color-mix(in srgb, ${theme.previewColors.bg} 85%, ${theme.previewColors.primary}) 100%)`,
-            }}
         >
-            {isActive && (
-                <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[--color-brand-400] shadow-[0_0_8px_2px_var(--tw-shadow-color)] shadow-[--color-brand-400]" />
-            )}
-
-            {/* Color swatches + settings button */}
-            <div className="flex items-center mb-3">
-                <div className="flex items-center gap-1.5">
-                    {[theme.previewColors.primary, theme.previewColors.secondary, theme.previewColors.accent].map((color, i) => (
-                        <div
-                            key={i}
-                            className="w-5 h-5 rounded-full border border-white/10 shrink-0"
-                            style={{ background: color }}
+            {/* Art banner — blurred background image or color gradient fallback */}
+            <div className="relative h-24 w-full overflow-hidden">
+                {bgUrl ? (
+                    <>
+                        <img
+                            src={bgUrl.startsWith("/") ? `${getServerBaseUrl()}${bgUrl}` : bgUrl}
+                            alt=""
+                            className="absolute inset-0 w-full h-full object-cover scale-110"
+                            style={{ filter: "blur(6px) brightness(0.55) saturate(1.4)" }}
+                            loading="lazy"
                         />
-                    ))}
-                </div>
-
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/70" />
+                    </>
+                ) : (
+                    <div
+                        className="absolute inset-0"
+                        style={{ background: `linear-gradient(135deg, ${theme.previewColors.bg} 0%, color-mix(in srgb, ${theme.previewColors.bg} 60%, ${theme.previewColors.primary}) 100%)` }}
+                    />
+                )}
+                {/* Active dot */}
+                {isActive && (
+                    <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[--color-brand-400] shadow-[0_0_8px_2px_rgba(0,0,0,0.4)]" />
+                )}
+                {/* Settings button */}
                 {theme.id !== "seanime" && (
                     <button
                         onClick={e => { e.stopPropagation(); onSettingsClick() }}
                         title="Theme settings"
                         className={cn(
-                            "ml-auto w-6 h-6 flex items-center justify-center text-white/40 hover:text-white/90 rounded-md hover:bg-white/10 transition-all duration-150",
+                            "absolute top-1.5 left-1.5 w-6 h-6 flex items-center justify-center text-white/60 hover:text-white rounded-md hover:bg-black/40 transition-all duration-150",
                             "opacity-0 group-hover/card:opacity-100",
                             isActive && "opacity-100",
                         )}
@@ -1463,17 +1637,22 @@ function ThemeCard({ theme, isActive, onSelect, onSettingsClick }: ThemeCardProp
                         <LuSettings2 className="w-3.5 h-3.5" />
                     </button>
                 )}
+                {/* Color swatches bottom-left */}
+                <div className="absolute bottom-2 left-2 flex gap-1">
+                    {[theme.previewColors.primary, theme.previewColors.secondary, theme.previewColors.accent].map((color, i) => (
+                        <div key={i} className="w-3 h-3 rounded-full border border-white/20" style={{ background: color }} />
+                    ))}
+                </div>
             </div>
-
+            {/* Label row */}
             <div
-                className="font-bold text-lg text-white"
-                style={{ fontFamily: theme.fontFamily ?? "inherit" }}
+                className="px-3 py-2 text-left"
+                style={{ background: `linear-gradient(180deg, ${theme.previewColors.bg} 0%, color-mix(in srgb, ${theme.previewColors.bg} 90%, ${theme.previewColors.primary}) 100%)` }}
             >
-                {theme.displayName}
+                <div className="font-bold text-sm text-white leading-tight" style={{ fontFamily: theme.fontFamily ?? "inherit" }}>
+                    {theme.displayName}
+                </div>
             </div>
-            <p className="text-white/60 text-xs mt-1 line-clamp-2">
-                {theme.description}
-            </p>
         </div>
     )
 }

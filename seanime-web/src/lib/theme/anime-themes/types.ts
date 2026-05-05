@@ -335,6 +335,12 @@ export type ParticleTypeConfig = {
     defaultIntensity: number
 }
 
+export type ThemeFont = {
+    name: string
+    family: string
+    href?: string
+}
+
 export type AnimeThemeConfig = {
     id: AnimeThemeId
     displayName: string
@@ -345,6 +351,10 @@ export type AnimeThemeConfig = {
     fontFamily?: string
     /** Google Fonts href */
     fontHref?: string
+    /** Available fonts for this theme (10 options from stylistic to plain) */
+    fonts?: ThemeFont[]
+    /** Banner/cover art image URL for theme card (optional, falls back to gradient) */
+    bannerImageUrl?: string
     /** Sidebar item overrides: nav item id → { icon, label } */
     sidebarOverrides: Record<string, SidebarItemOverride>
     /** Achievement key → themed display name */

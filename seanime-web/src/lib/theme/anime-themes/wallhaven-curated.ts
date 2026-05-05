@@ -39,7 +39,7 @@ export const WALLHAVEN_CURATED_QUERY: Record<AnimeThemeId, string> = {
     "cowboy-bebop": "cowboy bebop",
     "psycho-pass": "psycho pass",
     "ghost-in-the-shell": "ghost in the shell",
-    "berserk": "berserk anime",
+    "berserk": "berserk",
     "vinland-saga": "vinland saga",
     "chainsaw-man": "chainsaw man",
     "made-in-abyss": "made in abyss",
