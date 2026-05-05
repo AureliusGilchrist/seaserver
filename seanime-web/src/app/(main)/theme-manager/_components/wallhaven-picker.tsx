@@ -86,7 +86,7 @@ export function WallhavenPickerModal({ open, onClose }: Props) {
         }
         setDownloadingId(w.id)
         try {
-            const result = await downloadMutation.mutateAsync({ url: w.path })
+            const result = await downloadMutation.mutateAsync({ url: w.path, themeId })
             if (result) {
                 setActiveBackgroundUrl(result.url)
                 toast.success("Wallpaper downloaded and applied")

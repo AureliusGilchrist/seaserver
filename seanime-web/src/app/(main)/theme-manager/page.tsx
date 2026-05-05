@@ -217,17 +217,21 @@ export default function ThemeManagerPage() {
     const [downloadingBgId, setDownloadingBgId] = React.useState<string | null>(null)
 
     // Strict: only show wallpapers tagged for the current theme, nothing else.
+    // Filename format: wh-{themeId}-{wallhavenId}.ext
+    // themeId itself may contain hyphens (e.g. "attack-on-titan"), so we cannot
+    // simply split on "-" and take the first part.  Instead we strip the "wh-"
+    // prefix and then remove the LAST "-{wallhavenId}" segment to recover themeId.
     const themedDownloadedBgs = React.useMemo(() => {
         if (!downloadedBgs) return []
         return downloadedBgs.filter(bg => {
             const name = bg.filename
-            if (name.startsWith("wh-")) {
-                const withoutPrefix = name.slice(3)
-                const parts = withoutPrefix.split("-")
-                if (parts.length === 1) return false // legacy untagged — hidden in strict mode
-                return parts[0] === themeId
-            }
-            return false
+            if (!name.startsWith("wh-")) return false
+            const withoutExt = name.replace(/\.[^.]+$/, "") // strip extension
+            const withoutPrefix = withoutExt.slice(3)       // strip "wh-"
+            const lastDash = withoutPrefix.lastIndexOf("-")
+            if (lastDash === -1) return false               // legacy untagged — no themeId
+            const extractedThemeId = withoutPrefix.slice(0, lastDash)
+            return extractedThemeId === themeId
         })
     }, [downloadedBgs, themeId])
 
