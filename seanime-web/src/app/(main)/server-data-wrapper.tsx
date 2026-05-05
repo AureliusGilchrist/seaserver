@@ -1,5 +1,6 @@
 import { useGetStatus } from "@/api/hooks/status.hooks"
 import { useSavePlanningSlutToken } from "@/api/hooks/admin.hooks"
+import { useLogin } from "@/api/hooks/auth.hooks"
 import { useCreateProfile } from "@/api/hooks/profiles.hooks"
 import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { MigrationWizard } from "@/app/(main)/_features/profile/migration-wizard"
@@ -176,11 +177,11 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
     }
 
     if (serverStatus?.profilesEnabled && !!serverStatus?.currentProfile && (!serverStatus?.user || serverStatus?.user?.isSimulated)) {
-        return <ProfileAniListGate
+        return <ProfileAniListGateConnected
+            profileId={serverStatus.currentProfile.id}
             profileName={serverStatus.currentProfile.name}
             host={host}
             clientId={serverStatus?.anilistClientId}
-            onManualToken={token => router.push("/auth/callback#access_token=" + token.trim())}
         />
     }
 
@@ -267,6 +268,50 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
 }
 
 export { ProfileAniListGate };
+
+/**
+ * Connected version of ProfileAniListGate used inside ServerDataWrapper.
+ * Calls useLogin (auth/login endpoint) directly instead of routing through
+ * /auth/callback, which requires the websocket to be connected on the new page
+ * and causes an infinite "Authorizing" loop in the Tauri desktop app.
+ * useLogin saves the token to the profile-scoped DB, updates the AniList client
+ * cache, and returns the full refreshed Status — including the real user — so
+ * the gate immediately disappears and the app proceeds normally.
+ */
+function ProfileAniListGateConnected(props: {
+    profileId: number
+    profileName: string
+    host: string
+    clientId?: string
+}) {
+    const { profileName, host, clientId } = props
+    const { mutate: login, isPending } = useLogin()
+    const [formError, setFormError] = React.useState<string | null>(null)
+
+    const handleToken = (token: string) => {
+        setFormError(null)
+        login(
+            { token: token.trim() },
+            {
+                onError: (err: any) => {
+                    const msg = err?.response?.data?.message || err?.message || "Invalid or expired AniList token. Please try again."
+                    setFormError(msg)
+                },
+            },
+        )
+    }
+
+    return (
+        <ProfileAniListGate
+            profileName={profileName}
+            host={host}
+            clientId={clientId}
+            onManualToken={handleToken}
+            formError={formError}
+            isLoading={isPending}
+        />
+    )
+}
 
 function ProfileAniListGate(props: {
     profileName: string

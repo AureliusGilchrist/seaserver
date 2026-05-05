@@ -16,6 +16,7 @@ export interface MarketplaceThemeMeta {
     achievementNames: Record<string, string>
     sidebarLabels: Record<string, string>
     previewColors?: { bg: string; primary: string; secondary: string; accent: string }
+    backgroundImageUrl?: string
     cssVars?: Record<string, string>
     fontFamily?: string
     fontHref?: string
@@ -26,6 +27,7 @@ export interface SharedThemeInfo {
     displayName: string
     url: string
     previewColors?: { bg: string; primary: string; secondary: string; accent: string }
+    backgroundImageUrl?: string
     description?: string
 }
 
@@ -61,6 +63,7 @@ export async function fetchMarketplaceThemeMeta(themeId: string): Promise<Market
                 achievementNames?: Record<string, string>
                 sidebarOverrides?: Record<string, { label?: string }>
                 previewColors?: { bg: string; primary: string; secondary: string; accent: string }
+                backgroundImageUrl?: string
                 cssVars?: Record<string, string>
                 fontFamily?: string
                 fontHref?: string
@@ -86,6 +89,7 @@ export async function fetchMarketplaceThemeMeta(themeId: string): Promise<Market
                 achievementNames: raw.achievementNames ?? {},
                 sidebarLabels,
                 previewColors: raw.previewColors,
+                backgroundImageUrl: raw.backgroundImageUrl,
                 cssVars: raw.cssVars,
                 fontFamily: raw.fontFamily,
                 fontHref: raw.fontHref,
@@ -173,6 +177,7 @@ export async function downloadSharedTheme(themeId: string): Promise<SharedThemeI
             displayName: raw.displayName ?? meta?.displayName ?? themeId,
             url: raw.url ?? "",
             previewColors: raw.previewColors ?? meta?.previewColors,
+            backgroundImageUrl: raw.backgroundImageUrl ?? meta?.backgroundImageUrl,
             description: raw.description ?? meta?.description,
         }
         clearSharedThemesCache() // Clear cache so list refreshes

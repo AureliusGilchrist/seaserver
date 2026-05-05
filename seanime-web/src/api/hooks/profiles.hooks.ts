@@ -1,6 +1,7 @@
 import { useServerMutation, useServerQuery } from "@/api/client/requests"
+import { getServerBaseUrl } from "@/api/client/server-url"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { INTERNAL_MigrationStatus as MigrationStatus, INTERNAL_ProfileSummary as ProfileSummary } from "@/api/generated/types"
+import { INTERNAL_MigrationStatus as MigrationStatus, INTERNAL_ProfileSummary as ProfileSummary, Status } from "@/api/generated/types"
 
 type ProfileLoginResponse = { token: string; profile: ProfileSummary }
 import { currentProfileAtom, profileSessionTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
@@ -46,7 +47,30 @@ export function useProfileLogin() {
                     if (!draft) return
                     draft.currentProfile = data.profile
                 })
+                // Invalidate all queries, then refetch server status so the `user` field
+                // gets populated from the profile-scoped DB (prevents ProfileAniListGate
+                // from firing after a successful login on server reboot).
+                // We use axios directly (not raw fetch) so the X-Seanime-Profile-Token
+                // header is included — the token was just stored above via setProfileToken.
                 await qc.invalidateQueries()
+                try {
+                    const axios = (await import("axios")).default
+                    const profileToken = data.token
+                    const res = await axios.get<{ data: Status }>(
+                        getServerBaseUrl() + API_ENDPOINTS.STATUS.GetStatus.endpoint,
+                        {
+                            headers: {
+                                ...(profileToken ? { "X-Seanime-Profile-Token": profileToken } : {}),
+                            },
+                        },
+                    )
+                    const freshStatus = res.data?.data
+                    if (freshStatus) {
+                        setServerStatus(freshStatus)
+                    }
+                } catch {
+                    // Non-fatal: status will still update via the invalidated query refetch
+                }
                 toast.success(`Welcome, ${data.profile.name}`)
             }
         },
