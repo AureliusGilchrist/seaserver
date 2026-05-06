@@ -702,7 +702,7 @@ func (ap *AnilistPlatform) AddMediaToCollection(ctx context.Context, mIds []int)
 		return nil
 	}
 
-	rateLimiter := limiter.NewLimiter(1*time.Second, 1) // 1 request per second
+	rateLimiter := limiter.NewAnilistLimiter() // 30 requests per 6 seconds
 
 	wg := sync.WaitGroup{}
 	for _, _id := range mIds {

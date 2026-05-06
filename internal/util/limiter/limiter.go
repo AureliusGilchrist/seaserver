@@ -8,8 +8,8 @@ import (
 // https://stackoverflow.com/a/72452542
 
 func NewAnilistLimiter() *Limiter {
-	// 30 requests per 10 seconds (user-requested rate)
-	return NewLimiter(10*time.Second, 30)
+	// 30 requests per 6 seconds (user-requested rate)
+	return NewLimiter(6*time.Second, 30)
 }
 
 //----------------------------------------------------------------------------------------------------------------------

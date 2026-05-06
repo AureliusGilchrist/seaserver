@@ -52,7 +52,7 @@ export function MediaEntryCharactersSection(props: RelationsRecommendationsSecti
                         <div
                             data-media-entry-characters-section-grid-item-container
                             className={cn(
-                                "max-w-full flex gap-4",
+                                "max-w-full flex flex-col gap-4",
                                 "rounded-lg relative transition group/episode-list-item select-none",
                                 !!ts.libraryScreenCustomBackgroundImage && ts.libraryScreenCustomBackgroundOpacity > 5
                                     ? "bg-[--background] p-3"
