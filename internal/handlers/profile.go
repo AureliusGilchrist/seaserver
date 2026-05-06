@@ -197,6 +197,79 @@ func (h *Handler) HandleProfileLogin(c echo.Context) error {
 	})
 }
 
+// HandleRevalidateSession
+//
+//	@summary revalidate profile session with PIN (no AniList token required).
+//	@returns map[string]interface{}
+//	@route /api/v1/profiles/revalidate [POST]
+func (h *Handler) HandleRevalidateSession(c echo.Context) error {
+	type body struct {
+		PIN string `json:"pin"`
+	}
+
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	// Get current profile from session
+	session := c.Get("profileSession")
+	if session == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(401, "No active session"))
+	}
+
+	payload := session.(*core.ProfileSessionPayload)
+	profileID := payload.ProfileID
+
+	// Validate PIN against the current profile
+	profile, err := h.App.ProfileManager.ValidatePIN(profileID, b.PIN)
+	if err != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(401, "Invalid PIN"))
+	}
+
+	// Check if profile has AniList token (required for session to be valid)
+	authenticated := h.App.AnilistClientManager.IsAuthenticated(profile.ID)
+	if !authenticated {
+		// Double-check database
+		if h.App.ProfileDatabaseManager != nil {
+			targetDB, dbErr := h.App.ProfileDatabaseManager.GetDatabase(profile.ID)
+			if dbErr == nil {
+				token := targetDB.GetAnilistToken()
+				if token != "" {
+					h.App.AnilistClientManager.UpdateClient(profile.ID, token)
+					authenticated = true
+				}
+			}
+		}
+	}
+
+	if !authenticated {
+		return h.RespondWithError(c, echo.NewHTTPError(401, "Profile has no linked AniList account. Please sign out and sign in again."))
+	}
+
+	// Get client ID from context
+	clientID := ""
+	if cid, ok := c.Get("Seanime-Client-Id").(string); ok {
+		clientID = cid
+	}
+
+	// Create fresh session token
+	token, err := core.CreateProfileSessionToken(
+		h.App.ProfileManager.GetJWTSecret(),
+		profile.ID,
+		profile.IsAdmin,
+		clientID,
+	)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	return h.RespondWithData(c, map[string]interface{}{
+		"token":   token,
+		"profile": profile.ToSummary(),
+	})
+}
+
 // HandleProfileLogout
 //
 //	@summary log out of current profile.

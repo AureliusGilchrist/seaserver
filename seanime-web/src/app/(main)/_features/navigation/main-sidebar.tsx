@@ -2,7 +2,7 @@
 import { useRefreshAnimeCollection } from "@/api/hooks/anilist.hooks"
 import { useLogout } from "@/api/hooks/auth.hooks"
 import { useGetExtensionUpdateData as useGetExtensionUpdateData, usePluginWithIssuesCount } from "@/api/hooks/extensions.hooks"
-import { useProfileLogout } from "@/api/hooks/profiles.hooks"
+import { useProfileLogout, useRevalidateSession } from "@/api/hooks/profiles.hooks"
 import { isLoginModalOpenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useSyncIsActive } from "@/app/(main)/_atoms/sync.atoms"
 import { ElectronUpdateModal } from "@/app/(main)/_electron/electron-update-modal"
@@ -50,7 +50,7 @@ import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
-import { LuBook, LuBookOpen, LuBell, LuCalendar, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuRefreshCw, LuRss, LuSettings, LuTv, LuUsers } from "react-icons/lu"
+import { LuBook, LuBookOpen, LuBell, LuCalendar, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUsers } from "react-icons/lu"
 import { MdOutlineConnectWithoutContact } from "react-icons/md"
 import { PiArrowCircleLeftDuotone, PiArrowCircleRightDuotone } from "react-icons/pi"
 import { RiListCheck3 } from "react-icons/ri"
@@ -719,9 +719,12 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
     const [dropdownOpen, setDropdownOpen] = React.useState(false)
     const [loginModal, setLoginModal] = useAtom(isLoginModalOpenAtom)
     const [loggingIn, setLoggingIn] = React.useState(false)
+    const [revalidateModalOpen, setRevalidateModalOpen] = React.useState(false)
+    const [revalidating, setRevalidating] = React.useState(false)
 
     // Profile logout
     const { mutate: profileLogout } = useProfileLogout()
+    const { mutate: revalidateSession } = useRevalidateSession()
     const confirmProfileLogout = useConfirmationDialog({
         title: "Log out of profile",
         description: "Are you sure you want to log out of the current profile?",
@@ -787,6 +790,9 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
                     <DropdownMenuItem onClick={() => { setDropdownOpen(false); router.push("/profile/me") }}>
                         <LuUsers /> My Profile
                     </DropdownMenuItem>
+                    {!!serverStatus?.currentProfile && <DropdownMenuItem onClick={() => { setDropdownOpen(false); setRevalidateModalOpen(true) }}>
+                        <LuShieldCheck /> Revalidate session
+                    </DropdownMenuItem>}
                     {!!serverStatus?.currentProfile && <DropdownMenuItem onClick={confirmProfileLogout.open}>
                         <BiLogOut /> Log out of profile
                     </DropdownMenuItem>}
@@ -846,6 +852,42 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
                     </Form>
 
                 </div>
+            </Modal>
+
+            {/* Revalidate Session Modal */}
+            <Modal
+                title="Revalidate Session"
+                description="Enter your profile PIN to refresh your session."
+                open={revalidateModalOpen}
+                onOpenChange={(v) => setRevalidateModalOpen(v)}
+                overlayClass="bg-opacity-95 bg-gray-950"
+                contentClass="border"
+            >
+                <Form
+                    schema={defineSchema(({ z }) => z.object({
+                        pin: z.string().min(1, "PIN is required"),
+                    }))}
+                    onSubmit={data => {
+                        setRevalidating(true)
+                        revalidateSession({ pin: data.pin }, {
+                            onSuccess: () => {
+                                setRevalidateModalOpen(false)
+                                setRevalidating(false)
+                            },
+                            onError: () => {
+                                setRevalidating(false)
+                            },
+                        })
+                    }}
+                >
+                    <Field.Password
+                        name="pin"
+                        label="Enter PIN"
+                        fieldClass="px-4"
+                        autoFocus
+                    />
+                    <Field.Submit showLoadingOverlayOnSuccess loading={revalidating}>Revalidate</Field.Submit>
+                </Form>
             </Modal>
 
             <ConfirmationDialog {...confirmSignOut} />

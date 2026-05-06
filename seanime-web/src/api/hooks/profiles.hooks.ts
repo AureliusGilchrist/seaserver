@@ -94,6 +94,32 @@ export function useProfileLogout() {
     })
 }
 
+type RevalidateSessionResponse = { token: string; profile: ProfileSummary }
+
+export function useRevalidateSession() {
+    const qc = useQueryClient()
+    const setProfileToken = useSetAtom(profileSessionTokenAtom)
+    const setServerStatus = useSetAtom(serverStatusAtom)
+
+    return useServerMutation<RevalidateSessionResponse, { pin: string }>({
+        endpoint: "/api/v1/profiles/revalidate",
+        method: "POST",
+        mutationKey: ["revalidate-session"],
+        onSuccess: async (data) => {
+            if (data) {
+                setProfileToken(data.token)
+                // Update server status with fresh profile
+                setServerStatus(draft => {
+                    if (!draft) return
+                    draft.currentProfile = data.profile
+                })
+                await qc.invalidateQueries()
+                toast.success("Session revalidated successfully")
+            }
+        },
+    })
+}
+
 export function useCreateProfile() {
     const qc = useQueryClient()
     return useServerMutation<ProfileSummary, { name: string; pin: string; isAdmin: boolean; anilistToken?: string }>({

@@ -232,6 +232,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/profiles", h.HandleCreateProfile)
 	v1.GET("/profiles/current", h.HandleGetCurrentProfile)
 	v1.POST("/profiles/login", h.HandleProfileLogin)
+	v1.POST("/profiles/revalidate", h.HandleRevalidateSession)
 	v1.POST("/profiles/logout", h.HandleProfileLogout)
 	v1.PATCH("/profiles/:id", h.HandleUpdateProfile)
 	v1.DELETE("/profiles/:id", h.HandleDeleteProfile)

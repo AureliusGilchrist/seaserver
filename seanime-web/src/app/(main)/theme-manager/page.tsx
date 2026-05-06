@@ -1796,7 +1796,7 @@ function SidePanelWallpaperPicker({
         if (downloadingId) return
         setDownloadingId(w.id)
         try {
-            const result = await downloadBgMutation.mutateAsync({ url: w.path })
+            const result = await downloadBgMutation.mutateAsync({ url: w.path, themeId: config.id })
             if (result) setActiveBackgroundUrl(result.url)
         } catch { } finally {
             setDownloadingId(null)
