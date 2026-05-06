@@ -338,7 +338,12 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 		timeSince := time.Since(reqTime)
 		dur := timeSince.Truncate(time.Millisecond).String()
 		if err != nil {
-			ac.logger.Error().Str("duration", dur).Str("rlr", rlRemainingStr).Err(err).Msg("anilist: Failed Request")
+			// Log context deadline exceeded as WARN to reduce log spam during transient issues
+			if errors.Is(err, context.DeadlineExceeded) {
+				ac.logger.Warn().Str("duration", dur).Str("rlr", rlRemainingStr).Err(err).Msg("anilist: Request timeout")
+			} else {
+				ac.logger.Error().Str("duration", dur).Str("rlr", rlRemainingStr).Err(err).Msg("anilist: Failed Request")
+			}
 		} else {
 			ac.broadcastOnline()
 			if timeSince > 900*time.Millisecond {

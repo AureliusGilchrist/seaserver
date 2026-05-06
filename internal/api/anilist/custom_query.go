@@ -33,7 +33,12 @@ func customQuery(body []byte, logger *zerolog.Logger, token ...string) (data int
 		timeSince := time.Since(reqTime)
 		formattedDur := timeSince.Truncate(time.Millisecond).String()
 		if err != nil {
-			logger.Error().Str("duration", formattedDur).Str("rlr", rlRemainingStr).Err(err).Msg("anilist: Failed Request")
+			// Log context deadline exceeded as WARN to reduce log spam during transient issues
+			if errors.Is(err, context.DeadlineExceeded) {
+				logger.Warn().Str("duration", formattedDur).Str("rlr", rlRemainingStr).Err(err).Msg("anilist: Request timeout")
+			} else {
+				logger.Error().Str("duration", formattedDur).Str("rlr", rlRemainingStr).Err(err).Msg("anilist: Failed Request")
+			}
 		} else {
 			if timeSince > 600*time.Millisecond {
 				logger.Warn().Str("rtt", formattedDur).Str("rlr", rlRemainingStr).Msg("anilist: Long Request")

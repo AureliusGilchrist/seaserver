@@ -165,6 +165,10 @@ export function useServerMutation<R = void, V = void>(
     return useMutation<R | undefined, SeaError, V>({
         onError: error => {
             console.log("Mutation error", error)
+            // 401 errors are always handled by the call-site's own onError (e.g. profile login
+            // showing the AniList token modal). Showing a generic toast on top of that causes
+            // duplicate noise, so bail out early and let the caller deal with it.
+            if (error?.response?.status === 401) return
             // Use detailed error formatting for specific, actionable messages
             const { title, description } = formatErrorForToast(error, `${method} ${endpoint}`)
             if (title.includes("feature disabled") || description?.includes("feature disabled")) {
@@ -237,6 +241,11 @@ export function useServerQuery<R, V = any>(
                 window.location.href = "/public/auth"
                 return
             }
+            // Suppress 401 and "not authenticated" errors — these are expected during the
+            // startup / login flow when queries fire before auth is fully established.
+            if (props.error?.response?.status === 401) return
+            const serverErrMsg = props.error?.response?.data?.error ?? ""
+            if (serverErrMsg === "not authenticated" || serverErrMsg === "unauthorized") return
             console.log("Server error", props.error)
             // Use detailed error formatting for specific, actionable messages
             const { title, description } = formatErrorForToast(props.error, `${method} ${endpoint}`)

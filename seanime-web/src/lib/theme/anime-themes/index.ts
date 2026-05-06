@@ -1,4 +1,4 @@
-export * from "./types"
+﻿export * from "./types"
 export * from "./seanime-theme"
 export * from "./custom-theme"
 export * from "./hidden-themes"
