@@ -53,21 +53,32 @@ export function CursorProvider({ children }: { children: React.ReactNode }) {
         const def = CURSOR_MAP[activeCursorId]
         const cursorCss = def?.cursorCss ?? "auto"
 
+        const styleId = "sea-custom-cursor-style"
+        let styleEl = document.getElementById(styleId) as HTMLStyleElement | null
+
         if (cursorCss === "auto" || cursorCss === "default") {
-            document.documentElement.style.removeProperty("cursor")
-            document.documentElement.style.setProperty("--sea-cursor", "auto")
-            // Let the theme cursor take effect (remove the theme override suppression)
+            document.documentElement.style.removeProperty("--sea-cursor")
+            styleEl?.remove()
         } else {
             // Remove any theme cursor style so the reward-shop cursor wins
             const themeCursorStyle = document.getElementById("anime-theme-cursors")
             if (themeCursorStyle) themeCursorStyle.remove()
-            document.documentElement.style.setProperty("cursor", cursorCss)
             document.documentElement.style.setProperty("--sea-cursor", cursorCss)
+            if (!styleEl) {
+                styleEl = document.createElement("style")
+                styleEl.id = styleId
+                document.head.appendChild(styleEl)
+            }
+            styleEl.textContent = [
+                `*, *:hover, *:active, *:focus { cursor: ${cursorCss} !important; }`,
+                // Glassmorphism: apply backdrop-blur to elements with semi-transparent Tailwind backgrounds
+                `[class*="bg-"][class*="/"] { backdrop-filter: blur(8px) !important; }`,
+            ].join("\n")
         }
 
         return () => {
-            document.documentElement.style.removeProperty("cursor")
             document.documentElement.style.removeProperty("--sea-cursor")
+            document.getElementById(styleId)?.remove()
         }
     }, [activeCursorId])
 

@@ -2,7 +2,7 @@
 import { useRefreshAnimeCollection } from "@/api/hooks/anilist.hooks"
 import { useLogout } from "@/api/hooks/auth.hooks"
 import { useGetExtensionUpdateData as useGetExtensionUpdateData, usePluginWithIssuesCount } from "@/api/hooks/extensions.hooks"
-import { useProfileLogout, useRevalidateSession } from "@/api/hooks/profiles.hooks"
+import { useProfileLogin, useProfileLogout, useRevalidateSession } from "@/api/hooks/profiles.hooks"
 import { isLoginModalOpenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useSyncIsActive } from "@/app/(main)/_atoms/sync.atoms"
 import { ElectronUpdateModal } from "@/app/(main)/_electron/electron-update-modal"
@@ -45,13 +45,13 @@ import { useAtom, useSetAtom } from "jotai"
 import { SeaLink as Link } from "@/components/shared/sea-link"
 import { usePathname, useRouter } from "@/lib/navigation"
 import React from "react"
-import { BiChevronRight, BiExtension, BiLogIn, BiLogOut } from "react-icons/bi"
+import { BiCheck, BiChevronRight, BiExtension, BiLogIn, BiLogOut } from "react-icons/bi"
 import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
 import { LuBook, LuBookOpen, LuBell, LuCalendar, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUsers } from "react-icons/lu"
-import { MdOutlineConnectWithoutContact } from "react-icons/md"
+import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
 import { PiArrowCircleLeftDuotone, PiArrowCircleRightDuotone } from "react-icons/pi"
 import { RiListCheck3 } from "react-icons/ri"
 import { SiQbittorrent, SiTransmission } from "react-icons/si"
@@ -721,9 +721,80 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
     const [loggingIn, setLoggingIn] = React.useState(false)
     const [revalidateModalOpen, setRevalidateModalOpen] = React.useState(false)
     const [revalidating, setRevalidating] = React.useState(false)
+    const [revalidatePin, setRevalidatePin] = React.useState("")
+    const [revalidatePinError, setRevalidatePinError] = React.useState("")
+    const [revalidatePressedKey, setRevalidatePressedKey] = React.useState<string | null>(null)
+    const revalidatePinRef = React.useRef(revalidatePin)
+    React.useEffect(() => { revalidatePinRef.current = revalidatePin }, [revalidatePin])
+
+    const handleRevalidateSubmit = React.useCallback(() => {
+        const currentPin = revalidatePinRef.current
+        if (currentPin.length < 4) return
+        const profileId = serverStatus?.currentProfile?.id
+        if (!profileId) return
+        setRevalidating(true)
+        setRevalidatePinError("")
+        profileLogout(undefined, {
+            onSuccess: () => {
+                profileLogin({ profileId, pin: currentPin }, {
+                    onSuccess: () => {
+                        setRevalidateModalOpen(false)
+                        setRevalidating(false)
+                        setRevalidatePin("")
+                    },
+                    onError: () => {
+                        setRevalidating(false)
+                        setRevalidatePinError("Incorrect PIN")
+                        setRevalidatePin("")
+                    },
+                })
+            },
+            onError: () => {
+                setRevalidating(false)
+                setRevalidatePinError("Logout failed")
+            },
+        })
+    }, [serverStatus, profileLogout, profileLogin])
+
+    const handleRevalidateKeypad = (key: string) => {
+        setRevalidatePressedKey(key)
+        setTimeout(() => setRevalidatePressedKey(null), 150)
+        if (key === "backspace") {
+            setRevalidatePin(prev => prev.slice(0, -1))
+            setRevalidatePinError("")
+        } else if (key === "submit") {
+            handleRevalidateSubmit()
+        } else {
+            setRevalidatePin(prev => {
+                if (prev.length >= 8) return prev
+                setRevalidatePinError("")
+                return prev + key
+            })
+        }
+    }
+
+    React.useEffect(() => {
+        if (revalidatePin.length === 8 && revalidateModalOpen) handleRevalidateSubmit()
+    }, [revalidatePin])
+
+    React.useEffect(() => {
+        if (!revalidateModalOpen) { setRevalidatePin(""); setRevalidatePinError("") }
+    }, [revalidateModalOpen])
+
+    React.useEffect(() => {
+        if (!revalidateModalOpen) return
+        const handler = (e: KeyboardEvent) => {
+            if (e.key >= "0" && e.key <= "9") handleRevalidateKeypad(e.key)
+            else if (e.key === "Backspace") handleRevalidateKeypad("backspace")
+            else if (e.key === "Enter") handleRevalidateSubmit()
+        }
+        window.addEventListener("keydown", handler)
+        return () => window.removeEventListener("keydown", handler)
+    }, [revalidateModalOpen, handleRevalidateSubmit])
 
     // Profile logout
     const { mutate: profileLogout } = useProfileLogout()
+    const { mutate: profileLogin } = useProfileLogin()
     const { mutate: revalidateSession } = useRevalidateSession()
     const confirmProfileLogout = useConfirmationDialog({
         title: "Log out of profile",
@@ -857,38 +928,94 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
             {/* Revalidate Session Modal */}
             <Modal
                 title="Revalidate Session"
-                description="Enter your profile PIN to refresh your session."
+                description="Enter your profile PIN to re-authenticate."
                 open={revalidateModalOpen}
                 onOpenChange={(v) => setRevalidateModalOpen(v)}
                 overlayClass="bg-opacity-95 bg-gray-950"
                 contentClass="border"
             >
-                <Form
-                    schema={defineSchema(({ z }) => z.object({
-                        pin: z.string().min(1, "PIN is required"),
-                    }))}
-                    onSubmit={data => {
-                        setRevalidating(true)
-                        revalidateSession({ pin: data.pin }, {
-                            onSuccess: () => {
-                                setRevalidateModalOpen(false)
-                                setRevalidating(false)
-                            },
-                            onError: () => {
-                                setRevalidating(false)
-                            },
-                        })
-                    }}
-                >
-                    <Field.Text
-                        type="password"
-                        name="pin"
-                        label="Enter PIN"
-                        fieldClass="px-4"
-                        autoFocus
-                    />
-                    <Field.Submit showLoadingOverlayOnSuccess loading={revalidating}>Revalidate</Field.Submit>
-                </Form>
+                <div className="flex flex-col items-center gap-5 py-2">
+                    {/* Lock icon */}
+                    <div className="relative flex items-center justify-center w-16 h-16 rounded-full bg-[--subtle] border border-[--border]">
+                        <LuShieldCheck className="text-3xl text-[--brand]" />
+                    </div>
+
+                    {/* Dot indicators */}
+                    <div className="flex gap-3">
+                        {Array.from({ length: 8 }).map((_, i) => (
+                            <div
+                                key={i}
+                                className={cn(
+                                    "w-3 h-3 rounded-full transition-all duration-200",
+                                    i < revalidatePin.length
+                                        ? "bg-[--brand] scale-110"
+                                        : i < 4
+                                            ? "bg-[--border]"
+                                            : "bg-[--border] opacity-40",
+                                )}
+                            />
+                        ))}
+                    </div>
+
+                    {revalidatePinError && (
+                        <p className="text-sm text-red-500">{revalidatePinError}</p>
+                    )}
+
+                    {/* Keypad */}
+                    <div className="grid grid-cols-3 gap-3">
+                        {["1","2","3","4","5","6","7","8","9"].map(digit => (
+                            <button
+                                key={digit}
+                                type="button"
+                                disabled={revalidatePin.length >= 8 || revalidating}
+                                onClick={() => handleRevalidateKeypad(digit)}
+                                className={cn(
+                                    "w-16 h-16 rounded-full flex items-center justify-center text-xl font-semibold transition-all duration-150 select-none",
+                                    "focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed",
+                                    "bg-[--paper] border border-[--border] text-[--foreground]",
+                                    "hover:bg-[--subtle] active:bg-[--brand]/20 active:border-[--brand]/50",
+                                    revalidatePressedKey === digit && "scale-90 bg-[--brand]/20 border-[--brand]/50",
+                                )}
+                            >{digit}</button>
+                        ))}
+                        <button
+                            type="button"
+                            disabled={revalidatePin.length === 0 || revalidating}
+                            onClick={() => handleRevalidateKeypad("backspace")}
+                            className={cn(
+                                "w-16 h-16 rounded-full flex items-center justify-center text-xl transition-all duration-150 select-none",
+                                "focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed",
+                                "bg-transparent border border-transparent text-[--muted]",
+                                "hover:bg-[--subtle] active:text-[--foreground]",
+                                revalidatePressedKey === "backspace" && "scale-90 text-[--foreground]",
+                            )}
+                        ><MdBackspace className="text-xl" /></button>
+                        <button
+                            type="button"
+                            disabled={revalidatePin.length < 4 || revalidating}
+                            onClick={() => handleRevalidateKeypad("0")}
+                            className={cn(
+                                "w-16 h-16 rounded-full flex items-center justify-center text-xl font-semibold transition-all duration-150 select-none",
+                                "focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed",
+                                "bg-[--paper] border border-[--border] text-[--foreground]",
+                                "hover:bg-[--subtle] active:bg-[--brand]/20",
+                                revalidatePressedKey === "0" && "scale-90 bg-[--brand]/20 border-[--brand]/50",
+                            )}
+                        >0</button>
+                        <button
+                            type="button"
+                            disabled={revalidatePin.length < 4 || revalidating}
+                            onClick={() => handleRevalidateKeypad("submit")}
+                            className={cn(
+                                "w-16 h-16 rounded-full flex items-center justify-center text-2xl transition-all duration-150 select-none",
+                                "focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed",
+                                "bg-[--brand]/20 border border-[--brand]/30 text-[--brand]",
+                                "hover:bg-[--brand]/30 active:bg-[--brand]/40",
+                                revalidatePressedKey === "submit" && "scale-90 bg-[--brand]/40",
+                            )}
+                        ><BiCheck /></button>
+                    </div>
+                </div>
             </Modal>
 
             <ConfirmationDialog {...confirmSignOut} />
