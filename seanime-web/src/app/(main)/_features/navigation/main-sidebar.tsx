@@ -727,6 +727,11 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
     const revalidatePinRef = React.useRef(revalidatePin)
     React.useEffect(() => { revalidatePinRef.current = revalidatePin }, [revalidatePin])
 
+    // Profile logout
+    const { mutate: profileLogout } = useProfileLogout()
+    const { mutate: profileLogin } = useProfileLogin()
+    const { mutate: revalidateSession } = useRevalidateSession()
+
     const handleRevalidateSubmit = React.useCallback(() => {
         const currentPin = revalidatePinRef.current
         if (currentPin.length < 4) return
@@ -792,10 +797,6 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
         return () => window.removeEventListener("keydown", handler)
     }, [revalidateModalOpen, handleRevalidateSubmit])
 
-    // Profile logout
-    const { mutate: profileLogout } = useProfileLogout()
-    const { mutate: profileLogin } = useProfileLogin()
-    const { mutate: revalidateSession } = useRevalidateSession()
     const confirmProfileLogout = useConfirmationDialog({
         title: "Log out of profile",
         description: "Are you sure you want to log out of the current profile?",
