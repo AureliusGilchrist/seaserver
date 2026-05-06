@@ -8,7 +8,6 @@ import (
 	"seanime/internal/customsource"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/library/anime"
-	"seanime/internal/platforms/anilist_platform"
 	"seanime/internal/torrentstream"
 	"seanime/internal/util"
 	"seanime/internal/util/result"
