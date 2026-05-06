@@ -1,6 +1,7 @@
 package plugin_ui
 
 import (
+	"fmt"
 	"seanime/internal/events"
 	"seanime/internal/extension"
 	"seanime/internal/util/result"

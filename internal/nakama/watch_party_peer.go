@@ -3,7 +3,6 @@ package nakama
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"seanime/internal/events"
 	"seanime/internal/torrentstream"
