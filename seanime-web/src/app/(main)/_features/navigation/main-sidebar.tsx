@@ -880,7 +880,8 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
                         })
                     }}
                 >
-                    <Field.Password
+                    <Field.Text
+                        type="password"
                         name="pin"
                         label="Enter PIN"
                         fieldClass="px-4"
