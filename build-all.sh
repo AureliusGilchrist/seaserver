@@ -18,7 +18,7 @@ STATS_FILE="$SCRIPT_DIR/build-all-stats.json"
 BOLD="\033[1m"; DIM="\033[2m"; RESET="\033[0m"
 RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; BLUE="\033[34m"; MAGENTA="\033[35m"; CYAN="\033[36m"
 
-divider() { printf "${DIM}%s${RESET}\n" "────────────────────────────────────────────"; } q
+divider() { printf "${DIM}%s${RESET}\n" "────────────────────────────────────────────"; }
 box_title() { divider; printf "${BOLD}${1}${RESET}\n"; divider; }
 step() { printf "${BLUE}${BOLD}[%s]${RESET} %s\n" "$1" "$2"; }
 substep() { printf "${CYAN}  •${RESET} %s\n" "$1"; }
