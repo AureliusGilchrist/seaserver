@@ -439,7 +439,7 @@ func (c *Context) handleException(err error) {
 	// defer c.mu.Unlock()
 
 	c.wsEventManager.SendEvent(events.ConsoleWarn, fmt.Sprintf("plugin(%s): Exception: %s", c.ext.ID, err.Error()))
-	c.wsEventManager.SendEvent(events.ErrorToast, fmt.Sprintf("plugin(%s): Exception: %s", c.ext.ID, err.Error()))
+	c.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToastFromError(fmt.Sprintf("Plugin '%s' error", c.ext.ID), err))
 
 	c.exceptionCount++
 	if c.exceptionCount >= MaxExceptions {
@@ -454,7 +454,7 @@ func (c *Context) fatalError(err error) {
 	c.wsEventManager.SendEvent(events.ConsoleWarn, fmt.Sprintf("plugin(%s): Encountered fatal error, interrupting plugin", c.ext.ID))
 	c.ui.lastException = err.Error()
 
-	c.wsEventManager.SendEvent(events.ErrorToast, fmt.Sprintf("plugin(%s): Fatal error: %s", c.ext.ID, err.Error()))
+	c.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToast(fmt.Sprintf("Plugin '%s' crashed", c.ext.ID), err.Error()))
 	c.wsEventManager.SendEvent(events.ConsoleWarn, fmt.Sprintf("plugin(%s): Fatal error: %s", c.ext.ID, err.Error()))
 
 	// Unload the UI and signal the Plugin that it's been terminated

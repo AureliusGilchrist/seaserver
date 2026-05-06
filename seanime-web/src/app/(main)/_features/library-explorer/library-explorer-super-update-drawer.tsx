@@ -1,5 +1,6 @@
 import { useSuperUpdateLocalFiles } from "@/api/generated/library_explorer.hooks"
 import { Anime_LocalFileMetadata, Anime_LocalFileType, LibraryExplorer_FileTreeNodeJSON } from "@/api/generated/types"
+import { formatErrorForToast } from "@/lib/helpers/error-details"
 import {
     libraryExplorer_selectedPathsAtom,
     libraryExplorer_superUpdateDrawerOpenAtom,
@@ -631,7 +632,8 @@ export function LibraryExplorerSuperUpdateDrawer(props: LibraryExplorerSuperUpda
                 setMetadataEdits([])
             },
             onError: (error) => {
-                toast.error("Failed to rename files: " + error.message)
+                const { title, description } = formatErrorForToast(error, "Rename files")
+                toast.error(title, { description })
             },
         })
     }

@@ -403,12 +403,12 @@ func (wpm *WatchPartyManager) handleWatchPartyStateChangedEvent(payload *WatchPa
 			// If the params are missing, the host didn't return them
 			if payload.Session.CurrentMediaInfo.TorrentStreamParams == nil {
 				wpm.logger.Error().Msg("nakama: No torrent stream start options found")
-				wpm.manager.wsEventManager.SendEvent(events.ErrorToast, "Watch party: Failed to play media: Host did not return torrent stream start options")
+				wpm.manager.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToast("Watch party: Playback failed", "Host did not provide torrent stream options. Try restarting the stream or switching hosts."))
 				return
 			}
 			if !wpm.manager.torrentstreamRepository.IsEnabled() {
 				wpm.logger.Error().Msg("nakama: Torrent streaming is not enabled")
-				wpm.manager.wsEventManager.SendEvent(events.ErrorToast, "Watch party: Failed to play media: Torrent streaming is not enabled")
+				wpm.manager.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToast("Watch party: Torrent streaming disabled", "Torrent streaming is not enabled on your client. Enable it in settings to participate in this watch party."))
 				return
 			}
 			// Overwrite the player used and client ID
@@ -430,7 +430,7 @@ func (wpm *WatchPartyManager) handleWatchPartyStateChangedEvent(payload *WatchPa
 		case WatchPartyStreamTypeOnlinestream:
 			if payload.Session.CurrentMediaInfo.OnlinestreamParams == nil {
 				wpm.logger.Error().Msg("nakama: No onlinestream params found")
-				wpm.manager.wsEventManager.SendEvent(events.ErrorToast, "Watch party: Failed to play media: Host did not return onlinestream params")
+				wpm.manager.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToast("Watch party: Playback failed", "Host did not provide online stream options. Try restarting the stream or switching hosts."))
 				return
 			}
 			// Since it's an online stream force the current player to VideoCore
@@ -440,7 +440,7 @@ func (wpm *WatchPartyManager) handleWatchPartyStateChangedEvent(payload *WatchPa
 		}
 		if err != nil {
 			wpm.logger.Error().Err(err).Msg("nakama: Failed to play watch party media")
-			wpm.manager.wsEventManager.SendEvent(events.ErrorToast, fmt.Sprintf("Watch party: Failed to play media: %s", err.Error()))
+			wpm.manager.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToastFromError("Watch party: Failed to play media", err))
 		}
 
 		//// Auto-leave the watch party when playback stops

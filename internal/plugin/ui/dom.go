@@ -495,7 +495,7 @@ func (d *DOMManager) jsObserveInView(call goja.FunctionCall) goja.Value {
 func (d *DOMManager) throwAndUnload(str string) {
 	go func() {
 		<-time.After(500 * time.Millisecond)
-		d.ctx.wsEventManager.SendEvent(events.ErrorToast, d.ctx.ext.ID+": "+str)
+		d.ctx.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToast(fmt.Sprintf("Plugin '%s' error", d.ctx.ext.ID), str))
 	}()
 	d.ctx.ui.UnloadFromInside(true)
 	d.ctx.ui.onCrash(str)

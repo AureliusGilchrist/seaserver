@@ -245,7 +245,7 @@ func (m *Manager) listenToEvents() {
 					playlist, err := db_bridge.GetPlaylist(m.db, payload.DbId)
 					if err != nil {
 						m.logger.Error().Err(err).Msg("playlist: failed to get playlist")
-						m.wsEventManager.SendEventTo(m.clientId, events.ErrorToast, "Failed to retrieve playlist info")
+						m.wsEventManager.SendEventTo(m.clientId, events.ErrorToast, events.NewErrorToastFromError("Failed to retrieve playlist info", err))
 						m.isStartingPlaylist.Store(false)
 						continue
 					}

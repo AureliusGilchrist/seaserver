@@ -124,7 +124,7 @@ func (m *Manager) connectToRoomAsHost(room *Room) {
 	wsURL, err := buildRoomHostWsURL(room.HostWsUrl, room.Password, constants.Version)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("nakama: Failed to build room host WS URL")
-		m.wsEventManager.SendEvent(events.ErrorToast, "Failed to parse room URL")
+		m.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToastFromError("Failed to parse room URL", err))
 		return
 	}
 	m.logger.Info().Str("roomId", room.ID).Str("wsUrl", wsURL).Msg("nakama: Connecting to room as host")
@@ -137,7 +137,7 @@ func (m *Manager) connectToRoomAsHost(room *Room) {
 	conn, _, err := dialer.Dial(wsURL, nil)
 	if err != nil {
 		m.logger.Error().Err(err).Msg("nakama: Failed to connect to room as host")
-		m.wsEventManager.SendEvent(events.ErrorToast, "Failed to connect to room server")
+		m.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToastFromError("Failed to connect to room server", err))
 		return
 	}
 
@@ -380,7 +380,7 @@ func (m *Manager) reconnectToRoomAsHost(room *Room) {
 	m.wsEventManager.SendEvent(events.NakamaRoomClosed, map[string]interface{}{
 		"roomId": room.ID,
 	})
-	m.wsEventManager.SendEvent(events.ErrorToast, "Failed to reconnect to room. Please create a new room.")
+	m.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToast("Room connection lost", "Failed to reconnect to room. Please create a new room."))
 }
 
 // DisconnectFromRoom disconnects the host from the current room

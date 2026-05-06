@@ -569,7 +569,7 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 
 	if err != nil {
 		_ps.ProgressUpdated = false
-		pm.sendEventToCurrentClient(events.ErrorToast, "Failed to update progress on AniList")
+		pm.sendEventToCurrentClient(events.ErrorToast, events.NewErrorToastFromError("Failed to update AniList progress", err))
 	} else {
 		_ps.ProgressUpdated = true
 		pm.sendEventToCurrentClient(events.PlaybackManagerProgressUpdated, _ps)

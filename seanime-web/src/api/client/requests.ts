@@ -1,6 +1,7 @@
 "use client"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { formatErrorForToast } from "@/lib/helpers/error-details"
 import { useMutation, UseMutationOptions, useQuery, UseQueryOptions } from "@tanstack/react-query"
 import axios, { AxiosError } from "axios"
 import { getDefaultStore } from "jotai"
@@ -164,9 +165,12 @@ export function useServerMutation<R = void, V = void>(
     return useMutation<R | undefined, SeaError, V>({
         onError: error => {
             console.log("Mutation error", error)
-            const { title, description } = _handleSeaError(error.response?.data)
+            // Use detailed error formatting for specific, actionable messages
+            const { title, description } = formatErrorForToast(error, `${method} ${endpoint}`)
             if (title.includes("feature disabled") || description?.includes("feature disabled")) {
-                toast.warning("This feature is disabled")
+                toast.warning("This feature is disabled", {
+                    description: "This functionality is currently turned off in settings.",
+                })
                 return
             }
             if (title) toast.error(title, { description })
@@ -234,7 +238,8 @@ export function useServerQuery<R, V = any>(
                 return
             }
             console.log("Server error", props.error)
-            const { title, description } = _handleSeaError(props.error?.response?.data)
+            // Use detailed error formatting for specific, actionable messages
+            const { title, description } = formatErrorForToast(props.error, `${method} ${endpoint}`)
             if (title.includes("feature disabled") || description?.includes("feature disabled")) {
                 return
             }
@@ -242,7 +247,7 @@ export function useServerQuery<R, V = any>(
                 toast.error(title, { description })
             }
         }
-    }, [props.error, props.isError, muteError])
+    }, [props.error, props.isError, muteError, endpoint, method, setPassword, pathname])
 
     return props
 }

@@ -119,3 +119,30 @@ const (
 	// Milestone events
 	MilestoneAchieved = "milestone-achieved"
 )
+
+// ToastPayload is used to send structured error/info messages to the frontend
+// The frontend supports either a plain string or this structured format for more detailed messages
+type ToastPayload struct {
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+}
+
+// NewErrorToast creates a structured error toast with title and description
+func NewErrorToast(title string, description string) ToastPayload {
+	return ToastPayload{Title: title, Description: description}
+}
+
+// NewErrorToastFromError creates a structured error from an error with context
+func NewErrorToastFromError(context string, err error) ToastPayload {
+	if err == nil {
+		return ToastPayload{Title: context + " failed"}
+	}
+	errStr := err.Error()
+	if len(errStr) > 300 {
+		errStr = errStr[:300] + "..."
+	}
+	return ToastPayload{
+		Title:       context,
+		Description: errStr,
+	}
+}

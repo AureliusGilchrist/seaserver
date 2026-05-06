@@ -196,7 +196,7 @@ func (u *UI) Register(callback string) error {
 	if err != nil {
 		u.mu.Unlock()
 		u.logger.Error().Err(err).Msg("plugin: Encountered exception in UI handler, unloading plugin")
-		u.wsEventManager.SendEvent(events.ErrorToast, fmt.Sprintf("plugin(%s): Encountered exception in UI handler: %s", u.ext.ID, err.Error()))
+		u.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToastFromError(fmt.Sprintf("Plugin '%s' UI error", u.ext.ID), err))
 		u.wsEventManager.SendEvent(events.ConsoleLog, fmt.Sprintf("plugin(%s): Encountered exception in UI handler: %s", u.ext.ID, err.Error()))
 		// Unload the UI and signal the Plugin that it's been terminated
 		u.UnloadFromInside(true)

@@ -165,7 +165,7 @@ func (m *Manager) connectToHostAsync() {
 		m.logger.Info().Msg("nakama: Connection attempts cancelled")
 	default:
 		m.logger.Error().Msg("nakama: Failed to connect to host after all retries")
-		m.wsEventManager.SendEvent(events.ErrorToast, "Failed to connect to Nakama host after multiple attempts.")
+		m.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToast("Connection failed", "Failed to connect to Nakama host after multiple attempts. Check your internet connection and try again."))
 	}
 }
 

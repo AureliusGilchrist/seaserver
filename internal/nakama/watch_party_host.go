@@ -807,7 +807,7 @@ func (wpm *WatchPartyManager) EnableRelayMode(peerId string) {
 	if !exists {
 		session.mu.Unlock()
 		wpm.logger.Warn().Str("peerId", peerId).Msg("nakama: Cannot enable relay mode, peer not found in session")
-		wpm.manager.wsEventManager.SendEvent(events.ErrorToast, "Peer not found in session")
+		wpm.manager.wsEventManager.SendEvent(events.ErrorToast, events.NewErrorToast("Watch party error", "Peer not found in session. The user may have disconnected."))
 		return
 	}
 	session.IsRelayMode = true

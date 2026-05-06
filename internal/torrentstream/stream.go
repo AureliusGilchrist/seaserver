@@ -291,7 +291,7 @@ func (r *Repository) sendStreamToExternalPlayer(opts *StartStreamOptions, comple
 			r.sendStateEvent(eventLoadingFailed)
 			_ = r.StopStream()
 			r.logger.Error().Err(err).Msg("torrentstream: Failed to start the stream")
-			r.wsEventManager.SendEventTo(opts.ClientId, events.ErrorToast, err.Error())
+			r.wsEventManager.SendEventTo(opts.ClientId, events.ErrorToast, events.NewErrorToastFromError("Failed to start stream", err))
 		}
 
 		r.wsEventManager.SendEvent(events.ShowIndefiniteLoader, "torrentstream")

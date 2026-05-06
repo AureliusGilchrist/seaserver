@@ -139,7 +139,7 @@ func (vc *VideoCore) setupOnlinestreamEffects() {
 					ConvertTo: mkvparser.SubtitleTypeASS,
 				})
 				if err != nil {
-					vc.wsEventManager.SendEventTo(vc.GetCurrentClientId(), events.ErrorToast, "Failed to upload subtitle file: "+err.Error())
+					vc.wsEventManager.SendEventTo(vc.GetCurrentClientId(), events.ErrorToast, events.NewErrorToastFromError("Failed to upload subtitle file", err))
 					continue
 				}
 				track := &VideoSubtitleTrack{
