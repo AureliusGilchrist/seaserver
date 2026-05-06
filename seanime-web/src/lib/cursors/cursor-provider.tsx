@@ -72,7 +72,8 @@ export function CursorProvider({ children }: { children: React.ReactNode }) {
             styleEl.textContent = [
                 `*, *:hover, *:active, *:focus { cursor: ${cursorCss} !important; }`,
                 // Glassmorphism: apply backdrop-blur to elements with semi-transparent Tailwind backgrounds
-                `[class*="bg-"][class*="/"] { backdrop-filter: blur(8px) !important; }`,
+                // Exclude the sidebar and all its descendants
+                `[class*="bg-"][class*="/"]:not(.UI-AppSidebar__sidebar):not(.UI-AppSidebar__sidebar *) { backdrop-filter: blur(8px) !important; }`,
             ].join("\n")
         }
 

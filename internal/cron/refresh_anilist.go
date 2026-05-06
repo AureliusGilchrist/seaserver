@@ -14,9 +14,16 @@ func RefreshAnilistDataJob(c *JobCtx) {
 		return
 	}
 
+	// Snapshot the cached collection before refreshing so we can detect changes.
+	// If there is no cached data yet the error is silently ignored and oldAnimeCollection will be nil.
+	oldAnimeCollection, _ := c.App.GetAnimeCollection(false)
+
 	// Refresh the Anilist Collection
 	animeCollection, _ := c.App.RefreshAnimeCollection()
 	c.App.WSEventManager.SendEvent(events.RefreshedAnilistAnimeCollection, animeCollection)
+
+	// Check for new-episode and airing-started notifications.
+	checkAnilistCollectionNotifications(c, oldAnimeCollection, animeCollection)
 
 	mangaCollection, _ := c.App.RefreshMangaCollection()
 	c.App.WSEventManager.SendEvent(events.RefreshedAnilistMangaCollection, mangaCollection)

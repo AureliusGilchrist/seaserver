@@ -993,7 +993,7 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
                         ><MdBackspace className="text-xl" /></button>
                         <button
                             type="button"
-                            disabled={revalidatePin.length < 4 || revalidating}
+                            disabled={revalidatePin.length >= 8 || revalidating}
                             onClick={() => handleRevalidateKeypad("0")}
                             className={cn(
                                 "w-16 h-16 rounded-full flex items-center justify-center text-xl font-semibold transition-all duration-150 select-none",

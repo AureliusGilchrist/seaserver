@@ -53,7 +53,7 @@ export function UnmatchedTorrentsPage() {
             <div className="flex items-center gap-3">
                 <LuFolderSearch className="text-3xl text-brand-200" />
                 <h2 className="text-2xl font-bold">Unmatched Downloads</h2>
-                {isRefreshing && <LoadingSpinner className="h-4 w-4" />}
+                <LoadingSpinner className={`h-4 w-4 transition-opacity duration-200 ${isRefreshing ? "opacity-100" : "opacity-0"}`} />
             </div>
 
             <p className="text-[--muted]">
