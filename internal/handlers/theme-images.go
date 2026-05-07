@@ -39,12 +39,12 @@ func (h *Handler) HandleGetMarketplaceThemes(c echo.Context) error {
 	// Read index.json
 	indexData, err := ioutil.ReadFile(indexPath)
 	if err != nil {
-		return h.RespondWithError(c, "Failed to read theme marketplace index", err)
+		return h.RespondWithError(c, err)
 	}
 
 	var themeIndex ThemeIndex
 	if err := json.Unmarshal(indexData, &themeIndex); err != nil {
-		return h.RespondWithError(c, "Failed to parse theme marketplace index", err)
+		return h.RespondWithError(c, err)
 	}
 
 	return h.RespondWithData(c, themeIndex.Themes)
@@ -58,12 +58,12 @@ func (h *Handler) HandlePopulateThemeImages(c echo.Context) error {
 	// Read current index.json
 	indexData, err := ioutil.ReadFile(indexPath)
 	if err != nil {
-		return h.RespondWithError(c, "Failed to read theme index", err)
+		return h.RespondWithError(c, err)
 	}
 
 	var themeIndex ThemeIndex
 	if err := json.Unmarshal(indexData, &themeIndex); err != nil {
-		return h.RespondWithError(c, "Failed to parse theme index", err)
+		return h.RespondWithError(c, err)
 	}
 
 	// For each theme, fetch anime data from AniList if image URL is empty
@@ -120,11 +120,11 @@ func (h *Handler) HandlePopulateThemeImages(c echo.Context) error {
 	// Write updated index back to file
 	updatedData, err := json.MarshalIndent(themeIndex, "", "    ")
 	if err != nil {
-		return h.RespondWithError(c, "Failed to marshal updated index", err)
+		return h.RespondWithError(c, err)
 	}
 
 	if err := ioutil.WriteFile(indexPath, updatedData, 0644); err != nil {
-		return h.RespondWithError(c, "Failed to write updated index", err)
+		return h.RespondWithError(c, err)
 	}
 
 	return h.RespondWithData(c, map[string]interface{}{
