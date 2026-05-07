@@ -88,7 +88,7 @@ Print-Stats
 Step '0.1' 'Environment check'
 SubStep "Script dir: $ScriptDir"
 SubStep "Node: $(try { node -v } catch { 'not found' })"
-SubStep "npm:  $(try { npm -v } catch { 'not found' })"
+SubStep "npm:  $(try { npm -v } catch { 'not found' })"k
 SubStep "Go:   $(try { go version } catch { 'not found' })"
 
 Step '0.2' 'Sanity checks'

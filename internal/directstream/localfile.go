@@ -116,8 +116,10 @@ func (s *LocalFileStream) LoadPlaybackInfo() (ret *nativeplayer.PlaybackInfo, er
 			FilePath:          s.localFile.Path,
 		}
 
-		// If the content type is an EBML content type, we can create a metadata parser
-		if isEbmlContent(s.LoadContentType()) {
+		// If the content type is an EBML content type, we can create a metadata parser.
+		// .mkv files are served as video/mp4 for browser compatibility, so also fall back
+		// to extension-based detection.
+		if isEbmlContent(s.LoadContentType()) || isEbmlExtension(s.localFile.Path) {
 
 			parserKey := util.Base64EncodeStr(s.localFile.Path)
 

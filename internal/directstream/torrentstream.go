@@ -79,8 +79,10 @@ func (s *TorrentStream) LoadPlaybackInfo() (ret *nativeplayer.PlaybackInfo, err 
 			FilePath:          filepath.Join(s.downloadDir, s.torrent.InfoHash().HexString(), s.file.DisplayPath()),
 		}
 
-		// If the content type is an EBML content type, we can create a metadata parser
-		if isEbmlContent(s.LoadContentType()) {
+		// If the content type is an EBML content type, we can create a metadata parser.
+		// .mkv files are served as video/mp4 for browser compatibility, so also fall back
+		// to extension-based detection.
+		if isEbmlContent(s.LoadContentType()) || isEbmlExtension(s.file.DisplayPath()) {
 			reader := torrentutil.NewReadSeeker(s.torrent, s.file, s.logger)
 			parser := mkvparser.NewMetadataParser(reader, s.logger)
 			metadata := parser.GetMetadata(context.Background())

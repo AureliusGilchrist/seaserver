@@ -238,7 +238,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
                 subtitleLog.info("Initializing libass renderer")
 
-                const defaultFontUrl = "/fonts/Roboto-Medium.ttf"
+                const defaultFontUrl = "/jassub/Roboto-Medium.ttf"
 
                 console.warn(workerUrl)
 

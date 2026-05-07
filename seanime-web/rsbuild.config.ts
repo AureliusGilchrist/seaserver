@@ -144,6 +144,14 @@ export default defineConfig({
                 },
             },
             module: {
+                parser: {
+                    javascript: {
+                        // Some libs (e.g. @tanstack/react-router doing dynamic React["use"] lookup,
+                        // jotai-scope referencing older jotai INTERNAL_*Rev2 names) trigger
+                        // ESModulesLinkingError under rspack's strict ESM checks. Downgrade to warn.
+                        exportsPresence: "warn",
+                    },
+                },
                 rules: [
                     { // stops circular deps warning
                         test: /jassub\/dist\/.*\.js$/,
