@@ -56,6 +56,23 @@ let denshiSettings = DENSHI_SETTINGS_DEFAULTS
 
 const SERVER_CONFIG_FILE = "server-connection.json"
 
+/**
+ * Loads the main React app into mainWindow if its load was deferred during boot.
+ * Idempotent and safe to call multiple times.
+ */
+function ensureMainWindowLoaded() {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    if (!mainWindow.__deferLoad) return
+    mainWindow.__deferLoad = false
+    if (_development) {
+        logStartupEvent("Loading from dev server (deferred)", "http://127.0.0.1:43210")
+        mainWindow.loadURL("http://127.0.0.1:43210")
+    } else {
+        logStartupEvent("Loading production build with custom protocol (deferred)")
+        mainWindow.loadURL("app://-")
+    }
+}
+
 function getServerConfigPath() {
     return path.join(app.getPath("userData"), SERVER_CONFIG_FILE)
 }
@@ -1050,8 +1067,7 @@ function createMainWindow() {
         }
     })
 
-    // TEMP: auto-open devtools on main window while debugging the post-splash crash
-    if (_development || process.env.SEANIME_DEBUG_SPLASH || true) {
+    if (_development || process.env.SEANIME_DEBUG_SPLASH) {
         mainWindow.webContents.openDevTools({ mode: "detach" })
     }
 
@@ -1101,7 +1117,13 @@ function createMainWindow() {
     })
 
     // Load the web content
-    if (_development) {
+    // NOTE: when global.__seaDeferMainLoad is set we skip the load. The boot flow
+    // explicitly loads the main app after the user resolves setup, preventing the
+    // hidden main window from spamming WS retries / auto-firing restart-server.
+    if (global.__seaDeferMainLoad) {
+        mainWindow.__deferLoad = true
+        logStartupEvent("Main window load deferred until server config is resolved")
+    } else if (_development) {
         // In development, load from the dev server
         logStartupEvent("Loading from dev server", "http://127.0.0.1:43210")
         mainWindow.loadURL("http://127.0.0.1:43210")
@@ -1162,8 +1184,7 @@ function createSplashScreen() {
     })
 
     // Auto-open devtools for splash when running in dev OR when SEANIME_DEBUG_SPLASH is set
-    // TEMP: always open while debugging the setup-screen crash
-    if (_development || process.env.SEANIME_DEBUG_SPLASH || true) {
+    if (_development || process.env.SEANIME_DEBUG_SPLASH) {
         splashScreen.webContents.openDevTools({ mode: "detach" })
     }
 
@@ -1377,8 +1398,14 @@ app.whenReady().then(async () => {
     setupAppProtocol()
     startLocalServer()
 
+    // Peek at server config before creating windows. If absent, defer loading
+    // the main app so the hidden window doesn't spawn WS retries during setup.
+    const serverCfgPeek = loadServerConfig()
+    global.__seaDeferMainLoad = !serverCfgPeek
+
     // Create windows
     createMainWindow()
+    global.__seaDeferMainLoad = false
     createSplashScreen()
     createCrashScreen()
 
@@ -1666,6 +1693,9 @@ app.whenReady().then(async () => {
     ipcMain.on("server-config:launch-local", () => {
         if (!serverProcess) {
             logStartupEvent("server-config:launch-local — launching sidecar")
+            // Make sure the main window will be ready to receive WS events once
+            // the server starts. Without this the deferred main window stays blank.
+            ensureMainWindowLoaded()
             launchSeanimeServer(false).catch((err) => {
                 log.error("[ServerConfig] Failed to launch local server:", err)
                 if (crashScreen && !crashScreen.isDestroyed()) {
@@ -1679,6 +1709,8 @@ app.whenReady().then(async () => {
     ipcMain.on("server-config:remote-ready-ack", () => {
         logStartupEvent("server-config:remote-ready-ack — closing splash, showing main")
         serverStarted = true
+        // Load the main React app now that the user has supplied a remote URL.
+        ensureMainWindowLoaded()
         if (splashScreen && !splashScreen.isDestroyed()) {
             splashScreen.close()
             splashScreen = null

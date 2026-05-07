@@ -66,12 +66,6 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
         && (/(^|\/)splashscreen(\/|$)/.test(window.location.pathname)
             || /(^|\/)splashscreen(\/|$)/.test(window.location.hash))
 
-    if (typeof window !== "undefined") {
-        // eslint-disable-next-line no-console
-        console.info("[WebsocketProvider] pathname=", window.location.pathname,
-            "hash=", window.location.hash, "isSplashscreen=", isSplashscreen)
-    }
-
     if (isSplashscreen) {
         return (
             <WebSocketContext.Provider value={null}>
