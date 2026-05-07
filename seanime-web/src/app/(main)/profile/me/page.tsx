@@ -44,11 +44,13 @@ import { Modal } from "@/components/ui/modal"
 import { Separator } from "@/components/ui/separator"
 import { Stats } from "@/components/ui/stats"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useSetAtom } from "jotai/react"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAnimeTheme, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { RewardShop } from "@/app/(main)/profile/me/_components/reward-shop"
 import { useRewards } from "@/lib/rewards/reward-provider"
+import { userSoundLevelAtom } from "@/lib/sounds/sound-provider"
 import { LuGift } from "react-icons/lu"
 import { useEasterEggs } from "@/lib/easter-eggs/easter-egg-engine"
 import { EASTER_EGG_DEFINITIONS } from "@/lib/easter-eggs/easter-egg-definitions"
@@ -110,6 +112,10 @@ export default function Page() {
     const currentLevel = level?.currentLevel ?? 1
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const milestoneName = useThemeMilestoneName(currentLevel)
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const setUserSoundLevel = useSetAtom(userSoundLevelAtom)
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => { setUserSoundLevel(currentLevel) }, [currentLevel, setUserSoundLevel])
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const { activeTitle, activeNameColor, activeBorder, activeXPBarSkin } = useRewards()
     // eslint-disable-next-line react-hooks/rules-of-hooks

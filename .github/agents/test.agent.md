@@ -13,4 +13,4 @@ Always try to fix all memory leaks, insecurities, inefficiencies, all that can c
 
 Update the plan if you wish, but if you make any changes at all. Ask all questions up-front, please. Each and every "migration change" -- all of them, EVERYTHING. 
 
-Focus on every single little detail, and don't hesitate to ask for a small clarification -- and if it's more than your tool can handle in a message, then make another, please.
+Focus on every single little detail, and don't hesitate to ask for any size of clarification -- and if it's more than your tool can handle in a message, then make another, please.

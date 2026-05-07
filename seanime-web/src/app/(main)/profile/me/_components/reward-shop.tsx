@@ -10,7 +10,7 @@ import {
 import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
-import { useSound } from "@/lib/sounds/sound-provider"
+import { useSound, SOUND_LEVEL_REQUIREMENTS, EXTENDED_SOUND_LABELS, type ExtendedSoundName } from "@/lib/sounds/sound-provider"
 import { cn } from "@/components/ui/core/styling"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ALL_CURSOR_DEFINITIONS } from "@/lib/cursors/cursor-generator"
@@ -517,6 +517,9 @@ function ParticlesTab({ currentLevel }: { currentLevel: number }) {
 function SoundPackTab({ currentLevel }: { currentLevel: number }) {
     const { activeSoundPackId, setActiveSoundPackId, soundVolume, setSoundVolume, soundPacks, playSound } = useSound()
 
+    const extendedSounds = (Object.entries(SOUND_LEVEL_REQUIREMENTS) as [ExtendedSoundName, number][])
+        .sort((a, b) => a[1] - b[1])
+
     return (
         <div className="space-y-5">
             {/* Volume */}
@@ -531,6 +534,34 @@ function SoundPackTab({ currentLevel }: { currentLevel: number }) {
                 </div>
                 <span className="text-sm text-[--muted] w-10 text-right tabular-nums">{Math.round(soundVolume * 100)}%</span>
             </div>
+
+            {/* Level-gated sound events */}
+            <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-[--muted] mb-2">Sound Events</p>
+                <p className="text-xs text-[--muted] mb-3">Additional sounds that unlock as you level up. These apply on top of your chosen sound pack.</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {extendedSounds.map(([name, req]) => {
+                        const isUnlocked = currentLevel >= req
+                        return (
+                            <div
+                                key={name}
+                                className={cn(
+                                    "flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-xs",
+                                    isUnlocked
+                                        ? "bg-[--color-brand-900]/30 border-[--color-brand-700]/40 text-[--foreground]"
+                                        : "bg-[--paper] border-[--border] text-[--muted] opacity-60",
+                                )}
+                            >
+                                <span className="font-medium">{EXTENDED_SOUND_LABELS[name]}</span>
+                                {isUnlocked
+                                    ? <span className="text-[--color-brand-400] font-semibold shrink-0">✓ Active</span>
+                                    : <span className="shrink-0 text-[10px]">Lv. {req}</span>}
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+
             {/* Pack grid */}
             <div className="flex items-center gap-2 text-sm text-[--muted]">
                 <LuVolume2 />

@@ -118,7 +118,60 @@ export const SOUND_PACKS: SoundPack[] = [
     { id: "transcendent", name: "Transcendent",  emoji: "✨", description: "Beyond all comprehension",        requiredLevel: 990 },
 ]
 
-type SoundName = "buttonClick" | "itemUnlock" | "notification" | "error" | "success"
+type CoreSoundName = "buttonClick" | "itemUnlock" | "notification" | "error" | "success"
+export type ExtendedSoundName = "hover" | "toggleSwitch" | "navClick" | "tabSwitch" | "modalOpen" | "modalClose" | "inputFocus" | "linkClick" | "dropdownOpen" | "checkbox" | "carouselSwipe"
+type SoundName = CoreSoundName | ExtendedSoundName
+
+const CORE_SOUND_NAMES = new Set<string>(["buttonClick", "itemUnlock", "notification", "error", "success"])
+
+/** Minimum player level required to hear each extended sound */
+export const SOUND_LEVEL_REQUIREMENTS: Record<ExtendedSoundName, number> = {
+    hover:        5,
+    toggleSwitch: 10,
+    navClick:     15,
+    tabSwitch:    20,
+    modalOpen:    25,
+    modalClose:   30,
+    inputFocus:   35,
+    linkClick:    40,
+    dropdownOpen: 45,
+    checkbox:     50,
+    carouselSwipe: 55,
+}
+
+export const EXTENDED_SOUND_LABELS: Record<ExtendedSoundName, string> = {
+    hover:        "Hover",
+    toggleSwitch: "Toggle Switch",
+    navClick:     "Navigation Click",
+    tabSwitch:    "Tab Switch",
+    modalOpen:    "Modal Open",
+    modalClose:   "Modal Close",
+    inputFocus:   "Input Focus",
+    linkClick:    "Link Click",
+    dropdownOpen: "Dropdown Open",
+    checkbox:     "Checkbox",
+    carouselSwipe: "Carousel Swipe",
+}
+
+/**
+ * Derive a level-gated sound from the pack's core sounds.
+ * Volume multipliers are chosen so extended sounds are subtler than buttonClick.
+ */
+function getExtendedSound(pack: Record<CoreSoundName, PackSoundFn>, name: ExtendedSoundName, ctx?: AudioContext): PackSoundFn {
+    switch (name) {
+        case "hover":        return (ctx, vol) => pack.buttonClick(ctx, vol * 0.28)
+        case "toggleSwitch": return (ctx, vol) => pack.buttonClick(ctx, vol * 0.85)
+        case "navClick":     return (ctx, vol) => pack.buttonClick(ctx, vol * 0.78)
+        case "tabSwitch":    return (ctx, vol) => pack.buttonClick(ctx, vol * 0.72)
+        case "modalOpen":    return (ctx, vol) => pack.notification(ctx, vol * 0.85)
+        case "modalClose":   return (ctx, vol) => pack.buttonClick(ctx, vol * 0.58)
+        case "inputFocus":   return (ctx, vol) => pack.buttonClick(ctx, vol * 0.22)
+        case "linkClick":    return (ctx, vol) => pack.buttonClick(ctx, vol * 0.68)
+        case "dropdownOpen": return (ctx, vol) => pack.notification(ctx, vol * 0.55)
+        case "checkbox":     return (ctx, vol) => pack.buttonClick(ctx, vol * 0.88)
+        case "carouselSwipe": return (ctx, vol) => createWhoosh(ctx, 200, 800, 0.25, vol * 0.3)
+    }
+}
 
 // ── Web Audio synthesis (used by original 6 packs + synthesis fallback) ───────
 
@@ -137,6 +190,30 @@ function createBeep(
     osc.frequency.setValueAtTime(freq, ctx.currentTime)
     gainNode.gain.setValueAtTime(gain, ctx.currentTime)
     gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + duration)
+}
+
+/** Create a whoosh sound by sweeping frequency upward then downward */
+function createWhoosh(ctx: AudioContext, startFreq: number, endFreq: number, duration: number, gain = 0.15) {
+    const osc = ctx.createOscillator()
+    const gainNode = ctx.createGain()
+    osc.connect(gainNode)
+    gainNode.connect(ctx.destination)
+    osc.type = "triangle"
+    
+    // Sweep up to peak then down
+    const peak = (startFreq + endFreq) / 2
+    const peakTime = ctx.currentTime + duration * 0.4
+    
+    osc.frequency.setValueAtTime(startFreq, ctx.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(peak, peakTime)
+    osc.frequency.exponentialRampToValueAtTime(endFreq, ctx.currentTime + duration)
+    
+    gainNode.gain.setValueAtTime(gain * 0.4, ctx.currentTime)
+    gainNode.gain.linearRampToValueAtTime(gain, ctx.currentTime + duration * 0.1)
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration)
+    
     osc.start(ctx.currentTime)
     osc.stop(ctx.currentTime + duration)
 }
@@ -228,7 +305,7 @@ function uDesc(file: string, baseRate: number, steps: number, ratio = 0.8, gap =
 
 // ── All pack sounds ───────────────────────────────────────────────────────────
 
-const PACK_SOUNDS: Record<string, Record<SoundName, PackSoundFn>> = {
+const PACK_SOUNDS: Record<string, Record<CoreSoundName, PackSoundFn>> = {
     // ── Original 6 synthesis packs ────────────────────────────────────────────
     default: {
         buttonClick:  (ctx, v) => createBeep(ctx, 880, 0.06, "sine", v * 0.12),
@@ -379,6 +456,8 @@ const PACK_SOUNDS: Record<string, Record<SoundName, PackSoundFn>> = {
 
 const soundPackIdAtom = atomWithStorage<string>("sea-sound-pack-id", "default")
 const soundVolumeAtom = atomWithStorage<number>("sea-sound-volume", 0.6)
+/** Set this atom to the user's current level so level-gated sounds unlock correctly */
+export const userSoundLevelAtom = atomWithStorage<number>("sea-user-sound-level", 1)
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
@@ -389,6 +468,10 @@ type SoundContextValue = {
     setSoundVolume: (v: number) => void
     soundPacks: SoundPack[]
     playSound: (name: SoundName) => void
+    userLevel: number
+    setUserLevel: (n: number) => void
+    soundLevelRequirements: Record<ExtendedSoundName, number>
+    extendedSoundLabels: Record<ExtendedSoundName, string>
 }
 
 const SoundContext = React.createContext<SoundContextValue | null>(null)
@@ -396,10 +479,16 @@ const SoundContext = React.createContext<SoundContextValue | null>(null)
 export function SoundProvider({ children }: { children: React.ReactNode }) {
     const [activeSoundPackId, setActiveSoundPackId] = useAtom(soundPackIdAtom)
     const [soundVolume, setSoundVolume] = useAtom(soundVolumeAtom)
+    const [userLevel, setUserLevel] = useAtom(userSoundLevelAtom)
     const audioCtxRef = React.useRef<AudioContext | null>(null)
 
     const playSound = React.useCallback(async (name: SoundName) => {
         if (soundVolume <= 0) return
+        // Level-gate extended sounds
+        if (!CORE_SOUND_NAMES.has(name)) {
+            const required = SOUND_LEVEL_REQUIREMENTS[name as ExtendedSoundName] ?? 1
+            if (userLevel < required) return
+        }
         try {
             if (!audioCtxRef.current) {
                 audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
@@ -408,24 +497,89 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
                 await audioCtxRef.current.resume()
             }
             const pack = PACK_SOUNDS[activeSoundPackId] ?? PACK_SOUNDS["default"]
-            pack[name]?.(audioCtxRef.current, soundVolume)
+            if (CORE_SOUND_NAMES.has(name)) {
+                pack[name as CoreSoundName]?.(audioCtxRef.current, soundVolume)
+            } else {
+                getExtendedSound(pack, name as ExtendedSoundName)(audioCtxRef.current, soundVolume)
+            }
         } catch { /* noop — audio not available */ }
-    }, [activeSoundPackId, soundVolume])
+    }, [activeSoundPackId, soundVolume, userLevel])
 
-    // Global button-click sounds
+    // Global click sounds — smarter role detection
     React.useEffect(() => {
         const handleClick = (e: MouseEvent) => {
             if (soundVolume <= 0) return
             const target = e.target as Element | null
             if (!target) return
-            const el = target.closest("button, [role='button'], [role='tab'], [role='option'], [role='menuitem']")
-            if (el && !el.hasAttribute("disabled") && !(el as HTMLElement).dataset.noSound) {
-                playSound("buttonClick")
-            }
+            const el = target.closest(
+                "button, [role='button'], [role='tab'], [role='option'], [role='menuitem'], " +
+                "[role='switch'], [role='checkbox'], [role='radio'], a[href], [role='link']",
+            )
+            if (!el || el.hasAttribute("disabled") || (el as HTMLElement).dataset.noSound) return
+
+            const role = el.getAttribute("role")
+            const tag = el.tagName?.toLowerCase()
+
+            if (role === "switch")                     { playSound("toggleSwitch"); return }
+            if (role === "checkbox" || role === "radio") { playSound("checkbox");     return }
+            if (role === "tab")                         { playSound("tabSwitch");    return }
+            if (tag === "a")                            { playSound("linkClick");    return }
+            if (el.closest("nav, aside, [data-sidebar], [data-nav]")) { playSound("navClick"); return }
+            playSound("buttonClick")
         }
         window.addEventListener("click", handleClick)
         return () => window.removeEventListener("click", handleClick)
     }, [playSound, soundVolume])
+
+    // Hover sound — fires once per newly entered interactive element
+    React.useEffect(() => {
+        let lastEl: Element | null = null
+        const handleHover = (e: MouseEvent) => {
+            if (soundVolume <= 0) return
+            const target = e.target as Element | null
+            if (!target) return
+            const el = target.closest(
+                "button:not([disabled]), [role='button'], [role='tab'], [role='option'], [role='menuitem']",
+            )
+            if (!el || el === lastEl || (el as HTMLElement).dataset.noSound) return
+            lastEl = el
+            playSound("hover")
+        }
+        window.addEventListener("mouseover", handleHover, { passive: true })
+        return () => window.removeEventListener("mouseover", handleHover)
+    }, [playSound, soundVolume])
+
+    // Input focus sound
+    React.useEffect(() => {
+        const handleFocus = (e: FocusEvent) => {
+            if (soundVolume <= 0) return
+            const target = e.target as Element | null
+            if (!target) return
+            if (target.matches("input:not([type='hidden']):not([type='range']):not([type='checkbox']):not([type='radio']), textarea")) {
+                playSound("inputFocus")
+            } else if (target.matches("select, [role='combobox']")) {
+                playSound("dropdownOpen")
+            }
+        }
+        window.addEventListener("focusin", handleFocus, { passive: true })
+        return () => window.removeEventListener("focusin", handleFocus)
+    }, [playSound, soundVolume])
+
+    // Modal open/close sound via MutationObserver on data-state attribute
+    React.useEffect(() => {
+        const observer = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                if (m.type !== "attributes" || m.attributeName !== "data-state") continue
+                const el = m.target as Element
+                if (el.getAttribute("role") !== "dialog") continue
+                const state = el.getAttribute("data-state")
+                if (state === "open")   playSound("modalOpen")
+                else if (state === "closed") playSound("modalClose")
+            }
+        })
+        observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ["data-state"] })
+        return () => observer.disconnect()
+    }, [playSound])
 
     const value = React.useMemo<SoundContextValue>(() => ({
         activeSoundPackId,
@@ -434,7 +588,11 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
         setSoundVolume,
         soundPacks: SOUND_PACKS,
         playSound,
-    }), [activeSoundPackId, setActiveSoundPackId, soundVolume, setSoundVolume, playSound])
+        userLevel,
+        setUserLevel,
+        soundLevelRequirements: SOUND_LEVEL_REQUIREMENTS,
+        extendedSoundLabels: EXTENDED_SOUND_LABELS,
+    }), [activeSoundPackId, setActiveSoundPackId, soundVolume, setSoundVolume, playSound, userLevel, setUserLevel])
 
     return <SoundContext.Provider value={value}>{children}</SoundContext.Provider>
 }
