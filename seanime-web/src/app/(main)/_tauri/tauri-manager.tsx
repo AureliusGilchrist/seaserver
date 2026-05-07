@@ -29,14 +29,40 @@ export function TauriManager(props: TauriManagerProps) {
         // before any JS keydown fires. We intercept fullscreenchange instead: if the ROOT
         // element entered fullscreen (WebView2 F11), undo it and use Tauri native fullscreen.
         // Video player fullscreen uses a specific container element, so they're distinguishable.
+        //
+        // For video player DOM fullscreen (non-root element): WebView2 only covers the work
+        // area, leaving a taskbar-sized gap. Fix by calling setAlwaysOnTop(true) so the window
+        // renders over the taskbar. Track whether WE set it so we only undo it on our own exit.
+        let playerSetAlwaysOnTop = false
+
         const handleFullscreenChange = async () => {
-            if (!document.fullscreenElement) return
+            const appWindow = new Window("main")
+            if (!document.fullscreenElement) {
+                // Fullscreen exited — undo alwaysOnTop only if the player set it
+                if (playerSetAlwaysOnTop) {
+                    playerSetAlwaysOnTop = false
+                    const isWinFs = await appWindow.isFullscreen().catch(() => false)
+                    if (!isWinFs) {
+                        await appWindow.setAlwaysOnTop(false).catch(() => {})
+                    }
+                }
+                return
+            }
             if (document.fullscreenElement === document.documentElement) {
                 // WebView2 F11 — swap for Tauri native fullscreen
                 await document.exitFullscreen().catch(() => {})
                 await toggleFullscreen()
+            } else {
+                // Video player container entered DOM fullscreen.
+                // setAlwaysOnTop covers the taskbar gap that WebView2 leaves.
+                const isWinFs = await appWindow.isFullscreen().catch(() => false)
+                if (!isWinFs) {
+                    // Window isn't already Tauri-fullscreen, so we own this toggle.
+                    await appWindow.setAlwaysOnTop(true).catch(() => {})
+                    playerSetAlwaysOnTop = true
+                }
+                // If window was already Tauri-fullscreen (F11), alwaysOnTop is already set.
             }
-            // Any other element = video player — leave it alone
         }
 
         // Get video fullscreen manager from jotai store
