@@ -1982,3 +1982,53 @@ iframe.vds-youtube[data-no-controls] {
 [data-media-player][data-muted] .vds-unmute-tooltip-text {
     display: none;
 }
+
+/*
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * Fullscreen Fixes — Eliminate bottom bars and gaps
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ */
+
+[data-media-player][data-fullscreen] {
+    width: 100vw !important;
+    height: 100vh !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    z-index: 999999 !important;
+}
+
+[data-media-player][data-fullscreen] [data-media-provider] {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+[data-media-player][data-fullscreen] video {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+[data-media-player][data-fullscreen] .vds-video-layout {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Hide background during fullscreen to prevent bottom bar visibility */
+[data-media-player][data-fullscreen] {
+    background-color: #000000 !important;
+    background-image: none !important;
+}

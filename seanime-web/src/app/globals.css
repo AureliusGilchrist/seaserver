@@ -1707,3 +1707,105 @@ body.vc-fullscreen .appLayout {
     0%, 100% { opacity: 0.55; transform: scale(0.97); }
     50%       { opacity: 1;    transform: scale(1.04); }
 }
+
+/* Fullscreen video player fixes — ensure no gaps/bars */
+:fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
+
+html:fullscreen {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
+
+body:fullscreen {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    min-height: 100% !important;
+    overflow: hidden !important;
+}
+
+[data-media-player]:fullscreen {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
+
+[data-media-player]:fullscreen [data-media-provider] {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
+
+[data-media-player]:fullscreen video {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    object-fit: contain !important;
+}
+
+/* Media player fullscreen layout */
+[data-sea-media-player-container]:fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    aspect-ratio: auto !important;
+}
+
+/* Vidstack fullscreen container fixes */
+.vds-fullscreen-video {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
+
+/* Ensure player container has no gaps */
+[data-media-player][data-fullscreen] {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+}
+
+[data-media-player][data-fullscreen] [data-media-provider] {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
+
+[data-media-player][data-fullscreen] video {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+}
