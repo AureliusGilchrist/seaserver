@@ -65,7 +65,7 @@ export function MediastreamVideoCore(props: MediastreamVideoCoreProps) {
                 handleChangeStreamType={handleChangeStreamType}
                 currentStreamType={currentStreamType}
             />
-            <div className="relative w-full h-full aspect-video bg-black rounded-md overflow-hidden">
+            <div className="relative w-full h-full bg-black rounded-md overflow-hidden">
                 <VideoCore
                     id="mediastream"
                     state={lifecycleState}

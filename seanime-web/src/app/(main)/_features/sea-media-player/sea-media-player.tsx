@@ -563,11 +563,11 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
         }
     }, [smpResumePrompt?.time])
 
-    const { onMediaEnterFullscreenRequest, onTauriFullscreenChange } = useFullscreenHandler(playerRef)
+    const { onMediaEnterFullscreenRequest } = useFullscreenHandler(playerRef)
 
     return (
         <>
-            <div data-sea-media-player-container className="aspect-video relative w-full self-start mx-auto">
+            <div data-sea-media-player-container className="relative w-full h-full self-start mx-auto">
                 {/* Resume prompt overlay */}
                 {smpResumePrompt && (
                     <div className="absolute inset-0 flex items-center justify-center z-[55]">
@@ -627,7 +627,6 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
                         onMediaEnterFullscreenRequest={onMediaEnterFullscreenRequest}
                         onFullscreenChange={(isFullscreen: boolean, event: MediaFullscreenChangeEvent) => {
                             setIsFullscreen(isFullscreen)
-                            onTauriFullscreenChange(isFullscreen)
 
                             // Don't clear wasFullscreenRef during source transitions
                             // so we can restore fullscreen after the new source loads

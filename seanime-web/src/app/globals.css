@@ -210,6 +210,10 @@ body {
     overflow-x: hidden;
 }
 
+body[data-player-page] {
+    min-height: unset;
+}
+
 body:before {
     content: "";
     position: fixed;

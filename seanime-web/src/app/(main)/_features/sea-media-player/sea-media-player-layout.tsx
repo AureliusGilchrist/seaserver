@@ -9,6 +9,7 @@ import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import { __isDesktop__ } from "@/types/constants"
 import { useAtom } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
 import React from "react"
@@ -142,8 +143,13 @@ export function SeaMediaPlayerLayout(props: SeaMediaPlayerLayoutProps) {
     }, [media, progressItem, isUpdatingProgress, hasUpdatedProgress])
 
     return (
-        <div data-sea-media-player-layout className="space-y-4">
-            <div data-sea-media-player-layout-header className="flex flex-col lg:flex-row gap-2 w-full justify-between">
+        <div data-sea-media-player-layout className={cn(
+            __isDesktop__ && !theaterMode ? "flex flex-col gap-4 h-[calc(100dvh-3rem)]" : "space-y-4",
+        )}>
+            <div data-sea-media-player-layout-header className={cn(
+                "flex flex-col lg:flex-row gap-2 w-full justify-between",
+                __isDesktop__ && !theaterMode && "flex-none",
+            )}>
                 {!hideBackButton && <div className="flex w-full gap-4 items-center relative">
                     <SeaLink href={`/entry?id=${mediaId}`}>
                         <IconButton icon={<AiOutlineArrowLeft />} rounded intent="gray-outline" size="sm" />
@@ -178,7 +184,8 @@ export function SeaMediaPlayerLayout(props: SeaMediaPlayerLayoutProps) {
                 ref={contentContainerRef}
                 data-sea-media-player-layout-content
                 className={cn(
-                    "flex gap-4 w-full flex-col 2xl:flex-row",
+                    !__isDesktop__ && "flex gap-4 w-full flex-col 2xl:flex-row",
+                    __isDesktop__ && !theaterMode && "flex flex-row gap-4 w-full flex-1 min-h-0",
                     theaterMode && "block space-y-4",
                 )}
             >
@@ -187,7 +194,9 @@ export function SeaMediaPlayerLayout(props: SeaMediaPlayerLayoutProps) {
                     id="sea-media-player-container"
                     data-sea-media-player-layout-content-player
                     className={cn(
-                        "aspect-video relative w-full self-start mx-auto",
+                        "relative",
+                        !__isDesktop__ && "aspect-video w-full self-start mx-auto",
+                        __isDesktop__ && !theaterMode && "h-full flex-1 min-w-0",
                         theaterMode && "max-h-[90vh] !w-auto aspect-video mx-auto",
                     )}
                 >
@@ -201,8 +210,9 @@ export function SeaMediaPlayerLayout(props: SeaMediaPlayerLayoutProps) {
                     className={cn(
                         "2xl:max-w-[450px] w-full relative 2xl:sticky overflow-y-auto pr-4 pt-0",
                         theaterMode ? "2xl:max-w-full h-[75dvh]" : "h-[75dvh] 2xl:h-auto",
+                        __isDesktop__ && !theaterMode && "!w-[400px] !max-w-[400px] flex-none !h-full",
                     )}
-                    style={!theaterMode ? { height: "var(--player-height, 75dvh)" } as React.CSSProperties : undefined}
+                    style={!theaterMode ? { height: __isDesktop__ ? "100%" : "var(--player-height, 75dvh)" } as React.CSSProperties : undefined}
                 >
                     <div data-sea-media-player-layout-content-episode-list-container className="space-y-3">
                         {episodeList}

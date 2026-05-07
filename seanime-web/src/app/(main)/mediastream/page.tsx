@@ -26,6 +26,11 @@ import { SeaMediaPlayerProvider } from "../_features/sea-media-player/sea-media-
 export default function Page() {
     const serverStatus = useServerStatus()
     const router = useRouter()
+
+    React.useEffect(() => {
+        document.body.setAttribute("data-player-page", "true")
+        return () => document.body.removeAttribute("data-player-page")
+    }, [])
     const searchParams = useSearchParams()
     const mediaId = searchParams.get("id")
     const { data: animeEntry, isLoading: animeEntryLoading } = useGetAnimeEntry(mediaId)
@@ -112,7 +117,7 @@ export default function Page() {
                 currentEpisodeTitle: currentEpisode?.displayTitle || currentEpisode?.episodeTitle || null,
             }}
         >
-            <AppLayoutStack className="p-4 lg:p-8 z-[5]">
+            <AppLayoutStack className="px-4 pt-4 pb-0 lg:px-8 lg:pt-8 lg:pb-0 z-[5]">
                 <SeaMediaPlayerLayout
                     mediaId={mediaId ? Number(mediaId) : undefined}
                     title={animeEntry?.media?.title?.userPreferred}

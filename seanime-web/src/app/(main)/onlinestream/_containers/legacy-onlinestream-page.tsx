@@ -51,6 +51,11 @@ const progressItemAtom = atom<ProgressItem | undefined>(undefined)
 export function LegacyOnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton }: OnlinestreamPageProps) {
     const serverStatus = useAtomValue(serverStatusAtom)
     const router = useRouter()
+
+    React.useEffect(() => {
+        document.body.setAttribute("data-player-page", "true")
+        return () => document.body.removeAttribute("data-player-page")
+    }, [])
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const mediaId = searchParams.get("id")
