@@ -1,5 +1,8 @@
 import { __isDesktop__ } from "@/types/constants"
 import { MediaEnterFullscreenRequestEvent, MediaFullscreenRequestTarget, MediaPlayerInstance } from "@vidstack/react"
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
+import { Window } from "@tauri-apps/api/window"
+import { platform } from "@tauri-apps/plugin-os"
 import React from "react"
 
 export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInstance>) {
@@ -32,27 +35,25 @@ export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInsta
         if (__isDesktop__) {
             try {
                 if ((window as any)?.__TAURI__) {
-                    const platform: string | undefined = (window as any)?.__TAURI__?.os?.platform?.()
-                    const currentWindow: any | undefined = (window as any)?.__TAURI__?.window?.getCurrentWindow?.()
-                    if (!!platform && platform === "macos") {
+                    const currentPlatform = platform()
+                    if (currentPlatform === "macos") {
+                        const currentWindow: any | undefined = (window as any)?.__TAURI__?.window?.getCurrentWindow?.()
                         nativeEvent.preventDefault()
                         console.log("native fullscreen event prevented, sending macos policy accessory event")
                         currentWindow.emit("macos-activation-policy-accessory").then(() => {
                             console.log("macos policy accessory event sent")
-                            if (nativeEvent.defaultPrevented) {
-                                try {
-                                    // playerRef.current?.enterFullscreen()
-                                }
-                                catch (e) {
-                                    console.log("failed to enter fullscreen from onMediaEnterFullscreenRequest", e)
-                                }
-                            }
                         })
-                    } else if (!!platform && currentWindow) {
-                        // For Windows/Linux: expand the OS window to cover the taskbar before
-                        // the browser element fullscreen request fires, so the video fills
-                        // the entire screen rather than just the maximised window client area.
-                        currentWindow.setFullscreen?.(true)
+                    } else {
+                        // For Windows/Linux: expand the OS window to cover the taskbar.
+                        // setFullscreen alone leaves a taskbar gap; setAlwaysOnTop is required
+                        // to render the window over the taskbar (same as toggleFullscreen in tauri-manager).
+                        const appWindow = new Window("main")
+                        if (getCurrentWebviewWindow().label === "main") {
+                            appWindow.setDecorations(false)
+                                .then(() => appWindow.setFullscreen(true))
+                                .then(() => appWindow.setAlwaysOnTop(true))
+                                .catch(() => {})
+                        }
                     }
                 }
             }
@@ -71,10 +72,22 @@ export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInsta
         if (!__isDesktop__) return
         try {
             if ((window as any)?.__TAURI__) {
-                const platform: string | undefined = (window as any)?.__TAURI__?.os?.platform?.()
-                const currentWindow: any | undefined = (window as any)?.__TAURI__?.window?.getCurrentWindow?.()
-                if (!!platform && platform !== "macos" && currentWindow) {
-                    currentWindow.setFullscreen?.(isFullscreen)
+                const currentPlatform = platform()
+                if (currentPlatform !== "macos") {
+                    const appWindow = new Window("main")
+                    if (getCurrentWebviewWindow().label === "main") {
+                        if (isFullscreen) {
+                            appWindow.setDecorations(false)
+                                .then(() => appWindow.setFullscreen(true))
+                                .then(() => appWindow.setAlwaysOnTop(true))
+                                .catch(() => {})
+                        } else {
+                            appWindow.setAlwaysOnTop(false)
+                                .then(() => appWindow.setFullscreen(false))
+                                .then(() => appWindow.setDecorations(true))
+                                .catch(() => {})
+                        }
+                    }
                 }
             }
         }
