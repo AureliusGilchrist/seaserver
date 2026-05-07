@@ -30,25 +30,63 @@ export function TauriManager(props: TauriManagerProps) {
         // element entered fullscreen (WebView2 F11), undo it and use Tauri native fullscreen.
         // Video player fullscreen uses a specific container element, so they're distinguishable.
         //
-        // For video player DOM fullscreen: the player code expands the Tauri window to full
-        // screen BEFORE calling requestFullscreen(), so WebView2's DOM fullscreen fills the
-        // entire display. The player dispatches "tauri:player-fullscreen-enter" to signal this.
-        // When DOM fullscreen exits (Escape, button, etc.), we restore the window here.
+        // For video player DOM fullscreen on Windows: WebView2 determines the fullscreen rect
+        // at the moment requestFullscreen() is called, using the window's current client area.
+        // If the window doesn't cover the taskbar, WebView2 leaves a taskbar-sized gap.
         //
-        // For WebView2 F11: WebView2 intercepts F11 and calls documentElement.requestFullscreen().
-        // We swap that for Tauri native fullscreen. When toggleFullscreen() enters, we set
-        // windowFullscreenSetByF11=true so we know not to restore the window on DOM exit.
+        // Fix: monkey-patch HTMLElement.prototype.requestFullscreen so that for non-root
+        // elements, we first expand the Tauri window to native fullscreen and wait for WebView2
+        // to emit a resize event (confirming its viewport updated) before calling the real
+        // requestFullscreen(). This way the DOM fullscreen rect covers the full display.
+        //
+        // When the player exits DOM fullscreen, we restore the window if we were the ones
+        // who expanded it (tracked via windowFullscreenSetByPlayer).
         let windowFullscreenSetByPlayer = false
+        let originalRequestFullscreen: typeof HTMLElement.prototype.requestFullscreen | null = null
 
-        const handlePlayerFullscreenEnter = () => {
-            windowFullscreenSetByPlayer = true
+        const setupFullscreenPatch = async () => {
+            try {
+                const { platform } = await import("@tauri-apps/plugin-os")
+                if (platform() === "macos") return // macOS uses a different fullscreen path
+
+                originalRequestFullscreen = HTMLElement.prototype.requestFullscreen
+                HTMLElement.prototype.requestFullscreen = async function(options?: FullscreenOptions) {
+                    if (this === document.documentElement) {
+                        // documentElement fullscreen (WebView2 F11) is handled by handleFullscreenChange
+                        return originalRequestFullscreen!.call(this, options)
+                    }
+                    try {
+                        const { Window: TauriWindow } = await import("@tauri-apps/api/window")
+                        const appWindow = new TauriWindow("main")
+                        const isWinFs = await appWindow.isFullscreen().catch(() => false)
+                        if (!isWinFs) {
+                            await appWindow.setDecorations(false)
+                            await appWindow.setFullscreen(true)
+                            await appWindow.setAlwaysOnTop(true)
+                            // Wait for WebView2 to emit a resize event confirming the viewport updated,
+                            // so requestFullscreen() below sees the full-screen-sized client area.
+                            await new Promise<void>(resolve => {
+                                window.addEventListener("resize", () => resolve(), { once: true })
+                                setTimeout(resolve, 800) // fallback if no resize event fires
+                            })
+                            window.dispatchEvent(new CustomEvent("tauri:player-fullscreen-enter"))
+                            windowFullscreenSetByPlayer = true
+                        }
+                    } catch (e) {
+                        console.error("tauri-manager: failed to expand window before fullscreen", e)
+                    }
+                    return originalRequestFullscreen!.call(this, options)
+                }
+            } catch (e) {
+                console.error("tauri-manager: failed to set up fullscreen patch", e)
+            }
         }
-        window.addEventListener("tauri:player-fullscreen-enter", handlePlayerFullscreenEnter)
+        setupFullscreenPatch()
 
         const handleFullscreenChange = async () => {
             const appWindow = new Window("main")
             if (!document.fullscreenElement) {
-                // DOM fullscreen exited — restore Tauri window only if the player set it
+                // DOM fullscreen exited — restore Tauri window only if the player expanded it
                 if (windowFullscreenSetByPlayer) {
                     windowFullscreenSetByPlayer = false
                     const isWinFs = await appWindow.isFullscreen().catch(() => false)
@@ -66,8 +104,7 @@ export function TauriManager(props: TauriManagerProps) {
                 await document.exitFullscreen().catch(() => {})
                 await toggleFullscreen()
             }
-            // Video player entered DOM fullscreen — the player already expanded the window,
-            // nothing to do here.
+            // Video player entered DOM fullscreen — window was already expanded by the patch above.
         }
 
         // Get video fullscreen manager from jotai store
@@ -118,7 +155,9 @@ export function TauriManager(props: TauriManagerProps) {
             u.then((f) => f())
             document.removeEventListener("fullscreenchange", handleFullscreenChange)
             window.removeEventListener("keydown", handleKeydown, { capture: true })
-            window.removeEventListener("tauri:player-fullscreen-enter", handlePlayerFullscreenEnter)
+            if (originalRequestFullscreen) {
+                HTMLElement.prototype.requestFullscreen = originalRequestFullscreen
+            }
         }
     }, [])
 

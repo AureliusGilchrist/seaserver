@@ -179,32 +179,10 @@ export class VideoCoreFullscreenManager extends EventTarget {
                 return
             }
 
-            // On Tauri (non-macOS): WebView2 DOM fullscreen is bounded by the current
-            // window size. Expand the Tauri window to full screen BEFORE requesting DOM
-            // fullscreen so WebView2 renders over the full screen including the taskbar.
-            // macOS uses a different activation-policy flow handled by onMediaEnterFullscreenRequest.
-            if (this._isTauri()) {
-                try {
-                    const { platform } = await import("@tauri-apps/plugin-os")
-                    if (platform() !== "macos") {
-                        const { Window } = await import("@tauri-apps/api/window")
-                        const appWindow = new Window("main")
-                        const isWinFs = await appWindow.isFullscreen()
-                        if (!isWinFs) {
-                            await appWindow.setDecorations(false)
-                            await appWindow.setFullscreen(true)
-                            await appWindow.setAlwaysOnTop(true)
-                            // Signal tauri-manager to restore the window when DOM fullscreen exits
-                            window.dispatchEvent(new CustomEvent("tauri:player-fullscreen-enter"))
-                            // Brief pause for WebView2 to update viewport bounds
-                            await new Promise(r => setTimeout(r, 50))
-                        }
-                    }
-                } catch (e) {
-                    log.error("Failed to expand Tauri window before DOM fullscreen", e)
-                }
-            }
-
+            // On Tauri: use DOM fullscreen for the video container so the window's
+            // native fullscreen (F11) can remain active independently.
+            // The Tauri window expansion (to cover taskbar) is handled centrally in
+            // tauri-manager.tsx via a requestFullscreen prototype intercept.
             if (isApple() && this.videoElement) {
                 if ((this.videoElement as any).webkitEnterFullscreen) {
                     await (this.videoElement as any).webkitEnterFullscreen()
