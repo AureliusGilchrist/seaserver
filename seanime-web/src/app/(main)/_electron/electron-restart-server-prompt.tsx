@@ -12,6 +12,14 @@ import { toast } from "sonner"
 
 export function ElectronRestartServerPrompt() {
 
+    // Hard guard: never run on the splashscreen window.
+    // The setup flow lives there; firing `restart-server` from the splash will crash the boot.
+    if (typeof window !== "undefined"
+        && (/(^|\/)splashscreen(\/|$)/.test(window.location.pathname)
+            || /(^|\/)splashscreen(\/|$)/.test(window.location.hash))) {
+        return null
+    }
+
     const [hasRendered, setHasRendered] = React.useState(false)
 
     const [isConnected, setIsConnected] = useAtom(websocketConnectedAtom)

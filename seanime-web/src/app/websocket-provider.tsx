@@ -60,10 +60,17 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
     //
     // We can't use usePathname() here because WebsocketProvider is rendered above the TanStack
     // Router in the tree (inside ClientProviders). Use window.location directly instead.
+    // The pathname can be "/splashscreen", "/splashscreen/", or "/splashscreen/index.html"
+    // depending on how the custom app:// protocol resolves the URL, so use a regex.
     const isSplashscreen = typeof window !== "undefined"
-        && (window.location.pathname === "/splashscreen"
-            || window.location.pathname.endsWith("/splashscreen")
-            || window.location.hash.includes("/splashscreen"))
+        && (/(^|\/)splashscreen(\/|$)/.test(window.location.pathname)
+            || /(^|\/)splashscreen(\/|$)/.test(window.location.hash))
+
+    if (typeof window !== "undefined") {
+        // eslint-disable-next-line no-console
+        console.info("[WebsocketProvider] pathname=", window.location.pathname,
+            "hash=", window.location.hash, "isSplashscreen=", isSplashscreen)
+    }
 
     if (isSplashscreen) {
         return (
