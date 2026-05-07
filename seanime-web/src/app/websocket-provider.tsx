@@ -52,13 +52,18 @@ export function useIsMainTabRef() {
 export function WebsocketProvider({ children }: { children: React.ReactNode }) {
     const [socket] = useAtom(websocketAtom)
     const [isConnected] = useAtom(websocketConnectedAtom)
-    const pathname = usePathname()
 
     // Splashscreen runs before any server is reachable (e.g. first-time setup, remote-mode boot).
     // Do NOT mount the websocket manager, the "Connecting..." overlay, or the Electron restart-server
     // prompt here — otherwise the splash window will spam connection attempts and auto-fire a
     // server restart after a few errors, which crashes the desktop boot flow.
-    const isSplashscreen = pathname === "/splashscreen" || pathname?.startsWith("/splashscreen")
+    //
+    // We can't use usePathname() here because WebsocketProvider is rendered above the TanStack
+    // Router in the tree (inside ClientProviders). Use window.location directly instead.
+    const isSplashscreen = typeof window !== "undefined"
+        && (window.location.pathname === "/splashscreen"
+            || window.location.pathname.endsWith("/splashscreen")
+            || window.location.hash.includes("/splashscreen"))
 
     if (isSplashscreen) {
         return (
