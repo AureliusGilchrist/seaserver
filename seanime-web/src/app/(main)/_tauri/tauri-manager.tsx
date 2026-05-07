@@ -60,15 +60,28 @@ export function TauriManager(props: TauriManagerProps) {
                         const appWindow = new TauriWindow("main")
                         const isWinFs = await appWindow.isFullscreen().catch(() => false)
                         if (!isWinFs) {
+                            // Order matters on Windows:
+                            // 1. setAlwaysOnTop(true) BEFORE setFullscreen so the maximized
+                            //    rectangle covers the taskbar area instead of just the work area.
+                            // 2. setDecorations(false) to remove title bar.
+                            // 3. setFullscreen(true) for the actual fullscreen state.
+                            await appWindow.setAlwaysOnTop(true)
                             await appWindow.setDecorations(false)
                             await appWindow.setFullscreen(true)
-                            await appWindow.setAlwaysOnTop(true)
-                            // Wait for WebView2 to emit a resize event confirming the viewport updated,
-                            // so requestFullscreen() below sees the full-screen-sized client area.
-                            await new Promise<void>(resolve => {
-                                window.addEventListener("resize", () => resolve(), { once: true })
-                                setTimeout(resolve, 800) // fallback if no resize event fires
-                            })
+
+                            // Poll until WebView2's viewport actually matches the screen size.
+                            // The 'resize' event is unreliable: it fires when title bar is removed
+                            // (work-area size) before the window grows past the taskbar.
+                            const targetH = window.screen.height
+                            const targetW = window.screen.width
+                            const start = performance.now()
+                            while (performance.now() - start < 1500) {
+                                if (window.innerHeight >= targetH - 2 && window.innerWidth >= targetW - 2) break
+                                await new Promise(r => requestAnimationFrame(() => r(null)))
+                            }
+                            // Extra frame to ensure WebView2 has painted at the new size
+                            await new Promise(r => requestAnimationFrame(() => r(null)))
+
                             window.dispatchEvent(new CustomEvent("tauri:player-fullscreen-enter"))
                             windowFullscreenSetByPlayer = true
                         }

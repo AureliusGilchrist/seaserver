@@ -1,13 +1,13 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Desktop build script for seaserver (Tauri + Go sidecar) -- native Windows.
+    Desktop build script for seaserver (Electron + Go sidecar) -- native Windows.
 .DESCRIPTION
     Builds:
       - Standalone web server:  seanime.exe + web/
-      - Tauri desktop installer: seanime-desktop/src-tauri/target/<triple>/release/bundle/
+      - Electron desktop installer: seanime-denshi/dist/seanime-denshi-<version>_Windows_x64.exe
     Prerequisites: Go 1.23+, Node.js 18+, npm
-    Auto-installs: Rust (rustup-init), NSIS, cargo-tauri
+    NSIS is bundled by electron-builder; no manual install needed.
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -16,7 +16,6 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location $ScriptDir
 
 $StatsFile = Join-Path $ScriptDir 'build-all-desktop-stats.json'
-$TargetTriple = 'x86_64-pc-windows-msvc'
 
 # -- Helpers -----------------------------------------------
 
@@ -81,10 +80,10 @@ function Assert-Command {
 Init-Stats
 $StartTime = Get-Date
 
-BoxTitle 'seaserver Desktop Build (Windows x86_64 MSVC)'
+BoxTitle 'seaserver Desktop Build (Electron, Windows x64)'
 Print-Stats
 
-# -- 0. Environment checks & auto-install -----------------
+# -- 0. Environment checks --------------------------------
 
 Step '0.1' 'Environment check'
 SubStep "Script dir: $ScriptDir"
@@ -96,95 +95,15 @@ Step '0.2' 'Sanity checks'
 if (-not (Test-Path (Join-Path $ScriptDir 'seanime-web'))) {
     Fail 'Missing directory: seanime-web'; exit 1
 }
-if (-not (Test-Path (Join-Path $ScriptDir 'seanime-desktop'))) {
-    Fail 'Missing directory: seanime-desktop'; exit 1
+if (-not (Test-Path (Join-Path $ScriptDir 'seanime-denshi'))) {
+    Fail 'Missing directory: seanime-denshi'; exit 1
 }
-Success 'Required directories present'
+if (-not (Assert-Command 'node' 'Node.js'))  { exit 1 }
+if (-not (Assert-Command 'npm' 'npm'))       { exit 1 }
+if (-not (Assert-Command 'go' 'Go'))         { exit 1 }
+Success 'Required directories and tools present'
 
-Step '0.3' 'Rust toolchain'
-if (-not (Assert-Command 'rustc' 'Rust compiler')) {
-    SubStep 'Rust not found -- installing via rustup-init...'
-    $rustupInit = Join-Path $env:TEMP 'rustup-init.exe'
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri 'https://win.rustup.rs/x86_64' -OutFile $rustupInit -UseBasicParsing
-    & $rustupInit -y --default-toolchain stable
-    Remove-Item $rustupInit -ErrorAction SilentlyContinue
-
-    # Refresh PATH for current session
-    $cargoPath = Join-Path $env:USERPROFILE '.cargo\bin'
-    if ($env:PATH -notlike "*$cargoPath*") {
-        $env:PATH = "$cargoPath;$env:PATH"
-    }
-
-    if (-not (Assert-Command 'rustc' 'Rust compiler')) {
-        Fail 'Rust installation failed'; exit 1
-    }
-    Success "Rust installed: $(rustc --version)"
-} else {
-    SubStep "Rust: $(rustc --version)"
-}
-
-if (-not (Assert-Command 'cargo' 'Cargo')) {
-    Fail 'cargo not found even after rustup install'; exit 1
-}
-
-Step '0.4' 'Windows MSVC target'
-$installedTargets = rustup target list --installed
-if ($installedTargets -notcontains $TargetTriple) {
-    SubStep "Adding Rust target $TargetTriple..."
-    rustup target add $TargetTriple
-    if ($LASTEXITCODE -ne 0) { Fail "Failed to add target $TargetTriple"; exit 1 }
-    Success 'Target added'
-} else {
-    SubStep "Target $TargetTriple already installed"
-}
-
-Step '0.5' 'NSIS check'
-if (-not (Assert-Command 'makensis' 'NSIS')) {
-    SubStep 'NSIS not found -- attempting auto-install...'
-    $installed = $false
-
-    # Try winget first
-    if (Get-Command 'winget' -ErrorAction SilentlyContinue) {
-        SubStep 'Trying winget install NSIS.NSIS...'
-        winget install --id NSIS.NSIS --accept-source-agreements --accept-package-agreements --silent 2>$null
-        # Refresh PATH
-        $nsisPath = Join-Path ${env:ProgramFiles(x86)} 'NSIS'
-        if (Test-Path $nsisPath) {
-            $env:PATH = "$nsisPath;$env:PATH"
-        }
-        if (Assert-Command 'makensis' 'NSIS') { $installed = $true; Success 'NSIS installed via winget' }
-    }
-
-    # Try chocolatey
-    if (-not $installed -and (Get-Command 'choco' -ErrorAction SilentlyContinue)) {
-        SubStep 'Trying choco install nsis...'
-        choco install nsis -y 2>$null
-        $nsisPath = Join-Path ${env:ProgramFiles(x86)} 'NSIS'
-        if (Test-Path $nsisPath) {
-            $env:PATH = "$nsisPath;$env:PATH"
-        }
-        if (Assert-Command 'makensis' 'NSIS') { $installed = $true; Success 'NSIS installed via chocolatey' }
-    }
-
-    if (-not $installed) {
-        Warn 'NSIS not available -- Tauri may download it automatically during build'
-    }
-} else {
-    SubStep 'NSIS already available'
-}
-
-Step '0.6' 'cargo-tauri CLI'
-if (-not (Get-Command 'cargo-tauri' -ErrorAction SilentlyContinue)) {
-    SubStep 'Installing tauri-cli...'
-    cargo install tauri-cli
-    if ($LASTEXITCODE -ne 0) { Fail 'Failed to install tauri-cli'; exit 1 }
-    Success 'tauri-cli installed'
-} else {
-    SubStep 'cargo-tauri already installed'
-}
-
-# -- 1. Frontend (desktop build) --------------------------
+# -- 1. Frontend (Electron variant) -----------------------
 
 Step '1.1' 'Frontend dependencies'
 Invoke-StepCmd 'npm ci (seanime-web)' {
@@ -197,29 +116,30 @@ Invoke-StepCmd 'npm ci (seanime-web)' {
 }
 Success 'Dependencies installed'
 
-Step '1.2' 'Frontend build (desktop variant)'
-Invoke-StepCmd 'npm run build:desktop' {
+Step '1.2' 'Frontend build (Electron/denshi variant)'
+Invoke-StepCmd 'npm run build:denshi' {
     Push-Location (Join-Path $ScriptDir 'seanime-web')
     try {
-        SubStep 'Type-checking and bundling with desktop env...'
-        npm run build:desktop
-        if ($LASTEXITCODE -ne 0) { throw 'build:desktop failed' }
-        SubStep 'Checking build output (./out)...'
-        if (-not (Test-Path 'out')) { throw 'Frontend build output missing (expected seanime-web/out/)' }
+        SubStep 'Type-checking and bundling with denshi env...'
+        npm run build:denshi
+        if ($LASTEXITCODE -ne 0) { throw 'build:denshi failed' }
+        SubStep 'Checking build output (./out-denshi)...'
+        if (-not (Test-Path 'out-denshi')) { throw 'Frontend build output missing (expected seanime-web/out-denshi/)' }
     } finally { Pop-Location }
 }
-Success 'Frontend built (desktop)'
+Success 'Frontend built (denshi)'
 
-# -- 2. Copy desktop web output ---------------------------
+# -- 2. Copy denshi web output ----------------------------
 
-Step '2.1' 'Prepare desktop web output'
-SubStep 'Removing old ./web-desktop...'
-if (Test-Path (Join-Path $ScriptDir 'web-desktop')) {
-    Remove-Item -Recurse -Force (Join-Path $ScriptDir 'web-desktop')
+Step '2.1' 'Prepare denshi web output'
+$DenshiWebDir = Join-Path $ScriptDir 'seanime-denshi\web-denshi'
+SubStep "Removing old $DenshiWebDir..."
+if (Test-Path $DenshiWebDir) {
+    Remove-Item -Recurse -Force $DenshiWebDir
 }
-SubStep 'Copying seanime-web/out -> ./web-desktop...'
-Copy-Item -Recurse -Force (Join-Path $ScriptDir 'seanime-web\out') (Join-Path $ScriptDir 'web-desktop')
-if (Test-Path (Join-Path $ScriptDir 'web-desktop')) { Success 'Desktop web output ready at ./web-desktop' }
+SubStep 'Copying seanime-web/out-denshi -> seanime-denshi/web-denshi...'
+Copy-Item -Recurse -Force (Join-Path $ScriptDir 'seanime-web\out-denshi') $DenshiWebDir
+if (Test-Path $DenshiWebDir) { Success "Denshi web output ready at $DenshiWebDir" }
 
 # -- 3. Standalone web build ------------------------------
 
@@ -253,35 +173,38 @@ if ($LASTEXITCODE -ne 0) { Fail 'Go build failed'; exit 1 }
 if (Test-Path 'seanime.exe') { Success 'Windows backend built: ./seanime.exe' }
 
 Step '4.2' 'Copy sidecar binary'
-$SidecarName = "seanime-$TargetTriple.exe"
-$SidecarPath = Join-Path $ScriptDir "seanime-desktop\src-tauri\binaries\$SidecarName"
+$BinariesDir = Join-Path $ScriptDir 'seanime-denshi\binaries'
+$SidecarPath = Join-Path $BinariesDir 'seanime-server-windows.exe'
+if (-not (Test-Path $BinariesDir)) {
+    New-Item -ItemType Directory -Force -Path $BinariesDir | Out-Null
+}
 SubStep "Copying seanime.exe -> $SidecarPath"
 Copy-Item -Force (Join-Path $ScriptDir 'seanime.exe') $SidecarPath
 if (Test-Path $SidecarPath) { Success "Sidecar placed at $SidecarPath" }
 
-# -- 5. Desktop (Tauri) build -----------------------------
+# -- 5. Electron (electron-builder) build -----------------
 
-Step '5.1' 'Desktop npm dependencies'
-Invoke-StepCmd 'npm ci (seanime-desktop)' {
-    Push-Location (Join-Path $ScriptDir 'seanime-desktop')
+Step '5.1' 'Denshi npm dependencies'
+Invoke-StepCmd 'npm ci (seanime-denshi)' {
+    Push-Location (Join-Path $ScriptDir 'seanime-denshi')
     try {
         SubStep 'Running npm ci...'
         npm ci
         if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
     } finally { Pop-Location }
 }
-Success 'Desktop dependencies installed'
+Success 'Denshi dependencies installed'
 
-Step '5.2' "Tauri build (target: $TargetTriple)"
-Invoke-StepCmd 'cargo tauri build' {
-    Push-Location (Join-Path $ScriptDir 'seanime-desktop\src-tauri')
+Step '5.2' 'electron-builder (target: win x64)'
+Invoke-StepCmd 'npm run build:win' {
+    Push-Location (Join-Path $ScriptDir 'seanime-denshi')
     try {
-        SubStep "Running cargo tauri build --target $TargetTriple..."
-        cargo tauri build --target $TargetTriple
-        if ($LASTEXITCODE -ne 0) { throw 'Tauri build failed' }
+        SubStep 'Running electron-builder build --win --x64...'
+        npm run build:win
+        if ($LASTEXITCODE -ne 0) { throw 'electron-builder build failed' }
     } finally { Pop-Location }
 }
-Success 'Tauri desktop build complete'
+Success 'Electron desktop build complete'
 
 # -- Done -------------------------------------------------
 
@@ -298,8 +221,8 @@ Write-Host "$esc[32m$esc[1mAll steps finished successfully.$esc[0m Duration: $es
 Divider
 Write-Host 'Outputs:'
 Write-Host "  $esc[1mStandalone:$esc[0m  ./seanime.exe + ./web/"
-Write-Host "  $esc[1mSidecar:$esc[0m     seanime-desktop/src-tauri/binaries/$SidecarName"
-Write-Host "  $esc[1mInstaller:$esc[0m   seanime-desktop/src-tauri/target/$TargetTriple/release/bundle/"
+Write-Host "  $esc[1mSidecar:$esc[0m     seanime-denshi/binaries/seanime-server-windows.exe"
+Write-Host "  $esc[1mInstaller:$esc[0m   seanime-denshi/dist/ (NSIS .exe + unpacked)"
 Divider
 Print-Stats
 Divider
