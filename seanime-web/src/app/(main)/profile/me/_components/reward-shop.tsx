@@ -622,10 +622,15 @@ function ThemesTab({ currentLevel }: { currentLevel: number }) {
                 // Fetch themes from marketplace endpoint
                 const response = await fetch("/api/v1/shared-themes/marketplace")
                 if (!response.ok) throw new Error("Failed to fetch themes")
-                const data = (await response.json()) as any[] | { data: any[] }
+                const data = (await response.json()) as unknown
                 
                 // Data should be an array of themes
-                const themeList = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : [])
+                let themeList: any[] = []
+                if (Array.isArray(data)) {
+                    themeList = data
+                } else if (data && typeof data === 'object' && 'data' in data && Array.isArray((data as any).data)) {
+                    themeList = (data as any).data
+                }
                 setThemes(themeList.map((t: any) => ({
                     id: t.id,
                     name: t.name,
@@ -670,7 +675,7 @@ function ThemesTab({ currentLevel }: { currentLevel: number }) {
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {themes.map((theme: ThemeEntry) => {
-                        const isActive = activeTheme?.id === theme.id
+                        const isActive = activeTheme === theme.id
 
                         return (
                             <CardBase key={theme.id} isActive={isActive} isUnlocked={true} onClick={() => setActiveTheme(theme.id)} className="items-start overflow-hidden">
