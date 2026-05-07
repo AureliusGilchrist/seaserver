@@ -563,7 +563,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
         }
     }, [smpResumePrompt?.time])
 
-    const { onMediaEnterFullscreenRequest } = useFullscreenHandler(playerRef)
+    const { onMediaEnterFullscreenRequest, onTauriFullscreenChange } = useFullscreenHandler(playerRef)
 
     return (
         <>
@@ -627,6 +627,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
                         onMediaEnterFullscreenRequest={onMediaEnterFullscreenRequest}
                         onFullscreenChange={(isFullscreen: boolean, event: MediaFullscreenChangeEvent) => {
                             setIsFullscreen(isFullscreen)
+                            onTauriFullscreenChange(isFullscreen)
 
                             // Don't clear wasFullscreenRef during source transitions
                             // so we can restore fullscreen after the new source loads

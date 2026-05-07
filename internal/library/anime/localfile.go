@@ -147,6 +147,19 @@ func NewLocalFileParsedData(original string, elements *habari.Metadata) *LocalFi
 		}
 	}
 
+	// High-priority override: if an explicit "Episode NNN" (triple-padded) label is present,
+	// always use it as the single episode number. This handles filenames like
+	// "Title - Episode 007 - Some Title No. 1.mkv" where habari finds both "007" and "1"
+	// and puts them in EpisodeRange, leaving Episode empty and causing the hydrator to
+	// treat the file as having no episode number.
+	if len(i.Episode) == 0 {
+		reTriple := regexp.MustCompile(`(?i)episode\s+(\d{3})`)
+		if m := reTriple.FindStringSubmatch(original); len(m) >= 2 {
+			i.Episode = m[1]
+			i.EpisodeRange = nil
+		}
+	}
+
 	// Fallback: habari sometimes misses triple-padded episode numbers (e.g. "Episode 001").
 	// Try our own patterns if no episode was extracted.
 	if len(i.Episode) == 0 && len(i.EpisodeRange) == 0 {
