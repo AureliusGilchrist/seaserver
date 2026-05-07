@@ -30,20 +30,33 @@ export function TauriManager(props: TauriManagerProps) {
         // element entered fullscreen (WebView2 F11), undo it and use Tauri native fullscreen.
         // Video player fullscreen uses a specific container element, so they're distinguishable.
         //
-        // For video player DOM fullscreen (non-root element): WebView2 only covers the work
-        // area, leaving a taskbar-sized gap. Fix by calling setAlwaysOnTop(true) so the window
-        // renders over the taskbar. Track whether WE set it so we only undo it on our own exit.
-        let playerSetAlwaysOnTop = false
+        // For video player DOM fullscreen: the player code expands the Tauri window to full
+        // screen BEFORE calling requestFullscreen(), so WebView2's DOM fullscreen fills the
+        // entire display. The player dispatches "tauri:player-fullscreen-enter" to signal this.
+        // When DOM fullscreen exits (Escape, button, etc.), we restore the window here.
+        //
+        // For WebView2 F11: WebView2 intercepts F11 and calls documentElement.requestFullscreen().
+        // We swap that for Tauri native fullscreen. When toggleFullscreen() enters, we set
+        // windowFullscreenSetByF11=true so we know not to restore the window on DOM exit.
+        let windowFullscreenSetByPlayer = false
+
+        const handlePlayerFullscreenEnter = () => {
+            windowFullscreenSetByPlayer = true
+        }
+        window.addEventListener("tauri:player-fullscreen-enter", handlePlayerFullscreenEnter)
 
         const handleFullscreenChange = async () => {
             const appWindow = new Window("main")
             if (!document.fullscreenElement) {
-                // Fullscreen exited — undo alwaysOnTop only if the player set it
-                if (playerSetAlwaysOnTop) {
-                    playerSetAlwaysOnTop = false
+                // DOM fullscreen exited — restore Tauri window only if the player set it
+                if (windowFullscreenSetByPlayer) {
+                    windowFullscreenSetByPlayer = false
                     const isWinFs = await appWindow.isFullscreen().catch(() => false)
-                    if (!isWinFs) {
+                    if (isWinFs) {
                         await appWindow.setAlwaysOnTop(false).catch(() => {})
+                        await appWindow.setFullscreen(false).catch(() => {})
+                        await appWindow.setDecorations(true).catch(() => {})
+                        window.dispatchEvent(new CustomEvent("tauri:fullscreenchange", { detail: { isFullscreen: false } }))
                     }
                 }
                 return
@@ -52,17 +65,9 @@ export function TauriManager(props: TauriManagerProps) {
                 // WebView2 F11 — swap for Tauri native fullscreen
                 await document.exitFullscreen().catch(() => {})
                 await toggleFullscreen()
-            } else {
-                // Video player container entered DOM fullscreen.
-                // setAlwaysOnTop covers the taskbar gap that WebView2 leaves.
-                const isWinFs = await appWindow.isFullscreen().catch(() => false)
-                if (!isWinFs) {
-                    // Window isn't already Tauri-fullscreen, so we own this toggle.
-                    await appWindow.setAlwaysOnTop(true).catch(() => {})
-                    playerSetAlwaysOnTop = true
-                }
-                // If window was already Tauri-fullscreen (F11), alwaysOnTop is already set.
             }
+            // Video player entered DOM fullscreen — the player already expanded the window,
+            // nothing to do here.
         }
 
         // Get video fullscreen manager from jotai store
@@ -113,6 +118,7 @@ export function TauriManager(props: TauriManagerProps) {
             u.then((f) => f())
             document.removeEventListener("fullscreenchange", handleFullscreenChange)
             window.removeEventListener("keydown", handleKeydown, { capture: true })
+            window.removeEventListener("tauri:player-fullscreen-enter", handlePlayerFullscreenEnter)
         }
     }, [])
 
