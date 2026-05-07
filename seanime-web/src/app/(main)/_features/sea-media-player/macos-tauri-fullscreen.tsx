@@ -40,7 +40,6 @@ export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInsta
                         currentWindow.emit("macos-activation-policy-accessory").then(() => {
                             console.log("macos policy accessory event sent")
                             if (nativeEvent.defaultPrevented) {
-                                // console.log("requesting fullscreen")
                                 try {
                                     // playerRef.current?.enterFullscreen()
                                 }
@@ -49,6 +48,11 @@ export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInsta
                                 }
                             }
                         })
+                    } else if (!!platform && currentWindow) {
+                        // For Windows/Linux: expand the OS window to cover the taskbar before
+                        // the browser element fullscreen request fires, so the video fills
+                        // the entire screen rather than just the maximised window client area.
+                        currentWindow.setFullscreen?.(true)
                     }
                 }
             }
@@ -58,7 +62,28 @@ export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInsta
         }
     }
 
+    /**
+     * Call this from the player's onFullscreenChange handler.
+     * On non-macOS Tauri builds it syncs the OS window fullscreen state so the
+     * window shrinks back correctly when the user exits player fullscreen.
+     */
+    function onTauriFullscreenChange(isFullscreen: boolean) {
+        if (!__isDesktop__) return
+        try {
+            if ((window as any)?.__TAURI__) {
+                const platform: string | undefined = (window as any)?.__TAURI__?.os?.platform?.()
+                const currentWindow: any | undefined = (window as any)?.__TAURI__?.window?.getCurrentWindow?.()
+                if (!!platform && platform !== "macos" && currentWindow) {
+                    currentWindow.setFullscreen?.(isFullscreen)
+                }
+            }
+        }
+        catch {
+        }
+    }
+
     return {
         onMediaEnterFullscreenRequest,
+        onTauriFullscreenChange,
     }
 }
