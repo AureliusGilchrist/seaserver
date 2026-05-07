@@ -505,10 +505,11 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
         } catch { /* noop — audio not available */ }
     }, [activeSoundPackId, soundVolume, userLevel])
 
-    // Global click sounds — smarter role detection
+    // Global click sounds — debounced to reduce spam, passive listener for performance
     React.useEffect(() => {
+        let clickTimeout: NodeJS.Timeout | null = null
         const handleClick = (e: MouseEvent) => {
-            if (soundVolume <= 0) return
+            if (soundVolume <= 0 || clickTimeout) return
             const target = e.target as Element | null
             if (!target) return
             const el = target.closest(
@@ -516,6 +517,9 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
                 "[role='switch'], [role='checkbox'], [role='radio'], a[href], [role='link']",
             )
             if (!el || el.hasAttribute("disabled") || (el as HTMLElement).dataset.noSound) return
+
+            // Debounce: prevent sound spam from rapid clicks
+            clickTimeout = setTimeout(() => { clickTimeout = null }, 50)
 
             const role = el.getAttribute("role")
             const tag = el.tagName?.toLowerCase()
@@ -527,13 +531,13 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
             if (el.closest("nav, aside, [data-sidebar], [data-nav]")) { playSound("navClick"); return }
             playSound("buttonClick")
         }
-        window.addEventListener("click", handleClick)
-        return () => window.removeEventListener("click", handleClick)
+        window.addEventListener("click", handleClick, { passive: true, capture: false })
+        return () => { window.removeEventListener("click", handleClick); if (clickTimeout) clearTimeout(clickTimeout) }
     }, [playSound, soundVolume])
 
-    // Hover sound — fires once per newly entered interactive element
+    // Hover sound — optimized with weakref tracking, passive listener
     React.useEffect(() => {
-        let lastEl: Element | null = null
+        let lastEl: WeakRef<Element> | null = null
         const handleHover = (e: MouseEvent) => {
             if (soundVolume <= 0) return
             const target = e.target as Element | null
@@ -541,27 +545,32 @@ export function SoundProvider({ children }: { children: React.ReactNode }) {
             const el = target.closest(
                 "button:not([disabled]), [role='button'], [role='tab'], [role='option'], [role='menuitem']",
             )
-            if (!el || el === lastEl || (el as HTMLElement).dataset.noSound) return
-            lastEl = el
+            if (!el || (el as HTMLElement).dataset.noSound) return
+            if (lastEl?.deref() === el) return
+            lastEl = new WeakRef(el)
             playSound("hover")
         }
-        window.addEventListener("mouseover", handleHover, { passive: true })
+        window.addEventListener("mouseover", handleHover, { passive: true, capture: false })
         return () => window.removeEventListener("mouseover", handleHover)
     }, [playSound, soundVolume])
 
-    // Input focus sound
+    // Input focus sound — optimized focus handler, passive listener
     React.useEffect(() => {
         const handleFocus = (e: FocusEvent) => {
             if (soundVolume <= 0) return
             const target = e.target as Element | null
             if (!target) return
-            if (target.matches("input:not([type='hidden']):not([type='range']):not([type='checkbox']):not([type='radio']), textarea")) {
+            const tag = target.tagName?.toLowerCase()
+            const type = (target as HTMLInputElement).type?.toLowerCase()
+            if (tag === "input" && type !== "hidden" && type !== "range" && type !== "checkbox" && type !== "radio") {
                 playSound("inputFocus")
-            } else if (target.matches("select, [role='combobox']")) {
+            } else if (tag === "textarea") {
+                playSound("inputFocus")
+            } else if (tag === "select" || target.getAttribute("role") === "combobox") {
                 playSound("dropdownOpen")
             }
         }
-        window.addEventListener("focusin", handleFocus, { passive: true })
+        window.addEventListener("focusin", handleFocus, { passive: true, capture: false })
         return () => window.removeEventListener("focusin", handleFocus)
     }, [playSound, soundVolume])
 
