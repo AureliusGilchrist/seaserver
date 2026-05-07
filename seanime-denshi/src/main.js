@@ -1031,10 +1031,29 @@ function createMainWindow() {
 
     mainWindow.on("render-process-gone", (event, details) => {
         console.log("[Main] Render process gone", details)
+        log.error("[MainWindow] render-process-gone", details)
         if (crashScreen && !crashScreen.isDestroyed()) {
             crashScreen.show()
         }
     })
+
+    // Diagnostics: surface main-window load failures + console messages to main-process log
+    mainWindow.webContents.on("preload-error", (_e, preloadPath, err) => {
+        log.error("[MainWindow] preload-error", preloadPath, err)
+    })
+    mainWindow.webContents.on("did-fail-load", (_e, code, desc, url) => {
+        log.error("[MainWindow] did-fail-load", code, desc, url)
+    })
+    mainWindow.webContents.on("console-message", (_e, level, message, line, sourceId) => {
+        if (level >= 2) {
+            log.warn(`[MainWindow console L${level}] ${message} (${sourceId}:${line})`)
+        }
+    })
+
+    // TEMP: auto-open devtools on main window while debugging the post-splash crash
+    if (_development || process.env.SEANIME_DEBUG_SPLASH || true) {
+        mainWindow.webContents.openDevTools({ mode: "detach" })
+    }
 
     mainWindow.webContents.on("will-attach-webview", (event, webPreferences, params) => {
         if (!isAllowedLocalEmbedURL(params.src)) {
@@ -1124,6 +1143,29 @@ function createSplashScreen() {
             nodeIntegration: false, contextIsolation: true, sandbox: true, preload: path.join(__dirname, "preload.js")
         }
     })
+
+    // Diagnostics: surface renderer crashes / unhandled errors to the main-process log
+    splashScreen.webContents.on("render-process-gone", (_e, details) => {
+        log.error("[Splash] render-process-gone", details)
+    })
+    splashScreen.webContents.on("preload-error", (_e, preloadPath, err) => {
+        log.error("[Splash] preload-error", preloadPath, err)
+    })
+    splashScreen.webContents.on("did-fail-load", (_e, code, desc, url) => {
+        log.error("[Splash] did-fail-load", code, desc, url)
+    })
+    splashScreen.webContents.on("console-message", (_e, level, message, line, sourceId) => {
+        // 0=verbose 1=info 2=warning 3=error
+        if (level >= 2) {
+            log.warn(`[Splash console L${level}] ${message} (${sourceId}:${line})`)
+        }
+    })
+
+    // Auto-open devtools for splash when running in dev OR when SEANIME_DEBUG_SPLASH is set
+    // TEMP: always open while debugging the setup-screen crash
+    if (_development || process.env.SEANIME_DEBUG_SPLASH || true) {
+        splashScreen.webContents.openDevTools({ mode: "detach" })
+    }
 
     // Load the web content
     if (_development) {
