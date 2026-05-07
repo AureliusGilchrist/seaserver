@@ -622,10 +622,10 @@ function ThemesTab({ currentLevel }: { currentLevel: number }) {
                 // Fetch themes from marketplace endpoint
                 const response = await fetch("/api/v1/shared-themes/marketplace")
                 if (!response.ok) throw new Error("Failed to fetch themes")
-                const data = await response.json()
+                const data = (await response.json()) as any[] | { data: any[] }
                 
                 // Data should be an array of themes
-                const themeList = Array.isArray(data) ? data : data.data || []
+                const themeList = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : [])
                 setThemes(themeList.map((t: any) => ({
                     id: t.id,
                     name: t.name,

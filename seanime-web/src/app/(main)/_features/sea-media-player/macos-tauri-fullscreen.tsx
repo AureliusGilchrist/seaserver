@@ -1,7 +1,7 @@
 import { __isDesktop__ } from "@/types/constants"
 import { MediaEnterFullscreenRequestEvent, MediaFullscreenRequestTarget, MediaPlayerInstance } from "@vidstack/react"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
-import { Window, Monitor } from "@tauri-apps/api/window"
+import { PhysicalSize, PhysicalPosition } from "@tauri-apps/api/window"
 import { platform } from "@tauri-apps/plugin-os"
 import React from "react"
 
@@ -42,41 +42,41 @@ export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInsta
                 document.documentElement.style.border = "0"
                 document.body.style.padding = "0"
                 document.body.style.margin = "0"
-                document.body.style.border = "0"
-                document.body.style.width = "100%"
-                document.body.style.height = "100%"
-                document.body.style.minHeight = "100%"
-                document.body.style.overflow = "hidden"
+                document.body.style.border = "0";
+                document.body.style.width = "100%";
+                document.body.style.height = "100%";
+                document.body.style.minHeight = "100%";
+                document.body.style.overflow = "hidden";
                 
                 // Find and fix media player container
-                const playerContainer = document.querySelector("[data-sea-media-player-container]")
+                const playerContainer = document.querySelector("[data-sea-media-player-container]") as HTMLElement | null;
                 if (playerContainer) {
-                    (playerContainer as HTMLElement).style.width = "100%"
-                    (playerContainer as HTMLElement).style.height = "100%"
-                    (playerContainer as HTMLElement).style.margin = "0"
-                    (playerContainer as HTMLElement).style.padding = "0"
-                    (playerContainer as HTMLElement).style.border = "0"
+                    playerContainer.style.width = "100%";
+                    playerContainer.style.height = "100%";
+                    playerContainer.style.margin = "0";
+                    playerContainer.style.padding = "0";
+                    playerContainer.style.border = "0";
                 }
             } else {
                 // Restore
-                document.documentElement.style.padding = ""
-                document.documentElement.style.margin = ""
-                document.documentElement.style.border = ""
-                document.body.style.padding = ""
-                document.body.style.margin = ""
-                document.body.style.border = ""
-                document.body.style.width = ""
-                document.body.style.height = ""
-                document.body.style.minHeight = ""
-                document.body.style.overflow = ""
+                document.documentElement.style.padding = "";
+                document.documentElement.style.margin = "";
+                document.documentElement.style.border = "";
+                document.body.style.padding = "";
+                document.body.style.margin = "";
+                document.body.style.border = "";
+                document.body.style.width = "";
+                document.body.style.height = "";
+                document.body.style.minHeight = "";
+                document.body.style.overflow = "";
 
-                const playerContainer = document.querySelector("[data-sea-media-player-container]")
+                const playerContainer = document.querySelector("[data-sea-media-player-container]") as HTMLElement | null;
                 if (playerContainer) {
-                    (playerContainer as HTMLElement).style.width = ""
-                    (playerContainer as HTMLElement).style.height = ""
-                    (playerContainer as HTMLElement).style.margin = ""
-                    (playerContainer as HTMLElement).style.padding = ""
-                    (playerContainer as HTMLElement).style.border = ""
+                    playerContainer.style.width = "";
+                    playerContainer.style.height = "";
+                    playerContainer.style.margin = "";
+                    playerContainer.style.padding = "";
+                    playerContainer.style.border = "";
                 }
             }
         }
@@ -99,24 +99,20 @@ export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInsta
                         })
                     } else {
                         // For Windows/Linux: expand the OS window to cover the entire screen
-                        // Get the primary monitor and maximize the window to those dimensions
-                        const appWindow = new Window("main")
-                        if (getCurrentWebviewWindow().label === "main") {
+                        const appWindow = getCurrentWebviewWindow()
+                        if (appWindow.label === "main") {
                             (async () => {
                                 try {
                                     // Get the monitor of the window
-                                    const monitor = await appWindow.currentMonitor()
-                                    if (monitor) {
-                                        // Set window to cover the entire monitor (including taskbar area)
-                                        await appWindow.setSize({
-                                            width: Math.round(monitor.size.width * monitor.scaleFactor),
-                                            height: Math.round(monitor.size.height * monitor.scaleFactor),
-                                        })
-                                        await appWindow.setPosition({
-                                            x: Math.round(monitor.position.x),
-                                            y: Math.round(monitor.position.y),
-                                        })
-                                    }
+                                    const monitor = await appWindow.scaleFactor()
+                                    const size = new PhysicalSize(
+                                        Math.round(screen.width * (monitor || 1)),
+                                        Math.round(screen.height * (monitor || 1))
+                                    )
+                                    const pos = new PhysicalPosition(0, 0)
+                                    
+                                    await appWindow.setSize(size)
+                                    await appWindow.setPosition(pos)
                                     await appWindow.setDecorations(false)
                                     await appWindow.setFullscreen(true)
                                     await appWindow.setAlwaysOnTop(true)
@@ -124,6 +120,7 @@ export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInsta
                                     console.error("failed to set fullscreen:", e)
                                     // Fallback to the original method
                                     try {
+                                        const appWindow = getCurrentWebviewWindow()
                                         await appWindow.setDecorations(false)
                                         await appWindow.setFullscreen(true)
                                         await appWindow.setAlwaysOnTop(true)
@@ -151,24 +148,21 @@ export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInsta
             if ((window as any)?.__TAURI__) {
                 const currentPlatform = platform()
                 if (currentPlatform !== "macos") {
-                    const appWindow = new Window("main")
-                    if (getCurrentWebviewWindow().label === "main") {
+                    const appWindow = getCurrentWebviewWindow()
+                    if (appWindow.label === "main") {
                         if (isFullscreen) {
                             (async () => {
                                 try {
-                                    // Get the monitor of the window
-                                    const monitor = await appWindow.currentMonitor()
-                                    if (monitor) {
-                                        // Set window to cover the entire monitor
-                                        await appWindow.setSize({
-                                            width: Math.round(monitor.size.width * monitor.scaleFactor),
-                                            height: Math.round(monitor.size.height * monitor.scaleFactor),
-                                        })
-                                        await appWindow.setPosition({
-                                            x: Math.round(monitor.position.x),
-                                            y: Math.round(monitor.position.y),
-                                        })
-                                    }
+                                    // Get scale factor
+                                    const scaleFactor = await appWindow.scaleFactor()
+                                    const size = new PhysicalSize(
+                                        Math.round(screen.width * (scaleFactor || 1)),
+                                        Math.round(screen.height * (scaleFactor || 1))
+                                    )
+                                    const pos = new PhysicalPosition(0, 0)
+                                    
+                                    await appWindow.setSize(size)
+                                    await appWindow.setPosition(pos)
                                     await appWindow.setDecorations(false)
                                     await appWindow.setFullscreen(true)
                                     await appWindow.setAlwaysOnTop(true)
@@ -176,6 +170,7 @@ export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInsta
                                     console.error("failed to set fullscreen:", e)
                                     // Fallback
                                     try {
+                                        const appWindow = getCurrentWebviewWindow()
                                         await appWindow.setDecorations(false)
                                         await appWindow.setFullscreen(true)
                                         await appWindow.setAlwaysOnTop(true)

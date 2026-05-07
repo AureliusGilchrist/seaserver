@@ -49,6 +49,8 @@ interface ActiveRewards {
     xpBarSkinId: string
     /** Array of active particle set IDs — up to 3 can run simultaneously */
     particleSetIds: string[]
+    /** Active marketplace theme ID */
+    activeThemeId: string | null
 }
 
 const DEFAULTS: ActiveRewards = {
@@ -58,6 +60,7 @@ const DEFAULTS: ActiveRewards = {
     backgroundId: "bg-default",
     xpBarSkinId: "xpbar-default",
     particleSetIds: [],
+    activeThemeId: null,
 }
 
 interface RewardContextValue {
@@ -76,6 +79,8 @@ interface RewardContextValue {
     activeParticleSets: ParticleSetReward[]
     /** Legacy single-set accessor (first active set, or null) */
     activeParticleSet: ParticleSetReward | null
+    /** ID of active marketplace theme */
+    activeTheme: string | null
     setActiveTitle: (id: string) => void
     setActiveNameColor: (id: string) => void
     setActiveBorder: (id: string) => void
@@ -85,6 +90,8 @@ interface RewardContextValue {
     setActiveParticleSet: (id: string) => void
     toggleParticleSet: (id: string) => void
     isParticleSetActive: (id: string) => boolean
+    /** Set active marketplace theme */
+    setActiveTheme: (id: string | null) => void
 }
 
 const RewardContext = React.createContext<RewardContextValue>({
@@ -95,6 +102,7 @@ const RewardContext = React.createContext<RewardContextValue>({
     activeXPBarSkin: null,
     activeParticleSets: [],
     activeParticleSet: null,
+    activeTheme: null,
     setActiveTitle: () => {},
     setActiveNameColor: () => {},
     setActiveBorder: () => {},
@@ -103,6 +111,7 @@ const RewardContext = React.createContext<RewardContextValue>({
     setActiveParticleSet: () => {},
     toggleParticleSet: () => {},
     isParticleSetActive: () => false,
+    setActiveTheme: () => {},
     eggUnlockedRewards: new Set(),
     unlockEggReward: () => {},
     isEggUnlocked: () => false,
@@ -335,6 +344,10 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         return (active.particleSetIds ?? []).includes(id)
     }, [active.particleSetIds])
 
+    const setActiveTheme = React.useCallback((id: string | null) => {
+        persist({ ...active, activeThemeId: id })
+    }, [active, storageKey])
+
     // ── CSS injection ──────────────────────────────────────────────────────────
     const nameColorDef = lookupNameColor(active.nameColorId)
     const borderDef    = lookupBorder(active.borderId)
@@ -397,6 +410,7 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         activeBorder:       borderDef,
         activeBackground:   bgDef,
         activeXPBarSkin:    xpBarDef,
+        activeTheme:        active.activeThemeId ?? null,
         eggUnlockedRewards,
         unlockEggReward,
         isEggUnlocked,
@@ -410,6 +424,7 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         setActiveParticleSet,
         toggleParticleSet,
         isParticleSetActive,
+        setActiveTheme,
     }
 
     return (
