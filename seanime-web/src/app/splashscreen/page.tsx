@@ -5,63 +5,137 @@ import { SeanimeGradientBackground } from "@/components/shared/gradient-backgrou
 import { TextGenerateEffect } from "@/components/shared/text-generate-effect"
 import { SeaImage as Image } from "@/components/shared/sea-image"
 import { LoadingOverlay } from "@/components/ui/loading-spinner"
-import { __isTauriDesktop__ } from "@/types/constants"
+import { __isElectronDesktop__, __isTauriDesktop__ } from "@/types/constants"
 import React from "react"
 import { LuMonitor, LuGlobe, LuLoader, LuCircleCheck, LuCircleX } from "react-icons/lu"
 
 type BootState = "loading" | "setup" | "local-booting" | "remote-connecting"
+
+type ServerConfig = { mode: "local" | "remote"; remote_url?: string } | null
+
+// Cross-platform desktop bridge — abstracts Tauri vs Electron IPC.
+type DesktopBridge = {
+    getConfig: () => Promise<ServerConfig>
+    saveConfig: (mode: "local" | "remote", remoteUrl: string | null) => Promise<void>
+    validateRemote: (url: string) => Promise<boolean>
+    startLocal: () => Promise<void>
+    onShowSetup: (cb: () => void) => () => void
+    onRemoteReady: (cb: (url: string) => void) => () => void
+    proceedToMain: () => Promise<void>
+}
+
+async function makeTauriBridge(): Promise<DesktopBridge> {
+    const { listen } = await import("@tauri-apps/api/event")
+    const { invoke } = await import("@tauri-apps/api/core")
+    return {
+        getConfig: () => invoke<ServerConfig>("get_server_config"),
+        saveConfig: async (mode, remoteUrl) => { await invoke("save_server_config", { mode, remoteUrl }) },
+        validateRemote: (url) => invoke<boolean>("validate_remote_server", { url }),
+        startLocal: async () => { await invoke("start_local_server") },
+        onShowSetup: (cb) => {
+            let off: (() => void) | null = null
+            listen("show-setup", () => cb()).then(u => { off = u })
+            return () => { off?.() }
+        },
+        onRemoteReady: (cb) => {
+            let off: (() => void) | null = null
+            listen<string>("remote-ready", (e) => cb(e.payload)).then(u => { off = u })
+            return () => { off?.() }
+        },
+        proceedToMain: async () => {
+            const { getCurrentWebviewWindow } = await import("@tauri-apps/api/webviewWindow")
+            const { Window } = await import("@tauri-apps/api/window")
+            const mainWindow = new Window("main")
+            await mainWindow.maximize()
+            await mainWindow.show()
+            await getCurrentWebviewWindow().close()
+        },
+    }
+}
+
+function makeElectronBridge(): DesktopBridge {
+    const electron = (window as any).electron
+    return {
+        getConfig: () => electron.serverConfig.get(),
+        saveConfig: async (mode, remoteUrl) => {
+            await electron.serverConfig.save({ mode, remote_url: remoteUrl ?? "" })
+        },
+        validateRemote: async (url) => {
+            const r = await electron.serverConfig.validate(url)
+            if (r?.ok) return true
+            throw new Error(r?.error || "Connection failed")
+        },
+        startLocal: async () => { electron.serverConfig.launchLocal() },
+        onShowSetup: (cb) => {
+            const off = electron.on("show-setup", () => cb())
+            return () => { off?.() }
+        },
+        onRemoteReady: (cb) => {
+            const off = electron.on("remote-ready", (payload: any) => {
+                const url = typeof payload === "string" ? payload : payload?.remote_url
+                if (url) cb(url)
+            })
+            return () => { off?.() }
+        },
+        proceedToMain: async () => {
+            // Main process handles closing splash + showing main window.
+            electron.serverConfig.remoteReadyAck()
+        },
+    }
+}
 
 export default function Page() {
     const [bootState, setBootState] = React.useState<BootState>("loading")
     const [remoteUrl, setRemoteUrl] = React.useState("http://")
     const [validating, setValidating] = React.useState(false)
     const [validationError, setValidationError] = React.useState<string | null>(null)
+    const bridgeRef = React.useRef<DesktopBridge | null>(null)
 
     React.useEffect(() => {
-        if (!__isTauriDesktop__) return
+        if (!__isTauriDesktop__ && !__isElectronDesktop__) return
 
-        let cleanup: (() => void)[] = []
+        let cleanup: Array<() => void> = []
         let handled = false
+        let cancelled = false
 
         async function init() {
-            const { listen } = await import("@tauri-apps/api/event")
-            const { invoke } = await import("@tauri-apps/api/core")
+            const bridge: DesktopBridge = __isTauriDesktop__
+                ? await makeTauriBridge()
+                : makeElectronBridge()
+            if (cancelled) return
+            bridgeRef.current = bridge
 
-            // Register listeners for events that may arrive later (e.g. if Rust delays)
-            const u1 = await listen("show-setup", () => {
+            // Register listeners for events that may arrive later
+            cleanup.push(bridge.onShowSetup(() => {
                 if (!handled) {
                     handled = true
                     setBootState("setup")
                 }
-            })
-            cleanup.push(u1)
+            }))
 
-            const u2 = await listen<string>("remote-ready", (event) => {
+            cleanup.push(bridge.onRemoteReady((url) => {
                 if (!handled) {
                     handled = true
-                    const url = event.payload
                     localStorage.setItem("sea-remote-server-url", JSON.stringify(url))
                     localStorage.setItem("sea-server-connection-mode", JSON.stringify("remote"))
-                    proceedToMain()
+                    bridge.proceedToMain()
                 }
-            })
-            cleanup.push(u2)
+            }))
 
-            // Also poll the config directly in case Rust already emitted before we registered listeners
+            // Also poll the config directly in case the event already fired before listeners were registered
             try {
-                const cfg = await invoke<{ mode: string; remote_url?: string } | null>("get_server_config")
-                if (handled) return // event already handled above
+                const cfg = await bridge.getConfig()
+                if (handled) return
                 handled = true
 
                 if (cfg && cfg.mode === "remote" && cfg.remote_url) {
                     localStorage.setItem("sea-remote-server-url", JSON.stringify(cfg.remote_url))
                     localStorage.setItem("sea-server-connection-mode", JSON.stringify("remote"))
-                    proceedToMain()
+                    bridge.proceedToMain()
                 } else if (cfg && cfg.mode === "local") {
-                    // Local mode — sidecar should already be starting from Rust .setup()
-                    // Just wait; the existing server.rs flow will close splashscreen on "Client connected"
+                    // Local mode — sidecar should already be starting from main process.
+                    // Wait for the existing "Client connected" flow to close splash + show main.
                 } else {
-                    // No config — show setup
                     setBootState("setup")
                 }
             } catch (e) {
@@ -74,31 +148,23 @@ export default function Page() {
         }
 
         init()
-        return () => { cleanup.forEach(fn => fn()) }
+        return () => {
+            cancelled = true
+            cleanup.forEach(fn => fn())
+        }
     }, [])
 
-    async function proceedToMain() {
-        const { getCurrentWebviewWindow } = await import("@tauri-apps/api/webviewWindow")
-        const { Window } = await import("@tauri-apps/api/window")
-        const mainWindow = new Window("main")
-        await mainWindow.maximize()
-        await mainWindow.show()
-        await getCurrentWebviewWindow().close()
-    }
-
     async function handleChooseLocal() {
+        const bridge = bridgeRef.current
+        if (!bridge) return
         setBootState("local-booting")
         try {
-            const { invoke } = await import("@tauri-apps/api/core")
-            // Save config
-            await invoke("save_server_config", { mode: "local", remoteUrl: null })
-            // Clear any remote URL from localStorage
+            await bridge.saveConfig("local", null)
             localStorage.removeItem("sea-remote-server-url")
             localStorage.setItem("sea-server-connection-mode", JSON.stringify("local"))
-            // Tell Rust to start the sidecar
-            await invoke("start_local_server")
-            // The rest happens via the existing server.rs flow:
-            // Rust monitors stdout for "Client connected", then closes splashscreen + shows main
+            await bridge.startLocal()
+            // The rest happens via the existing "Client connected" flow:
+            // main process monitors stdout, then closes splash + shows main.
         } catch (e) {
             console.error("Failed to start local server:", e)
             setBootState("setup")
@@ -106,22 +172,22 @@ export default function Page() {
     }
 
     async function handleConnectRemote() {
+        const bridge = bridgeRef.current
+        if (!bridge) return
         if (!remoteUrl || remoteUrl === "http://" || remoteUrl === "https://") return
 
         setValidating(true)
         setValidationError(null)
 
         try {
-            const { invoke } = await import("@tauri-apps/api/core")
-            const ok = await invoke<boolean>("validate_remote_server", { url: remoteUrl })
+            const ok = await bridge.validateRemote(remoteUrl)
             if (ok) {
                 const cleanUrl = remoteUrl.replace(/\/+$/, "")
-                await invoke("save_server_config", { mode: "remote", remoteUrl: cleanUrl })
+                await bridge.saveConfig("remote", cleanUrl)
                 localStorage.setItem("sea-remote-server-url", JSON.stringify(cleanUrl))
                 localStorage.setItem("sea-server-connection-mode", JSON.stringify("remote"))
                 setBootState("remote-connecting")
-                // Brief delay before showing main window
-                setTimeout(() => proceedToMain(), 500)
+                setTimeout(() => bridge.proceedToMain(), 500)
             }
         } catch (e: any) {
             setValidationError(typeof e === "string" ? e : e?.message || "Connection failed")
@@ -130,8 +196,8 @@ export default function Page() {
         }
     }
 
-    // Non-Tauri or loading state: show default loading overlay
-    if (!__isTauriDesktop__ || bootState === "loading") {
+    // Non-desktop or loading state: show default loading overlay
+    if ((!__isTauriDesktop__ && !__isElectronDesktop__) || bootState === "loading") {
         return <LoadingOverlayWithLogo />
     }
 

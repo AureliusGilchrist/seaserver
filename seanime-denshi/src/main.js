@@ -50,6 +50,70 @@ function saveDenshiSettings(settings) {
 
 let denshiSettings = DENSHI_SETTINGS_DEFAULTS
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Server connection config (local sidecar vs remote URL)
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const SERVER_CONFIG_FILE = "server-connection.json"
+
+function getServerConfigPath() {
+    return path.join(app.getPath("userData"), SERVER_CONFIG_FILE)
+}
+
+function loadServerConfig() {
+    try {
+        const p = getServerConfigPath()
+        if (fs.existsSync(p)) {
+            const cfg = JSON.parse(fs.readFileSync(p, "utf-8"))
+            if (cfg && (cfg.mode === "local" || cfg.mode === "remote")) return cfg
+        }
+    } catch (err) {
+        log.error("[ServerConfig] Failed to load:", err)
+    }
+    return null
+}
+
+function saveServerConfig(cfg) {
+    try {
+        fs.writeFileSync(getServerConfigPath(), JSON.stringify(cfg, null, 2), "utf-8")
+        return true
+    } catch (err) {
+        log.error("[ServerConfig] Failed to save:", err)
+        return false
+    }
+}
+
+function validateRemoteServer(url) {
+    return new Promise((resolve, reject) => {
+        try {
+            const cleanUrl = String(url || "").replace(/\/+$/, "")
+            if (!cleanUrl) {
+                reject(new Error("Empty URL"))
+                return
+            }
+            const target = `${cleanUrl}/api/v1/status`
+            const lib = target.startsWith("https://") ? require("https") : require("http")
+            const req = lib.get(target, { timeout: 5000, rejectUnauthorized: false }, (res) => {
+                res.resume()
+                resolve(true)
+            })
+            req.on("timeout", () => {
+                req.destroy()
+                reject(new Error("Connection timed out"))
+            })
+            req.on("error", (e) => {
+                if (e.code === "ECONNREFUSED" || e.code === "ENOTFOUND" || e.code === "EHOSTUNREACH") {
+                    reject(new Error("Could not connect to server"))
+                } else {
+                    reject(new Error(`Connection failed: ${e.message || e.code || "unknown"}`))
+                }
+            })
+        } catch (e) {
+            reject(e instanceof Error ? e : new Error(String(e)))
+        }
+    })
+}
+
 const _isRsbuildFrontend = true
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1279,30 +1343,59 @@ app.whenReady().then(async () => {
     // Create tray
     createTray()
 
-    // Launch server
-    try {
-        logStartupEvent("Attempting to launch server")
-        await launchSeanimeServer(false)
-        logStartupEvent("Server launched successfully")
-        // Check for updates only after server launch and main window setup is successful
-        autoUpdater.checkForUpdatesAndNotify()
-    } catch (error) {
-        logStartupEvent("Server launch failed", error.message)
-        console.error("[Main] Failed to start server:", error)
+    // Launch server (gated by server-connection.json: local | remote | unset → setup)
+    const serverCfg = loadServerConfig()
+    const sendToSplash = (channel, payload) => {
+        const send = () => {
+            if (splashScreen && !splashScreen.isDestroyed()) {
+                splashScreen.webContents.send(channel, payload)
+            }
+        }
         if (splashScreen && !splashScreen.isDestroyed()) {
-            splashScreen.close()
-            splashScreen = null
+            if (splashScreen.webContents.isLoading()) {
+                splashScreen.webContents.once("did-finish-load", send)
+            } else {
+                send()
+            }
         }
+    }
 
-        if (crashScreen && !crashScreen.isDestroyed()) {
-            crashScreen.show()
-            crashScreen.webContents.send("crash", `The server failed to start: ${error}. Closing in 10 seconds.`)
+    if (serverCfg && serverCfg.mode === "remote" && serverCfg.remote_url) {
+        logStartupEvent("Boot: remote mode", serverCfg.remote_url)
+        // Skip sidecar entirely; tell splash to wire up frontend with remote URL.
+        sendToSplash("remote-ready", { remote_url: serverCfg.remote_url })
+        // Note: still kick off update check
+        autoUpdater.checkForUpdatesAndNotify()
+    } else if (serverCfg && serverCfg.mode === "local") {
+        try {
+            logStartupEvent("Boot: local mode — attempting to launch server")
+            await launchSeanimeServer(false)
+            logStartupEvent("Server launched successfully")
+            autoUpdater.checkForUpdatesAndNotify()
+        } catch (error) {
+            logStartupEvent("Server launch failed", error.message)
+            console.error("[Main] Failed to start server:", error)
+            if (splashScreen && !splashScreen.isDestroyed()) {
+                splashScreen.close()
+                splashScreen = null
+            }
 
-            setTimeout(() => {
-                console.error("[Main] Exiting due to server start failure.")
-                app.exit(1)
-            }, 10000)
+            if (crashScreen && !crashScreen.isDestroyed()) {
+                crashScreen.show()
+                crashScreen.webContents.send("crash", `The server failed to start: ${error}. Closing in 10 seconds.`)
+
+                setTimeout(() => {
+                    console.error("[Main] Exiting due to server start failure.")
+                    app.exit(1)
+                }, 10000)
+            }
         }
+    } else {
+        logStartupEvent("Boot: no server config — show setup")
+        // Show setup UI in splash; user will save config and either trigger
+        // server-config:launch-local or server-config:remote-ready-ack.
+        sendToSplash("show-setup", {})
+        autoUpdater.checkForUpdatesAndNotify()
     }
 
     // Register Window Control IPC handlers
@@ -1496,6 +1589,68 @@ app.whenReady().then(async () => {
         }
 
         return { ...denshiSettings }
+    })
+
+    // Server connection (local sidecar vs remote URL) IPC handlers
+    ipcMain.handle("server-config:get", () => {
+        return loadServerConfig()
+    })
+
+    ipcMain.handle("server-config:save", (_, cfg) => {
+        if (!cfg || (cfg.mode !== "local" && cfg.mode !== "remote")) {
+            throw new Error("Invalid server config: mode must be 'local' or 'remote'")
+        }
+        const sanitized = {
+            mode: cfg.mode,
+            remote_url: cfg.mode === "remote" ? String(cfg.remote_url || "").replace(/\/+$/, "") : "",
+        }
+        if (sanitized.mode === "remote" && !sanitized.remote_url) {
+            throw new Error("remote_url is required for remote mode")
+        }
+        const ok = saveServerConfig(sanitized)
+        if (!ok) throw new Error("Failed to write server config")
+        return sanitized
+    })
+
+    ipcMain.handle("server-config:validate", async (_, url) => {
+        try {
+            await validateRemoteServer(url)
+            return { ok: true }
+        } catch (e) {
+            return { ok: false, error: e instanceof Error ? e.message : String(e) }
+        }
+    })
+
+    ipcMain.on("server-config:launch-local", () => {
+        if (!serverProcess) {
+            logStartupEvent("server-config:launch-local — launching sidecar")
+            launchSeanimeServer(false).catch((err) => {
+                log.error("[ServerConfig] Failed to launch local server:", err)
+                if (crashScreen && !crashScreen.isDestroyed()) {
+                    crashScreen.show()
+                    crashScreen.webContents.send("crash", `The server failed to start: ${err}.`)
+                }
+            })
+        }
+    })
+
+    ipcMain.on("server-config:remote-ready-ack", () => {
+        logStartupEvent("server-config:remote-ready-ack — closing splash, showing main")
+        serverStarted = true
+        if (splashScreen && !splashScreen.isDestroyed()) {
+            splashScreen.close()
+            splashScreen = null
+        }
+        setTimeout(() => {
+            if (mainWindow && !mainWindow.isDestroyed() && !denshiSettings.openInBackground) {
+                if (process.platform === "darwin") {
+                    mainWindow.show()
+                } else {
+                    mainWindow.maximize()
+                    mainWindow.show()
+                }
+            }
+        }, 300)
     })
 
     // Chromecast

@@ -32,6 +32,15 @@ contextBridge.exposeInMainWorld(
             ready: () => ipcRenderer.send("startup:renderer-ready")
         },
 
+        // Server connection (local sidecar vs remote URL)
+        serverConfig: {
+            get: () => ipcRenderer.invoke("server-config:get"),
+            save: (cfg) => ipcRenderer.invoke("server-config:save", cfg),
+            validate: (url) => ipcRenderer.invoke("server-config:validate", url),
+            launchLocal: () => ipcRenderer.send("server-config:launch-local"),
+            remoteReadyAck: () => ipcRenderer.send("server-config:remote-ready-ack"),
+        },
+
         // Event listeners
         on: (channel, callback) => {
             // Whitelist channels
@@ -54,6 +63,8 @@ contextBridge.exposeInMainWorld(
                 "cast:mediaStatus",
                 "cast:receiverReady",
                 "cast:error",
+                "show-setup",
+                "remote-ready",
             ]
             if (validChannels.includes(channel)) {
                 // Remove the event listener to avoid memory leaks

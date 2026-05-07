@@ -54,7 +54,7 @@ export function ServerSettings(props: ServerSettingsProps) {
     return (
         <div className="space-y-4">
 
-            {__isTauriDesktop__ && <TauriServerConnectionCard />}
+            {(__isTauriDesktop__ || __isElectronDesktop__) && <DesktopServerConnectionCard />}
 
             {(!isApiWorking && !isFetchingApiStatus) && (
                 <Alert
@@ -365,7 +365,46 @@ export function ServerSettings(props: ServerSettingsProps) {
 
 // ── Desktop "Connect to" card ────────────────────────────────────────────────
 
-function TauriServerConnectionCard() {
+// Cross-platform desktop bridge for the settings card.
+type SettingsBridge = {
+    validateRemote: (url: string) => Promise<boolean>
+    saveConfig: (mode: "local" | "remote", remoteUrl: string | null) => Promise<void>
+    onChangeServer: (cb: () => void) => () => void
+}
+
+async function makeSettingsTauriBridge(): Promise<SettingsBridge> {
+    const { invoke } = await import("@tauri-apps/api/core")
+    const { listen } = await import("@tauri-apps/api/event")
+    return {
+        validateRemote: (url) => invoke<boolean>("validate_remote_server", { url }),
+        saveConfig: async (mode, remoteUrl) => { await invoke("save_server_config", { mode, remoteUrl }) },
+        onChangeServer: (cb) => {
+            let off: (() => void) | null = null
+            listen("change-server", () => cb()).then(u => { off = u })
+            return () => { off?.() }
+        },
+    }
+}
+
+function makeSettingsElectronBridge(): SettingsBridge {
+    const electron = (window as any).electron
+    return {
+        validateRemote: async (url) => {
+            const r = await electron.serverConfig.validate(url)
+            if (r?.ok) return true
+            throw new Error(r?.error || "Connection failed")
+        },
+        saveConfig: async (mode, remoteUrl) => {
+            await electron.serverConfig.save({ mode, remote_url: remoteUrl ?? "" })
+        },
+        onChangeServer: (cb) => {
+            const off = electron.on?.("change-server", () => cb())
+            return () => { off?.() }
+        },
+    }
+}
+
+function DesktopServerConnectionCard() {
     const [connectionMode, setConnectionMode] = useAtom(serverConnectionModeAtom)
     const [remoteUrl, setRemoteUrl] = useAtom(remoteServerUrlAtom)
 
@@ -374,19 +413,22 @@ function TauriServerConnectionCard() {
     const [urlInput, setUrlInput] = React.useState(remoteUrl ?? "http://")
     const [validating, setValidating] = React.useState(false)
     const [validationError, setValidationError] = React.useState<string | null>(null)
+    const bridgeRef = React.useRef<SettingsBridge | null>(null)
 
     // Listen for the tray "Change Server" event
     React.useEffect(() => {
         let cleanup: (() => void) | undefined
+        let cancelled = false
         async function init() {
-            const { listen } = await import("@tauri-apps/api/event")
-            const unlisten = await listen("change-server", () => {
-                setEditing(true)
-            })
-            cleanup = unlisten
+            const bridge = __isTauriDesktop__
+                ? await makeSettingsTauriBridge()
+                : makeSettingsElectronBridge()
+            if (cancelled) return
+            bridgeRef.current = bridge
+            cleanup = bridge.onChangeServer(() => setEditing(true))
         }
         init()
-        return () => { cleanup?.() }
+        return () => { cancelled = true; cleanup?.() }
     }, [])
 
     function handleStartEdit() {
@@ -403,23 +445,24 @@ function TauriServerConnectionCard() {
 
     async function handleSave() {
         try {
-            const { invoke } = await import("@tauri-apps/api/core")
+            const bridge = bridgeRef.current
+            if (!bridge) return
 
             if (chosenMode === "remote") {
                 if (!urlInput || urlInput === "http://" || urlInput === "https://") return
                 setValidating(true)
                 setValidationError(null)
-                const ok = await invoke<boolean>("validate_remote_server", { url: urlInput })
+                const ok = await bridge.validateRemote(urlInput)
                 if (!ok) {
                     setValidationError("Server did not respond")
                     return
                 }
                 const cleanUrl = urlInput.replace(/\/+$/, "")
-                await invoke("save_server_config", { mode: "remote", remoteUrl: cleanUrl })
+                await bridge.saveConfig("remote", cleanUrl)
                 setRemoteUrl(cleanUrl)
                 setConnectionMode("remote")
             } else {
-                await invoke("save_server_config", { mode: "local", remoteUrl: null })
+                await bridge.saveConfig("local", null)
                 setRemoteUrl(undefined)
                 setConnectionMode("local")
             }
