@@ -862,9 +862,6 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
                     <DropdownMenuItem onClick={() => { setDropdownOpen(false); router.push("/profile/me") }}>
                         <LuUsers /> My Profile
                     </DropdownMenuItem>
-                    {!!serverStatus?.currentProfile && <DropdownMenuItem onClick={() => { setDropdownOpen(false); setRevalidateModalOpen(true) }}>
-                        <LuShieldCheck /> Revalidate session
-                    </DropdownMenuItem>}
                     {!!serverStatus?.currentProfile && <DropdownMenuItem onClick={confirmProfileLogout.open}>
                         <BiLogOut /> Log out of profile
                     </DropdownMenuItem>}
