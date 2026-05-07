@@ -597,6 +597,118 @@ function SoundPackTab({ currentLevel }: { currentLevel: number }) {
     )
 }
 
+// ─── Themes Tab ──────────────────────────────────────────────────────────────
+
+type ThemeEntry = {
+    id: string
+    name: string
+    title: string
+    description: string
+    author: string
+    backgroundImageUrl: string
+    previewColors: { bg: string; primary: string; secondary: string; accent: string }
+    level: number
+}
+
+function ThemesTab({ currentLevel }: { currentLevel: number }) {
+    const { activeTheme, setActiveTheme } = useRewards()
+    const [themes, setThemes] = React.useState<ThemeEntry[]>([])
+    const [loading, setLoading] = React.useState(true)
+
+    React.useEffect(() => {
+        const loadThemes = async () => {
+            try {
+                setLoading(true)
+                // Fetch themes from marketplace endpoint
+                const response = await fetch("/api/v1/shared-themes/marketplace")
+                if (!response.ok) throw new Error("Failed to fetch themes")
+                const data = await response.json()
+                
+                // Data should be an array of themes
+                const themeList = Array.isArray(data) ? data : data.data || []
+                setThemes(themeList.map((t: any) => ({
+                    id: t.id,
+                    name: t.name,
+                    title: t.title || t.name,
+                    description: t.description || "",
+                    author: t.author || "seanime",
+                    backgroundImageUrl: t.backgroundImageUrl || "",
+                    previewColors: t.previewColors || { bg: "#000", primary: "#fff", secondary: "#999", accent: "#f00" },
+                    level: t.level || 1,
+                })))
+            } catch (err) {
+                console.error("Failed to load themes:", err)
+                setThemes([])
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        loadThemes()
+    }, [])
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2 text-sm text-[--muted]">
+                    <LuPalette />
+                    <span>{themes.length} available</span>
+                </div>
+                {loading && <span className="text-xs text-[--muted] italic">Loading themes...</span>}
+            </div>
+
+            {loading ? (
+                <div className="flex items-center justify-center py-8">
+                    <div className="text-sm text-[--muted]">Loading marketplace themes...</div>
+                </div>
+            ) : themes.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                    <div className="text-sm text-[--muted] text-center">
+                        No themes available. Please check back later!
+                    </div>
+                </div>
+            ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {themes.map((theme: ThemeEntry) => {
+                        const isActive = activeTheme?.id === theme.id
+
+                        return (
+                            <CardBase key={theme.id} isActive={isActive} isUnlocked={true} onClick={() => setActiveTheme(theme.id)} className="items-start overflow-hidden">
+                                <div className="w-full space-y-2">
+                                    {/* Background image preview */}
+                                    {theme.backgroundImageUrl ? (
+                                        <div
+                                            className="w-full h-24 rounded-lg bg-cover bg-center border border-white/10"
+                                            style={{
+                                                backgroundImage: `url('${theme.backgroundImageUrl}')`,
+                                                backgroundSize: "cover",
+                                            }}
+                                            title={theme.title}
+                                        />
+                                    ) : (
+                                        <div
+                                            className="w-full h-24 rounded-lg border border-white/10 bg-gradient-to-br"
+                                            style={{
+                                                background: `linear-gradient(135deg, ${theme.previewColors.primary}88 0%, ${theme.previewColors.secondary}88 100%)`,
+                                            }}
+                                        />
+                                    )}
+
+                                    {/* Theme info */}
+                                    <div>
+                                        <p className="text-xs font-semibold leading-tight truncate">{theme.title}</p>
+                                        <p className="text-[10px] text-[--muted] leading-tight mt-0.5 truncate">{theme.author}</p>
+                                    </div>
+                                </div>
+                            </CardBase>
+                        )
+                    })}
+                </div>
+            )}
+        </div>
+    )
+}
+
 // ─── Preview swatches ────────────────────────────────────────────────────────
 
 function UIPreviewSwatch({ previewCss }: { previewCss?: string }) {
@@ -880,10 +992,12 @@ export function RewardShop({ currentLevel }: Props) {
                     <Tabs defaultValue="titles" className="w-full">
                         <TabsList className="mb-4 flex flex-wrap gap-1 h-auto bg-transparent border border-[--border] p-1 rounded-lg">
                             <TabsTrigger value="titles"  className="flex items-center gap-1.5 text-xs"><LuTag       className="shrink-0" /> Titles</TabsTrigger>
+                            <TabsTrigger value="themes"  className="flex items-center gap-1.5 text-xs"><LuPalette    className="shrink-0" /> Themes</TabsTrigger>
                             <TabsTrigger value="xpbars"  className="flex items-center gap-1.5 text-xs"><LuZap       className="shrink-0" /> XP Bars</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="titles">  <TitlesTab  currentLevel={currentLevel} /> </TabsContent>
+                        <TabsContent value="themes">  <ThemesTab  currentLevel={currentLevel} /> </TabsContent>
                         <TabsContent value="xpbars">  <XPBarsTab  currentLevel={currentLevel} /> </TabsContent>
                     </Tabs>
                 )}

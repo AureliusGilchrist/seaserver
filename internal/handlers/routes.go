@@ -171,8 +171,12 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	// Shared themes (downloaded from marketplace, visible to all profiles)
 	v1.GET("/shared-themes", h.HandleListSharedThemes)
+	v1.GET("/shared-themes/marketplace", h.HandleGetMarketplaceThemes)
 	v1.POST("/shared-themes/download", h.HandleDownloadSharedTheme)
 	v1.DELETE("/shared-themes/:id", h.HandleDeleteSharedTheme)
+
+	// Theme marketplace image population (fetches anime images from AniList and caches them)
+	v1.POST("/shared-themes/populate-images", h.HandlePopulateThemeImages, h.RequireProfileAdmin)
 
 	// Per-profile themes (cloud storage - survives client rebuilds)
 	v1.GET("/user-themes", h.HandleListUserThemes)
