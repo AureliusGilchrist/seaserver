@@ -460,7 +460,6 @@ iframe.vds-youtube[data-no-controls] {
     font-variant: var(--media-user-font-variant);
     border: var(--media-cue-border, unset);
     border-radius: var(--media-cue-border-radius, 2px);
-    backdrop-filter: var(--media-cue-backdrop, blur(8px));
     padding: var(--cue-padding);
     line-height: var(--cue-line-height);
     background-color: var(--cue-bg-color);

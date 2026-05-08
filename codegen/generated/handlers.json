@@ -131,6 +131,98 @@
     }
   },
   {
+    "name": "HandleGetUserAchievements",
+    "trimmedName": "GetUserAchievements",
+    "comments": [
+      "HandleGetUserAchievements",
+      "",
+      "\t@summary get all achievements for another user by profile ID.",
+      "\t@desc Returns achievement definitions, categories, progress/unlock state, and summary for the specified user.",
+      "\t@returns achievement.ListResponse",
+      "\t@route /api/v1/achievements/user/{id} [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/achievement.go",
+    "filename": "achievement.go",
+    "api": {
+      "summary": "get all achievements for another user by profile ID.",
+      "descriptions": [
+        "Returns achievement definitions, categories, progress/unlock state, and summary for the specified user."
+      ],
+      "endpoint": "/api/v1/achievements/user/{id}",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "achievement.ListResponse",
+      "returnGoType": "achievement.ListResponse",
+      "returnTypescriptType": "Achievement_ListResponse"
+    }
+  },
+  {
+    "name": "HandleImportAchievements",
+    "trimmedName": "ImportAchievements",
+    "comments": [
+      "HandleImportAchievements",
+      "",
+      "\t@summary retroactively evaluate all stat-based achievements and return newly unlocked ones.",
+      "\t@desc Fetches current anime/manga collections and evaluates all collection-based achievements.",
+      "\t@desc Returns a list of achievements that were newly unlocked by this import.",
+      "\t@returns []achievement.UnlockPayload",
+      "\t@route /api/v1/achievements/import [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/achievement.go",
+    "filename": "achievement.go",
+    "api": {
+      "summary": "retroactively evaluate all stat-based achievements and return newly unlocked ones.",
+      "descriptions": [
+        "Fetches current anime/manga collections and evaluates all collection-based achievements.",
+        "Returns a list of achievements that were newly unlocked by this import."
+      ],
+      "endpoint": "/api/v1/achievements/import",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]achievement.UnlockPayload",
+      "returnGoType": "achievement.UnlockPayload",
+      "returnTypescriptType": "Array\u003cAchievement_UnlockPayload\u003e"
+    }
+  },
+  {
+    "name": "HandleResetAchievements",
+    "trimmedName": "ResetAchievements",
+    "comments": [
+      "HandleResetAchievements wipes all achievement progress for the current profile.",
+      "",
+      "\t@summary reset all achievements for the current profile.",
+      "\t@desc Clears unlock status, progress, and XP so the profile starts fresh.",
+      "\t@returns bool",
+      "\t@route /api/v1/achievements/reset [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/achievement.go",
+    "filename": "achievement.go",
+    "api": {
+      "summary": "reset all achievements for the current profile.",
+      "descriptions": [
+        "Clears unlock status, progress, and XP so the profile starts fresh."
+      ],
+      "endpoint": "/api/v1/achievements/reset",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "buildCollectionStats",
     "trimmedName": "buildCollectionStats",
     "comments": [
@@ -149,6 +241,324 @@
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "normalizeScore",
+    "trimmedName": "normalizeScore",
+    "comments": [
+      "normalizeScore converts AniList scores (which can be on different scales) to 1-10.",
+      ""
+    ],
+    "filepath": "internal/handlers/achievement_stats.go",
+    "filename": "achievement_stats.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "computeScoringMeta",
+    "trimmedName": "computeScoringMeta",
+    "comments": [
+      "computeScoringMeta derives scoring-related boolean/aggregate stats from histograms.",
+      ""
+    ],
+    "filepath": "internal/handlers/achievement_stats.go",
+    "filename": "achievement_stats.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleBackfillActivity",
+    "trimmedName": "BackfillActivity",
+    "comments": [
+      "HandleBackfillActivity",
+      "",
+      "\t@summary backfills activity logs from AniList into the per-profile heatmap database.",
+      "\t@desc Fetches the authenticated user's AniList list activity and populates ActivityLog rows",
+      "\t@desc for dates that don't yet have entries. Uses a 24-hour cooldown file-cache key.",
+      "\t@route /api/v1/activity/backfill [POST]",
+      "\t@returns map[string]interface{}",
+      ""
+    ],
+    "filepath": "internal/handlers/activity_backfill.go",
+    "filename": "activity_backfill.go",
+    "api": {
+      "summary": "backfills activity logs from AniList into the per-profile heatmap database.",
+      "descriptions": [
+        "Fetches the authenticated user's AniList list activity and populates ActivityLog rows",
+        "for dates that don't yet have entries. Uses a 24-hour cooldown file-cache key."
+      ],
+      "endpoint": "/api/v1/activity/backfill",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "map[string]interface{}",
+      "returnGoType": "interface{}",
+      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+    }
+  },
+  {
+    "name": "parseProgressCount",
+    "trimmedName": "parseProgressCount",
+    "comments": [
+      "parseProgressCount parses AniList progress string like \"1 - 3\" or \"5\" into a count.",
+      ""
+    ],
+    "filepath": "internal/handlers/activity_backfill.go",
+    "filename": "activity_backfill.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetActivityEvents",
+    "trimmedName": "GetActivityEvents",
+    "comments": [
+      "HandleGetActivityEvents",
+      "",
+      "\t@summary returns granular activity events for the current profile.",
+      "\t@desc Returns individual discrete events (episode watched, file matched, etc.)",
+      "\t@desc with optional filtering by event type and limit.",
+      "\t@param limit - int - false - \"Max number of events to return (default 50)\"",
+      "\t@param type - string - false - \"Filter by event type\"",
+      "\t@param days - int - false - \"Number of days to look back (default 30)\"",
+      "\t@returns []*models.ActivityEvent",
+      "\t@route /api/v1/activity-events [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/activity_events.go",
+    "filename": "activity_events.go",
+    "api": {
+      "summary": "returns granular activity events for the current profile.",
+      "descriptions": [
+        "Returns individual discrete events (episode watched, file matched, etc.)",
+        "with optional filtering by event type and limit."
+      ],
+      "endpoint": "/api/v1/activity-events",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "limit",
+          "jsonName": "limit",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": [
+            "Max number of events to return (default 50)"
+          ]
+        },
+        {
+          "name": "type",
+          "jsonName": "type",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": [
+            "Filter by event type"
+          ]
+        },
+        {
+          "name": "days",
+          "jsonName": "days",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": [
+            "Number of days to look back (default 30)"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "[]*models.ActivityEvent",
+      "returnGoType": "models.ActivityEvent",
+      "returnTypescriptType": "Array\u003cModels_ActivityEvent\u003e"
+    }
+  },
+  {
+    "name": "HandleCreateAdminAnnouncement",
+    "trimmedName": "CreateAdminAnnouncement",
+    "comments": [
+      "HandleCreateAdminAnnouncement",
+      "",
+      "\t@summary creates a new admin announcement. Admin only.",
+      "\t@route /api/v1/admin/announcements [POST]",
+      "\t@returns models.AdminAnnouncement",
+      ""
+    ],
+    "filepath": "internal/handlers/admin_announcements.go",
+    "filename": "admin_announcements.go",
+    "api": {
+      "summary": "creates a new admin announcement. Admin only.",
+      "descriptions": [],
+      "endpoint": "/api/v1/admin/announcements",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Message",
+          "jsonName": "message",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "DurationHours",
+          "jsonName": "durationHours",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "models.AdminAnnouncement",
+      "returnGoType": "models.AdminAnnouncement",
+      "returnTypescriptType": "Models_AdminAnnouncement"
+    }
+  },
+  {
+    "name": "HandleGetActiveAdminAnnouncements",
+    "trimmedName": "GetActiveAdminAnnouncements",
+    "comments": [
+      "HandleGetActiveAdminAnnouncements",
+      "",
+      "\t@summary returns all active (non-expired) admin announcements for the current profile.",
+      "\t@route /api/v1/admin/announcements [GET]",
+      "\t@returns []models.AdminAnnouncement",
+      ""
+    ],
+    "filepath": "internal/handlers/admin_announcements.go",
+    "filename": "admin_announcements.go",
+    "api": {
+      "summary": "returns all active (non-expired) admin announcements for the current profile.",
+      "descriptions": [],
+      "endpoint": "/api/v1/admin/announcements",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]models.AdminAnnouncement",
+      "returnGoType": "models.AdminAnnouncement",
+      "returnTypescriptType": "Array\u003cModels_AdminAnnouncement\u003e"
+    }
+  },
+  {
+    "name": "HandleDismissAdminAnnouncement",
+    "trimmedName": "DismissAdminAnnouncement",
+    "comments": [
+      "HandleDismissAdminAnnouncement",
+      "",
+      "\t@summary dismisses an admin announcement for the current profile.",
+      "\t@route /api/v1/admin/announcements/:id/dismiss [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/admin_announcements.go",
+    "filename": "admin_announcements.go",
+    "api": {
+      "summary": "dismisses an admin announcement for the current profile.",
+      "descriptions": [],
+      "endpoint": "/api/v1/admin/announcements/:id/dismiss",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDeleteAdminAnnouncement",
+    "trimmedName": "DeleteAdminAnnouncement",
+    "comments": [
+      "HandleDeleteAdminAnnouncement",
+      "",
+      "\t@summary deletes an admin announcement. Admin only.",
+      "\t@route /api/v1/admin/announcements/:id [DELETE]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/admin_announcements.go",
+    "filename": "admin_announcements.go",
+    "api": {
+      "summary": "deletes an admin announcement. Admin only.",
+      "descriptions": [],
+      "endpoint": "/api/v1/admin/announcements/:id",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetAllAdminAnnouncements",
+    "trimmedName": "GetAllAdminAnnouncements",
+    "comments": [
+      "HandleGetAllAdminAnnouncements",
+      "",
+      "\t@summary returns all admin announcements (including expired). Admin only.",
+      "\t@route /api/v1/admin/announcements/all [GET]",
+      "\t@returns []models.AdminAnnouncement",
+      ""
+    ],
+    "filepath": "internal/handlers/admin_announcements.go",
+    "filename": "admin_announcements.go",
+    "api": {
+      "summary": "returns all admin announcements (including expired). Admin only.",
+      "descriptions": [],
+      "endpoint": "/api/v1/admin/announcements/all",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]models.AdminAnnouncement",
+      "returnGoType": "models.AdminAnnouncement",
+      "returnTypescriptType": "Array\u003cModels_AdminAnnouncement\u003e"
     }
   },
   {
@@ -399,6 +809,49 @@
       "returns": "anilist.StudioDetails",
       "returnGoType": "anilist.StudioDetails",
       "returnTypescriptType": "AL_StudioDetails"
+    }
+  },
+  {
+    "name": "HandleGetAnilistStaffDetails",
+    "trimmedName": "GetAnilistStaffDetails",
+    "comments": [
+      "HandleGetAnilistStaffDetails",
+      "",
+      "\t@summary returns details about a staff member.",
+      "\t@desc This fetches media associated with the staff member.",
+      "\t@param id - int - true - \"The AniList staff ID\"",
+      "\t@returns anilist.StaffDetails",
+      "\t@route /api/v1/anilist/staff-details/{id} [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/anilist.go",
+    "filename": "anilist.go",
+    "api": {
+      "summary": "returns details about a staff member.",
+      "descriptions": [
+        "This fetches media associated with the staff member."
+      ],
+      "endpoint": "/api/v1/anilist/staff-details/{id}",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "id",
+          "jsonName": "id",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "The AniList staff ID"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "anilist.StaffDetails",
+      "returnGoType": "anilist.StaffDetails",
+      "returnTypescriptType": "AL_StaffDetails"
     }
   },
   {
@@ -962,6 +1415,87 @@
     }
   },
   {
+    "name": "HandleHydrateAllAnime",
+    "trimmedName": "HydrateAllAnime",
+    "comments": [
+      "HandleHydrateAllAnime",
+      "",
+      "\t@summary hydrates all anime entries by re-fetching metadata from AniList for every unique media ID in local files.",
+      "\t@route /api/v1/library/hydrate-all [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_collection.go",
+    "filename": "anime_collection.go",
+    "api": {
+      "summary": "hydrates all anime entries by re-fetching metadata from AniList for every unique media ID in local files.",
+      "descriptions": [],
+      "endpoint": "/api/v1/library/hydrate-all",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleCancelAnimeHydration",
+    "trimmedName": "CancelAnimeHydration",
+    "comments": [
+      "HandleCancelAnimeHydration",
+      "",
+      "\t@summary requests cancellation for anime metadata hydration.",
+      "\t@route /api/v1/library/hydrate-all/cancel [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_collection.go",
+    "filename": "anime_collection.go",
+    "api": {
+      "summary": "requests cancellation for anime metadata hydration.",
+      "descriptions": [],
+      "endpoint": "/api/v1/library/hydrate-all/cancel",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetAnimeHydrationStatus",
+    "trimmedName": "GetAnimeHydrationStatus",
+    "comments": [
+      "HandleGetAnimeHydrationStatus",
+      "",
+      "\t@summary returns metadata hydration progress for anime.",
+      "\t@route /api/v1/library/hydrate-all/status [GET]",
+      "\t@returns handlers.AnimeHydrationStatus",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_collection.go",
+    "filename": "anime_collection.go",
+    "api": {
+      "summary": "returns metadata hydration progress for anime.",
+      "descriptions": [],
+      "endpoint": "/api/v1/library/hydrate-all/status",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.AnimeHydrationStatus",
+      "returnGoType": "handlers.AnimeHydrationStatus",
+      "returnTypescriptType": "AnimeHydrationStatus"
+    }
+  },
+  {
     "name": "HandleAnimeEntryRematch",
     "trimmedName": "AnimeEntryRematch",
     "comments": [
@@ -991,6 +1525,24 @@
         {
           "name": "MediaId",
           "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "UseIndexBasedEpisodes",
+          "jsonName": "useIndexBasedEpisodes",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "EpisodeOffset",
+          "jsonName": "episodeOffset",
           "goType": "int",
           "usedStructType": "",
           "typescriptType": "number",
@@ -1222,6 +1774,24 @@
         {
           "name": "MediaId",
           "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "UseIndexBasedEpisodes",
+          "jsonName": "useIndexBasedEpisodes",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "EpisodeOffset",
+          "jsonName": "episodeOffset",
           "goType": "int",
           "usedStructType": "",
           "typescriptType": "number",
@@ -1466,6 +2036,159 @@
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetAnimeFavorites",
+    "trimmedName": "GetAnimeFavorites",
+    "comments": [
+      "HandleGetAnimeFavorites",
+      "",
+      "\t@summary get the list of favorited anime media IDs.",
+      "\t@desc Returns an array of media IDs that are favorited for the current profile.",
+      "\t@returns []int",
+      "\t@route /api/v1/library/favorites [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_favorite.go",
+    "filename": "anime_favorite.go",
+    "api": {
+      "summary": "get the list of favorited anime media IDs.",
+      "descriptions": [
+        "Returns an array of media IDs that are favorited for the current profile."
+      ],
+      "endpoint": "/api/v1/library/favorites",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]int",
+      "returnGoType": "int",
+      "returnTypescriptType": "Array\u003cnumber\u003e"
+    }
+  },
+  {
+    "name": "HandleToggleAnimeFavorite",
+    "trimmedName": "ToggleAnimeFavorite",
+    "comments": [
+      "HandleToggleAnimeFavorite",
+      "",
+      "\t@summary toggle an anime as favorite (add/remove).",
+      "\t@desc Adds the anime to favorites if not present, removes it if already favorited.",
+      "\t@returns bool",
+      "\t@route /api/v1/library/favorites/toggle [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_favorite.go",
+    "filename": "anime_favorite.go",
+    "api": {
+      "summary": "toggle an anime as favorite (add/remove).",
+      "descriptions": [
+        "Adds the anime to favorites if not present, removes it if already favorited."
+      ],
+      "endpoint": "/api/v1/library/favorites/toggle",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaID",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleBulkAddAnimeFavorites",
+    "trimmedName": "BulkAddAnimeFavorites",
+    "comments": [
+      "HandleBulkAddAnimeFavorites",
+      "",
+      "\t@summary bulk-add anime favorites (for localStorage migration).",
+      "\t@desc Accepts an array of media IDs and adds them all as favorites, skipping duplicates.",
+      "\t@returns bool",
+      "\t@route /api/v1/library/favorites/bulk [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_favorite.go",
+    "filename": "anime_favorite.go",
+    "api": {
+      "summary": "bulk-add anime favorites (for localStorage migration).",
+      "descriptions": [
+        "Accepts an array of media IDs and adds them all as favorites, skipping duplicates."
+      ],
+      "endpoint": "/api/v1/library/favorites/bulk",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaIDs",
+          "jsonName": "mediaIds",
+          "goType": "[]int",
+          "usedStructType": "",
+          "typescriptType": "Array\u003cnumber\u003e",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetAnimeThemes",
+    "trimmedName": "GetAnimeThemes",
+    "comments": [
+      "HandleGetAnimeThemes",
+      "",
+      "\t@summary returns opening/ending themes for an anime.",
+      "\t@desc This proxies the animethemes.moe API using the anime's MAL ID.",
+      "\t@param id - int - true - \"The MyAnimeList ID\"",
+      "\t@returns AnimeThemesResponse",
+      "\t@route /api/v1/anime-themes/{id} [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_themes.go",
+    "filename": "anime_themes.go",
+    "api": {
+      "summary": "returns opening/ending themes for an anime.",
+      "descriptions": [
+        "This proxies the animethemes.moe API using the anime's MAL ID."
+      ],
+      "endpoint": "/api/v1/anime-themes/{id}",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "id",
+          "jsonName": "id",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "The MyAnimeList ID"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "AnimeThemesResponse",
+      "returnGoType": "AnimeThemesResponse",
+      "returnTypescriptType": "AnimeThemesResponse"
     }
   },
   {
@@ -2111,6 +2834,157 @@
     }
   },
   {
+    "name": "HandleGetAnilistCharacterDetails",
+    "trimmedName": "GetAnilistCharacterDetails",
+    "comments": [
+      "HandleGetAnilistCharacterDetails",
+      "",
+      "\t@summary returns details about a character.",
+      "\t@desc This fetches media associated with the character, voice actors, and other info.",
+      "\t@param id - int - true - \"The AniList character ID\"",
+      "\t@returns CharacterDetailsResponse",
+      "\t@route /api/v1/anilist/character-details/{id} [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/character.go",
+    "filename": "character.go",
+    "api": {
+      "summary": "returns details about a character.",
+      "descriptions": [
+        "This fetches media associated with the character, voice actors, and other info."
+      ],
+      "endpoint": "/api/v1/anilist/character-details/{id}",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "id",
+          "jsonName": "id",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "The AniList character ID"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "CharacterDetailsResponse",
+      "returnGoType": "CharacterDetailsResponse",
+      "returnTypescriptType": "CharacterDetailsResponse"
+    }
+  },
+  {
+    "name": "HandleGetClientPrefs",
+    "trimmedName": "GetClientPrefs",
+    "comments": [
+      "HandleGetClientPrefs",
+      "",
+      "\t@summary returns all client preferences stored for the current profile.",
+      "\t@desc Returns a map of key -\u003e JSON-encoded value strings. The value strings are opaque to the server.",
+      "\t@desc Used by the web client to hydrate UI state (UI customizer, easter eggs, theme settings, etc.) on bootstrap.",
+      "\t@route /api/v1/client-prefs [GET]",
+      "\t@returns map[string]string",
+      ""
+    ],
+    "filepath": "internal/handlers/client_prefs.go",
+    "filename": "client_prefs.go",
+    "api": {
+      "summary": "returns all client preferences stored for the current profile.",
+      "descriptions": [
+        "Returns a map of key -\u003e JSON-encoded value strings. The value strings are opaque to the server.",
+        "Used by the web client to hydrate UI state (UI customizer, easter eggs, theme settings, etc.) on bootstrap."
+      ],
+      "endpoint": "/api/v1/client-prefs",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "map[string]string",
+      "returnGoType": "string",
+      "returnTypescriptType": "Record\u003cstring, string\u003e"
+    }
+  },
+  {
+    "name": "HandleUpsertClientPref",
+    "trimmedName": "UpsertClientPref",
+    "comments": [
+      "HandleUpsertClientPref",
+      "",
+      "\t@summary creates or updates a client preference for the current profile.",
+      "\t@desc The value is an opaque JSON-encoded string owned by the web client.",
+      "\t@route /api/v1/client-prefs [PUT]",
+      "\t@returns models.ClientPref",
+      ""
+    ],
+    "filepath": "internal/handlers/client_prefs.go",
+    "filename": "client_prefs.go",
+    "api": {
+      "summary": "creates or updates a client preference for the current profile.",
+      "descriptions": [
+        "The value is an opaque JSON-encoded string owned by the web client."
+      ],
+      "endpoint": "/api/v1/client-prefs",
+      "methods": [
+        "PUT"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Key",
+          "jsonName": "key",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Value",
+          "jsonName": "value",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "models.ClientPref",
+      "returnGoType": "models.ClientPref",
+      "returnTypescriptType": "Models_ClientPref"
+    }
+  },
+  {
+    "name": "HandleDeleteClientPref",
+    "trimmedName": "DeleteClientPref",
+    "comments": [
+      "HandleDeleteClientPref",
+      "",
+      "\t@summary deletes a client preference for the current profile.",
+      "\t@route /api/v1/client-prefs/:key [DELETE]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/client_prefs.go",
+    "filename": "client_prefs.go",
+    "api": {
+      "summary": "deletes a client preference for the current profile.",
+      "descriptions": [],
+      "endpoint": "/api/v1/client-prefs/:key",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetComments",
     "trimmedName": "GetComments",
     "comments": [
@@ -2225,7 +3099,7 @@
       "\t@summary edit a comment.",
       "\t@desc Updates the content of a comment. Only the author can edit.",
       "\t@returns handlers.CommentResponse",
-      "\t@route /api/v1/comments/:id [PATCH]",
+      "\t@route /api/v1/comments/{id} [PATCH]",
       ""
     ],
     "filepath": "internal/handlers/comment.go",
@@ -2235,7 +3109,7 @@
       "descriptions": [
         "Updates the content of a comment. Only the author can edit."
       ],
-      "endpoint": "/api/v1/comments/:id",
+      "endpoint": "/api/v1/comments/{id}",
       "methods": [
         "PATCH"
       ],
@@ -2265,7 +3139,7 @@
       "\t@summary delete a comment.",
       "\t@desc Deletes a comment and all its replies. Admin or author only.",
       "\t@returns bool",
-      "\t@route /api/v1/comments/:id [DELETE]",
+      "\t@route /api/v1/comments/{id} [DELETE]",
       ""
     ],
     "filepath": "internal/handlers/comment.go",
@@ -2275,7 +3149,7 @@
       "descriptions": [
         "Deletes a comment and all its replies. Admin or author only."
       ],
-      "endpoint": "/api/v1/comments/:id",
+      "endpoint": "/api/v1/comments/{id}",
       "methods": [
         "DELETE"
       ],
@@ -2295,7 +3169,7 @@
       "\t@summary vote on a comment.",
       "\t@desc Upvote (+1), downvote (-1), or remove vote (0) on a comment.",
       "\t@returns bool",
-      "\t@route /api/v1/comments/:id/vote [POST]",
+      "\t@route /api/v1/comments/{id}/vote [POST]",
       ""
     ],
     "filepath": "internal/handlers/comment.go",
@@ -2305,7 +3179,7 @@
       "descriptions": [
         "Upvote (+1), downvote (-1), or remove vote (0) on a comment."
       ],
-      "endpoint": "/api/v1/comments/:id/vote",
+      "endpoint": "/api/v1/comments/{id}/vote",
       "methods": [
         "POST"
       ],
@@ -2324,6 +3198,60 @@
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetCommunityProfiles",
+    "trimmedName": "GetCommunityProfiles",
+    "comments": [
+      "HandleGetCommunityProfiles",
+      "",
+      "\t@summary list community profiles with level and achievement data (max 100).",
+      "\t@returns CommunityResponse",
+      "\t@route /api/v1/community/profiles [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/community.go",
+    "filename": "community.go",
+    "api": {
+      "summary": "list community profiles with level and achievement data (max 100).",
+      "descriptions": [],
+      "endpoint": "/api/v1/community/profiles",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "CommunityResponse",
+      "returnGoType": "CommunityResponse",
+      "returnTypescriptType": "CommunityResponse"
+    }
+  },
+  {
+    "name": "HandleGetActivityFeed",
+    "trimmedName": "GetActivityFeed",
+    "comments": [
+      "HandleGetActivityFeed",
+      "",
+      "\t@summary get the community activity feed (recent achievement unlocks across all profiles).",
+      "\t@returns []*ActivityFeedEntry",
+      "\t@route /api/v1/community/feed [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/community.go",
+    "filename": "community.go",
+    "api": {
+      "summary": "get the community activity feed (recent achievement unlocks across all profiles).",
+      "descriptions": [],
+      "endpoint": "/api/v1/community/feed",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]*ActivityFeedEntry",
+      "returnGoType": "ActivityFeedEntry",
+      "returnTypescriptType": "Array\u003cActivityFeedEntry\u003e"
     }
   },
   {
@@ -2376,6 +3304,7 @@
       "",
       "\t@summary Returns a watch history item.",
       "\t@desc This endpoint is used to retrieve a watch history item.",
+      "\t@desc If the \"episode\" query param is provided, returns the per-episode position instead.",
       "\t@route /api/v1/continuity/item/{id} [GET]",
       "\t@param id - int - true - \"AniList anime media ID\"",
       "\t@returns continuity.WatchHistoryItemResponse",
@@ -2386,7 +3315,8 @@
     "api": {
       "summary": "Returns a watch history item.",
       "descriptions": [
-        "This endpoint is used to retrieve a watch history item."
+        "This endpoint is used to retrieve a watch history item.",
+        "If the \"episode\" query param is provided, returns the per-episode position instead."
       ],
       "endpoint": "/api/v1/continuity/item/{id}",
       "methods": [
@@ -3269,6 +4199,60 @@
     }
   },
   {
+    "name": "HandleDirectstreamGetAudio",
+    "trimmedName": "DirectstreamGetAudio",
+    "comments": [
+      "HandleDirectstreamGetAudio extracts and serves an audio track from a direct-play stream.",
+      "",
+      "\t@summary extracts a specific audio track from an MKV file and serves it as AAC.",
+      "\t@route /api/v1/directstream/audio [GET]",
+      "\t@returns audio/aac file",
+      ""
+    ],
+    "filepath": "internal/handlers/directstream_audio.go",
+    "filename": "directstream_audio.go",
+    "api": {
+      "summary": "extracts a specific audio track from an MKV file and serves it as AAC.",
+      "descriptions": [],
+      "endpoint": "/api/v1/directstream/audio",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "audio/aac file",
+      "returnGoType": "audio/aac file",
+      "returnTypescriptType": "audio/aac file"
+    }
+  },
+  {
+    "name": "HandleMediastreamGetAudio",
+    "trimmedName": "MediastreamGetAudio",
+    "comments": [
+      "HandleMediastreamGetAudio extracts and serves an audio track from a mediastream direct-play session.",
+      "",
+      "\t@summary extracts a specific audio track from a mediastream file and serves it as AAC.",
+      "\t@route /api/v1/mediastream/audio/:clientId [GET]",
+      "\t@returns audio/aac file",
+      ""
+    ],
+    "filepath": "internal/handlers/directstream_audio.go",
+    "filename": "directstream_audio.go",
+    "api": {
+      "summary": "extracts a specific audio track from a mediastream file and serves it as AAC.",
+      "descriptions": [],
+      "endpoint": "/api/v1/mediastream/audio/:clientId",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "audio/aac file",
+      "returnGoType": "audio/aac file",
+      "returnTypescriptType": "audio/aac file"
+    }
+  },
+  {
     "name": "HandleSetDiscordMangaActivity",
     "trimmedName": "SetDiscordMangaActivity",
     "comments": [
@@ -3798,6 +4782,36 @@
     }
   },
   {
+    "name": "HandleDiscoverEasterEgg",
+    "trimmedName": "DiscoverEasterEgg",
+    "comments": [
+      "HandleDiscoverEasterEgg",
+      "",
+      "\t@summary grants XP for discovering an easter egg.",
+      "\t@desc Idempotent — each egg can only grant XP once per profile per server session.",
+      "\t@returns DiscoverEasterEggResponse",
+      "\t@route /api/v1/profile/easter-egg [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/easter_egg.go",
+    "filename": "easter_egg.go",
+    "api": {
+      "summary": "grants XP for discovering an easter egg.",
+      "descriptions": [
+        "Idempotent — each egg can only grant XP once per profile per server session."
+      ],
+      "endpoint": "/api/v1/profile/easter-egg",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "DiscoverEasterEggResponse",
+      "returnGoType": "DiscoverEasterEggResponse",
+      "returnTypescriptType": "DiscoverEasterEggResponse"
+    }
+  },
+  {
     "name": "HandleEnMasseGetStatus",
     "trimmedName": "EnMasseGetStatus",
     "comments": [
@@ -3972,6 +4986,216 @@
       ],
       "params": [],
       "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetCharacterFavorites",
+    "trimmedName": "GetCharacterFavorites",
+    "comments": [
+      "HandleGetCharacterFavorites",
+      "",
+      "\t@summary get the list of favorited character IDs.",
+      "\t@desc Returns an array of character IDs that are favorited for the current profile.",
+      "\t@returns []int",
+      "\t@route /api/v1/character/favorites [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/entity_favorite.go",
+    "filename": "entity_favorite.go",
+    "api": {
+      "summary": "get the list of favorited character IDs.",
+      "descriptions": [
+        "Returns an array of character IDs that are favorited for the current profile."
+      ],
+      "endpoint": "/api/v1/character/favorites",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]int",
+      "returnGoType": "int",
+      "returnTypescriptType": "Array\u003cnumber\u003e"
+    }
+  },
+  {
+    "name": "HandleToggleCharacterFavorite",
+    "trimmedName": "ToggleCharacterFavorite",
+    "comments": [
+      "HandleToggleCharacterFavorite",
+      "",
+      "\t@summary toggle a character as favorite (add/remove).",
+      "\t@desc Adds the character to favorites if not present, removes it if already favorited.",
+      "\t@returns bool",
+      "\t@route /api/v1/character/favorites/toggle [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/entity_favorite.go",
+    "filename": "entity_favorite.go",
+    "api": {
+      "summary": "toggle a character as favorite (add/remove).",
+      "descriptions": [
+        "Adds the character to favorites if not present, removes it if already favorited."
+      ],
+      "endpoint": "/api/v1/character/favorites/toggle",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "CharacterID",
+          "jsonName": "characterId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetStaffFavorites",
+    "trimmedName": "GetStaffFavorites",
+    "comments": [
+      "HandleGetStaffFavorites",
+      "",
+      "\t@summary get the list of favorited staff IDs.",
+      "\t@desc Returns an array of staff IDs that are favorited for the current profile.",
+      "\t@returns []int",
+      "\t@route /api/v1/staff/favorites [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/entity_favorite.go",
+    "filename": "entity_favorite.go",
+    "api": {
+      "summary": "get the list of favorited staff IDs.",
+      "descriptions": [
+        "Returns an array of staff IDs that are favorited for the current profile."
+      ],
+      "endpoint": "/api/v1/staff/favorites",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]int",
+      "returnGoType": "int",
+      "returnTypescriptType": "Array\u003cnumber\u003e"
+    }
+  },
+  {
+    "name": "HandleToggleStaffFavorite",
+    "trimmedName": "ToggleStaffFavorite",
+    "comments": [
+      "HandleToggleStaffFavorite",
+      "",
+      "\t@summary toggle a staff member as favorite (add/remove).",
+      "\t@desc Adds the staff to favorites if not present, removes it if already favorited.",
+      "\t@returns bool",
+      "\t@route /api/v1/staff/favorites/toggle [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/entity_favorite.go",
+    "filename": "entity_favorite.go",
+    "api": {
+      "summary": "toggle a staff member as favorite (add/remove).",
+      "descriptions": [
+        "Adds the staff to favorites if not present, removes it if already favorited."
+      ],
+      "endpoint": "/api/v1/staff/favorites/toggle",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "StaffID",
+          "jsonName": "staffId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetStudioFavorites",
+    "trimmedName": "GetStudioFavorites",
+    "comments": [
+      "HandleGetStudioFavorites",
+      "",
+      "\t@summary get the list of favorited studio IDs.",
+      "\t@desc Returns an array of studio IDs that are favorited for the current profile.",
+      "\t@returns []int",
+      "\t@route /api/v1/studio/favorites [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/entity_favorite.go",
+    "filename": "entity_favorite.go",
+    "api": {
+      "summary": "get the list of favorited studio IDs.",
+      "descriptions": [
+        "Returns an array of studio IDs that are favorited for the current profile."
+      ],
+      "endpoint": "/api/v1/studio/favorites",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]int",
+      "returnGoType": "int",
+      "returnTypescriptType": "Array\u003cnumber\u003e"
+    }
+  },
+  {
+    "name": "HandleToggleStudioFavorite",
+    "trimmedName": "ToggleStudioFavorite",
+    "comments": [
+      "HandleToggleStudioFavorite",
+      "",
+      "\t@summary toggle a studio as favorite (add/remove).",
+      "\t@desc Adds the studio to favorites if not present, removes it if already favorited.",
+      "\t@returns bool",
+      "\t@route /api/v1/studio/favorites/toggle [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/entity_favorite.go",
+    "filename": "entity_favorite.go",
+    "api": {
+      "summary": "toggle a studio as favorite (add/remove).",
+      "descriptions": [
+        "Adds the studio to favorites if not present, removes it if already favorited."
+      ],
+      "endpoint": "/api/v1/studio/favorites/toggle",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "StudioID",
+          "jsonName": "studioId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
@@ -6605,6 +7829,15 @@
           "typescriptType": "number",
           "required": true,
           "descriptions": []
+        },
+        {
+          "name": "ReadingMinutes",
+          "jsonName": "readingMinutes",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": []
         }
       ],
       "returns": "bool",
@@ -7050,6 +8283,60 @@
       "returns": "manga.Collection",
       "returnGoType": "manga.Collection",
       "returnTypescriptType": "Manga_Collection"
+    }
+  },
+  {
+    "name": "HandleCancelMangaHydration",
+    "trimmedName": "CancelMangaHydration",
+    "comments": [
+      "HandleCancelMangaHydration",
+      "",
+      "\t@summary requests cancellation for manga metadata hydration.",
+      "\t@route /api/v1/manga/hydrate-all/cancel [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "requests cancellation for manga metadata hydration.",
+      "descriptions": [],
+      "endpoint": "/api/v1/manga/hydrate-all/cancel",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetMangaHydrationStatus",
+    "trimmedName": "GetMangaHydrationStatus",
+    "comments": [
+      "HandleGetMangaHydrationStatus",
+      "",
+      "\t@summary returns metadata hydration progress for manga.",
+      "\t@route /api/v1/manga/hydrate-all/status [GET]",
+      "\t@returns handlers.MangaHydrationStatus",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "returns metadata hydration progress for manga.",
+      "descriptions": [],
+      "endpoint": "/api/v1/manga/hydrate-all/status",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.MangaHydrationStatus",
+      "returnGoType": "handlers.MangaHydrationStatus",
+      "returnTypescriptType": "MangaHydrationStatus"
     }
   },
   {
@@ -7983,7 +9270,17 @@
         "POST"
       ],
       "params": [],
-      "bodyFields": [],
+      "bodyFields": [
+        {
+          "name": "ClientId",
+          "jsonName": "clientId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
@@ -8208,6 +9505,33 @@
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetMilestones",
+    "trimmedName": "GetMilestones",
+    "comments": [
+      "HandleGetMilestones",
+      "",
+      "\t@summary returns all milestone definitions and achieved milestones.",
+      "\t@route /api/v1/milestones [GET]",
+      "\t@returns milestone.ListResponse",
+      ""
+    ],
+    "filepath": "internal/handlers/milestones.go",
+    "filename": "milestones.go",
+    "api": {
+      "summary": "returns all milestone definitions and achieved milestones.",
+      "descriptions": [],
+      "endpoint": "/api/v1/milestones",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "milestone.ListResponse",
+      "returnGoType": "milestone.ListResponse",
+      "returnTypescriptType": "ListResponse"
     }
   },
   {
@@ -9026,7 +10350,7 @@
       "\t@summary mark a single notification as read.",
       "\t@desc Marks the notification with the given ID as read.",
       "\t@returns bool",
-      "\t@route /api/v1/notifications/:id/read [POST]",
+      "\t@route /api/v1/notifications/{id}/read [POST]",
       ""
     ],
     "filepath": "internal/handlers/notification.go",
@@ -9036,7 +10360,7 @@
       "descriptions": [
         "Marks the notification with the given ID as read."
       ],
-      "endpoint": "/api/v1/notifications/:id/read",
+      "endpoint": "/api/v1/notifications/{id}/read",
       "methods": [
         "POST"
       ],
@@ -9086,7 +10410,7 @@
       "\t@summary delete a notification.",
       "\t@desc Deletes the notification with the given ID.",
       "\t@returns bool",
-      "\t@route /api/v1/notifications/:id [DELETE]",
+      "\t@route /api/v1/notifications/{id} [DELETE]",
       ""
     ],
     "filepath": "internal/handlers/notification.go",
@@ -9096,7 +10420,7 @@
       "descriptions": [
         "Deletes the notification with the given ID."
       ],
-      "endpoint": "/api/v1/notifications/:id",
+      "endpoint": "/api/v1/notifications/{id}",
       "methods": [
         "DELETE"
       ],
@@ -9487,6 +10811,232 @@
           "descriptions": []
         }
       ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleSavePlanningSlutToken",
+    "trimmedName": "SavePlanningSlutToken",
+    "comments": [
+      "HandleSavePlanningSlutToken",
+      "",
+      "\t@summary saves the Planning Slut AniList token. Admin only.",
+      "\t@desc Validates the token by calling AniList GetViewer, then saves it to library settings.",
+      "\t@route /api/v1/planning-slut/token [POST]",
+      "\t@returns handlers.Status",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "saves the Planning Slut AniList token. Admin only.",
+      "descriptions": [
+        "Validates the token by calling AniList GetViewer, then saves it to library settings."
+      ],
+      "endpoint": "/api/v1/planning-slut/token",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Token",
+          "jsonName": "token",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "handlers.Status",
+      "returnGoType": "handlers.Status",
+      "returnTypescriptType": "Status"
+    }
+  },
+  {
+    "name": "HandleDeletePlanningSlutToken",
+    "trimmedName": "DeletePlanningSlutToken",
+    "comments": [
+      "HandleDeletePlanningSlutToken",
+      "",
+      "\t@summary removes the Planning Slut AniList token. Admin only.",
+      "\t@route /api/v1/planning-slut/token [DELETE]",
+      "\t@returns handlers.Status",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "removes the Planning Slut AniList token. Admin only.",
+      "descriptions": [],
+      "endpoint": "/api/v1/planning-slut/token",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.Status",
+      "returnGoType": "handlers.Status",
+      "returnTypescriptType": "Status"
+    }
+  },
+  {
+    "name": "HandleGetPlanningSlutInfo",
+    "trimmedName": "GetPlanningSlutInfo",
+    "comments": [
+      "HandleGetPlanningSlutInfo",
+      "",
+      "\t@summary returns the Planning Slut viewer info (username, avatar). Admin only.",
+      "\t@route /api/v1/planning-slut/info [GET]",
+      "\t@returns map[string]interface{}",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "returns the Planning Slut viewer info (username, avatar). Admin only.",
+      "descriptions": [],
+      "endpoint": "/api/v1/planning-slut/info",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "map[string]interface{}",
+      "returnGoType": "interface{}",
+      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+    }
+  },
+  {
+    "name": "getPlanningSlutAnimeCollectionCached",
+    "trimmedName": "getPlanningSlutAnimeCollectionCached",
+    "comments": [
+      "getPlanningSlutAnimeCollectionCached returns the planning slut's anime collection,",
+      "using a 5-minute in-memory cache to avoid hammering AniList on every page load.",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "getPlanningSlutMangaCollectionCached",
+    "trimmedName": "getPlanningSlutMangaCollectionCached",
+    "comments": [
+      "getPlanningSlutMangaCollectionCached returns the planning slut's manga collection,",
+      "using a 5-minute in-memory cache.",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "invalidatePlanningSlutCollectionCaches",
+    "trimmedName": "invalidatePlanningSlutCollectionCaches",
+    "comments": [
+      "invalidatePlanningSlutCollectionCaches clears both anime and manga caches",
+      "so the next request fetches fresh data from AniList.",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "addMediaToPlanningSlutBatch",
+    "trimmedName": "addMediaToPlanningSlutBatch",
+    "comments": [
+      "addMediaToPlanningSlutBatch adds multiple media IDs to the planning slut's",
+      "AniList PLANNING list with rate limiting (1 req/sec).",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "relocatePlanningSlutEntriesToLocal",
+    "trimmedName": "relocatePlanningSlutEntriesToLocal",
+    "comments": [
+      "relocatePlanningSlutEntriesToLocal moves entries that exist ONLY because of",
+      "the planning slut merge out of the PLANNING list and into the LOCAL list.",
+      "This keeps the PS metadata (title, images) while showing them as local files.",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "stripSharedOnlyFromMangaPlanningList",
+    "trimmedName": "stripSharedOnlyFromMangaPlanningList",
+    "comments": [
+      "stripSharedOnlyFromMangaPlanningList is the manga equivalent.",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
@@ -10345,6 +11895,52 @@
           "typescriptType": "string",
           "required": true,
           "descriptions": []
+        },
+        {
+          "name": "AnilistToken",
+          "jsonName": "anilistToken",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "map[string]interface{}",
+      "returnGoType": "interface{}",
+      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+    }
+  },
+  {
+    "name": "HandleRevalidateSession",
+    "trimmedName": "RevalidateSession",
+    "comments": [
+      "HandleRevalidateSession",
+      "",
+      "\t@summary revalidate profile session with PIN (no AniList token required).",
+      "\t@returns map[string]interface{}",
+      "\t@route /api/v1/profiles/revalidate [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile.go",
+    "filename": "profile.go",
+    "api": {
+      "summary": "revalidate profile session with PIN (no AniList token required).",
+      "descriptions": [],
+      "endpoint": "/api/v1/profiles/revalidate",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "PIN",
+          "jsonName": "pin",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
         }
       ],
       "returns": "map[string]interface{}",
@@ -10427,6 +12023,15 @@
           "typescriptType": "boolean",
           "required": true,
           "descriptions": []
+        },
+        {
+          "name": "AnilistToken",
+          "jsonName": "anilistToken",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
         }
       ],
       "returns": "*core.ProfileSummary",
@@ -10442,7 +12047,7 @@
       "",
       "\t@summary update a profile.",
       "\t@returns *core.ProfileSummary",
-      "\t@route /api/v1/profiles/:id [PATCH]",
+      "\t@route /api/v1/profiles/{id} [PATCH]",
       ""
     ],
     "filepath": "internal/handlers/profile.go",
@@ -10450,7 +12055,7 @@
     "api": {
       "summary": "update a profile.",
       "descriptions": [],
-      "endpoint": "/api/v1/profiles/:id",
+      "endpoint": "/api/v1/profiles/{id}",
       "methods": [
         "PATCH"
       ],
@@ -10482,6 +12087,15 @@
           "typescriptType": "string",
           "required": false,
           "descriptions": []
+        },
+        {
+          "name": "ThemeID",
+          "jsonName": "themeId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
         }
       ],
       "returns": "*core.ProfileSummary",
@@ -10497,7 +12111,7 @@
       "",
       "\t@summary delete a profile (admin only).",
       "\t@returns bool",
-      "\t@route /api/v1/profiles/:id [DELETE]",
+      "\t@route /api/v1/profiles/{id} [DELETE]",
       ""
     ],
     "filepath": "internal/handlers/profile.go",
@@ -10505,7 +12119,7 @@
     "api": {
       "summary": "delete a profile (admin only).",
       "descriptions": [],
-      "endpoint": "/api/v1/profiles/:id",
+      "endpoint": "/api/v1/profiles/{id}",
       "methods": [
         "DELETE"
       ],
@@ -10524,7 +12138,7 @@
       "",
       "\t@summary upload a custom avatar for a profile.",
       "\t@returns *core.ProfileSummary",
-      "\t@route /api/v1/profiles/:id/avatar [POST]",
+      "\t@route /api/v1/profiles/{id}/avatar [POST]",
       ""
     ],
     "filepath": "internal/handlers/profile.go",
@@ -10532,7 +12146,7 @@
     "api": {
       "summary": "upload a custom avatar for a profile.",
       "descriptions": [],
-      "endpoint": "/api/v1/profiles/:id/avatar",
+      "endpoint": "/api/v1/profiles/{id}/avatar",
       "methods": [
         "POST"
       ],
@@ -10550,7 +12164,7 @@
       "HandleServeProfileAvatar",
       "",
       "\t@summary serve a profile's avatar image.",
-      "\t@route /api/v1/profiles/:id/avatar/:filename [GET]",
+      "\t@route /api/v1/profiles/{id}/avatar/{filename} [GET]",
       ""
     ],
     "filepath": "internal/handlers/profile.go",
@@ -10558,7 +12172,7 @@
     "api": {
       "summary": "serve a profile's avatar image.",
       "descriptions": [],
-      "endpoint": "/api/v1/profiles/:id/avatar/:filename",
+      "endpoint": "/api/v1/profiles/{id}/avatar/{filename}",
       "methods": [
         "GET"
       ],
@@ -10734,6 +12348,72 @@
     }
   },
   {
+    "name": "HandleSyncAniListProfile",
+    "trimmedName": "SyncAniListProfile",
+    "comments": [
+      "HandleSyncAniListProfile",
+      "",
+      "@summary Sync AniList profile data for the current user.",
+      "@desc Fetches AniList avatar, banner, bio, and username and updates the profile.",
+      "@route /api/v1/profile/sync-anilist [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile.go",
+    "filename": "profile.go",
+    "api": {
+      "summary": "Sync AniList profile data for the current user.",
+      "descriptions": [
+        "Fetches AniList avatar, banner, bio, and username and updates the profile."
+      ],
+      "endpoint": "/api/v1/profile/sync-anilist",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleAdminSetProfileAniListToken",
+    "trimmedName": "AdminSetProfileAniListToken",
+    "comments": [
+      "HandleAdminSetProfileAniListToken",
+      "",
+      "\t@summary admin-only: set an AniList token for any profile.",
+      "\t@returns *core.ProfileSummary",
+      "\t@route /api/v1/profiles/{id}/anilist-token [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile.go",
+    "filename": "profile.go",
+    "api": {
+      "summary": "admin-only: set an AniList token for any profile.",
+      "descriptions": [],
+      "endpoint": "/api/v1/profiles/{id}/anilist-token",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Token",
+          "jsonName": "token",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "*core.ProfileSummary",
+      "returnGoType": "core.ProfileSummary",
+      "returnTypescriptType": "INTERNAL_ProfileSummary"
+    }
+  },
+  {
     "name": "GetProfileDatabase",
     "trimmedName": "GetProfileDatabase",
     "comments": [
@@ -10847,6 +12527,9 @@
       "ProfileSessionMiddleware extracts and validates the profile session token",
       "from the X-Seanime-Profile-Token header and sets it in the echo context.",
       "This runs after OptionalAuthMiddleware and FeaturesMiddleware.",
+      "It also implements a sliding window: if the token was issued more than 15 minutes ago,",
+      "it emits a fresh token in the X-Seanime-Profile-Token response header so the client",
+      "can store it and stay logged in.",
       ""
     ],
     "filepath": "internal/handlers/profile_middleware.go",
@@ -10908,6 +12591,330 @@
     }
   },
   {
+    "name": "HandleGetMyProfile",
+    "trimmedName": "GetMyProfile",
+    "comments": [
+      "HandleGetMyProfile",
+      "",
+      "\t@summary get the current user's profile page data.",
+      "\t@desc Returns profile summary, level, showcase, and achievement summary for the current user.",
+      "\t@returns ProfilePageResponse",
+      "\t@route /api/v1/profile/me [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "api": {
+      "summary": "get the current user's profile page data.",
+      "descriptions": [
+        "Returns profile summary, level, showcase, and achievement summary for the current user."
+      ],
+      "endpoint": "/api/v1/profile/me",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "ProfilePageResponse",
+      "returnGoType": "ProfilePageResponse",
+      "returnTypescriptType": "ProfilePageResponse"
+    }
+  },
+  {
+    "name": "HandleGetUserProfile",
+    "trimmedName": "GetUserProfile",
+    "comments": [
+      "HandleGetUserProfile",
+      "",
+      "\t@summary get another user's profile page data by profile ID.",
+      "\t@desc Returns profile summary, level, showcase, and achievement summary for the specified user.",
+      "\t@returns ProfilePageResponse",
+      "\t@route /api/v1/profile/user/{id} [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "api": {
+      "summary": "get another user's profile page data by profile ID.",
+      "descriptions": [
+        "Returns profile summary, level, showcase, and achievement summary for the specified user."
+      ],
+      "endpoint": "/api/v1/profile/user/{id}",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "ProfilePageResponse",
+      "returnGoType": "ProfilePageResponse",
+      "returnTypescriptType": "ProfilePageResponse"
+    }
+  },
+  {
+    "name": "HandleUpdateBio",
+    "trimmedName": "UpdateBio",
+    "comments": [
+      "HandleUpdateBio",
+      "",
+      "\t@summary update the bio of the current profile.",
+      "\t@desc Updates the bio text for the authenticated user's profile.",
+      "\t@returns core.ProfileSummary",
+      "\t@route /api/v1/profile/bio [PATCH]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "api": {
+      "summary": "update the bio of the current profile.",
+      "descriptions": [
+        "Updates the bio text for the authenticated user's profile."
+      ],
+      "endpoint": "/api/v1/profile/bio",
+      "methods": [
+        "PATCH"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Bio",
+          "jsonName": "bio",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "core.ProfileSummary",
+      "returnGoType": "core.ProfileSummary",
+      "returnTypescriptType": "INTERNAL_ProfileSummary"
+    }
+  },
+  {
+    "name": "HandleSetDisplayTitle",
+    "trimmedName": "SetDisplayTitle",
+    "comments": [
+      "HandleSetDisplayTitle",
+      "",
+      "\t@summary set the user's global display title.",
+      "\t@desc Stores the plain-text title and its color globally so all users see the same title on this profile.",
+      "\t@returns core.ProfileSummary",
+      "\t@route /api/v1/profile/display-title [PATCH]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "api": {
+      "summary": "set the user's global display title.",
+      "descriptions": [
+        "Stores the plain-text title and its color globally so all users see the same title on this profile."
+      ],
+      "endpoint": "/api/v1/profile/display-title",
+      "methods": [
+        "PATCH"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Title",
+          "jsonName": "title",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Color",
+          "jsonName": "color",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "core.ProfileSummary",
+      "returnGoType": "core.ProfileSummary",
+      "returnTypescriptType": "INTERNAL_ProfileSummary"
+    }
+  },
+  {
+    "name": "HandleSetDisplayCosmetics",
+    "trimmedName": "SetDisplayCosmetics",
+    "comments": [
+      "HandleSetDisplayCosmetics",
+      "",
+      "\t@summary save all global profile cosmetics at once.",
+      "\t@desc Stores the resolved XP bar fill CSS, animation class, and name color so all users see them.",
+      "\t@returns core.ProfileSummary",
+      "\t@route /api/v1/profile/display-cosmetics [PATCH]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "api": {
+      "summary": "save all global profile cosmetics at once.",
+      "descriptions": [
+        "Stores the resolved XP bar fill CSS, animation class, and name color so all users see them."
+      ],
+      "endpoint": "/api/v1/profile/display-cosmetics",
+      "methods": [
+        "PATCH"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "XPBarFillCss",
+          "jsonName": "xpBarFillCss",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "XPBarAnimClass",
+          "jsonName": "xpBarAnimClass",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "NameColorCss",
+          "jsonName": "nameColorCss",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "NameGradientCss",
+          "jsonName": "nameGradientCss",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "core.ProfileSummary",
+      "returnGoType": "core.ProfileSummary",
+      "returnTypescriptType": "INTERNAL_ProfileSummary"
+    }
+  },
+  {
+    "name": "HandleGetLevel",
+    "trimmedName": "GetLevel",
+    "comments": [
+      "HandleGetLevel",
+      "",
+      "\t@summary get level/XP data for the current profile.",
+      "\t@returns LevelResponse",
+      "\t@route /api/v1/profile/level [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "api": {
+      "summary": "get level/XP data for the current profile.",
+      "descriptions": [],
+      "endpoint": "/api/v1/profile/level",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "LevelResponse",
+      "returnGoType": "LevelResponse",
+      "returnTypescriptType": "LevelResponse"
+    }
+  },
+  {
+    "name": "buildProfileResponse",
+    "trimmedName": "buildProfileResponse",
+    "comments": [
+      "buildProfileResponse builds the profile page data for a given profile ID.",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetExpBarProgression",
+    "trimmedName": "GetExpBarProgression",
+    "comments": [
+      "HandleGetExpBarProgression",
+      "",
+      "\t@summary get all exp bar progression entries for the shop/selector.",
+      "\t@desc Returns all 400 exp bar progression entries with their styling data.",
+      "\t@returns []achievement.ExpBarProgressionEntry",
+      "\t@route /api/v1/profile/exp-bar/all [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "api": {
+      "summary": "get all exp bar progression entries for the shop/selector.",
+      "descriptions": [
+        "Returns all 400 exp bar progression entries with their styling data."
+      ],
+      "endpoint": "/api/v1/profile/exp-bar/all",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]achievement.ExpBarProgressionEntry",
+      "returnGoType": "achievement.ExpBarProgressionEntry",
+      "returnTypescriptType": "Array\u003cAchievement_ExpBarProgressionEntry\u003e"
+    }
+  },
+  {
+    "name": "HandleGetExpBarForLevel",
+    "trimmedName": "GetExpBarForLevel",
+    "comments": [
+      "HandleGetExpBarForLevel",
+      "",
+      "\t@summary get the exp bar styling for a specific level.",
+      "\t@desc Returns the exp bar progression entry for the given level.",
+      "\t@returns achievement.ExpBarProgressionEntry",
+      "\t@route /api/v1/profile/exp-bar/level/{level} [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "api": {
+      "summary": "get the exp bar styling for a specific level.",
+      "descriptions": [
+        "Returns the exp bar progression entry for the given level."
+      ],
+      "endpoint": "/api/v1/profile/exp-bar/level/{level}",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "achievement.ExpBarProgressionEntry",
+      "returnGoType": "achievement.ExpBarProgressionEntry",
+      "returnTypescriptType": "Achievement_ExpBarProgressionEntry"
+    }
+  },
+  {
     "name": "HandleGetProfileStats",
     "trimmedName": "GetProfileStats",
     "comments": [
@@ -10940,11 +12947,109 @@
     }
   },
   {
+    "name": "HandleGetUserProfileStats",
+    "trimmedName": "GetUserProfileStats",
+    "comments": [
+      "HandleGetUserProfileStats",
+      "",
+      "\t@summary get profile statistics for another user by profile ID.",
+      "\t@desc Returns activity heatmap, streak data, and watch patterns. Personality/AniList data not available for other users.",
+      "\t@desc Optional query param \"year\" selects a calendar year; defaults to last 365 days.",
+      "\t@returns profilestats.ProfileStats",
+      "\t@route /api/v1/profile/user/{id}/stats [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_stats.go",
+    "filename": "profile_stats.go",
+    "api": {
+      "summary": "get profile statistics for another user by profile ID.",
+      "descriptions": [
+        "Returns activity heatmap, streak data, and watch patterns. Personality/AniList data not available for other users.",
+        "Optional query param \"year\" selects a calendar year; defaults to last 365 days."
+      ],
+      "endpoint": "/api/v1/profile/user/{id}/stats",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "profilestats.ProfileStats",
+      "returnGoType": "profilestats.ProfileStats",
+      "returnTypescriptType": "ProfileStats_ProfileStats"
+    }
+  },
+  {
+    "name": "computeWeeklyAverages",
+    "trimmedName": "computeWeeklyAverages",
+    "comments": [
+      "computeWeeklyAverages returns average anime hours/week and manga chapters/week",
+      "based on all activity logs, using a rolling 4-week window from the most recent activity.",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_stats.go",
+    "filename": "profile_stats.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "computePersonality",
     "trimmedName": "computePersonality",
     "comments": [
       "computePersonality extracts genre counts and collection stats from the AniList collection",
       "to classify the user's anime personality.",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_stats.go",
+    "filename": "profile_stats.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "computeWatchMinutesWithRewatches",
+    "trimmedName": "computeWatchMinutesWithRewatches",
+    "comments": [
+      "computeWatchMinutesWithRewatches computes total anime watch minutes including rewatches.",
+      "Formula: sum of (progress × duration) + (repeat × episodes × duration) for each entry.",
+      ""
+    ],
+    "filepath": "internal/handlers/profile_stats.go",
+    "filename": "profile_stats.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "computeEstimatedReadingMinutes",
+    "trimmedName": "computeEstimatedReadingMinutes",
+    "comments": [
+      "computeEstimatedReadingMinutes computes estimated manga reading time.",
+      "Formula: sum of (progress + repeat × (chapters ?? progress)) × 7 min per chapter.",
       ""
     ],
     "filepath": "internal/handlers/profile_stats.go",
@@ -11285,6 +13390,27 @@
     }
   },
   {
+    "name": "loadExpBarProgression",
+    "trimmedName": "loadExpBarProgression",
+    "comments": [
+      "loadExpBarProgression initializes the exp bar progression data from JSON",
+      ""
+    ],
+    "filepath": "internal/handlers/routes.go",
+    "filename": "routes.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleScanLocalFiles",
     "trimmedName": "ScanLocalFiles",
     "comments": [
@@ -11369,6 +13495,48 @@
       "returns": "[]summary.ScanSummaryItem",
       "returnGoType": "summary.ScanSummaryItem",
       "returnTypescriptType": "Array\u003cSummary_ScanSummaryItem\u003e"
+    }
+  },
+  {
+    "name": "RateLimitMiddleware",
+    "trimmedName": "RateLimitMiddleware",
+    "comments": [
+      "RateLimitMiddleware limits requests per client session (identified by Seanime-Client-Id cookie).",
+      ""
+    ],
+    "filepath": "internal/handlers/security_middleware.go",
+    "filename": "security_middleware.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "SecureHeadersMiddleware",
+    "trimmedName": "SecureHeadersMiddleware",
+    "comments": [
+      "SecureHeadersMiddleware adds security-related HTTP headers to all responses.",
+      ""
+    ],
+    "filepath": "internal/handlers/security_middleware.go",
+    "filename": "security_middleware.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {
@@ -12524,7 +14692,7 @@
       "HandleGetSyntheticAnime",
       "",
       "@summary returns a synthetic anime by synthetic ID.",
-      "@route /api/v1/anime/synthetic/:id [GET]",
+      "@route /api/v1/anime/synthetic/{id} [GET]",
       "@returns models.SyntheticAnime",
       ""
     ],
@@ -12533,7 +14701,7 @@
     "api": {
       "summary": "returns a synthetic anime by synthetic ID.",
       "descriptions": [],
-      "endpoint": "/api/v1/anime/synthetic/:id",
+      "endpoint": "/api/v1/anime/synthetic/{id}",
       "methods": [
         "GET"
       ],
@@ -12542,6 +14710,70 @@
       "returns": "models.SyntheticAnime",
       "returnGoType": "models.SyntheticAnime",
       "returnTypescriptType": "Models_SyntheticAnime"
+    }
+  },
+  {
+    "name": "HandleGetMarketplaceThemes",
+    "trimmedName": "GetMarketplaceThemes",
+    "comments": [
+      "HandleGetMarketplaceThemes returns themes from the marketplace index.json",
+      ""
+    ],
+    "filepath": "internal/handlers/theme-images.go",
+    "filename": "theme-images.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandlePopulateThemeImages",
+    "trimmedName": "PopulateThemeImages",
+    "comments": [
+      "HandlePopulateThemeImages fetches anime images from AniList and caches them in index.json",
+      ""
+    ],
+    "filepath": "internal/handlers/theme-images.go",
+    "filename": "theme-images.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "convertFolderNameToTitle",
+    "trimmedName": "convertFolderNameToTitle",
+    "comments": [
+      "convertFolderNameToTitle converts kebab-case folder names to title case",
+      "E.g., \"attack-on-titan\" -\u003e \"Attack on Titan\"",
+      ""
+    ],
+    "filepath": "internal/handlers/theme-images.go",
+    "filename": "theme-images.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {
@@ -12609,6 +14841,546 @@
       "returns": "models.Theme",
       "returnGoType": "models.Theme",
       "returnTypescriptType": "Models_Theme"
+    }
+  },
+  {
+    "name": "HandleListThemeBackgrounds",
+    "trimmedName": "ListThemeBackgrounds",
+    "comments": [
+      "HandleListThemeBackgrounds returns all downloaded background images from datadir/theme-backgrounds/.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDownloadThemeBackground",
+    "trimmedName": "DownloadThemeBackground",
+    "comments": [
+      "HandleDownloadThemeBackground downloads a full-res wallpaper from Wallhaven and saves it to datadir/theme-backgrounds/.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "URL",
+          "jsonName": "url",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "ThemeID",
+          "jsonName": "themeId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDeleteThemeBackground",
+    "trimmedName": "DeleteThemeBackground",
+    "comments": [
+      "HandleDeleteThemeBackground removes a downloaded wallpaper from datadir/theme-backgrounds/.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleListThemeMusicTracks",
+    "trimmedName": "ListThemeMusicTracks",
+    "comments": [
+      "HandleListThemeMusicTracks returns a list of audio tracks from appdata/theme-music/{themeId}/.",
+      "The files are served at /theme-music/{themeId}/{filename} via the static file server.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleListSharedThemes",
+    "trimmedName": "ListSharedThemes",
+    "comments": [
+      "HandleListSharedThemes returns all downloaded themes from datadir/themes/.",
+      "These themes are shared across all profiles.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDownloadSharedTheme",
+    "trimmedName": "DownloadSharedTheme",
+    "comments": [
+      "HandleDownloadSharedTheme downloads a theme from the marketplace to the shared themes directory.",
+      "This makes the theme available to all profiles.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ThemeID",
+          "jsonName": "themeId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDeleteSharedTheme",
+    "trimmedName": "DeleteSharedTheme",
+    "comments": [
+      "HandleDeleteSharedTheme removes a downloaded theme from the shared themes directory.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "getProfileDB",
+    "trimmedName": "getProfileDB",
+    "comments": [
+      "getProfileDB extracts the profile ID from context and returns the per-profile database",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleListUserThemes",
+    "trimmedName": "ListUserThemes",
+    "comments": [
+      "HandleListUserThemes returns all themes downloaded by the current profile (stored in per-profile DB).",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDownloadUserTheme",
+    "trimmedName": "DownloadUserTheme",
+    "comments": [
+      "HandleDownloadUserTheme downloads a theme from the marketplace and stores it in the user's profile DB.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ThemeID",
+          "jsonName": "themeId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDeleteUserTheme",
+    "trimmedName": "DeleteUserTheme",
+    "comments": [
+      "HandleDeleteUserTheme removes a theme from the user's profile database.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetUserTheme",
+    "trimmedName": "GetUserTheme",
+    "comments": [
+      "HandleGetUserTheme serves a theme.json from the user's profile database.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetProfileThemePreference",
+    "trimmedName": "GetProfileThemePreference",
+    "comments": [
+      "HandleGetProfileThemePreference returns the active theme for the current profile.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleSetProfileThemePreference",
+    "trimmedName": "SetProfileThemePreference",
+    "comments": [
+      "HandleSetProfileThemePreference sets the active theme for the current profile.",
+      "Also recalculates and stores the milestone name based on the theme's milestones and current level.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ThemeID",
+          "jsonName": "themeId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleUpdateMilestoneName",
+    "trimmedName": "UpdateMilestoneName",
+    "comments": [
+      "HandleUpdateMilestoneName allows the user to manually set their publicly visible milestone title.",
+      "This overrides the automatically calculated one from their theme.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MilestoneName",
+          "jsonName": "milestoneName",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "calculateMilestoneName",
+    "trimmedName": "calculateMilestoneName",
+    "comments": [
+      "calculateMilestoneName looks up the milestone name for a given level from a theme.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "copyFile",
+    "trimmedName": "copyFile",
+    "comments": [
+      "copyFile copies a file from src to dst",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleSearchWallhaven",
+    "trimmedName": "SearchWallhaven",
+    "comments": [
+      "HandleSearchWallhaven proxies a search query to the Wallhaven public API (SFW anime wallpapers).",
+      "Uses relevance sorting so specific anime name queries return plentiful, on-target results.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_backgrounds.go",
+    "filename": "theme_backgrounds.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetTimeline",
+    "trimmedName": "GetTimeline",
+    "comments": [
+      "HandleGetTimeline",
+      "",
+      "\t@summary returns paginated timeline events with resolved media info.",
+      "\t@desc Returns activity events enriched with anime/manga titles and cover images.",
+      "\t@param page - int - false - \"Page number (default 1)\"",
+      "\t@param pageSize - int - false - \"Events per page (default 50)\"",
+      "\t@returns TimelineResponse",
+      "\t@route /api/v1/profile/timeline [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/timeline.go",
+    "filename": "timeline.go",
+    "api": {
+      "summary": "returns paginated timeline events with resolved media info.",
+      "descriptions": [
+        "Returns activity events enriched with anime/manga titles and cover images."
+      ],
+      "endpoint": "/api/v1/profile/timeline",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "page",
+          "jsonName": "page",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": [
+            "Page number (default 1)"
+          ]
+        },
+        {
+          "name": "pageSize",
+          "jsonName": "pageSize",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": [
+            "Events per page (default 50)"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "TimelineResponse",
+      "returnGoType": "TimelineResponse",
+      "returnTypescriptType": "TimelineResponse"
+    }
+  },
+  {
+    "name": "inferMediaType",
+    "trimmedName": "inferMediaType",
+    "comments": [
+      "inferMediaType guesses media type from event type and metadata payload.",
+      ""
+    ],
+    "filepath": "internal/handlers/timeline.go",
+    "filename": "timeline.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "ParseEventMetadata",
+    "trimmedName": "ParseEventMetadata",
+    "comments": [
+      "ParseEventMetadata is a helper to parse the JSON metadata blob.",
+      ""
+    ],
+    "filepath": "internal/handlers/timeline.go",
+    "filename": "timeline.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {
@@ -13496,6 +16268,106 @@
     }
   },
   {
+    "name": "HandleGetTrackPreferences",
+    "trimmedName": "GetTrackPreferences",
+    "comments": [
+      "HandleGetTrackPreferences",
+      "",
+      "\t@summary Returns all per-media track preferences for the current profile.",
+      "\t@route /api/v1/mediastream/track-preferences [GET]",
+      "\t@returns map[string]models.TrackPreference",
+      ""
+    ],
+    "filepath": "internal/handlers/track_preferences.go",
+    "filename": "track_preferences.go",
+    "api": {
+      "summary": "Returns all per-media track preferences for the current profile.",
+      "descriptions": [],
+      "endpoint": "/api/v1/mediastream/track-preferences",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "map[string]models.TrackPreference",
+      "returnGoType": "models.TrackPreference",
+      "returnTypescriptType": "Record\u003cstring, Models_TrackPreference\u003e"
+    }
+  },
+  {
+    "name": "HandleUpsertTrackPreference",
+    "trimmedName": "UpsertTrackPreference",
+    "comments": [
+      "HandleUpsertTrackPreference",
+      "",
+      "\t@summary Creates or updates a per-media track preference.",
+      "\t@route /api/v1/mediastream/track-preferences [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/track_preferences.go",
+    "filename": "track_preferences.go",
+    "api": {
+      "summary": "Creates or updates a per-media track preference.",
+      "descriptions": [],
+      "endpoint": "/api/v1/mediastream/track-preferences",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaID",
+          "jsonName": "mediaId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "AudioLanguage",
+          "jsonName": "audioLanguage",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "AudioCodecID",
+          "jsonName": "audioCodecId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "SubtitleLanguage",
+          "jsonName": "subtitleLanguage",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "SubtitleCodecID",
+          "jsonName": "subtitleCodecId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetUnmatchedTorrents",
     "trimmedName": "GetUnmatchedTorrents",
     "comments": [
@@ -13593,6 +16465,46 @@
       "returns": "*unmatched.MatchResult",
       "returnGoType": "unmatched.MatchResult",
       "returnTypescriptType": "MatchResult"
+    }
+  },
+  {
+    "name": "HandleUnmatchedFamilySearch",
+    "trimmedName": "UnmatchedFamilySearch",
+    "comments": [
+      "HandleUnmatchedFamilySearch",
+      "",
+      "\t@summary fetches the full relation tree for an anime.",
+      "\t@desc Returns the root anime plus all related entries from AniList with relation types.",
+      "\t@route /api/v1/unmatched/family-search [POST]",
+      "\t@returns unmatchedFamilyResult",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched.go",
+    "filename": "unmatched.go",
+    "api": {
+      "summary": "fetches the full relation tree for an anime.",
+      "descriptions": [
+        "Returns the root anime plus all related entries from AniList with relation types."
+      ],
+      "endpoint": "/api/v1/unmatched/family-search",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "AnimeID",
+          "jsonName": "animeId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "unmatchedFamilyResult",
+      "returnGoType": "unmatchedFamilyResult",
+      "returnTypescriptType": "unmatchedFamilyResult"
     }
   },
   {

@@ -4,6 +4,7 @@ import React from "react"
 import { useAtomValue } from "jotai"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { CURSOR_MAP } from "@/lib/cursors/cursor-definitions"
+import { seaStorage } from "@/lib/sea-storage/sea-storage"
 
 type CursorContextValue = {
     activeCursorId: string
@@ -27,7 +28,7 @@ export function CursorProvider({ children }: { children: React.ReactNode }) {
     const [activeCursorId, setActiveCursorIdRaw] = React.useState<string>(() => {
         if (typeof window === "undefined") return "default"
         try {
-            return localStorage.getItem(storageKey) ?? "default"
+            return seaStorage.getItem(storageKey) ?? "default"
         } catch {
             return "default"
         }
@@ -36,7 +37,7 @@ export function CursorProvider({ children }: { children: React.ReactNode }) {
     // Reload from storage when profile changes
     React.useEffect(() => {
         try {
-            const stored = localStorage.getItem(storageKey)
+            const stored = seaStorage.getItem(storageKey)
             setActiveCursorIdRaw(stored ?? "default")
         } catch { /* noop */ }
     }, [storageKey])
@@ -44,7 +45,7 @@ export function CursorProvider({ children }: { children: React.ReactNode }) {
     const setActiveCursorId = React.useCallback((id: string) => {
         setActiveCursorIdRaw(id)
         try {
-            localStorage.setItem(storageKey, id)
+            seaStorage.setItem(storageKey, id)
         } catch { /* noop */ }
     }, [storageKey])
 

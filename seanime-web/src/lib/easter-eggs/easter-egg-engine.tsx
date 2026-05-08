@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { useServerMutation } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { EASTER_EGG_DEFINITIONS, EASTER_EGG_MAP, EasterEggDefinition } from "./easter-egg-definitions"
+import { seaStorage } from "@/lib/sea-storage/sea-storage"
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 
@@ -19,7 +20,7 @@ const getStorageKey = () => {
 const loadDiscovered = (): Set<string> => {
     if (typeof window === "undefined") return new Set()
     try {
-        const raw = localStorage.getItem(getStorageKey())
+        const raw = seaStorage.getItem(getStorageKey())
         return raw ? new Set(JSON.parse(raw) as string[]) : new Set()
     } catch {
         return new Set()
@@ -28,7 +29,7 @@ const loadDiscovered = (): Set<string> => {
 
 const saveDiscovered = (ids: Set<string>) => {
     if (typeof window === "undefined") return
-    localStorage.setItem(getStorageKey(), JSON.stringify(Array.from(ids)))
+    seaStorage.setItem(getStorageKey(), JSON.stringify(Array.from(ids)))
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────

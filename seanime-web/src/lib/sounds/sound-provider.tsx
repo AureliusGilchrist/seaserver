@@ -2,6 +2,7 @@
 import React from "react"
 import { atomWithStorage } from "jotai/utils"
 import { useAtom } from "jotai/react"
+import { seaJotaiStorage } from "@/lib/sea-storage/sea-storage"
 
 // ── Sound Pack Definitions ────────────────────────────────────────────────────
 
@@ -218,11 +219,14 @@ function createWhoosh(ctx: AudioContext, startFreq: number, endFreq: number, dur
     osc.stop(ctx.currentTime + duration)
 }
 
-// ── Kenney UI Audio — CC0 sounds downloaded at runtime ───────────────────────
-// Source: https://gamesounds.xyz (mirror of kenney.nl/assets/ui-audio, CC0)
+// ── Kenney UI Audio — CC0 sounds bundled locally ─────────────────────────────
+// Source: kenney.nl/assets/ui-audio (CC0). Files served from /public/sounds/kenney
+// to avoid CORS issues (gamesounds.xyz does not send Access-Control-Allow-Origin,
+// which breaks fetches in Electron's app:// origin and falls back to a synth tick
+// that makes every pack sound identical).
 // Files: click1-5.ogg, switch1-38.ogg, rollover1-6.ogg, mouseclick1.ogg, mouserelease1.ogg
 
-const K_BASE = "https://gamesounds.xyz/Kenney%27s%20Sound%20Pack/UI%20Audio"
+const K_BASE = "/sounds/kenney"
 const _bufCache = new Map<string, AudioBuffer | null | "pending">()
 
 function _loadPlay(ctx: AudioContext, file: string, rate: number, vol: number, delayMs = 0) {
@@ -454,10 +458,10 @@ const PACK_SOUNDS: Record<string, Record<CoreSoundName, PackSoundFn>> = {
 
 // ── Jotai atoms ───────────────────────────────────────────────────────────────
 
-const soundPackIdAtom = atomWithStorage<string>("sea-sound-pack-id", "default")
-const soundVolumeAtom = atomWithStorage<number>("sea-sound-volume", 0.6)
+const soundPackIdAtom = atomWithStorage<string>("sea-sound-pack-id", "default", seaJotaiStorage)
+const soundVolumeAtom = atomWithStorage<number>("sea-sound-volume", 0.6, seaJotaiStorage)
 /** Set this atom to the user's current level so level-gated sounds unlock correctly */
-export const userSoundLevelAtom = atomWithStorage<number>("sea-user-sound-level", 1)
+export const userSoundLevelAtom = atomWithStorage<number>("sea-user-sound-level", 1, seaJotaiStorage)
 
 // ── Context ───────────────────────────────────────────────────────────────────
 

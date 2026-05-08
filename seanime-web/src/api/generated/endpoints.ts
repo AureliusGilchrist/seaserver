@@ -48,6 +48,90 @@ export const API_ENDPOINTS = {
             methods: ["GET"],
             endpoint: "/api/v1/achievements/showcase",
         },
+        /**
+         *  @description
+         *  Route get all achievements for another user by profile ID.
+         *  Returns achievement definitions, categories, progress/unlock state, and summary for the specified user.
+         */
+        GetUserAchievements: {
+            key: "ACHIEVEMENT-get-user-achievements",
+            methods: ["GET"],
+            endpoint: "/api/v1/achievements/user/{id}",
+        },
+        /**
+         *  @description
+         *  Route retroactively evaluate all stat-based achievements and return newly unlocked ones.
+         *  Fetches current anime/manga collections and evaluates all collection-based achievements.
+         *  Returns a list of achievements that were newly unlocked by this import.
+         */
+        ImportAchievements: {
+            key: "ACHIEVEMENT-import-achievements",
+            methods: ["POST"],
+            endpoint: "/api/v1/achievements/import",
+        },
+        /**
+         *  @description
+         *  Route reset all achievements for the current profile.
+         *  Clears unlock status, progress, and XP so the profile starts fresh.
+         */
+        ResetAchievements: {
+            key: "ACHIEVEMENT-reset-achievements",
+            methods: ["POST"],
+            endpoint: "/api/v1/achievements/reset",
+        },
+    },
+    ACTIVITY_BACKFILL: {
+        /**
+         *  @description
+         *  Route backfills activity logs from AniList into the per-profile heatmap database.
+         *  Fetches the authenticated user's AniList list activity and populates ActivityLog rows
+         *  for dates that don't yet have entries. Uses a 24-hour cooldown file-cache key.
+         */
+        BackfillActivity: {
+            key: "ACTIVITY-BACKFILL-backfill-activity",
+            methods: ["POST"],
+            endpoint: "/api/v1/activity/backfill",
+        },
+    },
+    ACTIVITY_EVENTS: {
+        /**
+         *  @description
+         *  Route returns granular activity events for the current profile.
+         *  Returns individual discrete events (episode watched, file matched, etc.)
+         *  with optional filtering by event type and limit.
+         */
+        GetActivityEvents: {
+            key: "ACTIVITY-EVENTS-get-activity-events",
+            methods: ["GET"],
+            endpoint: "/api/v1/activity-events",
+        },
+    },
+    ADMIN_ANNOUNCEMENTS: {
+        CreateAdminAnnouncement: {
+            key: "ADMIN-ANNOUNCEMENTS-create-admin-announcement",
+            methods: ["POST"],
+            endpoint: "/api/v1/admin/announcements",
+        },
+        GetActiveAdminAnnouncements: {
+            key: "ADMIN-ANNOUNCEMENTS-get-active-admin-announcements",
+            methods: ["GET"],
+            endpoint: "/api/v1/admin/announcements",
+        },
+        DismissAdminAnnouncement: {
+            key: "ADMIN-ANNOUNCEMENTS-dismiss-admin-announcement",
+            methods: ["POST"],
+            endpoint: "/api/v1/admin/announcements/:id/dismiss",
+        },
+        DeleteAdminAnnouncement: {
+            key: "ADMIN-ANNOUNCEMENTS-delete-admin-announcement",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/admin/announcements/:id",
+        },
+        GetAllAdminAnnouncements: {
+            key: "ADMIN-ANNOUNCEMENTS-get-all-admin-announcements",
+            methods: ["GET"],
+            endpoint: "/api/v1/admin/announcements/all",
+        },
     },
     ANILIST: {
         /**
@@ -113,16 +197,6 @@ export const API_ENDPOINTS = {
             key: "ANILIST-get-anilist-staff-details",
             methods: ["GET"],
             endpoint: "/api/v1/anilist/staff-details/{id}",
-        },
-        /**
-         *  @description
-         *  Route returns details about a character.
-         *  This fetches media associated with the character, voice actors, and other info.
-         */
-        GetAnilistCharacterDetails: {
-            key: "ANILIST-get-anilist-character-details",
-            methods: ["GET"],
-            endpoint: "/api/v1/anilist/character-details/{id}",
         },
         /**
          *  @description
@@ -210,40 +284,6 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/anime/episode-collection/{id}",
         },
     },
-    ANIME_THEMES: {
-        /**
-         *  @description
-         *  Route returns opening/ending themes for an anime.
-         *  This proxies the animethemes.moe API using the anime's MAL ID.
-         */
-        GetAnimeThemes: {
-            key: "ANIME_THEMES-get-anime-themes",
-            methods: ["GET"],
-            endpoint: "/api/v1/anime-themes/{id}",
-        },
-    },
-    THEME_BACKGROUNDS: {
-        ListThemeBackgrounds: {
-            key: "THEME_BACKGROUNDS-list",
-            methods: ["GET"],
-            endpoint: "/api/v1/theme-backgrounds",
-        },
-        DownloadThemeBackground: {
-            key: "THEME_BACKGROUNDS-download",
-            methods: ["POST"],
-            endpoint: "/api/v1/theme-backgrounds/download",
-        },
-        DeleteThemeBackground: {
-            key: "THEME_BACKGROUNDS-delete",
-            methods: ["DELETE"],
-            endpoint: "/api/v1/theme-backgrounds",
-        },
-        SearchWallhaven: {
-            key: "THEME_BACKGROUNDS-wallhaven-search",
-            methods: ["GET"],
-            endpoint: "/api/v1/theme-backgrounds/wallhaven/search",
-        },
-    },
     ANIME_COLLECTION: {
         /**
          *  @description
@@ -278,6 +318,21 @@ export const API_ENDPOINTS = {
             key: "ANIME-COLLECTION-add-unknown-media",
             methods: ["POST"],
             endpoint: "/api/v1/library/unknown-media",
+        },
+        HydrateAllAnime: {
+            key: "ANIME-COLLECTION-hydrate-all-anime",
+            methods: ["POST"],
+            endpoint: "/api/v1/library/hydrate-all",
+        },
+        CancelAnimeHydration: {
+            key: "ANIME-COLLECTION-cancel-anime-hydration",
+            methods: ["POST"],
+            endpoint: "/api/v1/library/hydrate-all/cancel",
+        },
+        GetAnimeHydrationStatus: {
+            key: "ANIME-COLLECTION-get-anime-hydration-status",
+            methods: ["GET"],
+            endpoint: "/api/v1/library/hydrate-all/status",
         },
     },
     ANIME_ENTRIES: {
@@ -384,6 +439,50 @@ export const API_ENDPOINTS = {
             key: "ANIME-ENTRIES-update-anime-entry-repeat",
             methods: ["POST"],
             endpoint: "/api/v1/library/anime-entry/update-repeat",
+        },
+    },
+    ANIME_FAVORITE: {
+        /**
+         *  @description
+         *  Route get the list of favorited anime media IDs.
+         *  Returns an array of media IDs that are favorited for the current profile.
+         */
+        GetAnimeFavorites: {
+            key: "ANIME-FAVORITE-get-anime-favorites",
+            methods: ["GET"],
+            endpoint: "/api/v1/library/favorites",
+        },
+        /**
+         *  @description
+         *  Route toggle an anime as favorite (add/remove).
+         *  Adds the anime to favorites if not present, removes it if already favorited.
+         */
+        ToggleAnimeFavorite: {
+            key: "ANIME-FAVORITE-toggle-anime-favorite",
+            methods: ["POST"],
+            endpoint: "/api/v1/library/favorites/toggle",
+        },
+        /**
+         *  @description
+         *  Route bulk-add anime favorites (for localStorage migration).
+         *  Accepts an array of media IDs and adds them all as favorites, skipping duplicates.
+         */
+        BulkAddAnimeFavorites: {
+            key: "ANIME-FAVORITE-bulk-add-anime-favorites",
+            methods: ["POST"],
+            endpoint: "/api/v1/library/favorites/bulk",
+        },
+    },
+    ANIME_THEMES: {
+        /**
+         *  @description
+         *  Route returns opening/ending themes for an anime.
+         *  This proxies the animethemes.moe API using the anime's MAL ID.
+         */
+        GetAnimeThemes: {
+            key: "ANIME-THEMES-get-anime-themes",
+            methods: ["GET"],
+            endpoint: "/api/v1/anime-themes/{id}",
         },
     },
     AUTH: {
@@ -541,6 +640,46 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/auto-downloader/item",
         },
     },
+    CHARACTER: {
+        /**
+         *  @description
+         *  Route returns details about a character.
+         *  This fetches media associated with the character, voice actors, and other info.
+         */
+        GetAnilistCharacterDetails: {
+            key: "CHARACTER-get-anilist-character-details",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/character-details/{id}",
+        },
+    },
+    CLIENT_PREFS: {
+        /**
+         *  @description
+         *  Route returns all client preferences stored for the current profile.
+         *  Returns a map of key -> JSON-encoded value strings. The value strings are opaque to the server.
+         *  Used by the web client to hydrate UI state (UI customizer, easter eggs, theme settings, etc.) on bootstrap.
+         */
+        GetClientPrefs: {
+            key: "CLIENT-PREFS-get-client-prefs",
+            methods: ["GET"],
+            endpoint: "/api/v1/client-prefs",
+        },
+        /**
+         *  @description
+         *  Route creates or updates a client preference for the current profile.
+         *  The value is an opaque JSON-encoded string owned by the web client.
+         */
+        UpsertClientPref: {
+            key: "CLIENT-PREFS-upsert-client-pref",
+            methods: ["PUT"],
+            endpoint: "/api/v1/client-prefs",
+        },
+        DeleteClientPref: {
+            key: "CLIENT-PREFS-delete-client-pref",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/client-prefs/:key",
+        },
+    },
     COMMENT: {
         /**
          *  @description
@@ -593,6 +732,18 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/comments/{id}/vote",
         },
     },
+    COMMUNITY: {
+        GetCommunityProfiles: {
+            key: "COMMUNITY-get-community-profiles",
+            methods: ["GET"],
+            endpoint: "/api/v1/community/profiles",
+        },
+        GetActivityFeed: {
+            key: "COMMUNITY-get-activity-feed",
+            methods: ["GET"],
+            endpoint: "/api/v1/community/feed",
+        },
+    },
     CONTINUITY: {
         /**
          *  @description
@@ -609,6 +760,7 @@ export const API_ENDPOINTS = {
          *  @description
          *  Route Returns a watch history item.
          *  This endpoint is used to retrieve a watch history item.
+         *  If the "episode" query param is provided, returns the per-episode position instead.
          */
         GetContinuityWatchHistoryItem: {
             key: "CONTINUITY-get-continuity-watch-history-item",
@@ -787,6 +939,18 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/directstream/subs/convert-subs",
         },
     },
+    DIRECTSTREAM_AUDIO: {
+        DirectstreamGetAudio: {
+            key: "DIRECTSTREAM-AUDIO-directstream-get-audio",
+            methods: ["GET"],
+            endpoint: "/api/v1/directstream/audio",
+        },
+        MediastreamGetAudio: {
+            key: "DIRECTSTREAM-AUDIO-mediastream-get-audio",
+            methods: ["GET"],
+            endpoint: "/api/v1/mediastream/audio/:clientId",
+        },
+    },
     DISCORD: {
         SetDiscordMangaActivity: {
             key: "DISCORD-set-discord-manga-activity",
@@ -844,6 +1008,18 @@ export const API_ENDPOINTS = {
             key: "DOWNLOAD-download-mac-denshi-update",
             methods: ["POST"],
             endpoint: "/api/v1/download-mac-denshi-update",
+        },
+    },
+    EASTER_EGG: {
+        /**
+         *  @description
+         *  Route grants XP for discovering an easter egg.
+         *  Idempotent — each egg can only grant XP once per profile per server session.
+         */
+        DiscoverEasterEgg: {
+            key: "EASTER-EGG-discover-easter-egg",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/easter-egg",
         },
     },
     ENMASSE: {
@@ -906,6 +1082,68 @@ export const API_ENDPOINTS = {
             key: "ENMASSE-manga-en-masse-stop",
             methods: ["POST"],
             endpoint: "/api/v1/enmasse/manga/stop",
+        },
+    },
+    ENTITY_FAVORITE: {
+        /**
+         *  @description
+         *  Route get the list of favorited character IDs.
+         *  Returns an array of character IDs that are favorited for the current profile.
+         */
+        GetCharacterFavorites: {
+            key: "ENTITY-FAVORITE-get-character-favorites",
+            methods: ["GET"],
+            endpoint: "/api/v1/character/favorites",
+        },
+        /**
+         *  @description
+         *  Route toggle a character as favorite (add/remove).
+         *  Adds the character to favorites if not present, removes it if already favorited.
+         */
+        ToggleCharacterFavorite: {
+            key: "ENTITY-FAVORITE-toggle-character-favorite",
+            methods: ["POST"],
+            endpoint: "/api/v1/character/favorites/toggle",
+        },
+        /**
+         *  @description
+         *  Route get the list of favorited staff IDs.
+         *  Returns an array of staff IDs that are favorited for the current profile.
+         */
+        GetStaffFavorites: {
+            key: "ENTITY-FAVORITE-get-staff-favorites",
+            methods: ["GET"],
+            endpoint: "/api/v1/staff/favorites",
+        },
+        /**
+         *  @description
+         *  Route toggle a staff member as favorite (add/remove).
+         *  Adds the staff to favorites if not present, removes it if already favorited.
+         */
+        ToggleStaffFavorite: {
+            key: "ENTITY-FAVORITE-toggle-staff-favorite",
+            methods: ["POST"],
+            endpoint: "/api/v1/staff/favorites/toggle",
+        },
+        /**
+         *  @description
+         *  Route get the list of favorited studio IDs.
+         *  Returns an array of studio IDs that are favorited for the current profile.
+         */
+        GetStudioFavorites: {
+            key: "ENTITY-FAVORITE-get-studio-favorites",
+            methods: ["GET"],
+            endpoint: "/api/v1/studio/favorites",
+        },
+        /**
+         *  @description
+         *  Route toggle a studio as favorite (add/remove).
+         *  Adds the studio to favorites if not present, removes it if already favorited.
+         */
+        ToggleStudioFavorite: {
+            key: "ENTITY-FAVORITE-toggle-studio-favorite",
+            methods: ["POST"],
+            endpoint: "/api/v1/studio/favorites/toggle",
         },
     },
     EXPLORER: {
@@ -1533,6 +1771,16 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/manga/hydrate-all",
         },
+        CancelMangaHydration: {
+            key: "MANGA-cancel-manga-hydration",
+            methods: ["POST"],
+            endpoint: "/api/v1/manga/hydrate-all/cancel",
+        },
+        GetMangaHydrationStatus: {
+            key: "MANGA-get-manga-hydration-status",
+            methods: ["GET"],
+            endpoint: "/api/v1/manga/hydrate-all/status",
+        },
         /**
          *  @description
          *  Route returns manga sequels not in collection.
@@ -1673,74 +1921,6 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/manga/favorites/bulk",
         },
     },
-    ANIME_FAVORITE: {
-        /**
-         *  @description
-         *  Route get the list of favorited anime media IDs.
-         *  Returns an array of media IDs that are favorited for the current profile.
-         */
-        GetAnimeFavorites: {
-            key: "ANIME-FAVORITE-get-anime-favorites",
-            methods: ["GET"],
-            endpoint: "/api/v1/library/favorites",
-        },
-        /**
-         *  @description
-         *  Route toggle an anime as favorite (add/remove).
-         *  Adds the anime to favorites if not present, removes it if already favorited.
-         */
-        ToggleAnimeFavorite: {
-            key: "ANIME-FAVORITE-toggle-anime-favorite",
-            methods: ["POST"],
-            endpoint: "/api/v1/library/favorites/toggle",
-        },
-        /**
-         *  @description
-         *  Route bulk-add anime favorites (for localStorage migration).
-         *  Accepts an array of media IDs and adds them all as favorites, skipping duplicates.
-         */
-        BulkAddAnimeFavorites: {
-            key: "ANIME-FAVORITE-bulk-add-anime-favorites",
-            methods: ["POST"],
-            endpoint: "/api/v1/library/favorites/bulk",
-        },
-    },
-    CHARACTER_FAVORITE: {
-        GetCharacterFavorites: {
-            key: "CHARACTER-FAVORITE-get-character-favorites",
-            methods: ["GET"],
-            endpoint: "/api/v1/character/favorites",
-        },
-        ToggleCharacterFavorite: {
-            key: "CHARACTER-FAVORITE-toggle-character-favorite",
-            methods: ["POST"],
-            endpoint: "/api/v1/character/favorites/toggle",
-        },
-    },
-    STAFF_FAVORITE: {
-        GetStaffFavorites: {
-            key: "STAFF-FAVORITE-get-staff-favorites",
-            methods: ["GET"],
-            endpoint: "/api/v1/staff/favorites",
-        },
-        ToggleStaffFavorite: {
-            key: "STAFF-FAVORITE-toggle-staff-favorite",
-            methods: ["POST"],
-            endpoint: "/api/v1/staff/favorites/toggle",
-        },
-    },
-    STUDIO_FAVORITE: {
-        GetStudioFavorites: {
-            key: "STUDIO-FAVORITE-get-studio-favorites",
-            methods: ["GET"],
-            endpoint: "/api/v1/studio/favorites",
-        },
-        ToggleStudioFavorite: {
-            key: "STUDIO-FAVORITE-toggle-studio-favorite",
-            methods: ["POST"],
-            endpoint: "/api/v1/studio/favorites/toggle",
-        },
-    },
     MANGA_SCAN: {
         /**
          *  @description
@@ -1785,24 +1965,6 @@ export const API_ENDPOINTS = {
         },
     },
     MEDIASTREAM: {
-        /**
-         *  @description
-         *  Returns all per-media track preferences for the current profile.
-         */
-        GetTrackPreferences: {
-            key: "MEDIASTREAM-get-track-preferences",
-            methods: ["GET"],
-            endpoint: "/api/v1/mediastream/track-preferences",
-        },
-        /**
-         *  @description
-         *  Creates or updates a per-media track preference.
-         */
-        UpsertTrackPreference: {
-            key: "MEDIASTREAM-upsert-track-preference",
-            methods: ["POST"],
-            endpoint: "/api/v1/mediastream/track-preferences",
-        },
         /**
          *  @description
          *  Route get mediastream settings.
@@ -1906,6 +2068,13 @@ export const API_ENDPOINTS = {
             key: "METADATA-delete-media-metadata-parent",
             methods: ["DELETE"],
             endpoint: "/api/v1/metadata/parent",
+        },
+    },
+    MILESTONES: {
+        GetMilestones: {
+            key: "MILESTONES-get-milestones",
+            methods: ["GET"],
+            endpoint: "/api/v1/milestones",
         },
     },
     NAKAMA: {
@@ -2181,6 +2350,28 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/onlinestream/remove-mapping",
         },
     },
+    PLANNING_SLUT: {
+        /**
+         *  @description
+         *  Route saves the Planning Slut AniList token. Admin only.
+         *  Validates the token by calling AniList GetViewer, then saves it to library settings.
+         */
+        SavePlanningSlutToken: {
+            key: "PLANNING-SLUT-save-planning-slut-token",
+            methods: ["POST"],
+            endpoint: "/api/v1/planning-slut/token",
+        },
+        DeletePlanningSlutToken: {
+            key: "PLANNING-SLUT-delete-planning-slut-token",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/planning-slut/token",
+        },
+        GetPlanningSlutInfo: {
+            key: "PLANNING-SLUT-get-planning-slut-info",
+            methods: ["GET"],
+            endpoint: "/api/v1/planning-slut/info",
+        },
+    },
     PLAYBACK_MANAGER: {
         /**
          *  @description
@@ -2396,6 +2587,11 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/profiles/login",
         },
+        RevalidateSession: {
+            key: "PROFILE-revalidate-session",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/revalidate",
+        },
         ProfileLogout: {
             key: "PROFILE-profile-logout",
             methods: ["POST"],
@@ -2451,6 +2647,98 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/profiles/migration/skip",
         },
+        /**
+         *  @description
+         *  Route Sync AniList profile data for the current user.
+         *  Fetches AniList avatar, banner, bio, and username and updates the profile.
+         */
+        SyncAniListProfile: {
+            key: "PROFILE-sync-ani-list-profile",
+            methods: ["POST"],
+            endpoint: "/api/v1/profile/sync-anilist",
+        },
+        AdminSetProfileAniListToken: {
+            key: "PROFILE-admin-set-profile-ani-list-token",
+            methods: ["POST"],
+            endpoint: "/api/v1/profiles/{id}/anilist-token",
+        },
+    },
+    PROFILE_PAGE: {
+        /**
+         *  @description
+         *  Route get the current user's profile page data.
+         *  Returns profile summary, level, showcase, and achievement summary for the current user.
+         */
+        GetMyProfile: {
+            key: "PROFILE-PAGE-get-my-profile",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/me",
+        },
+        /**
+         *  @description
+         *  Route get another user's profile page data by profile ID.
+         *  Returns profile summary, level, showcase, and achievement summary for the specified user.
+         */
+        GetUserProfile: {
+            key: "PROFILE-PAGE-get-user-profile",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/user/{id}",
+        },
+        /**
+         *  @description
+         *  Route update the bio of the current profile.
+         *  Updates the bio text for the authenticated user's profile.
+         */
+        UpdateBio: {
+            key: "PROFILE-PAGE-update-bio",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/profile/bio",
+        },
+        /**
+         *  @description
+         *  Route set the user's global display title.
+         *  Stores the plain-text title and its color globally so all users see the same title on this profile.
+         */
+        SetDisplayTitle: {
+            key: "PROFILE-PAGE-set-display-title",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/profile/display-title",
+        },
+        /**
+         *  @description
+         *  Route save all global profile cosmetics at once.
+         *  Stores the resolved XP bar fill CSS, animation class, and name color so all users see them.
+         */
+        SetDisplayCosmetics: {
+            key: "PROFILE-PAGE-set-display-cosmetics",
+            methods: ["PATCH"],
+            endpoint: "/api/v1/profile/display-cosmetics",
+        },
+        GetLevel: {
+            key: "PROFILE-PAGE-get-level",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/level",
+        },
+        /**
+         *  @description
+         *  Route get all exp bar progression entries for the shop/selector.
+         *  Returns all 400 exp bar progression entries with their styling data.
+         */
+        GetExpBarProgression: {
+            key: "PROFILE-PAGE-get-exp-bar-progression",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/exp-bar/all",
+        },
+        /**
+         *  @description
+         *  Route get the exp bar styling for a specific level.
+         *  Returns the exp bar progression entry for the given level.
+         */
+        GetExpBarForLevel: {
+            key: "PROFILE-PAGE-get-exp-bar-for-level",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/exp-bar/level/{level}",
+        },
     },
     PROFILE_STATS: {
         /**
@@ -2464,16 +2752,16 @@ export const API_ENDPOINTS = {
             methods: ["GET"],
             endpoint: "/api/v1/profile/stats",
         },
-    },
-    ACTIVITY: {
         /**
          *  @description
-         *  Route backfills activity logs from AniList into the per-profile heatmap database.
+         *  Route get profile statistics for another user by profile ID.
+         *  Returns activity heatmap, streak data, and watch patterns. Personality/AniList data not available for other users.
+         *  Optional query param "year" selects a calendar year; defaults to last 365 days.
          */
-        BackfillActivity: {
-            key: "ACTIVITY-backfill-activity",
-            methods: ["POST"],
-            endpoint: "/api/v1/activity/backfill",
+        GetUserProfileStats: {
+            key: "PROFILE-STATS-get-user-profile-stats",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/user/{id}/stats",
         },
     },
     RELEASES: {
@@ -2813,6 +3101,18 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/theme",
         },
     },
+    TIMELINE: {
+        /**
+         *  @description
+         *  Route returns paginated timeline events with resolved media info.
+         *  Returns activity events enriched with anime/manga titles and cover images.
+         */
+        GetTimeline: {
+            key: "TIMELINE-get-timeline",
+            methods: ["GET"],
+            endpoint: "/api/v1/profile/timeline",
+        },
+    },
     TORRENT_CLIENT: {
         /**
          *  @description
@@ -2981,6 +3281,18 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/torrentstream/batch-history",
         },
     },
+    TRACK_PREFERENCES: {
+        GetTrackPreferences: {
+            key: "TRACK-PREFERENCES-get-track-preferences",
+            methods: ["GET"],
+            endpoint: "/api/v1/mediastream/track-preferences",
+        },
+        UpsertTrackPreference: {
+            key: "TRACK-PREFERENCES-upsert-track-preference",
+            methods: ["POST"],
+            endpoint: "/api/v1/mediastream/track-preferences",
+        },
+    },
     UNMATCHED: {
         /**
          *  @description
@@ -3011,6 +3323,16 @@ export const API_ENDPOINTS = {
             key: "UNMATCHED-match-unmatched-torrent",
             methods: ["POST"],
             endpoint: "/api/v1/unmatched/match",
+        },
+        /**
+         *  @description
+         *  Route fetches the full relation tree for an anime.
+         *  Returns the root anime plus all related entries from AniList with relation types.
+         */
+        UnmatchedFamilySearch: {
+            key: "UNMATCHED-unmatched-family-search",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/family-search",
         },
         /**
          *  @description
@@ -3051,85 +3373,6 @@ export const API_ENDPOINTS = {
             key: "UNMATCHED-clear-completed-torrent",
             methods: ["POST"],
             endpoint: "/api/v1/unmatched/scanner/clear",
-        },
-    },
-    PROFILE_PAGE: {
-        GetMyProfile: {
-            key: "PROFILE-PAGE-get-my-profile",
-            methods: ["GET"],
-            endpoint: "/api/v1/profile/me",
-        },
-        GetUserProfile: {
-            key: "PROFILE-PAGE-get-user-profile",
-            methods: ["GET"],
-            endpoint: "/api/v1/profile/user",
-        },
-        UpdateBio: {
-            key: "PROFILE-PAGE-update-bio",
-            methods: ["PATCH"],
-            endpoint: "/api/v1/profile/bio",
-        },
-        SetDisplayTitle: {
-            key: "PROFILE-PAGE-set-display-title",
-            methods: ["PATCH"],
-            endpoint: "/api/v1/profile/display-title",
-        },
-        SetDisplayCosmetics: {
-            key: "PROFILE-PAGE-set-display-cosmetics",
-            methods: ["PATCH"],
-            endpoint: "/api/v1/profile/display-cosmetics",
-        },
-        GetLevel: {
-            key: "PROFILE-PAGE-get-level",
-            methods: ["GET"],
-            endpoint: "/api/v1/profile/level",
-        },
-        DiscoverEasterEgg: {
-            key: "PROFILE-PAGE-discover-easter-egg",
-            methods: ["POST"],
-            endpoint: "/api/v1/profile/easter-egg",
-        },
-        GetTimeline: {
-            key: "PROFILE-PAGE-get-timeline",
-            methods: ["GET"],
-            endpoint: "/api/v1/profile/timeline",
-        },
-    },
-    ACHIEVEMENTS_EXTRA: {
-        ResetAchievements: {
-            key: "ACHIEVEMENTS-reset",
-            methods: ["POST"],
-            endpoint: "/api/v1/achievements/reset",
-        },
-    },
-    THEME_MUSIC: {
-        ListTracks: {
-            key: "THEME_MUSIC-list-tracks",
-            methods: ["GET"],
-            endpoint: "/api/v1/theme-music/tracks",
-        },
-    },
-    COMMUNITY: {
-        GetCommunityProfiles: {
-            key: "COMMUNITY-get-community-profiles",
-            methods: ["GET"],
-            endpoint: "/api/v1/community/profiles",
-        },
-        GetActivityFeed: {
-            key: "COMMUNITY-get-activity-feed",
-            methods: ["GET"],
-            endpoint: "/api/v1/community/feed",
-        },
-    },
-    MILESTONE: {
-        /**
-         *  @description
-         *  Route returns all milestone definitions and achieved milestones globally.
-         */
-        GetMilestones: {
-            key: "MILESTONE-get-milestones",
-            methods: ["GET"],
-            endpoint: "/api/v1/milestones",
         },
     },
 } satisfies ApiEndpoints

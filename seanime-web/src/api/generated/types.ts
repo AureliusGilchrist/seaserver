@@ -13,34 +13,34 @@ export type Nullish<T> = T | null | undefined
  * @description
  *  Category represents an achievement category for grouping and display.
  */
-export type Achievement_Category = "first_steps" |
-    "binge_watching" |
-    "night_owl" |
-    "early_bird" |
-    "streak_master" |
-    "episode_milestones" |
+export type Achievement_Category = "anime_milestones" |
+    "anime_binge" |
+    "anime_genres" |
+    "anime_completion" |
+    "anime_dedication" |
+    "anime_discovery" |
+    "anime_time" |
+    "anime_social" |
+    "anime_special" |
+    "anime_formats" |
+    "anime_streaks" |
+    "anime_scoring" |
+    "anime_holiday" |
     "manga_milestones" |
-    "speed_demon" |
-    "dedication" |
-    "genre_explorer" |
-    "format_explorer" |
-    "holiday_seasonal" |
-    "seasonal_watcher" |
-    "time_quirky" |
-    "cross_media" |
+    "manga_binge" |
+    "manga_genres" |
+    "manga_completion" |
+    "manga_dedication" |
+    "manga_discovery" |
+    "manga_time" |
+    "manga_special" |
+    "manga_formats" |
+    "manga_streaks" |
+    "manga_scoring" |
     "manga_creative" |
-    "throwback" |
-    "scoring" |
-    "social" |
-    "discovery" |
-    "movie_night" |
-    "time_challenges" |
-    "completion_patterns" |
-    "special_media" |
-    "platform_engagement" |
-    "obscure_fun" |
-    "reading_milestones" |
-    "mixed_creative"
+    "manga_holiday" |
+    "anime_meta" |
+    "manga_meta"
 
 /**
  * - Filepath: internal/achievement/definitions.go
@@ -53,9 +53,6 @@ export type Achievement_CategoryInfo = {
     Key: Achievement_Category
     Name: string
     Description: string
-    /**
-     * Default SVG icon for the category
-     */
     IconSVG: string
 }
 
@@ -67,43 +64,33 @@ export type Achievement_CategoryInfo = {
  *  Definition describes a single achievement (or the template for a tiered achievement).
  */
 export type Achievement_Definition = {
-    /**
-     * Unique key, e.g. "binge_watcher"
-     */
     Key: string
-    /**
-     * Display name, e.g. "Binge Watcher"
-     */
     Name: string
-    /**
-     * Description template, may include {threshold} placeholder
-     */
     Description: string
-    /**
-     * Category for grouping
-     */
     Category: Achievement_Category
-    /**
-     * SVG icon string (category-level default if empty)
-     */
-    IconSVG: string
-    /**
-     * 0 = one-time, 1-5 for tiered
-     */
+    IconSVG?: string
     MaxTier: number
-    /**
-     * Thresholds for each tier (length = MaxTier), empty for one-time
-     */
     TierThresholds?: Array<number>
-    /**
-     * Optional per-tier names (e.g. "I", "II", "III", "IV", "V")
-     */
     TierNames?: Array<string>
-    /**
-     * What events cause this to be re-evaluated
-     */
     Triggers?: Array<Achievement_EvalTrigger>
+    /**
+     * Base XP per tier unlock (0 = use default)
+     */
+    XPReward: number
+    /**
+     * Difficulty rating for XP multiplier
+     */
+    Difficulty: Achievement_Difficulty
 }
+
+/**
+ * - Filepath: internal/achievement/definitions.go
+ * - Filename: definitions.go
+ * - Package: achievement
+ * @description
+ *  Difficulty represents how hard an achievement is to earn.
+ */
+export type Achievement_Difficulty = "easy" | "medium" | "hard" | "extreme"
 
 /**
  * - Filepath: internal/achievement/responses.go
@@ -129,7 +116,7 @@ export type Achievement_Entry = {
  */
 export type Achievement_EvalTrigger = "episode_progress" |
     "series_complete" |
-    "chapter_read" |
+    "chapter_progress" |
     "manga_complete" |
     "rating_change" |
     "status_change" |
@@ -138,7 +125,29 @@ export type Achievement_EvalTrigger = "episode_progress" |
     "favorite_toggle" |
     "nakama_event" |
     "platform_event" |
+    "comment" |
+    "achievement_unlock" |
     "any"
+
+/**
+ * - Filepath: internal/achievement/progression.go
+ * - Filename: progression.go
+ * - Package: achievement
+ * @description
+ *  ExpBarProgressionEntry represents a single level's exp bar styling
+ */
+export type Achievement_ExpBarProgressionEntry = {
+    entry: number
+    level_range: string
+    color?: string
+    gradient?: string
+    name: string
+    effect: string
+    shadow?: string
+    animation?: string
+    sparkles?: boolean
+    particle_count?: number
+}
 
 /**
  * - Filepath: internal/achievement/responses.go
@@ -164,6 +173,24 @@ export type Achievement_ListResponse = {
 export type Achievement_SummaryResponse = {
     totalCount: number
     unlockedCount: number
+}
+
+/**
+ * - Filepath: internal/achievement/engine.go
+ * - Filename: engine.go
+ * - Package: achievement
+ * @description
+ *  UnlockPayload is sent over WS when an achievement unlocks.
+ */
+export type Achievement_UnlockPayload = {
+    key: string
+    name: string
+    description: string
+    tier: number
+    tierName: string
+    category: string
+    iconSVG: string
+    xpAwarded: number
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -571,6 +598,7 @@ export type AL_BaseAnime = {
     meanScore?: number
     description?: string
     genres?: Array<string>
+    tags?: Array<AL_BaseAnime_Tag>
     duration?: number
     trailer?: AL_BaseAnime_Trailer
     title?: AL_BaseAnime_Title
@@ -623,6 +651,16 @@ export type AL_BaseAnime_StartDate = {
     year?: number
     month?: number
     day?: number
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_BaseAnime_Tag = {
+    name: string
+    rank?: number
 }
 
 /**
@@ -718,6 +756,7 @@ export type AL_BaseManga = {
     meanScore?: number
     description?: string
     genres?: Array<string>
+    tags?: Array<AL_BaseManga_Tag>
     title?: AL_BaseManga_Title
     coverImage?: AL_BaseManga_CoverImage
     startDate?: AL_BaseManga_StartDate
@@ -756,6 +795,16 @@ export type AL_BaseManga_StartDate = {
     year?: number
     month?: number
     day?: number
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_BaseManga_Tag = {
+    name: string
+    rank?: number
 }
 
 /**
@@ -1022,19 +1071,6 @@ export type AL_MangaDetailsById_Media = {
     relations?: AL_MangaDetailsById_Media_Relations
 }
 
-export type AL_MangaDetailsById_Media_Staff = {
-    edges?: Array<AL_MangaDetailsById_Media_Staff_Edge>
-}
-
-export type AL_MangaDetailsById_Media_Staff_Edge = {
-    role?: string
-    node?: {
-        name?: { full?: string }
-        id: number
-        image?: { medium?: string }
-    }
-}
-
 /**
  * - Filepath: internal/api/anilist/client_gen.go
  * - Filename: client_gen.go
@@ -1188,6 +1224,54 @@ export type AL_MangaDetailsById_Media_Relations = {
 export type AL_MangaDetailsById_Media_Relations_Edges = {
     relationType?: AL_MediaRelation
     node?: AL_BaseManga
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_MangaDetailsById_Media_Staff = {
+    edges?: Array<AL_MangaDetailsById_Media_Staff_Edges>
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_MangaDetailsById_Media_Staff_Edges = {
+    role?: string
+    node?: AL_MangaDetailsById_Media_Staff_Edges_Node
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_MangaDetailsById_Media_Staff_Edges_Node = {
+    name?: AL_MangaDetailsById_Media_Staff_Edges_Node_Name
+    id: number
+    image?: AL_MangaDetailsById_Media_Staff_Edges_Node_Image
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_MangaDetailsById_Media_Staff_Edges_Node_Image = {
+    medium?: string
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_MangaDetailsById_Media_Staff_Edges_Node_Name = {
+    full?: string
 }
 
 /**
@@ -1346,6 +1430,142 @@ export type AL_MediaStatus = "FINISHED" | "RELEASING" | "NOT_YET_RELEASED" | "CA
 export type AL_MediaType = "ANIME" | "MANGA"
 
 /**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_StaffDetails = {
+    Staff?: AL_StaffDetails_Staff
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_StaffDetails_Staff = {
+    id: number
+    name?: AL_StaffDetails_Staff_Name
+    image?: AL_StaffDetails_Staff_Image
+    description?: string
+    primaryOccupations?: Array<string>
+    staffMedia?: AL_StaffDetails_Staff_StaffMedia
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_StaffDetails_Staff_Image = {
+    large?: string
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_StaffDetails_Staff_Name = {
+    full?: string
+    native?: string
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_StaffDetails_Staff_StaffMedia = {
+    edges?: Array<AL_StaffDetails_Staff_StaffMedia_Edges>
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_StaffDetails_Staff_StaffMedia_Edges = {
+    staffRole?: string
+    node?: AL_StaffDetails_Staff_StaffMedia_Edges_Node
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_StaffDetails_Staff_StaffMedia_Edges_Node = {
+    id: number
+    idMal?: number
+    siteUrl?: string
+    status?: AL_MediaStatus
+    season?: AL_MediaSeason
+    type?: AL_MediaType
+    format?: AL_MediaFormat
+    bannerImage?: string
+    episodes?: number
+    chapters?: number
+    volumes?: number
+    synonyms?: Array<string>
+    isAdult?: boolean
+    countryOfOrigin?: string
+    meanScore?: number
+    description?: string
+    genres?: Array<string>
+    title?: AL_StaffDetails_Staff_StaffMedia_Edges_Node_Title
+    coverImage?: AL_StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage
+    startDate?: AL_StaffDetails_Staff_StaffMedia_Edges_Node_StartDate
+    endDate?: AL_StaffDetails_Staff_StaffMedia_Edges_Node_EndDate
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage = {
+    extraLarge?: string
+    large?: string
+    medium?: string
+    color?: string
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_StaffDetails_Staff_StaffMedia_Edges_Node_EndDate = {
+    year?: number
+    month?: number
+    day?: number
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_StaffDetails_Staff_StaffMedia_Edges_Node_StartDate = {
+    year?: number
+    month?: number
+    day?: number
+}
+
+/**
+ * - Filepath: internal/api/anilist/client_gen.go
+ * - Filename: client_gen.go
+ * - Package: anilist
+ */
+export type AL_StaffDetails_Staff_StaffMedia_Edges_Node_Title = {
+    userPreferred?: string
+    romaji?: string
+    english?: string
+    native?: string
+}
+
+/**
  * - Filepath: internal/api/anilist/stats.go
  * - Filename: stats.go
  * - Package: anilist
@@ -1383,52 +1603,6 @@ export type AL_StudioDetails_Studio = {
  */
 export type AL_StudioDetails_Studio_Media = {
     nodes?: Array<AL_BaseAnime>
-}
-
-export type AL_StaffDetails = {
-    Staff?: AL_StaffDetails_Staff
-}
-
-export type AL_StaffDetails_Staff = {
-    id: number
-    name?: { full?: string, native?: string }
-    image?: { large?: string }
-    description?: string
-    primaryOccupations?: Array<string>
-    staffMedia?: AL_StaffDetails_Staff_StaffMedia
-}
-
-export type AL_StaffDetails_Staff_StaffMedia = {
-    edges?: Array<AL_StaffDetails_Staff_StaffMedia_Edge>
-}
-
-export type AL_StaffDetails_Staff_StaffMedia_Edge = {
-    staffRole?: string
-    node?: AL_StaffDetails_Staff_StaffMedia_Edge_Node
-}
-
-export type AL_StaffDetails_Staff_StaffMedia_Edge_Node = {
-    id: number
-    idMal?: number
-    siteUrl?: string
-    status?: AL_MediaStatus
-    season?: string
-    type?: AL_MediaType
-    format?: AL_MediaFormat
-    bannerImage?: string
-    episodes?: number
-    chapters?: number
-    volumes?: number
-    synonyms?: Array<string>
-    isAdult?: boolean
-    countryOfOrigin?: string
-    meanScore?: number
-    description?: string
-    genres?: Array<string>
-    title?: { userPreferred?: string, romaji?: string, english?: string, native?: string }
-    coverImage?: { extraLarge?: string, large?: string, medium?: string, color?: string }
-    startDate?: { year?: number, month?: number, day?: number }
-    endDate?: { year?: number, month?: number, day?: number }
 }
 
 /**
@@ -2100,6 +2274,7 @@ export type AutoDownloader_SimulationResult = {
  * - Package: chapter_downloader
  */
 export type ChapterDownloader_DownloadID = {
+    profileId: number
     provider: string
     mediaId: number
     chapterId: string
@@ -2140,7 +2315,7 @@ export type Continuity_UpdateWatchHistoryItemOptions = {
 }
 
 /**
- * - Filepath: internal/continuity/history.go
+ * - Filepath: ..\internal\continuity\history.go
  * - Filename: history.go
  * - Package: continuity
  */
@@ -2263,174 +2438,14 @@ export type INTERNAL_ProfileSummary = {
     bannerImage: string
     createdAt?: string
     hasPIN: boolean
-    anilistAuthenticated: boolean
-    themeId: string
     displayTitle: string
     displayTitleColor: string
     xpBarFillCss: string
     xpBarAnimClass: string
     nameColorCss: string
     nameGradientCss: string
-}
-
-/**
- * - Filepath: internal/handlers/profile_page.go
- * - Package: handlers
- */
-export type Handlers_ProfilePageResponse = {
-    profile?: INTERNAL_ProfileSummary
-    level?: Handlers_LevelResponse
-    showcase: Array<Handlers_ShowcaseEntry>
-    achievementSummary: Achievement_SummaryResponse
-    activityHeatmap?: Array<ProfileStats_ActivityDay>
-    animeStreak?: ProfileStats_StreakInfo
-    mangaStreak?: ProfileStats_StreakInfo
-    recentAchievements: Array<Handlers_RecentAchievementEntry>
-}
-
-export type Handlers_RecentAchievementEntry = {
-    key: string
-    tier: number
-    unlockedAt?: string
-    definition?: Achievement_Definition
-}
-
-export type Handlers_LevelResponse = {
-    currentLevel: number
-    totalXP: number
-    xpToNext: number
-    xpInCurrentLevel: number
-    xpNeededForLevel: number
-    multiplier: number
-}
-
-export type Handlers_ShowcaseEntry = {
-    slot: number
-    key: string
-    tier: number
-    definition?: Achievement_Definition
-}
-
-export type Handlers_TimelineEvent = {
-    id: number
-    eventType: string
-    mediaId: number
-    metadata: string
-    createdAt: string
-    mediaTitle?: string
-    mediaImage?: string
-    mediaType: string
-}
-
-export type Handlers_TimelineResponse = {
-    events: Array<Handlers_TimelineEvent>
-    page: number
-    hasMore: boolean
-    total: number
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Milestone
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-export type Milestone_Category = "hours_watched" | "episodes_watched" | "chapters_read" | "series_completed" | "library_files" | "genres_explored" | "days_active" | "achievements_unlocked"
-
-export type Milestone_CategoryInfo = {
-    key: Milestone_Category
-    name: string
-    description: string
-    iconSVG: string
-}
-
-export type Milestone_Definition = {
-    key: string
-    name: string
-    category: Milestone_Category
-    threshold: number
-    iconSVG: string
-}
-
-export type Milestone_FirstToAchieveDefinition = {
-    key: string
-    name: string
-    category: Milestone_Category
-    threshold: number
-    iconSVG: string
-}
-
-export type Milestone_AchievedMilestone = {
-    key: string
-    category: string
-    tier: number
-    isFirstToAchieve: boolean
-    profileId: number
-    profileName: string
-    achievedAt?: string
-}
-
-export type Milestone_ListResponse = {
-    definitions: Array<Milestone_Definition>
-    firstToAchieve: Array<Milestone_FirstToAchieveDefinition>
-    categories: Array<Milestone_CategoryInfo>
-    achieved: Array<Milestone_AchievedMilestone>
-}
-
-export type Milestone_UnlockPayload = {
-    key: string
-    name: string
-    category: string
-    threshold: number
-    iconSVG: string
-    isFirstToAchieve: boolean
-    profileName: string
-}
-
-/**
- * - Filepath: internal/handlers/community.go
- * - Package: handlers
- */
-export type Handlers_CommunityProfile = {
-    id: number
-    name: string
-    anilistUsername: string
-    anilistAvatar: string
-    avatarPath: string
-    bio: string
-    bannerImage: string
-    isAdmin: boolean
-    currentLevel: number
-    totalXP: number
-    achievementCount: number
-    displayTitle?: string
-    displayTitleColor?: string
-    xpBarFillCss?: string
-    xpBarAnimClass?: string
-    nameColorCss?: string
-    nameGradientCss?: string
     themeId: string
-}
-
-export type Handlers_CommunityResponse = {
-    profiles: Array<Handlers_CommunityProfile>
-    aggregateStats?: Handlers_AggregateStats
-}
-
-export type Handlers_AggregateStats = {
-    totalProfiles: number
-    totalXP: number
-    totalAchievements: number
-    highestLevel: number
-}
-
-export type Handlers_ActivityFeedEntry = {
-    profileId: number
-    profileName: string
-    profileAvatar: string
-    achievementKey: string
-    achievementTier: number
-    achievementName: string
-    iconSvg: string
-    unlockedAt?: string
+    anilistAuthenticated: boolean
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3146,6 +3161,40 @@ export type SortEntry = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * - Filepath: internal/handlers/anime_collection.go
+ * - Filename: anime_collection.go
+ * - Package: handlers
+ */
+export type AnimeHydrationDetail = {
+    timestamp?: string
+    mediaId: number
+    title: string
+    action: string
+    message?: string
+}
+
+/**
+ * - Filepath: internal/handlers/anime_collection.go
+ * - Filename: anime_collection.go
+ * - Package: handlers
+ */
+export type AnimeHydrationStatus = {
+    isRunning: boolean
+    cancelRequested: boolean
+    wasCancelled: boolean
+    total: number
+    processed: number
+    hydrated: number
+    skipped: number
+    failed: number
+    progress: number
+    startedAt?: string
+    finishedAt?: string
+    lastUpdatedAt?: string
+    details?: Array<AnimeHydrationDetail>
+}
+
+/**
  * - Filepath: internal/handlers/docs.go
  * - Filename: docs.go
  * - Package: handlers
@@ -3237,6 +3286,42 @@ export type MalAuthResponse = {
     refresh_token: string
     expires_in: number
     token_type: string
+}
+
+/**
+ * - Filepath: internal/handlers/manga.go
+ * - Filename: manga.go
+ * - Package: handlers
+ */
+export type MangaHydrationDetail = {
+    timestamp?: string
+    source: string
+    mediaId: number
+    title: string
+    action: string
+    message?: string
+}
+
+/**
+ * - Filepath: internal/handlers/manga.go
+ * - Filename: manga.go
+ * - Package: handlers
+ */
+export type MangaHydrationStatus = {
+    isRunning: boolean
+    cancelRequested: boolean
+    wasCancelled: boolean
+    total: number
+    processed: number
+    aniListHydrated: number
+    syntheticHydrated: number
+    skipped: number
+    failed: number
+    progress: number
+    startedAt?: string
+    finishedAt?: string
+    lastUpdatedAt?: string
+    details?: Array<MangaHydrationDetail>
 }
 
 /**
@@ -3475,10 +3560,10 @@ export type Status = {
     serverHasPassword: boolean
     profilesEnabled: boolean
     needsMigration: boolean
-    planningSlutConfigured: boolean
     currentProfile?: INTERNAL_ProfileSummary
     profiles?: Array<INTERNAL_ProfileSummary>
-    bootId?: string
+    planningSlutConfigured: boolean
+    bootId: string
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3966,7 +4051,7 @@ export type Manga_PageDimension = {
 }
 
 /**
- * - Filepath: internal/manga/download.go
+ * - Filepath: ..\internal\manga\download.go
  * - Filename: download.go
  * - Package: manga
  */
@@ -4084,6 +4169,122 @@ export type Metadata_EpisodeMetadata = {
      * Indicates if the episode has a real image
      */
     hasImage: boolean
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Milestone
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/milestone/responses.go
+ * - Filename: responses.go
+ * - Package: milestone
+ * @description
+ *  AchievedMilestone represents a milestone that has been achieved, for the API response.
+ */
+export type AchievedMilestone = {
+    key: string
+    category: string
+    tier: number
+    isFirstToAchieve: boolean
+    profileId: number
+    profileName: string
+    achievedAt?: string
+}
+
+/**
+ * - Filepath: internal/milestone/definitions.go
+ * - Filename: definitions.go
+ * - Package: milestone
+ * @description
+ *  Category represents a milestone measurement category.
+ */
+export type Category = "hours_watched" |
+    "episodes_watched" |
+    "chapters_read" |
+    "series_completed" |
+    "library_files" |
+    "genres_explored" |
+    "days_active" |
+    "achievements_unlocked"
+
+/**
+ * - Filepath: internal/milestone/definitions.go
+ * - Filename: definitions.go
+ * - Package: milestone
+ * @description
+ *  CategoryInfo provides display metadata for a category.
+ */
+export type CategoryInfo = {
+    key: Category
+    name: string
+    description: string
+    iconSVG: string
+}
+
+/**
+ * - Filepath: internal/milestone/definitions.go
+ * - Filename: definitions.go
+ * - Package: milestone
+ * @description
+ *  Definition describes a single milestone.
+ */
+export type Definition = {
+    /**
+     * e.g. "hours_watched_100"
+     */
+    key: string
+    /**
+     * e.g. "Century Viewer"
+     */
+    name: string
+    /**
+     * e.g. "hours_watched"
+     */
+    category: Category
+    /**
+     * e.g. 100
+     */
+    threshold: number
+    iconSVG: string
+}
+
+/**
+ * - Filepath: internal/milestone/definitions.go
+ * - Filename: definitions.go
+ * - Package: milestone
+ * @description
+ *  FirstToAchieveDefinition describes a race milestone (one winner per category).
+ */
+export type FirstToAchieveDefinition = {
+    /**
+     * e.g. "first_hours_watched"
+     */
+    key: string
+    /**
+     * e.g. "Trailblazer: Hours Watched"
+     */
+    name: string
+    category: Category
+    /**
+     * highest tier threshold (5000)
+     */
+    threshold: number
+    iconSVG: string
+}
+
+/**
+ * - Filepath: internal/milestone/responses.go
+ * - Filename: responses.go
+ * - Package: milestone
+ * @description
+ *  ListResponse is the shape of the GET /api/v1/milestones response.
+ */
+export type ListResponse = {
+    definitions?: Array<Definition>
+    firstToAchieve?: Array<FirstToAchieveDefinition>
+    categories?: Array<CategoryInfo>
+    achieved?: Array<AchievedMilestone>
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4339,6 +4540,42 @@ export type Models_AchievementShowcase = {
  * - Filepath: internal/database/models/models.go
  * - Filename: models.go
  * - Package: models
+ * @description
+ *  ActivityEvent stores individual, granular user actions (stored in per-profile DB).
+ *  Unlike ActivityLog (daily aggregates), each row is one discrete event.
+ */
+export type Models_ActivityEvent = {
+    eventType: string
+    mediaId: number
+    /**
+     * JSON blob
+     */
+    metadata: string
+    id: number
+    createdAt?: string
+    updatedAt?: string
+}
+
+/**
+ * - Filepath: internal/database/models/models.go
+ * - Filename: models.go
+ * - Package: models
+ * @description
+ *  AdminAnnouncement is a server-local announcement created by an admin, shown as a dismissible banner.
+ */
+export type Models_AdminAnnouncement = {
+    message: string
+    createdBy: number
+    expiresAt?: string
+    id: number
+    createdAt?: string
+    updatedAt?: string
+}
+
+/**
+ * - Filepath: internal/database/models/models.go
+ * - Filename: models.go
+ * - Package: models
  */
 export type Models_AnilistSettings = {
     hideAudienceScore: boolean
@@ -4425,6 +4662,28 @@ export type Models_ChapterDownloadQueueItem = {
  * - Filepath: internal/database/models/models.go
  * - Filename: models.go
  * - Package: models
+ * @description
+ *  ClientPref is a per-profile arbitrary key/value blob used by the web client to persist
+ *  settings that would otherwise live only in browser localStorage (UI customizer state,
+ *  theme preferences, discovered easter eggs, reward progress, cursor pack, sound pack, etc.).
+ *  Stored in the per-profile database, so each profile gets its own values automatically.
+ *  The Value column is opaque JSON-encoded text the client owns; the server never inspects it.
+ */
+export type Models_ClientPref = {
+    key: string
+    /**
+     * JSON-encoded payload, opaque to the server
+     */
+    value: string
+    id: number
+    createdAt?: string
+    updatedAt?: string
+}
+
+/**
+ * - Filepath: internal/database/models/models.go
+ * - Filename: models.go
+ * - Package: models
  */
 export type Models_DebridSettings = {
     enabled: boolean
@@ -4472,14 +4731,14 @@ export type Models_HomeItem = {
 }
 
 /**
- * - Filepath: internal/database/models/models.go
+ * - Filepath: ..\internal\database\models\models.go
  * - Filename: models.go
  * - Package: models
  */
 export type Models_IntSlice = Array<number>
 
 /**
- * - Filepath: internal/database/models/models.go
+ * - Filepath: ..\internal\database\models\models.go
  * - Filename: models.go
  * - Package: models
  */
@@ -4520,6 +4779,7 @@ export type Models_LibrarySettings = {
      * "github", "seanime", "seanime_nightly"
      */
     updateChannel: string
+    planningSlutToken: string
 }
 
 /**
@@ -4670,7 +4930,7 @@ export type Models_SilencedMediaEntry = {
 }
 
 /**
- * - Filepath: internal/database/models/models.go
+ * - Filepath: ..\internal\database\models\models.go
  * - Filename: models.go
  * - Package: models
  */
@@ -4881,6 +5141,25 @@ export type Models_TorrentstreamSettings = {
     updatedAt?: string
 }
 
+/**
+ * - Filepath: internal/database/models/models.go
+ * - Filename: models.go
+ * - Package: models
+ * @description
+ *  TrackPreference stores per-media audio/subtitle track overrides for the profile.
+ *  MediaID is the AniList media ID as a string key.
+ */
+export type Models_TrackPreference = {
+    mediaId: string
+    audioLanguage?: string
+    audioCodecId?: string
+    subtitleLanguage?: string
+    subtitleCodecId?: string
+    id: number
+    createdAt?: string
+    updatedAt?: string
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Nakama
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4932,7 +5211,7 @@ export type Nakama_NakamaAnimeLibrary = {
 }
 
 /**
- * - Filepath: internal/nakama/share.go
+ * - Filepath: ..\internal\nakama\share.go
  * - Filename: share.go
  * - Package: nakama
  */
@@ -5141,6 +5420,9 @@ export type NativePlayer_PlaybackInfo = {
      */
     isNakamaWatchParty: boolean
     localFile?: Anime_LocalFile
+    /**
+     * Underlying file path or URL for mediastream transcode fallback
+     */
     filePath?: string
 }
 
@@ -5446,8 +5728,10 @@ export type ProfileStats_ProfileStats = {
     totalMangaDays: number
     personality?: ProfileStats_PersonalityResult
     watchPatterns?: ProfileStats_WatchPatterns
-    animeHoursPerWeek?: number
-    mangaChaptersPerWeek?: number
+    totalWatchMinutesWithRewatches: number
+    estimatedReadingMinutes: number
+    animeHoursPerWeek: number
+    mangaChaptersPerWeek: number
 }
 
 /**

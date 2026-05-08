@@ -55,6 +55,7 @@ import { GlobalRewardShopButton } from "../navigation/global-reward-shop-button"
 import { RewardParticlesLayer } from "@/lib/rewards/reward-particles"
 import { WorkspaceBar, WORKSPACE_BAR_HEIGHT } from "../navigation/workspace-bar"
 import { useGetProfiles } from "@/api/hooks/profiles.hooks"
+import { ClientPrefsHydrator } from "@/lib/sea-storage/client-prefs-hydrator"
 
 export const MainLayout = ({ children }: { children: React.ReactNode }) => {
     const { data: profiles } = useGetProfiles(true)
@@ -63,6 +64,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
     return (
         <>
+            <ClientPrefsHydrator>
             <AnimeThemeProvider>
             <UICustomizeProvider>
             <RewardProvider>
@@ -122,6 +124,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             </RewardProvider>
             </UICustomizeProvider>
             </AnimeThemeProvider>
+            </ClientPrefsHydrator>
         </>
     )
 }

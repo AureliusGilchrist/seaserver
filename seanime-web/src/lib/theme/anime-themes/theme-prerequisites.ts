@@ -1,4 +1,5 @@
 import type { AnimeThemeId } from "./types"
+import { seaStorage } from "@/lib/sea-storage/sea-storage"
 
 /**
  * Sequel themes that require the player to have previously activated
@@ -88,7 +89,7 @@ export const ACTIVATED_THEMES_KEY = "sea-activated-themes"
 /** Load the set of theme IDs the user has ever activated */
 export function loadActivatedThemes(): Set<AnimeThemeId> {
     try {
-        const raw = localStorage.getItem(ACTIVATED_THEMES_KEY)
+        const raw = seaStorage.getItem(ACTIVATED_THEMES_KEY)
         if (!raw) return new Set()
         const arr = JSON.parse(raw) as string[]
         return new Set(arr as AnimeThemeId[])
@@ -102,7 +103,7 @@ export function recordActivatedTheme(id: AnimeThemeId): void {
     try {
         const current = loadActivatedThemes()
         current.add(id)
-        localStorage.setItem(ACTIVATED_THEMES_KEY, JSON.stringify([...current]))
+        seaStorage.setItem(ACTIVATED_THEMES_KEY, JSON.stringify([...current]))
     } catch {
         // ignore storage errors
     }

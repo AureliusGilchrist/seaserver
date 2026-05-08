@@ -1275,6 +1275,18 @@ declare namespace $app {
     }
 
     /**
+     * @event GetStaffDetailsEvent
+     * @file internal/platforms/platform/hook_events.go
+     */
+    function onGetStaffDetails(cb: (event: GetStaffDetailsEvent) => void): void;
+
+    interface GetStaffDetailsEvent {
+        next(): void;
+
+        staff?: AL_StaffDetails;
+    }
+
+    /**
      * @event PreUpdateEntryEvent
      * @file internal/platforms/platform/hook_events.go
      * @description
@@ -2127,6 +2139,7 @@ declare namespace $app {
         meanScore?: number;
         description?: string;
         genres?: Array<string>;
+        tags?: Array<AL_BaseAnime_Tag>;
         duration?: number;
         trailer?: AL_BaseAnime_Trailer;
         title?: AL_BaseAnime_Title;
@@ -2171,6 +2184,14 @@ declare namespace $app {
         year?: number;
         month?: number;
         day?: number;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_BaseAnime_Tag {
+        name: string;
+        rank?: number;
     }
 
     /**
@@ -2252,6 +2273,7 @@ declare namespace $app {
         meanScore?: number;
         description?: string;
         genres?: Array<string>;
+        tags?: Array<AL_BaseManga_Tag>;
         title?: AL_BaseManga_Title;
         coverImage?: AL_BaseManga_CoverImage;
         startDate?: AL_BaseManga_StartDate;
@@ -2284,6 +2306,14 @@ declare namespace $app {
         year?: number;
         month?: number;
         day?: number;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_BaseManga_Tag {
+        name: string;
+        rank?: number;
     }
 
     /**
@@ -2323,6 +2353,7 @@ declare namespace $app {
         meanScore?: number;
         description?: string;
         genres?: Array<string>;
+        tags?: Array<AL_CompleteAnime_Tag>;
         duration?: number;
         trailer?: AL_CompleteAnime_Trailer;
         title?: AL_CompleteAnime_Title;
@@ -2383,6 +2414,14 @@ declare namespace $app {
         year?: number;
         month?: number;
         day?: number;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_CompleteAnime_Tag {
+        name: string;
+        rank?: number;
     }
 
     /**
@@ -2572,6 +2611,7 @@ declare namespace $app {
         genres?: Array<string>;
         rankings?: Array<AL_MangaDetailsById_Media_Rankings>;
         characters?: AL_MangaDetailsById_Media_Characters;
+        staff?: AL_MangaDetailsById_Media_Staff;
         recommendations?: AL_MangaDetailsById_Media_Recommendations;
         relations?: AL_MangaDetailsById_Media_Relations;
     }
@@ -2706,6 +2746,44 @@ declare namespace $app {
     }
 
     /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_MangaDetailsById_Media_Staff {
+        edges?: Array<AL_MangaDetailsById_Media_Staff_Edges>;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_MangaDetailsById_Media_Staff_Edges {
+        role?: string;
+        node?: AL_MangaDetailsById_Media_Staff_Edges_Node;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_MangaDetailsById_Media_Staff_Edges_Node {
+        name?: AL_MangaDetailsById_Media_Staff_Edges_Node_Name;
+        id: number;
+        image?: AL_MangaDetailsById_Media_Staff_Edges_Node_Image;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_MangaDetailsById_Media_Staff_Edges_Node_Image {
+        medium?: string;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_MangaDetailsById_Media_Staff_Edges_Node_Name {
+        full?: string;
+    }
+
+    /**
      * - Filepath: internal/api/anilist/models_gen.go
      * @description
      *  The format the media was released in
@@ -2820,6 +2898,120 @@ declare namespace $app {
      *  Media type enum, anime or manga.
      */
     export type AL_MediaType = "ANIME" | "MANGA";
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_StaffDetails {
+        Staff?: AL_StaffDetails_Staff;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_StaffDetails_Staff {
+        id: number;
+        name?: AL_StaffDetails_Staff_Name;
+        image?: AL_StaffDetails_Staff_Image;
+        description?: string;
+        primaryOccupations?: Array<string>;
+        staffMedia?: AL_StaffDetails_Staff_StaffMedia;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_StaffDetails_Staff_Image {
+        large?: string;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_StaffDetails_Staff_Name {
+        full?: string;
+        native?: string;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_StaffDetails_Staff_StaffMedia {
+        edges?: Array<AL_StaffDetails_Staff_StaffMedia_Edges>;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_StaffDetails_Staff_StaffMedia_Edges {
+        staffRole?: string;
+        node?: AL_StaffDetails_Staff_StaffMedia_Edges_Node;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_StaffDetails_Staff_StaffMedia_Edges_Node {
+        id: number;
+        idMal?: number;
+        siteUrl?: string;
+        status?: AL_MediaStatus;
+        season?: AL_MediaSeason;
+        type?: AL_MediaType;
+        format?: AL_MediaFormat;
+        bannerImage?: string;
+        episodes?: number;
+        chapters?: number;
+        volumes?: number;
+        synonyms?: Array<string>;
+        isAdult?: boolean;
+        countryOfOrigin?: string;
+        meanScore?: number;
+        description?: string;
+        genres?: Array<string>;
+        title?: AL_StaffDetails_Staff_StaffMedia_Edges_Node_Title;
+        coverImage?: AL_StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage;
+        startDate?: AL_StaffDetails_Staff_StaffMedia_Edges_Node_StartDate;
+        endDate?: AL_StaffDetails_Staff_StaffMedia_Edges_Node_EndDate;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage {
+        extraLarge?: string;
+        large?: string;
+        medium?: string;
+        color?: string;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_StaffDetails_Staff_StaffMedia_Edges_Node_EndDate {
+        year?: number;
+        month?: number;
+        day?: number;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_StaffDetails_Staff_StaffMedia_Edges_Node_StartDate {
+        year?: number;
+        month?: number;
+        day?: number;
+    }
+
+    /**
+     * - Filepath: internal/api/anilist/client_gen.go
+     */
+    interface AL_StaffDetails_Staff_StaffMedia_Edges_Node_Title {
+        userPreferred?: string;
+        romaji?: string;
+        english?: string;
+        native?: string;
+    }
 
     /**
      * - Filepath: internal/api/anilist/client_gen.go
@@ -3293,6 +3485,7 @@ declare namespace $app {
         meanScore?: number;
         description?: string;
         genres?: Array<string>;
+        tags?: Array<AL_BaseAnime_Tag>;
         duration?: number;
         trailer?: AL_BaseAnime_Trailer;
         title?: AL_BaseAnime_Title;
@@ -3439,7 +3632,7 @@ declare namespace $app {
     }
 
     /**
-     * - Filepath: internal/continuity/history.go
+     * - Filepath: ..\internal\continuity\history.go
      */
     export type Continuity_WatchHistory = Record<number, Continuity_WatchHistoryItem>;
 
@@ -3622,12 +3815,12 @@ declare namespace $app {
     }
 
     /**
-     * - Filepath: internal/manga/download.go
+     * - Filepath: ..\internal\manga\download.go
      */
     export type Manga_MediaMap = Record<number, Manga_ProviderDownloadMap>;
 
     /**
-     * - Filepath: internal/manga/download.go
+     * - Filepath: ..\internal\manga\download.go
      */
     export type Manga_ProviderDownloadMap = Record<string, Array<Manga_ProviderDownloadMapChapterInfo>>;
 

@@ -10,6 +10,8 @@ import {
     type UICustomizeCategoryId,
 } from "./ui-customize-definitions"
 import { applyRootCssVars } from "@/lib/helpers/css"
+import { seaStorage } from "@/lib/sea-storage/sea-storage"
+import { AmbiencePlayer } from "./ambience-player"
 
 interface UICustomizeContextValue {
     state: UICustomizeState
@@ -37,7 +39,7 @@ export function UICustomizeProvider({ children }: { children: React.ReactNode })
     const [state, setState] = React.useState<UICustomizeState>(() => {
         if (typeof window === "undefined") return UI_CUSTOMIZE_DEFAULTS
         try {
-            const raw = localStorage.getItem(storageKey)
+            const raw = seaStorage.getItem(storageKey)
             if (!raw) return UI_CUSTOMIZE_DEFAULTS
             return { ...UI_CUSTOMIZE_DEFAULTS, ...(JSON.parse(raw) as Partial<UICustomizeState>) }
         } catch {
@@ -48,7 +50,7 @@ export function UICustomizeProvider({ children }: { children: React.ReactNode })
     // Reload on profile switch
     React.useEffect(() => {
         try {
-            const raw = localStorage.getItem(storageKey)
+            const raw = seaStorage.getItem(storageKey)
             setState(raw ? { ...UI_CUSTOMIZE_DEFAULTS, ...(JSON.parse(raw) as Partial<UICustomizeState>) } : UI_CUSTOMIZE_DEFAULTS)
         } catch {}
     }, [storageKey])
@@ -74,7 +76,7 @@ export function UICustomizeProvider({ children }: { children: React.ReactNode })
     const setPreset = React.useCallback((category: UICustomizeCategoryId, presetId: string) => {
         setState(prev => {
             const next = { ...prev, [category]: presetId }
-            try { localStorage.setItem(storageKey, JSON.stringify(next)) } catch {}
+            try { seaStorage.setItem(storageKey, JSON.stringify(next)) } catch {}
             return next
         })
     }, [storageKey])
@@ -82,7 +84,7 @@ export function UICustomizeProvider({ children }: { children: React.ReactNode })
     const setAllState = React.useCallback((next: Partial<UICustomizeState>) => {
         setState(prev => {
             const merged = { ...prev, ...next }
-            try { localStorage.setItem(storageKey, JSON.stringify(merged)) } catch {}
+            try { seaStorage.setItem(storageKey, JSON.stringify(merged)) } catch {}
             return merged
         })
     }, [storageKey])
@@ -94,6 +96,7 @@ export function UICustomizeProvider({ children }: { children: React.ReactNode })
     return (
         <UICustomizeContext.Provider value={{ state, setPreset, setAllState, getActivePreset }}>
             {children}
+            <AmbiencePlayer />
         </UICustomizeContext.Provider>
     )
 }

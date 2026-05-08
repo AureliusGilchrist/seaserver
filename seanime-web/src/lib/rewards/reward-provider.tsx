@@ -23,6 +23,7 @@ import {
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import type { AnimeThemeConfig } from "@/lib/theme/anime-themes"
 import { getCachedMarketplaceThemeMeta, fetchMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
+import { seaStorage } from "@/lib/sea-storage/sea-storage"
 
 // Pre-build a lookup: { themeId -> { level -> rankName } } from bundled themes
 const MILESTONE_NAMES: Record<string, Record<number, string>> = Object.fromEntries(
@@ -187,14 +188,14 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
     const [eggUnlockedRewards, setEggUnlockedRewards] = React.useState<Set<string>>(() => {
         if (typeof window === "undefined") return new Set()
         try {
-            const raw = localStorage.getItem(eggStorageKey)
+            const raw = seaStorage.getItem(eggStorageKey)
             return raw ? new Set(JSON.parse(raw) as string[]) : new Set()
         } catch { return new Set() }
     })
 
     React.useEffect(() => {
         try {
-            const raw = localStorage.getItem(eggStorageKey)
+            const raw = seaStorage.getItem(eggStorageKey)
             setEggUnlockedRewards(raw ? new Set(JSON.parse(raw) as string[]) : new Set())
         } catch {}
     }, [eggStorageKey])
@@ -204,7 +205,7 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
             if (prev.has(rewardId)) return prev
             const next = new Set(prev)
             next.add(rewardId)
-            try { localStorage.setItem(eggStorageKey, JSON.stringify(Array.from(next))) } catch {}
+            try { seaStorage.setItem(eggStorageKey, JSON.stringify(Array.from(next))) } catch {}
             return next
         })
     }, [eggStorageKey])
@@ -214,7 +215,7 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
     const [active, setActive] = React.useState<ActiveRewards>(() => {
         if (typeof window === "undefined") return DEFAULTS
         try {
-            const raw = localStorage.getItem(storageKey)
+            const raw = seaStorage.getItem(storageKey)
             if (!raw) return DEFAULTS
             return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<ActiveRewards>) } as ActiveRewards
         } catch {
@@ -227,7 +228,7 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
     React.useEffect(() => {
         let loaded: ActiveRewards = DEFAULTS
         try {
-            const raw = localStorage.getItem(storageKey)
+            const raw = seaStorage.getItem(storageKey)
             if (raw) {
                 loaded = { ...DEFAULTS, ...(JSON.parse(raw) as Partial<ActiveRewards>) } as ActiveRewards
             }
@@ -260,7 +261,7 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
     function persist(next: ActiveRewards) {
         setActive(next)
         try {
-            localStorage.setItem(storageKey, JSON.stringify(next))
+            seaStorage.setItem(storageKey, JSON.stringify(next))
         } catch { /* noop */ }
     }
 

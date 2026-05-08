@@ -80,7 +80,7 @@ function Assert-Command {
 Init-Stats
 $StartTime = Get-Date
 
-BoxTitle 'seaserver Desktop Build (Electron, Windows x64)'
+BoxTitle 'Seaserver Denshi Build (Windows)'
 Print-Stats
 
 # -- 0. Environment checks --------------------------------
@@ -88,7 +88,7 @@ Print-Stats
 Step '0.1' 'Environment check'
 SubStep "Script dir: $ScriptDir"
 SubStep "Node: $(try { node -v } catch { 'not found' })"
-SubStep "npm:  $(try { npm -v } catch { 'not found' })"k
+SubStep "npm:  $(try { npm -v } catch { 'not found' })"
 SubStep "Go:   $(try { go version } catch { 'not found' })"
 
 Step '0.2' 'Sanity checks'

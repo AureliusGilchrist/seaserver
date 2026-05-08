@@ -225,6 +225,12 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/admin/announcements/:id/dismiss", h.HandleDismissAdminAnnouncement)
 	v1.DELETE("/admin/announcements/:id", h.HandleDeleteAdminAnnouncement, h.RequireProfileAdmin)
 
+	// Client preferences (per-profile opaque key/value blobs persisted on the server,
+	// used by the web app to keep UI customizer, easter eggs, theme prefs, etc. across reinstalls)
+	v1.GET("/client-prefs", h.HandleGetClientPrefs)
+	v1.PUT("/client-prefs", h.HandleUpsertClientPref)
+	v1.DELETE("/client-prefs/:key", h.HandleDeleteClientPref)
+
 	// Privacy
 	v1.GET("/privacy/settings", h.HandleGetPrivacySettings)
 	v1.PATCH("/privacy/settings", h.HandleSavePrivacySettings)

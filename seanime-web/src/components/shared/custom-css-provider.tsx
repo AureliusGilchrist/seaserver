@@ -1,12 +1,13 @@
 import { useAtom } from "jotai"
 import { atomWithStorage } from "jotai/utils"
+import { seaJotaiStorage } from "@/lib/sea-storage/sea-storage"
 import React, { useEffect, useState } from "react"
 import { useWindowSize } from "react-use"
 
 const customCSSAtom = atomWithStorage("sea-custom-css", {
     customCSS: "",
     mobileCustomCSS: "",
-}, undefined, { getOnInit: true })
+}, seaJotaiStorage, { getOnInit: true })
 
 export function CustomCSSProvider({ children }: { children?: React.ReactNode }) {
     const [customCSS, setCustomCSS] = useAtom(customCSSAtom)

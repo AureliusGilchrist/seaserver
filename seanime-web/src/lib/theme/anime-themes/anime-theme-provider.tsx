@@ -13,6 +13,7 @@ import { buildThemeCursorCSS } from "@/lib/theme/anime-themes/cursor-svgs"
 import { recordActivatedTheme } from "@/lib/theme/anime-themes/theme-prerequisites"
 import { fetchMarketplaceThemeMeta, getCachedMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 import { applyRootCssVars } from "@/lib/helpers/css"
+import { seaStorage } from "@/lib/sea-storage/sea-storage"
 
 // ─────────────────────────────────────────────────────────────────
 // Milestone name utility
@@ -217,7 +218,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const [themeId, setThemeIdRaw] = React.useState<AnimeThemeId>(() => {
         if (typeof window === "undefined") return "seanime"
         try {
-            const stored = localStorage.getItem(`sea-anime-theme-${profileKey}`)
+            const stored = seaStorage.getItem(`sea-anime-theme-${profileKey}`)
             if (stored) return stored as AnimeThemeId
         } catch { /* noop */ }
         return "seanime"
@@ -226,7 +227,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     // Reload from storage when profile changes
     React.useEffect(() => {
         try {
-            const stored = localStorage.getItem(`sea-anime-theme-${profileKey}`)
+            const stored = seaStorage.getItem(`sea-anime-theme-${profileKey}`)
             if (stored) {
                 setThemeIdRaw(stored as AnimeThemeId)
             } else {
@@ -266,7 +267,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const setThemeId = React.useCallback((id: AnimeThemeId) => {
         setThemeIdRaw(id)
         try {
-            localStorage.setItem(`sea-anime-theme-${profileKey}`, id)
+            seaStorage.setItem(`sea-anime-theme-${profileKey}`, id)
             recordActivatedTheme(id)
         } catch { /* noop */ }
         // Persist to server so other devices / browsers see the same theme
@@ -285,32 +286,32 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const [musicEnabled, setMusicEnabledRaw] = React.useState<boolean>(() => {
         if (typeof window === "undefined") return false
         try {
-            return localStorage.getItem(`sea-anime-music-${profileKey}`) === "true"
+            return seaStorage.getItem(`sea-anime-music-${profileKey}`) === "true"
         } catch { return false }
     })
     const [musicVolume, setMusicVolumeRaw] = React.useState<number>(() => {
         if (typeof window === "undefined") return 0.3
         try {
-            const v = parseFloat(localStorage.getItem(`sea-anime-vol-${profileKey}`) ?? "")
+            const v = parseFloat(seaStorage.getItem(`sea-anime-vol-${profileKey}`) ?? "")
             return isNaN(v) ? 0.3 : Math.max(0, Math.min(1, v))
         } catch { return 0.3 }
     })
 
     const setMusicEnabled = React.useCallback((v: boolean) => {
         setMusicEnabledRaw(v)
-        try { localStorage.setItem(`sea-anime-music-${profileKey}`, String(v)) } catch { }
+        try { seaStorage.setItem(`sea-anime-music-${profileKey}`, String(v)) } catch { }
     }, [profileKey])
 
     const setMusicVolume = React.useCallback((v: number) => {
         setMusicVolumeRaw(v)
-        try { localStorage.setItem(`sea-anime-vol-${profileKey}`, String(v)) } catch { }
+        try { seaStorage.setItem(`sea-anime-vol-${profileKey}`, String(v)) } catch { }
     }, [profileKey])
 
     // ── Animated elements intensity ──
     const [animatedIntensity, setAnimatedIntensityRaw] = React.useState<number>(() => {
         if (typeof window === "undefined") return 50
         try {
-            const v = parseInt(localStorage.getItem(`sea-anime-particles-${profileKey}`) ?? "", 10)
+            const v = parseInt(seaStorage.getItem(`sea-anime-particles-${profileKey}`) ?? "", 10)
             return isNaN(v) ? 50 : Math.max(0, Math.min(100, v))
         } catch { return 50 }
     })
@@ -318,7 +319,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const setAnimatedIntensity = React.useCallback((v: number) => {
         const clamped = Math.max(0, Math.min(100, v))
         setAnimatedIntensityRaw(clamped)
-        try { localStorage.setItem(`sea-anime-particles-${profileKey}`, String(clamped)) } catch { }
+        try { seaStorage.setItem(`sea-anime-particles-${profileKey}`, String(clamped)) } catch { }
     }, [profileKey])
 
     // ── Per-particle-type settings ──
@@ -344,7 +345,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         })()
         if (typeof window === "undefined") return defaults
         try {
-            const raw = localStorage.getItem(particleStorageKey)
+            const raw = seaStorage.getItem(particleStorageKey)
             if (raw) {
                 const parsed = JSON.parse(raw) as ParticleSettings
                 // merge with defaults so new particle types get defaults
@@ -358,7 +359,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     React.useEffect(() => {
         const defaults = buildDefaultParticleSettings()
         try {
-            const raw = localStorage.getItem(particleStorageKey)
+            const raw = seaStorage.getItem(particleStorageKey)
             if (raw) {
                 const parsed = JSON.parse(raw) as ParticleSettings
                 setParticleSettingsRaw({ ...defaults, ...parsed })
@@ -372,13 +373,13 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
 
     const persistParticleSettings = React.useCallback((settings: ParticleSettings) => {
         setParticleSettingsRaw(settings)
-        try { localStorage.setItem(particleStorageKey, JSON.stringify(settings)) } catch { }
+        try { seaStorage.setItem(particleStorageKey, JSON.stringify(settings)) } catch { }
     }, [particleStorageKey])
 
     const setParticleTypeEnabled = React.useCallback((typeId: string, enabled: boolean) => {
         setParticleSettingsRaw((prev: ParticleSettings) => {
             const next = { ...prev, [typeId]: { ...prev[typeId], enabled } }
-            try { localStorage.setItem(particleStorageKey, JSON.stringify(next)) } catch { }
+            try { seaStorage.setItem(particleStorageKey, JSON.stringify(next)) } catch { }
             return next
         })
     }, [particleStorageKey])
@@ -387,7 +388,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         const clamped = Math.max(0, Math.min(100, intensity))
         setParticleSettingsRaw((prev: ParticleSettings) => {
             const next = { ...prev, [typeId]: { ...prev[typeId], intensity: clamped } }
-            try { localStorage.setItem(particleStorageKey, JSON.stringify(next)) } catch { }
+            try { seaStorage.setItem(particleStorageKey, JSON.stringify(next)) } catch { }
             return next
         })
     }, [particleStorageKey])
@@ -396,7 +397,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const [backgroundDim, setBackgroundDimRaw] = React.useState<number>(() => {
         if (typeof window === "undefined") return config.backgroundDim ?? 0.30
         try {
-            const stored = localStorage.getItem(`sea-anime-bgdim-${profileKey}-${themeId}`)
+            const stored = seaStorage.getItem(`sea-anime-bgdim-${profileKey}-${themeId}`)
             if (stored !== null) {
                 const v = parseFloat(stored)
                 if (!isNaN(v)) return Math.max(0, Math.min(1, v))
@@ -408,7 +409,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const [backgroundBlur, setBackgroundBlurRaw] = React.useState<number>(() => {
         if (typeof window === "undefined") return config.backgroundBlur ?? 30
         try {
-            const stored = localStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
+            const stored = seaStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
             if (stored !== null) {
                 const v = parseFloat(stored)
                 if (!isNaN(v)) return Math.max(0, Math.min(100, v))
@@ -421,7 +422,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const [backgroundExposure, setBackgroundExposureRaw] = React.useState<number>(() => {
         if (typeof window === "undefined") return 1.0
         try {
-            const stored = localStorage.getItem(`sea-anime-bgexposure-${profileKey}-${themeId}`)
+            const stored = seaStorage.getItem(`sea-anime-bgexposure-${profileKey}-${themeId}`)
             if (stored !== null) {
                 const v = parseFloat(stored)
                 if (!isNaN(v)) return Math.max(0.1, Math.min(2.5, v))
@@ -433,7 +434,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const [backgroundSaturation, setBackgroundSaturationRaw] = React.useState<number>(() => {
         if (typeof window === "undefined") return 1.0
         try {
-            const stored = localStorage.getItem(`sea-anime-bgsat-${profileKey}-${themeId}`)
+            const stored = seaStorage.getItem(`sea-anime-bgsat-${profileKey}-${themeId}`)
             if (stored !== null) {
                 const v = parseFloat(stored)
                 if (!isNaN(v)) return Math.max(0, Math.min(3.0, v))
@@ -445,7 +446,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const [backgroundContrast, setBackgroundContrastRaw] = React.useState<number>(() => {
         if (typeof window === "undefined") return 1.0
         try {
-            const stored = localStorage.getItem(`sea-anime-bgcontrast-${profileKey}-${themeId}`)
+            const stored = seaStorage.getItem(`sea-anime-bgcontrast-${profileKey}-${themeId}`)
             if (stored !== null) {
                 const v = parseFloat(stored)
                 if (!isNaN(v)) return Math.max(0, Math.min(3.0, v))
@@ -458,74 +459,74 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const [brandColorOverride, setBrandColorOverrideRaw] = React.useState<string | null>(() => {
         if (typeof window === "undefined") return null
         try {
-            return localStorage.getItem(`sea-anime-color-${profileKey}-${themeId}`) ?? null
+            return seaStorage.getItem(`sea-anime-color-${profileKey}-${themeId}`) ?? null
         } catch { return null }
     })
 
     // Reload dim/blur/exposure/saturation/brand when theme or profile changes
     React.useEffect(() => {
         try {
-            const s = localStorage.getItem(`sea-anime-bgdim-${profileKey}-${themeId}`)
+            const s = seaStorage.getItem(`sea-anime-bgdim-${profileKey}-${themeId}`)
             setBackgroundDimRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(1, parseFloat(s))) : (config.backgroundDim ?? 0.30))
         } catch { setBackgroundDimRaw(config.backgroundDim ?? 0.30) }
         try {
-            const s = localStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
+            const s = seaStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
             setBackgroundBlurRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(100, parseFloat(s))) : (config.backgroundBlur ?? 30))
         } catch { setBackgroundBlurRaw(config.backgroundBlur ?? 30) }
         try {
-            const s = localStorage.getItem(`sea-anime-bgexposure-${profileKey}-${themeId}`)
+            const s = seaStorage.getItem(`sea-anime-bgexposure-${profileKey}-${themeId}`)
             setBackgroundExposureRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0.1, Math.min(2.5, parseFloat(s))) : 1.0)
         } catch { setBackgroundExposureRaw(1.0) }
         try {
-            const s = localStorage.getItem(`sea-anime-bgsat-${profileKey}-${themeId}`)
+            const s = seaStorage.getItem(`sea-anime-bgsat-${profileKey}-${themeId}`)
             setBackgroundSaturationRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(3.0, parseFloat(s))) : 1.0)
         } catch { setBackgroundSaturationRaw(1.0) }
         try {
-            const s = localStorage.getItem(`sea-anime-bgcontrast-${profileKey}-${themeId}`)
+            const s = seaStorage.getItem(`sea-anime-bgcontrast-${profileKey}-${themeId}`)
             setBackgroundContrastRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(3.0, parseFloat(s))) : 1.0)
         } catch { setBackgroundContrastRaw(1.0) }
         try {
-            setBrandColorOverrideRaw(localStorage.getItem(`sea-anime-color-${profileKey}-${themeId}`) ?? null)
+            setBrandColorOverrideRaw(seaStorage.getItem(`sea-anime-color-${profileKey}-${themeId}`) ?? null)
         } catch { setBrandColorOverrideRaw(null) }
     }, [themeId, profileKey, config.backgroundDim, config.backgroundBlur])
 
     const setBackgroundDim = React.useCallback((v: number) => {
         const clamped = Math.max(0, Math.min(1, v))
         setBackgroundDimRaw(clamped)
-        try { localStorage.setItem(`sea-anime-bgdim-${profileKey}-${themeId}`, String(clamped)) } catch { }
+        try { seaStorage.setItem(`sea-anime-bgdim-${profileKey}-${themeId}`, String(clamped)) } catch { }
     }, [profileKey, themeId])
 
     const setBackgroundBlur = React.useCallback((v: number) => {
         const clamped = Math.max(0, Math.min(100, v))
         setBackgroundBlurRaw(clamped)
-        try { localStorage.setItem(`sea-anime-bgblur-${profileKey}-${themeId}`, String(clamped)) } catch { }
+        try { seaStorage.setItem(`sea-anime-bgblur-${profileKey}-${themeId}`, String(clamped)) } catch { }
     }, [profileKey, themeId])
 
     const setBackgroundExposure = React.useCallback((v: number) => {
         const clamped = Math.max(0.1, Math.min(2.5, v))
         setBackgroundExposureRaw(clamped)
-        try { localStorage.setItem(`sea-anime-bgexposure-${profileKey}-${themeId}`, String(clamped)) } catch { }
+        try { seaStorage.setItem(`sea-anime-bgexposure-${profileKey}-${themeId}`, String(clamped)) } catch { }
     }, [profileKey, themeId])
 
     const setBackgroundSaturation = React.useCallback((v: number) => {
         const clamped = Math.max(0, Math.min(3.0, v))
         setBackgroundSaturationRaw(clamped)
-        try { localStorage.setItem(`sea-anime-bgsat-${profileKey}-${themeId}`, String(clamped)) } catch { }
+        try { seaStorage.setItem(`sea-anime-bgsat-${profileKey}-${themeId}`, String(clamped)) } catch { }
     }, [profileKey, themeId])
 
     const setBackgroundContrast = React.useCallback((v: number) => {
         const clamped = Math.max(0, Math.min(3.0, v))
         setBackgroundContrastRaw(clamped)
-        try { localStorage.setItem(`sea-anime-bgcontrast-${profileKey}-${themeId}`, String(clamped)) } catch { }
+        try { seaStorage.setItem(`sea-anime-bgcontrast-${profileKey}-${themeId}`, String(clamped)) } catch { }
     }, [profileKey, themeId])
 
     const setBrandColorOverride = React.useCallback((color: string | null) => {
         setBrandColorOverrideRaw(color)
         try {
             if (color === null) {
-                localStorage.removeItem(`sea-anime-color-${profileKey}-${themeId}`)
+                seaStorage.removeItem(`sea-anime-color-${profileKey}-${themeId}`)
             } else {
-                localStorage.setItem(`sea-anime-color-${profileKey}-${themeId}`, color)
+                seaStorage.setItem(`sea-anime-color-${profileKey}-${themeId}`, color)
             }
         } catch { }
     }, [profileKey, themeId])
@@ -535,7 +536,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         if (typeof window === "undefined") return ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null
         if (themeId === "seanime") return null
         try {
-            const stored = localStorage.getItem(`sea-anime-bgurl-${profileKey}-${themeId}`)
+            const stored = seaStorage.getItem(`sea-anime-bgurl-${profileKey}-${themeId}`)
             if (stored !== null) return stored
         } catch { }
         return ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null
@@ -548,7 +549,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             return
         }
         try {
-            const stored = localStorage.getItem(`sea-anime-bgurl-${profileKey}-${themeId}`)
+            const stored = seaStorage.getItem(`sea-anime-bgurl-${profileKey}-${themeId}`)
             setActiveBackgroundUrlRaw(stored !== null ? stored : (ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null))
         } catch {
             setActiveBackgroundUrlRaw(ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null)
@@ -560,9 +561,9 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setActiveBackgroundUrlRaw(url)
         try {
             if (url === null || url === (ANIME_THEMES[themeId as AnimeThemeId]?.backgroundImageUrl ?? null)) {
-                localStorage.removeItem(`sea-anime-bgurl-${profileKey}-${themeId}`)
+                seaStorage.removeItem(`sea-anime-bgurl-${profileKey}-${themeId}`)
             } else {
-                localStorage.setItem(`sea-anime-bgurl-${profileKey}-${themeId}`, url)
+                seaStorage.setItem(`sea-anime-bgurl-${profileKey}-${themeId}`, url)
             }
         } catch { }
     }, [profileKey, themeId])
@@ -662,67 +663,67 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
 
     // ── Vignette / Glow effects ──
     const [vignetteStrength, setVignetteStrengthRaw] = React.useState<number>(() => {
-        try { const v = parseFloat(localStorage.getItem(`sea-anime-vignette-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
+        try { const v = parseFloat(seaStorage.getItem(`sea-anime-vignette-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
     })
     const [vignetteSize, setVignetteSizeRaw] = React.useState<number>(() => {
-        try { const v = parseFloat(localStorage.getItem(`sea-anime-vsize-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0.5 : Math.max(0, Math.min(1, v)) } catch { return 0.5 }
+        try { const v = parseFloat(seaStorage.getItem(`sea-anime-vsize-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0.5 : Math.max(0, Math.min(1, v)) } catch { return 0.5 }
     })
     const [glowStrength, setGlowStrengthRaw] = React.useState<number>(() => {
-        try { const v = parseFloat(localStorage.getItem(`sea-anime-glow-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
+        try { const v = parseFloat(seaStorage.getItem(`sea-anime-glow-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
     })
     const [glowSpeed, setGlowSpeedRaw] = React.useState<number>(() => {
-        try { const v = parseFloat(localStorage.getItem(`sea-anime-gspeed-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 2 : Math.max(0.2, Math.min(5, v)) } catch { return 2 }
+        try { const v = parseFloat(seaStorage.getItem(`sea-anime-gspeed-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 2 : Math.max(0.2, Math.min(5, v)) } catch { return 2 }
     })
     const [glowScale, setGlowScaleRaw] = React.useState<number>(() => {
-        try { const v = parseFloat(localStorage.getItem(`sea-anime-gscale-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0.5 : Math.max(0, Math.min(1, v)) } catch { return 0.5 }
+        try { const v = parseFloat(seaStorage.getItem(`sea-anime-gscale-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0.5 : Math.max(0, Math.min(1, v)) } catch { return 0.5 }
     })
-    const setVignetteStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setVignetteStrengthRaw(c); try { localStorage.setItem(`sea-anime-vignette-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
-    const setVignetteSize = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setVignetteSizeRaw(c); try { localStorage.setItem(`sea-anime-vsize-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
-    const setGlowStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setGlowStrengthRaw(c); try { localStorage.setItem(`sea-anime-glow-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
-    const setGlowSpeed = React.useCallback((v: number) => { const c = Math.max(0.2, Math.min(5, v)); setGlowSpeedRaw(c); try { localStorage.setItem(`sea-anime-gspeed-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
-    const setGlowScale = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setGlowScaleRaw(c); try { localStorage.setItem(`sea-anime-gscale-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setVignetteStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setVignetteStrengthRaw(c); try { seaStorage.setItem(`sea-anime-vignette-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setVignetteSize = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setVignetteSizeRaw(c); try { seaStorage.setItem(`sea-anime-vsize-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setGlowStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setGlowStrengthRaw(c); try { seaStorage.setItem(`sea-anime-glow-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setGlowSpeed = React.useCallback((v: number) => { const c = Math.max(0.2, Math.min(5, v)); setGlowSpeedRaw(c); try { seaStorage.setItem(`sea-anime-gspeed-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setGlowScale = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setGlowScaleRaw(c); try { seaStorage.setItem(`sea-anime-gscale-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
 
     // ── Hologram effect ──
     const [hologramStrength, setHologramStrengthRaw] = React.useState<number>(() => {
-        try { const v = parseFloat(localStorage.getItem(`sea-anime-hologram-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
+        try { const v = parseFloat(seaStorage.getItem(`sea-anime-hologram-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
     })
-    const setHologramStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setHologramStrengthRaw(c); try { localStorage.setItem(`sea-anime-hologram-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setHologramStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setHologramStrengthRaw(c); try { seaStorage.setItem(`sea-anime-hologram-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
 
     // ── Scanlines ──
     const [scanlinesStrength, setScanlinesStrengthRaw] = React.useState<number>(() => {
-        try { const v = parseFloat(localStorage.getItem(`sea-anime-scan-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
+        try { const v = parseFloat(seaStorage.getItem(`sea-anime-scan-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
     })
     const [scanlinesSize, setScanlinesSizeRaw] = React.useState<number>(() => {
-        try { const v = parseFloat(localStorage.getItem(`sea-anime-scansize-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0.5 : Math.max(0, Math.min(1, v)) } catch { return 0.5 }
+        try { const v = parseFloat(seaStorage.getItem(`sea-anime-scansize-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0.5 : Math.max(0, Math.min(1, v)) } catch { return 0.5 }
     })
     const [scanlinesSpeed, setScanlinesSpeedRaw] = React.useState<number>(() => {
-        try { const v = parseFloat(localStorage.getItem(`sea-anime-scanspeed-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 1 : Math.max(0.1, Math.min(5, v)) } catch { return 1 }
+        try { const v = parseFloat(seaStorage.getItem(`sea-anime-scanspeed-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 1 : Math.max(0.1, Math.min(5, v)) } catch { return 1 }
     })
-    const setScanlinesStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setScanlinesStrengthRaw(c); try { localStorage.setItem(`sea-anime-scan-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
-    const setScanlinesSize = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setScanlinesSizeRaw(c); try { localStorage.setItem(`sea-anime-scansize-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
-    const setScanlinesSpeed = React.useCallback((v: number) => { const c = Math.max(0.1, Math.min(5, v)); setScanlinesSpeedRaw(c); try { localStorage.setItem(`sea-anime-scanspeed-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setScanlinesStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setScanlinesStrengthRaw(c); try { seaStorage.setItem(`sea-anime-scan-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setScanlinesSize = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setScanlinesSizeRaw(c); try { seaStorage.setItem(`sea-anime-scansize-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setScanlinesSpeed = React.useCallback((v: number) => { const c = Math.max(0.1, Math.min(5, v)); setScanlinesSpeedRaw(c); try { seaStorage.setItem(`sea-anime-scanspeed-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
 
     // ── Noise ──
     const [noiseStrength, setNoiseStrengthRaw] = React.useState<number>(() => {
-        try { const v = parseFloat(localStorage.getItem(`sea-anime-noise-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
+        try { const v = parseFloat(seaStorage.getItem(`sea-anime-noise-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 0 : Math.max(0, Math.min(1, v)) } catch { return 0 }
     })
     const [noiseSpeed, setNoiseSpeedRaw] = React.useState<number>(() => {
-        try { const v = parseFloat(localStorage.getItem(`sea-anime-nspeed-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 1 : Math.max(0.1, Math.min(5, v)) } catch { return 1 }
+        try { const v = parseFloat(seaStorage.getItem(`sea-anime-nspeed-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 1 : Math.max(0.1, Math.min(5, v)) } catch { return 1 }
     })
     const [noiseScale, setNoiseScaleRaw] = React.useState<number>(() => {
-        try { const v = parseFloat(localStorage.getItem(`sea-anime-nscale-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 1 : Math.max(0.5, Math.min(3, v)) } catch { return 1 }
+        try { const v = parseFloat(seaStorage.getItem(`sea-anime-nscale-${profileKey}-${themeId}`) ?? ""); return isNaN(v) ? 1 : Math.max(0.5, Math.min(3, v)) } catch { return 1 }
     })
-    const setNoiseStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setNoiseStrengthRaw(c); try { localStorage.setItem(`sea-anime-noise-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
-    const setNoiseSpeed = React.useCallback((v: number) => { const c = Math.max(0.1, Math.min(5, v)); setNoiseSpeedRaw(c); try { localStorage.setItem(`sea-anime-nspeed-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
-    const setNoiseScale = React.useCallback((v: number) => { const c = Math.max(0.5, Math.min(3, v)); setNoiseScaleRaw(c); try { localStorage.setItem(`sea-anime-nscale-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setNoiseStrength = React.useCallback((v: number) => { const c = Math.max(0, Math.min(1, v)); setNoiseStrengthRaw(c); try { seaStorage.setItem(`sea-anime-noise-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setNoiseSpeed = React.useCallback((v: number) => { const c = Math.max(0.1, Math.min(5, v)); setNoiseSpeedRaw(c); try { seaStorage.setItem(`sea-anime-nspeed-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
+    const setNoiseScale = React.useCallback((v: number) => { const c = Math.max(0.5, Math.min(3, v)); setNoiseScaleRaw(c); try { seaStorage.setItem(`sea-anime-nscale-${profileKey}-${themeId}`, String(c)) } catch { } }, [profileKey, themeId])
 
     // ── Custom theme data ──
     const [customThemeData, setCustomThemeDataRaw] = React.useState<import("./custom-theme").CustomThemeData | null>(() => {
-        try { const raw = localStorage.getItem(`sea-custom-theme-${profileKey}`); return raw ? JSON.parse(raw) as import("./custom-theme").CustomThemeData : null } catch { return null }
+        try { const raw = seaStorage.getItem(`sea-custom-theme-${profileKey}`); return raw ? JSON.parse(raw) as import("./custom-theme").CustomThemeData : null } catch { return null }
     })
     const setCustomThemeData = React.useCallback((data: import("./custom-theme").CustomThemeData) => {
         setCustomThemeDataRaw(data)
-        try { localStorage.setItem(`sea-custom-theme-${profileKey}`, JSON.stringify(data)) } catch { }
+        try { seaStorage.setItem(`sea-custom-theme-${profileKey}`, JSON.stringify(data)) } catch { }
     }, [profileKey])
 
     const value = React.useMemo<AnimeThemeContextValue>(() => ({

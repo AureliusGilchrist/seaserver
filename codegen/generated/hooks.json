@@ -6246,6 +6246,60 @@
     "goStruct": {
       "filepath": "../internal/platforms/platform/hook_events.go",
       "filename": "hook_events.go",
+      "name": "GetStaffDetailsEvent",
+      "formattedName": "GetStaffDetailsEvent",
+      "package": "platform",
+      "fields": [
+        {
+          "name": "Staff",
+          "jsonName": "staff",
+          "goType": "anilist.StaffDetails",
+          "typescriptType": "AL_StaffDetails",
+          "usedTypescriptType": "AL_StaffDetails",
+          "usedStructName": "anilist.StaffDetails",
+          "required": false,
+          "public": true,
+          "comments": []
+        },
+        {
+          "name": "next",
+          "jsonName": "next",
+          "goType": "",
+          "typescriptType": "any",
+          "required": true,
+          "public": false,
+          "comments": []
+        },
+        {
+          "name": "preventDefault",
+          "jsonName": "preventDefault",
+          "goType": "",
+          "typescriptType": "any",
+          "required": true,
+          "public": false,
+          "comments": []
+        },
+        {
+          "name": "DefaultPrevented",
+          "jsonName": "defaultPrevented",
+          "goType": "bool",
+          "typescriptType": "boolean",
+          "required": true,
+          "public": true,
+          "comments": []
+        }
+      ],
+      "comments": [],
+      "embeddedStructNames": [
+        "hook_resolver.Event"
+      ]
+    }
+  },
+  {
+    "package": "platform",
+    "goStruct": {
+      "filepath": "../internal/platforms/platform/hook_events.go",
+      "filename": "hook_events.go",
       "name": "PreUpdateEntryEvent",
       "formattedName": "PreUpdateEntryEvent",
       "package": "platform",

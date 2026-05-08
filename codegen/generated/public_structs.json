@@ -10,34 +10,34 @@
       "goType": "string",
       "typescriptType": "string",
       "declaredValues": [
-        "\"first_steps\"",
-        "\"binge_watching\"",
-        "\"night_owl\"",
-        "\"early_bird\"",
-        "\"streak_master\"",
-        "\"episode_milestones\"",
+        "\"anime_milestones\"",
+        "\"anime_binge\"",
+        "\"anime_genres\"",
+        "\"anime_completion\"",
+        "\"anime_dedication\"",
+        "\"anime_discovery\"",
+        "\"anime_time\"",
+        "\"anime_social\"",
+        "\"anime_special\"",
+        "\"anime_formats\"",
+        "\"anime_streaks\"",
+        "\"anime_scoring\"",
+        "\"anime_holiday\"",
         "\"manga_milestones\"",
-        "\"speed_demon\"",
-        "\"dedication\"",
-        "\"genre_explorer\"",
-        "\"format_explorer\"",
-        "\"holiday_seasonal\"",
-        "\"seasonal_watcher\"",
-        "\"time_quirky\"",
-        "\"cross_media\"",
+        "\"manga_binge\"",
+        "\"manga_genres\"",
+        "\"manga_completion\"",
+        "\"manga_dedication\"",
+        "\"manga_discovery\"",
+        "\"manga_time\"",
+        "\"manga_special\"",
+        "\"manga_formats\"",
+        "\"manga_streaks\"",
+        "\"manga_scoring\"",
         "\"manga_creative\"",
-        "\"throwback\"",
-        "\"scoring\"",
-        "\"social\"",
-        "\"discovery\"",
-        "\"movie_night\"",
-        "\"time_challenges\"",
-        "\"completion_patterns\"",
-        "\"special_media\"",
-        "\"platform_engagement\"",
-        "\"obscure_fun\"",
-        "\"reading_milestones\"",
-        "\"mixed_creative\""
+        "\"manga_holiday\"",
+        "\"anime_meta\"",
+        "\"manga_meta\""
       ]
     },
     "comments": [
@@ -57,7 +57,7 @@
       "declaredValues": [
         "\"episode_progress\"",
         "\"series_complete\"",
-        "\"chapter_read\"",
+        "\"chapter_progress\"",
         "\"manga_complete\"",
         "\"rating_change\"",
         "\"status_change\"",
@@ -66,6 +66,8 @@
         "\"favorite_toggle\"",
         "\"nakama_event\"",
         "\"platform_event\"",
+        "\"comment\"",
+        "\"achievement_unlock\"",
         "\"any\""
       ]
     },
@@ -87,9 +89,7 @@
         "typescriptType": "string",
         "required": true,
         "public": true,
-        "comments": [
-          " Unique key, e.g. \"binge_watcher\""
-        ]
+        "comments": []
       },
       {
         "name": "Name",
@@ -98,9 +98,7 @@
         "typescriptType": "string",
         "required": true,
         "public": true,
-        "comments": [
-          " Display name, e.g. \"Binge Watcher\""
-        ]
+        "comments": []
       },
       {
         "name": "Description",
@@ -109,9 +107,7 @@
         "typescriptType": "string",
         "required": true,
         "public": true,
-        "comments": [
-          " Description template, may include {threshold} placeholder"
-        ]
+        "comments": []
       },
       {
         "name": "Category",
@@ -122,20 +118,16 @@
         "usedStructName": "achievement.Category",
         "required": true,
         "public": true,
-        "comments": [
-          " Category for grouping"
-        ]
+        "comments": []
       },
       {
         "name": "IconSVG",
         "jsonName": "IconSVG",
         "goType": "string",
         "typescriptType": "string",
-        "required": true,
+        "required": false,
         "public": true,
-        "comments": [
-          " SVG icon string (category-level default if empty)"
-        ]
+        "comments": []
       },
       {
         "name": "MaxTier",
@@ -144,9 +136,7 @@
         "typescriptType": "number",
         "required": true,
         "public": true,
-        "comments": [
-          " 0 = one-time, 1-5 for tiered"
-        ]
+        "comments": []
       },
       {
         "name": "TierThresholds",
@@ -155,9 +145,7 @@
         "typescriptType": "Array\u003cnumber\u003e",
         "required": false,
         "public": true,
-        "comments": [
-          " Thresholds for each tier (length = MaxTier), empty for one-time"
-        ]
+        "comments": []
       },
       {
         "name": "TierNames",
@@ -166,9 +154,7 @@
         "typescriptType": "Array\u003cstring\u003e",
         "required": false,
         "public": true,
-        "comments": [
-          " Optional per-tier names (e.g. \"I\", \"II\", \"III\", \"IV\", \"V\")"
-        ]
+        "comments": []
       },
       {
         "name": "Triggers",
@@ -179,13 +165,56 @@
         "usedStructName": "achievement.EvalTrigger",
         "required": false,
         "public": true,
+        "comments": []
+      },
+      {
+        "name": "XPReward",
+        "jsonName": "XPReward",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
         "comments": [
-          " What events cause this to be re-evaluated"
+          " Base XP per tier unlock (0 = use default)"
+        ]
+      },
+      {
+        "name": "Difficulty",
+        "jsonName": "Difficulty",
+        "goType": "Difficulty",
+        "typescriptType": "Achievement_Difficulty",
+        "usedTypescriptType": "Achievement_Difficulty",
+        "usedStructName": "achievement.Difficulty",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Difficulty rating for XP multiplier"
         ]
       }
     ],
     "comments": [
       " Definition describes a single achievement (or the template for a tiered achievement)."
+    ]
+  },
+  {
+    "filepath": "../internal/achievement/definitions.go",
+    "filename": "definitions.go",
+    "name": "Difficulty",
+    "formattedName": "Achievement_Difficulty",
+    "package": "achievement",
+    "fields": [],
+    "aliasOf": {
+      "goType": "string",
+      "typescriptType": "string",
+      "declaredValues": [
+        "\"easy\"",
+        "\"medium\"",
+        "\"hard\"",
+        "\"extreme\""
+      ]
+    },
+    "comments": [
+      " Difficulty represents how hard an achievement is to earn."
     ]
   },
   {
@@ -231,9 +260,7 @@
         "typescriptType": "string",
         "required": true,
         "public": true,
-        "comments": [
-          " Default SVG icon for the category"
-        ]
+        "comments": []
       }
     ],
     "comments": [
@@ -370,6 +397,15 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "XPAwarded",
+        "jsonName": "xpAwarded",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -408,6 +444,15 @@
       {
         "name": "getDB",
         "jsonName": "getDB",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "isProfileEligible",
+        "jsonName": "isProfileEligible",
         "goType": "",
         "typescriptType": "any",
         "required": true,
@@ -487,6 +532,15 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "IsProfileEligible",
+        "jsonName": "IsProfileEligible",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -535,6 +589,60 @@
         "comments": []
       },
       {
+        "name": "DroppedAnime",
+        "jsonName": "DroppedAnime",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WatchingAnime",
+        "jsonName": "WatchingAnime",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PausedAnime",
+        "jsonName": "PausedAnime",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PTWAnime",
+        "jsonName": "PTWAnime",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeRewatches",
+        "jsonName": "AnimeRewatches",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalChapters",
+        "jsonName": "TotalChapters",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "TotalManga",
         "jsonName": "TotalManga",
         "goType": "int",
@@ -553,8 +661,44 @@
         "comments": []
       },
       {
-        "name": "TotalChapters",
-        "jsonName": "TotalChapters",
+        "name": "DroppedManga",
+        "jsonName": "DroppedManga",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ReadingManga",
+        "jsonName": "ReadingManga",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PausedManga",
+        "jsonName": "PausedManga",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PTRManga",
+        "jsonName": "PTRManga",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaRereads",
+        "jsonName": "MangaRereads",
         "goType": "int",
         "typescriptType": "number",
         "required": true,
@@ -607,6 +751,33 @@
         "comments": []
       },
       {
+        "name": "SeasonCount",
+        "jsonName": "SeasonCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "YearCount",
+        "jsonName": "YearCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TVCount",
+        "jsonName": "TVCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "MovieCount",
         "jsonName": "MovieCount",
         "goType": "int",
@@ -616,8 +787,8 @@
         "comments": []
       },
       {
-        "name": "RatingCount",
-        "jsonName": "RatingCount",
+        "name": "OVACount",
+        "jsonName": "OVACount",
         "goType": "int",
         "typescriptType": "number",
         "required": true,
@@ -625,8 +796,134 @@
         "comments": []
       },
       {
-        "name": "AverageRating",
-        "jsonName": "AverageRating",
+        "name": "ONACount",
+        "jsonName": "ONACount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SpecialCount",
+        "jsonName": "SpecialCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ShortCount",
+        "jsonName": "ShortCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MusicCount",
+        "jsonName": "MusicCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TVShortCount",
+        "jsonName": "TVShortCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ManhwaCount",
+        "jsonName": "ManhwaCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ManhuaCount",
+        "jsonName": "ManhuaCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WebtoonCount",
+        "jsonName": "WebtoonCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DoujinCount",
+        "jsonName": "DoujinCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LightNovelCount",
+        "jsonName": "LightNovelCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NovelCount",
+        "jsonName": "NovelCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "OneshotCount",
+        "jsonName": "OneshotCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeRatingCount",
+        "jsonName": "AnimeRatingCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaRatingCount",
+        "jsonName": "MangaRatingCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeAverageRating",
+        "jsonName": "AnimeAverageRating",
         "goType": "float64",
         "typescriptType": "number",
         "required": true,
@@ -634,8 +931,17 @@
         "comments": []
       },
       {
-        "name": "PerfectTenCount",
-        "jsonName": "PerfectTenCount",
+        "name": "MangaAverageRating",
+        "jsonName": "MangaAverageRating",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PerfectTenAnime",
+        "jsonName": "PerfectTenAnime",
         "goType": "int",
         "typescriptType": "number",
         "required": true,
@@ -643,8 +949,8 @@
         "comments": []
       },
       {
-        "name": "HarshCriticCount",
-        "jsonName": "HarshCriticCount",
+        "name": "PerfectTenManga",
+        "jsonName": "PerfectTenManga",
         "goType": "int",
         "typescriptType": "number",
         "required": true,
@@ -652,8 +958,26 @@
         "comments": []
       },
       {
-        "name": "GenreCounts",
-        "jsonName": "GenreCounts",
+        "name": "HarshCriticAnime",
+        "jsonName": "HarshCriticAnime",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HarshCriticManga",
+        "jsonName": "HarshCriticManga",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeGenreCounts",
+        "jsonName": "AnimeGenreCounts",
         "goType": "map[string]int",
         "typescriptType": "Record\u003cstring, number\u003e",
         "required": false,
@@ -661,10 +985,223 @@
         "comments": []
       },
       {
-        "name": "FormatCounts",
-        "jsonName": "FormatCounts",
+        "name": "MangaGenreCounts",
+        "jsonName": "MangaGenreCounts",
         "goType": "map[string]int",
         "typescriptType": "Record\u003cstring, number\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeTagCounts",
+        "jsonName": "AnimeTagCounts",
+        "goType": "map[string]int",
+        "typescriptType": "Record\u003cstring, number\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaTagCounts",
+        "jsonName": "MangaTagCounts",
+        "goType": "map[string]int",
+        "typescriptType": "Record\u003cstring, number\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeFormatCounts",
+        "jsonName": "AnimeFormatCounts",
+        "goType": "map[string]int",
+        "typescriptType": "Record\u003cstring, number\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaFormatCounts",
+        "jsonName": "MangaFormatCounts",
+        "goType": "map[string]int",
+        "typescriptType": "Record\u003cstring, number\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeFavoriteCount",
+        "jsonName": "AnimeFavoriteCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaFavoriteCount",
+        "jsonName": "MangaFavoriteCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeUniqueFormatCount",
+        "jsonName": "AnimeUniqueFormatCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaUniqueFormatCount",
+        "jsonName": "MangaUniqueFormatCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaStandardCount",
+        "jsonName": "MangaStandardCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BellCurveAnime",
+        "jsonName": "BellCurveAnime",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BellCurveManga",
+        "jsonName": "BellCurveManga",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UsedAllScoresAnime",
+        "jsonName": "UsedAllScoresAnime",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UsedAllScoresManga",
+        "jsonName": "UsedAllScoresManga",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AllCompletedRatedAnime",
+        "jsonName": "AllCompletedRatedAnime",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AllCompletedRatedManga",
+        "jsonName": "AllCompletedRatedManga",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MaxSameScoreAnime",
+        "jsonName": "MaxSameScoreAnime",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MaxSameScoreManga",
+        "jsonName": "MaxSameScoreManga",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ScoreVarianceAnime",
+        "jsonName": "ScoreVarianceAnime",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ScoreVarianceManga",
+        "jsonName": "ScoreVarianceManga",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediocreCountAnime",
+        "jsonName": "MediocreCountAnime",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " count of anime rated 5-7"
+        ]
+      },
+      {
+        "name": "MediocreCountManga",
+        "jsonName": "MediocreCountManga",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " count of manga rated 5-7"
+        ]
+      },
+      {
+        "name": "AnimeScoreHist",
+        "jsonName": "AnimeScoreHist",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": [
+          " index 0 unused, 1-10"
+        ]
+      },
+      {
+        "name": "MangaScoreHist",
+        "jsonName": "MangaScoreHist",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
         "required": false,
         "public": true,
         "comments": []
@@ -673,6 +1210,191 @@
     "comments": [
       " CollectionStats contains aggregate stats computed from AniList collection data.",
       " This is built by the handler/refresh logic and passed to the engine."
+    ]
+  },
+  {
+    "filepath": "../internal/achievement/progression.go",
+    "filename": "progression.go",
+    "name": "ExpBarProgressionEntry",
+    "formattedName": "Achievement_ExpBarProgressionEntry",
+    "package": "achievement",
+    "fields": [
+      {
+        "name": "Entry",
+        "jsonName": "entry",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LevelRange",
+        "jsonName": "level_range",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Color",
+        "jsonName": "color",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Gradient",
+        "jsonName": "gradient",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Effect",
+        "jsonName": "effect",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Shadow",
+        "jsonName": "shadow",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Animation",
+        "jsonName": "animation",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Sparkles",
+        "jsonName": "sparkles",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ParticleCount",
+        "jsonName": "particle_count",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ExpBarProgressionEntry represents a single level's exp bar styling"
+    ]
+  },
+  {
+    "filepath": "../internal/achievement/progression.go",
+    "filename": "progression.go",
+    "name": "ExpBarProgression",
+    "formattedName": "Achievement_ExpBarProgression",
+    "package": "achievement",
+    "fields": [
+      {
+        "name": "Metadata",
+        "jsonName": "metadata",
+        "goType": "map[string]",
+        "typescriptType": "Record\u003cstring, any\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Phase1PureColors",
+        "jsonName": "phase_1_pure_colors",
+        "goType": "[]ExpBarProgressionEntry",
+        "typescriptType": "Array\u003cAchievement_ExpBarProgressionEntry\u003e",
+        "usedTypescriptType": "Achievement_ExpBarProgressionEntry",
+        "usedStructName": "achievement.ExpBarProgressionEntry",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Phase2Gradients",
+        "jsonName": "phase_2_gradients",
+        "goType": "[]ExpBarProgressionEntry",
+        "typescriptType": "Array\u003cAchievement_ExpBarProgressionEntry\u003e",
+        "usedTypescriptType": "Achievement_ExpBarProgressionEntry",
+        "usedStructName": "achievement.ExpBarProgressionEntry",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Phase3GradientEffects",
+        "jsonName": "phase_3_gradient_effects",
+        "goType": "[]ExpBarProgressionEntry",
+        "typescriptType": "Array\u003cAchievement_ExpBarProgressionEntry\u003e",
+        "usedTypescriptType": "Achievement_ExpBarProgressionEntry",
+        "usedStructName": "achievement.ExpBarProgressionEntry",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Phase4AdvancedEffects",
+        "jsonName": "phase_4_advanced_effects",
+        "goType": "[]ExpBarProgressionEntry",
+        "typescriptType": "Array\u003cAchievement_ExpBarProgressionEntry\u003e",
+        "usedTypescriptType": "Achievement_ExpBarProgressionEntry",
+        "usedStructName": "achievement.ExpBarProgressionEntry",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimationKeyframes",
+        "jsonName": "animation_keyframes",
+        "goType": "map[string]string",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UsageNotes",
+        "jsonName": "usage_notes",
+        "goType": "map[string]",
+        "typescriptType": "Record\u003cstring, any\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ExpBarProgression is the full progression data"
     ]
   },
   {
@@ -854,9 +1576,7 @@
         "typescriptType": "string",
         "required": true,
         "public": false,
-        "comments": [
-          " The token used for authentication with the AniList API"
-        ]
+        "comments": []
       },
       {
         "name": "cacheDir",
@@ -864,6 +1584,28 @@
         "goType": "string",
         "typescriptType": "string",
         "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "wsEventManager",
+        "jsonName": "wsEventManager",
+        "goType": "events.WSEventManagerInterface",
+        "typescriptType": "Events_WSEventManagerInterface",
+        "usedTypescriptType": "Events_WSEventManagerInterface",
+        "usedStructName": "events.WSEventManagerInterface",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "rateLimited",
+        "jsonName": "rateLimited",
+        "goType": "atomic.Bool",
+        "typescriptType": "Bool",
+        "usedTypescriptType": "Bool",
+        "usedStructName": "atomic.Bool",
+        "required": false,
         "public": false,
         "comments": []
       }
@@ -1046,6 +1788,17 @@
         "jsonName": "genres",
         "goType": "[]string",
         "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tags",
+        "jsonName": "tags",
+        "goType": "[]BaseAnime_Tag",
+        "typescriptType": "Array\u003cAL_BaseAnime_Tag\u003e",
+        "usedTypescriptType": "AL_BaseAnime_Tag",
+        "usedStructName": "anilist.BaseAnime_Tag",
         "required": false,
         "public": true,
         "comments": []
@@ -1283,6 +2036,17 @@
         "jsonName": "genres",
         "goType": "[]string",
         "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tags",
+        "jsonName": "tags",
+        "goType": "[]CompleteAnime_Tag",
+        "typescriptType": "Array\u003cAL_CompleteAnime_Tag\u003e",
+        "usedTypescriptType": "AL_CompleteAnime_Tag",
+        "usedStructName": "anilist.CompleteAnime_Tag",
         "required": false,
         "public": true,
         "comments": []
@@ -1678,6 +2442,17 @@
         "jsonName": "genres",
         "goType": "[]string",
         "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tags",
+        "jsonName": "tags",
+        "goType": "[]BaseManga_Tag",
+        "typescriptType": "Array\u003cAL_BaseManga_Tag\u003e",
+        "usedTypescriptType": "AL_BaseManga_Tag",
+        "usedStructName": "anilist.BaseManga_Tag",
         "required": false,
         "public": true,
         "comments": []
@@ -2213,6 +2988,90 @@
         "jsonName": "thumbnail",
         "goType": "string",
         "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "BaseAnime_Tag",
+    "formattedName": "AL_BaseAnime_Tag",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Rank",
+        "jsonName": "rank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "CompleteAnime_Tag",
+    "formattedName": "AL_CompleteAnime_Tag",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Rank",
+        "jsonName": "rank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "BaseManga_Tag",
+    "formattedName": "AL_BaseManga_Tag",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Rank",
+        "jsonName": "rank",
+        "goType": "int",
+        "typescriptType": "number",
         "required": false,
         "public": true,
         "comments": []
@@ -9741,6 +10600,136 @@
   {
     "filepath": "../internal/api/anilist/client_gen.go",
     "filename": "client_gen.go",
+    "name": "MangaDetailsById_Media_Staff_Edges_Node_Name",
+    "formattedName": "AL_MangaDetailsById_Media_Staff_Edges_Node_Name",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Full",
+        "jsonName": "full",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "MangaDetailsById_Media_Staff_Edges_Node_Image",
+    "formattedName": "AL_MangaDetailsById_Media_Staff_Edges_Node_Image",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Medium",
+        "jsonName": "medium",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "MangaDetailsById_Media_Staff_Edges_Node",
+    "formattedName": "AL_MangaDetailsById_Media_Staff_Edges_Node",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "MangaDetailsById_Media_Staff_Edges_Node_Name",
+        "typescriptType": "AL_MangaDetailsById_Media_Staff_Edges_Node_Name",
+        "usedTypescriptType": "AL_MangaDetailsById_Media_Staff_Edges_Node_Name",
+        "usedStructName": "anilist.MangaDetailsById_Media_Staff_Edges_Node_Name",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Image",
+        "jsonName": "image",
+        "goType": "MangaDetailsById_Media_Staff_Edges_Node_Image",
+        "typescriptType": "AL_MangaDetailsById_Media_Staff_Edges_Node_Image",
+        "usedTypescriptType": "AL_MangaDetailsById_Media_Staff_Edges_Node_Image",
+        "usedStructName": "anilist.MangaDetailsById_Media_Staff_Edges_Node_Image",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "MangaDetailsById_Media_Staff_Edges",
+    "formattedName": "AL_MangaDetailsById_Media_Staff_Edges",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Role",
+        "jsonName": "role",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Node",
+        "jsonName": "node",
+        "goType": "MangaDetailsById_Media_Staff_Edges_Node",
+        "typescriptType": "AL_MangaDetailsById_Media_Staff_Edges_Node",
+        "usedTypescriptType": "AL_MangaDetailsById_Media_Staff_Edges_Node",
+        "usedStructName": "anilist.MangaDetailsById_Media_Staff_Edges_Node",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "MangaDetailsById_Media_Staff",
+    "formattedName": "AL_MangaDetailsById_Media_Staff",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Edges",
+        "jsonName": "edges",
+        "goType": "[]MangaDetailsById_Media_Staff_Edges",
+        "typescriptType": "Array\u003cAL_MangaDetailsById_Media_Staff_Edges\u003e",
+        "usedTypescriptType": "AL_MangaDetailsById_Media_Staff_Edges",
+        "usedStructName": "anilist.MangaDetailsById_Media_Staff_Edges",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
     "name": "MangaDetailsById_Media_Rankings",
     "formattedName": "AL_MangaDetailsById_Media_Rankings",
     "package": "anilist",
@@ -10687,6 +11676,17 @@
         "typescriptType": "AL_MangaDetailsById_Media_Characters",
         "usedTypescriptType": "AL_MangaDetailsById_Media_Characters",
         "usedStructName": "anilist.MangaDetailsById_Media_Characters",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Staff",
+        "jsonName": "staff",
+        "goType": "MangaDetailsById_Media_Staff",
+        "typescriptType": "AL_MangaDetailsById_Media_Staff",
+        "usedTypescriptType": "AL_MangaDetailsById_Media_Staff",
+        "usedStructName": "anilist.MangaDetailsById_Media_Staff",
         "required": false,
         "public": true,
         "comments": []
@@ -12265,6 +13265,576 @@
         "typescriptType": "AL_StudioDetails_Studio",
         "usedTypescriptType": "AL_StudioDetails_Studio",
         "usedStructName": "anilist.StudioDetails_Studio",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "StaffDetails_Staff_Name",
+    "formattedName": "AL_StaffDetails_Staff_Name",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Full",
+        "jsonName": "full",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Native",
+        "jsonName": "native",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "StaffDetails_Staff_Image",
+    "formattedName": "AL_StaffDetails_Staff_Image",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Large",
+        "jsonName": "large",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "StaffDetails_Staff_StaffMedia_Edges_Node_Title",
+    "formattedName": "AL_StaffDetails_Staff_StaffMedia_Edges_Node_Title",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "UserPreferred",
+        "jsonName": "userPreferred",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Romaji",
+        "jsonName": "romaji",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "English",
+        "jsonName": "english",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Native",
+        "jsonName": "native",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage",
+    "formattedName": "AL_StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "ExtraLarge",
+        "jsonName": "extraLarge",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Large",
+        "jsonName": "large",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Medium",
+        "jsonName": "medium",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Color",
+        "jsonName": "color",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "StaffDetails_Staff_StaffMedia_Edges_Node_StartDate",
+    "formattedName": "AL_StaffDetails_Staff_StaffMedia_Edges_Node_StartDate",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Year",
+        "jsonName": "year",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Month",
+        "jsonName": "month",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Day",
+        "jsonName": "day",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "StaffDetails_Staff_StaffMedia_Edges_Node_EndDate",
+    "formattedName": "AL_StaffDetails_Staff_StaffMedia_Edges_Node_EndDate",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Year",
+        "jsonName": "year",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Month",
+        "jsonName": "month",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Day",
+        "jsonName": "day",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "StaffDetails_Staff_StaffMedia_Edges_Node",
+    "formattedName": "AL_StaffDetails_Staff_StaffMedia_Edges_Node",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IDMal",
+        "jsonName": "idMal",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SiteURL",
+        "jsonName": "siteUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "MediaStatus",
+        "typescriptType": "AL_MediaStatus",
+        "usedTypescriptType": "AL_MediaStatus",
+        "usedStructName": "anilist.MediaStatus",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Season",
+        "jsonName": "season",
+        "goType": "MediaSeason",
+        "typescriptType": "AL_MediaSeason",
+        "usedTypescriptType": "AL_MediaSeason",
+        "usedStructName": "anilist.MediaSeason",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "MediaType",
+        "typescriptType": "AL_MediaType",
+        "usedTypescriptType": "AL_MediaType",
+        "usedStructName": "anilist.MediaType",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Format",
+        "jsonName": "format",
+        "goType": "MediaFormat",
+        "typescriptType": "AL_MediaFormat",
+        "usedTypescriptType": "AL_MediaFormat",
+        "usedStructName": "anilist.MediaFormat",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BannerImage",
+        "jsonName": "bannerImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Episodes",
+        "jsonName": "episodes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Chapters",
+        "jsonName": "chapters",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Volumes",
+        "jsonName": "volumes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Synonyms",
+        "jsonName": "synonyms",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsAdult",
+        "jsonName": "isAdult",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CountryOfOrigin",
+        "jsonName": "countryOfOrigin",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MeanScore",
+        "jsonName": "meanScore",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Genres",
+        "jsonName": "genres",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "StaffDetails_Staff_StaffMedia_Edges_Node_Title",
+        "typescriptType": "AL_StaffDetails_Staff_StaffMedia_Edges_Node_Title",
+        "usedTypescriptType": "AL_StaffDetails_Staff_StaffMedia_Edges_Node_Title",
+        "usedStructName": "anilist.StaffDetails_Staff_StaffMedia_Edges_Node_Title",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage",
+        "typescriptType": "AL_StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage",
+        "usedTypescriptType": "AL_StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage",
+        "usedStructName": "anilist.StaffDetails_Staff_StaffMedia_Edges_Node_CoverImage",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartDate",
+        "jsonName": "startDate",
+        "goType": "StaffDetails_Staff_StaffMedia_Edges_Node_StartDate",
+        "typescriptType": "AL_StaffDetails_Staff_StaffMedia_Edges_Node_StartDate",
+        "usedTypescriptType": "AL_StaffDetails_Staff_StaffMedia_Edges_Node_StartDate",
+        "usedStructName": "anilist.StaffDetails_Staff_StaffMedia_Edges_Node_StartDate",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EndDate",
+        "jsonName": "endDate",
+        "goType": "StaffDetails_Staff_StaffMedia_Edges_Node_EndDate",
+        "typescriptType": "AL_StaffDetails_Staff_StaffMedia_Edges_Node_EndDate",
+        "usedTypescriptType": "AL_StaffDetails_Staff_StaffMedia_Edges_Node_EndDate",
+        "usedStructName": "anilist.StaffDetails_Staff_StaffMedia_Edges_Node_EndDate",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "StaffDetails_Staff_StaffMedia_Edges",
+    "formattedName": "AL_StaffDetails_Staff_StaffMedia_Edges",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "StaffRole",
+        "jsonName": "staffRole",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Node",
+        "jsonName": "node",
+        "goType": "StaffDetails_Staff_StaffMedia_Edges_Node",
+        "typescriptType": "AL_StaffDetails_Staff_StaffMedia_Edges_Node",
+        "usedTypescriptType": "AL_StaffDetails_Staff_StaffMedia_Edges_Node",
+        "usedStructName": "anilist.StaffDetails_Staff_StaffMedia_Edges_Node",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "StaffDetails_Staff_StaffMedia",
+    "formattedName": "AL_StaffDetails_Staff_StaffMedia",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Edges",
+        "jsonName": "edges",
+        "goType": "[]StaffDetails_Staff_StaffMedia_Edges",
+        "typescriptType": "Array\u003cAL_StaffDetails_Staff_StaffMedia_Edges\u003e",
+        "usedTypescriptType": "AL_StaffDetails_Staff_StaffMedia_Edges",
+        "usedStructName": "anilist.StaffDetails_Staff_StaffMedia_Edges",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "StaffDetails_Staff",
+    "formattedName": "AL_StaffDetails_Staff",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "StaffDetails_Staff_Name",
+        "typescriptType": "AL_StaffDetails_Staff_Name",
+        "usedTypescriptType": "AL_StaffDetails_Staff_Name",
+        "usedStructName": "anilist.StaffDetails_Staff_Name",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Image",
+        "jsonName": "image",
+        "goType": "StaffDetails_Staff_Image",
+        "typescriptType": "AL_StaffDetails_Staff_Image",
+        "usedTypescriptType": "AL_StaffDetails_Staff_Image",
+        "usedStructName": "anilist.StaffDetails_Staff_Image",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PrimaryOccupations",
+        "jsonName": "primaryOccupations",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StaffMedia",
+        "jsonName": "staffMedia",
+        "goType": "StaffDetails_Staff_StaffMedia",
+        "typescriptType": "AL_StaffDetails_Staff_StaffMedia",
+        "usedTypescriptType": "AL_StaffDetails_Staff_StaffMedia",
+        "usedStructName": "anilist.StaffDetails_Staff_StaffMedia",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/anilist/client_gen.go",
+    "filename": "client_gen.go",
+    "name": "StaffDetails",
+    "formattedName": "AL_StaffDetails",
+    "package": "anilist",
+    "fields": [
+      {
+        "name": "Staff",
+        "jsonName": "Staff",
+        "goType": "StaffDetails_Staff",
+        "typescriptType": "AL_StaffDetails_Staff",
+        "usedTypescriptType": "AL_StaffDetails_Staff",
+        "usedStructName": "anilist.StaffDetails_Staff",
         "required": false,
         "public": true,
         "comments": []
@@ -27385,6 +28955,17 @@
         "comments": []
       },
       {
+        "name": "metadataBucket",
+        "jsonName": "metadataBucket",
+        "goType": "filecache.PermanentBucket",
+        "typescriptType": "Filecache_PermanentBucket",
+        "usedTypescriptType": "Filecache_PermanentBucket",
+        "usedStructName": "filecache.PermanentBucket",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "animeMetadataCache",
         "jsonName": "animeMetadataCache",
         "goType": "",
@@ -27502,7 +29083,7 @@
     "comments": []
   },
   {
-    "filepath": "../internal/continuity/history.go",
+    "filepath": "..\\internal\\continuity\\history.go",
     "filename": "history.go",
     "name": "WatchHistory",
     "formattedName": "Continuity_WatchHistory",
@@ -27699,6 +29280,74 @@
     "comments": []
   },
   {
+    "filepath": "../internal/continuity/history.go",
+    "filename": "history.go",
+    "name": "EpisodeWatchPosition",
+    "formattedName": "Continuity_EpisodeWatchPosition",
+    "package": "continuity",
+    "fields": [
+      {
+        "name": "CurrentTime",
+        "jsonName": "currentTime",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Duration",
+        "jsonName": "duration",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TimeUpdated",
+        "jsonName": "timeUpdated",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/continuity/history.go",
+    "filename": "history.go",
+    "name": "EpisodeWatchPositionResponse",
+    "formattedName": "Continuity_EpisodeWatchPositionResponse",
+    "package": "continuity",
+    "fields": [
+      {
+        "name": "Item",
+        "jsonName": "item",
+        "goType": "EpisodeWatchPosition",
+        "typescriptType": "Continuity_EpisodeWatchPosition",
+        "usedTypescriptType": "Continuity_EpisodeWatchPosition",
+        "usedStructName": "continuity.EpisodeWatchPosition",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Found",
+        "jsonName": "found",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
     "filepath": "../internal/continuity/hook_events.go",
     "filename": "hook_events.go",
     "name": "WatchHistoryItemRequestedEvent",
@@ -27878,6 +29527,17 @@
       {
         "name": "watchHistoryFileCacheBucket",
         "jsonName": "watchHistoryFileCacheBucket",
+        "goType": "filecache.Bucket",
+        "typescriptType": "Filecache_Bucket",
+        "usedTypescriptType": "Filecache_Bucket",
+        "usedStructName": "filecache.Bucket",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "episodeWatchPositionFileCacheBucket",
+        "jsonName": "episodeWatchPositionFileCacheBucket",
         "goType": "filecache.Bucket",
         "typescriptType": "Filecache_Bucket",
         "usedTypescriptType": "Filecache_Bucket",
@@ -28067,12 +29727,78 @@
         "comments": []
       },
       {
+        "name": "usernames",
+        "jsonName": "usernames",
+        "goType": "map[uint]string",
+        "typescriptType": "Record\u003cnumber, string\u003e",
+        "required": false,
+        "public": false,
+        "comments": [
+          " cached viewer usernames per profile"
+        ]
+      },
+      {
         "name": "mu",
         "jsonName": "mu",
         "goType": "sync.RWMutex",
         "typescriptType": "RWMutex",
         "usedTypescriptType": "RWMutex",
         "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "animeColCache",
+        "jsonName": "animeColCache",
+        "goType": "map[uint]profileAnimeCache",
+        "typescriptType": "Record\u003cnumber, INTERNAL_profileAnimeCache\u003e",
+        "usedTypescriptType": "INTERNAL_profileAnimeCache",
+        "usedStructName": "core.profileAnimeCache",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mangaColCache",
+        "jsonName": "mangaColCache",
+        "goType": "map[uint]profileMangaCache",
+        "typescriptType": "Record\u003cnumber, INTERNAL_profileMangaCache\u003e",
+        "usedTypescriptType": "INTERNAL_profileMangaCache",
+        "usedStructName": "core.profileMangaCache",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "colMu",
+        "jsonName": "colMu",
+        "goType": "sync.RWMutex",
+        "typescriptType": "RWMutex",
+        "usedTypescriptType": "RWMutex",
+        "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "animeSfg",
+        "jsonName": "animeSfg",
+        "goType": "singleflight.Group",
+        "typescriptType": "Group",
+        "usedTypescriptType": "Group",
+        "usedStructName": "singleflight.Group",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mangaSfg",
+        "jsonName": "mangaSfg",
+        "goType": "singleflight.Group",
+        "typescriptType": "Group",
+        "usedTypescriptType": "Group",
+        "usedStructName": "singleflight.Group",
         "required": false,
         "public": false,
         "comments": []
@@ -28105,6 +29831,39 @@
         "goType": "string",
         "typescriptType": "string",
         "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "fileCacher",
+        "jsonName": "fileCacher",
+        "goType": "filecache.Cacher",
+        "typescriptType": "Filecache_Cacher",
+        "usedTypescriptType": "Filecache_Cacher",
+        "usedStructName": "filecache.Cacher",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "animeColBucket",
+        "jsonName": "animeColBucket",
+        "goType": "filecache.PermanentBucket",
+        "typescriptType": "Filecache_PermanentBucket",
+        "usedTypescriptType": "Filecache_PermanentBucket",
+        "usedStructName": "filecache.PermanentBucket",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mangaColBucket",
+        "jsonName": "mangaColBucket",
+        "goType": "filecache.PermanentBucket",
+        "typescriptType": "Filecache_PermanentBucket",
+        "usedTypescriptType": "Filecache_PermanentBucket",
+        "usedStructName": "filecache.PermanentBucket",
+        "required": false,
         "public": false,
         "comments": []
       }
@@ -28894,12 +30653,32 @@
         "comments": []
       },
       {
+        "name": "BootID",
+        "jsonName": "BootID",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "AchievementEngine",
         "jsonName": "AchievementEngine",
         "goType": "achievement.Engine",
         "typescriptType": "Achievement_Engine",
         "usedTypescriptType": "Achievement_Engine",
         "usedStructName": "achievement.Engine",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MilestoneEngine",
+        "jsonName": "MilestoneEngine",
+        "goType": "milestone.Engine",
+        "typescriptType": "Engine",
+        "usedTypescriptType": "Engine",
+        "usedStructName": "milestone.Engine",
         "required": false,
         "public": true,
         "comments": []
@@ -29159,6 +30938,18 @@
         "typescriptType": "INTERNAL_Config_Experimental",
         "usedTypescriptType": "{ MainServerTorrentStreaming: boolean; }",
         "usedStructName": "core.Config_Experimental",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Marketplace",
+        "jsonName": "Marketplace",
+        "goType": "INTERNAL_Config_Marketplace",
+        "inlineStructType": "struct{\nDir string}",
+        "typescriptType": "INTERNAL_Config_Marketplace",
+        "usedTypescriptType": "{ Dir: string; }",
+        "usedStructName": "core.Config_Marketplace",
         "required": true,
         "public": true,
         "comments": []
@@ -29493,6 +31284,27 @@
   {
     "filepath": "../internal/core/config.go",
     "filename": "config.go",
+    "name": "Config_Marketplace",
+    "formattedName": "INTERNAL_Config_Marketplace",
+    "package": "core",
+    "fields": [
+      {
+        "name": "Dir",
+        "jsonName": "Dir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Path to the seanime-themes marketplace directory"
+        ]
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/core/config.go",
+    "filename": "config.go",
     "name": "Config_Privacy",
     "formattedName": "INTERNAL_Config_Privacy",
     "package": "core",
@@ -29771,6 +31583,15 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "HwAccel",
+        "jsonName": "HwAccel",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -29873,6 +31694,87 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "Bio",
+        "jsonName": "bio",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BannerImage",
+        "jsonName": "bannerImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DisplayTitle",
+        "jsonName": "displayTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DisplayTitleColor",
+        "jsonName": "displayTitleColor",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "XPBarFillCss",
+        "jsonName": "xpBarFillCss",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "XPBarAnimClass",
+        "jsonName": "xpBarAnimClass",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NameColorCss",
+        "jsonName": "nameColorCss",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NameGradientCss",
+        "jsonName": "nameGradientCss",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ThemeID",
+        "jsonName": "themeId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -29942,6 +31844,24 @@
         "comments": []
       },
       {
+        "name": "Bio",
+        "jsonName": "bio",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BannerImage",
+        "jsonName": "bannerImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "CreatedAt",
         "jsonName": "createdAt",
         "goType": "time.Time",
@@ -29954,6 +31874,78 @@
       {
         "name": "HasPIN",
         "jsonName": "hasPIN",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DisplayTitle",
+        "jsonName": "displayTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DisplayTitleColor",
+        "jsonName": "displayTitleColor",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "XPBarFillCss",
+        "jsonName": "xpBarFillCss",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "XPBarAnimClass",
+        "jsonName": "xpBarAnimClass",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NameColorCss",
+        "jsonName": "nameColorCss",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NameGradientCss",
+        "jsonName": "nameGradientCss",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ThemeID",
+        "jsonName": "themeId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnilistAuthenticated",
+        "jsonName": "anilistAuthenticated",
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
@@ -30622,6 +32614,17 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "accountCache",
+        "jsonName": "accountCache",
+        "goType": "models.Account",
+        "typescriptType": "Models_Account",
+        "usedTypescriptType": "Models_Account",
+        "usedStructName": "models.Account",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -31249,12 +33252,21 @@
         "comments": [
           " \"github\", \"seanime\", \"seanime_nightly\""
         ]
+      },
+      {
+        "name": "PlanningSlutToken",
+        "jsonName": "planningSlutToken",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
   },
   {
-    "filepath": "../internal/database/models/models.go",
+    "filepath": "..\\internal\\database\\models\\models.go",
     "filename": "models.go",
     "name": "LibraryPaths",
     "formattedName": "Models_LibraryPaths",
@@ -31370,7 +33382,7 @@
     "comments": []
   },
   {
-    "filepath": "../internal/database/models/models.go",
+    "filepath": "..\\internal\\database\\models\\models.go",
     "filename": "models.go",
     "name": "IntSlice",
     "formattedName": "Models_IntSlice",
@@ -32389,6 +34401,15 @@
         "comments": []
       },
       {
+        "name": "LibraryScreenCustomBackgroundGlow",
+        "jsonName": "libraryScreenCustomBackgroundGlow",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "EnableMediaPageBlurredBackground",
         "jsonName": "enableMediaPageBlurredBackground",
         "goType": "bool",
@@ -32709,6 +34730,15 @@
     "formattedName": "Models_ChapterDownloadQueueItem",
     "package": "models",
     "fields": [
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
       {
         "name": "Provider",
         "jsonName": "provider",
@@ -34252,6 +36282,142 @@
   {
     "filepath": "../internal/database/models/models.go",
     "filename": "models.go",
+    "name": "AnimeFavorite",
+    "formattedName": "Models_AnimeFavorite",
+    "package": "models",
+    "fields": [
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AddedAt",
+        "jsonName": "addedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AnimeFavorite stores a favorited anime per profile (stored in per-profile DB)."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "CharacterFavorite",
+    "formattedName": "Models_CharacterFavorite",
+    "package": "models",
+    "fields": [
+      {
+        "name": "CharacterID",
+        "jsonName": "characterId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AddedAt",
+        "jsonName": "addedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " CharacterFavorite stores a favorited character per profile (stored in per-profile DB)."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "StaffFavorite",
+    "formattedName": "Models_StaffFavorite",
+    "package": "models",
+    "fields": [
+      {
+        "name": "StaffID",
+        "jsonName": "staffId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AddedAt",
+        "jsonName": "addedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " StaffFavorite stores a favorited staff member per profile (stored in per-profile DB)."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "StudioFavorite",
+    "formattedName": "Models_StudioFavorite",
+    "package": "models",
+    "fields": [
+      {
+        "name": "StudioID",
+        "jsonName": "studioId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AddedAt",
+        "jsonName": "addedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " StudioFavorite stores a favorited studio per profile (stored in per-profile DB)."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
     "name": "Notification",
     "formattedName": "Models_Notification",
     "package": "models",
@@ -34497,6 +36663,15 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "MangaMinutes",
+        "jsonName": "mangaMinutes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -34508,6 +36683,486 @@
   },
   {
     "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "ActivityEvent",
+    "formattedName": "Models_ActivityEvent",
+    "package": "models",
+    "fields": [
+      {
+        "name": "EventType",
+        "jsonName": "eventType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaId",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Metadata",
+        "jsonName": "metadata",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " JSON blob"
+        ]
+      }
+    ],
+    "comments": [
+      " ActivityEvent stores individual, granular user actions (stored in per-profile DB).",
+      " Unlike ActivityLog (daily aggregates), each row is one discrete event."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "LevelProgress",
+    "formattedName": "Models_LevelProgress",
+    "package": "models",
+    "fields": [
+      {
+        "name": "TotalXP",
+        "jsonName": "totalXP",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CurrentLevel",
+        "jsonName": "currentLevel",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "XPVersion",
+        "jsonName": "xpVersion",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CurrentMilestoneName",
+        "jsonName": "currentMilestoneName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Publicly visible milestone title"
+        ]
+      }
+    ],
+    "comments": [
+      " LevelProgress tracks the user's XP and level for the leveling system (stored in per-profile DB)."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "AdminAnnouncement",
+    "formattedName": "Models_AdminAnnouncement",
+    "package": "models",
+    "fields": [
+      {
+        "name": "Message",
+        "jsonName": "message",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CreatedBy",
+        "jsonName": "createdBy",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ExpiresAt",
+        "jsonName": "expiresAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Dismissed",
+        "jsonName": "",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " comma-separated profile IDs"
+        ]
+      }
+    ],
+    "comments": [
+      " AdminAnnouncement is a server-local announcement created by an admin, shown as a dismissible banner."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "ClientPref",
+    "formattedName": "Models_ClientPref",
+    "package": "models",
+    "fields": [
+      {
+        "name": "Key",
+        "jsonName": "key",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Value",
+        "jsonName": "value",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " JSON-encoded payload, opaque to the server"
+        ]
+      }
+    ],
+    "comments": [
+      " ClientPref is a per-profile arbitrary key/value blob used by the web client to persist",
+      " settings that would otherwise live only in browser localStorage (UI customizer state,",
+      " theme preferences, discovered easter eggs, reward progress, cursor pack, sound pack, etc.).",
+      " Stored in the per-profile database, so each profile gets its own values automatically.",
+      " The Value column is opaque JSON-encoded text the client owns; the server never inspects it."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "GlobalMilestone",
+    "formattedName": "Models_GlobalMilestone",
+    "package": "models",
+    "fields": [
+      {
+        "name": "Key",
+        "jsonName": "key",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " e.g. \"hours_watched_5000\""
+        ]
+      },
+      {
+        "name": "Category",
+        "jsonName": "category",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " e.g. \"hours_watched\""
+        ]
+      },
+      {
+        "name": "Tier",
+        "jsonName": "tier",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " tier threshold value (10, 50, 100, 500, 1000, 5000)"
+        ]
+      },
+      {
+        "name": "IsFirstToAchieve",
+        "jsonName": "isFirstToAchieve",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": [
+          " true for race milestones"
+        ]
+      },
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " who achieved it"
+        ]
+      },
+      {
+        "name": "ProfileName",
+        "jsonName": "profileName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " cached name for display"
+        ]
+      },
+      {
+        "name": "AchievedAt",
+        "jsonName": "achievedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": [
+          " when achieved"
+        ]
+      }
+    ],
+    "comments": [
+      " GlobalMilestone tracks a milestone achievement in the main (global) database.",
+      " Individual milestones: one row per (profileID, key) pair.",
+      " First-to-achieve milestones: one row per key, first profile to reach it wins."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "TrackPreference",
+    "formattedName": "Models_TrackPreference",
+    "package": "models",
+    "fields": [
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AudioLanguage",
+        "jsonName": "audioLanguage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AudioCodecID",
+        "jsonName": "audioCodecId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SubtitleLanguage",
+        "jsonName": "subtitleLanguage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SubtitleCodecID",
+        "jsonName": "subtitleCodecId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TrackPreference stores per-media audio/subtitle track overrides for the profile.",
+      " MediaID is the AniList media ID as a string key."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "MediaCacheEntry",
+    "formattedName": "Models_MediaCacheEntry",
+    "package": "models",
+    "fields": [
+      {
+        "name": "Bucket",
+        "jsonName": "Bucket",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CacheKey",
+        "jsonName": "CacheKey",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Data",
+        "jsonName": "Data",
+        "goType": "string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CachedAt",
+        "jsonName": "CachedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MediaCacheEntry stores AniList media metadata in SQLite for fast unlimited caching.",
+      " Replaces the file-based bounded cache for base-anime, complete-anime, anime-details,",
+      " base-manga, and manga-details buckets."
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "UserTheme",
+    "formattedName": "Models_UserTheme",
+    "package": "models",
+    "fields": [
+      {
+        "name": "ThemeID",
+        "jsonName": "themeId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DisplayName",
+        "jsonName": "displayName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ThemeJSON",
+        "jsonName": "themeJson",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Full theme.json content"
+        ]
+      },
+      {
+        "name": "DownloadedAt",
+        "jsonName": "downloadedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " UserTheme stores downloaded marketplace themes per-profile.",
+      " This enables \"cloud\" theme storage that survives client rebuilds."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "ProfileThemePreference",
+    "formattedName": "Models_ProfileThemePreference",
+    "package": "models",
+    "fields": [
+      {
+        "name": "ThemeID",
+        "jsonName": "themeId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Currently active theme for this profile"
+        ]
+      }
+    ],
+    "comments": [
+      " ProfileThemePreference stores the active theme selection per-profile.",
+      " Each profile can have their own active theme, independent of other profiles."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "..\\internal\\database\\models\\models.go",
     "filename": "models.go",
     "name": "StringSlice",
     "formattedName": "Models_StringSlice",
@@ -38617,6 +41272,17 @@
         "comments": [
           " Closed by the initiator when the stream is ready"
         ]
+      },
+      {
+        "name": "downloadDir",
+        "jsonName": "downloadDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": [
+          " Directory where torrent files are stored"
+        ]
       }
     ],
     "comments": [
@@ -38710,6 +41376,17 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "DownloadDir",
+        "jsonName": "DownloadDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Directory where torrent files are stored, for mediastream transcode fallback"
+        ]
       }
     ],
     "comments": []
@@ -40901,6 +43578,17 @@
         "comments": []
       },
       {
+        "name": "database",
+        "jsonName": "database",
+        "goType": "database.Database",
+        "typescriptType": "Database",
+        "usedTypescriptType": "Database",
+        "usedStructName": "database.Database",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "wsEventManager",
         "jsonName": "wsEventManager",
         "goType": "events.WSEventManagerInterface",
@@ -41468,6 +44156,17 @@
         "comments": []
       },
       {
+        "name": "Database",
+        "jsonName": "Database",
+        "goType": "database.Database",
+        "typescriptType": "Database",
+        "usedTypescriptType": "Database",
+        "usedStructName": "database.Database",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "WSEventManager",
         "jsonName": "WSEventManager",
         "goType": "events.WSEventManagerInterface",
@@ -41613,6 +44312,37 @@
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/events/events.go",
+    "filename": "events.go",
+    "name": "ToastPayload",
+    "formattedName": "Events_ToastPayload",
+    "package": "events",
+    "fields": [
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ToastPayload is used to send structured error/info messages to the frontend",
+      " The frontend supports either a plain string or this structured format for more detailed messages"
+    ]
   },
   {
     "filepath": "../internal/events/websocket.go",
@@ -46607,6 +49337,1092 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/anime_collection.go",
+    "filename": "anime_collection.go",
+    "name": "AnimeHydrationDetail",
+    "formattedName": "AnimeHydrationDetail",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Timestamp",
+        "jsonName": "timestamp",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Action",
+        "jsonName": "action",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Message",
+        "jsonName": "message",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/anime_collection.go",
+    "filename": "anime_collection.go",
+    "name": "AnimeHydrationStatus",
+    "formattedName": "AnimeHydrationStatus",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "IsRunning",
+        "jsonName": "isRunning",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CancelRequested",
+        "jsonName": "cancelRequested",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WasCancelled",
+        "jsonName": "wasCancelled",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Total",
+        "jsonName": "total",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Processed",
+        "jsonName": "processed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Hydrated",
+        "jsonName": "hydrated",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Skipped",
+        "jsonName": "skipped",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Failed",
+        "jsonName": "failed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Progress",
+        "jsonName": "progress",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FinishedAt",
+        "jsonName": "finishedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastUpdatedAt",
+        "jsonName": "lastUpdatedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Details",
+        "jsonName": "details",
+        "goType": "[]AnimeHydrationDetail",
+        "typescriptType": "Array\u003cAnimeHydrationDetail\u003e",
+        "usedTypescriptType": "AnimeHydrationDetail",
+        "usedStructName": "handlers.AnimeHydrationDetail",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/anime_themes.go",
+    "filename": "anime_themes.go",
+    "name": "AnimeTheme",
+    "formattedName": "AnimeTheme",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"OP\" or \"ED\""
+        ]
+      },
+      {
+        "name": "Sequence",
+        "jsonName": "sequence",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " 1, 2, 3..."
+        ]
+      },
+      {
+        "name": "Slug",
+        "jsonName": "slug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"OP1\", \"ED2\" etc."
+        ]
+      },
+      {
+        "name": "Song",
+        "jsonName": "song",
+        "goType": "AnimeThemeSong",
+        "typescriptType": "AnimeThemeSong",
+        "usedTypescriptType": "AnimeThemeSong",
+        "usedStructName": "handlers.AnimeThemeSong",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Entries",
+        "jsonName": "entries",
+        "goType": "[]AnimeThemeEntry",
+        "typescriptType": "Array\u003cAnimeThemeEntry\u003e",
+        "usedTypescriptType": "AnimeThemeEntry",
+        "usedStructName": "handlers.AnimeThemeEntry",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AnimeTheme represents an opening or ending theme"
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/anime_themes.go",
+    "filename": "anime_themes.go",
+    "name": "AnimeThemeSong",
+    "formattedName": "AnimeThemeSong",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Artists",
+        "jsonName": "artists",
+        "goType": "[]AnimeThemeArtist",
+        "typescriptType": "Array\u003cAnimeThemeArtist\u003e",
+        "usedTypescriptType": "AnimeThemeArtist",
+        "usedStructName": "handlers.AnimeThemeArtist",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/anime_themes.go",
+    "filename": "anime_themes.go",
+    "name": "AnimeThemeArtist",
+    "formattedName": "AnimeThemeArtist",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Slug",
+        "jsonName": "slug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/anime_themes.go",
+    "filename": "anime_themes.go",
+    "name": "AnimeThemeEntry",
+    "formattedName": "AnimeThemeEntry",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Episodes",
+        "jsonName": "episodes",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NSFW",
+        "jsonName": "nsfw",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Spoiler",
+        "jsonName": "spoiler",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Videos",
+        "jsonName": "videos",
+        "goType": "[]AnimeThemeVideo",
+        "typescriptType": "Array\u003cAnimeThemeVideo\u003e",
+        "usedTypescriptType": "AnimeThemeVideo",
+        "usedStructName": "handlers.AnimeThemeVideo",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/anime_themes.go",
+    "filename": "anime_themes.go",
+    "name": "AnimeThemeVideo",
+    "formattedName": "AnimeThemeVideo",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Link",
+        "jsonName": "link",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Resolution",
+        "jsonName": "resolution",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NC",
+        "jsonName": "nc",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Subbed",
+        "jsonName": "subbed",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tags",
+        "jsonName": "tags",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Basename",
+        "jsonName": "basename",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/anime_themes.go",
+    "filename": "anime_themes.go",
+    "name": "AnimeThemesResponse",
+    "formattedName": "AnimeThemesResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Themes",
+        "jsonName": "themes",
+        "goType": "[]AnimeTheme",
+        "typescriptType": "Array\u003cAnimeTheme\u003e",
+        "usedTypescriptType": "AnimeTheme",
+        "usedStructName": "handlers.AnimeTheme",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "CharacterDetailsResponse",
+    "formattedName": "CharacterDetailsResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "CharacterName",
+        "typescriptType": "CharacterName",
+        "usedTypescriptType": "CharacterName",
+        "usedStructName": "handlers.CharacterName",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Image",
+        "jsonName": "image",
+        "goType": "CharacterImage",
+        "typescriptType": "CharacterImage",
+        "usedTypescriptType": "CharacterImage",
+        "usedStructName": "handlers.CharacterImage",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Gender",
+        "jsonName": "gender",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Age",
+        "jsonName": "age",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DateOfBirth",
+        "jsonName": "dateOfBirth",
+        "goType": "CharacterDate",
+        "typescriptType": "CharacterDate",
+        "usedTypescriptType": "CharacterDate",
+        "usedStructName": "handlers.CharacterDate",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Favourites",
+        "jsonName": "favourites",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Media",
+        "jsonName": "media",
+        "goType": "CharacterMediaConnection",
+        "typescriptType": "CharacterMediaConnection",
+        "usedTypescriptType": "CharacterMediaConnection",
+        "usedStructName": "handlers.CharacterMediaConnection",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "CharacterName",
+    "formattedName": "CharacterName",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Full",
+        "jsonName": "full",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Native",
+        "jsonName": "native",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Alternative",
+        "jsonName": "alternative",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "CharacterImage",
+    "formattedName": "CharacterImage",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Large",
+        "jsonName": "large",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "CharacterDate",
+    "formattedName": "CharacterDate",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Year",
+        "jsonName": "year",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Month",
+        "jsonName": "month",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Day",
+        "jsonName": "day",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "CharacterMediaConnection",
+    "formattedName": "CharacterMediaConnection",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Edges",
+        "jsonName": "edges",
+        "goType": "[]CharacterMediaEdge",
+        "typescriptType": "Array\u003cCharacterMediaEdge\u003e",
+        "usedTypescriptType": "CharacterMediaEdge",
+        "usedStructName": "handlers.CharacterMediaEdge",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "CharacterMediaEdge",
+    "formattedName": "CharacterMediaEdge",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "CharacterRole",
+        "jsonName": "characterRole",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "VoiceActors",
+        "jsonName": "voiceActors",
+        "goType": "[]CharacterVoiceActor",
+        "typescriptType": "Array\u003cCharacterVoiceActor\u003e",
+        "usedTypescriptType": "CharacterVoiceActor",
+        "usedStructName": "handlers.CharacterVoiceActor",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Node",
+        "jsonName": "node",
+        "goType": "CharacterMediaNode",
+        "typescriptType": "CharacterMediaNode",
+        "usedTypescriptType": "CharacterMediaNode",
+        "usedStructName": "handlers.CharacterMediaNode",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "CharacterVoiceActor",
+    "formattedName": "CharacterVoiceActor",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "CharacterVAName",
+        "typescriptType": "CharacterVAName",
+        "usedTypescriptType": "CharacterVAName",
+        "usedStructName": "handlers.CharacterVAName",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Image",
+        "jsonName": "image",
+        "goType": "CharacterImage",
+        "typescriptType": "CharacterImage",
+        "usedTypescriptType": "CharacterImage",
+        "usedStructName": "handlers.CharacterImage",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LanguageV2",
+        "jsonName": "languageV2",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "CharacterVAName",
+    "formattedName": "CharacterVAName",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Full",
+        "jsonName": "full",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Native",
+        "jsonName": "native",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "CharacterMediaNode",
+    "formattedName": "CharacterMediaNode",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IDMal",
+        "jsonName": "idMal",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SiteUrl",
+        "jsonName": "siteUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Season",
+        "jsonName": "season",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Format",
+        "jsonName": "format",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BannerImage",
+        "jsonName": "bannerImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Episodes",
+        "jsonName": "episodes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Chapters",
+        "jsonName": "chapters",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Volumes",
+        "jsonName": "volumes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Synonyms",
+        "jsonName": "synonyms",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsAdult",
+        "jsonName": "isAdult",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CountryOfOrigin",
+        "jsonName": "countryOfOrigin",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MeanScore",
+        "jsonName": "meanScore",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Genres",
+        "jsonName": "genres",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "CharacterTitle",
+        "typescriptType": "CharacterTitle",
+        "usedTypescriptType": "CharacterTitle",
+        "usedStructName": "handlers.CharacterTitle",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "CharacterCover",
+        "typescriptType": "CharacterCover",
+        "usedTypescriptType": "CharacterCover",
+        "usedStructName": "handlers.CharacterCover",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartDate",
+        "jsonName": "startDate",
+        "goType": "CharacterDate",
+        "typescriptType": "CharacterDate",
+        "usedTypescriptType": "CharacterDate",
+        "usedStructName": "handlers.CharacterDate",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EndDate",
+        "jsonName": "endDate",
+        "goType": "CharacterDate",
+        "typescriptType": "CharacterDate",
+        "usedTypescriptType": "CharacterDate",
+        "usedStructName": "handlers.CharacterDate",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "CharacterTitle",
+    "formattedName": "CharacterTitle",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "UserPreferred",
+        "jsonName": "userPreferred",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Romaji",
+        "jsonName": "romaji",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "English",
+        "jsonName": "english",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Native",
+        "jsonName": "native",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/character.go",
+    "filename": "character.go",
+    "name": "CharacterCover",
+    "formattedName": "CharacterCover",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ExtraLarge",
+        "jsonName": "extraLarge",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Large",
+        "jsonName": "large",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Medium",
+        "jsonName": "medium",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Color",
+        "jsonName": "color",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
     "filepath": "../internal/handlers/comment.go",
     "filename": "comment.go",
     "name": "CommentResponse",
@@ -46773,6 +50589,358 @@
     ],
     "comments": [
       " CommentsResponse is the top-level response for the comments endpoint."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/community.go",
+    "filename": "community.go",
+    "name": "CommunityProfile",
+    "formattedName": "CommunityProfile",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AniListUsername",
+        "jsonName": "anilistUsername",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AniListAvatar",
+        "jsonName": "anilistAvatar",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AvatarPath",
+        "jsonName": "avatarPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Bio",
+        "jsonName": "bio",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BannerImage",
+        "jsonName": "bannerImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsAdmin",
+        "jsonName": "isAdmin",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CurrentLevel",
+        "jsonName": "currentLevel",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalXP",
+        "jsonName": "totalXP",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AchievementCount",
+        "jsonName": "achievementCount",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DisplayTitle",
+        "jsonName": "displayTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DisplayTitleColor",
+        "jsonName": "displayTitleColor",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ThemeID",
+        "jsonName": "themeId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CurrentMilestoneName",
+        "jsonName": "currentMilestoneName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Publicly visible milestone title"
+        ]
+      },
+      {
+        "name": "XPBarFillCss",
+        "jsonName": "xpBarFillCss",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "XPBarAnimClass",
+        "jsonName": "xpBarAnimClass",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NameColorCss",
+        "jsonName": "nameColorCss",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NameGradientCss",
+        "jsonName": "nameGradientCss",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " CommunityProfile is a single entry in the community profiles list."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/community.go",
+    "filename": "community.go",
+    "name": "CommunityResponse",
+    "formattedName": "CommunityResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Profiles",
+        "jsonName": "profiles",
+        "goType": "[]CommunityProfile",
+        "typescriptType": "Array\u003cCommunityProfile\u003e",
+        "usedTypescriptType": "CommunityProfile",
+        "usedStructName": "handlers.CommunityProfile",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AggregateStats",
+        "jsonName": "aggregateStats",
+        "goType": "AggregateStats",
+        "typescriptType": "AggregateStats",
+        "usedTypescriptType": "AggregateStats",
+        "usedStructName": "handlers.AggregateStats",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " CommunityResponse wraps the profiles list with aggregate statistics."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/community.go",
+    "filename": "community.go",
+    "name": "AggregateStats",
+    "formattedName": "AggregateStats",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "TotalProfiles",
+        "jsonName": "totalProfiles",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalXP",
+        "jsonName": "totalXP",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalAchievements",
+        "jsonName": "totalAchievements",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HighestLevel",
+        "jsonName": "highestLevel",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AggregateStats holds community-wide statistics."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/community.go",
+    "filename": "community.go",
+    "name": "ActivityFeedEntry",
+    "formattedName": "ActivityFeedEntry",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileName",
+        "jsonName": "profileName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileAvatar",
+        "jsonName": "profileAvatar",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AchievementKey",
+        "jsonName": "achievementKey",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AchievementTier",
+        "jsonName": "achievementTier",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AchievementName",
+        "jsonName": "achievementName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IconSVG",
+        "jsonName": "iconSvg",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UnlockedAt",
+        "jsonName": "unlockedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ActivityFeedEntry represents a single event in the community activity feed."
     ]
   },
   {
@@ -47170,6 +51338,80 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/easter_egg.go",
+    "filename": "easter_egg.go",
+    "name": "DiscoverEasterEggRequest",
+    "formattedName": "DiscoverEasterEggRequest",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "EggID",
+        "jsonName": "eggId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/easter_egg.go",
+    "filename": "easter_egg.go",
+    "name": "DiscoverEasterEggResponse",
+    "formattedName": "DiscoverEasterEggResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Granted",
+        "jsonName": "granted",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewLevel",
+        "jsonName": "newLevel",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LeveledUp",
+        "jsonName": "leveledUp",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalXP",
+        "jsonName": "totalXP",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "XPGranted",
+        "jsonName": "xpGranted",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
     "filepath": "../internal/handlers/enmasse.go",
     "filename": "enmasse.go",
     "name": "EnMasseStartBody",
@@ -47285,6 +51527,212 @@
         "goType": "string",
         "typescriptType": "string",
         "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/manga.go",
+    "filename": "manga.go",
+    "name": "MangaHydrationDetail",
+    "formattedName": "MangaHydrationDetail",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Timestamp",
+        "jsonName": "timestamp",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Source",
+        "jsonName": "source",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Action",
+        "jsonName": "action",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Message",
+        "jsonName": "message",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/manga.go",
+    "filename": "manga.go",
+    "name": "MangaHydrationStatus",
+    "formattedName": "MangaHydrationStatus",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "IsRunning",
+        "jsonName": "isRunning",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CancelRequested",
+        "jsonName": "cancelRequested",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WasCancelled",
+        "jsonName": "wasCancelled",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Total",
+        "jsonName": "total",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Processed",
+        "jsonName": "processed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AniListHydrated",
+        "jsonName": "aniListHydrated",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SyntheticHydrated",
+        "jsonName": "syntheticHydrated",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Skipped",
+        "jsonName": "skipped",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Failed",
+        "jsonName": "failed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Progress",
+        "jsonName": "progress",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FinishedAt",
+        "jsonName": "finishedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastUpdatedAt",
+        "jsonName": "lastUpdatedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Details",
+        "jsonName": "details",
+        "goType": "[]MangaHydrationDetail",
+        "typescriptType": "Array\u003cMangaHydrationDetail\u003e",
+        "usedTypescriptType": "MangaHydrationDetail",
+        "usedStructName": "handlers.MangaHydrationDetail",
+        "required": false,
         "public": true,
         "comments": []
       }
@@ -47416,6 +51864,295 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "name": "ProfilePageResponse",
+    "formattedName": "ProfilePageResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Profile",
+        "jsonName": "profile",
+        "goType": "core.ProfileSummary",
+        "typescriptType": "INTERNAL_ProfileSummary",
+        "usedTypescriptType": "INTERNAL_ProfileSummary",
+        "usedStructName": "core.ProfileSummary",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Level",
+        "jsonName": "level",
+        "goType": "LevelResponse",
+        "typescriptType": "LevelResponse",
+        "usedTypescriptType": "LevelResponse",
+        "usedStructName": "handlers.LevelResponse",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Showcase",
+        "jsonName": "showcase",
+        "goType": "[]ShowcaseEntry",
+        "typescriptType": "Array\u003cShowcaseEntry\u003e",
+        "usedTypescriptType": "ShowcaseEntry",
+        "usedStructName": "handlers.ShowcaseEntry",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AchievementSummary",
+        "jsonName": "achievementSummary",
+        "goType": "achievement.SummaryResponse",
+        "typescriptType": "Achievement_SummaryResponse",
+        "usedTypescriptType": "Achievement_SummaryResponse",
+        "usedStructName": "achievement.SummaryResponse",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ActivityHeatmap",
+        "jsonName": "activityHeatmap",
+        "goType": "[]profilestats.ActivityDay",
+        "typescriptType": "Array\u003cProfileStats_ActivityDay\u003e",
+        "usedTypescriptType": "ProfileStats_ActivityDay",
+        "usedStructName": "profilestats.ActivityDay",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeStreak",
+        "jsonName": "animeStreak",
+        "goType": "profilestats.StreakInfo",
+        "typescriptType": "ProfileStats_StreakInfo",
+        "usedTypescriptType": "ProfileStats_StreakInfo",
+        "usedStructName": "profilestats.StreakInfo",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaStreak",
+        "jsonName": "mangaStreak",
+        "goType": "profilestats.StreakInfo",
+        "typescriptType": "ProfileStats_StreakInfo",
+        "usedTypescriptType": "ProfileStats_StreakInfo",
+        "usedStructName": "profilestats.StreakInfo",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RecentAchievements",
+        "jsonName": "recentAchievements",
+        "goType": "[]RecentAchievementEntry",
+        "typescriptType": "Array\u003cRecentAchievementEntry\u003e",
+        "usedTypescriptType": "RecentAchievementEntry",
+        "usedStructName": "handlers.RecentAchievementEntry",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CurrentExpBar",
+        "jsonName": "currentExpBar",
+        "goType": "achievement.ExpBarProgressionEntry",
+        "typescriptType": "Achievement_ExpBarProgressionEntry",
+        "usedTypescriptType": "Achievement_ExpBarProgressionEntry",
+        "usedStructName": "achievement.ExpBarProgressionEntry",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ProfilePageResponse is the aggregated response for the profile page."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "name": "LevelResponse",
+    "formattedName": "LevelResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "CurrentLevel",
+        "jsonName": "currentLevel",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalXP",
+        "jsonName": "totalXP",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "XPToNext",
+        "jsonName": "xpToNext",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "XPInCurrentLvl",
+        "jsonName": "xpInCurrentLevel",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "XPNeededForLvl",
+        "jsonName": "xpNeededForLevel",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Multiplier",
+        "jsonName": "multiplier",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CurrentMilestoneName",
+        "jsonName": "currentMilestoneName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Publicly visible milestone title from the user's theme"
+        ]
+      }
+    ],
+    "comments": [
+      " LevelResponse returns the current level/XP state."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "name": "ShowcaseEntry",
+    "formattedName": "ShowcaseEntry",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Slot",
+        "jsonName": "slot",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Key",
+        "jsonName": "key",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tier",
+        "jsonName": "tier",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Definition",
+        "jsonName": "definition",
+        "goType": "achievement.Definition",
+        "typescriptType": "Achievement_Definition",
+        "usedTypescriptType": "Achievement_Definition",
+        "usedStructName": "achievement.Definition",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ShowcaseEntry is a showcase slot with its definition resolved."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/profile_page.go",
+    "filename": "profile_page.go",
+    "name": "RecentAchievementEntry",
+    "formattedName": "RecentAchievementEntry",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Key",
+        "jsonName": "key",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tier",
+        "jsonName": "tier",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UnlockedAt",
+        "jsonName": "unlockedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Definition",
+        "jsonName": "definition",
+        "goType": "achievement.Definition",
+        "typescriptType": "Achievement_Definition",
+        "usedTypescriptType": "Achievement_Definition",
+        "usedStructName": "achievement.Definition",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " RecentAchievementEntry represents a recently unlocked achievement."
+    ]
+  },
+  {
     "filepath": "../internal/handlers/response.go",
     "filename": "response.go",
     "name": "SeaResponse",
@@ -47464,6 +52201,67 @@
         "usedStructName": "core.App",
         "required": false,
         "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/security_middleware.go",
+    "filename": "security_middleware.go",
+    "name": "RateLimiter",
+    "formattedName": "RateLimiter",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "clients",
+        "jsonName": "clients",
+        "goType": "map[string]rateLimitEntry",
+        "typescriptType": "Record\u003cstring, rateLimitEntry\u003e",
+        "usedTypescriptType": "rateLimitEntry",
+        "usedStructName": "handlers.rateLimitEntry",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "limit",
+        "jsonName": "limit",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "window",
+        "jsonName": "window",
+        "goType": "time.Duration",
+        "typescriptType": "Duration",
+        "usedTypescriptType": "Duration",
+        "usedStructName": "time.Duration",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "stopChan",
+        "jsonName": "stopChan",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
         "comments": []
       }
     ],
@@ -47722,6 +52520,24 @@
         "usedTypescriptType": "INTERNAL_ProfileSummary",
         "usedStructName": "core.ProfileSummary",
         "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PlanningSlutConfigured",
+        "jsonName": "planningSlutConfigured",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BootID",
+        "jsonName": "bootId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
         "public": true,
         "comments": []
       }
@@ -48083,6 +52899,295 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/theme-images.go",
+    "filename": "theme-images.go",
+    "name": "ThemeEntry",
+    "formattedName": "ThemeEntry",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Author",
+        "jsonName": "author",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tags",
+        "jsonName": "tags",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PreviewColors",
+        "jsonName": "previewColors",
+        "goType": "map[string]string",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ThemeRef",
+        "jsonName": "themeRef",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BackgroundImageUrl",
+        "jsonName": "backgroundImageUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Level",
+        "jsonName": "level",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Theme represents a theme in the index"
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/theme-images.go",
+    "filename": "theme-images.go",
+    "name": "ThemeIndex",
+    "formattedName": "ThemeIndex",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "GeneratedAt",
+        "jsonName": "generatedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Themes",
+        "jsonName": "themes",
+        "goType": "[]ThemeEntry",
+        "typescriptType": "Array\u003cThemeEntry\u003e",
+        "usedTypescriptType": "ThemeEntry",
+        "usedStructName": "handlers.ThemeEntry",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ThemeIndex represents the theme index.json structure"
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/timeline.go",
+    "filename": "timeline.go",
+    "name": "TimelineEvent",
+    "formattedName": "TimelineEvent",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EventType",
+        "jsonName": "eventType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Metadata",
+        "jsonName": "metadata",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaTitle",
+        "jsonName": "mediaTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaImage",
+        "jsonName": "mediaImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaType",
+        "jsonName": "mediaType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"anime\" or \"manga\" or \"\""
+        ]
+      }
+    ],
+    "comments": [
+      " TimelineEvent is a single resolved activity event for the timeline UI."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/timeline.go",
+    "filename": "timeline.go",
+    "name": "TimelineResponse",
+    "formattedName": "TimelineResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Events",
+        "jsonName": "events",
+        "goType": "[]TimelineEvent",
+        "typescriptType": "Array\u003cTimelineEvent\u003e",
+        "usedTypescriptType": "TimelineEvent",
+        "usedStructName": "handlers.TimelineEvent",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Page",
+        "jsonName": "page",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HasMore",
+        "jsonName": "hasMore",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Total",
+        "jsonName": "total",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TimelineResponse is the paginated response for the timeline endpoint."
+    ]
+  },
+  {
     "filepath": "../internal/hook/helper.go",
     "filename": "helper.go",
     "name": "HookTriggerOptions",
@@ -48359,6 +53464,15 @@
       {
         "name": "onGetStudioDetails",
         "jsonName": "onGetStudioDetails",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "onGetStaffDetails",
+        "jsonName": "onGetStaffDetails",
         "goType": "",
         "typescriptType": "any",
         "required": false,
@@ -55220,6 +60334,106 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "activityTracker",
+        "jsonName": "activityTracker",
+        "goType": "ActivityTrackerFunc",
+        "typescriptType": "PlaybackManager_ActivityTrackerFunc",
+        "usedTypescriptType": "PlaybackManager_ActivityTrackerFunc",
+        "usedStructName": "playbackmanager.ActivityTrackerFunc",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "activityTrackerMu",
+        "jsonName": "activityTrackerMu",
+        "goType": "sync.RWMutex",
+        "typescriptType": "RWMutex",
+        "usedTypescriptType": "RWMutex",
+        "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "activeProfileID",
+        "jsonName": "activeProfileID",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "activeProfileIDMu",
+        "jsonName": "activeProfileIDMu",
+        "goType": "sync.RWMutex",
+        "typescriptType": "RWMutex",
+        "usedTypescriptType": "RWMutex",
+        "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "activityRecorded",
+        "jsonName": "activityRecorded",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "sessionMu",
+        "jsonName": "sessionMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "sessionStartTime",
+        "jsonName": "sessionStartTime",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "sessionEpisodeCount",
+        "jsonName": "sessionEpisodeCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "sessionMinutes",
+        "jsonName": "sessionMinutes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "sessionLastCompletion",
+        "jsonName": "sessionLastCompletion",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -55755,6 +60969,89 @@
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/library/playbackmanager/playback_manager.go",
+    "filename": "playback_manager.go",
+    "name": "PlaybackActivityEvent",
+    "formattedName": "PlaybackManager_PlaybackActivityEvent",
+    "package": "playbackmanager",
+    "fields": [
+      {
+        "name": "ProfileID",
+        "jsonName": "ProfileID",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "MediaID",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeNumber",
+        "jsonName": "EpisodeNumber",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalEpisodes",
+        "jsonName": "TotalEpisodes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DurationMinutes",
+        "jsonName": "DurationMinutes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SessionEpisodeCount",
+        "jsonName": "SessionEpisodeCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SessionMinutes",
+        "jsonName": "SessionMinutes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SessionStartTime",
+        "jsonName": "SessionStartTime",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
         "public": true,
         "comments": []
       }
@@ -56751,6 +62048,24 @@
         "usedStructName": "scanner.compiledHydrationRule",
         "required": false,
         "public": false,
+        "comments": []
+      },
+      {
+        "name": "UseIndexBasedEpisodes",
+        "jsonName": "UseIndexBasedEpisodes",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeOffset",
+        "jsonName": "EpisodeOffset",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
         "comments": []
       }
     ],
@@ -58690,7 +64005,7 @@
     ]
   },
   {
-    "filepath": "../internal/local/database_models.go",
+    "filepath": "..\\internal\\local\\database_models.go",
     "filename": "database_models.go",
     "name": "StringMap",
     "formattedName": "Local_StringMap",
@@ -58704,7 +64019,7 @@
     "comments": null
   },
   {
-    "filepath": "../internal/local/database_models.go",
+    "filepath": "..\\internal\\local\\database_models.go",
     "filename": "database_models.go",
     "name": "LocalMangaChapterContainers",
     "formattedName": "Local_LocalMangaChapterContainers",
@@ -60105,6 +65420,15 @@
         "comments": [
           " Downloaded manga data"
         ]
+      },
+      {
+        "name": "MetadataTitles",
+        "jsonName": "MetadataTitles",
+        "goType": "map[int]string",
+        "typescriptType": "Record\u003cnumber, string\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -60257,7 +65581,7 @@
     "comments": []
   },
   {
-    "filepath": "../internal/manga/download.go",
+    "filepath": "..\\internal\\manga\\download.go",
     "filename": "download.go",
     "name": "MediaMap",
     "formattedName": "Manga_MediaMap",
@@ -60272,7 +65596,7 @@
     "comments": null
   },
   {
-    "filepath": "../internal/manga/download.go",
+    "filepath": "..\\internal\\manga\\download.go",
     "filename": "download.go",
     "name": "ProviderDownloadMap",
     "formattedName": "Manga_ProviderDownloadMap",
@@ -60425,6 +65749,15 @@
     "formattedName": "Manga_DownloadChapterOptions",
     "package": "manga",
     "fields": [
+      {
+        "name": "ProfileID",
+        "jsonName": "ProfileID",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
       {
         "name": "Provider",
         "jsonName": "Provider",
@@ -60682,6 +66015,17 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "EnableRemoteMetadataFetch",
+        "jsonName": "EnableRemoteMetadataFetch",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": [
+          " If false, never call AniList during list generation"
+        ]
       }
     ],
     "comments": []
@@ -60884,6 +66228,15 @@
     "package": "chapter_downloader",
     "fields": [
       {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "Provider",
         "jsonName": "provider",
         "goType": "string",
@@ -60945,7 +66298,7 @@
     "comments": []
   },
   {
-    "filepath": "../internal/manga/downloader/chapter_downloader.go",
+    "filepath": "..\\internal\\manga\\downloader\\chapter_downloader.go",
     "filename": "chapter_downloader.go",
     "name": "Registry",
     "formattedName": "ChapterDownloader_Registry",
@@ -67102,14 +72455,14 @@
         "comments": []
       },
       {
-        "name": "currentMediaContainer",
-        "jsonName": "currentMediaContainer",
+        "name": "activeStreams",
+        "jsonName": "activeStreams",
         "goType": "",
         "typescriptType": "any",
-        "required": true,
+        "required": false,
         "public": false,
         "comments": [
-          " The current media being played."
+          " Per-client active streams, keyed by clientId."
         ]
       },
       {
@@ -67131,7 +72484,7 @@
         "required": false,
         "public": false,
         "comments": [
-          " Temporary cache for the media containers."
+          " Temporary cache for the media containers, keyed by hash."
         ]
       }
     ],
@@ -67633,6 +72986,15 @@
       {
         "name": "CustomSettings",
         "jsonName": "CustomSettings",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FfmpegPath",
+        "jsonName": "FfmpegPath",
         "goType": "string",
         "typescriptType": "string",
         "required": true,
@@ -68896,6 +74258,649 @@
       ]
     },
     "comments": []
+  },
+  {
+    "filepath": "../internal/milestone/definitions.go",
+    "filename": "definitions.go",
+    "name": "Category",
+    "formattedName": "Category",
+    "package": "milestone",
+    "fields": [],
+    "aliasOf": {
+      "goType": "string",
+      "typescriptType": "string",
+      "declaredValues": [
+        "\"hours_watched\"",
+        "\"episodes_watched\"",
+        "\"chapters_read\"",
+        "\"series_completed\"",
+        "\"library_files\"",
+        "\"genres_explored\"",
+        "\"days_active\"",
+        "\"achievements_unlocked\""
+      ]
+    },
+    "comments": [
+      " Category represents a milestone measurement category."
+    ]
+  },
+  {
+    "filepath": "../internal/milestone/definitions.go",
+    "filename": "definitions.go",
+    "name": "CategoryInfo",
+    "formattedName": "CategoryInfo",
+    "package": "milestone",
+    "fields": [
+      {
+        "name": "Key",
+        "jsonName": "key",
+        "goType": "Category",
+        "typescriptType": "Category",
+        "usedTypescriptType": "Category",
+        "usedStructName": "milestone.Category",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IconSVG",
+        "jsonName": "iconSVG",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " CategoryInfo provides display metadata for a category."
+    ]
+  },
+  {
+    "filepath": "../internal/milestone/definitions.go",
+    "filename": "definitions.go",
+    "name": "Definition",
+    "formattedName": "Definition",
+    "package": "milestone",
+    "fields": [
+      {
+        "name": "Key",
+        "jsonName": "key",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " e.g. \"hours_watched_100\""
+        ]
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " e.g. \"Century Viewer\""
+        ]
+      },
+      {
+        "name": "Category",
+        "jsonName": "category",
+        "goType": "Category",
+        "typescriptType": "Category",
+        "usedTypescriptType": "Category",
+        "usedStructName": "milestone.Category",
+        "required": true,
+        "public": true,
+        "comments": [
+          " e.g. \"hours_watched\""
+        ]
+      },
+      {
+        "name": "Threshold",
+        "jsonName": "threshold",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " e.g. 100"
+        ]
+      },
+      {
+        "name": "IconSVG",
+        "jsonName": "iconSVG",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Definition describes a single milestone."
+    ]
+  },
+  {
+    "filepath": "../internal/milestone/definitions.go",
+    "filename": "definitions.go",
+    "name": "FirstToAchieveDefinition",
+    "formattedName": "FirstToAchieveDefinition",
+    "package": "milestone",
+    "fields": [
+      {
+        "name": "Key",
+        "jsonName": "key",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " e.g. \"first_hours_watched\""
+        ]
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " e.g. \"Trailblazer: Hours Watched\""
+        ]
+      },
+      {
+        "name": "Category",
+        "jsonName": "category",
+        "goType": "Category",
+        "typescriptType": "Category",
+        "usedTypescriptType": "Category",
+        "usedStructName": "milestone.Category",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Threshold",
+        "jsonName": "threshold",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " highest tier threshold (5000)"
+        ]
+      },
+      {
+        "name": "IconSVG",
+        "jsonName": "iconSVG",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " FirstToAchieveDefinition describes a race milestone (one winner per category)."
+    ]
+  },
+  {
+    "filepath": "../internal/milestone/engine.go",
+    "filename": "engine.go",
+    "name": "MilestoneUnlockPayload",
+    "formattedName": "MilestoneUnlockPayload",
+    "package": "milestone",
+    "fields": [
+      {
+        "name": "Key",
+        "jsonName": "key",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Category",
+        "jsonName": "category",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Threshold",
+        "jsonName": "threshold",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IconSVG",
+        "jsonName": "iconSVG",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsFirstToAchieve",
+        "jsonName": "isFirstToAchieve",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileName",
+        "jsonName": "profileName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MilestoneUnlockPayload is sent over WebSocket when a milestone is achieved."
+    ]
+  },
+  {
+    "filepath": "../internal/milestone/engine.go",
+    "filename": "engine.go",
+    "name": "EngineOptions",
+    "formattedName": "EngineOptions",
+    "package": "milestone",
+    "fields": [
+      {
+        "name": "Logger",
+        "jsonName": "Logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WSEventManager",
+        "jsonName": "WSEventManager",
+        "goType": "events.WSEventManagerInterface",
+        "typescriptType": "Events_WSEventManagerInterface",
+        "usedTypescriptType": "Events_WSEventManagerInterface",
+        "usedStructName": "events.WSEventManagerInterface",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MainDB",
+        "jsonName": "MainDB",
+        "goType": "db.Database",
+        "typescriptType": "DB_Database",
+        "usedTypescriptType": "DB_Database",
+        "usedStructName": "db.Database",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "GetProfileDB",
+        "jsonName": "GetProfileDB",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "GetProfileName",
+        "jsonName": "GetProfileName",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " EngineOptions configures the milestone engine."
+    ]
+  },
+  {
+    "filepath": "../internal/milestone/engine.go",
+    "filename": "engine.go",
+    "name": "Engine",
+    "formattedName": "Engine",
+    "package": "milestone",
+    "fields": [
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "wsEventManager",
+        "jsonName": "wsEventManager",
+        "goType": "events.WSEventManagerInterface",
+        "typescriptType": "Events_WSEventManagerInterface",
+        "usedTypescriptType": "Events_WSEventManagerInterface",
+        "usedStructName": "events.WSEventManagerInterface",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mainDB",
+        "jsonName": "mainDB",
+        "goType": "db.Database",
+        "typescriptType": "DB_Database",
+        "usedTypescriptType": "DB_Database",
+        "usedStructName": "db.Database",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "getProfileDB",
+        "jsonName": "getProfileDB",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "getProfileName",
+        "jsonName": "getProfileName",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Engine evaluates milestone progress and records achievements."
+    ]
+  },
+  {
+    "filepath": "../internal/milestone/engine.go",
+    "filename": "engine.go",
+    "name": "ProfileStats",
+    "formattedName": "ProfileStats",
+    "package": "milestone",
+    "fields": [
+      {
+        "name": "TotalAnimeMinutes",
+        "jsonName": "TotalAnimeMinutes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalAnimeEpisodes",
+        "jsonName": "TotalAnimeEpisodes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalMangaChapters",
+        "jsonName": "TotalMangaChapters",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalMangaMinutes",
+        "jsonName": "TotalMangaMinutes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalSeriesCompleted",
+        "jsonName": "TotalSeriesCompleted",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalLibraryFiles",
+        "jsonName": "TotalLibraryFiles",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalGenresExplored",
+        "jsonName": "TotalGenresExplored",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalDaysActive",
+        "jsonName": "TotalDaysActive",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalAchievements",
+        "jsonName": "TotalAchievements",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ProfileStats holds aggregated stats for a single profile used for milestone evaluation."
+    ]
+  },
+  {
+    "filepath": "../internal/milestone/responses.go",
+    "filename": "responses.go",
+    "name": "AchievedMilestone",
+    "formattedName": "AchievedMilestone",
+    "package": "milestone",
+    "fields": [
+      {
+        "name": "Key",
+        "jsonName": "key",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Category",
+        "jsonName": "category",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tier",
+        "jsonName": "tier",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsFirstToAchieve",
+        "jsonName": "isFirstToAchieve",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileName",
+        "jsonName": "profileName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AchievedAt",
+        "jsonName": "achievedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AchievedMilestone represents a milestone that has been achieved, for the API response."
+    ]
+  },
+  {
+    "filepath": "../internal/milestone/responses.go",
+    "filename": "responses.go",
+    "name": "ListResponse",
+    "formattedName": "ListResponse",
+    "package": "milestone",
+    "fields": [
+      {
+        "name": "Definitions",
+        "jsonName": "definitions",
+        "goType": "[]Definition",
+        "typescriptType": "Array\u003cDefinition\u003e",
+        "usedTypescriptType": "Definition",
+        "usedStructName": "milestone.Definition",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FirstToAchieve",
+        "jsonName": "firstToAchieve",
+        "goType": "[]FirstToAchieveDefinition",
+        "typescriptType": "Array\u003cFirstToAchieveDefinition\u003e",
+        "usedTypescriptType": "FirstToAchieveDefinition",
+        "usedStructName": "milestone.FirstToAchieveDefinition",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Categories",
+        "jsonName": "categories",
+        "goType": "[]CategoryInfo",
+        "typescriptType": "Array\u003cCategoryInfo\u003e",
+        "usedTypescriptType": "CategoryInfo",
+        "usedStructName": "milestone.CategoryInfo",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Achieved",
+        "jsonName": "achieved",
+        "goType": "[]AchievedMilestone",
+        "typescriptType": "Array\u003cAchievedMilestone\u003e",
+        "usedTypescriptType": "AchievedMilestone",
+        "usedStructName": "milestone.AchievedMilestone",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ListResponse is the shape of the GET /api/v1/milestones response."
+    ]
   },
   {
     "filepath": "../internal/mkvparser/metadata.go",
@@ -71737,7 +77742,7 @@
     "comments": []
   },
   {
-    "filepath": "../internal/nakama/share.go",
+    "filepath": "..\\internal\\nakama\\share.go",
     "filename": "share.go",
     "name": "NakamaCustomSourceMap",
     "formattedName": "Nakama_NakamaCustomSourceMap",
@@ -73535,6 +79540,17 @@
         "comments": []
       },
       {
+        "name": "FilePath",
+        "jsonName": "filePath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": [
+          " Underlying file path or URL for mediastream transcode fallback"
+        ]
+      },
+      {
         "name": "MkvMetadataParser",
         "jsonName": "",
         "goType": "",
@@ -74683,6 +80699,39 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "anilistRateLimit",
+        "jsonName": "anilistRateLimit",
+        "goType": "limiter.Limiter",
+        "typescriptType": "Limiter",
+        "usedTypescriptType": "Limiter",
+        "usedStructName": "limiter.Limiter",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "animeSfg",
+        "jsonName": "animeSfg",
+        "goType": "singleflight.Group",
+        "typescriptType": "Group",
+        "usedTypescriptType": "Group",
+        "usedStructName": "singleflight.Group",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mangaSfg",
+        "jsonName": "mangaSfg",
+        "goType": "singleflight.Group",
+        "typescriptType": "Group",
+        "usedTypescriptType": "Group",
+        "usedStructName": "singleflight.Group",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -75033,6 +81082,30 @@
         "typescriptType": "AL_StudioDetails",
         "usedTypescriptType": "AL_StudioDetails",
         "usedStructName": "anilist.StudioDetails",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [],
+    "embeddedStructNames": [
+      "hook_resolver.Event"
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/platform/hook_events.go",
+    "filename": "hook_events.go",
+    "name": "GetStaffDetailsEvent",
+    "formattedName": "GetStaffDetailsEvent",
+    "package": "platform",
+    "fields": [
+      {
+        "name": "Staff",
+        "jsonName": "staff",
+        "goType": "anilist.StaffDetails",
+        "typescriptType": "AL_StaffDetails",
+        "usedTypescriptType": "AL_StaffDetails",
+        "usedStructName": "anilist.StaffDetails",
         "required": false,
         "public": true,
         "comments": []
@@ -75408,6 +81481,19 @@
         "public": false,
         "comments": [
           " When collections were last fetched"
+        ]
+      },
+      {
+        "name": "db",
+        "jsonName": "db",
+        "goType": "MediaCacheStore",
+        "typescriptType": "MediaCacheStore",
+        "usedTypescriptType": "MediaCacheStore",
+        "usedStructName": "shared_platform.MediaCacheStore",
+        "required": true,
+        "public": false,
+        "comments": [
+          " Optional SQLite-backed unlimited media cache"
         ]
       }
     ],
@@ -83275,6 +89361,42 @@
         "usedTypescriptType": "ProfileStats_WatchPatterns",
         "usedStructName": "profilestats.WatchPatterns",
         "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalWatchMinutesWithRewatches",
+        "jsonName": "totalWatchMinutesWithRewatches",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EstimatedReadingMinutes",
+        "jsonName": "estimatedReadingMinutes",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeHoursPerWeek",
+        "jsonName": "animeHoursPerWeek",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaChaptersPerWeek",
+        "jsonName": "mangaChaptersPerWeek",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
         "public": true,
         "comments": []
       }
@@ -92242,6 +98364,17 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "contentCache",
+        "jsonName": "contentCache",
+        "goType": "map[string]UnmatchedTorrent",
+        "typescriptType": "Record\u003cstring, UnmatchedTorrent\u003e",
+        "usedTypescriptType": "UnmatchedTorrent",
+        "usedStructName": "unmatched.UnmatchedTorrent",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -92626,6 +98759,24 @@
         "comments": [
           " Cleaned title for folder name"
         ]
+      },
+      {
+        "name": "UseIndexBasedEpisodes",
+        "jsonName": "useIndexBasedEpisodes",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeOffset",
+        "jsonName": "episodeOffset",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -92777,6 +98928,15 @@
         "usedTypescriptType": "Duration",
         "usedStructName": "time.Duration",
         "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "debounceCh",
+        "jsonName": "debounceCh",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
         "public": false,
         "comments": []
       }

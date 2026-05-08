@@ -12,12 +12,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { __isDesktop__ } from "@/types/constants"
 import { useAtom } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
+import { seaJotaiStorage } from "@/lib/sea-storage/sea-storage"
 import React from "react"
 import { AiOutlineArrowLeft } from "react-icons/ai"
 import { TbLayoutSidebarRightCollapse, TbLayoutSidebarRightExpand } from "react-icons/tb"
 import { useWindowSize } from "react-use"
 
-const theaterModeAtom = atomWithStorage("sea-media-theater-mode", false)
+const theaterModeAtom = atomWithStorage("sea-media-theater-mode", false, seaJotaiStorage)
 
 export type SeaMediaPlayerLayoutProps = {
     mediaId?: string | number
@@ -172,7 +173,7 @@ export function SeaMediaPlayerLayout(props: SeaMediaPlayerLayoutProps) {
                     )}
                     {rightHeaderActions}
                     <IconButton
-                        onClick={() => setTheaterMode(p => !p)}
+                        onClick={() => setTheaterMode((p: boolean) => !p)}
                         intent="gray-basic"
                         icon={theaterMode ? <TbLayoutSidebarRightExpand /> : <TbLayoutSidebarRightCollapse />}
                         className="hidden 2xl:flex"

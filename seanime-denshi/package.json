@@ -94,7 +94,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "deleteAppDataOnUninstall": true,
+      "deleteAppDataOnUninstall": false,
       "shortcutName": "Seanime Denshi",
       "artifactName": "seanime-denshi-${version}_Windows_${arch}.${ext}",
       "perMachine": true
