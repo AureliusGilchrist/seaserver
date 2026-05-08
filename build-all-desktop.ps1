@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Desktop build script for seaserver (Electron + Go sidecar) -- native Windows.
+    Desktop build script for Seaserver (Electron + Go sidecar) -- native Windows.
 .DESCRIPTION
     Builds:
       - Standalone web server:  seanime.exe + web/

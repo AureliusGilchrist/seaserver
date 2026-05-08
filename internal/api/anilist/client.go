@@ -88,6 +88,8 @@ type (
 		token          string
 		cacheDir       string
 		wsEventManager events.WSEventManagerInterface
+		// httpClient is a shared HTTP client reused across all requests for connection pooling.
+		httpClient *http.Client
 		// rateLimited tracks whether we are currently in a rate-limited state so we
 		// only send the recovery "online" event once.
 		rateLimited atomic.Bool
@@ -122,8 +124,9 @@ func (ac *AnilistClientImpl) broadcastOnline() {
 // The token is used for authorization when making requests to the AniList API.
 func NewAnilistClient(token string, cacheDir string) *AnilistClientImpl {
 	ac := &AnilistClientImpl{
-		token:    token,
-		cacheDir: cacheDir,
+		token:      token,
+		cacheDir:   cacheDir,
+		httpClient: newAnilistHTTPClient(),
 		Client: &Client{
 			Client: clientv2.NewClient(newAnilistHTTPClient(), constants.AnilistApiUrl, nil,
 				func(ctx context.Context, req *http.Request, gqlInfo *clientv2.GQLRequestInfo, res interface{}, next clientv2.RequestInterceptorFunc) error {
@@ -354,7 +357,7 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 		}
 	}()
 
-	httpClient := newAnilistHTTPClient()
+	httpClient := ac.httpClient
 	reqCtx := ctx
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
 		var cancel context.CancelFunc
