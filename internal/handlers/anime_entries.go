@@ -102,6 +102,13 @@ func (h *Handler) getAnimeEntry(c echo.Context, lfs []*anime.LocalFile, mId int)
 	entry = fillerEvent.Entry
 
 	if !fillerEvent.DefaultPrevented {
+		// Auto-fetch filler data on first load if not already cached
+		if entry.Media != nil && !h.App.FillerManager.HasFillerFetched(entry.Media.ID) {
+			titles := entry.Media.GetAllTitlesDeref()
+			if fetchErr := h.App.FillerManager.FetchAndStoreFillerData(entry.Media.ID, titles); fetchErr != nil {
+				h.App.Logger.Warn().Err(fetchErr).Int("mediaId", entry.Media.ID).Msg("handlers: Failed to auto-fetch filler data")
+			}
+		}
 		h.App.FillerManager.HydrateFillerData(fillerEvent.Entry)
 	}
 

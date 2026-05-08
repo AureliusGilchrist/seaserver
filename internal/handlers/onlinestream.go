@@ -57,6 +57,14 @@ func (h *Handler) HandleGetOnlineStreamEpisodeList(c echo.Context) error {
 		Media:    media,
 	}
 
+	// Auto-fetch filler data on first load if not already cached
+	if !h.App.FillerManager.HasFillerFetched(b.MediaId) {
+		titles := media.GetAllTitlesDeref()
+		if fetchErr := h.App.FillerManager.FetchAndStoreFillerData(b.MediaId, titles); fetchErr != nil {
+			h.App.Logger.Warn().Err(fetchErr).Int("mediaId", b.MediaId).Msg("handlers: Failed to auto-fetch filler data for onlinestream")
+		}
+	}
+
 	h.App.FillerManager.HydrateOnlinestreamFillerData(b.MediaId, ret.Episodes)
 
 	return h.RespondWithData(c, ret)
