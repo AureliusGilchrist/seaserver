@@ -1,7 +1,9 @@
 "use client"
 
 import { useGetCommunityProfiles, useGetActivityFeed } from "@/api/hooks/community.hooks"
-import { Handlers_CommunityProfile, Handlers_AggregateStats, Handlers_ActivityFeedEntry } from "@/api/generated/types"
+type Handlers_CommunityProfile = any
+type Handlers_AggregateStats = any
+type Handlers_ActivityFeedEntry = any
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { PageWrapper } from "@/components/shared/page-wrapper"

@@ -216,7 +216,7 @@ function AchievementCard({ definition, entryMap }: {
                     ? "bg-[--paper] border-yellow-500/30"
                     : "bg-[--paper] border-[--border] opacity-60",
             )}>
-                <AchievementIcon svg={definition.IconSVG} isUnlocked={isUnlocked} />
+                <AchievementIcon svg={definition.IconSVG ?? ""} isUnlocked={isUnlocked} />
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm truncate">{achievementName}</span>
@@ -257,7 +257,7 @@ function AchievementCard({ definition, entryMap }: {
                     ? "bg-[--paper] border-brand-500/20"
                     : "bg-[--paper] border-[--border] opacity-60",
         )}>
-            <AchievementIcon svg={definition.IconSVG} isUnlocked={highestUnlockedTier > 0} />
+            <AchievementIcon svg={definition.IconSVG ?? ""} isUnlocked={highestUnlockedTier > 0} />
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm truncate">{achievementName}</span>

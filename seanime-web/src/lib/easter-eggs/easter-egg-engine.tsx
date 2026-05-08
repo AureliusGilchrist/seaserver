@@ -56,7 +56,7 @@ export function EasterEggEngine({ children }: { children: React.ReactNode }) {
         { granted: boolean; newLevel: number; leveledUp: boolean; totalXP: number; xpGranted: number },
         { eggId: string }
     >({
-        endpoint: API_ENDPOINTS.PROFILE_PAGE.DiscoverEasterEgg.endpoint,
+        endpoint: API_ENDPOINTS.EASTER_EGG.DiscoverEasterEgg.endpoint,
         method: "POST",
         mutationKey: ["discover-easter-egg"],
         onSuccess: (data, vars) => {

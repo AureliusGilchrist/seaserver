@@ -147,7 +147,7 @@ export function UnmatchedFileManager(props: UnmatchedFileManagerProps) {
                 paths: selectedPaths,
                 mediaId: anilistId,
                 useIndexBasedEpisodes: dependOnIndex,
-                episodeOffset: dependOnIndex ? (episodeOffset > 0 ? episodeOffset : 1) : undefined,
+                episodeOffset: dependOnIndex ? (episodeOffset > 0 ? episodeOffset : 1) : 0,
             }, {
                 onSuccess: () => {
                     pruneAndAdvance(selectedPaths)

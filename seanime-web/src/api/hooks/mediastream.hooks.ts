@@ -73,20 +73,20 @@ import { PerMediaTrackOverride } from "@/app/(main)/_features/video-core/video-c
 
 export function useGetTrackPreferences() {
     return useServerQuery<Record<string, PerMediaTrackOverride>>({
-        endpoint: API_ENDPOINTS.MEDIASTREAM.GetTrackPreferences.endpoint,
-        method: API_ENDPOINTS.MEDIASTREAM.GetTrackPreferences.methods[0],
-        queryKey: [API_ENDPOINTS.MEDIASTREAM.GetTrackPreferences.key],
+        endpoint: API_ENDPOINTS.TRACK_PREFERENCES.GetTrackPreferences.endpoint,
+        method: API_ENDPOINTS.TRACK_PREFERENCES.GetTrackPreferences.methods[0],
+        queryKey: [API_ENDPOINTS.TRACK_PREFERENCES.GetTrackPreferences.key],
     })
 }
 
 export function useUpsertTrackPreference() {
     const qc = useQueryClient()
     return useServerMutation<boolean, { mediaId: string } & PerMediaTrackOverride>({
-        endpoint: API_ENDPOINTS.MEDIASTREAM.UpsertTrackPreference.endpoint,
-        method: API_ENDPOINTS.MEDIASTREAM.UpsertTrackPreference.methods[0],
-        mutationKey: [API_ENDPOINTS.MEDIASTREAM.UpsertTrackPreference.key],
+        endpoint: API_ENDPOINTS.TRACK_PREFERENCES.UpsertTrackPreference.endpoint,
+        method: API_ENDPOINTS.TRACK_PREFERENCES.UpsertTrackPreference.methods[0],
+        mutationKey: [API_ENDPOINTS.TRACK_PREFERENCES.UpsertTrackPreference.key],
         onSuccess: async () => {
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MEDIASTREAM.GetTrackPreferences.key] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.TRACK_PREFERENCES.GetTrackPreferences.key] })
         },
     })
 }

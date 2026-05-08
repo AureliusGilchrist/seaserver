@@ -11,10 +11,10 @@ import { ActivityFeed } from "./activity-feed"
 import type {
   ProfileStats_StreakInfo,
   ProfileStats_ActivityDay,
-  Handlers_ShowcaseEntry,
-  Handlers_RecentAchievementEntry,
-  Handlers_TimelineEvent,
 } from "@/api/generated/types"
+type Handlers_ShowcaseEntry = any
+type Handlers_RecentAchievementEntry = any
+type Handlers_TimelineEvent = any
 
 export interface ActivityTabContentProps {
   animeStreak?: ProfileStats_StreakInfo

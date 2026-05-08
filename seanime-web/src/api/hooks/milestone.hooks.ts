@@ -1,6 +1,8 @@
 import { useServerQuery } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { Milestone_AchievedMilestone, Milestone_ListResponse, Milestone_UnlockPayload } from "@/api/generated/types"
+type Milestone_AchievedMilestone = any
+type Milestone_ListResponse = any
+type Milestone_UnlockPayload = any
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useQueryClient } from "@tanstack/react-query"
@@ -31,9 +33,9 @@ function saveMilestoneCache(set: Set<string>) {
 
 export function useGetMilestones() {
     const query = useServerQuery<Milestone_ListResponse>({
-        endpoint: API_ENDPOINTS.MILESTONE.GetMilestones.endpoint,
-        method: API_ENDPOINTS.MILESTONE.GetMilestones.methods[0],
-        queryKey: [API_ENDPOINTS.MILESTONE.GetMilestones.key],
+        endpoint: API_ENDPOINTS.MILESTONES.GetMilestones.endpoint,
+        method: API_ENDPOINTS.MILESTONES.GetMilestones.methods[0],
+        queryKey: [API_ENDPOINTS.MILESTONES.GetMilestones.key],
     })
 
     const [cachedKeys, setCachedKeys] = useState<Set<string>>(loadMilestoneCache)
@@ -58,7 +60,7 @@ export function useGetMilestones() {
     if (!query.data) return query
 
     // Build synthetic achieved entries from cache for any missing ones
-    const serverKeys = new Set(query.data.achieved.map(a => `${a.key}:${a.profileId}`))
+    const serverKeys = new Set(query.data.achieved.map((a: any) => `${a.key}:${a.profileId}`))
     const extraFromCache: Milestone_AchievedMilestone[] = []
     for (const k of cachedKeys) {
         if (!serverKeys.has(k)) {
@@ -94,7 +96,7 @@ export function useMilestoneUnlockListener() {
         saveMilestoneCache(cache)
 
         setPendingUnlocks(prev => [...prev, data])
-        qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MILESTONE.GetMilestones.key] })
+        qc.invalidateQueries({ queryKey: [API_ENDPOINTS.MILESTONES.GetMilestones.key] })
     }, [qc])
 
     useWebsocketMessageListener<Milestone_UnlockPayload>({

@@ -343,6 +343,7 @@ export default function Page() {
                                         enableOnlinestream: data.enableOnlinestream,
                                         includeOnlineStreamingInLibrary: data.includeOnlineStreamingInLibrary ?? false,
                                         disableAnimeCardTrailers: data.disableAnimeCardTrailers,
+                                        planningSlutToken: status?.settings?.library?.planningSlutToken ?? "",
                                         enableManga: data.enableManga,
                                         dohProvider: data.dohProvider === "-" ? "" : data.dohProvider,
                                         openTorrentClientOnStart: data.openTorrentClientOnStart,

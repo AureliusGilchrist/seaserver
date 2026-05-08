@@ -161,6 +161,7 @@ export function DownloadedChapterList(props: DownloadedChapterListProps) {
         if (!!selectedChapters.length) {
             deleteChapters({
                 downloadIds: selectedChapters.map(chapter => ({
+                    profileId: 0,
                     mediaId: entry.mediaId,
                     provider: chapter.provider,
                     chapterId: chapter.chapterId,

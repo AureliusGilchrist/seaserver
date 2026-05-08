@@ -170,7 +170,7 @@ export function AchievementShowcase() {
                                     className="flex items-center gap-2 p-2 rounded-lg border border-[--border] hover:bg-[--highlight] transition-colors text-left"
                                 >
                                     <div className="size-8 flex items-center justify-center rounded bg-yellow-500/20 text-yellow-500 [&>svg]:size-5">
-                                        <span dangerouslySetInnerHTML={{ __html: def.IconSVG }} />
+                                        <span dangerouslySetInnerHTML={{ __html: def.IconSVG ?? "" }} />
                                     </div>
                                     <span className="text-xs font-medium truncate">{animeConfig.achievementNames[def.Key] ?? def.Name}</span>
                                 </button>
@@ -190,7 +190,7 @@ export function AchievementShowcase() {
                                 className="flex items-center gap-2 p-2 rounded-lg border border-[--border] hover:bg-[--highlight] transition-colors text-left"
                             >
                                 <div className="size-8 flex items-center justify-center rounded bg-yellow-500/20 text-yellow-500 [&>svg]:size-5">
-                                    <span dangerouslySetInnerHTML={{ __html: def.IconSVG }} />
+                                    <span dangerouslySetInnerHTML={{ __html: def.IconSVG ?? "" }} />
                                 </div>
                                 <div className="min-w-0">
                                     <span className="text-xs font-medium truncate block">{animeConfig.achievementNames[def.Key] ?? def.Name}</span>
@@ -216,7 +216,7 @@ function ShowcaseBadge({ definition, tier }: { definition: Achievement_Definitio
         )}>
             <span
                 className="size-5 [&>svg]:size-5"
-                dangerouslySetInnerHTML={{ __html: definition.IconSVG }}
+                dangerouslySetInnerHTML={{ __html: definition.IconSVG ?? "" }}
             />
             <span className="text-xs font-semibold">{achievementName}</span>
             {tierName && <Badge size="sm" intent="warning">{tierName}</Badge>}

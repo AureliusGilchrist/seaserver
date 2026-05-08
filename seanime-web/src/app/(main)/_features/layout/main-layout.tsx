@@ -38,7 +38,6 @@ import { useServerStatus } from "../../_hooks/use-server-status"
 import { useInvalidateQueriesListener } from "../../_listeners/invalidate-queries.listeners"
 import { AdminAnnouncementsBanner } from "../admin-announcements"
 import { AnilistStatusBanner } from "../anilist-status-banner"
-import { OSTPlayer } from "../ost-player/ost-player"
 import { Announcements } from "../announcements"
 import { AnimeThemeProvider } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { CursorProvider } from "@/lib/cursors/cursor-provider"
@@ -103,7 +102,6 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <LibraryExplorerDrawer />
             <PluginWebviewSlot slot="fixed" />
             <GlobalRewardShopButton />
-            <OSTPlayer />
             <WorkspaceBar />
 
             <AppSidebarProvider>

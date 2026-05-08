@@ -50,7 +50,7 @@ export type WallhavenSearchResponse = {
 
 export function useListThemeBackgrounds() {
     return useServerQuery<ThemeBgFile[]>({
-        endpoint: API_ENDPOINTS.THEME_BACKGROUNDS.ListThemeBackgrounds.endpoint,
+        endpoint: "/api/v1/theme-backgrounds",
         method: "GET",
         queryKey: [THEME_BG_LIST_KEY],
     })
@@ -59,7 +59,7 @@ export function useListThemeBackgrounds() {
 export function useDownloadThemeBackground() {
     const queryClient = useQueryClient()
     return useServerMutation<ThemeBgFile, { url: string; themeId?: string }>({
-        endpoint: API_ENDPOINTS.THEME_BACKGROUNDS.DownloadThemeBackground.endpoint,
+        endpoint: "/api/v1/theme-backgrounds/download",
         method: "POST",
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [THEME_BG_LIST_KEY] })
@@ -87,7 +87,7 @@ export function useDeleteThemeBackground() {
 }
 
 export function useSearchWallhaven(q: string, page: number, enabled: boolean) {
-    const ep = `${API_ENDPOINTS.THEME_BACKGROUNDS.SearchWallhaven.endpoint}?q=${encodeURIComponent(q)}&page=${page}`
+    const ep = `/api/v1/theme-backgrounds/wallhaven/search?q=${encodeURIComponent(q)}&page=${page}`
     return useServerQuery<WallhavenSearchResponse>({
         endpoint: ep,
         method: "GET",

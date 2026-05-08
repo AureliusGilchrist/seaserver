@@ -132,6 +132,7 @@ export const getDefaultSettings = (data: z.infer<typeof gettingStartedSchema>): 
         autoSelectTorrentProvider: "",
         autoScan: false,
         disableAnimeCardTrailers: false,
+        planningSlutToken: "",
         enableManga: data.enableManga,
         enableOnlinestream: data.enableOnlinestream,
         dohProvider: DEFAULT_DOH_PROVIDER,

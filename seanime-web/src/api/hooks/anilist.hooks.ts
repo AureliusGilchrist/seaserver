@@ -159,9 +159,9 @@ export function useGetAnilistStaffDetails(id: number) {
 
 export function useGetAnilistCharacterDetails(id: number) {
     return useServerQuery<any>({
-        endpoint: API_ENDPOINTS.ANILIST.GetAnilistCharacterDetails.endpoint.replace("{id}", String(id)),
-        method: API_ENDPOINTS.ANILIST.GetAnilistCharacterDetails.methods[0],
-        queryKey: [API_ENDPOINTS.ANILIST.GetAnilistCharacterDetails.key, String(id)],
+        endpoint: API_ENDPOINTS.CHARACTER.GetAnilistCharacterDetails.endpoint.replace("{id}", String(id)),
+        method: API_ENDPOINTS.CHARACTER.GetAnilistCharacterDetails.methods[0],
+        queryKey: [API_ENDPOINTS.CHARACTER.GetAnilistCharacterDetails.key, String(id)],
         enabled: id > 0,
         staleTime: 30 * 60 * 1000,
         gcTime: 60 * 60 * 1000,

@@ -1,7 +1,7 @@
 "use client"
 
 import { useGetAnilistStaffDetails } from "@/api/hooks/anilist.hooks"
-import { AL_StaffDetails_Staff_StaffMedia_Edge_Node } from "@/api/generated/types"
+import { AL_StaffDetails_Staff_StaffMedia_Edges_Node } from "@/api/generated/types"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -18,8 +18,8 @@ export default function Page() {
     const { data, isLoading } = useGetAnilistStaffDetails(id)
 
     const { animeWorks, mangaWorks } = useMemo(() => {
-        const anime: AL_StaffDetails_Staff_StaffMedia_Edge_Node[] = []
-        const manga: AL_StaffDetails_Staff_StaffMedia_Edge_Node[] = []
+        const anime: AL_StaffDetails_Staff_StaffMedia_Edges_Node[] = []
+        const manga: AL_StaffDetails_Staff_StaffMedia_Edges_Node[] = []
         const seen = new Set<number>()
 
         for (const edge of data?.Staff?.staffMedia?.edges ?? []) {

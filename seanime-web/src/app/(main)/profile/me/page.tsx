@@ -24,12 +24,12 @@ import {
     Achievement_Definition,
     Achievement_Entry,
     AL_Stats,
-    Handlers_RecentAchievementEntry,
-    Handlers_ShowcaseEntry,
     ProfileStats_ActivityDay,
     ProfileStats_PersonalityResult,
     ProfileStats_StreakInfo,
 } from "@/api/generated/types"
+type Handlers_RecentAchievementEntry = any
+type Handlers_ShowcaseEntry = any
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { AchievementShowcase } from "@/app/(main)/_features/achievement/achievement-showcase"
 import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
@@ -563,7 +563,7 @@ function AchievementsTabContent({ editable, isAdmin }: { editable?: boolean; isA
     const { config: animeConfig } = useAnimeTheme()
     const [selectedCategory, setSelectedCategory] = React.useState<Achievement_Category | "all">("all")
     const { mutate: resetAchievements, isPending: isResetting } = useServerMutation({
-        endpoint: API_ENDPOINTS.ACHIEVEMENTS_EXTRA.ResetAchievements.endpoint,
+        endpoint: API_ENDPOINTS.ACHIEVEMENT.ResetAchievements.endpoint,
         method: "POST",
         onSuccess: () => { window.location.reload() },
     })
@@ -987,7 +987,7 @@ export function AchievementCard({ definition, entryMap }: { definition: Achievem
         const isUnlocked = entry?.isUnlocked ?? false
         return (
             <div className={cn("relative flex items-start gap-3 p-4 rounded-xl border transition-colors", isUnlocked ? "bg-[--paper] border-yellow-500/30" : "bg-[--paper] border-[--border] opacity-60")}>
-                <AchievementIcon svg={definition.IconSVG} isUnlocked={isUnlocked} />
+                <AchievementIcon svg={definition.IconSVG ?? ""} isUnlocked={isUnlocked} />
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm truncate">{achievementName}</span>
@@ -1018,7 +1018,7 @@ export function AchievementCard({ definition, entryMap }: { definition: Achievem
             "relative flex items-start gap-3 p-4 rounded-xl border transition-colors",
             isFullyUnlocked ? "bg-[--paper] border-yellow-500/30" : highestUnlockedTier > 0 ? "bg-[--paper] border-brand-500/20" : "bg-[--paper] border-[--border] opacity-60",
         )}>
-            <AchievementIcon svg={definition.IconSVG} isUnlocked={highestUnlockedTier > 0} />
+            <AchievementIcon svg={definition.IconSVG ?? ""} isUnlocked={highestUnlockedTier > 0} />
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm truncate">{achievementName}</span>

@@ -1,12 +1,10 @@
 import { useServerQuery, useServerMutation, buildSeaQuery } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import {
-    Handlers_ActivityFeedEntry,
-    Handlers_CommunityResponse,
-    Handlers_LevelResponse,
-    Handlers_ProfilePageResponse,
-    Handlers_TimelineResponse,
-} from "@/api/generated/types"
+type Handlers_ActivityFeedEntry = any
+type Handlers_CommunityResponse = any
+type Handlers_LevelResponse = any
+type Handlers_ProfilePageResponse = any
+type Handlers_TimelineResponse = any
 import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
 import { useAtomValue } from "jotai/react"
@@ -69,11 +67,11 @@ export function useUpdateBio() {
 export function useGetTimeline(pageSize = 50) {
     const password = useAtomValue(serverAuthTokenAtom)
     return useInfiniteQuery({
-        queryKey: [API_ENDPOINTS.PROFILE_PAGE.GetTimeline.key, pageSize],
+        queryKey: [API_ENDPOINTS.TIMELINE.GetTimeline.key, pageSize],
         initialPageParam: 1,
         queryFn: async ({ pageParam }) => {
             return buildSeaQuery<Handlers_TimelineResponse>({
-                endpoint: API_ENDPOINTS.PROFILE_PAGE.GetTimeline.endpoint,
+                endpoint: API_ENDPOINTS.TIMELINE.GetTimeline.endpoint,
                 method: "GET",
                 params: { page: pageParam, pageSize },
                 password: password,

@@ -46,9 +46,9 @@ export function useToggleMangaFavorite() {
 
 export function useGetCharacterFavorites() {
     return useServerQuery<number[]>({
-        endpoint: API_ENDPOINTS.CHARACTER_FAVORITE.GetCharacterFavorites.endpoint,
-        method: API_ENDPOINTS.CHARACTER_FAVORITE.GetCharacterFavorites.methods[0],
-        queryKey: [API_ENDPOINTS.CHARACTER_FAVORITE.GetCharacterFavorites.key],
+        endpoint: API_ENDPOINTS.ENTITY_FAVORITE.GetCharacterFavorites.endpoint,
+        method: API_ENDPOINTS.ENTITY_FAVORITE.GetCharacterFavorites.methods[0],
+        queryKey: [API_ENDPOINTS.ENTITY_FAVORITE.GetCharacterFavorites.key],
         enabled: true,
     })
 }
@@ -56,20 +56,20 @@ export function useGetCharacterFavorites() {
 export function useToggleCharacterFavorite() {
     const qc = useQueryClient()
     return useServerMutation<boolean, { characterId: number }>({
-        endpoint: API_ENDPOINTS.CHARACTER_FAVORITE.ToggleCharacterFavorite.endpoint,
-        method: API_ENDPOINTS.CHARACTER_FAVORITE.ToggleCharacterFavorite.methods[0],
-        mutationKey: [API_ENDPOINTS.CHARACTER_FAVORITE.ToggleCharacterFavorite.key],
+        endpoint: API_ENDPOINTS.ENTITY_FAVORITE.ToggleCharacterFavorite.endpoint,
+        method: API_ENDPOINTS.ENTITY_FAVORITE.ToggleCharacterFavorite.methods[0],
+        mutationKey: [API_ENDPOINTS.ENTITY_FAVORITE.ToggleCharacterFavorite.key],
         onSuccess: async () => {
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.CHARACTER_FAVORITE.GetCharacterFavorites.key] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.ENTITY_FAVORITE.GetCharacterFavorites.key] })
         },
     })
 }
 
 export function useGetStaffFavorites() {
     return useServerQuery<number[]>({
-        endpoint: API_ENDPOINTS.STAFF_FAVORITE.GetStaffFavorites.endpoint,
-        method: API_ENDPOINTS.STAFF_FAVORITE.GetStaffFavorites.methods[0],
-        queryKey: [API_ENDPOINTS.STAFF_FAVORITE.GetStaffFavorites.key],
+        endpoint: API_ENDPOINTS.ENTITY_FAVORITE.GetStaffFavorites.endpoint,
+        method: API_ENDPOINTS.ENTITY_FAVORITE.GetStaffFavorites.methods[0],
+        queryKey: [API_ENDPOINTS.ENTITY_FAVORITE.GetStaffFavorites.key],
         enabled: true,
     })
 }
@@ -77,20 +77,20 @@ export function useGetStaffFavorites() {
 export function useToggleStaffFavorite() {
     const qc = useQueryClient()
     return useServerMutation<boolean, { staffId: number }>({
-        endpoint: API_ENDPOINTS.STAFF_FAVORITE.ToggleStaffFavorite.endpoint,
-        method: API_ENDPOINTS.STAFF_FAVORITE.ToggleStaffFavorite.methods[0],
-        mutationKey: [API_ENDPOINTS.STAFF_FAVORITE.ToggleStaffFavorite.key],
+        endpoint: API_ENDPOINTS.ENTITY_FAVORITE.ToggleStaffFavorite.endpoint,
+        method: API_ENDPOINTS.ENTITY_FAVORITE.ToggleStaffFavorite.methods[0],
+        mutationKey: [API_ENDPOINTS.ENTITY_FAVORITE.ToggleStaffFavorite.key],
         onSuccess: async () => {
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.STAFF_FAVORITE.GetStaffFavorites.key] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.ENTITY_FAVORITE.GetStaffFavorites.key] })
         },
     })
 }
 
 export function useGetStudioFavorites() {
     return useServerQuery<number[]>({
-        endpoint: API_ENDPOINTS.STUDIO_FAVORITE.GetStudioFavorites.endpoint,
-        method: API_ENDPOINTS.STUDIO_FAVORITE.GetStudioFavorites.methods[0],
-        queryKey: [API_ENDPOINTS.STUDIO_FAVORITE.GetStudioFavorites.key],
+        endpoint: API_ENDPOINTS.ENTITY_FAVORITE.GetStudioFavorites.endpoint,
+        method: API_ENDPOINTS.ENTITY_FAVORITE.GetStudioFavorites.methods[0],
+        queryKey: [API_ENDPOINTS.ENTITY_FAVORITE.GetStudioFavorites.key],
         enabled: true,
     })
 }
@@ -98,11 +98,11 @@ export function useGetStudioFavorites() {
 export function useToggleStudioFavorite() {
     const qc = useQueryClient()
     return useServerMutation<boolean, { studioId: number }>({
-        endpoint: API_ENDPOINTS.STUDIO_FAVORITE.ToggleStudioFavorite.endpoint,
-        method: API_ENDPOINTS.STUDIO_FAVORITE.ToggleStudioFavorite.methods[0],
-        mutationKey: [API_ENDPOINTS.STUDIO_FAVORITE.ToggleStudioFavorite.key],
+        endpoint: API_ENDPOINTS.ENTITY_FAVORITE.ToggleStudioFavorite.endpoint,
+        method: API_ENDPOINTS.ENTITY_FAVORITE.ToggleStudioFavorite.methods[0],
+        mutationKey: [API_ENDPOINTS.ENTITY_FAVORITE.ToggleStudioFavorite.key],
         onSuccess: async () => {
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.STUDIO_FAVORITE.GetStudioFavorites.key] })
+            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.ENTITY_FAVORITE.GetStudioFavorites.key] })
         },
     })
 }
