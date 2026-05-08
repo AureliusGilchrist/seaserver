@@ -1,6 +1,7 @@
 package playbackmanager
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"seanime/internal/api/anilist"
@@ -90,6 +91,15 @@ func (pm *PlaybackManager) getLocalFilePlaybackDetails(path string) (*anilist.An
 	}
 
 	ret, ok := pm.animeCollection.MustGet().GetListEntryFromAnimeId(lf.MediaId)
+	if !ok {
+		// Collection may be stale; attempt a forced refresh and retry once
+		pm.Logger.Debug().Int("mediaId", lf.MediaId).Msg("playback manager: AniList entry not found in cached collection, refreshing...")
+		freshCollection, fetchErr := pm.platformRef.Get().GetAnimeCollection(context.Background(), true)
+		if fetchErr == nil {
+			pm.animeCollection = mo.Some(freshCollection)
+			ret, ok = freshCollection.GetListEntryFromAnimeId(lf.MediaId)
+		}
+	}
 	if !ok {
 		return nil, nil, nil, errors.New("anilist list entry not found")
 	}

@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"fmt"
 	"time"
 	"seanime/internal/continuity"
 	discordrpc_presence "seanime/internal/discordrpc/presence"
@@ -548,7 +549,7 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 		// Check if we should update the progress
 		// If the current progress is lower than the episode progress number
 		epProgressNum := pm.currentLocalFileWrapperEntry.MustGet().GetProgressNumber(pm.currentLocalFile.MustGet())
-		if *pm.currentMediaListEntry.MustGet().Progress >= epProgressNum {
+		if pm.currentMediaListEntry.MustGet().GetProgressSafe() >= epProgressNum {
 			return
 		}
 
@@ -558,7 +559,7 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 		}
 		// Do not auto update progress is the media is in the library AND the progress is higher than the current episode
 		epProgressNum := pm.currentStreamEpisode.MustGet().GetProgressNumber()
-		if pm.currentMediaListEntry.IsPresent() && *pm.currentMediaListEntry.MustGet().Progress >= epProgressNum {
+		if pm.currentMediaListEntry.IsPresent() && pm.currentMediaListEntry.MustGet().GetProgressSafe() >= epProgressNum {
 			return
 		}
 	}
@@ -684,7 +685,7 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 	)
 	if err != nil {
 		pm.Logger.Error().Err(err).Msg("playback manager: Error occurred while updating progress on AniList")
-		return ErrProgressUpdateAnilist
+		return fmt.Errorf("%w: %v", ErrProgressUpdateAnilist, err)
 	}
 
 	pm.refreshAnimeCollectionFunc() // Refresh the AniList collection
