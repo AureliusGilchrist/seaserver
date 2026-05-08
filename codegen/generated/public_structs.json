@@ -1,5 +1,64 @@
 [
   {
+    "filepath": "../internal/achievement/activity_tracker.go",
+    "filename": "activity_tracker.go",
+    "name": "ActivityKind",
+    "formattedName": "Achievement_ActivityKind",
+    "package": "achievement",
+    "fields": [],
+    "aliasOf": {
+      "goType": "string",
+      "typescriptType": "string",
+      "declaredValues": [
+        "\"anime\"",
+        "\"manga\""
+      ]
+    },
+    "comments": [
+      " ActivityKind tags an active-engagement session by media type.",
+      " This separation prevents cross-contamination (e.g. watching anime",
+      " incrementing manga reading achievements)."
+    ]
+  },
+  {
+    "filepath": "../internal/achievement/activity_tracker.go",
+    "filename": "activity_tracker.go",
+    "name": "ActivityTracker",
+    "formattedName": "Achievement_ActivityTracker",
+    "package": "achievement",
+    "fields": [
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "sessions",
+        "jsonName": "sessions",
+        "goType": "map[uint]map[ActivityKind]sessionState",
+        "typescriptType": "Record\u003cnumber, Record\u003cAchievement_ActivityKind, Achievement_sessionState\u003e\u003e",
+        "usedTypescriptType": "Achievement_sessionState",
+        "usedStructName": "achievement.sessionState",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ActivityTracker holds per-profile, per-kind active-engagement sessions.",
+      " All time accounting is server-authoritative — the client only declares",
+      " \"I am actively doing X right now\" via a heartbeat; the server measures",
+      " the elapsed wall-clock between heartbeats (clamped) and resets after",
+      " InactivityTimeout."
+    ]
+  },
+  {
     "filepath": "../internal/achievement/definitions.go",
     "filename": "definitions.go",
     "name": "Category",
@@ -62,6 +121,8 @@
         "\"rating_change\"",
         "\"status_change\"",
         "\"session_update\"",
+        "\"anime_activity\"",
+        "\"manga_activity\"",
         "\"collection_refresh\"",
         "\"favorite_toggle\"",
         "\"nakama_event\"",
@@ -487,6 +548,17 @@
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "activityTracker",
+        "jsonName": "activityTracker",
+        "goType": "ActivityTracker",
+        "typescriptType": "Achievement_ActivityTracker",
+        "usedTypescriptType": "Achievement_ActivityTracker",
+        "usedStructName": "achievement.ActivityTracker",
+        "required": false,
         "public": false,
         "comments": []
       }

@@ -215,3 +215,60 @@ export function useAchievementUnlockListener() {
         hasPending: pendingUnlocks.length > 0,
     }
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Active-engagement heartbeat
+// Fires a server-authoritative "I'm actively watching/reading right now"
+// ping. The server measures wall-clock between heartbeats (clamped to
+// 90s, reset after 1h of inactivity) and uses that for the continuous-
+// session hour achievements. Client-reported durations are NEVER trusted.
+// ─────────────────────────────────────────────────────────────────
+
+export type AchievementActivityKind = "anime" | "manga"
+
+export function useAchievementHeartbeat() {
+    const password = useAtomValue(serverAuthTokenAtom)
+    const profileToken = useAtomValue(profileSessionTokenAtom)
+
+    return useCallback(async (kind: AchievementActivityKind) => {
+        try {
+            await buildSeaQuery<boolean>({
+                endpoint: API_ENDPOINTS.ACHIEVEMENT.AchievementHeartbeat.endpoint,
+                method: API_ENDPOINTS.ACHIEVEMENT.AchievementHeartbeat.methods[0],
+                data: { kind },
+                password: password,
+                profileToken: profileToken,
+            })
+        } catch {
+            // best-effort; never disrupt UX over a heartbeat failure
+        }
+    }, [password, profileToken])
+}
+
+/**
+ * Drives a 30-second heartbeat while `isActive` is true. The caller
+ * should pass a stable predicate that reflects ACTUAL engagement
+ * (e.g. video playing AND tab visible, or recent reader interaction).
+ *
+ * Server treats >1h between heartbeats as session reset, so a missed
+ * tick or two is harmless.
+ */
+export function useAchievementActivityHeartbeat(
+    kind: AchievementActivityKind,
+    isActive: () => boolean,
+    intervalMs: number = 30_000,
+) {
+    const heartbeat = useAchievementHeartbeat()
+    useEffect(() => {
+        const tick = () => {
+            try {
+                if (isActive()) void heartbeat(kind)
+            } catch { /* ignore */ }
+        }
+        // Fire immediately so a short session still gets one heartbeat.
+        tick()
+        const id = window.setInterval(tick, intervalMs)
+        return () => window.clearInterval(id)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [kind, intervalMs, heartbeat])
+}

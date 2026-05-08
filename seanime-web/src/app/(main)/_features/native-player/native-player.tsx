@@ -5,6 +5,7 @@ import { vc_miniPlayer, vc_requestTranscodeForAudio, vc_videoElement, vc_directP
 import { vc_subtitleManager, VideoCore } from "@/app/(main)/_features/video-core/video-core"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
+import { useAchievementActivityHeartbeat } from "@/api/hooks/achievement.hooks"
 import { clientIdAtom } from "@/app/websocket-provider"
 import { logger } from "@/lib/helpers/debug"
 import { useRouter } from "@/lib/navigation"
@@ -44,6 +45,18 @@ export function NativePlayer() {
     React.useEffect(() => {
         qc.invalidateQueries({ queryKey: [API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.key] })
     }, [state])
+
+    // Achievement: server-authoritative active-engagement heartbeat.
+    // Only fires while the video is actually playing AND the tab is visible —
+    // matches the user's intuition that "watching an anime" means actually
+    // watching, not just having a tab open.
+    useAchievementActivityHeartbeat("anime", React.useCallback(() => {
+        const v = videoElement
+        if (!v) return false
+        if (v.paused || v.ended) return false
+        if (typeof document !== "undefined" && document.visibilityState !== "visible") return false
+        return true
+    }, [videoElement]))
 
     //
     // Subtitle event buffering

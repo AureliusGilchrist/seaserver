@@ -9,6 +9,7 @@ import { vc_requestTranscodeForAudio } from "@/app/(main)/_features/video-core/v
 import { vc_directPlayAudioUrl, vc_directPlayAudioLoading, vc_directPlayAudioElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { getMediastreamSessionId } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { useSkipData } from "@/app/(main)/_features/sea-media-player/aniskip"
+import { useAchievementActivityHeartbeat } from "@/api/hooks/achievement.hooks"
 import { useAtomValue } from "jotai"
 import { useSetAtom } from "jotai/react"
 import { toast } from "sonner"
@@ -96,6 +97,16 @@ function MediastreamDirectPlayEffects({
     const setDirectPlayAudioUrl = useSetAtom(vc_directPlayAudioUrl)
     const setDirectPlayAudioLoading = useSetAtom(vc_directPlayAudioLoading)
     const setDirectPlayAudioElement = useSetAtom(vc_directPlayAudioElement)
+
+    // Achievement: server-authoritative active-engagement heartbeat
+    // (only while video is actually playing AND tab is visible).
+    useAchievementActivityHeartbeat("anime", React.useCallback(() => {
+        const v = videoElement
+        if (!v) return false
+        if (v.paused || v.ended) return false
+        if (typeof document !== "undefined" && document.visibilityState !== "visible") return false
+        return true
+    }, [videoElement]))
 
     // Refs for the hidden audio element and rAF sync loop
     const audioElementRef = React.useRef<HTMLAudioElement | null>(null)

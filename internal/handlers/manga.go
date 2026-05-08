@@ -737,22 +737,6 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 		},
 	})
 
-	// Fire session update for binge/continuous reading achievements
-	if sessionChapters > 1 {
-		h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
-			ProfileID: profileID,
-			Trigger:   achievement.TriggerSessionUpdate,
-			MediaID:   b.MediaId,
-			Timestamp: now,
-			Metadata: map[string]interface{}{
-				"count":           float64(1),
-				"session_chapters": float64(sessionChapters),
-				"session_hours":   sessionHours,
-				"session_minutes": float64(sessionMinutes),
-			},
-		})
-	}
-
 	// Fire manga complete achievement
 	if isCompleted {
 		h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{

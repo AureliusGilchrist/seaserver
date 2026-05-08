@@ -1,10 +1,8 @@
 package handlers
 
 import (
-	"seanime/internal/achievement"
 	"seanime/internal/continuity"
 	"strconv"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -38,19 +36,6 @@ func (h *Handler) HandleUpdateContinuityWatchHistoryItem(c echo.Context) error {
 			return h.RespondWithError(c, err)
 		}
 	}
-
-	// Fire achievement event for session update (time-of-day tracking)
-	now := time.Now()
-	go h.App.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
-		ProfileID: profileID,
-		Trigger:   achievement.TriggerSessionUpdate,
-		MediaID:   b.Options.MediaId,
-		Timestamp: now,
-		Metadata: map[string]interface{}{
-			"hour":   now.Hour(),
-			"minute": now.Minute(),
-		},
-	})
 
 	return h.RespondWithData(c, true)
 }

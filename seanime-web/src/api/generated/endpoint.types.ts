@@ -60,6 +60,17 @@ export type SetAchievementShowcase_Variables = {
     slots: Array<{ slot: number; achievementKey: string; achievementTier: number; }>
 }
 
+/**
+ * - Filepath: internal/handlers/achievement.go
+ * - Filename: achievement.go
+ * - Endpoint: /api/v1/achievements/heartbeat
+ * @description
+ * Route records active engagement (watching anime or reading manga).
+ */
+export type AchievementHeartbeat_Variables = {
+    kind: string
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // achievement_stats
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

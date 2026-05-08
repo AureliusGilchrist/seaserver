@@ -35,20 +35,20 @@ var mangaDefinitions = []Definition{
 	{Key: "m_binge_reader", Name: "Binge Reader", Description: "Read {threshold}+ chapters in a single day", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{20, 50, 100, 150, 200, 250, 300, 400, 500, 750}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_marathon_reader", Name: "Marathon Reader", Description: "Complete a full manga in a single day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaComplete}},
 	{Key: "m_weekend_reader", Name: "Weekend Reader", Description: "Read {threshold}+ chapters on weekends (cumulative)", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{50, 200, 500, 1000, 2500, 4000, 8000, 20000, 60000, 210000}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
-	{Key: "m_non_stop_reading", Name: "Non-Stop Reading", Description: "Read for {threshold}+ hours continuously", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{2, 4, 6, 10, 16, 20, 24, 30, 36, 48}, TierNames: t10, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "m_non_stop_reading", Name: "Non-Stop Reading", Description: "Read for {threshold}+ hours continuously", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{2, 4, 6, 10, 16, 20, 24, 30, 36, 48}, TierNames: t10, Triggers: []EvalTrigger{TriggerMangaActivity}},
 	{Key: "m_one_more_chapter", Name: "One More Chapter", Description: "Read {threshold}+ chapters after midnight in one session", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{10, 25, 50, 75, 100, 125, 150, 200, 250, 300}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_speed_read", Name: "Speed Read", Description: "Complete a 50+ chapter manga in one day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaComplete}},
 	{Key: "m_double_story", Name: "Double Story", Description: "Complete 2 manga in one day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaComplete}},
 	{Key: "m_triple_read", Name: "Triple Read", Description: "Read 3 different manga in one day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_five_a_day", Name: "Five-a-Day Reader", Description: "Read from 5 different manga in one day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
-	{Key: "m_chapter_chain", Name: "Chapter Chain", Description: "Read {threshold}+ chapters back to back without break", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{20, 40, 60, 80, 100, 125, 150, 200, 250, 300}, TierNames: t10, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "m_chapter_chain", Name: "Chapter Chain", Description: "Read {threshold}+ chapters back to back without break", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{20, 40, 60, 80, 100, 125, 150, 200, 250, 300}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_volume_binge", Name: "Volume Binge", Description: "Read an entire volume (8+ chapters) in one sitting", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_power_reader", Name: "Power Reader", Description: "Read 50+ chapters in one day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
-	{Key: "m_half_day_read", Name: "Half-Day Read", Description: "Read for 6+ hours in a single day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerSessionUpdate}},
-	{Key: "m_full_day_read", Name: "Full-Day Read", Description: "Read for 12+ hours in a single day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "m_half_day_read", Name: "Half-Day Read", Description: "Read for 6+ hours in a single day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaActivity}},
+	{Key: "m_full_day_read", Name: "Full-Day Read", Description: "Read for 12+ hours in a single day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaActivity}},
 	{Key: "m_power_weekend", Name: "Power Weekend Reader", Description: "Read {threshold}+ chapters in a single weekend", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{25, 50, 100, 150, 200, 250, 300, 400, 500, 750}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_binge_king", Name: "Binge King Reader", Description: "Binge 100+ chapters total across all days", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
-	{Key: "m_no_sleep_read", Name: "No Sleep Reader", Description: "Read manga from 10PM to 6AM without stopping", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "m_no_sleep_read", Name: "No Sleep Reader", Description: "Read manga from 10PM to 6AM without stopping", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaActivity}},
 	{Key: "m_full_series_rush", Name: "Full Series Rush", Description: "Read all chapters of a 100+ chapter manga in under 3 days", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaComplete}},
 	{Key: "m_seven_day_challenge", Name: "Seven Day Reading Challenge", Description: "Read manga every day for a week straight", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_hundred_day_read", Name: "Hundred-Day Read", Description: "Read manga for 100 consecutive days", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
@@ -285,7 +285,7 @@ var mangaDefinitions = []Definition{
 
 	{Key: "m_afternoon_reader", Name: "Afternoon Reader", Description: "Read {threshold}+ chapters between 2 PM and 5 PM", Category: CategoryMangaTime, MaxTier: 10, TierThresholds: []int{25, 100, 250, 500, 1000, 1600, 3200, 8000, 24000, 84000}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_golden_hour_reader", Name: "Golden Hour Reader", Description: "Read {threshold}+ chapters between 6 PM and 8 PM", Category: CategoryMangaTime, MaxTier: 10, TierThresholds: []int{25, 100, 250, 500, 1000, 1600, 3200, 8000, 24000, 84000}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
-	{Key: "m_dawn_reader", Name: "Dawn Reader", Description: "Read manga from midnight to dawn (6 AM consecutive)", Category: CategoryMangaTime, MaxTier: 0, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "m_dawn_reader", Name: "Dawn Reader", Description: "Read manga from midnight to dawn (6 AM consecutive)", Category: CategoryMangaTime, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaActivity}},
 	{Key: "m_twilight_reader", Name: "Twilight Reader", Description: "Read manga between 3 AM and 5 AM for 3 consecutive days", Category: CategoryMangaTime, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_midnight_start", Name: "Midnight Start", Description: "Start a new manga exactly at midnight", Category: CategoryMangaTime, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
 
@@ -390,7 +390,7 @@ var mangaDefinitions = []Definition{
 	{Key: "m_multi_series_binge", Name: "Multi-Series Read", Description: "Read from {threshold}+ different manga in one day", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{3, 5, 7, 10, 15, 20, 25, 30, 40, 50}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_midnight_binge", Name: "Midnight Reading Binge", Description: "Read {threshold}+ chapters between midnight and 4 AM in one session", Category: CategoryMangaBinge, MaxTier: 10, TierThresholds: []int{10, 25, 50, 75, 100, 125, 150, 200, 250, 300}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_new_year_binge", Name: "New Year Reading Binge", Description: "Read 50+ chapters on January 1st", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
-	{Key: "m_forty_eight_hour", Name: "48-Hour Reading Marathon", Description: "Read manga for 48 cumulative hours in one week", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "m_forty_eight_hour", Name: "48-Hour Reading Marathon", Description: "Read manga for 48 cumulative hours in one week", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaActivity}},
 	{Key: "m_oneshot_binge", Name: "Oneshot Binge", Description: "Read 10+ oneshot manga in a single day", Category: CategoryMangaBinge, MaxTier: 0, Triggers: []EvalTrigger{TriggerMangaComplete}},
 
 	// ═══════════════════════════════════════════════
@@ -432,11 +432,11 @@ var mangaDefinitions = []Definition{
 	// MANGA ADDITIONAL TIME (6 definitions)
 	// ═══════════════════════════════════════════════
 
-	{Key: "m_weekend_binge_hours", Name: "Weekend Reading Hours", Description: "Spend {threshold}+ hours reading on a single weekend", Category: CategoryMangaTime, MaxTier: 10, TierThresholds: []int{3, 6, 10, 16, 24, 30, 36, 42, 48, 72}, TierNames: t10, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "m_weekend_binge_hours", Name: "Weekend Reading Hours", Description: "Spend {threshold}+ hours reading on a single weekend", Category: CategoryMangaTime, MaxTier: 10, TierThresholds: []int{3, 6, 10, 16, 24, 30, 36, 42, 48, 72}, TierNames: t10, Triggers: []EvalTrigger{TriggerMangaActivity}},
 	{Key: "m_late_night_regular", Name: "Late Night Regular Reader", Description: "Read manga past midnight on {threshold}+ different days", Category: CategoryMangaTime, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 200, 325, 650, 1600, 4800, 17000}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_sunrise_reader", Name: "Sunrise Reader", Description: "Read manga from 4 AM to 7 AM", Category: CategoryMangaTime, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
 	{Key: "m_every_day_of_week", Name: "Every Day of Week Reader", Description: "Read manga on every day of the week in one week", Category: CategoryMangaTime, MaxTier: 0, Triggers: []EvalTrigger{TriggerChapterProgress}},
-	{Key: "m_monthly_hours", Name: "Monthly Reading Hours", Description: "Spend {threshold}+ hours reading manga in a single month", Category: CategoryMangaTime, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 200, 325, 650, 1600, 4800, 17000}, TierNames: t10, Triggers: []EvalTrigger{TriggerSessionUpdate}},
+	{Key: "m_monthly_hours", Name: "Monthly Reading Hours", Description: "Spend {threshold}+ hours reading manga in a single month", Category: CategoryMangaTime, MaxTier: 10, TierThresholds: []int{10, 25, 50, 100, 200, 325, 650, 1600, 4800, 17000}, TierNames: t10, Triggers: []EvalTrigger{TriggerMangaActivity}},
 	{Key: "m_bedtime_reader", Name: "Bedtime Reader", Description: "Read {threshold}+ chapters between 10 PM and midnight", Category: CategoryMangaTime, MaxTier: 10, TierThresholds: []int{50, 200, 500, 1000, 2500, 4000, 8000, 20000, 60000, 210000}, TierNames: t10, Triggers: []EvalTrigger{TriggerChapterProgress}},
 
 	// ═══════════════════════════════════════════════

@@ -47,6 +47,14 @@ type Engine struct {
 	defMap     map[string]*Definition
 	mu         sync.Mutex
 	initialized bool
+
+	// activityTracker is the server-authoritative tracker for active
+	// engagement (anime watching / manga reading). It is the ONLY source
+	// of truth for continuous-session hour achievements; clients drive it
+	// via heartbeats and time is measured from wall-clock between
+	// heartbeats (clamped to MaxHeartbeatDelta, reset after
+	// InactivityTimeout). See activity_tracker.go.
+	activityTracker *ActivityTracker
 }
 
 type NewEngineOptions struct {
@@ -66,7 +74,49 @@ func NewEngine(opts *NewEngineOptions) *Engine {
 		getDB:             opts.GetDB,
 		isProfileEligible: opts.IsProfileEligible,
 		defMap:            DefinitionMap(),
+		activityTracker:   NewActivityTracker(),
 	}
+}
+
+// RecordActivity is the entry point for client heartbeats indicating that the
+// user is ACTIVELY engaged in the given kind (anime watching / manga reading).
+// The tracker measures wall-clock between heartbeats (clamped to prevent abuse
+// and reset after 1h of inactivity), and the resulting continuous-session
+// duration is fed to the achievement evaluator as TriggerAnimeActivity /
+// TriggerMangaActivity with metadata "session_hours".
+//
+// This is the ONLY path that drives continuous-session hour achievements
+// (e.g. "Watch continuously for 24+ hours", "Read for 6+ hours continuously").
+// Client-reported durations are NEVER trusted for these.
+func (e *Engine) RecordActivity(profileID uint, kind ActivityKind) {
+	if e == nil || e.activityTracker == nil || profileID == 0 {
+		return
+	}
+	now := time.Now()
+	sessionHours, _ := e.activityTracker.Heartbeat(profileID, kind, now)
+
+	trigger := TriggerAnimeActivity
+	if kind == ActivityKindManga {
+		trigger = TriggerMangaActivity
+	}
+	e.ProcessEvent(&AchievementEvent{
+		ProfileID: profileID,
+		Trigger:   trigger,
+		Timestamp: now,
+		Metadata: map[string]interface{}{
+			"session_hours": sessionHours,
+			"kind":          string(kind),
+		},
+	})
+}
+
+// ResetActivity clears any in-flight activity session for the given profile/kind.
+// Called when the player is closed or reading is explicitly stopped.
+func (e *Engine) ResetActivity(profileID uint, kind ActivityKind) {
+	if e == nil || e.activityTracker == nil {
+		return
+	}
+	e.activityTracker.Reset(profileID, kind)
 }
 
 // ProcessEvent is called from handlers when an actionable event occurs.
@@ -216,6 +266,24 @@ func (e *Engine) computeProgress(def *Definition, tier int, event *AchievementEv
 		CategoryAnimeTime, CategoryMangaTime,
 		CategoryAnimeSocial,
 		CategoryAnimeStreaks, CategoryMangaStreaks:
+		// Activity heartbeats are server-authoritative and ONLY drive the
+		// continuous-session hour tiers. All other defs in these categories
+		// are unaffected by activity events (prevents false-fire from a few
+		// minutes of watching unlocking "72-hour marathon" etc.).
+		if event.Trigger == TriggerAnimeActivity || event.Trigger == TriggerMangaActivity {
+			hours := getMetaFloat(meta, "session_hours")
+			switch def.Key {
+			case "a_non_stop", "m_non_stop_reading":
+				if threshold <= 0 {
+					return currentProgress, false
+				}
+				if hours >= float64(threshold) {
+					return 100, true
+				}
+				return (hours / float64(threshold)) * 100, false
+			}
+			return currentProgress, false
+		}
 		return e.evalIncremental(def, threshold, currentProgress, meta)
 
 	// Holiday date-based

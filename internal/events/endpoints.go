@@ -2,6 +2,7 @@
 package events
 
 const (
+	AchievementHeartbeatEndpoint                       = "ACHIEVEMENT-achievement-heartbeat"
 	AddUnknownMediaEndpoint                            = "ANIME-COLLECTION-add-unknown-media"
 	AdminSetProfileAniListTokenEndpoint                = "PROFILE-admin-set-profile-ani-list-token"
 	AnilistListAnimeEndpoint                           = "ANILIST-anilist-list-anime"

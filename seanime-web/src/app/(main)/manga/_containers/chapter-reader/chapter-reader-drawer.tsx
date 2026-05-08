@@ -1,5 +1,6 @@
 import { AL_BaseManga, Manga_ChapterContainer, Manga_EntryListData } from "@/api/generated/types"
 import { useGetMangaEntryPages, useUpdateMangaProgress } from "@/api/hooks/manga.hooks"
+import { useAchievementActivityHeartbeat } from "@/api/hooks/achievement.hooks"
 import { useSeaCommandInject } from "@/app/(main)/_features/sea-command/use-inject"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { MangaHorizontalReader } from "@/app/(main)/manga/_containers/chapter-reader/_components/chapter-horizontal-reader"
@@ -63,6 +64,7 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
     const setCurrentChapter = useSetCurrentChapter()
 
     const setCurrentPageIndex = useSetAtom(__manga_currentPageIndexAtom)
+    const currentPageIndex = useAtomValue(__manga_currentPageIndexAtom)
     const setCurrentPaginationMapIndex = useSetAtom(__manga_currentPaginationMapIndexAtom)
 
     const [readingMode, setReadingMode] = useAtom(__manga_readingModeAtom)
@@ -105,6 +107,19 @@ export function ChapterReaderDrawer(props: ChapterDrawerProps) {
     React.useEffect(() => {
         chapterOpenTimeRef.current = Date.now()
     }, [currentChapter?.chapterId])
+
+    // Achievement: server-authoritative active-engagement heartbeat for manga.
+    // Only fires while the user has interacted (changed page or opened a new chapter)
+    // within the last 60s AND the tab is visible — prevents leaving the drawer open
+    // with the tab buried/idle from racking up reading hours.
+    const lastMangaInteractionRef = React.useRef<number>(Date.now())
+    React.useEffect(() => {
+        lastMangaInteractionRef.current = Date.now()
+    }, [currentPageIndex, currentChapter?.chapterId])
+    useAchievementActivityHeartbeat("manga", React.useCallback(() => {
+        if (typeof document !== "undefined" && document.visibilityState !== "visible") return false
+        return Date.now() - lastMangaInteractionRef.current < 60_000
+    }, []))
 
     /**
      * Switch back to PAGED mode if the page dimensions could not be fetched efficiently

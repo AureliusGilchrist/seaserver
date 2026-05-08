@@ -121,6 +121,8 @@ export type Achievement_EvalTrigger = "episode_progress" |
     "rating_change" |
     "status_change" |
     "session_update" |
+    "anime_activity" |
+    "manga_activity" |
     "collection_refresh" |
     "favorite_toggle" |
     "nakama_event" |

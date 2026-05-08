@@ -473,23 +473,6 @@ func (a *App) initModulesOnce() {
 			},
 		})
 
-		// Achievement: session update — triggers binge/continuous-watch achievements.
-		// count = 1 means "one more episode in session"; the engine accumulates this.
-		// session_hours lets the evaluator check time-based thresholds via metadata.
-		if evt.SessionEpisodeCount >= 1 {
-			a.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
-				ProfileID: evt.ProfileID,
-				Trigger:   achievement.TriggerSessionUpdate,
-				MediaID:   evt.MediaID,
-				Metadata: map[string]interface{}{
-					"count":           float64(1),
-					"session_episodes": float64(evt.SessionEpisodeCount),
-					"session_hours":   sessionHours,
-					"session_minutes": float64(evt.SessionMinutes),
-				},
-			})
-		}
-
 		// Achievement + activity event: series completed
 		if evt.TotalEpisodes > 0 && evt.EpisodeNumber >= evt.TotalEpisodes {
 			a.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{

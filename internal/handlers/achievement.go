@@ -306,5 +306,40 @@ func (h *Handler) HandleResetAchievements(c echo.Context) error {
 	if err := pdb.ResetAllAchievements(); err != nil {
 		return h.RespondWithError(c, err)
 	}
+	// Also clear any in-flight active-engagement sessions so a stale tracker
+	// state can't immediately repopulate hour progress.
+	h.App.AchievementEngine.ResetActivity(profileID, achievement.ActivityKindAnime)
+	h.App.AchievementEngine.ResetActivity(profileID, achievement.ActivityKindManga)
+	return h.RespondWithData(c, true)
+}
+
+// HandleAchievementHeartbeat
+//
+//	@summary records active engagement (watching anime or reading manga).
+//	@desc Server-authoritative heartbeat. The frontend calls this every ~30s ONLY while the user is actively playing or reading. The server measures wall-clock between heartbeats (clamped to 90s, reset after 1h of inactivity) and uses that for continuous-session hour achievements. Body: {"kind": "anime" | "manga"}.
+//	@returns bool
+//	@route /api/v1/achievements/heartbeat [POST]
+func (h *Handler) HandleAchievementHeartbeat(c echo.Context) error {
+	type body struct {
+		Kind string `json:"kind"`
+	}
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	profileID := h.GetProfileID(c)
+	if profileID == 0 {
+		return h.RespondWithData(c, true)
+	}
+	var kind achievement.ActivityKind
+	switch b.Kind {
+	case "anime":
+		kind = achievement.ActivityKindAnime
+	case "manga":
+		kind = achievement.ActivityKindManga
+	default:
+		return h.RespondWithError(c, echo.NewHTTPError(400, "invalid kind: must be 'anime' or 'manga'"))
+	}
+	go h.App.AchievementEngine.RecordActivity(profileID, kind)
 	return h.RespondWithData(c, true)
 }

@@ -79,6 +79,16 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/achievements/reset",
         },
+        /**
+         *  @description
+         *  Route records active engagement (watching anime or reading manga).
+         *  Server-authoritative heartbeat. The frontend calls this every ~30s ONLY while the user is actively playing or reading. The server measures wall-clock between heartbeats (clamped to 90s, reset after 1h of inactivity) and uses that for continuous-session hour achievements. Body: {"kind": "anime" | "manga"}.
+         */
+        AchievementHeartbeat: {
+            key: "ACHIEVEMENT-achievement-heartbeat",
+            methods: ["POST"],
+            endpoint: "/api/v1/achievements/heartbeat",
+        },
     },
     ACTIVITY_BACKFILL: {
         /**

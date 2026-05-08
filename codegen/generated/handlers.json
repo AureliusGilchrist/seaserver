@@ -223,6 +223,46 @@
     }
   },
   {
+    "name": "HandleAchievementHeartbeat",
+    "trimmedName": "AchievementHeartbeat",
+    "comments": [
+      "HandleAchievementHeartbeat",
+      "",
+      "\t@summary records active engagement (watching anime or reading manga).",
+      "\t@desc Server-authoritative heartbeat. The frontend calls this every ~30s ONLY while the user is actively playing or reading. The server measures wall-clock between heartbeats (clamped to 90s, reset after 1h of inactivity) and uses that for continuous-session hour achievements. Body: {\"kind\": \"anime\" | \"manga\"}.",
+      "\t@returns bool",
+      "\t@route /api/v1/achievements/heartbeat [POST]",
+      ""
+    ],
+    "filepath": "internal/handlers/achievement.go",
+    "filename": "achievement.go",
+    "api": {
+      "summary": "records active engagement (watching anime or reading manga).",
+      "descriptions": [
+        "Server-authoritative heartbeat. The frontend calls this every ~30s ONLY while the user is actively playing or reading. The server measures wall-clock between heartbeats (clamped to 90s, reset after 1h of inactivity) and uses that for continuous-session hour achievements. Body: {\"kind\": \"anime\" | \"manga\"}."
+      ],
+      "endpoint": "/api/v1/achievements/heartbeat",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Kind",
+          "jsonName": "kind",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "buildCollectionStats",
     "trimmedName": "buildCollectionStats",
     "comments": [

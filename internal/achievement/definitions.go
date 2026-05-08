@@ -54,7 +54,14 @@ const (
 	TriggerMangaComplete     EvalTrigger = "manga_complete"
 	TriggerRatingChange      EvalTrigger = "rating_change"
 	TriggerStatusChange      EvalTrigger = "status_change"
-	TriggerSessionUpdate     EvalTrigger = "session_update"
+	TriggerSessionUpdate     EvalTrigger = "session_update" // DEPRECATED — see TriggerAnimeActivity / TriggerMangaActivity
+	// TriggerAnimeActivity fires from server-side ActivityTracker heartbeats
+	// when the user is actively watching anime. Carries metadata
+	// "session_hours" — the current continuous-session duration measured
+	// from heartbeats (resets after 1h of inactivity).
+	TriggerAnimeActivity EvalTrigger = "anime_activity"
+	// TriggerMangaActivity is the manga counterpart to TriggerAnimeActivity.
+	TriggerMangaActivity     EvalTrigger = "manga_activity"
 	TriggerCollectionRefresh EvalTrigger = "collection_refresh"
 	TriggerFavoriteToggle    EvalTrigger = "favorite_toggle"
 	TriggerNakamaEvent       EvalTrigger = "nakama_event"
