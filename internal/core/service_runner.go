@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+	"runtime"
+	"runtime/debug"
 	"seanime/internal/api/anilist"
 	"seanime/internal/events"
 	"seanime/internal/util/limiter"
@@ -90,6 +92,24 @@ func (sr *ServiceRunner) Start() {
 				if err := sr.RunAutoPauseStaleWatching(); err != nil {
 					sr.logger.Warn().Err(err).Msg("services: auto-pause stale watching failed")
 				}
+			}
+		}
+	}()
+
+	// Periodic runtime cleanup.
+	// Every 3 hours, force a GC pass and return freed memory back to the OS.
+	// Helps long-running desktop sessions keep their resident set under control.
+	sr.wg.Add(1)
+	go func() {
+		defer sr.wg.Done()
+		ticker := time.NewTicker(3 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-sr.stopCh:
+				return
+			case <-ticker.C:
+				sr.RunRuntimeCleanup()
 			}
 		}
 	}()
@@ -284,4 +304,22 @@ func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
 
 	sr.logger.Info().Int("count", pausedCount).Msg("services: auto-pause stale watching: done")
 	return nil
+}
+
+// RunRuntimeCleanup performs a forced GC pass and asks the runtime to release
+// freed memory back to the OS. Invoked periodically by the background scheduler
+// (every 3 hours) and can also be triggered manually.
+func (sr *ServiceRunner) RunRuntimeCleanup() {
+	var before runtime.MemStats
+	runtime.ReadMemStats(&before)
+	runtime.GC()
+	debug.FreeOSMemory()
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+	sr.logger.Info().
+		Uint64("heapAllocBeforeMB", before.HeapAlloc/1024/1024).
+		Uint64("heapAllocAfterMB", after.HeapAlloc/1024/1024).
+		Uint64("sysMB", after.Sys/1024/1024).
+		Uint32("numGoroutines", uint32(runtime.NumGoroutine())).
+		Msg("services: runtime cleanup completed")
 }

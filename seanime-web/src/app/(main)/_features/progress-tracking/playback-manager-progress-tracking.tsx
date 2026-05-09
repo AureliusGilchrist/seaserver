@@ -136,6 +136,7 @@ export function PlaybackManagerProgressTracking() {
             setIsCompleted(false)
             setShowModal(true) // Show the modal when tracking starts
             setState(data)
+            toast.info("Tracking current session")
         },
     })
 
@@ -214,7 +215,12 @@ export function PlaybackManagerProgressTracking() {
                 queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANILIST.GetAnimeCollection.key] })
 
                 setState(data)
-                toast.success("Progress updated")
+                const newEp = data.episodeNumber
+                if (typeof newEp === "number" && newEp > 0) {
+                    toast.success(`AniList updated from episode ${newEp - 1} to ${newEp}`)
+                } else {
+                    toast.success("Progress updated")
+                }
             }
         },
     })
