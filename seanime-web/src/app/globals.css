@@ -1813,3 +1813,10 @@ body:fullscreen {
     padding: 0 !important;
     border: 0 !important;
 }
+
+/* Disable per-anime-theme h1 animations on the profile name (Feature G2). */
+h1.sea-profile-name,
+[data-anime-theme] h1.sea-profile-name {
+    animation: none !important;
+    text-shadow: none !important;
+}

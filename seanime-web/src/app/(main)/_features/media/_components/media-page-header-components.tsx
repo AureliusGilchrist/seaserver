@@ -12,6 +12,7 @@ import { Tooltip } from "@/components/ui/tooltip"
 import { getScoreColor } from "@/lib/helpers/score"
 import { getImageUrl } from "@/lib/server/assets"
 import { ThemeMediaPageBannerSize, ThemeMediaPageBannerType, ThemeMediaPageInfoBoxSize, useIsMobile, useThemeSettings } from "@/lib/theme/hooks"
+import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import capitalize from "lodash/capitalize"
 import { motion } from "motion/react"
 import React from "react"
@@ -38,6 +39,7 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
     } = props
 
     const ts = useThemeSettings()
+    const animeTheme = useAnimeThemeOrNull()
     const { y } = useWindowScroll()
     const { isMobile } = useIsMobile()
 
@@ -166,10 +168,25 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                         transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
                     />}
 
-                    {shouldBlurBanner && <div
-                        data-media-page-header-banner-blur
-                        className="absolute top-0 w-full h-full backdrop-blur-xl z-[2] "
-                    ></div>}
+                    {/* Banner blur removed (Feature C). Previously rendered backdrop-blur-xl when shouldBlurBanner was true. */}
+
+                    {/* Scanlines overlay (Feature A) — mirrors ThemeBackgroundImage scanlines, gated by Theme Manager setting */}
+                    {!!animeTheme && animeTheme.scanlinesStrength > 0 && (() => {
+                        const lineHeight = Math.round(2 + animeTheme.scanlinesSize * 6)
+                        const a = animeTheme.scanlinesStrength * 0.6
+                        return (
+                            <div
+                                data-media-page-header-banner-scanlines
+                                style={{
+                                    position: "absolute",
+                                    inset: 0,
+                                    backgroundImage: `repeating-linear-gradient(0deg, rgba(0,0,0,${a}) 0px, rgba(0,0,0,${a}) 1px, transparent 1px, transparent ${lineHeight}px)`,
+                                    pointerEvents: "none",
+                                    zIndex: 3,
+                                }}
+                            />
+                        )
+                    })()}
 
                     {/*LEFT MASK*/}
                     <div

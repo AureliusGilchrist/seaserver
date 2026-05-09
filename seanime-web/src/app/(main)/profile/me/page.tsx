@@ -197,11 +197,11 @@ export default function Page() {
                         style={{ backgroundImage: `url(${profile!.bannerImage})`, backgroundPosition: "center center", backgroundSize: "cover" }}
                     />
                     {/* Top gradient - fade from background to transparent */}
-                    <div className="absolute top-0 left-0 right-0 h-[8rem] bg-gradient-to-b from-[--background] to-transparent z-[2]" />
+                    <div className="absolute top-0 left-0 right-0 h-[5rem] bg-gradient-to-b from-[--background] to-transparent z-[2]" />
                     {/* Left fade - for sidebar transparency */}
-                    <div className="hidden lg:block absolute left-0 top-0 w-[20rem] h-full bg-gradient-to-r from-[--background] to-transparent z-[2] opacity-80" />
-                    {/* Bottom gradient - same style as anime banner, covers PFP/exp bar/names area */}
-                    <div className="absolute bottom-0 left-0 right-0 h-[70%] bg-gradient-to-t from-[--background] from-0% via-[--background]/80 via-30% to-transparent to-100% z-[3]" />
+                    <div className="hidden lg:block absolute left-0 top-0 w-[20rem] h-full bg-gradient-to-r from-[--background] to-transparent z-[2] opacity-50" />
+                    {/* Bottom gradient - lighter so the banner image stays clear */}
+                    <div className="absolute bottom-0 left-0 right-0 h-[40%] bg-gradient-to-t from-[--background] from-0% to-transparent to-100% z-[3]" />
                 </div>
             ) : (
                 <CustomLibraryBanner discrete />
@@ -224,7 +224,7 @@ export default function Page() {
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            <h1 className="text-3xl font-bold truncate" style={nameStyle}>
+                            <h1 className="sea-profile-name text-3xl font-bold truncate" style={nameStyle}>
                                 {profile!.name}
                                 {profile!.anilistUsername && (
                                     <span className="text-[--muted] font-normal" style={{}}> ({profile!.anilistUsername})</span>

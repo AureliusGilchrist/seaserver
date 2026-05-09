@@ -912,7 +912,8 @@ iframe.vds-youtube[data-no-controls] {
     background-color: var(--media-menu-bg, rgb(10 10 10));
     border-radius: var(--media-menu-border-radius, 8px);
     box-shadow: var(--media-menu-box-shadow, 1px 1px 1px rgb(10 10 10 / 0.5));
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     height: var(--menu-height, auto);
     will-change: width, height;
     overflow-y: auto;
@@ -1112,7 +1113,8 @@ iframe.vds-youtube[data-no-controls] {
     left: 0;
     width: 100%;
     z-index: 10;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     margin-bottom: 4px;
 }
 

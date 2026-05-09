@@ -1,6 +1,8 @@
 package core
 
 import (
+	"context"
+	"seanime/internal/api/anilist"
 	"seanime/internal/events"
 	"seanime/internal/util/limiter"
 	"sync"
@@ -52,6 +54,42 @@ func (sr *ServiceRunner) Start() {
 				}
 				sr.RunFindAnimeLibrarySorting()
 				sr.RunFindMangaLibrarySorting()
+			}
+		}
+	}()
+
+	// Auto-pause stale "watching" entries.
+	// Runs once 60s after start (gives the platform time to initialize), then every 24h.
+	// An entry is considered stale if its AniList listEntry.UpdatedAt is older than 7 days
+	// while still in the CURRENT (watching) status.
+	sr.wg.Add(1)
+	go func() {
+		defer sr.wg.Done()
+		initial := time.NewTimer(60 * time.Second)
+		select {
+		case <-sr.stopCh:
+			initial.Stop()
+			return
+		case <-initial.C:
+		}
+		if !sr.app.IsOffline() {
+			if err := sr.RunAutoPauseStaleWatching(); err != nil {
+				sr.logger.Warn().Err(err).Msg("services: auto-pause stale watching failed")
+			}
+		}
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-sr.stopCh:
+				return
+			case <-ticker.C:
+				if sr.app.IsOffline() {
+					continue
+				}
+				if err := sr.RunAutoPauseStaleWatching(); err != nil {
+					sr.logger.Warn().Err(err).Msg("services: auto-pause stale watching failed")
+				}
 			}
 		}
 	}()
@@ -186,4 +224,64 @@ func (sr *ServiceRunner) RunFindMangaLibrarySorting() (map[int]interface{}, erro
 	}
 	sr.logger.Info().Int("entries", len(result)).Msg("services: Manga GoJuuon sort order computed")
 	return result, nil
+}
+
+// RunAutoPauseStaleWatching scans the user's CURRENT (watching) AniList entries and
+// transitions any entry whose AniList list-entry `updatedAt` is older than 7 days to PAUSED.
+// This runs without external scheduler dependencies.
+func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
+	sr.logger.Info().Msg("services: auto-pause stale watching: starting")
+	if sr.app.AnilistPlatformRef == nil || !sr.app.AnilistPlatformRef.IsPresent() {
+		sr.logger.Debug().Msg("services: auto-pause stale watching: anilist platform not available, skipping")
+		return nil
+	}
+
+	ac, err := sr.app.GetAnimeCollection(false)
+	if err != nil {
+		return err
+	}
+	if ac == nil || ac.MediaListCollection == nil {
+		return nil
+	}
+
+	threshold := time.Now().Unix() - 7*24*3600
+	paused := anilist.MediaListStatusPaused
+	pausedCount := 0
+	ctx := context.Background()
+
+	for _, list := range ac.MediaListCollection.Lists {
+		if list == nil || len(list.Entries) == 0 {
+			continue
+		}
+		for _, e := range list.Entries {
+			if e == nil || e.Media == nil || e.Status == nil {
+				continue
+			}
+			if *e.Status != anilist.MediaListStatusCurrent {
+				continue
+			}
+			if e.UpdatedAt == nil {
+				continue
+			}
+			if int64(*e.UpdatedAt) > threshold {
+				continue
+			}
+			if err := sr.app.AnilistPlatformRef.Get().UpdateEntry(ctx, e.Media.ID, &paused, nil, nil, nil, nil); err != nil {
+				sr.logger.Warn().Err(err).Int("mediaId", e.Media.ID).Msg("services: failed to auto-pause stale entry")
+				continue
+			}
+			pausedCount++
+			sr.logger.Info().Int("mediaId", e.Media.ID).Msg("services: auto-paused stale watching entry")
+		}
+	}
+
+	if pausedCount > 0 {
+		// Refresh the cached anime collection asynchronously so the UI reflects the new statuses.
+		go func() {
+			_, _ = sr.app.GetAnimeCollection(true)
+		}()
+	}
+
+	sr.logger.Info().Int("count", pausedCount).Msg("services: auto-pause stale watching: done")
+	return nil
 }

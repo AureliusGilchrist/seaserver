@@ -353,6 +353,16 @@ func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profil
 
 	e.wsEventManager.SendEventToProfile(profileID, "achievement-unlocked", payload)
 
+	// Record an activity event so this unlock appears in the user's profile activity feed.
+	_ = database.RecordActivityEvent("achievement_unlocked", 0, map[string]interface{}{
+		"key":      def.Key,
+		"name":     def.Name,
+		"tier":     tier,
+		"tierName": tierName,
+		"category": string(def.Category),
+		"xp":       xp,
+	})
+
 	// Send level-up event if applicable
 	if leveledUp && xpErr == nil {
 		e.wsEventManager.SendEventToProfile(profileID, "level-up", map[string]interface{}{

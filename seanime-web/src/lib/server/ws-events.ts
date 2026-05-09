@@ -14,6 +14,7 @@ export const enum WSEvents {
     PLAYBACK_MANAGER_PROGRESS_VIDEO_COMPLETED = "playback-manager-progress-video-completed",
     PLAYBACK_MANAGER_PROGRESS_PLAYBACK_STATE = "playback-manager-progress-playback-state",
     PLAYBACK_MANAGER_PROGRESS_UPDATED = "playback-manager-progress-updated",
+    PLAYBACK_MANAGER_PROGRESS_UPDATE_CONFIRM = "playback-manager-progress-update-confirm",
     PLAYBACK_MANAGER_PLAYLIST_STATE = "playback-manager-playlist-state",
     PLAYBACK_MANAGER_MANUAL_TRACKING_PLAYBACK_STATE = "playback-manager-manual-tracking-playback-state",
     EXTERNAL_PLAYER_OPEN_URL = "external-player-open-url",

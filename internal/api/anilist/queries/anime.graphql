@@ -12,6 +12,7 @@ query AnimeCollection ($userName: String) {
         notes
         repeat
         private
+        updatedAt
         startedAt {
           year
           month
@@ -44,6 +45,7 @@ query AnimeCollectionWithRelations ($userName: String) {
         notes
         repeat
         private
+        updatedAt
         startedAt {
           year
           month

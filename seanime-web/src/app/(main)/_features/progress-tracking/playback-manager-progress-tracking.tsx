@@ -219,6 +219,22 @@ export function PlaybackManagerProgressTracking() {
         },
     })
 
+    // Progress update confirmation prompt
+    // The backend asks the client to confirm before pushing a multi-episode jump to AniList.
+    const [progressConfirm, setProgressConfirm] = React.useState<{
+        mediaId: number
+        currentProgress: number
+        newProgress: number
+    } | null>(null)
+    useWebsocketMessageListener<{ mediaId: number, currentProgress: number, newProgress: number } | null>({
+        type: WSEvents.PLAYBACK_MANAGER_PROGRESS_UPDATE_CONFIRM,
+        onMessage: data => {
+            if (data && data.newProgress > data.currentProgress + 1) {
+                setProgressConfirm(data)
+            }
+        },
+    })
+
     useWebsocketMessageListener<PlaybackManager_PlaylistState | null>({
         type: WSEvents.PLAYBACK_MANAGER_PLAYLIST_STATE,
         onMessage: data => {
@@ -454,6 +470,46 @@ export function PlaybackManagerProgressTracking() {
             <ConfirmationDialog {...confirmPlayNext} />
             <ConfirmationDialog {...confirmStopPlaylist} />
             <ConfirmationDialog {...confirmNextEpisode} />
+
+            {/* Progress update confirmation: shown when the gap between current AniList progress
+                and the just-watched episode is greater than 1 episode. */}
+            <Modal
+                open={!!progressConfirm}
+                onOpenChange={(o) => { if (!o) setProgressConfirm(null) }}
+                title="Update progress?"
+                contentClass="max-w-md"
+            >
+                {!!progressConfirm && (
+                    <div className="space-y-4">
+                        <p className="text-[--muted]">
+                            Update progress from episode <span className="font-semibold text-white">{progressConfirm.currentProgress}</span>{" "}
+                            to <span className="font-semibold text-white">{progressConfirm.newProgress}</span>?
+                        </p>
+                        <p className="text-sm text-[--muted]">
+                            This will post the change to your AniList feed.
+                        </p>
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                intent="gray-outline"
+                                onClick={() => setProgressConfirm(null)}
+                            >
+                                Skip
+                            </Button>
+                            <Button
+                                intent="primary"
+                                loading={isPending}
+                                onClick={() => {
+                                    syncProgress(undefined, {
+                                        onSuccess: () => setProgressConfirm(null),
+                                    })
+                                }}
+                            >
+                                Update to {progressConfirm.newProgress}
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </>
     )
 

@@ -540,6 +540,10 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 		return
 	}
 
+	var mediaId int
+	var epProgressNum int
+	var currentProgress int
+
 	switch pm.currentPlaybackType {
 	case LocalFilePlayback:
 		// Note :currentMediaListEntry MUST be defined since we assume that the media is in the user's library
@@ -548,20 +552,42 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 		}
 		// Check if we should update the progress
 		// If the current progress is lower than the episode progress number
-		epProgressNum := pm.currentLocalFileWrapperEntry.MustGet().GetProgressNumber(pm.currentLocalFile.MustGet())
-		if pm.currentMediaListEntry.MustGet().GetProgressSafe() >= epProgressNum {
+		epProgressNum = pm.currentLocalFileWrapperEntry.MustGet().GetProgressNumber(pm.currentLocalFile.MustGet())
+		currentProgress = pm.currentMediaListEntry.MustGet().GetProgressSafe()
+		if currentProgress >= epProgressNum {
 			return
 		}
+		mediaId = pm.currentMediaListEntry.MustGet().GetMedia().GetID()
 
 	case StreamPlayback:
 		if pm.currentStreamEpisode.IsAbsent() || pm.currentStreamMedia.IsAbsent() {
 			return
 		}
 		// Do not auto update progress is the media is in the library AND the progress is higher than the current episode
-		epProgressNum := pm.currentStreamEpisode.MustGet().GetProgressNumber()
-		if pm.currentMediaListEntry.IsPresent() && pm.currentMediaListEntry.MustGet().GetProgressSafe() >= epProgressNum {
-			return
+		epProgressNum = pm.currentStreamEpisode.MustGet().GetProgressNumber()
+		if pm.currentMediaListEntry.IsPresent() {
+			currentProgress = pm.currentMediaListEntry.MustGet().GetProgressSafe()
+			if currentProgress >= epProgressNum {
+				return
+			}
 		}
+		mediaId = pm.currentStreamMedia.MustGet().ID
+	}
+
+	// If the gap is larger than 1 episode, ask the client to confirm rather than silently
+	// updating AniList. The client will call the dedicated confirm endpoint to apply the update.
+	if epProgressNum-currentProgress >= 2 {
+		pm.Logger.Debug().
+			Int("mediaId", mediaId).
+			Int("currentProgress", currentProgress).
+			Int("newProgress", epProgressNum).
+			Msg("playback manager: Progress gap > 1, asking client to confirm")
+		pm.sendEventToCurrentClient(events.PlaybackManagerProgressUpdateConfirm, map[string]interface{}{
+			"mediaId":         mediaId,
+			"currentProgress": currentProgress,
+			"newProgress":     epProgressNum,
+		})
+		return
 	}
 
 	// Update the progress on AniList

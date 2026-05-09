@@ -36,6 +36,7 @@ const (
 	PlaybackManagerProgressVideoCompleted      = "playback-manager-progress-video-completed"       // The video progress has been completed
 	PlaybackManagerProgressPlaybackState       = "playback-manager-progress-playback-state"        // Dispatches the current playback state
 	PlaybackManagerProgressUpdated             = "playback-manager-progress-updated"               // Signals that the progress has been updated
+	PlaybackManagerProgressUpdateConfirm       = "playback-manager-progress-update-confirm"        // Asks the client to confirm a progress update when the gap is large
 	PlaybackManagerPlaylistState               = "playback-manager-playlist-state"                 // Dispatches the current playlist state
 	PlaybackManagerManualTrackingPlaybackState = "playback-manager-manual-tracking-playback-state" // Dispatches the current playback state
 	PlaybackManagerManualTrackingStopped       = "playback-manager-manual-tracking-stopped"        // The manual tracking has been stopped

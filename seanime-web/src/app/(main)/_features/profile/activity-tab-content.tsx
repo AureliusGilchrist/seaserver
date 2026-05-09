@@ -3,7 +3,7 @@ import { useGetTimeline } from "@/api/hooks/community.hooks"
 import * as React from "react"
 import { cn } from "@/components/ui/core/styling"
 import { useRewards } from "@/lib/rewards/reward-provider"
-import { LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuScan, LuFileCheck, LuFileX, LuPencil, LuTrash } from "react-icons/lu"
+import { LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuScan, LuFileCheck, LuFileX, LuPencil, LuTrash, LuTrophy } from "react-icons/lu"
 import { ActivityHeatmap } from "@/app/(main)/_features/profile/activity-heatmap"
 import { StreakCard, ShowcaseCard, RecentAchievementRow } from "./shared-cards"
 import { ActivityFeed } from "./activity-feed"
@@ -41,6 +41,7 @@ const EVENT_CONFIG: Record<string, { icon: React.ElementType; label: string; col
   file_unmatched:       { icon: LuFileX,     label: "File unmatched", color: "text-orange-300",  bgColor: "bg-orange-500/10" },
   anilist_entry_edited: { icon: LuPencil,    label: "Entry edited",   color: "text-violet-300",  bgColor: "bg-violet-500/10" },
   anilist_entry_deleted:{ icon: LuTrash,     label: "Entry deleted",  color: "text-red-300",     bgColor: "bg-red-500/10" },
+  achievement_unlocked: { icon: LuTrophy,    label: "Achievement",    color: "text-yellow-300",  bgColor: "bg-yellow-500/10" },
 }
 
 function parseMetadata(raw: string): Record<string, any> | null {
@@ -81,6 +82,15 @@ function formatEventDescription(event: Handlers_TimelineEvent): string {
       if (score != null) return `Rated ${score}${title ? ` for ${title}` : ""}`
 
       return `Updated entry${title ? ` for ${title}` : ""}`
+    }
+    case "achievement_unlocked": {
+      const name = typeof meta?.name === "string" ? meta.name : ""
+      const tierName = typeof meta?.tierName === "string" ? meta.tierName : ""
+      const xp = typeof meta?.xp === "number" ? meta.xp : null
+      const base = name ? `Unlocked “${name}”` : "Unlocked an achievement"
+      const tierStr = tierName ? ` — ${tierName}` : ""
+      const xpStr = xp != null ? ` (+${xp} XP)` : ""
+      return base + tierStr + xpStr
     }
     default:
       return cfg?.label || event.eventType

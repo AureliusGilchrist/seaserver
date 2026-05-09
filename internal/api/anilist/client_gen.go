@@ -2036,6 +2036,7 @@ type AnimeCollection_MediaListCollection_Lists_Entries struct {
 	Notes       *string                                                        "json:\"notes,omitempty\" graphql:\"notes\""
 	Repeat      *int                                                           "json:\"repeat,omitempty\" graphql:\"repeat\""
 	Private     *bool                                                          "json:\"private,omitempty\" graphql:\"private\""
+	UpdatedAt   *int                                                           "json:\"updatedAt,omitempty\" graphql:\"updatedAt\""
 	StartedAt   *AnimeCollection_MediaListCollection_Lists_Entries_StartedAt   "json:\"startedAt,omitempty\" graphql:\"startedAt\""
 	CompletedAt *AnimeCollection_MediaListCollection_Lists_Entries_CompletedAt "json:\"completedAt,omitempty\" graphql:\"completedAt\""
 	Media       *BaseAnime                                                     "json:\"media,omitempty\" graphql:\"media\""
@@ -2560,6 +2561,7 @@ type AnimeCollectionWithRelations_MediaListCollection_Lists_Entries struct {
 	Notes       *string                                                                     "json:\"notes,omitempty\" graphql:\"notes\""
 	Repeat      *int                                                                        "json:\"repeat,omitempty\" graphql:\"repeat\""
 	Private     *bool                                                                       "json:\"private,omitempty\" graphql:\"private\""
+	UpdatedAt   *int                                                                        "json:\"updatedAt,omitempty\" graphql:\"updatedAt\""
 	StartedAt   *AnimeCollectionWithRelations_MediaListCollection_Lists_Entries_StartedAt   "json:\"startedAt,omitempty\" graphql:\"startedAt\""
 	CompletedAt *AnimeCollectionWithRelations_MediaListCollection_Lists_Entries_CompletedAt "json:\"completedAt,omitempty\" graphql:\"completedAt\""
 	Media       *CompleteAnime                                                              "json:\"media,omitempty\" graphql:\"media\""
@@ -8102,6 +8104,7 @@ const AnimeCollectionDocument = `query AnimeCollection ($userName: String) {
 				notes
 				repeat
 				private
+				updatedAt
 				startedAt {
 					year
 					month
@@ -8207,6 +8210,7 @@ const AnimeCollectionWithRelationsDocument = `query AnimeCollectionWithRelations
 				notes
 				repeat
 				private
+				updatedAt
 				startedAt {
 					year
 					month
