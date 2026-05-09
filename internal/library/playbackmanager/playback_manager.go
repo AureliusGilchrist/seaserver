@@ -119,6 +119,12 @@ type (
 		// activityRecorded prevents double-recording for a single episode completion event
 		activityRecorded bool
 
+		// sessionLastSyncedEpisode tracks the most recent episode auto-synced during the
+		// current playback session, keyed by mediaID. Used to compute the progress gap
+		// against fresh data rather than the stale captured currentMediaListEntry.
+		sessionLastSyncedEpisode   map[int]int
+		sessionLastSyncedEpisodeMu sync.Mutex
+
 		// Session tracking — tracks continuous viewing within 30-minute gaps
 		sessionMu             sync.Mutex
 		sessionStartTime      time.Time

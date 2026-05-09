@@ -75,6 +75,11 @@ func (pm *PlaybackManager) handleTrackingStarted(status *mediaplayer.PlaybackSta
 	pm.activityRecorded = false
 	pm.activeProfileIDMu.Unlock()
 
+	// Reset session-level last-synced episode tracking
+	pm.sessionLastSyncedEpisodeMu.Lock()
+	pm.sessionLastSyncedEpisode = nil
+	pm.sessionLastSyncedEpisodeMu.Unlock()
+
 	// Set the current media playback status
 	pm.currentMediaPlaybackStatus = status
 
@@ -292,6 +297,11 @@ func (pm *PlaybackManager) handleStreamingTrackingStarted(status *mediaplayer.Pl
 	pm.activeProfileIDMu.Lock()
 	pm.activityRecorded = false
 	pm.activeProfileIDMu.Unlock()
+
+	// Reset session-level last-synced episode tracking
+	pm.sessionLastSyncedEpisodeMu.Lock()
+	pm.sessionLastSyncedEpisode = nil
+	pm.sessionLastSyncedEpisodeMu.Unlock()
 
 	// Set the current media playback status
 	pm.currentMediaPlaybackStatus = status
@@ -574,17 +584,31 @@ func (pm *PlaybackManager) autoSyncCurrentProgress(_ps *PlaybackState) {
 		mediaId = pm.currentStreamMedia.MustGet().ID
 	}
 
+	// Use the larger of the captured currentProgress (snapshot at session start) and the
+	// most recent episode we already auto-synced during this session. This prevents the
+	// gap-check from misfiring when the captured snapshot is stale (e.g. user has just
+	// watched ep 1 → AniList=1, but currentMediaListEntry still reads 0, so ep 2 would
+	// otherwise look like a 2-episode jump).
+	effectiveProgress := currentProgress
+	pm.sessionLastSyncedEpisodeMu.Lock()
+	if pm.sessionLastSyncedEpisode != nil {
+		if last, ok := pm.sessionLastSyncedEpisode[mediaId]; ok && last > effectiveProgress {
+			effectiveProgress = last
+		}
+	}
+	pm.sessionLastSyncedEpisodeMu.Unlock()
+
 	// If the gap is larger than 1 episode, ask the client to confirm rather than silently
 	// updating AniList. The client will call the dedicated confirm endpoint to apply the update.
-	if epProgressNum-currentProgress >= 2 {
+	if epProgressNum-effectiveProgress >= 2 {
 		pm.Logger.Debug().
 			Int("mediaId", mediaId).
-			Int("currentProgress", currentProgress).
+			Int("currentProgress", effectiveProgress).
 			Int("newProgress", epProgressNum).
 			Msg("playback manager: Progress gap > 1, asking client to confirm")
 		pm.sendEventToCurrentClient(events.PlaybackManagerProgressUpdateConfirm, map[string]interface{}{
 			"mediaId":         mediaId,
-			"currentProgress": currentProgress,
+			"currentProgress": effectiveProgress,
 			"newProgress":     epProgressNum,
 		})
 		return
@@ -717,6 +741,19 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 	pm.refreshAnimeCollectionFunc() // Refresh the AniList collection
 
 	pm.Logger.Info().Msg("playback manager: Updated progress on AniList")
+
+	// Remember the last episode we successfully synced for this media, so that the
+	// next gap-check uses fresh data rather than the stale captured snapshot.
+	if mediaId > 0 && epNum > 0 {
+		pm.sessionLastSyncedEpisodeMu.Lock()
+		if pm.sessionLastSyncedEpisode == nil {
+			pm.sessionLastSyncedEpisode = make(map[int]int)
+		}
+		if epNum > pm.sessionLastSyncedEpisode[mediaId] {
+			pm.sessionLastSyncedEpisode[mediaId] = epNum
+		}
+		pm.sessionLastSyncedEpisodeMu.Unlock()
+	}
 
 	// Record activity + fire achievements exactly once per episode completion
 	pm.activeProfileIDMu.RLock()
