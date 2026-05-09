@@ -104,3 +104,4 @@ scripts/build.go
 seanime.exe
 build-all-desktop-stats.json
 build-all-stats.json
+build-all-stats.json
