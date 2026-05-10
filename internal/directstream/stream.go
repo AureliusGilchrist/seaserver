@@ -265,7 +265,21 @@ func (m *Manager) listenToPlayerEvents() {
 				case *videocore.VideoCompletedEvent:
 					m.Logger.Debug().Msgf("directstream: Video completed")
 
-					if baseStream, ok := cs.(*BaseStream); ok {
+					// Extract the embedded *BaseStream from whichever concrete
+					// stream type we're dealing with. Type-asserting cs directly
+					// to *BaseStream never succeeds because LocalFileStream /
+					// TorrentStream embed BaseStream by value.
+					var baseStream *BaseStream
+					switch s := cs.(type) {
+					case *LocalFileStream:
+						baseStream = &s.BaseStream
+					case *TorrentStream:
+						baseStream = &s.BaseStream
+					case *BaseStream:
+						baseStream = s
+					}
+
+					if baseStream != nil && baseStream.media != nil && baseStream.episode != nil {
 						baseStream.updateProgress.Do(func() {
 							mediaId := baseStream.media.GetID()
 							epNum := baseStream.episode.GetProgressNumber()
