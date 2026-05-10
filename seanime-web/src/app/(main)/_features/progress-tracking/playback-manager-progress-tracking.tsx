@@ -134,7 +134,8 @@ export function PlaybackManagerProgressTracking() {
             log.info("Tracking started", data)
             setIsTracking(true)
             setIsCompleted(false)
-            setShowModal(true) // Show the modal when tracking starts
+            // Don't auto-open the modal — the toast notifies the user, and the
+            // "Currently watching" button remains available to open it manually.
             setState(data)
             toast.info("Tracking current session")
         },
