@@ -194,6 +194,10 @@ function setupChromiumFlags() {
 
 // Setup update events for logging
 autoUpdater.logger = log
+// Don't auto-install / run the downloaded installer when the user quits the
+// app. Updates can still be installed manually via the in-app Install Update
+// flow (which calls autoUpdater.quitAndInstall explicitly).
+autoUpdater.autoInstallOnAppQuit = false
 log.transports.file.level = "debug"
 
 // Redirect console logging to electron-log
@@ -650,13 +654,13 @@ function createTray() {
         }
     }
     ] : []), {
-        id: "quit", label: "Quit Seanime", click: () => {
+        id: "quit", label: "Quit Seaserver Denshi", click: () => {
             cleanupAndExit()
         }
     }
     ])
 
-    tray.setToolTip("Seanime")
+    tray.setToolTip("Seaserver Denshi")
 
     if (process.platform !== "darwin") {
         tray.setContextMenu(contextMenu)

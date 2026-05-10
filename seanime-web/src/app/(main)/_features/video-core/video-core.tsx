@@ -47,6 +47,7 @@ import { vc_directPlayAudioElement } from "@/app/(main)/_features/video-core/vid
 import { VideoCoreAudioManager } from "@/app/(main)/_features/video-core/video-core-audio"
 import { VideoCoreAudioMenu } from "@/app/(main)/_features/video-core/video-core-audio-menu"
 import {
+    VideoCoreBookmarkButton,
     VideoCoreControlBar,
     VideoCoreFullscreenButton,
     VideoCoreMobileControlBar,
@@ -565,6 +566,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                             <VideoCoreResolutionMenu state={state} onVideoSourceChange={onVideoSourceChange} />
                             <VideoCoreSubtitleMenu inline={inline} />
                             <VideoCoreAudioMenu />
+                            <VideoCoreBookmarkButton />
                             <VideoCorePipButton />
                             <VideoCoreFullscreenButton />
                         </VideoCoreControlBar> : <VideoCoreMobileControlBar
@@ -577,6 +579,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 <VideoCoreResolutionMenu state={state} onVideoSourceChange={onVideoSourceChange} />
                                 <VideoCoreSubtitleMenu inline={inline} />
                                 <VideoCoreAudioMenu />
+                                <VideoCoreBookmarkButton />
                                 <VideoCorePipButton />
                                 <VideoCoreVolumeButton />
                             </>}
@@ -1317,12 +1320,18 @@ export function VideoCore(props: VideoCoreProps) {
         if (!videoRef.current) return
         const v = videoRef.current
 
-        // Video completed event (episode considered watched at ~75%)
-        const percent = v.currentTime / v.duration
-        if (!!v.duration && !videoCompletedRef.current && percent >= 0.75) {
-            videoCompletedRef.current = true
-            onCompleted?.()
-            dispatchVideoCompletedEvent()
+        // Video completed event (episode considered watched at ~75%).
+        // This is evaluated against the absolute playback position (currentTime),
+        // so any number of pause/play/seek cycles still trigger completion as soon
+        // as <=25% of the episode duration is left. videoCompletedRef ensures we
+        // only fire once per episode load (it is reset in `loadedmetadata`).
+        if (!!v.duration && !videoCompletedRef.current) {
+            const timeLeft = v.duration - v.currentTime
+            if (timeLeft <= v.duration * 0.25) {
+                videoCompletedRef.current = true
+                onCompleted?.()
+                dispatchVideoCompletedEvent()
+            }
         }
 
         // Periodic watch history saving (covers VideoCore-based playback: native player, direct play)

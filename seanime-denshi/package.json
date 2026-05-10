@@ -1,7 +1,7 @@
 {
   "name": "seanime-denshi",
-  "version": "3.7.1",
-  "description": "Electron-based Desktop client for Seanime",
+  "version": "1.0.1",
+  "description": "Electron-based Desktop client for Seaserver",
   "main": "src/main.js",
   "author": "5rahim <talkwithrahim@gmail.com>",
   "scripts": {
@@ -30,7 +30,7 @@
       "customDir": "v39.2.7"
     },
     "appId": "app.seanime.denshi",
-    "productName": "Seanime Denshi",
+    "productName": "Seaserver Denshi",
     "asar": true,
     "extraResources": [
       {
@@ -95,7 +95,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "deleteAppDataOnUninstall": false,
-      "shortcutName": "Seanime Denshi",
+      "shortcutName": "Seaserver Denshi",
       "artifactName": "seanime-denshi-${version}_Windows_${arch}.${ext}",
       "perMachine": true
     },

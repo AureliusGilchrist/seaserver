@@ -29,6 +29,10 @@ import { LuChevronLeft, LuChevronRight, LuVolume, LuVolume1, LuVolume2, LuVolume
 import { RiPauseLargeLine, RiPlayLargeLine } from "react-icons/ri"
 import { RxEnterFullScreen, RxExitFullScreen } from "react-icons/rx"
 import { TbPictureInPicture, TbPictureInPictureOff } from "react-icons/tb"
+import { BiBookmark } from "react-icons/bi"
+import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
+import { useUpdateAnimeEntryProgress } from "@/api/hooks/anime_entries.hooks"
 
 const VIDEOCORE_CONTROL_BAR_MAIN_SECTION_HEIGHT = 48
 const VIDEOCORE_CONTROL_BAR_MAIN_SECTION_HEIGHT_MINI = 28
@@ -696,5 +700,43 @@ export function VideoCoreFullscreenButton() {
                 fullscreenManager?.toggleFullscreen()
             }}
         />
+    )
+}
+
+
+export function VideoCoreBookmarkButton() {
+    const playbackInfo = useAtomValue(vc_playbackInfo)
+    const mediaId = playbackInfo?.media?.id
+    const episodeNumber = playbackInfo?.episode?.progressNumber
+    const totalEpisodes = playbackInfo?.media?.episodes ?? 0
+    const malId = playbackInfo?.media?.idMal ?? 0
+
+    const { mutate: updateProgress, isPending } = useUpdateAnimeEntryProgress(mediaId, episodeNumber ?? 0, true)
+
+    const confirmUpdate = useConfirmationDialog({
+        title: "Update AniList progress",
+        description: episodeNumber
+            ? `Update AniList to episode ${episodeNumber}?`
+            : "Update AniList to this episode?",
+        actionText: "Confirm",
+        cancelText: "Decline",
+        actionIntent: "primary",
+        onConfirm: () => {
+            if (!mediaId || !episodeNumber || isPending) return
+            updateProgress({ mediaId, episodeNumber, totalEpisodes, malId })
+        },
+    })
+
+    if (!mediaId || !episodeNumber) return null
+
+    return (
+        <>
+            <VideoCoreControlButtonIcon
+                icons={[["default", BiBookmark]]}
+                state="default"
+                onClick={() => confirmUpdate.open()}
+            />
+            <ConfirmationDialog {...confirmUpdate} />
+        </>
     )
 }
