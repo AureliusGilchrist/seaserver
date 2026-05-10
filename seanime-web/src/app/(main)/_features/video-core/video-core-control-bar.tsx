@@ -30,9 +30,11 @@ import { RiPauseLargeLine, RiPlayLargeLine } from "react-icons/ri"
 import { RxEnterFullScreen, RxExitFullScreen } from "react-icons/rx"
 import { TbPictureInPicture, TbPictureInPictureOff } from "react-icons/tb"
 import { BiBookmark } from "react-icons/bi"
+import { toast } from "sonner"
 import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { useUpdateAnimeEntryProgress } from "@/api/hooks/anime_entries.hooks"
+import { useGetAnimeCollection } from "@/api/hooks/anilist.hooks"
 
 const VIDEOCORE_CONTROL_BAR_MAIN_SECTION_HEIGHT = 48
 const VIDEOCORE_CONTROL_BAR_MAIN_SECTION_HEIGHT_MINI = 28
@@ -709,9 +711,9 @@ export function VideoCoreBookmarkButton() {
     const mediaId = playbackInfo?.media?.id
     const episodeNumber = playbackInfo?.episode?.progressNumber
     const totalEpisodes = playbackInfo?.media?.episodes ?? 0
-    const malId = playbackInfo?.media?.idMal ?? 0
 
-    const { mutate: updateProgress, isPending } = useUpdateAnimeEntryProgress(mediaId, episodeNumber ?? 0, true)
+    // showToast=false — we provide a more specific toast on actual success below
+    const { mutate: updateProgress, isPending } = useUpdateAnimeEntryProgress(mediaId, episodeNumber ?? 0, false)
 
     const confirmUpdate = useConfirmationDialog({
         title: "Update AniList progress",
@@ -723,7 +725,20 @@ export function VideoCoreBookmarkButton() {
         actionIntent: "primary",
         onConfirm: () => {
             if (!mediaId || !episodeNumber || isPending) return
-            updateProgress({ mediaId, episodeNumber, totalEpisodes, malId })
+            // AniList only — intentionally do NOT pass malId so MAL is never updated.
+            updateProgress({
+                mediaId,
+                episodeNumber,
+                totalEpisodes,
+            }, {
+                onSuccess: () => {
+                    toast.success(`AniList progress updated to episode ${episodeNumber}`)
+                },
+                onError: (err: any) => {
+                    const msg = err?.response?.data?.error || err?.message || "Unknown error"
+                    toast.error("Failed to update AniList progress", { description: msg })
+                },
+            })
         },
     })
 
@@ -739,4 +754,99 @@ export function VideoCoreBookmarkButton() {
             <ConfirmationDialog {...confirmUpdate} />
         </>
     )
+}
+
+
+/**
+ * Listens for the `video-core:episode-completed` custom event (fired at ~75% playback).
+ * If the currently-played anime is in the user's PLANNING or PAUSED list,
+ * shows a confirmation modal asking to move it to "Currently Watching".
+ * On confirm, updates AniList progress to the just-finished episode, which
+ * server-side automatically sets the list status to CURRENT.
+ */
+export function VideoCorePromptStartWatching() {
+    const { data: animeCollection } = useGetAnimeCollection()
+    const [pending, setPending] = React.useState<{
+        mediaId: number
+        episodeNumber: number
+        totalEpisodes: number
+        title: string
+    } | null>(null)
+
+    const { mutate: updateProgress } = useUpdateAnimeEntryProgress(
+        pending?.mediaId,
+        pending?.episodeNumber ?? 0,
+        false,
+    )
+
+    React.useEffect(() => {
+        function onCompleted(e: Event) {
+            const detail = (e as CustomEvent).detail as {
+                mediaId?: number
+                episodeNumber?: number
+                totalEpisodes?: number
+                title?: string
+            }
+            if (!detail?.mediaId || !detail?.episodeNumber) return
+            if (!animeCollection?.MediaListCollection?.lists) return
+
+            // Find this anime's list status
+            let status: string | undefined
+            for (const list of animeCollection.MediaListCollection.lists) {
+                if (list?.isCustomList) continue
+                const entry = list?.entries?.find(en => en?.media?.id === detail.mediaId)
+                if (entry) {
+                    status = entry.status
+                    break
+                }
+            }
+
+            // Only prompt if the anime is in PLANNING or PAUSED
+            if (status !== "PLANNING" && status !== "PAUSED") return
+
+            setPending({
+                mediaId: detail.mediaId,
+                episodeNumber: detail.episodeNumber,
+                totalEpisodes: detail.totalEpisodes ?? 0,
+                title: detail.title ?? "this anime",
+            })
+        }
+
+        window.addEventListener("video-core:episode-completed", onCompleted)
+        return () => window.removeEventListener("video-core:episode-completed", onCompleted)
+    }, [animeCollection])
+
+    const confirm = useConfirmationDialog({
+        title: "Start watching this anime?",
+        description: pending
+            ? `Move "${pending.title}" to your Currently Watching list?`
+            : "",
+        actionText: "Confirm",
+        cancelText: "Decline",
+        actionIntent: "primary",
+        onConfirm: () => {
+            if (!pending) return
+            updateProgress({
+                mediaId: pending.mediaId,
+                episodeNumber: pending.episodeNumber,
+                totalEpisodes: pending.totalEpisodes,
+            }, {
+                onSuccess: () => {
+                    toast.success(`Moved "${pending.title}" to Currently Watching`)
+                    setPending(null)
+                },
+                onError: (err: any) => {
+                    const msg = err?.response?.data?.error || err?.message || "Unknown error"
+                    toast.error("Failed to update AniList list status", { description: msg })
+                    setPending(null)
+                },
+            })
+        },
+    })
+
+    React.useEffect(() => {
+        if (pending) confirm.open()
+    }, [pending])
+
+    return <ConfirmationDialog {...confirm} />
 }

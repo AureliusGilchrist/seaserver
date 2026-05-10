@@ -53,6 +53,7 @@ import {
     VideoCoreMobileControlBar,
     VideoCorePipButton,
     VideoCorePlayButton,
+    VideoCorePromptStartWatching,
     VideoCoreTimestamp,
     VideoCoreVolumeButton,
 } from "@/app/(main)/_features/video-core/video-core-control-bar"
@@ -590,6 +591,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 <VideoCoreTimestamp />
                             </>}
                         />}
+                        <VideoCorePromptStartWatching />
                     </>
                 ) : (
                     <LoadingOverlay
@@ -1331,6 +1333,21 @@ export function VideoCore(props: VideoCoreProps) {
                 videoCompletedRef.current = true
                 onCompleted?.()
                 dispatchVideoCompletedEvent()
+                // Also fire a window CustomEvent so other client components (e.g. the
+                // "move from Planning/Paused → Currently Watching" prompt) can react.
+                if (typeof window !== "undefined") {
+                    window.dispatchEvent(new CustomEvent("video-core:episode-completed", {
+                        detail: {
+                            mediaId: state?.playbackInfo?.media?.id,
+                            episodeNumber: state?.playbackInfo?.episode?.progressNumber,
+                            totalEpisodes: state?.playbackInfo?.media?.episodes ?? 0,
+                            title: state?.playbackInfo?.media?.title?.userPreferred
+                                || state?.playbackInfo?.media?.title?.romaji
+                                || state?.playbackInfo?.media?.title?.english
+                                || "this anime",
+                        },
+                    }))
+                }
             }
         }
 
