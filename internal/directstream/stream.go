@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"seanime/internal/api/anilist"
+	"seanime/internal/events"
 	"seanime/internal/library/anime"
 	"seanime/internal/mkvparser"
 	"seanime/internal/nativeplayer"
@@ -186,6 +187,24 @@ func (m *Manager) loadStream(profileID uint, stream Stream) {
 	}
 
 	m.Logger.Debug().Uint("profileID", profileID).Msgf("directstream: Signaling native player that stream is ready")
+
+	// Notify the originating client that progress tracking has started so the UI
+	// shows the "Tracking current session" toast and tracking modal.
+	if media := stream.Media(); media != nil {
+		ep := 0
+		if e := stream.Episode(); e != nil {
+			ep = e.GetProgressNumber()
+		}
+		m.wsEventManager.SendEventTo(stream.ClientId(), events.PlaybackManagerProgressTrackingStarted, map[string]interface{}{
+			"mediaId":            media.GetID(),
+			"episodeNumber":      ep,
+			"mediaTitle":         media.GetPreferredTitle(),
+			"mediaCoverImage":    media.GetCoverImageSafe(),
+			"mediaTotalEpisodes": media.GetTotalEpisodeCount(),
+			"progressUpdated":    false,
+		})
+	}
+
 	m.nativePlayer.Watch(stream.ClientId(), playbackInfo)
 }
 
@@ -252,7 +271,23 @@ func (m *Manager) listenToPlayerEvents() {
 							epNum := baseStream.episode.GetProgressNumber()
 							totalEpisodes := baseStream.media.GetTotalEpisodeCount()
 
-							_ = baseStream.manager.platformRef.Get().UpdateEntryProgress(context.Background(), mediaId, epNum, &totalEpisodes)
+							if err := baseStream.manager.platformRef.Get().UpdateEntryProgress(context.Background(), mediaId, epNum, &totalEpisodes); err != nil {
+								baseStream.manager.Logger.Warn().Err(err).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Failed to update AniList progress")
+							} else {
+								baseStream.manager.Logger.Info().Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Updated AniList progress")
+								baseStream.manager.wsEventManager.SendEventTo(baseStream.clientId, events.PlaybackManagerProgressUpdated, map[string]interface{}{
+									"mediaId":              mediaId,
+									"episodeNumber":        epNum,
+									"mediaTitle":           baseStream.media.GetPreferredTitle(),
+									"mediaCoverImage":      baseStream.media.GetCoverImageSafe(),
+									"mediaTotalEpisodes":   totalEpisodes,
+									"progressUpdated":      true,
+									"completionPercentage": 1.0,
+								})
+								if baseStream.manager.refreshAnimeCollectionFunc != nil {
+									go baseStream.manager.refreshAnimeCollectionFunc()
+								}
+							}
 						})
 					}
 				}

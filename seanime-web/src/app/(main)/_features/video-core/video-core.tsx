@@ -1317,9 +1317,9 @@ export function VideoCore(props: VideoCoreProps) {
         if (!videoRef.current) return
         const v = videoRef.current
 
-        // Video completed event
+        // Video completed event (episode considered watched at ~75%)
         const percent = v.currentTime / v.duration
-        if (!!v.duration && !videoCompletedRef.current && percent >= 0.8) {
+        if (!!v.duration && !videoCompletedRef.current && percent >= 0.75) {
             videoCompletedRef.current = true
             onCompleted?.()
             dispatchVideoCompletedEvent()
