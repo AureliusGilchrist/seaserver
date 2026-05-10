@@ -810,12 +810,11 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 			completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
 		}
 
-		_, err := profileClient.UpdateMediaListEntry(
+		_, err := profileClient.UpdateMediaListEntryProgress(
 			c.Request().Context(),
 			&b.MediaId,
-			&status,
-			nil, // scoreRaw
 			&b.EpisodeNumber,
+			&status,
 			startedAt,
 			completedAt,
 		)

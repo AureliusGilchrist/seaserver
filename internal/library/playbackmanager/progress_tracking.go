@@ -750,7 +750,7 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 			if isCompleted {
 				completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
 			}
-			_, err = client.UpdateMediaListEntry(context.Background(), &mediaId, &status, nil, &epNum, startedAt, completedAt)
+			_, err = client.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
 		} else {
 			err = errors.New("profile AniList account not authenticated")
 		}

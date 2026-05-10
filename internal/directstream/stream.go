@@ -306,7 +306,7 @@ func (m *Manager) listenToPlayerEvents() {
 									if isCompleted {
 										completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
 									}
-									_, updateErr = client.UpdateMediaListEntry(context.Background(), &mediaId, &status, nil, &epNum, startedAt, completedAt)
+									_, updateErr = client.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
 								} else {
 									updateErr = errors.New("profile AniList account not authenticated")
 								}
