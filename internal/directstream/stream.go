@@ -318,6 +318,10 @@ func (m *Manager) listenToPlayerEvents() {
 								baseStream.manager.Logger.Warn().Err(updateErr).Uint("profileID", baseStream.profileId).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Failed to update AniList progress")
 							} else {
 								baseStream.manager.Logger.Info().Uint("profileID", baseStream.profileId).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Updated AniList progress")
+								// For profile users, invalidate their cached anime collection so the next fetch is fresh.
+								if baseStream.profileId > 0 && baseStream.manager.invalidateProfileAnimeCollectionFunc != nil {
+									baseStream.manager.invalidateProfileAnimeCollectionFunc(baseStream.profileId)
+								}
 								baseStream.manager.wsEventManager.SendEventTo(baseStream.clientId, events.PlaybackManagerProgressUpdated, map[string]interface{}{
 									"mediaId":              mediaId,
 									"episodeNumber":        epNum,

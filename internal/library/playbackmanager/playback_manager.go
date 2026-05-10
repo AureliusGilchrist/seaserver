@@ -61,6 +61,9 @@ type (
 		// getProfileAnilistClientFunc returns the per-profile AniList client.
 		// Used so that progress updates target the active profile's account, not the admin's.
 		getProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
+		// invalidateProfileAnimeCollectionFunc invalidates the profile's cached anime collection
+		// after a successful progress update so the next fetch returns fresh data.
+		invalidateProfileAnimeCollectionFunc func(profileID uint)
 		mu                         sync.Mutex
 		eventMu                    sync.RWMutex
 		cancel                     context.CancelFunc
@@ -222,6 +225,7 @@ type (
 		IsOfflineRef                *util.Ref[bool]
 		ContinuityManager           *continuity.Manager
 		GetProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
+		InvalidateProfileAnimeCollectionFunc func(profileID uint)
 	}
 
 	Settings struct {
@@ -268,6 +272,7 @@ func New(opts *NewPlaybackManagerOptions) *PlaybackManager {
 		metadataProviderRef:          opts.MetadataProviderRef,
 		refreshAnimeCollectionFunc:   opts.RefreshAnimeCollectionFunc,
 		getProfileAnilistClientFunc:  opts.GetProfileAnilistClientFunc,
+		invalidateProfileAnimeCollectionFunc: opts.InvalidateProfileAnimeCollectionFunc,
 		mu:                           sync.Mutex{},
 		autoPlayMu:                   sync.Mutex{},
 		eventMu:                      sync.RWMutex{},

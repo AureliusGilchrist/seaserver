@@ -40,6 +40,9 @@ type (
 		// It is used to update progress on the correct AniList account when a profile is active.
 		// Falls back to the admin client if profileID is 0 or no profile manager is available.
 		getProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
+		// invalidateProfileAnimeCollectionFunc invalidates the profile's cached anime collection
+		// after a successful progress update so the next fetch returns fresh data.
+		invalidateProfileAnimeCollectionFunc func(profileID uint)
 
 		nativePlayer *nativeplayer.NativePlayer
 
@@ -87,6 +90,7 @@ type (
 		PlatformRef                 *util.Ref[platform.Platform]
 		RefreshAnimeCollectionFunc  func()
 		GetProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
+		InvalidateProfileAnimeCollectionFunc func(profileID uint)
 		IsOfflineRef               *util.Ref[bool]
 		NativePlayer               *nativeplayer.NativePlayer
 		VideoCore                  *videocore.VideoCore
@@ -105,6 +109,7 @@ func NewManager(options NewManagerOptions) *Manager {
 		refreshAnimeCollectionFunc:  options.RefreshAnimeCollectionFunc,
 		hmacTokenFunc:               options.HMACTokenFunc,
 		getProfileAnilistClientFunc: options.GetProfileAnilistClientFunc,
+		invalidateProfileAnimeCollectionFunc: options.InvalidateProfileAnimeCollectionFunc,
 		isOfflineRef:               options.IsOfflineRef,
 		sessions:                   result.NewMap[string, *ProfileStreamSession](),
 		nativePlayer:               options.NativePlayer,

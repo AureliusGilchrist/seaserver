@@ -767,6 +767,11 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 		return fmt.Errorf("%w: %v", ErrProgressUpdateAnilist, err)
 	}
 
+	// For profile users, invalidate their cached anime collection so subsequent fetches are fresh.
+	if activeProfileID > 0 && pm.invalidateProfileAnimeCollectionFunc != nil {
+		pm.invalidateProfileAnimeCollectionFunc(activeProfileID)
+	}
+
 	pm.refreshAnimeCollectionFunc() // Refresh the AniList collection
 
 	pm.Logger.Info().Msg("playback manager: Updated progress on AniList")

@@ -125,6 +125,11 @@ func (a *App) initModulesOnce() {
 			}
 			return a.AnilistClientManager.GetClient(profileID)
 		},
+		InvalidateProfileAnimeCollectionFunc: func(profileID uint) {
+			if a.AnilistClientManager != nil {
+				a.AnilistClientManager.InvalidateAnimeCollection(profileID)
+			}
+		},
 	})
 
 	// +---------------------+
@@ -212,6 +217,11 @@ func (a *App) initModulesOnce() {
 				return a.AnilistClientRef.Get()
 			}
 			return a.AnilistClientManager.GetClient(profileID)
+		},
+		InvalidateProfileAnimeCollectionFunc: func(profileID uint) {
+			if a.AnilistClientManager != nil {
+				a.AnilistClientManager.InvalidateAnimeCollection(profileID)
+			}
 		},
 		IsOfflineRef: a.IsOfflineRef(),
 		NativePlayer: a.NativePlayer,
