@@ -119,6 +119,12 @@ func (a *App) initModulesOnce() {
 		RefreshAnimeCollectionFunc: func() {
 			_, _ = a.RefreshAnimeCollection()
 		},
+		GetProfileAnilistClientFunc: func(profileID uint) anilist.AnilistClient {
+			if a.AnilistClientManager == nil {
+				return a.AnilistClientRef.Get()
+			}
+			return a.AnilistClientManager.GetClient(profileID)
+		},
 	})
 
 	// +---------------------+
@@ -200,6 +206,12 @@ func (a *App) initModulesOnce() {
 		PlatformRef:         a.AnilistPlatformRef,
 		RefreshAnimeCollectionFunc: func() {
 			_, _ = a.RefreshAnimeCollection()
+		},
+		GetProfileAnilistClientFunc: func(profileID uint) anilist.AnilistClient {
+			if a.AnilistClientManager == nil {
+				return a.AnilistClientRef.Get()
+			}
+			return a.AnilistClientManager.GetClient(profileID)
 		},
 		IsOfflineRef: a.IsOfflineRef(),
 		NativePlayer: a.NativePlayer,

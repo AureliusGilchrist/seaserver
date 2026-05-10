@@ -36,6 +36,10 @@ type (
 		platformRef                *util.Ref[platform.Platform]
 		refreshAnimeCollectionFunc func()                                      // This function is called to refresh the AniList collection
 		hmacTokenFunc              func(endpoint string, symbol string) string // Generates HMAC token query param for stream URLs
+		// getProfileAnilistClientFunc returns the per-profile AniList client.
+		// It is used to update progress on the correct AniList account when a profile is active.
+		// Falls back to the admin client if profileID is 0 or no profile manager is available.
+		getProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
 
 		nativePlayer *nativeplayer.NativePlayer
 
@@ -80,8 +84,9 @@ type (
 		MetadataProviderRef        *util.Ref[metadata_provider.Provider]
 		ContinuityManager          *continuity.Manager
 		DiscordPresence            *discordrpc_presence.Presence
-		PlatformRef                *util.Ref[platform.Platform]
-		RefreshAnimeCollectionFunc func()
+		PlatformRef                 *util.Ref[platform.Platform]
+		RefreshAnimeCollectionFunc  func()
+		GetProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
 		IsOfflineRef               *util.Ref[bool]
 		NativePlayer               *nativeplayer.NativePlayer
 		VideoCore                  *videocore.VideoCore
@@ -96,9 +101,10 @@ func NewManager(options NewManagerOptions) *Manager {
 		metadataProviderRef:        options.MetadataProviderRef,
 		continuityManager:          options.ContinuityManager,
 		discordPresence:            options.DiscordPresence,
-		platformRef:                options.PlatformRef,
-		refreshAnimeCollectionFunc: options.RefreshAnimeCollectionFunc,
-		hmacTokenFunc:              options.HMACTokenFunc,
+		platformRef:                 options.PlatformRef,
+		refreshAnimeCollectionFunc:  options.RefreshAnimeCollectionFunc,
+		hmacTokenFunc:               options.HMACTokenFunc,
+		getProfileAnilistClientFunc: options.GetProfileAnilistClientFunc,
 		isOfflineRef:               options.IsOfflineRef,
 		sessions:                   result.NewMap[string, *ProfileStreamSession](),
 		nativePlayer:               options.NativePlayer,

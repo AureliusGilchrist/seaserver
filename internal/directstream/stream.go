@@ -285,10 +285,39 @@ func (m *Manager) listenToPlayerEvents() {
 							epNum := baseStream.episode.GetProgressNumber()
 							totalEpisodes := baseStream.media.GetTotalEpisodeCount()
 
-							if err := baseStream.manager.platformRef.Get().UpdateEntryProgress(context.Background(), mediaId, epNum, &totalEpisodes); err != nil {
-								baseStream.manager.Logger.Warn().Err(err).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Failed to update AniList progress")
+							var updateErr error
+							// For profile users, route the AniList update through the
+							// profile's own AniList client so the correct account is updated.
+							// Otherwise fall back to the admin platform layer (with hooks).
+							if baseStream.profileId > 0 && baseStream.manager.getProfileAnilistClientFunc != nil {
+								client := baseStream.manager.getProfileAnilistClientFunc(baseStream.profileId)
+								if client != nil && client.IsAuthenticated() {
+									status := anilist.MediaListStatusCurrent
+									isCompleted := totalEpisodes > 0 && epNum >= totalEpisodes
+									if isCompleted {
+										status = anilist.MediaListStatusCompleted
+									}
+									now := time.Now()
+									year, monthVal, day := now.Year(), int(now.Month()), now.Day()
+									var startedAt, completedAt *anilist.FuzzyDateInput
+									if epNum == 1 {
+										startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+									}
+									if isCompleted {
+										completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+									}
+									_, updateErr = client.UpdateMediaListEntry(context.Background(), &mediaId, &status, nil, &epNum, startedAt, completedAt)
+								} else {
+									updateErr = errors.New("profile AniList account not authenticated")
+								}
 							} else {
-								baseStream.manager.Logger.Info().Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Updated AniList progress")
+								updateErr = baseStream.manager.platformRef.Get().UpdateEntryProgress(context.Background(), mediaId, epNum, &totalEpisodes)
+							}
+
+							if updateErr != nil {
+								baseStream.manager.Logger.Warn().Err(updateErr).Uint("profileID", baseStream.profileId).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Failed to update AniList progress")
+							} else {
+								baseStream.manager.Logger.Info().Uint("profileID", baseStream.profileId).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Updated AniList progress")
 								baseStream.manager.wsEventManager.SendEventTo(baseStream.clientId, events.PlaybackManagerProgressUpdated, map[string]interface{}{
 									"mediaId":              mediaId,
 									"episodeNumber":        epNum,

@@ -58,6 +58,9 @@ type (
 		platformRef                *util.Ref[platform.Platform]
 		metadataProviderRef        *util.Ref[metadata_provider.Provider]
 		refreshAnimeCollectionFunc func() // This function is called to refresh the AniList collection
+		// getProfileAnilistClientFunc returns the per-profile AniList client.
+		// Used so that progress updates target the active profile's account, not the admin's.
+		getProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
 		mu                         sync.Mutex
 		eventMu                    sync.RWMutex
 		cancel                     context.CancelFunc
@@ -209,15 +212,16 @@ type (
 	}
 
 	NewPlaybackManagerOptions struct {
-		WSEventManager             events.WSEventManagerInterface
-		Logger                     *zerolog.Logger
-		PlatformRef                *util.Ref[platform.Platform]
-		MetadataProviderRef        *util.Ref[metadata_provider.Provider]
-		Database                   *db.Database
-		RefreshAnimeCollectionFunc func() // This function is called to refresh the AniList collection
-		DiscordPresence            *discordrpc_presence.Presence
-		IsOfflineRef               *util.Ref[bool]
-		ContinuityManager          *continuity.Manager
+		WSEventManager              events.WSEventManagerInterface
+		Logger                      *zerolog.Logger
+		PlatformRef                 *util.Ref[platform.Platform]
+		MetadataProviderRef         *util.Ref[metadata_provider.Provider]
+		Database                    *db.Database
+		RefreshAnimeCollectionFunc  func() // This function is called to refresh the AniList collection
+		DiscordPresence             *discordrpc_presence.Presence
+		IsOfflineRef                *util.Ref[bool]
+		ContinuityManager           *continuity.Manager
+		GetProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
 	}
 
 	Settings struct {
@@ -263,6 +267,7 @@ func New(opts *NewPlaybackManagerOptions) *PlaybackManager {
 		platformRef:                  opts.PlatformRef,
 		metadataProviderRef:          opts.MetadataProviderRef,
 		refreshAnimeCollectionFunc:   opts.RefreshAnimeCollectionFunc,
+		getProfileAnilistClientFunc:  opts.GetProfileAnilistClientFunc,
 		mu:                           sync.Mutex{},
 		autoPlayMu:                   sync.Mutex{},
 		eventMu:                      sync.RWMutex{},

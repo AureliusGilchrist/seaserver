@@ -5,13 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
+	"seanime/internal/api/anilist"
 	"seanime/internal/continuity"
 	discordrpc_presence "seanime/internal/discordrpc/presence"
 	"seanime/internal/events"
 	"seanime/internal/library/anime"
 	"seanime/internal/mediaplayers/mediaplayer"
 	"seanime/internal/util"
+	"time"
 
 	"github.com/samber/mo"
 )
@@ -727,12 +728,40 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 	}
 
 	// Update the progress on AniList
-	err = pm.platformRef.Get().UpdateEntryProgress(
-		context.Background(),
-		mediaId,
-		epNum,
-		&totalEpisodes,
-	)
+	// For profile users, route through the profile's own AniList client.
+	pm.activeProfileIDMu.RLock()
+	activeProfileID := pm.activeProfileID
+	pm.activeProfileIDMu.RUnlock()
+
+	if activeProfileID > 0 && pm.getProfileAnilistClientFunc != nil {
+		client := pm.getProfileAnilistClientFunc(activeProfileID)
+		if client != nil && client.IsAuthenticated() {
+			status := anilist.MediaListStatusCurrent
+			isCompleted := totalEpisodes > 0 && epNum >= totalEpisodes
+			if isCompleted {
+				status = anilist.MediaListStatusCompleted
+			}
+			now := time.Now()
+			year, monthVal, day := now.Year(), int(now.Month()), now.Day()
+			var startedAt, completedAt *anilist.FuzzyDateInput
+			if epNum == 1 {
+				startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+			}
+			if isCompleted {
+				completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+			}
+			_, err = client.UpdateMediaListEntry(context.Background(), &mediaId, &status, nil, &epNum, startedAt, completedAt)
+		} else {
+			err = errors.New("profile AniList account not authenticated")
+		}
+	} else {
+		err = pm.platformRef.Get().UpdateEntryProgress(
+			context.Background(),
+			mediaId,
+			epNum,
+			&totalEpisodes,
+		)
+	}
 	if err != nil {
 		pm.Logger.Error().Err(err).Msg("playback manager: Error occurred while updating progress on AniList")
 		return fmt.Errorf("%w: %v", ErrProgressUpdateAnilist, err)
