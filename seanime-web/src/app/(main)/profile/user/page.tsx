@@ -21,6 +21,7 @@ import { useRouter, useSearchParams } from "@/lib/navigation"
 import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
 import { ActivityBuffBadge, StreakCard, StatsActivityHeatmap, DayOfWeekChart, CategoryPill, AchievementCard, ProgressRing, getLevelColor } from "@/app/(main)/profile/me/page"
 import { getProfileOwnerMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import * as React from "react"
 import {
     LuTrophy, LuStar, LuArrowLeft, LuCalendar, LuBookOpen,
@@ -201,16 +202,15 @@ export default function Page() {
                             className="h-2 rounded-full overflow-hidden"
                             style={{ background: "rgba(255,255,255,0.1)" }}
                         >
-                            <div
-                                className={cn(
-                                    "h-full rounded-full transition-all duration-500",
-                                    xpBarAnimClass,
-                                    !xpBarFillCss && levelColors.ring.replace("stroke-", "bg-"),
-                                )}
-                                style={{
-                                    width: `${level.xpNeededForLevel > 0 ? (level.xpInCurrentLevel / level.xpNeededForLevel) * 100 : 100}%`,
-                                    ...(xpBarFillCss ? { background: xpBarFillCss } : {}),
-                                }}
+                            {/* XPBarFill renders the bar in 2 layers (solid base + moving sheen) so the user's
+                                progress is always clearly visible while preserving the animated "general effect". */}
+                            <XPBarFill
+                                percent={level.xpNeededForLevel > 0 ? (level.xpInCurrentLevel / level.xpNeededForLevel) * 100 : 100}
+                                fillCss={xpBarFillCss}
+                                animClass={xpBarAnimClass}
+                                heightClass="h-full"
+                                trackCss="transparent"
+                                fallbackBgClass={!xpBarFillCss ? levelColors.ring.replace("stroke-", "bg-") : undefined}
                             />
                         </div>
                         <div className="text-xs text-[--muted] text-center">

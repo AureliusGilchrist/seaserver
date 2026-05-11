@@ -50,6 +50,7 @@ import { useAnimeTheme, useThemeMilestoneName } from "@/lib/theme/anime-themes/a
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { RewardShop } from "@/app/(main)/profile/me/_components/reward-shop"
 import { useRewards } from "@/lib/rewards/reward-provider"
+import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import { userSoundLevelAtom } from "@/lib/sounds/sound-provider"
 import { LuGift } from "react-icons/lu"
 import { useEasterEggs } from "@/lib/easter-eggs/easter-egg-engine"
@@ -315,24 +316,13 @@ export default function Page() {
                             <span>{milestoneName ?? `Level ${level.currentLevel}`}</span>
                             <span>???</span>
                         </div>
-                        <div
-                            className="h-2 rounded-full overflow-hidden"
-                            style={{ background: activeXPBarSkin?.trackCss ?? "rgba(255,255,255,0.1)" }}
-                        >
-                            <div
-                                className={cn(
-                                    "h-full rounded-full",
-                                    // Only transition width so moving-gradient animations aren't interrupted
-                                    activeXPBarSkin?.animClass ? "" : "transition-[width] duration-500",
-                                    activeXPBarSkin?.animClass,
-                                )}
-                                style={{
-                                    width: `${level.xpNeededForLevel > 0 ? (level.xpInCurrentLevel / level.xpNeededForLevel) * 100 : 100}%`,
-                                    background: activeXPBarSkin?.fillCss ?? `var(--sea-xpbar-fill, ${levelColors.ring.replace("stroke-", "")})`,
-                                    backgroundSize: activeXPBarSkin?.animClass ? "300% 100%" : undefined,
-                                }}
-                            />
-                        </div>
+                        <XPBarFill
+                            percent={level.xpNeededForLevel > 0 ? (level.xpInCurrentLevel / level.xpNeededForLevel) * 100 : 100}
+                            fillCss={activeXPBarSkin?.fillCss ?? `var(--sea-xpbar-fill, ${levelColors.ring.replace("stroke-", "")})`}
+                            animClass={activeXPBarSkin?.animClass ?? null}
+                            trackCss={activeXPBarSkin?.trackCss ?? "rgba(255,255,255,0.1)"}
+                            heightClass="h-2"
+                        />
                         <div className="text-xs text-[--muted] text-center">
                             {level.xpInCurrentLevel.toLocaleString()} / {level.xpNeededForLevel.toLocaleString()} XP
                         </div>

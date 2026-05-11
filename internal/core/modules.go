@@ -223,6 +223,58 @@ func (a *App) initModulesOnce() {
 				a.AnilistClientManager.InvalidateAnimeCollection(profileID)
 			}
 		},
+		// Mirror the PlaybackManager activity tracker so that direct-stream playback
+		// also feeds the profile XP / level / achievements / community feed.
+		// AchievementEngine / MilestoneEngine are initialized later in this function
+		// — captured via the `a` pointer so they're resolved at call time.
+		RecordPlaybackActivityFunc: func(profileID uint, mediaID int, episodeNumber int, totalEpisodes int, durationSeconds int) {
+			if profileID == 0 || a.ProfileDatabaseManager == nil {
+				return
+			}
+			pdb, err := a.ProfileDatabaseManager.GetDatabase(profileID)
+			if err != nil {
+				return
+			}
+			durationMinutes := durationSeconds / 60
+
+			_ = pdb.RecordAnimeActivity(1, durationMinutes)
+			_ = pdb.RecordActivityEvent(models.ActivityEventEpisodeWatched, mediaID, map[string]interface{}{
+				"episode":       episodeNumber,
+				"totalEpisodes": totalEpisodes,
+				"duration":      durationMinutes,
+			})
+
+			if a.AchievementEngine != nil {
+				a.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+					ProfileID: profileID,
+					Trigger:   achievement.TriggerEpisodeProgress,
+					MediaID:   mediaID,
+					Metadata: map[string]interface{}{
+						"episode_number": episodeNumber,
+						"total_episodes": totalEpisodes,
+						"duration":       durationMinutes,
+					},
+				})
+				if totalEpisodes > 0 && episodeNumber >= totalEpisodes {
+					a.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
+						ProfileID: profileID,
+						Trigger:   achievement.TriggerSeriesComplete,
+						MediaID:   mediaID,
+						Metadata: map[string]interface{}{
+							"episodes": totalEpisodes,
+							"duration": durationMinutes,
+						},
+					})
+					_ = pdb.RecordActivityEvent("series_complete", mediaID, map[string]interface{}{
+						"episodes": totalEpisodes,
+					})
+				}
+			}
+
+			if a.MilestoneEngine != nil {
+				a.MilestoneEngine.EvaluateProfile(profileID)
+			}
+		},
 		IsOfflineRef: a.IsOfflineRef(),
 		NativePlayer: a.NativePlayer,
 		VideoCore:    a.VideoCore,

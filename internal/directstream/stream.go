@@ -322,6 +322,12 @@ func (m *Manager) listenToPlayerEvents() {
 								if baseStream.profileId > 0 && baseStream.manager.invalidateProfileAnimeCollectionFunc != nil {
 									baseStream.manager.invalidateProfileAnimeCollectionFunc(baseStream.profileId)
 								}
+								// Record playback activity for profile XP / level / achievements / community feed.
+								// Mirrors what PlaybackManager does for external players.
+								if baseStream.profileId > 0 && baseStream.manager.recordPlaybackActivityFunc != nil {
+									// Duration not tracked at this layer — pass 0; activity tracker only uses it for stat metadata.
+									go baseStream.manager.recordPlaybackActivityFunc(baseStream.profileId, mediaId, epNum, totalEpisodes, 0)
+								}
 								baseStream.manager.wsEventManager.SendEventTo(baseStream.clientId, events.PlaybackManagerProgressUpdated, map[string]interface{}{
 									"mediaId":              mediaId,
 									"episodeNumber":        epNum,

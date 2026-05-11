@@ -139,6 +139,8 @@ func migrateTables(db *gorm.DB) error {
 		&models.GlobalMilestone{},
 		&models.MediaCacheEntry{},
 		&models.ClientPref{},
+		&models.SoundTrack{},
+		&models.SoundPlaylist{},
 	)
 	if err != nil {
 

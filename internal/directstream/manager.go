@@ -44,6 +44,11 @@ type (
 		// after a successful progress update so the next fetch returns fresh data.
 		invalidateProfileAnimeCollectionFunc func(profileID uint)
 
+		// recordPlaybackActivityFunc is called after a successful AniList progress update.
+		// It mirrors PlaybackManager's activity tracker so that direct-stream playback
+		// also contributes to the profile's XP / level / achievements / community feed.
+		recordPlaybackActivityFunc func(profileID uint, mediaID int, episodeNumber int, totalEpisodes int, durationSeconds int)
+
 		nativePlayer *nativeplayer.NativePlayer
 
 		videoCore           *videocore.VideoCore
@@ -91,6 +96,7 @@ type (
 		RefreshAnimeCollectionFunc  func()
 		GetProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
 		InvalidateProfileAnimeCollectionFunc func(profileID uint)
+		RecordPlaybackActivityFunc func(profileID uint, mediaID int, episodeNumber int, totalEpisodes int, durationSeconds int)
 		IsOfflineRef               *util.Ref[bool]
 		NativePlayer               *nativeplayer.NativePlayer
 		VideoCore                  *videocore.VideoCore
@@ -110,6 +116,7 @@ func NewManager(options NewManagerOptions) *Manager {
 		hmacTokenFunc:               options.HMACTokenFunc,
 		getProfileAnilistClientFunc: options.GetProfileAnilistClientFunc,
 		invalidateProfileAnimeCollectionFunc: options.InvalidateProfileAnimeCollectionFunc,
+		recordPlaybackActivityFunc: options.RecordPlaybackActivityFunc,
 		isOfflineRef:               options.IsOfflineRef,
 		sessions:                   result.NewMap[string, *ProfileStreamSession](),
 		nativePlayer:               options.NativePlayer,

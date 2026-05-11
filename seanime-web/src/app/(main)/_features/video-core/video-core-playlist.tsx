@@ -241,7 +241,7 @@ export function useVideoCorePlaylist() {
             return
         }
 
-        log.info("Requesting episode", which)
+        log.info("Requesting episode", which, "playbackType=", playbackType)
 
         // If global playlist is active, use it instead
         if (globalCurrentPlaylist) {
@@ -250,11 +250,15 @@ export function useVideoCorePlaylist() {
                 case "previous":
                     if (globalPlaylistPreviousEpisode) {
                         playGlobalPlaylistEpisode("previous", true)
+                    } else {
+                        toast.error("No previous episode in global playlist")
                     }
                     break
                 case "next":
                     if (globalPlaylistNextEpisode) {
                         playGlobalPlaylistEpisode("next", true)
+                    } else {
+                        toast.error("No next episode in global playlist")
                     }
                     break
             }
@@ -279,17 +283,20 @@ export function useVideoCorePlaylist() {
         }
 
         if (!episode) {
-            log.info("Episode not found for", which)
+            log.error("Episode not found for", which, "playlistState=", playlistState)
+            toast.error(which === "next" ? "No next episode available" : which === "previous" ? "No previous episode available" : "Episode not found")
             return
         }
 
-        log.info("Playing episode", episode)
+        log.info("Playing episode", episode, "playbackType=", playbackType)
+        toast.info(`Loading ${which === "next" ? "next" : which === "previous" ? "previous" : ""} episode${episode.episodeNumber ? ` ${episode.episodeNumber}` : ""}...`, { duration: 1500 })
 
         switch (playbackType) {
             case "localfile":
             case "nakama":
                 if (!episode?.localFile?.path) {
-                    toast.error("Local file not found")
+                    log.error("playEpisode: localfile path missing", episode)
+                    toast.error("Local file not found for this episode")
                     return
                 }
                 playMediaFile({
@@ -303,9 +310,11 @@ export function useVideoCorePlaylist() {
                 startStream(episode)
                 break
             default:
-                playlistState.onPlayEpisode?.(which as "previous" | "next")
-                if (!playlistState.onPlayEpisode) {
+                if (playlistState.onPlayEpisode) {
+                    playlistState.onPlayEpisode(which as "previous" | "next")
+                } else {
                     log.error("No onPlayEpisode function found for playback type", playbackType)
+                    toast.error(`Cannot play next episode: no handler registered for playback type "${playbackType}"`)
                 }
         }
     }

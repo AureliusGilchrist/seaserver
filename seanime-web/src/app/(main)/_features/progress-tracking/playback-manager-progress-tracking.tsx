@@ -137,7 +137,7 @@ export function PlaybackManagerProgressTracking() {
             // Don't auto-open the modal — the toast notifies the user, and the
             // "Currently watching" button remains available to open it manually.
             setState(data)
-            toast.info("Tracking current session")
+            // Removed initial "Tracking current session" toast per user request — keep per-episode progress toasts.
         },
     })
 

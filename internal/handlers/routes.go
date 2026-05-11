@@ -169,6 +169,17 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.DELETE("/theme-backgrounds/:filename", h.HandleDeleteThemeBackground)
 	v1.GET("/theme-backgrounds/wallhaven/search", h.HandleSearchWallhaven)
 
+	// Ambience (Internet Archive audio + server-shared playlists)
+	v1.GET("/sounds/search", h.HandleSearchSounds)
+	v1.GET("/sounds/files", h.HandleGetSoundFiles)
+	v1.GET("/sounds", h.HandleListSoundTracks)
+	v1.POST("/sounds/download", h.HandleDownloadSoundTrack)
+	v1.DELETE("/sounds/:uuid", h.HandleDeleteSoundTrack)
+	v1.GET("/sounds/playlists", h.HandleListSoundPlaylists)
+	v1.POST("/sounds/playlists", h.HandleCreateSoundPlaylist)
+	v1.PATCH("/sounds/playlists/:id", h.HandleUpdateSoundPlaylist)
+	v1.DELETE("/sounds/playlists/:id", h.HandleDeleteSoundPlaylist)
+
 	// Shared themes (downloaded from marketplace, visible to all profiles)
 	v1.GET("/shared-themes", h.HandleListSharedThemes)
 	v1.GET("/shared-themes/marketplace", h.HandleGetMarketplaceThemes)

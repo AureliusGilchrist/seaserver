@@ -102,7 +102,7 @@ export const THEME_DEFAULT_VALUES: ThemeSettings = {
     disableLibraryScreenGenreSelector: false,
     libraryScreenCustomBackgroundBlur: "",
     libraryScreenCustomBackgroundGlow: 0,
-    enableMediaPageBlurredBackground: false,
+    enableMediaPageBlurredBackground: true,
     disableSidebarTransparency: false,
     useLegacyEpisodeCard: false,
     disableCarouselAutoScroll: false,
@@ -120,7 +120,7 @@ export const THEME_DEFAULT_VALUES: ThemeSettings = {
     customCSS: "",
     mobileCustomCSS: "",
     unpinnedMenuItems: [],
-    enableBlurringEffects: false,
+    enableBlurringEffects: true,
 }
 
 export type ThemeSettingsHook = {

@@ -29,7 +29,7 @@ import { LuChevronLeft, LuChevronRight, LuVolume, LuVolume1, LuVolume2, LuVolume
 import { RiPauseLargeLine, RiPlayLargeLine } from "react-icons/ri"
 import { RxEnterFullScreen, RxExitFullScreen } from "react-icons/rx"
 import { TbPictureInPicture, TbPictureInPictureOff } from "react-icons/tb"
-import { BiBookmark } from "react-icons/bi"
+import { FaFloppyDisk } from "react-icons/fa6"
 import { toast } from "sonner"
 import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
@@ -158,28 +158,7 @@ export function VideoCoreControlBar(props: {
 
     return (
         <>
-            <div
-                data-vc-element="control-bar-gradient-bottom"
-                className={cn(
-                    "pointer-events-none",
-                    "absolute bottom-0 left-0 right-0 w-full z-[5] h-28 transition-opacity duration-300 opacity-0",
-                    "bg-gradient-to-t to-transparent",
-                    !isMiniPlayer ? "from-black/70" : "from-black/80 via-black/40",
-                    isMiniPlayer && "h-20",
-                    !hideShadow && "opacity-100",
-                )}
-            />
-            {!isMiniPlayer && <div
-                data-vc-element="control-bar-time-range-bottom-gradient"
-                className={cn(
-                    "pointer-events-none",
-                    "absolute bottom-0 left-0 right-0 w-full z-[5] h-14 transition-opacity duration-400 opacity-0",
-                    "bg-gradient-to-t to-transparent",
-                    !isMiniPlayer ? "from-black/40" : "from-black/60",
-                    isMiniPlayer && "h-10",
-                    (showOnlyTimeRange && paused && hideShadow) && "opacity-100",
-                )}
-            />}
+            {/* Removed bottom gradient overlays per user request — control bar now sits on transparent background */}
             <div
                 data-vc-element="control-bar"
                 data-vc-state-visible={!hideControlBar}
@@ -747,7 +726,7 @@ export function VideoCoreBookmarkButton() {
     return (
         <>
             <VideoCoreControlButtonIcon
-                icons={[["default", BiBookmark]]}
+                icons={[["default", FaFloppyDisk]]}
                 state="default"
                 onClick={() => confirmUpdate.open()}
             />
