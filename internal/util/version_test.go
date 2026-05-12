@@ -277,7 +277,7 @@ func TestValidateReleaseUrl(t *testing.T) {
 		expectedOutput bool
 	}{
 		{
-			url:            "https://github.com/5rahim/seanime/releases/download/v3.5.1/seanime-denshi-3.5.1_MacOS_arm64.dmg",
+			url:            "https://github.com/AureliusGilchrist/seaserver/releases/download/v3.5.1/seanime-denshi-3.5.1_MacOS_arm64.dmg",
 			expectedOutput: true,
 		},
 		{

@@ -22,7 +22,7 @@ All contributions are welcome _if_ they are in the scope of the project. If you'
 	# Navigate to the directory
 	cd seanime
 	# Assign to a remote called "upstream"
-	git remote add upstream https://github.com/5rahim/seanime.git
+	git remote add upstream https://github.com/AureliusGilchrist/seaserver.git
 	```
 
 3. Get the latest changes from the original repository.
@@ -71,4 +71,4 @@ All contributions are welcome _if_ they are in the scope of the project. If you'
 
 ## Areas
 
-[Issues](https://github.com/5rahim/seanime/issues?q=is%3Aissue+is%3Aopen+label%3A%22open+to+contribution%22)
+[Issues](https://github.com/AureliusGilchrist/seaserver/issues?q=is%3Aissue+is%3Aopen+label%3A%22open+to+contribution%22)

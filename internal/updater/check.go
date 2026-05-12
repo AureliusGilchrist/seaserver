@@ -15,7 +15,7 @@ import (
 // This allows updates even if Seanime is removed from GitHub
 var (
 	websiteUrl        = "https://seanime.app/api/release"
-	fallbackGithubUrl = "https://api.github.com/repos/5rahim/seanime/releases/latest"
+	fallbackGithubUrl = "https://api.github.com/repos/AureliusGilchrist/seaserver/releases/latest"
 	githubCheckUrl    = "https://seanime.app/api/github-status"
 )
 

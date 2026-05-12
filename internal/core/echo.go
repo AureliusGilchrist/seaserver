@@ -78,9 +78,6 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	// Serve downloaded theme music
 	e.Static("/theme-music", filepath.Join(app.Config.Data.AppDataDir, "theme-music"))
 
-	// Serve downloaded ambience audio (Internet Archive)
-	e.Static("/sounds-cache", filepath.Join(app.Config.Data.AppDataDir, "sounds"))
-
 	// Serve shared downloaded themes (profile-shared, not bundled)
 	sharedThemesDir := filepath.Join(app.Config.Data.AppDataDir, "themes")
 	app.Logger.Info().Msgf("app: Shared themes path: %s", sharedThemesDir)

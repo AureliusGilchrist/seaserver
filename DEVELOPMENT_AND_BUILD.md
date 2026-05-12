@@ -1,6 +1,6 @@
 # Seanime Development and Build Guide
 
-- [Seanime Denshi Guide](https://github.com/5rahim/seanime/blob/main/seanime-denshi/README.md)
+- [Seanime Denshi Guide](https://github.com/AureliusGilchrist/seaserver/blob/main/seanime-denshi/README.md)
 
 ## Prerequisites
 

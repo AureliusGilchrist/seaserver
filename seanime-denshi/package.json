@@ -41,7 +41,7 @@
     "generateUpdatesFilesForAllChannels": true,
     "publish": {
       "provider": "generic",
-      "url": "https://github.com/5rahim/seanime/releases/latest/download",
+      "url": "https://github.com/AureliusGilchrist/seaserver/releases/latest/download",
       "channel": "latest",
       "publishAutoUpdate": true,
       "useMultipleRangeRequest": false

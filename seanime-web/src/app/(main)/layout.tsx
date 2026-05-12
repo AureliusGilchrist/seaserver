@@ -1,7 +1,6 @@
 "use client"
 import { MainLayout } from "@/app/(main)/_features/layout/main-layout"
 import { TopNavbar } from "@/app/(main)/_features/layout/top-navbar"
-import { AmbiencePlayerMount } from "@/app/(main)/_features/ambience/ambience-player-mount"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { ServerDataWrapper } from "@/app/(main)/server-data-wrapper"
 import React from "react"
@@ -23,8 +22,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         {children}
                     </div>
                 </div>
-                {/* Persistent ambience audio element — survives navigation */}
-                <AmbiencePlayerMount />
             </MainLayout>
         </ServerDataWrapper>
     )

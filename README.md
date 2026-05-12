@@ -12,18 +12,18 @@
 
 <p align="center">
   <a href="https://seanime.app/docs">Documentation</a> |
-  <a href="https://github.com/5rahim/seanime/releases">Latest release</a> |
+  <a href="https://github.com/AureliusGilchrist/seaserver/releases">Latest release</a> |
   <a href="https://www.youtube.com/playlist?list=PLgQO-Ih6JClhFFdEVuNQJejyX_8iH82gl">Tutorials</a> |
   <a href="https://discord.gg/Sbr7Phzt6m">Discord</a> |
   <a href="https://seanime.app/docs/policies">Copyright</a>
 </p>
 
 <div align="center">
-  <a href="https://github.com/5rahim/seanime/releases">
-    <img src="https://img.shields.io/github/v/release/5rahim/seanime?style=flat-square&color=blue" alt="" />
+  <a href="https://github.com/AureliusGilchrist/seaserver/releases">
+    <img src="https://img.shields.io/github/v/release/AureliusGilchrist/seaserver?style=flat-square&color=blue" alt="" />
   </a>
-  <a href="https://github.com/5rahim/seanime/releases">
-    <img src="https://img.shields.io/github/downloads/5rahim/seanime/total?style=flat-square&color=blue" alt="" />
+  <a href="https://github.com/AureliusGilchrist/seaserver/releases">
+    <img src="https://img.shields.io/github/downloads/AureliusGilchrist/seaserver/total?style=flat-square&color=blue" alt="" />
   </a>
 	<a href="https://discord.gg/Aruz7wdAaf">
 	  <img src="https://img.shields.io/discord/1224767201551192224?style=flat-square&logo=Discord&color=blue&label=Discord" alt="discord">
@@ -105,7 +105,7 @@ The maintenance of this project is made possible by the sponsors.
 Building from source is straightforward, you'll need [Node.js](https://nodejs.org/en/download) and [Go](https://go.dev/doc/install) installed on your system.
 Development and testing might require additional configuration.
 
-[Read more here](https://github.com/5rahim/seanime/blob/main/DEVELOPMENT_AND_BUILD.md)
+[Read more here](https://github.com/AureliusGilchrist/seaserver/blob/main/DEVELOPMENT_AND_BUILD.md)
 
 <br>
 

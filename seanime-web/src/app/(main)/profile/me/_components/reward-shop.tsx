@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { LuLock, LuCheck, LuMousePointer2, LuTag, LuPalette, LuFrame, LuImage, LuZap, LuSparkles, LuVolume2, LuPlay, LuWand, LuCreditCard, LuCircleDot, LuType, LuDroplets, LuLayoutDashboard, LuPanelLeft, LuChevronsUpDown, LuSlidersHorizontal } from "react-icons/lu"
+import { LuLock, LuCheck, LuMousePointer2, LuTag, LuPalette, LuFrame, LuImage, LuZap, LuSparkles, LuVolume2, LuPlay, LuWand, LuCreditCard, LuCircleDot, LuType, LuDroplets, LuLayoutDashboard, LuPanelLeft, LuChevronsUpDown, LuSlidersHorizontal, LuMusic } from "react-icons/lu"
 import {
     UI_CUSTOMIZE_CATEGORIES,
     type UICustomizeCategoryId,
@@ -9,6 +9,7 @@ import {
 } from "@/lib/ui-customize/ui-customize-definitions"
 import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { ThemeOstMiniPlayer } from "@/lib/theme/anime-themes/theme-ost-mini-player"
 import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
 import { useSound, SOUND_LEVEL_REQUIREMENTS, EXTENDED_SOUND_LABELS, type ExtendedSoundName } from "@/lib/sounds/sound-provider"
 import { cn } from "@/components/ui/core/styling"
@@ -1014,11 +1015,13 @@ export function RewardShop({ currentLevel }: Props) {
                             <TabsTrigger value="particles"    className="flex items-center gap-1.5 text-xs"><LuSparkles      className="shrink-0" /> Particles</TabsTrigger>
                             <TabsTrigger value="cursors"      className="flex items-center gap-1.5 text-xs"><LuMousePointer2 className="shrink-0" /> Cursors</TabsTrigger>
                             <TabsTrigger value="sounds"       className="flex items-center gap-1.5 text-xs"><LuVolume2       className="shrink-0" /> Sounds</TabsTrigger>
+                            <TabsTrigger value="ost"          className="flex items-center gap-1.5 text-xs"><LuMusic         className="shrink-0" /> OST</TabsTrigger>
                         </TabsList>
                         <TabsContent value="enhancements"><UIEnhancementsSection currentLevel={currentLevel} /></TabsContent>
                         <TabsContent value="particles">   <ParticlesTab currentLevel={currentLevel} /></TabsContent>
                         <TabsContent value="cursors">     <CursorTab    currentLevel={currentLevel} /></TabsContent>
                         <TabsContent value="sounds">      <SoundPackTab currentLevel={currentLevel} /></TabsContent>
+                        <TabsContent value="ost">         <ThemeOstMiniPlayer /></TabsContent>
                     </Tabs>
                 )}
             </div>

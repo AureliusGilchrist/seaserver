@@ -44,8 +44,6 @@ const SYNCED_KEY_PATTERNS: readonly string[] = [
     "sea-media-theater-mode",
     // Custom CSS
     "sea-custom-css",
-    // Ambience (added later)
-    "sea-ambience-*",
 ]
 
 function isSyncedKey(key: string): boolean {

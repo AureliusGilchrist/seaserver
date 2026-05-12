@@ -11,7 +11,6 @@ import {
 } from "./ui-customize-definitions"
 import { applyRootCssVars } from "@/lib/helpers/css"
 import { seaStorage } from "@/lib/sea-storage/sea-storage"
-import { AmbiencePlayer } from "./ambience-player"
 
 interface UICustomizeContextValue {
     state: UICustomizeState
@@ -96,7 +95,6 @@ export function UICustomizeProvider({ children }: { children: React.ReactNode })
     return (
         <UICustomizeContext.Provider value={{ state, setPreset, setAllState, getActivePreset }}>
             {children}
-            <AmbiencePlayer />
         </UICustomizeContext.Provider>
     )
 }

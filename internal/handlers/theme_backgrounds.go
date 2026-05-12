@@ -180,6 +180,8 @@ func (h *Handler) HandleDeleteThemeBackground(c echo.Context) error {
 
 // HandleListThemeMusicTracks returns a list of audio tracks from appdata/theme-music/{themeId}/.
 // The files are served at /theme-music/{themeId}/{filename} via the static file server.
+// The scan is recursive — files in sub-folders (e.g. "Disc 1/01 - Tank.mp3") are included
+// with a forward-slash relative path so the URL/static serve continue to work.
 func (h *Handler) HandleListThemeMusicTracks(c echo.Context) error {
 	themeID := c.QueryParam("themeId")
 	if themeID == "" || strings.ContainsAny(themeID, "/\\..") {
@@ -191,31 +193,20 @@ func (h *Handler) HandleListThemeMusicTracks(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return h.RespondWithError(c, err)
-	}
-
 	type Track struct {
 		Filename string `json:"filename"`
 		URL      string `json:"url"`
 		Name     string `json:"name"` // human-readable: filename without extension
 	}
 
-	tracks := make([]Track, 0)
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		ext := strings.ToLower(filepath.Ext(e.Name()))
-		if ext != ".mp3" && ext != ".ogg" && ext != ".flac" && ext != ".m4a" && ext != ".wav" {
-			continue
-		}
-		name := strings.TrimSuffix(e.Name(), filepath.Ext(e.Name()))
+	files := walkThemeAudioFiles(dir)
+	tracks := make([]Track, 0, len(files))
+	for _, fi := range files {
+		base := filepath.Base(fi.RelPath)
 		tracks = append(tracks, Track{
-			Filename: e.Name(),
-			URL:      "/theme-music/" + themeID + "/" + e.Name(),
-			Name:     name,
+			Filename: fi.RelPath,
+			URL:      buildThemeAudioURL(themeID, fi.RelPath),
+			Name:     strings.TrimSuffix(base, filepath.Ext(base)),
 		})
 	}
 

@@ -201,30 +201,6 @@ export const SCROLLBAR_PRESETS: UIPreset[] = [
     { id: "scroll-minimal",  name: "Minimal",        description: "Ultra-thin barely visible.",            icon: "⬜", cssVars: { "--sea-scrollbar-width": "2px",    "--sea-scrollbar-color": "rgba(255,255,255,0.15) transparent" }, previewCss: "background:rgba(255,255,255,0.15);width:2px", requiredLevel: 3 },
 ]
 
-// ─── 11. Ambience (procedurally synthesized via Web Audio API) ───────────────
-// Sounds are generated live by ambience-synth.ts — no audio assets required.
-// Preset id (after the "ambience-" prefix) maps directly to an AmbienceKind.
-
-export const AMBIENCE_PRESETS: UIPreset[] = [
-    { id: "ambience-none",      name: "None",           description: "No ambient sound.",                       icon: "🔇", previewCss: "background:#111827",                                                              requiredLevel: 1  },
-    { id: "ambience-rain",      name: "Light Rain",     description: "Soft rainfall on a quiet street.",       icon: "🌧️", previewCss: "background:linear-gradient(135deg,#1e3a8a55,#0ea5e955)",                          requiredLevel: 1  },
-    { id: "ambience-thunder",   name: "Thunderstorm",   description: "Distant thunder over heavy rain.",       icon: "⛈️", previewCss: "background:linear-gradient(135deg,#1e1b4b88,#312e8166)",                          requiredLevel: 3  },
-    { id: "ambience-forest",    name: "Forest",         description: "Birdsong and leaves rustling.",          icon: "🌲", previewCss: "background:linear-gradient(135deg,#14532d55,#22c55e55)",                          requiredLevel: 3  },
-    { id: "ambience-ocean",     name: "Ocean Waves",    description: "Slow waves on a quiet beach.",           icon: "🌊", previewCss: "background:linear-gradient(135deg,#0c4a6e55,#06b6d455)",                          requiredLevel: 5  },
-    { id: "ambience-cafe",      name: "Cafe",           description: "Warm coffee shop chatter.",              icon: "☕", previewCss: "background:linear-gradient(135deg,#78350f55,#d9770655)",                          requiredLevel: 5  },
-    { id: "ambience-fireplace", name: "Fireplace",      description: "Crackling logs by a hearth.",            icon: "🔥", previewCss: "background:linear-gradient(135deg,#7c2d1255,#ea580c55)",                          requiredLevel: 8  },
-    { id: "ambience-night",     name: "Night Crickets", description: "Crickets and a soft breeze.",            icon: "🌙", previewCss: "background:linear-gradient(135deg,#1e1b4b55,#4338ca55)",                          requiredLevel: 8  },
-    { id: "ambience-vinyl",     name: "Vinyl Crackle",  description: "Lo-fi vinyl record warmth.",             icon: "💿", previewCss: "background:linear-gradient(135deg,#44403c55,#a8a29e55)",                          requiredLevel: 10 },
-    { id: "ambience-stream",    name: "Mountain Stream",description: "Babbling brook over rocks.",             icon: "💧", previewCss: "background:linear-gradient(135deg,#0c4a6e55,#67e8f955)",                          requiredLevel: 12 },
-    { id: "ambience-wind",      name: "Wind",           description: "Gentle wind through open fields.",       icon: "🍃", previewCss: "background:linear-gradient(135deg,#1e293b55,#94a3b855)",                          requiredLevel: 12 },
-    { id: "ambience-snow",      name: "Snowfall",       description: "Quiet wintry hush.",                     icon: "❄️", previewCss: "background:linear-gradient(135deg,#cbd5e155,#e2e8f055)",                          requiredLevel: 15 },
-    { id: "ambience-shrine",    name: "Shrine Bells",   description: "Distant temple bells and breeze.",       icon: "⛩️", previewCss: "background:linear-gradient(135deg,#7f1d1d55,#dc262655)",                          requiredLevel: 18 },
-    { id: "ambience-train",     name: "Night Train",    description: "Rhythmic rails through the dark.",       icon: "🚆", previewCss: "background:linear-gradient(135deg,#0f172a88,#33415555)",                          requiredLevel: 20 },
-    { id: "ambience-library",   name: "Library",        description: "Quiet pages turning.",                   icon: "📚", previewCss: "background:linear-gradient(135deg,#451a0355,#92400e55)",                          requiredLevel: 22 },
-    { id: "ambience-space",     name: "Deep Space",     description: "Cosmic drone and faint static.",         icon: "🌌", previewCss: "background:linear-gradient(135deg,#1e1b4b88,#7c3aed55)",                          requiredLevel: 25 },
-    { id: "ambience-bamboo",    name: "Bamboo Grove",   description: "Wind through tall bamboo.",              icon: "🎋", previewCss: "background:linear-gradient(135deg,#14532d55,#84cc1655)",                          requiredLevel: 30 },
-]
-
 // ─── All categories ───────────────────────────────────────────────────────────
 
 export const UI_CUSTOMIZE_CATEGORIES = [
@@ -236,7 +212,6 @@ export const UI_CUSTOMIZE_CATEGORIES = [
     { id: "layout",      label: "Layout Density",   icon: "📐", presets: LAYOUT_PRESETS         },
     { id: "transitions", label: "Page Transitions", icon: "🎬", presets: PAGE_TRANSITION_PRESETS },
     { id: "scrollbar",   label: "Scrollbar",        icon: "↕️", presets: SCROLLBAR_PRESETS     },
-    { id: "ambience",    label: "Ambience",         icon: "🌿", presets: AMBIENCE_PRESETS       },
 ] as const
 
 export type UICustomizeCategoryId = typeof UI_CUSTOMIZE_CATEGORIES[number]["id"]
@@ -252,7 +227,6 @@ export interface UICustomizeState {
     sidebar:     string
     transitions: string
     scrollbar:   string
-    ambience:    string
 }
 
 export const UI_CUSTOMIZE_DEFAULTS: UICustomizeState = {
@@ -266,5 +240,4 @@ export const UI_CUSTOMIZE_DEFAULTS: UICustomizeState = {
     sidebar:     "sidebar-default",
     transitions: "pt-fade",
     scrollbar:   "scroll-default",
-    ambience:    "ambience-none",
 }

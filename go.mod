@@ -19,6 +19,7 @@ require (
 	github.com/chromedp/chromedp v0.14.2
 	github.com/cli/browser v1.3.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
+	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
 	github.com/dop251/goja_nodejs v0.0.0-20251015164255-5e94316bedaf
 	github.com/dustin/go-humanize v1.0.1
