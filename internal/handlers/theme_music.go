@@ -130,6 +130,12 @@ func (h *Handler) HandleSearchThemeMusic(c echo.Context) error {
 		return h.RespondWithError(c, errors.New("query is required"))
 	}
 
+	// Default to nyaa for OST searches — it does plain text search and doesn't
+	// require Animap/AniZip metadata (since our stub media has ID=0).
+	if strings.TrimSpace(b.Provider) == "" {
+		b.Provider = "nyaa"
+	}
+
 	// SearchAnime dereferences several BaseAnime pointer fields (e.g. IsAdult)
 	// without nil-checks, so we must pass a fully-populated stub even though
 	// we are not searching for a specific anime — just music releases.
@@ -160,6 +166,16 @@ func (h *Handler) HandleSearchThemeMusic(c echo.Context) error {
 		IncludeSpecialProviders: false,
 	})
 	if err != nil {
+		// "not found on Animap/AniZip" errors arise from providers that try to
+		// enrich the (stub) media. Treat these as empty results rather than
+		// a 500 — the OST search is intentionally a raw text search.
+		msg := err.Error()
+		if strings.Contains(msg, "not found on Animap") ||
+			strings.Contains(msg, "not found on AniZip") ||
+			strings.Contains(msg, "animap") ||
+			strings.Contains(msg, "anizip") {
+			return h.RespondWithData(c, &torrent.SearchData{Torrents: nil})
+		}
 		return h.RespondWithError(c, err)
 	}
 

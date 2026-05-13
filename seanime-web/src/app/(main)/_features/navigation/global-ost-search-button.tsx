@@ -43,9 +43,8 @@ export function GlobalOstSearchButton() {
 
     const [open, setOpen] = React.useState(false)
 
-    // Sit directly above the Lv./Shop pill (which is at bottom-5, ~36px tall).
-    // In fullscreen the Lv. pill jumps to bottom-[140px], so we sit just above it.
-    const bottomPosition = isFullscreen ? "bottom-[184px]" : "bottom-[64px]"
+    // Bottom-right corner. In fullscreen, lift above the player control bar.
+    const bottomPosition = isFullscreen ? "bottom-[140px]" : "bottom-5"
     const disabled = !themeId
 
     return (
@@ -55,7 +54,7 @@ export function GlobalOstSearchButton() {
                 title={disabled ? "Select a theme to search OST" : `Find OST — ${themeDisplayName}`}
                 disabled={disabled}
                 className={cn(
-                    "fixed left-5 z-50 flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl",
+                    "fixed right-5 z-50 flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl",
                     "border shadow-xl transition-all duration-300 ease-out",
                     "text-[--foreground] font-semibold group",
                     bottomPosition,
