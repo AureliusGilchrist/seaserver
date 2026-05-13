@@ -277,6 +277,32 @@ func (m *Manager) PlayLocalFile(ctx context.Context, opts PlayLocalFileOptions) 
 		media = listEntry.Media
 	}
 
+	// Fallback 1: cached collection may be stale (e.g. media was just added
+	// to a list, or lives in a list that wasn't included like "Planning").
+	// Force-refresh the collection from AniList and retry once.
+	if media == nil && m.platformRef != nil {
+		if p := m.platformRef.Get(); p != nil {
+			if fresh, fetchErr := p.GetAnimeCollection(ctx, true); fetchErr == nil && fresh != nil {
+				m.animeCollection = mo.Some(fresh)
+				animeCollection = fresh
+				if e, found := fresh.GetListEntryFromAnimeId(mId); found && e != nil {
+					media = e.Media
+				}
+			}
+		}
+	}
+
+	// Fallback 2: media still missing (e.g. user is offline from AniList,
+	// or the entry was removed from all of their lists). Fetch the media
+	// directly by ID so playback can still proceed.
+	if media == nil && m.platformRef != nil {
+		if p := m.platformRef.Get(); p != nil {
+			if fetched, fetchErr := p.GetAnime(ctx, mId); fetchErr == nil && fetched != nil {
+				media = fetched
+			}
+		}
+	}
+
 	if media == nil {
 		return fmt.Errorf("media not found in anime collection: %d", mId)
 	}
