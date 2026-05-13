@@ -1,6 +1,7 @@
 "use client"
 import { MainLayout } from "@/app/(main)/_features/layout/main-layout"
 import { TopNavbar } from "@/app/(main)/_features/layout/top-navbar"
+import { GlobalErrorToast } from "@/app/(main)/_features/diagnostics/global-error-toast"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { ServerDataWrapper } from "@/app/(main)/server-data-wrapper"
 import React from "react"
@@ -15,6 +16,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return (
         <ServerDataWrapper host={host}>
             <MainLayout>
+                <GlobalErrorToast />
                 {serverStatus?.isOffline && <OfflineBanner />}
                 <div data-main-layout-container className="h-auto">
                     <TopNavbar />
