@@ -84,12 +84,13 @@ export function FindOstModal(props: FindOstModalProps) {
         return t.magnetLink || t.downloadUrl || null
     }
 
+    function torrentKey(t: ThemeMusicTorrent): string {
+        return t.infoHash || t.magnetLink || t.downloadUrl || t.link || t.name
+    }
+
     function requestDownload(t: ThemeMusicTorrent) {
-        const magnet = pickMagnet(t)
-        if (!magnet) {
-            toast.error("No magnet/download URL on this torrent")
-            return
-        }
+        // Magnet resolution is allowed to happen server-side via the provider —
+        // never block the click here even when MagnetLink is empty.
         if (hasExisting) {
             setConfirmTarget(t)
             return
@@ -98,11 +99,15 @@ export function FindOstModal(props: FindOstModalProps) {
     }
 
     function performDownload(t: ThemeMusicTorrent, replaceExisting: boolean) {
-        const magnet = pickMagnet(t)
-        if (!magnet) return
-        setDownloadingMagnet(magnet)
+        setDownloadingMagnet(torrentKey(t))
         download.mutate(
-            { themeId, magnetUrl: magnet, replaceExisting },
+            {
+                themeId,
+                magnetUrl: pickMagnet(t) ?? "",
+                provider: t.provider,
+                torrent: t,
+                replaceExisting,
+            },
             {
                 onSuccess: () => {
                     toast.success("Download started", { description: t.name })
@@ -190,7 +195,11 @@ export function FindOstModal(props: FindOstModalProps) {
                                 <tbody>
                                     {torrents.map((t, i) => {
                                         const magnet = pickMagnet(t)
-                                        const isDownloading = !!magnet && downloadingMagnet === magnet
+                                        const tKey = torrentKey(t)
+                                        const isDownloading = downloadingMagnet === tKey
+                                        // We allow clicks even when no magnet/downloadUrl is present —
+                                        // the backend will resolve the magnet via the provider extension.
+                                        const canDownload = !!magnet || !!t.provider || !!t.link
                                         return (
                                             <tr key={(t.infoHash || t.link || t.name) + ":" + i} className="border-t border-[--border] hover:bg-white/[0.02]">
                                                 <td className="px-3 py-2">
@@ -230,7 +239,7 @@ export function FindOstModal(props: FindOstModalProps) {
                                                         size="sm"
                                                         intent="primary-subtle"
                                                         leftIcon={isDownloading ? <LuLoader className="size-3.5 animate-spin" /> : <LuDownload className="size-3.5" />}
-                                                        disabled={!magnet || isDownloading || download.isPending}
+                                                        disabled={!canDownload || isDownloading || download.isPending}
                                                         onClick={() => requestDownload(t)}
                                                     >
                                                         {isDownloading ? "Sending…" : "Download"}

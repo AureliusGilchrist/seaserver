@@ -38,8 +38,8 @@ export function GlobalRewardShopButton() {
             : "rgba(255,255,255,0.12)",
     }
 
-    // In fullscreen: raise the button up from the bottom (animated)
-    const bottomPosition = isFullscreen ? "bottom-16" : "bottom-5"
+    // In fullscreen: raise the button well above the player's timeline + control bar (animated)
+    const bottomPosition = isFullscreen ? "bottom-[140px]" : "bottom-5"
 
     return (
         <>

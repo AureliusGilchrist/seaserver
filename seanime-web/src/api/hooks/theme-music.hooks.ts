@@ -182,7 +182,7 @@ export function useDownloadThemeMusic() {
     const queryClient = useQueryClient()
     const [pending, setPending] = useAtom(pendingThemeMusicDownloadsAtom)
     const prune = usePrunePending()
-    return useServerMutation<boolean, { themeId: string; magnetUrl: string; replaceExisting?: boolean }>({
+    return useServerMutation<boolean, { themeId: string; magnetUrl?: string; provider?: string; torrent?: any; replaceExisting?: boolean }>({
         endpoint: "/api/v1/theme-music/download",
         method: "POST",
         onSuccess: (_data: any, vars: any) => {

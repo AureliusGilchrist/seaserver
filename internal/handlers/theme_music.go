@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"seanime/internal/api/anilist"
+	"seanime/internal/extension/hibike/torrent"
 	"seanime/internal/torrents/torrent"
 
 	"github.com/dhowden/tag"
@@ -157,18 +158,41 @@ func (h *Handler) HandleSearchThemeMusic(c echo.Context) error {
 //	@returns bool
 func (h *Handler) HandleDownloadThemeMusic(c echo.Context) error {
 	type body struct {
-		ThemeID         string `json:"themeId"`
-		MagnetUrl       string `json:"magnetUrl"`
-		ReplaceExisting bool   `json:"replaceExisting"`
+		ThemeID         string                      `json:"themeId"`
+		MagnetUrl       string                      `json:"magnetUrl"`
+		Provider        string                      `json:"provider"`
+		Torrent         *hibiketorrent.AnimeTorrent `json:"torrent"`
+		ReplaceExisting bool                        `json:"replaceExisting"`
 	}
 
 	var b body
 	if err := c.Bind(&b); err != nil {
 		return h.RespondWithError(c, err)
 	}
-	if strings.TrimSpace(b.MagnetUrl) == "" {
-		return h.RespondWithError(c, errors.New("magnetUrl is required"))
+
+	// Resolve the magnet URL: prefer an explicitly supplied magnetUrl, otherwise
+	// fall back to the provider's GetTorrentMagnetLink for torrents that need
+	// scraping (most providers don't include a magnet directly in search results).
+	magnet := strings.TrimSpace(b.MagnetUrl)
+	if magnet == "" && b.Torrent != nil {
+		if b.Torrent.MagnetLink != "" {
+			magnet = b.Torrent.MagnetLink
+		} else if b.Provider != "" {
+			providerExtension, ok := h.App.TorrentRepository.GetAnimeProviderExtension(b.Provider)
+			if !ok {
+				return h.RespondWithError(c, errors.New("provider extension not found: "+b.Provider))
+			}
+			resolved, err := providerExtension.GetProvider().GetTorrentMagnetLink(b.Torrent)
+			if err != nil {
+				return h.RespondWithError(c, err)
+			}
+			magnet = strings.TrimSpace(resolved)
+		}
 	}
+	if magnet == "" {
+		return h.RespondWithError(c, errors.New("could not resolve magnet link for this torrent"))
+	}
+
 	dir, err := h.themeMusicDir(b.ThemeID)
 	if err != nil {
 		return h.RespondWithError(c, err)
@@ -183,7 +207,7 @@ func (h *Handler) HandleDownloadThemeMusic(c echo.Context) error {
 		return h.RespondWithError(c, errors.New("could not start torrent client, verify your settings"))
 	}
 
-	if err := h.App.TorrentClientRepository.AddMagnets([]string{b.MagnetUrl}, dir); err != nil {
+	if err := h.App.TorrentClientRepository.AddMagnets([]string{magnet}, dir); err != nil {
 		return h.RespondWithError(c, err)
 	}
 
