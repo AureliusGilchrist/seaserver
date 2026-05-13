@@ -41,9 +41,7 @@ import {
 import { WallhavenPickerModal } from "./_components/wallhaven-picker"
 import { WallpaperShop } from "./_components/wallpaper-shop"
 import { fetchSharedThemesList, downloadSharedTheme, deleteSharedTheme, type SharedThemeInfo, type MarketplaceThemeMeta, fetchMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
-import { FindOstModal } from "@/lib/theme/anime-themes/find-ost-modal"
 import { Button } from "@/components/ui/button"
-import { LuMusic } from "react-icons/lu"
 
 export default function ThemeManagerPage() {
     // ── Shared/Marketplace themes state ──
@@ -56,13 +54,7 @@ export default function ThemeManagerPage() {
     const [deletingId, setDeletingId] = React.useState<string | null>(null)
     const [marketplaceSearchQuery, setMarketplaceSearchQuery] = React.useState("")
 
-    // Find OST modal state — opens when the user clicks "Find OST" next to the background sliders.
-    const [findOstOpen, setFindOstOpen] = React.useState(false)
-    const [findOstTheme, setFindOstTheme] = React.useState<{ id: string; name: string } | null>(null)
-    const openFindOst = React.useCallback((id: string, name: string) => {
-        setFindOstTheme({ id, name })
-        setFindOstOpen(true)
-    }, [])
+    // Note: OST search is now in the bottom-left sidebar (GlobalOstSearchButton).
 
     // Load shared themes on mount
     React.useEffect(() => {
@@ -442,17 +434,7 @@ export default function ThemeManagerPage() {
 
                                 {/* Background section */}
                                 <div className="space-y-3">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Background</p>
-                                        <Button
-                                            size="sm"
-                                            intent="primary-subtle"
-                                            leftIcon={<LuMusic className="size-3.5" />}
-                                            onClick={() => openFindOst(config.id, config.displayName)}
-                                        >
-                                            Find OST
-                                        </Button>
-                                    </div>
+                                    <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Background</p>
                                     <EffectSlider label="Dim" value={backgroundDim} min={0} max={1} step={0.01} display={`${Math.round(backgroundDim * 100)}%`} onChange={setBackgroundDim} onReset={() => setBackgroundDim(config.backgroundDim ?? 0.30)} />
                                     <EffectSlider label="Blur" value={backgroundBlur} min={0} max={60} step={1} display={`${backgroundBlur}px`} fillPct={(backgroundBlur / 60) * 100} onChange={setBackgroundBlur} onReset={() => setBackgroundBlur(config.backgroundBlur ?? 0)} />
                                     <EffectSlider label="Exposure" value={backgroundExposure} min={0.1} max={2.5} step={0.05} display={`${Math.round(backgroundExposure * 100)}%`} fillPct={((backgroundExposure - 0.1) / 2.4) * 100} onChange={setBackgroundExposure} onReset={() => setBackgroundExposure(1.0)} />
@@ -1085,15 +1067,6 @@ export default function ThemeManagerPage() {
 
             <WallhavenPickerModal open={pickerOpen} onClose={() => setPickerOpen(false)} />
 
-            {findOstTheme && (
-                <FindOstModal
-                    themeId={findOstTheme.id}
-                    themeDisplayName={findOstTheme.name}
-                    open={findOstOpen}
-                    onOpenChange={setFindOstOpen}
-                />
-            )}
-
             <ThemeSettingsPanel
                 open={settingsPanelOpen}
                 onClose={() => setSettingsPanelOpen(false)}
@@ -1132,7 +1105,6 @@ export default function ThemeManagerPage() {
                 setActiveBackgroundUrl={setActiveBackgroundUrl}
                 downloadedBgs={downloadedBgs ?? undefined}
                 downloadBgMutation={downloadBgMutation}
-                openFindOst={openFindOst}
             />
 
             {/* Animated Elements */}
@@ -1986,7 +1958,6 @@ interface ThemeSettingsPanelProps {
     setActiveBackgroundUrl: (url: string | null) => void
     downloadedBgs: ThemeBgFile[] | undefined
     downloadBgMutation: ReturnType<typeof useDownloadThemeBackground>
-    openFindOst: (themeId: string, themeName: string) => void
 }
 
 function ThemeSettingsPanel({
@@ -2008,7 +1979,6 @@ function ThemeSettingsPanel({
     noiseSpeed, setNoiseSpeed,
     activeBackgroundUrl, setActiveBackgroundUrl,
     downloadedBgs, downloadBgMutation,
-    openFindOst,
 }: ThemeSettingsPanelProps) {
     const [colorInput, setColorInput] = React.useState(brandColorOverride ?? "")
     React.useEffect(() => { setColorInput(brandColorOverride ?? "") }, [brandColorOverride, open])
@@ -2114,17 +2084,7 @@ function ThemeSettingsPanel({
 
                             {/* ── Background sliders (at top) ── */}
                             <section className="space-y-3">
-                                <div className="flex items-center justify-between gap-2">
-                                    <p className="text-[10px] font-semibold text-[--muted] uppercase tracking-widest">Background</p>
-                                    <Button
-                                        size="sm"
-                                        intent="primary-subtle"
-                                        leftIcon={<LuMusic className="size-3" />}
-                                        onClick={() => openFindOst(config.id, config.displayName)}
-                                    >
-                                        Find OST
-                                    </Button>
-                                </div>
+                                <p className="text-[10px] font-semibold text-[--muted] uppercase tracking-widest">Background</p>
                                 <InlineSliderRow label="Dim" value={backgroundDim} onChange={setBackgroundDim} min={0} max={1} step={0.01} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundDim(config.backgroundDim ?? 0.30)} />
                                 <InlineSliderRow label="Blur" value={backgroundBlur} onChange={setBackgroundBlur} min={0} max={60} step={1} display={v => `${v}px`} onReset={() => setBackgroundBlur(config.backgroundBlur ?? 30)} />
                                 <InlineSliderRow label="Exposure" value={backgroundExposure} onChange={setBackgroundExposure} min={0.1} max={2.5} step={0.05} display={v => `${Math.round(v * 100)}%`} onReset={() => setBackgroundExposure(1.0)} />
