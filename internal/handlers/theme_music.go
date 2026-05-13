@@ -130,12 +130,28 @@ func (h *Handler) HandleSearchThemeMusic(c echo.Context) error {
 		return h.RespondWithError(c, errors.New("query is required"))
 	}
 
+	// SearchAnime dereferences several BaseAnime pointer fields (e.g. IsAdult)
+	// without nil-checks, so we must pass a fully-populated stub even though
+	// we are not searching for a specific anime — just music releases.
+	isAdult := false
+	status := anilist.MediaStatusFinished
+	format := anilist.MediaFormatTv
+	zero := 0
+	stubMedia := &anilist.BaseAnime{
+		ID:        0,
+		IsAdult:   &isAdult,
+		Status:    &status,
+		Format:    &format,
+		Title:     &anilist.BaseAnime_Title{},
+		StartDate: &anilist.BaseAnime_StartDate{Year: &zero, Month: &zero, Day: &zero},
+	}
+
 	// Use a simple search with no media binding — we are not searching for an episode,
 	// we want music releases such as OSTs, character songs, openings/endings.
 	data, err := h.App.TorrentRepository.SearchAnime(c.Request().Context(), torrent.AnimeSearchOptions{
 		Provider:                b.Provider,
 		Type:                    torrent.AnimeSearchType("simple"),
-		Media:                   &anilist.BaseAnime{},
+		Media:                   stubMedia,
 		Query:                   b.Query,
 		Batch:                   false,
 		EpisodeNumber:           0,

@@ -43,8 +43,9 @@ export function GlobalOstSearchButton() {
 
     const [open, setOpen] = React.useState(false)
 
-    // Stack above the Lv./Shop pill. Lv./Shop = bottom-5 normal, bottom-[140px] fullscreen.
-    const bottomPosition = isFullscreen ? "bottom-[200px]" : "bottom-[80px]"
+    // Sit directly above the Lv./Shop pill (which is at bottom-5, ~36px tall).
+    // In fullscreen the Lv. pill jumps to bottom-[140px], so we sit just above it.
+    const bottomPosition = isFullscreen ? "bottom-[184px]" : "bottom-[64px]"
     const disabled = !themeId
 
     return (
@@ -54,9 +55,9 @@ export function GlobalOstSearchButton() {
                 title={disabled ? "Select a theme to search OST" : `Find OST — ${themeDisplayName}`}
                 disabled={disabled}
                 className={cn(
-                    "fixed left-5 z-50 flex items-center gap-2 px-3 py-2 rounded-2xl",
+                    "fixed left-5 z-50 flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl",
                     "border shadow-xl transition-all duration-300 ease-out",
-                    "text-[--foreground] text-sm font-semibold group",
+                    "text-[--foreground] font-semibold group",
                     bottomPosition,
                     disabled
                         ? "opacity-40 cursor-not-allowed bg-white/[0.04] border-white/[0.06]"
@@ -67,8 +68,8 @@ export function GlobalOstSearchButton() {
                     WebkitBackdropFilter: "blur(12px)",
                 }}
             >
-                <LuMusic className="w-4 h-4 text-white/80 group-hover:text-white" />
-                <span className="text-xs text-white/80 group-hover:text-white">OST</span>
+                <LuMusic className="w-3.5 h-3.5 text-white/80 group-hover:text-white" />
+                <span className="text-[10px] uppercase tracking-wider text-white/80 group-hover:text-white">OST</span>
             </button>
 
             {open && (
