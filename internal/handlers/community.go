@@ -50,14 +50,16 @@ type AggregateStats struct {
 
 // ActivityFeedEntry represents a single event in the community activity feed.
 type ActivityFeedEntry struct {
-	ProfileID       uint       `json:"profileId"`
-	ProfileName     string     `json:"profileName"`
-	ProfileAvatar   string     `json:"profileAvatar"`
-	AchievementKey  string     `json:"achievementKey"`
-	AchievementTier int        `json:"achievementTier"`
-	AchievementName string     `json:"achievementName"`
-	IconSVG         string     `json:"iconSvg"`
-	UnlockedAt      *time.Time `json:"unlockedAt"`
+	ProfileID              uint       `json:"profileId"`
+	ProfileName            string     `json:"profileName"`
+	ProfileAvatar          string     `json:"profileAvatar"`
+	AchievementKey         string     `json:"achievementKey"`
+	AchievementTier        int        `json:"achievementTier"`
+	AchievementName        string     `json:"achievementName"`
+	AchievementDescription string     `json:"achievementDescription"`
+	AchievementXP          int        `json:"achievementXp"`
+	IconSVG                string     `json:"iconSvg"`
+	UnlockedAt             *time.Time `json:"unlockedAt"`
 }
 
 // HandleGetCommunityProfiles
@@ -176,19 +178,25 @@ func (h *Handler) HandleGetActivityFeed(c echo.Context) error {
 			ach := unlocked[i]
 			name := ach.Key
 			iconSVG := ""
+			desc := ""
+			xpReward := 0
 			if d, ok := defMap[ach.Key]; ok {
 				name = d.Name
 				iconSVG = d.IconSVG
+				desc = d.Description
+				xpReward = d.XPReward
 			}
 			feed = append(feed, &ActivityFeedEntry{
-				ProfileID:       p.ID,
-				ProfileName:     p.Name,
-				ProfileAvatar:   avatar,
-				AchievementKey:  ach.Key,
-				AchievementTier: ach.Tier,
-				AchievementName: name,
-				IconSVG:         iconSVG,
-				UnlockedAt:      ach.UnlockedAt,
+				ProfileID:              p.ID,
+				ProfileName:            p.Name,
+				ProfileAvatar:          avatar,
+				AchievementKey:         ach.Key,
+				AchievementTier:        ach.Tier,
+				AchievementName:        name,
+				AchievementDescription: desc,
+				AchievementXP:          xpReward,
+				IconSVG:                iconSVG,
+				UnlockedAt:             ach.UnlockedAt,
 			})
 		}
 	}

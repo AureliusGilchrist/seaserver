@@ -83,10 +83,28 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	app.Logger.Info().Msgf("app: Shared themes path: %s", sharedThemesDir)
 	e.Static("/shared-themes", sharedThemesDir)
 
+	// Serve downloaded cursor packs
+	cursorPacksDir := filepath.Join(app.Config.Data.AppDataDir, "cursor-packs")
+	e.Static("/cursor-packs", cursorPacksDir)
+
+	// Serve downloaded sound packs
+	soundPacksDir := filepath.Join(app.Config.Data.AppDataDir, "sound-packs")
+	e.Static("/sound-packs", soundPacksDir)
+
 	// Serve marketplace theme files (if configured) - this is the seanime-themes repo
 	if app.Config.Marketplace.Dir != "" {
 		app.Logger.Info().Msgf("app: Marketplace themes path: %s", app.Config.Marketplace.Dir)
 		e.Static("/marketplace", app.Config.Marketplace.Dir)
+	}
+
+	// Serve marketplace cursor pack files (for preview images)
+	if app.Config.Marketplace.CursorPacksDir != "" {
+		e.Static("/marketplace-cursor-packs", app.Config.Marketplace.CursorPacksDir)
+	}
+
+	// Serve marketplace sound pack files (for preview images)
+	if app.Config.Marketplace.SoundPacksDir != "" {
+		e.Static("/marketplace-sound-packs", app.Config.Marketplace.SoundPacksDir)
 	}
 
 	return e

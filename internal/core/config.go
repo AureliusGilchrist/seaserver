@@ -64,7 +64,9 @@ type Config struct {
 		MainServerTorrentStreaming bool
 	}
 	Marketplace struct {
-		Dir string // Path to the seanime-themes marketplace directory
+		Dir           string // Path to the seanime-themes marketplace directory
+		CursorPacksDir string // Path to the seanime-cursor-packs marketplace directory
+		SoundPacksDir  string // Path to the seanime-sound-packs marketplace directory
 	}
 	Privacy struct {
 		Socks5Address string
@@ -158,6 +160,8 @@ func NewConfig(options *ConfigOptions, logger *zerolog.Logger) (*Config, error) 
 	viper.SetDefault("extensions.dir", "$SEANIME_DATA_DIR/extensions")
 	// Default to the seanime-themes submodule directory for marketplace themes
 	viper.SetDefault("marketplace.dir", "$SEANIME_WORKING_DIR/seanime-themes")
+	viper.SetDefault("marketplace.cursorPacksDir", "$SEANIME_WORKING_DIR/seanime-cursor-packs")
+	viper.SetDefault("marketplace.soundPacksDir", "$SEANIME_WORKING_DIR/seanime-sound-packs")
 
 	// Create and populate the config file if it doesn't exist
 	if err = createConfigFile(configPath); err != nil {
@@ -471,6 +475,8 @@ func expandEnvironmentValues(cfg *Config) {
 	cfg.Server.Tls.CertPath = filepath.FromSlash(os.ExpandEnv(cfg.Server.Tls.CertPath))
 	cfg.Server.Tls.KeyPath = filepath.FromSlash(os.ExpandEnv(cfg.Server.Tls.KeyPath))
 	cfg.Marketplace.Dir = filepath.FromSlash(os.ExpandEnv(cfg.Marketplace.Dir))
+	cfg.Marketplace.CursorPacksDir = filepath.FromSlash(os.ExpandEnv(cfg.Marketplace.CursorPacksDir))
+	cfg.Marketplace.SoundPacksDir = filepath.FromSlash(os.ExpandEnv(cfg.Marketplace.SoundPacksDir))
 }
 
 // createConfigFile creates a default config file if it doesn't exist

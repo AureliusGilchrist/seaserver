@@ -36,7 +36,7 @@ export function useGetMyProfile() {
 
 export function useGetUserProfile(id: number) {
     return useServerQuery<Handlers_ProfilePageResponse>({
-        endpoint: `${API_ENDPOINTS.PROFILE_PAGE.GetUserProfile.endpoint}/${id}`,
+        endpoint: API_ENDPOINTS.PROFILE_PAGE.GetUserProfile.endpoint.replace("{id}", String(id)),
         method: API_ENDPOINTS.PROFILE_PAGE.GetUserProfile.methods[0],
         queryKey: [API_ENDPOINTS.PROFILE_PAGE.GetUserProfile.key, id],
         enabled: id > 0,

@@ -184,6 +184,18 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/shared-themes/download", h.HandleDownloadSharedTheme)
 	v1.DELETE("/shared-themes/:id", h.HandleDeleteSharedTheme)
 
+	// Cursor pack marketplace
+	v1.GET("/cursor-packs/marketplace", h.HandleGetCursorMarketplace)
+	v1.GET("/cursor-packs", h.HandleListDownloadedCursorPacks)
+	v1.POST("/cursor-packs/download", h.HandleDownloadCursorPack)
+	v1.DELETE("/cursor-packs/:id", h.HandleDeleteCursorPack)
+
+	// Sound pack marketplace
+	v1.GET("/sound-packs/marketplace", h.HandleGetSoundMarketplace)
+	v1.GET("/sound-packs", h.HandleListDownloadedSoundPacks)
+	v1.POST("/sound-packs/download", h.HandleDownloadSoundPack)
+	v1.DELETE("/sound-packs/:id", h.HandleDeleteSoundPack)
+
 	// Theme marketplace image population (fetches anime images from AniList and caches them)
 	v1.POST("/shared-themes/populate-images", h.HandlePopulateThemeImages, h.RequireProfileAdmin)
 

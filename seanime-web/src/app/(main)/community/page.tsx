@@ -147,7 +147,8 @@ function FeedRow({ entry }: { entry: Handlers_ActivityFeedEntry }) {
                 </div>
             )}
             {entry.iconSvg && (
-                <div className="w-5 h-5 shrink-0 text-emerald-400" dangerouslySetInnerHTML={{ __html: entry.iconSvg }} />
+                <div className="w-8 h-8 shrink-0 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center text-yellow-300 p-1.5"
+                    dangerouslySetInnerHTML={{ __html: entry.iconSvg }} />
             )}
             <div className="flex-1 min-w-0">
                 <p className="text-sm">
@@ -155,9 +156,13 @@ function FeedRow({ entry }: { entry: Handlers_ActivityFeedEntry }) {
                         <span className="font-semibold hover:underline">{entry.profileName}</span>
                     </SeaLink>
                     {" "}unlocked{" "}
-                    <span className="font-semibold text-emerald-400">{entry.achievementName}</span>
-                    {entry.achievementTier > 0 && <span className="text-[--muted]"> (Tier {entry.achievementTier})</span>}
+                    <span className="font-semibold text-yellow-300">{entry.achievementName}</span>
+                    {entry.achievementTier > 0 && <span className="text-[--muted]"> · Tier {entry.achievementTier}</span>}
+                    {entry.achievementXp > 0 && <span className="text-[--muted]"> · +{entry.achievementXp} XP</span>}
                 </p>
+                {entry.achievementDescription && (
+                    <p className="text-xs text-[--muted] mt-0.5 truncate">{entry.achievementDescription}</p>
+                )}
             </div>
             {timeAgo && <span className="text-xs text-[--muted] shrink-0">{timeAgo}</span>}
         </div>

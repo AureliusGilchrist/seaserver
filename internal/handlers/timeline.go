@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/models"
 
@@ -22,6 +23,9 @@ type TimelineEvent struct {
 	MediaTitle    *string `json:"mediaTitle,omitempty"`
 	MediaImage    *string `json:"mediaImage,omitempty"`
 	MediaType     string  `json:"mediaType"` // "anime" or "manga" or ""
+	// Resolved achievement info (only set for achievement_unlocked events)
+	AchievementIconSVG  *string `json:"achievementIconSvg,omitempty"`
+	AchievementDesc     *string `json:"achievementDesc,omitempty"`
 }
 
 // TimelineResponse is the paginated response for the timeline endpoint.
@@ -61,6 +65,9 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
+
+	// Build a lookup map for achievement definitions
+	achDefMap := achievement.DefinitionMap()
 
 	// Build lookup maps from cached collections
 	animeLookup := make(map[int]*anilist.BaseAnime)
@@ -125,6 +132,21 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 		} else {
 			// Infer type from event
 			te.MediaType = inferMediaType(ev.EventType, ev.Metadata)
+		}
+
+		// Enrich achievement events with definition data
+		if ev.EventType == "achievement_unlocked" {
+			meta := ParseEventMetadata(ev.Metadata)
+			if meta != nil {
+				if key, ok := meta["key"].(string); ok {
+					if def, ok := achDefMap[key]; ok && def != nil {
+						svg := def.IconSVG
+						desc := def.Description
+						te.AchievementIconSVG = &svg
+						te.AchievementDesc = &desc
+					}
+				}
+			}
 		}
 
 		resolved = append(resolved, te)

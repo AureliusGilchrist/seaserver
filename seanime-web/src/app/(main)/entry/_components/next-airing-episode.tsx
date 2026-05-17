@@ -6,9 +6,18 @@ import React from "react"
 import { BiCalendarAlt } from "react-icons/bi"
 
 export function NextAiringEpisode(props: { media: AL_BaseAnime }) {
-    const distance = formatDistanceToNow(addSeconds(new Date(), props.media.nextAiringEpisode?.timeUntilAiring || 0), { addSuffix: true })
-    const day = format(addSeconds(new Date(), props.media.nextAiringEpisode?.timeUntilAiring || 0), "EEEE")
+    const [tick, setTick] = React.useState(0)
+    React.useEffect(() => {
+        const id = setInterval(() => setTick(t => t + 1), 5000)
+        return () => clearInterval(id)
+    }, [])
+
+    const secs = props.media.nextAiringEpisode?.timeUntilAiring || 0
+    const target = addSeconds(new Date(), secs)
+    const distance = formatDistanceToNow(target, { addSuffix: true })
+    const day = format(target, "EEEE")
     const ts = useThemeSettings()
+
     return <>
         {!!props.media.nextAiringEpisode && (
             <div
@@ -17,7 +26,8 @@ export function NextAiringEpisode(props: { media: AL_BaseAnime }) {
                     ts.mediaPageBannerInfoBoxSize === ThemeMediaPageInfoBoxSize.Fluid && "justify-start",
                 )}
             >
-                <span className="font-semibold">Episode {props.media.nextAiringEpisode?.episode}</span> {distance}
+                <span className="font-semibold">Episode {props.media.nextAiringEpisode?.episode}</span>
+                <span key={`${tick}-${distance}`} className="transition-opacity duration-300">{distance}</span>
                 <BiCalendarAlt className="text-lg text-[--muted]" />
                 <span className="text-[--muted]">{day}</span>
             </div>

@@ -186,6 +186,10 @@ function setupChromiumFlags() {
     app.commandLine.appendSwitch("double-buffer-compositing")
     app.commandLine.appendSwitch("disable-direct-composition-video-overlays")
 
+    // 120 FPS rendering
+    app.commandLine.appendSwitch("disable-frame-rate-limit")
+    app.commandLine.appendSwitch("max-gum-fps", "120")
+
     if (process.platform === "linux") {
         log.info(`Passing --gtk-version=3 to Electron`)
         app.commandLine.appendSwitch("gtk-version", "3")
@@ -1018,7 +1022,7 @@ function createMainWindow() {
             webSecurity: true,
             allowRunningInsecureContent: true,
             enableBlinkFeatures: "FontAccess, AudioVideoTracks",
-            backgroundThrottling: true,
+            backgroundThrottling: false,
             webviewTag: true,
         }
     }

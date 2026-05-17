@@ -120,12 +120,14 @@ function TimelineEventCard({ event }: { event: Handlers_TimelineEvent }) {
   const badgeIsMedia = event.eventType === "episode_watched" || event.eventType === "manga_chapter_read"
   const badgeStyle = accentColor && badgeIsMedia ? { color: accentColor, backgroundColor: accentColor + "1a" } : undefined
 
+  const isAchievement = event.eventType === "achievement_unlocked"
+
   return (
     <div className="flex items-start gap-3 group">
       <div className="flex flex-col items-center shrink-0 pt-1">
         <div
           className={cn("w-2.5 h-2.5 rounded-full ring-2 shrink-0",
-            !accentColor && (isMedia ? "bg-emerald-400 ring-emerald-400/30" : "bg-gray-400 ring-gray-400/30"),
+            !accentColor && (isMedia ? "bg-emerald-400 ring-emerald-400/30" : isAchievement ? "bg-yellow-400 ring-yellow-400/30" : "bg-gray-400 ring-gray-400/30"),
           )}
           style={dotStyle}
         />
@@ -133,16 +135,24 @@ function TimelineEventCard({ event }: { event: Handlers_TimelineEvent }) {
       </div>
       <div className="flex-1 min-w-0 pb-3">
         <div className="flex items-start gap-2.5">
-          {event.mediaImage && (
+          {isAchievement && event.achievementIconSvg ? (
+            <div
+              className="w-10 h-10 shrink-0 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center text-yellow-300 p-1.5"
+              dangerouslySetInnerHTML={{ __html: event.achievementIconSvg }}
+            />
+          ) : event.mediaImage ? (
             <img
               src={event.mediaImage}
               alt=""
               className="w-10 h-14 rounded object-cover shrink-0 border border-[--border]"
               loading="lazy"
             />
-          )}
+          ) : null}
           <div className="min-w-0 flex-1">
             <p className="text-sm leading-snug">{formatEventDescription(event)}</p>
+            {isAchievement && event.achievementDesc && (
+              <p className="text-xs text-[--muted] mt-0.5 leading-snug">{event.achievementDesc}</p>
+            )}
             <div className="flex items-center gap-2 mt-0.5">
               <span
                 className={cn("inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full", !badgeStyle && cn(cfg.color, cfg.bgColor))}
