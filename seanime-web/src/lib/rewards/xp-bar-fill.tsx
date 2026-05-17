@@ -100,10 +100,19 @@ export function XPBarFill({
     const baseColor = React.useMemo(() => deriveBaseColor(fillCss), [fillCss])
     const hasAnim = !!animClass
 
+    // When the bar is animated ("Moving"), tint the empty track with the
+    // same fill colour at low opacity so it looks like waves of colour are
+    // continuously flowing through the whole bar (rather than a discrete
+    // overlay bar sliding inside the track).
+    const trackBackground = trackCss
+        ?? (hasAnim && baseColor
+            ? `color-mix(in srgb, ${baseColor} 22%, rgba(255,255,255,0.08))`
+            : "rgba(255,255,255,0.1)")
+
     return (
         <div
             className={cn("rounded-full overflow-hidden relative", heightClass, className)}
-            style={{ background: trackCss ?? "rgba(255,255,255,0.1)" }}
+            style={{ background: trackBackground }}
         >
             <div
                 className={cn(
@@ -112,28 +121,18 @@ export function XPBarFill({
                     // so width changes don't fight the keyframe animation.
                     hasAnim ? "" : "transition-[width] duration-500",
                     !fillCss && fallbackBgClass,
+                    // For animated variants, put the animation class directly on
+                    // the fill so the gradient flows through the actual progress.
+                    hasAnim && animClass,
                 )}
                 style={{
                     width: `${clamped}%`,
-                    // Solid base layer — clearly shows where XP is at.
-                    background: baseColor ?? undefined,
+                    // When animated, the fill IS the gradient (flowing via
+                    // background-position keyframes). When not, use derived base.
+                    background: hasAnim ? (fillCss ?? undefined) : (baseColor ?? undefined),
+                    backgroundSize: hasAnim ? "200% 100%" : undefined,
                 }}
-            >
-                {/* Moving sheen overlay — preserves the "general effect" without hiding progress. */}
-                {fillCss && (
-                    <div
-                        className={cn("absolute inset-0 pointer-events-none", animClass)}
-                        style={{
-                            background: fillCss,
-                            backgroundSize: hasAnim ? "300% 100%" : undefined,
-                            // Sheen sits on top of the solid base at reduced opacity so
-                            // the underlying "fill" colour is always visible.
-                            opacity: hasAnim ? 0.55 : 1,
-                            mixBlendMode: hasAnim ? "screen" : undefined,
-                        }}
-                    />
-                )}
-            </div>
+            />
         </div>
     )
 }

@@ -98,6 +98,7 @@ export default function Page() {
             : profile?.nameColorCss
                 ? { color: profile.nameColorCss }
                 : {}
+    const nameHasGradient = Boolean(nameStyle.backgroundImage)
 
     // Title/level label style: same fill as XP bar skin
     const titleStyle: React.CSSProperties = xpBarFillCss
@@ -151,7 +152,7 @@ export default function Page() {
                     />
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            <h1 className="sea-profile-name text-3xl font-bold truncate" style={nameStyle}>
+                            <h1 className={cn("sea-profile-name text-3xl font-bold truncate", nameHasGradient && "sea-name-shine")} style={nameStyle}>
                                 {profile!.name}
                                 {profile!.anilistUsername && (
                                     <span className="text-[--muted] font-normal" style={{}}> ({profile!.anilistUsername})</span>

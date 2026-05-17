@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"seanime/internal/core"
 	"seanime/internal/cron"
 	"seanime/internal/handlers"
@@ -88,8 +89,9 @@ appLoop:
 			break appLoop
 		case false:
 
-			// Start goroutine monitoring
+			// Start goroutine monitoring + periodic cleanup
 			startGoroutineMonitor()
+			startGoroutineCleanup()
 
 			// Create the echo app instance
 			echoApp := core.NewEchoApp(app, webFS)
@@ -120,14 +122,50 @@ func startGoroutineMonitor() {
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
-		
+
 		for range ticker.C {
 			count := runtime.NumGoroutine()
-			if count > 10000 {  // Threshold for warning
+			if count > 10000 { // Threshold for warning
 				log.Warn().Int("goroutines", count).Msg("High goroutine count detected - potential leak")
-			} else if count > 5000 {  // Lower threshold for info
+			} else if count > 5000 { // Lower threshold for info
 				log.Info().Int("goroutines", count).Msg("Elevated goroutine count")
 			}
+		}
+	}()
+}
+
+// startGoroutineCleanup runs every 5 minutes to force a GC + release OS memory.
+//
+// Go does not allow killing goroutines directly — they can only return on their
+// own. However, when goroutines do finish, their stacks and any heap objects
+// they referenced may sit around until the next GC. Forcing a GC + releasing
+// memory back to the OS on a fixed cadence keeps memory usage bounded and
+// makes leaked-goroutine spikes visible in the logs.
+func startGoroutineCleanup() {
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			before := runtime.NumGoroutine()
+			var mBefore runtime.MemStats
+			runtime.ReadMemStats(&mBefore)
+
+			runtime.GC()
+			debug.FreeOSMemory()
+
+			after := runtime.NumGoroutine()
+			var mAfter runtime.MemStats
+			runtime.ReadMemStats(&mAfter)
+
+			log.Debug().
+				Int("goroutines_before", before).
+				Int("goroutines_after", after).
+				Uint64("heap_alloc_before_mb", mBefore.HeapAlloc/(1024*1024)).
+				Uint64("heap_alloc_after_mb", mAfter.HeapAlloc/(1024*1024)).
+				Uint64("sys_before_mb", mBefore.Sys/(1024*1024)).
+				Uint64("sys_after_mb", mAfter.Sys/(1024*1024)).
+				Msg("Periodic goroutine cleanup completed")
 		}
 	}()
 }

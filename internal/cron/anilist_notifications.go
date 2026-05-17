@@ -100,11 +100,36 @@ func checkAnilistCollectionNotifications(c *JobCtx, oldCollection, newCollection
 				if media.Status != nil {
 					newMediaStatus = *media.Status
 				}
+				newNextEp := 0
+				if media.NextAiringEpisode != nil {
+					newNextEp = media.NextAiringEpisode.Episode
+				}
 				var oldMediaStatus anilist.MediaStatus
+				oldNextEp := 0
 				if existed {
 					oldMediaStatus = old.mediaStatus
+					oldNextEp = old.nextEp
 				}
-				if newMediaStatus == anilist.MediaStatusReleasing && oldMediaStatus != anilist.MediaStatusReleasing {
+
+				// "First episode aired" — fire the richer notification with
+				// interactive prompts. Signal: media is now releasing AND
+				// NextAiringEpisode is at episode 2 or later (meaning ep 1
+				// has aired) AND we hadn't already flagged it before.
+				firstEpisodeAired := newMediaStatus == anilist.MediaStatusReleasing &&
+					newNextEp >= 2 &&
+					(oldNextEp == 0 || oldNextEp <= 1)
+				justStartedAiring := newMediaStatus == anilist.MediaStatusReleasing &&
+					oldMediaStatus != anilist.MediaStatusReleasing
+
+				if firstEpisodeAired {
+					notifs = append(notifs, &models.Notification{
+						Type:     "planning_first_episode",
+						Title:    title,
+						Body:     "The first episode is out — want to move this to Currently Watching?",
+						ImageURL: imageURL,
+						MediaID:  media.ID,
+					})
+				} else if justStartedAiring {
 					notifs = append(notifs, &models.Notification{
 						Type:     "related_airing",
 						Title:    title,

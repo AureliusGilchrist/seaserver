@@ -216,6 +216,26 @@ export const UI_CUSTOMIZE_CATEGORIES = [
 
 export type UICustomizeCategoryId = typeof UI_CUSTOMIZE_CATEGORIES[number]["id"]
 
+export type PageTransitionVariant =
+    | "fade"
+    | "scaleUp"
+    | "scaleDown"
+    | "swipeLeft"
+    | "swipeRight"
+    | "swipeUp"
+    | "blur"
+    | "rotate"
+    | "none"
+
+export type PageTransitionEasing =
+    | "linear"
+    | "easeIn"
+    | "easeOut"
+    | "easeInOut"
+    | "circIn"
+    | "circOut"
+    | "anticipate"
+
 export interface UICustomizeState {
     animations:  string
     cards:       string
@@ -227,6 +247,14 @@ export interface UICustomizeState {
     sidebar:     string
     transitions: string
     scrollbar:   string
+    // Layered page-transition settings (see PageTransitionControls)
+    transitionVariant:        PageTransitionVariant
+    transitionMaxDurationMs:  number
+    transitionMaxDelayMs:     number
+    transitionEasing:         PageTransitionEasing
+    transitionEasingDriven:   boolean
+    transitionScaleAmount:    number
+    transitionSwipeDistance:  number
 }
 
 export const UI_CUSTOMIZE_DEFAULTS: UICustomizeState = {
@@ -240,4 +268,11 @@ export const UI_CUSTOMIZE_DEFAULTS: UICustomizeState = {
     sidebar:     "sidebar-default",
     transitions: "pt-fade",
     scrollbar:   "scroll-default",
+    transitionVariant:        "fade",
+    transitionMaxDurationMs:  600,
+    transitionMaxDelayMs:     350,
+    transitionEasing:         "easeInOut",
+    transitionEasingDriven:   true,
+    transitionScaleAmount:    0.7,
+    transitionSwipeDistance:  200,
 }

@@ -131,18 +131,19 @@ func (u *Updater) fetchLatestRelease(channel string) (*Release, error) {
 	case "github":
 		fallthrough
 	default:
-		apiRelease, err := u.fetchLatestReleaseFromApi(websiteUrl)
-		if err != nil {
+		// Primary: the fork's GitHub releases (AureliusGilchrist/seaserver).
+		ghRelease, ghErr := u.fetchLatestReleaseFromGitHub()
+		if ghErr != nil {
 			if u.logger != nil {
-				u.logger.Warn().Err(err).Msg("updater: Failed to fetch from GitHub, falling back to Seanime")
+				u.logger.Warn().Err(ghErr).Msg("updater: Failed to fetch from GitHub fork, falling back to seanime.app")
 			}
-			ghRelease, ghErr := u.fetchLatestReleaseFromGitHub()
-			if ghErr != nil {
-				return nil, err // Return original error if fallback also fails
+			apiRelease, err := u.fetchLatestReleaseFromApi(websiteUrl)
+			if err != nil {
+				return nil, ghErr // return primary error
 			}
-			release = ghRelease
-		} else {
 			release = apiRelease
+		} else {
+			release = ghRelease
 		}
 	}
 

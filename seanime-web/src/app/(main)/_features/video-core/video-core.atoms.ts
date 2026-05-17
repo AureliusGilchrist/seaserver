@@ -176,6 +176,18 @@ export const vc_autoNextAtom = atomWithStorage("sea-video-core-auto-next", true,
 export const vc_autoPlayVideoAtom = atomWithStorage("sea-video-core-auto-play", true, undefined, { getOnInit: true })
 export const vc_autoSkipOPAtom = atomWithStorage("sea-video-core-auto-skip-op", false, undefined, { getOnInit: true })
 export const vc_autoSkipEDAtom = atomWithStorage("sea-video-core-auto-skip-ed", false, undefined, { getOnInit: true })
+// Auto-skip filler when advancing to the next episode.
+//   "off"     — never skip, play the next episode as usual.
+//   "full"    — skip any episode flagged as filler.
+//   "partial" — also skip episodes flagged as filler (reserved for future
+//               backend support that distinguishes partial/mixed-canon
+//               episodes; currently behaves like "full").
+export const vc_autoSkipFillerAtom = atomWithStorage<"off" | "full" | "partial">(
+    "sea-video-core-auto-skip-filler",
+    "off",
+    undefined,
+    { getOnInit: true },
+)
 
 // Watch Continuity override: "inherit" uses global setting, "on" forces enabled, "off" forces disabled
 export const vc_watchContinuityAtom = atomWithStorage<"inherit" | "on" | "off">("sea-video-core-watch-continuity", "inherit", undefined, { getOnInit: true })

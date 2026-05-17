@@ -14,6 +14,7 @@ type Notification = {
     metadata: string
 }
 
+import { useEditAnilistListEntry } from "@/api/hooks/anilist.hooks"
 import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { Drawer } from "@/components/ui/drawer"
@@ -21,7 +22,7 @@ import { useRouter } from "@/lib/navigation"
 import { formatDistanceToNow } from "date-fns"
 import React from "react"
 import { BiCheck, BiCheckDouble, BiTrash } from "react-icons/bi"
-import { LuBell, LuBookOpen, LuCalendar, LuCrown, LuStar, LuTv, LuUsers } from "react-icons/lu"
+import { LuBell, LuBookOpen, LuCalendar, LuCrown, LuPlay, LuPlus, LuStar, LuTv, LuUsers } from "react-icons/lu"
 
 type NotificationDrawerProps = {
     open: boolean
@@ -32,6 +33,7 @@ const NOTIFICATION_TYPE_CONFIG: Record<string, { icon: React.ElementType; label:
     new_episode: { icon: LuTv, label: "New Episode", mediaRoute: "/entry" },
     sequel_announced: { icon: LuStar, label: "Sequel Announced", mediaRoute: "/entry" },
     related_airing: { icon: LuCalendar, label: "Related Airing", mediaRoute: "/entry" },
+    planning_first_episode: { icon: LuTv, label: "First Episode Aired", mediaRoute: "/entry" },
     character_birthday: { icon: LuCrown, label: "Character Birthday", mediaRoute: "/entry" },
     achievement_unlocked: { icon: LuStar, label: "Achievement", mediaRoute: "" },
     manga_chapter: { icon: LuBookOpen, label: "New Chapter", mediaRoute: "/manga/entry" },
@@ -194,6 +196,11 @@ function NotificationItem({ notification, onClick, onDelete }: NotificationItemP
                     <span className="text-xs text-[--muted] opacity-70">{timeAgo}</span>
                     <span className="text-xs text-[--muted] opacity-50">{config.label}</span>
                 </div>
+
+                {/* Interactive actions for first-episode-aired notifications. */}
+                {notification.type === "planning_first_episode" && notification.mediaId > 0 && (
+                    <PlanningFirstEpisodeActions notification={notification} />
+                )}
             </div>
 
             {/* Thumbnail */}
@@ -213,6 +220,53 @@ function NotificationItem({ notification, onClick, onDelete }: NotificationItemP
                 icon={<BiTrash />}
                 onClick={(e) => onDelete(e, notification.id)}
             />
+        </div>
+    )
+}
+
+/**
+ * Action buttons rendered under a "first episode aired" notification.
+ * Lets the user move the entry from Plan-to-Watch → Currently Watching
+ * with a single click, or jump straight to the entry page.
+ */
+function PlanningFirstEpisodeActions({ notification }: { notification: Notification }) {
+    const router = useRouter()
+    const { mutate: editEntry, isPending } = useEditAnilistListEntry(notification.mediaId, "anime")
+    const [moved, setMoved] = React.useState(false)
+
+    const handleAddToCurrent = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        editEntry(
+            { mediaId: notification.mediaId, status: "CURRENT", type: "anime" },
+            { onSuccess: () => setMoved(true) },
+        )
+    }
+
+    const handleWatchNow = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        router.push(`/entry?id=${notification.mediaId}`)
+    }
+
+    return (
+        <div className="flex flex-wrap gap-2 mt-2">
+            <Button
+                intent={moved ? "success-subtle" : "primary-subtle"}
+                size="xs"
+                leftIcon={moved ? <BiCheck /> : <LuPlus />}
+                loading={isPending}
+                disabled={moved}
+                onClick={handleAddToCurrent}
+            >
+                {moved ? "Added" : "Add to Currently Watching"}
+            </Button>
+            <Button
+                intent="white-subtle"
+                size="xs"
+                leftIcon={<LuPlay />}
+                onClick={handleWatchNow}
+            >
+                Watch now
+            </Button>
         </div>
     )
 }

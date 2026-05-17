@@ -121,12 +121,16 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
 
     const hasAnyEffect = effectPreset && effectPreset.id !== "fx-none"
 
-    if (isExcludedPage) return null
+    // On entry / chapter-reader pages we hide the wallpaper section (Section A)
+    // since those pages render their own banner/cover art, but we still want
+    // the visual effects (Section B — scanlines, vignette, grain, glow, etc.)
+    // to apply globally so the look is consistent.
+    const hideWallpaper = isExcludedPage
 
     return (
         <>
             {/* ── Section A: Wallpaper image + dim overlay ── */}
-            {!!ts.libraryScreenCustomBackgroundImage && (
+            {!hideWallpaper && !!ts.libraryScreenCustomBackgroundImage && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1, y: 0 }}

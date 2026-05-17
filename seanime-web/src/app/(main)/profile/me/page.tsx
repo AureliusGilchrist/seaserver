@@ -150,6 +150,7 @@ export default function Page() {
         : activeNameColor?.gradientCss
             ? { backgroundImage: activeNameColor.gradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
             : activeNameColor ? { color: activeNameColor.color } : {}
+    const nameHasGradient = Boolean(nameStyle.backgroundImage)
 
     const avatarBorderStyle: React.CSSProperties = activeBorder && activeBorder.borderCss !== "none"
         ? { outline: activeBorder.borderCss, outlineOffset: "3px", boxShadow: activeBorder.glowCss ?? "none" }
@@ -225,7 +226,7 @@ export default function Page() {
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                            <h1 className="sea-profile-name text-3xl font-bold truncate" style={nameStyle}>
+                            <h1 className={cn("sea-profile-name text-3xl font-bold truncate", nameHasGradient && "sea-name-shine")} style={nameStyle}>
                                 {profile!.name}
                                 {profile!.anilistUsername && (
                                     <span className="text-[--muted] font-normal" style={{}}> ({profile!.anilistUsername})</span>

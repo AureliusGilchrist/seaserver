@@ -11,10 +11,13 @@ import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
 import { useAnimeTheme } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ThemeOstMiniPlayer } from "@/lib/theme/anime-themes/theme-ost-mini-player"
 import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
+import { PageTransitionControls } from "@/components/shared/page-transition-controls"
 import { useSound, SOUND_LEVEL_REQUIREMENTS, EXTENDED_SOUND_LABELS, type ExtendedSoundName } from "@/lib/sounds/sound-provider"
 import { cn } from "@/components/ui/core/styling"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CURSOR_DEFINITIONS, CURSOR_MAP, type CursorDefinition } from "@/lib/cursors/cursor-definitions"
 import { ALL_CURSOR_DEFINITIONS } from "@/lib/cursors/cursor-generator"
+import { packFilter } from "@/lib/cursors/cursor-packs"
 import { useCursor } from "@/lib/cursors/cursor-provider"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import {
@@ -107,17 +110,14 @@ function CardBase({
 // ─── Cursor Tab ───────────────────────────────────────────────────────────────
 
 const CURSOR_TIER_LABELS: { label: string; min: number; max: number }[] = [
-    { label: "Basic (1-60)",      min: 1,   max: 60   },
-    { label: "Vivid (61-100)",    min: 61,  max: 100  },
-    { label: "Metallic (101-200)", min: 101, max: 200  },
-    { label: "Neon (201-300)",    min: 201, max: 300  },
-    { label: "Pastel (301-400)",  min: 301, max: 400  },
-    { label: "Void (401-500)",    min: 401, max: 500  },
-    { label: "Fire (501-600)",    min: 501, max: 600  },
-    { label: "Ice (601-700)",     min: 601, max: 700  },
-    { label: "Cosmic (701-800)",  min: 701, max: 800  },
-    { label: "Divine (801-900)",  min: 801, max: 900  },
-    { label: "Prismatic (901+)",  min: 901, max: 1000 },
+    { label: "Basic (1-30)",       min: 1,   max: 30   },
+    { label: "Frost (31-130)",     min: 31,  max: 130  },
+    { label: "Ember (131-260)",    min: 131, max: 260  },
+    { label: "Retro (261-430)",    min: 261, max: 430  },
+    { label: "Aurora (431-620)",   min: 431, max: 620  },
+    { label: "Inferno (621-850)",  min: 621, max: 850  },
+    { label: "Mythic (851-980)",   min: 851, max: 980  },
+    { label: "Prismatic (981+)",   min: 981, max: 1000 },
 ]
 
 function CursorTab({ currentLevel }: { currentLevel: number }) {
@@ -160,7 +160,13 @@ function CursorTab({ currentLevel }: { currentLevel: number }) {
                         <CardBase key={cursor.id} isActive={isActive} isUnlocked={isUnlocked} onClick={() => setActiveCursorId(cursor.id)}>
                             <div className="w-12 h-12 flex items-center justify-center">
                                 {cursor.icon ? (
-                                    <img src={cursor.icon} alt={cursor.name} className="w-10 h-10 object-contain" draggable={false} />
+                                    <img
+                                        src={cursor.icon}
+                                        alt={cursor.name}
+                                        className="w-10 h-10 object-contain"
+                                        draggable={false}
+                                        style={cursor.pack ? { filter: packFilter(cursor.pack) } : undefined}
+                                    />
                                 ) : (
                                     <LuMousePointer2 className="text-2xl text-[--muted]" />
                                 )}
@@ -255,9 +261,16 @@ function TitlesTab({ currentLevel }: { currentLevel: number }) {
 // ─── Name Colors Tab ──────────────────────────────────────────────────────────
 
 function NameColorsTab({ currentLevel }: { currentLevel: number }) {
-    const { activeNameColor, setActiveNameColor, isEggUnlocked } = useRewards()
+    const {
+        activeNameColor, setActiveNameColor, isEggUnlocked,
+        shineEnabled, shineDirection, shineDuration, shineEasing,
+        setShineEnabled, setShineDirection, setShineDuration, setShineEasing,
+    } = useRewards()
     const allRewards = [...NAME_COLOR_REWARDS, ...EGG_NAME_COLOR_REWARDS]
     const unlocked = allRewards.filter(r => r.requiredLevel <= currentLevel || isEggUnlocked(r.id)).length
+
+    const hasGradient = Boolean(activeNameColor?.gradientCss)
+    const sampleGradient = activeNameColor?.gradientCss ?? "linear-gradient(90deg,#f43f5e,#f97316,#facc15,#4ade80,#60a5fa,#a78bfa)"
 
     return (
         <div className="space-y-4">
@@ -265,6 +278,102 @@ function NameColorsTab({ currentLevel }: { currentLevel: number }) {
                 <LuPalette />
                 <span>{unlocked}/{allRewards.length} unlocked</span>
             </div>
+
+            {/* ── Shine controls ─────────────────────────────────────────── */}
+            <div className="p-4 rounded-lg bg-[--subtle] border border-[--border] space-y-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                        <LuSparkles className="text-[--brand]" />
+                        <h3 className="font-semibold text-sm">Name Shine</h3>
+                        {!hasGradient && (
+                            <span className="text-[10px] text-[--muted]">(only visible on gradient name colors)</span>
+                        )}
+                    </div>
+                    <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={shineEnabled}
+                            onChange={e => setShineEnabled(e.target.checked)}
+                            className="accent-[--brand]"
+                        />
+                        <span>{shineEnabled ? "Enabled" : "Disabled"}</span>
+                    </label>
+                </div>
+
+                {/* Live preview */}
+                <div
+                    className={cn(
+                        "px-3 py-2 rounded-md bg-black/20 text-2xl font-bold text-center",
+                        shineEnabled && "sea-name-shine",
+                    )}
+                    style={{
+                        backgroundImage: sampleGradient,
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
+                    }}
+                >
+                    {activeNameColor?.name ?? "Preview"}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Direction */}
+                    <div className="space-y-1">
+                        <label className="text-[11px] uppercase tracking-wide text-[--muted]">Direction</label>
+                        <div className="flex gap-1">
+                            {(["left", "right"] as const).map(dir => (
+                                <button
+                                    key={dir}
+                                    type="button"
+                                    onClick={() => setShineDirection(dir)}
+                                    className={cn(
+                                        "flex-1 px-2 py-1 text-xs rounded border transition-colors",
+                                        shineDirection === dir
+                                            ? "border-[--brand] bg-[--brand]/15 text-white"
+                                            : "border-[--border] hover:bg-[--subtle-highlight]",
+                                    )}
+                                >
+                                    {dir === "left" ? "← Left" : "Right →"}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    {/* Duration */}
+                    <div className="space-y-1">
+                        <label className="text-[11px] uppercase tracking-wide text-[--muted]">
+                            Duration: <span className="text-[--foreground]">{shineDuration.toFixed(1)}s</span>
+                        </label>
+                        <input
+                            type="range"
+                            min={0.5}
+                            max={10}
+                            step={0.1}
+                            value={shineDuration}
+                            onChange={e => setShineDuration(Number(e.target.value))}
+                            className="w-full accent-[--brand]"
+                        />
+                    </div>
+                    {/* Easing */}
+                    <div className="space-y-1">
+                        <label className="text-[11px] uppercase tracking-wide text-[--muted]">Easing</label>
+                        <select
+                            value={shineEasing}
+                            onChange={e => setShineEasing(e.target.value)}
+                            className="w-full px-2 py-1 text-xs rounded bg-[--background] border border-[--border]"
+                        >
+                            <option value="linear">linear</option>
+                            <option value="ease">ease</option>
+                            <option value="ease-in">ease-in</option>
+                            <option value="ease-out">ease-out</option>
+                            <option value="ease-in-out">ease-in-out</option>
+                            <option value="cubic-bezier(0.37, 0, 0.63, 1)">cubic-bezier (smooth)</option>
+                            <option value="cubic-bezier(0.68, -0.55, 0.27, 1.55)">cubic-bezier (back)</option>
+                            <option value="steps(20, end)">steps(20)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                 {allRewards.map((reward: NameColorReward) => {
                     const isEgg = reward.requiredLevel >= 9999
@@ -941,7 +1050,9 @@ function UIEnhancementsSection({ currentLevel }: { currentLevel: number }) {
             </div>
 
             {/* Content */}
-            <UIPresetsGrid category={activeCategory} currentLevel={currentLevel} />
+            {activeInner === "transitions"
+                ? <PageTransitionControls />
+                : <UIPresetsGrid category={activeCategory} currentLevel={currentLevel} />}
         </div>
     )
 }

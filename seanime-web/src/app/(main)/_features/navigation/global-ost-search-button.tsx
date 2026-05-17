@@ -35,6 +35,53 @@ function formatDate(date?: string): string {
     return d.toLocaleDateString()
 }
 
+/**
+ * Build a small set of synonym queries from a base theme name so the OST
+ * search can hit several phrasings at once. We strip common decorations
+ * (season/part/year/(TV)/(Movie)) for the "base" stem, then append a few
+ * standard music-release keywords. Returns variants in priority order,
+ * de-duplicated case-insensitively, capped to 4 variants.
+ */
+function buildOstQueryVariants(rawName: string): { primary: string; variants: string[] } {
+    const trimmed = (rawName || "").trim()
+    if (!trimmed) return { primary: "", variants: [] }
+
+    // Strip common decorations to get a cleaner stem for synonym generation.
+    let stem = trimmed
+        .replace(/\s*\((?:tv|movie|ova|ona|special)\)\s*$/i, "")
+        .replace(/\s+season\s+\d+\s*$/i, "")
+        .replace(/\s+part\s+\d+\s*$/i, "")
+        .replace(/\s+\(\d{4}\)\s*$/, "")
+        .replace(/\s+\d{4}\s*$/, "")
+        .trim()
+    if (!stem) stem = trimmed
+
+    const alreadyHasMusic = /\b(ost|soundtrack|original\s+soundtrack)\b/i.test(trimmed)
+
+    const ordered: string[] = []
+    const seen = new Set<string>()
+    const push = (s: string) => {
+        const v = s.trim()
+        if (!v) return
+        const key = v.toLowerCase()
+        if (seen.has(key)) return
+        seen.add(key)
+        ordered.push(v)
+    }
+
+    if (alreadyHasMusic) {
+        push(trimmed)
+    } else {
+        push(`${trimmed} OST`)
+    }
+    push(`${stem} Original Soundtrack`)
+    push(`${stem} Soundtrack`)
+    push(`${stem} OST FLAC`)
+
+    const capped = ordered.slice(0, 4)
+    return { primary: capped[0] || trimmed, variants: capped.slice(1) }
+}
+
 export function GlobalOstSearchButton() {
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const animeTheme = useAnimeThemeOrNull()
@@ -42,6 +89,10 @@ export function GlobalOstSearchButton() {
     const themeDisplayName = animeTheme?.config?.displayName ?? themeId
 
     const [open, setOpen] = React.useState(false)
+
+    // Hide the floating button entirely while any player is fullscreen so it
+    // doesn't sit on top of the video.
+    if (isFullscreen) return null
 
     // Bottom-right corner. In fullscreen, lift above the player control bar.
     const bottomPosition = isFullscreen ? "bottom-[140px]" : "bottom-5"
@@ -103,11 +154,14 @@ function OstSearchPanel({ themeId, themeDisplayName, onClose }: OstSearchPanelPr
     const existing = useListThemeMusicTracks(themeId, true)
     const isDownloading = useIsThemeMusicDownloading(themeId)
 
-    // Seed the query with just the theme display name (no auto-suffix) on open
-    // AND whenever the active theme changes while the panel is open.
+    // Seed the query with the theme display name plus an "OST" suffix unless the
+    // name already references music — torrent providers won't return anything
+    // useful for a bare title like "Cowboy Bebop", so this gives users a sane
+    // starting point. They can still edit the query before searching.
     React.useEffect(() => {
         const base = (themeDisplayName ?? themeId).trim()
-        setQuery(base)
+        const hasMusicHint = /\b(ost|soundtrack|original\s+soundtrack)\b/i.test(base)
+        setQuery(base && !hasMusicHint ? `${base} OST` : base)
         setHasSearched(false)
         setConfirmTarget(null)
         setDownloadingMagnet(null)
@@ -129,9 +183,14 @@ function OstSearchPanel({ themeId, themeDisplayName, onClose }: OstSearchPanelPr
         }
         setHasSearched(true)
         setSearchError(null)
+        // Build synonym variants on top of whatever the user typed so we hit
+        // a few common OST naming patterns ("X OST", "X Original Soundtrack",
+        // "X Soundtrack", "X OST FLAC"). The server merges/dedupes results
+        // across all variants.
+        const { primary, variants } = buildOstQueryVariants(q)
         // Always re-fire — never rely on mutation idempotency / cached data.
         search.mutate(
-            { themeId, query: q },
+            { themeId, query: primary || q, queries: variants },
             {
                 onSuccess: (data: any) => {
                     setResults((data?.torrents ?? []) as ThemeMusicTorrent[])
@@ -241,6 +300,16 @@ function OstSearchPanel({ themeId, themeDisplayName, onClose }: OstSearchPanelPr
                                 </Button>
                             )}
                         </form>
+
+                        {query.trim() && (() => {
+                            const { variants } = buildOstQueryVariants(query)
+                            if (variants.length === 0) return null
+                            return (
+                                <p className="text-[11px] text-[--muted] -mt-2" title={variants.join("  •  ")}>
+                                    Also searching: <span className="text-[--foreground]/70">{variants.join(" · ")}</span>
+                                </p>
+                            )
+                        })()}
 
                         {isDownloading && (
                             <div className="flex items-center gap-2 rounded-md border border-[--color-brand-700] bg-[--color-brand-900]/30 px-3 py-2 text-xs text-[--color-brand-200]">

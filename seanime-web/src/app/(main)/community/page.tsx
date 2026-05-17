@@ -343,7 +343,7 @@ function CommunityProfileCard({ profile }: { profile: Handlers_CommunityProfile 
                     <LevelRingAvatar profile={profile} size={80} xpBarFillOverride={xpBarFillCss || undefined} />
                     <div className="text-center min-w-0 w-full">
                         <p
-                            className="font-semibold text-sm truncate"
+                            className={"font-semibold text-sm truncate" + (nameGradientCss ? " sea-name-shine" : "")}
                             style={nameGradientCss
                                 ? { backgroundImage: nameGradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }
                                 : nameColorCss ? { color: nameColorCss } : {}}

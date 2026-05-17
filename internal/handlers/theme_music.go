@@ -117,16 +117,42 @@ func (h *Handler) themeMusicDir(themeID string) (string, error) {
 //	@returns torrent.SearchData
 func (h *Handler) HandleSearchThemeMusic(c echo.Context) error {
 	type body struct {
-		ThemeID  string `json:"themeId"`
-		Query    string `json:"query"`
-		Provider string `json:"provider,omitempty"`
+		ThemeID  string   `json:"themeId"`
+		Query    string   `json:"query"`
+		Queries  []string `json:"queries,omitempty"`
+		Provider string   `json:"provider,omitempty"`
 	}
 
 	var b body
 	if err := c.Bind(&b); err != nil {
 		return h.RespondWithError(c, err)
 	}
-	if strings.TrimSpace(b.Query) == "" {
+
+	// Build the de-duplicated list of queries to run. We accept both `query`
+	// (legacy single string) and `queries` (new synonym list). Cap to 4
+	// variants to avoid hammering providers.
+	queryList := make([]string, 0, 4)
+	seenQ := make(map[string]bool)
+	addQ := func(s string) {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return
+		}
+		key := strings.ToLower(s)
+		if seenQ[key] {
+			return
+		}
+		seenQ[key] = true
+		queryList = append(queryList, s)
+	}
+	addQ(b.Query)
+	for _, q := range b.Queries {
+		if len(queryList) >= 4 {
+			break
+		}
+		addQ(q)
+	}
+	if len(queryList) == 0 {
 		return h.RespondWithError(c, errors.New("query is required"))
 	}
 
@@ -152,34 +178,112 @@ func (h *Handler) HandleSearchThemeMusic(c echo.Context) error {
 		StartDate: &anilist.BaseAnime_StartDate{Year: &zero, Month: &zero, Day: &zero},
 	}
 
-	// Use a simple search with no media binding — we are not searching for an episode,
-	// we want music releases such as OSTs, character songs, openings/endings.
-	data, err := h.App.TorrentRepository.SearchAnime(c.Request().Context(), torrent.AnimeSearchOptions{
-		Provider:                b.Provider,
-		Type:                    torrent.AnimeSearchType("simple"),
-		Media:                   stubMedia,
-		Query:                   b.Query,
-		Batch:                   false,
-		EpisodeNumber:           0,
-		BestReleases:            false,
-		Resolution:              "",
-		IncludeSpecialProviders: false,
-	})
-	if err != nil {
-		// "not found on Animap/AniZip" errors arise from providers that try to
-		// enrich the (stub) media. Treat these as empty results rather than
-		// a 500 — the OST search is intentionally a raw text search.
-		msg := err.Error()
-		if strings.Contains(msg, "not found on Animap") ||
-			strings.Contains(msg, "not found on AniZip") ||
-			strings.Contains(msg, "animap") ||
-			strings.Contains(msg, "anizip") {
-			return h.RespondWithData(c, &torrent.SearchData{Torrents: nil})
+	// Try the requested provider first, then fall back to other plain-text
+	// providers if the result set is empty. OST queries are intentionally
+	// loose (just a theme name), so a single provider often misses.
+	tryOrder := []string{b.Provider}
+	for _, fb := range []string{"nyaa", "nyaa-sukebei", "tosho", "animetosho"} {
+		if fb == b.Provider {
+			continue
 		}
-		return h.RespondWithError(c, err)
+		tryOrder = append(tryOrder, fb)
 	}
 
-	return h.RespondWithData(c, data)
+	// For each query variant, walk the provider fallback chain. Merge results
+	// across all queries, deduping by infoHash / magnet / downloadUrl / link.
+	var lastErr error
+
+	merged := make([]*hibiketorrent.AnimeTorrent, 0, 32)
+	seen := make(map[string]int) // key -> index into merged
+
+	dedupKey := func(t *hibiketorrent.AnimeTorrent) string {
+		if t == nil {
+			return ""
+		}
+		if t.InfoHash != "" {
+			return "h:" + strings.ToLower(t.InfoHash)
+		}
+		if t.MagnetLink != "" {
+			return "m:" + t.MagnetLink
+		}
+		if t.DownloadUrl != "" {
+			return "d:" + t.DownloadUrl
+		}
+		if t.Link != "" {
+			return "l:" + t.Link
+		}
+		return "n:" + strings.ToLower(t.Name)
+	}
+
+	for _, qStr := range queryList {
+		var data *torrent.SearchData
+		for _, prov := range tryOrder {
+			res, err := h.App.TorrentRepository.SearchAnime(c.Request().Context(), torrent.AnimeSearchOptions{
+				Provider:                prov,
+				Type:                    torrent.AnimeSearchType("simple"),
+				Media:                   stubMedia,
+				Query:                   qStr,
+				Batch:                   false,
+				EpisodeNumber:           0,
+				BestReleases:            false,
+				Resolution:              "",
+				IncludeSpecialProviders: false,
+			})
+			if err != nil {
+				// "not found on Animap/AniZip" errors arise from providers that try to
+				// enrich the (stub) media. Treat these as empty results from this
+				// provider and continue with the next fallback.
+				msg := err.Error()
+				if strings.Contains(msg, "not found on Animap") ||
+					strings.Contains(msg, "not found on AniZip") ||
+					strings.Contains(msg, "animap") ||
+					strings.Contains(msg, "anizip") ||
+					strings.Contains(msg, "torrent provider not found") ||
+					strings.Contains(msg, "does not support") {
+					lastErr = err
+					continue
+				}
+				lastErr = err
+				continue
+			}
+			if res != nil && len(res.Torrents) > 0 {
+				data = res
+				break
+			}
+			data = res
+		}
+		if data == nil || len(data.Torrents) == 0 {
+			continue
+		}
+		for _, t := range data.Torrents {
+			k := dedupKey(t)
+			if k == "" {
+				continue
+			}
+			if idx, ok := seen[k]; ok {
+				// Keep the version with the higher seeder/leecher counts.
+				existing := merged[idx]
+				if t.Seeders > existing.Seeders {
+					existing.Seeders = t.Seeders
+				}
+				if t.Leechers > existing.Leechers {
+					existing.Leechers = t.Leechers
+				}
+				continue
+			}
+			seen[k] = len(merged)
+			merged = append(merged, t)
+		}
+	}
+
+	if len(merged) == 0 {
+		if lastErr != nil {
+			return h.RespondWithError(c, lastErr)
+		}
+		return h.RespondWithData(c, &torrent.SearchData{Torrents: nil})
+	}
+
+	return h.RespondWithData(c, &torrent.SearchData{Torrents: merged})
 }
 
 // HandleDownloadThemeMusic

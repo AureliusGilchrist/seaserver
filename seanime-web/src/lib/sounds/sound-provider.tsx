@@ -307,6 +307,191 @@ function uDesc(file: string, baseRate: number, steps: number, ratio = 0.8, gap =
     }
 }
 
+// ── Synth toolkit for unique pack signatures ─────────────────────────────────
+//
+// Most Kenney one-shots end up sounding the same when rate-shifted, so the
+// non-distinctive packs are now built from a small synth toolkit. Each pack
+// picks a unique (click waveform, swoosh shape, frequency, chord) recipe so
+// no two packs feel alike.
+
+/** Filtered noise burst with a frequency sweep — the "swoosh" primitive. */
+function synthSwoosh(
+    ctx: AudioContext,
+    fromHz: number,
+    toHz: number,
+    duration: number,
+    vol: number,
+    q = 8,
+    shape: BiquadFilterType = "bandpass",
+) {
+    const length = Math.max(1, Math.floor(ctx.sampleRate * duration))
+    const buf = ctx.createBuffer(1, length, ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < length; i++) d[i] = Math.random() * 2 - 1
+    const src = ctx.createBufferSource(); src.buffer = buf
+    const filter = ctx.createBiquadFilter(); filter.type = shape; filter.Q.value = q
+    const now = ctx.currentTime
+    filter.frequency.setValueAtTime(Math.max(20, fromHz), now)
+    filter.frequency.exponentialRampToValueAtTime(Math.max(20, toHz), now + duration)
+    const g = ctx.createGain()
+    g.gain.setValueAtTime(0.0001, now)
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), now + duration * 0.08)
+    g.gain.exponentialRampToValueAtTime(0.0001, now + duration)
+    src.connect(filter); filter.connect(g); g.connect(ctx.destination)
+    src.start(now); src.stop(now + duration)
+}
+
+/** Pitched click — short oscillator burst, optionally FM-modulated. */
+function synthClick(
+    ctx: AudioContext,
+    freq: number,
+    decay: number,
+    vol: number,
+    waveform: OscillatorType = "sine",
+    fm?: { mod: number; amt: number },
+) {
+    const osc = ctx.createOscillator()
+    const g = ctx.createGain()
+    osc.type = waveform
+    const now = ctx.currentTime
+    osc.frequency.setValueAtTime(freq * 2.5, now)
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq), now + decay * 0.3)
+    if (fm) {
+        const modOsc = ctx.createOscillator()
+        const modGain = ctx.createGain()
+        modOsc.frequency.value = fm.mod; modGain.gain.value = fm.amt
+        modOsc.connect(modGain); modGain.connect(osc.frequency)
+        modOsc.start(now); modOsc.stop(now + decay)
+    }
+    g.gain.setValueAtTime(Math.max(0.0002, vol), now)
+    g.gain.exponentialRampToValueAtTime(0.0001, now + decay)
+    osc.connect(g); g.connect(ctx.destination)
+    osc.start(now); osc.stop(now + decay)
+}
+
+/** Bandpassed noise tick — a crisp percussive accent. */
+function synthTick(ctx: AudioContext, freq: number, vol: number, q = 20) {
+    const buf = ctx.createBuffer(1, 512, ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < 512; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / 512)
+    const src = ctx.createBufferSource(); src.buffer = buf
+    const filter = ctx.createBiquadFilter(); filter.type = "bandpass"; filter.frequency.value = freq; filter.Q.value = q
+    const g = ctx.createGain(); g.gain.value = vol
+    src.connect(filter); filter.connect(g); g.connect(ctx.destination)
+    src.start(ctx.currentTime)
+}
+
+/** Detuned two-osc blip — sweet/bright "ding". */
+function synthBlip(ctx: AudioContext, freq: number, decay: number, vol: number, detune = 7) {
+    const o1 = ctx.createOscillator()
+    const o2 = ctx.createOscillator()
+    const g = ctx.createGain()
+    o1.type = "triangle"; o2.type = "sawtooth"
+    o1.frequency.value = freq; o2.frequency.value = freq; o2.detune.value = detune
+    const now = ctx.currentTime
+    g.gain.setValueAtTime(Math.max(0.0002, vol), now)
+    g.gain.exponentialRampToValueAtTime(0.0001, now + decay)
+    o1.connect(g); o2.connect(g); g.connect(ctx.destination)
+    o1.start(now); o1.stop(now + decay)
+    o2.start(now); o2.stop(now + decay)
+}
+
+type ClickKind = "sine" | "triangle" | "square" | "sawtooth" | "tick" | "blip" | "fm"
+type SwooshKind = "up" | "down" | "upDown" | "downUp" | "sparkle" | "deep" | "airy" | "pulse"
+
+interface Recipe {
+    click: ClickKind
+    clickHz: number
+    clickDec: number
+    swoosh: SwooshKind
+    swooshLo: number
+    swooshHi: number
+    swooshDur: number
+    chord: number[]
+    palette: number
+}
+
+const SHAPES: BiquadFilterType[] = ["bandpass", "lowpass", "highpass"]
+
+function playClick(ctx: AudioContext, r: Recipe, freqMul: number, vol: number) {
+    const f = r.clickHz * freqMul
+    switch (r.click) {
+        case "tick": return synthTick(ctx, f, vol, 15 + (r.palette % 5) * 3)
+        case "blip": return synthBlip(ctx, f, r.clickDec, vol, 3 + (r.palette % 5) * 2)
+        case "fm":   return synthClick(ctx, f, r.clickDec, vol, "sine", { mod: f * 1.7, amt: f * (r.palette % 5) * 0.4 })
+        default:     return synthClick(ctx, f, r.clickDec, vol, r.click)
+    }
+}
+
+function playSwoosh(ctx: AudioContext, r: Recipe, vol: number) {
+    const q = 4 + (r.palette % 5) * 2
+    const shape = SHAPES[r.palette % 3]
+    switch (r.swoosh) {
+        case "up":     return synthSwoosh(ctx, r.swooshLo, r.swooshHi, r.swooshDur, vol * 0.4, q, shape)
+        case "down":   return synthSwoosh(ctx, r.swooshHi, r.swooshLo, r.swooshDur, vol * 0.4, q, shape)
+        case "upDown": {
+            synthSwoosh(ctx, r.swooshLo, r.swooshHi, r.swooshDur * 0.5, vol * 0.4, q, shape)
+            setTimeout(() => synthSwoosh(ctx, r.swooshHi, r.swooshLo, r.swooshDur * 0.5, vol * 0.35, q, shape), r.swooshDur * 500)
+            return
+        }
+        case "downUp": {
+            synthSwoosh(ctx, r.swooshHi, r.swooshLo, r.swooshDur * 0.5, vol * 0.4, q, shape)
+            setTimeout(() => synthSwoosh(ctx, r.swooshLo, r.swooshHi, r.swooshDur * 0.5, vol * 0.35, q, shape), r.swooshDur * 500)
+            return
+        }
+        case "sparkle":
+            for (let i = 0; i < 4; i++) setTimeout(() => synthTick(ctx, r.swooshLo * Math.pow(1.5, i), vol * 0.25, 20), i * 60)
+            return
+        case "deep":  return synthSwoosh(ctx, r.swooshLo, r.swooshLo * 0.5, r.swooshDur, vol * 0.5, q + 2, "lowpass")
+        case "airy":  return synthSwoosh(ctx, r.swooshLo, r.swooshHi, r.swooshDur, vol * 0.25, 2, "highpass")
+        case "pulse":
+            for (let i = 0; i < 3; i++) setTimeout(() => synthSwoosh(ctx, r.swooshLo, r.swooshHi, r.swooshDur / 3, vol * 0.35, q, shape), i * (r.swooshDur * 1000 / 3))
+            return
+    }
+}
+
+function buildPack(r: Recipe): Record<CoreSoundName, PackSoundFn> {
+    const semi = (n: number) => Math.pow(2, n / 12)
+    return {
+        buttonClick: (ctx, v) => playClick(ctx, r, 1, v * 0.55),
+        itemUnlock:  (ctx, v) => {
+            r.chord.forEach((s, i) => setTimeout(() => playClick(ctx, r, semi(s), v * 0.55), i * 75))
+            setTimeout(() => playSwoosh(ctx, r, v * 0.6), r.chord.length * 75)
+        },
+        notification: (ctx, v) => {
+            playClick(ctx, r, 1, v * 0.45)
+            setTimeout(() => playClick(ctx, r, semi(r.chord[1] ?? 7), v * 0.5), 90)
+        },
+        error: (ctx, v) => {
+            playClick(ctx, r, 0.6, v * 0.5)
+            setTimeout(() => playClick(ctx, r, 0.45, v * 0.5), 110)
+        },
+        success: (ctx, v) => {
+            r.chord.forEach((s, i) => setTimeout(() => playClick(ctx, r, semi(s), v * 0.55), i * 85))
+        },
+    }
+}
+
+/** Build a Recipe from compact tuple form. */
+function rcp(
+    click: ClickKind,
+    clickHz: number,
+    swoosh: SwooshKind,
+    chord: number[],
+    palette: number,
+    clickDec = 0.05,
+    swooshDur = 0.3,
+): Recipe {
+    return {
+        click, clickHz, clickDec,
+        swoosh,
+        swooshLo: Math.max(40, clickHz * 0.3),
+        swooshHi: clickHz * 2.5,
+        swooshDur,
+        chord, palette,
+    }
+}
+
 // ── All pack sounds ───────────────────────────────────────────────────────────
 
 const PACK_SOUNDS: Record<string, Record<CoreSoundName, PackSoundFn>> = {
@@ -364,96 +549,97 @@ const PACK_SOUNDS: Record<string, Record<CoreSoundName, PackSoundFn>> = {
     pebble:      { buttonClick: u("click3.ogg",1.5), itemUnlock: u2("switch5.ogg",1.2,"switch5.ogg",1.6,90),  notification: u("rollover2.ogg",1.4), error: u("switch4.ogg",0.6), success: u3("click4.ogg",1.3,"click4.ogg",1.6,"click4.ogg",1.9,90) },
     wood:        { buttonClick: u("switch1.ogg",0.7), itemUnlock: u2("switch1.ogg",0.6,"switch1.ogg",0.8,100), notification: u("rollover3.ogg",0.9), error: u("switch6.ogg",0.5), success: u3("switch2.ogg",0.7,"switch2.ogg",0.9,"switch2.ogg",1.1,100) },
     metal:       { buttonClick: u("switch7.ogg",1.2), itemUnlock: u2("switch8.ogg",1.0,"switch8.ogg",1.4,80),  notification: u("rollover4.ogg",1.1), error: u("switch9.ogg",0.5), success: u3("switch10.ogg",1.1,"switch10.ogg",1.3,"switch10.ogg",1.6,80) },
-    spring:      { buttonClick: u("click5.ogg",1.8), itemUnlock: u2("switch11.ogg",1.5,"switch11.ogg",1.9,90), notification: u("rollover5.ogg",1.5), error: u("switch12.ogg",0.7), success: u3("click1.ogg",1.5,"click1.ogg",1.8,"click1.ogg",2.1,85) },
-    bubble:      { buttonClick: u("switch13.ogg",1.6), itemUnlock: u2("switch14.ogg",1.3,"switch14.ogg",1.7,100), notification: u("rollover6.ogg",1.6), error: u("switch15.ogg",0.6), success: u3("switch13.ogg",1.4,"switch13.ogg",1.7,"switch13.ogg",2.0,90) },
-    chirp:       { buttonClick: u("click2.ogg",2.2), itemUnlock: uArp("click2.ogg",1.8,3,1.2,80), notification: u("rollover1.ogg",2.2), error: u("switch16.ogg",0.7), success: uArp("click2.ogg",1.6,4,1.15,70) },
-    snap:        { buttonClick: u("mouseclick1.ogg",1.5), itemUnlock: u2("mouseclick1.ogg",1.3,"mouserelease1.ogg",1.8,100), notification: u("rollover2.ogg",1.7), error: u("switch17.ogg",0.5), success: u3("mouseclick1.ogg",1.4,"mouseclick1.ogg",1.7,"mouserelease1.ogg",2.0,80) },
-    tap:         { buttonClick: u("click4.ogg",1.1), itemUnlock: u2("switch18.ogg",1.0,"switch18.ogg",1.3,90), notification: u("rollover3.ogg",1.1), error: u("switch19.ogg",0.6), success: u3("click3.ogg",1.0,"click3.ogg",1.2,"click3.ogg",1.5,100) },
-    chime:       { buttonClick: u("rollover1.ogg",1.9), itemUnlock: uArp("rollover2.ogg",1.5,4,1.2,100), notification: u("rollover3.ogg",1.7), error: u("switch20.ogg",0.6), success: uArp("rollover1.ogg",1.4,4,1.18,90) },
-    pluck:       { buttonClick: u("switch21.ogg",1.3), itemUnlock: uArp("switch21.ogg",1.0,3,1.25,90), notification: u("rollover4.ogg",1.3), error: u("switch22.ogg",0.5), success: u3("switch21.ogg",1.1,"switch21.ogg",1.4,"switch21.ogg",1.7,90) },
-    drum:        { buttonClick: u("switch23.ogg",0.9), itemUnlock: u2("switch23.ogg",0.8,"switch24.ogg",1.1,90), notification: u("rollover5.ogg",0.9), error: u("switch25.ogg",0.4), success: u3("switch23.ogg",0.9,"switch24.ogg",1.0,"switch25.ogg",1.2,80) },
-    clickbox:    { buttonClick: u("mouseclick1.ogg",1.0), itemUnlock: u2("mouseclick1.ogg",0.9,"mouserelease1.ogg",1.2,120), notification: u("rollover6.ogg",1.2), error: u("switch26.ogg",0.6), success: u3("mouseclick1.ogg",1.0,"mouseclick1.ogg",1.2,"mouserelease1.ogg",1.5,100) },
-    toggle:      { buttonClick: u("switch27.ogg",1.0), itemUnlock: u2("switch27.ogg",0.9,"switch28.ogg",1.2,100), notification: u("rollover1.ogg",1.2), error: u("switch29.ogg",0.5), success: u3("switch27.ogg",1.0,"switch28.ogg",1.2,"switch29.ogg",1.5,90) },
-    pop:         { buttonClick: u("switch30.ogg",1.8), itemUnlock: u2("switch30.ogg",1.5,"switch31.ogg",2.0,80), notification: u("rollover2.ogg",1.8), error: u("switch32.ogg",0.6), success: u3("switch30.ogg",1.6,"switch30.ogg",1.9,"switch31.ogg",2.2,75) },
-    electro:     { buttonClick: u("switch33.ogg",1.4), itemUnlock: u2("switch33.ogg",1.2,"switch34.ogg",1.6,80), notification: u("rollover3.ogg",1.5), error: u("switch35.ogg",0.5), success: uArp("switch33.ogg",1.2,3,1.3,80) },
-    digital:     { buttonClick: u("click1.ogg",1.3), itemUnlock: u2("switch36.ogg",1.1,"switch36.ogg",1.5,90), notification: u("rollover4.ogg",1.4), error: u("switch37.ogg",0.6), success: u3("switch36.ogg",1.2,"switch36.ogg",1.5,"switch36.ogg",1.8,85) },
-    neon:        { buttonClick: u("switch38.ogg",1.5), itemUnlock: u2("switch38.ogg",1.3,"switch1.ogg",1.8,80), notification: u("rollover5.ogg",1.6), error: u("switch2.ogg",0.5), success: u3("switch38.ogg",1.4,"switch1.ogg",1.7,"switch2.ogg",2.0,80) },
-    cyber:       { buttonClick: u("switch3.ogg",1.6), itemUnlock: uArp("switch3.ogg",1.2,4,1.2,75), notification: u("rollover6.ogg",1.7), error: u("switch4.ogg",0.5), success: uArp("switch3.ogg",1.3,4,1.18,75) },
-    matrix:      { buttonClick: u("click2.ogg",1.0), itemUnlock: u2("switch5.ogg",1.0,"switch5.ogg",1.4,90), notification: u("rollover1.ogg",1.0), error: u("switch6.ogg",0.4), success: uArp("click2.ogg",0.9,4,1.2,80) },
-    echo:        { buttonClick: u("switch7.ogg",0.8), itemUnlock: u3("switch7.ogg",0.8,"switch7.ogg",0.9,"switch7.ogg",1.0,150), notification: u("rollover2.ogg",0.9), error: u("switch8.ogg",0.4), success: u3("switch7.ogg",0.8,"switch7.ogg",1.0,"switch7.ogg",1.2,130) },
-    crystal:     { buttonClick: u("click3.ogg",2.4), itemUnlock: uArp("click3.ogg",2.0,4,1.15,90), notification: u("rollover3.ogg",2.2), error: u("switch9.ogg",0.6), success: uArp("click3.ogg",1.8,5,1.12,80) },
-    pixel:       { buttonClick: u("switch10.ogg",1.7), itemUnlock: uArp("switch10.ogg",1.4,3,1.25,70), notification: u("rollover4.ogg",1.8), error: u("switch11.ogg",0.5), success: uArp("switch10.ogg",1.3,4,1.2,70) },
-    wave:        { buttonClick: u("switch12.ogg",1.0), itemUnlock: u2("switch12.ogg",0.9,"switch12.ogg",1.2,120), notification: u("rollover5.ogg",1.0), error: u("switch13.ogg",0.4), success: u3("switch12.ogg",1.0,"switch12.ogg",1.2,"switch12.ogg",1.5,110) },
-    pulse:       { buttonClick: u("switch14.ogg",1.3), itemUnlock: u2("switch14.ogg",1.1,"switch15.ogg",1.5,90), notification: u("rollover6.ogg",1.3), error: u("switch16.ogg",0.5), success: uArp("switch14.ogg",1.1,4,1.2,85) },
-    surge:       { buttonClick: u("switch17.ogg",1.5), itemUnlock: uArp("switch17.ogg",1.2,4,1.2,80), notification: u("rollover1.ogg",1.5), error: u("switch18.ogg",0.4), success: uArp("switch17.ogg",1.3,4,1.22,80) },
-    spark:       { buttonClick: u("click4.ogg",2.0), itemUnlock: uArp("click4.ogg",1.7,4,1.18,75), notification: u("rollover2.ogg",2.0), error: u("switch19.ogg",0.5), success: uArp("click4.ogg",1.6,5,1.15,75) },
-    thunder:     { buttonClick: u("switch20.ogg",0.6), itemUnlock: u2("switch20.ogg",0.5,"switch21.ogg",0.7,120), notification: u("rollover3.ogg",0.7), error: u("switch22.ogg",0.3), success: u3("switch20.ogg",0.5,"switch20.ogg",0.7,"switch21.ogg",0.9,120) },
-    storm:       { buttonClick: u("switch23.ogg",0.7), itemUnlock: u3("switch23.ogg",0.6,"switch24.ogg",0.8,"switch25.ogg",1.0,110), notification: u("rollover4.ogg",0.7), error: u("switch26.ogg",0.3), success: uArp("switch23.ogg",0.6,4,1.25,110) },
-    rain:        { buttonClick: u("click5.ogg",1.6), itemUnlock: uArp("click5.ogg",1.3,4,1.2,100), notification: u("rollover5.ogg",1.5), error: u("switch27.ogg",0.5), success: uArp("click5.ogg",1.2,5,1.15,90) },
-    wind:        { buttonClick: u("rollover1.ogg",1.4), itemUnlock: uArp("rollover1.ogg",1.2,4,1.2,110), notification: u("rollover2.ogg",1.3), error: u("switch28.ogg",0.4), success: uArp("rollover1.ogg",1.1,5,1.15,100) },
-    ocean:       { buttonClick: u("switch29.ogg",0.9), itemUnlock: u2("switch29.ogg",0.8,"switch30.ogg",1.0,130), notification: u("rollover3.ogg",0.9), error: u("switch31.ogg",0.4), success: u3("switch29.ogg",0.8,"switch29.ogg",1.0,"switch30.ogg",1.2,120) },
-    fire:        { buttonClick: u("switch32.ogg",0.8), itemUnlock: u2("switch32.ogg",0.7,"switch33.ogg",1.0,100), notification: u("rollover4.ogg",0.8), error: u("switch34.ogg",0.3), success: u3("switch32.ogg",0.7,"switch33.ogg",0.9,"switch34.ogg",1.1,100) },
-    ice:         { buttonClick: u("click1.ogg",2.5), itemUnlock: uArp("click1.ogg",2.2,4,1.1,90), notification: u("rollover5.ogg",2.3), error: u("switch35.ogg",0.6), success: uArp("click1.ogg",2.0,5,1.1,85) },
-    shadow:      { buttonClick: u("switch36.ogg",0.5), itemUnlock: u2("switch36.ogg",0.4,"switch37.ogg",0.6,140), notification: u("rollover6.ogg",0.5), error: u("switch38.ogg",0.2), success: u3("switch36.ogg",0.4,"switch36.ogg",0.6,"switch37.ogg",0.8,130) },
-    phantom:     { buttonClick: u("switch1.ogg",0.6), itemUnlock: u2("switch1.ogg",0.5,"switch2.ogg",0.7,130), notification: u("rollover1.ogg",0.6), error: u("switch3.ogg",0.3), success: u3("switch1.ogg",0.5,"switch1.ogg",0.7,"switch2.ogg",0.9,130) },
-    spirit:      { buttonClick: u("rollover2.ogg",0.8), itemUnlock: uArp("rollover2.ogg",0.7,4,1.2,130), notification: u("rollover3.ogg",0.8), error: u("switch4.ogg",0.3), success: uArp("rollover2.ogg",0.6,5,1.18,120) },
-    angel:       { buttonClick: u("rollover4.ogg",2.0), itemUnlock: uArp("rollover4.ogg",1.7,4,1.18,110), notification: u("rollover5.ogg",1.9), error: u("switch5.ogg",0.5), success: uArp("rollover4.ogg",1.6,5,1.15,100) },
-    celestial:   { buttonClick: u("click2.ogg",2.8), itemUnlock: uArp("click2.ogg",2.3,5,1.12,90), notification: u("rollover6.ogg",2.5), error: u("switch6.ogg",0.5), success: uArp("click2.ogg",2.0,6,1.1,80) },
-    nebula:      { buttonClick: u("switch7.ogg",1.4), itemUnlock: uArp("switch7.ogg",1.1,5,1.2,90), notification: u("rollover1.ogg",1.5), error: u("switch8.ogg",0.4), success: uArp("switch7.ogg",1.0,6,1.18,85) },
-    galaxy:      { buttonClick: u("switch9.ogg",1.6), itemUnlock: uArp("switch9.ogg",1.3,5,1.2,85), notification: u("rollover2.ogg",1.6), error: u("switch10.ogg",0.4), success: uArp("switch9.ogg",1.2,6,1.15,80) },
-    quasar:      { buttonClick: u("switch11.ogg",1.8), itemUnlock: uArp("switch11.ogg",1.4,5,1.22,85), notification: u("rollover3.ogg",1.8), error: u("switch12.ogg",0.4), success: uArp("switch11.ogg",1.3,6,1.18,80) },
-    warp:        { buttonClick: u("switch13.ogg",2.0), itemUnlock: uArp("switch13.ogg",1.6,5,1.22,80), notification: u("rollover4.ogg",1.9), error: u("switch14.ogg",0.3), success: uArp("switch13.ogg",1.5,6,1.18,75) },
-    portal:      { buttonClick: u("switch15.ogg",0.7), itemUnlock: u3("switch15.ogg",0.6,"switch16.ogg",0.9,"switch17.ogg",1.2,110), notification: u("rollover5.ogg",0.7), error: u("switch18.ogg",0.3), success: u3("switch15.ogg",0.7,"switch16.ogg",1.0,"switch17.ogg",1.4,100) },
-    quantum:     { buttonClick: u("click3.ogg",1.9), itemUnlock: uArp("click3.ogg",1.5,5,1.2,85), notification: u("rollover6.ogg",1.9), error: u("switch19.ogg",0.5), success: uArp("click3.ogg",1.4,6,1.15,80) },
-    circuit:     { buttonClick: u("switch20.ogg",1.3), itemUnlock: uArp("switch20.ogg",1.1,5,1.2,80), notification: u("rollover1.ogg",1.3), error: u("switch21.ogg",0.4), success: uArp("switch20.ogg",1.0,6,1.18,80) },
-    binary:      { buttonClick: u("switch22.ogg",1.5), itemUnlock: uArp("switch22.ogg",1.2,5,1.2,80), notification: u("rollover2.ogg",1.5), error: u("switch23.ogg",0.4), success: uArp("switch22.ogg",1.1,6,1.18,75) },
-    neural:      { buttonClick: u("switch24.ogg",1.7), itemUnlock: uArp("switch24.ogg",1.3,5,1.22,80), notification: u("rollover3.ogg",1.7), error: u("switch25.ogg",0.4), success: uArp("switch24.ogg",1.2,6,1.18,75) },
-    hologram:    { buttonClick: u("switch26.ogg",1.4), itemUnlock: uArp("switch26.ogg",1.1,5,1.2,80), notification: u("rollover4.ogg",1.4), error: u("switch27.ogg",0.4), success: uArp("switch26.ogg",1.0,6,1.18,80) },
-    synthwave:   { buttonClick: u("click4.ogg",1.4), itemUnlock: uArp("click4.ogg",1.1,5,1.2,90), notification: u("rollover5.ogg",1.4), error: u("switch28.ogg",0.5), success: uArp("click4.ogg",1.0,6,1.18,85) },
-    retrowave:   { buttonClick: u("switch29.ogg",1.3), itemUnlock: uArp("switch29.ogg",1.0,5,1.2,90), notification: u("rollover6.ogg",1.3), error: u("switch30.ogg",0.4), success: uArp("switch29.ogg",0.9,6,1.18,85) },
-    vaporwave:   { buttonClick: u("rollover1.ogg",1.7), itemUnlock: uArp("rollover1.ogg",1.4,5,1.18,100), notification: u("rollover2.ogg",1.7), error: u("switch31.ogg",0.4), success: uArp("rollover1.ogg",1.3,6,1.15,95) },
-    dreamwave:   { buttonClick: u("rollover3.ogg",1.5), itemUnlock: uArp("rollover3.ogg",1.2,5,1.18,110), notification: u("rollover4.ogg",1.5), error: u("switch32.ogg",0.4), success: uArp("rollover3.ogg",1.1,6,1.15,100) },
-    ambient:     { buttonClick: u("rollover5.ogg",1.2), itemUnlock: uArp("rollover5.ogg",1.0,5,1.18,120), notification: u("rollover6.ogg",1.2), error: u("switch33.ogg",0.4), success: uArp("rollover5.ogg",0.9,6,1.15,110) },
-    lofi:        { buttonClick: u("click5.ogg",0.9), itemUnlock: u2("click5.ogg",0.8,"switch34.ogg",1.1,120), notification: u("rollover1.ogg",0.9), error: u("switch35.ogg",0.4), success: u3("click5.ogg",0.8,"click5.ogg",1.0,"switch34.ogg",1.3,110) },
-    jazz:        { buttonClick: u("switch36.ogg",1.1), itemUnlock: u3("switch36.ogg",1.0,"switch37.ogg",1.2,"switch38.ogg",1.5,100), notification: u("rollover2.ogg",1.1), error: u("switch1.ogg",0.4), success: uArp("switch36.ogg",1.0,5,1.2,100) },
-    orchestra:   { buttonClick: u("switch2.ogg",0.8), itemUnlock: u3("switch2.ogg",0.7,"switch3.ogg",0.9,"switch4.ogg",1.1,110), notification: u("rollover3.ogg",0.8), error: u("switch5.ogg",0.3), success: uArp("switch2.ogg",0.7,5,1.2,110) },
-    epic:        { buttonClick: u("switch6.ogg",0.7), itemUnlock: u3("switch6.ogg",0.6,"switch7.ogg",0.8,"switch8.ogg",1.0,110), notification: u("rollover4.ogg",0.7), error: u("switch9.ogg",0.3), success: uArp("switch6.ogg",0.6,5,1.22,110) },
-    legend:      { buttonClick: u("click1.ogg",1.7), itemUnlock: uArp("click1.ogg",1.4,6,1.15,90), notification: u("rollover5.ogg",1.8), error: u("switch10.ogg",0.4), success: uArp("click1.ogg",1.3,7,1.13,85) },
-    myth:        { buttonClick: u("switch11.ogg",0.9), itemUnlock: u3("switch11.ogg",0.8,"switch12.ogg",1.0,"switch13.ogg",1.3,110), notification: u("rollover6.ogg",0.9), error: u("switch14.ogg",0.3), success: uArp("switch11.ogg",0.8,6,1.2,110) },
-    ancient:     { buttonClick: u("switch15.ogg",0.6), itemUnlock: u3("switch15.ogg",0.5,"switch16.ogg",0.7,"switch17.ogg",0.9,130), notification: u("rollover1.ogg",0.6), error: u("switch18.ogg",0.2), success: uArp("switch15.ogg",0.5,6,1.2,130) },
-    dragonfire:  { buttonClick: u("switch19.ogg",0.5), itemUnlock: u3("switch19.ogg",0.4,"switch20.ogg",0.6,"switch21.ogg",0.8,120), notification: u("rollover2.ogg",0.5), error: u("switch22.ogg",0.2), success: uArp("switch19.ogg",0.4,6,1.22,120) },
-    phoenix:     { buttonClick: u("click2.ogg",2.5), itemUnlock: uArp("click2.ogg",2.0,6,1.15,90), notification: u("rollover3.ogg",2.4), error: u("switch23.ogg",0.4), success: uArp("click2.ogg",1.8,7,1.12,85) },
-    titan:       { buttonClick: u("switch24.ogg",0.4), itemUnlock: u2("switch24.ogg",0.3,"switch25.ogg",0.5,150), notification: u("rollover4.ogg",0.4), error: u("switch26.ogg",0.2), success: u3("switch24.ogg",0.3,"switch24.ogg",0.5,"switch25.ogg",0.7,140) },
-    divine:      { buttonClick: u("rollover5.ogg",2.2), itemUnlock: uArp("rollover5.ogg",1.8,6,1.15,100), notification: u("rollover6.ogg",2.1), error: u("switch27.ogg",0.4), success: uArp("rollover5.ogg",1.7,7,1.12,95) },
-    archangel:   { buttonClick: u("click3.ogg",2.8), itemUnlock: uArp("click3.ogg",2.2,6,1.13,90), notification: u("rollover1.ogg",2.7), error: u("switch28.ogg",0.4), success: uArp("click3.ogg",2.0,7,1.1,85) },
-    cosmos:      { buttonClick: u("switch29.ogg",0.5), itemUnlock: u3("switch29.ogg",0.4,"switch30.ogg",0.6,"switch31.ogg",0.8,140), notification: u("rollover2.ogg",0.5), error: u("switch32.ogg",0.2), success: uArp("switch29.ogg",0.4,7,1.2,130) },
-    eternity:    { buttonClick: u("rollover3.ogg",0.7), itemUnlock: uArp("rollover3.ogg",0.6,7,1.18,120), notification: u("rollover4.ogg",0.7), error: u("switch33.ogg",0.3), success: uArp("rollover3.ogg",0.5,8,1.15,110) },
-    infinity:    { buttonClick: u("switch34.ogg",1.0), itemUnlock: uArp("switch34.ogg",0.8,7,1.2,110), notification: u("rollover5.ogg",1.0), error: u("switch35.ogg",0.3), success: uArp("switch34.ogg",0.7,8,1.18,100) },
-    beyond:      { buttonClick: u("click4.ogg",3.0), itemUnlock: uArp("click4.ogg",2.4,7,1.12,90), notification: u("rollover6.ogg",2.8), error: u("switch36.ogg",0.4), success: uArp("click4.ogg",2.2,8,1.1,85) },
-    transcend:   { buttonClick: u("switch37.ogg",1.8), itemUnlock: uArp("switch37.ogg",1.4,7,1.2,90), notification: u("rollover1.ogg",1.9), error: u("switch38.ogg",0.3), success: uArp("switch37.ogg",1.3,8,1.15,85) },
-    absolute:    { buttonClick: u("click5.ogg",2.2), itemUnlock: uArp("click5.ogg",1.8,7,1.15,90), notification: u("rollover2.ogg",2.2), error: u("switch1.ogg",0.3), success: uArp("click5.ogg",1.7,8,1.12,85) },
-    voidgod:     { buttonClick: u("switch2.ogg",0.3), itemUnlock: u3("switch2.ogg",0.2,"switch3.ogg",0.35,"switch4.ogg",0.5,160), notification: u("rollover3.ogg",0.3), error: u("switch5.ogg",0.15), success: uArp("switch2.ogg",0.2,8,1.22,150) },
-    trueform:    { buttonClick: u("rollover4.ogg",2.5), itemUnlock: uArp("rollover4.ogg",2.0,7,1.15,95), notification: u("rollover5.ogg",2.4), error: u("switch6.ogg",0.3), success: uArp("rollover4.ogg",1.9,8,1.12,90) },
-    awakening:   { buttonClick: u("switch7.ogg",1.9), itemUnlock: uArp("switch7.ogg",1.5,8,1.18,90), notification: u("rollover6.ogg",2.0), error: u("switch8.ogg",0.3), success: uArp("switch7.ogg",1.4,9,1.14,85) },
-    ascension:   { buttonClick: u("click1.ogg",2.0), itemUnlock: uArp("click1.ogg",1.6,8,1.15,90), notification: u("rollover1.ogg",2.1), error: u("switch9.ogg",0.3), success: uArp("click1.ogg",1.5,9,1.12,85) },
-    enlighten:   { buttonClick: u("rollover2.ogg",2.8), itemUnlock: uArp("rollover2.ogg",2.2,8,1.12,95), notification: u("rollover3.ogg",2.7), error: u("switch10.ogg",0.3), success: uArp("rollover2.ogg",2.1,9,1.1,90) },
-    singularity: { buttonClick: u("switch11.ogg",0.4), itemUnlock: u3("switch11.ogg",0.3,"switch12.ogg",0.5,"switch13.ogg",0.7,150), notification: u("rollover4.ogg",0.4), error: u("switch14.ogg",0.15), success: uArp("switch11.ogg",0.3,9,1.2,140) },
-    omega:       { buttonClick: u("switch15.ogg",0.3), itemUnlock: u3("switch15.ogg",0.25,"switch16.ogg",0.4,"switch17.ogg",0.6,160), notification: u("rollover5.ogg",0.3), error: u("switch18.ogg",0.12), success: uArp("switch15.ogg",0.25,9,1.22,150) },
-    alpha:       { buttonClick: u("click2.ogg",3.5), itemUnlock: uArp("click2.ogg",2.8,8,1.12,85), notification: u("rollover6.ogg",3.2), error: u("switch19.ogg",0.3), success: uArp("click2.ogg",2.6,9,1.1,80) },
-    genesis:     { buttonClick: u("switch20.ogg",0.35), itemUnlock: u3("switch20.ogg",0.3,"switch21.ogg",0.45,"switch22.ogg",0.65,150), notification: u("rollover1.ogg",0.35), error: u("switch23.ogg",0.15), success: uArp("switch20.ogg",0.28,9,1.22,140) },
-    judgment:    { buttonClick: u("switch24.ogg",0.5), itemUnlock: u3("switch24.ogg",0.4,"switch25.ogg",0.6,"switch26.ogg",0.85,140), notification: u("rollover2.ogg",0.5), error: u("switch27.ogg",0.2), success: uArp("switch24.ogg",0.4,9,1.2,130) },
-    apocalypse:  { buttonClick: u("switch28.ogg",0.3), itemUnlock: u3("switch28.ogg",0.25,"switch29.ogg",0.4,"switch30.ogg",0.6,160), notification: u("rollover3.ogg",0.3), error: u("switch31.ogg",0.12), success: uArp("switch28.ogg",0.25,9,1.22,150) },
-    rebirth:     { buttonClick: u("click3.ogg",3.2), itemUnlock: uArp("click3.ogg",2.5,8,1.12,85), notification: u("rollover4.ogg",3.0), error: u("switch32.ogg",0.3), success: uArp("click3.ogg",2.3,9,1.1,80) },
-    primordial:  { buttonClick: u("switch33.ogg",0.35), itemUnlock: u3("switch33.ogg",0.3,"switch34.ogg",0.45,"switch35.ogg",0.65,160), notification: u("rollover5.ogg",0.35), error: u("switch36.ogg",0.15), success: uArp("switch33.ogg",0.28,9,1.22,150) },
-    celestialgod:{ buttonClick: u("rollover6.ogg",3.0), itemUnlock: uArp("rollover6.ogg",2.4,9,1.11,95), notification: u("rollover1.ogg",2.9), error: u("switch37.ogg",0.3), success: uArp("rollover6.ogg",2.2,10,1.09,90) },
-    universe:    { buttonClick: u("switch38.ogg",0.4), itemUnlock: u3("switch38.ogg",0.3,"switch1.ogg",0.5,"switch2.ogg",0.7,160), notification: u("rollover2.ogg",0.4), error: u("switch3.ogg",0.15), success: uArp("switch38.ogg",0.3,10,1.2,150) },
-    multiverse:  { buttonClick: u("click4.ogg",4.0), itemUnlock: uArp("click4.ogg",3.0,9,1.1,85), notification: u("rollover3.ogg",3.5), error: u("switch4.ogg",0.3), success: uArp("click4.ogg",2.8,10,1.08,80) },
-    omniscience: { buttonClick: u("switch5.ogg",0.3), itemUnlock: u3("switch5.ogg",0.25,"switch6.ogg",0.4,"switch7.ogg",0.6,170), notification: u("rollover4.ogg",0.3), error: u("switch8.ogg",0.12), success: uArp("switch5.ogg",0.25,10,1.2,160) },
-    omnipotence: { buttonClick: u("click5.ogg",4.0), itemUnlock: uArp("click5.ogg",3.2,9,1.1,85), notification: u("rollover5.ogg",3.8), error: u("switch9.ogg",0.3), success: uArp("click5.ogg",3.0,10,1.08,80) },
-    creation:    { buttonClick: u("rollover6.ogg",4.0), itemUnlock: uArp("rollover6.ogg",3.0,9,1.1,95), notification: u("rollover1.ogg",3.5), error: u("switch10.ogg",0.3), success: uArp("rollover6.ogg",2.8,10,1.09,90) },
-    destruction: { buttonClick: u("switch11.ogg",0.25), itemUnlock: u3("switch11.ogg",0.2,"switch12.ogg",0.35,"switch13.ogg",0.5,180), notification: u("rollover2.ogg",0.25), error: u("switch14.ogg",0.1), success: uArp("switch11.ogg",0.2,10,1.22,170) },
-    balance:     { buttonClick: u2("click1.ogg",3.5,"switch1.ogg",0.28,5), itemUnlock: uArp("rollover3.ogg",2.5,10,1.1,95), notification: u2("rollover4.ogg",2.8,"rollover4.ogg",0.35,150), error: u("switch15.ogg",0.2), success: uArp("rollover3.ogg",2.3,11,1.09,90) },
-    transcendent:{ buttonClick: u2("click2.ogg",4.5,"rollover5.ogg",3.8,8), itemUnlock: uArp("click2.ogg",3.5,10,1.1,90), notification: u2("rollover6.ogg",4.0,"rollover1.ogg",3.5,120), error: u("switch16.ogg",0.15), success: uArp("click2.ogg",3.2,12,1.08,85) },
+    // ── Synth-recipe packs: each has a unique (click waveform, swoosh shape, base freq, chord) signature ──
+    spring:      buildPack(rcp("blip",      880,  "upDown",  [0,4,7,12],  1, 0.06, 0.32)),
+    bubble:      buildPack(rcp("blip",      1320, "upDown",  [0,3,7,10],       2, 0.06, 0.28)),
+    chirp:       buildPack(rcp("tick",      2400, "sparkle", [0,4,7,11],       3, 0.04, 0.30)),
+    snap:        buildPack(rcp("square",    1800, "down",    [0,4,7,12],       4, 0.04, 0.20)),
+    tap:         buildPack(rcp("triangle",  700,  "up",      [0,5,7,12],       0, 0.05, 0.24)),
+    chime:       buildPack(rcp("blip",      1568, "sparkle", [0,4,7,11,16],    5, 0.10, 0.40)),
+    pluck:       buildPack(rcp("triangle",  660,  "up",      [0,2,4,7,9],      1, 0.08, 0.28)),
+    drum:        buildPack(rcp("sine",      80,   "deep",    [0,12],           2, 0.18, 0.30)),
+    clickbox:    buildPack(rcp("square",    1100, "pulse",   [0,4,7],          3, 0.05, 0.30)),
+    toggle:      buildPack(rcp("tick",      950,  "upDown",  [0,7],            4, 0.05, 0.22)),
+    pop:         buildPack(rcp("triangle",  1500, "up",      [0,7,12],         0, 0.04, 0.18)),
+    electro:     buildPack(rcp("square",    1400, "downUp",  [0,3,6,9],        1, 0.06, 0.26)),
+    digital:     buildPack(rcp("square",    800,  "pulse",   [0,4,7,12],       2, 0.05, 0.28)),
+    neon:        buildPack(rcp("sawtooth",  1200, "upDown",  [0,4,7,11],       3, 0.07, 0.30)),
+    cyber:       buildPack(rcp("fm",        900,  "sparkle", [0,2,4,6,8],      4, 0.06, 0.30)),
+    matrix:      buildPack(rcp("square",    600,  "pulse",   [0,7,12],         0, 0.05, 0.32)),
+    echo:        buildPack(rcp("sine",      440,  "down",    [0,5,12],         1, 0.12, 0.45)),
+    crystal:     buildPack(rcp("blip",      2200, "sparkle", [0,4,7,11],       2, 0.08, 0.32)),
+    pixel:       buildPack(rcp("square",    1024, "up",      [0,4,7,12],       3, 0.04, 0.22)),
+    wave:        buildPack(rcp("sine",      500,  "upDown",  [0,4,7],          4, 0.10, 0.40)),
+    pulse:       buildPack(rcp("fm",        700,  "pulse",   [0,3,7,10],       0, 0.05, 0.30)),
+    surge:       buildPack(rcp("sawtooth",  1100, "upDown",  [0,4,7,12],       1, 0.06, 0.28)),
+    spark:       buildPack(rcp("tick",      2800, "sparkle", [0,4,7,11,16],    2, 0.03, 0.24)),
+    thunder:     buildPack(rcp("fm",        100,  "deep",    [0,12],           3, 0.25, 0.55)),
+    storm:       buildPack(rcp("sawtooth",  200,  "deep",    [0,3,7],          4, 0.18, 0.45)),
+    rain:        buildPack(rcp("tick",      1800, "sparkle", [0,4,7,11],       0, 0.03, 0.50)),
+    wind:        buildPack(rcp("sine",      600,  "airy",    [0,5,7,12],       1, 0.15, 0.55)),
+    ocean:       buildPack(rcp("sine",      220,  "deep",    [0,5,7,12],       2, 0.20, 0.60)),
+    fire:        buildPack(rcp("sawtooth",  350,  "pulse",   [0,3,7],          3, 0.10, 0.35)),
+    ice:         buildPack(rcp("blip",      1800, "sparkle", [0,4,7,11],       4, 0.10, 0.35)),
+    shadow:      buildPack(rcp("sine",      180,  "down",    [0,3,7],          0, 0.20, 0.50)),
+    phantom:     buildPack(rcp("triangle",  280,  "downUp",  [0,1,5,7,8],      1, 0.15, 0.50)),
+    spirit:      buildPack(rcp("sine",      450,  "airy",    [0,5,7,12],       2, 0.14, 0.55)),
+    angel:       buildPack(rcp("blip",      1760, "up",      [0,4,7,11,16],    3, 0.10, 0.45)),
+    celestial:   buildPack(rcp("tick",      2100, "sparkle", [0,4,7,11,16],    4, 0.06, 0.45)),
+    nebula:      buildPack(rcp("sawtooth",  600,  "airy",    [0,4,7,11],       0, 0.12, 0.50)),
+    galaxy:      buildPack(rcp("fm",        800,  "upDown",  [0,4,7,11],       1, 0.10, 0.45)),
+    quasar:      buildPack(rcp("fm",        1200, "sparkle", [0,4,7,11,16],    2, 0.08, 0.40)),
+    warp:        buildPack(rcp("sawtooth",  1500, "upDown",  [0,4,7,12],       3, 0.07, 0.35)),
+    portal:      buildPack(rcp("sine",      660,  "downUp",  [0,1,5,7,8],      4, 0.12, 0.45)),
+    quantum:     buildPack(rcp("fm",        900,  "pulse",   [0,3,6,9],        0, 0.06, 0.30)),
+    circuit:     buildPack(rcp("square",    1024, "pulse",   [0,4,7,12],       1, 0.05, 0.30)),
+    binary:      buildPack(rcp("square",    1300, "up",      [0,4,7],          2, 0.04, 0.26)),
+    neural:      buildPack(rcp("fm",        700,  "sparkle", [0,3,7,10],       3, 0.07, 0.35)),
+    hologram:    buildPack(rcp("fm",        1100, "airy",    [0,4,7,11],       4, 0.09, 0.40)),
+    synthwave:   buildPack(rcp("sawtooth",  880,  "upDown",  [0,4,7,12],       0, 0.08, 0.35)),
+    retrowave:   buildPack(rcp("sawtooth",  700,  "down",    [0,3,7,10],       1, 0.09, 0.38)),
+    vaporwave:   buildPack(rcp("triangle",  550,  "airy",    [0,5,7,12],       2, 0.12, 0.55)),
+    dreamwave:   buildPack(rcp("sine",      660,  "airy",    [0,4,7,11],       3, 0.14, 0.55)),
+    ambient:     buildPack(rcp("sine",      330,  "airy",    [0,5,7,12],       4, 0.18, 0.65)),
+    lofi:        buildPack(rcp("triangle",  440,  "down",    [0,3,7],          0, 0.10, 0.40)),
+    jazz:        buildPack(rcp("triangle",  587,  "up",      [0,4,7,11,14],    1, 0.10, 0.40)),
+    orchestra:   buildPack(rcp("triangle",  392,  "upDown",  [0,4,7,12,16],    2, 0.14, 0.50)),
+    epic:        buildPack(rcp("sawtooth",  220,  "upDown",  [0,3,7,12],       3, 0.18, 0.55)),
+    legend:      buildPack(rcp("blip",      1320, "up",      [0,4,7,12,16],    4, 0.10, 0.45)),
+    myth:        buildPack(rcp("triangle",  392,  "downUp",  [0,3,7,10],       0, 0.12, 0.45)),
+    ancient:     buildPack(rcp("sine",      174,  "deep",    [0,5,7],          1, 0.22, 0.60)),
+    dragonfire:  buildPack(rcp("fm",        180,  "deep",    [0,3,6,11],       2, 0.25, 0.55)),
+    phoenix:     buildPack(rcp("blip",      1760, "up",      [0,4,7,12,16],    3, 0.10, 0.45)),
+    titan:       buildPack(rcp("sine",      90,   "deep",    [0,12],           4, 0.30, 0.70)),
+    divine:      buildPack(rcp("blip",      1568, "sparkle", [0,4,7,11,16,19], 0, 0.12, 0.50)),
+    archangel:   buildPack(rcp("tick",      2100, "sparkle", [0,4,7,11,16,21], 1, 0.06, 0.50)),
+    cosmos:      buildPack(rcp("sine",      220,  "airy",    [0,4,7,12],       2, 0.20, 0.65)),
+    eternity:    buildPack(rcp("sine",      330,  "airy",    [0,5,7,12,17],    3, 0.18, 0.70)),
+    infinity:    buildPack(rcp("triangle",  660,  "sparkle", [0,4,7,11,14],    4, 0.10, 0.55)),
+    beyond:      buildPack(rcp("blip",      1980, "sparkle", [0,4,7,11,16,19], 0, 0.08, 0.50)),
+    transcend:   buildPack(rcp("fm",        880,  "upDown",  [0,4,7,11,14,18], 1, 0.10, 0.55)),
+    absolute:    buildPack(rcp("blip",      1760, "up",      [0,4,7,12],       2, 0.10, 0.40)),
+    voidgod:     buildPack(rcp("sine",      60,   "deep",    [0,12,24],        3, 0.35, 0.80)),
+    trueform:    buildPack(rcp("triangle",  880,  "upDown",  [0,4,7,11],       4, 0.10, 0.45)),
+    awakening:   buildPack(rcp("blip",      880,  "up",      [0,4,7,12,16],    0, 0.10, 0.50)),
+    ascension:   buildPack(rcp("blip",      1100, "up",      [0,4,7,12,19],    1, 0.10, 0.55)),
+    enlighten:   buildPack(rcp("tick",      1980, "sparkle", [0,4,7,11,14,19], 2, 0.06, 0.55)),
+    singularity: buildPack(rcp("fm",        80,   "deep",    [0,12,24],        3, 0.40, 0.85)),
+    omega:       buildPack(rcp("sine",      70,   "deep",    [0,12,24,36],     4, 0.45, 0.90)),
+    alpha:       buildPack(rcp("blip",      2200, "up",      [0,4,7,12,19,24], 0, 0.08, 0.55)),
+    genesis:     buildPack(rcp("sine",      110,  "deep",    [0,7,12],         1, 0.28, 0.70)),
+    judgment:    buildPack(rcp("sawtooth",  150,  "deep",    [0,3,7,12],       2, 0.25, 0.65)),
+    apocalypse:  buildPack(rcp("fm",        90,   "deep",    [0,3,6,12],       3, 0.35, 0.80)),
+    rebirth:     buildPack(rcp("blip",      1568, "up",      [0,4,7,12,16,19], 4, 0.10, 0.55)),
+    primordial:  buildPack(rcp("sine",      100,  "deep",    [0,7,14],         0, 0.30, 0.70)),
+    celestialgod:buildPack(rcp("blip",      1760, "sparkle", [0,4,7,11,16,19,23], 1, 0.10, 0.60)),
+    universe:    buildPack(rcp("sine",      130,  "airy",    [0,4,7,12,16],    2, 0.25, 0.75)),
+    multiverse:  buildPack(rcp("fm",        1400, "sparkle", [0,4,7,11,14,18,22], 3, 0.10, 0.60)),
+    omniscience: buildPack(rcp("sine",      90,   "airy",    [0,5,7,12,17,24], 4, 0.30, 0.85)),
+    omnipotence: buildPack(rcp("blip",      1980, "up",      [0,4,7,12,16,19,24], 0, 0.10, 0.65)),
+    creation:    buildPack(rcp("triangle",  1100, "upDown",  [0,4,7,11,16,21], 1, 0.12, 0.60)),
+    destruction: buildPack(rcp("fm",        70,   "deep",    [0,3,6,9,12],     2, 0.40, 0.90)),
+    balance:     buildPack(rcp("triangle",  660,  "upDown",  [0,4,7,12,16],    3, 0.12, 0.55)),
+    transcendent:buildPack(rcp("blip",      2200, "sparkle", [0,4,7,11,14,18,22,26], 4, 0.10, 0.70)),
 }
 
 // ── Jotai atoms ───────────────────────────────────────────────────────────────

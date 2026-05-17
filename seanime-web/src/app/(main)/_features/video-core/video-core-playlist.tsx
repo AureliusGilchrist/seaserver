@@ -6,7 +6,7 @@ import { useAutoPlaySelectedTorrent } from "@/app/(main)/_features/autoplay/auto
 import { useNakamaWatchParty } from "@/app/(main)/_features/nakama/nakama-manager"
 import { usePlaylistManager } from "@/app/(main)/_features/playlists/_containers/global-playlist-manager"
 import { VideoCoreNextButton, VideoCorePreviousButton } from "@/app/(main)/_features/video-core/video-core-control-bar"
-import { VideoCore_PlaybackType, VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { VideoCore_PlaybackType, VideoCoreLifecycleState, vc_autoSkipFillerAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { useHandleStartDebridStream } from "@/app/(main)/entry/_containers/debrid-stream/_lib/handle-debrid-stream"
 import {
     __debridStream_autoSelectFileAtom,
@@ -121,6 +121,7 @@ export function useVideoCorePlaylist() {
     const playlistState = useAtomValue(vc_playlistState)
     const playbackType = playlistState?.type
     const animeEntry = playlistState?.animeEntry
+    const autoSkipFiller = useAtomValue(vc_autoSkipFillerAtom)
 
     const { isPeer: isWatchPartyPeer } = useNakamaWatchParty()
 
@@ -267,6 +268,7 @@ export function useVideoCorePlaylist() {
         }
 
         let episode: Anime_Episode | null = null
+        let fillerSkipped = 0
         switch (which) {
             case "previous":
                 if (playlistState?.previousEpisode) {
@@ -276,6 +278,26 @@ export function useVideoCorePlaylist() {
             case "next":
                 if (playlistState?.nextEpisode) {
                     episode = playlistState.nextEpisode
+                    // Auto-skip filler: walk forward while the candidate is
+                    // flagged as filler. Cap the walk to avoid runaway loops.
+                    if (autoSkipFiller !== "off" && playlistState.episodes?.length) {
+                        const start = playlistState.nextEpisode.progressNumber
+                        for (let i = 0; i < 50; i++) {
+                            const candidateNum = start + i
+                            const candidate = playlistState.episodes.find(e => e.progressNumber === candidateNum) ?? null
+                            if (!candidate) {
+                                // ran out of episodes
+                                episode = null
+                                break
+                            }
+                            const isFiller = !!candidate.episodeMetadata?.isFiller
+                            if (!isFiller) {
+                                episode = candidate
+                                break
+                            }
+                            fillerSkipped++
+                        }
+                    }
                 }
                 break
             default:
@@ -289,6 +311,9 @@ export function useVideoCorePlaylist() {
         }
 
         log.info("Playing episode", episode, "playbackType=", playbackType)
+        if (fillerSkipped > 0) {
+            toast.info(`Skipped ${fillerSkipped} filler episode${fillerSkipped === 1 ? "" : "s"}`, { duration: 2500 })
+        }
         toast.info(`Loading ${which === "next" ? "next" : which === "previous" ? "previous" : ""} episode${episode.episodeNumber ? ` ${episode.episodeNumber}` : ""}...`, { duration: 1500 })
 
         switch (playbackType) {

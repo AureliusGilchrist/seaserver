@@ -52,6 +52,15 @@ interface ActiveRewards {
     particleSetIds: string[]
     /** Active marketplace theme ID */
     activeThemeId: string | null
+    /** Shine animation settings for gradient names (only applies when the active
+     *  name color has a gradientCss). The gradient "slides" across the name. */
+    shineDirection: "left" | "right"
+    /** Duration of one shine cycle, in seconds. */
+    shineDuration: number
+    /** CSS animation-timing-function for the shine. */
+    shineEasing: string
+    /** When false, no animation is applied even on gradient names. */
+    shineEnabled: boolean
 }
 
 const DEFAULTS: ActiveRewards = {
@@ -62,6 +71,10 @@ const DEFAULTS: ActiveRewards = {
     xpBarSkinId: "xpbar-default",
     particleSetIds: [],
     activeThemeId: null,
+    shineDirection: "right",
+    shineDuration: 3,
+    shineEasing: "linear",
+    shineEnabled: true,
 }
 
 interface RewardContextValue {
@@ -93,6 +106,15 @@ interface RewardContextValue {
     isParticleSetActive: (id: string) => boolean
     /** Set active marketplace theme */
     setActiveTheme: (id: string | null) => void
+    /** Shine animation settings (for gradient-coloured names). */
+    shineEnabled: boolean
+    shineDirection: "left" | "right"
+    shineDuration: number
+    shineEasing: string
+    setShineEnabled: (v: boolean) => void
+    setShineDirection: (v: "left" | "right") => void
+    setShineDuration: (v: number) => void
+    setShineEasing: (v: string) => void
 }
 
 const RewardContext = React.createContext<RewardContextValue>({
@@ -116,6 +138,14 @@ const RewardContext = React.createContext<RewardContextValue>({
     eggUnlockedRewards: new Set(),
     unlockEggReward: () => {},
     isEggUnlocked: () => false,
+    shineEnabled: true,
+    shineDirection: "right",
+    shineDuration: 3,
+    shineEasing: "linear",
+    setShineEnabled: () => {},
+    setShineDirection: () => {},
+    setShineDuration: () => {},
+    setShineEasing: () => {},
 })
 
 export function useRewards() {
@@ -369,6 +399,15 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         }
     }, [nameColorDef])
 
+    // ── Shine animation CSS variables ─────────────────────────────────────────
+    React.useEffect(() => {
+        const root = document.documentElement
+        root.style.setProperty("--sea-name-shine-direction", active.shineDirection === "left" ? "reverse" : "normal")
+        root.style.setProperty("--sea-name-shine-duration", `${Math.max(0.3, active.shineDuration)}s`)
+        root.style.setProperty("--sea-name-shine-easing", active.shineEasing || "linear")
+        root.style.setProperty("--sea-name-shine-play", active.shineEnabled ? "running" : "paused")
+    }, [active.shineDirection, active.shineDuration, active.shineEasing, active.shineEnabled])
+
     React.useEffect(() => {
         const root = document.documentElement
         if (borderDef && borderDef.borderCss !== "none") {
@@ -426,6 +465,14 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         toggleParticleSet,
         isParticleSetActive,
         setActiveTheme,
+        shineEnabled:     active.shineEnabled,
+        shineDirection:   active.shineDirection,
+        shineDuration:    active.shineDuration,
+        shineEasing:      active.shineEasing,
+        setShineEnabled:   (v) => setActive(prev => { const next = { ...prev, shineEnabled: v }; persist(next); return next }),
+        setShineDirection: (v) => setActive(prev => { const next = { ...prev, shineDirection: v }; persist(next); return next }),
+        setShineDuration:  (v) => setActive(prev => { const next = { ...prev, shineDuration: v }; persist(next); return next }),
+        setShineEasing:    (v) => setActive(prev => { const next = { ...prev, shineEasing: v }; persist(next); return next }),
     }
 
     return (

@@ -118,6 +118,34 @@ func (m *Matcher) matchLocalFileWithMedia(lf *anime.LocalFile) {
 		return
 	}
 
+	// AUTO-MATCHING DISABLED.
+	//
+	// Title-based fuzzy matching (AniList name match, Levenshtein, Sorensen-Dice,
+	// Jaccard, etc.) has been turned off because it produced incorrect matches
+	// across the Monogatari series and other franchises with overlapping titles.
+	//
+	// From this point on, a LocalFile only ever receives a non-zero MediaId via
+	// the "Resolve unmatched" manual-match modal (HandleAnimeEntryManualMatch),
+	// which sets MediaId, hydrates episode metadata, and locks the file so it
+	// is never re-evaluated by this matcher.
+	//
+	// Everything else stays in the "unmatched" bucket (MediaId == 0) until the
+	// user explicitly resolves it.
+	if !lf.Locked {
+		lf.MediaId = 0
+	}
+	if m.ScanLogger != nil {
+		m.ScanLogger.LogMatcher(zerolog.DebugLevel).
+			Str("filename", lf.Name).
+			Msg("Auto-matching disabled; file left unmatched")
+	}
+	if m.ScanSummaryLogger != nil {
+		m.ScanSummaryLogger.LogUnmatched(lf, "Auto-matching is disabled — resolve manually from the Unmatched view")
+	}
+	return
+
+	//nolint:govet // Code below is intentionally unreachable: legacy auto-match
+	// is preserved for reference but disabled per user request.
 	defer util.HandlePanicInModuleThenS("scanner/matcher/matchLocalFileWithMedia", func(stackTrace string) {
 		if !lf.Locked {
 			lf.MediaId = 0

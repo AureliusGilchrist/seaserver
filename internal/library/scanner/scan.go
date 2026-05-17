@@ -285,7 +285,11 @@ func (scn *Scanner) Scan(ctx context.Context) (lfs []*anime.LocalFile, err error
 		// Add remaining shelved files
 		scn.addRemainingShelvedFiles(skippedLfs, sortedLibraryPaths)
 
-		// Re-hydrate locked files with missing metadata (early-return path)
+		// Re-hydrate locked files with missing metadata (early-return path).
+		// As with the main re-hydrate block below, we MUST scope each hydrator
+		// run to a single MediaId and pass ForceMediaId so the hydrator never
+		// walks the related-anime tree and re-assigns a locked file to a
+		// sister series.
 		{
 			unhydrated := lo.Filter(localFiles, func(lf *anime.LocalFile, _ int) bool {
 				return lf.IsLocked() && lf.MediaId != 0 &&
@@ -298,25 +302,27 @@ func (scn *Scanner) Scan(ctx context.Context) (lfs []*anime.LocalFile, err error
 					Int("count", len(unhydrated)).
 					Msg("scanner: Re-hydrating manually-matched files with missing episode metadata (early path)")
 
-				// Collect unique media IDs and fetch their data
-				mediaIds := lo.Uniq(lo.Map(unhydrated, func(lf *anime.LocalFile, _ int) int { return lf.MediaId }))
-				normalizedMedia := make([]*anime.NormalizedMedia, 0, len(mediaIds))
-				for _, mId := range mediaIds {
-					media, fetchErr := scn.PlatformRef.Get().GetAnime(ctx, mId)
-					if fetchErr != nil {
-						scn.Logger.Warn().Err(fetchErr).Int("mediaId", mId).Msg("scanner: Failed to fetch media for re-hydration")
-						continue
-					}
-					normalizedMedia = append(normalizedMedia, anime.NewNormalizedMedia(media))
+				// Group by MediaId and fetch each media individually so we can
+				// hydrate per-group with ForceMediaId.
+				byMediaId := make(map[int][]*anime.LocalFile)
+				for _, lf := range unhydrated {
+					byMediaId[lf.MediaId] = append(byMediaId[lf.MediaId], lf)
 				}
 
-				if len(normalizedMedia) > 0 {
-					for _, lf := range unhydrated {
+				for mediaId, group := range byMediaId {
+					media, fetchErr := scn.PlatformRef.Get().GetAnime(ctx, mediaId)
+					if fetchErr != nil {
+						scn.Logger.Warn().Err(fetchErr).Int("mediaId", mediaId).Msg("scanner: Failed to fetch media for re-hydration")
+						continue
+					}
+					normalized := anime.NewNormalizedMedia(media)
+
+					for _, lf := range group {
 						lf.Locked = false
 					}
 					reHydrator := &FileHydrator{
-						AllMedia:            normalizedMedia,
-						LocalFiles:          unhydrated,
+						AllMedia:            []*anime.NormalizedMedia{normalized},
+						LocalFiles:          group,
 						MetadataProviderRef: scn.MetadataProviderRef,
 						PlatformRef:         scn.PlatformRef,
 						CompleteAnimeCache:  completeAnimeCache,
@@ -324,9 +330,11 @@ func (scn *Scanner) Scan(ctx context.Context) (lfs []*anime.LocalFile, err error
 						Logger:              scn.Logger,
 						ScanLogger:          scn.ScanLogger,
 						ScanSummaryLogger:   scn.ScanSummaryLogger,
+						ForceMediaId:        mediaId,
 					}
 					reHydrator.HydrateMetadata()
-					for _, lf := range unhydrated {
+					for _, lf := range group {
+						lf.MediaId = mediaId
 						lf.Locked = true
 					}
 				}
@@ -516,10 +524,19 @@ func (scn *Scanner) Scan(ctx context.Context) (lfs []*anime.LocalFile, err error
 	// |  Re-hydrate locked files with missing metadata   |
 	// +--------------------------------------------------+
 	// Files matched manually (via "Resolve unmatched" or library explorer) are
-	// locked to preserve the user's match, but they skip the hydrator so their
-	// episode metadata (Episode number, AniDBEpisode, Type) is never set.
-	// Detect these by AniDBEpisode=="" && Episode==0 and run the hydrator on them
-	// once using the media already loaded from the user's AniList collection.
+	// locked to preserve the user's match, but they may have skipped the
+	// hydrator so their episode metadata (Episode number, AniDBEpisode, Type)
+	// is never set. Detect these by AniDBEpisode=="" && Episode==0 and run the
+	// hydrator on them once using the media already loaded from the user's
+	// AniList collection.
+	//
+	// CRITICAL: we MUST run a separate FileHydrator per MediaId with
+	// `ForceMediaId` set, so the hydrator does NOT walk the related-anime
+	// tree when the parsed episode number exceeds the media's episode count.
+	// Without ForceMediaId, a manually-matched Hanamonogatari file whose
+	// filename parses to a higher episode number would be silently moved to
+	// a sister series (Bakemonogatari, Nekomonogatari, etc.), corrupting the
+	// user's manual match.
 	{
 		unhydrated := lo.Filter(localFiles, func(lf *anime.LocalFile, _ int) bool {
 			return lf.IsLocked() && lf.MediaId != 0 &&
@@ -531,25 +548,55 @@ func (scn *Scanner) Scan(ctx context.Context) (lfs []*anime.LocalFile, err error
 			scn.Logger.Debug().
 				Int("count", len(unhydrated)).
 				Msg("scanner: Re-hydrating manually-matched files with missing episode metadata")
-			// Temporarily unlock so the hydrator will process them.
+
+			// Group by the MediaId the user explicitly chose. Each group
+			// gets its own hydrator with ForceMediaId so cross-series
+			// reassignment is impossible.
+			byMediaId := make(map[int][]*anime.LocalFile)
 			for _, lf := range unhydrated {
-				lf.Locked = false
+				byMediaId[lf.MediaId] = append(byMediaId[lf.MediaId], lf)
 			}
-			reHydrator := &FileHydrator{
-				AllMedia:            mc.NormalizedMedia,
-				LocalFiles:          unhydrated,
-				MetadataProviderRef: scn.MetadataProviderRef,
-				PlatformRef:         scn.PlatformRef,
-				CompleteAnimeCache:  completeAnimeCache,
-				AnilistRateLimiter:  anilistRateLimiter,
-				Logger:              scn.Logger,
-				ScanLogger:          scn.ScanLogger,
-				ScanSummaryLogger:   scn.ScanSummaryLogger,
-			}
-			reHydrator.HydrateMetadata()
-			// Re-lock after hydration to keep the user's manual match intact.
-			for _, lf := range unhydrated {
-				lf.Locked = true
+
+			for mediaId, group := range byMediaId {
+				// Skip if we can't find the media — leaving the file as-is
+				// is strictly safer than risking a reassignment.
+				media, ok := lo.Find(mc.NormalizedMedia, func(m *anime.NormalizedMedia) bool {
+					return m.ID == mediaId
+				})
+				if !ok {
+					scn.Logger.Warn().
+						Int("mediaId", mediaId).
+						Int("count", len(group)).
+						Msg("scanner: skipping re-hydration; media not in collection")
+					continue
+				}
+
+				// Temporarily unlock so the hydrator will process them.
+				for _, lf := range group {
+					lf.Locked = false
+				}
+				reHydrator := &FileHydrator{
+					AllMedia:            []*anime.NormalizedMedia{media},
+					LocalFiles:          group,
+					MetadataProviderRef: scn.MetadataProviderRef,
+					PlatformRef:         scn.PlatformRef,
+					CompleteAnimeCache:  completeAnimeCache,
+					AnilistRateLimiter:  anilistRateLimiter,
+					Logger:              scn.Logger,
+					ScanLogger:          scn.ScanLogger,
+					ScanSummaryLogger:   scn.ScanSummaryLogger,
+					// ForceMediaId pins every file to this media — the
+					// hydrator will NOT consult the media-relations tree.
+					ForceMediaId: mediaId,
+				}
+				reHydrator.HydrateMetadata()
+				// Re-lock after hydration to keep the user's manual match intact,
+				// and defensively pin the MediaId back to what the user chose in
+				// case any hydrator path mutated it.
+				for _, lf := range group {
+					lf.MediaId = mediaId
+					lf.Locked = true
+				}
 			}
 		}
 	}

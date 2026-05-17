@@ -484,11 +484,19 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         || torrent?.animeTitleRomaji
         || null
 
-    const displayEpisodeCount = selectedAnime?.episodes
-        ?? storedAnimeExpectedEpisodes
+    // Treat 0 as missing — fall back to stored metadata so we don't show "Unknown eps".
+    const displayEpisodeCount = (selectedAnime?.episodes || 0) > 0
+        ? selectedAnime!.episodes
+        : (storedAnimeExpectedEpisodes || 0) > 0
+            ? storedAnimeExpectedEpisodes
+            : null
 
     const displayStartYear = selectedAnime?.startDate?.year
         ?? storedAnimeStartYear
+
+    // True while the selected family member's full details are still loading —
+    // used to suppress "Unknown eps" / partial metadata flicker.
+    const isEnrichingFamily = familyDetailId !== null && familyDetailId === selectedAnime?.id
 
     const isLoadingAnimeInfo = isLoadingStoredAnime && storedAnimeId && !selectedAnime
 
@@ -679,8 +687,15 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                             onSuccess: (data) => {
                                                 setFamilyResults(data || null)
                                                 setFamilySearchDone(true)
+                                                if (!data || !data.entries || data.entries.length === 0) {
+                                                    toast.info("No related entries found for this anime.")
+                                                }
                                             },
-                                            onError: () => setFamilySearchDone(true),
+                                            onError: (err) => {
+                                                setFamilySearchDone(true)
+                                                const msg = (err as Error)?.message || "Could not load anime family"
+                                                toast.error(msg)
+                                            },
                                         })
                                     }}
                                 >
@@ -702,6 +717,10 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                     result={familyResults}
                                     selectedAnimeId={selectedAnime?.id ?? null}
                                     onSelect={(entry) => {
+                                        // Build a synthetic anime carrying every field the family entry
+                                        // already gives us — this is HIGHER-PRIORITY metadata than the
+                                        // initial torrent guess and persists until the full AniList
+                                        // details fetch lands.
                                         const syntheticAnime: AL_BaseAnime = {
                                             id: entry.id,
                                             title: {
@@ -710,11 +729,14 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                                 native: undefined,
                                                 userPreferred: entry.title,
                                             },
-                                            episodes: entry.episodes || undefined,
+                                            episodes: entry.episodes && entry.episodes > 0 ? entry.episodes : undefined,
                                             format: entry.format as AL_BaseAnime["format"] || undefined,
                                         }
                                         setSelectedAnime(syntheticAnime)
                                         setFamilyDetailId(entry.id)
+                                        // Keep the family search target in sync with the user's pick so
+                                        // re-opening the prompt re-fetches relative to the new root.
+                                        setFamilySearchTargetId(entry.id)
                                     }}
                                 />
                             </div>
@@ -774,7 +796,11 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                         <div className="h-[400px] border rounded-md bg-gray-950/40 p-3 flex flex-col gap-3">
                             <p className="text-sm font-medium">Selected target</p>
                             {selectedAnime ? (
-                                <SelectedAnimeDetails anime={selectedAnime} />
+                                <SelectedAnimeDetails
+                                    anime={selectedAnime}
+                                    fallbackEpisodes={storedAnimeExpectedEpisodes || undefined}
+                                    isEnriching={isEnrichingFamily}
+                                />
                             ) : (
                                 <div className="flex-1 flex items-center justify-center text-[--muted] text-sm">
                                     Choose an anime on the left to target (Season / OVA / Movie)
@@ -818,11 +844,26 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     )
 }
 
-function SelectedAnimeDetails({ anime }: { anime: AL_BaseAnime }) {
+function SelectedAnimeDetails({
+    anime,
+    fallbackEpisodes,
+    isEnriching,
+}: {
+    anime: AL_BaseAnime
+    fallbackEpisodes?: number
+    isEnriching?: boolean
+}) {
     const season = anime.season ? capitalize(anime.season.toLowerCase()) : null
     const year = anime.seasonYear
     const seasonYear = season && year ? `${season} ${year}` : year ? `${year}` : null
-    const episodeText = anime.episodes ? `${anime.episodes} eps` : "Unknown eps"
+    // Episode count priority: live anime.episodes → fallback (stored metadata) → "Loading…" while
+    // family details are still loading → "Unknown eps" only as last resort.
+    const effectiveEpisodes = (anime.episodes && anime.episodes > 0)
+        ? anime.episodes
+        : (fallbackEpisodes && fallbackEpisodes > 0 ? fallbackEpisodes : null)
+    const episodeText = effectiveEpisodes
+        ? `${effectiveEpisodes} eps`
+        : (isEnriching ? "Loading…" : "Unknown eps")
 
     return (
         <div className="flex gap-3">
@@ -1212,21 +1253,36 @@ function FamilyTreeNodeItem({ node, depth, selectedAnimeId, collapsed, toggleCol
     return (
         <>
             <div
+                role="button"
+                tabIndex={0}
                 className={cn(
                     "flex items-center gap-1.5 py-1 px-1.5 rounded cursor-pointer text-xs transition-colors",
                     isSelected ? "bg-brand-900/30 border border-brand-500" : "hover:bg-gray-800/50",
                 )}
                 style={{ paddingLeft: `${4 + depth * 18}px` }}
+                onClick={() => onSelect(e)}
+                onKeyDown={(ev) => {
+                    if (ev.key === "Enter" || ev.key === " ") {
+                        ev.preventDefault()
+                        onSelect(e)
+                    }
+                }}
             >
                 {hasChildren ? (
-                    <button onClick={() => toggleCollapse(e.id)} className="p-0.5 flex-shrink-0">
+                    <button
+                        onClick={(ev) => {
+                            ev.stopPropagation()
+                            toggleCollapse(e.id)
+                        }}
+                        className="p-0.5 flex-shrink-0"
+                    >
                         {isCollapsed ? <LuChevronRight className="w-3.5 h-3.5" /> : <LuChevronDown className="w-3.5 h-3.5" />}
                     </button>
                 ) : (
                     <span className="w-4 flex-shrink-0" />
                 )}
 
-                <span className="flex-1 min-w-0 truncate" onClick={() => onSelect(e)}>
+                <span className="flex-1 min-w-0 truncate">
                     {e.title}
                 </span>
 
@@ -1241,7 +1297,7 @@ function FamilyTreeNodeItem({ node, depth, selectedAnimeId, collapsed, toggleCol
                         {e.format}
                     </span>
                 )}
-                {e.episodes > 0 && (
+                {e.episodes && e.episodes > 0 && (
                     <span className="text-[10px] text-[--muted] flex-shrink-0">{e.episodes} eps</span>
                 )}
             </div>

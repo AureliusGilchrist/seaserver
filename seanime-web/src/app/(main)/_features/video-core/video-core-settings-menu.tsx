@@ -27,6 +27,7 @@ import { videoCorePreferencesModalAtom } from "@/app/(main)/_features/video-core
 import {
     vc_autoSkipEDAtom,
     vc_autoSkipOPAtom,
+    vc_autoSkipFillerAtom,
     vc_autoNextAtom,
     vc_autoPlayVideoAtom,
     vc_beautifyImageAtom,
@@ -221,6 +222,7 @@ export function VideoCoreSettingsMenu() {
     const [autoPlay, setAutoPlay] = useAtom(vc_autoPlayVideoAtom)
     const [autoSkipOP, setAutoSkipOP] = useAtom(vc_autoSkipOPAtom)
     const [autoSkipED, setAutoSkipED] = useAtom(vc_autoSkipEDAtom)
+    const [autoSkipFiller, setAutoSkipFiller] = useAtom(vc_autoSkipFillerAtom)
     const [watchContinuity, setWatchContinuity] = useAtom(vc_watchContinuityAtom)
 
     const [menuOpen, setMenuOpen] = useAtom(vc_menuOpen)
@@ -363,6 +365,11 @@ export function VideoCoreSettingsMenu() {
                     <VideoCoreMenuOption title="Auto Next" icon={HiFastForward} value={autoNext ? "On" : "Off"} />
                     <VideoCoreMenuOption title="Skip Opening" icon={TbArrowForwardUp} value={autoSkipOP ? "On" : "Off"} />
                     <VideoCoreMenuOption title="Skip Ending" icon={TbArrowForwardUp} value={autoSkipED ? "On" : "Off"} />
+                    <VideoCoreMenuOption
+                        title="Skip Filler"
+                        icon={TbArrowForwardUp}
+                        value={autoSkipFiller === "off" ? "Off" : autoSkipFiller === "full" ? "Full filler" : "Partial filler"}
+                    />
                     <VideoCoreMenuOption title="Watch Continuity" icon={TbHistory} value={watchContinuity === "inherit" ? "Global" : watchContinuity === "on" ? "On" : "Off"} />
                     <VideoCoreMenuOption title="Anime4K" icon={LuSparkles} value={currentAnime4kOption?.label || "Off"} />
                     {(subtitleManager || mediaCaptionsManager) && <VideoCoreMenuOption
@@ -652,6 +659,22 @@ export function VideoCoreSettingsMenu() {
                                 setAutoSkipED(!!v)
                             }}
                             value={autoSkipED ? 1 : 0}
+                        />
+                    </VideoCoreMenuOption>
+                    <VideoCoreMenuOption title="Skip Filler" icon={TbArrowForwardUp}>
+                        <p className="text-[--muted] text-sm mb-2">
+                            Automatically skip filler episodes when advancing with Auto Next or pressing Next.
+                        </p>
+                        <VideoCoreSettingSelect
+                            options={[
+                                { label: "Don't skip", value: "off" },
+                                { label: "Full filler", value: "full" },
+                                { label: "Partial filler", value: "partial" },
+                            ]}
+                            onValueChange={(v: string) => {
+                                setAutoSkipFiller(v as "off" | "full" | "partial")
+                            }}
+                            value={autoSkipFiller}
                         />
                     </VideoCoreMenuOption>
                     <VideoCoreMenuOption title="Watch Continuity" icon={TbHistory}>

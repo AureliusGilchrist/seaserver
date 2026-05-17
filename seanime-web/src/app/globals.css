@@ -1531,24 +1531,26 @@ body.vc-fullscreen .appLayout {
 .sea-page-scale      { animation: seaPageScale     0.2s  ease-out both; }
 .sea-page-slide-right{ animation: seaPageSlideRight 0.24s ease-out both; }
 
-/* ── XP Bar shimmer animations (GPU-accelerated) ────────────────────────── */
+/* ── XP Bar shimmer animations (GPU-accelerated) ──────────────────────────
+ * Animates background-position so the gradient COLOURS flow through the bar
+ * like waves, instead of a separate translucent block sliding over it. */
 @keyframes sea-xpbar-shimmer {
-    0%   { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
 }
 @keyframes sea-xpbar-pulse {
     0%, 100% { opacity: 1; }
     50%       { opacity: 0.75; }
 }
 .sea-xpbar-shimmer {
-    will-change: transform;
-    animation: sea-xpbar-shimmer 2.5s linear infinite !important;
-    background-size: 300% 100% !important;
+    will-change: background-position;
+    animation: sea-xpbar-shimmer 3s linear infinite !important;
+    background-size: 200% 100% !important;
 }
 .sea-xpbar-shimmer-fast {
-    will-change: transform;
-    animation: sea-xpbar-shimmer 1.5s linear infinite !important;
-    background-size: 300% 100% !important;
+    will-change: background-position;
+    animation: sea-xpbar-shimmer 1.6s linear infinite !important;
+    background-size: 200% 100% !important;
 }
 .sea-xpbar-pulse {
     will-change: opacity;
@@ -1558,16 +1560,37 @@ body.vc-fullscreen .appLayout {
 
 /* ── XP Bar extended animation classes ─────────────────────────────────── */
 
-/* Flow: smooth left-to-right gradient drift (GPU-accelerated) */
+/* Name Shine: slides the gradient across a `background-clip: text` element.
+ *  Direction/duration/easing are controlled via CSS variables that the
+ *  RewardProvider keeps in sync with the user's profile settings. */
+@keyframes sea-name-shine-kf {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+.sea-name-shine {
+    background-size: 200% 100% !important;
+    animation:
+        sea-name-shine-kf
+        var(--sea-name-shine-duration, 3s)
+        var(--sea-name-shine-easing, linear)
+        infinite !important;
+    animation-direction: var(--sea-name-shine-direction, normal) !important;
+    animation-play-state: var(--sea-name-shine-play, running) !important;
+    will-change: background-position;
+}
+@media (prefers-reduced-motion: reduce) {
+    .sea-name-shine { animation: none !important; }
+}
+
+/* Flow: smooth left-to-right gradient drift (background-position based) */
 @keyframes sea-xpbar-flow-kf {
-    0%   { transform: translateX(-100%); }
-    50%  { transform: translateX(0%); }
-    100% { transform: translateX(100%); }
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
 }
 .sea-xpbar-flow {
-    will-change: transform;
-    background-size: 300% 100% !important;
-    animation: sea-xpbar-flow-kf 3.5s cubic-bezier(0.37, 0, 0.63, 1) infinite !important;
+    will-change: background-position;
+    background-size: 200% 100% !important;
+    animation: sea-xpbar-flow-kf 4s cubic-bezier(0.37, 0, 0.63, 1) infinite !important;
     contain: layout style;
 }
 
@@ -1583,16 +1606,16 @@ body.vc-fullscreen .appLayout {
     contain: layout;
 }
 
-/* Wave: radial-gradient ripple with transform (GPU-accelerated) */
+/* Wave: radial-gradient ripple via background-position (waves through bar) */
 @keyframes sea-xpbar-wave-kf {
-    0%   { transform: translateX(-100%); }
-    100% { transform: translateX(200%); }
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
 }
 .sea-xpbar-wave {
-    will-change: transform;
-    background-image: radial-gradient(ellipse 60px 100% at var(--x, 50%) 50%, rgba(255,255,255,0.3) 0%, transparent 70%) !important;
+    will-change: background-position;
+    background-image: radial-gradient(ellipse 60px 100% at 50% 50%, rgba(255,255,255,0.35) 0%, transparent 70%) !important;
     background-size: 200% 100% !important;
-    animation: sea-xpbar-wave-kf 2.4s ease-in-out infinite !important;
+    animation: sea-xpbar-wave-kf 2.6s ease-in-out infinite !important;
     contain: layout style;
 }
 
@@ -1607,15 +1630,15 @@ body.vc-fullscreen .appLayout {
     contain: layout;
 }
 
-/* Aurora: transform + opacity (no filters) */
+/* Aurora: gradient-position drift + opacity breathing (waves of colour) */
 @keyframes sea-xpbar-aurora-kf {
-    0%   { transform: translateX(-100%); opacity: 0.85; }
-    50%  { transform: translateX(0%); opacity: 1; }
-    100% { transform: translateX(100%); opacity: 0.85; }
+    0%   { background-position: 0% 50%; opacity: 0.85; }
+    50%  { background-position: 100% 50%; opacity: 1; }
+    100% { background-position: 200% 50%; opacity: 0.85; }
 }
 .sea-xpbar-aurora {
-    will-change: transform, opacity;
-    background-size: 300% 100% !important;
+    will-change: background-position, opacity;
+    background-size: 200% 100% !important;
     animation: sea-xpbar-aurora-kf 5s ease-in-out infinite !important;
     contain: layout style;
 }

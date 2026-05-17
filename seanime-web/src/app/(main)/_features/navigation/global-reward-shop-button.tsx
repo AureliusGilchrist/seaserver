@@ -16,6 +16,10 @@ export function GlobalRewardShopButton() {
     const { activeXPBarSkin } = useRewards()
     const isFullscreen = useAtomValue(vc_isFullscreen)
 
+    // Hide the floating reward-shop / level pill entirely while any player
+    // is fullscreen — it would otherwise overlap the video.
+    if (isFullscreen) return null
+
     // Extract a solid color from the XP bar fill CSS for use as the badge background
     const badgeBg = React.useMemo(() => {
         const fill = activeXPBarSkin?.fillCss
@@ -28,8 +32,8 @@ export function GlobalRewardShopButton() {
     }, [activeXPBarSkin])
 
     const badgeStyle: React.CSSProperties = {
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
+        backdropFilter: "blur(32px)",
+        WebkitBackdropFilter: "blur(32px)",
         background: badgeBg
             ? `color-mix(in srgb, ${badgeBg} 30%, transparent)`
             : "rgba(255,255,255,0.08)",

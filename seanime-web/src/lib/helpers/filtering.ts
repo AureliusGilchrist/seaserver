@@ -13,6 +13,7 @@ import {
 } from "@/api/generated/types"
 import { getMangaEntryLatestChapterNumber, MangaEntryFilters } from "@/app/(main)/manga/_lib/handle-manga-selected-provider"
 import sortBy from "lodash/sortBy"
+import { gojuuonSortKey } from "./gojuuon"
 import { anilist_getUnwatchedCount, displayTitle } from "./media"
 
 type BaseCollectionSorting =
@@ -178,24 +179,40 @@ function getParamValue<T extends any>(value: T | ""): any {
 }
 
 function sortByGojuuon<T extends { media?: { id?: number; title?: any } }>(arr: T[], gojuuonMap: Record<number, GojuuonSortEntry> | null | undefined) {
-    if (!gojuuonMap) return arr
-
+    // Character-by-character gojuuon ordering using `gojuuonSortKey`. Works
+    // without any server scan — the moment the user switches to "Gojuuon",
+    // entries are sorted by their romaji/userPreferred title using the row
+    // index (k-group, s-group, etc.) of each character in turn.
+    //
+    // If the server has supplied a `gojuuonMap` we still honor it for
+    // series-grouping (so sequels stay together under their root entry),
+    // but the per-title fallback ensures sorting always works.
     return [...arr].sort((a, b) => {
         const aId = a.media?.id ?? 0
         const bId = b.media?.id ?? 0
-        const aEntry = gojuuonMap[aId]
-        const bEntry = gojuuonMap[bId]
+        const aEntry = gojuuonMap?.[aId]
+        const bEntry = gojuuonMap?.[bId]
 
-        const aGroup = aEntry?.groupKey || "~~~"
-        const bGroup = bEntry?.groupKey || "~~~"
-        const groupCmp = aGroup.localeCompare(bGroup, "ja")
-        if (groupCmp !== 0) return groupCmp
+        if (aEntry && bEntry) {
+            const aGroup = aEntry.groupKey || ""
+            const bGroup = bEntry.groupKey || ""
+            if (aGroup && bGroup && aGroup !== bGroup) {
+                return aGroup.localeCompare(bGroup, "ja")
+            }
+            const aChronology = aEntry.chronologicalOrder ?? Number.MAX_SAFE_INTEGER
+            const bChronology = bEntry.chronologicalOrder ?? Number.MAX_SAFE_INTEGER
+            if (aGroup && bGroup && aChronology !== bChronology) {
+                return aChronology - bChronology
+            }
+        }
 
-        const aChronology = aEntry?.chronologicalOrder ?? Number.MAX_SAFE_INTEGER
-        const bChronology = bEntry?.chronologicalOrder ?? Number.MAX_SAFE_INTEGER
-        if (aChronology !== bChronology) return aChronology - bChronology
-
-        return displayTitle(a.media?.title).localeCompare(displayTitle(b.media?.title), "ja")
+        const aTitle = displayTitle(a.media?.title) || a.media?.title?.romaji || ""
+        const bTitle = displayTitle(b.media?.title) || b.media?.title?.romaji || ""
+        const aKey = gojuuonSortKey(aTitle)
+        const bKey = gojuuonSortKey(bTitle)
+        if (aKey < bKey) return -1
+        if (aKey > bKey) return 1
+        return aTitle.localeCompare(bTitle, "ja")
     })
 }
 

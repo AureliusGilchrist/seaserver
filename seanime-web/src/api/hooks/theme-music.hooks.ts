@@ -172,7 +172,7 @@ export function useIsThemeMusicDownloading(themeId: string | null | undefined): 
 // ─── Mutations ──────────────────────────────────────────────────────────────
 
 export function useSearchThemeMusic() {
-    return useServerMutation<ThemeMusicSearchResponse, { themeId?: string; query: string; provider?: string }>({
+    return useServerMutation<ThemeMusicSearchResponse, { themeId?: string; query: string; queries?: string[]; provider?: string }>({
         endpoint: "/api/v1/theme-music/search",
         method: "POST",
     })
