@@ -1,27 +1,27 @@
 {
     "$comment": "Central manifest of all version numbers for components of this monorepo. Update here AND in the per-component source on every release.",
     "seaserver": {
-        "version": "1.1.0",
+        "version": "2.1.0",
         "codename": "Karasu",
         "source": "internal/constants/constants.go (Version, VersionName)"
     },
     "rooms": {
-        "version": "1.1.0",
+        "version": "2.1.0",
         "source": "internal/constants/constants.go (SeanimeRoomsVersion)"
     },
     "seanime-web": {
-        "version": "1.1.0",
+        "version": "2.1.0",
         "source": "seanime-web/package.json"
     },
     "seanime-denshi": {
-        "version": "2.0.0",
+        "version": "2.1.0",
         "source": "seanime-denshi/package.json"
     },
     "updater": {
         "fork_owner": "AureliusGilchrist",
         "fork_repo": "seaserver",
         "release_channel": "stable",
-        "notes": "Auto-update is pulled from github.com/AureliusGilchrist/seaserver releases for BOTH the Go server binary and the Electron (denshi) client."
+        "notes": "Auto-update is pulled from github.com/AureliusGilchrist/seaserver releases for BOTH the Go server binary and the Electron client."
     },
     "components": {
         "themes": {

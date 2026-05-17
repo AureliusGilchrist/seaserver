@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	Version              = "1.0.2"
+	Version              = "2.1.0"
 	VersionName          = "Karasu"
 	GcTime               = time.Minute * 30
 	ConfigFileName       = "config.toml"
@@ -19,7 +19,7 @@ const (
 const (
 	SeanimeRoomsApiUrl   = "https://seanime.app/api/rooms"
 	SeanimeRoomsApiWsUrl = "wss://seanime.app/api/rooms"
-	SeanimeRoomsVersion  = "1.0.2"
+	SeanimeRoomsVersion  = "2.1.0"
 )
 
 var DefaultExtensionMarketplaceURL = util.Decode("aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tLzVyYWhpbS9zZWFuaW1lLWV4dGVuc2lvbnMvcmVmcy9oZWFkcy9tYWluL21hcmtldHBsYWNlLmpzb24=")
