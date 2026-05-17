@@ -1,20 +1,20 @@
  {
     "$comment": "Central manifest of all version numbers for components of this monorepo. Update here AND in the per-component source on every release.",
     "seaserver": {
-        "version": "2.1.1",
+        "version": "2.1001.1000",
         "codename": "Karasu",
         "source": "internal/constants/constants.go (Version, VersionName)"
     },
     "rooms": {
-        "version": "2.1.1",
+        "version": "2.1001.1000",
         "source": "internal/constants/constants.go (SeanimeRoomsVersion)"
     },
     "seanime-web": {
-        "version": "2.1.1",
+        "version": "2.1001.1000",
         "source": "seanime-web/package.json"
     },
     "seanime-denshi": {
-        "version": "2.1.1",
+        "version": "2.1001.1000",
         "source": "seanime-denshi/package.json"
     },
     "updater": {
