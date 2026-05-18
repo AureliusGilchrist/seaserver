@@ -100,7 +100,7 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 	// The scan is triggered INSIDE the goroutine, after DB injection, to avoid a
 	// race where the scanner runs before the new local-file entries are persisted.
 	if result.Success {
-		reqCopy := *req
+		reqCopy := req
 		resultCopy := *result
 		go func() {
 			// DB injection: inject moved files as locked local-file entries so the
