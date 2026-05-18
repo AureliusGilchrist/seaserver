@@ -8,6 +8,7 @@ import (
 	"seanime/internal/hook"
 	"seanime/internal/util/result"
 	"strconv"
+	"time"
 
 	"github.com/goccy/go-json"
 )
@@ -96,8 +97,10 @@ func FetchAnimapMedia(from string, id int) (*Anime, error) {
 
 	request.Header.Set("X-Seanime-Version", "Seanime/"+constants.Version)
 
-	// Send an HTTP GET request
-	response, err := http.DefaultClient.Do(request)
+	// Send an HTTP GET request with a hard timeout so a slow/unreachable
+	// Animap service never stalls match operations indefinitely.
+	animapClient := &http.Client{Timeout: 8 * time.Second}
+	response, err := animapClient.Do(request)
 	if err != nil {
 		return nil, err
 	}
