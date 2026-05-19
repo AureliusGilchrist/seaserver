@@ -854,6 +854,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	// Timeline
 	v1.GET("/profile/timeline", h.HandleGetTimeline)
+	v1.GET("/profile/timeline/:id", h.HandleGetUserTimeline)
 
 	// Milestones (global)
 	v1.GET("/milestones", h.HandleGetMilestones)

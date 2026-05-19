@@ -1,9 +1,9 @@
 import { AchievementShowcase } from "@/app/(main)/_features/achievement/achievement-showcase"
-import { useGetTimeline } from "@/api/hooks/community.hooks"
+import { useGetTimeline, useGetUserTimeline } from "@/api/hooks/community.hooks"
 import * as React from "react"
 import { cn } from "@/components/ui/core/styling"
 import { useRewards } from "@/lib/rewards/reward-provider"
-import { LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuScan, LuFileCheck, LuFileX, LuPencil, LuTrash, LuTrophy } from "react-icons/lu"
+import { LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuTrophy, LuCircleCheck } from "react-icons/lu"
 import { ActivityHeatmap } from "@/app/(main)/_features/profile/activity-heatmap"
 import { StreakCard, ShowcaseCard, RecentAchievementRow } from "./shared-cards"
 import { ActivityFeed } from "./activity-feed"
@@ -23,6 +23,9 @@ export interface ActivityTabContentProps {
   showcase?: Handlers_ShowcaseEntry[]
   recentAchievements?: Handlers_RecentAchievementEntry[]
   editable?: boolean
+  // When provided, the timeline fetches another user's events instead of the
+  // current user's. Used for community profile views.
+  userId?: number
   anilistProfile?: {
     avatar?: string
     banner?: string
@@ -34,14 +37,12 @@ export interface ActivityTabContentProps {
 // ────────────────────────── Event rendering helpers ──────────────────────────
 
 const EVENT_CONFIG: Record<string, { icon: React.ElementType; label: string; color: string; bgColor: string }> = {
-  episode_watched:      { icon: LuTv,        label: "Watched",        color: "text-emerald-300", bgColor: "bg-emerald-500/10" },
-  manga_chapter_read:   { icon: LuBookOpen,  label: "Read",           color: "text-emerald-300", bgColor: "bg-emerald-500/10" },
-  library_scanned:      { icon: LuScan,      label: "Library scan",   color: "text-yellow-300",  bgColor: "bg-yellow-500/10" },
-  file_matched:         { icon: LuFileCheck, label: "File matched",   color: "text-cyan-300",    bgColor: "bg-cyan-500/10" },
-  file_unmatched:       { icon: LuFileX,     label: "File unmatched", color: "text-orange-300",  bgColor: "bg-orange-500/10" },
-  anilist_entry_edited: { icon: LuPencil,    label: "Entry edited",   color: "text-violet-300",  bgColor: "bg-violet-500/10" },
-  anilist_entry_deleted:{ icon: LuTrash,     label: "Entry deleted",  color: "text-red-300",     bgColor: "bg-red-500/10" },
-  achievement_unlocked: { icon: LuTrophy,    label: "Achievement",    color: "text-yellow-300",  bgColor: "bg-yellow-500/10" },
+  episode_watched:      { icon: LuTv,           label: "Watched",   color: "text-emerald-300", bgColor: "bg-emerald-500/10" },
+  manga_chapter_read:   { icon: LuBookOpen,     label: "Read",      color: "text-emerald-300", bgColor: "bg-emerald-500/10" },
+  watch_session:        { icon: LuTv,           label: "Watched",   color: "text-emerald-300", bgColor: "bg-emerald-500/10" },
+  reading_session:      { icon: LuBookOpen,     label: "Read",      color: "text-emerald-300", bgColor: "bg-emerald-500/10" },
+  series_complete:      { icon: LuCircleCheck,  label: "Finished",  color: "text-cyan-300",    bgColor: "bg-cyan-500/10" },
+  achievement_unlocked: { icon: LuTrophy,       label: "Achievement", color: "text-yellow-300", bgColor: "bg-yellow-500/10" },
 }
 
 function parseMetadata(raw: string): Record<string, any> | null {
@@ -62,26 +63,34 @@ function formatEventDescription(event: Handlers_TimelineEvent): string {
       const ch = meta?.chapter
       return ch != null ? `Read Chapter ${ch}${title ? ` of ${title}` : ""}` : `Read${title ? ` ${title}` : ""}`
     }
-    case "file_matched":
-    case "file_unmatched": {
-      const filepath = meta?.filepath || meta?.filename || ""
-      return filepath ? `${cfg?.label}: ${filepath}` : cfg?.label || event.eventType
+    case "watch_session": {
+      const first = typeof meta?.firstEpisode === "number" ? meta.firstEpisode : null
+      const last = typeof meta?.lastEpisode === "number" ? meta.lastEpisode : null
+      const count = typeof meta?.count === "number" ? meta.count : 0
+      if (first != null && last != null && first !== last) {
+        return `Watched Episodes ${first}\u2013${last}${title ? ` of ${title}` : ""}`
+      }
+      if (first != null) {
+        return `Watched Episode ${first}${title ? ` of ${title}` : ""}`
+      }
+      return `Watched ${count} episode${count === 1 ? "" : "s"}${title ? ` of ${title}` : ""}`
     }
-    case "anilist_entry_edited": {
-      const status = typeof meta?.status === "string" ? meta.status : ""
-      const progress = typeof meta?.progress === "number" ? meta.progress : null
-      const score = typeof meta?.score === "number" ? meta.score : null
-
-      if (status === "CURRENT") return `Started${title ? ` ${title}` : ""}`
-      if (status === "PLANNING") return `Planned${title ? ` ${title}` : ""}`
-      if (status === "COMPLETED") return `Completed${title ? ` ${title}` : ""}`
-      if (status === "PAUSED") return `Paused${title ? ` ${title}` : ""}`
-      if (status === "DROPPED") return `Dropped${title ? ` ${title}` : ""}`
-
-      if (progress != null) return `Updated progress to ${progress}${title ? ` for ${title}` : ""}`
-      if (score != null) return `Rated ${score}${title ? ` for ${title}` : ""}`
-
-      return `Updated entry${title ? ` for ${title}` : ""}`
+    case "reading_session": {
+      const first = typeof meta?.firstChapter === "number" ? meta.firstChapter : null
+      const last = typeof meta?.lastChapter === "number" ? meta.lastChapter : null
+      const count = typeof meta?.count === "number" ? meta.count : 0
+      if (first != null && last != null && first !== last) {
+        return `Read Chapters ${first}\u2013${last}${title ? ` of ${title}` : ""}`
+      }
+      if (first != null) {
+        return `Read Chapter ${first}${title ? ` of ${title}` : ""}`
+      }
+      return `Read ${count} chapter${count === 1 ? "" : "s"}${title ? ` of ${title}` : ""}`
+    }
+    case "series_complete": {
+      const type = typeof meta?.type === "string" ? meta.type : event.mediaType
+      if (type === "manga") return `Read all of ${title || "a manga series"}`
+      return `Finished ${title || "an anime series"}`
     }
     case "achievement_unlocked": {
       const name = typeof meta?.name === "string" ? meta.name : ""
@@ -117,7 +126,7 @@ function TimelineEventCard({ event }: { event: Handlers_TimelineEvent }) {
 
   const isMedia = event.mediaType === "anime" || event.mediaType === "manga"
   const dotStyle = accentColor && isMedia ? { backgroundColor: accentColor, boxShadow: `0 0 0 2px ${accentColor}40` } : undefined
-  const badgeIsMedia = event.eventType === "episode_watched" || event.eventType === "manga_chapter_read"
+  const badgeIsMedia = event.eventType === "episode_watched" || event.eventType === "manga_chapter_read" || event.eventType === "watch_session" || event.eventType === "reading_session" || event.eventType === "series_complete"
   const badgeStyle = accentColor && badgeIsMedia ? { color: accentColor, backgroundColor: accentColor + "1a" } : undefined
 
   const isAchievement = event.eventType === "achievement_unlocked"
@@ -198,8 +207,10 @@ function DaySeparator({ date }: { date: string }) {
 
 // ────────────────────────── Infinite scroll timeline ──────────────────────────
 
-function InfiniteTimeline() {
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useGetTimeline(50)
+function InfiniteTimeline({ userId }: { userId?: number }) {
+  const myTimeline = useGetTimeline(50)
+  const userTimeline = useGetUserTimeline(userId ?? 0, 50)
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = userId ? userTimeline : myTimeline
   const sentinelRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
@@ -272,6 +283,7 @@ export function ActivityTabContent({
   recentAchievements,
   editable,
   anilistProfile,
+  userId,
 }: ActivityTabContentProps) {
   return (
     <>
@@ -298,7 +310,7 @@ export function ActivityTabContent({
             <LuActivity className="text-blue-400" />
             Timeline
           </h2>
-          <InfiniteTimeline />
+          <InfiniteTimeline userId={userId} />
         </div>
 
         {/* Right column — showcase + recent achievements */}

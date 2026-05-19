@@ -242,6 +242,7 @@ export default function Page() {
                             activityHeatmap={activityHeatmap}
                             showcase={showcase}
                             recentAchievements={recentAchievements}
+                            userId={id}
                             anilistProfile={profile?.anilistUsername ? {
                                 avatar: profile.anilistAvatar,
                                 banner: profile.bannerImage,
