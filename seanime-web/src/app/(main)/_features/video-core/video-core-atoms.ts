@@ -22,6 +22,11 @@ export const vc_isMuted = atom(false)
 export const vc_volume = atom(1)
 export const vc_subtitleDelay = atom(0)
 export const vc_isFullscreen = atom(false)
+// Unscoped/global mirror of `vc_isFullscreen`. Components rendered OUTSIDE the
+// VideoCoreProvider's ScopeProvider (e.g. floating overlay buttons in the main
+// layout) cannot read the scoped atom directly, so VideoCore syncs its
+// fullscreen state into this global atom for those consumers to observe.
+export const vc_globalIsFullscreen = atom(false)
 export const vc_seeking = atom(false)
 export const vc_seekingTargetProgress = atom(0) // 0-100
 export const vc_timeRanges = atom<TimeRanges | null>(null)
