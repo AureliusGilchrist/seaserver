@@ -597,13 +597,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         }
 
         if (assEvents.length > 0 && this.libassRenderer) {
-            // Chunk createEvent calls so a large batch (e.g. a karaoke section with many \k
-            // segments or a backlog after a seek) doesn't block the main thread for tens of
-            // milliseconds and cause visible video stutter. Each createEvent is a postMessage to
-            // the JASSUB worker; yielding every CHUNK lets the compositor and event loop breathe.
-            const CHUNK = 32
-            for (let i = 0; i < assEvents.length; i++) {
-                const cachedEntry = assEvents[i]
+            for (const cachedEntry of assEvents) {
                 if (this.shouldTranslate) {
                     if (cachedEntry.translatedAssEvent) {
                         // already translated, use it
@@ -615,11 +609,6 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 } else {
                     // not translating, use the original event
                     this.libassRenderer.renderer.createEvent(cachedEntry.assEvent)
-                }
-                if ((i + 1) % CHUNK === 0 && i + 1 < assEvents.length) {
-                    await new Promise<void>(resolve => setTimeout(resolve, 0))
-                    // Track may have changed during the yield; bail out if so.
-                    if (!this.libassRenderer) break
                 }
             }
         }
@@ -997,21 +986,13 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
      * Iterates all cached events and adds them to the renderer.
      * Handles fetching translations for existing events in the background.
      */
-    private async _populateEventTrack(trackNumber: number) {
+    private _populateEventTrack(trackNumber: number) {
         const trackEventMap = this.eventTracks[trackNumber]?.events
         if (!trackEventMap) return
 
         subtitleLog.info(`Populating ${trackEventMap.size} events for track ${trackNumber}`)
 
-        // Chunk the population to avoid blocking the main thread for large subtitle tracks
-        // (a typical 24-min anime can have several thousand cached events after a long session).
-        const CHUNK = 64
-        let i = 0
         for (const cached of trackEventMap.values()) {
-            if (this.currentTrackNumber !== trackNumber) {
-                // user switched tracks mid-population, abort
-                return
-            }
             if (this.shouldTranslate) {
                 if (cached.translatedAssEvent) {
                     // already translated, use it
@@ -1023,10 +1004,6 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             } else {
                 // normal flow, just render the event
                 this.libassRenderer?.renderer?.createEvent(cached.assEvent)
-            }
-            i++
-            if (i % CHUNK === 0) {
-                await new Promise<void>(resolve => setTimeout(resolve, 0))
             }
         }
 
