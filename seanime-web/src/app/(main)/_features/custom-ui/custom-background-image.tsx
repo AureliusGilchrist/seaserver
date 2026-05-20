@@ -4,8 +4,6 @@ import { getAssetUrl } from "@/lib/server/assets"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
 import { EFFECTS_PRESETS } from "@/lib/ui-customize/ui-customize-definitions"
-import { vc_globalIsFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
-import { useAtomValue } from "jotai/react"
 import { motion } from "motion/react"
 import { usePathname } from "@/lib/navigation"
 import React from "react"
@@ -79,12 +77,6 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     const ts = useThemeSettings()
     const pathname = usePathname()
     const { state: uiState } = useUICustomize()
-    // When the video player is fullscreen we completely skip rendering the
-    // expensive background effect layers (grain SVG, scanlines, glow, vignette,
-    // deep-sea bubbles). Those are fixed-position full-viewport overlays that
-    // repaint on every frame and were causing video stutter / buffering during
-    // playback on local files AND online streams.
-    const isPlayerFullscreen = useAtomValue(vc_globalIsFullscreen)
 
     // Exclude specific pages from background effects.
     // NOTE: anime/character detail pages (/entry) are intentionally NOT excluded —
@@ -129,15 +121,13 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     // opacity=100 → dimAlpha ≈ 0.08   (mostly visible)
     const dimAlpha = (100 - ts.libraryScreenCustomBackgroundOpacity) / 100 * 0.85 + 0.08
 
-    const hasAnyEffect = effectPreset && effectPreset.id !== "fx-none" && !isPlayerFullscreen
+    const hasAnyEffect = effectPreset && effectPreset.id !== "fx-none"
 
     // On entry / chapter-reader pages we hide the wallpaper section (Section A)
     // since those pages render their own banner/cover art, but we still want
     // the visual effects (Section B — scanlines, vignette, grain, glow, etc.)
     // to apply globally so the look is consistent.
-    // Also hide the wallpaper while the player is fullscreen — the backdrop-blur
-    // and bloom layers cost real GPU/CPU and contribute to playback stutter.
-    const hideWallpaper = isExcludedPage || isPlayerFullscreen
+    const hideWallpaper = isExcludedPage
 
     return (
         <>

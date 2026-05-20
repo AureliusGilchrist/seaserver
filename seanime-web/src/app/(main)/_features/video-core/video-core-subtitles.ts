@@ -254,14 +254,6 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                         [DEFAULT_FONT_NAME]: defaultFontUrl,
                     },
                     debug: false,
-                    // Cap subtitle render resolution to 720p and use a moderate
-                    // prescale factor. JASSUB has no explicit FPS target (it ticks
-                    // per video frame), so the equivalent perf win is reducing the
-                    // canvas blit cost per tick — critical on 1440p/4K displays
-                    // where the default would render a full 4K subtitle canvas
-                    // every frame and starve the video decoder.
-                    maxRenderHeight: 720,
-                    prescaleFactor: 0.8,
                 })
 
                 subtitleLog.info("Waiting for libass renderer...")
