@@ -254,14 +254,6 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                         [DEFAULT_FONT_NAME]: defaultFontUrl,
                     },
                     debug: false,
-                    // Cap subtitle render resolution to 720p and use a moderate
-                    // prescale factor. JASSUB has no explicit FPS target (it ticks
-                    // per video frame), so the equivalent perf win is reducing the
-                    // canvas blit cost per tick — critical on 1440p/4K displays
-                    // where the default would render a full 4K subtitle canvas
-                    // every frame and starve the video decoder.
-                    maxRenderHeight: 720,
-                    prescaleFactor: 0.8,
                 })
 
                 subtitleLog.info("Waiting for libass renderer...")
@@ -275,28 +267,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 if (preResolvedFonts?.length) {
                     this.fonts = [defaultFontUrl, ...preResolvedFonts]
                 } else {
-                    // Broaden font detection: match by type, mimetype, or filename extension.
-                    // Some MKV attachments have no extension (so the server tags them as "other")
-                    // but carry a valid font mimetype; without this, the karaoke/OP/ED font often
-                    // ends up missing and characters render as boxes via the fallback font.
-                    const FONT_EXT_RE = /\.(ttf|otf|ttc|woff2?|eot|sfnt)$/i
-                    const isFontAttachment = (a: any): boolean => {
-                        if (a?.type === "font") return true
-                        const mt = String(a?.mimetype || "").toLowerCase()
-                        if (mt.startsWith("font/")) return true
-                        if (
-                            mt.includes("truetype") ||
-                            mt.includes("opentype") ||
-                            mt.includes("woff") ||
-                            mt.includes("sfnt") ||
-                            mt.includes("font")
-                        ) {
-                            return true
-                        }
-                        if (typeof a?.filename === "string" && FONT_EXT_RE.test(a.filename)) return true
-                        return false
-                    }
-                    this.fonts = this.playbackInfo.mkvMetadata?.attachments?.filter(isFontAttachment)
+                    this.fonts = this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
                         ?.map(a => `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}${this.hmacToken}`) || []
 
                     if (!(this.playbackInfo as any).libassFonts) {
@@ -605,13 +576,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         }
 
         if (assEvents.length > 0 && this.libassRenderer) {
-            // Chunk createEvent calls so a large batch (e.g. a karaoke section with many \k
-            // segments or a backlog after a seek) doesn't block the main thread for tens of
-            // milliseconds and cause visible video stutter. Each createEvent is a postMessage to
-            // the JASSUB worker; yielding every CHUNK lets the compositor and event loop breathe.
-            const CHUNK = 32
-            for (let i = 0; i < assEvents.length; i++) {
-                const cachedEntry = assEvents[i]
+            for (const cachedEntry of assEvents) {
                 if (this.shouldTranslate) {
                     if (cachedEntry.translatedAssEvent) {
                         // already translated, use it
@@ -623,11 +588,6 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 } else {
                     // not translating, use the original event
                     this.libassRenderer.renderer.createEvent(cachedEntry.assEvent)
-                }
-                if ((i + 1) % CHUNK === 0 && i + 1 < assEvents.length) {
-                    await new Promise<void>(resolve => setTimeout(resolve, 0))
-                    // Track may have changed during the yield; bail out if so.
-                    if (!this.libassRenderer) break
                 }
             }
         }
@@ -1005,21 +965,13 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
      * Iterates all cached events and adds them to the renderer.
      * Handles fetching translations for existing events in the background.
      */
-    private async _populateEventTrack(trackNumber: number) {
+    private _populateEventTrack(trackNumber: number) {
         const trackEventMap = this.eventTracks[trackNumber]?.events
         if (!trackEventMap) return
 
         subtitleLog.info(`Populating ${trackEventMap.size} events for track ${trackNumber}`)
 
-        // Chunk the population to avoid blocking the main thread for large subtitle tracks
-        // (a typical 24-min anime can have several thousand cached events after a long session).
-        const CHUNK = 64
-        let i = 0
         for (const cached of trackEventMap.values()) {
-            if (this.currentTrackNumber !== trackNumber) {
-                // user switched tracks mid-population, abort
-                return
-            }
             if (this.shouldTranslate) {
                 if (cached.translatedAssEvent) {
                     // already translated, use it
@@ -1032,50 +984,16 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 // normal flow, just render the event
                 this.libassRenderer?.renderer?.createEvent(cached.assEvent)
             }
-            i++
-            if (i % CHUNK === 0) {
-                await new Promise<void>(resolve => setTimeout(resolve, 0))
-            }
         }
 
         this.libassRenderer?.resize?.()
     }
 
     private _createAssEvent(event: MKVParser_SubtitleEvent, index: number): ASSEvent {
-        // Resolve the style index. If the style name isn't in the track's parsed styles map
-        // (e.g. case mismatch, codecPrivate not yet parsed), fall back to "Default" or 1.
-        // The previous code returned `undefined` on a missing lookup, which could cause JASSUB
-        // to render an event with an unexpected style and, in some cases, leave it on screen.
-        const styles = this.eventTracks[event.trackNumber]?.styles
-        const styleName = event.extraData?.style
-        let styleIdx: number = 1
-        if (styleName && styles) {
-            const idx = styles[styleName]
-            if (typeof idx === "number" && idx > 0) {
-                styleIdx = idx
-            } else if (typeof styles["Default"] === "number" && styles["Default"] > 0) {
-                styleIdx = styles["Default"]
-            }
-        }
-
-        // Sanitize the duration. Some malformed MKV/ASS sources emit events with absurdly long
-        // durations (e.g. a karaoke line's last word lingering for the rest of the episode and
-        // covering subsequent dialogue). Clamp anything beyond a reasonable maximum and replace
-        // non-positive values with a short fallback so the event still flashes rather than
-        // becoming permanent.
-        const MAX_EVENT_DURATION_MS = 10_000 // 10s — any caption longer than this is almost certainly a parser glitch
-        const DEFAULT_EVENT_DURATION_MS = 1_500
-        let duration = event.duration
-        if (!Number.isFinite(duration) || duration <= 0) {
-            duration = DEFAULT_EVENT_DURATION_MS
-        } else if (duration > MAX_EVENT_DURATION_MS) {
-            duration = MAX_EVENT_DURATION_MS
-        }
-
         return {
             Start: event.startTime,
-            Duration: duration,
-            Style: styleIdx,
+            Duration: event.duration,
+            Style: event.extraData?.style ? this.eventTracks[event.trackNumber]?.styles?.[event.extraData?.style ?? "Default"] : 1,
             Name: event.extraData?.name ?? "",
             MarginL: event.extraData?.marginL ? Number(event.extraData.marginL) : 0,
             MarginR: event.extraData?.marginR ? Number(event.extraData.marginR) : 0,
