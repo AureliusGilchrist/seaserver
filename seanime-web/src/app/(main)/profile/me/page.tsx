@@ -1225,17 +1225,18 @@ function FavoriteCardShell({
 
 function FavoriteAnimeCard({ id }: { id: number }) {
     const { data, isLoading } = useGetAnilistAnimeDetails(id)
-    const title = data?.title?.userPreferred || data?.title?.english || data?.title?.romaji || data?.title?.native
-    const year = (data as any)?.seasonYear ?? data?.startDate?.year ?? null
-    const fmt = data?.format ? String(data.format).replace(/_/g, " ") : null
+    const d = data as any
+    const title = d?.title?.userPreferred || d?.title?.english || d?.title?.romaji || d?.title?.native
+    const year = d?.seasonYear ?? d?.startDate?.year ?? null
+    const fmt = d?.format ? String(d.format).replace(/_/g, " ") : null
     const subtitle = [fmt, year].filter(Boolean).join(" · ")
     return (
         <FavoriteCardShell
             href={`/entry?id=${id}`}
-            image={data?.coverImage?.extraLarge || data?.coverImage?.large || data?.coverImage?.medium}
+            image={d?.coverImage?.extraLarge || d?.coverImage?.large || d?.coverImage?.medium}
             title={title}
             subtitle={subtitle || undefined}
-            description={stripHtml(data?.description)}
+            description={stripHtml(d?.description)}
             isLoading={isLoading}
         />
     )
@@ -1243,17 +1244,18 @@ function FavoriteAnimeCard({ id }: { id: number }) {
 
 function FavoriteMangaCard({ id }: { id: number }) {
     const { data, isLoading } = useGetMangaEntryDetails(id)
-    const title = data?.title?.userPreferred || data?.title?.english || data?.title?.romaji || data?.title?.native
-    const year = data?.startDate?.year ?? null
-    const fmt = data?.format ? String(data.format).replace(/_/g, " ") : null
+    const d = data as any
+    const title = d?.title?.userPreferred || d?.title?.english || d?.title?.romaji || d?.title?.native
+    const year = d?.startDate?.year ?? null
+    const fmt = d?.format ? String(d.format).replace(/_/g, " ") : null
     const subtitle = [fmt, year].filter(Boolean).join(" · ")
     return (
         <FavoriteCardShell
             href={`/manga/entry?id=${id}`}
-            image={data?.coverImage?.extraLarge || data?.coverImage?.large || data?.coverImage?.medium}
+            image={d?.coverImage?.extraLarge || d?.coverImage?.large || d?.coverImage?.medium}
             title={title}
             subtitle={subtitle || undefined}
-            description={stripHtml(data?.description)}
+            description={stripHtml(d?.description)}
             isLoading={isLoading}
         />
     )
