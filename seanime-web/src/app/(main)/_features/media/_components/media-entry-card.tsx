@@ -50,6 +50,7 @@ import { IoLibrarySharp } from "react-icons/io5"
 import { LuDownload, LuEye, LuFolderTree } from "react-icons/lu"
 import { RiCalendarLine } from "react-icons/ri"
 import { PluginMediaCardContextMenuItems } from "../../plugin/actions/plugin-actions"
+import { useAnimeFavorites } from "@/app/(main)/(library)/_lib/use-anime-favorites"
 
 type MediaEntryCardBaseProps = {
     overlay?: React.ReactNode
@@ -98,6 +99,8 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
     const { hasStreamingEnabled } = useHasTorrentOrDebridInclusion()
     const missingEpisodes = useMissingEpisodes()
     const { isDownloading } = useDownloadingAnime()
+    const { isFavorite } = useAnimeFavorites()
+    const isFav = type === "anime" && isFavorite(media.id)
 
     const isCurrentlyDownloading = type === "anime" && isDownloading(media.id)
 
@@ -418,6 +421,49 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                 onClick={onClick}
                 hideReleasingBadge={hideReleasingBadge}
             >
+                {isFav && (
+                    <div
+                        data-mako-mark
+                        className="pointer-events-none absolute inset-0 z-[9] overflow-hidden rounded-[--radius-md]"
+                        aria-hidden="true"
+                    >
+                        {/* Holographic sheen — animated diagonal rainbow */}
+                        <div
+                            className="absolute inset-0 mako-sheen"
+                            style={{
+                                background:
+                                    "linear-gradient(115deg, transparent 0%, transparent 35%, rgba(255,80,140,0.35) 45%, rgba(120,180,255,0.4) 50%, rgba(180,255,180,0.35) 55%, transparent 65%, transparent 100%)",
+                                backgroundSize: "300% 300%",
+                                mixBlendMode: "screen",
+                                opacity: 0.7,
+                            }}
+                        />
+                        {/* Sparkle dots — small rotating star highlights */}
+                        <div
+                            className="absolute inset-0 mako-sparkle"
+                            style={{
+                                backgroundImage:
+                                    "radial-gradient(circle 1.2px at 20% 18%, rgba(255,255,255,0.9), transparent 60%), radial-gradient(circle 1px at 78% 32%, rgba(255,240,200,0.85), transparent 55%), radial-gradient(circle 1.4px at 62% 70%, rgba(200,230,255,0.9), transparent 60%), radial-gradient(circle 0.9px at 30% 82%, rgba(255,220,255,0.8), transparent 55%)",
+                                mixBlendMode: "screen",
+                                opacity: 0.85,
+                            }}
+                        />
+                        {/* Soft golden border halo */}
+                        <div
+                            className="absolute inset-0 rounded-[--radius-md]"
+                            style={{
+                                boxShadow:
+                                    "inset 0 0 0 1.5px rgba(255,210,120,0.55), inset 0 0 12px 2px rgba(255,180,80,0.18)",
+                            }}
+                        />
+                        <style>{`
+                            @keyframes mako-sheen-slide { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
+                            @keyframes mako-sparkle-twinkle { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+                            [data-mako-mark] .mako-sheen { animation: mako-sheen-slide 4.5s linear infinite; }
+                            [data-mako-mark] .mako-sparkle { animation: mako-sparkle-twinkle 2.5s ease-in-out infinite; }
+                        `}</style>
+                    </div>
+                )}
                 <div data-media-entry-card-body-progress-badge-container className="absolute z-[10] left-0 bottom-0 flex items-end">
                     <MediaEntryProgressBadge
                         progress={listData?.progress}

@@ -1032,8 +1032,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         // covering subsequent dialogue). Clamp anything beyond a reasonable maximum and replace
         // non-positive values with a short fallback so the event still flashes rather than
         // becoming permanent.
-        const MAX_EVENT_DURATION_MS = 30_000 // 30s — any caption longer than this is almost certainly a parser glitch
-        const DEFAULT_EVENT_DURATION_MS = 5_000
+        const MAX_EVENT_DURATION_MS = 10_000 // 10s — any caption longer than this is almost certainly a parser glitch
+        const DEFAULT_EVENT_DURATION_MS = 1_500
         let duration = event.duration
         if (!Number.isFinite(duration) || duration <= 0) {
             duration = DEFAULT_EVENT_DURATION_MS

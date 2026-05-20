@@ -859,6 +859,12 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
                     open={dropdownOpen}
                     onOpenChange={setDropdownOpen}
                 >
+                    <DropdownMenuItem onClick={() => {
+                        setDropdownOpen(false)
+                        setRevalidateModalOpen(true)
+                    }}>
+                        <LuRefreshCw /> Refresh account authorization
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setDropdownOpen(false); router.push("/profile/me") }}>
                         <LuUsers /> My Profile
                     </DropdownMenuItem>

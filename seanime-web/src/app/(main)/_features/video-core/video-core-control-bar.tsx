@@ -158,7 +158,22 @@ export function VideoCoreControlBar(props: {
 
     return (
         <>
-            {/* Removed bottom gradient overlays per user request — control bar now sits on transparent background */}
+            {/* Black-to-transparent gradient behind the control bar so it stays readable
+                on bright/white video frames. Sits below the control bar (lower z-index) and
+                fades upward to fully transparent. Visibility is tied to the control bar. */}
+            <div
+                data-vc-element="control-bar-gradient"
+                aria-hidden="true"
+                className={cn(
+                    "pointer-events-none absolute left-0 right-0 bottom-0",
+                    "h-40 z-[9]",
+                    "transition-opacity duration-300 opacity-0",
+                    !hideControlBar && "opacity-100",
+                )}
+                style={{
+                    background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 35%, rgba(0,0,0,0.25) 70%, rgba(0,0,0,0) 100%)",
+                }}
+            />
             <div
                 data-vc-element="control-bar"
                 data-vc-state-visible={!hideControlBar}

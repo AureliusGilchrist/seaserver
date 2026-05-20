@@ -27,7 +27,7 @@ function DeepSeaBubbles() {
 
     return (
         <div
-            className="fixed w-full h-full inset-0 z-[4] pointer-events-none overflow-hidden"
+            className="fixed w-full h-full inset-0 z-[5] pointer-events-none overflow-hidden"
             aria-hidden="true"
         >
             {bubbles.map(b => (
@@ -78,11 +78,13 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     const pathname = usePathname()
     const { state: uiState } = useUICustomize()
 
-    // Exclude specific pages from background effects
+    // Exclude specific pages from background effects.
+    // NOTE: anime/character detail pages (/entry) are intentionally NOT excluded —
+    // users want their wallpaper (and scanlines/grain/glow/etc.) visible behind the
+    // banner on those pages. The manga chapter reader IS excluded because it's a
+    // dedicated reading surface that needs a clean background.
     const isExcludedPage = React.useMemo(() => {
-        return pathname.includes("/manga/entry") ||
-               pathname.includes("/entry") ||
-               pathname.includes("/manga/_containers/chapter-reader")
+        return pathname.includes("/manga/_containers/chapter-reader")
     }, [pathname])
 
     // Read active visual effects preset values
@@ -183,7 +185,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                     {/* Vignette: dark radial frame around edges */}
                     {vignetteStr > 0 && (
                         <div
-                            className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
+                            className="fixed w-full h-full inset-0 z-[5] pointer-events-none"
                             style={{
                                 background: `radial-gradient(ellipse at center, transparent ${Math.max(0, 60 - vignetteStr * 30)}%, rgba(0,0,0,${Math.min(0.92, vignetteStr * 0.85)}) 100%)`,
                             }}
@@ -193,7 +195,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                     {/* Glow: animated soft radial light from center */}
                     {glowStr > 0 && (
                         <div
-                            className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
+                            className="fixed w-full h-full inset-0 z-[5] pointer-events-none"
                             style={{
                                 background: `radial-gradient(ellipse at center, rgba(255,255,255,${glowStr * 0.40}) 0%, transparent 65%)`,
                                 mixBlendMode: "screen",
@@ -206,7 +208,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                     {/* Film grain: SVG turbulence noise */}
                     {grainStr > 0 && (
                         <div
-                            className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
+                            className="fixed w-full h-full inset-0 z-[5] pointer-events-none"
                             style={{
                                 opacity: grainStr * 0.55,
                                 backgroundImage: GRAIN_SVG,
@@ -220,7 +222,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                     {/* Scan lines: fine horizontal lines */}
                     {hasScanning && (
                         <div
-                            className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
+                            className="fixed w-full h-full inset-0 z-[5] pointer-events-none"
                             style={{
                                 background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px)",
                             }}
@@ -230,7 +232,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                     {/* Blur edges: soft mask at screen perimeter */}
                     {hasBlurEdge && (
                         <div
-                            className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
+                            className="fixed w-full h-full inset-0 z-[5] pointer-events-none"
                             style={{
                                 boxShadow: "inset 0 0 120px 60px rgba(0,0,0,0.65)",
                                 borderRadius: 0,
@@ -243,7 +245,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                         <>
                             {/* Blue tint layer */}
                             <div
-                                className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
+                                className="fixed w-full h-full inset-0 z-[5] pointer-events-none"
                                 style={{
                                     background: "linear-gradient(180deg, rgba(3,105,161,0.22) 0%, rgba(7,89,133,0.35) 100%)",
                                     mixBlendMode: "multiply",
@@ -251,7 +253,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                             />
                             {/* Caustic-light shimmer ripple */}
                             <div
-                                className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
+                                className="fixed w-full h-full inset-0 z-[5] pointer-events-none"
                                 style={{
                                     background: "radial-gradient(ellipse 80% 40% at 50% 30%, rgba(125,211,252,0.08), transparent 70%)",
                                     mixBlendMode: "screen",
@@ -267,7 +269,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                     {/* Ink Wash: secondary grain pass for monochrome feel */}
                     {hasInkWash && grainStr === 0 && (
                         <div
-                            className="fixed w-full h-full inset-0 z-[4] pointer-events-none"
+                            className="fixed w-full h-full inset-0 z-[5] pointer-events-none"
                             style={{
                                 opacity: 0.28,
                                 backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E")`,

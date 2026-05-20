@@ -107,6 +107,7 @@ type (
 		collectionMediaIDs   *result.Map[int, struct{}] // Track which media IDs are in collections
 		lastCollectionUpdate time.Time                  // When collections were last fetched
 		db                   MediaCacheStore            // Optional SQLite-backed unlimited media cache
+		pendingMutations     *PendingMutationStore      // Queue of mutations awaiting AniList availability
 	}
 )
 
@@ -244,9 +245,30 @@ func NewCacheLayer(anilistClientRef *util.Ref[anilist.AnilistClient], mediaDB ..
 		logger:             logger,
 		collectionMediaIDs: result.NewMap[int, struct{}](),
 		db:                 db,
+		pendingMutations:   NewPendingMutationStore(anilistClientRef.Get().GetCacheDir(), logger),
 	}
 
 	AnilistClient.Store(anilistClientRef.Get())
+
+	// Watch for IsWorking transitions and flush any queued mutations as soon as the
+	// AniList API becomes available again. This lets progress updates made while
+	// offline eventually reach AniList without user intervention.
+	go func() {
+		prev := IsWorking.Load()
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		// Best-effort flush on startup in case the previous run left queued items.
+		if prev && cl.pendingMutations.Len() > 0 {
+			go cl.pendingMutations.Flush(context.Background(), cl.anilistClientRef.Get())
+		}
+		for range ticker.C {
+			cur := IsWorking.Load()
+			if cur && !prev {
+				go cl.pendingMutations.Flush(context.Background(), cl.anilistClientRef.Get())
+			}
+			prev = cur
+		}
+	}()
 
 	return cl
 }
@@ -910,9 +932,24 @@ func (c *CacheLayer) ListRecentAnime(ctx context.Context, page *int, perPage *in
 }
 
 func (c *CacheLayer) UpdateMediaListEntry(ctx context.Context, mediaID *int, status *anilist.MediaListStatus, scoreRaw *int, progress *int, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput, interceptors ...clientv2.RequestInterceptor) (*anilist.UpdateMediaListEntry, error) {
-	// Mutations require the API to be working
+	// If the AniList API is currently unavailable, queue this mutation so it can be
+	// replayed once the API comes back. We still invalidate local caches so the UI
+	// reflects the user's intent, and we return a synthetic success result.
 	if !IsWorking.Load() {
-		return nil, fmt.Errorf("anilist cache: API client is not working, mutation operations are not available")
+		c.pendingMutations.Enqueue(&PendingMutation{
+			Kind:        PendingKindUpdateEntry,
+			MediaID:     mediaID,
+			Status:      status,
+			ScoreRaw:    scoreRaw,
+			Progress:    progress,
+			StartedAt:   startedAt,
+			CompletedAt: completedAt,
+		})
+		if mediaID != nil {
+			c.invalidateMediaCaches(*mediaID)
+			c.invalidateCollectionCaches()
+		}
+		return &anilist.UpdateMediaListEntry{}, nil
 	}
 
 	result, err := c.anilistClientRef.Get().UpdateMediaListEntry(ctx, mediaID, status, scoreRaw, progress, startedAt, completedAt, interceptors...)
@@ -928,9 +965,22 @@ func (c *CacheLayer) UpdateMediaListEntry(ctx context.Context, mediaID *int, sta
 }
 
 func (c *CacheLayer) UpdateMediaListEntryProgress(ctx context.Context, mediaID *int, progress *int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput, interceptors ...clientv2.RequestInterceptor) (*anilist.UpdateMediaListEntryProgress, error) {
-	// Mutations require the API to be working
+	// Queue progress updates when AniList is unreachable so the user's place is
+	// preserved and eventually synced. Local caches are invalidated so the UI updates.
 	if !IsWorking.Load() {
-		return nil, fmt.Errorf("anilist cache: API client is not working, mutation operations are not available")
+		c.pendingMutations.Enqueue(&PendingMutation{
+			Kind:        PendingKindUpdateEntryProgress,
+			MediaID:     mediaID,
+			Progress:    progress,
+			Status:      status,
+			StartedAt:   startedAt,
+			CompletedAt: completedAt,
+		})
+		if mediaID != nil {
+			c.invalidateMediaCaches(*mediaID)
+			c.invalidateCollectionCaches()
+		}
+		return &anilist.UpdateMediaListEntryProgress{}, nil
 	}
 
 	result, err := c.anilistClientRef.Get().UpdateMediaListEntryProgress(ctx, mediaID, progress, status, startedAt, completedAt, interceptors...)
@@ -946,9 +996,18 @@ func (c *CacheLayer) UpdateMediaListEntryProgress(ctx context.Context, mediaID *
 }
 
 func (c *CacheLayer) UpdateMediaListEntryRepeat(ctx context.Context, mediaID *int, repeat *int, interceptors ...clientv2.RequestInterceptor) (*anilist.UpdateMediaListEntryRepeat, error) {
-	// Mutations require the API to be working
+	// Queue rewatch-count updates when AniList is unreachable.
 	if !IsWorking.Load() {
-		return nil, fmt.Errorf("anilist cache: API client is not working, mutation operations are not available")
+		c.pendingMutations.Enqueue(&PendingMutation{
+			Kind:    PendingKindUpdateEntryRepeat,
+			MediaID: mediaID,
+			Repeat:  repeat,
+		})
+		if mediaID != nil {
+			c.invalidateMediaCaches(*mediaID)
+			c.invalidateCollectionCaches()
+		}
+		return &anilist.UpdateMediaListEntryRepeat{}, nil
 	}
 
 	result, err := c.anilistClientRef.Get().UpdateMediaListEntryRepeat(ctx, mediaID, repeat, interceptors...)
@@ -964,9 +1023,14 @@ func (c *CacheLayer) UpdateMediaListEntryRepeat(ctx context.Context, mediaID *in
 }
 
 func (c *CacheLayer) DeleteEntry(ctx context.Context, mediaListEntryID *int, interceptors ...clientv2.RequestInterceptor) (*anilist.DeleteEntry, error) {
-	// Mutations require the API to be working
+	// Queue deletes too so an offline removal still propagates when the API recovers.
 	if !IsWorking.Load() {
-		return nil, fmt.Errorf("anilist cache: API client is not working, mutation operations are not available")
+		c.pendingMutations.Enqueue(&PendingMutation{
+			Kind:    PendingKindDeleteEntry,
+			EntryID: mediaListEntryID,
+		})
+		c.invalidateCollectionCaches()
+		return &anilist.DeleteEntry{}, nil
 	}
 
 	result, err := c.anilistClientRef.Get().DeleteEntry(ctx, mediaListEntryID, interceptors...)

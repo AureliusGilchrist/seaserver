@@ -3,7 +3,14 @@
 import { useGetAchievements } from "@/api/hooks/achievement.hooks"
 import { useServerMutation } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { useGetAniListStats } from "@/api/hooks/anilist.hooks"
+import {
+    useGetAniListStats,
+    useGetAnilistAnimeDetails,
+    useGetAnilistCharacterDetails,
+    useGetAnilistStaffDetails,
+    useGetAnilistStudioDetails,
+} from "@/api/hooks/anilist.hooks"
+import { useGetMangaEntryDetails } from "@/api/hooks/manga.hooks"
 import { useGetMyProfile, useUpdateBio } from "@/api/hooks/community.hooks"
 import {
     useGetAnimeFavorites,
@@ -1142,27 +1149,158 @@ function FavoriteSection({ label, ids, type }: { label: string; ids: number[]; t
         )
     }
 
-    const linkBase = type === "anime" ? "/entry?id=" :
-        type === "manga" ? "/manga/entry?id=" :
-        type === "character" ? "/character?id=" :
-        type === "staff" ? "/staff?id=" :
-        "/studio?id="
-
     return (
         <div className="space-y-3">
             <h3 className="text-lg font-medium">{label} <span className="text-[--muted] text-sm">({ids.length})</span></h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {ids.map((id) => (
-                    <a
-                        key={id}
-                        href={`${linkBase}${id}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[--subtle] hover:bg-[--subtle-highlight] border border-[--border] text-sm transition-colors"
-                    >
-                        <LuHeart className="size-3 text-red-400" />
-                        <span>#{id}</span>
-                    </a>
+                    <FavoriteCard key={id} id={id} type={type} />
                 ))}
             </div>
         </div>
+    )
+}
+
+function stripHtml(html: string | null | undefined): string {
+    if (!html) return ""
+    return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim()
+}
+
+function FavoriteCard({ id, type }: { id: number; type: "anime" | "manga" | "character" | "staff" | "studio" }) {
+    if (type === "anime") return <FavoriteAnimeCard id={id} />
+    if (type === "manga") return <FavoriteMangaCard id={id} />
+    if (type === "character") return <FavoriteCharacterCard id={id} />
+    if (type === "staff") return <FavoriteStaffCard id={id} />
+    if (type === "studio") return <FavoriteStudioCard id={id} />
+    return null
+}
+
+function FavoriteCardShell({
+    href,
+    image,
+    title,
+    subtitle,
+    description,
+    isLoading,
+}: {
+    href: string
+    image?: string | null
+    title?: string | null
+    subtitle?: string | null
+    description?: string | null
+    isLoading?: boolean
+}) {
+    return (
+        <a
+            href={href}
+            className="group relative flex flex-col rounded-lg overflow-hidden bg-[--subtle] border border-[--border] hover:border-[--brand] hover:shadow-lg transition-all"
+        >
+            <div className="relative aspect-[3/4] w-full bg-gray-900 overflow-hidden">
+                {image
+                    ? (
+                        <img
+                            src={image}
+                            alt={title ?? ""}
+                            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                            loading="lazy"
+                        />
+                    )
+                    : isLoading
+                        ? <div className="w-full h-full animate-pulse bg-gray-800" />
+                        : <div className="w-full h-full flex items-center justify-center text-[--muted] text-xs">No image</div>
+                }
+            </div>
+            <div className="p-2.5 flex flex-col gap-1 min-h-[3.5rem]">
+                <p className="text-sm font-semibold line-clamp-2 leading-snug" title={title ?? undefined}>
+                    {title || (isLoading ? "Loading…" : `#${href.split("=").pop()}`)}
+                </p>
+                {subtitle && <p className="text-xs text-[--muted] line-clamp-1">{subtitle}</p>}
+                {description && (
+                    <p className="text-xs text-[--muted] line-clamp-3 mt-1">{description}</p>
+                )}
+            </div>
+        </a>
+    )
+}
+
+function FavoriteAnimeCard({ id }: { id: number }) {
+    const { data, isLoading } = useGetAnilistAnimeDetails(id)
+    const title = data?.title?.userPreferred || data?.title?.english || data?.title?.romaji || data?.title?.native
+    const year = (data as any)?.seasonYear ?? data?.startDate?.year ?? null
+    const fmt = data?.format ? String(data.format).replace(/_/g, " ") : null
+    const subtitle = [fmt, year].filter(Boolean).join(" · ")
+    return (
+        <FavoriteCardShell
+            href={`/entry?id=${id}`}
+            image={data?.coverImage?.extraLarge || data?.coverImage?.large || data?.coverImage?.medium}
+            title={title}
+            subtitle={subtitle || undefined}
+            description={stripHtml(data?.description)}
+            isLoading={isLoading}
+        />
+    )
+}
+
+function FavoriteMangaCard({ id }: { id: number }) {
+    const { data, isLoading } = useGetMangaEntryDetails(id)
+    const title = data?.title?.userPreferred || data?.title?.english || data?.title?.romaji || data?.title?.native
+    const year = data?.startDate?.year ?? null
+    const fmt = data?.format ? String(data.format).replace(/_/g, " ") : null
+    const subtitle = [fmt, year].filter(Boolean).join(" · ")
+    return (
+        <FavoriteCardShell
+            href={`/manga/entry?id=${id}`}
+            image={data?.coverImage?.extraLarge || data?.coverImage?.large || data?.coverImage?.medium}
+            title={title}
+            subtitle={subtitle || undefined}
+            description={stripHtml(data?.description)}
+            isLoading={isLoading}
+        />
+    )
+}
+
+function FavoriteCharacterCard({ id }: { id: number }) {
+    const { data, isLoading } = useGetAnilistCharacterDetails(id)
+    return (
+        <FavoriteCardShell
+            href={`/character?id=${id}`}
+            image={data?.image?.large || data?.image?.medium}
+            title={data?.name?.full || data?.name?.userPreferred || data?.name?.native}
+            subtitle={data?.name?.native && data?.name?.native !== data?.name?.full ? data?.name?.native : undefined}
+            description={stripHtml(data?.description)}
+            isLoading={isLoading}
+        />
+    )
+}
+
+function FavoriteStaffCard({ id }: { id: number }) {
+    const { data, isLoading } = useGetAnilistStaffDetails(id)
+    const role = (data as any)?.primaryOccupations?.[0] ?? null
+    return (
+        <FavoriteCardShell
+            href={`/staff?id=${id}`}
+            image={(data as any)?.image?.large || (data as any)?.image?.medium}
+            title={(data as any)?.name?.full || (data as any)?.name?.userPreferred || (data as any)?.name?.native}
+            subtitle={role ?? undefined}
+            description={stripHtml((data as any)?.description)}
+            isLoading={isLoading}
+        />
+    )
+}
+
+function FavoriteStudioCard({ id }: { id: number }) {
+    const { data, isLoading } = useGetAnilistStudioDetails(id)
+    // Studios have no image; show the first known anime cover from their works if available
+    const cover = (data as any)?.media?.nodes?.[0]?.coverImage?.extraLarge
+        || (data as any)?.media?.nodes?.[0]?.coverImage?.large
+        || null
+    return (
+        <FavoriteCardShell
+            href={`/studio?id=${id}`}
+            image={cover}
+            title={(data as any)?.name}
+            subtitle={(data as any)?.isAnimationStudio ? "Animation studio" : "Studio"}
+            isLoading={isLoading}
+        />
     )
 }

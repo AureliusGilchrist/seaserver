@@ -828,6 +828,15 @@ type ClientPref struct {
 	Value string `gorm:"column:value;type:text" json:"value"` // JSON-encoded payload, opaque to the server
 }
 
+// EasterEggDiscovery records a single easter-egg discovery for the active profile.
+// Stored in the per-profile database so each profile gets its own permanent record.
+// This is the authoritative source of truth for discovered "Secrets" — localStorage
+// is treated as a fast-path cache, but the server row is what makes a discovery permanent.
+type EasterEggDiscovery struct {
+	BaseModel
+	EggID string `gorm:"column:egg_id;uniqueIndex" json:"eggId"`
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 // GlobalMilestone tracks a milestone achievement in the main (global) database.

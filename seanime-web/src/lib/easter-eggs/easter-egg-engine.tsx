@@ -3,7 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef } from "react"
 import { usePathname } from "@/lib/navigation"
 import { toast } from "sonner"
-import { useServerMutation } from "@/api/client/requests"
+import { useServerMutation, useServerQuery } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { EASTER_EGG_DEFINITIONS, EASTER_EGG_MAP, EasterEggDefinition } from "./easter-egg-definitions"
 import { seaStorage } from "@/lib/sea-storage/sea-storage"
@@ -66,6 +66,31 @@ export function EasterEggEngine({ children }: { children: React.ReactNode }) {
             showEggToast(egg, data.xpGranted, data.leveledUp, data.newLevel)
         },
     })
+
+    // Hydrate from server-side persistent discoveries. The server's per-profile DB is the
+    // source of truth — localStorage is a fast-path cache that can be wiped by reinstalls.
+    // We merge (union) so anything discovered locally but not yet synced to the server is
+    // preserved until the next discoverEgg mutation flushes it.
+    const { data: serverDiscoveries } = useServerQuery<string[]>({
+        endpoint: "/api/v1/profile/easter-eggs",
+        method: "GET",
+        queryKey: ["easter-egg-discoveries"],
+        muteError: true,
+    })
+    useEffect(() => {
+        if (!Array.isArray(serverDiscoveries)) return
+        let changed = false
+        for (const id of serverDiscoveries) {
+            if (!discoveredRef.current.has(id)) {
+                discoveredRef.current.add(id)
+                changed = true
+            }
+        }
+        if (changed) {
+            saveDiscovered(discoveredRef.current)
+            forceUpdate()
+        }
+    }, [serverDiscoveries])
 
     const trigger = useCallback((eggId: string) => {
         if (discoveredRef.current.has(eggId)) return

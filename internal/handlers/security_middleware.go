@@ -83,11 +83,19 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 func RateLimitMiddleware(rl *RateLimiter) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			// Skip rate limiting for streaming/long-poll endpoints
+			// Skip rate limiting for streaming/long-poll endpoints and for hot bootstrap
+			// endpoints that are legitimately fetched many times in parallel by the web
+			// client (library collection, hooks polling, image proxy, etc.).
 			path := c.Request().URL.Path
 			if strings.HasPrefix(path, "/api/v1/mediastream/") ||
 				strings.HasPrefix(path, "/api/v1/directstream/") ||
 				strings.HasPrefix(path, "/api/v1/proxy") ||
+				strings.HasPrefix(path, "/api/v1/image-proxy") ||
+				strings.HasPrefix(path, "/api/v1/library/collection") ||
+				strings.HasPrefix(path, "/api/v1/library/anilist-collection") ||
+				strings.HasPrefix(path, "/api/v1/manga/collection") ||
+				strings.HasPrefix(path, "/api/v1/manga/anilist-collection") ||
+				strings.HasPrefix(path, "/api/v1/status") ||
 				strings.HasPrefix(path, "/events") {
 				return next(c)
 			}

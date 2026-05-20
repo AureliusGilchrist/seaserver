@@ -1,16 +1,8 @@
 package handlers
 
 import (
-	"fmt"
-	"sync"
-
 	"github.com/labstack/echo/v4"
 )
-
-// easterEggDiscoveries is a server-side deduplication guard per profile.
-// The canonical source of truth is the client's localStorage, but we also
-// guard server-side to prevent duplicate XP farming.
-var easterEggDiscoveries sync.Map // key: "profileID:eggID"
 
 type DiscoverEasterEggRequest struct {
 	EggID string `json:"eggId"`
@@ -27,12 +19,11 @@ type DiscoverEasterEggResponse struct {
 // HandleDiscoverEasterEgg
 //
 //	@summary grants XP for discovering an easter egg.
-//	@desc Idempotent — each egg can only grant XP once per profile per server session.
+//	@desc Idempotent — each egg can only grant XP once per profile, persisted in the per-profile database.
 //	@returns DiscoverEasterEggResponse
 //	@route /api/v1/profile/easter-egg [POST]
 func (h *Handler) HandleDiscoverEasterEgg(c echo.Context) error {
 	database := h.GetProfileDatabase(c)
-	profileID := h.GetProfileID(c)
 
 	req := new(DiscoverEasterEggRequest)
 	if err := c.Bind(req); err != nil {
@@ -45,9 +36,12 @@ func (h *Handler) HandleDiscoverEasterEgg(c echo.Context) error {
 		return h.RespondWithError(c, echo.NewHTTPError(400, "unknown easter egg"))
 	}
 
-	// Per-profile deduplication key
-	dedupeKey := fmt.Sprintf("%d:%s", profileID, req.EggID)
-	if _, alreadyGranted := easterEggDiscoveries.LoadOrStore(dedupeKey, true); alreadyGranted {
+	// Persist discovery to the per-profile DB. If it already existed, skip XP grant.
+	alreadyExisted, err := database.AddEasterEggDiscovery(req.EggID)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if alreadyExisted {
 		progress, _ := database.GetLevelProgress()
 		return h.RespondWithData(c, &DiscoverEasterEggResponse{
 			Granted: false,
@@ -57,7 +51,6 @@ func (h *Handler) HandleDiscoverEasterEgg(c echo.Context) error {
 
 	newLevel, leveledUp, err := database.AddXP(xp)
 	if err != nil {
-		easterEggDiscoveries.Delete(dedupeKey)
 		return h.RespondWithError(c, err)
 	}
 
@@ -70,6 +63,24 @@ func (h *Handler) HandleDiscoverEasterEgg(c echo.Context) error {
 		TotalXP:   progress.TotalXP,
 		XPGranted: xp,
 	})
+}
+
+// HandleGetEasterEggDiscoveries
+//
+//	@summary returns all easter eggs the current profile has discovered.
+//	@desc Used by the client to merge server-side persistent discoveries with localStorage on bootstrap.
+//	@returns []string
+//	@route /api/v1/profile/easter-eggs [GET]
+func (h *Handler) HandleGetEasterEggDiscoveries(c echo.Context) error {
+	database := h.GetProfileDatabase(c)
+	ids, err := database.GetEasterEggDiscoveries()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if ids == nil {
+		ids = []string{}
+	}
+	return h.RespondWithData(c, ids)
 }
 
 // validEasterEggs maps egg IDs to XP awards.

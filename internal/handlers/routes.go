@@ -122,8 +122,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// Secure headers middleware (always-on)
 	e.Use(SecureHeadersMiddleware)
 
-	// Rate limiting middleware (30 requests per minute per client session)
-	rateLimiter := NewRateLimiter(30, 1*time.Minute)
+	// Rate limiting middleware. 600 req/min (~10/sec) per client session is generous
+	// enough for the web client's parallel bootstrap fan-out while still throttling
+	// abusive behaviour. Streaming, image proxy, and bootstrap collection endpoints
+	// are explicitly skipped inside the middleware.
+	rateLimiter := NewRateLimiter(600, 1*time.Minute)
 	e.Use(RateLimitMiddleware(rateLimiter))
 
 	h := &Handler{App: app}
@@ -843,6 +846,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.GET("/profile/exp-bar/all", h.HandleGetExpBarProgression)
 	v1.GET("/profile/exp-bar/level/:level", h.HandleGetExpBarForLevel)
 	v1.POST("/profile/easter-egg", h.HandleDiscoverEasterEgg)
+	v1.GET("/profile/easter-eggs", h.HandleGetEasterEggDiscoveries)
 
 	// Community
 	v1.GET("/community/profiles", h.HandleGetCommunityProfiles)
