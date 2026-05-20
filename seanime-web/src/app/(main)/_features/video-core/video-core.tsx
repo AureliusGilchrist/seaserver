@@ -1431,16 +1431,12 @@ export function VideoCore(props: VideoCoreProps) {
         }
 
         if (e.type === "contextmenu") {
-            const now = Date.now()
-            if (lastClickTime.current && now - lastClickTime.current < 500) {
-                fullscreenManager?.toggleFullscreen()
-            }
-            lastClickTime.current = now
+            e.preventDefault()
         }
     }
 
     const handleDoubleClick = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-        // fullscreenManager?.toggleFullscreen()
+        fullscreenManager?.toggleFullscreen()
     }
 
     const handlePlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
