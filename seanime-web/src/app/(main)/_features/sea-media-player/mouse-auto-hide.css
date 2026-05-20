@@ -1,0 +1,147 @@
+/* Mouse auto-hide styles for fullscreen video player */
+
+/* Global cursor hiding for fullscreen mode */
+body.cursor-hidden {
+    cursor: none !important;
+}
+
+/* Hide controls when mouse is inactive in fullscreen */
+.fullscreen-mode.controls-hidden [data-vidstack-controls],
+.fullscreen-mode.controls-hidden .vidstack-controls,
+.fullscreen-mode.controls-hidden [data-media-player-controls],
+.fullscreen-mode.controls-hidden .media-player-controls {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out !important;
+}
+
+/* Show controls when mouse is visible */
+.fullscreen-mode:not(.controls-hidden) [data-vidstack-controls],
+.fullscreen-mode:not(.controls-hidden) .vidstack-controls,
+.fullscreen-mode:not(.controls-hidden) [data-media-player-controls],
+.fullscreen-mode:not(.controls-hidden) .media-player-controls {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out !important;
+}
+
+/* Hide specific control elements in fullscreen when mouse is inactive */
+.fullscreen-mode.controls-hidden .vidstack-control,
+.fullscreen-mode.controls-hidden .media-control,
+.fullscreen-mode.controls-hidden button[data-vidstack],
+.fullscreen-mode.controls-hidden .player-button {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out !important;
+}
+
+/* Show control elements when mouse is visible */
+.fullscreen-mode:not(.controls-hidden) .vidstack-control,
+.fullscreen-mode:not(.controls-hidden) .media-control,
+.fullscreen-mode:not(.controls-hidden) button[data-vidstack],
+.fullscreen-mode:not(.controls-hidden) .player-button {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out !important;
+}
+
+/* Hide progress bar and time display when mouse is inactive */
+.fullscreen-mode.controls-hidden .vidstack-time,
+.fullscreen-mode.controls-hidden .media-time,
+.fullscreen-mode.controls-hidden .vidstack-slider,
+.fullscreen-mode.controls-hidden .media-slider,
+.fullscreen-mode.controls-hidden .progress-bar,
+.fullscreen-mode.controls-hidden .time-display {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out !important;
+}
+
+/* Show progress bar and time display when mouse is visible */
+.fullscreen-mode:not(.controls-hidden) .vidstack-time,
+.fullscreen-mode:not(.controls-hidden) .media-time,
+.fullscreen-mode:not(.controls-hidden) .vidstack-slider,
+.fullscreen-mode:not(.controls-hidden) .media-slider,
+.fullscreen-mode:not(.controls-hidden) .progress-bar,
+.fullscreen-mode:not(.controls-hidden) .time-display {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out !important;
+}
+
+/* Hide loading spinner and overlays when mouse is inactive (optional) */
+.fullscreen-mode.controls-hidden .loading-spinner,
+.fullscreen-mode.controls-hidden .media-overlay,
+.fullscreen-mode.controls-hidden .player-overlay {
+    opacity: 0.3 !important;
+    transition: opacity 0.3s ease-in-out !important;
+}
+
+/* Ensure video container remains interactive */
+.fullscreen-mode[data-mouse-visible="false"] video,
+.fullscreen-mode[data-mouse-visible="false"] .video-container {
+    cursor: none !important;
+}
+
+/* Show cursor on hover over interactive elements even when hidden */
+.fullscreen-mode.controls-hidden video:hover,
+.fullscreen-mode.controls-hidden .video-container:hover {
+    cursor: auto !important;
+}
+
+/* Fade animation for smooth transitions */
+@keyframes fadeIn {
+    from { opacity: 0; visibility: hidden; }
+    to { opacity: 1; visibility: visible; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; visibility: visible; }
+    to { opacity: 0; visibility: hidden; }
+}
+
+.fullscreen-mode:not(.controls-hidden) [data-vidstack-controls] {
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.fullscreen-mode.controls-hidden [data-vidstack-controls] {
+    animation: fadeOut 0.3s ease-in-out;
+}
+
+/* Special handling for touch devices (show controls on touch) */
+@media (pointer: coarse) {
+    .fullscreen-mode.controls-hidden {
+        /* On touch devices, keep controls slightly more accessible */
+    }
+    
+    .fullscreen-mode.controls-hidden:hover {
+        /* Show controls on hover for touch devices */
+    }
+}
+
+/* Ensure accessibility - show controls when keyboard navigation is detected */
+.fullscreen-mode.keyboard-focus [data-vidstack-controls],
+.fullscreen-mode.keyboard-focus .vidstack-controls {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .fullscreen-mode.controls-hidden [data-vidstack-controls] {
+        /* In high contrast mode, ensure controls remain visible */
+        opacity: 0.8 !important;
+        visibility: visible !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .fullscreen-mode.controls-hidden [data-vidstack-controls],
+    .fullscreen-mode:not(.controls-hidden) [data-vidstack-controls] {
+        transition: none !important;
+        animation: none !important;
+    }
+}

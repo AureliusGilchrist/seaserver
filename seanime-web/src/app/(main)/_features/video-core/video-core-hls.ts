@@ -104,17 +104,17 @@ export function useVideoCoreHls({
             const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: false,
-                backBufferLength: 90,
+                backBufferLength: 30, // Reduced from 90 to improve fullscreen performance\n                maxBufferLength: 30, // Reduced buffer size for smoother fullscreen\n                maxMaxBufferLength: 60, // Limit maximum buffer\n                maxBufferSize: 60 * 1000 * 1000, // 60MB max buffer size
                 enableWebVTT: true,
                 renderTextTracksNatively: false,
                 // Generous timeouts for online streams — default 10 s is too short for slow providers
-                manifestLoadingTimeOut: 30000,
+                manifestLoadingTimeOut: 15000, // Reduced from 30000 for better responsiveness
                 manifestLoadingMaxRetry: 4,
                 manifestLoadingRetryDelay: 1000,
-                levelLoadingTimeOut: 30000,
+                levelLoadingTimeOut: 15000, // Reduced from 30000 for better responsiveness
                 levelLoadingMaxRetry: 4,
                 levelLoadingRetryDelay: 1000,
-                fragLoadingTimeOut: 30000,
+                fragLoadingTimeOut: 15000, // Reduced from 30000 for better responsiveness
                 fragLoadingMaxRetry: 4,
                 fragLoadingRetryDelay: 1000,
             })

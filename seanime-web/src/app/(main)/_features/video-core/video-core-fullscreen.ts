@@ -251,17 +251,8 @@ export class VideoCoreFullscreenManager extends EventTarget {
     }
 
     private _shouldUseElectronFullscreen(): boolean {
-        // Disabled: routing video fullscreen through Electron's
-        // BrowserWindow.setFullScreen() IPC causes visible video stutter in
-        // Electron (the OS-level fullscreen mode switches DWM compositing on
-        // Windows and competes with the embedded Chromium GPU process).
-        //
-        // Falling back to Chromium's DOM `container.requestFullscreen()` keeps
-        // the BrowserWindow size unchanged (still effectively fullscreen since
-        // users typically run maximized) while letting Chromium use its
-        // optimized content-fullscreen compositing path — which is the same
-        // smooth path used in the regular browser.
-        return false
+        // return this._isElectron() && window.electron?.platform === "win32"
+        return this._isElectron()
     }
 
     private async _enterElectronFullscreen(): Promise<void> {

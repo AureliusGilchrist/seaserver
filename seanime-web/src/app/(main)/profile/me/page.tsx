@@ -1225,18 +1225,18 @@ function FavoriteCardShell({
 
 function FavoriteAnimeCard({ id }: { id: number }) {
     const { data, isLoading } = useGetAnilistAnimeDetails(id)
-    const dataAny = data as any
-    const title = dataAny?.title?.userPreferred || dataAny?.title?.english || dataAny?.title?.romaji || dataAny?.title?.native
-    const year = dataAny?.seasonYear ?? dataAny?.startDate?.year ?? null
-    const fmt = dataAny?.format ? String(dataAny.format).replace(/_/g, " ") : null
+    const d = data as any
+    const title = d?.title?.userPreferred || d?.title?.english || d?.title?.romaji || d?.title?.native
+    const year = d?.seasonYear ?? d?.startDate?.year ?? null
+    const fmt = d?.format ? String(d.format).replace(/_/g, " ") : null
     const subtitle = [fmt, year].filter(Boolean).join(" · ")
     return (
         <FavoriteCardShell
             href={`/entry?id=${id}`}
-            image={dataAny?.coverImage?.extraLarge || dataAny?.coverImage?.large || dataAny?.coverImage?.medium}
+            image={d?.coverImage?.extraLarge || d?.coverImage?.large || d?.coverImage?.medium}
             title={title}
             subtitle={subtitle || undefined}
-            description={stripHtml(dataAny?.description)}
+            description={stripHtml(d?.description)}
             isLoading={isLoading}
         />
     )
@@ -1244,18 +1244,18 @@ function FavoriteAnimeCard({ id }: { id: number }) {
 
 function FavoriteMangaCard({ id }: { id: number }) {
     const { data, isLoading } = useGetMangaEntryDetails(id)
-    const dataAny = data as any
-    const title = dataAny?.title?.userPreferred || dataAny?.title?.english || dataAny?.title?.romaji || dataAny?.title?.native
-    const year = dataAny?.startDate?.year ?? null
-    const fmt = dataAny?.format ? String(dataAny.format).replace(/_/g, " ") : null
+    const d = data as any
+    const title = d?.title?.userPreferred || d?.title?.english || d?.title?.romaji || d?.title?.native
+    const year = d?.startDate?.year ?? null
+    const fmt = d?.format ? String(d.format).replace(/_/g, " ") : null
     const subtitle = [fmt, year].filter(Boolean).join(" · ")
     return (
         <FavoriteCardShell
             href={`/manga/entry?id=${id}`}
-            image={dataAny?.coverImage?.extraLarge || dataAny?.coverImage?.large || dataAny?.coverImage?.medium}
+            image={d?.coverImage?.extraLarge || d?.coverImage?.large || d?.coverImage?.medium}
             title={title}
             subtitle={subtitle || undefined}
-            description={stripHtml(dataAny?.description)}
+            description={stripHtml(d?.description)}
             isLoading={isLoading}
         />
     )
