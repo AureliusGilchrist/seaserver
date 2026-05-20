@@ -251,8 +251,8 @@ export class VideoCoreFullscreenManager extends EventTarget {
     }
 
     private _shouldUseElectronFullscreen(): boolean {
-        // return false // Force DOM fullscreen to test HLS streaming && window.electron?.platform === "win32"
-        return false // Force DOM fullscreen to test HLS streaming
+        // return this._isElectron() // Original seanime behavior && window.electron?.platform === "win32"
+        return this._isElectron() // Original seanime behavior
     }
 
     private async _enterElectronFullscreen(): Promise<void> {

@@ -1794,7 +1794,7 @@ export function VideoCore(props: VideoCoreProps) {
                         if (!v) {
                             if (!isMiniPlayer) {
                                 setIsMiniPlayer(true)
-                                fullscreenManager?.exitFullscreen()
+                                fullscreenManager?.toggleFullscreen()
                             } else {
                                 onTerminateStream()
                             }
