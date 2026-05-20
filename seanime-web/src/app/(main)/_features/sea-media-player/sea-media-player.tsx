@@ -227,7 +227,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
         }
     }, [url])
 
-    const onTimeUpdate = (detail: MediaTimeUpdateEventDetail, e: MediaTimeUpdateEvent) => { // let React compiler optimize - ADVANCED FULLSCREEN OPTIMIZATION
+    const onTimeUpdate = (detail: MediaTimeUpdateEventDetail, e: MediaTimeUpdateEvent) => { // let React compiler optimize
         _onTimeUpdate?.(detail, e)
 
         /**
