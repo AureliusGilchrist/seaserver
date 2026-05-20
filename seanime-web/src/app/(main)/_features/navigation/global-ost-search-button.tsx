@@ -2,7 +2,7 @@
 import React from "react"
 import { useAtomValue } from "jotai"
 import { toast } from "sonner"
-import { vc_globalIsFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import {
     useSearchThemeMusic,
@@ -83,7 +83,7 @@ function buildOstQueryVariants(rawName: string): { primary: string; variants: st
 }
 
 export function GlobalOstSearchButton() {
-    const isFullscreen = useAtomValue(vc_globalIsFullscreen)
+    const isFullscreen = useAtomValue(vc_isFullscreen)
     const animeTheme = useAnimeThemeOrNull()
     const themeId = animeTheme?.themeId ?? ""
     const themeDisplayName = animeTheme?.config?.displayName ?? themeId
