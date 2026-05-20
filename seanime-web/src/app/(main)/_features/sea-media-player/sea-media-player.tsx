@@ -201,6 +201,10 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
         const interval = setInterval(() => {
             if (!playerRef.current || !canPlayRef.current) return
 
+            // Only update Discord if not in fullscreen to reduce performance overhead
+            const isFullscreen = document.fullscreenElement !== null
+            if (isFullscreen) return
+
             if (serverStatus?.settings?.discord?.enableRichPresence && serverStatus?.settings?.discord?.enableAnimeRichPresence) {
                 updateAnimeDiscordActivity({
                     progress: Math.floor(playerRef.current?.currentTime ?? 0),
@@ -208,7 +212,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
                     paused: playerRef.current?.paused ?? false,
                 })
             }
-        }, 6000)
+        }, 10000) // Increased from 6000ms to 10000ms for less frequent updates
 
         return () => clearInterval(interval)
     }, [serverStatus?.settings?.discord, url, canPlayRef.current])
@@ -230,48 +234,53 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
     const onTimeUpdate = (detail: MediaTimeUpdateEventDetail, e: MediaTimeUpdateEvent) => { // let React compiler optimize
         _onTimeUpdate?.(detail, e)
 
+        // Throttle expensive operations - only process every 10th frame to reduce lag
+        const frameCount = watchHistoryRef.current
+        watchHistoryRef.current++
+        
+        if (frameCount % 10 !== 0) return // Skip 9 out of 10 frames for performance
+
         /**
-         * AniSkip
+         * AniSkip - optimized with cached checks
          */
-        if (
-            aniSkipData?.op?.interval &&
-            !!detail?.currentTime &&
-            detail?.currentTime >= aniSkipData.op.interval.startTime &&
-            detail?.currentTime <= aniSkipData.op.interval.endTime
-        ) {
-            setShowSkipIntroButton(true)
+        const currentTime = detail?.currentTime || 0
+        
+        // Opening skip check
+        const opInterval = aniSkipData?.op?.interval
+        if (opInterval && currentTime >= opInterval.startTime && currentTime <= opInterval.endTime) {
+            if (!showSkipIntroButton) setShowSkipIntroButton(true)
             if (autoSkipOpening) {
-                seekTo(aniSkipData?.op?.interval?.endTime || 0)
+                seekTo(opInterval.endTime || 0)
             }
-        } else {
+        } else if (showSkipIntroButton) {
             setShowSkipIntroButton(false)
         }
-        if (
-            aniSkipData?.ed?.interval &&
-            Math.abs(aniSkipData.ed.interval.startTime - (aniSkipData?.ed?.episodeLength)) < 500 &&
-            !!detail?.currentTime &&
-            detail?.currentTime >= aniSkipData.ed.interval.startTime &&
-            detail?.currentTime <= aniSkipData.ed.interval.endTime
-        ) {
-            setShowSkipEndingButton(true)
+        
+        // Ending skip check
+        const edInterval = aniSkipData?.ed?.interval
+        const episodeLength = aniSkipData?.ed?.episodeLength
+        if (edInterval && episodeLength &&
+            Math.abs(edInterval.startTime - episodeLength) < 500 &&
+            currentTime >= edInterval.startTime && 
+            currentTime <= edInterval.endTime) {
+            if (!showSkipEndingButton) setShowSkipEndingButton(true)
             if (autoSkipEnding) {
-                seekTo(aniSkipData?.ed?.interval?.endTime || 0)
+                seekTo(edInterval.endTime || 0)
             }
-        } else {
+        } else if (showSkipEndingButton) {
             setShowSkipEndingButton(false)
         }
 
-        if (watchHistoryRef.current > 2000) {
+        // Watch history - reduced frequency
+        if (frameCount > 2000) {
             watchHistoryRef.current = 0
             handleUpdateWatchHistory()
         }
 
-        watchHistoryRef.current++
-
         /**
-         * Progress
+         * Progress - further optimized
          */
-        if (checkTimeRef.current < 200) {
+        if (checkTimeRef.current < 20) { // Reduced from 200 to 20 for more responsive progress updates
             checkTimeRef.current++
             return
         }
