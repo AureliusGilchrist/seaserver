@@ -147,6 +147,15 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 
 		// Throttle local file streams more aggressively since disk i/o is unbounded.
 		// Network-based streams (torrent, debrid, nakama) are naturally throttled by bandwidth.
+		//
+		// Burst size matters more than aggregate throughput here: when the client receives a
+		// big batch over the WebSocket it has to dispatch one `createEvent` postMessage to the
+		// JASSUB worker per event. Several hundred postMessages back-to-back stalls the main
+		// thread and causes visible video stutter, especially during karaoke or other busy
+		// sections where many events fire near the same timestamp. Keep batches small and
+		// flush often so the client always sees a manageable trickle, while preserving the
+		// same overall events-per-second so the pre-extraction buffer still fills well ahead
+		// of playback.
 		isLocalFile := stream.Type() == nativeplayer.StreamTypeFile
 		batchSleepDuration := 200 * time.Millisecond
 		flushInterval := 100 * time.Millisecond
