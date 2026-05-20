@@ -71,7 +71,7 @@ export function useFullscreenOptimization() {
                 }
                 
                 // Apply additional optimizations after fullscreen change
-                optimizationTimerRef.current = setTimeout(() => {
+                optimizationTimerRef.current = window.setTimeout(() => {
                     if (currentFullscreen) {
                         // Force garbage collection if available
                         if ('gc' in window) {

@@ -206,7 +206,7 @@ export function useBrowserOptimization() {
                 // Clean up when exiting fullscreen
                 if (optimizationTimerRef.current !== null) {
                     clearInterval(optimizationTimerRef.current)
-                    optimizationTimerRef.current = undefined
+                    optimizationTimerRef.current = null
                 }
                 
                 // Reset optimizations
@@ -291,9 +291,11 @@ export function usePowerOptimization() {
             try {
                 wakeLockRef.current = await (navigator as any).wakeLock.request('screen')
                 
-                wakeLockRef.current.addEventListener('release', () => {
-                    wakeLockRef.current = null
-                })
+                if (wakeLockRef.current) {
+                    wakeLockRef.current.addEventListener('release', () => {
+                        wakeLockRef.current = null
+                    })
+                }
             } catch (error) {
                 console.warn('Failed to prevent screen sleep:', error)
             }

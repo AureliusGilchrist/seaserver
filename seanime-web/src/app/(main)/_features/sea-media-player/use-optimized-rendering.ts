@@ -110,7 +110,7 @@ export function useMemoryManagement() {
                 performMemoryCleanup()
                 if (memoryCleanupRef.current) {
                     clearInterval(memoryCleanupRef.current)
-                    memoryCleanupRef.current = undefined
+                    memoryCleanupRef.current = null
                 }
             }
         }
@@ -170,7 +170,7 @@ export function useAnimationFrameOptimization() {
             cancelAnimationFrame(animationFrameRef.current)
             animationFrameRef.current = undefined
         }
-        callbackRef.current = undefined
+        callbackRef.current = null
     }, [])
 
     // Cleanup on unmount
