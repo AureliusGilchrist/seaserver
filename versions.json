@@ -1,7 +1,7 @@
  {
     "$comment": "Central manifest of all version numbers for components of this monorepo. Update here AND in the per-component source on every release.",
     "seaserver": {
-        "version": "2.2.0014",
+        "version": "2.2.0015",
         "codename": "Karasu",
         "source": "internal/constants/constants.go (Version, VersionName)"
     },
@@ -14,7 +14,7 @@
         "source": "seanime-web/package.json"
     },
     "seanime-denshi": {
-        "version": "2.3.1013",
+        "version": "2.3.1014",
         "source": "seanime-denshi/package.json"
     },
     "updater": {
