@@ -1402,16 +1402,15 @@ export function VideoCore(props: VideoCoreProps) {
         if (inline) {
             if (e.type === "click") {
                 const now = Date.now()
-                if (!debouncedMenuOpen) {
+                const isLikelyDoubleClick = lastClickTime.current && now - lastClickTime.current < 300
+                if (!isLikelyDoubleClick && !debouncedMenuOpen) {
                     togglePlay()
                 }
-                if (lastClickTime.current && now - lastClickTime.current < 300) {
-                    fullscreenManager?.toggleFullscreen()
-                } else {
-                    setTimeout(() => {
-                        setBusy(false)
-                    }, 100)
-                }
+                // Fullscreen toggle on double-click is handled by handleDoubleClick
+                // to avoid the two paths cancelling each other out.
+                setTimeout(() => {
+                    setBusy(false)
+                }, 100)
                 lastClickTime.current = now
             }
 

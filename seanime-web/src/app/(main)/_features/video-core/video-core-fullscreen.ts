@@ -264,6 +264,13 @@ export class VideoCoreFullscreenManager extends EventTarget {
         try {
             await (window as any).electron.window.setFullscreen(true)
             this.isElectronNativeFullscreen = true
+            // Defensive: also fire the callback here so consumers (e.g. the
+            // vc_isFullscreen atom) update immediately even if the Electron
+            // main process doesn't emit `window:fullscreen` after the call.
+            this._setBodyFullscreenClass(true)
+            const event: FullscreenManagerChangedEvent = new CustomEvent("fullscreenchanged", { detail: { isFullscreen: true } })
+            this.dispatchEvent(event)
+            this.onFullscreenChange(true)
             log.info("Entered Electron native fullscreen")
         }
         catch (error) {
@@ -280,6 +287,10 @@ export class VideoCoreFullscreenManager extends EventTarget {
         try {
             await window.electron?.window?.setFullscreen(false)
             this.isElectronNativeFullscreen = false
+            this._setBodyFullscreenClass(false)
+            const event: FullscreenManagerChangedEvent = new CustomEvent("fullscreenchanged", { detail: { isFullscreen: false } })
+            this.dispatchEvent(event)
+            this.onFullscreenChange(false)
             log.info("Exited Electron native fullscreen")
         }
         catch (error) {
