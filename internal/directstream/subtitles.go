@@ -157,13 +157,13 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 		// same overall events-per-second so the pre-extraction buffer still fills well ahead
 		// of playback.
 		isLocalFile := stream.Type() == nativeplayer.StreamTypeFile
-		batchSleepDuration := 200 * time.Millisecond
-		flushInterval := 100 * time.Millisecond
-		maxBatchSize := 500
+		batchSleepDuration := 50 * time.Millisecond
+		flushInterval := 50 * time.Millisecond
+		maxBatchSize := 100
 		if isLocalFile {
-			batchSleepDuration = 500 * time.Millisecond
-			flushInterval = 300 * time.Millisecond
-			maxBatchSize = 50
+			batchSleepDuration = 200 * time.Millisecond
+			flushInterval = 150 * time.Millisecond
+			maxBatchSize = 20
 		}
 
 		eventBatch := make([]*mkvparser.SubtitleEvent, 0, maxBatchSize)
