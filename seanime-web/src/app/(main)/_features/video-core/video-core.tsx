@@ -26,7 +26,7 @@ import { vc_buffering } from "@/app/(main)/_features/video-core/video-core-atoms
 import { vc_isMuted } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_volume } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_subtitleDelay } from "@/app/(main)/_features/video-core/video-core-atoms"
-import { vc_isFullscreen, vc_globalIsFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_seeking } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_seekingTargetProgress } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_timeRanges } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -801,18 +801,6 @@ export function VideoCore(props: VideoCoreProps) {
     const [buffering, setBuffering] = useAtom(vc_buffering)
     const duration = useAtomValue(vc_duration)
     const fullscreen = useAtomValue(vc_isFullscreen)
-    const setGlobalIsFullscreen = useSetAtom(vc_globalIsFullscreen)
-    // Mirror the scoped `vc_isFullscreen` into the unscoped `vc_globalIsFullscreen`
-    // so components outside the VideoCoreProvider's ScopeProvider (e.g. floating
-    // overlay buttons in the main layout) can react to fullscreen state.
-    React.useEffect(() => {
-        setGlobalIsFullscreen(fullscreen)
-        return () => {
-            // Ensure the global flag is reset when this player unmounts so
-            // overlays don't get stuck hidden.
-            setGlobalIsFullscreen(false)
-        }
-    }, [fullscreen, setGlobalIsFullscreen])
     const showOverlayFeedback = useSetAtom(vc_showOverlayFeedback)
     const cursorBusy = useAtomValue(vc_cursorBusy)
 

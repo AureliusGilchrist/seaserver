@@ -7,14 +7,14 @@ import { cn } from "@/components/ui/core/styling"
 import { LuShoppingBag, LuX } from "react-icons/lu"
 import { GiTrophyCup } from "react-icons/gi"
 import { useAtomValue } from "jotai"
-import { vc_globalIsFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 
 export function GlobalRewardShopButton() {
     const [open, setOpen] = React.useState(false)
     const { data: levelData } = useGetLevel()
     const level = levelData?.currentLevel ?? 0
     const { activeXPBarSkin } = useRewards()
-    const isFullscreen = useAtomValue(vc_globalIsFullscreen)
+    const isFullscreen = useAtomValue(vc_isFullscreen)
 
     // Hide the floating reward-shop / level pill entirely while any player
     // is fullscreen — it would otherwise overlap the video.
