@@ -50,14 +50,11 @@ export function NativePlayer() {
     // Only fires while the video is actually playing AND the tab is visible —
     // matches the user's intuition that "watching an anime" means actually
     // watching, not just having a tab open.
-    // Optimized to pause during fullscreen to reduce performance overhead.
     useAchievementActivityHeartbeat("anime", React.useCallback(() => {
         const v = videoElement
         if (!v) return false
         if (v.paused || v.ended) return false
         if (typeof document !== "undefined" && document.visibilityState !== "visible") return false
-        // Pause achievement tracking during fullscreen to improve performance
-        if (typeof document !== "undefined" && document.fullscreenElement !== null) return false
         return true
     }, [videoElement]))
 
