@@ -83,26 +83,3 @@ export function useGetTimeline(pageSize = 50) {
         },
     })
 }
-
-// useGetUserTimeline fetches the timeline for another user's profile (community view).
-// Backend route: GET /api/v1/profile/timeline/:id
-export function useGetUserTimeline(userId: number, pageSize = 50) {
-    const password = useAtomValue(serverAuthTokenAtom)
-    return useInfiniteQuery({
-        queryKey: ["user-timeline", userId, pageSize],
-        initialPageParam: 1,
-        enabled: userId > 0,
-        queryFn: async ({ pageParam }) => {
-            return buildSeaQuery<Handlers_TimelineResponse>({
-                endpoint: `/api/v1/profile/timeline/${userId}`,
-                method: "GET",
-                params: { page: pageParam, pageSize },
-                password: password,
-            })
-        },
-        getNextPageParam: (lastPage) => {
-            if (!lastPage?.hasMore) return undefined
-            return lastPage.page + 1
-        },
-    })
-}

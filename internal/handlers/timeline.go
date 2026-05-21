@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"math"
 	"strconv"
 	"time"
 
@@ -15,36 +14,19 @@ import (
 
 // TimelineEvent is a single resolved activity event for the timeline UI.
 type TimelineEvent struct {
-	ID        uint      `json:"id"`
-	EventType string    `json:"eventType"`
-	MediaID   int       `json:"mediaId"`
-	Metadata  string    `json:"metadata"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        uint       `json:"id"`
+	EventType string     `json:"eventType"`
+	MediaID   int        `json:"mediaId"`
+	Metadata  string     `json:"metadata"`
+	CreatedAt time.Time  `json:"createdAt"`
 	// Resolved media info (nil if media not found in collection)
-	MediaTitle *string `json:"mediaTitle,omitempty"`
-	MediaImage *string `json:"mediaImage,omitempty"`
-	MediaType  string  `json:"mediaType"` // "anime" or "manga" or ""
+	MediaTitle    *string `json:"mediaTitle,omitempty"`
+	MediaImage    *string `json:"mediaImage,omitempty"`
+	MediaType     string  `json:"mediaType"` // "anime" or "manga" or ""
 	// Resolved achievement info (only set for achievement_unlocked events)
-	AchievementIconSVG *string `json:"achievementIconSvg,omitempty"`
-	AchievementDesc    *string `json:"achievementDesc,omitempty"`
+	AchievementIconSVG  *string `json:"achievementIconSvg,omitempty"`
+	AchievementDesc     *string `json:"achievementDesc,omitempty"`
 }
-
-// timelineHiddenEventTypes is the set of event types that should NEVER appear on
-// the public-facing activity timeline (they're either internal bookkeeping or
-// noise the user doesn't care about). Note: this does not delete them from the
-// underlying DB — they're still used by achievement evaluation, etc.
-var timelineHiddenEventTypes = map[string]bool{
-	models.ActivityEventLibraryScanned:      true,
-	models.ActivityEventFileMatched:         true,
-	models.ActivityEventFileUnmatched:       true,
-	models.ActivityEventAnilistEntryEdited:  true,
-	models.ActivityEventAnilistEntryDeleted: true,
-	models.ActivityEventStatusChanged:       true,
-}
-
-// sessionGapSeconds is the maximum gap between two consecutive episode-watched
-// (or chapter-read) events for them to be collapsed into a single session card.
-const sessionGapSeconds = 3600 // 1 hour
 
 // TimelineResponse is the paginated response for the timeline endpoint.
 type TimelineResponse struct {
@@ -64,43 +46,7 @@ type TimelineResponse struct {
 //	@route /api/v1/profile/timeline [GET]
 func (h *Handler) HandleGetTimeline(c echo.Context) error {
 	pdb := h.GetProfileDatabase(c)
-	return h.respondWithTimeline(c, pdb)
-}
 
-// HandleGetUserTimeline
-//
-//	@summary returns paginated timeline events for a specific profile.
-//	@desc Returns activity events for another user's profile (community profile view).
-//	@param id - int - true - "Profile ID"
-//	@param page - int - false - "Page number (default 1)"
-//	@param pageSize - int - false - "Events per page (default 50)"
-//	@returns TimelineResponse
-//	@route /api/v1/profile/timeline/{id} [GET]
-func (h *Handler) HandleGetUserTimeline(c echo.Context) error {
-	idStr := c.Param("id")
-	pid, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil || pid == 0 {
-		return h.RespondWithError(c, echo.NewHTTPError(400, "Invalid profile ID"))
-	}
-	if h.App.ProfileDatabaseManager == nil {
-		return h.RespondWithError(c, echo.NewHTTPError(404, "Profiles not active"))
-	}
-	pdb, err := h.App.ProfileDatabaseManager.GetDatabase(uint(pid))
-	if err != nil || pdb == nil {
-		return h.RespondWithError(c, echo.NewHTTPError(404, "Profile not found"))
-	}
-	return h.respondWithTimeline(c, pdb)
-}
-
-// respondWithTimeline is the shared implementation for both my-timeline and
-// user-timeline. It paginates events from the given profile DB, filters out
-// internal/noisy event types, collapses consecutive episode_watched and
-// manga_chapter_read events for the same media within sessionGapSeconds into a
-// single synthetic "watch_session" / "reading_session" event, and resolves
-// media + achievement metadata.
-func (h *Handler) respondWithTimeline(c echo.Context, pdb interface {
-	GetActivityEventsPaginated(page, pageSize int) ([]*models.ActivityEvent, int64, error)
-}) error {
 	page := 1
 	if p := c.QueryParam("page"); p != "" {
 		if v, err := strconv.Atoi(p); err == nil && v > 0 {
@@ -115,31 +61,10 @@ func (h *Handler) respondWithTimeline(c echo.Context, pdb interface {
 		}
 	}
 
-	// Fetch a larger window than pageSize so we can both (a) skip hidden events
-	// and (b) collapse session-style events without running out of data on the
-	// last page. We then slice to pageSize after filtering.
-	fetchSize := pageSize * 4
-	if fetchSize > 400 {
-		fetchSize = 400
-	}
-	events, total, err := pdb.GetActivityEventsPaginated(page, fetchSize)
+	events, total, err := pdb.GetActivityEventsPaginated(page, pageSize)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
-
-	// Filter out hidden internal events first.
-	visible := make([]*models.ActivityEvent, 0, len(events))
-	for _, ev := range events {
-		if timelineHiddenEventTypes[ev.EventType] {
-			continue
-		}
-		visible = append(visible, ev)
-	}
-
-	// Collapse consecutive watch/read events for the same media into sessions.
-	// Events are already ordered newest-first, so iterate and group while the
-	// previous-of-same-type event (older timestamp) is within sessionGapSeconds.
-	collapsed := collapseSessions(visible)
 
 	// Build a lookup map for achievement definitions
 	achDefMap := achievement.DefinitionMap()
@@ -169,8 +94,8 @@ func (h *Handler) respondWithTimeline(c echo.Context, pdb interface {
 	}
 
 	// Resolve events
-	resolved := make([]*TimelineEvent, 0, len(collapsed))
-	for _, ev := range collapsed {
+	resolved := make([]*TimelineEvent, 0, len(events))
+	for _, ev := range events {
 		te := &TimelineEvent{
 			ID:        ev.ID,
 			EventType: ev.EventType,
@@ -227,176 +152,21 @@ func (h *Handler) respondWithTimeline(c echo.Context, pdb interface {
 		resolved = append(resolved, te)
 	}
 
-	// Trim to pageSize after filtering+collapsing.
-	if len(resolved) > pageSize {
-		resolved = resolved[:pageSize]
-	}
-
 	return h.RespondWithData(c, &TimelineResponse{
 		Events:  resolved,
 		Page:    page,
-		HasMore: int64(page*fetchSize) < total,
+		HasMore: int64(page*pageSize) < total,
 		Total:   total,
 	})
-}
-
-// collapseSessions merges consecutive episode_watched / manga_chapter_read
-// events for the same media into a single synthetic event when they're within
-// sessionGapSeconds of each other. Input must be sorted newest-first.
-//
-// The resulting synthetic event has:
-//   - EventType = "watch_session" or "reading_session"
-//   - CreatedAt = newest event's timestamp (used for sorting & day grouping)
-//   - Metadata  = JSON: {"firstEpisode": N, "lastEpisode": M, "count": K,
-//                        "startedAt": "...", "endedAt": "..."}
-//
-// Single-event sessions keep their original event type — the UI only needs the
-// "session" treatment when there are 2+ episodes.
-func collapseSessions(events []*models.ActivityEvent) []*models.ActivityEvent {
-	if len(events) == 0 {
-		return events
-	}
-
-	out := make([]*models.ActivityEvent, 0, len(events))
-
-	// We walk newest→oldest. For each candidate "session anchor" (newest event),
-	// scan forward while the next event is the same type, same media, and
-	// within sessionGapSeconds of the previous one in the run.
-	i := 0
-	for i < len(events) {
-		ev := events[i]
-		isWatch := ev.EventType == models.ActivityEventEpisodeWatched
-		isRead := ev.EventType == models.ActivityEventMangaChapterRead
-		if !isWatch && !isRead {
-			out = append(out, ev)
-			i++
-			continue
-		}
-
-		// Find run of consecutive same-media events within session gap.
-		j := i
-		prev := ev.CreatedAt
-		for j+1 < len(events) {
-			next := events[j+1]
-			if next.EventType != ev.EventType || next.MediaId != ev.MediaId {
-				break
-			}
-			// events sorted DESC → next is older than prev. Gap = prev - next.
-			if prev.Sub(next.CreatedAt).Seconds() > float64(sessionGapSeconds) {
-				break
-			}
-			prev = next.CreatedAt
-			j++
-		}
-
-		if j == i {
-			// Single event, no collapsing needed.
-			out = append(out, ev)
-			i++
-			continue
-		}
-
-		// Build synthetic session event spanning events[i..j].
-		// Newest event is events[i] (used for createdAt + ID).
-		// Oldest is events[j] (used for startedAt).
-		first, last := math.MaxInt, math.MinInt
-		count := 0
-		for k := i; k <= j; k++ {
-			meta := ParseEventMetadata(events[k].Metadata)
-			if meta == nil {
-				continue
-			}
-			var n int
-			if isWatch {
-				if v, ok := meta["episode"]; ok {
-					n = toInt(v)
-				}
-			} else {
-				if v, ok := meta["chapter"]; ok {
-					n = toInt(v)
-				}
-			}
-			if n > 0 {
-				if n < first {
-					first = n
-				}
-				if n > last {
-					last = n
-				}
-			}
-			count++
-		}
-
-		sessionType := "watch_session"
-		if isRead {
-			sessionType = "reading_session"
-		}
-
-		payload := map[string]interface{}{
-			"count":     count,
-			"startedAt": events[j].CreatedAt.Format(time.RFC3339),
-			"endedAt":   events[i].CreatedAt.Format(time.RFC3339),
-		}
-		if first != math.MaxInt && last != math.MinInt {
-			if isWatch {
-				payload["firstEpisode"] = first
-				payload["lastEpisode"] = last
-			} else {
-				payload["firstChapter"] = first
-				payload["lastChapter"] = last
-			}
-		}
-		metaBytes, _ := json.Marshal(payload)
-
-		synthetic := &models.ActivityEvent{
-			BaseModel: events[i].BaseModel,
-			EventType: sessionType,
-			MediaId:   ev.MediaId,
-			Metadata:  string(metaBytes),
-		}
-		out = append(out, synthetic)
-		i = j + 1
-	}
-
-	return out
-}
-
-func toInt(v interface{}) int {
-	switch n := v.(type) {
-	case int:
-		return n
-	case int64:
-		return int(n)
-	case float64:
-		return int(n)
-	case float32:
-		return int(n)
-	}
-	return 0
 }
 
 // inferMediaType guesses media type from event type and metadata payload.
 func inferMediaType(eventType string, metadata string) string {
 	switch eventType {
-	case models.ActivityEventEpisodeWatched, "watch_session":
+	case models.ActivityEventEpisodeWatched:
 		return "anime"
-	case models.ActivityEventMangaChapterRead, "reading_session":
+	case models.ActivityEventMangaChapterRead:
 		return "manga"
-	case "series_complete":
-		meta := ParseEventMetadata(metadata)
-		if meta != nil {
-			if t, ok := meta["type"].(string); ok {
-				switch t {
-				case "anime":
-					return "anime"
-				case "manga":
-					return "manga"
-				}
-			}
-		}
-		// Default to anime — series_complete without type is recorded only by the
-		// anime-completion path (handlers/anime_entries.go); manga path always sets type=manga.
-		return "anime"
 	case models.ActivityEventAnilistEntryEdited, models.ActivityEventAnilistEntryDeleted:
 		meta := ParseEventMetadata(metadata)
 		if meta != nil {
