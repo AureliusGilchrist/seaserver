@@ -185,7 +185,7 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                         if (mediaId && saveTrackOverride) {
                             const subTrack = subtitleTracks.find(t => t.number === value)
                             const captionTrack = mediaCaptionsTracks.find(t => t.number === value)
-                            const lang = subTrack?.language || captionTrack?.language
+                            const lang = subTrack?.language || captionTrack?.language || subTrack?.label || captionTrack?.label
                             const codecID = subTrack?.codecID
                             if (lang) {
                                 saveTrackOverride(String(mediaId), { subtitleLanguage: lang, subtitleCodecID: codecID })

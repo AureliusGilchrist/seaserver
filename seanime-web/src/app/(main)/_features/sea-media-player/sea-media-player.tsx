@@ -158,6 +158,16 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
     // Track fullscreen state
     const wasFullscreenRef = React.useRef<boolean>(false)
 
+    // Fallback: sync atom from native fullscreenchange event in case Vidstack's
+    // onFullscreenChange doesn't fire (e.g. double-click or Escape key in browser)
+    React.useEffect(() => {
+        const handler = () => {
+            setIsFullscreen(!!document.fullscreenElement)
+        }
+        document.addEventListener('fullscreenchange', handler)
+        return () => document.removeEventListener('fullscreenchange', handler)
+    }, [])
+
     /** AniSkip **/
     const { data: aniSkipData } = useSkipData(media?.idMal, progress.currentEpisodeNumber ?? -1)
 
