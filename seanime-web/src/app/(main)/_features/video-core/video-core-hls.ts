@@ -111,7 +111,7 @@ export function useVideoCoreHls({
             const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: false,
-                backBufferLength: 90, // Reverted to original for online streaming compatibility
+                backBufferLength: 30, // hls.js default; 90 causes excess GPU memory pressure during fullscreen
                 enableWebVTT: true,
                 renderTextTracksNatively: false,
                 // Generous timeouts for online streams — default 10 s is too short for slow providers

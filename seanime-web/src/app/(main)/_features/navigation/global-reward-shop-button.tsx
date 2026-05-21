@@ -8,6 +8,7 @@ import { LuShoppingBag, LuX } from "react-icons/lu"
 import { GiTrophyCup } from "react-icons/gi"
 import { useAtomValue } from "jotai"
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { __seaMediaPlayer_isFullscreenAtom } from "@/app/(main)/_features/sea-media-player/sea-media-player.atoms"
 
 export function GlobalRewardShopButton() {
     const [open, setOpen] = React.useState(false)
@@ -15,10 +16,11 @@ export function GlobalRewardShopButton() {
     const level = levelData?.currentLevel ?? 0
     const { activeXPBarSkin } = useRewards()
     const isFullscreen = useAtomValue(vc_isFullscreen)
+    const isSeaPlayerFullscreen = useAtomValue(__seaMediaPlayer_isFullscreenAtom)
 
     // Hide the floating reward-shop / level pill entirely while any player
     // is fullscreen — it would otherwise overlap the video.
-    if (isFullscreen) return null
+    if (isFullscreen || isSeaPlayerFullscreen) return null
 
     // Extract a solid color from the XP bar fill CSS for use as the badge background
     const badgeBg = React.useMemo(() => {

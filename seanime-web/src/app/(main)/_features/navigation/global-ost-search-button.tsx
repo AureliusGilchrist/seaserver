@@ -3,6 +3,7 @@ import React from "react"
 import { useAtomValue } from "jotai"
 import { toast } from "sonner"
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { __seaMediaPlayer_isFullscreenAtom } from "@/app/(main)/_features/sea-media-player/sea-media-player.atoms"
 import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import {
     useSearchThemeMusic,
@@ -84,6 +85,7 @@ function buildOstQueryVariants(rawName: string): { primary: string; variants: st
 
 export function GlobalOstSearchButton() {
     const isFullscreen = useAtomValue(vc_isFullscreen)
+    const isSeaPlayerFullscreen = useAtomValue(__seaMediaPlayer_isFullscreenAtom)
     const animeTheme = useAnimeThemeOrNull()
     const themeId = animeTheme?.themeId ?? ""
     const themeDisplayName = animeTheme?.config?.displayName ?? themeId
@@ -92,7 +94,7 @@ export function GlobalOstSearchButton() {
 
     // Hide the floating button entirely while any player is fullscreen so it
     // doesn't sit on top of the video.
-    if (isFullscreen) return null
+    if (isFullscreen || isSeaPlayerFullscreen) return null
 
     // Bottom-right corner. In fullscreen, lift above the player control bar.
     const bottomPosition = isFullscreen ? "bottom-[140px]" : "bottom-5"

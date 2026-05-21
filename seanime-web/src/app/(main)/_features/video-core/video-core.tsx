@@ -1002,7 +1002,7 @@ export function VideoCore(props: VideoCoreProps) {
             // so fullscreen state is preserved across loading states
             if (fullscreenManager) {
                 fullscreenManager.beginTransition(fullscreen)
-                fullscreenManager.setVideoElement(null)
+                // fullscreenManager.setVideoElement(null) � do NOT detach during fullscreen; HLS pipeline must stay connected
             }
             setInSightOpen(false)
             setInSightData(null)
@@ -1400,20 +1400,17 @@ export function VideoCore(props: VideoCoreProps) {
         // check if right click
 
         if (inline) {
-            if (e.type === "click") {
-                const now = Date.now()
-                if (!debouncedMenuOpen) {
-                    togglePlay()
-                }
-                if (lastClickTime.current && now - lastClickTime.current < 300) {
-                    fullscreenManager?.toggleFullscreen()
-                } else {
+                if (e.type === "click") {
+                    const now = Date.now()
+                    const isLikelyDoubleClick = !!(lastClickTime.current && now - lastClickTime.current < 300)
+                    if (!debouncedMenuOpen && !isLikelyDoubleClick) {
+                        togglePlay()
+                    }
                     setTimeout(() => {
                         setBusy(false)
                     }, 100)
+                    lastClickTime.current = now
                 }
-                lastClickTime.current = now
-            }
 
             if (e.type === "contextmenu") {
                 e.preventDefault()
@@ -1422,9 +1419,12 @@ export function VideoCore(props: VideoCoreProps) {
         }
 
         if (e.type === "click") {
-            if (!debouncedMenuOpen) {
+            const now2 = Date.now()
+            const isLikelyDoubleClick2 = !!(lastClickTime.current && now2 - lastClickTime.current < 300)
+            if (!debouncedMenuOpen && !isLikelyDoubleClick2) {
                 togglePlay()
             }
+            lastClickTime.current = now2
             setTimeout(() => {
                 setBusy(false)
             }, 100)

@@ -6,6 +6,8 @@ import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
 import { EFFECTS_PRESETS } from "@/lib/ui-customize/ui-customize-definitions"
 import { motion } from "motion/react"
 import { usePathname } from "@/lib/navigation"
+import { useAtomValue } from "jotai"
+import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import React from "react"
 
 type CustomBackgroundImageProps = React.ComponentPropsWithoutRef<"div"> & {}
@@ -77,6 +79,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     const ts = useThemeSettings()
     const pathname = usePathname()
     const { state: uiState } = useUICustomize()
+    const isFullscreen = useAtomValue(vc_isFullscreen)
 
     // Exclude specific pages from background effects.
     // NOTE: anime/character detail pages (/entry) are intentionally NOT excluded —
@@ -121,7 +124,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     // opacity=100 → dimAlpha ≈ 0.08   (mostly visible)
     const dimAlpha = (100 - ts.libraryScreenCustomBackgroundOpacity) / 100 * 0.85 + 0.08
 
-    const hasAnyEffect = effectPreset && effectPreset.id !== "fx-none"
+    const hasAnyEffect = (effectPreset && effectPreset.id !== "fx-none") && !isFullscreen
 
     // On entry / chapter-reader pages we hide the wallpaper section (Section A)
     // since those pages render their own banner/cover art, but we still want
