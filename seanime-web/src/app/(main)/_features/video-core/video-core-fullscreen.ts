@@ -232,6 +232,7 @@ export class VideoCoreFullscreenManager extends EventTarget {
     }
 
     private _isTransitioning = false
+    private _wasFullscreenBeforeTransition = false
 
     beginTransition(isFullscreen: boolean) {
         this._isTransitioning = true
@@ -246,10 +247,7 @@ export class VideoCoreFullscreenManager extends EventTarget {
         return this._isTransitioning
     }
 
-    setVideoElement(element: HTMLVideoElement | null) {
-        this.videoElement = element
-    }
-
+    
     private async _enterElectronFullscreen(): Promise<void> {
         if (!(window as any)?.electron?.window?.setFullscreen) {
             log.warning("Electron fullscreen API not available")
