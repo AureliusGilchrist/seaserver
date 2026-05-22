@@ -861,9 +861,9 @@ type TrackPreference struct {
 	BaseModel
 	MediaID          string `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
 	AudioLanguage    string `gorm:"column:audio_language" json:"audioLanguage,omitempty"`
-	AudioCodecID     string `gorm:"column:audio_codec_id" json:"audioCodecId,omitempty"`
+	AudioCodecID     string `gorm:"column:audio_codec_id" json:"audioCodecID,omitempty"`
 	SubtitleLanguage string `gorm:"column:subtitle_language" json:"subtitleLanguage,omitempty"`
-	SubtitleCodecID  string `gorm:"column:subtitle_codec_id" json:"subtitleCodecId,omitempty"`
+	SubtitleCodecID  string `gorm:"column:subtitle_codec_id" json:"subtitleCodecID,omitempty"`
 }
 
 ///////////////////////////////////////////////////////////////////////////

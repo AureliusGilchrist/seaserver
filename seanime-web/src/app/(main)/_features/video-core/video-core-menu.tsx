@@ -378,7 +378,7 @@ export function VideoCoreSettingSelect(props: VideoCoreSettingSelectProps) {
                         <span className="flex-1" data-vc-element="setting-select-option-separator"></span>
                         {(option.moreInfo || option.description || option.isDefault) &&
                             <div className="w-fit flex-none ml-2 flex gap-2 items-center" data-vc-element="setting-select-option-description">
-                                {option.isDefault && <LuBookmark className="text-xs text-[--muted]" title="Your saved default" />}
+                                {option.isDefault && <LuBookmark className="text-xs text-[--muted]" fill="currentColor" title="Your saved default" />}
                                 {option.moreInfo && <span className="text-xs font-medium tracking-wide text-[--muted]">
                                     {option.moreInfo}
                                 </span>}

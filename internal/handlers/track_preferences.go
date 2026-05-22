@@ -39,9 +39,9 @@ func (h *Handler) HandleUpsertTrackPreference(c echo.Context) error {
 	type body struct {
 		MediaID          string `json:"mediaId"`
 		AudioLanguage    string `json:"audioLanguage,omitempty"`
-		AudioCodecID     string `json:"audioCodecId,omitempty"`
+		AudioCodecID     string `json:"audioCodecID,omitempty"`
 		SubtitleLanguage string `json:"subtitleLanguage,omitempty"`
-		SubtitleCodecID  string `json:"subtitleCodecId,omitempty"`
+		SubtitleCodecID  string `json:"subtitleCodecID,omitempty"`
 	}
 
 	b := new(body)

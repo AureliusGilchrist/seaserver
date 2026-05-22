@@ -23,10 +23,10 @@ export function useTrackPreferenceSync() {
             const mapped: Record<string, PerMediaTrackOverride> = {}
             for (const [mediaId, pref] of Object.entries(serverPrefs)) {
                 mapped[mediaId] = {
-                    audioLanguage: (pref as any).audioLanguage || undefined,
-                    audioCodecID: (pref as any).audioCodecId || (pref as any).audioCodecID || undefined,
-                    subtitleLanguage: (pref as any).subtitleLanguage || undefined,
-                    subtitleCodecID: (pref as any).subtitleCodecId || (pref as any).subtitleCodecID || undefined,
+                    audioLanguage: pref.audioLanguage || undefined,
+                    audioCodecID: pref.audioCodecID || undefined,
+                    subtitleLanguage: pref.subtitleLanguage || undefined,
+                    subtitleCodecID: pref.subtitleCodecID || undefined,
                 }
             }
             setOverrides(mapped)

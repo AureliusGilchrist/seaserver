@@ -149,40 +149,64 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                             label: "Off",
                             value: -1,
                         },
-                        ...subtitleTracks.map(track => {
-                            // MKV subtitle tracks
+                        ...(() => {
+                            // Compute isDefault with proper uniqueness guarantees
                             const savedCodec = playbackInfo?.media?.id ? perMediaTrackOverrides[String(playbackInfo.media.id)]?.subtitleCodecID : undefined
-                            const langMatch = !!savedSubtitleLang && savedSubtitleLang !== "none" &&
-                                track.language?.toLowerCase() === savedSubtitleLang?.toLowerCase()
                             const SIGNS_RE = /\b(signs?|songs?|signs?\s*[&+]\s*songs?|songs?\s*[&+]\s*signs?|commentary|forced)\b/i
-                            const isSignsTrack = !!track.label && SIGNS_RE.test(track.label)
-                            // If codec is saved and matches, it's the saved track
-                            // If no codec saved (or same codec), prefer the non-signs track
-                            const isDefault = langMatch && (
-                                savedCodec ? track.codecID === savedCodec : !isSignsTrack
-                            )
-                            return {
-                                label: `${track.label || track.language?.toUpperCase() || track.languageIETF?.toUpperCase()}`,
-                                value: track.number,
-                                moreInfo: track.language && track.language !== track.label
-                                    ? `${track.language.toUpperCase()}${track.codecID ? "/" + getSubtitleTrackType(track.codecID) : ``}`
-                                    : undefined,
-                                isDefault,
+                            const isSignsTrack = (label?: string) => !!label && SIGNS_RE.test(label)
+
+                            // First pass: find exact codec match
+                            let defaultTrackNumber: number | undefined
+                            if (savedCodec && savedSubtitleLang && savedSubtitleLang !== "none") {
+                                const exactMatch = subtitleTracks.find(t =>
+                                    t.language?.toLowerCase() === savedSubtitleLang.toLowerCase() &&
+                                    t.codecID === savedCodec
+                                )
+                                if (exactMatch) defaultTrackNumber = exactMatch.number
                             }
-                        }),
-                        ...mediaCaptionsTracks.map(track => {
-                            const langMatch = !!savedSubtitleLang && savedSubtitleLang !== "none" &&
-                                track.language?.toLowerCase() === savedSubtitleLang?.toLowerCase()
-                            const SIGNS_RE = /\b(signs?|songs?|signs?\s*[&+]\s*songs?|songs?\s*[&+]\s*signs?|commentary|forced)\b/i
-                            const isSignsTrack = !!track.label && SIGNS_RE.test(track.label)
-                            const isDefault = langMatch && !isSignsTrack
-                            return {
-                                label: track.label,
-                                value: track.number,
-                                moreInfo: track.language && track.language !== track.label ? track.language?.toUpperCase() : undefined,
-                                isDefault,
+
+                            // Second pass: if no exact codec match, pick first non-signs track with matching lang
+                            if (defaultTrackNumber === undefined && savedSubtitleLang && savedSubtitleLang !== "none") {
+                                const nonSignsMatch = subtitleTracks.find(t =>
+                                    t.language?.toLowerCase() === savedSubtitleLang.toLowerCase() &&
+                                    !isSignsTrack(t.label)
+                                )
+                                if (nonSignsMatch) defaultTrackNumber = nonSignsMatch.number
                             }
-                        }),
+
+                            return subtitleTracks.map(track => {
+                                const isDefault = track.number === defaultTrackNumber
+                                return {
+                                    label: `${track.label || track.language?.toUpperCase() || track.languageIETF?.toUpperCase()}`,
+                                    value: track.number,
+                                    moreInfo: track.language && track.language !== track.label
+                                        ? `${track.language.toUpperCase()}${track.codecID ? "/" + getSubtitleTrackType(track.codecID) : ``}`
+                                        : undefined,
+                                    isDefault,
+                                }
+                            })
+                        })(),
+                        ...(() => {
+                            // Single-pass: find first non-signs track with matching lang
+                            let defaultCaptionsNumber: number | undefined
+                            if (savedSubtitleLang && savedSubtitleLang !== "none") {
+                                const SIGNS_RE = /\b(signs?|songs?|signs?\s*[&+]\s*songs?|songs?\s*[&+]\s*signs?|commentary|forced)\b/i
+                                const match = mediaCaptionsTracks.find(t =>
+                                    t.language?.toLowerCase() === savedSubtitleLang.toLowerCase() &&
+                                    !(!!t.label && SIGNS_RE.test(t.label))
+                                )
+                                if (match) defaultCaptionsNumber = match.number
+                            }
+                            return mediaCaptionsTracks.map(track => {
+                                const isDefault = track.number === defaultCaptionsNumber
+                                return {
+                                    label: track.label,
+                                    value: track.number,
+                                    moreInfo: track.language && track.language !== track.label ? track.language?.toUpperCase() : undefined,
+                                    isDefault,
+                                }
+                            })
+                        })(),
                     ]}
                     onValueChange={(value: number) => {
                         if (value === -1) {
