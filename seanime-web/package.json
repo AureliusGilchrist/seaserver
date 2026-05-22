@@ -1,9 +1,12 @@
 {
     "name": "seanime-web",
-    "version": "2.1.0",
+    "version": "2.1.0001",
     "private": true,
     "type": "module",
     "scripts": {
+        "sync-versions": "node ../sync-versions.js",
+        "predev": "node ../sync-versions.js",
+        "prebuild": "node ../sync-versions.js",
         "dev": "env-cmd -f .env.web rsbuild dev",
         "dev:mobile": "env-cmd -f .env.mobile rsbuild dev",
         "dev:desktop": "env-cmd -f .env.desktop rsbuild dev",

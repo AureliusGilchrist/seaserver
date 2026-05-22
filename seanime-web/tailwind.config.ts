@@ -219,6 +219,10 @@ const config: Config = {
                     "40%": { transform: "translateX(0) scaleX(0.4)" },
                     "100%": { transform: "translateX(100%) scaleX(0.5)" },
                 },
+                "vc-cursor-ripple": {
+                    "0%": { width: "1px", height: "1px", opacity: "0.35" },
+                    "100%": { width: "40px", height: "40px", opacity: "0" },
+                },
             },
             animation: {
                 "accordion-down": "accordion-down 0.15s linear",

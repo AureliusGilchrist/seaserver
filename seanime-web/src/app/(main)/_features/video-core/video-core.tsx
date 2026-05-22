@@ -315,6 +315,16 @@ const PlayerContent = React.memo<PlayerContentProps>(({
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
     const busy = useAtomValue(vc_busy)
     const paused = useAtomValue(vc_paused)
+    const cursorPos = useAtomValue(vc_cursorPosition)
+    const [ripple, setRipple] = useState<{ x: number; y: number; key: number } | null>(null)
+    const rippleKeyRef = useRef(0)
+    const prevBusyRef = useRef(busy)
+    React.useEffect(() => {
+        if (prevBusyRef.current === true && busy === false && !isMiniPlayer && !isMobile) {
+            setRipple({ x: cursorPos.x, y: cursorPos.y, key: ++rippleKeyRef.current })
+        }
+        prevBusyRef.current = busy
+    }, [busy])
     const buffering = useAtomValue(vc_buffering)
     const settings = useAtomValue(vc_settings)
     const beautifyImage = useAtomValue(vc_beautifyImageAtom)
@@ -370,6 +380,20 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                 onMouseEnter={handleContainerMouseEnter}
                 onMouseLeave={handleContainerMouseLeave}
             >
+                {ripple && (
+                    <span
+                        key={ripple.key}
+                        onAnimationEnd={() => setRipple(null)}
+                        className="pointer-events-none absolute rounded-full border border-white/20 animate-[vc-cursor-ripple_0.5s_ease-out_forwards]"
+                        style={{
+                            left: ripple.x,
+                            top: ripple.y,
+                            width: 1,
+                            height: 1,
+                            transform: "translate(-50%, -50%)",
+                        }}
+                    />
+                )}
                 {state.playbackInfo?.media?.coverImage?.extraLarge && !fullscreen && (
                     <div
                         data-vc-element="background-blur"
@@ -804,6 +828,7 @@ export function VideoCore(props: VideoCoreProps) {
     const fullscreen = useAtomValue(vc_isFullscreen)
     const showOverlayFeedback = useSetAtom(vc_showOverlayFeedback)
     const cursorBusy = useAtomValue(vc_cursorBusy)
+    const setCursorPosition = useSetAtom(vc_cursorPosition)
 
     const [skipOpeningTime, setSkipOpeningTime] = useAtom(vc_skipOpeningTime)
     const [skipEndingTime, setSkipEndingTime] = useAtom(vc_skipEndingTime)
@@ -1674,6 +1699,9 @@ export function VideoCore(props: VideoCoreProps) {
         if (setNotBusyTimeout?.current) {
             clearTimeout(setNotBusyTimeout.current)
         }
+        // Track container-relative position for the cursor-hide ripple
+        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+        setCursorPosition({ x: x - rect.left, y: y - rect.top })
         setBusy(true)
         setNotBusyTimeout.current = setTimeout(() => {
             if (!cursorBusy) {

@@ -159,8 +159,9 @@ func (h *Handler) HandleScanLocalFiles(c echo.Context) error {
 	})
 
 	// Record granular activity event
+	pdbScan := h.GetProfileDatabase(c)
 	go func() {
-		pdb := h.GetProfileDatabase(c)
+		pdb := pdbScan
 		if pdb != nil {
 			_ = pdb.RecordActivityEvent(models.ActivityEventLibraryScanned, 0, map[string]interface{}{
 				"fileCount": len(lfs),

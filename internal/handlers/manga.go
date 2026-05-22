@@ -698,8 +698,9 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 	isCompleted := b.TotalChapters > 0 && b.ChapterNumber >= b.TotalChapters
 
 	// Record activity (heatmap + granular event)
+	pdbChapter := h.GetProfileDatabase(c)
 	go func() {
-		pdb := h.GetProfileDatabase(c)
+		pdb := pdbChapter
 		if pdb == nil {
 			return
 		}

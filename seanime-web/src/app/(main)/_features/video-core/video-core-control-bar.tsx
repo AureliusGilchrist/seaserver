@@ -71,8 +71,6 @@ export function VideoCoreControlBar(props: {
             ) :
             // cursor is approaching and video is not paused
             (!paused && cursorPosition === "approaching")
-            // or cursor not hovering and video is paused
-            || (paused && cursorPosition === "outside") || (paused && cursorPosition === "approaching")
     )
 
     const controlBarTranslateY = isMobile ? (
@@ -84,7 +82,8 @@ export function VideoCoreControlBar(props: {
                 cursorPosition === "hover" ? 0 : 300
             )
         ) : (
-            (cursorBusy || hoveringControlBar) ? 0 : (
+            // Full bar: cursor hovering the bar, menu open, or paused AND cursor is near/over the bottom
+            (cursorBusy || hoveringControlBar || (paused && cursorPosition !== "outside")) ? 0 : (
                 showOnlyTimeRange ? mainSectionHeight : (
                     cursorPosition === "hover" ? 0 : 300
                 )

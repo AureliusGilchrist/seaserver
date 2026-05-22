@@ -622,8 +622,9 @@ func (h *Handler) HandleAnimeEntryManualMatch(c echo.Context) error {
 	}
 
 	// Refresh anime collection in background so unmatched lists are rebuilt
+	pdbMatch := h.GetProfileDatabase(c)
 	go func() {
-		pdb := h.GetProfileDatabase(c)
+		pdb := pdbMatch
 		if pdb != nil {
 			_ = pdb.RecordActivityEvent(models.ActivityEventFileMatched, b.MediaId, map[string]interface{}{
 				"paths":  b.Paths,
@@ -842,8 +843,9 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 	})
 
 	// Record activity for stats heatmap/streaks
+	pdbEpisode := h.GetProfileDatabase(c)
 	go func() {
-		pdb := h.GetProfileDatabase(c)
+		pdb := pdbEpisode
 		if pdb != nil {
 			minutes := 0
 			// Try to get episode duration from cached collection

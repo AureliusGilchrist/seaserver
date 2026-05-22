@@ -92,13 +92,16 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
         onTextTrackChange()
     }, [subtitleManager])
 
-    // When the stream URL changes (e.g. after audio-track retranscode), reset subtitle
-    // state so the menu re-syncs from the new manager once tracks are loaded.
+    // When the stream ID changes (new episode / retranscode), reset subtitle state
+    // so the menu re-syncs from the new manager once tracks are loaded.
+    // NOTE: intentionally keyed on playbackInfo?.id, NOT streamUrl — streamUrl can change
+    // during a retranscode while the manager + tracks are still valid, which was causing
+    // the subtitle button to vanish after manually selecting a track in Denshi.
     React.useEffect(() => {
         setSelectedTrack(null)
         setSubtitleTracks([])
         setMediaCaptionsTracks([])
-    }, [playbackInfo?.streamUrl])
+    }, [playbackInfo?.id])
 
     // Get active manager
     const activeManager = subtitleManager || mediaCaptionsManager

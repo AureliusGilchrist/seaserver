@@ -186,8 +186,9 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 	}
 
 	// Record activity event
+	pdbEdit := h.GetProfileDatabase(c)
 	go func() {
-		pdb := h.GetProfileDatabase(c)
+		pdb := pdbEdit
 		meta := map[string]interface{}{"type": p.Type}
 		if p.Status != nil {
 			meta["status"] = string(*p.Status)
@@ -482,9 +483,9 @@ func (h *Handler) HandleDeleteAnilistListEntry(c echo.Context) error {
 	}
 
 	// Record activity event for delete
+	pdbDelete := h.GetProfileDatabase(c)
 	go func() {
-		pdb := h.GetProfileDatabase(c)
-		_ = pdb.RecordActivityEvent(models.ActivityEventAnilistEntryDeleted, *p.MediaId, map[string]interface{}{"type": *p.Type})
+		_ = pdbDelete.RecordActivityEvent(models.ActivityEventAnilistEntryDeleted, *p.MediaId, map[string]interface{}{"type": *p.Type})
 	}()
 
 	switch *p.Type {
