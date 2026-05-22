@@ -1170,6 +1170,7 @@ export function VideoCore(props: VideoCoreProps) {
                             dispatchTranslateSubtitleTrackEvent(track)
                         }
                     },
+                    subtitleCodecOverride: perMediaOverride?.subtitleCodecID,
                 })
             })
         } else {

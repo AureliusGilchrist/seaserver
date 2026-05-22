@@ -34,6 +34,7 @@ export type MediaCaptionsManagerOptions = {
     fetchAndConvertToVTT: FetchAndConvertToVTT
     sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
     translateTargetLang: string | null
+    subtitleCodecOverride?: string
 }
 
 type LoadedTrack = {
@@ -110,6 +111,7 @@ export class MediaCaptionsManager extends EventTarget {
     private subtitleDelay = 0
 
     private readonly fetchAndConvertToVTT: FetchAndConvertToVTT
+    private readonly subtitleCodecOverride?: string
 
     private _onSelectedTrackChanged?: (track: number | null) => void
     private _onTracksLoaded?: (tracks: MediaCaptionsTrack[]) => void
@@ -131,6 +133,7 @@ export class MediaCaptionsManager extends EventTarget {
         this.fetchAndConvertToVTT = options.fetchAndConvertToVTT
         this.sendTranslateRequest = options.sendTranslateRequest
         this.shouldTranslate = options.translateTargetLang
+        this.subtitleCodecOverride = options.subtitleCodecOverride
 
         this.init()
     }
@@ -658,7 +661,7 @@ export class MediaCaptionsManager extends EventTarget {
         }
         // When the first track is loaded, start rendering captions
         // Select default track
-        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, this.tracks.map((t, idx) => ({ ...t, number: idx })))
+        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, this.tracks.map((t, idx) => ({ ...t, number: idx })), this.subtitleCodecOverride)
         await this.selectTrack(defaultTrackNumber)
         // Setup time update listener
         this.timeUpdateListener = () => {
