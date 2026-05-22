@@ -142,7 +142,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { ErrorData } from "hls.js"
 import { atom } from "jotai"
 import { ScopeProvider } from "jotai-scope"
-import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
+import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai/react"
 import React, { useMemo, useRef, useState } from "react"
 import { BiExpand, BiX } from "react-icons/bi"
 import { FiMinimize2 } from "react-icons/fi"
@@ -796,6 +796,7 @@ export function VideoCore(props: VideoCoreProps) {
     const qc = useQueryClient()
     const settings = useAtomValue(vc_settings)
     const perMediaTrackOverrides = useAtomValue(vc_perMediaTrackOverrides)
+    const jotaiStore = useStore()
     const [isMiniPlayer, setIsMiniPlayer] = useAtom(vc_miniPlayer)
     const [busy, setBusy] = useAtom(vc_busy)
     const [buffering, setBuffering] = useAtom(vc_buffering)
@@ -1084,8 +1085,11 @@ export function VideoCore(props: VideoCoreProps) {
         if (!state.playbackInfo) return // shouldn't happen
 
         // Build effective settings with per-media track overrides
+        // Read imperatively from the Jotai store to always get the absolute latest value,
+        // bypassing React batching / closure staleness that can occur at loadedmetadata time
         const mediaId = state.playbackInfo.media?.id
-        const perMediaOverride = mediaId ? perMediaTrackOverrides[String(mediaId)] : undefined
+        const latestOverrides = jotaiStore.get(vc_perMediaTrackOverrides)
+        const perMediaOverride = mediaId ? latestOverrides[String(mediaId)] : undefined
         const effectiveSettings = perMediaOverride ? {
             ...settings,
             preferredAudioLanguage: perMediaOverride.audioLanguage || settings.preferredAudioLanguage,

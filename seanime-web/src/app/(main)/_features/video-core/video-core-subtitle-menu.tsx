@@ -1,6 +1,6 @@
 import { vc_subtitleManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_mediaCaptionsManager } from "@/app/(main)/_features/video-core/video-core"
-import { vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { vc_perMediaTrackOverrides, vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_menuOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_menuSectionOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -32,6 +32,8 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
     const containerElement = useAtomValue(vc_containerElement)
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
     const saveTrackOverride = useAtomValue(vc_saveTrackOverride)
+    const perMediaTrackOverrides = useAtomValue(vc_perMediaTrackOverrides)
+    const savedSubtitleLang = playbackInfo?.media?.id ? perMediaTrackOverrides[String(playbackInfo.media.id)]?.subtitleLanguage : undefined
 
     const setMenuOpen = useSetAtom(vc_menuOpen)
     const setMenuSectionOpen = useSetAtom(vc_menuSectionOpen)
@@ -146,19 +148,29 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                         },
                         ...subtitleTracks.map(track => {
                             // MKV subtitle tracks
+                            const trackLang = track.language || track.label
+                            const isDefault = !!savedSubtitleLang && savedSubtitleLang !== "none" &&
+                                (trackLang?.toLowerCase() === savedSubtitleLang?.toLowerCase() ||
+                                 track.label?.toLowerCase()?.includes(savedSubtitleLang?.toLowerCase() ?? ""))
                             return {
                                 label: `${track.label || track.language?.toUpperCase() || track.languageIETF?.toUpperCase()}`,
                                 value: track.number,
                                 moreInfo: track.language && track.language !== track.label
                                     ? `${track.language.toUpperCase()}${track.codecID ? "/" + getSubtitleTrackType(track.codecID) : ``}`
                                     : undefined,
+                                isDefault,
                             }
                         }),
                         ...mediaCaptionsTracks.map(track => {
+                            const trackLang = track.language || track.label
+                            const isDefault = !!savedSubtitleLang && savedSubtitleLang !== "none" &&
+                                (trackLang?.toLowerCase() === savedSubtitleLang?.toLowerCase() ||
+                                 track.label?.toLowerCase()?.includes(savedSubtitleLang?.toLowerCase() ?? ""))
                             return {
                                 label: track.label,
                                 value: track.number,
                                 moreInfo: track.language && track.language !== track.label ? track.language?.toUpperCase() : undefined,
+                                isDefault,
                             }
                         }),
                     ]}

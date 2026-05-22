@@ -1,6 +1,6 @@
 import { MKVParser_TrackInfo } from "@/api/generated/types"
 import { vc_audioManager } from "@/app/(main)/_features/video-core/video-core"
-import { vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { vc_perMediaTrackOverrides, vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
 
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -28,6 +28,8 @@ export function VideoCoreAudioMenu() {
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
     const saveTrackOverride = useAtomValue(vc_saveTrackOverride)
     const requestTranscodeForAudio = useAtomValue(vc_requestTranscodeForAudio)
+    const perMediaTrackOverrides = useAtomValue(vc_perMediaTrackOverrides)
+    const savedAudioLang = playbackInfo?.media?.id ? perMediaTrackOverrides[String(playbackInfo.media.id)]?.audioLanguage : undefined
 
     // Get MKV audio tracks
     const mkvAudioTracks = playbackInfo?.mkvMetadata?.audioTracks
@@ -94,10 +96,13 @@ export function VideoCoreAudioMenu() {
                             const parts: string[] = []
                             if (hlsTrack.name) parts.push(hlsTrack.name)
                             if (hlsTrack.language) parts.push(`[${hlsTrack.language}]`)
+                            const isDefault = !!savedAudioLang &&
+                                hlsTrack.language?.toLowerCase() === savedAudioLang?.toLowerCase()
                             return {
                                 label: parts.length > 0 ? parts.join(" ") : `Track ${hlsTrack.id + 1}`,
                                 value: hlsTrack.id,
                                 moreInfo: hlsTrack.language?.toUpperCase(),
+                                isDefault,
                             }
                         } else {
                             const eventTrack = track as MKVParser_TrackInfo
@@ -109,10 +114,13 @@ export function VideoCoreAudioMenu() {
                             if (codec) parts.push(`(${codec})`)
                             const ch = eventTrack.audio?.Channels
                             if (ch) parts.push(`${ch}ch`)
+                            const isDefault = !!savedAudioLang &&
+                                lang?.toLowerCase() === savedAudioLang?.toLowerCase()
                             return {
                                 label: parts.length > 0 ? parts.join(" ") : `Track ${eventTrack.number}`,
                                 value: eventTrack.number,
                                 moreInfo: lang?.toUpperCase(),
+                                isDefault,
                             }
                         }
                     })}

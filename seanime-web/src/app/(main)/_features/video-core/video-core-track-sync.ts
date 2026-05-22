@@ -37,12 +37,15 @@ export function useTrackPreferenceSync() {
     // Register the write-through callback so menus can call it
     useEffect(() => {
         const save = (mediaId: string, override: Partial<PerMediaTrackOverride>) => {
-            setOverrides(prev => {
-                const merged = { ...prev[mediaId], ...override }
-                return { ...prev, [mediaId]: merged }
-            })
             const current = overridesRef.current[mediaId] || {}
             const merged = { ...current, ...override }
+            // Update the ref immediately (synchronously) so any loadedmetadata handler
+            // that fires in the same tick already sees the new value
+            overridesRef.current = { ...overridesRef.current, [mediaId]: merged }
+            setOverrides(prev => {
+                const prevMerged = { ...prev[mediaId], ...override }
+                return { ...prev, [mediaId]: prevMerged }
+            })
             upsert({
                 mediaId,
                 audioLanguage: merged.audioLanguage,
