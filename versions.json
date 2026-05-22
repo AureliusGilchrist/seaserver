@@ -14,7 +14,7 @@
         "source": "seanime-web/package.json"
     },
     "seanime-denshi": {
-        "version": "4.0.0-3",
+        "version": "4.0.0-4",
         "source": "seanime-denshi/package.json"
     },
     "updater": {
@@ -27,6 +27,10 @@
         "themes": {
             "source": "seanime-themes/index.json",
             "notes": "Versioned per-theme inside seanime-themes/index.json; no global version."
+        },
+        "cursors": {
+            "source": "seanime-cursors/index.json",
+            "notes": "Versioned per-cursor-pack inside seanime-cursors/index.json; no global version."
         },
         "extensions_marketplace": {
             "url": "https://raw.githubusercontent.com/5rahim/seanime-extensions/refs/heads/main/marketplace.json"

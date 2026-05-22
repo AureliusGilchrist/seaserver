@@ -155,14 +155,21 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                             const SIGNS_RE = /\b(signs?|songs?|signs?\s*[&+]\s*songs?|songs?\s*[&+]\s*signs?|commentary|forced)\b/i
                             const isSignsTrack = (label?: string) => !!label && SIGNS_RE.test(label)
 
-                            // First pass: find exact codec match
+                            // First pass: find exact codec match, preferring non-signs tracks
                             let defaultTrackNumber: number | undefined
                             if (savedCodec && savedSubtitleLang && savedSubtitleLang !== "none") {
-                                const exactMatch = subtitleTracks.find(t =>
+                                const codecMatches = subtitleTracks.filter(t =>
                                     t.language?.toLowerCase() === savedSubtitleLang.toLowerCase() &&
                                     t.codecID === savedCodec
                                 )
-                                if (exactMatch) defaultTrackNumber = exactMatch.number
+                                // Prefer non-signs track with exact codec match
+                                const nonSignsMatch = codecMatches.find(t => !isSignsTrack(t.label))
+                                if (nonSignsMatch) {
+                                    defaultTrackNumber = nonSignsMatch.number
+                                } else if (codecMatches.length > 0) {
+                                    // All matches are signs tracks, use first one
+                                    defaultTrackNumber = codecMatches[0].number
+                                }
                             }
 
                             // Second pass: if no exact codec match, pick first non-signs track with matching lang
