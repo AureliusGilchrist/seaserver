@@ -148,10 +148,16 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                         },
                         ...subtitleTracks.map(track => {
                             // MKV subtitle tracks
-                            const trackLang = track.language || track.label
-                            const isDefault = !!savedSubtitleLang && savedSubtitleLang !== "none" &&
-                                (trackLang?.toLowerCase() === savedSubtitleLang?.toLowerCase() ||
-                                 track.label?.toLowerCase()?.includes(savedSubtitleLang?.toLowerCase() ?? ""))
+                            const savedCodec = playbackInfo?.media?.id ? perMediaTrackOverrides[String(playbackInfo.media.id)]?.subtitleCodecID : undefined
+                            const langMatch = !!savedSubtitleLang && savedSubtitleLang !== "none" &&
+                                track.language?.toLowerCase() === savedSubtitleLang?.toLowerCase()
+                            const SIGNS_RE = /\b(signs?|songs?|signs?\s*[&+]\s*songs?|songs?\s*[&+]\s*signs?|commentary|forced)\b/i
+                            const isSignsTrack = !!track.label && SIGNS_RE.test(track.label)
+                            // If codec is saved and matches, it's the saved track
+                            // If no codec saved (or same codec), prefer the non-signs track
+                            const isDefault = langMatch && (
+                                savedCodec ? track.codecID === savedCodec : !isSignsTrack
+                            )
                             return {
                                 label: `${track.label || track.language?.toUpperCase() || track.languageIETF?.toUpperCase()}`,
                                 value: track.number,
@@ -162,10 +168,11 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                             }
                         }),
                         ...mediaCaptionsTracks.map(track => {
-                            const trackLang = track.language || track.label
-                            const isDefault = !!savedSubtitleLang && savedSubtitleLang !== "none" &&
-                                (trackLang?.toLowerCase() === savedSubtitleLang?.toLowerCase() ||
-                                 track.label?.toLowerCase()?.includes(savedSubtitleLang?.toLowerCase() ?? ""))
+                            const langMatch = !!savedSubtitleLang && savedSubtitleLang !== "none" &&
+                                track.language?.toLowerCase() === savedSubtitleLang?.toLowerCase()
+                            const SIGNS_RE = /\b(signs?|songs?|signs?\s*[&+]\s*songs?|songs?\s*[&+]\s*signs?|commentary|forced)\b/i
+                            const isSignsTrack = !!track.label && SIGNS_RE.test(track.label)
+                            const isDefault = langMatch && !isSignsTrack
                             return {
                                 label: track.label,
                                 value: track.number,
@@ -193,11 +200,13 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                         }
 
                         // Save per-media subtitle language + codec override
+                        // Only save when there is a real language code — never fall back to label
+                        // (a label like "Songs & Signs" would incorrectly match the same track on the next episode)
                         const mediaId = playbackInfo?.media?.id
                         if (mediaId && saveTrackOverride) {
                             const subTrack = subtitleTracks.find(t => t.number === value)
                             const captionTrack = mediaCaptionsTracks.find(t => t.number === value)
-                            const lang = subTrack?.language || captionTrack?.language || subTrack?.label || captionTrack?.label
+                            const lang = subTrack?.language || captionTrack?.language
                             const codecID = subTrack?.codecID
                             if (lang) {
                                 saveTrackOverride(String(mediaId), { subtitleLanguage: lang, subtitleCodecID: codecID })

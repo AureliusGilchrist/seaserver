@@ -1090,10 +1090,16 @@ export function VideoCore(props: VideoCoreProps) {
         const mediaId = state.playbackInfo.media?.id
         const latestOverrides = jotaiStore.get(vc_perMediaTrackOverrides)
         const perMediaOverride = mediaId ? latestOverrides[String(mediaId)] : undefined
+        // A valid subtitle language override is either "none" or a short language code (no spaces, ≤20 chars).
+        // Labels like "Songs & Signs" are invalid overrides — skip them and fall back to the user's default.
+        const isValidSubtitleOverride = (lang?: string) =>
+            !!lang && (lang === "none" || (lang.length <= 20 && !lang.includes(" ")))
         const effectiveSettings = perMediaOverride ? {
             ...settings,
             preferredAudioLanguage: perMediaOverride.audioLanguage || settings.preferredAudioLanguage,
-            preferredSubtitleLanguage: perMediaOverride.subtitleLanguage || settings.preferredSubtitleLanguage,
+            preferredSubtitleLanguage: isValidSubtitleOverride(perMediaOverride.subtitleLanguage)
+                ? perMediaOverride.subtitleLanguage!
+                : settings.preferredSubtitleLanguage,
         } : settings
 
         // setHasUpdatedProgress(false)

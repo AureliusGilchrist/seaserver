@@ -1238,6 +1238,11 @@ export function getDefaultSubtitleTrackNumber(
         tracks = tracks?.filter?.(t => !t.label || !blacklistLabels.includes(t.label?.toLowerCase())) ?? []
     }
 
+    // Labels that indicate a partial/signs-only track — deprioritized when full subtitles exist
+    const SIGNS_PATTERN = /\b(signs?|songs?|signs?\s*[&+]\s*songs?|songs?\s*[&+]\s*signs?|commentary|forced)\b/i
+    const isSignsTrack = (t: { label?: string }) =>
+        !!t.label && SIGNS_PATTERN.test(t.label)
+
     // Try each preferred language in order
     for (const preferredLang of preferredLanguages) {
         let foundTracks = tracks?.filter?.(t => t.language?.toLowerCase() === preferredLang?.toLowerCase())
@@ -1246,6 +1251,11 @@ export function getDefaultSubtitleTrackNumber(
             if (codecHint && foundTracks.length > 1) {
                 const codecMatch = foundTracks.find(t => t.codecID === codecHint)
                 if (codecMatch) return codecMatch.number
+            }
+            // When multiple tracks match, deprioritize signs/songs tracks
+            if (foundTracks.length > 1) {
+                const nonSignsTracks = foundTracks.filter(t => !isSignsTrack(t))
+                if (nonSignsTracks.length > 0) foundTracks = nonSignsTracks
             }
             // Find default or forced track
             const defaultIndex = foundTracks.findIndex(t => t.forced)
@@ -1256,12 +1266,23 @@ export function getDefaultSubtitleTrackNumber(
         if (preferredLang.length > 4) {
             foundTracks = tracks?.filter?.(t => t.label?.toLowerCase().includes(preferredLang.toLowerCase()))
             if (foundTracks?.length) {
-                return foundTracks[0].number
+                // Deprioritize signs/songs tracks here too
+                const nonSignsTracks = foundTracks.filter(t => !isSignsTrack(t))
+                return (nonSignsTracks.length > 0 ? nonSignsTracks : foundTracks)[0].number
             }
         }
         if (preferredLang === "none") {
             return NO_TRACK_NUMBER
         }
+    }
+
+    // Final label fallback: look for any track whose label contains "english"
+    // (catches tracks with no language code but labeled "English", "English Full", etc.)
+    const englishLabelTracks = tracks?.filter?.(t => t.label?.toLowerCase().includes("english"))
+    if (englishLabelTracks?.length) {
+        const nonSigns = englishLabelTracks.filter(t => !isSignsTrack(t))
+        const candidates = nonSigns.length > 0 ? nonSigns : englishLabelTracks
+        return candidates[0].number
     }
 
     // No preferred tracks found, look for default or forced tracks
