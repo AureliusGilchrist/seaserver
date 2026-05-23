@@ -16,6 +16,7 @@ export type MediaCaptionsTrackInfo = {
     language: string
     type?: "vtt" | "srt" | "ssa" | "ass" | string
     default?: boolean
+    codecID?: string // e.g., "S_TEXT/ASS" for codec matching
 }
 
 export type MediaCaptionsTrack = {
