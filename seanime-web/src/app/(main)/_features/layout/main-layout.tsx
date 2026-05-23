@@ -41,6 +41,7 @@ import { AnilistStatusBanner } from "../anilist-status-banner"
 import { Announcements } from "../announcements"
 import { AnimeThemeProvider } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { CursorProvider } from "@/lib/cursors/cursor-provider"
+import { CursorLibraryProvider } from "@/lib/cursors/cursor-library-provider"
 import { RewardProvider } from "@/lib/rewards/reward-provider"
 import { UICustomizeProvider } from "@/lib/ui-customize/ui-customize-provider"
 import { SoundProvider } from "@/lib/sounds/sound-provider"
@@ -71,6 +72,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <EasterEggEngine>
             <CursorProvider>
             <SoundProvider>
+            <CursorLibraryProvider />
             <RewardParticlesLayer />
             <Loader />
             <ScanProgressBar />

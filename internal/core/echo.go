@@ -91,6 +91,12 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	soundPacksDir := filepath.Join(app.Config.Data.AppDataDir, "sound-packs")
 	e.Static("/sound-packs", soundPacksDir)
 
+	// Seed and serve the user cursor library (static SVGs + user-dropped files)
+	if err := SeedCursorLibrary(app.Config.Data.AppDataDir); err != nil {
+		app.Logger.Warn().Err(err).Msg("app: cursor library seeding failed")
+	}
+	e.Static("/cursor-library", filepath.Join(app.Config.Data.AppDataDir, "cursor-library"))
+
 	// Serve marketplace theme files (if configured) - this is the seanime-themes repo
 	if app.Config.Marketplace.Dir != "" {
 		app.Logger.Info().Msgf("app: Marketplace themes path: %s", app.Config.Marketplace.Dir)

@@ -199,6 +199,9 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/sound-packs/download", h.HandleDownloadSoundPack)
 	v1.DELETE("/sound-packs/:id", h.HandleDeleteSoundPack)
 
+	// Cursor library (user-curated cursor picker)
+	v1.GET("/cursor-library/manifest", h.HandleGetCursorLibraryManifest)
+
 	// Theme marketplace image population (fetches anime images from AniList and caches them)
 	v1.POST("/shared-themes/populate-images", h.HandlePopulateThemeImages, h.RequireProfileAdmin)
 
