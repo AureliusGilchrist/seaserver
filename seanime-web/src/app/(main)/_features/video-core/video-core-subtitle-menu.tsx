@@ -194,22 +194,45 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                             })
                         })(),
                         ...(() => {
-                            // Single-pass: find first non-signs track with matching lang
+                            // Compute isDefault with codec matching for mediaCaptionsTracks
+                            const savedCodec = playbackInfo?.media?.id ? perMediaTrackOverrides[String(playbackInfo.media.id)]?.subtitleCodecID : undefined
+                            const SIGNS_RE = /\b(signs?|songs?|signs?\s*[&+]\s*songs?|songs?\s*[&+]\s*signs?|commentary|forced)\b/i
+                            const isSignsTrack = (label?: string) => !!label && SIGNS_RE.test(label)
+
+                            // First pass: find exact codec match, preferring non-signs tracks
                             let defaultCaptionsNumber: number | undefined
-                            if (savedSubtitleLang && savedSubtitleLang !== "none") {
-                                const SIGNS_RE = /\b(signs?|songs?|signs?\s*[&+]\s*songs?|songs?\s*[&+]\s*signs?|commentary|forced)\b/i
-                                const match = mediaCaptionsTracks.find(t =>
+                            if (savedCodec && savedSubtitleLang && savedSubtitleLang !== "none") {
+                                const codecMatches = mediaCaptionsTracks.filter(t =>
                                     t.language?.toLowerCase() === savedSubtitleLang.toLowerCase() &&
-                                    !(!!t.label && SIGNS_RE.test(t.label))
+                                    t.codecID === savedCodec
                                 )
-                                if (match) defaultCaptionsNumber = match.number
+                                // Prefer non-signs track with exact codec match
+                                const nonSignsMatch = codecMatches.find(t => !isSignsTrack(t.label))
+                                if (nonSignsMatch) {
+                                    defaultCaptionsNumber = nonSignsMatch.number
+                                } else if (codecMatches.length > 0) {
+                                    // All matches are signs tracks, use first one
+                                    defaultCaptionsNumber = codecMatches[0].number
+                                }
                             }
+
+                            // Second pass: if no exact codec match, pick first non-signs track with matching lang
+                            if (defaultCaptionsNumber === undefined && savedSubtitleLang && savedSubtitleLang !== "none") {
+                                const nonSignsMatch = mediaCaptionsTracks.find(t =>
+                                    t.language?.toLowerCase() === savedSubtitleLang.toLowerCase() &&
+                                    !isSignsTrack(t.label)
+                                )
+                                if (nonSignsMatch) defaultCaptionsNumber = nonSignsMatch.number
+                            }
+
                             return mediaCaptionsTracks.map(track => {
                                 const isDefault = track.number === defaultCaptionsNumber
                                 return {
                                     label: track.label,
                                     value: track.number,
-                                    moreInfo: track.language && track.language !== track.label ? track.language?.toUpperCase() : undefined,
+                                    moreInfo: track.language && track.language !== track.label
+                                        ? `${track.language.toUpperCase()}${track.codecID ? "/" + getSubtitleTrackType(track.codecID) : ``}`
+                                        : undefined,
                                     isDefault,
                                 }
                             })

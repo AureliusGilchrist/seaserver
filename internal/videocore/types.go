@@ -63,6 +63,7 @@ type VideoSubtitleTrack struct {
 	Type              *string `json:"type"` // "srt" | "vtt" | "ass" | "ssa"
 	Default           *bool   `json:"default"`
 	UseLibassRenderer *bool   `json:"useLibassRenderer"`
+	CodecID           *string `json:"codecID,omitempty"` // e.g., "S_TEXT/ASS" for codec matching
 }
 
 type VideoTextTrack struct {

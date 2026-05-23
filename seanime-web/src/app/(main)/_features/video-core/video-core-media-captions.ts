@@ -24,6 +24,7 @@ export type MediaCaptionsTrack = {
     label: string
     language: string
     selected: boolean
+    codecID?: string
 }
 
 type FetchAndConvertToVTT = (url?: string, content?: string) => Promise<string | undefined>
@@ -217,6 +218,7 @@ export class MediaCaptionsManager extends EventTarget {
                 label: loadedTrack.metadata.label,
                 language: loadedTrack.metadata.language,
                 selected: this.currentTrackIndex === index,
+                codecID: loadedTrack.metadata.codecID,
             }
         })
     }

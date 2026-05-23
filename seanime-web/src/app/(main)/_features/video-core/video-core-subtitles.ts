@@ -660,6 +660,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             label: t.info.label,
             forced: false,
             default: t.info.default,
+            codecID: (t.info as any).codecID,
         }))
 
         return [...eventTracks, ...fileTracks].sort((a, b) => a.number - b.number)
