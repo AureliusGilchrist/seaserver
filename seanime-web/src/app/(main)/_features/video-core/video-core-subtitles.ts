@@ -1247,10 +1247,17 @@ export function getDefaultSubtitleTrackNumber(
     // Try each preferred language in order
     for (const preferredLang of preferredLanguages) {
         let foundTracks = tracks?.filter?.(t => t.language?.toLowerCase() === preferredLang?.toLowerCase())
+        subtitleLog.info("[DEBUG] getDefaultSubtitleTrackNumber:", {
+            preferredLang,
+            foundTracksCount: foundTracks?.length,
+            foundTracks: foundTracks?.map(t => ({ number: t.number, label: t.label, language: t.language, codecID: t.codecID })),
+            codecHint,
+        })
         if (foundTracks?.length) {
             // Prefer language + codec match (per-series override)
             if (codecHint && foundTracks.length > 1) {
                 const codecMatch = foundTracks.find(t => t.codecID === codecHint)
+                subtitleLog.info("[DEBUG] Codec matching:", { codecHint, codecMatch: codecMatch ? { number: codecMatch.number, label: codecMatch.label, codecID: codecMatch.codecID } : null })
                 if (codecMatch) return codecMatch.number
             }
             // When multiple tracks match, deprioritize signs/songs tracks
