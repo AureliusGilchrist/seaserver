@@ -1,13 +1,17 @@
 "use client"
 
 import { useGetAnilistCharacterDetails } from "@/api/hooks/anilist.hooks"
+import { useGetCharacterFavorites, useToggleCharacterFavorite } from "@/api/hooks/favorites.hooks"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Badge } from "@/components/ui/badge"
+import { IconButton } from "@/components/ui/button"
+import { Tooltip } from "@/components/ui/tooltip"
 import { usePathname, useSearchParams } from "@/lib/navigation"
 import React, { useMemo } from "react"
-import { LuArrowLeft, LuHeart } from "react-icons/lu"
+import { LuArrowLeft } from "react-icons/lu"
+import { AiFillHeart, AiOutlineHeart } from "react-icons/ai"
 import { SeaLink } from "@/components/shared/sea-link"
 
 export default function Page() {
@@ -22,6 +26,9 @@ export default function Page() {
     const id = idFromQuery || idFromPath || 0
 
     const { data, isLoading } = useGetAnilistCharacterDetails(id)
+    const { data: favIds } = useGetCharacterFavorites()
+    const { mutate: toggleFav, isPending: isTogglingFav } = useToggleCharacterFavorite()
+    const isFav = !!favIds?.includes(id)
 
     const { animeAppearances, mangaAppearances } = useMemo(() => {
         const anime: any[] = []
@@ -115,11 +122,24 @@ export default function Page() {
                         {data.gender && <span>Gender: {data.gender}</span>}
                         {data.age && <span>Age: {data.age}</span>}
                         {dobStr && <span>Birthday: {dobStr}</span>}
-                        {data.favourites > 0 && (
+                        <Tooltip trigger={
                             <span className="flex items-center gap-1">
-                                <LuHeart className="text-red-400" /> {data.favourites.toLocaleString()}
+                                <IconButton
+                                    size="sm"
+                                    intent="gray-link"
+                                    className="px-0"
+                                    icon={isFav
+                                        ? <AiFillHeart className="text-lg text-red-500" />
+                                        : <AiOutlineHeart className="text-lg" />
+                                    }
+                                    disabled={isTogglingFav || !id}
+                                    onClick={() => id && toggleFav({ characterId: id })}
+                                />
+                                {data.favourites > 0 && <span>{data.favourites.toLocaleString()}</span>}
                             </span>
-                        )}
+                        }>
+                            {isFav ? "Remove from favorites" : "Add to favorites"}
+                        </Tooltip>
                     </div>
                     {data.description && (
                         <p className="text-sm text-[--muted] max-w-2xl whitespace-pre-line">{data.description}</p>

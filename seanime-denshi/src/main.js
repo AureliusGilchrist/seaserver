@@ -1727,16 +1727,27 @@ app.whenReady().then(async () => {
     }
 
     ipcMain.handle("discord:setActivity", async (_, payload) => {
+        log.info("[DiscordRPC] setActivity received (state=" + (payload && payload.state) + ", details=" + (payload && payload.details) + ")")
         try {
             if (!payload || typeof payload !== "object") return false
             const clientId = payload.applicationId
-            if (!clientId) return false
+            if (!clientId) {
+                log.warn("[DiscordRPC] setActivity: no applicationId in payload")
+                return false
+            }
             const client = await ensureDiscordRPC(clientId)
-            if (!client || !_discordRPCReady) return false
+            if (!client || !_discordRPCReady) {
+                log.warn("[DiscordRPC] setActivity: client not ready (Discord running?)")
+                return false
+            }
             const activity = mapDiscordPayload(payload)
             if (!activity) return false
-            if (!client.user) return false
+            if (!client.user) {
+                log.warn("[DiscordRPC] setActivity: client.user is null")
+                return false
+            }
             await client.user.setActivity(activity)
+            log.info("[DiscordRPC] setActivity applied")
             return true
         } catch (err) {
             log.warn("[DiscordRPC] setActivity failed:", err && err.message ? err.message : err)
@@ -1745,6 +1756,7 @@ app.whenReady().then(async () => {
     })
 
     ipcMain.handle("discord:clearActivity", async () => {
+        log.info("[DiscordRPC] clearActivity received")
         try {
             if (_discordRPC && _discordRPCReady && _discordRPC.user) {
                 await _discordRPC.user.clearActivity()

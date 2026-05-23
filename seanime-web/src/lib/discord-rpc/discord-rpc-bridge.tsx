@@ -42,19 +42,30 @@ export function DiscordRpcBridge() {
     useWebsocketMessageListener<DiscordActivityPayload | null>({
         type: WSEvents.DISCORD_ACTIVITY_UPDATE,
         onMessage: (payload) => {
+            console.log("[DiscordRpcBridge] activity-update", payload)
             if (!payload) return
             const api = typeof window !== "undefined" ? window.electron?.discord : undefined
-            if (!api) return
-            api.setActivity(payload).catch(() => { /* ignore */ })
+            if (!api) {
+                console.warn("[DiscordRpcBridge] window.electron.discord is unavailable; rich presence will not be applied")
+                return
+            }
+            api.setActivity(payload).then(ok => {
+                console.log("[DiscordRpcBridge] setActivity result", ok)
+            }).catch(err => {
+                console.warn("[DiscordRpcBridge] setActivity threw", err)
+            })
         },
     })
 
     useWebsocketMessageListener<unknown>({
         type: WSEvents.DISCORD_ACTIVITY_CLEAR,
         onMessage: () => {
+            console.log("[DiscordRpcBridge] activity-clear")
             const api = typeof window !== "undefined" ? window.electron?.discord : undefined
             if (!api) return
-            api.clearActivity().catch(() => { /* ignore */ })
+            api.clearActivity().catch(err => {
+                console.warn("[DiscordRpcBridge] clearActivity threw", err)
+            })
         },
     })
 

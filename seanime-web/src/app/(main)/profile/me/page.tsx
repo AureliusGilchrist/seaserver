@@ -1152,7 +1152,7 @@ function FavoriteSection({ label, ids, type }: { label: string; ids: number[]; t
     return (
         <div className="space-y-3">
             <h3 className="text-lg font-medium">{label} <span className="text-[--muted] text-sm">({ids.length})</span></h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3">
                 {ids.map((id) => (
                     <FavoriteCard key={id} id={id} type={type} />
                 ))}
@@ -1226,10 +1226,11 @@ function FavoriteCardShell({
 function FavoriteAnimeCard({ id }: { id: number }) {
     const { data, isLoading } = useGetAnilistAnimeDetails(id)
     const d = data as any
-    const title = d?.title?.userPreferred || d?.title?.english || d?.title?.romaji || d?.title?.native
+    // Prefer official titles per user request: english/romaji over native
+    const title = d?.title?.english || d?.title?.romaji || d?.title?.userPreferred || d?.title?.native
     const year = d?.seasonYear ?? d?.startDate?.year ?? null
     const fmt = d?.format ? String(d.format).replace(/_/g, " ") : null
-    const subtitle = [fmt, year].filter(Boolean).join(" · ")
+    const subtitle = [fmt, year].filter(Boolean).join(" \u00b7 ")
     return (
         <FavoriteCardShell
             href={`/entry?id=${id}`}
@@ -1245,10 +1246,10 @@ function FavoriteAnimeCard({ id }: { id: number }) {
 function FavoriteMangaCard({ id }: { id: number }) {
     const { data, isLoading } = useGetMangaEntryDetails(id)
     const d = data as any
-    const title = d?.title?.userPreferred || d?.title?.english || d?.title?.romaji || d?.title?.native
+    const title = d?.title?.english || d?.title?.romaji || d?.title?.userPreferred || d?.title?.native
     const year = d?.startDate?.year ?? null
     const fmt = d?.format ? String(d.format).replace(/_/g, " ") : null
-    const subtitle = [fmt, year].filter(Boolean).join(" · ")
+    const subtitle = [fmt, year].filter(Boolean).join(" \u00b7 ")
     return (
         <FavoriteCardShell
             href={`/manga/entry?id=${id}`}
@@ -1292,16 +1293,20 @@ function FavoriteStaffCard({ id }: { id: number }) {
 
 function FavoriteStudioCard({ id }: { id: number }) {
     const { data, isLoading } = useGetAnilistStudioDetails(id)
-    // Studios have no image; show the first known anime cover from their works if available
     const cover = (data as any)?.media?.nodes?.[0]?.coverImage?.extraLarge
         || (data as any)?.media?.nodes?.[0]?.coverImage?.large
         || null
+    const favCount = (data as any)?.favourites
+    const subtitle = [
+        (data as any)?.isAnimationStudio ? "Animation studio" : "Studio",
+        favCount != null ? `\u2764 ${favCount.toLocaleString()}` : null,
+    ].filter(Boolean).join(" \u00b7 ")
     return (
         <FavoriteCardShell
             href={`/studio?id=${id}`}
             image={cover}
             title={(data as any)?.name}
-            subtitle={(data as any)?.isAnimationStudio ? "Animation studio" : "Studio"}
+            subtitle={subtitle || undefined}
             isLoading={isLoading}
         />
     )

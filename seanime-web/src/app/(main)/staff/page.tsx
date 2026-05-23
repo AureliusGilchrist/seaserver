@@ -1,14 +1,18 @@
 "use client"
 
 import { useGetAnilistStaffDetails } from "@/api/hooks/anilist.hooks"
+import { useGetStaffFavorites, useToggleStaffFavorite } from "@/api/hooks/favorites.hooks"
 import { AL_StaffDetails_Staff_StaffMedia_Edges_Node } from "@/api/generated/types"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Badge } from "@/components/ui/badge"
+import { IconButton } from "@/components/ui/button"
+import { Tooltip } from "@/components/ui/tooltip"
 import { useSearchParams } from "@/lib/navigation"
 import React, { useMemo } from "react"
 import { LuArrowLeft } from "react-icons/lu"
+import { AiFillHeart, AiOutlineHeart } from "react-icons/ai"
 import { SeaLink } from "@/components/shared/sea-link"
 
 export default function Page() {
@@ -16,6 +20,9 @@ export default function Page() {
     const id = Number(searchParams.get("id")) || 0
 
     const { data, isLoading } = useGetAnilistStaffDetails(id)
+    const { data: favIds } = useGetStaffFavorites()
+    const { mutate: toggleFav, isPending: isTogglingFav } = useToggleStaffFavorite()
+    const isFav = !!favIds?.includes(id)
 
     const { animeWorks, mangaWorks } = useMemo(() => {
         const anime: AL_StaffDetails_Staff_StaffMedia_Edges_Node[] = []
@@ -87,6 +94,21 @@ export default function Page() {
                             ))}
                         </div>
                     )}
+                    <Tooltip trigger={
+                        <IconButton
+                            size="sm"
+                            intent="gray-link"
+                            className="px-0"
+                            icon={isFav
+                                ? <AiFillHeart className="text-lg text-red-500" />
+                                : <AiOutlineHeart className="text-lg" />
+                            }
+                            disabled={isTogglingFav || !id}
+                            onClick={() => id && toggleFav({ staffId: id })}
+                        />
+                    }>
+                        {isFav ? "Remove from favorites" : "Add to favorites"}
+                    </Tooltip>
                     {staff.description && (
                         <p className="text-sm text-[--muted] max-w-2xl line-clamp-4">{staff.description}</p>
                     )}

@@ -1,12 +1,16 @@
 "use client"
 
 import { useGetAnilistStudioDetails } from "@/api/hooks/anilist.hooks"
+import { useGetStudioFavorites, useToggleStudioFavorite } from "@/api/hooks/favorites.hooks"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { IconButton } from "@/components/ui/button"
+import { Tooltip } from "@/components/ui/tooltip"
 import { useSearchParams } from "@/lib/navigation"
 import React from "react"
 import { LuArrowLeft } from "react-icons/lu"
+import { AiFillHeart, AiOutlineHeart } from "react-icons/ai"
 import { SeaLink } from "@/components/shared/sea-link"
 
 export default function Page() {
@@ -14,6 +18,9 @@ export default function Page() {
     const id = Number(searchParams.get("id")) || 0
 
     const { data, isLoading } = useGetAnilistStudioDetails(id)
+    const { data: favIds } = useGetStudioFavorites()
+    const { mutate: toggleFav, isPending: isTogglingFav } = useToggleStudioFavorite()
+    const isFav = !!favIds?.includes(id)
 
     if (isLoading) {
         return <PageWrapper className="p-8 flex justify-center"><LoadingSpinner /></PageWrapper>
@@ -32,6 +39,21 @@ export default function Page() {
                     <LuArrowLeft className="text-2xl" />
                 </SeaLink>
                 <h1 className="text-3xl font-bold">{studio.name}</h1>
+                <Tooltip trigger={
+                    <IconButton
+                        size="sm"
+                        intent="gray-link"
+                        className="px-0"
+                        icon={isFav
+                            ? <AiFillHeart className="text-lg text-red-500" />
+                            : <AiOutlineHeart className="text-lg" />
+                        }
+                        disabled={isTogglingFav || !id}
+                        onClick={() => id && toggleFav({ studioId: id })}
+                    />
+                }>
+                    {isFav ? "Remove from favorites" : "Add to favorites"}
+                </Tooltip>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">

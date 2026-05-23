@@ -41,7 +41,10 @@ func New(settings *models.DiscordSettings, logger *zerolog.Logger) *Presence {
 		var err error
 		client, err = discordrpc_client.New(constants.DiscordApplicationId)
 		if err != nil {
-			logger.Error().Err(err).Msg("discordrpc: rich presence enabled but failed to create discord rpc client")
+			// Expected on remote-server setups (no Discord on this machine).
+			// Activities are still broadcast over WebSocket to any connected
+			// Electron client which will apply them via its LOCAL Discord.
+			logger.Debug().Err(err).Msg("discordrpc: no local Discord IPC; remote clients will receive presence via WebSocket")
 		}
 	}
 
@@ -161,7 +164,8 @@ func (p *Presence) setClient() {
 	if p.client == nil {
 		client, err := discordrpc_client.New(constants.DiscordApplicationId)
 		if err != nil {
-			p.logger.Error().Err(err).Msg("discordrpc: Rich presence enabled but failed to create discord rpc client")
+			// Expected on remote-server setups; see comment in New().
+			p.logger.Debug().Err(err).Msg("discordrpc: no local Discord IPC; remote clients will receive presence via WebSocket")
 			return
 		}
 		p.client = client
@@ -679,7 +683,11 @@ type DiscordActivityPayload struct {
 
 func (p *Presence) broadcastActivity(activity *discordrpc_client.Activity) {
 	defer util.HandlePanicInModuleThen("discordrpc/presence/broadcastActivity", func() {})
-	if events.GlobalWSEventManager == nil || activity == nil {
+	if events.GlobalWSEventManager == nil {
+		p.logger.Warn().Msg("discordrpc: WS event manager is nil, cannot broadcast activity to remote clients")
+		return
+	}
+	if activity == nil {
 		return
 	}
 	payload := DiscordActivityPayload{
@@ -710,6 +718,7 @@ func (p *Presence) broadcastActivity(activity *discordrpc_client.Activity) {
 			payload.EndTimestamp = &t
 		}
 	}
+	p.logger.Debug().Str("name", payload.Name).Str("details", payload.Details).Str("state", payload.State).Msg("discordrpc: broadcasting activity to remote clients")
 	events.GlobalWSEventManager.SendEvent(DiscordActivityUpdateEvent, payload)
 }
 
@@ -718,5 +727,6 @@ func (p *Presence) broadcastClear() {
 	if events.GlobalWSEventManager == nil {
 		return
 	}
+	p.logger.Debug().Msg("discordrpc: broadcasting clear to remote clients")
 	events.GlobalWSEventManager.SendEvent(DiscordActivityClearEvent, struct{}{})
 }
