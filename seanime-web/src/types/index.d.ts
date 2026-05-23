@@ -69,6 +69,10 @@ declare global {
                 get: () => Promise<DenshiSettings>;
                 set: (settings: DenshiSettings) => Promise<DenshiSettings>;
             };
+            discord?: {
+                setActivity: (payload: any) => Promise<boolean>;
+                clearActivity: () => Promise<boolean>;
+            };
         };
 
         __isElectronDesktop__?: boolean;

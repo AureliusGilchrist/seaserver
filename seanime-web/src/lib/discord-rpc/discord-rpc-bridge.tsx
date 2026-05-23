@@ -38,17 +38,6 @@ export type DiscordActivityPayload = {
     type?: number
 }
 
-declare global {
-    interface Window {
-        electron?: {
-            discord?: {
-                setActivity: (payload: DiscordActivityPayload) => Promise<boolean>
-                clearActivity: () => Promise<boolean>
-            }
-        }
-    }
-}
-
 export function DiscordRpcBridge() {
     useWebsocketMessageListener<DiscordActivityPayload | null>({
         type: WSEvents.DISCORD_ACTIVITY_UPDATE,
