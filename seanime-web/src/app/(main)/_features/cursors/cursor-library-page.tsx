@@ -1,5 +1,5 @@
 "use client"
-import { useGetProfileStats } from "@/api/hooks/profile-stats.hooks"
+import { useGetMyProfile } from "@/api/hooks/community.hooks"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -20,8 +20,8 @@ import { FaLock, FaStar, FaTrash } from "react-icons/fa"
 
 export function CursorLibraryPage() {
     const { data: manifest, isLoading } = useCursorManifest()
-    const { data: stats } = useGetProfileStats()
-    const userLevel = stats?.level?.currentLevel ?? 1
+    const { data: profileData } = useGetMyProfile()
+    const userLevel = profileData?.level?.currentLevel ?? 1
 
     const [activeSlot, setActiveSlot] = useAtom(activeSlotEditAtom)
     const [selected, setSelected] = useAtom(selectedSlotsAtom)
