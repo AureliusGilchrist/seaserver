@@ -121,6 +121,14 @@ contextBridge.exposeInMainWorld(
             set: (settings) => ipcRenderer.invoke("denshi:setSettings", settings),
         },
 
+        // Discord Rich Presence (used when server runs on a different machine
+        // than this Electron instance; renderer forwards server-broadcast
+        // activities to the LOCAL Discord client via these handlers).
+        discord: {
+            setActivity: (payload) => ipcRenderer.invoke("discord:setActivity", payload),
+            clearActivity: () => ipcRenderer.invoke("discord:clearActivity"),
+        },
+
         // Chromecast
         cast: {
             discover: () => ipcRenderer.invoke("cast:discover"),

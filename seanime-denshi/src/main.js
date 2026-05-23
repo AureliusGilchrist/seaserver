@@ -1645,6 +1645,127 @@ app.whenReady().then(async () => {
         return { ...denshiSettings }
     })
 
+    //////////////////////////////////////////////////////////////////////////////////
+    // Discord Rich Presence (LOCAL bridge for remote-server setups)
+    //
+    // The seanime Go server normally talks to Discord's IPC pipe on the SAME
+    // machine as the server. When the server runs on a different machine than
+    // Electron + Discord, that path is unavailable. The server therefore also
+    // broadcasts every activity change over WebSocket; the renderer forwards
+    // those events here so we can update Discord on THIS machine instead.
+    //////////////////////////////////////////////////////////////////////////////////
+    let _discordRPC = null
+    let _discordRPCClientId = null
+    let _discordRPCReady = false
+    let _discordRPCConnecting = null
+    let _discordRPCLastFailLog = 0
+
+    async function ensureDiscordRPC(clientId) {
+        if (!clientId) return null
+        if (_discordRPC && _discordRPCReady && _discordRPCClientId === clientId) {
+            return _discordRPC
+        }
+        if (_discordRPC && _discordRPCClientId !== clientId) {
+            try { _discordRPC.destroy() } catch { /* ignore */ }
+            _discordRPC = null
+            _discordRPCReady = false
+        }
+        if (_discordRPCConnecting) return _discordRPCConnecting
+        _discordRPCConnecting = (async () => {
+            try {
+                const { Client: DiscordRPCClient } = require("@xhayper/discord-rpc")
+                const client = new DiscordRPCClient({ clientId, transport: { type: "ipc" } })
+                client.on("ready", () => {
+                    log.info("[DiscordRPC] Ready (clientId=" + clientId + ")")
+                })
+                client.on("disconnected", () => {
+                    log.info("[DiscordRPC] Disconnected")
+                    _discordRPCReady = false
+                })
+                await client.login()
+                _discordRPC = client
+                _discordRPCClientId = clientId
+                _discordRPCReady = true
+                return client
+            } catch (err) {
+                const now = Date.now()
+                if (now - _discordRPCLastFailLog > 30000) {
+                    _discordRPCLastFailLog = now
+                    log.warn("[DiscordRPC] Failed to connect: " + (err && err.message ? err.message : err))
+                }
+                _discordRPC = null
+                _discordRPCReady = false
+                return null
+            } finally {
+                _discordRPCConnecting = null
+            }
+        })()
+        return _discordRPCConnecting
+    }
+
+    function mapDiscordPayload(p) {
+        if (!p || typeof p !== "object") return null
+        const activity = {}
+        if (p.details) activity.details = String(p.details)
+        if (p.state) activity.state = String(p.state)
+        if (typeof p.startTimestamp === "number") activity.startTimestamp = p.startTimestamp
+        if (typeof p.endTimestamp === "number") activity.endTimestamp = p.endTimestamp
+        if (p.largeImage) activity.largeImageKey = String(p.largeImage)
+        if (p.largeText) activity.largeImageText = String(p.largeText)
+        if (p.smallImage) activity.smallImageKey = String(p.smallImage)
+        if (p.smallText) activity.smallImageText = String(p.smallText)
+        if (Array.isArray(p.buttons) && p.buttons.length > 0) {
+            activity.buttons = p.buttons
+                .filter(b => b && b.label && b.url)
+                .slice(0, 2)
+                .map(b => ({ label: String(b.label), url: String(b.url) }))
+            if (activity.buttons.length === 0) delete activity.buttons
+        }
+        if (typeof p.type === "number") activity.type = p.type
+        activity.instance = !!p.instance
+        return activity
+    }
+
+    ipcMain.handle("discord:setActivity", async (_, payload) => {
+        try {
+            if (!payload || typeof payload !== "object") return false
+            const clientId = payload.applicationId
+            if (!clientId) return false
+            const client = await ensureDiscordRPC(clientId)
+            if (!client || !_discordRPCReady) return false
+            const activity = mapDiscordPayload(payload)
+            if (!activity) return false
+            if (!client.user) return false
+            await client.user.setActivity(activity)
+            return true
+        } catch (err) {
+            log.warn("[DiscordRPC] setActivity failed:", err && err.message ? err.message : err)
+            return false
+        }
+    })
+
+    ipcMain.handle("discord:clearActivity", async () => {
+        try {
+            if (_discordRPC && _discordRPCReady && _discordRPC.user) {
+                await _discordRPC.user.clearActivity()
+            }
+            return true
+        } catch (err) {
+            log.warn("[DiscordRPC] clearActivity failed:", err && err.message ? err.message : err)
+            return false
+        }
+    })
+
+    app.on("before-quit", () => {
+        try {
+            if (_discordRPC) {
+                _discordRPC.destroy()
+                _discordRPC = null
+                _discordRPCReady = false
+            }
+        } catch { /* ignore */ }
+    })
+
     // Server connection (local sidecar vs remote URL) IPC handlers
     ipcMain.handle("server-config:get", () => {
         return loadServerConfig()

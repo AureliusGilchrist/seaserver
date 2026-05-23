@@ -375,7 +375,8 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                     "relative w-full h-full bg-black overflow-clip flex items-center justify-center",
                     (!busy && !isMiniPlayer) && "cursor-none",
                 )}
-                style={(!busy && !isMiniPlayer) ? { cursor: "none" } : undefined}
+                data-cursor={(!busy && !isMiniPlayer) ? "hidden" : undefined}
+                style={(!busy && !isMiniPlayer) ? ({ cursor: "none" } as React.CSSProperties) : undefined}
                 onPointerMove={handleContainerPointerMove}
                 onMouseEnter={handleContainerMouseEnter}
                 onMouseLeave={handleContainerMouseLeave}

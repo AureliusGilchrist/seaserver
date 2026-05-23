@@ -62,6 +62,11 @@ export function CursorLibraryProvider() {
                 `${SLOT_SELECTORS[slot]} { cursor: url("${entry.url}") ${hx} ${hy}, ${SLOT_FALLBACK[slot]} !important; }`,
             )
         })
+        // Always-on override so video player auto-hide (`.cursor-none` / `[data-cursor="hidden"]`)
+        // wins over per-slot cursor URLs and any descendant interactive rules.
+        rules.push(
+            `.cursor-none, .cursor-none *, [data-cursor="hidden"], [data-cursor="hidden"] * { cursor: none !important; }`,
+        )
         style.textContent = rules.join("\n")
     }, [selected, byId])
 

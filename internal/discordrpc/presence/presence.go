@@ -6,6 +6,7 @@ import (
 	"seanime/internal/constants"
 	"seanime/internal/database/models"
 	discordrpc_client "seanime/internal/discordrpc/client"
+	"seanime/internal/events"
 	"seanime/internal/hook"
 	"seanime/internal/util"
 	"sync"
@@ -84,10 +85,6 @@ func (p *Presence) startEventLoop() {
 				select {
 				case job := <-p.eventQueue:
 					p.mu.RLock()
-					if p.client == nil {
-						p.mu.RUnlock()
-						continue
-					}
 					job()
 					p.lastSent = time.Now()
 					p.mu.RUnlock()
@@ -108,6 +105,9 @@ func (p *Presence) Close() {
 func (p *Presence) close() {
 	defer util.HandlePanicInModuleThen("discordrpc/presence/Close", func() {})
 	p.clearEventQueue()
+
+	// Tell remote (Electron) clients to clear their Discord presence too.
+	p.broadcastClear()
 
 	// Cancel the event loop goroutine
 	if p.cancelFunc != nil {
@@ -197,14 +197,12 @@ func (p *Presence) check() (proceed bool) {
 		return false
 	}
 
-	// If the client is nil, create a new client
+	// If the client is nil, create a new client. This may fail when Discord
+	// is not running on the SERVER machine (e.g. remote setup) - that's fine,
+	// we still proceed so the activity gets broadcast over WebSocket to any
+	// connected Electron client (which will apply it via its local Discord).
 	if p.client == nil {
 		p.setClient()
-	}
-
-	// If the client is still nil, return false
-	if p.client == nil {
-		return false
 	}
 
 	// If this is the first time setting the presence, return true
@@ -224,25 +222,18 @@ func (p *Presence) check() (proceed bool) {
 
 var (
 	defaultActivity = discordrpc_client.Activity{
-		Name:    "Seanime",
+		Name:    "Using Karasu App",
 		Details: "",
 		State:   "",
 		Assets: &discordrpc_client.Assets{
 			LargeImage: "",
 			LargeText:  "",
-			SmallImage: "https://seanime.app/images/circular-logo.png",
-			SmallText:  "Seanime v" + constants.Version,
-			SmallURL:   "https://seanime.app",
+			SmallImage: "E:\\Main\\server\\seaserver\\web\\images\\seanime-logo.png",
+			SmallText:  "Karasu v" + constants.Version,
 		},
 		Timestamps: &discordrpc_client.Timestamps{
 			Start: &discordrpc_client.Epoch{
 				Time: time.Now(),
-			},
-		},
-		Buttons: []*discordrpc_client.Button{
-			{
-				Label: "Seanime",
-				Url:   "https://seanime.app",
 			},
 		},
 		Instance:          true,
@@ -250,18 +241,6 @@ var (
 		StatusDisplayType: 2,
 	}
 )
-
-func isSeanimeButtonPresent(activity *discordrpc_client.Activity) bool {
-	if activity == nil || activity.Buttons == nil {
-		return false
-	}
-	for _, button := range activity.Buttons {
-		if button.Label == "Seanime" && button.Url == "https://seanime.app" {
-			return true
-		}
-	}
-	return false
-}
 
 type AnimeActivity struct {
 	ID                  int     `json:"id"`
@@ -347,13 +326,6 @@ func (p *Presence) SetAnimeActivity(a *AnimeActivity) {
 		})
 	}
 
-	if !(p.settings.RichPresenceHideSeanimeRepositoryButton || len(activity.Buttons) > 1) {
-		activity.Buttons = append(activity.Buttons, &discordrpc_client.Button{
-			Label: "Seanime",
-			Url:   "https://seanime.app",
-		})
-	}
-
 	// p.logger.Debug().Msgf("discordrpc: Setting anime activity: %s", a.Title)
 
 	p.animeActivity = a
@@ -417,12 +389,15 @@ func (p *Presence) SetAnimeActivity(a *AnimeActivity) {
 
 	select {
 	case p.eventQueue <- func() {
-		_ = p.client.SetActivity(activity)
+		if p.client != nil {
+			_ = p.client.SetActivity(activity)
+		}
 		// p.logger.Debug().Int("progress", a.Progress).Int("duration", a.Duration).Msgf("discordrpc: Anime activity set for %s", a.Title)
 	}:
 	default:
 		//p.logger.Error().Msgf("discordrpc: event queue is full for %s", a.Title)
 	}
+	p.broadcastActivity(&activity)
 }
 
 // clearEventQueue drains the event queue channel
@@ -533,18 +508,14 @@ func (p *Presence) LegacySetAnimeActivity(a *LegacyAnimeActivity) {
 		})
 	}
 
-	if !(p.settings.RichPresenceHideSeanimeRepositoryButton || len(activity.Buttons) > 1) {
-		activity.Buttons = append(activity.Buttons, &discordrpc_client.Button{
-			Label: "Seanime",
-			Url:   "https://seanime.app",
-		})
-	}
-
 	// p.logger.Debug().Msgf("discordrpc: Setting anime activity: %s", a.Title)
 
 	p.eventQueue <- func() {
-		_ = p.client.SetActivity(activity)
+		if p.client != nil {
+			_ = p.client.SetActivity(activity)
+		}
 	}
+	p.broadcastActivity(&activity)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -592,13 +563,6 @@ func (p *Presence) SetMangaActivity(a *MangaActivity) {
 		activity.Buttons = append(activity.Buttons, &discordrpc_client.Button{
 			Label: "View Profile",
 			Url:   fmt.Sprintf("https://anilist.co/user/%s", p.username),
-		})
-	}
-
-	if !(p.settings.RichPresenceHideSeanimeRepositoryButton || len(activity.Buttons) > 1) {
-		activity.Buttons = append(activity.Buttons, &discordrpc_client.Button{
-			Label: "Seanime",
-			Url:   "https://seanime.app",
 		})
 	}
 
@@ -662,6 +626,97 @@ func (p *Presence) SetMangaActivity(a *MangaActivity) {
 	p.logger.Debug().Msgf("discordrpc: Setting manga activity: %s", a.Title)
 
 	p.eventQueue <- func() {
-		_ = p.client.SetActivity(activity)
+		if p.client != nil {
+			_ = p.client.SetActivity(activity)
+		}
 	}
+	p.broadcastActivity(&activity)
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// WebSocket broadcast helpers
+//
+// These forward Discord rich-presence activities to all connected clients over
+// WebSocket so that Electron instances running on a DIFFERENT machine than the
+// server can apply the activity using their OWN local Discord client.
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func isSeanimeButtonPresent(activity *discordrpc_client.Activity) bool {
+	if activity == nil || activity.Buttons == nil {
+		return false
+	}
+	for _, button := range activity.Buttons {
+		if button.Label == "Seanime" && button.Url == "https://seanime.app" {
+			return true
+		}
+	}
+	return false
+}
+
+const (
+	DiscordActivityUpdateEvent = "discord-activity-update"
+	DiscordActivityClearEvent  = "discord-activity-clear"
+)
+
+type DiscordActivityPayload struct {
+	ApplicationId  string                      `json:"applicationId"`
+	Name           string                      `json:"name,omitempty"`
+	Details        string                      `json:"details,omitempty"`
+	DetailsURL     string                      `json:"detailsUrl,omitempty"`
+	State          string                      `json:"state,omitempty"`
+	LargeImage     string                      `json:"largeImage,omitempty"`
+	LargeText      string                      `json:"largeText,omitempty"`
+	LargeURL       string                      `json:"largeUrl,omitempty"`
+	SmallImage     string                      `json:"smallImage,omitempty"`
+	SmallText      string                      `json:"smallText,omitempty"`
+	SmallURL       string                      `json:"smallUrl,omitempty"`
+	StartTimestamp *int64                      `json:"startTimestamp,omitempty"`
+	EndTimestamp   *int64                      `json:"endTimestamp,omitempty"`
+	Buttons        []*discordrpc_client.Button `json:"buttons,omitempty"`
+	Instance       bool                        `json:"instance,omitempty"`
+	Type           int                         `json:"type,omitempty"`
+}
+
+func (p *Presence) broadcastActivity(activity *discordrpc_client.Activity) {
+	defer util.HandlePanicInModuleThen("discordrpc/presence/broadcastActivity", func() {})
+	if events.GlobalWSEventManager == nil || activity == nil {
+		return
+	}
+	payload := DiscordActivityPayload{
+		ApplicationId: constants.DiscordApplicationId,
+		Name:          activity.Name,
+		Details:       activity.Details,
+		DetailsURL:    activity.DetailsURL,
+		State:         activity.State,
+		Buttons:       activity.Buttons,
+		Instance:      activity.Instance,
+		Type:          activity.Type,
+	}
+	if activity.Assets != nil {
+		payload.LargeImage = activity.Assets.LargeImage
+		payload.LargeText = activity.Assets.LargeText
+		payload.LargeURL = activity.Assets.LargeURL
+		payload.SmallImage = activity.Assets.SmallImage
+		payload.SmallText = activity.Assets.SmallText
+		payload.SmallURL = activity.Assets.SmallURL
+	}
+	if activity.Timestamps != nil {
+		if activity.Timestamps.Start != nil && !activity.Timestamps.Start.Time.IsZero() {
+			t := activity.Timestamps.Start.Time.Unix()
+			payload.StartTimestamp = &t
+		}
+		if activity.Timestamps.End != nil && !activity.Timestamps.End.Time.IsZero() {
+			t := activity.Timestamps.End.Time.Unix()
+			payload.EndTimestamp = &t
+		}
+	}
+	events.GlobalWSEventManager.SendEvent(DiscordActivityUpdateEvent, payload)
+}
+
+func (p *Presence) broadcastClear() {
+	defer util.HandlePanicInModuleThen("discordrpc/presence/broadcastClear", func() {})
+	if events.GlobalWSEventManager == nil {
+		return
+	}
+	events.GlobalWSEventManager.SendEvent(DiscordActivityClearEvent, struct{}{})
 }

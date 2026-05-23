@@ -42,6 +42,7 @@ import { Announcements } from "../announcements"
 import { AnimeThemeProvider } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { CursorProvider } from "@/lib/cursors/cursor-provider"
 import { CursorLibraryProvider } from "@/lib/cursors/cursor-library-provider"
+import { DiscordRpcBridge } from "@/lib/discord-rpc/discord-rpc-bridge"
 import { RewardProvider } from "@/lib/rewards/reward-provider"
 import { UICustomizeProvider } from "@/lib/ui-customize/ui-customize-provider"
 import { SoundProvider } from "@/lib/sounds/sound-provider"
@@ -73,6 +74,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <CursorProvider>
             <SoundProvider>
             <CursorLibraryProvider />
+            <DiscordRpcBridge />
             <RewardParticlesLayer />
             <Loader />
             <ScanProgressBar />

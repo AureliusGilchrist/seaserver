@@ -80,6 +80,8 @@ export const enum WSEvents {
     MILESTONE_ACHIEVED = "milestone-achieved",
     MANGA_SCAN_PROGRESS = "manga-scan-progress",
     MANGA_SCAN_COMPLETED = "manga-scan-completed",
+    DISCORD_ACTIVITY_UPDATE = "discord-activity-update",
+    DISCORD_ACTIVITY_CLEAR = "discord-activity-clear",
 }
 
 export const enum WebviewEvents {
