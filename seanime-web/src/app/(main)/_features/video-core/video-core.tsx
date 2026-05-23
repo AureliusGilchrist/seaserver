@@ -1171,6 +1171,7 @@ export function VideoCore(props: VideoCoreProps) {
                         }
                     },
                     subtitleCodecOverride: perMediaOverride?.subtitleCodecID,
+                    subtitleLabelOverride: perMediaOverride?.subtitleLabel,
                 })
             })
         } else {
@@ -1186,6 +1187,7 @@ export function VideoCore(props: VideoCoreProps) {
                         : null,
                     settings: effectiveSettings,
                     subtitleCodecOverride: perMediaOverride?.subtitleCodecID,
+                    subtitleLabelOverride: perMediaOverride?.subtitleLabel,
                     fetchAndConvertToASS: (url?: string, content?: string) => {
                         return new Promise((resolve, reject) => {
                             convertSubs({ url: url ?? "", content: content ?? "", to: "ass" }, {

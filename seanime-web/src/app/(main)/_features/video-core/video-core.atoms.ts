@@ -205,6 +205,7 @@ export type PerMediaTrackOverride = {
     audioCodecID?: string
     subtitleLanguage?: string
     subtitleCodecID?: string
+    subtitleLabel?: string
 }
 
 // Server-synced atom: populated from GET /track-preferences, written through POST on change.

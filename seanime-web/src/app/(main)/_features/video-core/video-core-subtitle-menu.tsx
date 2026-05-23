@@ -245,7 +245,7 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                             // Save "none" subtitle preference
                             const mediaId = playbackInfo?.media?.id
                             if (mediaId && saveTrackOverride) {
-                                saveTrackOverride(String(mediaId), { subtitleLanguage: "none" })
+                                saveTrackOverride(String(mediaId), { subtitleLanguage: "none", subtitleLabel: "" })
                             }
                             return
                         }
@@ -256,17 +256,21 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                             setSelectedTrack(value)
                         }
 
-                        // Save per-media subtitle language + codec override
-                        // Only save when there is a real language code — never fall back to label
-                        // (a label like "Songs & Signs" would incorrectly match the same track on the next episode)
+                        // Save per-media subtitle language + codec + label override
+                        // The label is the most reliable way to "stick" to the same track across episodes
+                        // when several tracks share a language (e.g. "Full Subtitles" vs "Signs/Songs").
                         const mediaId = playbackInfo?.media?.id
                         if (mediaId && saveTrackOverride) {
                             const subTrack = subtitleTracks.find(t => t.number === value)
                             const captionTrack = mediaCaptionsTracks.find(t => t.number === value)
                             const lang = subTrack?.language || captionTrack?.language
                             const codecID = subTrack?.codecID
+                            const label = subTrack?.label || captionTrack?.label || ""
                             if (lang) {
-                                saveTrackOverride(String(mediaId), { subtitleLanguage: lang, subtitleCodecID: codecID })
+                                saveTrackOverride(String(mediaId), { subtitleLanguage: lang, subtitleCodecID: codecID, subtitleLabel: label })
+                            } else if (label) {
+                                // No language code but we have a label — still remember it.
+                                saveTrackOverride(String(mediaId), { subtitleLabel: label })
                             }
                         }
                     }}

@@ -42,6 +42,7 @@ func (h *Handler) HandleUpsertTrackPreference(c echo.Context) error {
 		AudioCodecID     string `json:"audioCodecID,omitempty"`
 		SubtitleLanguage string `json:"subtitleLanguage,omitempty"`
 		SubtitleCodecID  string `json:"subtitleCodecID,omitempty"`
+		SubtitleLabel    string `json:"subtitleLabel,omitempty"`
 	}
 
 	b := new(body)
@@ -60,6 +61,7 @@ func (h *Handler) HandleUpsertTrackPreference(c echo.Context) error {
 		AudioCodecID:     b.AudioCodecID,
 		SubtitleLanguage: b.SubtitleLanguage,
 		SubtitleCodecID:  b.SubtitleCodecID,
+		SubtitleLabel:    b.SubtitleLabel,
 	})
 	if err != nil {
 		return h.RespondWithError(c, err)

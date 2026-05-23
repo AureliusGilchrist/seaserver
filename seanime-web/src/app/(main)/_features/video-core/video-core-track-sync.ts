@@ -27,6 +27,7 @@ export function useTrackPreferenceSync() {
                     audioCodecID: pref.audioCodecID || undefined,
                     subtitleLanguage: pref.subtitleLanguage || undefined,
                     subtitleCodecID: pref.subtitleCodecID || undefined,
+                    subtitleLabel: pref.subtitleLabel || undefined,
                 }
             }
             setOverrides(mapped)
@@ -52,6 +53,7 @@ export function useTrackPreferenceSync() {
                 audioCodecID: merged.audioCodecID,
                 subtitleLanguage: merged.subtitleLanguage,
                 subtitleCodecID: merged.subtitleCodecID,
+                subtitleLabel: merged.subtitleLabel,
             })
         }
         setSaveCallback(() => save)

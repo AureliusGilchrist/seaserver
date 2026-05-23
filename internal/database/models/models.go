@@ -864,6 +864,7 @@ type TrackPreference struct {
 	AudioCodecID     string `gorm:"column:audio_codec_id" json:"audioCodecID,omitempty"`
 	SubtitleLanguage string `gorm:"column:subtitle_language" json:"subtitleLanguage,omitempty"`
 	SubtitleCodecID  string `gorm:"column:subtitle_codec_id" json:"subtitleCodecID,omitempty"`
+	SubtitleLabel    string `gorm:"column:subtitle_label" json:"subtitleLabel,omitempty"`
 }
 
 ///////////////////////////////////////////////////////////////////////////

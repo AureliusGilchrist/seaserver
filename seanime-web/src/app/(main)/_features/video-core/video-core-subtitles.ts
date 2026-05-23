@@ -134,6 +134,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
     // Per-series codec override for language+codec matching
     private subtitleCodecOverride?: string
+    // Per-series label override — the label of the user's last explicitly selected track.
+    private subtitleLabelOverride?: string
 
     constructor({
         videoElement,
@@ -145,6 +147,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         translateTargetLang,
         hmacToken,
         subtitleCodecOverride,
+        subtitleLabelOverride,
     }: {
         videoElement: HTMLVideoElement
         jassubOffscreenRender: boolean
@@ -155,6 +158,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         translateTargetLang: string | null
         hmacToken?: string
         subtitleCodecOverride?: string
+        subtitleLabelOverride?: string
     }) {
         super()
         this.videoElement = videoElement
@@ -167,6 +171,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.fetchAndConvertToASS = fetchAndConvertToASS
         this.sendTranslateRequest = sendTranslateRequest
         this.subtitleCodecOverride = subtitleCodecOverride
+        this.subtitleLabelOverride = subtitleLabelOverride
         this.translateFn = function (cached: CachedEvent) {
             cached.isTranslating = true
             // Send the request to the server
@@ -762,7 +767,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         }
 
         // Split preferred languages by comma and trim whitespace
-        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, tracks, this.subtitleCodecOverride)
+        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, tracks, this.subtitleCodecOverride, this.subtitleLabelOverride)
         subtitleLog.info("Default subtitle track number",
             defaultTrackNumber,
             this.settings.preferredSubtitleLanguage,
@@ -1221,6 +1226,7 @@ export function getDefaultSubtitleTrackNumber(
     settings: VideoCoreSettings,
     _tracks: { label?: string, language?: string, number: number, forced?: boolean, default?: boolean, codecID?: string }[] | null = null,
     codecHint?: string,
+    labelHint?: string,
 ): number {
     // Split preferred languages by comma and trim whitespace
     const preferredLanguages = settings.preferredSubtitleLanguage
@@ -1237,6 +1243,23 @@ export function getDefaultSubtitleTrackNumber(
     // remove blacklisted tracks if there are more than one
     if (blacklistLabels.length && tracks.length > 1) {
         tracks = tracks?.filter?.(t => !t.label || !blacklistLabels.includes(t.label?.toLowerCase())) ?? []
+    }
+
+    // Label hint takes precedence — this is the user's last explicit pick for this series.
+    // We match exact (case-insensitive) label first; if not found we fall through to language logic.
+    if (labelHint && labelHint.trim().length > 0) {
+        const wanted = labelHint.trim().toLowerCase()
+        const exact = tracks?.find?.(t => t.label?.trim().toLowerCase() === wanted)
+        if (exact) {
+            subtitleLog.info("[DEBUG] getDefaultSubtitleTrackNumber: matched by labelHint (exact)", { labelHint, number: exact.number })
+            return exact.number
+        }
+        // Fuzzy contains match — handles minor variations like "English [Full]" vs "English Full"
+        const contains = tracks?.find?.(t => t.label && (t.label.toLowerCase().includes(wanted) || wanted.includes(t.label.toLowerCase())))
+        if (contains) {
+            subtitleLog.info("[DEBUG] getDefaultSubtitleTrackNumber: matched by labelHint (fuzzy)", { labelHint, number: contains.number, label: contains.label })
+            return contains.number
+        }
     }
 
     // Labels that indicate a partial/signs-only track — deprioritized when full subtitles exist

@@ -37,6 +37,7 @@ export type MediaCaptionsManagerOptions = {
     sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
     translateTargetLang: string | null
     subtitleCodecOverride?: string
+    subtitleLabelOverride?: string
 }
 
 type LoadedTrack = {
@@ -114,6 +115,7 @@ export class MediaCaptionsManager extends EventTarget {
 
     private readonly fetchAndConvertToVTT: FetchAndConvertToVTT
     private readonly subtitleCodecOverride?: string
+    private readonly subtitleLabelOverride?: string
 
     private _onSelectedTrackChanged?: (track: number | null) => void
     private _onTracksLoaded?: (tracks: MediaCaptionsTrack[]) => void
@@ -136,6 +138,7 @@ export class MediaCaptionsManager extends EventTarget {
         this.sendTranslateRequest = options.sendTranslateRequest
         this.shouldTranslate = options.translateTargetLang
         this.subtitleCodecOverride = options.subtitleCodecOverride
+        this.subtitleLabelOverride = options.subtitleLabelOverride
 
         this.init()
     }
@@ -668,8 +671,9 @@ export class MediaCaptionsManager extends EventTarget {
         log.info("[DEBUG] MediaCaptionsManager selecting default track:", {
             tracks: tracksWithCodec.map(t => ({ number: t.number, label: t.label, language: t.language, codecID: t.codecID })),
             codecHint: this.subtitleCodecOverride,
+            labelHint: this.subtitleLabelOverride,
         })
-        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, tracksWithCodec, this.subtitleCodecOverride)
+        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, tracksWithCodec, this.subtitleCodecOverride, this.subtitleLabelOverride)
         log.info("[DEBUG] MediaCaptionsManager selected track number:", defaultTrackNumber)
         await this.selectTrack(defaultTrackNumber)
         // Setup time update listener

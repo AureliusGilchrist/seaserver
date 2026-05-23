@@ -17,7 +17,7 @@ func (db *Database) GetAllTrackPreferences() ([]*models.TrackPreference, error) 
 func (db *Database) UpsertTrackPreference(pref *models.TrackPreference) error {
 	return db.gormdb.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "media_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"audio_language", "audio_codec_id", "subtitle_language", "subtitle_codec_id", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"audio_language", "audio_codec_id", "subtitle_language", "subtitle_codec_id", "subtitle_label", "updated_at"}),
 	}).Create(pref).Error
 }
 
