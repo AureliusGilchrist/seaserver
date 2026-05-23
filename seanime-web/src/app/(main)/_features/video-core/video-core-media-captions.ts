@@ -664,7 +664,7 @@ export class MediaCaptionsManager extends EventTarget {
         }
         // When the first track is loaded, start rendering captions
         // Select default track
-        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, this.tracks.map((t, idx) => ({ ...t, number: idx })), this.subtitleCodecOverride)
+        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, this.tracks.map((t, idx) => ({ ...t, number: idx, codecID: (t as any).codecID })), this.subtitleCodecOverride)
         await this.selectTrack(defaultTrackNumber)
         // Setup time update listener
         this.timeUpdateListener = () => {
