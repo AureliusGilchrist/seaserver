@@ -20,6 +20,7 @@ import { ALL_CURSOR_DEFINITIONS } from "@/lib/cursors/cursor-generator"
 import { packFilter } from "@/lib/cursors/cursor-packs"
 import { useCursor } from "@/lib/cursors/cursor-provider"
 import { useRewards } from "@/lib/rewards/reward-provider"
+import { XPBarFxOverlay } from "@/lib/rewards/xpbar-fx-overlay"
 import {
     TITLE_REWARDS,
     NAME_COLOR_REWARDS,
@@ -494,13 +495,14 @@ function XPBarSkinCard({ reward, currentLevel }: { reward: XPBarSkinReward; curr
                     />
                     <div className="flex-1">
                         <div
-                            className="w-full h-3 rounded-full overflow-hidden"
+                            className="relative w-full h-3 rounded-full overflow-hidden"
                             style={{ background: reward.trackCss ?? "rgba(255,255,255,0.1)" }}
                         >
                             <div
                                 className={cn("h-full rounded-full", reward.animClass)}
                                 style={{ width: "65%", background: reward.fillCss }}
                             />
+                            <XPBarFxOverlay skin={reward} />
                         </div>
                     </div>
                 </div>

@@ -22,7 +22,6 @@ export class VideoCoreFullscreenManager extends EventTarget {
     private videoElement: HTMLVideoElement | null = null
     private controller = new AbortController()
     private onFullscreenChange: (isFullscreen: boolean) => void
-    private isElectronNativeFullscreen = false
     private isTauriNativeFullscreen = false
     private attachVideoListeners?: () => void
     private _isTransitioning = false
@@ -32,18 +31,11 @@ export class VideoCoreFullscreenManager extends EventTarget {
         super()
         this.onFullscreenChange = onFullscreenChange
         this.attachDocumentListeners()
-        this.attachElectronListeners()
-        this.initElectronFullscreenState()
         this.initTauriFullscreenState()
         this.attachTauriListeners()
     }
 
     public get isFullscreen(): boolean {
-        // Check Electron native fullscreen first
-        if (this._isElectron() && this.isElectronNativeFullscreen) {
-            return true
-        }
-
         // On Tauri, video uses DOM fullscreen — do NOT check isTauriNativeFullscreen
         // here because that tracks the window (F11) state, not the video state.
         // The window being fullscreened doesn't mean the video player is fullscreened.
@@ -53,7 +45,7 @@ export class VideoCoreFullscreenManager extends EventTarget {
             return !!(this.videoElement as any).webkitDisplayingFullscreen
         }
 
-        // DOM fullscreen: covers both Tauri video fullscreen and browser fullscreen
+        // DOM fullscreen: covers Electron, Tauri, and browser video fullscreen
         return !!(
             document.fullscreenElement ||
             (document as any).webkitFullscreenElement ||
@@ -128,12 +120,6 @@ export class VideoCoreFullscreenManager extends EventTarget {
         this.dispatchEvent(attemptEvent)
 
         try {
-            if (this._isElectron() && this._shouldUseElectronFullscreen()) {
-                await this._exitElectronFullscreen()
-                this._focusVideo()
-                return
-            }
-
             // On Tauri: video uses DOM fullscreen, so exit DOM fullscreen only.
             // The window's native fullscreen (F11) is managed separately and must
             // not be touched here — it should remain active if it was set.
@@ -173,12 +159,6 @@ export class VideoCoreFullscreenManager extends EventTarget {
         }
 
         try {
-            if (this._isElectron() && this._shouldUseElectronFullscreen()) {
-                await this._enterElectronFullscreen()
-                this._focusVideo()
-                return
-            }
-
             // On Tauri: use DOM fullscreen for the video container so the window's
             // native fullscreen (F11) can remain active independently.
             // Do NOT use _enterTauriFullscreen() here — that would conflict with
@@ -228,62 +208,11 @@ export class VideoCoreFullscreenManager extends EventTarget {
         return typeof window !== "undefined" && !!(window as any).__TAURI__
     }
 
-    private async initElectronFullscreenState(): Promise<void> {
-        if (!this._isElectron() || !window.electron?.window?.isFullscreen) {
-            return
-        }
-
-        try {
-            this.isElectronNativeFullscreen = await window.electron.window.isFullscreen()
-            log.info("Initial Electron fullscreen state:", this.isElectronNativeFullscreen)
-        }
-        catch (error) {
-            log.error("Failed to get initial Electron fullscreen state", error)
-        }
-    }
-
     private _focusVideo(): void {
         if (this.videoElement) {
             setTimeout(() => {
                 this.videoElement?.focus()
             }, 100)
-        }
-    }
-
-    private _shouldUseElectronFullscreen(): boolean {
-        // return this._isElectron() && window.electron?.platform === "win32"
-        return this._isElectron()
-    }
-
-    private async _enterElectronFullscreen(): Promise<void> {
-        if (!(window as any)?.electron?.window?.setFullscreen) {
-            log.warning("Electron fullscreen API not available")
-            return
-        }
-
-        try {
-            await (window as any).electron.window.setFullscreen(true)
-            this.isElectronNativeFullscreen = true
-            log.info("Entered Electron native fullscreen")
-        }
-        catch (error) {
-            log.error("Failed to enter Electron fullscreen", error)
-        }
-    }
-
-    private async _exitElectronFullscreen(): Promise<void> {
-        if (!window.electron?.window?.setFullscreen) {
-            log.warning("Electron fullscreen API not available")
-            return
-        }
-
-        try {
-            await window.electron?.window?.setFullscreen(false)
-            this.isElectronNativeFullscreen = false
-            log.info("Exited Electron native fullscreen")
-        }
-        catch (error) {
-            log.error("Failed to exit Electron fullscreen", error)
         }
     }
 
@@ -354,30 +283,6 @@ export class VideoCoreFullscreenManager extends EventTarget {
             // video player UI should not react to window fullscreen events.
         }
         window.addEventListener("tauri:fullscreenchange", handler, { signal: this.controller.signal })
-    }
-
-    private attachElectronListeners() {
-        if (!this._isElectron()) return
-
-        const removeFullscreenListener = window.electron?.on?.("window:fullscreen", (isFullscreen: boolean) => {
-            this.isElectronNativeFullscreen = isFullscreen
-            log.info("Electron fullscreen state changed:", isFullscreen)
-
-            this._setBodyFullscreenClass(isFullscreen)
-
-            const event: FullscreenManagerChangedEvent = new CustomEvent("fullscreenchanged", { detail: { isFullscreen } })
-            this.dispatchEvent(event)
-
-            this.onFullscreenChange(isFullscreen)
-        })
-
-        if (removeFullscreenListener) {
-            const originalAbort = this.controller.abort.bind(this.controller)
-            this.controller.abort = () => {
-                removeFullscreenListener()
-                originalAbort()
-            }
-        }
     }
 
     private attachDocumentListeners() {

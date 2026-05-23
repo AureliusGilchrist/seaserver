@@ -189,13 +189,16 @@ func (m *Manager) handleRoomHostConnection(conn *websocket.Conn, room *Room) {
 		shouldReconnect := isCurrentRoom && m.settings != nil && m.settings.IsHost && m.settings.Enabled && !m.reconnecting
 		if shouldReconnect {
 			m.reconnecting = true
+			// Stop any previously-scheduled reconnect attempt before replacing it
+			if m.roomReconnectTimer != nil {
+				m.roomReconnectTimer.Stop()
+			}
+			m.roomReconnectTimer = time.AfterFunc(5*time.Second, func() {
+				m.reconnectToRoomAsHost(room)
+			})
 			m.hostMu.Unlock()
 
 			m.logger.Info().Str("roomId", room.ID).Msg("nakama: Scheduling reconnection to room")
-			// Reconnect after a short delay
-			time.AfterFunc(5*time.Second, func() {
-				m.reconnectToRoomAsHost(room)
-			})
 		} else {
 			m.hostMu.Unlock()
 

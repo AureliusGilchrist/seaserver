@@ -34,8 +34,6 @@ declare global {
                 isMinimizable: () => Promise<boolean>;
                 isMaximizable: () => Promise<boolean>;
                 isClosable: () => Promise<boolean>;
-                isFullscreen: () => Promise<boolean>;
-                setFullscreen: (fullscreen: boolean) => void;
                 toggleMaximize: () => void;
                 hide: () => void;
                 show: () => void;

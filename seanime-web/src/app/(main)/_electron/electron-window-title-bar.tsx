@@ -18,8 +18,6 @@ export function ElectronWindowTitleBar(props: ElectronWindowTitleBarProps) {
 
     const videoCore_isFullscreen = useAtomValue(vc_isFullscreen)
 
-    const [showControls, setShowControls] = React.useState(true)
-    const [displayDragRegion, setDisplayDragRegion] = React.useState(true)
     const [maximized, setMaximized] = React.useState(false)
     const [currentPlatform, setCurrentPlatform] = React.useState("")
 
@@ -42,16 +40,6 @@ export function ElectronWindowTitleBar(props: ElectronWindowTitleBarProps) {
         }
     }
 
-    // Check fullscreen state
-    function onFullscreenChange() {
-        if (window.electron?.window) {
-            window.electron.window.isFullscreen().then((fullscreen: boolean) => {
-                setShowControls(!fullscreen)
-                setDisplayDragRegion(!fullscreen)
-            })
-        }
-    }
-
     React.useEffect(() => {
         // Get platform
         if (window.electron) {
@@ -67,32 +55,10 @@ export function ElectronWindowTitleBar(props: ElectronWindowTitleBarProps) {
             setMaximized(false)
         })
 
-        const removeFullscreenListener = window.electron?.on("window:fullscreen", (isFullscreen: boolean) => {
-            setShowControls(!isFullscreen)
-            setDisplayDragRegion(!isFullscreen)
-        })
-
-        // Check window capabilities
-        // if (window.electron?.window) {
-        //     Promise.all([
-        //         window.electron.window.isMinimizable(),
-        //         window.electron.window.isMaximizable(),
-        //         window.electron.window.isClosable(),
-        //         window.electron.window.isMaximized()
-        //     ]).then(([minimizable, maximizable, closable, isMaximized]) => {
-        //         setMaximized(isMaximized)
-        //         setShowControls(minimizable || maximizable || closable)
-        //     })
-        // }
-
-        document.addEventListener("fullscreenchange", onFullscreenChange)
-
         // Cleanup
         return () => {
             if (removeMaximizedListener) removeMaximizedListener()
             if (removeUnmaximizedListener) removeUnmaximizedListener()
-            if (removeFullscreenListener) removeFullscreenListener()
-            document.removeEventListener("fullscreenchange", onFullscreenChange)
         }
     }, [])
 
@@ -107,9 +73,8 @@ export function ElectronWindowTitleBar(props: ElectronWindowTitleBarProps) {
                     pointerEvents: "all",
                 }}
             >
-                {displayDragRegion &&
-                    <div className="flex flex-1 cursor-grab active:cursor-grabbing" style={{ WebkitAppRegion: "drag" } as any}></div>}
-                {(currentPlatform === "win32" && showControls && !videoCore_isFullscreen) &&
+                <div className="flex flex-1 cursor-grab active:cursor-grabbing" style={{ WebkitAppRegion: "drag" } as any}></div>
+                {(currentPlatform === "win32" && !videoCore_isFullscreen) &&
                     <div className="flex h-10 items-center justify-center gap-1 mr-2 !cursor-default">
                         <IconButton
                             className="outline-none !border-0 w-11 size-8 rounded-lg duration-0 shadow-none text-white hover:text-white bg-transparent hover:bg-[rgba(255,255,255,0.05)] active:text-white active:bg-[rgba(255,255,255,0.1)]"

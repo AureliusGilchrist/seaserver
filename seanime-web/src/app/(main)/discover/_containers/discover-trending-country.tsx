@@ -48,18 +48,20 @@ export function DiscoverTrendingCountry({ country, forDiscoverHeader }: { countr
     useEffect(() => {
         if (mangaRandomNumber !== randomNumber) {
             setHeaderIsTransitioning(true)
-            setTimeout(() => {
+            const id = setTimeout(() => {
                 setRandomNumber(mangaRandomNumber)
                 setHeaderIsTransitioning(false)
             }, 900)
+            return () => clearTimeout(id)
         }
     }, [mangaRandomNumber])
 
     useEffect(() => {
         if (!forDiscoverHeader) return
+        let innerId: ReturnType<typeof setTimeout> | null = null
         const t = setInterval(() => {
             setHeaderIsTransitioning(true)
-            setTimeout(() => {
+            innerId = setTimeout(() => {
                 setRandomNumber(p => {
                     return p < 11 ? p + 1 : 0
                 })
@@ -69,7 +71,10 @@ export function DiscoverTrendingCountry({ country, forDiscoverHeader }: { countr
         if (isHoveringHeader) {
             clearInterval(t)
         }
-        return () => clearInterval(t)
+        return () => {
+            clearInterval(t)
+            if (innerId) clearTimeout(innerId)
+        }
     }, [isHoveringHeader, country])
 
     const firedRef = React.useRef(false)

@@ -10,6 +10,7 @@ import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useRewards } from "@/lib/rewards/reward-provider"
+import { XPBarFxOverlay } from "@/lib/rewards/xpbar-fx-overlay"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { useAtomValue } from "jotai"
 import * as React from "react"
@@ -364,11 +365,12 @@ function CommunityProfileCard({ profile }: { profile: Handlers_CommunityProfile 
                         <p className={cn("text-xs font-bold", colors.label)}>Lv. {profile.currentLevel}</p>
                     </div>
                     {xpBarFillCss && (
-                        <div className="w-full h-1.5 rounded-full overflow-hidden bg-white/10">
+                        <div className="relative w-full h-1.5 rounded-full overflow-hidden bg-white/10">
                             <div
                                 className={cn("h-full rounded-full", xpBarAnimClass)}
                                 style={{ width: "100%", background: xpBarFillCss, backgroundSize: xpBarAnimClass ? "300% 100%" : undefined }}
                             />
+                            <XPBarFxOverlay skin={isSelf ? activeXPBarSkin : undefined} fillCss={xpBarFillCss} />
                         </div>
                     )}
                     <div className="flex items-center gap-3 text-xs text-[--muted]">

@@ -58,7 +58,8 @@ type Manager struct {
 	hostConnectionCtx    context.Context
 	hostConnectionCancel context.CancelFunc
 	hostMu               sync.RWMutex
-	reconnecting         bool // Flag to prevent multiple concurrent reconnection attempts
+	reconnecting         bool        // Flag to prevent multiple concurrent reconnection attempts
+	roomReconnectTimer   *time.Timer // Pending host-room reconnect attempt (guarded by hostMu)
 
 	// Room management (for relay mode)
 	currentRoom    *Room
@@ -436,6 +437,10 @@ func (m *Manager) Cleanup() {
 	if m.hostConnectionCancel != nil {
 		m.hostConnectionCancel()
 		m.hostConnectionCancel = nil
+	}
+	if m.roomReconnectTimer != nil {
+		m.roomReconnectTimer.Stop()
+		m.roomReconnectTimer = nil
 	}
 	m.hostMu.Unlock()
 

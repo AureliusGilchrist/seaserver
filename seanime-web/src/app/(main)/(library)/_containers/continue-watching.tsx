@@ -71,11 +71,7 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
         })
 
         return () => {
-            episodeRefs.forEach((ref) => {
-                if (ref.current) {
-                    observer.unobserve(ref.current)
-                }
-            })
+            observer.disconnect()
         }
     }, [episodeRefs, width])
 

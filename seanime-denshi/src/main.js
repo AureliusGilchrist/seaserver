@@ -1504,12 +1504,6 @@ app.whenReady().then(async () => {
         }
     })
 
-    ipcMain.on("window:setFullscreen", (_, fullscreen) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.setFullScreen(fullscreen)
-        }
-    })
-
     ipcMain.on("window:hide", () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.hide()
@@ -1547,10 +1541,6 @@ app.whenReady().then(async () => {
 
     ipcMain.handle("window:isClosable", () => {
         return mainWindow && !mainWindow.isDestroyed() ? mainWindow.closable : false
-    })
-
-    ipcMain.handle("window:isFullscreen", () => {
-        return mainWindow && !mainWindow.isDestroyed() ? mainWindow.isFullScreen() : false
     })
 
     ipcMain.handle("window:isVisible", () => {
@@ -1604,18 +1594,6 @@ app.whenReady().then(async () => {
                 mainWindow.webContents.send("window:unmaximized")
             }
         })
-
-        mainWindow.on("enter-full-screen", () => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send("window:fullscreen", true)
-            }
-        })
-
-        mainWindow.on("leave-full-screen", () => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send("window:fullscreen", false)
-            }
-        })
     }
 
     // macOS specific events
@@ -1624,7 +1602,6 @@ app.whenReady().then(async () => {
         if (process.platform === "darwin") {
             app.dock.hide()
             mainWindow.show()
-            mainWindow.setFullScreen(true)
 
             setTimeout(() => {
                 mainWindow.focus()

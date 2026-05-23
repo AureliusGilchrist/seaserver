@@ -1679,6 +1679,201 @@ body.vc-fullscreen .appLayout {
     contain: layout;
 }
 
+/* ─── XP Bar — "effects" tier decorative overlays ─────────────────────────── */
+/* Used only on the highest "effects" category XP bar skins. Applied as a stack
+   of absolutely-positioned children inside the bar track (overflow-hidden).
+   Every layer is pointer-events:none so the parent remains interactive.
+   All animations are GPU-friendly (background-position / opacity only). */
+
+.sea-xpbar-fx-wrap {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    overflow: hidden;
+    contain: layout paint;
+}
+
+/* Always-on corner & edge shine — uses the bar's own gradient as the shine
+   color. The `background` is set inline to the skin's fillCss; mask carves
+   out highlights at the four corners + top/bottom edges. */
+@keyframes sea-xpbar-fx-corner-pulse {
+    0%, 100% { opacity: 0.55; background-position: 0% 50%; }
+    50%      { opacity: 1;    background-position: 100% 50%; }
+}
+.sea-xpbar-fx-corner-shine {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-size: 220% 100% !important;
+    -webkit-mask:
+        radial-gradient(circle at 0% 50%,   #000 0%, transparent 28%),
+        radial-gradient(circle at 100% 50%, #000 0%, transparent 28%),
+        radial-gradient(ellipse at 50% 0%,  #000 0%, transparent 55%),
+        radial-gradient(ellipse at 50% 100%,#000 0%, transparent 55%);
+            mask:
+        radial-gradient(circle at 0% 50%,   #000 0%, transparent 28%),
+        radial-gradient(circle at 100% 50%, #000 0%, transparent 28%),
+        radial-gradient(ellipse at 50% 0%,  #000 0%, transparent 55%),
+        radial-gradient(ellipse at 50% 100%,#000 0%, transparent 55%);
+    mix-blend-mode: screen;
+    animation: sea-xpbar-fx-corner-pulse 2.6s ease-in-out infinite;
+    will-change: opacity, background-position;
+}
+
+/* Cracks — subtle fractures across the bar (SVG data URI) */
+.sea-xpbar-fx-cracks {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 24' preserveAspectRatio='none'><g stroke='white' stroke-width='0.55' fill='none' stroke-linecap='round' opacity='0.9'><path d='M28 0 L33 6 L27 11 L34 16 L29 24'/><path d='M82 0 L78 5 L84 9 L80 14 L86 19 L82 24'/><path d='M142 0 L145 7 L139 12 L146 17 L141 24'/><path d='M198 0 L194 6 L200 11 L196 17 L201 24'/><path d='M55 6 L62 6 L64 12 L70 12'/><path d='M112 8 L120 8 L122 14'/><path d='M170 10 L176 10 L178 16 L184 16'/><path d='M14 12 L20 12 L22 18'/><path d='M220 4 L226 4 L228 10 L234 10'/></g></svg>");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    mix-blend-mode: screen;
+    opacity: 0.75;
+}
+
+/* Shattered — denser fracture network with subtle flicker */
+@keyframes sea-xpbar-fx-flicker {
+    0%, 100% { opacity: 0.55; }
+    25%       { opacity: 0.95; }
+    50%       { opacity: 0.70; }
+    75%       { opacity: 1;    }
+}
+.sea-xpbar-fx-shattered {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 24' preserveAspectRatio='none'><g stroke='white' stroke-width='0.5' fill='none' stroke-linecap='round' opacity='1'><path d='M20 0 L24 5 L18 9 L26 13 L19 18 L25 24'/><path d='M60 0 L57 6 L63 10 L58 15 L64 20 L60 24'/><path d='M100 0 L104 6 L98 11 L106 16 L100 24'/><path d='M140 0 L136 6 L143 10 L137 16 L144 24'/><path d='M180 0 L184 7 L178 11 L186 16 L180 24'/><path d='M220 0 L216 6 L222 11 L217 17 L223 24'/><path d='M10 8 L18 8 L20 14'/><path d='M40 12 L48 12 L50 18 L56 18'/><path d='M75 6 L83 6 L85 12 L92 12'/><path d='M115 10 L123 10 L125 16'/><path d='M155 8 L163 8 L165 14 L172 14'/><path d='M195 12 L203 12 L205 18'/><path d='M30 18 L36 22'/><path d='M120 4 L126 1'/><path d='M205 20 L211 23'/></g></svg>");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    mix-blend-mode: screen;
+    animation: sea-xpbar-fx-flicker 1.8s steps(4, end) infinite;
+    will-change: opacity;
+}
+
+/* Glass shimmer — diagonal highlight sweep */
+@keyframes sea-xpbar-fx-glass {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -100% 0; }
+}
+.sea-xpbar-fx-glass-shimmer {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.55) 50%, transparent 65%);
+    background-size: 220% 100%;
+    mix-blend-mode: overlay;
+    animation: sea-xpbar-fx-glass 3.4s linear infinite;
+    will-change: background-position;
+}
+
+/* Rune-glow — animated outline drawn with the gradient itself */
+@keyframes sea-xpbar-fx-rune {
+    0%, 100% { opacity: 0.5;  background-position: 0% 0;   }
+    50%       { opacity: 0.95; background-position: 100% 0; }
+}
+.sea-xpbar-fx-rune-glow {
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background-size: 200% 100% !important;
+    padding: 1.5px;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    mix-blend-mode: screen;
+    animation: sea-xpbar-fx-rune 3s ease-in-out infinite;
+    will-change: opacity, background-position;
+}
+
+/* Energy edges — pulsing horizontal sweep across top & bottom */
+@keyframes sea-xpbar-fx-edges {
+    0%   { background-position: -50% 0,  150% 100%; opacity: 0.6; }
+    50%  { opacity: 1; }
+    100% { background-position: 150% 0,  -50% 100%; opacity: 0.6; }
+}
+.sea-xpbar-fx-energy-edges {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+        linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.85) 50%, transparent 100%) no-repeat 0 0 / 60% 1.5px,
+        linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.85) 50%, transparent 100%) no-repeat 0 100% / 60% 1.5px;
+    mix-blend-mode: screen;
+    animation: sea-xpbar-fx-edges 2.4s linear infinite;
+    will-change: background-position, opacity;
+}
+
+/* Scanlines — faint horizontal scan with slow drift */
+@keyframes sea-xpbar-fx-scan {
+    0%   { background-position: 0 0; }
+    100% { background-position: 0 8px; }
+}
+.sea-xpbar-fx-scanlines {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+        repeating-linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.10) 0px,
+            rgba(255,255,255,0.10) 1px,
+            transparent 1px,
+            transparent 3px
+        );
+    mix-blend-mode: overlay;
+    opacity: 0.7;
+    animation: sea-xpbar-fx-scan 2.2s linear infinite;
+    will-change: background-position;
+}
+
+/* Sparks — small bright dots that drift across */
+@keyframes sea-xpbar-fx-sparks {
+    0%   { background-position:   0% 30%,  20% 70%,  40% 20%,  60% 80%,  80% 40%; opacity: 0.4; }
+    50%  { opacity: 1; }
+    100% { background-position: 100% 70%, 120% 30%, 140% 80%, 160% 20%, 180% 60%; opacity: 0.4; }
+}
+.sea-xpbar-fx-sparks {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+        radial-gradient(circle, rgba(255,255,255,0.95) 0%, transparent 60%) no-repeat,
+        radial-gradient(circle, rgba(255,255,255,0.85) 0%, transparent 60%) no-repeat,
+        radial-gradient(circle, rgba(255,255,255,0.95) 0%, transparent 60%) no-repeat,
+        radial-gradient(circle, rgba(255,255,255,0.80) 0%, transparent 60%) no-repeat,
+        radial-gradient(circle, rgba(255,255,255,0.90) 0%, transparent 60%) no-repeat;
+    background-size: 3px 3px, 2px 2px, 3px 3px, 2px 2px, 3px 3px;
+    mix-blend-mode: screen;
+    animation: sea-xpbar-fx-sparks 3.2s linear infinite;
+    will-change: background-position, opacity;
+}
+
+/* Prism split — slow rainbow hue shift overlay */
+@keyframes sea-xpbar-fx-prism {
+    0%, 100% { background-position: 0%   50%; opacity: 0.45; }
+    50%      { background-position: 100% 50%; opacity: 0.8;  }
+}
+.sea-xpbar-fx-prism {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg,
+        rgba(255,0,128,0.35),
+        rgba(255,200,0,0.35),
+        rgba(0,255,170,0.35),
+        rgba(0,170,255,0.35),
+        rgba(200,80,255,0.35),
+        rgba(255,0,128,0.35)
+    );
+    background-size: 300% 100%;
+    mix-blend-mode: color-dodge;
+    animation: sea-xpbar-fx-prism 5s ease-in-out infinite;
+    will-change: background-position, opacity;
+}
+
 /* ── Sea Animation System ─────────────────────────────────────────────────── */
 /* Defaults — overridden per-profile by UICustomizeProvider on :root */
 :root {
