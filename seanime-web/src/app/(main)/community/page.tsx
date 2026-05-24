@@ -348,14 +348,24 @@ function CommunityProfileCard({ profile }: { profile: Handlers_CommunityProfile 
                 <div className="relative z-10 flex flex-col items-center gap-3 w-full">
                     <LevelRingAvatar profile={profile} size={80} xpBarFillOverride={xpBarFillCss || undefined} />
                     <div className="text-center min-w-0 w-full">
-                        <p
-                            className={"font-semibold text-sm truncate" + (nameGradientCss ? " sea-name-shine" : "")}
-                            style={nameGradientCss
-                                ? { backgroundImage: nameGradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }
-                                : nameColorCss ? { color: nameColorCss } : {}}
-                        >
-                            {profile.name}
-                        </p>
+                        {(() => {
+                            const xpIsGradient = !!xpBarFillCss && xpBarFillCss.startsWith("linear-gradient")
+                            const useXp = xpIsGradient
+                            const useNameGrad = !useXp && !!nameGradientCss
+                            const style: React.CSSProperties = useXp
+                                ? { backgroundImage: xpBarFillCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
+                                : useNameGrad
+                                    ? { backgroundImage: nameGradientCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }
+                                    : nameColorCss ? { color: nameColorCss } : {}
+                            return (
+                                <p
+                                    className={"font-semibold text-sm truncate" + ((useXp || useNameGrad) ? " sea-name-shine" : "")}
+                                    style={style}
+                                >
+                                    {profile.name}
+                                </p>
+                            )
+                        })()}
                         {/* Show milestone name (currentMilestoneName) publicly visible to all viewers */}
                         {(profile as any).currentMilestoneName && (
                             <p className="text-[10px] font-semibold truncate mb-0.5 text-[--color-brand-300]">
@@ -431,7 +441,20 @@ function LeaderboardRow({ profile, rank }: { profile: Handlers_CommunityProfile;
                     <LevelRingAvatar profile={profile} size={40} xpBarFillOverride={xpBarFillCss || undefined} />
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                            <p className="font-semibold text-sm truncate">{profile.name}</p>
+                            {(() => {
+                                const xpIsGradient = !!xpBarFillCss && xpBarFillCss.startsWith("linear-gradient")
+                                const style: React.CSSProperties = xpIsGradient
+                                    ? { backgroundImage: xpBarFillCss, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
+                                    : {}
+                                return (
+                                    <p
+                                        className={"font-semibold text-sm truncate" + (xpIsGradient ? " sea-name-shine" : "")}
+                                        style={style}
+                                    >
+                                        {profile.name}
+                                    </p>
+                                )
+                            })()}
                             {/* Show milestone name (currentMilestoneName) publicly visible to all viewers */}
                             {(profile as any).currentMilestoneName && (
                                 <span className="text-[10px] font-semibold shrink-0 text-[--color-brand-300]">

@@ -35,6 +35,19 @@ function isPGS(str: string) {
     return str === "S_HDMV/PGS"
 }
 
+/**
+ * Prepend a libass \fad(in_ms, out_ms) override block to the cue text so the line fades out
+ * at the end of its duration. We use 0ms fade-in and a user-configurable fade-out.
+ * If the cue text already contains a \fad or \fade tag, leave it alone to respect the
+ * original styling. If fadeMs is falsy/<=0, fade is disabled.
+ */
+function applyAssFade(text: string, fadeMs?: number): string {
+    if (!fadeMs || fadeMs <= 0) return text
+    if (/\\fade?\(/.test(text)) return text
+    if (text.startsWith("{")) return "{\\fad(0," + fadeMs + ")" + text.slice(1)
+    return "{\\fad(0," + fadeMs + ")}" + text
+}
+
 // Event or file track info.
 export type NormalizedTrackInfo = {
     type: "event" | "file"
@@ -637,7 +650,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.eventTranslationQueue.delete(original)
         cached.translatedAssEvent = {
             ...cached.assEvent,
-            Text: translated,
+            Text: applyAssFade(translated, this.settings.subtitleCustomization?.fadeOutMs),
         }
         cached.isTranslating = false
         // If the track is still the active one, inject the new event immediately
@@ -1056,7 +1069,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             MarginR: event.extraData?.marginR ? Number(event.extraData.marginR) : 0,
             MarginV: event.extraData?.marginV ? Number(event.extraData.marginV) : 0,
             Effect: event.extraData?.effect ?? "",
-            Text: event.text,
+            Text: applyAssFade(event.text, this.settings.subtitleCustomization?.fadeOutMs),
             ReadOrder: event.extraData?.readOrder ? Number(event.extraData.readOrder) : 1,
             Layer: event.extraData?.layer ? Number(event.extraData.layer) : 0,
             // index is based on the order of the events in the record

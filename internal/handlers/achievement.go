@@ -340,6 +340,27 @@ func (h *Handler) HandleAchievementHeartbeat(c echo.Context) error {
 	default:
 		return h.RespondWithError(c, echo.NewHTTPError(400, "invalid kind: must be 'anime' or 'manga'"))
 	}
-	go h.App.AchievementEngine.RecordActivity(profileID, kind)
+	// Credit passive XP for time actively spent watching/reading at a rate of 25 XP per
+	// 10 seconds (2.5 XP/sec). RecordActivity returns the clamped wall-clock delta in
+	// seconds, so we use the same server-authoritative measurement that drives the
+	// continuous-session hour achievements. New sessions return 0 and credit no XP.
+	deltaSeconds := h.App.AchievementEngine.RecordActivity(profileID, kind)
+	if deltaSeconds > 0 {
+		database := h.GetProfileDatabase(c)
+		if database != nil {
+			// Apply the user's Activity Buff multiplier so passive watch-time XP scales with
+			// their current rolling-30-day activity buff (same multiplier used for achievement XP).
+			mult, _ := database.ComputeActivityBuff()
+			if mult <= 0 {
+				mult = 1
+			}
+			xp := int(deltaSeconds * 2.5 * mult)
+			if xp > 0 {
+				if _, _, err := database.AddWatchTimeXP(xp); err != nil {
+					h.App.Logger.Warn().Err(err).Msg("achievement: failed to credit watch-time XP")
+				}
+			}
+		}
+	}
 	return h.RespondWithData(c, true)
 }

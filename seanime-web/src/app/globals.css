@@ -1564,8 +1564,8 @@ body.vc-fullscreen .appLayout {
  *  Direction/duration/easing are controlled via CSS variables that the
  *  RewardProvider keeps in sync with the user's profile settings. */
 @keyframes sea-name-shine-kf {
-    0%   { background-position: 0% 50%; }
-    100% { background-position: 200% 50%; }
+    0%   { background-position: 200% 50%; }
+    100% { background-position: 0% 50%; }
 }
 .sea-name-shine {
     background-size: 200% 100% !important;

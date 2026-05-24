@@ -1,7 +1,6 @@
 "use client"
 
 import { ProfileStats_ActivityDay } from "@/api/generated/types"
-import { cn } from "@/components/ui/core/styling"
 import React from "react"
 
 export function ActivityHeatmap({ days, compact }: { days?: ProfileStats_ActivityDay[]; compact?: boolean }) {
@@ -28,96 +27,129 @@ export function ActivityHeatmap({ days, compact }: { days?: ProfileStats_Activit
 
     const cellSize = compact ? 10 : 12
     const gap = 2
-    const dayLabelWidth = compact ? 0 : 20
     const dayLabels = ["M", "T", "W", "T", "F", "S", "S"]
 
-    const width = dayLabelWidth + columns.length * (cellSize + gap)
-    const height = 7 * (cellSize + gap)
+    const monthLabels = columns.map((col) => {
+        const firstDay = col.find(c => c !== null)
+        if (!firstDay) return null
+        const d = new Date(firstDay.date + "T00:00:00")
+        if (d.getDate() <= 7) {
+            return d.toLocaleString("default", { month: "short" })
+        }
+        return null
+    })
+
+    // Use the user's active XP bar fill (gradient or solid) when available, fall back to an emerald gradient.
+    const xpFill = "var(--sea-xpbar-fill, linear-gradient(135deg, #34d399, #059669))"
 
     return (
         <div className="overflow-x-auto pb-2">
-            <svg width={width} height={height + (compact ? 0 : 20)} className="block">
-                {!compact && dayLabels.map((label, i) => (
-                    <text
-                        key={`label-${i}`}
-                        x={dayLabelWidth - 4}
-                        y={i * (cellSize + gap) + cellSize - 1}
-                        textAnchor="end"
-                        className="fill-[--muted] text-[9px]"
+            <div className="flex" style={{ gap: `${gap}px` }}>
+                {!compact && (
+                    <div
+                        className="flex flex-col text-[9px] text-[--muted] shrink-0 pr-1"
+                        style={{ gap: `${gap}px` }}
                     >
-                        {i % 2 === 0 ? label : ""}
-                    </text>
-                ))}
-
-                {!compact && columns.map((col, ci) => {
-                    const firstDay = col.find(c => c !== null)
-                    if (!firstDay) return null
-                    const d = new Date(firstDay.date + "T00:00:00")
-                    if (d.getDate() <= 7) {
-                        const monthName = d.toLocaleString("default", { month: "short" })
-                        return (
-                            <text
-                                key={`month-${ci}`}
-                                x={dayLabelWidth + ci * (cellSize + gap)}
-                                y={height + 14}
-                                className="fill-[--muted] text-[9px]"
+                        {dayLabels.map((label, i) => (
+                            <div
+                                key={`label-${i}`}
+                                style={{ height: cellSize, lineHeight: `${cellSize}px` }}
+                                className="text-right"
                             >
-                                {monthName}
-                            </text>
-                        )
-                    }
-                    return null
-                })}
-
-                {columns.map((col, ci) =>
-                    col.map((cell, ri) => {
-                        if (!cell) {
-                            return (
-                                <rect
-                                    key={`${ci}-${ri}`}
-                                    x={dayLabelWidth + ci * (cellSize + gap)}
-                                    y={ri * (cellSize + gap)}
-                                    width={cellSize}
-                                    height={cellSize}
-                                    rx={2}
-                                    className="fill-gray-800/50"
-                                />
-                            )
-                        }
-                        const intensity = cell.totalActivity / maxActivity
-                        return (
-                            <rect
-                                key={`${ci}-${ri}`}
-                                x={dayLabelWidth + ci * (cellSize + gap)}
-                                y={ri * (cellSize + gap)}
-                                width={cellSize}
-                                height={cellSize}
-                                rx={2}
-                                className={getHeatmapColor(intensity)}
-                            >
-                                <title>
-                                    {cell.date}: {cell.animeEpisodes} ep, {cell.mangaChapters} ch
-                                </title>
-                            </rect>
-                        )
-                    }),
+                                {i % 2 === 0 ? label : ""}
+                            </div>
+                        ))}
+                    </div>
                 )}
-            </svg>
-            <div className="flex items-center gap-1 mt-1 text-xs text-[--muted]">
-                <span>Less</span>
-                {[0, 0.25, 0.5, 0.75, 1].map((v, i) => (
-                    <span key={i} className={cn("inline-block w-3 h-3 rounded-sm", getHeatmapColor(v))} />
-                ))}
-                <span>More</span>
+
+                <div className="flex flex-col" style={{ gap: `${gap}px` }}>
+                    <div className="flex" style={{ gap: `${gap}px` }}>
+                        {columns.map((col, ci) => (
+                            <div key={`col-${ci}`} className="flex flex-col" style={{ gap: `${gap}px` }}>
+                                {col.map((cell, ri) => (
+                                    <HeatmapCell
+                                        key={`${ci}-${ri}`}
+                                        cell={cell}
+                                        size={cellSize}
+                                        intensity={cell ? cell.totalActivity / maxActivity : 0}
+                                        fill={xpFill}
+                                    />
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                    {!compact && (
+                        <div className="flex text-[9px] text-[--muted]" style={{ gap: `${gap}px` }}>
+                            {monthLabels.map((label, ci) => (
+                                <div
+                                    key={`month-${ci}`}
+                                    style={{ width: cellSize }}
+                                    className="overflow-visible whitespace-nowrap"
+                                >
+                                    {label ?? ""}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {!compact && (
+                <div className="flex items-center gap-1 mt-2 text-xs text-[--muted]">
+                    <span>Less</span>
+                    {[0, 0.2, 0.45, 0.7, 1].map((v, i) => (
+                        <HeatmapCell key={i} cell={null} size={12} intensity={v} fill={xpFill} forceShow />
+                    ))}
+                    <span>More</span>
+                </div>
+            )}
         </div>
     )
 }
 
-function getHeatmapColor(intensity: number): string {
-    if (intensity <= 0) return "fill-gray-800"
-    if (intensity < 0.25) return "fill-emerald-900"
-    if (intensity < 0.5) return "fill-emerald-700"
-    if (intensity < 0.75) return "fill-emerald-500"
-    return "fill-emerald-400"
+function HeatmapCell({
+    cell,
+    size,
+    intensity,
+    fill,
+    forceShow,
+}: {
+    cell: ProfileStats_ActivityDay | null
+    size: number
+    intensity: number
+    fill: string
+    forceShow?: boolean
+}) {
+    if (!cell && !forceShow) {
+        return (
+            <div
+                style={{ width: size, height: size }}
+                className="rounded-[2px] bg-gray-800/40"
+            />
+        )
+    }
+
+    let opacity = 0
+    if (intensity <= 0) opacity = 0
+    else if (intensity < 0.2) opacity = 0.25
+    else if (intensity < 0.45) opacity = 0.5
+    else if (intensity < 0.7) opacity = 0.75
+    else opacity = 1
+
+    const title = cell ? `${cell.date}: ${cell.animeEpisodes} ep, ${cell.mangaChapters} ch` : undefined
+
+    return (
+        <div
+            title={title}
+            style={{ width: size, height: size }}
+            className="relative rounded-[2px] bg-gray-800/40"
+        >
+            {opacity > 0 && (
+                <div
+                    className="absolute inset-0 rounded-[2px]"
+                    style={{ background: fill, opacity }}
+                />
+            )}
+        </div>
+    )
 }

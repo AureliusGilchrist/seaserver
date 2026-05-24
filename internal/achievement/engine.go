@@ -88,12 +88,16 @@ func NewEngine(opts *NewEngineOptions) *Engine {
 // This is the ONLY path that drives continuous-session hour achievements
 // (e.g. "Watch continuously for 24+ hours", "Read for 6+ hours continuously").
 // Client-reported durations are NEVER trusted for these.
-func (e *Engine) RecordActivity(profileID uint, kind ActivityKind) {
+//
+// Returns the wall-clock delta (in seconds) credited toward the session, so callers
+// can grant passive watch-time XP proportionally. Returns 0 if this is a brand-new
+// session or if the engine/tracker is not initialized.
+func (e *Engine) RecordActivity(profileID uint, kind ActivityKind) float64 {
 	if e == nil || e.activityTracker == nil || profileID == 0 {
-		return
+		return 0
 	}
 	now := time.Now()
-	sessionHours, _ := e.activityTracker.Heartbeat(profileID, kind, now)
+	sessionHours, deltaSeconds, _ := e.activityTracker.Heartbeat(profileID, kind, now)
 
 	trigger := TriggerAnimeActivity
 	if kind == ActivityKindManga {
@@ -108,6 +112,7 @@ func (e *Engine) RecordActivity(profileID uint, kind ActivityKind) {
 			"kind":          string(kind),
 		},
 	})
+	return deltaSeconds
 }
 
 // ResetActivity clears any in-flight activity session for the given profile/kind.
@@ -481,7 +486,7 @@ func (e *Engine) RecalculateXP(database *db.Database) error {
 	}
 
 	e.logger.Info().Int("totalXP", totalXP).Int("unlockedCount", len(unlocked)).Msg("achievement: recalculated XP")
-	return database.SetXP(totalXP)
+	return database.SetAchievementXP(totalXP)
 }
 
 // isNoXPAchievement marks achievements that should never grant XP.

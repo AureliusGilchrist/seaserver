@@ -88,6 +88,15 @@ const SUBTITLE_STYLES_SHADOW_DEPTH_OPTIONS = [
     { label: "Large", value: 3 },
 ]
 
+const SUBTITLE_STYLES_FADE_OUT_OPTIONS = [
+    { label: "Off", value: 0 },
+    { label: "0.25s", value: 250 },
+    { label: "0.5s", value: 500 },
+    { label: "0.75s", value: 750 },
+    { label: "1s", value: 1000 },
+    { label: "1.5s", value: 1500 },
+]
+
 export const SUBTITLE_STYLES_BACK_COLOR_OPACITY_OPTIONS = [
     { label: "100%", value: 0 },
     { label: "80%", value: 64 },
@@ -107,6 +116,7 @@ export const vc_subtitleStylesDefaults: VideoCoreSettings["subtitleCustomization
     backColorOpacity: SUBTITLE_STYLES_BACK_COLOR_OPACITY_OPTIONS[0].value,
     outline: SUBTITLE_STYLES_OUTLINE_WIDTH_OPTIONS[2].value,
     shadow: SUBTITLE_STYLES_SHADOW_DEPTH_OPTIONS[0].value,
+    fadeOutMs: 500,
 }
 
 export function vc_getSubtitleStyle<T extends keyof VideoCoreSettings["subtitleCustomization"]>(settings: VideoCoreSettings["subtitleCustomization"] | undefined,
@@ -125,6 +135,8 @@ export function vc_getSubtitleStyleLabel<T extends keyof VideoCoreSettings["subt
             return SUBTITLE_STYLES_OUTLINE_WIDTH_OPTIONS.find(o => o.value === vc_getSubtitleStyle(settings, key))?.label ?? ""
         case "shadow":
             return SUBTITLE_STYLES_SHADOW_DEPTH_OPTIONS.find(o => o.value === vc_getSubtitleStyle(settings, key))?.label ?? ""
+        case "fadeOutMs":
+            return SUBTITLE_STYLES_FADE_OUT_OPTIONS.find(o => o.value === vc_getSubtitleStyle(settings, key))?.label ?? ""
         case "primaryColor":
         case "outlineColor":
         case "backColor":
@@ -405,6 +417,13 @@ export function VideoCoreSettingsMenu() {
                             ]}
                             onValueChange={(v: number) => handleSubtitleCustomizationChange("enabled", v === 1)}
                             value={editedSubCustomization.enabled ? 1 : 0}
+                        />
+                        <p className="text-[--muted] text-sm my-2">Fade Out</p>
+                        <VideoCoreMenuSubOption
+                            title="Fade Out"
+                            icon={MdOutlineSubtitles}
+                            parentId="Subtitle Styles"
+                            value={vc_getSubtitleStyleLabel(settings.subtitleCustomization, "fadeOutMs")}
                         />
                         {editedSubCustomization.enabled && <>
                             <p className="text-[--muted] text-sm my-2">Options</p>
@@ -737,6 +756,14 @@ export function VideoCoreSettingsMenu() {
                     </VideoCoreMenuOption>
                 </VideoCoreMenuSubmenuBody>
                 <VideoCoreMenuSubSubmenuBody>
+                    <VideoCoreMenuSubOption title="Fade Out" icon={MdOutlineSubtitles} parentId="Subtitle Styles">
+                        <p className="text-[--muted] text-sm mb-2">Fade out subtitles when they disappear.</p>
+                        <VideoCoreSettingSelect
+                            options={SUBTITLE_STYLES_FADE_OUT_OPTIONS}
+                            onValueChange={(v: number) => handleSubtitleCustomizationChange("fadeOutMs", v)}
+                            value={vc_getSubtitleStyle(editedSubCustomization, "fadeOutMs")}
+                        />
+                    </VideoCoreMenuSubOption>
                     <VideoCoreMenuSubOption title="Font" icon={VscTextSize} parentId="Subtitle Styles">
                         <div className="">
                             <p className="text-sm mb-2">Custom Font</p>

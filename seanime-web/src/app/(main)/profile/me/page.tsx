@@ -5,12 +5,11 @@ import { useServerMutation } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import {
     useGetAniListStats,
-    useGetAnilistAnimeDetails,
     useGetAnilistCharacterDetails,
     useGetAnilistStaffDetails,
     useGetAnilistStudioDetails,
 } from "@/api/hooks/anilist.hooks"
-import { useGetMangaEntryDetails } from "@/api/hooks/manga.hooks"
+import { useAnilistMediaById } from "./_lib/anilist-media-by-id"
 import { useGetMyProfile, useUpdateBio } from "@/api/hooks/community.hooks"
 import {
     useGetAnimeFavorites,
@@ -240,7 +239,10 @@ export default function Page() {
                                 )}
                             </h1>
                             <span
-                                className="text-lg font-bold"
+                                className={cn(
+                                    "text-lg font-bold",
+                                    activeXPBarSkin?.fillCss?.startsWith("linear-gradient") && "sea-name-shine",
+                                )}
                                 style={
                                     activeXPBarSkin?.fillCss
                                         ? activeXPBarSkin.fillCss.startsWith("linear-gradient")
@@ -1224,9 +1226,8 @@ function FavoriteCardShell({
 }
 
 function FavoriteAnimeCard({ id }: { id: number }) {
-    const { data, isLoading } = useGetAnilistAnimeDetails(id)
+    const { data, isLoading } = useAnilistMediaById(id, "anime")
     const d = data as any
-    // Prefer official titles per user request: english/romaji over native
     const title = d?.title?.english || d?.title?.romaji || d?.title?.userPreferred || d?.title?.native
     const year = d?.seasonYear ?? d?.startDate?.year ?? null
     const fmt = d?.format ? String(d.format).replace(/_/g, " ") : null
@@ -1244,7 +1245,7 @@ function FavoriteAnimeCard({ id }: { id: number }) {
 }
 
 function FavoriteMangaCard({ id }: { id: number }) {
-    const { data, isLoading } = useGetMangaEntryDetails(id)
+    const { data, isLoading } = useAnilistMediaById(id, "manga")
     const d = data as any
     const title = d?.title?.english || d?.title?.romaji || d?.title?.userPreferred || d?.title?.native
     const year = d?.startDate?.year ?? null

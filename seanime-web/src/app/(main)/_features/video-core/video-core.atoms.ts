@@ -39,6 +39,8 @@ export type VideoCoreSettings = {
         backColorOpacity?: number
         outline?: number
         shadow?: number
+        /** Fade-out duration in milliseconds for every subtitle cue. 0 disables fade. */
+        fadeOutMs?: number
     }
     // Caption customization settings (non-ASS)
     captionCustomization: {

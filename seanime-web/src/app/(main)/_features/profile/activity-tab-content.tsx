@@ -6,7 +6,6 @@ import { useRewards } from "@/lib/rewards/reward-provider"
 import { LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuScan, LuFileCheck, LuFileX, LuPencil, LuTrash, LuTrophy } from "react-icons/lu"
 import { ActivityHeatmap } from "@/app/(main)/_features/profile/activity-heatmap"
 import { StreakCard, ShowcaseCard, RecentAchievementRow } from "./shared-cards"
-import { ActivityFeed } from "./activity-feed"
 
 import type {
   ProfileStats_StreakInfo,
@@ -275,8 +274,6 @@ export function ActivityTabContent({
 }: ActivityTabContentProps) {
   return (
     <>
-      <ActivityFeed anilistProfile={anilistProfile} />
-
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_260px] gap-6 mt-6 items-start">
 
         {/* Left column — streaks + compact heatmap */}

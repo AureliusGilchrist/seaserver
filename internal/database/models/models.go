@@ -806,6 +806,10 @@ type LevelProgress struct {
 	CurrentLevel       int    `gorm:"column:current_level;default:1" json:"currentLevel"`
 	XPVersion          int    `gorm:"column:xp_version;default:0" json:"xpVersion"`
 	CurrentMilestoneName string `gorm:"column:current_milestone_name" json:"currentMilestoneName"` // Publicly visible milestone title
+	// WatchTimeXP is XP earned passively by spending time actively watching/reading.
+	// It is accumulated outside of achievement unlocks and preserved across achievement XP
+	// recalculations (which only own the achievement-derived portion).
+	WatchTimeXP int `gorm:"column:watch_time_xp;default:0" json:"watchTimeXP"`
 }
 
 // AdminAnnouncement is a server-local announcement created by an admin, shown as a dismissible banner.

@@ -88,6 +88,47 @@ func (db *Database) SetXP(totalXP int) error {
 	return db.gormdb.Save(lp).Error
 }
 
+// SetAchievementXP sets the achievement-derived portion of total XP while preserving
+// any accumulated watch-time XP. Used by the achievement engine's RecalculateXP so that
+// passive watch-time progress is not wiped when achievements are re-evaluated.
+func (db *Database) SetAchievementXP(achievementXP int) error {
+	lp, err := db.GetLevelProgress()
+	if err != nil {
+		return err
+	}
+	total := achievementXP + lp.WatchTimeXP
+	if total < 0 {
+		total = 0
+	}
+	lp.TotalXP = total
+	lp.CurrentLevel = ComputeLevel(total)
+	return db.gormdb.Save(lp).Error
+}
+
+// AddWatchTimeXP credits XP earned from active watching/reading. Returns (newLevel, leveledUp, error).
+// Watch-time XP is stored separately so achievement recalculations don't clobber it.
+func (db *Database) AddWatchTimeXP(xp int) (int, bool, error) {
+	if xp <= 0 {
+		lp, err := db.GetLevelProgress()
+		if err != nil {
+			return 0, false, err
+		}
+		return lp.CurrentLevel, false, nil
+	}
+	lp, err := db.GetLevelProgress()
+	if err != nil {
+		return 0, false, err
+	}
+	oldLevel := lp.CurrentLevel
+	lp.WatchTimeXP += xp
+	lp.TotalXP += xp
+	lp.CurrentLevel = ComputeLevel(lp.TotalXP)
+	if err := db.gormdb.Save(lp).Error; err != nil {
+		return oldLevel, false, err
+	}
+	return lp.CurrentLevel, lp.CurrentLevel > oldLevel, nil
+}
+
 // GetXPVersion returns the current XP migration version from LevelProgress.
 func (db *Database) GetXPVersion() (int, error) {
 	lp, err := db.GetLevelProgress()

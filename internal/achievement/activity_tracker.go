@@ -54,18 +54,19 @@ func NewActivityTracker() *ActivityTracker {
 
 // Heartbeat records that the given profile is actively engaged in `kind`
 // at time `now`. It returns the current continuous-session duration in
-// hours and whether this heartbeat began a new session (because none
-// existed or the previous one timed out).
+// hours, the wall-clock delta (in seconds) that was just credited toward
+// the session (after clamping), and whether this heartbeat began a new
+// session (because none existed or the previous one timed out).
 //
 // Time accounting rules:
 //   - delta = now - lastHeartbeat
-//   - if delta > InactivityTimeout: start a new session (return 0h, true)
+//   - if delta > InactivityTimeout: start a new session (return 0h, 0s, true)
 //   - if delta < 0: ignore (clock skew)
 //   - if delta > MaxHeartbeatDelta: clamp to MaxHeartbeatDelta
 //   - else: accumulate delta into ActiveSeconds
-func (t *ActivityTracker) Heartbeat(profileID uint, kind ActivityKind, now time.Time) (sessionHours float64, isNewSession bool) {
+func (t *ActivityTracker) Heartbeat(profileID uint, kind ActivityKind, now time.Time) (sessionHours float64, deltaSeconds float64, isNewSession bool) {
 	if profileID == 0 {
-		return 0, false
+		return 0, 0, false
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -83,7 +84,7 @@ func (t *ActivityTracker) Heartbeat(profileID uint, kind ActivityKind, now time.
 			SessionStart:  now,
 			ActiveSeconds: 0,
 		}
-		return 0, true
+		return 0, 0, true
 	}
 
 	delta := now.Sub(s.LastHeartbeat)
@@ -94,7 +95,7 @@ func (t *ActivityTracker) Heartbeat(profileID uint, kind ActivityKind, now time.
 	}
 	s.ActiveSeconds += delta.Seconds()
 	s.LastHeartbeat = now
-	return s.ActiveSeconds / 3600.0, false
+	return s.ActiveSeconds / 3600.0, delta.Seconds(), false
 }
 
 // SessionHours returns the current continuous-session length in hours
