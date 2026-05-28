@@ -111,17 +111,21 @@ export function useVideoCoreHls({
             const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: false,
-                backBufferLength: 30, // hls.js default; 90 causes excess GPU memory pressure during fullscreen
+                backBufferLength: 90, // hls.js default
+                // Cap ABR to the player's displayed size. Without this, entering fullscreen
+                // causes hls.js to jump to the highest level (e.g. 1080p) regardless of whether
+                // the provider can sustain it, which manifests as stutter + re-buffering.
+                capLevelToPlayerSize: true,
                 enableWebVTT: true,
                 renderTextTracksNatively: false,
                 // Generous timeouts for online streams — default 10 s is too short for slow providers
-                manifestLoadingTimeOut: 30000, // Reverted to original for online streaming
+                manifestLoadingTimeOut: 30000,
                 manifestLoadingMaxRetry: 4,
                 manifestLoadingRetryDelay: 1000,
-                levelLoadingTimeOut: 30000, // Reverted to original for online streaming
+                levelLoadingTimeOut: 30000,
                 levelLoadingMaxRetry: 4,
                 levelLoadingRetryDelay: 1000,
-                fragLoadingTimeOut: 30000, // Reverted to original for online streaming
+                fragLoadingTimeOut: 30000,
                 fragLoadingMaxRetry: 4,
                 fragLoadingRetryDelay: 1000,
             })
