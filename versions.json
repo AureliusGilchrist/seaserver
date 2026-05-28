@@ -1,4 +1,4 @@
- {
+{
     "$comment": "Single source of truth for all version numbers. Edit ONLY this file — sync-versions.js (run via predev/prebuild hooks or `node sync-versions.js`) propagates values to seanime-web/package.json, seanime-denshi/package.json, and internal/constants/constants.go automatically.",
     "seaserver": {
         "version": "2.3.0-11",
