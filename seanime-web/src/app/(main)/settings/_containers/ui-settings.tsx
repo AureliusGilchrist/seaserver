@@ -70,6 +70,11 @@ const themeSchema = defineSchema(({ z }) => z.object({
     customCSS: z.string().default(THEME_DEFAULT_VALUES.customCSS),
     mobileCustomCSS: z.string().default(THEME_DEFAULT_VALUES.mobileCustomCSS),
     unpinnedMenuItems: z.array(z.string()).default(THEME_DEFAULT_VALUES.unpinnedMenuItems),
+    hideAnimeSpoilers: z.boolean().default(THEME_DEFAULT_VALUES.hideAnimeSpoilers),
+    hideAnimeSpoilerThumbnails: z.boolean().default(THEME_DEFAULT_VALUES.hideAnimeSpoilerThumbnails),
+    hideAnimeSpoilerTitles: z.boolean().default(THEME_DEFAULT_VALUES.hideAnimeSpoilerTitles),
+    hideAnimeSpoilerDescriptions: z.boolean().default(THEME_DEFAULT_VALUES.hideAnimeSpoilerDescriptions),
+    hideAnimeSpoilerSkipNextEpisode: z.boolean().default(THEME_DEFAULT_VALUES.hideAnimeSpoilerSkipNextEpisode),
 }))
 
 export const __ui_fixBorderRenderingArtifacts = atomWithStorage("sea-ui-settings-fix-border-rendering-artifacts", false)
@@ -272,6 +277,11 @@ export function UISettings() {
                 customCSS: themeSettings?.customCSS,
                 mobileCustomCSS: themeSettings?.mobileCustomCSS,
                 unpinnedMenuItems: themeSettings?.unpinnedMenuItems ?? [],
+                hideAnimeSpoilers: themeSettings?.hideAnimeSpoilers,
+                hideAnimeSpoilerThumbnails: themeSettings?.hideAnimeSpoilerThumbnails,
+                hideAnimeSpoilerTitles: themeSettings?.hideAnimeSpoilerTitles,
+                hideAnimeSpoilerDescriptions: themeSettings?.hideAnimeSpoilerDescriptions,
+                hideAnimeSpoilerSkipNextEpisode: themeSettings?.hideAnimeSpoilerSkipNextEpisode,
             }}
             stackClass="space-y-4 relative"
             noFormElement
@@ -743,6 +753,38 @@ export function UISettings() {
                                     side="right"
                                     label="Hide downloaded episode filename"
                                     name="hideDownloadedEpisodeCardFilename"
+                                />
+
+                                <Field.Switch
+                                    side="right"
+                                    label="Hide anime spoilers"
+                                    help="Blur or replace episode info for unwatched episodes"
+                                    name="hideAnimeSpoilers"
+                                />
+
+                                <Field.Switch
+                                    side="right"
+                                    label="Don't reveal the next episode"
+                                    help="If off, the next unwatched episode is shown unhidden"
+                                    name="hideAnimeSpoilerSkipNextEpisode"
+                                />
+
+                                <Field.Switch
+                                    side="right"
+                                    label="Hide episode thumbnails"
+                                    name="hideAnimeSpoilerThumbnails"
+                                />
+
+                                <Field.Switch
+                                    side="right"
+                                    label="Hide episode titles"
+                                    name="hideAnimeSpoilerTitles"
+                                />
+
+                                <Field.Switch
+                                    side="right"
+                                    label="Hide episode descriptions"
+                                    name="hideAnimeSpoilerDescriptions"
                                 />
 
 

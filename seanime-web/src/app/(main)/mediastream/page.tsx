@@ -239,6 +239,7 @@ export default function Page() {
                             length={episode.episodeMetadata?.length}
                             className="flex-none w-full"
                             episodeNumber={episode.episodeNumber}
+                            watchedProgress={progress}
                             progressNumber={episode.progressNumber}
                             action={<>
                                 <MediaEpisodeInfoModal

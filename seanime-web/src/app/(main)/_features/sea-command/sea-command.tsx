@@ -1,5 +1,6 @@
 import { SeaCommandActions } from "@/app/(main)/_features/sea-command/sea-command-actions"
 import { SeaCommandSearch } from "@/app/(main)/_features/sea-command/sea-command-search"
+import { SeaCommandSpoilers } from "@/app/(main)/_features/sea-command/sea-command-spoilers"
 import { SeaCommand_ParsedCommandProps, useSeaCommand_ParseCommand } from "@/app/(main)/_features/sea-command/utils"
 import { CommandDialog, CommandInput, CommandList } from "@/components/ui/command"
 import { atom } from "jotai"
@@ -191,6 +192,10 @@ export function SeaCommand() {
                             || ctx.command.command === "issue"
                         )}
                         render={() => <SeaCommandActions />}
+                    />
+                    <SeaCommandHandler
+                        shouldShow={ctx => ctx.command.command === "spoilers"}
+                        render={() => <SeaCommandSpoilers />}
                     />
 
                     {/*Injected items*/}

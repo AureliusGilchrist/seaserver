@@ -32,6 +32,7 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
 
     const router = useRouter()
     const ts = useThemeSettings()
+    const spoilerActive = useContinueWatchingSpoilers(ts)
 
     const { data: watchHistory } = useGetContinuityWatchHistory()
 
@@ -177,6 +178,7 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
                                 episode={episode}
                                 mRef={episodeRefs[idx]}
                                 overrideLink={linkTemplate}
+                                spoilerActive={spoilerActive}
                                 watchHistory={watchHistory}
                             />
                         </CarouselItem>
@@ -188,10 +190,11 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
     return null
 }
 
-const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, watchHistory }: {
+const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, watchHistory }: {
     episode: Anime_Episode,
     mRef: React.RefObject<any>,
     overrideLink?: string
+    spoilerActive: boolean
     watchHistory: Continuity_WatchHistory | undefined
 }) => {
     const serverStatus = useServerStatus()
@@ -225,6 +228,9 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, watchHistory }: 
             episode={episode}
             image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}
             topTitle={episode.episodeTitle || episode?.baseAnime?.title?.romaji}
+            spoilerSafeTopTitle={episode?.baseAnime?.title?.romaji}
+            spoilerMode="replace"
+            spoilerActive={spoilerActive}
             title={episode.displayTitle}
             isInvalid={episode.isInvalid}
             progressTotal={episode.baseAnime?.episodes}

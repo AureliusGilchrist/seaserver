@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/components/ui/core/styling"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { getImageUrl } from "@/lib/server/assets"
+import { useEpisodeSpoilerState } from "@/lib/theme/anime-spoilers"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import React from "react"
 import { AiFillPlayCircle, AiFillWarning } from "react-icons/ai"
@@ -36,6 +37,8 @@ type EpisodeGridItemProps = {
     minutesRemaining?: number
     episodeNumber?: number
     progressNumber?: number
+    watchedProgress?: number
+    spoilerActive?: boolean
 }
 
 export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.ComponentPropsWithoutRef<"div">) => {
@@ -66,11 +69,19 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
         minutesRemaining,
         episodeNumber,
         progressNumber,
+        watchedProgress,
+        spoilerActive,
         ...rest
     } = props
 
     const serverStatus = useServerStatus()
     const ts = useThemeSettings()
+    const spoiler = useEpisodeSpoilerState(ts, {
+        mediaId: media.id,
+        episodeNumber,
+        watchedProgress,
+        spoilerActive,
+    })
 
     return <>
         <div
@@ -158,7 +169,9 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
                         sizes="10rem"
                         className={cn("object-cover object-center transition select-none", {
                             "opacity-25 lg:group-hover/episode-list-item:opacity-100": isWatched && !isSelected,
-                        }, imageClassName)}
+                        },
+                            spoiler.blurImage && "blur-2xl scale-110",
+                            imageClassName)}
                         data-src={image}
                     />}
 
@@ -197,14 +210,25 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
                         <p
                             data-episode-grid-item-episode-title
                             className={cn("text-md font-medium lg:text-lg text-gray-300 line-clamp-2 lg:!leading-6",
+                                spoiler.blurTitle && "blur-sm",
                                 episodeTitleClassName)}
                         >{episodeTitle?.replaceAll("`", "'")}</p>}
 
 
                     {!!description && !ts.hideEpisodeCardDescription &&
-                        <p data-episode-grid-item-episode-description className="text-sm text-[--muted] line-clamp-2">{description.replaceAll("`",
+                        <p
+                            data-episode-grid-item-episode-description className={cn(
+                            "text-sm text-[--muted] line-clamp-2",
+                            spoiler.blurDescription && "blur-sm",
+                        )}
+                        >{description.replaceAll("`",
                             "'")}</p>}
-                    {!!fileName && !ts.hideDownloadedEpisodeCardFilename && <p data-episode-grid-item-filename className="text-xs tracking-wider opacity-75 line-clamp-1 mt-1">{fileName}</p>}
+                    {!!fileName && !ts.hideDownloadedEpisodeCardFilename && <p
+                        data-episode-grid-item-filename className={cn(
+                        "text-xs tracking-wider opacity-75 line-clamp-1 mt-1",
+                        spoiler.hideFileName && "invisible",
+                    )}
+                    >{fileName}</p>}
                     {children && children}
                 </div>
             </div>
