@@ -20,6 +20,7 @@ import { EpisodePillsGrid } from "@/app/(main)/onlinestream/_components/episode-
 import { OnlinestreamManualMappingModal } from "@/app/(main)/onlinestream/_containers/onlinestream-manual-matching"
 import { useNakamaOnlineStreamWatchParty } from "@/app/(main)/onlinestream/_lib/handle-onlinestream"
 import { useHandleOnlinestreamProviderExtensions } from "@/app/(main)/onlinestream/_lib/handle-onlinestream-providers"
+import { useOnlinestreamAutoProviderCycler } from "@/app/(main)/onlinestream/_lib/use-onlinestream-auto-provider-cycler"
 import {
     __onlinestream_qualityAtom,
     __onlinestream_selectedDubbedAtom,
@@ -362,6 +363,30 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
     // Background refetches (isFetching without isLoading) must NOT disable
     // episode clicks — that caused permanently-locked episode lists.
     const episodeLoading = isLoadingEpisodeSource
+
+    useOnlinestreamAutoProviderCycler({
+        mediaId,
+        provider,
+        server,
+        url,
+        providerExtensions,
+        dubbed,
+        currentEpisodeNumber,
+        episodeListResponse,
+        episodeListLoading,
+        isEpisodeListFetched,
+        isEpisodeListError,
+        episodeSource,
+        episodeSourceLoading: isLoadingEpisodeSource || isFetchingEpisodeSource,
+        isEpisodeSourceError: isErrorEpisodeSource,
+        playbackError,
+        setProvider,
+        setServer,
+        setQuality,
+        setSelectedEpisodeNumber,
+        setUrl,
+        setPlaybackError,
+    })
 
     /*
      * Set episode number on mount
