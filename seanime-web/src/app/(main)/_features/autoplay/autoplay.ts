@@ -7,10 +7,29 @@ import { useHandleStartTorrentStream } from "@/app/(main)/entry/_containers/torr
 import { useHandlePlayMedia } from "@/app/(main)/entry/_lib/handle-play-media"
 import { logger } from "@/lib/helpers/debug"
 import { atom } from "jotai"
-import { useAtom } from "jotai/react"
+import { useAtom, useAtomValue } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
 import React, { useState } from "react"
 import { toast } from "sonner"
+import { vc_autoSkipFillerAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
+
+// Fork: walk forward past any filler episodes when "skip filler" is enabled.
+// Returns the first non-filler episode at or after `startNumber`.
+function __advancePastFiller(
+    allEpisodes: Anime_Episode[] | undefined,
+    startNumber: number,
+    skipFiller: "off" | "full" | "partial",
+): Anime_Episode | undefined {
+    let candidate = allEpisodes?.find(e => e.episodeNumber === startNumber)
+    if (skipFiller === "off") return candidate
+    let guard = 0
+    while (candidate && candidate.episodeMetadata?.isFiller && guard < 500) {
+        const nextNumber = (candidate.episodeNumber ?? startNumber) + 1
+        candidate = allEpisodes?.find(e => e.episodeNumber === nextNumber)
+        guard++
+    }
+    return candidate
+}
 
 const __autoplay_countdownAtom = atom(5)
 export const __autoplay_nextEpisodeAtom = atom<Anime_Episode | null>(null)
@@ -80,13 +99,23 @@ export function getNextBatchFileSelection(
 export function useTorrentstreamAutoplay() {
     const [info, setInfo] = useAtom(__autoPlay_stateAtom)
     const [nextEpisode, setNextEpisode] = useAtom(__autoplay_nextEpisodeAtom)
+    const autoSkipFiller = useAtomValue(vc_autoSkipFillerAtom)
 
     const { handleAutoSelectStream, handleStreamSelection } = useHandleStartTorrentStream()
     const { autoPlayTorrent } = useAutoPlaySelectedTorrent()
 
     function handleAutoplayNextTorrentstreamEpisode(preload?: boolean) {
         if (!info) return
-        const { entry, episodeNumber, aniDBEpisode, allEpisodes } = info
+        let { entry, episodeNumber, aniDBEpisode, allEpisodes } = info
+
+        // Fork: skip filler episodes if enabled
+        if (autoSkipFiller !== "off") {
+            const target = __advancePastFiller(allEpisodes, episodeNumber, autoSkipFiller)
+            if (target && target.episodeNumber !== episodeNumber && !!target.aniDBEpisode) {
+                episodeNumber = target.episodeNumber
+                aniDBEpisode = target.aniDBEpisode
+            }
+        }
 
         // Get the torrent that was previously saved by autoplay
         // If it's not for the same entry, ignore it
@@ -133,7 +162,7 @@ export function useTorrentstreamAutoplay() {
         }
 
         if (!preload) {
-            const nextEpisode = allEpisodes?.find(e => e.episodeNumber === episodeNumber + 1)
+            const nextEpisode = __advancePastFiller(allEpisodes, episodeNumber + 1, autoSkipFiller)
             if (nextEpisode && !!nextEpisode.aniDBEpisode) {
                 setInfo({
                     allEpisodes,
@@ -164,13 +193,23 @@ export function useTorrentstreamAutoplay() {
 export function useDebridstreamAutoplay() {
     const [info, setInfo] = useAtom(__autoPlay_stateAtom)
     const [nextEpisode, setNextEpisode] = useAtom(__autoplay_nextEpisodeAtom)
+    const autoSkipFiller = useAtomValue(vc_autoSkipFillerAtom)
 
     const { handleAutoSelectStream, handleStreamSelection } = useHandleStartDebridStream()
     const { autoPlayTorrent } = useAutoPlaySelectedTorrent()
 
     function handleAutoplayNextTorrentstreamEpisode() {
         if (!info) return
-        const { entry, episodeNumber, aniDBEpisode, allEpisodes } = info
+        let { entry, episodeNumber, aniDBEpisode, allEpisodes } = info
+
+        // Fork: skip filler episodes if enabled
+        if (autoSkipFiller !== "off") {
+            const target = __advancePastFiller(allEpisodes, episodeNumber, autoSkipFiller)
+            if (target && target.episodeNumber !== episodeNumber && !!target.aniDBEpisode) {
+                episodeNumber = target.episodeNumber
+                aniDBEpisode = target.aniDBEpisode
+            }
+        }
 
         if (autoPlayTorrent?.torrent?.isBatch) {
 
@@ -201,7 +240,7 @@ export function useDebridstreamAutoplay() {
             handleAutoSelectStream({ mediaId: entry.mediaId, episodeNumber: episodeNumber, aniDBEpisode })
         }
 
-        const nextEpisode = allEpisodes?.find(e => e.episodeNumber === episodeNumber + 1)
+        const nextEpisode = __advancePastFiller(allEpisodes, episodeNumber + 1, autoSkipFiller)
         if (nextEpisode && !!nextEpisode.aniDBEpisode) {
             setInfo({
                 allEpisodes,

@@ -90,6 +90,7 @@ export function TorrentStreamEpisodeSection(props: TorrentStreamEpisodeSectionPr
                                 title={episode.displayTitle}
                                 // meta={episode.episodeMetadata?.airDate ?? undefined}
                                 isInvalid={episode.isInvalid}
+                                isFiller={episode.episodeMetadata?.isFiller}
                                 progressTotal={episode.baseAnime?.episodes}
                                 watchedProgress={entry.listData?.progress}
                                 progressNumber={episode.progressNumber}

@@ -27,6 +27,7 @@ import { videoCorePreferencesModalAtom } from "@/app/(main)/_features/video-core
 import {
     vc_autoNextAtom,
     vc_autoPlayVideoAtom,
+    vc_autoSkipFillerAtom,
     vc_autoSkipOPEDAtom,
     vc_beautifyImageAtom,
     vc_highlightOPEDChaptersAtom,
@@ -218,6 +219,7 @@ export function VideoCoreSettingsMenu() {
     const [autoNext, setAutoNext] = useAtom(vc_autoNextAtom)
     const [autoPlay, setAutoPlay] = useAtom(vc_autoPlayVideoAtom)
     const [autoSkipOPED, setAutoSkipOPED] = useAtom(vc_autoSkipOPEDAtom)
+    const [autoSkipFiller, setAutoSkipFiller] = useAtom(vc_autoSkipFillerAtom)
 
     const [menuOpen, setMenuOpen] = useAtom(vc_menuOpen)
     const [openMenuSection, setOpenMenuSection] = useAtom(vc_menuSectionOpen)
@@ -345,6 +347,7 @@ export function VideoCoreSettingsMenu() {
                     <VideoCoreMenuOption title="Auto Play" icon={IoCaretForwardCircleOutline} value={autoPlay ? "On" : "Off"} />
                     <VideoCoreMenuOption title="Auto Next" icon={HiFastForward} value={autoNext ? "On" : "Off"} />
                     <VideoCoreMenuOption title="Skip OP/ED" icon={TbArrowForwardUp} value={autoSkipOPED ? "On" : "Off"} />
+                    <VideoCoreMenuOption title="Skip Filler" icon={TbArrowForwardUp} value={autoSkipFiller !== "off" ? "On" : "Off"} />
                     <VideoCoreMenuOption title="Anime4K" icon={LuSparkles} value={currentAnime4kOption?.label || "Off"} />
                     {(subtitleManager || mediaCaptionsManager) && <VideoCoreMenuOption
                         title="Subtitle Delay"
@@ -561,6 +564,21 @@ export function VideoCoreSettingsMenu() {
                                 setAutoSkipOPED(!!v)
                             }}
                             value={autoSkipOPED ? 1 : 0}
+                        />
+                    </VideoCoreMenuOption>
+                    <VideoCoreMenuOption title="Skip Filler" icon={TbArrowForwardUp}>
+                        <p className="text-[--muted] text-sm mb-2">
+                            Automatically skip filler episodes when advancing to the next one.
+                        </p>
+                        <VideoCoreSettingSelect
+                            options={[
+                                { label: "On", value: 1 },
+                                { label: "Off", value: 0 },
+                            ]}
+                            onValueChange={(v: number) => {
+                                setAutoSkipFiller(v ? "full" : "off")
+                            }}
+                            value={autoSkipFiller !== "off" ? 1 : 0}
                         />
                     </VideoCoreMenuOption>
                     <VideoCoreMenuOption title="Anime4K" icon={LuSparkles}>

@@ -159,6 +159,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                             topTitle={episode.episodeTitle || displayTitle(episode?.baseAnime?.title)}
                                             title={episode.displayTitle}
                                             isInvalid={episode.isInvalid}
+                                            isFiller={episode.episodeMetadata?.isFiller}
                                             progressTotal={episode.baseAnime?.episodes}
                                             watchedProgress={entry.listData?.progress}
                                             progressNumber={episode.progressNumber}

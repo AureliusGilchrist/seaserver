@@ -2,7 +2,6 @@ import { AL_BaseAnime } from "@/api/generated/types"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/components/ui/core/styling"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { getImageUrl } from "@/lib/server/assets"
@@ -110,15 +109,14 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
         >
 
             {isFiller && (
-                <Badge
+                <span
                     data-episode-grid-item-filler-badge
+                    title="Filler episode"
                     className={cn(
-                        "font-semibold absolute top-3 left-0 z-[5] text-white bg-orange-800 !bg-opacity-100 rounded-[--radius-md] text-base rounded-bl-none rounded-tr-none",
-                        !!ts.libraryScreenCustomBackgroundImage && ts.libraryScreenCustomBackgroundOpacity > 5 && "top-3  left-3",
+                        "absolute top-3 left-3 z-[5] px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-wider font-medium",
+                        "bg-black/40 text-orange-300/80 backdrop-blur-sm border border-orange-300/15",
                     )}
-                    intent="gray"
-                    size="lg"
-                >Filler</Badge>
+                >Filler</span>
             )}
 
             <div
@@ -137,7 +135,7 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
                         onClick && "cursor-pointer",
                         {
                             "border-2 border-red-700": isInvalid,
-                            "border-2 border-yellow-900": isFiller,
+                            "ring-1 ring-orange-300/20": isFiller && !isSelected && !isInvalid,
                             "border-2 border-[--brand]": isSelected,
                         },
 

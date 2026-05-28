@@ -138,7 +138,6 @@ import { atom } from "jotai"
 import { ScopeProvider } from "jotai-scope"
 import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
 import React, { useMemo, useRef, useState } from "react"
-import { flushSync } from "react-dom"
 import { BiExpand, BiX } from "react-icons/bi"
 import { FiMinimize2 } from "react-icons/fi"
 import { ImSpinner2 } from "react-icons/im"
@@ -152,44 +151,19 @@ export const VIDEOCORE_DEBUG_ELEMENTS = false
 
 const DELAY_BEFORE_NOT_BUSY = 1_000 //ms
 
-type ViewTransitionDocument = Document & {
-    startViewTransition?: (callback: () => void) => {
-        finished: Promise<void>
-    }
-}
-
 export function startVideoCoreMiniPlayerTransition(update: () => void) {
     if (typeof document === "undefined" || typeof window === "undefined") {
         update()
         return
     }
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        update()
-        return
-    }
-
-    const documentWithViewTransition = document as ViewTransitionDocument
-    if (!documentWithViewTransition.startViewTransition) {
-        update()
-        return
-    }
-
-    document.documentElement.setAttribute("data-vc-miniplayer-view-transition", "")
-
-    try {
-        const transition = documentWithViewTransition.startViewTransition(() => {
-            flushSync(update)
-        })
-
-        void transition.finished.finally(() => {
-            document.documentElement.removeAttribute("data-vc-miniplayer-view-transition")
-        }).catch(() => { })
-    }
-    catch {
-        document.documentElement.removeAttribute("data-vc-miniplayer-view-transition")
-        update()
-    }
+    // NOTE: We intentionally bypass the View Transitions API here.
+    // Wrapping the mini-player toggle in document.startViewTransition() causes the
+    // Chromium renderer to hang/freeze on heavy player layouts (the snapshot phase
+    // has to capture the live <video> element + WASM subtitle canvas + ASS overlay
+    // + jassub worker output simultaneously). The mini-player drawer already has
+    // its own CSS slide/resize transitions, so the UX impact is minimal.
+    update()
 }
 
 export const vc_subtitleManager = atom<VideoCoreSubtitleManager | null>(null)

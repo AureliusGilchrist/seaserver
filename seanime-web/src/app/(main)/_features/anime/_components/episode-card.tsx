@@ -42,6 +42,7 @@ type EpisodeCardProps = {
     length?: string | number | null
     imageClass?: string
     badge?: React.ReactNode
+    isFiller?: boolean
     percentageComplete?: number
     minutesRemaining?: number
     allowAnimeInfo?: boolean
@@ -83,6 +84,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
         length,
         imageClass,
         badge,
+        isFiller,
         percentageComplete,
         minutesRemaining,
         allowAnimeInfo,
@@ -242,6 +244,17 @@ export function EpisodeCard(props: EpisodeCardProps) {
                         ></div>}
                         {/*[CUSTOM UI] BOTTOM GRADIENT*/}
                         <EpisodeItemBottomGradient isSingleContainer={isSingleContainer} className="rounded-b-xl" />
+
+                        {isFiller && (
+                            <span
+                                data-episode-card-filler-badge
+                                title="Filler episode"
+                                className={cn(
+                                    "absolute top-2 left-2 z-[4] px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-wider font-medium",
+                                    "bg-black/40 text-orange-300/80 backdrop-blur-sm border border-orange-300/15",
+                                )}
+                            >Filler</span>
+                        )}
 
                         {isSingleContainer && (
                             <div className="absolute bottom-0 left-0 w-full h-fit z-[3] p-3">
