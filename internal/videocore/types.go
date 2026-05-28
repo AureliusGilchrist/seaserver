@@ -20,6 +20,7 @@ const (
 	PlayerEventVideoFullscreen            ClientEventType = "video-fullscreen"
 	PlayerEventVideoPip                   ClientEventType = "video-pip"
 	PlayerEventVideoSubtitleTrack         ClientEventType = "video-subtitle-track"
+	PlayerEventVideoSubtitleTrackContent  ClientEventType = "video-subtitle-track-content"
 	PlayerEventMediaCaptionTrack          ClientEventType = "video-media-caption-track"
 	PlayerEventAnime4K                    ClientEventType = "video-anime-4k"
 	PlayerEventVideoAudioTrack            ClientEventType = "video-audio-track"
@@ -66,6 +67,11 @@ type VideoSubtitleTrack struct {
 	CodecID           *string `json:"codecID,omitempty"` // e.g., "S_TEXT/ASS" for codec matching
 }
 
+type VideoLibassFont struct {
+	Name *string `json:"name,omitempty"`
+	Src  string  `json:"src"`
+}
+
 type VideoTextTrack struct {
 	Number   int    `json:"number"`
 	Type     string `json:"type"` // "subtitles" | "captions"
@@ -103,6 +109,7 @@ type VideoPlaybackInfo struct {
 	Id           string       `json:"id"`
 	PlaybackType PlaybackType `json:"playbackType"`
 	StreamURL    string       `json:"streamUrl"`
+	StreamPath   string       `json:"streamPath,omitempty"` // e.g. /anime/episode 01.mkv
 	// MkvMetadata is only set for NativePlayer playbacks. Parsed by mkvparser.MetadataParser for directstream.Manager.
 	MkvMetadata *mkvparser.Metadata `json:"mkvMetadata"` // NativePlayer only
 	// LocalFile is only set for local file streams. NativePlayer
@@ -110,6 +117,7 @@ type VideoPlaybackInfo struct {
 	// Set by WebPlayer when online stream starts. Used for Nakama watch parties.
 	OnlinestreamParams             *OnlinestreamParams   `json:"onlinestreamParams"`
 	SubtitleTracks                 []*VideoSubtitleTrack `json:"subtitleTracks"`
+	LibassFonts                    []*VideoLibassFont    `json:"libassFonts"`
 	VideoSources                   []*VideoSource        `json:"videoSources"`
 	SelectedVideoSource            *int                  `json:"selectedVideoSource"` // index of VideoSource
 	PlaylistExternalEpisodeNumbers []int                 `json:"playlistExternalEpisodeNumbers"`
@@ -184,6 +192,10 @@ type (
 	clientVideoSubtitleTrackPayload struct {
 		TrackNumber int    `json:"trackNumber"`
 		Kind        string `json:"kind"`
+	}
+	clientVideoSubtitleTrackContentPayload struct {
+		Content string `json:"content"`
+		Type    string `json:"type"`
 	}
 	clientVideoMediaCaptionTrackPayload struct {
 		TrackIndex int `json:"trackIndex"`
@@ -339,6 +351,11 @@ type (
 		TrackNumber int    `json:"trackNumber"`
 		Kind        string `json:"kind"` // "file" | "event"
 	}
+	VideoSubtitleTrackContentEvent struct {
+		BaseVideoEvent
+		Content string `json:"content"`
+		Type    string `json:"type"`
+	}
 	VideoMediaCaptionTrackEvent struct {
 		BaseVideoEvent
 		TrackIndex int `json:"trackIndex"`
@@ -393,13 +410,15 @@ const (
 	ServerEventGetTextTracks               ServerEvent = "get-text-tracks"
 	ServerEventRequestPlayEpisode          ServerEvent = "request-play-episode"
 	ServerEventTranslatedText              ServerEvent = "translated-text"
+	ServerEventInSightData                 ServerEvent = "in-sight-data"
 	// State requests
-	ServerEventGetFullscreen        ServerEvent = "get-fullscreen"
-	ServerEventGetPip               ServerEvent = "get-pip"
-	ServerEventGetAnime4K           ServerEvent = "get-anime-4k"
-	ServerEventGetSubtitleTrack     ServerEvent = "get-subtitle-track"
-	ServerEventGetAudioTrack        ServerEvent = "get-audio-track"
-	ServerEventGetMediaCaptionTrack ServerEvent = "get-media-caption-track"
-	ServerEventGetPlaybackState     ServerEvent = "get-playback-state"
-	ServerEventGetPlaylist          ServerEvent = "get-playlist"
+	ServerEventGetFullscreen           ServerEvent = "get-fullscreen"
+	ServerEventGetPip                  ServerEvent = "get-pip"
+	ServerEventGetAnime4K              ServerEvent = "get-anime-4k"
+	ServerEventGetSubtitleTrack        ServerEvent = "get-subtitle-track"
+	ServerEventGetSubtitleTrackContent ServerEvent = "get-subtitle-track-content"
+	ServerEventGetAudioTrack           ServerEvent = "get-audio-track"
+	ServerEventGetMediaCaptionTrack    ServerEvent = "get-media-caption-track"
+	ServerEventGetPlaybackState        ServerEvent = "get-playback-state"
+	ServerEventGetPlaylist             ServerEvent = "get-playlist"
 )

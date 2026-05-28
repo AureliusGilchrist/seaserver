@@ -3412,6 +3412,51 @@
     }
   },
   {
+    "name": "HandleGetCursorLibraryManifest",
+    "trimmedName": "GetCursorLibraryManifest",
+    "comments": [
+      "HandleGetCursorLibraryManifest scans the cursor-library directory and returns a manifest.",
+      "The directory tree (and static SVG seed files) is created at app startup by",
+      "core.SeedCursorLibrary, so this handler is read-only — missing tab dirs are treated",
+      "as empty.",
+      ""
+    ],
+    "filepath": "internal/handlers/cursor_library.go",
+    "filename": "cursor_library.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "parseCursorFilename",
+    "trimmedName": "parseCursorFilename",
+    "comments": [
+      "parseCursorFilename parses `\u003cprefix\u003e[__states][__h\u003cx\u003ex\u003cy\u003e].\u003cext\u003e` for a tab.",
+      ""
+    ],
+    "filepath": "internal/handlers/cursor_library.go",
+    "filename": "cursor_library.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleCustomSourceListAnime",
     "trimmedName": "CustomSourceListAnime",
     "comments": [
@@ -4828,7 +4873,7 @@
       "HandleDiscoverEasterEgg",
       "",
       "\t@summary grants XP for discovering an easter egg.",
-      "\t@desc Idempotent — each egg can only grant XP once per profile per server session.",
+      "\t@desc Idempotent — each egg can only grant XP once per profile, persisted in the per-profile database.",
       "\t@returns DiscoverEasterEggResponse",
       "\t@route /api/v1/profile/easter-egg [POST]",
       ""
@@ -4838,7 +4883,7 @@
     "api": {
       "summary": "grants XP for discovering an easter egg.",
       "descriptions": [
-        "Idempotent — each egg can only grant XP once per profile per server session."
+        "Idempotent — each egg can only grant XP once per profile, persisted in the per-profile database."
       ],
       "endpoint": "/api/v1/profile/easter-egg",
       "methods": [
@@ -4849,6 +4894,36 @@
       "returns": "DiscoverEasterEggResponse",
       "returnGoType": "DiscoverEasterEggResponse",
       "returnTypescriptType": "DiscoverEasterEggResponse"
+    }
+  },
+  {
+    "name": "HandleGetEasterEggDiscoveries",
+    "trimmedName": "GetEasterEggDiscoveries",
+    "comments": [
+      "HandleGetEasterEggDiscoveries",
+      "",
+      "\t@summary returns all easter eggs the current profile has discovered.",
+      "\t@desc Used by the client to merge server-side persistent discoveries with localStorage on bootstrap.",
+      "\t@returns []string",
+      "\t@route /api/v1/profile/easter-eggs [GET]",
+      ""
+    ],
+    "filepath": "internal/handlers/easter_egg.go",
+    "filename": "easter_egg.go",
+    "api": {
+      "summary": "returns all easter eggs the current profile has discovered.",
+      "descriptions": [
+        "Used by the client to merge server-side persistent discoveries with localStorage on bootstrap."
+      ],
+      "endpoint": "/api/v1/profile/easter-eggs",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]string",
+      "returnGoType": "string",
+      "returnTypescriptType": "Array\u003cstring\u003e"
     }
   },
   {
@@ -10857,6 +10932,215 @@
     }
   },
   {
+    "name": "HandleGetCursorMarketplace",
+    "trimmedName": "GetCursorMarketplace",
+    "comments": [
+      "HandleGetCursorMarketplace returns cursor packs from the marketplace index.json",
+      ""
+    ],
+    "filepath": "internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleListDownloadedCursorPacks",
+    "trimmedName": "ListDownloadedCursorPacks",
+    "comments": [
+      "HandleListDownloadedCursorPacks lists all cursor packs that have been downloaded",
+      ""
+    ],
+    "filepath": "internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDownloadCursorPack",
+    "trimmedName": "DownloadCursorPack",
+    "comments": [
+      "HandleDownloadCursorPack copies a cursor pack from the marketplace to AppDataDir/cursor-packs/{id}/",
+      ""
+    ],
+    "filepath": "internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "PackID",
+          "jsonName": "packId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDeleteCursorPack",
+    "trimmedName": "DeleteCursorPack",
+    "comments": [
+      "HandleDeleteCursorPack removes a downloaded cursor pack from AppDataDir/cursor-packs/{id}/",
+      ""
+    ],
+    "filepath": "internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetSoundMarketplace",
+    "trimmedName": "GetSoundMarketplace",
+    "comments": [
+      "HandleGetSoundMarketplace returns sound packs from the marketplace index.json",
+      ""
+    ],
+    "filepath": "internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleListDownloadedSoundPacks",
+    "trimmedName": "ListDownloadedSoundPacks",
+    "comments": [
+      "HandleListDownloadedSoundPacks lists all sound packs that have been downloaded",
+      ""
+    ],
+    "filepath": "internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDownloadSoundPack",
+    "trimmedName": "DownloadSoundPack",
+    "comments": [
+      "HandleDownloadSoundPack copies a sound pack from the marketplace to AppDataDir/sound-packs/{id}/",
+      ""
+    ],
+    "filepath": "internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "PackID",
+          "jsonName": "packId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDeleteSoundPack",
+    "trimmedName": "DeleteSoundPack",
+    "comments": [
+      "HandleDeleteSoundPack removes a downloaded sound pack from AppDataDir/sound-packs/{id}/",
+      ""
+    ],
+    "filepath": "internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "sanitizePackID",
+    "trimmedName": "sanitizePackID",
+    "comments": [
+      "sanitizePackID removes path traversal characters from a pack ID",
+      ""
+    ],
+    "filepath": "internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleSavePlanningSlutToken",
     "trimmedName": "SavePlanningSlutToken",
     "comments": [
@@ -14971,6 +15255,8 @@
     "comments": [
       "HandleListThemeMusicTracks returns a list of audio tracks from appdata/theme-music/{themeId}/.",
       "The files are served at /theme-music/{themeId}/{filename} via the static file server.",
+      "The scan is recursive — files in sub-folders (e.g. \"Disc 1/01 - Tank.mp3\") are included",
+      "with a forward-slash relative path so the URL/static serve continue to work.",
       ""
     ],
     "filepath": "internal/handlers/theme_backgrounds.go",
@@ -15324,6 +15610,373 @@
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "walkThemeAudioFiles",
+    "trimmedName": "walkThemeAudioFiles",
+    "comments": [
+      "walkThemeAudioFiles recursively scans dir and returns every audio file found.",
+      "Symlinks are not followed. Errors at individual entries are ignored.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_music.go",
+    "filename": "theme_music.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "removeThemeAudioFiles",
+    "trimmedName": "removeThemeAudioFiles",
+    "comments": [
+      "removeThemeAudioFiles deletes every audio file under dir (recursively).",
+      "Non-audio files (e.g. .nfo, .jpg) are left alone — defence in depth.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_music.go",
+    "filename": "theme_music.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "buildThemeAudioURL",
+    "trimmedName": "buildThemeAudioURL",
+    "comments": [
+      "buildThemeAudioURL constructs the URL the static file server uses for a track,",
+      "escaping every path segment individually so spaces/specials in filenames work.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_music.go",
+    "filename": "theme_music.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "sanitizeThemeID",
+    "trimmedName": "sanitizeThemeID",
+    "comments": [
+      "sanitizeThemeID ensures a theme id is safe to use as a folder name segment.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_music.go",
+    "filename": "theme_music.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "themeMusicDir",
+    "trimmedName": "themeMusicDir",
+    "comments": [
+      "themeMusicDir returns and ensures the destination directory for a theme.",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_music.go",
+    "filename": "theme_music.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleSearchThemeMusic",
+    "trimmedName": "SearchThemeMusic",
+    "comments": [
+      "HandleSearchThemeMusic",
+      "",
+      "\t@summary searches torrents for music/OST releases for a theme.",
+      "\t@desc Performs a simple torrent search across all enabled providers using the supplied query.",
+      "\t@desc Returns the underlying torrent.SearchData unchanged so the client can present rich info.",
+      "\t@route /api/v1/theme-music/search [POST]",
+      "\t@returns torrent.SearchData",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_music.go",
+    "filename": "theme_music.go",
+    "api": {
+      "summary": "searches torrents for music/OST releases for a theme.",
+      "descriptions": [
+        "Performs a simple torrent search across all enabled providers using the supplied query.",
+        "Returns the underlying torrent.SearchData unchanged so the client can present rich info."
+      ],
+      "endpoint": "/api/v1/theme-music/search",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ThemeID",
+          "jsonName": "themeId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Query",
+          "jsonName": "query",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Queries",
+          "jsonName": "queries",
+          "goType": "[]string",
+          "usedStructType": "",
+          "typescriptType": "Array\u003cstring\u003e",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "Provider",
+          "jsonName": "provider",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        }
+      ],
+      "returns": "torrent.SearchData",
+      "returnGoType": "torrent.SearchData",
+      "returnTypescriptType": "Torrent_SearchData"
+    }
+  },
+  {
+    "name": "HandleDownloadThemeMusic",
+    "trimmedName": "DownloadThemeMusic",
+    "comments": [
+      "HandleDownloadThemeMusic",
+      "",
+      "\t@summary adds a magnet to the configured torrent client with the theme-music folder as destination.",
+      "\t@desc If replaceExisting is true, all current files in the theme's music folder are deleted first.",
+      "\t@route /api/v1/theme-music/download [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_music.go",
+    "filename": "theme_music.go",
+    "api": {
+      "summary": "adds a magnet to the configured torrent client with the theme-music folder as destination.",
+      "descriptions": [
+        "If replaceExisting is true, all current files in the theme's music folder are deleted first."
+      ],
+      "endpoint": "/api/v1/theme-music/download",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ThemeID",
+          "jsonName": "themeId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "MagnetUrl",
+          "jsonName": "magnetUrl",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Provider",
+          "jsonName": "provider",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Torrent",
+          "jsonName": "torrent",
+          "goType": "hibiketorrent.AnimeTorrent",
+          "usedStructType": "hibiketorrent.AnimeTorrent",
+          "typescriptType": "HibikeTorrent_AnimeTorrent",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "ReplaceExisting",
+          "jsonName": "replaceExisting",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDeleteThemeMusic",
+    "trimmedName": "DeleteThemeMusic",
+    "comments": [
+      "HandleDeleteThemeMusic",
+      "",
+      "\t@summary deletes all downloaded audio files for a theme.",
+      "\t@route /api/v1/theme-music/{themeId} [DELETE]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_music.go",
+    "filename": "theme_music.go",
+    "api": {
+      "summary": "deletes all downloaded audio files for a theme.",
+      "descriptions": [],
+      "endpoint": "/api/v1/theme-music/{themeId}",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDeleteThemeMusicTrack",
+    "trimmedName": "DeleteThemeMusicTrack",
+    "comments": [
+      "HandleDeleteThemeMusicTrack",
+      "",
+      "\t@summary deletes a single audio file for a theme.",
+      "\t@route /api/v1/theme-music/{themeId}/{filename} [DELETE]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_music.go",
+    "filename": "theme_music.go",
+    "api": {
+      "summary": "deletes a single audio file for a theme.",
+      "descriptions": [],
+      "endpoint": "/api/v1/theme-music/{themeId}/{filename}",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleListThemeMusicMetadata",
+    "trimmedName": "ListThemeMusicMetadata",
+    "comments": [
+      "HandleListThemeMusicMetadata",
+      "",
+      "\t@summary returns the audio files for a theme, enriched with ID3/Vorbis metadata when available.",
+      "\t@desc This is a richer alternative to HandleListThemeMusicTracks — it reads tags from each file.",
+      "\t@route /api/v1/theme-music/metadata [GET]",
+      "\t@returns []handlers.themeMusicMetadataTrack",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_music.go",
+    "filename": "theme_music.go",
+    "api": {
+      "summary": "returns the audio files for a theme, enriched with ID3/Vorbis metadata when available.",
+      "descriptions": [
+        "This is a richer alternative to HandleListThemeMusicTracks — it reads tags from each file."
+      ],
+      "endpoint": "/api/v1/theme-music/metadata",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]handlers.themeMusicMetadataTrack",
+      "returnGoType": "handlers.themeMusicMetadataTrack",
+      "returnTypescriptType": "Array\u003cthemeMusicMetadataTrack\u003e"
+    }
+  },
+  {
+    "name": "HandleListAllThemeMusic",
+    "trimmedName": "ListAllThemeMusic",
+    "comments": [
+      "HandleListAllThemeMusic",
+      "",
+      "\t@summary returns every theme that has at least one audio file, with track counts.",
+      "\t@desc Used by the cross-theme OST browser in the mini-player.",
+      "\t@route /api/v1/theme-music/all [GET]",
+      "\t@returns []handlers.themeMusicSummary",
+      ""
+    ],
+    "filepath": "internal/handlers/theme_music.go",
+    "filename": "theme_music.go",
+    "api": {
+      "summary": "returns every theme that has at least one audio file, with track counts.",
+      "descriptions": [
+        "Used by the cross-theme OST browser in the mini-player."
+      ],
+      "endpoint": "/api/v1/theme-music/all",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]handlers.themeMusicSummary",
+      "returnGoType": "handlers.themeMusicSummary",
+      "returnTypescriptType": "Array\u003cthemeMusicSummary\u003e"
     }
   },
   {
@@ -16376,7 +17029,7 @@
         },
         {
           "name": "AudioCodecID",
-          "jsonName": "audioCodecId",
+          "jsonName": "audioCodecID",
           "goType": "string",
           "usedStructType": "",
           "typescriptType": "string",
@@ -16394,7 +17047,16 @@
         },
         {
           "name": "SubtitleCodecID",
-          "jsonName": "subtitleCodecId",
+          "jsonName": "subtitleCodecID",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "SubtitleLabel",
+          "jsonName": "subtitleLabel",
           "goType": "string",
           "usedStructType": "",
           "typescriptType": "string",

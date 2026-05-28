@@ -1,6 +1,6 @@
-// import { vc_audioManager } from "@/app/(main)/_features/video-core/video-core" // Temporarily removed for TypeScript compatibility
-// import { vc_autoPlayVideoAtom } from "@/app/(main)/_features/video-core/video-core.atoms" // Temporarily removed for TypeScript compatibility
-// import { logger } from "@/lib/helpers/debug" // Temporarily removed for TypeScript compatibility
+import { vc_audioManager } from "@/app/(main)/_features/video-core/video-core"
+import { vc_autoPlayVideoAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { logger } from "@/lib/helpers/debug"
 import Hls, { ErrorData, Events, Level } from "hls.js"
 import { atom, useAtomValue } from "jotai"
 import { useAtom, useSetAtom } from "jotai/react"
@@ -31,12 +31,7 @@ export const vc_hlsSetAudioTrack = atom<((trackId: number) => void) | null>(null
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// const hlsLog = logger("VIDEO CORE HLS") // Temporarily removed for TypeScript compatibility
-const hlsLog = {
-    info: (message: string, ...args: any[]) => console.log("VIDEO CORE HLS:", message, ...args),
-    error: (message: string, ...args: any[]) => console.error("VIDEO CORE HLS:", message, ...args),
-    warn: (message: string, ...args: any[]) => console.warn("VIDEO CORE HLS:", message, ...args)
-}
+const hlsLog = logger("VIDEO CORE HLS")
 
 
 export const HLS_VIDEO_EXTENSIONS = /\.(m3u8)($|\?)/i
@@ -56,6 +51,7 @@ export function useVideoCoreHls({
     streamUrl,
     streamType,
     onFatalError,
+    onStalled,
     onMediaDetached,
 }: {
     videoElement: HTMLVideoElement | null
@@ -63,13 +59,12 @@ export function useVideoCoreHls({
     streamType?: string
     onMediaDetached?: () => void
     onFatalError?: (error: ErrorData) => void
+    onStalled?: (error: ErrorData) => void
 }) {
     const hlsRef = useRef<Hls | null>(null)
 
-    // const audioManager = useAtomValue(vc_audioManager) // Temporarily removed
-    // const autoPlay = useAtomValue(vc_autoPlayVideoAtom) // Temporarily removed
-    const audioManager = null // Fallback value
-    const autoPlay = true // Default to autoplay
+    const audioManager = useAtomValue(vc_audioManager)
+    const autoPlay = useAtomValue(vc_autoPlayVideoAtom)
 
     const [currentAudioTrack, setCurrentAudioTrack] = useAtom(vc_hlsCurrentAudioTrack)
     const setQualityLevels = useSetAtom(vc_hlsQualityLevels)
@@ -111,47 +106,27 @@ export function useVideoCoreHls({
             const hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: false,
-                backBufferLength: 90, // hls.js default
-                // Cap ABR to the player's displayed size. Without this, entering fullscreen
-                // causes hls.js to jump to the highest level (e.g. 1080p) regardless of whether
-                // the provider can sustain it, which manifests as stutter + re-buffering.
-                capLevelToPlayerSize: true,
+                backBufferLength: 90,
                 enableWebVTT: true,
-                renderTextTracksNatively: false,
-                // Generous timeouts for online streams — default 10 s is too short for slow providers
-                manifestLoadingTimeOut: 30000,
-                manifestLoadingMaxRetry: 4,
-                manifestLoadingRetryDelay: 1000,
-                levelLoadingTimeOut: 30000,
-                levelLoadingMaxRetry: 4,
-                levelLoadingRetryDelay: 1000,
-                fragLoadingTimeOut: 30000,
-                fragLoadingMaxRetry: 4,
-                fragLoadingRetryDelay: 1000,
+                renderTextTracksNatively: false, // don't use native text tracks for subtitles
             })
 
             hlsRef.current = hls
 
             // Quality setter function
             const qualitySetter = (levelIndex: number) => {
-                if (!hlsRef.current) return
+                if (!hls) return
                 hlsLog.info("Setting quality level to", levelIndex)
-                hlsRef.current.currentLevel = levelIndex
+                hls.currentLevel = levelIndex
                 setCurrentQuality(levelIndex)
             }
             setSetQuality(() => qualitySetter)
 
             // Audio track setter function
             const audioTrackSetter = (trackId: number) => {
-                hlsLog.info("audioTrackSetter called, trackId:", trackId, "hlsRef.current:", !!hlsRef.current)
-                if (!hlsRef.current) return
+                if (!hls) return
                 hlsLog.info("Setting audio track to", trackId)
-                try {
-                    hlsRef.current.audioTrack = trackId
-                } catch (e) {
-                    hlsLog.error("Failed to set audio track", e)
-                    return
-                }
+                hls.audioTrack = trackId
                 setCurrentAudioTrack(trackId)
             }
             setSetAudioTrack(() => audioTrackSetter)
@@ -192,8 +167,7 @@ export function useVideoCoreHls({
                     const uniqueTracks = new Map<string, { track: any, index: number }>()
 
                     data.audioTracks.forEach((track: any, index: number) => {
-                        // Include index in key so tracks without language/name metadata are never incorrectly merged
-                        const key = `${track.groupId || ""}-${track.lang || ""}-${track.name || ""}-${track.audioCodec || ""}-${track.url || index}`
+                        const key = `${track.id ?? index}-${track.groupId || ""}-${track.lang || "unknown"}-${track.name || ""}-${track.audioCodec || ""}`
 
                         // Keep the first occurrence of each unique track
                         if (!uniqueTracks.has(key)) {
@@ -202,7 +176,7 @@ export function useVideoCoreHls({
                     })
 
                     const audioTracks: HlsAudioTrack[] = Array.from(uniqueTracks.values()).map(({ track, index }) => ({
-                        id: index,
+                        id: typeof track.id === "number" ? track.id : index,
                         name: track.name || track.lang || `Track ${track.id}`,
                         language: track.lang,
                         default: track.default,
@@ -233,36 +207,27 @@ export function useVideoCoreHls({
                 setCurrentAudioTrack(hls.audioTrack)
             })
 
-            let mediaErrorRecoveryAttempted = false
-
             hls.on(Events.ERROR, (event, data: ErrorData) => {
-                hlsLog.error("HLS error", data.type, data.details, data.fatal)
-                if (!data.fatal) return
-
-                switch (data.type) {
-                    case Hls.ErrorTypes.NETWORK_ERROR:
-                        // Network errors (including timeouts) — attempt a reload before giving up
-                        hlsLog.warn("Fatal network error, attempting startLoad recovery")
-                        hls.startLoad()
-                        break
-                    case Hls.ErrorTypes.MEDIA_ERROR:
-                        if (!mediaErrorRecoveryAttempted) {
-                            hlsLog.warn("Fatal media error, attempting recoverMediaError")
-                            mediaErrorRecoveryAttempted = true
-                            hls.recoverMediaError()
-                        } else {
-                            hlsLog.error("Media error recovery failed, destroying HLS instance")
-                            hls.destroy()
-                            hlsRef.current = null
-                            onFatalError?.(data)
-                        }
-                        break
-                    default:
-                        hlsLog.error("Unrecoverable HLS error, destroying instance")
-                        hls.destroy()
-                        hlsRef.current = null
-                        onFatalError?.(data)
-                        break
+                hlsLog.error("HLS error", data)
+                if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR || data.details === Hls.ErrorDetails.BUFFER_NUDGE_ON_STALL) {
+                    onStalled?.(data)
+                }
+                if (data.fatal) {
+                    hlsLog.error("Fatal error, cannot recover")
+                    hls.destroy()
+                    onFatalError?.(data)
+                    // switch (data.type) {
+                    //     case Hls.ErrorTypes.NETWORK_ERROR:
+                    //         hlsLog.error("Fatal network error, trying to recover")
+                    //         hls.startLoad()
+                    //         break
+                    //     case Hls.ErrorTypes.MEDIA_ERROR:
+                    //         hlsLog.error("Fatal media error, trying to recover")
+                    //         hls.recoverMediaError()
+                    //         break
+                    //     default:
+                    //         break
+                    // }
                 }
             })
 
@@ -272,14 +237,6 @@ export function useVideoCoreHls({
                     hlsRef.current.destroy()
                     hlsRef.current = null
                 }
-                // Reset all HLS atoms to defaults so stale setters don't persist
-                // after error recovery or component remount
-                setQualityLevels([])
-                setCurrentQuality(-1)
-                setSetQuality(null as any)
-                setAudioTracks([])
-                setCurrentAudioTrack(-1)
-                setSetAudioTrack(null as any)
             }
         } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
             hlsLog.info("Native support detected for HLS stream")
@@ -299,8 +256,8 @@ export function useVideoCoreHls({
 
     // Update audio manager when HLS audio track changes
     React.useEffect(() => {
-        if (audioManager && currentAudioTrack !== -1 && 'onHlsTrackChange' in audioManager) {
-            (audioManager as any).onHlsTrackChange?.(currentAudioTrack)
+        if (audioManager && currentAudioTrack !== -1) {
+            audioManager.onHlsTrackChange?.(currentAudioTrack)
         }
     }, [currentAudioTrack, audioManager])
 }

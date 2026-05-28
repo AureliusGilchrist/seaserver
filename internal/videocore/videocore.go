@@ -53,6 +53,10 @@ type (
 		logger     *zerolog.Logger
 		settingsMu sync.RWMutex
 		settings   *models.Settings
+
+		inSight *InSight
+
+		playbackMkvEvents *result.Map[uint64, []*mkvparser.SubtitleEvent]
 	}
 
 	// Subscriber listens to the player events
@@ -90,7 +94,9 @@ func New(opts NewVideoCoreOptions) *VideoCore {
 		logger:                      opts.Logger,
 		eventBus:                    make(chan VideoEvent, 100),
 		dispatcherStop:              make(chan struct{}),
+		playbackMkvEvents:           result.NewMap[uint64, []*mkvparser.SubtitleEvent](),
 	}
+	vc.inSight = NewInSight(opts.Logger, vc)
 	vc.Start()
 	return vc
 }
@@ -601,6 +607,24 @@ func (vc *VideoCore) SendGetSubtitleTrack() {
 	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetSubtitleTrack), nil)
 }
 
+// SendGetSubtitleTrackContent sends a get-subtitle-track-content request to the video player.
+func (vc *VideoCore) SendGetSubtitleTrackContent() {
+	state, ok := vc.GetPlaybackState()
+	if !ok {
+		return
+	}
+	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetSubtitleTrackContent), nil)
+}
+
+// SendInSightData sends in-sight data to the video player.
+func (vc *VideoCore) SendInSightData(data *InSightData) {
+	state, ok := vc.GetPlaybackState()
+	if !ok {
+		return
+	}
+	vc.sendPlayerEventTo(state.ClientId, string(ServerEventInSightData), data)
+}
+
 // SendGetAudioTrack sends a get-audio-track request to the video player.
 func (vc *VideoCore) SendGetAudioTrack() {
 	state, ok := vc.GetPlaybackState()
@@ -860,6 +884,14 @@ func (vc *VideoCore) listenToClientEvents() {
 							vc.PushEvent(&VideoSubtitleTrackEvent{
 								TrackNumber: payload.TrackNumber,
 								Kind:        payload.Kind,
+							})
+						}
+					case PlayerEventVideoSubtitleTrackContent:
+						payload := &clientVideoSubtitleTrackContentPayload{}
+						if err := playerEvent.UnmarshalAs(&payload); err == nil {
+							vc.PushEvent(&VideoSubtitleTrackContentEvent{
+								Content: payload.Content,
+								Type:    payload.Type,
 							})
 						}
 					case PlayerEventMediaCaptionTrack:

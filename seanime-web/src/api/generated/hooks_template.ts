@@ -1239,6 +1239,15 @@
 //     })
 // }
 
+// export function useGetEasterEggDiscoveries() {
+//     return useServerQuery<Array<string>>({
+//         endpoint: API_ENDPOINTS.EASTER_EGG.GetEasterEggDiscoveries.endpoint,
+//         method: API_ENDPOINTS.EASTER_EGG.GetEasterEggDiscoveries.methods[0],
+//         queryKey: [API_ENDPOINTS.EASTER_EGG.GetEasterEggDiscoveries.key],
+//         enabled: true,
+//     })
+// }
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // enmasse
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3878,6 +3887,72 @@
 //         onSuccess: async () => {
 // 
 //         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// theme_music
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useSearchThemeMusic() {
+//     return useServerMutation<Torrent_SearchData, SearchThemeMusic_Variables>({
+//         endpoint: API_ENDPOINTS.THEME_MUSIC.SearchThemeMusic.endpoint,
+//         method: API_ENDPOINTS.THEME_MUSIC.SearchThemeMusic.methods[0],
+//         mutationKey: [API_ENDPOINTS.THEME_MUSIC.SearchThemeMusic.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useDownloadThemeMusic() {
+//     return useServerMutation<boolean, DownloadThemeMusic_Variables>({
+//         endpoint: API_ENDPOINTS.THEME_MUSIC.DownloadThemeMusic.endpoint,
+//         method: API_ENDPOINTS.THEME_MUSIC.DownloadThemeMusic.methods[0],
+//         mutationKey: [API_ENDPOINTS.THEME_MUSIC.DownloadThemeMusic.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useDeleteThemeMusic() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.THEME_MUSIC.DeleteThemeMusic.endpoint,
+//         method: API_ENDPOINTS.THEME_MUSIC.DeleteThemeMusic.methods[0],
+//         mutationKey: [API_ENDPOINTS.THEME_MUSIC.DeleteThemeMusic.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useDeleteThemeMusicTrack() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.THEME_MUSIC.DeleteThemeMusicTrack.endpoint,
+//         method: API_ENDPOINTS.THEME_MUSIC.DeleteThemeMusicTrack.methods[0],
+//         mutationKey: [API_ENDPOINTS.THEME_MUSIC.DeleteThemeMusicTrack.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useListThemeMusicMetadata() {
+//     return useServerQuery<Array<themeMusicMetadataTrack>>({
+//         endpoint: API_ENDPOINTS.THEME_MUSIC.ListThemeMusicMetadata.endpoint,
+//         method: API_ENDPOINTS.THEME_MUSIC.ListThemeMusicMetadata.methods[0],
+//         queryKey: [API_ENDPOINTS.THEME_MUSIC.ListThemeMusicMetadata.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useListAllThemeMusic() {
+//     return useServerQuery<Array<themeMusicSummary>>({
+//         endpoint: API_ENDPOINTS.THEME_MUSIC.ListAllThemeMusic.endpoint,
+//         method: API_ENDPOINTS.THEME_MUSIC.ListAllThemeMusic.methods[0],
+//         queryKey: [API_ENDPOINTS.THEME_MUSIC.ListAllThemeMusic.key],
+//         enabled: true,
 //     })
 // }
 

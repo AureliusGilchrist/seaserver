@@ -1,13 +1,12 @@
+import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { vc_subtitleManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_mediaCaptionsManager } from "@/app/(main)/_features/video-core/video-core"
-import { vc_perMediaTrackOverrides, vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_menuOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_menuSectionOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
-import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { VideoCoreControlButtonIcon } from "@/app/(main)/_features/video-core/video-core-control-bar"
 import { MediaCaptionsTrack } from "@/app/(main)/_features/video-core/video-core-media-captions"
 import { VideoCoreMenu, VideoCoreMenuBody, VideoCoreMenuTitle, VideoCoreSettingSelect } from "@/app/(main)/_features/video-core/video-core-menu"
@@ -24,16 +23,13 @@ import { LuCaptions, LuPaintbrush } from "react-icons/lu"
 export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
     const action = useSetAtom(vc_dispatchAction)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
-    const playbackInfo = useAtomValue(vc_playbackInfo)
+    const state = useAtomValue(nativePlayer_stateAtom)
     const subtitleManager = useAtomValue(vc_subtitleManager)
     const mediaCaptionsManager = useAtomValue(vc_mediaCaptionsManager)
     const videoElement = useAtomValue(vc_videoElement)
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const containerElement = useAtomValue(vc_containerElement)
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
-    const saveTrackOverride = useAtomValue(vc_saveTrackOverride)
-    const perMediaTrackOverrides = useAtomValue(vc_perMediaTrackOverrides)
-    const savedSubtitleLang = playbackInfo?.media?.id ? perMediaTrackOverrides[String(playbackInfo.media.id)]?.subtitleLanguage : undefined
 
     const setMenuOpen = useSetAtom(vc_menuOpen)
     const setMenuSectionOpen = useSetAtom(vc_menuSectionOpen)
@@ -92,17 +88,6 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
         onTextTrackChange()
     }, [subtitleManager])
 
-    // When the stream ID changes (new episode / retranscode), reset subtitle state
-    // so the menu re-syncs from the new manager once tracks are loaded.
-    // NOTE: intentionally keyed on playbackInfo?.id, NOT streamUrl — streamUrl can change
-    // during a retranscode while the manager + tracks are still valid, which was causing
-    // the subtitle button to vanish after manually selecting a track in Denshi.
-    React.useEffect(() => {
-        setSelectedTrack(null)
-        setSubtitleTracks([])
-        setMediaCaptionsTracks([])
-    }, [playbackInfo?.id])
-
     // Get active manager
     const activeManager = subtitleManager || mediaCaptionsManager
     const activeTracks = subtitleManager ? subtitleTracks : mediaCaptionsTracks
@@ -125,7 +110,7 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
             <VideoCoreMenuTitle>Subtitles {(!!subtitleManager && !inline) && <Tooltip
                 trigger={<AiFillInfoCircle className="text-sm" />}
                 className="z-[150]"
-                portalContainer={containerElement ?? undefined}
+                portalContainer={isFullscreen ? (containerElement ?? undefined) : undefined}
             >
                 You can add subtitles by dragging and dropping files onto the player.
             </Tooltip>}
@@ -149,104 +134,28 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                             label: "Off",
                             value: -1,
                         },
-                        ...(() => {
-                            // Compute isDefault with proper uniqueness guarantees
-                            const savedCodec = playbackInfo?.media?.id ? perMediaTrackOverrides[String(playbackInfo.media.id)]?.subtitleCodecID : undefined
-                            const SIGNS_RE = /\b(signs?|songs?|signs?\s*[&+]\s*songs?|songs?\s*[&+]\s*signs?|commentary|forced)\b/i
-                            const isSignsTrack = (label?: string) => !!label && SIGNS_RE.test(label)
-
-                            // First pass: find exact codec match, preferring non-signs tracks
-                            let defaultTrackNumber: number | undefined
-                            if (savedCodec && savedSubtitleLang && savedSubtitleLang !== "none") {
-                                const codecMatches = subtitleTracks.filter(t =>
-                                    t.language?.toLowerCase() === savedSubtitleLang.toLowerCase() &&
-                                    t.codecID === savedCodec
-                                )
-                                // Prefer non-signs track with exact codec match
-                                const nonSignsMatch = codecMatches.find(t => !isSignsTrack(t.label))
-                                if (nonSignsMatch) {
-                                    defaultTrackNumber = nonSignsMatch.number
-                                } else if (codecMatches.length > 0) {
-                                    // All matches are signs tracks, use first one
-                                    defaultTrackNumber = codecMatches[0].number
-                                }
+                        ...subtitleTracks.map(track => {
+                            // MKV subtitle tracks
+                            return {
+                                label: `${track.label || track.language?.toUpperCase() || track.languageIETF?.toUpperCase()}`,
+                                value: track.number,
+                                moreInfo: track.language && track.language !== track.label
+                                    ? `${track.language.toUpperCase()}${track.codecID ? "/" + getSubtitleTrackType(track.codecID) : ``}`
+                                    : undefined,
                             }
-
-                            // Second pass: if no exact codec match, pick first non-signs track with matching lang
-                            if (defaultTrackNumber === undefined && savedSubtitleLang && savedSubtitleLang !== "none") {
-                                const nonSignsMatch = subtitleTracks.find(t =>
-                                    t.language?.toLowerCase() === savedSubtitleLang.toLowerCase() &&
-                                    !isSignsTrack(t.label)
-                                )
-                                if (nonSignsMatch) defaultTrackNumber = nonSignsMatch.number
+                        }),
+                        ...mediaCaptionsTracks.map(track => {
+                            return {
+                                label: track.label,
+                                value: track.number,
+                                moreInfo: track.language && track.language !== track.label ? track.language?.toUpperCase() : undefined,
                             }
-
-                            return subtitleTracks.map(track => {
-                                const isDefault = track.number === defaultTrackNumber
-                                return {
-                                    label: `${track.label || track.language?.toUpperCase() || track.languageIETF?.toUpperCase()}`,
-                                    value: track.number,
-                                    moreInfo: track.language && track.language !== track.label
-                                        ? `${track.language.toUpperCase()}${track.codecID ? "/" + getSubtitleTrackType(track.codecID) : ``}`
-                                        : undefined,
-                                    isDefault,
-                                }
-                            })
-                        })(),
-                        ...(() => {
-                            // Compute isDefault with codec matching for mediaCaptionsTracks
-                            const savedCodec = playbackInfo?.media?.id ? perMediaTrackOverrides[String(playbackInfo.media.id)]?.subtitleCodecID : undefined
-                            const SIGNS_RE = /\b(signs?|songs?|signs?\s*[&+]\s*songs?|songs?\s*[&+]\s*signs?|commentary|forced)\b/i
-                            const isSignsTrack = (label?: string) => !!label && SIGNS_RE.test(label)
-
-                            // First pass: find exact codec match, preferring non-signs tracks
-                            let defaultCaptionsNumber: number | undefined
-                            if (savedCodec && savedSubtitleLang && savedSubtitleLang !== "none") {
-                                const codecMatches = mediaCaptionsTracks.filter(t =>
-                                    t.language?.toLowerCase() === savedSubtitleLang.toLowerCase() &&
-                                    t.codecID === savedCodec
-                                )
-                                // Prefer non-signs track with exact codec match
-                                const nonSignsMatch = codecMatches.find(t => !isSignsTrack(t.label))
-                                if (nonSignsMatch) {
-                                    defaultCaptionsNumber = nonSignsMatch.number
-                                } else if (codecMatches.length > 0) {
-                                    // All matches are signs tracks, use first one
-                                    defaultCaptionsNumber = codecMatches[0].number
-                                }
-                            }
-
-                            // Second pass: if no exact codec match, pick first non-signs track with matching lang
-                            if (defaultCaptionsNumber === undefined && savedSubtitleLang && savedSubtitleLang !== "none") {
-                                const nonSignsMatch = mediaCaptionsTracks.find(t =>
-                                    t.language?.toLowerCase() === savedSubtitleLang.toLowerCase() &&
-                                    !isSignsTrack(t.label)
-                                )
-                                if (nonSignsMatch) defaultCaptionsNumber = nonSignsMatch.number
-                            }
-
-                            return mediaCaptionsTracks.map(track => {
-                                const isDefault = track.number === defaultCaptionsNumber
-                                return {
-                                    label: track.label,
-                                    value: track.number,
-                                    moreInfo: track.language && track.language !== track.label
-                                        ? `${track.language.toUpperCase()}${track.codecID ? "/" + getSubtitleTrackType(track.codecID) : ``}`
-                                        : undefined,
-                                    isDefault,
-                                }
-                            })
-                        })(),
+                        }),
                     ]}
                     onValueChange={(value: number) => {
                         if (value === -1) {
                             activeManager?.setNoTrack()
                             setSelectedTrack(null)
-                            // Save "none" subtitle preference
-                            const mediaId = playbackInfo?.media?.id
-                            if (mediaId && saveTrackOverride) {
-                                saveTrackOverride(String(mediaId), { subtitleLanguage: "none", subtitleLabel: "" })
-                            }
                             return
                         }
                         if (subtitleManager) {
@@ -254,24 +163,6 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                         } else if (mediaCaptionsManager) {
                             mediaCaptionsManager.selectTrack(value)
                             setSelectedTrack(value)
-                        }
-
-                        // Save per-media subtitle language + codec + label override
-                        // The label is the most reliable way to "stick" to the same track across episodes
-                        // when several tracks share a language (e.g. "Full Subtitles" vs "Signs/Songs").
-                        const mediaId = playbackInfo?.media?.id
-                        if (mediaId && saveTrackOverride) {
-                            const subTrack = subtitleTracks.find(t => t.number === value)
-                            const captionTrack = mediaCaptionsTracks.find(t => t.number === value)
-                            const lang = subTrack?.language || captionTrack?.language
-                            const codecID = subTrack?.codecID
-                            const label = subTrack?.label || captionTrack?.label || ""
-                            if (lang) {
-                                saveTrackOverride(String(mediaId), { subtitleLanguage: lang, subtitleCodecID: codecID, subtitleLabel: label })
-                            } else if (label) {
-                                // No language code but we have a label — still remember it.
-                                saveTrackOverride(String(mediaId), { subtitleLabel: label })
-                            }
                         }
                     }}
                     value={selectedTrack ?? -1}

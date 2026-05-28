@@ -258,6 +258,7 @@ export type AL_AnimeCollection_MediaListCollection_Lists_Entries = {
     notes?: string
     repeat?: number
     private?: boolean
+    updatedAt?: number
     startedAt?: AL_AnimeCollection_MediaListCollection_Lists_Entries_StartedAt
     completedAt?: AL_AnimeCollection_MediaListCollection_Lists_Entries_CompletedAt
     media?: AL_BaseAnime
@@ -4846,6 +4847,8 @@ export type Models_MediaPlayerSettings = {
     vcTranslateTargetLanguage: string
     vcTranslateProvider: string
     vcTranslateApiKey: string
+    vcTranslateBaseUrl: string
+    vcTranslateModel: string
 }
 
 /**
@@ -5090,11 +5093,11 @@ export type Models_Theme = {
     homeItems?: Array<string>
     mangaHomeItems?: Array<string>
     enableBlurringEffects: boolean
-    hideAnimeSpoilers?: boolean
-    hideAnimeSpoilerThumbnails?: boolean
-    hideAnimeSpoilerTitles?: boolean
-    hideAnimeSpoilerDescriptions?: boolean
-    hideAnimeSpoilerSkipNextEpisode?: boolean
+    hideAnimeSpoilers: boolean
+    hideAnimeSpoilerThumbnails: boolean
+    hideAnimeSpoilerTitles: boolean
+    hideAnimeSpoilerDescriptions: boolean
+    hideAnimeSpoilerSkipNextEpisode: boolean
     id: number
     createdAt?: string
     updatedAt?: string
@@ -5159,9 +5162,10 @@ export type Models_TorrentstreamSettings = {
 export type Models_TrackPreference = {
     mediaId: string
     audioLanguage?: string
-    audioCodecId?: string
+    audioCodecID?: string
     subtitleLanguage?: string
-    subtitleCodecId?: string
+    subtitleCodecID?: string
+    subtitleLabel?: string
     id: number
     createdAt?: string
     updatedAt?: string
@@ -6469,6 +6473,7 @@ export type VideoCore_ClientEventType = "video-loaded" |
     "video-fullscreen" |
     "video-pip" |
     "video-subtitle-track" |
+    "video-subtitle-track-content" |
     "video-media-caption-track" |
     "video-anime-4k" |
     "video-audio-track" |
@@ -6482,6 +6487,51 @@ export type VideoCore_ClientEventType = "video-loaded" |
     "video-text-tracks" |
     "translate-text" |
     "translate-subtitle-file-track"
+
+/**
+ * - Filepath: internal/videocore/insight.go
+ * - Filename: insight.go
+ * - Package: videocore
+ */
+export type VideoCore_InSightCharacter = {
+    mal_id: number
+    url: string
+    images: VideoCore_InSightCharacter_Images
+    name: string
+    role: string
+    favorites: number
+}
+
+/**
+ * - Filepath: internal/videocore/insight.go
+ * - Filename: insight.go
+ * - Package: videocore
+ */
+export type VideoCore_InSightCharacter_Images = {
+    jpg: { image_url: string; }
+    webp: { image_url: string; small_image_url: string; }
+}
+
+/**
+ * - Filepath: internal/videocore/insight.go
+ * - Filename: insight.go
+ * - Package: videocore
+ */
+export type VideoCore_InSightData = {
+    characters?: Array<VideoCore_InSightCharacter>
+    suggestions?: Array<VideoCore_InSightSegment>
+}
+
+/**
+ * - Filepath: internal/videocore/insight.go
+ * - Filename: insight.go
+ * - Package: videocore
+ */
+export type VideoCore_InSightSegment = {
+    characterId: number
+    startTime: number
+    endTime: number
+}
 
 /**
  * - Filepath: internal/videocore/types.go
@@ -6549,10 +6599,12 @@ export type VideoCore_ServerEvent = "pause" |
     "get-text-tracks" |
     "request-play-episode" |
     "translated-text" |
+    "in-sight-data" |
     "get-fullscreen" |
     "get-pip" |
     "get-anime-4k" |
     "get-subtitle-track" |
+    "get-subtitle-track-content" |
     "get-audio-track" |
     "get-media-caption-track" |
     "get-playback-state" |
@@ -6574,6 +6626,16 @@ export type VideoCore_VideoInitialState = {
  * - Filepath: internal/videocore/types.go
  * - Filename: types.go
  * - Package: videocore
+ */
+export type VideoCore_VideoLibassFont = {
+    name?: string
+    src: string
+}
+
+/**
+ * - Filepath: internal/videocore/types.go
+ * - Filename: types.go
+ * - Package: videocore
  * @description
  *  VideoPlaybackInfo contains detailed information about the currently played media.
  *  It is filled by the client, passed to the player and sent to the server during playback.
@@ -6583,12 +6645,17 @@ export type VideoCore_VideoPlaybackInfo = {
     playbackType: VideoCore_PlaybackType
     streamUrl: string
     /**
+     * e.g. /anime/episode 01.mkv
+     */
+    streamPath?: string
+    /**
      * NativePlayer only
      */
     mkvMetadata?: MKVParser_Metadata
     localFile?: Anime_LocalFile
     onlinestreamParams?: VideoCore_OnlinestreamParams
     subtitleTracks?: Array<VideoCore_VideoSubtitleTrack>
+    libassFonts?: Array<VideoCore_VideoLibassFont>
     videoSources?: Array<VideoCore_VideoSource>
     /**
      * index of VideoSource
@@ -6640,6 +6707,10 @@ export type VideoCore_VideoSubtitleTrack = {
     type?: string
     default?: boolean
     useLibassRenderer?: boolean
+    /**
+     * e.g., "S_TEXT/ASS" for codec matching
+     */
+    codecID?: string
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

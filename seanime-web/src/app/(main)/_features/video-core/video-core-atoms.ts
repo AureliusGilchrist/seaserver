@@ -53,23 +53,14 @@ export const vc_cursorPosition = atom({ x: 0, y: 0 })
 export const vc_busy = atom(true)
 export const vc_videoElement = atom<HTMLVideoElement | null>(null)
 export const vc_containerElement = atom<HTMLDivElement | null>(null)
+
+// Fork additions
+export const vc_playbackInfo = atom<VideoCore_VideoPlaybackInfo | null>(null)
+export const vc_requestTranscodeForAudio = atom<((trackIndex?: number) => void) | null>(null)
+export const vc_directPlayAudioUrl = atom<string | null>(null)
+export const vc_directPlayAudioLoading = atom(false)
+export const vc_directPlayAudioElement = atom<HTMLAudioElement | null>(null)
 export const vc_previousPausedState = atom(false)
 export const vc_lastKnownProgress = atom<{ mediaId: number, progressNumber: number, time: number } | null>(null)
 export const vc_skipOpeningTime = atom<number | null>(null)
 export const vc_skipEndingTime = atom<number | null>(null)
-
-// Shared playback info atom — synced by VideoCore from its props so menus work for all playback modes
-export const vc_playbackInfo = atom<VideoCore_VideoPlaybackInfo | null>(null)
-
-// Callback atom set by mediastream adapter to switch from direct play to transcode.
-// Audio track switching doesn't work in direct play (browser audioTracks API is unreliable),
-// so the audio menu triggers this to reload the stream in transcode/HLS mode.
-export const vc_requestTranscodeForAudio = atom<((trackIndex?: number) => void) | null>(null)
-
-// Direct-play audio override: when set, the video element is muted and a hidden <audio>
-// element plays a server-extracted AAC track synced to the video via requestAnimationFrame.
-export const vc_directPlayAudioUrl = atom<string | null>(null)
-export const vc_directPlayAudioLoading = atom(false)
-
-// Holds the hidden <audio> element so volume/mute sync in VideoCore can route to it.
-export const vc_directPlayAudioElement = atom<HTMLAudioElement | null>(null)

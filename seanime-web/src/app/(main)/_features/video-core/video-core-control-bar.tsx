@@ -18,8 +18,8 @@ import { vc_pipManager } from "@/app/(main)/_features/video-core/video-core-pip"
 import { vc_storedMutedAtom, vc_storedVolumeAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
 import { vc_formatTime } from "@/app/(main)/_features/video-core/video-core.utils"
-import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { cn } from "@/components/ui/core/styling"
+import { useEffectEvent } from "@/lib/react/use-effect-event"
 import { useAtomValue } from "jotai"
 import { useAtom, useSetAtom } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
@@ -29,12 +29,6 @@ import { LuChevronLeft, LuChevronRight, LuVolume, LuVolume1, LuVolume2, LuVolume
 import { RiPauseLargeLine, RiPlayLargeLine } from "react-icons/ri"
 import { RxEnterFullScreen, RxExitFullScreen } from "react-icons/rx"
 import { TbPictureInPicture, TbPictureInPictureOff } from "react-icons/tb"
-import { FaFloppyDisk } from "react-icons/fa6"
-import { toast } from "sonner"
-import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
-import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
-import { useUpdateAnimeEntryProgress } from "@/api/hooks/anime_entries.hooks"
-import { useGetAnimeCollection } from "@/api/hooks/anilist.hooks"
 
 const VIDEOCORE_CONTROL_BAR_MAIN_SECTION_HEIGHT = 48
 const VIDEOCORE_CONTROL_BAR_MAIN_SECTION_HEIGHT_MINI = 28
@@ -55,7 +49,6 @@ export function VideoCoreControlBar(props: {
     const cursorBusy = useAtomValue(vc_cursorBusy)
     const [hoveringControlBar, setHoveringControlBar] = useAtom(vc_hoveringControlBar)
     const containerElement = useAtomValue(vc_containerElement)
-    const seeking = useAtomValue(vc_seeking)
 
     const isMobile = useAtomValue(vc_isMobile)
 
@@ -63,6 +56,18 @@ export function VideoCoreControlBar(props: {
 
     // when the user is approaching the control bar
     const [cursorPosition, setCursorPosition] = React.useState<"outside" | "approaching" | "hover">("outside")
+    const cursorPositionRef = React.useRef(cursorPosition)
+    const containerRectRef = React.useRef<DOMRect | null>(null)
+
+    React.useEffect(() => {
+        cursorPositionRef.current = cursorPosition
+    }, [cursorPosition])
+
+    const setCursorPositionC = useEffectEvent((nextPosition: "outside" | "approaching" | "hover") => {
+        if (cursorPositionRef.current === nextPosition) return
+        cursorPositionRef.current = nextPosition
+        setCursorPosition(nextPosition)
+    })
 
     // On mobile, always show controls when paused or when tapping
     const showOnlyTimeRange = isMobile ? false : (
@@ -71,6 +76,8 @@ export function VideoCoreControlBar(props: {
             ) :
             // cursor is approaching and video is not paused
             (!paused && cursorPosition === "approaching")
+            // or cursor not hovering and video is paused
+            || (paused && cursorPosition === "outside") || (paused && cursorPosition === "approaching")
     )
 
     const controlBarTranslateY = isMobile ? (
@@ -82,8 +89,7 @@ export function VideoCoreControlBar(props: {
                 cursorPosition === "hover" ? 0 : 300
             )
         ) : (
-            // Full bar: cursor hovering the bar, menu open, or paused AND cursor is near/over the bottom
-            (cursorBusy || hoveringControlBar || (paused && cursorPosition !== "outside")) ? 0 : (
+            (cursorBusy || hoveringControlBar) ? 0 : (
                 showOnlyTimeRange ? mainSectionHeight : (
                     cursorPosition === "hover" ? 0 : 300
                 )
@@ -106,40 +112,56 @@ export function VideoCoreControlBar(props: {
         if (isMobile) return
 
         if (!containerElement) {
-            setCursorPosition("outside")
+            setCursorPositionC("outside")
             return
         }
 
         const rect = containerElement.getBoundingClientRect()
+        containerRectRef.current = rect
         const y = e instanceof PointerEvent ? e.clientY - rect.top : 0
         const registerThreshold = !isMiniPlayer ? 150 : 100 // pixels from the bottom to start registering position
         const showOnlyTimeRangeOffset = !isMiniPlayer ? 50 : 50
 
         if ((y >= rect.height - registerThreshold && y < rect.height - registerThreshold + showOnlyTimeRangeOffset)) {
-            setCursorPosition("approaching")
+            setCursorPositionC("approaching")
         } else if (y < rect.height - registerThreshold) {
-            setCursorPosition("outside")
+            setCursorPositionC("outside")
         } else {
-            setCursorPosition("hover")
+            setCursorPositionC("hover")
         }
     }
 
     function handleVideoContainerPointerLeave(_e: Event) {
         if (isMobile) return
-        setCursorPosition("outside")
+        containerRectRef.current = null
+        setCursorPositionC("outside")
     }
 
     React.useEffect(() => {
         if (!containerElement) return
+        const updateContainerRect = () => {
+            containerRectRef.current = containerElement.getBoundingClientRect()
+        }
+
+        updateContainerRect()
+        const resizeObserver = new ResizeObserver(updateContainerRect)
+        resizeObserver.observe(containerElement)
+
+        containerElement.addEventListener("pointerenter", updateContainerRect)
         containerElement.addEventListener("pointermove", handleVideoContainerPointerMove)
         containerElement.addEventListener("pointerleave", handleVideoContainerPointerLeave)
         containerElement.addEventListener("pointercancel", handleVideoContainerPointerLeave)
+        window.addEventListener("resize", updateContainerRect)
         return () => {
+            resizeObserver.disconnect()
+            containerElement.removeEventListener("pointerenter", updateContainerRect)
             containerElement.removeEventListener("pointermove", handleVideoContainerPointerMove)
-            containerElement.removeEventListener("pointerup", handleVideoContainerPointerLeave)
+            containerElement.removeEventListener("pointerleave", handleVideoContainerPointerLeave)
             containerElement.removeEventListener("pointercancel", handleVideoContainerPointerLeave)
+            window.removeEventListener("resize", updateContainerRect)
+            containerRectRef.current = null
         }
-    }, [containerElement, paused, isMiniPlayer, seeking, hoveringControlBar])
+    }, [containerElement, isMobile, isMiniPlayer])
 
     React.useLayoutEffect(() => {
         if (!containerElement || isMobile) return
@@ -157,29 +179,35 @@ export function VideoCoreControlBar(props: {
 
     return (
         <>
-            {/* Black-to-transparent gradient behind the control bar so it stays readable
-                on bright/white video frames. Sits below the control bar (lower z-index) and
-                fades upward to fully transparent. Visibility is tied to the control bar. */}
             <div
-                data-vc-element="control-bar-gradient"
-                aria-hidden="true"
+                data-vc-element="control-bar-gradient-bottom"
                 className={cn(
-                    "pointer-events-none absolute left-0 right-0 bottom-0",
-                    "h-40 z-[9]",
-                    "transition-opacity duration-300 opacity-0",
-                    !hideControlBar && "opacity-100",
+                    "pointer-events-none",
+                    "absolute bottom-0 left-0 right-0 w-full z-[5] h-28 transition-opacity duration-300 opacity-0",
+                    "bg-gradient-to-t to-transparent",
+                    !isMiniPlayer ? "from-black/40" : "from-black/80 via-black/40",
+                    isMiniPlayer && "h-20",
+                    !hideShadow && "opacity-100",
                 )}
-                style={{
-                    background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 35%, rgba(0,0,0,0.25) 70%, rgba(0,0,0,0) 100%)",
-                }}
             />
+            {!isMiniPlayer && <div
+                data-vc-element="control-bar-time-range-bottom-gradient"
+                className={cn(
+                    "pointer-events-none",
+                    "absolute bottom-0 left-0 right-0 w-full z-[5] h-14 transition-opacity duration-400 opacity-0",
+                    "bg-gradient-to-t to-transparent",
+                    !isMiniPlayer ? "from-black/40" : "from-black/60",
+                    isMiniPlayer && "h-10",
+                    (showOnlyTimeRange && paused && hideShadow) && "opacity-100",
+                )}
+            />}
             <div
                 data-vc-element="control-bar"
                 data-vc-state-visible={!hideControlBar}
                 className={cn(
                     "absolute left-0 bottom-0 right-0 flex flex-col text-white",
                     "transition-[opacity,transform] duration-300 opacity-0",
-                    "z-[10] h-28 transform-gpu",
+                    "z-[10] h-28 transform-gpu will-change-[opacity,transform]",
                     !hideControlBar && "opacity-100",
                     VIDEOCORE_DEBUG_ELEMENTS && "bg-purple-500/20",
                 )}
@@ -251,7 +279,7 @@ export function VideoCoreMobileControlBar(props: {
     const [, setHoveringControlBar] = useAtom(vc_hoveringControlBar)
 
     const [isSwipingDebounced, setIsSwipingDebounced] = React.useState(false)
-    const sieT = React.useRef<NodeJS.Timeout>()
+    const sieT = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     React.useEffect(() => {
         if (isSwiping) {
             setIsSwipingDebounced(true)
@@ -371,13 +399,6 @@ export function VideoCoreControlButtonIcon(props: VideoCoreControlButtonProps) {
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
     const isMobile = useAtomValue(vc_isMobile)
 
-    // Find the single matching icon for the current state.
-    // Rendering only the match (no null siblings) prevents Motion v12 AnimatePresence
-    // from misinterpreting null map results as exit triggers, which caused icons to
-    // stick at opacity:0 in Firefox/Opera GX.
-    const match = icons.find(([s]) => s === state)
-    const MatchIcon = match?.[1]
-
     return (
         <button
             role="button"
@@ -387,6 +408,7 @@ export function VideoCoreControlButtonIcon(props: VideoCoreControlButtonProps) {
             className={cn(
                 "vc-control-button flex items-center justify-center transition-opacity relative h-full",
                 "focus-visible:outline-none focus:outline-none focus-visible:opacity-50",
+                // Better touch targets on mobile
                 isMobile ? "px-1 text-2xl" : "px-2 text-3xl hover:opacity-80",
                 isMiniPlayer && !isMobile && "text-2xl",
                 className,
@@ -394,28 +416,30 @@ export function VideoCoreControlButtonIcon(props: VideoCoreControlButtonProps) {
             onClick={onClick}
             onWheel={onWheel}
         >
-            <AnimatePresence initial={false} mode="popLayout">
-                {match && MatchIcon && (
-                    <motion.span
-                        key={match[0]}
-                        data-vc-element="control-button-icon"
-                        data-vc-state={match[0]}
-                        className="block relative"
-                        style={{ color: "inherit" }}
-                        initial={{ y: 0, opacity: 1 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ opacity: 0, y: 10, position: "absolute" as any }}
-                        transition={{ duration: 0.15 }}
-                    >
-                        <MatchIcon
-                            className={cn(
-                                "vc-control-button-icon",
-                                iconClass,
-                            )}
-                            style={{ width: "1em", height: "1em", color: "inherit" }}
-                        />
-                    </motion.span>
-                )}
+            <AnimatePresence>
+                {icons.map(n => {
+                    const [iconState, Icon] = n
+                    if (state !== iconState) return null
+                    return (
+                        <motion.span
+                            key={iconState}
+                            data-vc-element="control-button-icon"
+                            data-vc-state={iconState}
+                            className="block"
+                            initial={{ opacity: 0, y: 10, position: "relative" }}
+                            animate={{ opacity: 1, y: 0, position: "relative" }}
+                            exit={{ opacity: 0, y: 10, position: "absolute" }}
+                            transition={{ duration: 0.15 }}
+                        >
+                            <Icon
+                                className={cn(
+                                    "vc-control-button-icon",
+                                    iconClass,
+                                )}
+                            />
+                        </motion.span>
+                    )
+                })}
             </AnimatePresence>
             {children}
         </button>
@@ -427,14 +451,12 @@ export function VideoCoreControlButtonIcon(props: VideoCoreControlButtonProps) {
 export function VideoCorePlayButton() {
     const paused = useAtomValue(vc_paused)
     const action = useSetAtom(vc_dispatchAction)
-    const theme = useAnimeThemeOrNull()
-    const icons = theme?.config.playerIconOverrides
 
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["playing", icons?.pause ?? RiPauseLargeLine],
-                ["paused", icons?.play ?? RiPlayLargeLine],
+                ["playing", RiPauseLargeLine],
+                ["paused", RiPlayLargeLine],
             ]}
             state={paused ? "paused" : "playing"}
             onClick={() => {
@@ -451,8 +473,6 @@ export function VideoCoreVolumeButton() {
     const setMuted = useSetAtom(vc_storedMutedAtom)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
     const isMobile = useAtomValue(vc_isMobile)
-    const theme = useAnimeThemeOrNull()
-    const icons = theme?.config.playerIconOverrides
 
     const [isSliding, setIsSliding] = React.useState(false)
 
@@ -518,10 +538,10 @@ export function VideoCoreVolumeButton() {
         >
             <VideoCoreControlButtonIcon
                 icons={[
-                    ["low", icons?.volumeLow ?? LuVolume],
-                    ["mid", icons?.volumeMid ?? LuVolume1],
-                    ["high", icons?.volumeHigh ?? LuVolume2],
-                    ["muted", icons?.volumeMuted ?? LuVolumeOff],
+                    ["low", LuVolume],
+                    ["mid", LuVolume1],
+                    ["high", LuVolume2],
+                    ["muted", LuVolumeOff],
                 ]}
                 state={
                     muted ? "muted" :
@@ -590,14 +610,12 @@ export function VideoCoreVolumeButton() {
 
 export function VideoCoreNextButton({ onClick }: { onClick: () => void }) {
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
-    const theme = useAnimeThemeOrNull()
-    const icons = theme?.config.playerIconOverrides
     if (isMiniPlayer) return null
 
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["default", icons?.skipForward ?? LuChevronRight],
+                ["default", LuChevronRight],
             ]}
             state="default"
             onClick={onClick}
@@ -608,14 +626,12 @@ export function VideoCoreNextButton({ onClick }: { onClick: () => void }) {
 
 export function VideoCorePreviousButton({ onClick }: { onClick: () => void }) {
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
-    const theme = useAnimeThemeOrNull()
-    const icons = theme?.config.playerIconOverrides
     if (isMiniPlayer) return null
 
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["default", icons?.skipBack ?? LuChevronLeft],
+                ["default", LuChevronLeft],
             ]}
             state="default"
             onClick={onClick}
@@ -657,16 +673,14 @@ export function VideoCorePipButton() {
     const pipManager = useAtomValue(vc_pipManager)
     const isPip = useAtomValue(vc_pip)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
-    const theme = useAnimeThemeOrNull()
-    const icons = theme?.config.playerIconOverrides
 
     if (isMiniPlayer) return null
 
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["default", icons?.pip ?? TbPictureInPicture],
-                ["pip", icons?.pipOff ?? TbPictureInPictureOff],
+                ["default", TbPictureInPicture],
+                ["pip", TbPictureInPictureOff],
             ]}
             state={isPip ? "pip" : "default"}
             onClick={() => {
@@ -680,14 +694,12 @@ export function VideoCoreFullscreenButton() {
     const fullscreenManager = useAtomValue(vc_fullscreenManager)
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const [isMiniPlayer, setMiniPlayer] = useAtom(vc_miniPlayer)
-    const theme = useAnimeThemeOrNull()
-    const icons = theme?.config.playerIconOverrides
 
     return (
         <VideoCoreControlButtonIcon
             icons={[
-                ["default", icons?.fullscreenEnter ?? RxEnterFullScreen],
-                ["fullscreen", icons?.fullscreenExit ?? RxExitFullScreen],
+                ["default", RxEnterFullScreen],
+                ["fullscreen", RxExitFullScreen],
             ]}
             state={isFullscreen ? "fullscreen" : "default"}
             onClick={() => {
@@ -696,150 +708,4 @@ export function VideoCoreFullscreenButton() {
             }}
         />
     )
-}
-
-
-export function VideoCoreBookmarkButton() {
-    const playbackInfo = useAtomValue(vc_playbackInfo)
-    const mediaId = playbackInfo?.media?.id
-    const episodeNumber = playbackInfo?.episode?.progressNumber
-    const totalEpisodes = playbackInfo?.media?.episodes ?? 0
-
-    // showToast=false — we provide a more specific toast on actual success below
-    const { mutate: updateProgress, isPending } = useUpdateAnimeEntryProgress(mediaId, episodeNumber ?? 0, false)
-
-    const confirmUpdate = useConfirmationDialog({
-        title: "Update AniList progress",
-        description: episodeNumber
-            ? `Update AniList to episode ${episodeNumber}?`
-            : "Update AniList to this episode?",
-        actionText: "Confirm",
-        cancelText: "Decline",
-        actionIntent: "primary",
-        onConfirm: () => {
-            if (!mediaId || !episodeNumber || isPending) return
-            // AniList only — intentionally do NOT pass malId so MAL is never updated.
-            updateProgress({
-                mediaId,
-                episodeNumber,
-                totalEpisodes,
-            }, {
-                onSuccess: () => {
-                    toast.success(`AniList progress updated to episode ${episodeNumber}`)
-                },
-                onError: (err: any) => {
-                    const msg = err?.response?.data?.error || err?.message || "Unknown error"
-                    toast.error("Failed to update AniList progress", { description: msg })
-                },
-            })
-        },
-    })
-
-    if (!mediaId || !episodeNumber) return null
-
-    return (
-        <>
-            <VideoCoreControlButtonIcon
-                icons={[["default", FaFloppyDisk]]}
-                state="default"
-                onClick={() => confirmUpdate.open()}
-            />
-            <ConfirmationDialog {...confirmUpdate} />
-        </>
-    )
-}
-
-
-/**
- * Listens for the `video-core:episode-completed` custom event (fired at ~75% playback).
- * If the currently-played anime is in the user's PLANNING or PAUSED list,
- * shows a confirmation modal asking to move it to "Currently Watching".
- * On confirm, updates AniList progress to the just-finished episode, which
- * server-side automatically sets the list status to CURRENT.
- */
-export function VideoCorePromptStartWatching() {
-    const { data: animeCollection } = useGetAnimeCollection()
-    const [pending, setPending] = React.useState<{
-        mediaId: number
-        episodeNumber: number
-        totalEpisodes: number
-        title: string
-    } | null>(null)
-
-    const { mutate: updateProgress } = useUpdateAnimeEntryProgress(
-        pending?.mediaId,
-        pending?.episodeNumber ?? 0,
-        false,
-    )
-
-    React.useEffect(() => {
-        function onCompleted(e: Event) {
-            const detail = (e as CustomEvent).detail as {
-                mediaId?: number
-                episodeNumber?: number
-                totalEpisodes?: number
-                title?: string
-            }
-            if (!detail?.mediaId || !detail?.episodeNumber) return
-            if (!animeCollection?.MediaListCollection?.lists) return
-
-            // Find this anime's list status
-            let status: string | undefined
-            for (const list of animeCollection.MediaListCollection.lists) {
-                if (list?.isCustomList) continue
-                const entry = list?.entries?.find(en => en?.media?.id === detail.mediaId)
-                if (entry) {
-                    status = entry.status
-                    break
-                }
-            }
-
-            // Only prompt if the anime is in PLANNING or PAUSED
-            if (status !== "PLANNING" && status !== "PAUSED") return
-
-            setPending({
-                mediaId: detail.mediaId,
-                episodeNumber: detail.episodeNumber,
-                totalEpisodes: detail.totalEpisodes ?? 0,
-                title: detail.title ?? "this anime",
-            })
-        }
-
-        window.addEventListener("video-core:episode-completed", onCompleted)
-        return () => window.removeEventListener("video-core:episode-completed", onCompleted)
-    }, [animeCollection])
-
-    const confirm = useConfirmationDialog({
-        title: "Start watching this anime?",
-        description: pending
-            ? `Move "${pending.title}" to your Currently Watching list?`
-            : "",
-        actionText: "Confirm",
-        cancelText: "Decline",
-        actionIntent: "primary",
-        onConfirm: () => {
-            if (!pending) return
-            updateProgress({
-                mediaId: pending.mediaId,
-                episodeNumber: pending.episodeNumber,
-                totalEpisodes: pending.totalEpisodes,
-            }, {
-                onSuccess: () => {
-                    toast.success(`Moved "${pending.title}" to Currently Watching`)
-                    setPending(null)
-                },
-                onError: (err: any) => {
-                    const msg = err?.response?.data?.error || err?.message || "Unknown error"
-                    toast.error("Failed to update AniList list status", { description: msg })
-                    setPending(null)
-                },
-            })
-        },
-    })
-
-    React.useEffect(() => {
-        if (pending) confirm.open()
-    }, [pending])
-
-    return <ConfirmationDialog {...confirm} />
 }

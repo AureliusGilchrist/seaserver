@@ -1,15 +1,13 @@
 import { MKVParser_TrackInfo } from "@/api/generated/types"
+import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { vc_audioManager } from "@/app/(main)/_features/video-core/video-core"
-import { vc_perMediaTrackOverrides, vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
 
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
-import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
-import { vc_requestTranscodeForAudio } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { VideoCoreControlButtonIcon } from "@/app/(main)/_features/video-core/video-core-control-bar"
-import { HlsAudioTrack, vc_hlsAudioTracks, vc_hlsCurrentAudioTrack, vc_hlsSetAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
+import { HlsAudioTrack, vc_hlsAudioTracks, vc_hlsCurrentAudioTrack } from "@/app/(main)/_features/video-core/video-core-hls"
 import { VideoCoreMenu, VideoCoreMenuBody, VideoCoreMenuTitle, VideoCoreSettingSelect } from "@/app/(main)/_features/video-core/video-core-menu"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
 import { useAtomValue } from "jotai"
@@ -20,30 +18,23 @@ import { LuHeadphones } from "react-icons/lu"
 export function VideoCoreAudioMenu() {
     const action = useSetAtom(vc_dispatchAction)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
-    const playbackInfo = useAtomValue(vc_playbackInfo)
+    const state = useAtomValue(nativePlayer_stateAtom)
     const audioManager = useAtomValue(vc_audioManager)
     const videoElement = useAtomValue(vc_videoElement)
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const containerElement = useAtomValue(vc_containerElement)
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
-    const saveTrackOverride = useAtomValue(vc_saveTrackOverride)
-    const requestTranscodeForAudio = useAtomValue(vc_requestTranscodeForAudio)
-    const perMediaTrackOverrides = useAtomValue(vc_perMediaTrackOverrides)
-    const savedAudioLang = playbackInfo?.media?.id ? perMediaTrackOverrides[String(playbackInfo.media.id)]?.audioLanguage : undefined
 
     // Get MKV audio tracks
-    const mkvAudioTracks = playbackInfo?.mkvMetadata?.audioTracks
+    const mkvAudioTracks = state.playbackInfo?.mkvMetadata?.audioTracks
 
     // Get HLS audio tracks
     const hlsAudioTracks = useAtomValue(vc_hlsAudioTracks)
     const hlsCurrentAudioTrack = useAtomValue(vc_hlsCurrentAudioTrack)
-    const hlsSetAudioTrack = useAtomValue(vc_hlsSetAudioTrack)
 
     // Determine which audio tracks to use
-    // HLS tracks take priority — in transcode mode both mkvAudioTracks (synthesized)
-    // and hlsAudioTracks exist, but only the HLS setter can actually switch audio
-    const isHls = hlsAudioTracks.length > 0
-    const audioTracks = isHls ? hlsAudioTracks : (mkvAudioTracks || null)
+    const audioTracks = mkvAudioTracks || (hlsAudioTracks.length > 0 ? hlsAudioTracks : null)
+    const isHls = !mkvAudioTracks && hlsAudioTracks.length > 0
 
     function onAudioChange() {
         setSelectedTrack(audioManager?.getSelectedTrackNumberOrNull?.() ?? null)
@@ -69,7 +60,7 @@ export function VideoCoreAudioMenu() {
         }
     }, [hlsCurrentAudioTrack, isHls])
 
-    if (isMiniPlayer || !audioTracks?.length) return null
+    if (isMiniPlayer || !audioTracks?.length || audioTracks.length === 1) return null
 
     return (
         <VideoCoreMenu
@@ -92,71 +83,26 @@ export function VideoCoreAudioMenu() {
                     containerElement={containerElement}
                     options={audioTracks.map(track => {
                         if (isHls) {
+                            // HLS track format
                             const hlsTrack = track as HlsAudioTrack
-                            const parts: string[] = []
-                            if (hlsTrack.name) parts.push(hlsTrack.name)
-                            if (hlsTrack.language) parts.push(`[${hlsTrack.language}]`)
-                            const isDefault = !!savedAudioLang &&
-                                hlsTrack.language?.toLowerCase() === savedAudioLang?.toLowerCase()
                             return {
-                                label: parts.length > 0 ? parts.join(" ") : `Track ${hlsTrack.id + 1}`,
+                                label: hlsTrack.name || hlsTrack.language?.toUpperCase() || `Track ${hlsTrack.id + 1}`,
                                 value: hlsTrack.id,
                                 moreInfo: hlsTrack.language?.toUpperCase(),
-                                isDefault,
                             }
                         } else {
+                            // Event track format
                             const eventTrack = track as MKVParser_TrackInfo
-                            const lang = eventTrack.language || eventTrack.languageIETF
-                            const parts: string[] = []
-                            if (eventTrack.name) parts.push(eventTrack.name)
-                            if (lang) parts.push(`[${lang}]`)
-                            const codec = eventTrack.codecID?.replace("A_", "")
-                            if (codec) parts.push(`(${codec})`)
-                            const ch = eventTrack.audio?.Channels
-                            if (ch) parts.push(`${ch}ch`)
-                            const isDefault = !!savedAudioLang &&
-                                lang?.toLowerCase() === savedAudioLang?.toLowerCase()
                             return {
-                                label: parts.length > 0 ? parts.join(" ") : `Track ${eventTrack.number}`,
+                                label: `${eventTrack.name || eventTrack.language?.toUpperCase() || eventTrack.languageIETF?.toUpperCase()}`,
                                 value: eventTrack.number,
-                                moreInfo: lang?.toUpperCase(),
-                                isDefault,
+                                moreInfo: eventTrack.language?.toUpperCase(),
                             }
                         }
                     })}
                     onValueChange={(value: number) => {
-                        // Save per-media audio language + codec override FIRST so it persists across the stream switch
-                        const mediaId = playbackInfo?.media?.id
-                        if (mediaId && saveTrackOverride) {
-                            let lang: string | undefined
-                            let codecID: string | undefined
-                            if (isHls) {
-                                lang = (audioTracks as HlsAudioTrack[])?.find(t => t.id === value)?.language
-                            } else {
-                                const track = (audioTracks as MKVParser_TrackInfo[])?.find(t => t.number === value)
-                                lang = track?.language
-                                codecID = track?.codecID
-                            }
-                            if (lang) {
-                                saveTrackOverride(String(mediaId), { audioLanguage: lang, audioCodecID: codecID })
-                            }
-                        }
-
-                        if (isHls && hlsSetAudioTrack) {
-                            // HLS mode: switch audio directly via HLS.js — reliable in all browsers.
-                            hlsSetAudioTrack(value)
-                            setSelectedTrack(value)
-                            action({ type: "seek", payload: { time: -1 } })
-                        } else if (requestTranscodeForAudio) {
-                            // Direct play mode: extract the selected audio track via FFmpeg
-                            // and play it through a hidden <audio> element synced to the video.
-                            // Convert MKV track number to 0-based audio stream index.
-                            const audioStreamIndex = mkvAudioTracks
-                                ? mkvAudioTracks.findIndex(t => (t as MKVParser_TrackInfo).number === value)
-                                : -1
-                            setSelectedTrack(value)
-                            requestTranscodeForAudio(audioStreamIndex >= 0 ? audioStreamIndex : 0)
-                        }
+                        audioManager?.selectTrack(value)
+                        action({ type: "seek", payload: { time: -1 } })
                     }}
                     value={selectedTrack || 0}
                 />

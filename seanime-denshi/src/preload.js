@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld(
             isMinimizable: () => ipcRenderer.invoke("window:isMinimizable"),
             isMaximizable: () => ipcRenderer.invoke("window:isMaximizable"),
             isClosable: () => ipcRenderer.invoke("window:isClosable"),
+            isFullscreen: () => ipcRenderer.invoke("window:isFullscreen"),
+            setFullscreen: (fullscreen) => ipcRenderer.send("window:setFullscreen", fullscreen),
             toggleMaximize: () => ipcRenderer.send("window:toggleMaximize"),
             hide: () => ipcRenderer.send("window:hide"),
             show: () => ipcRenderer.send("window:show"),

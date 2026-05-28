@@ -1671,6 +1671,17 @@
         "comments": []
       },
       {
+        "name": "httpClient",
+        "jsonName": "httpClient",
+        "goType": "http.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "http.Client",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "rateLimited",
         "jsonName": "rateLimited",
         "goType": "atomic.Bool",
@@ -4686,6 +4697,15 @@
         "comments": []
       },
       {
+        "name": "UpdatedAt",
+        "jsonName": "updatedAt",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "StartedAt",
         "jsonName": "startedAt",
         "goType": "AnimeCollection_MediaListCollection_Lists_Entries_StartedAt",
@@ -5467,6 +5487,15 @@
         "jsonName": "private",
         "goType": "bool",
         "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpdatedAt",
+        "jsonName": "updatedAt",
+        "goType": "int",
+        "typescriptType": "number",
         "required": false,
         "public": true,
         "comments": []
@@ -29155,6 +29184,96 @@
     "comments": []
   },
   {
+    "filepath": "../internal/constants/constants.go",
+    "filename": "constants.go",
+    "name": "VersionsManifest",
+    "formattedName": "VersionsManifest",
+    "package": "constants",
+    "fields": [
+      {
+        "name": "Seaserver",
+        "jsonName": "seaserver",
+        "goType": "VersionsManifest_Seaserver",
+        "inlineStructType": "struct{\nVersion string `json:\"version\"`\nCodename string `json:\"codename\"`}",
+        "typescriptType": "VersionsManifest_Seaserver",
+        "usedTypescriptType": "{ version: string; codename: string; }",
+        "usedStructName": "constants.VersionsManifest_Seaserver",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Rooms",
+        "jsonName": "rooms",
+        "goType": "VersionsManifest_Rooms",
+        "inlineStructType": "struct{\nVersion string `json:\"version\"`}",
+        "typescriptType": "VersionsManifest_Rooms",
+        "usedTypescriptType": "{ version: string; }",
+        "usedStructName": "constants.VersionsManifest_Rooms",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " VersionsManifest mirrors the structure of versions.json at the repo root. Only the",
+      " fields the Go server cares about are decoded here; additional keys are ignored."
+    ]
+  },
+  {
+    "filepath": "../internal/constants/constants.go",
+    "filename": "constants.go",
+    "name": "VersionsManifest_Seaserver",
+    "formattedName": "VersionsManifest_Seaserver",
+    "package": "constants",
+    "fields": [
+      {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Codename",
+        "jsonName": "codename",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " VersionsManifest mirrors the structure of versions.json at the repo root. Only the",
+      " fields the Go server cares about are decoded here; additional keys are ignored."
+    ]
+  },
+  {
+    "filepath": "../internal/constants/constants.go",
+    "filename": "constants.go",
+    "name": "VersionsManifest_Rooms",
+    "formattedName": "VersionsManifest_Rooms",
+    "package": "constants",
+    "fields": [
+      {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " VersionsManifest mirrors the structure of versions.json at the repo root. Only the",
+      " fields the Go server cares about are decoded here; additional keys are ignored."
+    ]
+  },
+  {
     "filepath": "..\\internal\\continuity\\history.go",
     "filename": "history.go",
     "name": "WatchHistory",
@@ -31018,9 +31137,9 @@
         "name": "Marketplace",
         "jsonName": "Marketplace",
         "goType": "INTERNAL_Config_Marketplace",
-        "inlineStructType": "struct{\nDir string}",
+        "inlineStructType": "struct{\nDir string\nCursorPacksDir string\nSoundPacksDir string}",
         "typescriptType": "INTERNAL_Config_Marketplace",
-        "usedTypescriptType": "{ Dir: string; }",
+        "usedTypescriptType": "{ Dir: string; CursorPacksDir: string; SoundPacksDir: string; }",
         "usedStructName": "core.Config_Marketplace",
         "required": true,
         "public": true,
@@ -31369,6 +31488,28 @@
         "public": true,
         "comments": [
           " Path to the seanime-themes marketplace directory"
+        ]
+      },
+      {
+        "name": "CursorPacksDir",
+        "jsonName": "CursorPacksDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Path to the seanime-cursor-packs marketplace directory"
+        ]
+      },
+      {
+        "name": "SoundPacksDir",
+        "jsonName": "SoundPacksDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Path to the seanime-sound-packs marketplace directory"
         ]
       }
     ],
@@ -33674,6 +33815,24 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "VcTranslateBaseUrl",
+        "jsonName": "vcTranslateBaseUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "VcTranslateModel",
+        "jsonName": "vcTranslateModel",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -34668,6 +34827,51 @@
       {
         "name": "EnableBlurringEffects",
         "jsonName": "enableBlurringEffects",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HideAnimeSpoilers",
+        "jsonName": "hideAnimeSpoilers",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HideAnimeSpoilerThumbnails",
+        "jsonName": "hideAnimeSpoilerThumbnails",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HideAnimeSpoilerTitles",
+        "jsonName": "hideAnimeSpoilerTitles",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HideAnimeSpoilerDescriptions",
+        "jsonName": "hideAnimeSpoilerDescriptions",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HideAnimeSpoilerSkipNextEpisode",
+        "jsonName": "hideAnimeSpoilerSkipNextEpisode",
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
@@ -36842,6 +37046,15 @@
         "comments": [
           " Publicly visible milestone title"
         ]
+      },
+      {
+        "name": "WatchTimeXP",
+        "jsonName": "watchTimeXP",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -36939,6 +37152,33 @@
       " theme preferences, discovered easter eggs, reward progress, cursor pack, sound pack, etc.).",
       " Stored in the per-profile database, so each profile gets its own values automatically.",
       " The Value column is opaque JSON-encoded text the client owns; the server never inspects it."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "EasterEggDiscovery",
+    "formattedName": "Models_EasterEggDiscovery",
+    "package": "models",
+    "fields": [
+      {
+        "name": "EggID",
+        "jsonName": "eggId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " EasterEggDiscovery records a single easter-egg discovery for the active profile.",
+      " Stored in the per-profile database so each profile gets its own permanent record.",
+      " This is the authoritative source of truth for discovered \"Secrets\" — localStorage",
+      " is treated as a fast-path cache, but the server row is what makes a discovery permanent."
     ],
     "embeddedStructNames": [
       "models.BaseModel"
@@ -37066,7 +37306,7 @@
       },
       {
         "name": "AudioCodecID",
-        "jsonName": "audioCodecId",
+        "jsonName": "audioCodecID",
         "goType": "string",
         "typescriptType": "string",
         "required": false,
@@ -37084,7 +37324,16 @@
       },
       {
         "name": "SubtitleCodecID",
-        "jsonName": "subtitleCodecId",
+        "jsonName": "subtitleCodecID",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SubtitleLabel",
+        "jsonName": "subtitleLabel",
         "goType": "string",
         "typescriptType": "string",
         "required": false,
@@ -40440,6 +40689,33 @@
         ]
       },
       {
+        "name": "getProfileAnilistClientFunc",
+        "jsonName": "getProfileAnilistClientFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "invalidateProfileAnimeCollectionFunc",
+        "jsonName": "invalidateProfileAnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "recordPlaybackActivityFunc",
+        "jsonName": "recordPlaybackActivityFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "nativePlayer",
         "jsonName": "nativePlayer",
         "goType": "nativeplayer.NativePlayer",
@@ -40703,6 +40979,33 @@
       {
         "name": "RefreshAnimeCollectionFunc",
         "jsonName": "RefreshAnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "GetProfileAnilistClientFunc",
+        "jsonName": "GetProfileAnilistClientFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "InvalidateProfileAnimeCollectionFunc",
+        "jsonName": "InvalidateProfileAnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RecordPlaybackActivityFunc",
+        "jsonName": "RecordPlaybackActivityFunc",
         "goType": "",
         "typescriptType": "any",
         "required": true,
@@ -42781,6 +43084,162 @@
         "goType": "string",
         "typescriptType": "string",
         "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/discordrpc/presence/presence.go",
+    "filename": "presence.go",
+    "name": "DiscordActivityPayload",
+    "formattedName": "DiscordRPC_DiscordActivityPayload",
+    "package": "discordrpc_presence",
+    "fields": [
+      {
+        "name": "ApplicationId",
+        "jsonName": "applicationId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Details",
+        "jsonName": "details",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DetailsURL",
+        "jsonName": "detailsUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "State",
+        "jsonName": "state",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LargeImage",
+        "jsonName": "largeImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LargeText",
+        "jsonName": "largeText",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LargeURL",
+        "jsonName": "largeUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SmallImage",
+        "jsonName": "smallImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SmallText",
+        "jsonName": "smallText",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SmallURL",
+        "jsonName": "smallUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartTimestamp",
+        "jsonName": "startTimestamp",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EndTimestamp",
+        "jsonName": "endTimestamp",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Buttons",
+        "jsonName": "buttons",
+        "goType": "[]discordrpc_client.Button",
+        "typescriptType": "Array\u003cDiscordRPC_Button\u003e",
+        "usedTypescriptType": "DiscordRPC_Button",
+        "usedStructName": "discordrpc_client.Button",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Instance",
+        "jsonName": "instance",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
         "public": true,
         "comments": []
       }
@@ -50992,6 +51451,24 @@
         "comments": []
       },
       {
+        "name": "AchievementDescription",
+        "jsonName": "achievementDescription",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AchievementXP",
+        "jsonName": "achievementXp",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "IconSVG",
         "jsonName": "iconSvg",
         "goType": "string",
@@ -51014,6 +51491,205 @@
     "comments": [
       " ActivityFeedEntry represents a single event in the community activity feed."
     ]
+  },
+  {
+    "filepath": "../internal/handlers/cursor_library.go",
+    "filename": "cursor_library.go",
+    "name": "CursorEntry",
+    "formattedName": "CursorEntry",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"regular/045-flame__pointer.png\""
+        ]
+      },
+      {
+        "name": "Tab",
+        "jsonName": "tab",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " static|regular|games|animated|anime"
+        ]
+      },
+      {
+        "name": "File",
+        "jsonName": "file",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " basename"
+        ]
+      },
+      {
+        "name": "URL",
+        "jsonName": "url",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " public URL (e.g. /cursor-library/regular/045-...)"
+        ]
+      },
+      {
+        "name": "Slug",
+        "jsonName": "slug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " derived display key (e.g. \"flame\")"
+        ]
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " display name (titleized slug)"
+        ]
+      },
+      {
+        "name": "Level",
+        "jsonName": "level",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " unlock level (0 = always unlocked, anime tab uses 0)"
+        ]
+      },
+      {
+        "name": "IsFinal",
+        "jsonName": "isFinal",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": [
+          " true if this is the highest-level item in its tab"
+        ]
+      },
+      {
+        "name": "IsAnimated",
+        "jsonName": "isAnimated",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": [
+          " true for .gif/.ani/.apng/animated-webp"
+        ]
+      },
+      {
+        "name": "States",
+        "jsonName": "states",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": [
+          " empty = \"any\""
+        ]
+      },
+      {
+        "name": "HotspotX",
+        "jsonName": "hotspotX",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HotspotY",
+        "jsonName": "hotspotY",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MimeType",
+        "jsonName": "mimeType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SeriesSlug",
+        "jsonName": "seriesSlug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": [
+          " anime tab only"
+        ]
+      },
+      {
+        "name": "Lore",
+        "jsonName": "lore",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": [
+          " user-supplied lore string (optional)"
+        ]
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/cursor_library.go",
+    "filename": "cursor_library.go",
+    "name": "CursorLibraryManifest",
+    "formattedName": "CursorLibraryManifest",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Entries",
+        "jsonName": "entries",
+        "goType": "[]CursorEntry",
+        "typescriptType": "Array\u003cCursorEntry\u003e",
+        "usedTypescriptType": "CursorEntry",
+        "usedStructName": "handlers.CursorEntry",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Slots",
+        "jsonName": "slots",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
   },
   {
     "filepath": "../internal/handlers/directory_selector.go",
@@ -51934,6 +52610,558 @@
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "name": "MarketplaceCursorPack",
+    "formattedName": "MarketplaceCursorPack",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Author",
+        "jsonName": "author",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"png\" | \"recolor\""
+        ]
+      },
+      {
+        "name": "PreviewImageUrl",
+        "jsonName": "previewImageUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RequiredLevel",
+        "jsonName": "requiredLevel",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tags",
+        "jsonName": "tags",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BaseTheme",
+        "jsonName": "baseTheme",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HueRotate",
+        "jsonName": "hueRotate",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Saturate",
+        "jsonName": "saturate",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Brightness",
+        "jsonName": "brightness",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MarketplaceCursorPack represents a cursor pack in the marketplace index"
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "name": "MarketplaceSoundPack",
+    "formattedName": "MarketplaceSoundPack",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Author",
+        "jsonName": "author",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Emoji",
+        "jsonName": "emoji",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PreviewImageUrl",
+        "jsonName": "previewImageUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RequiredLevel",
+        "jsonName": "requiredLevel",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tags",
+        "jsonName": "tags",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Sounds",
+        "jsonName": "sounds",
+        "goType": "map[string]string",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "required": false,
+        "public": true,
+        "comments": [
+          " soundName -\u003e filename"
+        ]
+      }
+    ],
+    "comments": [
+      " MarketplaceSoundPack represents a sound pack in the marketplace index"
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "name": "CursorPackIndex",
+    "formattedName": "CursorPackIndex",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "GeneratedAt",
+        "jsonName": "generatedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Packs",
+        "jsonName": "packs",
+        "goType": "[]MarketplaceCursorPack",
+        "typescriptType": "Array\u003cMarketplaceCursorPack\u003e",
+        "usedTypescriptType": "MarketplaceCursorPack",
+        "usedStructName": "handlers.MarketplaceCursorPack",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " CursorPackIndex is the top-level index.json for the cursor pack marketplace"
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "name": "SoundPackIndex",
+    "formattedName": "SoundPackIndex",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "GeneratedAt",
+        "jsonName": "generatedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Packs",
+        "jsonName": "packs",
+        "goType": "[]MarketplaceSoundPack",
+        "typescriptType": "Array\u003cMarketplaceSoundPack\u003e",
+        "usedTypescriptType": "MarketplaceSoundPack",
+        "usedStructName": "handlers.MarketplaceSoundPack",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " SoundPackIndex is the top-level index.json for the sound pack marketplace"
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "name": "DownloadedCursorPack",
+    "formattedName": "DownloadedCursorPack",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Author",
+        "jsonName": "author",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"png\" | \"recolor\""
+        ]
+      },
+      {
+        "name": "PreviewImageUrl",
+        "jsonName": "previewImageUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RequiredLevel",
+        "jsonName": "requiredLevel",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tags",
+        "jsonName": "tags",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BaseTheme",
+        "jsonName": "baseTheme",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "HueRotate",
+        "jsonName": "hueRotate",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Saturate",
+        "jsonName": "saturate",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Brightness",
+        "jsonName": "brightness",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " DownloadedCursorPack is stored in AppDataDir/cursor-packs/{id}/pack.json"
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/pack_marketplace.go",
+    "filename": "pack_marketplace.go",
+    "name": "DownloadedSoundPack",
+    "formattedName": "DownloadedSoundPack",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Author",
+        "jsonName": "author",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Emoji",
+        "jsonName": "emoji",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PreviewImageUrl",
+        "jsonName": "previewImageUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RequiredLevel",
+        "jsonName": "requiredLevel",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tags",
+        "jsonName": "tags",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Version",
+        "jsonName": "version",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Sounds",
+        "jsonName": "sounds",
+        "goType": "map[string]string",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "required": false,
+        "public": true,
+        "comments": [
+          " soundName -\u003e filename"
+        ]
+      }
+    ],
+    "comments": [
+      " DownloadedSoundPack is stored in AppDataDir/sound-packs/{id}/pack.json"
+    ]
   },
   {
     "filepath": "../internal/handlers/profile_page.go",
@@ -53203,6 +54431,24 @@
         "comments": [
           " \"anime\" or \"manga\" or \"\""
         ]
+      },
+      {
+        "name": "AchievementIconSVG",
+        "jsonName": "achievementIconSvg",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AchievementDesc",
+        "jsonName": "achievementDesc",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -60147,6 +61393,24 @@
         ]
       },
       {
+        "name": "getProfileAnilistClientFunc",
+        "jsonName": "getProfileAnilistClientFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "invalidateProfileAnimeCollectionFunc",
+        "jsonName": "invalidateProfileAnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "mu",
         "jsonName": "mu",
         "goType": "sync.Mutex",
@@ -60455,6 +61719,26 @@
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "sessionLastSyncedEpisode",
+        "jsonName": "sessionLastSyncedEpisode",
+        "goType": "map[int]int",
+        "typescriptType": "Record\u003cnumber, number\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "sessionLastSyncedEpisodeMu",
+        "jsonName": "sessionLastSyncedEpisodeMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
         "public": false,
         "comments": []
       },
@@ -61022,6 +62306,24 @@
         "usedTypescriptType": "Continuity_Manager",
         "usedStructName": "continuity.Manager",
         "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "GetProfileAnilistClientFunc",
+        "jsonName": "GetProfileAnilistClientFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "InvalidateProfileAnimeCollectionFunc",
+        "jsonName": "InvalidateProfileAnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
         "public": true,
         "comments": []
       }
@@ -76607,6 +77909,19 @@
         ]
       },
       {
+        "name": "roomReconnectTimer",
+        "jsonName": "roomReconnectTimer",
+        "goType": "time.Timer",
+        "typescriptType": "Timer",
+        "usedTypescriptType": "Timer",
+        "usedStructName": "time.Timer",
+        "required": false,
+        "public": false,
+        "comments": [
+          " Pending host-room reconnect attempt (guarded by hostMu)"
+        ]
+      },
+      {
         "name": "currentRoom",
         "jsonName": "currentRoom",
         "goType": "Room",
@@ -81567,9 +82882,241 @@
         "comments": [
           " Optional SQLite-backed unlimited media cache"
         ]
+      },
+      {
+        "name": "pendingMutations",
+        "jsonName": "pendingMutations",
+        "goType": "PendingMutationStore",
+        "typescriptType": "PendingMutationStore",
+        "usedTypescriptType": "PendingMutationStore",
+        "usedStructName": "shared_platform.PendingMutationStore",
+        "required": false,
+        "public": false,
+        "comments": [
+          " Queue of mutations awaiting AniList availability"
+        ]
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/platforms/shared_platform/pending_mutations.go",
+    "filename": "pending_mutations.go",
+    "name": "PendingMutationKind",
+    "formattedName": "PendingMutationKind",
+    "package": "shared_platform",
+    "fields": [],
+    "aliasOf": {
+      "goType": "string",
+      "typescriptType": "string",
+      "declaredValues": [
+        "\"UpdateMediaListEntry\"",
+        "\"UpdateMediaListEntryProgress\"",
+        "\"UpdateMediaListEntryRepeat\"",
+        "\"DeleteEntry\""
+      ]
+    },
+    "comments": [
+      " PendingMutationKind identifies which AniList mutation a queued entry represents."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/shared_platform/pending_mutations.go",
+    "filename": "pending_mutations.go",
+    "name": "PendingMutation",
+    "formattedName": "PendingMutation",
+    "package": "shared_platform",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Kind",
+        "jsonName": "kind",
+        "goType": "PendingMutationKind",
+        "typescriptType": "PendingMutationKind",
+        "usedTypescriptType": "PendingMutationKind",
+        "usedStructName": "shared_platform.PendingMutationKind",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "QueuedAt",
+        "jsonName": "queuedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EntryID",
+        "jsonName": "entryId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Progress",
+        "jsonName": "progress",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ScoreRaw",
+        "jsonName": "scoreRaw",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Repeat",
+        "jsonName": "repeat",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "anilist.MediaListStatus",
+        "typescriptType": "AL_MediaListStatus",
+        "usedTypescriptType": "AL_MediaListStatus",
+        "usedStructName": "anilist.MediaListStatus",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "anilist.FuzzyDateInput",
+        "typescriptType": "AL_FuzzyDateInput",
+        "usedTypescriptType": "AL_FuzzyDateInput",
+        "usedStructName": "anilist.FuzzyDateInput",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CompletedAt",
+        "jsonName": "completedAt",
+        "goType": "anilist.FuzzyDateInput",
+        "typescriptType": "AL_FuzzyDateInput",
+        "usedTypescriptType": "AL_FuzzyDateInput",
+        "usedStructName": "anilist.FuzzyDateInput",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " PendingMutation is a serialisable record of an AniList mutation that could not be sent",
+      " because the AniList API was unreachable at the time. The queue is replayed when the",
+      " API becomes available again so the user's progress eventually syncs."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/shared_platform/pending_mutations.go",
+    "filename": "pending_mutations.go",
+    "name": "PendingMutationStore",
+    "formattedName": "PendingMutationStore",
+    "package": "shared_platform",
+    "fields": [
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "path",
+        "jsonName": "path",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "loaded",
+        "jsonName": "loaded",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "entries",
+        "jsonName": "entries",
+        "goType": "[]PendingMutation",
+        "typescriptType": "Array\u003cPendingMutation\u003e",
+        "usedTypescriptType": "PendingMutation",
+        "usedStructName": "shared_platform.PendingMutation",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "flushing",
+        "jsonName": "flushing",
+        "goType": "atomic.Bool",
+        "typescriptType": "Bool",
+        "usedTypescriptType": "Bool",
+        "usedStructName": "atomic.Bool",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " PendingMutationStore persists a small queue of AniList mutations to disk as JSON.",
+      " The queue is intentionally small: for each (kind, target) pair we keep only the",
+      " latest queued entry (since later progress values supersede earlier ones)."
+    ]
   },
   {
     "filepath": "../internal/platforms/shared_platform/shared.go",
@@ -101757,6 +103304,419 @@
     "comments": []
   },
   {
+    "filepath": "../internal/videocore/insight.go",
+    "filename": "insight.go",
+    "name": "InSight",
+    "formattedName": "VideoCore_InSight",
+    "package": "videocore",
+    "fields": [
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "vc",
+        "jsonName": "vc",
+        "goType": "VideoCore",
+        "typescriptType": "VideoCore_VideoCore",
+        "usedTypescriptType": "VideoCore_VideoCore",
+        "usedStructName": "videocore.VideoCore",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "currentPosition",
+        "jsonName": "currentPosition",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "inSightData",
+        "jsonName": "inSightData",
+        "goType": "InSightData",
+        "typescriptType": "VideoCore_InSightData",
+        "usedTypescriptType": "VideoCore_InSightData",
+        "usedStructName": "videocore.InSightData",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.RWMutex",
+        "typescriptType": "RWMutex",
+        "usedTypescriptType": "RWMutex",
+        "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "characters",
+        "jsonName": "characters",
+        "goType": "[]InSightCharacter",
+        "typescriptType": "Array\u003cVideoCore_InSightCharacter\u003e",
+        "usedTypescriptType": "VideoCore_InSightCharacter",
+        "usedStructName": "videocore.InSightCharacter",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "searchCache",
+        "jsonName": "searchCache",
+        "goType": "[]insightSearchEntry",
+        "typescriptType": "Array\u003cVideoCore_insightSearchEntry\u003e",
+        "usedTypescriptType": "VideoCore_insightSearchEntry",
+        "usedStructName": "videocore.insightSearchEntry",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "processedCounts",
+        "jsonName": "processedCounts",
+        "goType": "map[int]int",
+        "typescriptType": "Record\u003cnumber, number\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cancelPolling",
+        "jsonName": "cancelPolling",
+        "goType": "context.CancelFunc",
+        "typescriptType": "CancelFunc",
+        "usedTypescriptType": "CancelFunc",
+        "usedStructName": "context.CancelFunc",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "rateLimiter",
+        "jsonName": "rateLimiter",
+        "goType": "limiter.Limiter",
+        "typescriptType": "Limiter",
+        "usedTypescriptType": "Limiter",
+        "usedStructName": "limiter.Limiter",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "characterDetailsCache",
+        "jsonName": "characterDetailsCache",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " InSight returns the characters for any given anime.",
+      " TODO: map specific characters to a window of time where they appear in the subtitles (ASS character) or are mentioned by other characters."
+    ]
+  },
+  {
+    "filepath": "../internal/videocore/insight.go",
+    "filename": "insight.go",
+    "name": "InSightData",
+    "formattedName": "VideoCore_InSightData",
+    "package": "videocore",
+    "fields": [
+      {
+        "name": "Characters",
+        "jsonName": "characters",
+        "goType": "[]InSightCharacter",
+        "typescriptType": "Array\u003cVideoCore_InSightCharacter\u003e",
+        "usedTypescriptType": "VideoCore_InSightCharacter",
+        "usedStructName": "videocore.InSightCharacter",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Suggestions",
+        "jsonName": "suggestions",
+        "goType": "[]InSightSegment",
+        "typescriptType": "Array\u003cVideoCore_InSightSegment\u003e",
+        "usedTypescriptType": "VideoCore_InSightSegment",
+        "usedStructName": "videocore.InSightSegment",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/videocore/insight.go",
+    "filename": "insight.go",
+    "name": "InSightSegment",
+    "formattedName": "VideoCore_InSightSegment",
+    "package": "videocore",
+    "fields": [
+      {
+        "name": "CharacterId",
+        "jsonName": "characterId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartTime",
+        "jsonName": "startTime",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EndTime",
+        "jsonName": "endTime",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/videocore/insight.go",
+    "filename": "insight.go",
+    "name": "InSightCharacter",
+    "formattedName": "VideoCore_InSightCharacter",
+    "package": "videocore",
+    "fields": [
+      {
+        "name": "MalID",
+        "jsonName": "mal_id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "URL",
+        "jsonName": "url",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Images",
+        "jsonName": "images",
+        "goType": "VideoCore_InSightCharacter_Images",
+        "inlineStructType": "struct{\nJpg __STRUCT__ `json:\"jpg\"`\nWebp __STRUCT__ `json:\"webp\"`}",
+        "typescriptType": "VideoCore_InSightCharacter_Images",
+        "usedTypescriptType": "{ jpg: { image_url: string; }; webp: { image_url: string; small_image_url: string; }; }",
+        "usedStructName": "videocore.InSightCharacter_Images",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Role",
+        "jsonName": "role",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Favorites",
+        "jsonName": "favorites",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/videocore/insight.go",
+    "filename": "insight.go",
+    "name": "InSightCharacter_Images",
+    "formattedName": "VideoCore_InSightCharacter_Images",
+    "package": "videocore",
+    "fields": [
+      {
+        "name": "Jpg",
+        "jsonName": "jpg",
+        "goType": "__STRUCT__",
+        "inlineStructType": "struct{\nImageUrl string `json:\"image_url\"`}",
+        "typescriptType": "{ image_url: string; }",
+        "usedTypescriptType": "{ image_url: string; }",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Webp",
+        "jsonName": "webp",
+        "goType": "__STRUCT__",
+        "inlineStructType": "struct{\nImageUrl string `json:\"image_url\"`\nSmallImageUrl string `json:\"small_image_url\"`}",
+        "typescriptType": "{ image_url: string; small_image_url: string; }",
+        "usedTypescriptType": "{ image_url: string; small_image_url: string; }",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/videocore/insight.go",
+    "filename": "insight.go",
+    "name": "InSightCharacterDetails",
+    "formattedName": "VideoCore_InSightCharacterDetails",
+    "package": "videocore",
+    "fields": [
+      {
+        "name": "MalID",
+        "jsonName": "mal_id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "URL",
+        "jsonName": "url",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Images",
+        "jsonName": "images",
+        "goType": "VideoCore_InSightCharacterDetails_Images",
+        "inlineStructType": "struct{\nJpg __STRUCT__ `json:\"jpg\"`\nWebp __STRUCT__ `json:\"webp\"`}",
+        "typescriptType": "VideoCore_InSightCharacterDetails_Images",
+        "usedTypescriptType": "{ jpg: { image_url: string; }; webp: { image_url: string; small_image_url: string; }; }",
+        "usedStructName": "videocore.InSightCharacterDetails_Images",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NameKanji",
+        "jsonName": "name_kanji",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Nicknames",
+        "jsonName": "nicknames",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Favorites",
+        "jsonName": "favorites",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "About",
+        "jsonName": "about",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/videocore/insight.go",
+    "filename": "insight.go",
+    "name": "InSightCharacterDetails_Images",
+    "formattedName": "VideoCore_InSightCharacterDetails_Images",
+    "package": "videocore",
+    "fields": [
+      {
+        "name": "Jpg",
+        "jsonName": "jpg",
+        "goType": "__STRUCT__",
+        "inlineStructType": "struct{\nImageUrl string `json:\"image_url\"`}",
+        "typescriptType": "{ image_url: string; }",
+        "usedTypescriptType": "{ image_url: string; }",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Webp",
+        "jsonName": "webp",
+        "goType": "__STRUCT__",
+        "inlineStructType": "struct{\nImageUrl string `json:\"image_url\"`\nSmallImageUrl string `json:\"small_image_url\"`}",
+        "typescriptType": "{ image_url: string; small_image_url: string; }",
+        "usedTypescriptType": "{ image_url: string; small_image_url: string; }",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
     "filepath": "../internal/videocore/subtitles.go",
     "filename": "subtitles.go",
     "name": "GenerateSubtitleFileOptions",
@@ -102016,6 +103976,7 @@
         "\"video-fullscreen\"",
         "\"video-pip\"",
         "\"video-subtitle-track\"",
+        "\"video-subtitle-track-content\"",
         "\"video-media-caption-track\"",
         "\"video-anime-4k\"",
         "\"video-audio-track\"",
@@ -102152,11 +104113,50 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "CodecID",
+        "jsonName": "codecID",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": [
+          " e.g., \"S_TEXT/ASS\" for codec matching"
+        ]
       }
     ],
     "comments": [
       " VideoSubtitleTrack is an external subtitle track."
     ]
+  },
+  {
+    "filepath": "../internal/videocore/types.go",
+    "filename": "types.go",
+    "name": "VideoLibassFont",
+    "formattedName": "VideoCore_VideoLibassFont",
+    "package": "videocore",
+    "fields": [
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Src",
+        "jsonName": "src",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
   },
   {
     "filepath": "../internal/videocore/types.go",
@@ -102394,6 +104394,17 @@
         "comments": []
       },
       {
+        "name": "StreamPath",
+        "jsonName": "streamPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": [
+          " e.g. /anime/episode 01.mkv"
+        ]
+      },
+      {
         "name": "MkvMetadata",
         "jsonName": "mkvMetadata",
         "goType": "mkvparser.Metadata",
@@ -102435,6 +104446,17 @@
         "typescriptType": "Array\u003cVideoCore_VideoSubtitleTrack\u003e",
         "usedTypescriptType": "VideoCore_VideoSubtitleTrack",
         "usedStructName": "videocore.VideoSubtitleTrack",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LibassFonts",
+        "jsonName": "libassFonts",
+        "goType": "[]VideoLibassFont",
+        "typescriptType": "Array\u003cVideoCore_VideoLibassFont\u003e",
+        "usedTypescriptType": "VideoCore_VideoLibassFont",
+        "usedStructName": "videocore.VideoLibassFont",
         "required": false,
         "public": true,
         "comments": []
@@ -103467,10 +105489,12 @@
         "\"get-text-tracks\"",
         "\"request-play-episode\"",
         "\"translated-text\"",
+        "\"in-sight-data\"",
         "\"get-fullscreen\"",
         "\"get-pip\"",
         "\"get-anime-4k\"",
         "\"get-subtitle-track\"",
+        "\"get-subtitle-track-content\"",
         "\"get-audio-track\"",
         "\"get-media-caption-track\"",
         "\"get-playback-state\"",
@@ -103690,6 +105714,26 @@
         "typescriptType": "Models_Settings",
         "usedTypescriptType": "Models_Settings",
         "usedStructName": "models.Settings",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "inSight",
+        "jsonName": "inSight",
+        "goType": "InSight",
+        "typescriptType": "VideoCore_InSight",
+        "usedTypescriptType": "VideoCore_InSight",
+        "usedStructName": "videocore.InSight",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "playbackMkvEvents",
+        "jsonName": "playbackMkvEvents",
+        "goType": "",
+        "typescriptType": "any",
         "required": false,
         "public": false,
         "comments": []

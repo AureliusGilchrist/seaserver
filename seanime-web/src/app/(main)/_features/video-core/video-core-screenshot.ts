@@ -16,9 +16,24 @@ export function useVideoCoreScreenshot() {
 
     const screenshotTimeout = React.useRef<NodeJS.Timeout | null>(null)
 
-    async function saveToClipboard(blob: Blob, isAnime4K: boolean = false) {
-        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
-        showOverlayFeedback({ message: "Screenshot saved to clipboard", type: "message" })
+    async function saveScreenshot(blob: Blob, isAnime4K: boolean = false) {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        document.body.appendChild(a)
+        a.style.display = "none"
+        a.href = url
+        a.download = `seanime_screenshot_${new Date().getTime()}${isAnime4K ? "_anime4k" : ""}.png`
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+
+        try {
+            await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
+            showOverlayFeedback({ message: "Screenshot saved", type: "message" })
+        }
+        catch (e) {
+            showOverlayFeedback({ message: "Screenshot saved", type: "message" })
+        }
     }
 
     async function addSubtitles(canvas: HTMLCanvasElement): Promise<void> {
@@ -38,25 +53,27 @@ export function useVideoCoreScreenshot() {
         })
     }
 
-    async function createVideoCanvas(source: HTMLVideoElement | HTMLCanvasElement): Promise<Blob | null> {
+    async function createBlob(canvas: HTMLCanvasElement, type: string = "image/png"): Promise<Blob | null> {
+        return new Promise((resolve) => {
+            canvas.toBlob((blob) => {
+                canvas.remove()
+                resolve(blob)
+            }, type)
+        })
+    }
+
+    async function createVideoCanvas(source: HTMLVideoElement): Promise<Blob | null> {
         return new Promise(async (resolve) => {
-            if (source instanceof HTMLCanvasElement) {
-                source.toBlob(resolve, "image/png")
-            } else {
-                const canvas = document.createElement("canvas")
-                const ctx = canvas.getContext("2d")
-                if (!ctx) return resolve(null)
+            const canvas = document.createElement("canvas")
+            const ctx = canvas.getContext("2d")
+            if (!ctx) return resolve(null)
 
-                canvas.width = source.videoWidth
-                canvas.height = source.videoHeight
-                ctx.drawImage(source, 0, 0)
+            canvas.width = source.videoWidth
+            canvas.height = source.videoHeight
+            ctx.drawImage(source, 0, 0)
 
-                await addSubtitles(canvas)
-                canvas.toBlob((blob) => {
-                    canvas.remove()
-                    resolve(blob)
-                })
-            }
+            await addSubtitles(canvas)
+            resolve(await createBlob(canvas))
         })
     }
 
@@ -73,11 +90,9 @@ export function useVideoCoreScreenshot() {
                 ctx.drawImage(img, 0, 0)
 
                 await addSubtitles(canvas)
-                canvas.toBlob((blob) => {
-                    canvas.remove()
-                    URL.revokeObjectURL(img.src)
-                    resolve(blob)
-                })
+                const blob = await createBlob(canvas)
+                URL.revokeObjectURL(img.src)
+                resolve(blob)
             }
             img.src = URL.createObjectURL(anime4kBlob)
         })
@@ -100,15 +115,18 @@ export function useVideoCoreScreenshot() {
             let isAnime4K = false
 
             if (anime4kOption !== "off" && anime4kManager?.canvas) {
-                const anime4kBlob = await createVideoCanvas(anime4kManager.canvas)
-                if (anime4kBlob) {
-                    if (subtitleManager?.libassRenderer) {
-                        blob = await createEnhancedCanvas(anime4kBlob)
-                    } else {
-                        blob = anime4kBlob
-                    }
-                    isAnime4K = true
+                const anime4kBlob = await anime4kManager.captureFrame()
+                if (!anime4kBlob) {
+                    throw new Error("Failed to capture Anime4K frame")
                 }
+
+                if (subtitleManager?.libassRenderer) {
+                    blob = await createEnhancedCanvas(anime4kBlob)
+                } else {
+                    blob = anime4kBlob
+                }
+
+                isAnime4K = true
             }
 
             if (!blob) {
@@ -116,7 +134,7 @@ export function useVideoCoreScreenshot() {
             }
 
             if (blob) {
-                await saveToClipboard(blob, isAnime4K)
+                await saveScreenshot(blob, isAnime4K)
             }
 
         }

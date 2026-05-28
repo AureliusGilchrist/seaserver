@@ -32,6 +32,9 @@ var additionalStructNames = []string{
 	"videocore.ClientEventType",
 	"videocore.ServerEvent",
 	"videocore.PlaybackState",
+	"videocore.InSightData",
+	"videocore.InSightCharacter",
+	"videocore.InSightSegment",
 	"plugin_ui.WebviewSlot",
 	"plugin_ui.WebviewOptions",
 }

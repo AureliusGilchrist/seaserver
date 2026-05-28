@@ -1819,6 +1819,7 @@ declare namespace $app {
         notes?: string;
         repeat?: number;
         private?: boolean;
+        updatedAt?: number;
         startedAt?: AL_AnimeCollectionWithRelations_MediaListCollection_Lists_Entries_StartedAt;
         completedAt?: AL_AnimeCollectionWithRelations_MediaListCollection_Lists_Entries_CompletedAt;
         media?: AL_CompleteAnime;
@@ -1870,6 +1871,7 @@ declare namespace $app {
         notes?: string;
         repeat?: number;
         private?: boolean;
+        updatedAt?: number;
         startedAt?: AL_AnimeCollection_MediaListCollection_Lists_Entries_StartedAt;
         completedAt?: AL_AnimeCollection_MediaListCollection_Lists_Entries_CompletedAt;
         media?: AL_BaseAnime;

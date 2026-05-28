@@ -23,12 +23,6 @@ export class VideoCoreAudioManager extends EventTarget {
     private readonly hlsSetAudioTrack: ((trackId: number) => void) | null = null
     private readonly hlsAudioTracks: HlsAudioTrack[] = []
     private hlsCurrentAudioTrack: number = -1
-    // Tracks whether the user has manually selected an audio track.
-    // When true, auto-selection (e.g. __selectDefaultHlsTrack) is skipped
-    // so the user's choice is preserved across quality switches and re-renders.
-    private _userHasSelectedTrack: boolean = false
-    // Per-series codec override for language+codec matching
-    private audioCodecOverride?: string
 
     constructor({
         videoElement,
@@ -38,7 +32,6 @@ export class VideoCoreAudioManager extends EventTarget {
         hlsSetAudioTrack,
         hlsAudioTracks,
         hlsCurrentAudioTrack,
-        audioCodecOverride,
     }: {
         videoElement: HTMLVideoElement
         settings: VideoCoreSettings
@@ -47,7 +40,6 @@ export class VideoCoreAudioManager extends EventTarget {
         hlsSetAudioTrack?: ((trackId: number) => void) | null
         hlsAudioTracks?: HlsAudioTrack[]
         hlsCurrentAudioTrack?: number
-        audioCodecOverride?: string
     }) {
         super()
         this.videoElement = videoElement
@@ -56,7 +48,6 @@ export class VideoCoreAudioManager extends EventTarget {
         this.hlsSetAudioTrack = hlsSetAudioTrack || null
         this.hlsAudioTracks = hlsAudioTracks || []
         this.hlsCurrentAudioTrack = hlsCurrentAudioTrack ?? -1
-        this.audioCodecOverride = audioCodecOverride
 
         // Check if we're dealing with HLS audio tracks
         const isHls = this.hlsSetAudioTrack !== null && this.hlsAudioTracks.length > 0
@@ -144,18 +135,9 @@ export class VideoCoreAudioManager extends EventTarget {
 
         // Try each preferred language in order
         for (const preferredLang of preferredLanguages) {
-            const foundTracks = this.playbackInfo.mkvMetadata?.audioTracks?.filter?.(t => t.language && t.language === preferredLang)
+            const foundTracks = this.playbackInfo.mkvMetadata?.audioTracks?.filter?.(t => (t.language || "eng") === preferredLang)
             if (foundTracks?.length) {
-                // Prefer language + codec match (per-series override)
-                if (this.audioCodecOverride) {
-                    const codecMatch = foundTracks.find(t => t.codecID === this.audioCodecOverride)
-                    if (codecMatch) {
-                        audioLog.info("Selecting per-series codec override track", codecMatch)
-                        this.selectTrack(codecMatch.number)
-                        return
-                    }
-                }
-                // Fallback: default track or first
+                // Find default track
                 const defaultIndex = foundTracks.findIndex(t => t.default)
                 this.selectTrack(foundTracks[defaultIndex >= 0 ? defaultIndex : 0].number)
                 return
@@ -172,43 +154,7 @@ export class VideoCoreAudioManager extends EventTarget {
         }
     }
 
-    __selectDefaultHlsTrack() {
-        if (!this.hlsSetAudioTrack || !this.isHlsStream()) return
-        if (this._userHasSelectedTrack) return
-
-        // Split preferred languages by comma and trim whitespace
-        const preferredLanguages = this.settings.preferredAudioLanguage
-            .split(",")
-            .map(lang => lang.trim())
-            .filter(lang => lang.length > 0)
-
-        // Try each preferred language in order
-        for (const preferredLang of preferredLanguages) {
-            const foundTrack = this.hlsAudioTracks.find(t => t.language && t.language === preferredLang)
-            if (foundTrack) {
-                audioLog.info("Selecting preferred HLS audio track", foundTrack)
-                this.hlsSetAudioTrack(foundTrack.id)
-                return
-            }
-        }
-
-        // No preferred track found, look for default track
-        const defaultTrack = this.hlsAudioTracks.find(t => t.default)
-        if (defaultTrack) {
-            audioLog.info("Selecting default HLS audio track", defaultTrack)
-            this.hlsSetAudioTrack(defaultTrack.id)
-            return
-        }
-
-        // Otherwise, select the first track
-        if (this.hlsAudioTracks.length > 0) {
-            audioLog.info("Selecting first HLS audio track", this.hlsAudioTracks[0])
-            this.hlsSetAudioTrack(this.hlsAudioTracks[0].id)
-        }
-    }
-
     selectTrack(trackNumber: number) {
-        this._userHasSelectedTrack = true
         // If it's an HLS stream, select the track from the HLS API
         if (this.hlsSetAudioTrack) {
             audioLog.info("Selecting HLS audio track", trackNumber)
@@ -222,9 +168,10 @@ export class VideoCoreAudioManager extends EventTarget {
 
         let trackChanged = false
         for (let i = 0; i < this.videoElement.audioTracks.length; i++) {
-            const shouldEnable = this.videoElement.audioTracks[i].id === trackNumber.toString()
-            if (this.videoElement.audioTracks[i].enabled !== shouldEnable) {
-                this.videoElement.audioTracks[i].enabled = shouldEnable
+            const track = this.videoElement.audioTracks[i]
+            const shouldEnable = this.getNativeTrackNumber(track, i) === trackNumber
+            if (track.enabled !== shouldEnable) {
+                track.enabled = shouldEnable
                 trackChanged = true
             }
         }
@@ -247,12 +194,86 @@ export class VideoCoreAudioManager extends EventTarget {
         if (!this.videoElement.audioTracks) return null
 
         for (let i = 0; i < this.videoElement.audioTracks.length; i++) {
-            if (this.videoElement.audioTracks[i].enabled) {
-                return Number(this.videoElement.audioTracks[i].id)
+            const track = this.videoElement.audioTracks[i]
+            if (track.enabled) {
+                return this.getNativeTrackNumber(track, i)
             }
         }
 
         return null
+    }
+
+    __selectDefaultHlsTrack() {
+        if (!this.hlsSetAudioTrack || !this.isHlsStream()) return
+
+        // Split preferred languages by comma and trim whitespace
+        const preferredLanguages = this.settings.preferredAudioLanguage
+            .split(",")
+            .map(lang => lang.trim())
+            .filter(lang => lang.length > 0)
+
+        // Try each preferred language in order
+        for (const preferredLang of preferredLanguages) {
+            const foundTrack = this.hlsAudioTracks.find(t => (t.language || "eng") === preferredLang)
+            if (foundTrack) {
+                audioLog.info("Selecting preferred HLS audio track", foundTrack)
+                this.hlsSetAudioTrack(foundTrack.id)
+                return
+            }
+        }
+
+        // No preferred track found, look for default track
+        const defaultTrack = this.hlsAudioTracks.find(t => t.default)
+        if (defaultTrack) {
+            audioLog.info("Selecting default HLS audio track", defaultTrack)
+            this.hlsSetAudioTrack(defaultTrack.id)
+            return
+        }
+
+        // Otherwise, select the first track
+        if (this.hlsAudioTracks.length > 0) {
+            audioLog.info("Selecting first HLS audio track", this.hlsAudioTracks[0])
+            this.hlsSetAudioTrack(this.hlsAudioTracks[0].id)
+        }
+    }
+
+    syncSelectedTrack() {
+        const trackNumber = this.getSelectedTrackNumberOrNull()
+        if (trackNumber === null) return
+
+        const event: AudioManagerTrackChangedEvent = new CustomEvent("trackchanged", { detail: { trackNumber } })
+        this.dispatchEvent(event)
+    }
+
+    private trackIdsMatchMetadata() {
+        const metadataTracks = this.playbackInfo.mkvMetadata?.audioTracks ?? []
+        if (!this.videoElement.audioTracks || metadataTracks.length !== this.videoElement.audioTracks.length) return false
+
+        const metadataNumbers = new Set(metadataTracks.map(track => Number(track.number)))
+        for (let i = 0; i < this.videoElement.audioTracks.length; i++) {
+            const id = Number(this.videoElement.audioTracks[i].id)
+            if (!Number.isFinite(id) || !metadataNumbers.has(id)) return false
+        }
+        return true
+    }
+
+    private getNativeTrackNumber(track: AudioTrack, index: number) {
+        const metadataTracks = this.playbackInfo.mkvMetadata?.audioTracks ?? []
+        const id = Number(track.id)
+
+        if (this.trackIdsMatchMetadata() && Number.isFinite(id)) {
+            return id
+        }
+
+        if (metadataTracks[index]) {
+            return Number(metadataTracks[index].number)
+        }
+
+        if (Number.isFinite(id)) {
+            return id
+        }
+
+        return index
     }
 
     getHlsAudioTracks() {

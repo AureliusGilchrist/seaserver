@@ -578,7 +578,7 @@ function setupAppProtocol() {
 // Cast
 /////////////////
 
-const __CAST_ENABLED__ = false
+const __CAST_ENABLED__ = true
 const CastSender = __CAST_ENABLED__ ? require("./cast/sender").CastSender : null
 let castSender = null
 
@@ -1641,6 +1641,16 @@ app.whenReady().then(async () => {
 
     ipcMain.handle("window:isClosable", () => {
         return mainWindow && !mainWindow.isDestroyed() ? mainWindow.closable : false
+    })
+
+    ipcMain.handle("window:isFullscreen", () => {
+        return mainWindow && !mainWindow.isDestroyed() ? mainWindow.isFullScreen() : false
+    })
+
+    ipcMain.on("window:setFullscreen", (_event, fullscreen) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.setFullScreen(!!fullscreen)
+        }
     })
 
     ipcMain.handle("window:isVisible", () => {

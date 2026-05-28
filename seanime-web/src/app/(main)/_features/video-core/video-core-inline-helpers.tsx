@@ -1,7 +1,6 @@
 import { AL_BaseAnime } from "@/api/generated/types"
 import { useUpdateAnimeEntryProgress } from "@/api/hooks/anime_entries.hooks"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
-import { toast } from "sonner"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -34,14 +33,12 @@ export function VideoCoreInlineHelpers({
     url,
 }: VideoCoreInlineHelpers) {
     const serverStatus = useServerStatus()
-    const autoUpdateProgress = serverStatus?.settings?.library?.autoUpdateProgress ?? false
 
+    // Track progress update state
     const [hasUpdatedProgress, setHasUpdateProgress] = useAtom(vc_inlineHelper_hasUpdatedProgress)
     const [progressUpdateData, setProgressUpdateData] = useAtom(vc_inlineHelper_progressUpdateData)
 
-    const { mutate: autoUpdate } = useUpdateAnimeEntryProgress(media?.id, currentEpisodeNumber ?? 0)
-
-    // Reset state when media, episode, or URL changes
+    // Reset state when media, episode, or update completes
     React.useEffect(() => {
         setProgressUpdateData(null)
         setHasUpdateProgress(false)
@@ -51,43 +48,52 @@ export function VideoCoreInlineHelpers({
         if (!playerRef.current || !media || currentEpisodeNumber === null || !url) return
 
         const PROGRESS_THRESHOLD = 0.8
-        const CHECK_INTERVAL = 1000
+        const CHECK_INTERVAL = 1000 // Check every second
         const MIN_VALID_TIME = 1
 
         const checkProgress = () => {
             const player = playerRef.current
-            if (!player || hasUpdatedProgress) return
+            if (!player || serverStatus?.settings?.library?.autoUpdateProgress) return
+
+            // Skip if already updated or currently updating
+            if (hasUpdatedProgress) return
+
+            // Skip if progress update data already exists
+            if (progressUpdateData !== null) return
 
             const { currentTime, duration } = player
+
             if (!(currentTime > MIN_VALID_TIME && duration > MIN_VALID_TIME && isFinite(duration))) return
+
             if (currentProgress >= currentEpisodeNumber) return
 
             const watchedRatio = currentTime / duration
             if (watchedRatio < PROGRESS_THRESHOLD) return
 
-            if (autoUpdateProgress) {
-                // Auto-update without prompting
-                setHasUpdateProgress(true)
-                autoUpdate({
-                    episodeNumber: currentEpisodeNumber,
-                    mediaId: media.id,
-                    totalEpisodes: media.episodes || 0,
-                    malId: media.idMal || undefined,
-                }, {
-                    onSuccess: () => toast.success(`Updated progress: Episode ${currentEpisodeNumber}`),
-                })
-            } else {
-                // Manual mode: show update button
-                if (progressUpdateData !== null) return
-                setProgressUpdateData({ media, currentProgress, currentEpisodeNumber })
-            }
+            // prompt user
+            setProgressUpdateData({
+                media,
+                currentProgress,
+                currentEpisodeNumber,
+            })
         }
 
+        // Start interval
         const intervalId = setInterval(checkProgress, CHECK_INTERVAL)
-        return () => clearInterval(intervalId)
+
+        // Cleanup
+        return () => {
+            clearInterval(intervalId)
+        }
     }, [
-        currentEpisodeNumber, media, playerRef, hasUpdatedProgress,
-        autoUpdateProgress, currentProgress, progressUpdateData, url, autoUpdate,
+        currentEpisodeNumber,
+        media,
+        playerRef,
+        hasUpdatedProgress,
+        serverStatus?.settings?.library?.autoUpdateProgress,
+        currentProgress,
+        progressUpdateData,
+        url,
     ])
 
     return null
@@ -168,7 +174,7 @@ export function VideoCoreInlineLayout(props: VideoCoreInlineLayoutProps) {
     // Scroll to selected episode element when the episode list changes (on mount)
     const episodeListContainerRef = React.useRef<HTMLDivElement>(null)
     const episodeListViewportRef = React.useRef<HTMLDivElement>(null)
-    const scrollTimeoutRef = React.useRef<NodeJS.Timeout>()
+    const scrollTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     const mediaPlayerContainerRef = React.useRef<HTMLDivElement>(null)
     const contentContainerRef = React.useRef<HTMLDivElement>(null)
 

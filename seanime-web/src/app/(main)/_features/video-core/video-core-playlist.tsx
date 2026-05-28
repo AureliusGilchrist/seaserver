@@ -2,11 +2,11 @@ import { Anime_Entry, Anime_Episode } from "@/api/generated/types"
 import { useGetAnimeEpisodeCollection } from "@/api/hooks/anime.hooks"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { EpisodeGridItem } from "@/app/(main)/_features/anime/_components/episode-grid-item"
-import { useAutoPlaySelectedTorrent } from "@/app/(main)/_features/autoplay/autoplay"
+import { getNextBatchFileSelection, useAutoPlaySelectedTorrent, useTorrentstreamAutoplay } from "@/app/(main)/_features/autoplay/autoplay"
 import { useNakamaWatchParty } from "@/app/(main)/_features/nakama/nakama-manager"
 import { usePlaylistManager } from "@/app/(main)/_features/playlists/_containers/global-playlist-manager"
 import { VideoCoreNextButton, VideoCorePreviousButton } from "@/app/(main)/_features/video-core/video-core-control-bar"
-import { VideoCore_PlaybackType, VideoCoreLifecycleState, vc_autoSkipFillerAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { VideoCore_PlaybackType, VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { useHandleStartDebridStream } from "@/app/(main)/entry/_containers/debrid-stream/_lib/handle-debrid-stream"
 import {
     __debridStream_autoSelectFileAtom,
@@ -121,7 +121,6 @@ export function useVideoCorePlaylist() {
     const playlistState = useAtomValue(vc_playlistState)
     const playbackType = playlistState?.type
     const animeEntry = playlistState?.animeEntry
-    const autoSkipFiller = useAtomValue(vc_autoSkipFillerAtom)
 
     const { isPeer: isWatchPartyPeer } = useNakamaWatchParty()
 
@@ -143,7 +142,8 @@ export function useVideoCorePlaylist() {
     const [debridStream_autoSelectFile] = useAtom(__debridStream_autoSelectFileAtom)
 
     // The torrent to continue playing from
-    const { autoPlayTorrent } = useAutoPlaySelectedTorrent()
+    const { autoPlayTorrent, setAutoPlayTorrent } = useAutoPlaySelectedTorrent()
+    const { setTorrentstreamAutoplayInfo } = useTorrentstreamAutoplay()
 
     // Global playlist
     const {
@@ -152,6 +152,23 @@ export function useVideoCorePlaylist() {
         currentPlaylist: globalCurrentPlaylist,
         playEpisode: playGlobalPlaylistEpisode,
     } = usePlaylistManager()
+
+    function updateTorrentstreamAutoplayInfo(episode: Anime_Episode) {
+        if (!playlistState?.animeEntry) return
+
+        const nextEpisode = playlistState.episodes.find(e => e.episodeNumber === episode.episodeNumber + 1)
+        if (nextEpisode?.aniDBEpisode) {
+            setTorrentstreamAutoplayInfo({
+                allEpisodes: playlistState.episodes,
+                entry: playlistState.animeEntry,
+                episodeNumber: nextEpisode.episodeNumber,
+                aniDBEpisode: nextEpisode.aniDBEpisode,
+                type: "torrentstream",
+            })
+        } else {
+            setTorrentstreamAutoplayInfo(null)
+        }
+    }
 
     function startStream(episode: Anime_Episode) {
         if (!playlistState?.animeEntry || !episode.aniDBEpisode) return
@@ -165,6 +182,7 @@ export function useVideoCorePlaylist() {
                     episodeNumber: episode.episodeNumber,
                     aniDBEpisode: episode.aniDBEpisode,
                 })
+                updateTorrentstreamAutoplayInfo(episode)
                 return
             } else if (playbackType === "debrid" && debridStream_currentSessionAutoSelect) {
 
@@ -188,19 +206,19 @@ export function useVideoCorePlaylist() {
                 }
             }
             if (playbackType === "torrent") {
+                const batchSelection = getNextBatchFileSelection(autoPlayTorrent.batchFiles, episode.episodeNumber, episode.aniDBEpisode)
                 handleTorrentstreamSelection({
                     mediaId: playlistState.animeEntry.mediaId,
                     episodeNumber: episode.episodeNumber,
                     aniDBEpisode: episode.aniDBEpisode,
                     torrent: autoPlayTorrent.torrent,
-                    chosenFileIndex: fileIndex,
-                    batchEpisodeFiles: (autoPlayTorrent?.batchFiles && fileIndex !== undefined) ? {
-                        ...autoPlayTorrent.batchFiles,
-                        current: fileIndex,
-                        currentEpisodeNumber: episode.episodeNumber,
-                        currentAniDBEpisode: episode.aniDBEpisode,
-                    } : undefined,
+                    chosenFileIndex: batchSelection.fileIndex,
+                    batchEpisodeFiles: batchSelection.batchEpisodeFiles,
                 })
+                if (batchSelection.batchEpisodeFiles) {
+                    setAutoPlayTorrent(autoPlayTorrent.torrent, playlistState.animeEntry, batchSelection.batchEpisodeFiles)
+                }
+                updateTorrentstreamAutoplayInfo(episode)
             } else if (playbackType === "debrid") {
                 handleDebridstreamSelection({
                     mediaId: playlistState.animeEntry.mediaId,
@@ -242,7 +260,7 @@ export function useVideoCorePlaylist() {
             return
         }
 
-        log.info("Requesting episode", which, "playbackType=", playbackType)
+        log.info("Requesting episode", which)
 
         // If global playlist is active, use it instead
         if (globalCurrentPlaylist) {
@@ -251,15 +269,11 @@ export function useVideoCorePlaylist() {
                 case "previous":
                     if (globalPlaylistPreviousEpisode) {
                         playGlobalPlaylistEpisode("previous", true)
-                    } else {
-                        toast.error("No previous episode in global playlist")
                     }
                     break
                 case "next":
                     if (globalPlaylistNextEpisode) {
                         playGlobalPlaylistEpisode("next", true)
-                    } else {
-                        toast.error("No next episode in global playlist")
                     }
                     break
             }
@@ -268,7 +282,6 @@ export function useVideoCorePlaylist() {
         }
 
         let episode: Anime_Episode | null = null
-        let fillerSkipped = 0
         switch (which) {
             case "previous":
                 if (playlistState?.previousEpisode) {
@@ -278,26 +291,6 @@ export function useVideoCorePlaylist() {
             case "next":
                 if (playlistState?.nextEpisode) {
                     episode = playlistState.nextEpisode
-                    // Auto-skip filler: walk forward while the candidate is
-                    // flagged as filler. Cap the walk to avoid runaway loops.
-                    if (autoSkipFiller !== "off" && playlistState.episodes?.length) {
-                        const start = playlistState.nextEpisode.progressNumber
-                        for (let i = 0; i < 50; i++) {
-                            const candidateNum = start + i
-                            const candidate = playlistState.episodes.find(e => e.progressNumber === candidateNum) ?? null
-                            if (!candidate) {
-                                // ran out of episodes
-                                episode = null
-                                break
-                            }
-                            const isFiller = !!candidate.episodeMetadata?.isFiller
-                            if (!isFiller) {
-                                episode = candidate
-                                break
-                            }
-                            fillerSkipped++
-                        }
-                    }
                 }
                 break
             default:
@@ -305,23 +298,17 @@ export function useVideoCorePlaylist() {
         }
 
         if (!episode) {
-            log.error("Episode not found for", which, "playlistState=", playlistState)
-            toast.error(which === "next" ? "No next episode available" : which === "previous" ? "No previous episode available" : "Episode not found")
+            log.info("Episode not found for", which)
             return
         }
 
-        log.info("Playing episode", episode, "playbackType=", playbackType)
-        if (fillerSkipped > 0) {
-            toast.info(`Skipped ${fillerSkipped} filler episode${fillerSkipped === 1 ? "" : "s"}`, { duration: 2500 })
-        }
-        toast.info(`Loading ${which === "next" ? "next" : which === "previous" ? "previous" : ""} episode${episode.episodeNumber ? ` ${episode.episodeNumber}` : ""}...`, { duration: 1500 })
+        log.info("Playing episode", episode)
 
         switch (playbackType) {
             case "localfile":
             case "nakama":
                 if (!episode?.localFile?.path) {
-                    log.error("playEpisode: localfile path missing", episode)
-                    toast.error("Local file not found for this episode")
+                    toast.error("Local file not found")
                     return
                 }
                 playMediaFile({
@@ -335,11 +322,9 @@ export function useVideoCorePlaylist() {
                 startStream(episode)
                 break
             default:
-                if (playlistState.onPlayEpisode) {
-                    playlistState.onPlayEpisode(which as "previous" | "next")
-                } else {
+                playlistState.onPlayEpisode?.(which as "previous" | "next")
+                if (!playlistState.onPlayEpisode) {
                     log.error("No onPlayEpisode function found for playback type", playbackType)
-                    toast.error(`Cannot play next episode: no handler registered for playback type "${playbackType}"`)
                 }
         }
     }
@@ -347,6 +332,7 @@ export function useVideoCorePlaylist() {
     return {
         playlistState,
         animeEntry: playlistState?.animeEntry,
+        isGlobalPlaylistActive: !!globalCurrentPlaylist,
         hasPreviousEpisode: !!playlistState?.previousEpisode && !isWatchPartyPeer,
         hasNextEpisode: !!playlistState?.nextEpisode && !isWatchPartyPeer,
         playEpisode,

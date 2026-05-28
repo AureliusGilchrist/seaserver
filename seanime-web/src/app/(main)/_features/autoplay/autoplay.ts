@@ -56,6 +56,27 @@ export function useAutoPlaySelectedTorrent() {
     }
 }
 
+export function getNextBatchFileSelection(
+    batchFiles: HibikeTorrent_BatchEpisodeFiles | undefined,
+    episodeNumber: number,
+    aniDBEpisode: string,
+) {
+    const file = batchFiles?.files?.find(n => n.index === batchFiles.current + 1)
+    if (!batchFiles || !file) {
+        return { fileIndex: undefined, batchEpisodeFiles: undefined }
+    }
+
+    return {
+        fileIndex: file.index,
+        batchEpisodeFiles: {
+            ...batchFiles,
+            current: file.index,
+            currentEpisodeNumber: episodeNumber,
+            currentAniDBEpisode: aniDBEpisode,
+        },
+    }
+}
+
 export function useTorrentstreamAutoplay() {
     const [info, setInfo] = useAtom(__autoPlay_stateAtom)
     const [nextEpisode, setNextEpisode] = useAtom(__autoplay_nextEpisodeAtom)
