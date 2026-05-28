@@ -5,9 +5,14 @@ import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atom
 import { vc_busy } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { cn } from "@/components/ui/core/styling"
+import { useRouter } from "@/lib/navigation.ts"
+import { useThemeSettings } from "@/lib/theme/theme-hooks.ts"
 import { __isDesktop__ } from "@/types/constants"
 import { useAtomValue } from "jotai"
+import { useAtom } from "jotai/react"
 import React from "react"
+import { startVideoCoreMiniPlayerTransition } from "./video-core"
+import { vc_fullscreenManager } from "./video-core-fullscreen"
 
 export function VideoCoreTopSection(props: { children?: React.ReactNode, inline?: boolean }) {
     const { children, inline, ...rest } = props
@@ -54,10 +59,19 @@ export function VideoCoreTopSection(props: { children?: React.ReactNode, inline?
 export function VideoCoreTopPlaybackInfo(props: { state: VideoCoreLifecycleState, children?: React.ReactNode }) {
     const { state, children, ...rest } = props
 
-    const busy = useAtomValue(vc_busy)
+    const ts = useThemeSettings()
     const paused = useAtomValue(vc_paused)
-    const isMiniPlayer = useAtomValue(vc_miniPlayer)
+    const [isMiniPlayer, setMiniPlayer] = useAtom(vc_miniPlayer)
     const hoveringControlBar = useAtomValue(vc_hoveringControlBar)
+    const fullscreenManager = useAtomValue(vc_fullscreenManager)
+
+    const router = useRouter()
+
+    const displayTitle = state.playbackInfo?.episode?.displayTitle
+    const _episodeTitle = state.playbackInfo?.episode?.episodeTitle
+    const episodeTitle = (displayTitle !== _episodeTitle && (!ts.hideAnimeSpoilers || (ts.hideAnimeSpoilers && !ts.hideAnimeSpoilerTitles)))
+        ? _episodeTitle
+        : ""
 
     if (isMiniPlayer) return null
 
@@ -71,15 +85,26 @@ export function VideoCoreTopPlaybackInfo(props: { state: VideoCoreLifecycleState
                 )}
             >
                 {state.playbackInfo?.episode?.baseAnime?.title?.userPreferred &&
-                    <p data-vc-element="top-playback-info-title" className="text-white/50 font-medium text-sm max-w-[400px] line-clamp-1">
+                    <p
+                        data-vc-element="top-playback-info-title"
+                        className="text-white/50 font-medium text-sm max-w-[400px] line-clamp-1 cursor-pointer"
+                        onClick={() => {
+                            router.push(`/entry?id=${state.playbackInfo?.episode?.baseAnime?.id}`)
+                            fullscreenManager?.exitFullscreen()?.then(() => {
+                                startVideoCoreMiniPlayerTransition(() => {
+                                    setMiniPlayer(true)
+                                })
+                            })
+                        }}
+                    >
                         {state.playbackInfo?.episode?.baseAnime?.title?.userPreferred}
                     </p>}
                 <div className="flex flex-row gap-2" data-vc-element="top-playback-info-episode">
                     <p className="text-white font-bold text-base">
                         {state.playbackInfo?.episode?.displayTitle}
                     </p>
-                    {state.playbackInfo?.episode?.episodeTitle && <p className="text-white/50 text-base !font-normal max-w-[400px] line-clamp-1">
-                        {state.playbackInfo?.episode?.episodeTitle}
+                    {episodeTitle && <p className="text-white/50 text-base !font-normal max-w-[400px] line-clamp-1">
+                        {episodeTitle}
                     </p>}
                 </div>
             </div>
