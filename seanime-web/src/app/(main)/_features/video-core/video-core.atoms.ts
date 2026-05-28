@@ -20,6 +20,7 @@ export type VideoCoreSettings = {
     preferredSubtitleBlacklist: string
     preferredAudioLanguage: string
     subtitleDelay: number // in seconds
+    audioDelay: number // in seconds, positive = audio ahead, negative = audio behind
     // Video enhancement settings
     videoEnhancement: {
         enabled: boolean
@@ -38,6 +39,8 @@ export type VideoCoreSettings = {
         backColorOpacity?: number
         outline?: number
         shadow?: number
+        /** Fade-out duration in milliseconds for every subtitle cue. 0 disables fade. */
+        fadeOutMs?: number
     }
     // Caption customization settings (non-ASS)
     captionCustomization: {
@@ -55,6 +58,7 @@ export const vc_initialSettings: VideoCoreSettings = {
     preferredSubtitleBlacklist: "",
     preferredAudioLanguage: "jpn,jp,jap,japanese",
     subtitleDelay: 0,
+    audioDelay: 0,
     videoEnhancement: {
         enabled: true,
         contrast: 1.05,
@@ -172,8 +176,56 @@ export const vc_highlightOPEDChaptersAtom = atomWithStorage("sea-video-core-high
 export const vc_beautifyImageAtom = atomWithStorage("sea-video-core-increase-saturation", false, undefined, { getOnInit: true })
 export const vc_autoNextAtom = atomWithStorage("sea-video-core-auto-next", true, undefined, { getOnInit: true })
 export const vc_autoPlayVideoAtom = atomWithStorage("sea-video-core-auto-play", true, undefined, { getOnInit: true })
-export const vc_autoSkipOPEDAtom = atomWithStorage("sea-video-core-auto-skip-op-ed", false, undefined, { getOnInit: true })
+export const vc_autoSkipOPAtom = atomWithStorage("sea-video-core-auto-skip-op", false, undefined, { getOnInit: true })
+export const vc_autoSkipEDAtom = atomWithStorage("sea-video-core-auto-skip-ed", false, undefined, { getOnInit: true })
+// Auto-skip filler when advancing to the next episode.
+//   "off"     — never skip, play the next episode as usual.
+//   "full"    — skip any episode flagged as filler.
+//   "partial" — also skip episodes flagged as filler (reserved for future
+//               backend support that distinguishes partial/mixed-canon
+//               episodes; currently behaves like "full").
+export const vc_autoSkipFillerAtom = atomWithStorage<"off" | "full" | "partial">(
+    "sea-video-core-auto-skip-filler",
+    "off",
+    undefined,
+    { getOnInit: true },
+)
+
+// Watch Continuity override: "inherit" uses global setting, "on" forces enabled, "off" forces disabled
+export const vc_watchContinuityAtom = atomWithStorage<"inherit" | "on" | "off">("sea-video-core-watch-continuity", "inherit", undefined, { getOnInit: true })
 export const vc_storedVolumeAtom = atomWithStorage("sea-video-core-volume", 1, undefined, { getOnInit: true })
 export const vc_storedMutedAtom = atomWithStorage("sea-video-core-muted", false, undefined, { getOnInit: true })
 export const vc_storedPlaybackRateAtom = atomWithStorage("sea-video-core-playback-rate", 1, undefined, { getOnInit: true })
 export const vc_showStatsForNerdsAtom = atomWithStorage("sea-video-core-show-stats-for-nerds", false, undefined, { getOnInit: true })
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Per-media track overrides
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export type PerMediaTrackOverride = {
+    audioLanguage?: string
+    audioCodecID?: string
+    subtitleLanguage?: string
+    subtitleCodecID?: string
+    subtitleLabel?: string
+}
+
+// Server-synced atom: populated from GET /track-preferences, written through POST on change.
+// Falls back to localStorage for offline/unauthenticated use.
+export const vc_perMediaTrackOverrides = atom<Record<string, PerMediaTrackOverride>>({})
+
+// Flag to indicate server data has been loaded (prevents overwriting server state with empty default)
+export const vc_trackPrefsLoaded = atom<boolean>(false)
+
+// Callback atom for saving a track override (set by useTrackPreferenceSync)
+export const vc_saveTrackOverride = atom<((mediaId: string, override: Partial<PerMediaTrackOverride>) => void) | null>(null)
+
+/**
+ * Resume prompt state. When non-null, the video player shows a "Resume from X:XX?" dialog.
+ * Auto-resumes after 30 seconds if no user action.
+ */
+export type ResumePromptState = {
+    time: number
+    formatted: string
+}
+export const vc_resumePrompt = atom<ResumePromptState | null>(null)

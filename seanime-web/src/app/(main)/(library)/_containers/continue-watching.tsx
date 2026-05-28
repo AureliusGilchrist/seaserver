@@ -13,6 +13,7 @@ import { TextGenerateEffect } from "@/components/shared/text-generate-effect"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
 import { useDebounce } from "@/hooks/use-debounce"
 import { anilist_animeIsMovie } from "@/lib/helpers/media"
+import { useContinueWatchingSpoilers } from "@/lib/theme/anime-spoilers"
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { useWindowSize } from "@uidotdev/usehooks"
 import { atom } from "jotai/index"
@@ -178,7 +179,7 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
                                 episode={episode}
                                 mRef={episodeRefs[idx]}
                                 overrideLink={linkTemplate}
-                                spoilerActive={spoilerActive}
+                                spoilerActive={spoilerActive ?? false}
                                 watchHistory={watchHistory}
                             />
                         </CarouselItem>

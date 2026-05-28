@@ -1,5 +1,4 @@
 import { MKVParser_ChapterInfo } from "@/api/generated/types"
-import { normalizeAniSkipData } from "@/app/(main)/_features/video-core/_lib/aniskip.utils"
 import { VideoCoreChapterCue } from "@/app/(main)/_features/video-core/video-core"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoSize } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -56,7 +55,7 @@ export const vc_dispatchAction = atom(null, (get, set, action: { type: VideoCore
     }
 })
 
-export function useVideoCoreBindings(videoElement: HTMLVideoElement | null,
+export function useVideoCoreBindings(videoRef: React.MutableRefObject<HTMLVideoElement | null>,
     playbackInfo: VideoCore_VideoPlaybackInfo | null | undefined,
 ) {
 
@@ -88,8 +87,8 @@ export function useVideoCoreBindings(videoElement: HTMLVideoElement | null,
     })
 
     useEffect(() => {
-        if (!videoElement) return
-        const v = videoElement
+        if (!videoRef.current) return
+        const v = videoRef.current
         const prev = prevRef.current
 
         const handler = () => {
@@ -164,7 +163,7 @@ export function useVideoCoreBindings(videoElement: HTMLVideoElement | null,
             console.log("Removing video event listeners")
             events.forEach(e => v.removeEventListener(e, handler))
         }
-    }, [videoElement, playbackInfo?.id])
+    }, [playbackInfo?.id])
 
 }
 
@@ -268,15 +267,15 @@ export function vc_getOPEDChapters(chapters: VideoCoreTimeRangeChapter[]): {
         if (!opening && !introIsOpening && type === "Opening") {
             opening = chapter
         }
-        // if (!opening && introIsOpening && type === "Intro") {
-        //     opening = chapter
-        // }
+        if (!opening && introIsOpening && type === "Intro") {
+            opening = chapter
+        }
         if (!ending && !introIsOpening && type === "Ending") {
             ending = chapter
         }
-        // if (!ending && introIsOpening && type === "Outro") {
-        //     ending = chapter
-        // }
+        if (!ending && type === "Outro") {
+            ending = chapter
+        }
         if (opening && ending) break
     }
     return { opening, ending }
@@ -344,70 +343,74 @@ export function vc_createChaptersFromAniSkip(
     duration: number,
     mediaFormat?: string,
 ): Array<MKVParser_ChapterInfo> {
-    const { op, ed } = normalizeAniSkipData(aniSkipData)
-
-    if (!op?.interval || duration <= 0) {
+    if (!aniSkipData?.op?.interval || duration <= 0) {
         return []
     }
 
-    const clampToDuration = (time: number) => Math.min(duration, Math.max(0, time))
-    const openingStart = op.interval.startTime > 5 ? clampToDuration(op.interval.startTime) : 0
-    const openingEnd = clampToDuration(op.interval.endTime)
+    let chapters: MKVParser_ChapterInfo[] = []
 
-    if (openingEnd <= openingStart) {
-        return []
-    }
-
-    const endingStart = ed?.interval ? clampToDuration(ed.interval.startTime) : null
-    const endingEnd = ed?.interval ? clampToDuration(ed.interval.endTime) : null
-
-    const chapters: MKVParser_ChapterInfo[] = []
-
-    if (openingStart > 0) {
+    if (aniSkipData?.op?.interval) {
         chapters.push({
-            uid: 90,
-            start: 0,
-            end: openingStart,
-            text: "Prologue",
+            uid: 91,
+            start: aniSkipData.op.interval.startTime > 5 ? aniSkipData.op.interval.startTime : 0,
+            end: aniSkipData.op.interval.endTime,
+            text: "Opening",
         })
     }
 
-    chapters.push({
-        uid: 91,
-        start: openingStart,
-        end: openingEnd,
-        text: "Opening",
-    })
-
-    const middleEnd = endingStart ?? duration
-    if (middleEnd > openingEnd) {
-        chapters.push({
-            uid: 93,
-            start: openingEnd,
-            end: middleEnd,
-            text: mediaFormat !== "MOVIE" ? "Episode" : "Movie",
-        })
-    }
-
-    if (endingStart !== null && endingEnd !== null && endingEnd > endingStart) {
+    if (aniSkipData?.ed?.interval) {
         chapters.push({
             uid: 92,
-            start: endingStart,
-            end: endingEnd,
+            start: aniSkipData.ed.interval.startTime,
+            end: aniSkipData.ed.interval.endTime,
             text: "Ending",
         })
     }
 
-    if (endingEnd !== null && endingEnd < duration - 5) {
+    if (chapters.length === 0) return []
+
+    // Add beginning chapter
+    if (aniSkipData.op?.interval?.startTime > 5) {
         chapters.push({
-            uid: 94,
-            start: endingEnd,
-            end: duration,
-            text: (duration - endingEnd) > 0.5 * 60 ? "Ending" : "Preview",
+            uid: 90,
+            start: 0,
+            end: aniSkipData.op.interval.startTime,
+            // text: aniSkipData.op.interval.startTime > 1.5 * 60 ? "Intro" : "Recap",
+            text: "Prologue",
         })
     }
 
-    return chapters.sort((a, b) => a.start - b.start)
+    // Add middle chapter
+    chapters.push({
+        uid: 93,
+        start: aniSkipData.op?.interval?.endTime || 0,
+        end: aniSkipData.ed?.interval?.startTime || duration,
+        text: mediaFormat !== "MOVIE" ? "Episode" : "Movie",
+    })
+
+    // Add ending chapter
+    if (aniSkipData.ed?.interval?.endTime && aniSkipData.ed.interval.endTime < duration - 5) {
+        chapters.push({
+            uid: 94,
+            start: aniSkipData.ed.interval.endTime,
+            end: duration,
+            text: ((duration) - aniSkipData.ed.interval.endTime) > 0.5 * 60 ? "Ending" : "Preview",
+        })
+    }
+
+    chapters.sort((a, b) => a.start - b.start)
+    // Make sure last chapter is clamped to the end of the video
+    if (chapters.length > 0) {
+        chapters[chapters.length - 1].end = duration
+    }
+
+    chapters = chapters.map((chapter, index) => ({
+        ...chapter,
+        start: chapter.start,
+        end: chapter.end ? index === chapters.length - 1 ? duration : chapter.end : undefined,
+    }))
+
+    return chapters
 }
 
 export const vc_formatTime = (seconds: number) => {

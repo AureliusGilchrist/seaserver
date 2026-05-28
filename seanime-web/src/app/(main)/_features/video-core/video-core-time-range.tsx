@@ -17,7 +17,7 @@ import { vc_skipOpeningTime } from "@/app/(main)/_features/video-core/video-core
 import { vc_skipEndingTime } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_showOverlayFeedback } from "@/app/(main)/_features/video-core/video-core-overlay-display"
 import { VIDEOCORE_PREVIEW_CAPTURE_INTERVAL_SECONDS, VIDEOCORE_PREVIEW_THUMBNAIL_SIZE } from "@/app/(main)/_features/video-core/video-core-preview"
-import { vc_autoSkipOPEDAtom, vc_highlightOPEDChaptersAtom, vc_showChapterMarkersAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { vc_autoSkipEDAtom, vc_autoSkipOPAtom, vc_highlightOPEDChaptersAtom, vc_showChapterMarkersAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
 import { vc_formatTime, vc_getChapterType, vc_getOPEDChapters } from "@/app/(main)/_features/video-core/video-core.utils"
 import { SeaImage as Image } from "@/components/shared/sea-image"
@@ -64,21 +64,16 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
     const [previouslyPaused, setPreviouslyPaused] = useAtom(vc_previousPausedState)
     const action = useSetAtom(vc_dispatchAction)
     const showChapterMarkers = useAtomValue(vc_showChapterMarkersAtom)
-    const autoSkipIntroOutro = useAtomValue(vc_autoSkipOPEDAtom)
+    const autoSkipOpening = useAtomValue(vc_autoSkipOPAtom)
+    const autoSkipEnding = useAtomValue(vc_autoSkipEDAtom)
     const showOverlayFeedback = useSetAtom(vc_showOverlayFeedback)
     const [skipOpeningTime, setSkipOpeningTime] = useAtom(vc_skipOpeningTime)
     const [skipEndingTime, setSkipEndingTime] = useAtom(vc_skipEndingTime)
     const [restoreProgressTo, setRestoreProgressTo] = useAtom(vc_lastKnownProgress)
-    const rangeRectRef = React.useRef<DOMRect | null>(null)
-    const seekingTargetProgressRef = React.useRef(seekingTargetProgress)
-
-    React.useEffect(() => {
-        seekingTargetProgressRef.current = seekingTargetProgress
-    }, [seekingTargetProgress])
 
     const bufferedPercentage = React.useMemo(() => {
         return (buffered / duration) * 100
-    }, [buffered, duration])
+    }, [buffered])
 
     const chapters = React.useMemo<VideoCoreTimeRangeChapter[]>(() => {
         if (!chapterCues?.length) return [{
@@ -120,7 +115,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
         setProgressPercentage((timeToUse / duration) * 100)
     }, [currentTime, duration, isSwiping, swipeSeekTime])
 
-    const opEdChapters = React.useMemo(() => vc_getOPEDChapters(chapters), [chapters])
+    const opEdChapters = vc_getOPEDChapters(chapters)
 
     // handle auto skip
     React.useEffect(() => {
@@ -140,7 +135,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
             currentTime >= opEdChapters.opening.start &&
             currentTime < opEdChapters.opening.end
         ) {
-            if (autoSkipIntroOutro && !restoreProgressTo) {
+            if (autoSkipOpening && !restoreProgressTo) {
                 console.log("auto skip", opEdChapters.opening.end)
                 action({ type: "seekTo", payload: { time: opEdChapters.opening.end } })
                 showOverlayFeedback({ message: "Skipped OP", duration: 1000 })
@@ -158,7 +153,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
             currentTime < opEdChapters.ending.end &&
             currentTime < duration
         ) {
-            if (autoSkipIntroOutro && !restoreProgressTo) {
+            if (autoSkipEnding && !restoreProgressTo) {
                 console.log("auto skip", opEdChapters.ending.end)
                 action({ type: "seekTo", payload: { time: opEdChapters.ending.end } })
                 showOverlayFeedback({ message: "Skipped ED", duration: 1000 })
@@ -169,7 +164,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
             setSkipEndingTime(0)
         }
 
-    }, [currentTime, autoSkipIntroOutro, opEdChapters, duration, restoreProgressTo, isWatchPartyPeer])
+    }, [currentTime, autoSkipOpening, autoSkipEnding, opEdChapters, duration, restoreProgressTo, isWatchPartyPeer])
 
     // start seeking
     function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -182,7 +177,6 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
             e.preventDefault()
         }
         e.currentTarget.setPointerCapture(e.pointerId) // capture movement outside
-        rangeRectRef.current = e.currentTarget.getBoundingClientRect()
         setSeeking(true)
 
         if (isWatchPartyPeer) return
@@ -208,11 +202,10 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
         if (e.currentTarget.hasPointerCapture(e.pointerId)) {
             e.currentTarget.releasePointerCapture(e.pointerId)
         }
-        rangeRectRef.current = null
         setSeeking(false)
         if (!isWatchPartyPeer) {
             // actually seek the video
-            action({ type: "seekTo", payload: { time: (duration * seekingTargetProgressRef.current) / 100 } })
+            action({ type: "seekTo", payload: { time: (duration * seekingTargetProgress) / 100 } })
         }
         // resume playing
         if (!previouslyPaused) videoElement?.play()?.catch()
@@ -224,10 +217,9 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
         if (e.currentTarget.hasPointerCapture(e.pointerId)) {
             e.currentTarget.releasePointerCapture(e.pointerId)
         }
-        rangeRectRef.current = null
         if (seeking) {
             setSeeking(false)
-            action({ type: "seekTo", payload: { time: (duration * seekingTargetProgressRef.current) / 100 } })
+            action({ type: "seekTo", payload: { time: (duration * seekingTargetProgress) / 100 } })
             if (!previouslyPaused) videoElement?.play()?.catch()
         }
     }
@@ -236,18 +228,12 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
     function handlePointerLeave(e: React.PointerEvent<HTMLDivElement>) {
         // don't reset while actively seeking
         if (!seeking) {
-            rangeRectRef.current = null
-            if (seekingTargetProgressRef.current !== 0) {
-                seekingTargetProgressRef.current = 0
-                setSeekingTargetProgress(0)
-            }
+            setSeekingTargetProgress(0)
         }
     }
 
     function getPointerProgress<T extends HTMLElement>(e: React.PointerEvent<T>) { // 0-100
-        const rect = rangeRectRef.current ?? e.currentTarget.getBoundingClientRect()
-        rangeRectRef.current = rect
-        if (rect.width <= 0) return 0
+        const rect = e.currentTarget.getBoundingClientRect()
         const x = e.clientX - rect.left
         return Math.max(0, Math.min(100, (x / rect.width * 100)))
     }
@@ -261,21 +247,18 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
                 e.preventDefault()
             }
             e.stopPropagation()
-            setProgressPercentage(prev => Math.abs(prev - target) < 0.1 ? prev : target)
+            setProgressPercentage(target)
         }
-        if (Math.abs(seekingTargetProgressRef.current - target) >= 0.1) {
-            seekingTargetProgressRef.current = target
-            setSeekingTargetProgress(target)
-        }
+        setSeekingTargetProgress(target)
     }
 
     const setTimeRangeElement = useSetAtom(vc_timeRangeElement)
-    const combineRef = React.useCallback((instance: HTMLDivElement | null) => {
+    const combineRef = (instance: HTMLDivElement | null) => {
         // if (ref as unknown instanceof Function) (ref as any)(instance)
         // else if (ref) (ref as any).current = instance
         // if (instance) measureRef(instance)
         setTimeRangeElement(instance)
-    }, [setTimeRangeElement])
+    }
 
     return (
         <div
@@ -285,7 +268,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
             className={cn(
                 "w-full relative group/vc-time-range z-[2] flex h-8",
                 "cursor-pointer outline-none",
-                "touch-none select-none [contain:layout_style]", // prevent page scroll and text selection on mobile
+                "touch-none select-none", // prevent page scroll and text selection on mobile
             )}
             role="slider"
             tabIndex={0}
@@ -358,8 +341,8 @@ function VideoCoreTimeRangeSegment(props: {
             <div
                 data-vc-element="time-range-chapter"
                 className={cn(
-                    "relative h-1 transition-transform transform-gpu origin-center will-change-transform flex items-center justify-center overflow-hidden rounded-lg",
-                    focused && "scale-y-[2]",
+                    "relative h-1 transition-[height] flex items-center justify-center overflow-hidden rounded-lg",
+                    focused && "h-2",
                     VIDEOCORE_DEBUG_ELEMENTS && "bg-yellow-500/50",
                 )}
                 style={{
@@ -434,10 +417,6 @@ function VideoCoreTimeRangeSegment(props: {
 }
 
 const timeRangeLog = logger("VIDEO CORE TIME RANGE")
-const MOBILE_PREVIEW_THUMBNAIL_SIZE = 140
-const PREVIEW_REQUEST_DELAY_MS = 80
-const STALE_PREVIEW_GRACE_MS = 100
-const PREVIEW_TOOLTIP_GUTTER = 8
 
 function VideoCoreTimePreview(props: { chapters: VideoCoreTimeRangeChapter[] }) {
     const { chapters } = props
@@ -450,169 +429,41 @@ function VideoCoreTimePreview(props: { chapters: VideoCoreTimeRangeChapter[] }) 
     const seeking = useAtomValue(vc_seeking)
     const isSwiping = useAtomValue(vc_isSwiping)
     const swipeSeekTime = useAtomValue(vc_swipeSeekTime)
+    const action = useSetAtom(vc_dispatchAction)
     const previewManager = useAtomValue(vc_previewManager)
     const timeRangeElement = useAtomValue(vc_timeRangeElement)
 
     const [previewThumbnail, setPreviewThumbnail] = React.useState<string | null>(null)
-    const [timeRangeWidth, setTimeRangeWidth] = React.useState(0)
-    const requestedSegmentRef = React.useRef<number | null>(null)
-    const requestVersionRef = React.useRef(0)
-    const pendingClientXRef = React.useRef<number | null>(null)
-    const previewRafRef = React.useRef<number | null>(null)
-    const previewRequestTimeoutRef = React.useRef<number | null>(null)
-    const stalePreviewClearTimeoutRef = React.useRef<number | null>(null)
-
-    const previewWidth = isMobile ? MOBILE_PREVIEW_THUMBNAIL_SIZE : VIDEOCORE_PREVIEW_THUMBNAIL_SIZE
-    const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0
-
-    const setPreview = React.useCallback((thumbnail: string | null) => {
-        setPreviewThumbnail(prev => prev === thumbnail ? prev : thumbnail)
-    }, [])
-
-    const cancelStalePreviewClear = React.useCallback(() => {
-        if (stalePreviewClearTimeoutRef.current !== null) {
-            window.clearTimeout(stalePreviewClearTimeoutRef.current)
-            stalePreviewClearTimeoutRef.current = null
-        }
-    }, [])
-
-    const clearPreview = React.useCallback(() => {
-        requestVersionRef.current += 1
-        requestedSegmentRef.current = null
-        pendingClientXRef.current = null
-        cancelStalePreviewClear()
-
-        if (previewRafRef.current !== null) {
-            window.cancelAnimationFrame(previewRafRef.current)
-            previewRafRef.current = null
-        }
-
-        if (previewRequestTimeoutRef.current !== null) {
-            window.clearTimeout(previewRequestTimeoutRef.current)
-            previewRequestTimeoutRef.current = null
-        }
-
-        setPreview(null)
-    }, [cancelStalePreviewClear, setPreview])
-
-    React.useEffect(() => {
-        if (!timeRangeElement) return
-
-        const updateWidth = (width: number) => {
-            setTimeRangeWidth(prev => Math.abs(prev - width) < 0.5 ? prev : width)
-        }
-
-        updateWidth(timeRangeElement.getBoundingClientRect().width)
-
-        const resizeObserver = new ResizeObserver(entries => {
-            updateWidth(entries[0]?.contentRect.width ?? 0)
-        })
-        resizeObserver.observe(timeRangeElement)
-
-        return () => resizeObserver.disconnect()
-    }, [timeRangeElement])
-
-    React.useEffect(() => {
-        clearPreview()
-    }, [previewManager, clearPreview])
-
-    React.useEffect(() => {
-        return () => clearPreview()
-    }, [clearPreview])
-
-    const targetProgress = React.useMemo(() => {
-        if (!safeDuration) return 0
-
-        const progress = isSwiping && swipeSeekTime !== null
-            ? (swipeSeekTime / safeDuration) * 100
-            : seekingTargetProgress
-
-        if (!Number.isFinite(progress)) return 0
-        return Math.max(0, Math.min(100, progress))
-    }, [isSwiping, swipeSeekTime, safeDuration, seekingTargetProgress])
 
     const targetTime = React.useMemo(() => {
-        if (!safeDuration) return 0
-
         if (isSwiping && swipeSeekTime !== null) {
-            return Math.max(0, Math.min(safeDuration, swipeSeekTime))
+            return swipeSeekTime
         }
-        return (safeDuration * targetProgress) / 100
-    }, [isSwiping, swipeSeekTime, safeDuration, targetProgress])
+        return (duration * seekingTargetProgress) / 100
+    }, [isSwiping, swipeSeekTime, duration, seekingTargetProgress])
 
     const chapterLabel = React.useMemo(() => {
+        // returns chapter name at the current target
+        const targetPercentage = isSwiping && swipeSeekTime !== null
+            ? (swipeSeekTime / duration) * 100
+            : seekingTargetProgress
         const chapter = chapters.find(chapter =>
-            chapter.percentageOffset <= targetProgress &&
-            chapter.percentageOffset + chapter.width >= targetProgress,
+            chapter.percentageOffset <= targetPercentage &&
+            chapter.percentageOffset + chapter.width >= targetPercentage,
         )
         return chapter?.label
-    }, [targetProgress, chapters])
+    }, [isSwiping, swipeSeekTime, duration, seekingTargetProgress, chapters])
 
-    const previewX = React.useMemo(() => {
-        if (timeRangeWidth <= 0) return previewWidth / 2
-
-        const x = (targetProgress / 100) * timeRangeWidth
-        if (!Number.isFinite(x)) return previewWidth / 2
-        if (timeRangeWidth <= previewWidth) return timeRangeWidth / 2
-
-        return Math.max(previewWidth / 2, Math.min(timeRangeWidth - previewWidth / 2, x))
-    }, [targetProgress, timeRangeWidth, previewWidth])
-
-    const tooltipX = React.useMemo(() => {
-        if (timeRangeWidth <= 0) return 0
-
-        const x = (targetProgress / 100) * timeRangeWidth
-        if (!Number.isFinite(x)) return 0
-        if (timeRangeWidth <= PREVIEW_TOOLTIP_GUTTER * 2) return timeRangeWidth / 2
-
-        return Math.max(PREVIEW_TOOLTIP_GUTTER, Math.min(timeRangeWidth - PREVIEW_TOOLTIP_GUTTER, x))
-    }, [targetProgress, timeRangeWidth])
-
-    const requestPreview = React.useCallback((previewTime: number) => {
-        if (!previewManager || !safeDuration || previewTime < 0 || previewTime > safeDuration) return
-
-        const segmentIndex = Math.floor(previewTime / VIDEOCORE_PREVIEW_CAPTURE_INTERVAL_SECONDS)
-        if (requestedSegmentRef.current === segmentIndex) return
-
-        requestedSegmentRef.current = segmentIndex
-        cancelStalePreviewClear()
-        stalePreviewClearTimeoutRef.current = window.setTimeout(() => {
-            stalePreviewClearTimeoutRef.current = null
-            setPreview(null)
-        }, STALE_PREVIEW_GRACE_MS)
-
-        if (previewRequestTimeoutRef.current !== null) {
-            window.clearTimeout(previewRequestTimeoutRef.current)
-        }
-
-        previewRequestTimeoutRef.current = window.setTimeout(async () => {
-            previewRequestTimeoutRef.current = null
-            const requestVersion = ++requestVersionRef.current
-
-            try {
-                const thumbnail = await previewManager.retrievePreviewForSegment(segmentIndex, false)
-                if (requestVersion !== requestVersionRef.current || requestedSegmentRef.current !== segmentIndex) return
-                if (!thumbnail) {
-                    requestedSegmentRef.current = null
-                    return
-                }
-                cancelStalePreviewClear()
-                setPreview(thumbnail)
-            }
-            catch (error) {
-                if (requestedSegmentRef.current === segmentIndex) {
-                    requestedSegmentRef.current = null
-                }
-                timeRangeLog.error("Failed to get thumbnail", error)
-            }
-        }, PREVIEW_REQUEST_DELAY_MS)
-    }, [cancelStalePreviewClear, previewManager, safeDuration, setPreview])
-
-    const handleTimeRangePreview = React.useCallback((event: Event) => {
-        if (!safeDuration || !timeRangeElement) {
+    const handleTimeRangePreview = React.useCallback(async (event: Event) => {
+        if (!previewManager || !duration || !timeRangeElement) {
             return
         }
 
+        setPreviewThumbnail(null)
+        timeRangeElement.removeAttribute("data-preview-image")
+
+        // Calculate preview time based on mouse or touch position
+        const rect = timeRangeElement.getBoundingClientRect()
         let clientX: number
 
         if (event instanceof TouchEvent && event.touches.length > 0) {
@@ -623,33 +474,25 @@ function VideoCoreTimePreview(props: { chapters: VideoCoreTimeRangeChapter[] }) 
             return
         }
 
-        pendingClientXRef.current = clientX
+        const x = clientX - rect.left
+        const percentage = Math.max(0, Math.min(1, x / rect.width))
+        const previewTime = percentage * duration
 
-        if (previewRafRef.current !== null) return
+        if (previewTime >= 0 && previewTime <= duration) {
+            const thumbnailIndex = Math.floor(previewTime / VIDEOCORE_PREVIEW_CAPTURE_INTERVAL_SECONDS)
 
-        previewRafRef.current = window.requestAnimationFrame(() => {
-            previewRafRef.current = null
-            const pendingClientX = pendingClientXRef.current
-            if (pendingClientX === null) return
-
-            const rect = timeRangeElement.getBoundingClientRect()
-            if (rect.width <= 0) return
-
-            setTimeRangeWidth(prev => Math.abs(prev - rect.width) < 0.5 ? prev : rect.width)
-
-            const x = pendingClientX - rect.left
-            const percentage = Math.max(0, Math.min(1, x / rect.width))
-            requestPreview(percentage * safeDuration)
-        })
-    }, [requestPreview, safeDuration, timeRangeElement])
-
-    React.useEffect(() => {
-        if (!isSwiping || swipeSeekTime === null || !safeDuration) {
-            return
+            try {
+                const thumbnail = await previewManager.retrievePreviewForSegment(thumbnailIndex)
+                if (thumbnail) {
+                    timeRangeElement.setAttribute("data-preview-image", thumbnail)
+                    setPreviewThumbnail(thumbnail)
+                }
+            }
+            catch (error) {
+                timeRangeLog.error("Failed to get thumbnail", error)
+            }
         }
-
-        requestPreview(Math.max(0, Math.min(safeDuration, swipeSeekTime)))
-    }, [isSwiping, swipeSeekTime, safeDuration, requestPreview])
+    }, [previewManager, timeRangeElement, duration])
 
     React.useEffect(() => {
         if (!timeRangeElement) {
@@ -657,11 +500,13 @@ function VideoCoreTimePreview(props: { chapters: VideoCoreTimeRangeChapter[] }) 
         }
 
         const handleMouseLeave = () => {
-            clearPreview()
+            timeRangeElement.removeAttribute("data-preview-image")
+            setPreviewThumbnail(null)
         }
 
         const handleTouchEnd = () => {
-            clearPreview()
+            timeRangeElement.removeAttribute("data-preview-image")
+            setPreviewThumbnail(null)
         }
 
         if (isMobile) {
@@ -681,27 +526,56 @@ function VideoCoreTimePreview(props: { chapters: VideoCoreTimeRangeChapter[] }) 
                 timeRangeElement.removeEventListener("mousemove", handleTimeRangePreview)
             }
         }
-    }, [clearPreview, handleTimeRangePreview, timeRangeElement, isMobile])
+    }, [handleTimeRangePreview, timeRangeElement, isMobile])
 
+    // Fetch thumbnail preview during swipe
+    React.useEffect(() => {
+        if (!isSwiping || !swipeSeekTime || !previewManager || !duration) {
+            return
+        }
+
+        const fetchSwipeThumbnail = async () => {
+            const thumbnailIndex = Math.floor(swipeSeekTime / VIDEOCORE_PREVIEW_CAPTURE_INTERVAL_SECONDS)
+
+            try {
+                const thumbnail = await previewManager.retrievePreviewForSegment(thumbnailIndex)
+                if (thumbnail) {
+                    setPreviewThumbnail(thumbnail)
+                }
+            }
+            catch (error) {
+                timeRangeLog.error("Failed to get swipe thumbnail", error)
+            }
+        }
+
+        fetchSwipeThumbnail()
+    }, [isSwiping, swipeSeekTime, previewManager, duration])
+
+    // Clear thumbnail when swipe ends
     React.useEffect(() => {
         if (!isSwiping) {
-            clearPreview()
+            setPreviewThumbnail(null)
         }
-    }, [clearPreview, isSwiping])
+    }, [isSwiping])
 
-    const showPreview = !isMiniPlayer && !!previewManager && (seeking || isSwiping || targetTime > 0)
-    const showThumbnail = showPreview
+    const showThumbnail = (!isMiniPlayer && previewManager && (seeking || isSwiping || !!targetTime)) &&
+        targetTime <= previewManager.getLastestCachedIndex() * VIDEOCORE_PREVIEW_CAPTURE_INTERVAL_SECONDS
 
     return <>
 
         {showThumbnail && <div
             data-vc-element="preview-thumbnail"
             className={cn(
-                "absolute left-0 bottom-full aspect-video overflow-hidden rounded-md bg-black border border-white/50 pointer-events-none will-change-transform [contain:layout_paint_style]",
+                "absolute bottom-full aspect-video overflow-hidden rounded-md bg-black border border-white/50 pointer-events-none",
             )}
-            style={{
-                width: previewWidth,
-                transform: `translate3d(${previewX - previewWidth / 2}px, ${isMobile ? "-64%" : "-54%"}, 0)`,
+            style={!isMobile ? {
+                left: `clamp(${VIDEOCORE_PREVIEW_THUMBNAIL_SIZE / 2}px, ${(targetTime / duration) * 100}%, calc(100% - ${VIDEOCORE_PREVIEW_THUMBNAIL_SIZE / 2}px))`,
+                width: VIDEOCORE_PREVIEW_THUMBNAIL_SIZE + "px",
+                transform: "translateX(-50%) translateY(-54%)",
+            } : {
+                left: `clamp(${140 / 2}px, ${(targetTime / duration) * 100}%, calc(100% - ${140 / 2}px))`,
+                width: 140 + "px",
+                transform: "translateX(-50%) translateY(-64%)",
             }}
         >
             {!!previewThumbnail && <Image
@@ -709,22 +583,23 @@ function VideoCoreTimePreview(props: { chapters: VideoCoreTimeRangeChapter[] }) 
                 src={previewThumbnail || ""}
                 alt="Preview"
                 fill
-                sizes={previewWidth + "px"}
+                sizes={VIDEOCORE_PREVIEW_THUMBNAIL_SIZE + "px"}
                 className="object-cover rounded-md"
                 decoding="async"
                 loading="lazy"
             />}
         </div>}
 
-        {showPreview && <div
+        {(seeking || isSwiping || !!targetTime) && <div
             data-vc-element="preview-tooltip"
             className={cn(
-                "absolute left-0 bottom-full mb-3 px-2 py-1 bg-black/70 text-white text-center text-sm rounded-md will-change-transform",
+                "absolute bottom-full mb-3 px-2 py-1 bg-black/70 text-white text-center text-sm rounded-md",
                 "whitespace-nowrap z-20 pointer-events-none",
                 "",
             )}
             style={{
-                transform: `translate3d(${tooltipX}px, 0, 0) translateX(-50%)`,
+                left: `${(targetTime / duration) * 100}%`,
+                transform: "translateX(-50%)",
             }}
         >
             {chapterLabel && <p data-vc-element="preview-tooltip-chapter" className="text-xs font-medium max-w-2xl truncate">{chapterLabel}</p>}

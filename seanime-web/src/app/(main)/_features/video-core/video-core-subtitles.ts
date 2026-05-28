@@ -35,6 +35,19 @@ function isPGS(str: string) {
     return str === "S_HDMV/PGS"
 }
 
+/**
+ * Prepend a libass \fad(in_ms, out_ms) override block to the cue text so the line fades out
+ * at the end of its duration. We use 0ms fade-in and a user-configurable fade-out.
+ * If the cue text already contains a \fad or \fade tag, leave it alone to respect the
+ * original styling. If fadeMs is falsy/<=0, fade is disabled.
+ */
+function applyAssFade(text: string, fadeMs?: number): string {
+    if (!fadeMs || fadeMs <= 0) return text
+    if (/\\fade?\(/.test(text)) return text
+    if (text.startsWith("{")) return "{\\fad(0," + fadeMs + ")" + text.slice(1)
+    return "{\\fad(0," + fadeMs + ")}" + text
+}
+
 // Event or file track info.
 export type NormalizedTrackInfo = {
     type: "event" | "file"
@@ -132,6 +145,11 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     // Remember the translated file tracks to avoid re-fetching them
     private translatedFileTracks = new Map<number, { translating: boolean }>()
 
+    // Per-series codec override for language+codec matching
+    private subtitleCodecOverride?: string
+    // Per-series label override — the label of the user's last explicitly selected track.
+    private subtitleLabelOverride?: string
+
     constructor({
         videoElement,
         jassubOffscreenRender,
@@ -141,6 +159,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         sendTranslateRequest,
         translateTargetLang,
         hmacToken,
+        subtitleCodecOverride,
+        subtitleLabelOverride,
     }: {
         videoElement: HTMLVideoElement
         jassubOffscreenRender: boolean
@@ -150,6 +170,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
         translateTargetLang: string | null
         hmacToken?: string
+        subtitleCodecOverride?: string
+        subtitleLabelOverride?: string
     }) {
         super()
         this.videoElement = videoElement
@@ -161,6 +183,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.translationTargetLang = translateTargetLang
         this.fetchAndConvertToASS = fetchAndConvertToASS
         this.sendTranslateRequest = sendTranslateRequest
+        this.subtitleCodecOverride = subtitleCodecOverride
+        this.subtitleLabelOverride = subtitleLabelOverride
         this.translateFn = function (cached: CachedEvent) {
             cached.isTranslating = true
             // Send the request to the server
@@ -232,7 +256,9 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
                 subtitleLog.info("Initializing libass renderer")
 
-                const defaultFontUrl = "/fonts/Roboto-Medium.ttf"
+                const defaultFontUrl = "/jassub/Roboto-Medium.ttf"
+
+                console.warn(workerUrl)
 
                 this.libassRenderer = new JASSUB({
                     video: this.videoElement,
@@ -253,14 +279,42 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 subtitleLog.info("Libass renderer ready")
 
 
-                this.fonts = this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
-                    ?.map(a => `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}${this.hmacToken}`) || []
+                // Use pre-resolved font URLs if provided (e.g. from mediastream),
+                // otherwise build from mkvMetadata attachments (directstream)
+                const preResolvedFonts = (this.playbackInfo as any)._mediastreamFontUrls as string[] | undefined
+                if (preResolvedFonts?.length) {
+                    this.fonts = [defaultFontUrl, ...preResolvedFonts]
+                } else {
+                    // Broaden font detection: match by type, mimetype, or filename extension.
+                    // Some MKV attachments have no extension (so the server tags them as "other")
+                    // but carry a valid font mimetype; without this, the karaoke/OP/ED font often
+                    // ends up missing and characters render as boxes via the fallback font.
+                    const FONT_EXT_RE = /\.(ttf|otf|ttc|woff2?|eot|sfnt)$/i
+                    const isFontAttachment = (a: any): boolean => {
+                        if (a?.type === "font") return true
+                        const mt = String(a?.mimetype || "").toLowerCase()
+                        if (mt.startsWith("font/")) return true
+                        if (
+                            mt.includes("truetype") ||
+                            mt.includes("opentype") ||
+                            mt.includes("woff") ||
+                            mt.includes("sfnt") ||
+                            mt.includes("font")
+                        ) {
+                            return true
+                        }
+                        if (typeof a?.filename === "string" && FONT_EXT_RE.test(a.filename)) return true
+                        return false
+                    }
+                    this.fonts = this.playbackInfo.mkvMetadata?.attachments?.filter(isFontAttachment)
+                        ?.map(a => `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}${this.hmacToken}`) || []
 
-                if (!this.playbackInfo.libassFonts) {
-                    this.fonts = [...new Set([...this.fonts, defaultFontUrl])]
+                    if (!(this.playbackInfo as any).libassFonts) {
+                        this.fonts = [...new Set([...this.fonts, defaultFontUrl])]
+                    }
+
+                    this.fonts = [defaultFontUrl, ...this.fonts]
                 }
-
-                this.fonts = [defaultFontUrl, ...this.fonts]
 
                 await this.libassRenderer.renderer.addFonts(this.fonts)
             }
@@ -325,10 +379,11 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         return this.fileTracks[number]?.content || null
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     // Sets the track to no track.
     setNoTrack() {
         this.currentTrackNumber = NO_TRACK_NUMBER
-        this._disableNativeTextTracks()
         this.libassRenderer?.renderer?.setTrack(this.defaultSubtitleHeader)
         this.libassRenderer?.resize?.()
         this.pgsRenderer?.clear()
@@ -338,7 +393,13 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.dispatchEvent(event)
     }
 
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    setTrackChangedEventListener(callback: (track: number | null) => void) {
+        this._onSelectedTrackChanged = callback
+    }
+
+    setTracksLoadedEventListener(callback: ((tracks: NormalizedTrackInfo[]) => void)) {
+        this._onTracksLoaded = callback
+    }
 
     // Selects a track by its number.
     async selectTrack(trackNumber: number) {
@@ -361,7 +422,19 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         const track = this._getTracks()?.find?.(t => t.number === trackNumber)
         subtitleLog.info("Selecting track", trackNumber, track)
 
-        this._disableNativeTextTracks()
+        // Update the text track which is showing in the video element
+        if (this.videoElement.textTracks) {
+            subtitleLog.info("Updating video element's textTracks", this.videoElement.textTracks)
+            for (const textTrack of this.videoElement.textTracks) {
+                if (track && textTrack.id === track.number.toString()) {
+                    textTrack.mode = "showing"
+                } else {
+                    textTrack.mode = "disabled"
+                }
+            }
+            // Dispatch a change event to update the player
+            this.videoElement.textTracks.dispatchEvent(new Event("change"))
+        }
 
         if (!track) {
             subtitleLog.error("Track not found", trackNumber)
@@ -438,17 +511,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.dispatchEvent(selectedEvent)
     }
 
-    setTrackChangedEventListener(callback: (track: number | null) => void) {
-        this._onSelectedTrackChanged = callback
-    }
-
-    setTracksLoadedEventListener(callback: ((tracks: NormalizedTrackInfo[]) => void)) {
-        this._onTracksLoaded = callback
-    }
-
     destroy() {
         subtitleLog.info("Destroying subtitle manager")
-        this._disableNativeTextTracks()
         this.libassRenderer?.destroy()
         this.libassRenderer = null
         this.pgsRenderer?.destroy()
@@ -468,16 +532,6 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
         const event: SubtitleManagerDestroyedEvent = new CustomEvent("destroyed")
         this.dispatchEvent(event)
-    }
-
-    private _disableNativeTextTracks() {
-        if (!this.videoElement.textTracks) return
-
-        subtitleLog.info("Disabling video element textTracks", this.videoElement.textTracks)
-        for (const textTrack of this.videoElement.textTracks) {
-            textTrack.mode = "disabled"
-        }
-        this.videoElement.textTracks.dispatchEvent(new Event("change"))
     }
 
     getTracks() {
@@ -514,7 +568,6 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         // If translation settings changed, we need to refresh the current track
         const translationChanged = this.shouldTranslate !== shouldTranslate
         this.shouldTranslate = shouldTranslate
-        this.translationTargetLang = shouldTranslate
 
         if (translationChanged && this.currentTrackNumber !== NO_TRACK_NUMBER) {
             subtitleLog.info("Translation settings changed, reloading current track")
@@ -597,7 +650,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.eventTranslationQueue.delete(original)
         cached.translatedAssEvent = {
             ...cached.assEvent,
-            Text: translated,
+            Text: applyAssFade(translated, this.settings.subtitleCustomization?.fadeOutMs),
         }
         cached.isTranslating = false
         // If the track is still the active one, inject the new event immediately
@@ -625,6 +678,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             label: t.info.label,
             forced: false,
             default: t.info.default,
+            codecID: (t.info as any).codecID,
         }))
 
         return [...eventTracks, ...fileTracks].sort((a, b) => a.number - b.number)
@@ -726,7 +780,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         }
 
         // Split preferred languages by comma and trim whitespace
-        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, tracks)
+        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, tracks, this.subtitleCodecOverride, this.subtitleLabelOverride)
         subtitleLog.info("Default subtitle track number",
             defaultTrackNumber,
             this.settings.preferredSubtitleLanguage,
@@ -976,16 +1030,46 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     }
 
     private _createAssEvent(event: MKVParser_SubtitleEvent, index: number): ASSEvent {
+        // Resolve the style index. If the style name isn't in the track's parsed styles map
+        // (e.g. case mismatch, codecPrivate not yet parsed), fall back to "Default" or 1.
+        // The previous code returned `undefined` on a missing lookup, which could cause JASSUB
+        // to render an event with an unexpected style and, in some cases, leave it on screen.
+        const styles = this.eventTracks[event.trackNumber]?.styles
+        const styleName = event.extraData?.style
+        let styleIdx: number = 1
+        if (styleName && styles) {
+            const idx = styles[styleName]
+            if (typeof idx === "number" && idx > 0) {
+                styleIdx = idx
+            } else if (typeof styles["Default"] === "number" && styles["Default"] > 0) {
+                styleIdx = styles["Default"]
+            }
+        }
+
+        // Sanitize the duration. Some malformed MKV/ASS sources emit events with absurdly long
+        // durations (e.g. a karaoke line's last word lingering for the rest of the episode and
+        // covering subsequent dialogue). Clamp anything beyond a reasonable maximum and replace
+        // non-positive values with a short fallback so the event still flashes rather than
+        // becoming permanent.
+        const MAX_EVENT_DURATION_MS = 10_000 // 10s — any caption longer than this is almost certainly a parser glitch
+        const DEFAULT_EVENT_DURATION_MS = 1_500
+        let duration = event.duration
+        if (!Number.isFinite(duration) || duration <= 0) {
+            duration = DEFAULT_EVENT_DURATION_MS
+        } else if (duration > MAX_EVENT_DURATION_MS) {
+            duration = MAX_EVENT_DURATION_MS
+        }
+
         return {
             Start: event.startTime,
-            Duration: event.duration,
-            Style: event.extraData?.style ? this.eventTracks[event.trackNumber]?.styles?.[event.extraData?.style ?? "Default"] : 1,
+            Duration: duration,
+            Style: styleIdx,
             Name: event.extraData?.name ?? "",
             MarginL: event.extraData?.marginL ? Number(event.extraData.marginL) : 0,
             MarginR: event.extraData?.marginR ? Number(event.extraData.marginR) : 0,
             MarginV: event.extraData?.marginV ? Number(event.extraData.marginV) : 0,
             Effect: event.extraData?.effect ?? "",
-            Text: event.text,
+            Text: applyAssFade(event.text, this.settings.subtitleCustomization?.fadeOutMs),
             ReadOrder: event.extraData?.readOrder ? Number(event.extraData.readOrder) : 1,
             Layer: event.extraData?.layer ? Number(event.extraData.layer) : 0,
             // index is based on the order of the events in the record
@@ -1153,7 +1237,9 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
 export function getDefaultSubtitleTrackNumber(
     settings: VideoCoreSettings,
-    _tracks: { label?: string, language?: string, number: number, forced?: boolean, default?: boolean }[] | null = null,
+    _tracks: { label?: string, language?: string, number: number, forced?: boolean, default?: boolean, codecID?: string }[] | null = null,
+    codecHint?: string,
+    labelHint?: string,
 ): number {
     // Split preferred languages by comma and trim whitespace
     const preferredLanguages = settings.preferredSubtitleLanguage
@@ -1172,10 +1258,49 @@ export function getDefaultSubtitleTrackNumber(
         tracks = tracks?.filter?.(t => !t.label || !blacklistLabels.includes(t.label?.toLowerCase())) ?? []
     }
 
+    // Label hint takes precedence — this is the user's last explicit pick for this series.
+    // We match exact (case-insensitive) label first; if not found we fall through to language logic.
+    if (labelHint && labelHint.trim().length > 0) {
+        const wanted = labelHint.trim().toLowerCase()
+        const exact = tracks?.find?.(t => t.label?.trim().toLowerCase() === wanted)
+        if (exact) {
+            subtitleLog.info("[DEBUG] getDefaultSubtitleTrackNumber: matched by labelHint (exact)", { labelHint, number: exact.number })
+            return exact.number
+        }
+        // Fuzzy contains match — handles minor variations like "English [Full]" vs "English Full"
+        const contains = tracks?.find?.(t => t.label && (t.label.toLowerCase().includes(wanted) || wanted.includes(t.label.toLowerCase())))
+        if (contains) {
+            subtitleLog.info("[DEBUG] getDefaultSubtitleTrackNumber: matched by labelHint (fuzzy)", { labelHint, number: contains.number, label: contains.label })
+            return contains.number
+        }
+    }
+
+    // Labels that indicate a partial/signs-only track — deprioritized when full subtitles exist
+    const SIGNS_PATTERN = /\b(signs?|songs?|signs?\s*[&+]\s*songs?|songs?\s*[&+]\s*signs?|commentary|forced)\b/i
+    const isSignsTrack = (t: { label?: string }) =>
+        !!t.label && SIGNS_PATTERN.test(t.label)
+
     // Try each preferred language in order
     for (const preferredLang of preferredLanguages) {
         let foundTracks = tracks?.filter?.(t => t.language?.toLowerCase() === preferredLang?.toLowerCase())
+        subtitleLog.info("[DEBUG] getDefaultSubtitleTrackNumber:", {
+            preferredLang,
+            foundTracksCount: foundTracks?.length,
+            foundTracks: foundTracks?.map(t => ({ number: t.number, label: t.label, language: t.language, codecID: t.codecID })),
+            codecHint,
+        })
         if (foundTracks?.length) {
+            // Prefer language + codec match (per-series override)
+            if (codecHint && foundTracks.length > 1) {
+                const codecMatch = foundTracks.find(t => t.codecID === codecHint)
+                subtitleLog.info("[DEBUG] Codec matching:", { codecHint, codecMatch: codecMatch ? { number: codecMatch.number, label: codecMatch.label, codecID: codecMatch.codecID } : null })
+                if (codecMatch) return codecMatch.number
+            }
+            // When multiple tracks match, deprioritize signs/songs tracks
+            if (foundTracks.length > 1) {
+                const nonSignsTracks = foundTracks.filter(t => !isSignsTrack(t))
+                if (nonSignsTracks.length > 0) foundTracks = nonSignsTracks
+            }
             // Find default or forced track
             const defaultIndex = foundTracks.findIndex(t => t.forced)
             return foundTracks[defaultIndex >= 0 ? defaultIndex : 0].number
@@ -1185,12 +1310,23 @@ export function getDefaultSubtitleTrackNumber(
         if (preferredLang.length > 4) {
             foundTracks = tracks?.filter?.(t => t.label?.toLowerCase().includes(preferredLang.toLowerCase()))
             if (foundTracks?.length) {
-                return foundTracks[0].number
+                // Deprioritize signs/songs tracks here too
+                const nonSignsTracks = foundTracks.filter(t => !isSignsTrack(t))
+                return (nonSignsTracks.length > 0 ? nonSignsTracks : foundTracks)[0].number
             }
         }
         if (preferredLang === "none") {
             return NO_TRACK_NUMBER
         }
+    }
+
+    // Final label fallback: look for any track whose label contains "english"
+    // (catches tracks with no language code but labeled "English", "English Full", etc.)
+    const englishLabelTracks = tracks?.filter?.(t => t.label?.toLowerCase().includes("english"))
+    if (englishLabelTracks?.length) {
+        const nonSigns = englishLabelTracks.filter(t => !isSignsTrack(t))
+        const candidates = nonSigns.length > 0 ? nonSigns : englishLabelTracks
+        return candidates[0].number
     }
 
     // No preferred tracks found, look for default or forced tracks

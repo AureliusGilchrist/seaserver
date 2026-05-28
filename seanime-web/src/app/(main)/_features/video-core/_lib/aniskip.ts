@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query"
-import { normalizeAniSkipData } from "./aniskip.utils"
 
 /* -------------------------------------------------------------------------------------------------
  * @link https://github.com/lexesjan/typescript-aniskip-extension/blob/main/src/api/aniskip-http-client/aniskip-http-client.types.ts
@@ -44,10 +43,10 @@ export function useSkipData(mediaMalId: number | null | undefined, episodeNumber
                 found: boolean,
                 results: AniSkipTime[]
             }
-            if (!!skip.results && skip.found) return normalizeAniSkipData({
+            if (!!skip.results && skip.found) return {
                 op: skip.results?.find((item) => item.skipType === "op") || null,
                 ed: skip.results?.find((item) => item.skipType === "ed") || null,
-            })
+            }
             return { op: null, ed: null }
         },
         refetchOnWindowFocus: false,

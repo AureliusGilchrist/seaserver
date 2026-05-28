@@ -1,12 +1,11 @@
-import { VideoCore_InSightData } from "@/api/generated/types"
+type VideoCore_InSightData = { characters?: any[]; [key: string]: any }
 import { MKVParser_TrackInfo, VideoCore_ClientEventType, VideoCore_PlaybackState, VideoCore_ServerEvent } from "@/api/generated/types"
-import { normalizeAniSkipData, type NormalizedSkipData } from "@/app/(main)/_features/video-core/_lib/aniskip.utils"
 import { vc_subtitleManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_mediaCaptionsManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_audioManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_anime4kManager } from "@/app/(main)/_features/video-core/video-core"
 import { Anime4KManagerOptionChangedEvent } from "@/app/(main)/_features/video-core/video-core-anime-4k-manager"
-import { vc_activePlayerId, vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_activePlayerId } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { AudioManagerHlsTrackChangedEvent, AudioManagerTrackChangedEvent } from "@/app/(main)/_features/video-core/video-core-audio"
 import { FullscreenManagerChangedEvent, vc_fullscreenManager } from "@/app/(main)/_features/video-core/video-core-fullscreen"
 import { useVideoCoreInSight } from "@/app/(main)/_features/video-core/video-core-in-sight"
@@ -81,22 +80,17 @@ export type VideoCoreLoadedPayload = {
     state: VideoCore_PlaybackState
 }
 
-type VideoCoreClientEvent = VideoCore_ClientEventType | "video-skip-data"
-type VideoCoreServerEvent = VideoCore_ServerEvent | "set-skip-data" | "get-skip-data"
-
 const log = logger("VideoCoreEvents")
 
 export function useVideoCoreSetupEvents(id: string,
     state: VideoCoreLifecycleState,
+    videoRef: React.MutableRefObject<HTMLVideoElement | null>,
     onTerminateStream: () => void,
-    setPluginSkipDataOverride: React.Dispatch<React.SetStateAction<NormalizedSkipData | undefined>>,
-    currentSkipDataRef: React.RefObject<NormalizedSkipData | undefined>,
 ) {
     const { sendEvent } = useVideoCoreEvents()
 
     const clientId = useAtomValue(clientIdAtom)
     const activePlayer = useAtomValue(vc_activePlayerId)
-    const videoElement = useAtomValue(vc_videoElement)
     const fullscreenManager = useAtomValue(vc_fullscreenManager)
     const subtitleManager = useAtomValue(vc_subtitleManager)
     const anime4kManager = useAtomValue(vc_anime4kManager)
@@ -246,35 +240,37 @@ export function useVideoCoreSetupEvents(id: string,
 
     // video events
     React.useEffect(() => {
-        if (!isActivePlayer || !videoElement) return
-        const player = videoElement
+        if (!isActivePlayer || !videoRef.current) return
 
         function handlePlay() {
+            if (!videoRef.current) return
             log.trace("Video resumed")
             sendEvent("video-resumed", {
-                currentTime: player.currentTime,
-                duration: player.duration,
+                currentTime: videoRef.current.currentTime,
+                duration: videoRef.current.duration,
             })
         }
 
         function handlePaused() {
+            if (!videoRef.current) return
             log.trace("Video paused")
             sendEvent("video-paused", {
-                currentTime: player.currentTime,
-                duration: player.duration,
-                paused: player.paused,
+                currentTime: videoRef.current.currentTime,
+                duration: videoRef.current.duration,
+                paused: videoRef.current.paused,
             })
         }
 
         function handleLoadedMetadata() {
+            if (!videoRef.current) return
             log.trace("Video loaded metadata")
             sendEvent("video-loaded-metadata")
             sendEvent("video-loaded-metadata", {
                 id: state.playbackInfo?.id || "",
                 clientId: clientId,
-                currentTime: player.currentTime,
-                duration: player.duration,
-                paused: player.paused,
+                currentTime: videoRef.current.currentTime,
+                duration: videoRef.current.duration,
+                paused: videoRef.current.paused,
             })
         }
 
@@ -284,76 +280,71 @@ export function useVideoCoreSetupEvents(id: string,
         }
 
         function handleSeeked() {
-            if (Date.now() - lastSeekedSent.current < 1000) return
+            if (Date.now() - lastSeekedSent.current < 1000 || !videoRef.current) return
             lastSeekedSent.current = Date.now()
             log.trace("Video seeked")
             sendEvent("video-seeked", {
-                currentTime: player.currentTime,
-                duration: player.duration,
-                paused: player.paused,
+                currentTime: videoRef.current.currentTime,
+                duration: videoRef.current.duration,
+                paused: videoRef.current.paused,
             })
         }
 
-        player.addEventListener("play", handlePlay)
-        player.addEventListener("pause", handlePaused)
-        player.addEventListener("loadedmetadata", handleLoadedMetadata)
-        player.addEventListener("ended", handleEnded)
-        player.addEventListener("seeked", handleSeeked)
+        videoRef.current?.addEventListener("play", handlePlay)
+        videoRef.current?.addEventListener("pause", handlePaused)
+        videoRef.current?.addEventListener("loadedmetadata", handleLoadedMetadata)
+        videoRef.current?.addEventListener("ended", handleEnded)
+        videoRef.current?.addEventListener("seeked", handleSeeked)
 
         return () => {
-            player.removeEventListener("play", handlePlay)
-            player.removeEventListener("pause", handlePaused)
-            player.removeEventListener("loadedmetadata", handleLoadedMetadata)
-            player.removeEventListener("ended", handleEnded)
-            player.removeEventListener("seeked", handleSeeked)
+            videoRef.current?.removeEventListener("play", handlePlay)
+            videoRef.current?.removeEventListener("pause", handlePaused)
+            videoRef.current?.removeEventListener("loadedmetadata", handleLoadedMetadata)
+            videoRef.current?.removeEventListener("ended", handleEnded)
+            videoRef.current?.removeEventListener("seeked", handleSeeked)
         }
-    }, [isActivePlayer, state, videoElement])
+    }, [isActivePlayer, state])
 
     function dispatchTerminatedEvent() {
         log.trace("Video terminated")
-        sendEvent("video-terminated", {
-            id: state.playbackInfo?.id || "",
-            clientId: clientId,
-            playerType: id === "native-player" ? "native" : "web",
-            playbackType: state.playbackInfo?.playbackType || "",
-        })
+        sendEvent("video-terminated")
     }
 
     function dispatchTranslateTextEvent(text: string) {
-        if (!videoElement) return
+        if (!videoRef.current) return
         sendEvent("translate-text", {
             text: text,
         })
     }
 
     function dispatchTranslateSubtitleTrackEvent(track: VideoCore_VideoSubtitleTrack) {
-        if (!videoElement) return
+        if (!videoRef.current) return
         sendEvent("translate-subtitle-file-track", track)
     }
 
     function dispatchCanPlayEvent() {
-        if (!videoElement) return
+        if (!videoRef.current) return
         log.trace("Video can play")
         sendEvent("video-can-play", {
-            currentTime: videoElement.currentTime,
-            duration: videoElement.duration,
-            paused: videoElement.paused,
+            currentTime: videoRef.current.currentTime,
+            duration: videoRef.current.duration,
+            paused: videoRef.current.paused,
         })
     }
 
     function dispatchVideoCompletedEvent() {
-        if (!videoElement) return
+        if (!videoRef.current) return
         log.trace("Video completed")
         sendEvent("video-completed", {
-            currentTime: videoElement.currentTime,
-            duration: videoElement.duration,
-            paused: videoElement.paused,
+            currentTime: videoRef.current.currentTime,
+            duration: videoRef.current.duration,
+            paused: videoRef.current.paused,
         })
     }
 
     function dispatchVideoErrorEvent(value: string) {
         log.trace("Video error")
-        const v = videoElement
+        const v = videoRef.current
         if (!v) return
 
 
@@ -411,24 +402,24 @@ export function useVideoCoreSetupEvents(id: string,
     }
 
     React.useEffect(() => {
-        if (!isActivePlayer || !state.playbackInfo || !videoElement || !clientId) return
-        const player = videoElement
+        if (!isActivePlayer || !state.playbackInfo || !videoRef.current || !clientId) return
 
         const interval = setInterval(() => {
+            if (!videoRef.current) return
             // log.trace("Sending video status")
             sendEvent<VideoCoreStatusEventPayload>("video-status", {
                 id: state.playbackInfo?.id || "",
                 clientId: clientId,
-                currentTime: player.currentTime,
-                duration: player.duration,
-                paused: player.paused,
+                currentTime: videoRef.current.currentTime,
+                duration: videoRef.current.duration,
+                paused: videoRef.current.paused,
             })
         }, 1000)
 
         return () => {
             clearInterval(interval)
         }
-    }, [state.playbackInfo, isActivePlayer, clientId, videoElement])
+    }, [state.playbackInfo, isActivePlayer, clientId])
 
     /**
      * Upload subtitle files
@@ -495,8 +486,8 @@ export function useVideoCoreSetupEvents(id: string,
     }
 
     React.useEffect(() => {
-        if (!videoElement || !state.active) return
-        const player = videoElement
+        const player = videoRef.current
+        if (!player || !state.active) return
 
         player.addEventListener("paste", handleUpload)
         player.addEventListener("drop", handleUpload)
@@ -509,32 +500,13 @@ export function useVideoCoreSetupEvents(id: string,
             player.removeEventListener("dragover", suppressEvent)
             player.removeEventListener("dragenter", suppressEvent)
         }
-    }, [handleUpload, state.active, videoElement])
+    }, [handleUpload, state.active, videoRef.current])
 
     useWebsocketMessageListener({
         type: WSEvents.VIDEOCORE,
         deps: [activePlayer, id],
-        onMessage: ({ type, payload }: { type: VideoCoreServerEvent, payload: unknown }) => {
-            if (!isActivePlayer) return
-
-            if (type === "set-skip-data") {
-                log.info("Set skip data event received", payload)
-                if (!payload) {
-                    setPluginSkipDataOverride(undefined)
-                    return
-                }
-                setPluginSkipDataOverride(normalizeAniSkipData(payload as NormalizedSkipData))
-                return
-            }
-
-            if (type === "get-skip-data") {
-                sendEvent("video-skip-data", {
-                    skipData: currentSkipDataRef.current ?? null,
-                })
-                return
-            }
-
-            if (!videoElement) return
+        onMessage: ({ type, payload }: { type: VideoCore_ServerEvent, payload: unknown }) => {
+            if (!isActivePlayer || !videoRef.current) return
 
             switch (type) {
                 case "get-status":
@@ -542,32 +514,32 @@ export function useVideoCoreSetupEvents(id: string,
                     sendEvent<VideoCoreStatusEventPayload>("video-status", {
                         id: state.playbackInfo?.id || "",
                         clientId: clientId,
-                        currentTime: videoElement.currentTime,
-                        duration: videoElement.duration,
-                        paused: videoElement.paused,
+                        currentTime: videoRef.current.currentTime,
+                        duration: videoRef.current.duration,
+                        paused: videoRef.current.paused,
                     })
                     break
                 case "pause":
                     log.info("Pause event received", payload)
-                    videoElement.pause()
+                    videoRef.current.pause()
                     break
                 case "resume":
                     log.info("Resume event received", payload)
-                    videoElement.play().catch()
+                    videoRef.current.play().catch()
                     break
                 case "seek":
                     log.info("Seek event received", payload)
                     const seekAmount = payload as number
-                    const newTime = videoElement.currentTime + seekAmount
-                    if (videoElement.duration) {
-                        videoElement.currentTime = Math.max(0, Math.min(newTime, videoElement.duration))
+                    const newTime = videoRef.current.currentTime + seekAmount
+                    if (videoRef.current.duration) {
+                        videoRef.current.currentTime = Math.max(0, Math.min(newTime, videoRef.current.duration))
                     }
                     break
                 case "seek-to":
                     log.info("Seek to event received", payload)
                     const seekToTime = payload as number
-                    if (videoElement.duration) {
-                        videoElement.currentTime = Math.max(0, Math.min(seekToTime, videoElement.duration))
+                    if (videoRef.current.duration) {
+                        videoRef.current.currentTime = Math.max(0, Math.min(seekToTime, videoRef.current.duration))
                     }
                     break
                 case "set-fullscreen":
@@ -660,19 +632,19 @@ export function useVideoCoreSetupEvents(id: string,
                     const trackNumber = audioManager?.getSelectedTrackNumberOrNull() ?? -1
                     sendEvent<VideoCoreAudioTrackEventPayload>("video-audio-track", { trackNumber: trackNumber, isHLS: audioManager?.isHLS ?? false })
                     break
-                case "get-subtitle-track-content":
+                case "get-subtitle-track-content" as VideoCore_ServerEvent:
                     log.info("Get subtitle track content event received")
                     const number = payload as number
                     if (subtitleManager) {
                         const content = subtitleManager.getTrackContent(number)
-                        sendEvent("video-subtitle-track-content", {
+                        sendEvent("video-subtitle-track-content" as VideoCore_ClientEventType, {
                             trackNumber: number,
                             content: content ?? "",
                             type: "ass",
                         })
                     } else if (mediaCaptionsManager) {
                         const content = mediaCaptionsManager.getTrackContent(number)
-                        sendEvent("video-subtitle-track-content", {
+                        sendEvent("video-subtitle-track-content" as VideoCore_ClientEventType, {
                             trackNumber: number,
                             content: content ?? "",
                             type: "vtt",
@@ -756,7 +728,7 @@ export function useVideoCoreSetupEvents(id: string,
                     const p = payload as { original: string, translated: string }
                     subtitleManager?.processEventTranslationQueue?.(p.original, p.translated)
                     break
-                case "in-sight-data":
+                case "in-sight-data" as VideoCore_ServerEvent:
                     log.info("In-sight data event received", payload)
                     setInSightData((payload ?? null) as VideoCore_InSightData | null)
                     break
@@ -781,7 +753,7 @@ export function useVideoCoreEvents() {
     const { sendMessage } = useWebsocketSender()
     const clientId = useAtomValue(clientIdAtom)
 
-    function sendEvent<T extends Record<string, any> | void = void>(type: VideoCoreClientEvent, payload?: T) {
+    function sendEvent<T extends Record<string, any> | void = void>(type: VideoCore_ClientEventType, payload?: T) {
         sendMessage({
             type: WSEvents.VIDEOCORE,
             payload: {

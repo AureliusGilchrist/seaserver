@@ -70,11 +70,11 @@ const themeSchema = defineSchema(({ z }) => z.object({
     customCSS: z.string().default(THEME_DEFAULT_VALUES.customCSS),
     mobileCustomCSS: z.string().default(THEME_DEFAULT_VALUES.mobileCustomCSS),
     unpinnedMenuItems: z.array(z.string()).default(THEME_DEFAULT_VALUES.unpinnedMenuItems),
-    hideAnimeSpoilers: z.boolean().default(THEME_DEFAULT_VALUES.hideAnimeSpoilers),
-    hideAnimeSpoilerThumbnails: z.boolean().default(THEME_DEFAULT_VALUES.hideAnimeSpoilerThumbnails),
-    hideAnimeSpoilerTitles: z.boolean().default(THEME_DEFAULT_VALUES.hideAnimeSpoilerTitles),
-    hideAnimeSpoilerDescriptions: z.boolean().default(THEME_DEFAULT_VALUES.hideAnimeSpoilerDescriptions),
-    hideAnimeSpoilerSkipNextEpisode: z.boolean().default(THEME_DEFAULT_VALUES.hideAnimeSpoilerSkipNextEpisode),
+    hideAnimeSpoilers: z.boolean().default(false),
+    hideAnimeSpoilerThumbnails: z.boolean().default(true),
+    hideAnimeSpoilerTitles: z.boolean().default(true),
+    hideAnimeSpoilerDescriptions: z.boolean().default(true),
+    hideAnimeSpoilerSkipNextEpisode: z.boolean().default(false),
 }))
 
 export const __ui_fixBorderRenderingArtifacts = atomWithStorage("sea-ui-settings-fix-border-rendering-artifacts", false)

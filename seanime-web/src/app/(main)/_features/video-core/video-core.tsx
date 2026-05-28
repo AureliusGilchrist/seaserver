@@ -1,11 +1,11 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { useHandleCurrentMediaContinuity } from "@/api/hooks/continuity.hooks"
+import { useHandleCurrentMediaContinuity, useUpdateContinuityWatchHistoryItem } from "@/api/hooks/continuity.hooks"
 import { useDirectstreamConvertSubs } from "@/api/hooks/directstream.hooks"
 import { useCancelDiscordActivity } from "@/api/hooks/discord.hooks"
 import { useNakamaWatchParty } from "@/app/(main)/_features/nakama/nakama-manager"
 import { nativePlayer_initialState, nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
-import { type NormalizedSkipData } from "@/app/(main)/_features/video-core/_lib/aniskip.utils"
+import { AniSkipTime } from "@/app/(main)/_features/video-core/_lib/aniskip"
 import { vc_anime4kOption, VideoCoreAnime4K } from "@/app/(main)/_features/video-core/video-core-anime-4k"
 import { Anime4KOption, VideoCoreAnime4KManager } from "@/app/(main)/_features/video-core/video-core-anime-4k-manager"
 import { vc_menuOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -15,6 +15,7 @@ import { vc_activePlayerId } from "@/app/(main)/_features/video-core/video-core-
 import { vc_isMobile } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_isSwiping } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_swipeSeekTime } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_requestTranscodeForAudio } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoSize } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_realVideoSize } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_duration } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -41,15 +42,18 @@ import { vc_previousPausedState } from "@/app/(main)/_features/video-core/video-
 import { vc_lastKnownProgress } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_skipOpeningTime } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_skipEndingTime } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_directPlayAudioElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { VideoCoreAudioManager } from "@/app/(main)/_features/video-core/video-core-audio"
 import { VideoCoreAudioMenu } from "@/app/(main)/_features/video-core/video-core-audio-menu"
-import { CastPlaybackControls, useCastSubtitleRelay, vc_isCasting, VideoCoreCastButton } from "@/app/(main)/_features/video-core/video-core-cast"
 import {
+    VideoCoreBookmarkButton,
     VideoCoreControlBar,
     VideoCoreFullscreenButton,
     VideoCoreMobileControlBar,
     VideoCorePipButton,
     VideoCorePlayButton,
+    VideoCorePromptStartWatching,
     VideoCoreTimestamp,
     VideoCoreVolumeButton,
 } from "@/app/(main)/_features/video-core/video-core-control-bar"
@@ -87,6 +91,7 @@ import {
 import { VideoCoreKeybindingController, VideoCorePreferencesModal } from "@/app/(main)/_features/video-core/video-core-preferences"
 import { VideoCorePreviewManager } from "@/app/(main)/_features/video-core/video-core-preview"
 import { VideoCoreResolutionMenu } from "@/app/(main)/_features/video-core/video-core-resolution-menu"
+import { VideoCoreResumePrompt } from "@/app/(main)/_features/video-core/video-core-resume-prompt"
 import { VideoCoreSettingsMenu } from "@/app/(main)/_features/video-core/video-core-settings-menu"
 import { VideoCoreStatsForNerds } from "@/app/(main)/_features/video-core/video-core-stats"
 import { VideoCoreSubtitleMenu } from "@/app/(main)/_features/video-core/video-core-subtitle-menu"
@@ -94,16 +99,19 @@ import { VideoCoreSubtitleManager } from "@/app/(main)/_features/video-core/vide
 import { vc_timeRangeElement, VideoCoreTimeRange } from "@/app/(main)/_features/video-core/video-core-time-range"
 import { VideoCoreTopPlaybackInfo, VideoCoreTopSection } from "@/app/(main)/_features/video-core/video-core-top-section"
 import { VideoCoreWatchPartyChat } from "@/app/(main)/_features/video-core/video-core-watch-party-chat"
+import { useTrackPreferenceSync } from "@/app/(main)/_features/video-core/video-core-track-sync"
 import {
     vc_autoNextAtom,
     vc_autoPlayVideoAtom,
-    vc_autoSkipOPEDAtom,
     vc_beautifyImageAtom,
+    vc_perMediaTrackOverrides,
+    vc_resumePrompt,
     vc_settings,
     vc_showStatsForNerdsAtom,
     vc_storedMutedAtom,
     vc_storedPlaybackRateAtom,
     vc_storedVolumeAtom,
+    vc_watchContinuityAtom,
     VideoCore_VideoPlaybackInfo,
     VideoCore_VideoSource,
     VideoCore_VideoSubtitleTrack,
@@ -123,22 +131,19 @@ import {
     __torrentSearch_selectionEpisodeAtom,
 } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-drawer"
 import { TorrentStreamOverlay } from "@/app/(main)/entry/_containers/torrent-stream/torrent-stream-overlay"
-import { GradientBackground } from "@/components/shared/gradient-background"
+import { SeanimeGradientBackground } from "@/components/shared/gradient-background"
 import { LuffyError } from "@/components/shared/luffy-error"
 import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { Modal } from "@/components/ui/modal"
-import { useDisclosure } from "@/hooks/use-disclosure"
 import { logger } from "@/lib/helpers/debug"
-import { __isDesktop__, __isElectronDesktop__ } from "@/types/constants"
+import { __isDesktop__ } from "@/types/constants"
 import { useQueryClient } from "@tanstack/react-query"
 import { ErrorData } from "hls.js"
 import { atom } from "jotai"
 import { ScopeProvider } from "jotai-scope"
-import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
+import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai/react"
 import React, { useMemo, useRef, useState } from "react"
-import { flushSync } from "react-dom"
 import { BiExpand, BiX } from "react-icons/bi"
 import { FiMinimize2 } from "react-icons/fi"
 import { ImSpinner2 } from "react-icons/im"
@@ -150,47 +155,7 @@ const log = logger("VIDEO CORE")
 
 export const VIDEOCORE_DEBUG_ELEMENTS = false
 
-const DELAY_BEFORE_NOT_BUSY = 1_000 //ms
-
-type ViewTransitionDocument = Document & {
-    startViewTransition?: (callback: () => void) => {
-        finished: Promise<void>
-    }
-}
-
-export function startVideoCoreMiniPlayerTransition(update: () => void) {
-    if (typeof document === "undefined" || typeof window === "undefined") {
-        update()
-        return
-    }
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        update()
-        return
-    }
-
-    const documentWithViewTransition = document as ViewTransitionDocument
-    if (!documentWithViewTransition.startViewTransition) {
-        update()
-        return
-    }
-
-    document.documentElement.setAttribute("data-vc-miniplayer-view-transition", "")
-
-    try {
-        const transition = documentWithViewTransition.startViewTransition(() => {
-            flushSync(update)
-        })
-
-        void transition.finished.finally(() => {
-            document.documentElement.removeAttribute("data-vc-miniplayer-view-transition")
-        }).catch(() => { })
-    }
-    catch {
-        document.documentElement.removeAttribute("data-vc-miniplayer-view-transition")
-        update()
-    }
-}
+const DELAY_BEFORE_NOT_BUSY = 2_000 //ms — hide cursor after 2 s of no movement
 
 export const vc_subtitleManager = atom<VideoCoreSubtitleManager | null>(null)
 export const vc_mediaCaptionsManager = atom<MediaCaptionsManager | null>(null)
@@ -230,7 +195,7 @@ export function VideoCoreProvider(props: { id: string, children: React.ReactNode
                 vc_isMuted,
                 vc_volume,
                 vc_subtitleDelay,
-                // vc_isFullscreen, expose this
+                vc_isFullscreen,
                 vc_seeking,
                 vc_seekingTargetProgress,
                 vc_timeRanges,
@@ -253,6 +218,7 @@ export function VideoCoreProvider(props: { id: string, children: React.ReactNode
                 vc_lastKnownProgress,
                 vc_skipOpeningTime,
                 vc_skipEndingTime,
+                vc_playbackInfo,
                 vc_dispatchAction,
                 vc_hoveringControlBar,
                 vc_menuOpen,
@@ -271,6 +237,8 @@ export function VideoCoreProvider(props: { id: string, children: React.ReactNode
                 vc_isSwiping,
                 vc_isMobile,
                 vc_swipeSeekTime,
+                vc_requestTranscodeForAudio,
+                vc_resumePrompt,
             ]}
         >
             {children}
@@ -347,9 +315,20 @@ const PlayerContent = React.memo<PlayerContentProps>(({
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
     const busy = useAtomValue(vc_busy)
     const paused = useAtomValue(vc_paused)
+    const cursorPos = useAtomValue(vc_cursorPosition)
+    const [ripple, setRipple] = useState<{ x: number; y: number; key: number } | null>(null)
+    const rippleKeyRef = useRef(0)
+    const prevBusyRef = useRef(busy)
+    React.useEffect(() => {
+        if (prevBusyRef.current === true && busy === false && !isMiniPlayer && !isMobile) {
+            setRipple({ x: cursorPos.x, y: cursorPos.y, key: ++rippleKeyRef.current })
+        }
+        prevBusyRef.current = busy
+    }, [busy])
     const buffering = useAtomValue(vc_buffering)
     const settings = useAtomValue(vc_settings)
     const beautifyImage = useAtomValue(vc_beautifyImageAtom)
+    const vcWatchContinuity = useAtomValue(vc_watchContinuityAtom)
     const isPip = useAtomValue(vc_pip)
     const skipOpeningTime = useAtomValue(vc_skipOpeningTime)
     const skipEndingTime = useAtomValue(vc_skipEndingTime)
@@ -358,10 +337,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
     const [autoPlay] = useAtom(vc_autoPlayVideoAtom)
     const [muted] = useAtom(vc_storedMutedAtom)
     const showStats = useAtomValue(vc_showStatsForNerdsAtom)
-    const isCastingActive = useAtomValue(vc_isCasting)
-
-    // Relay subtitles to Chromecast when casting
-    useCastSubtitleRelay()
+    const fullscreen = useAtomValue(vc_isFullscreen)
 
     return (
         <>
@@ -399,10 +375,40 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                     "relative w-full h-full bg-black overflow-clip flex items-center justify-center",
                     (!busy && !isMiniPlayer) && "cursor-none",
                 )}
+                data-cursor={(!busy && !isMiniPlayer) ? "hidden" : undefined}
+                style={(!busy && !isMiniPlayer) ? ({ cursor: "none" } as React.CSSProperties) : undefined}
                 onPointerMove={handleContainerPointerMove}
                 onMouseEnter={handleContainerMouseEnter}
                 onMouseLeave={handleContainerMouseLeave}
             >
+                {ripple && (
+                    <span
+                        key={ripple.key}
+                        onAnimationEnd={() => setRipple(null)}
+                        className="pointer-events-none absolute rounded-full border border-white/20 animate-[vc-cursor-ripple_0.5s_ease-out_forwards]"
+                        style={{
+                            left: ripple.x,
+                            top: ripple.y,
+                            width: 1,
+                            height: 1,
+                            transform: "translate(-50%, -50%)",
+                        }}
+                    />
+                )}
+                {state.playbackInfo?.media?.coverImage?.extraLarge && !fullscreen && (
+                    <div
+                        data-vc-element="background-blur"
+                        className="absolute inset-0 z-[0] overflow-hidden pointer-events-none"
+                        aria-hidden
+                    >
+                        <img
+                            src={state.playbackInfo.media.coverImage.extraLarge}
+                            className="absolute inset-0 w-full h-full object-cover blur-3xl scale-110 opacity-20"
+                            alt=""
+                        />
+                        <div className="absolute inset-0 bg-black/50" />
+                    </div>
+                )}
                 {(!!state.playbackInfo?.streamUrl && !state.loadingState) ? (
                     <>
                         <VideoCoreKeybindingController
@@ -434,6 +440,8 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 </div>
                             </div>
                         )}
+
+                        <VideoCoreResumePrompt videoRef={videoRef} />
 
                         {busy && (
                             <>
@@ -570,15 +578,6 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                             </div>
                         )}
 
-                        {isCastingActive && (
-                            <div
-                                data-vc-element="cast-overlay"
-                                className="absolute bottom-20 left-4 right-4 z-[60]"
-                            >
-                                <CastPlaybackControls />
-                            </div>
-                        )}
-
                         {!isMobile ? <VideoCoreControlBar
                             timeRange={<VideoCoreTimeRange chapterCues={chapterCues ?? []} />}
                         >
@@ -593,7 +592,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                             <VideoCoreResolutionMenu state={state} onVideoSourceChange={onVideoSourceChange} />
                             <VideoCoreSubtitleMenu inline={inline} />
                             <VideoCoreAudioMenu />
-                            <VideoCoreCastButton />
+                            <VideoCoreBookmarkButton />
                             <VideoCorePipButton />
                             <VideoCoreFullscreenButton />
                         </VideoCoreControlBar> : <VideoCoreMobileControlBar
@@ -606,7 +605,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 <VideoCoreResolutionMenu state={state} onVideoSourceChange={onVideoSourceChange} />
                                 <VideoCoreSubtitleMenu inline={inline} />
                                 <VideoCoreAudioMenu />
-                                <VideoCoreCastButton />
+                                <VideoCoreBookmarkButton />
                                 <VideoCorePipButton />
                                 <VideoCoreVolumeButton />
                             </>}
@@ -617,26 +616,15 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 <VideoCoreTimestamp />
                             </>}
                         />}
+                        <VideoCorePromptStartWatching />
                     </>
                 ) : (
-                    <div
-                        data-vc-element="loading-overlay"
-                        className="w-full h-full absolute flex justify-center items-center flex-col space-y-4 bg-black rounded-md"
-                    >
-                        {!inline && <FloatingButtons part="loading" onTerminateStream={onTerminateStream} />}
-                        {state.loadingState && (
-                            <LoadingSpinner
-                                title={state.loadingState || "Loading..."}
-                                spinner={<ImSpinner2 className="size-20 text-white animate-spin" />}
-                                containerClass="z-[1]"
-                            />
-                        )}
-                        {!isMiniPlayer && !inline && (
-                            <div className="opacity-50 absolute inset-0 z-[0] overflow-hidden" data-vc-element="loading-overlay-gradient">
-                                <GradientBackground duration={10} breathingRange={5} />
-                            </div>
-                        )}
-                    </div>
+                    <LoadingOverlay
+                        inline={inline}
+                        loadingState={state.loadingState}
+                        isMiniPlayer={isMiniPlayer}
+                        onTerminateStream={onTerminateStream}
+                    />
                 )}
             </div>
         </>
@@ -645,12 +633,70 @@ const PlayerContent = React.memo<PlayerContentProps>(({
 
 PlayerContent.displayName = "PlayerContent"
 
-const PLAYBACK_STALL_TIMEOUT_MS = 12_000
+function LoadingOverlay({
+    inline,
+    loadingState,
+    isMiniPlayer,
+    onTerminateStream,
+}: {
+    inline?: boolean
+    loadingState: string | null
+    isMiniPlayer: boolean
+    onTerminateStream: () => void
+}) {
+    React.useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                onTerminateStream()
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(() => {})
+                }
+            }
+        }
+        window.addEventListener("keydown", handler)
+        return () => window.removeEventListener("keydown", handler)
+    }, [onTerminateStream])
+
+    return (
+        <div
+            data-vc-element="loading-overlay"
+            className="w-full h-full absolute flex justify-center items-center flex-col space-y-4 bg-black rounded-md"
+        >
+            {!inline && <FloatingButtons part="loading" onTerminateStream={onTerminateStream} />}
+            {loadingState && (
+                <LoadingSpinner
+                    title={loadingState}
+                    spinner={<ImSpinner2 className="size-20 text-white animate-spin" />}
+                    containerClass="z-[1]"
+                />
+            )}
+            <button
+                className="z-[2] mt-2 px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors border border-white/20"
+                onClick={() => {
+                    onTerminateStream()
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen().catch(() => {})
+                    }
+                }}
+            >
+                Cancel (Esc)
+            </button>
+            {!isMiniPlayer && !inline && (
+                <div className="opacity-50 absolute inset-0 z-[0] overflow-hidden" data-vc-element="loading-overlay-gradient">
+                    <SeanimeGradientBackground />
+                </div>
+            )}
+        </div>
+    )
+}
 
 export interface VideoCoreProps {
     id: string
     state: VideoCoreLifecycleState
-    aniSkipData?: NormalizedSkipData | undefined
+    aniSkipData?: {
+        op: AniSkipTime | null
+        ed: AniSkipTime | null
+    } | undefined
     onTerminateStream: () => void
     onEnded?: () => void
     onCompleted?: () => void
@@ -664,7 +710,6 @@ export interface VideoCoreProps {
     onSeeking?: () => void
     onSeeked?: (time: number) => void
     onError?: (error: string) => void
-    onStalled?: (reason: string) => void
     onPlaybackRateChange?: () => void
     // onFileUploaded: (data: { name: string, content: string }) => void
     onVideoSourceChange?: ((source: VideoCore_VideoSource) => void) | undefined
@@ -694,7 +739,6 @@ export function VideoCore(props: VideoCoreProps) {
         onSeeking,
         onSeeked,
         onError,
-        onStalled,
         onPlaybackRateChange,
         // onFileUploaded,
         inline = false,
@@ -720,10 +764,6 @@ export function VideoCore(props: VideoCoreProps) {
 
     const videoRef = useRef<HTMLVideoElement | null>(null)
     const containerRef = useRef<HTMLDivElement | null>(null)
-    const [pluginSkipDataOverride, setPluginSkipDataOverride] = useState<NormalizedSkipData | undefined>(undefined)
-    const resolvedSkipData = useMemo(() => pluginSkipDataOverride ?? aniSkipData, [pluginSkipDataOverride, aniSkipData])
-    const currentSkipDataRef = useRef<NormalizedSkipData | undefined>(resolvedSkipData)
-    currentSkipDataRef.current = resolvedSkipData
 
     const {
         dispatchTerminatedEvent,
@@ -733,24 +773,33 @@ export function VideoCore(props: VideoCoreProps) {
         dispatchCanPlayEvent,
         dispatchTranslateTextEvent,
         dispatchTranslateSubtitleTrackEvent,
-    } = useVideoCoreSetupEvents(props.id, state, onTerminateStream, setPluginSkipDataOverride, currentSkipDataRef)
+    } = useVideoCoreSetupEvents(props.id, state, videoRef, onTerminateStream)
+
+    // Sync per-media track preferences with server
+    useTrackPreferenceSync()
 
     const { width: windowWidth } = useWindowSize()
     const [isMobilePlayer, setIsMobilePlayer] = useAtom(vc_isMobile)
     React.useEffect(() => {
         setIsMobilePlayer(windowWidth < 1024)
     }, [windowWidth < 1024])
+    const vcWatchContinuity = useAtomValue(vc_watchContinuityAtom)
 
-    const [videoElement, setVideoElement] = useAtom(vc_videoElement)
+    const setVideoElement = useSetAtom(vc_videoElement)
     const setRealVideoSize = useSetAtom(vc_realVideoSize)
-    useVideoCoreBindings(videoElement, state.playbackInfo)
+    useVideoCoreBindings(videoRef, state.playbackInfo)
     useVideoCorePlaylistSetup(state, onPlayEpisode)
+
+    // Sync playbackInfo to scoped atom so menus (audio/subtitle) can read it in all playback modes
+    const setPlaybackInfo = useSetAtom(vc_playbackInfo)
+    React.useEffect(() => {
+        setPlaybackInfo(state.playbackInfo ?? null)
+    }, [state.playbackInfo])
 
     const { isParticipant: isWatchPartyParticipant } = useNakamaWatchParty()
 
     const videoCompletedRef = useRef(false)
     const currentPlaybackRef = useRef<string | null>(null)
-    const stalledPlaybackRef = useRef<string | null>(null)
 
     const [, setContainerElement] = useAtom(vc_containerElement)
 
@@ -771,6 +820,8 @@ export function VideoCore(props: VideoCoreProps) {
     // States
     const qc = useQueryClient()
     const settings = useAtomValue(vc_settings)
+    const perMediaTrackOverrides = useAtomValue(vc_perMediaTrackOverrides)
+    const jotaiStore = useStore()
     const [isMiniPlayer, setIsMiniPlayer] = useAtom(vc_miniPlayer)
     const [busy, setBusy] = useAtom(vc_busy)
     const [buffering, setBuffering] = useAtom(vc_buffering)
@@ -778,95 +829,29 @@ export function VideoCore(props: VideoCoreProps) {
     const fullscreen = useAtomValue(vc_isFullscreen)
     const showOverlayFeedback = useSetAtom(vc_showOverlayFeedback)
     const cursorBusy = useAtomValue(vc_cursorBusy)
+    const setCursorPosition = useSetAtom(vc_cursorPosition)
 
     const [skipOpeningTime, setSkipOpeningTime] = useAtom(vc_skipOpeningTime)
     const [skipEndingTime, setSkipEndingTime] = useAtom(vc_skipEndingTime)
 
     const [autoNext] = useAtom(vc_autoNextAtom)
     const [autoPlay] = useAtom(vc_autoPlayVideoAtom)
-    const [autoSkipOpeningOutro] = useAtom(vc_autoSkipOPEDAtom)
     const [volume] = useAtom(vc_storedVolumeAtom)
     const [muted] = useAtom(vc_storedMutedAtom)
     const [playbackRate, setPlaybackRate] = useAtom(vc_storedPlaybackRateAtom)
+    const directPlayAudioEl = useAtomValue(vc_directPlayAudioElement)
 
     const { mutate: cancelDiscordActivity } = useCancelDiscordActivity()
 
     const { mutate: convertSubs } = useDirectstreamConvertSubs()
 
     const isFirstError = React.useRef(true)
+    const requestTranscodeForAudio = useAtomValue(vc_requestTranscodeForAudio)
     const shouldDispatchTerminatedOnUnmount = React.useRef(false)
     const [activePlayer, setActivePlayer] = useAtom(vc_activePlayerId)
-    const pendingMiniPlayerTransitionRef = React.useRef(false)
-    const {
-        isOpen: isTerminateConfirmOpen,
-        open: openTerminateConfirm,
-        close: closeTerminateConfirm,
-    } = useDisclosure(false)
-
-    const startMiniPlayerTransition = React.useCallback(() => {
-        startVideoCoreMiniPlayerTransition(() => {
-            setIsMiniPlayer(true)
-        })
-    }, [setIsMiniPlayer])
-
-    const enterMiniPlayer = React.useCallback(() => {
-        if (isMiniPlayer) return
-
-        if (fullscreen) {
-            if (!fullscreenManager) {
-                startMiniPlayerTransition()
-                return
-            }
-
-            pendingMiniPlayerTransitionRef.current = true
-            fullscreenManager.exitFullscreen()
-            return
-        }
-
-        startMiniPlayerTransition()
-    }, [fullscreen, fullscreenManager, isMiniPlayer, startMiniPlayerTransition])
 
     React.useEffect(() => {
         setIsMiniPlayer(false)
-    }, [])
-
-    React.useLayoutEffect(() => {
-        if (!pendingMiniPlayerTransitionRef.current || fullscreen) return
-
-        pendingMiniPlayerTransitionRef.current = false
-        const frame = window.requestAnimationFrame(startMiniPlayerTransition)
-
-        return () => {
-            window.cancelAnimationFrame(frame)
-        }
-    }, [fullscreen, startMiniPlayerTransition])
-
-    React.useEffect(() => {
-        setPluginSkipDataOverride(undefined)
-    }, [state.playbackInfo?.id])
-
-    useUpdateEffect(() => {
-        if ((!isMiniPlayer || !state.active) && isTerminateConfirmOpen) {
-            closeTerminateConfirm()
-        }
-    }, [isMiniPlayer, state.active, isTerminateConfirmOpen, closeTerminateConfirm])
-
-    React.useEffect(() => {
-        if (!__isElectronDesktop__ || !window.electron?.on) return
-
-        const pausePlayback = () => {
-            if (videoRef.current && !videoRef.current.paused && !videoRef.current.ended) {
-                videoRef.current.pause()
-            }
-        }
-
-        const removeMinimizedListener = window.electron.on("window:minimized", pausePlayback)
-        const removeHiddenListener = window.electron.on("window:hidden", pausePlayback)
-
-        return () => {
-            removeMinimizedListener?.()
-            removeHiddenListener?.()
-        }
     }, [])
 
     // Track if this player should dispatch terminated event on unmount
@@ -880,10 +865,12 @@ export function VideoCore(props: VideoCoreProps) {
             dispatchTerminatedEvent()
             setActivePlayer(null)
         }
+        // Destroy fullscreen manager on true unmount
+        fullscreenManager?.destroy?.()
+        setFullscreenManager(null)
     })
 
     function onTerminateStream() {
-        closeTerminateConfirm()
         _onTerminateStream?.()
         dispatchTerminatedEvent()
     }
@@ -935,7 +922,7 @@ export function VideoCore(props: VideoCoreProps) {
     }, [state.active, state.playbackInfo?.id])
 
     // Merge refs
-    const combineRef = React.useCallback((instance: HTMLVideoElement | null) => {
+    const combineRef = (instance: HTMLVideoElement | null) => {
         videoRef.current = instance
         if (mRef) {
             mRef.current = instance
@@ -949,12 +936,12 @@ export function VideoCore(props: VideoCoreProps) {
         }
         videoResizeTargetRef.current = instance
         setVideoElement(instance)
-    }, [mRef, setVideoElement])
+    }
 
-    const combineContainerRef = React.useCallback((instance: HTMLDivElement | null) => {
+    const combineContainerRef = (instance: HTMLDivElement | null) => {
         containerRef.current = instance
         setContainerElement(instance)
-    }, [setContainerElement])
+    }
 
     // actions
     function togglePlay() {
@@ -971,17 +958,31 @@ export function VideoCore(props: VideoCoreProps) {
 
     function onAudioChange() {
         log.info("Audio changed", videoRef.current?.audioTracks)
-        audioManager?.syncSelectedTrack()
+        if (videoRef.current?.audioTracks) {
+            for (let i = 0; i < videoRef.current.audioTracks.length; i++) {
+                const track = videoRef.current.audioTracks[i]
+                if (track.enabled) {
+                    audioManager?.selectTrack(Number(track.id))
+                    break
+                }
+            }
+        }
         action({ type: "seek", payload: { time: -1 } })
     }
 
     // Continuity
+    const currentEpisodeNumber = state?.playbackInfo?.episode?.progressNumber
     const {
         watchHistory,
         waitForWatchHistory,
         shouldWaitForWatchHistory,
         getEpisodeContinuitySeekTo,
-    } = useHandleCurrentMediaContinuity(state?.playbackInfo?.media?.id)
+    } = useHandleCurrentMediaContinuity(state?.playbackInfo?.media?.id, vcWatchContinuity, currentEpisodeNumber)
+
+    // Periodic watch history saving (for VideoCore-based playback: native player, direct play)
+    const { mutate: updateWatchHistoryContinuity } = useUpdateContinuityWatchHistoryItem()
+    const watchHistorySaveCountRef = React.useRef(0)
+    const setResumePrompt = useSetAtom(vc_resumePrompt)
 
     React.useEffect(() => {
         if (watchHistory) {
@@ -1003,6 +1004,8 @@ export function VideoCore(props: VideoCoreProps) {
             cancelDiscordActivity()
             hasSoughtRef.current = false
             isFirstError.current = true
+            setResumePrompt(null)
+            watchHistorySaveCountRef.current = 0
             if (videoRef.current) {
                 videoRef.current.pause()
                 videoRef.current.removeAttribute("src")
@@ -1022,8 +1025,12 @@ export function VideoCore(props: VideoCoreProps) {
             pipManager?.destroy?.()
             setPipManager(null)
             setPipElement(null)
-            fullscreenManager?.destroy?.()
-            setFullscreenManager(null)
+            // Don't destroy fullscreen manager during episode transitions
+            // so fullscreen state is preserved across loading states
+            if (fullscreenManager) {
+                fullscreenManager.beginTransition(fullscreen)
+                // fullscreenManager.setVideoElement(null) � do NOT detach during fullscreen; HLS pipeline must stay connected
+            }
             setInSightOpen(false)
             setInSightData(null)
             // setIsFullscreen(false)
@@ -1064,29 +1071,17 @@ export function VideoCore(props: VideoCoreProps) {
         streamUrl: streamUrl,
         streamType: streamType,
         onMediaDetached: onHlsMediaDetached,
-        onFatalError: onHlsFatalError,
-        onStalled: err => onStalled?.(`HLS stalled: ${err.error?.message || err.details}`),
+        onFatalError: (error) => {
+            // Exit fullscreen so the user isn't stuck on a black screen after an HLS error
+            if (fullscreenManager) {
+                fullscreenManager.exitFullscreen().catch(() => {})
+            } else if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {})
+            }
+            setIsFullscreen(false)
+            onHlsFatalError?.(error)
+        },
     })
-
-    React.useEffect(() => {
-        if (!state.playbackInfo?.id || !streamUrl || !buffering) return
-        if (!videoRef.current || videoRef.current.paused) return
-
-        const playbackId = state.playbackInfo.id
-        const startedAt = videoRef.current.currentTime
-        const timeout = window.setTimeout(() => {
-            const video = videoRef.current
-            if (!video || video.paused || video.readyState >= 3) return
-            if (Math.abs(video.currentTime - startedAt) >= 0.5) return
-
-            const stallKey = `${playbackId}:${startedAt.toFixed(1)}`
-            if (stalledPlaybackRef.current === stallKey) return
-            stalledPlaybackRef.current = stallKey
-            onStalled?.("Playback stalled while buffering")
-        }, PLAYBACK_STALL_TIMEOUT_MS)
-
-        return () => window.clearTimeout(timeout)
-    }, [state.playbackInfo?.id, streamUrl, buffering, onStalled])
 
     const [anime4kOption, setAnime4kOption] = useAtom(vc_anime4kOption)
 
@@ -1115,6 +1110,24 @@ export function VideoCore(props: VideoCoreProps) {
 
         if (!state.playbackInfo) return // shouldn't happen
 
+        // Build effective settings with per-media track overrides
+        // Read imperatively from the Jotai store to always get the absolute latest value,
+        // bypassing React batching / closure staleness that can occur at loadedmetadata time
+        const mediaId = state.playbackInfo.media?.id
+        const latestOverrides = jotaiStore.get(vc_perMediaTrackOverrides)
+        const perMediaOverride = mediaId ? latestOverrides[String(mediaId)] : undefined
+        // A valid subtitle language override is either "none" or a short language code (no spaces, ≤20 chars).
+        // Labels like "Songs & Signs" are invalid overrides — skip them and fall back to the user's default.
+        const isValidSubtitleOverride = (lang?: string) =>
+            !!lang && (lang === "none" || (lang.length <= 20 && !lang.includes(" ")))
+        const effectiveSettings = perMediaOverride ? {
+            ...settings,
+            preferredAudioLanguage: perMediaOverride.audioLanguage || settings.preferredAudioLanguage,
+            preferredSubtitleLanguage: isValidSubtitleOverride(perMediaOverride.subtitleLanguage)
+                ? perMediaOverride.subtitleLanguage!
+                : settings.preferredSubtitleLanguage,
+        } : settings
+
         // setHasUpdatedProgress(false)
 
         currentPlaybackRef.current = state.playbackInfo.id
@@ -1133,10 +1146,6 @@ export function VideoCore(props: VideoCoreProps) {
          */
         const nonLibassSubtitleTracks = state.playbackInfo?.subtitleTracks?.filter(t => !t.useLibassRenderer)
         if (nonLibassSubtitleTracks && nonLibassSubtitleTracks.length > 0) {
-            setSubtitleManager(p => {
-                if (p) p.destroy()
-                return null
-            })
             setMediaCaptionsManager(p => {
                 if (p) p.destroy()
                 return new MediaCaptionsManager({
@@ -1145,7 +1154,7 @@ export function VideoCore(props: VideoCoreProps) {
                     translateTargetLang: serverStatus?.settings?.mediaPlayer?.vcTranslate
                         ? serverStatus?.settings?.mediaPlayer?.vcTranslateTargetLanguage
                         : null,
-                    settings: settings,
+                    settings: effectiveSettings,
                     fetchAndConvertToVTT: (url?: string, content?: string) => {
                         return new Promise((resolve, reject) => {
                             convertSubs({ url: url ?? "", content: content ?? "", to: "vtt" }, {
@@ -1162,13 +1171,11 @@ export function VideoCore(props: VideoCoreProps) {
                             dispatchTranslateSubtitleTrackEvent(track)
                         }
                     },
+                    subtitleCodecOverride: perMediaOverride?.subtitleCodecID,
+                    subtitleLabelOverride: perMediaOverride?.subtitleLabel,
                 })
             })
         } else {
-            setMediaCaptionsManager(p => {
-                if (p) p.destroy()
-                return null
-            })
             setSubtitleManager(p => {
                 if (p) p.destroy()
                 return new VideoCoreSubtitleManager({
@@ -1179,7 +1186,9 @@ export function VideoCore(props: VideoCoreProps) {
                     translateTargetLang: serverStatus?.settings?.mediaPlayer?.vcTranslate
                         ? serverStatus?.settings?.mediaPlayer?.vcTranslateTargetLanguage
                         : null,
-                    settings: settings,
+                    settings: effectiveSettings,
+                    subtitleCodecOverride: perMediaOverride?.subtitleCodecID,
+                    subtitleLabelOverride: perMediaOverride?.subtitleLabel,
                     fetchAndConvertToASS: (url?: string, content?: string) => {
                         return new Promise((resolve, reject) => {
                             convertSubs({ url: url ?? "", content: content ?? "", to: "ass" }, {
@@ -1201,29 +1210,60 @@ export function VideoCore(props: VideoCoreProps) {
         }
 
         // Initialize audio manager for HLS streams
+        // Only create a new audio manager if one doesn't already exist for HLS
+        // (quality/audio switches in HLS.js can re-fire loadedmetadata, which would
+        // otherwise recreate the manager and override the user's track selection)
         if (hlsAudioTracks.length > 0 && hlsSetAudioTrack) {
-            setAudioManager(new VideoCoreAudioManager({
-                videoElement: v!,
-                playbackInfo: state.playbackInfo,
-                settings: settings,
-                onError: (error) => {
-                    log.error("Audio manager error", error)
-                    onError?.(error)
-                },
-                hlsSetAudioTrack: hlsSetAudioTrack,
-                hlsAudioTracks: hlsAudioTracks,
-                hlsCurrentAudioTrack: hlsCurrentAudioTrack,
-            }))
+            if (!audioManager || !audioManager.isHLS) {
+                setAudioManager(new VideoCoreAudioManager({
+                    videoElement: v!,
+                    playbackInfo: state.playbackInfo,
+                    settings: effectiveSettings,
+                    onError: (error) => {
+                        log.error("Audio manager error", error)
+                        onError?.(error)
+                    },
+                    hlsSetAudioTrack: hlsSetAudioTrack,
+                    hlsAudioTracks: hlsAudioTracks,
+                    hlsCurrentAudioTrack: hlsCurrentAudioTrack,
+                    audioCodecOverride: perMediaOverride?.audioCodecID,
+                }))
+            }
         } else if (!!state.playbackInfo?.mkvMetadata) {
             setAudioManager(new VideoCoreAudioManager({
                 videoElement: v!,
                 playbackInfo: state.playbackInfo,
-                settings: settings,
+                settings: effectiveSettings,
                 onError: (error) => {
                     log.error("Audio manager error", error)
                     onError?.(error)
                 },
+                audioCodecOverride: perMediaOverride?.audioCodecID,
             }))
+
+            // Auto-trigger FFmpeg audio extraction for per-series overrides (direct play only).
+            // The browser audioTracks API is unreliable, so if the override resolves to a non-first
+            // audio track, trigger server-side extraction to guarantee the right track plays.
+            if (perMediaOverride?.audioLanguage && requestTranscodeForAudio) {
+                const audioTracks = state.playbackInfo.mkvMetadata?.audioTracks
+                if (audioTracks && audioTracks.length > 1) {
+                    let matchIdx = -1
+                    if (perMediaOverride.audioCodecID) {
+                        matchIdx = audioTracks.findIndex(t =>
+                            t.language === perMediaOverride.audioLanguage &&
+                            t.codecID === perMediaOverride.audioCodecID
+                        )
+                    }
+                    if (matchIdx < 0) {
+                        matchIdx = audioTracks.findIndex(t => t.language === perMediaOverride.audioLanguage)
+                    }
+                    // Only trigger if the matched track is not the first (default) one
+                    if (matchIdx > 0) {
+                        log.info("Auto-triggering FFmpeg audio extraction for per-series override, track index", matchIdx)
+                        requestTranscodeForAudio(matchIdx)
+                    }
+                }
+            }
         }
 
         // Initialize Anime4K manager
@@ -1251,9 +1291,13 @@ export function VideoCore(props: VideoCoreProps) {
             return manager
         })
 
-        // Initialize fullscreen manager
+        // Initialize fullscreen manager (reuse existing to preserve fullscreen state)
         setFullscreenManager(p => {
-            if (p) p.destroy()
+            if (p) {
+                // Reuse existing manager, just update the container
+                p.setContainer(containerRef.current!)
+                return p
+            }
             return new VideoCoreFullscreenManager((isFullscreen: boolean) => {
                 setIsFullscreen(isFullscreen)
                 onFullscreenChange?.(isFullscreen)
@@ -1317,25 +1361,57 @@ export function VideoCore(props: VideoCoreProps) {
         if (!videoRef.current) return
         const v = videoRef.current
 
-        // Video completed event
-        const percent = v.currentTime / v.duration
-        if (!!v.duration && !videoCompletedRef.current && percent >= 0.8) {
-            videoCompletedRef.current = true
-            onCompleted?.()
-            dispatchVideoCompletedEvent()
+        // Video completed event (episode considered watched at ~75%).
+        // This is evaluated against the absolute playback position (currentTime),
+        // so any number of pause/play/seek cycles still trigger completion as soon
+        // as <=25% of the episode duration is left. videoCompletedRef ensures we
+        // only fire once per episode load (it is reset in `loadedmetadata`).
+        if (!!v.duration && !videoCompletedRef.current) {
+            const timeLeft = v.duration - v.currentTime
+            if (timeLeft <= v.duration * 0.25) {
+                videoCompletedRef.current = true
+                onCompleted?.()
+                dispatchVideoCompletedEvent()
+                // Also fire a window CustomEvent so other client components (e.g. the
+                // "move from Planning/Paused → Currently Watching" prompt) can react.
+                if (typeof window !== "undefined") {
+                    window.dispatchEvent(new CustomEvent("video-core:episode-completed", {
+                        detail: {
+                            mediaId: state?.playbackInfo?.media?.id,
+                            episodeNumber: state?.playbackInfo?.episode?.progressNumber,
+                            totalEpisodes: state?.playbackInfo?.media?.episodes ?? 0,
+                            title: state?.playbackInfo?.media?.title?.userPreferred
+                                || state?.playbackInfo?.media?.title?.romaji
+                                || state?.playbackInfo?.media?.title?.english
+                                || "this anime",
+                        },
+                    }))
+                }
+            }
+        }
+
+        // Periodic watch history saving (covers VideoCore-based playback: native player, direct play)
+        watchHistorySaveCountRef.current++
+        if (watchHistorySaveCountRef.current >= 2000 && v.currentTime && v.duration && state?.playbackInfo?.media?.id) {
+            watchHistorySaveCountRef.current = 0
+            updateWatchHistoryContinuity({
+                options: {
+                    currentTime: v.currentTime,
+                    duration: v.duration,
+                    mediaId: Number(state.playbackInfo.media.id),
+                    episodeNumber: currentEpisodeNumber ?? 0,
+                    kind: "mediastream",
+                },
+            })
         }
     }
 
-    const { playEpisode, isGlobalPlaylistActive } = useVideoCorePlaylist()
+    const { playEpisode } = useVideoCorePlaylist()
     const handleEnded = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         log.info("Video ended")
         subtitleManager?.pgsRenderer?.stop()
         onEnded?.()
         if (autoNext && !isWatchPartyParticipant) {
-            if (props.id === "native-player" && isGlobalPlaylistActive) {
-                log.info("Skipping frontend auto next for native global playlist")
-                return
-            }
             // videoRef?.current?.pause()
             playEpisode("next")
         }
@@ -1356,58 +1432,50 @@ export function VideoCore(props: VideoCoreProps) {
         }
     }, [menuOpen])
 
-    React.useEffect(() => {
-        if (inline && isMiniPlayer) {
-            setIsMiniPlayer(false)
-        }
-    }, [isMiniPlayer, inline])
-
     let lastClickTime = React.useRef(0)
 
     const handleClick = (e: React.SyntheticEvent<HTMLDivElement>) => {
         // log.info("Video clicked")
         // check if right click
 
+        if (inline) {
+                if (e.type === "click") {
+                    const now = Date.now()
+                    const isLikelyDoubleClick = !!(lastClickTime.current && now - lastClickTime.current < 300)
+                    if (!debouncedMenuOpen && !isLikelyDoubleClick) {
+                        togglePlay()
+                    }
+                    setTimeout(() => {
+                        setBusy(false)
+                    }, 100)
+                    lastClickTime.current = now
+                }
+
+            if (e.type === "contextmenu") {
+                e.preventDefault()
+            }
+            return
+        }
+
         if (e.type === "click") {
-            const now = Date.now()
-            if (!debouncedMenuOpen) {
+            const now2 = Date.now()
+            const isLikelyDoubleClick2 = !!(lastClickTime.current && now2 - lastClickTime.current < 300)
+            if (!debouncedMenuOpen && !isLikelyDoubleClick2) {
                 togglePlay()
             }
-            if (lastClickTime.current && now - lastClickTime.current < 300) {
-                fullscreenManager?.toggleFullscreen()
-            } else {
-                setTimeout(() => {
-                    setBusy(false)
-                }, 100)
-            }
-            lastClickTime.current = now
+            lastClickTime.current = now2
+            setTimeout(() => {
+                setBusy(false)
+            }, 100)
         }
 
         if (e.type === "contextmenu") {
             e.preventDefault()
         }
-        return
-
-        // if (e.type === "click") {
-        //     if (!debouncedMenuOpen) {
-        //         togglePlay()
-        //     }
-        //     setTimeout(() => {
-        //         setBusy(false)
-        //     }, 100)
-        // }
-        //
-        // if (e.type === "contextmenu") {
-        //     const now = Date.now()
-        //     if (lastClickTime.current && now - lastClickTime.current < 500) {
-        //         fullscreenManager?.toggleFullscreen()
-        //     }
-        //     lastClickTime.current = now
-        // }
     }
 
     const handleDoubleClick = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-        // fullscreenManager?.toggleFullscreen()
+        fullscreenManager?.toggleFullscreen()
     }
 
     const handlePlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
@@ -1489,6 +1557,11 @@ export function VideoCore(props: VideoCoreProps) {
     const handleCanPlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         setBuffering(false)
 
+        // Restore fullscreen if we were in a source transition
+        if (fullscreenManager?.isInTransition) {
+            fullscreenManager.endTransition()
+        }
+
         if (!hasSoughtRef.current) {
             if (!state.playbackInfo || !videoRef.current) return
             hasSoughtRef.current = true
@@ -1501,16 +1574,24 @@ export function VideoCore(props: VideoCoreProps) {
 
             dispatchCanPlayEvent()
 
-            // Restore previous position if available
+            // Restore previous position if available — show resume prompt
             if (!state.playbackInfo.disableRestoreFromContinuity && !state.playbackInfo.initialState) {
-                if (state.playbackInfo?.episode?.progressNumber && watchHistory?.found && watchHistory.item?.episodeNumber === state.playbackInfo?.episode?.progressNumber) {
-                    const lastWatchedTime = getEpisodeContinuitySeekTo(state.playbackInfo?.episode?.progressNumber,
+                if (currentEpisodeNumber && watchHistory?.found && watchHistory.item?.episodeNumber === currentEpisodeNumber) {
+                    const lastWatchedTime = getEpisodeContinuitySeekTo(currentEpisodeNumber,
                         videoRef.current?.currentTime,
                         videoRef.current?.duration)
                     log.info("Watch continuity: Fetched last watched time", { lastWatchedTime })
                     if (lastWatchedTime > 0) {
-                        log.info("Watch continuity: Seeking to", lastWatchedTime)
-                        restoreSeekTime(lastWatchedTime, true)
+                        log.info("Watch continuity: Showing resume prompt for", lastWatchedTime)
+                        // Pause the video and show the resume prompt
+                        videoRef.current.pause()
+                        const mins = Math.floor(lastWatchedTime / 60)
+                        const secs = Math.floor(lastWatchedTime % 60)
+                        setResumePrompt({
+                            time: lastWatchedTime,
+                            formatted: `${mins}:${secs.toString().padStart(2, "0")}`,
+                        })
+                        return // Don't auto-play; wait for user action
                     }
                 }
             }
@@ -1533,19 +1614,28 @@ export function VideoCore(props: VideoCoreProps) {
 
     // external state
 
-    // Handle volume changes
+    // Handle volume changes — route to hidden audio element when active
     React.useEffect(() => {
-        if (videoRef.current && volume !== undefined && volume !== videoRef.current.volume) {
+        if (volume === undefined) return
+        if (directPlayAudioEl) {
+            directPlayAudioEl.volume = volume
+        }
+        if (videoRef.current && volume !== videoRef.current.volume) {
             videoRef.current.volume = volume
         }
-    }, [volume, videoRef.current])
+    }, [volume, videoRef.current, directPlayAudioEl])
 
-    // Handle mute changes
+    // Handle mute changes — when hidden audio is active, mute/unmute it instead of the video
     React.useEffect(() => {
-        if (videoRef.current && muted !== undefined && muted !== videoRef.current.muted) {
+        if (muted === undefined) return
+        if (directPlayAudioEl) {
+            // Route mute to the hidden audio; keep video always muted
+            directPlayAudioEl.muted = muted
+            if (videoRef.current) videoRef.current.muted = true
+        } else if (videoRef.current && muted !== videoRef.current.muted) {
             videoRef.current.muted = muted
         }
-    }, [muted, videoRef.current])
+    }, [muted, videoRef.current, directPlayAudioEl])
 
     // Handle playback rate changes
     React.useEffect(() => {
@@ -1604,24 +1694,6 @@ export function VideoCore(props: VideoCoreProps) {
     const setNotBusyTimeout = React.useRef<NodeJS.Timeout | null>(null)
     const lastPointerPosition = React.useRef({ x: 0, y: 0 })
     const isHoveringContainer = React.useRef(false)
-    const busyRef = React.useRef(busy)
-    const cursorBusyRef = React.useRef(cursorBusy)
-
-    React.useEffect(() => {
-        busyRef.current = busy
-    }, [busy])
-
-    React.useEffect(() => {
-        cursorBusyRef.current = cursorBusy
-    }, [cursorBusy])
-
-    React.useEffect(() => {
-        return () => {
-            if (setNotBusyTimeout.current) {
-                clearTimeout(setNotBusyTimeout.current)
-            }
-        }
-    }, [])
 
     const handleContainerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
         const { x, y } = e.nativeEvent
@@ -1631,13 +1703,12 @@ export function VideoCore(props: VideoCoreProps) {
         if (setNotBusyTimeout?.current) {
             clearTimeout(setNotBusyTimeout.current)
         }
-        if (!busyRef.current) {
-            busyRef.current = true
-            setBusy(true)
-        }
+        // Track container-relative position for the cursor-hide ripple
+        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+        setCursorPosition({ x: x - rect.left, y: y - rect.top })
+        setBusy(true)
         setNotBusyTimeout.current = setTimeout(() => {
-            if (!cursorBusyRef.current) {
-                busyRef.current = false
+            if (!cursorBusy) {
                 setBusy(false)
             }
         }, DELAY_BEFORE_NOT_BUSY)
@@ -1680,12 +1751,12 @@ export function VideoCore(props: VideoCoreProps) {
                 return cues
             }
 
-            // Otherwise, create chapters from skip data if available
-            if (!!resolvedSkipData?.op?.interval && duration > 0) {
-                log.info("Creating chapter cues from skip data", resolvedSkipData)
-                const chapters = vc_createChaptersFromAniSkip(resolvedSkipData, duration, state?.playbackInfo?.media?.format)
+            // Otherwise, create chapters from AniSkip data if available
+            if (!!aniSkipData?.op?.interval && duration > 0) {
+                log.info("Creating chapter cues from AniSkip data", aniSkipData)
+                const chapters = vc_createChaptersFromAniSkip(aniSkipData, duration, state?.playbackInfo?.media?.format)
                 const cues = vc_createChapterCues(chapters, duration)
-                log.info("Chapter cues from skip data", cues)
+                log.info("Chapter cues from AniSkip", cues)
                 return cues
             }
 
@@ -1693,8 +1764,8 @@ export function VideoCore(props: VideoCoreProps) {
         },
         [
             state.playbackInfo?.mkvMetadata?.chapters,
-            resolvedSkipData?.op?.interval,
-            resolvedSkipData?.ed?.interval,
+            aniSkipData?.op?.interval,
+            aniSkipData?.ed?.interval,
             duration,
             state?.playbackInfo?.media?.format,
         ])
@@ -1711,7 +1782,7 @@ export function VideoCore(props: VideoCoreProps) {
                     className={cn(
                         "relative w-full h-full",
                         inlineClassName,
-                        fullscreen && "fixed z-[99999] inset-0",
+                        fullscreen && "fixed z-[99999] inset-0 bg-black",
                     )}
                 >
                     <PlayerContent
@@ -1719,7 +1790,7 @@ export function VideoCore(props: VideoCoreProps) {
                         state={state}
                         videoRef={videoRef}
                         chapterCues={chapterCues}
-                        aniSkipData={resolvedSkipData}
+                        aniSkipData={aniSkipData}
                         streamUrl={streamUrl}
                         combineRef={combineRef}
                         combineContainerRef={combineContainerRef}
@@ -1764,14 +1835,11 @@ export function VideoCore(props: VideoCoreProps) {
                     onOpenChange={(v) => {
                         if (!v) {
                             if (!isMiniPlayer) {
-                                enterMiniPlayer()
+                                setIsMiniPlayer(true)
+                                fullscreenManager?.toggleFullscreen()
                             } else {
                                 onTerminateStream()
                             }
-                        } else {
-                            React.startTransition(() => {
-                                videoRef?.current?.focus?.()
-                            })
                         }
                     }}
                     borderToBorder
@@ -1796,24 +1864,13 @@ export function VideoCore(props: VideoCoreProps) {
                     onMiniPlayerClick={() => {
                         togglePlay()
                     }}
-                    onEscapeKeyDown={e => {
-                        e.preventDefault()
-                        if (isMiniPlayer) {
-                            if (!isTerminateConfirmOpen) {
-                                openTerminateConfirm()
-                            }
-                            return
-                        }
-
-                        enterMiniPlayer()
-                    }}
                 >
                     <PlayerContent
                         inline={inline}
                         state={state}
                         videoRef={videoRef}
                         chapterCues={chapterCues}
-                        aniSkipData={resolvedSkipData}
+                        aniSkipData={aniSkipData}
                         streamUrl={streamUrl}
                         combineRef={combineRef}
                         combineContainerRef={combineContainerRef}
@@ -1839,31 +1896,6 @@ export function VideoCore(props: VideoCoreProps) {
                     />
                 </VideoCoreDrawer>
 
-                <Modal
-                    title="Terminate stream?"
-                    description="Press Esc again or choose terminate to stop playback."
-                    titleClass="text-center"
-                    open={isTerminateConfirmOpen && isMiniPlayer}
-                    onOpenChange={open => {
-                        if (!open) {
-                            closeTerminateConfirm()
-                        }
-                    }}
-                    onEscapeKeyDown={e => {
-                        e.preventDefault()
-                        onTerminateStream()
-                    }}
-                >
-                    <div className="flex gap-2 justify-center items-center">
-                        <Button intent="warning-subtle" onClick={onTerminateStream}>
-                            Terminate stream
-                        </Button>
-                        <Button intent="white" onClick={closeTerminateConfirm}>
-                            Keep playing
-                        </Button>
-                    </div>
-                </Modal>
-
             </ScopeProvider>
         </>
     )
@@ -1884,9 +1916,7 @@ function FloatingButtons(props: { part: "video" | "loading", onTerminateStream: 
                     intent="gray-basic"
                     className="rounded-full absolute top-0 flex-none right-4 z-[999]"
                     onClick={() => {
-                        startVideoCoreMiniPlayerTransition(() => {
-                            setIsMiniPlayer(true)
-                        })
+                        setIsMiniPlayer(true)
                     }}
                 />
             </>}

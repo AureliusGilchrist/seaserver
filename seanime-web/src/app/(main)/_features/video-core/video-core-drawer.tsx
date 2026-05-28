@@ -1,12 +1,11 @@
 import { CloseButton } from "@/components/ui/button"
 import { cn, ComponentAnatomy, defineStyleAnatomy } from "@/components/ui/core/styling"
 import { __isDesktop__ } from "@/types/constants"
-import type * as DialogPrimitive from "@radix-ui/react-dialog"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { cva, VariantProps } from "class-variance-authority"
 import * as React from "react"
 import { RemoveScrollBar } from "react-remove-scroll-bar"
-import { Drawer as VaulPrimitive } from "vaul"
 
 /* -------------------------------------------------------------------------------------------------
  * Anatomy
@@ -144,8 +143,6 @@ export function VideoCoreDrawer(props: DrawerProps) {
         side = "right",
         size,
         open,
-        defaultOpen,
-        onOpenChange,
         // Content
         onOpenAutoFocus,
         onCloseAutoFocus,
@@ -158,47 +155,6 @@ export function VideoCoreDrawer(props: DrawerProps) {
         ...rest
     } = props
 
-    const isControlled = open !== undefined
-    const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen ?? false)
-    const resolvedOpen = isControlled ? open : uncontrolledOpen
-    const container = portalContainer ?? (typeof document !== "undefined" ? document.body : undefined)
-    const canInteractOutside = allowOutsideInteraction || !!miniPlayer
-
-    const handleOpenChange = React.useCallback((nextOpen: boolean) => {
-        if (!isControlled) {
-            setUncontrolledOpen(nextOpen)
-        }
-
-        onOpenChange?.(nextOpen)
-    }, [isControlled, onOpenChange])
-
-    React.useLayoutEffect(() => {
-        if (!resolvedOpen || !canInteractOutside || typeof document === "undefined") return
-
-        const body = document.body
-        const previousPointerEvents = body.style.pointerEvents
-
-        const unlockBodyPointerEvents = () => {
-            body.style.pointerEvents = "auto"
-        }
-
-        unlockBodyPointerEvents()
-
-        const frame = window.requestAnimationFrame(unlockBodyPointerEvents)
-        const observer = new MutationObserver(unlockBodyPointerEvents)
-
-        observer.observe(body, { attributes: true, attributeFilter: ["style"] })
-
-        return () => {
-            window.cancelAnimationFrame(frame)
-            observer.disconnect()
-
-            if (body.style.pointerEvents === "auto") {
-                body.style.pointerEvents = previousPointerEvents
-            }
-        }
-    }, [resolvedOpen, canInteractOutside])
-
     React.useEffect(() => {
         const t = setTimeout(() => {
             if (open && size === "full") {
@@ -209,9 +165,13 @@ export function VideoCoreDrawer(props: DrawerProps) {
         return () => clearTimeout(t)
     }, [open, size])
 
-    const prevMiniPlayerRef = React.useRef(miniPlayer)
-    const prevRectRef = React.useRef<DOMRect | null>(null)
-    const motionAnimationRef = React.useRef<Animation | null>(null)
+    const isMiniPlayerRef = React.useRef(miniPlayer)
+
+    React.useEffect(() => {
+        setTimeout(() => {
+            isMiniPlayerRef.current = miniPlayer
+        }, 500)
+    }, [miniPlayer])
 
     // Dragging
     const contentRef = React.useRef<HTMLDivElement>(null)
@@ -406,130 +366,58 @@ export function VideoCoreDrawer(props: DrawerProps) {
     }, [miniPlayer, calculateBoundaries, isHidden])
 
 
-    React.useLayoutEffect(() => {
-        if (!contentRef.current) return
+    // Apply position styles when in mini player mode
+    React.useEffect(() => {
+        if (!contentRef.current || !miniPlayer) return
 
-        const element = contentRef.current
+        // Use current position or calculate initial position if not set
         const currentPosition = (position.x === 0 && position.y === 0) ? getInitialPosition() : position
-        const miniWidth = window.innerWidth >= 1024 ? 400 : 300
-        const miniHeight = miniWidth * (9 / 16)
-        const didToggleMiniPlayer = prevMiniPlayerRef.current !== miniPlayer
 
-        element.style.width = ""
-        element.style.height = ""
-        element.style.borderRadius = ""
-        element.style.cursor = ""
+        contentRef.current.style.position = "fixed"
+        contentRef.current.style.left = `${currentPosition.x}px`
+        contentRef.current.style.top = `${currentPosition.y}px`
+        contentRef.current.style.zIndex = isHidden ? "40" : "50" // Lower z-index when hidden
 
-        if (!miniPlayer) {
-            element.style.position = ""
-            element.style.left = ""
-            element.style.right = ""
-            element.style.top = ""
-            element.style.bottom = ""
-            element.style.transform = ""
-            element.style.zIndex = ""
-            element.style.opacity = ""
-            element.style.transition = didToggleMiniPlayer ? "none" : ""
-            return
+        // Handle opacity and scale for hiding/showing
+        contentRef.current.style.opacity = isHidden ? "0.7" : "1"
+        contentRef.current.style.transform = isHidden ? "scale(0.95)" : "scale(1)"
+
+        // Add transition for smooth snapping and hiding/showing, remove it during dragging
+        if (isMiniPlayerRef.current) {
+            if (!isDragging) {
+                contentRef.current.style.transition = "left 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease-out, transform 0.2s ease-out"
+            } else {
+                contentRef.current.style.transition = "opacity 0.2s ease-out, transform 0.2s ease-out" // Keep opacity and scale transition during
+                                                                                                       // drag
+            }
         }
 
-        element.style.position = "fixed"
-        element.style.left = `${currentPosition.x}px`
-        element.style.right = "auto"
-        element.style.top = `${currentPosition.y}px`
-        element.style.bottom = "auto"
-        element.style.width = `${miniWidth}px`
-        element.style.height = `${miniHeight}px`
-        element.style.borderRadius = "0.5rem"
-        element.style.zIndex = isHidden ? "40" : "50"
-        element.style.opacity = isHidden ? "0.7" : "1"
-        element.style.transform = isHidden ? "scale(0.95)" : "scale(1)"
-
-        if (didToggleMiniPlayer) {
-            element.style.transition = "none"
-            return
-        }
-
-        if (!isDragging) {
-            element.style.transition = "left 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease-out, transform 0.2s ease-out"
-        } else {
-            element.style.transition = "opacity 0.2s ease-out, transform 0.2s ease-out" // Keep opacity and scale transition during
-            // drag
+        return () => {
+            if (contentRef.current) {
+                contentRef.current.style.position = ""
+                contentRef.current.style.left = ""
+                contentRef.current.style.top = ""
+                contentRef.current.style.transform = ""
+                contentRef.current.style.cursor = ""
+                contentRef.current.style.transition = ""
+                contentRef.current.style.zIndex = ""
+                contentRef.current.style.opacity = ""
+            }
         }
     }, [miniPlayer, position, isDragging, isHidden, getInitialPosition])
 
-    React.useLayoutEffect(() => {
-        if (!contentRef.current) return
-
-        const element = contentRef.current
-        const previousRect = prevRectRef.current
-        const currentRect = element.getBoundingClientRect()
-        const didToggleMiniPlayer = prevMiniPlayerRef.current !== miniPlayer
-        const finalTransform = miniPlayer ? (isHidden ? "scale(0.95)" : "scale(1)") : "none"
-        const browserViewTransitionActive = document.documentElement.hasAttribute("data-vc-miniplayer-view-transition")
-
-        motionAnimationRef.current?.cancel()
-
-        if (!browserViewTransitionActive && previousRect && didToggleMiniPlayer && currentRect.width > 0 && currentRect.height > 0) {
-            const deltaX = previousRect.left - currentRect.left
-            const deltaY = previousRect.top - currentRect.top
-            const scaleX = previousRect.width / currentRect.width
-            const scaleY = previousRect.height / currentRect.height
-
-            motionAnimationRef.current = element.animate([
-                {
-                    transformOrigin: "top left",
-                    transform: `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`,
-                },
-                {
-                    transformOrigin: "top left",
-                    transform: finalTransform,
-                },
-            ], {
-                duration: 300,
-                easing: "cubic-bezier(0.4, 0, 0.2, 1)",
-                fill: "both",
-            })
-        }
-
-        prevMiniPlayerRef.current = miniPlayer
-
-        return () => {
-            motionAnimationRef.current?.cancel()
-        }
-    }, [miniPlayer])
-
-    React.useLayoutEffect(() => {
-        if (!contentRef.current) return
-
-        prevRectRef.current = contentRef.current.getBoundingClientRect()
-    }, [miniPlayer, position, isHidden])
-
     return (
-        <VaulPrimitive.Root
-            modal={!canInteractOutside}
-            container={container}
-            direction="bottom"
-            dismissible={!!miniPlayer}
-            handleOnly
-            noBodyStyles
-            autoFocus={false}
-            disablePreventScroll={false}
-            open={resolvedOpen}
-            defaultOpen={defaultOpen}
-            onOpenChange={handleOpenChange}
-            {...rest}
-        >
+        <DialogPrimitive.Root modal={!allowOutsideInteraction} open={open} {...rest}>
 
-            {trigger && <VaulPrimitive.Trigger asChild>{trigger}</VaulPrimitive.Trigger>}
+            {trigger && <DialogPrimitive.Trigger asChild>{trigger}</DialogPrimitive.Trigger>}
 
-            {(resolvedOpen && size === "full") && <RemoveScrollBar />}
+            {(open && size === "full") && <RemoveScrollBar />}
 
-            <VaulPrimitive.Portal>
+            <DialogPrimitive.Portal container={portalContainer}>
 
-                {/* <VaulPrimitive.Overlay className={cn(DrawerAnatomy.overlay(), overlayClass)} /> */}
+                {/* <DialogPrimitive.Overlay className={cn(DrawerAnatomy.overlay(), overlayClass)} /> */}
 
-                <VaulPrimitive.Content
+                <DialogPrimitive.Content
                     data-vc-element="drawer-content"
                     data-vc-miniplayer-state={miniPlayer}
                     data-vc-dragging-state={isDragging}
@@ -537,8 +425,8 @@ export function VideoCoreDrawer(props: DrawerProps) {
                     className={cn(
                         DrawerAnatomy.content({ size, side: "player" }),
                         contentClass,
-                        "w-full h-full transition-all duration-300 overflow-hidden fixed transform-gpu [contain:layout_paint_style]",
-                        miniPlayer && "aspect-video w-[300px] lg:w-[400px] h-auto rounded-lg shadow-xl will-change-[transform,opacity]",
+                        "w-full h-full transition-all duration-300 overflow-hidden fixed",
+                        miniPlayer && "aspect-video w-[300px] lg:w-[400px] h-auto rounded-lg shadow-xl",
                         isHidden && "ring-2 ring-brand-300",
                     )}
                     ref={contentRef}
@@ -546,16 +434,16 @@ export function VideoCoreDrawer(props: DrawerProps) {
                     onCloseAutoFocus={onCloseAutoFocus}
                     onEscapeKeyDown={onEscapeKeyDown}
                     onPointerDownCapture={onPointerDownCapture}
-                    onInteractOutside={onInteractOutside}
+                    onInteractOutside={e => e.preventDefault()}
                     tabIndex={-1}
                 >
                     {!title && !description ? (
                         <VisuallyHidden>
-                            <VaulPrimitive.Title>Drawer</VaulPrimitive.Title>
+                            <DialogPrimitive.Title>Drawer</DialogPrimitive.Title>
                         </VisuallyHidden>
                     ) : (
                         <div className={cn(DrawerAnatomy.header(), headerClass)}>
-                            <VaulPrimitive.Title
+                            <DialogPrimitive.Title
                                 className={cn(
                                     DrawerAnatomy.title(),
                                     __isDesktop__ && "relative",
@@ -563,11 +451,11 @@ export function VideoCoreDrawer(props: DrawerProps) {
                                 )}
                             >
                                 {title}
-                            </VaulPrimitive.Title>
+                            </DialogPrimitive.Title>
                             {description && (
-                                <VaulPrimitive.Description className={cn(DrawerAnatomy.description(), descriptionClass)}>
+                                <DialogPrimitive.Description className={cn(DrawerAnatomy.description(), descriptionClass)}>
                                     {description}
-                                </VaulPrimitive.Description>
+                                </DialogPrimitive.Description>
                             )}
                         </div>
                     )}
@@ -587,7 +475,7 @@ export function VideoCoreDrawer(props: DrawerProps) {
                         {footer}
                     </div>}
 
-                    {!hideCloseButton && <VaulPrimitive.Close
+                    {!hideCloseButton && <DialogPrimitive.Close
                         className={cn(
                             DrawerAnatomy.close(),
                             // __isDesktop__ && "!top-10 !right-4",
@@ -596,13 +484,13 @@ export function VideoCoreDrawer(props: DrawerProps) {
                         asChild
                     >
                         {closeButton ? closeButton : <CloseButton />}
-                    </VaulPrimitive.Close>}
+                    </DialogPrimitive.Close>}
 
-                </VaulPrimitive.Content>
+                </DialogPrimitive.Content>
 
-            </VaulPrimitive.Portal>
+            </DialogPrimitive.Portal>
 
-        </VaulPrimitive.Root>
+        </DialogPrimitive.Root>
     )
 }
 

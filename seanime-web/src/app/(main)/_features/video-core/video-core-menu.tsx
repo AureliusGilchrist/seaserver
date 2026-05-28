@@ -12,7 +12,7 @@ import { useAtom, useAtomValue } from "jotai/react"
 import { motion } from "motion/react"
 import React, { useRef } from "react"
 import { AiFillInfoCircle } from "react-icons/ai"
-import { LuCheck, LuChevronLeft, LuChevronRight } from "react-icons/lu"
+import { LuBookmark, LuCheck, LuChevronLeft, LuChevronRight } from "react-icons/lu"
 
 type VideoCoreMenuProps = {
     name: string
@@ -346,6 +346,7 @@ type VideoCoreSettingSelectProps = {
         value: any
         moreInfo?: string
         description?: string
+        isDefault?: boolean
     }[]
     value: any
     onValueChange: (value: any) => void
@@ -375,8 +376,9 @@ export function VideoCoreSettingSelect(props: VideoCoreSettingSelectProps) {
                             {option.label}
                         </span>
                         <span className="flex-1" data-vc-element="setting-select-option-separator"></span>
-                        {(option.moreInfo || option.description) &&
+                        {(option.moreInfo || option.description || option.isDefault) &&
                             <div className="w-fit flex-none ml-2 flex gap-2 items-center" data-vc-element="setting-select-option-description">
+                                {option.isDefault && <LuBookmark className="text-xs text-[--muted]" fill="currentColor" title="Your saved default" />}
                                 {option.moreInfo && <span className="text-xs font-medium tracking-wide text-[--muted]">
                                     {option.moreInfo}
                                 </span>}

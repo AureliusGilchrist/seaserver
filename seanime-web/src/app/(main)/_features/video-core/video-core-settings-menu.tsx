@@ -25,15 +25,18 @@ import {
 } from "@/app/(main)/_features/video-core/video-core-menu"
 import { videoCorePreferencesModalAtom } from "@/app/(main)/_features/video-core/video-core-preferences"
 import {
+    vc_autoSkipEDAtom,
+    vc_autoSkipOPAtom,
+    vc_autoSkipFillerAtom,
     vc_autoNextAtom,
     vc_autoPlayVideoAtom,
-    vc_autoSkipOPEDAtom,
     vc_beautifyImageAtom,
     vc_highlightOPEDChaptersAtom,
     vc_initialSettings,
     vc_settings,
     vc_showChapterMarkersAtom,
     vc_storedPlaybackRateAtom,
+    vc_watchContinuityAtom,
     VideoCoreSettings,
 } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
@@ -50,7 +53,7 @@ import { IoCaretForwardCircleOutline } from "react-icons/io5"
 import { LuChevronUp, LuHeading, LuPaintbrush, LuPalette, LuSettings, LuSettings2, LuSparkles, LuTvMinimalPlay } from "react-icons/lu"
 import { MdOutlineAccessTime, MdOutlineSubtitles, MdSpeed } from "react-icons/md"
 import { RiShadowLine } from "react-icons/ri"
-import { TbArrowForwardUp } from "react-icons/tb"
+import { TbArrowForwardUp, TbHistory } from "react-icons/tb"
 import { VscTextSize } from "react-icons/vsc"
 
 const SUBTITLE_STYLES_FONT_SIZE_OPTIONS = [
@@ -85,6 +88,15 @@ const SUBTITLE_STYLES_SHADOW_DEPTH_OPTIONS = [
     { label: "Large", value: 3 },
 ]
 
+const SUBTITLE_STYLES_FADE_OUT_OPTIONS = [
+    { label: "Off", value: 0 },
+    { label: "0.25s", value: 250 },
+    { label: "0.5s", value: 500 },
+    { label: "0.75s", value: 750 },
+    { label: "1s", value: 1000 },
+    { label: "1.5s", value: 1500 },
+]
+
 export const SUBTITLE_STYLES_BACK_COLOR_OPACITY_OPTIONS = [
     { label: "100%", value: 0 },
     { label: "80%", value: 64 },
@@ -104,6 +116,7 @@ export const vc_subtitleStylesDefaults: VideoCoreSettings["subtitleCustomization
     backColorOpacity: SUBTITLE_STYLES_BACK_COLOR_OPACITY_OPTIONS[0].value,
     outline: SUBTITLE_STYLES_OUTLINE_WIDTH_OPTIONS[2].value,
     shadow: SUBTITLE_STYLES_SHADOW_DEPTH_OPTIONS[0].value,
+    fadeOutMs: 500,
 }
 
 export function vc_getSubtitleStyle<T extends keyof VideoCoreSettings["subtitleCustomization"]>(settings: VideoCoreSettings["subtitleCustomization"] | undefined,
@@ -122,6 +135,8 @@ export function vc_getSubtitleStyleLabel<T extends keyof VideoCoreSettings["subt
             return SUBTITLE_STYLES_OUTLINE_WIDTH_OPTIONS.find(o => o.value === vc_getSubtitleStyle(settings, key))?.label ?? ""
         case "shadow":
             return SUBTITLE_STYLES_SHADOW_DEPTH_OPTIONS.find(o => o.value === vc_getSubtitleStyle(settings, key))?.label ?? ""
+        case "fadeOutMs":
+            return SUBTITLE_STYLES_FADE_OUT_OPTIONS.find(o => o.value === vc_getSubtitleStyle(settings, key))?.label ?? ""
         case "primaryColor":
         case "outlineColor":
         case "backColor":
@@ -217,7 +232,10 @@ export function VideoCoreSettingsMenu() {
     const [beautifyImage, setBeautifyImage] = useAtom(vc_beautifyImageAtom)
     const [autoNext, setAutoNext] = useAtom(vc_autoNextAtom)
     const [autoPlay, setAutoPlay] = useAtom(vc_autoPlayVideoAtom)
-    const [autoSkipOPED, setAutoSkipOPED] = useAtom(vc_autoSkipOPEDAtom)
+    const [autoSkipOP, setAutoSkipOP] = useAtom(vc_autoSkipOPAtom)
+    const [autoSkipED, setAutoSkipED] = useAtom(vc_autoSkipEDAtom)
+    const [autoSkipFiller, setAutoSkipFiller] = useAtom(vc_autoSkipFillerAtom)
+    const [watchContinuity, setWatchContinuity] = useAtom(vc_watchContinuityAtom)
 
     const [menuOpen, setMenuOpen] = useAtom(vc_menuOpen)
     const [openMenuSection, setOpenMenuSection] = useAtom(vc_menuSectionOpen)
@@ -236,6 +254,7 @@ export function VideoCoreSettingsMenu() {
     )
 
     const [editedSubtitleDelay, setEditedSubtitleDelay] = useState(settings.subtitleDelay ?? 0)
+    const [editedAudioDelay, setEditedAudioDelay] = useState(settings.audioDelay ?? 0)
 
     const [subFontName, setSubFontName] = useState<string>(editedSubCustomization?.fontName || "")
 
@@ -248,6 +267,9 @@ export function VideoCoreSettingsMenu() {
         }
         if (openMenuSection === "Subtitle Delay") {
             setEditedSubtitleDelay(settings.subtitleDelay)
+        }
+        if (openMenuSection === "Audio Delay") {
+            setEditedAudioDelay(settings.audioDelay ?? 0)
         }
     }, [openMenuSection, settings])
 
@@ -311,6 +333,15 @@ export function VideoCoreSettingsMenu() {
         mediaCaptionsManager?.updateSettings(newSettings)
     }
 
+    const handleAudioDelayChange = (delay: number): void => {
+        setEditedAudioDelay(delay)
+        const newSettings = {
+            ...settings,
+            audioDelay: delay,
+        }
+        setSettings(newSettings)
+    }
+
     if (isMiniPlayer) return null
 
     return (
@@ -344,13 +375,25 @@ export function VideoCoreSettingsMenu() {
                     <VideoCoreMenuOption title="Playback Speed" icon={MdSpeed} value={`${(playbackRate).toFixed(2)}x`} />
                     <VideoCoreMenuOption title="Auto Play" icon={IoCaretForwardCircleOutline} value={autoPlay ? "On" : "Off"} />
                     <VideoCoreMenuOption title="Auto Next" icon={HiFastForward} value={autoNext ? "On" : "Off"} />
-                    <VideoCoreMenuOption title="Skip OP/ED" icon={TbArrowForwardUp} value={autoSkipOPED ? "On" : "Off"} />
+                    <VideoCoreMenuOption title="Skip Opening" icon={TbArrowForwardUp} value={autoSkipOP ? "On" : "Off"} />
+                    <VideoCoreMenuOption title="Skip Ending" icon={TbArrowForwardUp} value={autoSkipED ? "On" : "Off"} />
+                    <VideoCoreMenuOption
+                        title="Skip Filler"
+                        icon={TbArrowForwardUp}
+                        value={autoSkipFiller === "off" ? "Off" : autoSkipFiller === "full" ? "Full filler" : "Partial filler"}
+                    />
+                    <VideoCoreMenuOption title="Watch Continuity" icon={TbHistory} value={watchContinuity === "inherit" ? "Global" : watchContinuity === "on" ? "On" : "Off"} />
                     <VideoCoreMenuOption title="Anime4K" icon={LuSparkles} value={currentAnime4kOption?.label || "Off"} />
                     {(subtitleManager || mediaCaptionsManager) && <VideoCoreMenuOption
                         title="Subtitle Delay"
                         icon={MdOutlineAccessTime}
                         value={`${settings.subtitleDelay.toFixed(1)}s`}
                     />}
+                    <VideoCoreMenuOption
+                        title="Audio Delay"
+                        icon={MdOutlineAccessTime}
+                        value={`${(settings.audioDelay ?? 0).toFixed(1)}s`}
+                    />
                     {subtitleManager && <VideoCoreMenuOption
                         title="Subtitle Styles"
                         icon={MdOutlineSubtitles}
@@ -374,6 +417,13 @@ export function VideoCoreSettingsMenu() {
                             ]}
                             onValueChange={(v: number) => handleSubtitleCustomizationChange("enabled", v === 1)}
                             value={editedSubCustomization.enabled ? 1 : 0}
+                        />
+                        <p className="text-[--muted] text-sm my-2">Fade Out</p>
+                        <VideoCoreMenuSubOption
+                            title="Fade Out"
+                            icon={MdOutlineSubtitles}
+                            parentId="Subtitle Styles"
+                            value={vc_getSubtitleStyleLabel(settings.subtitleCustomization, "fadeOutMs")}
                         />
                         {editedSubCustomization.enabled && <>
                             <p className="text-[--muted] text-sm my-2">Options</p>
@@ -511,6 +561,61 @@ export function VideoCoreSettingsMenu() {
                             value={[-2.0, -1.0, -0.5, 0, 0.5, 0.1, 2.0].includes(editedSubtitleDelay) ? editedSubtitleDelay : null}
                         />
                     </VideoCoreMenuOption>
+                    <VideoCoreMenuOption title="Audio Delay" icon={MdOutlineAccessTime}>
+                        <p className="text-sm text-[--muted] mb-2">Adjust audio sync offset. Positive values delay audio, negative values advance it.</p>
+                        <div className="flex gap-1.5 items-center mt-3">
+                            <Button
+                                className="px-1 !text-xs flex-1"
+                                intent="gray-subtle"
+                                size="sm"
+                                onClick={() => handleAudioDelayChange(parseFloat((editedAudioDelay - 0.5).toFixed(1)))}
+                            >
+                                −0.5
+                            </Button>
+                            <Button
+                                className="px-1 !text-xs flex-1"
+                                intent="gray-subtle"
+                                size="sm"
+                                onClick={() => handleAudioDelayChange(parseFloat((editedAudioDelay - 0.1).toFixed(1)))}
+                            >
+                                −0.1
+                            </Button>
+                            <span className="text-sm text-center text-[--muted] px-1 flex-1">
+                                {editedAudioDelay.toFixed(1)}s
+                            </span>
+                            <Button
+                                className="px-1 !text-xs flex-1"
+                                intent="gray-subtle"
+                                size="sm"
+                                onClick={() => handleAudioDelayChange(parseFloat((editedAudioDelay + 0.1).toFixed(1)))}
+                            >
+                                +0.1
+                            </Button>
+                            <Button
+                                className="px-1 !text-xs flex-1"
+                                intent="gray-subtle"
+                                size="sm"
+                                onClick={() => handleAudioDelayChange(parseFloat((editedAudioDelay + 0.5).toFixed(1)))}
+                            >
+                                +0.5
+                            </Button>
+                        </div>
+                        <VideoCoreSettingSelect
+                            options={[
+                                { label: "-2.0s", value: -2.0 },
+                                { label: "-1.0s", value: -1.0 },
+                                { label: "-0.5s", value: -0.5 },
+                                { label: "0s", value: 0 },
+                                { label: "0.5s", value: 0.5 },
+                                { label: "1.0s", value: 1.0 },
+                                { label: "2.0s", value: 2.0 },
+                            ]}
+                            onValueChange={(v: number) => {
+                                handleAudioDelayChange(v)
+                            }}
+                            value={[-2.0, -1.0, -0.5, 0, 0.5, 1.0, 2.0].includes(editedAudioDelay) ? editedAudioDelay : null}
+                        />
+                    </VideoCoreMenuOption>
                     <VideoCoreMenuOption title="Playback Speed" icon={MdSpeed}>
                         <VideoCoreSettingSelect
                             options={[
@@ -551,16 +656,57 @@ export function VideoCoreSettingsMenu() {
                             value={autoNext ? 1 : 0}
                         />
                     </VideoCoreMenuOption>
-                    <VideoCoreMenuOption title="Skip OP/ED" icon={TbArrowForwardUp}>
+                    <VideoCoreMenuOption title="Skip Opening" icon={TbArrowForwardUp}>
                         <VideoCoreSettingSelect
                             options={[
                                 { label: "On", value: 1 },
                                 { label: "Off", value: 0 },
                             ]}
                             onValueChange={(v: number) => {
-                                setAutoSkipOPED(!!v)
+                                setAutoSkipOP(!!v)
                             }}
-                            value={autoSkipOPED ? 1 : 0}
+                            value={autoSkipOP ? 1 : 0}
+                        />
+                    </VideoCoreMenuOption>
+                    <VideoCoreMenuOption title="Skip Ending" icon={TbArrowForwardUp}>
+                        <VideoCoreSettingSelect
+                            options={[
+                                { label: "On", value: 1 },
+                                { label: "Off", value: 0 },
+                            ]}
+                            onValueChange={(v: number) => {
+                                setAutoSkipED(!!v)
+                            }}
+                            value={autoSkipED ? 1 : 0}
+                        />
+                    </VideoCoreMenuOption>
+                    <VideoCoreMenuOption title="Skip Filler" icon={TbArrowForwardUp}>
+                        <p className="text-[--muted] text-sm mb-2">
+                            Automatically skip filler episodes when advancing with Auto Next or pressing Next.
+                        </p>
+                        <VideoCoreSettingSelect
+                            options={[
+                                { label: "Don't skip", value: "off" },
+                                { label: "Full filler", value: "full" },
+                                { label: "Partial filler", value: "partial" },
+                            ]}
+                            onValueChange={(v: string) => {
+                                setAutoSkipFiller(v as "off" | "full" | "partial")
+                            }}
+                            value={autoSkipFiller}
+                        />
+                    </VideoCoreMenuOption>
+                    <VideoCoreMenuOption title="Watch Continuity" icon={TbHistory}>
+                        <VideoCoreSettingSelect
+                            options={[
+                                { label: "Use global setting", value: "inherit" },
+                                { label: "Always on", value: "on" },
+                                { label: "Always off", value: "off" },
+                            ]}
+                            onValueChange={(v: string) => {
+                                setWatchContinuity(v as "inherit" | "on" | "off")
+                            }}
+                            value={watchContinuity}
                         />
                     </VideoCoreMenuOption>
                     <VideoCoreMenuOption title="Anime4K" icon={LuSparkles}>
@@ -610,6 +756,14 @@ export function VideoCoreSettingsMenu() {
                     </VideoCoreMenuOption>
                 </VideoCoreMenuSubmenuBody>
                 <VideoCoreMenuSubSubmenuBody>
+                    <VideoCoreMenuSubOption title="Fade Out" icon={MdOutlineSubtitles} parentId="Subtitle Styles">
+                        <p className="text-[--muted] text-sm mb-2">Fade out subtitles when they disappear.</p>
+                        <VideoCoreSettingSelect
+                            options={SUBTITLE_STYLES_FADE_OUT_OPTIONS}
+                            onValueChange={(v: number) => handleSubtitleCustomizationChange("fadeOutMs", v)}
+                            value={vc_getSubtitleStyle(editedSubCustomization, "fadeOutMs")}
+                        />
+                    </VideoCoreMenuSubOption>
                     <VideoCoreMenuSubOption title="Font" icon={VscTextSize} parentId="Subtitle Styles">
                         <div className="">
                             <p className="text-sm mb-2">Custom Font</p>

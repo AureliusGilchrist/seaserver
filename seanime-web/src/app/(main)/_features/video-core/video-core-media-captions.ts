@@ -16,6 +16,7 @@ export type MediaCaptionsTrackInfo = {
     language: string
     type?: "vtt" | "srt" | "ssa" | "ass" | string
     default?: boolean
+    codecID?: string // e.g., "S_TEXT/ASS" for codec matching
 }
 
 export type MediaCaptionsTrack = {
@@ -23,6 +24,7 @@ export type MediaCaptionsTrack = {
     label: string
     language: string
     selected: boolean
+    codecID?: string
 }
 
 type FetchAndConvertToVTT = (url?: string, content?: string) => Promise<string | undefined>
@@ -34,6 +36,8 @@ export type MediaCaptionsManagerOptions = {
     fetchAndConvertToVTT: FetchAndConvertToVTT
     sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
     translateTargetLang: string | null
+    subtitleCodecOverride?: string
+    subtitleLabelOverride?: string
 }
 
 type LoadedTrack = {
@@ -104,11 +108,14 @@ export class MediaCaptionsManager extends EventTarget {
     private overlayElement: HTMLDivElement | null = null
     private currentTrackIndex: number = NO_TRACK_IDX
     private timeUpdateListener: (() => void) | null = null
+    private seekedListener: (() => void) | null = null
     private readonly settings: VideoCoreSettings
     private captionCustomization: VideoCoreSettings["captionCustomization"]
     private subtitleDelay = 0
 
     private readonly fetchAndConvertToVTT: FetchAndConvertToVTT
+    private readonly subtitleCodecOverride?: string
+    private readonly subtitleLabelOverride?: string
 
     private _onSelectedTrackChanged?: (track: number | null) => void
     private _onTracksLoaded?: (tracks: MediaCaptionsTrack[]) => void
@@ -130,6 +137,8 @@ export class MediaCaptionsManager extends EventTarget {
         this.fetchAndConvertToVTT = options.fetchAndConvertToVTT
         this.sendTranslateRequest = options.sendTranslateRequest
         this.shouldTranslate = options.translateTargetLang
+        this.subtitleCodecOverride = options.subtitleCodecOverride
+        this.subtitleLabelOverride = options.subtitleLabelOverride
 
         this.init()
     }
@@ -212,6 +221,7 @@ export class MediaCaptionsManager extends EventTarget {
                 label: loadedTrack.metadata.label,
                 language: loadedTrack.metadata.language,
                 selected: this.currentTrackIndex === index,
+                codecID: loadedTrack.metadata.codecID,
             }
         })
     }
@@ -448,6 +458,11 @@ export class MediaCaptionsManager extends EventTarget {
             this.timeUpdateListener = null
         }
 
+        if (this.seekedListener) {
+            this.videoElement.removeEventListener("seeked", this.seekedListener)
+            this.seekedListener = null
+        }
+
         if (this.renderer) {
             this.renderer.destroy()
             this.renderer = null
@@ -652,7 +667,14 @@ export class MediaCaptionsManager extends EventTarget {
         }
         // When the first track is loaded, start rendering captions
         // Select default track
-        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, this.tracks.map((t, idx) => ({ ...t, number: idx })))
+        const tracksWithCodec = this.tracks.map((t, idx) => ({ ...t, number: idx, codecID: (t as any).codecID }))
+        log.info("[DEBUG] MediaCaptionsManager selecting default track:", {
+            tracks: tracksWithCodec.map(t => ({ number: t.number, label: t.label, language: t.language, codecID: t.codecID })),
+            codecHint: this.subtitleCodecOverride,
+            labelHint: this.subtitleLabelOverride,
+        })
+        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, tracksWithCodec, this.subtitleCodecOverride, this.subtitleLabelOverride)
+        log.info("[DEBUG] MediaCaptionsManager selected track number:", defaultTrackNumber)
         await this.selectTrack(defaultTrackNumber)
         // Setup time update listener
         this.timeUpdateListener = () => {
@@ -661,6 +683,15 @@ export class MediaCaptionsManager extends EventTarget {
             }
         }
         this.videoElement.addEventListener("timeupdate", this.timeUpdateListener)
+
+        // Immediately resync subtitles after any seek (especially OP/ED skip)
+        // so there's no delay waiting for the next ~4Hz timeupdate tick
+        this.seekedListener = () => {
+            if (this.renderer && this.currentTrackIndex !== NO_TRACK_IDX) {
+                this.renderer.currentTime = this.videoElement.currentTime + (-this.subtitleDelay)
+            }
+        }
+        this.videoElement.addEventListener("seeked", this.seekedListener)
         this._onTracksLoaded?.(this.getTracks())
 
         const event: MediaCaptionsTracksLoadedEvent = new CustomEvent("tracksloaded", { detail: { tracks: this.getTracks() } })
