@@ -121,6 +121,11 @@ export const THEME_DEFAULT_VALUES: ThemeSettings = {
     mobileCustomCSS: "",
     unpinnedMenuItems: [],
     enableBlurringEffects: true,
+    hideAnimeSpoilers: false,
+    hideAnimeSpoilerThumbnails: true,
+    hideAnimeSpoilerTitles: true,
+    hideAnimeSpoilerDescriptions: true,
+    hideAnimeSpoilerSkipNextEpisode: false,
 }
 
 export type ThemeSettingsHook = {
@@ -174,6 +179,11 @@ export function useThemeSettings(): ThemeSettingsHook {
         unpinnedMenuItems: getThemeValue("unpinnedMenuItems", serverStatus?.themeSettings)
             ?.filter((n: string) => n !== "anilist" && n !== "nakama" && n !== "library"),
         enableBlurringEffects: getThemeValue("enableBlurringEffects", serverStatus?.themeSettings),
+        hideAnimeSpoilers: getThemeValue("hideAnimeSpoilers", serverStatus?.themeSettings),
+        hideAnimeSpoilerThumbnails: getThemeValue("hideAnimeSpoilerThumbnails", serverStatus?.themeSettings),
+        hideAnimeSpoilerTitles: getThemeValue("hideAnimeSpoilerTitles", serverStatus?.themeSettings),
+        hideAnimeSpoilerDescriptions: getThemeValue("hideAnimeSpoilerDescriptions", serverStatus?.themeSettings),
+        hideAnimeSpoilerSkipNextEpisode: getThemeValue("hideAnimeSpoilerSkipNextEpisode", serverStatus?.themeSettings),
     }
 }
 

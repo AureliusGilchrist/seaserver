@@ -15,8 +15,7 @@ import { TextGenerateEffect } from "@/components/shared/text-generate-effect"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { getAssetUrl } from "@/lib/server/assets"
-import { ThemeLibraryScreenBannerType, ThemeMediaPageBannerSize, ThemeMediaPageBannerType, useThemeSettings } from "@/lib/theme/hooks"
+import { getAssetUrl } from "@/lib/server/assets"import { useContinueWatchingSpoilers } from "@/lib/theme/anime-spoilers"import { ThemeLibraryScreenBannerType, ThemeMediaPageBannerSize, ThemeMediaPageBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { __isDesktop__ } from "@/types/constants"
 import { atom, useAtomValue } from "jotai"
 import { useAtom, useSetAtom } from "jotai/react"
@@ -253,6 +252,7 @@ interface EpisodeCardSidebarProps {
 
 function EpisodeCardSidebar({ episode, isTransitioning }: EpisodeCardSidebarProps) {
     const ts = useThemeSettings()
+    const spoilerActive = useContinueWatchingSpoilers(ts)
     const router = useRouter()
     const serverStatus = useServerStatus()
     const { setPlayNext } = usePlayNext()
@@ -303,8 +303,9 @@ function EpisodeCardSidebar({ episode, isTransitioning }: EpisodeCardSidebarProp
                     <EpisodeCard
                         episode={episode}
                         image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}
-                        topTitle={episode.episodeTitle || episode?.baseAnime?.title?.romaji}
-                        title={episode.displayTitle}
+                        topTitle={episode.episodeTitle || episode?.baseAnime?.title?.romaji}                        spoilerSafeTopTitle={episode?.baseAnime?.title?.userPreferred}
+                        spoilerMode="replace"
+                        spoilerActive={spoilerActive}                        title={episode.displayTitle}
                         isInvalid={episode.isInvalid}
                         progressTotal={episode.baseAnime?.episodes}
                         progressNumber={episode.progressNumber}

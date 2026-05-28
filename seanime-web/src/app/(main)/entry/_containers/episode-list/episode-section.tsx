@@ -117,6 +117,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                 {!entry._isNakamaEntry && <UndownloadedEpisodeList
                     downloadInfo={entry.downloadInfo}
                     media={media}
+                    watchedProgress={entry.listData?.progress}
                     maxCol={maxCol}
                 />}
                 {bottomSection}
@@ -159,6 +160,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                             title={episode.displayTitle}
                                             isInvalid={episode.isInvalid}
                                             progressTotal={episode.baseAnime?.episodes}
+                                            watchedProgress={entry.listData?.progress}
                                             progressNumber={episode.progressNumber}
                                             episodeNumber={episode.episodeNumber}
                                             length={episode.episodeMetadata?.length}
@@ -208,6 +210,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                 episode={mainEpisodes[index]}
                                 media={media}
                                 isWatched={!!entry.listData?.progress && entry.listData.progress >= mainEpisodes[index].progressNumber}
+                                watchedProgress={entry.listData?.progress}
                                 onPlay={({ path, mediaId }) => playMediaFile({ path, mediaId, episode: mainEpisodes[index] })}
                                 onPlayExternally={!isUsingNativePlayer ? undefined : ({ path, mediaId }) => forcePlaybackMethodFn("playbackmanager",
                                     () => playMediaFile({
@@ -224,6 +227,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                     {!serverStatus?.isOffline && !entry._isNakamaEntry && <UndownloadedEpisodeList
                         downloadInfo={entry.downloadInfo}
                         media={media}
+                        watchedProgress={entry.listData?.progress}
                         maxCol={maxCol}
                     />}
 
@@ -235,6 +239,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                     key={episode.localFile?.path || ""}
                                     episode={episode}
                                     media={media}
+                                    watchedProgress={entry.listData?.progress}
                                     onPlay={({ path, mediaId }) => playMediaFile({ path, mediaId, episode: episode })}
                                     onPlayExternally={!isUsingNativePlayer ? undefined : ({ path, mediaId }) => forcePlaybackMethodFn(
                                         "playbackmanager",
@@ -256,6 +261,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                     key={episode.localFile?.path || ""}
                                     episode={episode}
                                     media={media}
+                                    watchedProgress={entry.listData?.progress}
                                     onPlay={({ path, mediaId }) => playMediaFile({ path, mediaId, episode: episode })}
                                     onPlayExternally={!isUsingNativePlayer ? undefined : ({ path, mediaId }) => forcePlaybackMethodFn(
                                         "playbackmanager",

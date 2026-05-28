@@ -5090,6 +5090,11 @@ export type Models_Theme = {
     homeItems?: Array<string>
     mangaHomeItems?: Array<string>
     enableBlurringEffects: boolean
+    hideAnimeSpoilers?: boolean
+    hideAnimeSpoilerThumbnails?: boolean
+    hideAnimeSpoilerTitles?: boolean
+    hideAnimeSpoilerDescriptions?: boolean
+    hideAnimeSpoilerSkipNextEpisode?: boolean
     id: number
     createdAt?: string
     updatedAt?: string

@@ -7,6 +7,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
 import { useRouter } from "@/lib/navigation"
+import { useMissingEpisodeSpoilers } from "@/lib/theme/anime-spoilers"
+import { useThemeSettings } from "@/lib/theme/theme-hooks"
 import React from "react"
 import { AiOutlineDownload } from "react-icons/ai"
 import { IoLibrary } from "react-icons/io5"
@@ -17,6 +19,9 @@ export function MissingEpisodes({ isLoading, data }: {
     isLoading: boolean
 }) {
     const router = useRouter()
+
+    const ts = useThemeSettings()
+    const spoilerActive = useMissingEpisodeSpoilers(ts)
 
     const { missingEpisodes, silencedEpisodes } = useHandleMissingEpisodes(data)
     const { hasTorrentProvider } = useHasTorrentProvider()
@@ -50,11 +55,16 @@ export function MissingEpisodes({ isLoading, data }: {
                                             key={episode.displayTitle + episode.baseAnime?.id}
                                             episode={episode}
                                             image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}
+                                            spoilerSafeImage={episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge || episode.baseAnime?.coverImage?.large}
                                             topTitle={episode.baseAnime?.title?.userPreferred}
                                             title={episode.displayTitle}
                                             meta={episode.episodeMetadata?.airDate ?? undefined}
                                             actionIcon={hasTorrentProvider ? <AiOutlineDownload className="opacity-50" /> : null}
                                             isInvalid={episode.isInvalid}
+                                            spoilerMode="replace"
+                                            spoilerActive={spoilerActive}
+                                            progressNumber={episode.progressNumber}
+                                            episodeNumber={episode.episodeNumber}
                                             onClick={() => {
                                                 if (hasTorrentProvider) {
                                                     router.push(`/entry?id=${episode.baseAnime?.id}&download=${episode.episodeNumber}`)
@@ -108,12 +118,17 @@ export function MissingEpisodes({ isLoading, data }: {
                                                             key={episode.displayTitle + episode.baseAnime?.id}
                                                             episode={episode}
                                                             image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}
+                                                            spoilerSafeImage={episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge || episode.baseAnime?.coverImage?.large}
                                                             topTitle={episode.baseAnime?.title?.userPreferred}
                                                             title={episode.displayTitle}
                                                             meta={episode.episodeMetadata?.airDate ?? undefined}
                                                             actionIcon={hasTorrentProvider ? <AiOutlineDownload /> : null}
                                                             isInvalid={episode.isInvalid}
                                                             type="carousel"
+                                                            spoilerMode="replace"
+                                                            spoilerActive={spoilerActive}
+                                                            progressNumber={episode.progressNumber}
+                                                            episodeNumber={episode.episodeNumber}
                                                             onClick={() => {
                                                                 if (hasTorrentProvider) {
                                                                     router.push(`/entry?id=${episode.baseAnime?.id}&download=${episode.episodeNumber}`)
