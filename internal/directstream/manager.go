@@ -8,6 +8,7 @@ import (
 	"seanime/internal/continuity"
 	discordrpc_presence "seanime/internal/discordrpc/presence"
 	"seanime/internal/events"
+	"seanime/internal/library/anime"
 	"seanime/internal/mkvparser"
 	"seanime/internal/nativeplayer"
 	"seanime/internal/platforms/platform"
@@ -70,6 +71,11 @@ type (
 		animeCache      *result.Cache[int, *anilist.BaseAnime]
 
 		parserCache *result.Cache[string, *mkvparser.MetadataParser]
+		// episodeCollectionCache caches the per-media EpisodeCollection so that
+		// playing a local file from a series with many episodes does not rebuild
+		// (and re-enrich metadata for) every episode on each play click.
+		// Keyed by mediaId. Short TTL keeps it reasonably fresh w.r.t. library changes.
+		episodeCollectionCache *result.Cache[int, *anime.EpisodeCollection]
 		//playbackStatusSubscribers *result.Map[string, *PlaybackStatusSubscriber]
 	}
 
@@ -121,6 +127,7 @@ func NewManager(options NewManagerOptions) *Manager {
 		sessions:                   result.NewMap[string, *ProfileStreamSession](),
 		nativePlayer:               options.NativePlayer,
 		parserCache:                result.NewCache[string, *mkvparser.MetadataParser](),
+		episodeCollectionCache:     result.NewCache[int, *anime.EpisodeCollection](),
 		videoCore:                  options.VideoCore,
 	}
 	ret.videoCoreSubscriber = ret.videoCore.Subscribe("directstream")
@@ -131,6 +138,11 @@ func NewManager(options NewManagerOptions) *Manager {
 
 func (m *Manager) SetAnimeCollection(ac *anilist.AnimeCollection) {
 	m.animeCollection = mo.Some(ac)
+	// The anime collection changed (e.g. library rescan, progress update),
+	// so the cached per-media episode collections may be stale.
+	if m.episodeCollectionCache != nil {
+		m.episodeCollectionCache.Clear()
+	}
 }
 
 func (m *Manager) SetSettings(s *Settings) {

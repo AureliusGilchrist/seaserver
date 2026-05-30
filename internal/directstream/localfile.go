@@ -307,24 +307,48 @@ func (m *Manager) PlayLocalFile(ctx context.Context, opts PlayLocalFileOptions) 
 		return fmt.Errorf("media not found in anime collection: %d", mId)
 	}
 
-	episodeCollection, err := anime.NewEpisodeCollectionFromLocalFiles(ctx, anime.NewEpisodeCollectionFromLocalFilesOptions{
-		LocalFiles:          opts.LocalFiles,
-		Media:               media,
-		AnimeCollection:     animeCollection,
-		PlatformRef:         m.platformRef,
-		MetadataProviderRef: m.metadataProviderRef,
-		Logger:              m.Logger,
-	})
-	if err != nil {
-		return fmt.Errorf("cannot play local file, could not create episode collection: %w", err)
+	// Try the cached episode collection first. Building the collection enriches
+	// metadata for *every* episode of the media, which is the dominant cost when
+	// opening the player for a series with many episodes. Cache it per-media so
+	// subsequent plays (and the common case of binge-watching) are near-instant.
+	findEpisode := func(ec *anime.EpisodeCollection) *anime.Episode {
+		for _, e := range ec.Episodes {
+			if e.LocalFile != nil && util.NormalizePath(e.LocalFile.Path) == util.NormalizePath(lf.Path) {
+				return e
+			}
+		}
+		return nil
 	}
 
 	var episode *anime.Episode
-	for _, e := range episodeCollection.Episodes {
-		if e.LocalFile != nil && util.NormalizePath(e.LocalFile.Path) == util.NormalizePath(lf.Path) {
-			episode = e
-			break
+	var episodeCollection *anime.EpisodeCollection
+	if cached, ok := m.episodeCollectionCache.Get(mId); ok && cached != nil {
+		if ep := findEpisode(cached); ep != nil {
+			episode = ep
+			episodeCollection = cached
 		}
+	}
+
+	if episode == nil {
+		builtCollection, err := anime.NewEpisodeCollectionFromLocalFiles(ctx, anime.NewEpisodeCollectionFromLocalFilesOptions{
+			LocalFiles:          opts.LocalFiles,
+			Media:               media,
+			AnimeCollection:     animeCollection,
+			PlatformRef:         m.platformRef,
+			MetadataProviderRef: m.metadataProviderRef,
+			Logger:              m.Logger,
+		})
+		if err != nil {
+			return fmt.Errorf("cannot play local file, could not create episode collection: %w", err)
+		}
+
+		// Cache for 10 minutes. If the library changes and the clicked file is no
+		// longer present in the cached collection, the lookup above falls through
+		// and rebuilds, so stale entries self-heal.
+		m.episodeCollectionCache.SetT(mId, builtCollection, 10*time.Minute)
+
+		episodeCollection = builtCollection
+		episode = findEpisode(builtCollection)
 	}
 
 	if episode == nil {
