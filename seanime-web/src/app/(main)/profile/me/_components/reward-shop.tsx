@@ -500,9 +500,15 @@ function XPBarSkinCard({ reward, currentLevel }: { reward: XPBarSkinReward; curr
                         >
                             <div
                                 className={cn("h-full rounded-full", reward.animClass)}
-                                style={{ width: "65%", background: reward.fillCss }}
+                                style={{
+                                    width: "65%",
+                                    background: reward.fillCss,
+                                    // Required for gradient-based anim classes (shimmer/flow/wave/etc.)
+                                    // to actually scroll — matches the community + profile bar.
+                                    backgroundSize: reward.animClass ? "300% 100%" : undefined,
+                                }}
                             />
-                            <XPBarFxOverlay skin={reward} />
+                            <XPBarFxOverlay skin={reward} fillCss={reward.fillCss} />
                         </div>
                     </div>
                 </div>
