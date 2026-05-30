@@ -254,7 +254,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
 
                 this.fonts = this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
-                    ?.map(a => `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}${this.hmacToken}`) || []
+                    ?.map(a => `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}?id=${this.playbackInfo.id}${this.hmacToken.replace(/^\?/,
+                        "&")}`) || []
 
                 if (!this.playbackInfo.libassFonts) {
                     this.fonts = [...new Set([...this.fonts, defaultFontUrl])]
@@ -976,10 +977,39 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     }
 
     private _createAssEvent(event: MKVParser_SubtitleEvent, index: number): ASSEvent {
+        // Resolve the style index. If the style name isn't in the track's parsed styles map
+        // (e.g. case mismatch, codecPrivate not yet parsed), fall back to "Default" or 1.
+        // Returning `undefined` here causes JASSUB to drop the event or render it with an
+        // unexpected style, which manifests as subtitles not showing at all.
+        const styles = this.eventTracks[event.trackNumber]?.styles
+        const styleName = event.extraData?.style
+        let styleIdx: number = 1
+        if (styleName && styles) {
+            const idx = styles[styleName]
+            if (typeof idx === "number" && idx > 0) {
+                styleIdx = idx
+            } else if (typeof styles["Default"] === "number" && styles["Default"] > 0) {
+                styleIdx = styles["Default"]
+            }
+        }
+
+        // Sanitize the duration. Some malformed MKV/ASS sources emit events with absurdly long
+        // durations or non-positive values. Clamp anything beyond a reasonable maximum and
+        // replace non-positive/NaN values with a short fallback so the event still flashes
+        // rather than becoming permanent or being dropped.
+        const MAX_EVENT_DURATION_MS = 10_000
+        const DEFAULT_EVENT_DURATION_MS = 1_500
+        let duration = event.duration
+        if (!Number.isFinite(duration) || duration <= 0) {
+            duration = DEFAULT_EVENT_DURATION_MS
+        } else if (duration > MAX_EVENT_DURATION_MS) {
+            duration = MAX_EVENT_DURATION_MS
+        }
+
         return {
             Start: event.startTime,
-            Duration: event.duration,
-            Style: event.extraData?.style ? this.eventTracks[event.trackNumber]?.styles?.[event.extraData?.style ?? "Default"] : 1,
+            Duration: duration,
+            Style: styleIdx,
             Name: event.extraData?.name ?? "",
             MarginL: event.extraData?.marginL ? Number(event.extraData.marginL) : 0,
             MarginR: event.extraData?.marginR ? Number(event.extraData.marginR) : 0,
