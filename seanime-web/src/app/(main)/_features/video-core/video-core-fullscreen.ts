@@ -232,23 +232,11 @@ export class VideoCoreFullscreenManager extends EventTarget {
     }
 
     private async _enterElectronFullscreen(): Promise<void> {
-        if (!(window as any)?.electron?.window?.setFullscreen) {
-            log.warning("Electron fullscreen API not available")
-            return
-        }
-
-        try {
-            await (window as any).electron.window.setFullscreen(true)
-            this.isElectronNativeFullscreen = true
-            log.info("Entered Electron native fullscreen")
-        }
-        catch (error) {
-            log.error("Failed to enter Electron fullscreen", error)
-        }
-
-        // Also fullscreen the container element so the video itself expands
-        // (Electron window fullscreen alone only removes OS chrome; the app layout
-        // stays as-is and the video remains its original size in the layout.)
+        // IMPORTANT: Request element fullscreen FIRST, while we are still inside the
+        // user-activation (click) gesture. Awaiting the Electron IPC below consumes
+        // the user gesture, after which containerElement.requestFullscreen() would be
+        // rejected by Chromium ("API can only be initiated by a user gesture") — which
+        // is why the app window would go fullscreen but the video itself would not.
         if (this.containerElement) {
             try {
                 if (this.containerElement.requestFullscreen) {
@@ -265,6 +253,21 @@ export class VideoCoreFullscreenManager extends EventTarget {
             catch (error) {
                 log.error("Failed to enter element fullscreen in Electron", error)
             }
+        }
+
+        // Then ensure the Electron window itself is fullscreen (removes OS chrome).
+        if (!(window as any)?.electron?.window?.setFullscreen) {
+            log.warning("Electron fullscreen API not available")
+            return
+        }
+
+        try {
+            await (window as any).electron.window.setFullscreen(true)
+            this.isElectronNativeFullscreen = true
+            log.info("Entered Electron native fullscreen")
+        }
+        catch (error) {
+            log.error("Failed to enter Electron fullscreen", error)
         }
     }
 
