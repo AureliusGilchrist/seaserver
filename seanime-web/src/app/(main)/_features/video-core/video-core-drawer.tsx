@@ -210,8 +210,6 @@ export function VideoCoreDrawer(props: DrawerProps) {
     }, [open, size])
 
     const prevMiniPlayerRef = React.useRef(miniPlayer)
-    const prevRectRef = React.useRef<DOMRect | null>(null)
-    const motionAnimationRef = React.useRef<Animation | null>(null)
 
     // Dragging
     const contentRef = React.useRef<HTMLDivElement>(null)
@@ -445,6 +443,13 @@ export function VideoCoreDrawer(props: DrawerProps) {
         element.style.opacity = isHidden ? "0.7" : "1"
         element.style.transform = isHidden ? "scale(0.95)" : "scale(1)"
 
+        // When toggling between mini and full, snap the layout change instantly.
+        // Animating the drawer-content (which holds the <video> + WASM subtitle
+        // canvas + ASS overlay) causes the Chromium compositor to hang on heavy
+        // player layouts — the exact same problem as wrapping the toggle in
+        // document.startViewTransition() (see startVideoCoreMiniPlayerTransition).
+        // The previous JS-driven FLIP animation here had the same root cause and
+        // is intentionally removed.
         if (didToggleMiniPlayer) {
             element.style.transition = "none"
             return
@@ -458,52 +463,11 @@ export function VideoCoreDrawer(props: DrawerProps) {
         }
     }, [miniPlayer, position, isDragging, isHidden, getInitialPosition])
 
+    // Track miniPlayer transitions so the layout effect above can suppress
+    // transitions on the frame where the layout snaps between mini and full.
     React.useLayoutEffect(() => {
-        if (!contentRef.current) return
-
-        const element = contentRef.current
-        const previousRect = prevRectRef.current
-        const currentRect = element.getBoundingClientRect()
-        const didToggleMiniPlayer = prevMiniPlayerRef.current !== miniPlayer
-        const finalTransform = miniPlayer ? (isHidden ? "scale(0.95)" : "scale(1)") : "none"
-        const browserViewTransitionActive = document.documentElement.hasAttribute("data-vc-miniplayer-view-transition")
-
-        motionAnimationRef.current?.cancel()
-
-        if (!browserViewTransitionActive && previousRect && didToggleMiniPlayer && currentRect.width > 0 && currentRect.height > 0) {
-            const deltaX = previousRect.left - currentRect.left
-            const deltaY = previousRect.top - currentRect.top
-            const scaleX = previousRect.width / currentRect.width
-            const scaleY = previousRect.height / currentRect.height
-
-            motionAnimationRef.current = element.animate([
-                {
-                    transformOrigin: "top left",
-                    transform: `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`,
-                },
-                {
-                    transformOrigin: "top left",
-                    transform: finalTransform,
-                },
-            ], {
-                duration: 300,
-                easing: "cubic-bezier(0.4, 0, 0.2, 1)",
-                fill: "both",
-            })
-        }
-
         prevMiniPlayerRef.current = miniPlayer
-
-        return () => {
-            motionAnimationRef.current?.cancel()
-        }
     }, [miniPlayer])
-
-    React.useLayoutEffect(() => {
-        if (!contentRef.current) return
-
-        prevRectRef.current = contentRef.current.getBoundingClientRect()
-    }, [miniPlayer, position, isHidden])
 
     return (
         <VaulPrimitive.Root
@@ -537,8 +501,13 @@ export function VideoCoreDrawer(props: DrawerProps) {
                     className={cn(
                         DrawerAnatomy.content({ size, side: "player" }),
                         contentClass,
-                        "w-full h-full transition-all duration-300 overflow-hidden fixed transform-gpu [contain:layout_paint_style]",
-                        miniPlayer && "aspect-video w-[300px] lg:w-[400px] h-auto rounded-lg shadow-xl will-change-[transform,opacity]",
+                        "w-full h-full overflow-hidden fixed",
+                        // GPU promotion + paint containment are only safe while we're in
+                        // mini-player mode (small, draggable). Applying them to the
+                        // full-screen player wraps the <video> in a composited layer that
+                        // occasionally fails to repaint after a layout change (player goes
+                        // black) and makes the mini<->full toggle hang the compositor.
+                        miniPlayer && "aspect-video w-[300px] lg:w-[400px] h-auto rounded-lg shadow-xl transform-gpu will-change-[transform,opacity] [contain:layout_paint_style]",
                         isHidden && "ring-2 ring-brand-300",
                     )}
                     ref={contentRef}
