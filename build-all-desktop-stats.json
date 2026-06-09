@@ -1,5 +1,11 @@
 ﻿{
+<<<<<<< HEAD
     "last_duration_secs":  175,
     "successes":  120,
     "total_runs":  120
+=======
+    "last_duration_secs":  188,
+    "successes":  118,
+    "total_runs":  118
+>>>>>>> parent of 0366b86a9 (number 1)
 }

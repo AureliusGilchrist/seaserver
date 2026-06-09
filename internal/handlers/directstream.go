@@ -93,52 +93,21 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 	}
 
 	// Fetch URL using the video proxy client (same transport that fetches HLS from CDNs).
-	ua := util.GetRandomUserAgent()
-	fetchSubtitle := func(referer string) (*http.Response, error) {
-		r, reqErr := http.NewRequest(http.MethodGet, b.Url, nil)
-		if reqErr != nil {
-			return nil, reqErr
-		}
-		r.Header.Set("User-Agent", ua)
-		r.Header.Set("Accept", "*/*")
-		if referer != "" {
-			r.Header.Set("Referer", referer)
-		}
-		return h.getVideoProxyClient().Do(r)
+	req, err := http.NewRequest(http.MethodGet, b.Url, nil)
+	if err != nil {
+		return h.RespondWithError(c, fmt.Errorf("invalid subtitle URL: %w", err))
+	}
+	req.Header.Set("User-Agent", util.GetRandomUserAgent())
+	req.Header.Set("Accept", "*/*")
+	// Use the CDN origin as referer — some CDNs check for a same-origin referer
+	if parsedURL, parseErr := url.Parse(b.Url); parseErr == nil {
+		req.Header.Set("Referer", parsedURL.Scheme+"://"+parsedURL.Host+"/")
+		req.Header.Set("Origin", parsedURL.Scheme+"://"+parsedURL.Host)
 	}
 
-	resp, err := fetchSubtitle("")
+	resp, err := h.getVideoProxyClient().Do(req)
 	if err != nil {
 		return h.RespondWithError(c, fmt.Errorf("failed to fetch subtitle URL: %w", err))
-	}
-
-	// CDN hotlink protection: retry with common Referer values when blocked.
-	if resp.StatusCode == 403 || resp.StatusCode == 401 {
-		resp.Body.Close()
-		resp = nil
-		referers := []string{""}
-		if parsedURL, parseErr := url.Parse(b.Url); parseErr == nil {
-			referers = []string{
-				parsedURL.Scheme + "://" + parsedURL.Host + "/",
-				"https://animetsu.net/",
-				"https://megacloud.club/",
-				"https://megacloud.tv/",
-			}
-		}
-		for _, referer := range referers {
-			r, retryErr := fetchSubtitle(referer)
-			if retryErr != nil {
-				continue
-			}
-			if r.StatusCode >= 200 && r.StatusCode < 300 {
-				resp = r
-				break
-			}
-			r.Body.Close()
-		}
-		if resp == nil {
-			return h.RespondWithError(c, fmt.Errorf("subtitle URL returned HTTP 403 (hotlink protection, all referers blocked)"))
-		}
 	}
 	defer resp.Body.Close()
 
