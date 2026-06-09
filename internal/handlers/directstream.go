@@ -2,9 +2,13 @@ package handlers
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/directstream"
 	"seanime/internal/mkvparser"
+	"seanime/internal/util"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -87,8 +91,28 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 		return h.RespondWithData(c, ret)
 	}
 
-	// Convert from url
-	ret, err := h.App.VideoCore.FetchAndConvertSubsTo(b.Url, to)
+	// Fetch URL using the video proxy client (same transport that fetches HLS from CDNs).
+	req, err := http.NewRequest(http.MethodGet, b.Url, nil)
+	if err != nil {
+		return h.RespondWithError(c, fmt.Errorf("invalid subtitle URL: %w", err))
+	}
+	req.Header.Set("User-Agent", util.GetRandomUserAgent())
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Referer", b.Url)
+
+	resp, err := h.getVideoProxyClient().Do(req)
+	if err != nil {
+		return h.RespondWithError(c, fmt.Errorf("failed to fetch subtitle URL: %w", err))
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return h.RespondWithError(c, fmt.Errorf("failed to read subtitle response: %w", err))
+	}
+
+	content := strings.TrimSpace(string(bodyBytes))
+	ret, err := h.App.VideoCore.ConvertSubsTo(content, mkvparser.SubtitleTypeUnknown, to)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}

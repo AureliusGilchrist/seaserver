@@ -110,8 +110,6 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
 
     // Stream URL
     const [url, setUrl] = React.useState<string | null>(null)
-    // Proxied subtitle URLs (keyed by original URL)
-    const [proxiedSubtitleUrls, setProxiedSubtitleUrls] = React.useState<Record<string, string>>({})
 
     React.useEffect(() => {
         return () => {
@@ -325,22 +323,11 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
 
             if (cancelled) return
 
-            // Build proxied subtitle URLs so the backend fetches them with proper proxy infrastructure.
-            // Subtitle URLs from CDNs like swiftstream.top need to be fetched server-side.
-            const hmacToken = await getHMACTokenQueryParam("/api/v1/proxy", "&")
-            const newProxiedSubUrls: Record<string, string> = {}
-            for (const sub of (videoSource.subtitles ?? [])) {
-                if (sub.url) {
-                    newProxiedSubUrls[sub.url] = `${getServerBaseUrl()}/api/v1/proxy?url=${encodeURIComponent(sub.url)}${hmacToken}`
-                }
-            }
-
             // Set override stream type and URL atomically (within the same tick via startTransition)
             // to avoid tearing down VideoCore with null URL then rebuilding
             React.startTransition(() => {
                 setOverrideStreamType(detectedStreamType)
                 setUrl(_url)
-                setProxiedSubtitleUrls(newProxiedSubUrls)
                 log.info("Setting stream URL", { url: _url })
             })
         })()
@@ -688,7 +675,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                                             subtitleTracks: videoSource?.subtitles?.map((sub, index) => ({
                                                 index: index,
                                                 label: sub.language,
-                                                src: proxiedSubtitleUrls[sub.url] ?? sub.url,
+                                                src: sub.url,
                                                 language: sub.language,
                                                 default: index === 0,
                                                 useLibassRenderer: useLibassRenderer,
