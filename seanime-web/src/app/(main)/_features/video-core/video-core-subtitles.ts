@@ -76,6 +76,8 @@ export class VideoCoreSubtitleManager extends EventTarget {
     private readonly jassubOffscreenRender: boolean
     libassRenderer: JASSUB | null = null
     pgsRenderer: VideoCorePgsRenderer | null = null
+    private _jassubCanvas: HTMLCanvasElement | null = null
+    private _jassubResizeObserver: ResizeObserver | null = null
     private settings: VideoCoreSettings
     private defaultSubtitleHeader = `[Script Info]
 Title: English (US)
