@@ -109,6 +109,19 @@ export function useVideoCoreHls({
                 backBufferLength: 90,
                 enableWebVTT: true,
                 renderTextTracksNatively: false, // don't use native text tracks for subtitles
+                // Buffer more aggressively so slow proxy/CDN throughput doesn't drain the buffer
+                // to ~0 and stall playback (bufferStalledError). Defaults are 30s / 60MB.
+                maxBufferLength: 60,
+                maxMaxBufferLength: 600,
+                maxBufferSize: 120 * 1000 * 1000, // 120MB
+                // Be more patient and retry harder when segments load slowly.
+                fragLoadingMaxRetry: 8,
+                fragLoadingRetryDelay: 500,
+                fragLoadingMaxRetryTimeout: 64000,
+                manifestLoadingMaxRetry: 4,
+                levelLoadingMaxRetry: 4,
+                // Try harder to recover from buffer stalls before giving up (default 3).
+                nudgeMaxRetry: 10,
             })
 
             hlsRef.current = hls
