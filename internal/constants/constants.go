@@ -10,9 +10,9 @@ import (
 // at startup via SetVersionsFromJSON. Defaults below are used as fallback if the
 // manifest is missing or malformed.
 var (
-	Version             = "2.3.0-13"
+	Version             = "2.4.0-13"
 	VersionName         = "Karasu"
-	SeanimeRoomsVersion = "2.3.0-13"
+	SeanimeRoomsVersion = "2.4.0-13"
 )
 
 const (
