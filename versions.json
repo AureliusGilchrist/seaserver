@@ -1,20 +1,20 @@
 {
     "$comment": "Single source of truth for all version numbers. Edit ONLY this file — sync-versions.js (run via predev/prebuild hooks or `node sync-versions.js`) propagates values to seanime-web/package.json, seanime-denshi/package.json, and internal/constants/constants.go automatically.",
     "seaserver": {
-        "version": "2.4.0-13",
+        "version": "2.4.0-1",
         "codename": "Karasu",
         "source": "internal/constants/constants.go (Version, VersionName)"
     },
     "rooms": {
-        "version": "2.4.0-13",
+        "version": "2.4.0-1",
         "source": "internal/constants/constants.go (SeanimeRoomsVersion)"
     },
     "seanime-web": {
-        "version": "2.2.0-2",
+        "version": "2.2.0-1",
         "source": "seanime-web/package.json"
     },
     "seanime-denshi": {
-        "version": "4.1.0-13",
+        "version": "4.1.0-1",
         "source": "seanime-denshi/package.json"
     },
     "updater": {
@@ -32,5 +32,5 @@
             "url": "https://raw.githubusercontent.com/5rahim/seanime-extensions/refs/heads/main/marketplace.json"
         }
     },
-    "lastUpdated": "2026-05-29"
+    "lastUpdated": "2026-06-09"
 }
