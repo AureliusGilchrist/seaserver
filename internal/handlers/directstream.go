@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/directstream"
 	"seanime/internal/mkvparser"
@@ -98,13 +99,21 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 	}
 	req.Header.Set("User-Agent", util.GetRandomUserAgent())
 	req.Header.Set("Accept", "*/*")
-	req.Header.Set("Referer", b.Url)
+	// Use the CDN origin as referer — some CDNs check for a same-origin referer
+	if parsedURL, parseErr := url.Parse(b.Url); parseErr == nil {
+		req.Header.Set("Referer", parsedURL.Scheme+"://"+parsedURL.Host+"/")
+		req.Header.Set("Origin", parsedURL.Scheme+"://"+parsedURL.Host)
+	}
 
 	resp, err := h.getVideoProxyClient().Do(req)
 	if err != nil {
 		return h.RespondWithError(c, fmt.Errorf("failed to fetch subtitle URL: %w", err))
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return h.RespondWithError(c, fmt.Errorf("subtitle URL returned HTTP %d", resp.StatusCode))
+	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {

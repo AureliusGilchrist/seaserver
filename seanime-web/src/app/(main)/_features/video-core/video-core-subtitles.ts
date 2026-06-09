@@ -1162,8 +1162,25 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 let prefetchedContent: string | undefined
                 if (fileTrack.info.src && !fileTrack.info.content) {
                     try {
-                        prefetchedContent = await fetch(fileTrack.info.src).then(r => r.text())
-                        subtitleLog.info("Pre-fetched subtitle content in browser", fileTrack.info.src)
+                        const resp = await fetch(fileTrack.info.src)
+                        if (resp.ok) {
+                            const text = await resp.text()
+                            // Only use the fetched content if it looks like an actual subtitle file.
+                            // CDNs sometimes return HTML error pages with a 200 status.
+                            const trimmed = text.trimStart()
+                            const looksLikeSubtitle = trimmed.startsWith("WEBVTT")
+                                || trimmed.startsWith("[Script Info]")
+                                || (text.match(/-->/g) || []).length > 2
+                                || trimmed.startsWith("1\n") || trimmed.startsWith("1\r\n")
+                            if (looksLikeSubtitle) {
+                                prefetchedContent = text
+                                subtitleLog.info("Pre-fetched subtitle content in browser", fileTrack.info.src)
+                            } else {
+                                subtitleLog.warning("Browser pre-fetch returned non-subtitle content, falling back to server-side fetch")
+                            }
+                        } else {
+                            subtitleLog.warning("Browser pre-fetch got non-OK status", resp.status, "falling back to server-side fetch")
+                        }
                     }
                     catch (prefetchErr) {
                         subtitleLog.warning("Browser pre-fetch failed, falling back to server-side fetch", prefetchErr)
