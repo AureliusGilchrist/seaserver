@@ -3,6 +3,7 @@ package videocore
 import (
 	"errors"
 	"fmt"
+	neturl "net/url"
 	"seanime/internal/mkvparser"
 	"seanime/internal/util"
 	"strings"
@@ -11,16 +12,44 @@ import (
 	"github.com/imroc/req/v3"
 )
 
-func (vc *VideoCore) FetchAndConvertSubsTo(url string, to int) (string, error) {
+func (vc *VideoCore) FetchAndConvertSubsTo(subUrl string, to int) (string, error) {
 	client := req.C()
 	client.SetTimeout(30 * time.Second)
-	resp := client.Get(url).Do()
 
-	if resp.IsErrorState() {
+	ua := util.GetRandomUserAgent()
+
+	fetch := func(referer string) *req.Response {
+		r := client.Get(subUrl).
+			SetHeader("User-Agent", ua).
+			SetHeader("Accept", "*/*")
+		if referer != "" {
+			r.SetHeader("Referer", referer)
+		}
+		return r.Do()
+	}
+
+	// Try the CDN's own origin as referer first (most CDNs accept same-origin),
+	// then fall back to no referer and common referers on hotlink rejection.
+	var origin string
+	if parsed, parseErr := neturl.Parse(subUrl); parseErr == nil {
+		origin = parsed.Scheme + "://" + parsed.Host + "/"
+	}
+
+	referers := []string{origin, "", "https://animetsu.net/", "https://megacloud.club/", "https://megacloud.tv/"}
+	var resp *req.Response
+	for _, referer := range referers {
+		r := fetch(referer)
+		if r.Err == nil && !r.IsErrorState() {
+			resp = r
+			break
+		}
+	}
+	if resp == nil {
 		return "", errors.New("failed to fetch subtitle file")
 	}
 
 	payload := resp.String()
+	url := subUrl
 
 	from := mkvparser.SubtitleTypeUnknown
 
