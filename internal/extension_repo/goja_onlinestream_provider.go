@@ -2,6 +2,7 @@ package extension_repo
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"seanime/internal/events"
 	"seanime/internal/extension"
@@ -89,6 +90,24 @@ func (g *GojaOnlinestreamProvider) FindEpisodeServer(episode *hibikeonlinestream
 		return nil, err
 	}
 
+	// Some extensions (e.g. GojoWtf) return subtitles at the top level of the response
+	// rather than per video source. Detect this pattern and inject the top-level subtitles
+	// into every video source that has an empty subtitles array before unmarshaling.
+	if exported := result.Export(); exported != nil {
+		if rawBytes, merr := json.Marshal(exported); merr == nil {
+			var rawMap map[string]interface{}
+			if merr = json.Unmarshal(rawBytes, &rawMap); merr == nil {
+				rawMap = injectTopLevelSubtitles(rawMap)
+				if fixed, merr := json.Marshal(rawMap); merr == nil {
+					if merr = json.Unmarshal(fixed, &ret); merr == nil {
+						ret.Provider = g.ext.ID
+						return
+					}
+				}
+			}
+		}
+	}
+
 	err = g.unmarshalValue(result, &ret)
 	if err != nil {
 		return nil, err
@@ -97,6 +116,83 @@ func (g *GojaOnlinestreamProvider) FindEpisodeServer(episode *hibikeonlinestream
 	ret.Provider = g.ext.ID
 
 	return
+}
+
+// injectTopLevelSubtitles checks whether the raw findEpisodeServer result has a top-level
+// "subs" or "subtitles" array while all videoSources have empty subtitles, and if so copies
+// the top-level subtitles into every videoSource.
+func injectTopLevelSubtitles(raw map[string]interface{}) map[string]interface{} {
+	// Look for top-level subtitle candidates under common key names
+	var topLevelSubs []interface{}
+	for _, key := range []string{"subs", "subtitles", "tracks"} {
+		if v, ok := raw[key]; ok {
+			if arr, ok := v.([]interface{}); ok && len(arr) > 0 {
+				topLevelSubs = arr
+				break
+			}
+		}
+	}
+	if len(topLevelSubs) == 0 {
+		return raw
+	}
+
+	videoSources, ok := raw["videoSources"].([]interface{})
+	if !ok || len(videoSources) == 0 {
+		return raw
+	}
+
+	// Only inject if ALL video sources have no subtitles
+	for _, vs := range videoSources {
+		vsMap, ok := vs.(map[string]interface{})
+		if !ok {
+			return raw
+		}
+		if subs, ok := vsMap["subtitles"].([]interface{}); ok && len(subs) > 0 {
+			return raw
+		}
+	}
+
+	// Normalize subtitles: map common field names (url/src, lang/language) to the
+	// VideoSubtitle schema expected by the Go type {id, url, language, isDefault}.
+	normalized := make([]interface{}, 0, len(topLevelSubs))
+	for i, entry := range topLevelSubs {
+		m, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		norm := map[string]interface{}{
+			"id":        fmt.Sprintf("%d", i),
+			"url":       coalesceStr(m, "url", "src"),
+			"language":  coalesceStr(m, "language", "lang", "label"),
+			"isDefault": i == 0,
+		}
+		if norm["url"] == "" {
+			continue
+		}
+		normalized = append(normalized, norm)
+	}
+	if len(normalized) == 0 {
+		return raw
+	}
+
+	for _, vs := range videoSources {
+		vsMap := vs.(map[string]interface{})
+		vsMap["subtitles"] = normalized
+	}
+
+	return raw
+}
+
+// coalesceStr returns the first non-empty string found under the given keys in m.
+func coalesceStr(m map[string]interface{}, keys ...string) string {
+	for _, k := range keys {
+		if v, ok := m[k]; ok {
+			if s, ok := v.(string); ok && s != "" {
+				return s
+			}
+		}
+	}
+	return ""
 }
 
 func (g *GojaOnlinestreamProvider) GetSettings() (ret hibikeonlinestream.Settings) {
