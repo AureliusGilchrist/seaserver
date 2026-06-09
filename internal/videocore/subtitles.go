@@ -11,10 +11,33 @@ import (
 	"github.com/imroc/req/v3"
 )
 
+func extractOrigin(rawUrl string) string {
+	// Returns "https://host" from a full URL, or the URL itself on failure.
+	if i := strings.Index(rawUrl, "://"); i != -1 {
+		rest := rawUrl[i+3:]
+		if j := strings.Index(rest, "/"); j != -1 {
+			return rawUrl[:i+3+j]
+		}
+		return rawUrl
+	}
+	return rawUrl
+}
+
 func (vc *VideoCore) FetchAndConvertSubsTo(url string, to int) (string, error) {
 	client := req.C()
 	client.SetTimeout(30 * time.Second)
-	resp := client.Get(url).Do()
+
+	// Parse the origin from the URL to send as Referer, which some CDNs require.
+	referer := url
+	if idx := strings.Index(url, "?"); idx != -1 {
+		referer = url[:idx]
+	}
+
+	resp := client.Get(url).
+		SetHeader("Referer", referer).
+		SetHeader("Origin", extractOrigin(url)).
+		SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36").
+		Do()
 
 	if resp.IsErrorState() {
 		return "", errors.New("failed to fetch subtitle file")
@@ -24,7 +47,12 @@ func (vc *VideoCore) FetchAndConvertSubsTo(url string, to int) (string, error) {
 
 	from := mkvparser.SubtitleTypeUnknown
 
-	ext := util.FileExt(url)
+	// Strip query params before checking extension
+	rawUrl := url
+	if idx := strings.Index(rawUrl, "?"); idx != -1 {
+		rawUrl = rawUrl[:idx]
+	}
+	ext := util.FileExt(rawUrl)
 
 	switch ext {
 	case ".ass":
