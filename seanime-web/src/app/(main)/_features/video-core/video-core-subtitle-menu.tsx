@@ -66,6 +66,13 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
             subtitleManager.setTracksLoadedEventListener(tracks => {
                 setSubtitleTracks(tracks)
             })
+
+            // Populate immediately in case tracks were already loaded before this effect ran
+            // (happens when subtitle tracks come from playbackInfo rather than async MKV parsing)
+            const alreadyLoaded = subtitleManager.getTracks?.()
+            if (alreadyLoaded?.length) {
+                setSubtitleTracks(alreadyLoaded)
+            }
         } else if (mediaCaptionsManager) {
             /**
              * Media captions tracks
@@ -81,6 +88,12 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
             mediaCaptionsManager.setTracksLoadedEventListener(tracks => {
                 setMediaCaptionsTracks(tracks)
             })
+
+            // Populate immediately in case tracks were already loaded before this effect ran
+            const alreadyLoaded = mediaCaptionsManager.getTracks?.()
+            if (alreadyLoaded?.length) {
+                setMediaCaptionsTracks(alreadyLoaded)
+            }
         }
     }, [videoElement, subtitleManager, mediaCaptionsManager])
 
