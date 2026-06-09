@@ -60,6 +60,9 @@ export default function Page() {
     // Hero background image state (hover-driven) - matching anime home screen
     const [hoverImage, setHoverImage] = React.useState<string | null>(null)
     const [activeHero] = useDebounce(hoverImage, 50)
+    const [prevHero, setPrevHero] = React.useState<string | null>(null)
+    const [isCrossfading, setIsCrossfading] = React.useState(false)
+    const crossfadeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     const [scrolled, setScrolled] = React.useState(false)
 
     const handleHoverImage = React.useCallback((img: string | null) => {
@@ -78,6 +81,19 @@ export default function Page() {
             setHoverImage(null)
         }
     }, [scrolled])
+
+    // Crossfade: when activeHero changes, keep the old image visible while the new one fades in
+    React.useEffect(() => {
+        if (crossfadeTimerRef.current) clearTimeout(crossfadeTimerRef.current)
+        setIsCrossfading(true)
+        crossfadeTimerRef.current = setTimeout(() => {
+            setPrevHero(activeHero)
+            setIsCrossfading(false)
+        }, 600)
+        return () => {
+            if (crossfadeTimerRef.current) clearTimeout(crossfadeTimerRef.current)
+        }
+    }, [activeHero])
 
     const { data: downloadedList, isLoading: downloadsLoading, isError: downloadsError } = useGetMangaDownloadsList()
     const [downloadSearch, setDownloadSearch] = React.useState("")
@@ -154,6 +170,21 @@ export default function Page() {
         >
             {/* Dynamic blurred background hero - matching anime home screen z-index */}
             <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+                {/* Previous image layer — fades out during crossfade */}
+                <div
+                    className={cn(
+                        "absolute inset-0 transition-opacity duration-500",
+                        prevHero && isCrossfading ? "opacity-100" : "opacity-0",
+                    )}
+                    style={{
+                        backgroundImage: prevHero ? `url(${prevHero})` : undefined,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        filter: "blur(22px) saturate(120%)",
+                        transform: "scale(1.05)",
+                    }}
+                />
+                {/* New image layer — fades in */}
                 <div
                     className={cn(
                         "absolute inset-0 transition-opacity duration-500",

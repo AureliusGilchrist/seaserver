@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/library/anime"
@@ -76,19 +75,6 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 	var req unmatched.MatchRequest
 	if err := c.Bind(&req); err != nil {
 		return h.RespondWithError(c, err)
-	}
-
-	// Guard against matching the same mediaId twice — check DB for existing local files
-	// with the same mediaId so users can't accidentally overwrite an existing match.
-	if req.AnimeID > 0 {
-		if lfs, _, err := db_bridge.GetLocalFiles(h.App.Database); err == nil {
-			for _, lf := range lfs {
-				if lf.MediaId == req.AnimeID {
-					return h.RespondWithError(c, echo.NewHTTPError(409,
-						fmt.Sprintf("Media ID %d is already in your library. Remove the existing entry first if you want to re-match it.", req.AnimeID)))
-				}
-			}
-		}
 	}
 
 	result, err := h.App.UnmatchedRepository.MatchAndMoveFiles(&req)

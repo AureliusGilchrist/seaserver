@@ -11,6 +11,7 @@ import {
 } from "@/api/hooks/unmatched.hooks"
 import { useAnilistListAnime, useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
+import { useGetLocalFiles } from "@/api/hooks/localfiles.hooks"
 import { AL_BaseAnime, AL_AnimeDetailsById_Media } from "@/api/generated/types"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Button } from "@/components/ui/button"
@@ -77,25 +78,16 @@ function extractEpisodeNumber(filename: string): number | null {
     return null
 }
 
-// Check if anime is already in the local library
-function isAnimeInLibrary(animeId: number, libraryCollection: any): boolean {
-    if (!libraryCollection?.lists) return false
-    
-    for (const list of libraryCollection.lists) {
-        if (list?.entries) {
-            for (const entry of list.entries) {
-                if (entry?.mediaId === animeId) {
-                    return true
-                }
-            }
-        }
-    }
-    return false
+// Check if anime already has local files matched to it
+function isAnimeInLibrary(animeId: number, localFiles: any[] | undefined): boolean {
+    if (!localFiles?.length) return false
+    return localFiles.some(f => f.mediaId === animeId)
 }
 
 export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMatchModalProps) {
     const queryClient = useQueryClient()
     const { data: libraryCollection } = useGetLibraryCollection()
+    const { data: localFiles } = useGetLocalFiles()
     const [step, setStep] = useState<"select-files" | "select-anime">("select-files")
     const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
     const [selectedAnime, setSelectedAnime] = useState<AL_BaseAnime | null>(null)
@@ -326,17 +318,10 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         })
     }, [])
 
-    const handleMatch = useCallback(() => {
-        if (!torrent || !selectedAnime || selectedFiles.size === 0) return
+    const [confirmOverwrite, setConfirmOverwrite] = useState(false)
 
-        // Feature 4: warn if this media ID is already in the library
-        if (isAnimeInLibrary(selectedAnime.id, libraryCollection)) {
-            toast.error("You already matched these files", {
-                description: `Media ID ${selectedAnime.id} is already in your library. Choose a different entry or remove the existing one first.`,
-                duration: 8000,
-            })
-            return
-        }
+    const doMatch = useCallback(() => {
+        if (!torrent || !selectedAnime || selectedFiles.size === 0) return
 
         const titleJp = selectedAnime.title?.native || selectedAnime.title?.romaji || selectedAnime.title?.english || ""
         // Fallback to torrent metadata titles if anime title is empty
@@ -358,6 +343,15 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             episodeOffset: dependOnIndex ? (episodeOffset > 0 ? episodeOffset : 1) : undefined,
         })
     }, [torrent, selectedAnime, selectedFiles, matchTorrent, torrentContents])
+
+    const handleMatch = useCallback(() => {
+        if (!torrent || !selectedAnime || selectedFiles.size === 0) return
+        if (isAnimeInLibrary(selectedAnime.id, localFiles)) {
+            setConfirmOverwrite(true)
+            return
+        }
+        doMatch()
+    }, [torrent, selectedAnime, selectedFiles, localFiles, doMatch])
 
     // Build a folder tree from all files
     const fileTree = useMemo(() => {
@@ -501,6 +495,27 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     const isLoadingAnimeInfo = isLoadingStoredAnime && storedAnimeId && !selectedAnime
 
     return (
+        <>
+        {confirmOverwrite && selectedAnime && (
+            <Modal
+                open={confirmOverwrite}
+                onOpenChange={(open) => !open && setConfirmOverwrite(false)}
+                contentClass="max-w-md"
+                title="This series already has files"
+            >
+                <div className="space-y-4 py-2">
+                    <p className="text-[--muted]">
+                        <span className="font-semibold text-[--foreground]">{selectedAnime.title?.romaji || selectedAnime.title?.english}</span> already
+                        has files matched to it in your library. Matching more files to it may cause conflicts.
+                    </p>
+                    <p className="text-sm text-[--muted]">Do you want to continue anyway?</p>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button intent="gray" onClick={() => setConfirmOverwrite(false)}>Cancel</Button>
+                        <Button intent="warning" onClick={() => { setConfirmOverwrite(false); doMatch() }}>Continue Anyway</Button>
+                    </div>
+                </div>
+            </Modal>
+        )}
         <Modal
             open={!!torrent}
             onOpenChange={(open) => !open && handleClose()}
@@ -778,7 +793,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                             anime={anime as AL_BaseAnime}
                                             selected={selectedAnime?.id === anime?.id}
                                             onSelect={() => handleSelectSearchAnime(anime as AL_BaseAnime)}
-                                            libraryCollection={libraryCollection}
+                                            localFiles={localFiles}
                                         />
                                     ))}
                                 </div>
@@ -841,6 +856,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                 </AppLayoutStack>
             )}
         </Modal>
+        </>
     )
 }
 
@@ -1022,18 +1038,18 @@ function TreeNodeItem({
     )
 }
 
-function AnimeSearchItem({ anime, selected, onSelect, libraryCollection }: { 
-    anime: AL_BaseAnime & { studios?: { nodes?: { name: string }[] }, synonyms?: string[] }; 
-    selected: boolean; 
-    onSelect: () => void; 
-    libraryCollection?: any 
+function AnimeSearchItem({ anime, selected, onSelect, localFiles }: {
+    anime: AL_BaseAnime & { studios?: { nodes?: { name: string }[] }, synonyms?: string[] };
+    selected: boolean;
+    onSelect: () => void;
+    localFiles?: any[]
 }) {
     const season = anime.season ? capitalize(anime.season.toLowerCase()) : null
     const year = anime.seasonYear
     const seasonYear = season && year ? `${season} ${year}` : year ? `${year}` : null
     const format = anime.format
-    
-    const isInLibrary = anime?.id ? isAnimeInLibrary(anime.id, libraryCollection) : false
+
+    const isInLibrary = anime?.id ? isAnimeInLibrary(anime.id, localFiles) : false
     
     // Get studios
     const studios = anime.studios?.nodes?.map(s => s.name).slice(0, 2) || []

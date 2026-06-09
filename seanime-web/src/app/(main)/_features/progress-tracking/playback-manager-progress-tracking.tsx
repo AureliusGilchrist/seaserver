@@ -5,6 +5,7 @@ import {
     usePlaybackPlayNextEpisode,
     usePlaybackSyncCurrentProgress,
 } from "@/api/hooks/playback_manager.hooks"
+import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { useAutoplay, useNextEpisodeResolver } from "@/app/(main)/_features/autoplay/autoplay"
 import { usePlaylistManager } from "@/app/(main)/_features/playlists/_containers/global-playlist-manager"
 import { AutoplayCountdownModal } from "@/app/(main)/_features/progress-tracking/_components/autoplay-countdown-modal"
@@ -249,6 +250,54 @@ export function PlaybackManagerProgressTracking() {
         },
     })
 
+    // "Behind on AniList" prompt — shown when the user has been watching for 30s
+    // and their AniList progress is ahead of the episode they're currently watching.
+    const [behindPrompt, setBehindPrompt] = React.useState<{
+        episodeNumber: number
+        anilistProgress: number
+    } | null>(null)
+    const behindPromptShownRef = React.useRef(false)
+    const behindTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    const { data: playingAnimeEntry } = useGetAnimeEntry(state?.mediaId ?? null)
+
+    React.useEffect(() => {
+        if (behindTimerRef.current) {
+            clearTimeout(behindTimerRef.current)
+            behindTimerRef.current = null
+        }
+
+        if (!isTracking || !state?.mediaId || !state?.episodeNumber) {
+            behindPromptShownRef.current = false
+            return
+        }
+
+        behindTimerRef.current = setTimeout(() => {
+            if (behindPromptShownRef.current) return
+            const anilistProgress = playingAnimeEntry?.listData?.progress ?? 0
+            const watching = state.episodeNumber ?? 0
+            if (anilistProgress > watching) {
+                behindPromptShownRef.current = true
+                setBehindPrompt({ episodeNumber: watching, anilistProgress })
+            }
+        }, 30_000)
+
+        return () => {
+            if (behindTimerRef.current) {
+                clearTimeout(behindTimerRef.current)
+                behindTimerRef.current = null
+            }
+        }
+    }, [isTracking, state?.mediaId, state?.episodeNumber, playingAnimeEntry?.listData?.progress])
+
+    // Reset the "already shown" guard when tracking stops so a new session can trigger it again
+    React.useEffect(() => {
+        if (!isTracking) {
+            behindPromptShownRef.current = false
+            setBehindPrompt(null)
+        }
+    }, [isTracking])
+
 
     const confirmPlayNext = useConfirmationDialog({
         title: "Play next episode",
@@ -477,6 +526,43 @@ export function PlaybackManagerProgressTracking() {
             <ConfirmationDialog {...confirmPlayNext} />
             <ConfirmationDialog {...confirmStopPlaylist} />
             <ConfirmationDialog {...confirmNextEpisode} />
+
+            {/* "Behind on AniList" prompt — user's AniList progress is ahead of what they're watching */}
+            <Modal
+                open={!!behindPrompt}
+                onOpenChange={(o) => { if (!o) setBehindPrompt(null) }}
+                title="Looks like you went back a bit"
+                contentClass="max-w-md"
+            >
+                {!!behindPrompt && (
+                    <div className="space-y-4">
+                        <p className="text-[--muted]">
+                            Your AniList is at episode <span className="font-semibold text-white">{behindPrompt.anilistProgress}</span>, but
+                            you're currently watching episode <span className="font-semibold text-white">{behindPrompt.episodeNumber}</span>.
+                            Want to roll your progress back to match where you are now?
+                        </p>
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                intent="gray-outline"
+                                onClick={() => setBehindPrompt(null)}
+                            >
+                                Nah, keep it
+                            </Button>
+                            <Button
+                                intent="primary"
+                                loading={isPending}
+                                onClick={() => {
+                                    syncProgress(undefined, {
+                                        onSuccess: () => setBehindPrompt(null),
+                                    })
+                                }}
+                            >
+                                Yeah, go back to {behindPrompt.episodeNumber}
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
 
             {/* Progress update confirmation: shown when the gap between current AniList progress
                 and the just-watched episode is greater than 1 episode. */}
