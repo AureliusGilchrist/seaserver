@@ -7,7 +7,9 @@ import {
     useSetAllowedLibraryPaths,
     useUpdateProfile,
 } from "@/api/hooks/profiles.hooks"
-import { useAdminSetProfileAniListToken } from "@/api/hooks/admin.hooks"
+import { useAdminSetProfileAniListToken, useDeletePlanningSlutToken, useGetPlanningSlutInfo, useSavePlanningSlutToken } from "@/api/hooks/admin.hooks"
+import { SeaLink } from "@/components/shared/sea-link"
+import { ANILIST_PIN_URL } from "@/lib/server/config"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { SettingsCard, SettingsPageHeader } from "@/app/(main)/settings/_components/settings-card"
 import { Avatar } from "@/components/ui/avatar"
@@ -124,6 +126,10 @@ export function ProfileManagement() {
                         ))}
                     </div>
                 </SettingsCard>
+            )}
+
+            {isAdmin && (
+                <PlanningSlutTokenCard />
             )}
 
             <CreateProfileModal open={createOpen} onClose={() => setCreateOpen(false)} />
@@ -466,6 +472,90 @@ function AdminProfileTokenRow({ profile }: { profile: ProfileSummary }) {
                 </div>
             )}
         </div>
+    )
+}
+
+function PlanningSlutTokenCard() {
+    const { data: info, isLoading } = useGetPlanningSlutInfo()
+    const { mutate: save, isPending: isSaving } = useSavePlanningSlutToken()
+    const { mutate: remove, isPending: isDeleting } = useDeletePlanningSlutToken()
+    const [expanded, setExpanded] = React.useState(false)
+    const [token, setToken] = React.useState("")
+    const [confirmDelete, setConfirmDelete] = React.useState(false)
+
+    const handleSave = () => {
+        if (!token.trim()) return
+        save({ token: token.trim() }, {
+            onSuccess: () => {
+                setToken("")
+                setExpanded(false)
+            },
+            onError: (err: any) => {
+                toast.error(err?.response?.data?.message || err?.message || "Failed to save token")
+            },
+        })
+    }
+
+    return (
+        <SettingsCard title="Planning Slut AniList Token" description="The Planning Slut AniList account used to manage the library across all profiles.">
+            <div className="p-3 rounded-md bg-[--subtle] border border-[--border]">
+                <div className="flex items-center gap-3">
+                    {info?.avatar && (
+                        <img src={info.avatar} alt={info.name} className="w-8 h-8 rounded-full" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                        {isLoading
+                            ? <p className="text-xs text-[--muted]">Loading...</p>
+                            : info?.name
+                                ? <p className="text-sm font-medium text-green-500">Linked: {info.name}</p>
+                                : <p className="text-sm text-yellow-500">No shared account linked</p>
+                        }
+                    </div>
+                    <div className="flex gap-1.5">
+                        <Button
+                            intent="gray-subtle"
+                            size="sm"
+                            leftIcon={<BiKey />}
+                            onClick={() => { setExpanded(!expanded); setConfirmDelete(false) }}
+                        >
+                            {expanded ? "Cancel" : info?.name ? "Change" : "Set Token"}
+                        </Button>
+                        {info?.name && !expanded && (
+                            confirmDelete ? (
+                                <div className="flex gap-1">
+                                    <Button intent="alert" size="sm" onClick={() => remove(undefined)} loading={isDeleting}>Confirm</Button>
+                                    <Button intent="gray" size="sm" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                                </div>
+                            ) : (
+                                <Button intent="alert-subtle" size="sm" leftIcon={<BiTrash />} onClick={() => setConfirmDelete(true)}>
+                                    Remove
+                                </Button>
+                            )
+                        )}
+                    </div>
+                </div>
+                {expanded && (
+                    <div className="mt-3 space-y-2">
+                        <SeaLink href={ANILIST_PIN_URL} target="_blank">
+                            <Button intent="white" size="sm">Get AniList token</Button>
+                        </SeaLink>
+                        <textarea
+                            value={token}
+                            onChange={(e) => setToken(e.target.value)}
+                            placeholder="Paste AniList access token"
+                            rows={2}
+                            className="w-full px-3 py-2 rounded-md border border-[--border] bg-[--paper] text-[--foreground] text-sm focus:border-[--brand] focus:outline-none resize-none"
+                            autoFocus
+                        />
+                        <div className="flex justify-end">
+                            <Button intent="primary" size="sm" onClick={handleSave} loading={isSaving} disabled={!token.trim()}>
+                                Save Token
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </SettingsCard>
     )
 }
 
