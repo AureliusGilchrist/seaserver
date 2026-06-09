@@ -76,8 +76,6 @@ export class VideoCoreSubtitleManager extends EventTarget {
     private readonly jassubOffscreenRender: boolean
     libassRenderer: JASSUB | null = null
     pgsRenderer: VideoCorePgsRenderer | null = null
-    private _jassubCanvas: HTMLCanvasElement | null = null
-    private _jassubResizeObserver: ResizeObserver | null = null
     private settings: VideoCoreSettings
     private defaultSubtitleHeader = `[Script Info]
 Title: English (US)
@@ -216,67 +214,28 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         subtitleLog.info("File tracks", this.fileTracks)
     }
 
-    private _createJassubCanvas() {
-        const canvas = document.createElement("canvas")
-        canvas.style.position = "absolute"
-        canvas.style.pointerEvents = "none"
-        canvas.style.zIndex = "10"
-        canvas.className = "vc-jassub-canvas"
-
-        const parent = this.videoElement.parentElement
-        if (parent) {
-            parent.style.position = "relative"
-            parent.appendChild(canvas)
-        }
-
-        this._jassubResizeObserver = new ResizeObserver(() => {
-            this._resizeJassubCanvas()
-        })
-        this._jassubResizeObserver.observe(this.videoElement)
-        this._resizeJassubCanvas()
-
-        return canvas
-    }
-
-    private _resizeJassubCanvas() {
-        if (!this._jassubCanvas) return
-        const { offsetWidth, offsetHeight } = this.videoElement
-        if (!offsetWidth || !offsetHeight) return
-
-        const videoRatio = this.videoElement.videoWidth / this.videoElement.videoHeight || 16 / 9
-        const elementRatio = offsetWidth / offsetHeight
-
-        let width: number
-        let height: number
-        if (elementRatio > videoRatio) {
-            height = offsetHeight
-            width = Math.floor(offsetHeight * videoRatio)
-        } else {
-            width = offsetWidth
-            height = Math.floor(offsetWidth / videoRatio)
-        }
-        const left = Math.floor((offsetWidth - width) / 2)
-        const top = Math.floor((offsetHeight - height) / 2)
-
-        this._jassubCanvas.style.width = `${width}px`
-        this._jassubCanvas.style.height = `${height}px`
-        this._jassubCanvas.style.left = `${left}px`
-        this._jassubCanvas.style.top = `${top}px`
-
-        this.libassRenderer?.resize(false, width, height)
-    }
-
     private async _init() {
         if (!this.libassRenderer) {
             try {
+                // (function () {
+                //     console.log("Worker test")
+                //     const w = new Worker(workerUrl)
+                //
+                //     w.onerror = (e) => {
+                //         console.error("worker crashed:", e.message, "at line", e.lineno)
+                //     }
+                //
+                //     w.onmessage = (e) => {
+                //         console.log("worker replied:", e.data)
+                //     }
+                // })()
+
                 subtitleLog.info("Initializing libass renderer")
 
                 const defaultFontUrl = "/fonts/Roboto-Medium.ttf"
 
-                this._jassubCanvas = this._createJassubCanvas()
-
                 this.libassRenderer = new JASSUB({
-                    canvas: this._jassubCanvas,
+                    video: this.videoElement,
                     subContent: this.defaultSubtitleHeader,
                     wasmUrl: wasmUrl,
                     workerUrl: workerUrl,
@@ -372,7 +331,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.currentTrackNumber = NO_TRACK_NUMBER
         this._disableNativeTextTracks()
         this.libassRenderer?.renderer?.setTrack(this.defaultSubtitleHeader)
-        this._resizeJassubCanvas()
+        this.libassRenderer?.resize?.()
         this.pgsRenderer?.clear()
         this._onSelectedTrackChanged?.(NO_TRACK_NUMBER)
 
@@ -491,14 +450,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     destroy() {
         subtitleLog.info("Destroying subtitle manager")
         this._disableNativeTextTracks()
-        this._jassubResizeObserver?.disconnect()
-        this._jassubResizeObserver = null
         this.libassRenderer?.destroy()
         this.libassRenderer = null
-        if (this._jassubCanvas?.parentElement) {
-            this._jassubCanvas.parentElement.removeChild(this._jassubCanvas)
-        }
-        this._jassubCanvas = null
         this.pgsRenderer?.destroy()
         this.pgsRenderer = null
         this.eventTranslationQueue.clear()
@@ -712,7 +665,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         }
         // Select the track
         await this.selectTrack(number)
-        this._resizeJassubCanvas()
+        this.libassRenderer?.resize?.()
         this.pgsRenderer?.resize()
 
         const tracks = this._getTracks()
@@ -739,7 +692,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this._storeEventTrackStyles()
         // Select the track
         await this.selectTrack(track.number)
-        this._resizeJassubCanvas()
+        this.libassRenderer?.resize?.()
         this.pgsRenderer?.resize()
 
         const tracks = this._getTracks()
@@ -934,7 +887,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             await this.libassRenderer.renderer.styleOverride(customStyle)
         }
 
-        this._resizeJassubCanvas()
+        await this.libassRenderer.resize()
         subtitleLog.info("Applied subtitle customization override", customStyle)
     }
 
@@ -1020,7 +973,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             }
         }
 
-        this._resizeJassubCanvas()
+        this.libassRenderer?.resize?.()
     }
 
     private _createAssEvent(event: MKVParser_SubtitleEvent, index: number): ASSEvent {
