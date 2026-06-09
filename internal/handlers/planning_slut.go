@@ -6,6 +6,7 @@ import (
 	"seanime/internal/api/anilist"
 	"seanime/internal/core"
 	"seanime/internal/database/db"
+	"seanime/internal/events"
 	"seanime/internal/util/limiter"
 	"seanime/internal/util/result"
 	libanime "seanime/internal/library/anime"
@@ -189,7 +190,12 @@ func (h *Handler) getPlanningSlutClient() (*anilist.AnilistClientImpl, error) {
 		return nil, errors.New("planning slut token not configured")
 	}
 
-	return anilist.NewAnilistClient(token, h.App.AnilistCacheDir), nil
+	client := anilist.NewAnilistClient(token, h.App.AnilistCacheDir)
+	if h.App.WSEventManager != nil {
+		client.SetWSEventManager(h.App.WSEventManager)
+		client.SetTokenExpiredEvent(events.AnilistPlanningSlutTokenExpired)
+	}
+	return client, nil
 }
 
 func (h *Handler) getPlanningSlutAnimeCollection(ctx context.Context) (*anilist.AnimeCollection, error) {

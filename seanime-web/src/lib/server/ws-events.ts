@@ -77,6 +77,8 @@ export const enum WSEvents {
     ACHIEVEMENT_UNLOCKED = "achievement-unlocked",
     ANILIST_RATE_LIMITED = "anilist-rate-limited",
     ANILIST_API_ONLINE = "anilist-api-online",
+    ANILIST_TOKEN_EXPIRED = "anilist-token-expired",
+    ANILIST_PLANNING_SLUT_TOKEN_EXPIRED = "anilist-planning-slut-token-expired",
     MILESTONE_ACHIEVED = "milestone-achieved",
     MANGA_SCAN_PROGRESS = "manga-scan-progress",
     MANGA_SCAN_COMPLETED = "manga-scan-completed",

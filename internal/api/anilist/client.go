@@ -88,6 +88,8 @@ type (
 		token          string
 		cacheDir       string
 		wsEventManager events.WSEventManagerInterface
+		// tokenExpiredEvent is the WS event name sent on 401. Defaults to AnilistTokenExpired.
+		tokenExpiredEvent string
 		// httpClient is a shared HTTP client reused across all requests for connection pooling.
 		httpClient *http.Client
 		// rateLimited tracks whether we are currently in a rate-limited state so we
@@ -100,6 +102,11 @@ type (
 // rate-limit / recovery notifications can be broadcast to all connected clients.
 func (ac *AnilistClientImpl) SetWSEventManager(wsem events.WSEventManagerInterface) {
 	ac.wsEventManager = wsem
+}
+
+// SetTokenExpiredEvent overrides the WS event name sent when a 401 is received.
+func (ac *AnilistClientImpl) SetTokenExpiredEvent(eventName string) {
+	ac.tokenExpiredEvent = eventName
 }
 
 func (ac *AnilistClientImpl) broadcastRateLimited(retryAfterSec int) {
@@ -118,6 +125,17 @@ func (ac *AnilistClientImpl) broadcastOnline() {
 	}
 	ac.rateLimited.Store(false)
 	ac.wsEventManager.SendEvent(events.AnilistAPIOnline, nil)
+}
+
+func (ac *AnilistClientImpl) broadcastTokenExpired() {
+	if ac.wsEventManager == nil {
+		return
+	}
+	eventName := ac.tokenExpiredEvent
+	if eventName == "" {
+		eventName = events.AnilistTokenExpired
+	}
+	ac.wsEventManager.SendEvent(eventName, nil)
 }
 
 // NewAnilistClient creates a new AnilistClientImpl with the given token.
@@ -418,6 +436,14 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 			case <-time.After(time.Duration(waitSec) * time.Second):
 			}
 			continue
+		}
+
+		// ── Unauthorized — token expired or invalid ───────────────────────
+		if resp.StatusCode == 401 {
+			resp.Body.Close()
+			ac.logger.Error().Msg("anilist: token expired or invalid (401) — re-authentication required")
+			ac.broadcastTokenExpired()
+			break
 		}
 
 		// ── Transient server errors (5xx) ────────────────────────────────

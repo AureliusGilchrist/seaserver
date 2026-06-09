@@ -71,6 +71,25 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         },
     })
 
+    const [tokenExpired, setTokenExpired] = React.useState(false)
+    const [planningSlutTokenExpired, setPlanningSlutTokenExpired] = React.useState(false)
+
+    useWebsocketMessageListener({
+        type: WSEvents.ANILIST_TOKEN_EXPIRED,
+        onMessage: () => {
+            logger("Data Wrapper").warn("AniList token expired, prompting re-authentication")
+            setTokenExpired(true)
+        },
+    })
+
+    useWebsocketMessageListener({
+        type: WSEvents.ANILIST_PLANNING_SLUT_TOKEN_EXPIRED,
+        onMessage: () => {
+            logger("Data Wrapper").warn("Planning slut AniList token expired, prompting re-authentication")
+            setPlanningSlutTokenExpired(true)
+        },
+    })
+
     const [authenticated, setAuthenticated] = React.useState(false)
 
     React.useEffect(() => {
@@ -264,6 +283,25 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         </div>
     }
 
+    if (tokenExpired && serverStatus?.currentProfile) {
+        return <ProfileAniListGateConnected
+            profileId={serverStatus.currentProfile.id}
+            profileName={serverStatus.currentProfile.name}
+            host={host}
+            clientId={serverStatus?.anilistClientId}
+            onSuccess={() => { setTokenExpired(false); refetch() }}
+            expiredNotice="Your AniList token has expired. Please re-authenticate to continue."
+        />
+    }
+
+    if (planningSlutTokenExpired) {
+        return <PlanningSlutSetupGate
+            isAdmin={!!serverStatus?.currentProfile?.isAdmin || !serverStatus?.profiles?.length}
+            onConfigured={() => { setPlanningSlutTokenExpired(false); refetch() }}
+            expiredNotice="The shared AniList token has expired. Please enter a new token to continue."
+        />
+    }
+
     return children
 }
 
@@ -283,8 +321,10 @@ function ProfileAniListGateConnected(props: {
     profileName: string
     host: string
     clientId?: string
+    onSuccess?: () => void
+    expiredNotice?: string
 }) {
-    const { profileName, host, clientId } = props
+    const { profileName, host, clientId, onSuccess, expiredNotice } = props
     const { mutate: login, isPending } = useLogin()
     const [formError, setFormError] = React.useState<string | null>(null)
 
@@ -293,6 +333,7 @@ function ProfileAniListGateConnected(props: {
         login(
             { token: token.trim() },
             {
+                onSuccess: () => onSuccess?.(),
                 onError: (err: any) => {
                     const msg = err?.response?.data?.message || err?.message || "Invalid or expired AniList token. Please try again."
                     setFormError(msg)
@@ -309,6 +350,7 @@ function ProfileAniListGateConnected(props: {
             onManualToken={handleToken}
             formError={formError}
             isLoading={isPending}
+            expiredNotice={expiredNotice}
         />
     )
 }
@@ -320,8 +362,9 @@ function ProfileAniListGate(props: {
     onManualToken: (token: string) => void
     formError?: string | null
     isLoading?: boolean
+    expiredNotice?: string
 }) {
-    const { profileName, host, clientId, onManualToken, formError, isLoading } = props
+    const { profileName, host, clientId, onManualToken, formError, isLoading, expiredNotice } = props
 
     const loginButton = host === "127.0.0.1:43211" && !__isDesktop__
         ? <Button
@@ -347,10 +390,15 @@ function ProfileAniListGate(props: {
                         <img src="/seanime-logo.png" alt="logo" className="w-24 h-auto" />
                     </div>
                     <h3>Link AniList for {profileName}</h3>
-                    <p className="text-[--muted]">
-                        This profile needs its own AniList account linked before it can continue using Seanime.
-                    </p>
-                    <p className="text-xs text-[--muted]">Your AniList account is personal to this profile and won't be shared with others.</p>
+                    {expiredNotice
+                        ? <p className="text-[--warning] font-medium">{expiredNotice}</p>
+                        : <>
+                            <p className="text-[--muted]">
+                                This profile needs its own AniList account linked before it can continue using Seanime.
+                            </p>
+                            <p className="text-xs text-[--muted]">Your AniList account is personal to this profile and won't be shared with others.</p>
+                        </>
+                    }
 
                     {loginButton}
 
@@ -383,8 +431,8 @@ function ProfileAniListGate(props: {
     </div>
 }
 
-function PlanningSlutSetupGate(props: { isAdmin: boolean, onConfigured: () => void }) {
-    const { isAdmin, onConfigured } = props
+function PlanningSlutSetupGate(props: { isAdmin: boolean, onConfigured: () => void, expiredNotice?: string }) {
+    const { isAdmin, onConfigured, expiredNotice } = props
     const { mutate: savePlanningSlutToken, isPending } = useSavePlanningSlutToken()
     const [formError, setFormError] = React.useState<string | null>(null)
 
@@ -401,10 +449,15 @@ function PlanningSlutSetupGate(props: { isAdmin: boolean, onConfigured: () => vo
                         <img src="/seanime-logo.png" alt="logo" className="w-24 h-auto" />
                     </div>
                     <h3>Connect the shared AniList account</h3>
-                    <p className="text-[--muted]">
-                        Create or link a shared AniList account that all profiles will use to manage the library.
-                    </p>
-                    <p className="text-xs text-[--muted]">All profiles will see the same anime and manga list, but with personal tracking per profile.</p>
+                    {expiredNotice
+                        ? <p className="text-[--warning] font-medium">{expiredNotice}</p>
+                        : <>
+                            <p className="text-[--muted]">
+                                Create or link a shared AniList account that all profiles will use to manage the library.
+                            </p>
+                            <p className="text-xs text-[--muted]">All profiles will see the same anime and manga list, but with personal tracking per profile.</p>
+                        </>
+                    }
 
                     <Link href={ANILIST_PIN_URL} target="_blank">
                         <Button intent="white" size="md" aria-label="Get AniList token">Get AniList token</Button>
