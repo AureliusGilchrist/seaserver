@@ -88,7 +88,9 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 	}
 
 	// Convert from url
-	ret, err := h.App.VideoCore.FetchAndConvertSubsTo(b.Url, to)
+	// Use the video proxy client so the request egresses through the same transport/SOCKS5
+	// proxy that fetches the HLS stream, avoiding Cloudflare challenges from flagged IPs.
+	ret, err := h.App.VideoCore.FetchAndConvertSubsTo(h.getVideoProxyClient(), b.Url, to)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
