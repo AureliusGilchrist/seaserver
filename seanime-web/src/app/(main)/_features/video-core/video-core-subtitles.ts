@@ -217,6 +217,19 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     private async _init() {
         if (!this.libassRenderer) {
             try {
+                // (function () {
+                //     console.log("Worker test")
+                //     const w = new Worker(workerUrl)
+                //
+                //     w.onerror = (e) => {
+                //         console.error("worker crashed:", e.message, "at line", e.lineno)
+                //     }
+                //
+                //     w.onmessage = (e) => {
+                //         console.log("worker replied:", e.data)
+                //     }
+                // })()
+
                 subtitleLog.info("Initializing libass renderer")
 
                 const defaultFontUrl = "/fonts/Roboto-Medium.ttf"
@@ -963,7 +976,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.libassRenderer?.resize?.()
     }
 
-    private _createAssEvent(event: MKVParser_SubtitleEvent, index: number): ASSEvent {        
+    private _createAssEvent(event: MKVParser_SubtitleEvent, index: number): ASSEvent {
         // Resolve the style index. If the style name isn't in the track's parsed styles map
         // (e.g. case mismatch, codecPrivate not yet parsed), fall back to "Default" or 1.
         // Returning `undefined` here causes JASSUB to drop the event or render it with an
@@ -1142,6 +1155,11 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 subtitleLog.info("Converting subtitle to ASS format")
                 const assContent = await this.fetchAndConvertToASS(fileTrack.info.src, fileTrack.info.content)
 
+                if (!assContent) {
+                    subtitleLog.error("Failed to convert subtitle to ASS format")
+                    toast.error("Failed to convert subtitle track")
+                    return
+                }
                 // Cache the converted content
                 this.fileTracks[trackNumber].content = assContent
                 subtitleLog.info("Loading converted ASS content")

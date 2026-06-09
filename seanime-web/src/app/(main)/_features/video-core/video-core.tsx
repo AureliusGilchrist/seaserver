@@ -64,7 +64,6 @@ import {
     vc_hlsQualityLevels,
     vc_hlsSetAudioTrack,
     vc_hlsSetQuality,
-    vc_hlsSubtitleTracks,
 } from "@/app/(main)/_features/video-core/video-core-hls"
 import { vc_inSight_data } from "@/app/(main)/_features/video-core/video-core-in-sight"
 import { vc_inSight_open } from "@/app/(main)/_features/video-core/video-core-in-sight"
@@ -243,7 +242,6 @@ export function VideoCoreProvider(props: { id: string, children: React.ReactNode
                 vc_hlsAudioTracks,
                 vc_hlsCurrentAudioTrack,
                 vc_hlsSetAudioTrack,
-                vc_hlsSubtitleTracks,
                 vc_isSwiping,
                 vc_isMobile,
                 vc_swipeSeekTime,
@@ -1071,9 +1069,6 @@ export function VideoCore(props: VideoCoreProps) {
     const hlsCurrentAudioTrack = useAtomValue(vc_hlsCurrentAudioTrack)
     const hlsSetAudioTrack = useAtomValue(vc_hlsSetAudioTrack)
 
-    // HLS subtitle tracks extracted from the manifest
-    const hlsSubtitleTracks = useAtomValue(vc_hlsSubtitleTracks)
-
     // events
     const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         onLoadedMetadata?.(e)
@@ -1290,64 +1285,6 @@ export function VideoCore(props: VideoCoreProps) {
             setupPreviewManager()
         }
     }, [streamType, currentPlaybackRef.current])
-
-    // When HLS subtitle tracks become available, inject them into the subtitle manager.
-    // They arrive via SUBTITLE_TRACKS_UPDATED which fires after MANIFEST_PARSED and
-    // therefore after handleLoadedMetadata has already run.
-    React.useEffect(() => {
-        if (!hlsSubtitleTracks.length || !videoRef.current) return
-        const v = videoRef.current
-
-        // Build subtitle track objects compatible with the subtitle manager
-        const hlsAsSubtitleTracks: VideoCore_VideoPlaybackInfo["subtitleTracks"] = hlsSubtitleTracks.map((t, index) => ({
-            index: index,
-            src: t.url,
-            label: t.name,
-            language: t.language || t.name,
-            default: t.default,
-            useLibassRenderer: true,
-        }))
-
-        // If the current playback already has external subtitle tracks, don't override them
-        if (state.playbackInfo?.subtitleTracks?.length) return
-
-        // Build a synthetic playbackInfo with the HLS subtitle tracks so the subtitle
-        // manager can be (re)created with them.
-        const syntheticPlaybackInfo: VideoCore_VideoPlaybackInfo = {
-            ...(state.playbackInfo ?? ({} as VideoCore_VideoPlaybackInfo)),
-            subtitleTracks: hlsAsSubtitleTracks,
-        }
-
-        setMediaCaptionsManager(p => {
-            if (p) p.destroy()
-            return null
-        })
-        setSubtitleManager(p => {
-            if (p) p.destroy()
-            return new VideoCoreSubtitleManager({
-                videoElement: v,
-                playbackInfo: syntheticPlaybackInfo,
-                jassubOffscreenRender: true,
-                hmacToken: directstreamAttToken,
-                translateTargetLang: serverStatus?.settings?.mediaPlayer?.vcTranslate
-                    ? serverStatus?.settings?.mediaPlayer?.vcTranslateTargetLanguage
-                    : null,
-                settings: settings,
-                fetchAndConvertToASS: (url?: string, content?: string) => {
-                    return new Promise((resolve, reject) => {
-                        convertSubs({ url: url ?? "", content: content ?? "", to: "ass" }, {
-                            onSuccess: (data) => resolve(data),
-                            onError: (error) => reject(error),
-                        })
-                    })
-                },
-                sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => {
-                    if (text) dispatchTranslateTextEvent(text)
-                    if (track) dispatchTranslateSubtitleTrackEvent(track)
-                },
-            })
-        })
-    }, [hlsSubtitleTracks])
 
     const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         onTimeUpdate?.(e)

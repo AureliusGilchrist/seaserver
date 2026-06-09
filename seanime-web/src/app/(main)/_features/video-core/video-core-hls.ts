@@ -91,7 +91,6 @@ export function useVideoCoreHls({
             setAudioTracks([])
             setCurrentAudioTrack(-1)
             setSetAudioTrack(() => {})
-            setSubtitleTracks([])
             return
         }
 
@@ -248,7 +247,6 @@ export function useVideoCoreHls({
             setAudioTracks([])
             setCurrentAudioTrack(-1)
             setSetAudioTrack(() => {})
-            setSubtitleTracks([])
         } else {
             hlsLog.error("HLS not supported on this browser")
             toast.error("HLS playback not supported on this browser")
