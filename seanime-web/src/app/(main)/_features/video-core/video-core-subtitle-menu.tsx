@@ -7,6 +7,7 @@ import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-at
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { VideoCoreControlButtonIcon } from "@/app/(main)/_features/video-core/video-core-control-bar"
 import { MediaCaptionsTrack } from "@/app/(main)/_features/video-core/video-core-media-captions"
 import { VideoCoreMenu, VideoCoreMenuBody, VideoCoreMenuTitle, VideoCoreSettingSelect } from "@/app/(main)/_features/video-core/video-core-menu"
@@ -29,6 +30,7 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
     const videoElement = useAtomValue(vc_videoElement)
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const containerElement = useAtomValue(vc_containerElement)
+    const saveTrackOverride = useAtomValue(vc_saveTrackOverride)
     const [selectedTrack, setSelectedTrack] = React.useState<number | null>(null)
 
     const setMenuOpen = useSetAtom(vc_menuOpen)
@@ -153,16 +155,42 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                         }),
                     ]}
                     onValueChange={(value: number) => {
+                        // Persist the choice per-series so it is re-applied on every other
+                        // episode of the same media (local files and online streaming alike).
+                        const mediaId = state?.playbackInfo?.media?.id
+                        const persist = (override: Parameters<NonNullable<typeof saveTrackOverride>>[1]) => {
+                            if (mediaId != null && saveTrackOverride) {
+                                saveTrackOverride(String(mediaId), override)
+                            }
+                        }
+
                         if (value === -1) {
                             activeManager?.setNoTrack()
                             setSelectedTrack(null)
+                            persist({ subtitleLanguage: "none", subtitleCodecID: undefined, subtitleLabel: undefined })
                             return
                         }
                         if (subtitleManager) {
                             subtitleManager.selectTrack(value)
+                            const track = subtitleTracks.find(t => t.number === value)
+                            if (track) {
+                                persist({
+                                    subtitleLanguage: track.language || track.languageIETF,
+                                    subtitleCodecID: track.codecID,
+                                    subtitleLabel: track.label,
+                                })
+                            }
                         } else if (mediaCaptionsManager) {
                             mediaCaptionsManager.selectTrack(value)
                             setSelectedTrack(value)
+                            const track = mediaCaptionsTracks.find(t => t.number === value)
+                            if (track) {
+                                persist({
+                                    subtitleLanguage: track.language,
+                                    subtitleCodecID: undefined,
+                                    subtitleLabel: track.label,
+                                })
+                            }
                         }
                     }}
                     value={selectedTrack ?? -1}

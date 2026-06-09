@@ -2,7 +2,7 @@ import { getServerBaseUrl } from "@/api/client/server-url"
 import { MKVParser_SubtitleEvent, MKVParser_TrackInfo } from "@/api/generated/types"
 import { VideoCorePgsRenderer } from "@/app/(main)/_features/video-core/video-core-pgs-renderer"
 import { vc_getSubtitleStyle } from "@/app/(main)/_features/video-core/video-core-settings-menu"
-import { VideoCore_VideoPlaybackInfo, VideoCore_VideoSubtitleTrack, VideoCoreSettings } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { PerMediaTrackOverride, VideoCore_VideoPlaybackInfo, VideoCore_VideoSubtitleTrack, VideoCoreSettings } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { logger } from "@/lib/helpers/debug"
 import { detectTrackLanguage } from "@/lib/helpers/language"
 import { getAssetUrl } from "@/lib/server/assets"
@@ -117,6 +117,9 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     private readonly translateFn?: (event: CachedEvent) => void
 
     private playbackInfo: VideoCore_VideoPlaybackInfo
+    // Per-media (per-series) subtitle preference. When set, the matching track is
+    // auto-selected on load so a manually chosen caption carries across episodes.
+    private preferredTrackOverride?: PerMediaTrackOverride
     private currentTrackNumber: number = NO_TRACK_NUMBER
     private fonts: string[] = []
     private hmacToken: string = ""
@@ -141,6 +144,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         sendTranslateRequest,
         translateTargetLang,
         hmacToken,
+        preferredTrackOverride,
     }: {
         videoElement: HTMLVideoElement
         jassubOffscreenRender: boolean
@@ -150,11 +154,13 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
         translateTargetLang: string | null
         hmacToken?: string
+        preferredTrackOverride?: PerMediaTrackOverride
     }) {
         super()
         this.videoElement = videoElement
         this.jassubOffscreenRender = jassubOffscreenRender
         this.playbackInfo = playbackInfo
+        this.preferredTrackOverride = preferredTrackOverride
         this.settings = settings
         this.hmacToken = hmacToken || ""
         this.shouldTranslate = translateTargetLang
@@ -720,6 +726,16 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             return
         }
 
+        // A per-media (per-series) override takes priority over the global preferred
+        // language, including an explicit "Off", so a caption the user picked on one
+        // episode is re-applied on every other episode of the same series.
+        const overrideTrackNumber = resolveOverrideTrackNumber(this.preferredTrackOverride, tracks)
+        if (overrideTrackNumber !== null) {
+            subtitleLog.info("Applying per-media subtitle override", overrideTrackNumber, this.preferredTrackOverride)
+            await this.selectTrack(overrideTrackNumber)
+            return
+        }
+
         if (tracks.length === 1) {
             subtitleLog.info("Only one track found, selecting it")
             await this.selectTrack(tracks[0].number)
@@ -1179,6 +1195,52 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
         this._translateFileTrack(trackNumber)
     }
+}
+
+/**
+ * Resolves a per-media subtitle preference to a concrete track number against the
+ * given tracks. Returns:
+ * - `NO_TRACK_NUMBER` if the override is an explicit "off"
+ * - the matching track number when a track matches the saved label/language/codec
+ * - `null` when there is no override or no match (caller should fall back to defaults)
+ *
+ * Matching is ordered from most to least specific: label, then language (preferring a
+ * codec match), so the same caption a user picked carries across episodes even when the
+ * track number differs between files.
+ */
+export function resolveOverrideTrackNumber(
+    override: PerMediaTrackOverride | undefined,
+    tracks: { label?: string, language?: string, languageIETF?: string, codecID?: string, number: number }[] | null = null,
+): number | null {
+    if (!override) return null
+
+    // Explicit "Off" — the user turned subtitles off and wants that to stick.
+    if (override.subtitleLanguage === "none") return NO_TRACK_NUMBER
+
+    const ts = tracks ?? []
+    if (!ts.length) return null
+
+    // 1. Match by label (most specific, e.g. "English (Honorifics)")
+    if (override.subtitleLabel) {
+        const wanted = override.subtitleLabel.toLowerCase()
+        const byLabel = ts.find(t => t.label?.toLowerCase() === wanted)
+        if (byLabel) return byLabel.number
+    }
+
+    // 2. Match by language, preferring the same codec when one was recorded.
+    if (override.subtitleLanguage) {
+        const wantedLang = override.subtitleLanguage.toLowerCase()
+        const sameLang = ts.filter(t => t.language?.toLowerCase() === wantedLang || t.languageIETF?.toLowerCase() === wantedLang)
+        if (sameLang.length) {
+            if (override.subtitleCodecID) {
+                const byCodec = sameLang.find(t => t.codecID === override.subtitleCodecID)
+                if (byCodec) return byCodec.number
+            }
+            return sameLang[0].number
+        }
+    }
+
+    return null
 }
 
 export function getDefaultSubtitleTrackNumber(

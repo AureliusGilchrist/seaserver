@@ -99,6 +99,7 @@ import {
     vc_autoPlayVideoAtom,
     vc_autoSkipOPEDAtom,
     vc_beautifyImageAtom,
+    vc_perMediaTrackOverrides,
     vc_settings,
     vc_showStatsForNerdsAtom,
     vc_storedMutedAtom,
@@ -110,6 +111,7 @@ import {
     VideoCoreLifecycleState,
 } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
+import { useTrackPreferenceSync } from "@/app/(main)/_features/video-core/video-core-track-sync"
 import {
     useVideoCoreBindings,
     vc_createChapterCues,
@@ -745,6 +747,10 @@ export function VideoCore(props: VideoCoreProps) {
     // States
     const qc = useQueryClient()
     const settings = useAtomValue(vc_settings)
+    // Loads per-media (per-series) track preferences from the server and registers the
+    // write-through callback so the subtitle menu can persist the user's caption choice.
+    useTrackPreferenceSync()
+    const perMediaTrackOverrides = useAtomValue(vc_perMediaTrackOverrides)
     const [isMiniPlayer, setIsMiniPlayer] = useAtom(vc_miniPlayer)
     const [busy, setBusy] = useAtom(vc_busy)
     const [buffering, setBuffering] = useAtom(vc_buffering)
@@ -1120,6 +1126,9 @@ export function VideoCore(props: VideoCoreProps) {
                         ? serverStatus?.settings?.mediaPlayer?.vcTranslateTargetLanguage
                         : null,
                     settings: settings,
+                    preferredTrackOverride: state.playbackInfo?.media?.id != null
+                        ? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
+                        : undefined,
                     fetchAndConvertToVTT: (url?: string, content?: string) => {
                         return new Promise((resolve, reject) => {
                             convertSubs({ url: url ?? "", content: content ?? "", to: "vtt" }, {
@@ -1150,6 +1159,9 @@ export function VideoCore(props: VideoCoreProps) {
                     playbackInfo: state.playbackInfo!,
                     jassubOffscreenRender: true,
                     hmacToken: directstreamAttToken,
+                    preferredTrackOverride: state.playbackInfo?.media?.id != null
+                        ? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
+                        : undefined,
                     translateTargetLang: serverStatus?.settings?.mediaPlayer?.vcTranslate
                         ? serverStatus?.settings?.mediaPlayer?.vcTranslateTargetLanguage
                         : null,

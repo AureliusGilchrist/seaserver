@@ -1,6 +1,6 @@
 import { vc_getCaptionStyle } from "@/app/(main)/_features/video-core/video-core-settings-menu"
-import { getDefaultSubtitleTrackNumber } from "@/app/(main)/_features/video-core/video-core-subtitles"
-import { VideoCore_VideoSubtitleTrack, VideoCoreSettings } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { getDefaultSubtitleTrackNumber, resolveOverrideTrackNumber } from "@/app/(main)/_features/video-core/video-core-subtitles"
+import { PerMediaTrackOverride, VideoCore_VideoSubtitleTrack, VideoCoreSettings } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { logger } from "@/lib/helpers/debug"
 import { detectTrackLanguage } from "@/lib/helpers/language"
 import { CaptionsRenderer, ParsedCaptionsResult, parseText, VTTCue, VTTRegion } from "media-captions"
@@ -34,6 +34,7 @@ export type MediaCaptionsManagerOptions = {
     fetchAndConvertToVTT: FetchAndConvertToVTT
     sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
     translateTargetLang: string | null
+    preferredTrackOverride?: PerMediaTrackOverride
 }
 
 type LoadedTrack = {
@@ -119,6 +120,9 @@ export class MediaCaptionsManager extends EventTarget {
     private readonly sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
     // Remember the translated file tracks to avoid re-fetching them
     private translatedTracks = new Map<number, { translating: boolean }>()
+    // Per-media (per-series) subtitle preference, applied on load so a manually
+    // chosen caption carries across episodes.
+    private readonly preferredTrackOverride?: PerMediaTrackOverride
 
     constructor(options: MediaCaptionsManagerOptions) {
         super()
@@ -130,6 +134,7 @@ export class MediaCaptionsManager extends EventTarget {
         this.fetchAndConvertToVTT = options.fetchAndConvertToVTT
         this.sendTranslateRequest = options.sendTranslateRequest
         this.shouldTranslate = options.translateTargetLang
+        this.preferredTrackOverride = options.preferredTrackOverride
 
         this.init()
     }
@@ -651,8 +656,13 @@ export class MediaCaptionsManager extends EventTarget {
             }
         }
         // When the first track is loaded, start rendering captions
-        // Select default track
-        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, this.tracks.map((t, idx) => ({ ...t, number: idx })))
+        // Select default track. A per-media override (a caption the user previously
+        // picked for this series) takes priority over the global preferred language.
+        const tracksForSelection = this.tracks.map((t, idx) => ({ ...t, number: idx }))
+        const overrideTrackNumber = resolveOverrideTrackNumber(this.preferredTrackOverride, tracksForSelection)
+        const defaultTrackNumber = overrideTrackNumber !== null
+            ? overrideTrackNumber
+            : getDefaultSubtitleTrackNumber(this.settings, tracksForSelection)
         await this.selectTrack(defaultTrackNumber)
         // Setup time update listener
         this.timeUpdateListener = () => {

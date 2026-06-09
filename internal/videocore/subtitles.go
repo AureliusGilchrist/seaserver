@@ -3,52 +3,57 @@ package videocore
 import (
 	"errors"
 	"fmt"
-	neturl "net/url"
+	"io"
+	"net/http"
 	"seanime/internal/mkvparser"
 	"seanime/internal/util"
 	"strings"
-	"time"
 
 	"github.com/imroc/req/v3"
 )
 
-func (vc *VideoCore) FetchAndConvertSubsTo(subUrl string, to int) (string, error) {
-	client := req.C()
-	client.SetTimeout(30 * time.Second)
-
-	ua := util.GetRandomUserAgent()
-
-	fetch := func(referer string) *req.Response {
-		r := client.Get(subUrl).
-			SetHeader("User-Agent", ua).
-			SetHeader("Accept", "*/*")
-		if referer != "" {
-			r.SetHeader("Referer", referer)
-		}
-		return r.Do()
+// FetchAndConvertSubsTo fetches a subtitle file and converts it to the target format.
+//
+// The provided client should be the video proxy client (h.getVideoProxyClient()) so the
+// request egresses through the same transport/SOCKS5 proxy that successfully fetches the
+// HLS stream. Subtitle CDNs (e.g. swiftstream.top) sit behind Cloudflare and will return a
+// "Just a moment..." HTML challenge (HTTP 200 or 403) to a bare client from a flagged IP.
+func (vc *VideoCore) FetchAndConvertSubsTo(client *http.Client, subUrl string, to int) (string, error) {
+	if client == nil {
+		client = http.DefaultClient
 	}
 
-	// Try the CDN's own origin as referer first (most CDNs accept same-origin),
-	// then fall back to no referer and common referers on hotlink rejection.
-	var origin string
-	if parsed, parseErr := neturl.Parse(subUrl); parseErr == nil {
-		origin = parsed.Scheme + "://" + parsed.Host + "/"
+	r, err := http.NewRequest(http.MethodGet, subUrl, nil)
+	if err != nil {
+		return "", fmt.Errorf("invalid subtitle URL: %w", err)
+	}
+	r.Header.Set("User-Agent", util.GetRandomUserAgent())
+	r.Header.Set("Accept", "*/*")
+
+	resp, err := client.Do(r)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch subtitle file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("subtitle URL returned HTTP %d", resp.StatusCode)
 	}
 
-	referers := []string{origin, "", "https://animetsu.net/", "https://megacloud.club/", "https://megacloud.tv/"}
-	var resp *req.Response
-	for _, referer := range referers {
-		r := fetch(referer)
-		if r.Err == nil && !r.IsErrorState() {
-			resp = r
-			break
-		}
-	}
-	if resp == nil {
-		return "", errors.New("failed to fetch subtitle file")
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read subtitle response: %w", err)
 	}
 
-	payload := resp.String()
+	payload := strings.TrimSpace(string(bodyBytes))
+
+	// Guard against anti-bot HTML challenge pages (e.g. Cloudflare "Just a moment...")
+	// that some CDNs return with a 200 status. Converting these yields garbage subtitles.
+	lower := strings.ToLower(payload)
+	if strings.HasPrefix(lower, "<!doctype html") || strings.HasPrefix(lower, "<html") {
+		return "", errors.New("subtitle URL returned an HTML page (likely a Cloudflare challenge), not subtitle content")
+	}
+
 	url := subUrl
 
 	from := mkvparser.SubtitleTypeUnknown
