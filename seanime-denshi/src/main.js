@@ -656,6 +656,7 @@ function logEnvironmentInfo() {
 let mainWindow = null
 let splashScreen = null
 let crashScreen = null
+let cfSolverWindow = null // hidden window used to fetch Cloudflare-challenged subtitle URLs
 let tray = null
 let serverProcess = null
 let isShutdown = false
@@ -1501,6 +1502,90 @@ app.whenReady().then(async () => {
             return true
         }
         return false
+    })
+
+    // Cloudflare-challenged subtitle fetch.
+    //
+    // Some subtitle CDNs sit behind a Cloudflare "managed" challenge that blocks automated
+    // (CDP-driven) browsers. The denshi window is a genuine, non-automated Chromium, so it can
+    // pass the challenge like a normal user. We navigate a hidden window to the subtitle URL,
+    // wait for the challenge to clear, then read the raw file from within the page (which now
+    // holds the cf_clearance cookie) and hand it back to the renderer for conversion.
+    //
+    // The hidden window uses a persistent session partition so the cf_clearance cookie is reused
+    // across episodes — the (one-time) verification delay is only paid until the cookie expires.
+    ipcMain.handle("cf:solve", async (_e, url) => {
+        if (!url || typeof url !== "string") return ""
+
+        const isChallengeHtml = (html) => {
+            const s = (html || "").toLowerCase()
+            return s.includes("just a moment") ||
+                s.includes("enable javascript and cookies") ||
+                s.includes("challenge-platform") ||
+                s.includes("cf-chl") ||
+                s.includes("_cf_chl_opt") ||
+                s.includes("cf-turnstile") ||
+                s.includes("verifying you are human") ||
+                s.includes("checking your browser")
+        }
+        const delay = (ms) => new Promise((r) => setTimeout(r, ms))
+
+        try {
+            if (!cfSolverWindow || cfSolverWindow.isDestroyed()) {
+                cfSolverWindow = new BrowserWindow({
+                    show: false,
+                    width: 1100,
+                    height: 800,
+                    webPreferences: {
+                        partition: "persist:cf-solver", // persist cf_clearance across solves
+                        backgroundThrottling: false,     // keep the JS challenge running while hidden
+                        nodeIntegration: false,
+                        contextIsolation: true,
+                    },
+                })
+            }
+            const wc = cfSolverWindow.webContents
+
+            // loadURL rejects on the challenge's internal redirects/aborts; that's expected.
+            await wc.loadURL(url).catch(() => {})
+
+            const deadlineMs = Date.now() + 30000
+            let cleared = false
+            while (Date.now() < deadlineMs) {
+                await delay(800)
+                let html = ""
+                try {
+                    html = await wc.executeJavaScript(
+                        "document.documentElement ? document.documentElement.outerHTML : ''", true)
+                } catch (_) { /* context swapped during a challenge reload; retry */ }
+                if (html && !isChallengeHtml(html)) {
+                    cleared = true
+                    break
+                }
+            }
+            if (!cleared) {
+                console.warn("[Main] cf:solve — challenge did not clear for", url)
+                return ""
+            }
+
+            // Re-fetch from the now-authorized page context to get the exact bytes.
+            let content = ""
+            try {
+                content = await wc.executeJavaScript(
+                    "(async()=>{try{const r=await fetch(location.href,{credentials:'include'});return await r.text()}catch(e){return document.body?document.body.innerText:''}})()",
+                    true)
+            } catch (_) {
+                try {
+                    content = await wc.executeJavaScript("document.body ? document.body.innerText : ''", true)
+                } catch (_) { content = "" }
+            }
+
+            if (!content || isChallengeHtml(content)) return ""
+            return content
+        } catch (err) {
+            console.error("[Main] cf:solve error:", err)
+            return ""
+        }
     })
 
     setupAppProtocol()

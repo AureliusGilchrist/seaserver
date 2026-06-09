@@ -2,11 +2,13 @@ package videocore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,6 +38,8 @@ func isCloudflareChallenge(status int, body string) bool {
 		strings.Contains(lower, "challenge-platform") ||
 		strings.Contains(lower, "cf-chl") ||
 		strings.Contains(lower, "_cf_chl_opt") ||
+		strings.Contains(lower, "cf-turnstile") ||
+		strings.Contains(lower, "verifying you are human") ||
 		strings.Contains(lower, "checking your browser") {
 		return true
 	}
@@ -54,36 +58,68 @@ func isCloudflareChallenge(status int, body string) bool {
 // Requires a Chrome/Chromium binary to be discoverable on the host; if none is found, chromedp
 // returns an error and the caller surfaces a clear failure (the subtitle simply won't load).
 func (vc *VideoCore) solveCloudflareAndFetch(parentCtx context.Context, subUrl string) (string, error) {
-	allocOpts := append(chromedp.DefaultExecAllocatorOptions[:],
-		// "new" headless is far less detectable than the legacy headless mode.
-		chromedp.Flag("headless", "new"),
-		// Hide the most obvious automation fingerprint.
-		chromedp.Flag("disable-blink-features", "AutomationControlled"),
-		chromedp.UserAgent(cfSolverUserAgent),
-	)
+	// chromedp's built-in ExecAllocator only finds Chrome/Chromium and learns the DevTools
+	// endpoint by parsing the browser's stderr for "DevTools listening on...". Microsoft Edge —
+	// the realistic browser on a stock Windows / denshi machine — neither lives where chromedp
+	// looks nor prints that line (it writes the port to a DevToolsActivePort file instead). So we
+	// launch the browser ourselves, read the port from that file, and attach via a remote
+	// allocator. This works uniformly across Chrome, Edge and Brave.
+	execPath := findBrowserExecPath()
+	if execPath == "" {
+		return "", errors.New("no Chromium-family browser found (install Google Chrome or Microsoft Edge, or set SEANIME_CHROME_PATH)")
+	}
+	vc.logger.Debug().Str("execPath", execPath).Msg("videocore: Using browser for Cloudflare solve")
 
-	// chromedp's built-in discovery only finds Google Chrome / Chromium. On a typical desktop
-	// install (e.g. the denshi build on Windows) Chrome may be absent while a Chromium-family
-	// browser like Microsoft Edge — which ships with every Windows 11 — is present. Point
-	// chromedp at whichever Chromium browser we can find so the solver works out of the box.
-	if execPath := findBrowserExecPath(); execPath != "" {
-		vc.logger.Debug().Str("execPath", execPath).Msg("videocore: Using browser for Cloudflare solve")
-		allocOpts = append(allocOpts, chromedp.ExecPath(execPath))
+	userDataDir, err := os.MkdirTemp("", "seanime-cf-")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp browser profile: %w", err)
+	}
+	defer os.RemoveAll(userDataDir)
+
+	launchCtx, launchCancel := context.WithTimeout(parentCtx, cfSolverTotalTimeout)
+	defer launchCancel()
+
+	args := []string{
+		"--no-first-run",
+		"--no-default-browser-check",
+		"--no-sandbox",
+		"--disable-dev-shm-usage",
+		"--disable-blink-features=AutomationControlled",
+		"--remote-debugging-port=0",
+		"--user-data-dir=" + userDataDir,
+		"--user-agent=" + cfSolverUserAgent,
+	}
+	// Default to "new" headless: it is non-intrusive (no window flashes on the user's screen) and
+	// already clears soft/auto-solving Cloudflare challenges. Set SEANIME_CF_HEADLESS=0 to run a
+	// real off-screen window instead — marginally better against some interactive challenges, at
+	// the cost of briefly spawning a visible browser. (Note: hardened "managed" challenges that
+	// detect the CDP automation, e.g. swiftstream.top, are blocked in either mode.)
+	if os.Getenv("SEANIME_CF_HEADLESS") == "0" {
+		args = append(args, "--window-position=-32000,-32000", "--window-size=1280,800")
 	} else {
-		vc.logger.Warn().Msg("videocore: No Chromium-family browser found; Cloudflare solve will likely fail (install Chrome/Edge or set SEANIME_CHROME_PATH)")
+		args = append(args, "--headless=new", "--disable-gpu")
+	}
+	args = append(args, "about:blank")
+
+	cmd := exec.CommandContext(launchCtx, execPath, args...)
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("failed to launch browser: %w", err)
+	}
+	defer killBrowserProcess(cmd)
+
+	wsURL, err := waitForDevToolsWSURL(launchCtx, userDataDir)
+	if err != nil {
+		return "", err
 	}
 
-	allocCtx, allocCancel := chromedp.NewExecAllocator(parentCtx, allocOpts...)
+	allocCtx, allocCancel := chromedp.NewRemoteAllocator(launchCtx, wsURL, chromedp.NoModifyURL)
 	defer allocCancel()
 
-	browserCtx, browserCancel := chromedp.NewContext(allocCtx)
-	defer browserCancel()
-
-	ctx, timeoutCancel := context.WithTimeout(browserCtx, cfSolverTotalTimeout)
-	defer timeoutCancel()
+	ctx, cancel := chromedp.NewContext(allocCtx)
+	defer cancel()
 
 	if err := chromedp.Run(ctx, chromedp.Navigate(subUrl)); err != nil {
-		return "", fmt.Errorf("failed to start headless browser / navigate: %w", err)
+		return "", fmt.Errorf("failed to drive headless browser / navigate: %w", err)
 	}
 
 	// Wait Go-side for the challenge to clear. Cloudflare reloads the page itself once solved,
@@ -92,13 +128,16 @@ func (vc *VideoCore) solveCloudflareAndFetch(parentCtx context.Context, subUrl s
 	deadline := time.Now().Add(cfSolverChallengeWait)
 	cleared := false
 	for time.Now().Before(deadline) {
-		var snippet string
+		// Inspect the full HTML (not the visible text): the Cloudflare markers — including the
+		// Turnstile "Verifying you are human" widget, which renders no matching visible text —
+		// live in the document markup. The page is "cleared" once those markers are gone.
+		var html string
 		evalCtx, evalCancel := context.WithTimeout(ctx, 5*time.Second)
 		err := chromedp.Run(evalCtx,
-			chromedp.Evaluate(`document.documentElement ? document.documentElement.innerText : ""`, &snippet),
+			chromedp.Evaluate(`document.documentElement ? document.documentElement.outerHTML : ""`, &html),
 		)
 		evalCancel()
-		if err == nil && strings.TrimSpace(snippet) != "" && !isCloudflareChallenge(0, snippet) {
+		if err == nil && strings.TrimSpace(html) != "" && !isCloudflareChallenge(0, html) {
 			cleared = true
 			break
 		}
@@ -123,7 +162,7 @@ func (vc *VideoCore) solveCloudflareAndFetch(parentCtx context.Context, subUrl s
 			return document.body ? document.body.innerText : '';
 		}
 	})()`
-	err := chromedp.Run(ctx,
+	err = chromedp.Run(ctx,
 		chromedp.Evaluate(fetchJS, &content, func(p *cdpruntime.EvaluateParams) *cdpruntime.EvaluateParams {
 			return p.WithAwaitPromise(true)
 		}),
@@ -133,6 +172,45 @@ func (vc *VideoCore) solveCloudflareAndFetch(parentCtx context.Context, subUrl s
 	}
 
 	return content, nil
+}
+
+// waitForDevToolsWSURL polls the browser's DevToolsActivePort file (written into the user-data
+// dir once the DevTools endpoint is up) and returns the browser-level WebSocket debugger URL.
+// The file's first line is the port, the second is the ws path (e.g. /devtools/browser/<id>).
+func waitForDevToolsWSURL(ctx context.Context, userDataDir string) (string, error) {
+	portFile := filepath.Join(userDataDir, "DevToolsActivePort")
+	for {
+		if b, err := os.ReadFile(portFile); err == nil {
+			parts := strings.Split(strings.TrimSpace(string(b)), "\n")
+			if len(parts) >= 2 {
+				port := strings.TrimSpace(parts[0])
+				path := strings.TrimSpace(parts[1])
+				if port != "" && path != "" {
+					return fmt.Sprintf("ws://127.0.0.1:%s%s", port, path), nil
+				}
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("timed out waiting for browser DevTools endpoint: %w", ctx.Err())
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+}
+
+// killBrowserProcess terminates the launched browser. On Windows the launcher can spawn a
+// detached process tree, so we use taskkill /T to take the whole tree down; elsewhere a plain
+// kill suffices.
+func killBrowserProcess(cmd *exec.Cmd) {
+	if cmd == nil || cmd.Process == nil {
+		return
+	}
+	pid := cmd.Process.Pid
+	if runtime.GOOS == "windows" {
+		_ = exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(pid)).Run()
+		return
+	}
+	_ = cmd.Process.Kill()
 }
 
 // findBrowserExecPath locates a Chromium-family browser to drive. Unlike chromedp's built-in

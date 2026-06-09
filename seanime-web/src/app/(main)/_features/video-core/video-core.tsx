@@ -773,6 +773,37 @@ export function VideoCore(props: VideoCoreProps) {
 
     const { mutate: convertSubs } = useDirectstreamConvertSubs()
 
+    // Convert a subtitle to the target format. If the backend reports the source is behind a
+    // Cloudflare challenge (it cannot fetch it from a flagged IP), fall back to solving it in the
+    // denshi desktop window — a real, non-automated browser that passes the challenge — then
+    // resubmit the raw content for conversion. The (one-time) solve latency is absorbed here; the
+    // subtitle simply appears once ready, and the cf_clearance cookie is reused for later episodes.
+    const fetchAndConvertSubtitle = React.useCallback(
+        (to: "vtt" | "ass", url?: string, content?: string): Promise<string | undefined> => {
+            const runConvert = (vars: { url?: string; content?: string; to: "vtt" | "ass" }) =>
+                new Promise<string | undefined>((resolve, reject) => {
+                    convertSubs({ url: vars.url ?? "", content: vars.content ?? "", to: vars.to }, {
+                        onSuccess: (data) => resolve(data),
+                        onError: (error) => reject(error),
+                    })
+                })
+
+            return runConvert({ url, content, to }).catch(async (error: any) => {
+                const serverErr: string = error?.response?.data?.error ?? error?.message ?? ""
+                const isCfChallenge = typeof serverErr === "string" && serverErr.includes("cloudflare_challenge")
+                const solve = (globalThis as any)?.electron?.cloudflare?.solve
+                if (isCfChallenge && url && typeof solve === "function") {
+                    const raw = await solve(url).catch(() => "")
+                    if (raw && typeof raw === "string") {
+                        return runConvert({ content: raw, to })
+                    }
+                }
+                throw error
+            })
+        },
+        [convertSubs],
+    )
+
     const isFirstError = React.useRef(true)
     const shouldDispatchTerminatedOnUnmount = React.useRef(false)
     const [activePlayer, setActivePlayer] = useAtom(vc_activePlayerId)
@@ -1129,14 +1160,7 @@ export function VideoCore(props: VideoCoreProps) {
                     preferredTrackOverride: state.playbackInfo?.media?.id != null
                         ? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
                         : undefined,
-                    fetchAndConvertToVTT: (url?: string, content?: string) => {
-                        return new Promise((resolve, reject) => {
-                            convertSubs({ url: url ?? "", content: content ?? "", to: "vtt" }, {
-                                onSuccess: (data) => resolve(data),
-                                onError: (error) => reject(error),
-                            })
-                        })
-                    },
+                    fetchAndConvertToVTT: (url?: string, content?: string) => fetchAndConvertSubtitle("vtt", url, content),
                     sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => {
                         if (text) {
                             dispatchTranslateTextEvent(text)
@@ -1166,14 +1190,7 @@ export function VideoCore(props: VideoCoreProps) {
                         ? serverStatus?.settings?.mediaPlayer?.vcTranslateTargetLanguage
                         : null,
                     settings: settings,
-                    fetchAndConvertToASS: (url?: string, content?: string) => {
-                        return new Promise((resolve, reject) => {
-                            convertSubs({ url: url ?? "", content: content ?? "", to: "ass" }, {
-                                onSuccess: (data) => resolve(data),
-                                onError: (error) => reject(error),
-                            })
-                        })
-                    },
+                    fetchAndConvertToASS: (url?: string, content?: string) => fetchAndConvertSubtitle("ass", url, content),
                     sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => {
                         if (text) {
                             dispatchTranslateTextEvent(text)

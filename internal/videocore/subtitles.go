@@ -6,10 +6,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"seanime/internal/mkvparser"
 	"seanime/internal/util"
 	"strings"
 )
+
+// CloudflareChallengeErrorPrefix marks a subtitle fetch that was blocked by a Cloudflare
+// anti-bot challenge. Clients (e.g. the denshi renderer) detect this prefix and re-fetch the
+// content through a real browser surface, then resubmit the raw content for conversion.
+const CloudflareChallengeErrorPrefix = "cloudflare_challenge"
 
 // FetchAndConvertSubsTo fetches a subtitle file and converts it to the target format.
 //
@@ -50,15 +56,25 @@ func (vc *VideoCore) FetchAndConvertSubsTo(client *http.Client, subUrl string, t
 		vc.logger.Warn().
 			Str("url", subUrl).
 			Int("status", resp.StatusCode).
-			Msg("videocore: Subtitle URL is behind a Cloudflare challenge, attempting headless solve")
+			Msg("videocore: Subtitle URL is behind a Cloudflare challenge")
 
+		// By default, surface a structured error so a real (non-automated) browser surface — the
+		// denshi Electron renderer — can solve the challenge and resubmit the raw content for
+		// conversion. The in-process headless solver is opt-in (SEANIME_CF_BACKEND_SOLVER=1):
+		// hardened "managed" challenges detect the CDP automation and never clear, and waiting on
+		// them only stalls the request.
+		if os.Getenv("SEANIME_CF_BACKEND_SOLVER") != "1" {
+			return "", fmt.Errorf("%s: %s", CloudflareChallengeErrorPrefix, subUrl)
+		}
+
+		vc.logger.Info().Str("url", subUrl).Msg("videocore: Attempting in-process headless solve")
 		solved, solveErr := vc.solveCloudflareAndFetch(context.Background(), subUrl)
 		if solveErr != nil {
-			return "", fmt.Errorf("subtitle URL is behind a Cloudflare challenge and the headless solve failed: %w", solveErr)
+			return "", fmt.Errorf("%s: headless solve failed: %w", CloudflareChallengeErrorPrefix, solveErr)
 		}
 		payload = strings.TrimSpace(solved)
 		if payload == "" || isCloudflareChallenge(0, payload) {
-			return "", errors.New("headless solve did not return subtitle content (Cloudflare challenge not bypassed)")
+			return "", fmt.Errorf("%s: headless solve did not return subtitle content", CloudflareChallengeErrorPrefix)
 		}
 		vc.logger.Info().Str("url", subUrl).Msg("videocore: Headless Cloudflare solve succeeded")
 	} else if resp.StatusCode < 200 || resp.StatusCode >= 300 {
