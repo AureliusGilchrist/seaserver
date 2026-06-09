@@ -2,9 +2,9 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { formatErrorForToast } from "@/lib/helpers/error-details"
+import { store } from "@/app/jotai-store"
 import { useMutation, UseMutationOptions, useQuery, UseQueryOptions } from "@tanstack/react-query"
 import axios, { AxiosError } from "axios"
-import { getDefaultStore } from "jotai"
 import { useAtomValue } from "jotai"
 import { useAtom } from "jotai/react"
 import { usePathname } from "@/lib/navigation"
@@ -35,8 +35,8 @@ axios.interceptors.response.use(response => {
     // Clear outage flag on any successful AniList response
     if (isAnilistUrl(response.config?.url)) {
         _anilistFailCount = 0
-        if (getDefaultStore().get(anilistOutageAtom)) {
-            getDefaultStore().set(anilistOutageAtom, false)
+        if (store.get(anilistOutageAtom)) {
+            store.set(anilistOutageAtom, false)
         }
     }
     // Capture CSRF token from response headers
@@ -47,16 +47,16 @@ axios.interceptors.response.use(response => {
 
     const refreshed = response.headers["x-seanime-profile-token"]
     if (refreshed && typeof refreshed === "string") {
-        getDefaultStore().set(profileSessionTokenAtom, refreshed)
+        store.set(profileSessionTokenAtom, refreshed)
     }
 
     // If the profile session expired, clear the stored token so the user
     // falls back to admin context and can re-authenticate.
     const expired = response.headers["x-seanime-profile-expired"]
     if (expired === "true") {
-        const currentToken = getDefaultStore().get(profileSessionTokenAtom)
+        const currentToken = store.get(profileSessionTokenAtom)
         if (currentToken) {
-            getDefaultStore().set(profileSessionTokenAtom, undefined)
+            store.set(profileSessionTokenAtom, undefined)
             // Notify user — use setTimeout to avoid issues during axios interceptor chain
             setTimeout(() => {
                 toast.error("Your profile session has expired. Please sign in again from Profile Selection.")
@@ -76,7 +76,7 @@ axios.interceptors.response.use(undefined, (error: AxiosError) => {
         if (isOutage) {
             _anilistFailCount++
             if (_anilistFailCount >= ANILIST_FAIL_THRESHOLD) {
-                getDefaultStore().set(anilistOutageAtom, true)
+                store.set(anilistOutageAtom, true)
             }
         }
     }
@@ -123,9 +123,21 @@ export async function buildSeaQuery<T, D extends any = any>(
         method,
         data,
         params,
-        password,
-        profileToken,
     }: SeaQuery<D>): Promise<T | undefined> {
+
+    // Resolve auth credentials from the Jotai store at request time rather than trusting the
+    // values captured in the calling hook's render closure. React Query refetches triggered
+    // immediately after login/logout — e.g. `qc.invalidateQueries()` in `useProfileLogin` —
+    // run before the components that read these atoms re-render, so the closure would still
+    // hold the *previous* credentials. On login that means the just-issued profile token is
+    // missing and the backend rejects the request with "profile session required" (silently,
+    // since 401s are suppressed during login), which is why a second login was needed. On
+    // logout it would mean the stale token keeps getting sent. `setProfileToken`/`setPassword`
+    // update the shared store synchronously, so the store is always the freshest source. Every
+    // caller derives `password`/`profileToken` from these same atoms, so the store value is
+    // authoritative — we intentionally do not fall back to the closure values.
+    const effectivePassword = store.get(serverAuthTokenAtom)
+    const effectiveProfileToken = store.get(profileSessionTokenAtom)
 
     const res = await axios<T>({
         url: getServerBaseUrl() + endpoint,
@@ -133,8 +145,8 @@ export async function buildSeaQuery<T, D extends any = any>(
         data,
         params,
         headers: {
-            ...(password ? { "X-Seanime-Token": password } : {}),
-            ...(profileToken ? { "X-Seanime-Profile-Token": profileToken } : {}),
+            ...(effectivePassword ? { "X-Seanime-Token": effectivePassword } : {}),
+            ...(effectiveProfileToken ? { "X-Seanime-Profile-Token": effectiveProfileToken } : {}),
             ...(_csrfToken && method !== "GET" ? { "X-CSRF-Token": _csrfToken } : {}),
         },
     })

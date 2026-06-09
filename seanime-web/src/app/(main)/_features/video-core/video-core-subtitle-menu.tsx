@@ -83,6 +83,11 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
             mediaCaptionsManager.setTracksLoadedEventListener(tracks => {
                 setMediaCaptionsTracks(tracks)
             })
+
+            // Pull any tracks that were already loaded before this listener was registered,
+            // so the CC icon shows even if "tracksloaded" fired before we subscribed.
+            const current = mediaCaptionsManager.getTracks?.()
+            if (current?.length) setMediaCaptionsTracks(current)
         }
     }, [videoElement, subtitleManager, mediaCaptionsManager])
 

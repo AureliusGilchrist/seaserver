@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { QueryClient } from "@tanstack/react-query"
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client"
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister"
-import { createStore } from "jotai"
+import { store } from "@/app/jotai-store"
 import { Provider as JotaiProvider } from "jotai/react"
 import { ThemeProvider } from "next-themes"
 import React from "react"
@@ -51,7 +51,9 @@ const asyncStoragePersister = createAsyncStoragePersister({
     throttleTime: 2000,
 })
 
-export const store = createStore()
+// Re-exported for existing importers (e.g. main.tsx). The instance lives in
+// `@/app/jotai-store` so non-React modules can share it without an import cycle.
+export { store }
 
 export const ClientProviders: React.FC<ClientProvidersProps> = ({ children }) => {
 

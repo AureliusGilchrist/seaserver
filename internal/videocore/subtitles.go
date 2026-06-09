@@ -1,6 +1,7 @@
 package videocore
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -32,24 +33,36 @@ func (vc *VideoCore) FetchAndConvertSubsTo(client *http.Client, subUrl string, t
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch subtitle file: %w", err)
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("subtitle URL returned HTTP %d", resp.StatusCode)
-	}
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read subtitle response: %w", err)
+	bodyBytes, readErr := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if readErr != nil {
+		return "", fmt.Errorf("failed to read subtitle response: %w", readErr)
 	}
 
 	payload := strings.TrimSpace(string(bodyBytes))
 
-	// Guard against anti-bot HTML challenge pages (e.g. Cloudflare "Just a moment...")
-	// that some CDNs return with a 200 status. Converting these yields garbage subtitles.
-	lower := strings.ToLower(payload)
-	if strings.HasPrefix(lower, "<!doctype html") || strings.HasPrefix(lower, "<html") {
-		return "", errors.New("subtitle URL returned an HTML page (likely a Cloudflare challenge), not subtitle content")
+	// Some subtitle CDNs (e.g. swiftstream.top) sit behind a Cloudflare anti-bot challenge and
+	// return a "Just a moment..." page — often with a 403/503 status — to a plain HTTP client.
+	// When that happens, fall back to a headless browser that can execute the JS challenge and
+	// fetch the real subtitle content. Converting the challenge HTML directly yields garbage.
+	if isCloudflareChallenge(resp.StatusCode, payload) {
+		vc.logger.Warn().
+			Str("url", subUrl).
+			Int("status", resp.StatusCode).
+			Msg("videocore: Subtitle URL is behind a Cloudflare challenge, attempting headless solve")
+
+		solved, solveErr := vc.solveCloudflareAndFetch(context.Background(), subUrl)
+		if solveErr != nil {
+			return "", fmt.Errorf("subtitle URL is behind a Cloudflare challenge and the headless solve failed: %w", solveErr)
+		}
+		payload = strings.TrimSpace(solved)
+		if payload == "" || isCloudflareChallenge(0, payload) {
+			return "", errors.New("headless solve did not return subtitle content (Cloudflare challenge not bypassed)")
+		}
+		vc.logger.Info().Str("url", subUrl).Msg("videocore: Headless Cloudflare solve succeeded")
+	} else if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("subtitle URL returned HTTP %d", resp.StatusCode)
 	}
 
 	url := subUrl

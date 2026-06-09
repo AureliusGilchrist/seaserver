@@ -61,7 +61,7 @@ export function VideoCoreMenu(props: VideoCoreMenuProps) {
             trigger={<div>{trigger}</div>}
             allowOutsideInteraction={true}
             contentClass={cn(
-                "bg-black/85 rounded-xl p-3 backdrop-blur-sm w-[20rem] z-[100]",
+                "bg-black/85 rounded-xl p-3 backdrop-blur-md w-[20rem] z-[100] border border-white/10 shadow-2xl shadow-black/60 ring-1 ring-white/5",
                 className,
             )}
             portalContainer={isFullscreen ? containerElement || undefined : undefined}
@@ -85,7 +85,7 @@ export function VideoCoreMenu(props: VideoCoreMenuProps) {
             side="top"
             modal={false}
             className={cn(
-                "bg-black/85 rounded-xl p-3 backdrop-blur-sm w-[20rem] z-[100]",
+                "bg-black/85 rounded-xl p-3 backdrop-blur-md w-[20rem] z-[100] border border-white/10 shadow-2xl shadow-black/60 ring-1 ring-white/5",
                 className,
             )}
             portalContainer={isFullscreen ? containerElement || undefined : undefined}
@@ -104,7 +104,7 @@ export function VideoCoreMenuTitle(props: { children: React.ReactNode }) {
     return (
         <div
             data-vc-element="menu-title"
-            className="text-white/70 font-bold text-sm pb-3 text-center border-b mb-3 flex items-center gap-2 justify-center relative" {...rest}>
+            className="text-white/80 font-semibold text-sm tracking-wide pb-2.5 text-center border-b border-white/10 mb-3 flex items-center gap-2 justify-center relative" {...rest}>
             {children}
         </div>
     )
@@ -224,7 +224,7 @@ export function VideoCoreMenuOption(props: {
             {!openSection && <button
                 data-vc-element="menu-option"
                 role="button"
-                className="w-full p-2 h-10 flex items-center justify-between rounded-lg group/vc-menu-option hover:bg-white/10 active:bg-white/20 transition-colors"
+                className="w-full p-2 h-10 flex items-center justify-between rounded-lg group/vc-menu-option hover:bg-white/10 active:bg-white/20 active:scale-[0.98] transition-all duration-200"
                 onClick={handleClick}
             >
                 <span className="w-8 flex justify-start items-center h-full">
@@ -236,7 +236,7 @@ export function VideoCoreMenuOption(props: {
                 {value && <span className="text-sm font-medium tracking-wide text-[--muted] mr-2">
                     {value}
                 </span>}
-                <LuChevronRight className="text-lg" />
+                <LuChevronRight className="text-lg text-white/40 transition-transform duration-200 group-hover/vc-menu-option:translate-x-0.5 group-hover/vc-menu-option:text-white/70" />
             </button>}
 
             {openSection === title && (
@@ -247,7 +247,7 @@ export function VideoCoreMenuOption(props: {
                     <button
                         data-vc-element="menu-section-close"
                         role="button"
-                        className="w-full pb-2 h-10 mb-2 flex items-center justify-between rounded-lg transition-colors border-b"
+                        className="w-full pb-2 h-10 mb-2 flex items-center justify-between rounded-lg transition-colors border-b border-white/10 text-white/70 hover:text-white"
                         onClick={() => setOpen(null)}
                     >
                         <span className="w-8 flex justify-start items-center h-full">
@@ -297,7 +297,7 @@ export function VideoCoreMenuSubOption(props: {
             {openSection && !openSubSection && <button
                 data-vc-element="menu-sub-option"
                 role="button"
-                className="w-full p-2 h-10 flex items-center justify-between rounded-lg group/vc-menu-option hover:bg-white/10 active:bg-white/20 transition-colors"
+                className="w-full p-2 h-10 flex items-center justify-between rounded-lg group/vc-menu-option hover:bg-white/10 active:bg-white/20 active:scale-[0.98] transition-all duration-200"
                 onClick={handleClick}
             >
                 <span className="w-8 flex justify-start items-center h-full">
@@ -309,7 +309,7 @@ export function VideoCoreMenuSubOption(props: {
                 {value && <span className="text-sm font-medium tracking-wide text-[--muted] mr-2">
                     {value}
                 </span>}
-                <LuChevronRight className="text-lg" />
+                <LuChevronRight className="text-lg text-white/40 transition-transform duration-200 group-hover/vc-menu-option:translate-x-0.5 group-hover/vc-menu-option:text-white/70" />
             </button>}
 
             {openSubSection === itemId && (
@@ -320,7 +320,7 @@ export function VideoCoreMenuSubOption(props: {
                     <button
                         data-vc-element="menu-sub-section-close"
                         role="button"
-                        className="w-full pb-2 h-10 mb-2 flex items-center justify-between rounded-lg transition-colors border-b"
+                        className="w-full pb-2 h-10 mb-2 flex items-center justify-between rounded-lg transition-colors border-b border-white/10 text-white/70 hover:text-white"
                         onClick={() => setOpenSubSection(null)}
                     >
                         <span className="w-8 flex justify-start items-center h-full">
@@ -362,16 +362,24 @@ export function VideoCoreSettingSelect(props: VideoCoreSettingSelectProps) {
                     data-vc-element="setting-select-option"
                     key={option.value}
                     role="button"
-                    className="w-full p-2 flex items-center overflow-hidden justify-between rounded-lg group/vc-menu-option hover:bg-white/10 active:bg-white/20 transition-colors"
+                    className={cn(
+                        "w-full p-2 flex items-center overflow-hidden justify-between rounded-lg group/vc-menu-option transition-all duration-200 active:scale-[0.98]",
+                        value === option.value
+                            ? "bg-white/10 hover:bg-white/[0.14]"
+                            : "hover:bg-white/10 active:bg-white/20",
+                    )}
                     onClick={() => {
                         onValueChange(option.value)
                     }}
                 >
                     <span data-vc-element="setting-select-option-indicator" className="w-8 flex justify-start items-center h-full flex-none">
-                        {value === option.value && <LuCheck className="text-lg" />}
+                        {value === option.value && <LuCheck className="text-lg text-brand-300" />}
                     </span>
                     <div data-vc-element="setting-select-option-body" className="flex-wrap flex flex-1 gap-2 items-center">
-                        <span data-vc-element="setting-select-option-label" className="w-fit flex-none text-sm font-medium line-clamp-2">
+                        <span data-vc-element="setting-select-option-label" className={cn(
+                            "w-fit flex-none text-sm line-clamp-2 transition-colors",
+                            value === option.value ? "font-semibold text-white" : "font-medium text-white/90",
+                        )}>
                             {option.label}
                         </span>
                         <span className="flex-1" data-vc-element="setting-select-option-separator"></span>

@@ -406,7 +406,7 @@ export function VideoCoreControlButtonIcon(props: VideoCoreControlButtonProps) {
             data-vc-state={state}
             style={{}}
             className={cn(
-                "vc-control-button flex items-center justify-center transition-opacity relative h-full",
+                "vc-control-button flex items-center justify-center transition duration-200 relative h-full active:scale-90",
                 "focus-visible:outline-none focus:outline-none focus-visible:opacity-50",
                 // Better touch targets on mobile
                 isMobile ? "px-1 text-2xl" : "px-2 text-3xl hover:opacity-80",
