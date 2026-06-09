@@ -8,8 +8,6 @@ import (
 	"seanime/internal/mkvparser"
 	"seanime/internal/util"
 	"strings"
-
-	"github.com/imroc/req/v3"
 )
 
 // FetchAndConvertSubsTo fetches a subtitle file and converts it to the target format.
