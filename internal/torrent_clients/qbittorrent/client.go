@@ -141,17 +141,21 @@ func (c *Client) Login() error {
 		return err
 	}
 	request.Header.Add("content-type", "application/x-www-form-urlencoded")
+	request.Header.Add("Referer", c.baseURL)
 	resp, err := c.client.Do(request)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			c.logger.Err(err).Msg("failed to close login response body")
-		}
-	}()
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("invalid status %s", resp.Status)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(string(body)) == "Fails." {
+		return fmt.Errorf("invalid username or password")
 	}
 	if len(resp.Cookies()) < 1 {
 		return fmt.Errorf("no cookies in login response")
@@ -186,9 +190,47 @@ func (c *Client) Logout() error {
 }
 
 type authedRoundTripper struct {
-	wrapped http.RoundTripper
-	client  *Client
-	mu      std_sync.Mutex
+	wrapped   http.RoundTripper
+	client    *Client
+	mu        std_sync.Mutex
+	reauthing bool
+	reauthErr error
+	reauthCh  chan struct{}
+}
+
+// reauth ensures only one login attempt runs at a time. Concurrent callers wait
+// for the in-progress login to finish and share its result rather than each
+// hammering qBittorrent's auth endpoint (which triggers an IP ban).
+func (art *authedRoundTripper) reauth() error {
+	art.mu.Lock()
+	if art.reauthing {
+		// Another goroutine is already logging in; wait for it.
+		ch := art.reauthCh
+		art.mu.Unlock()
+		<-ch
+		art.mu.Lock()
+		err := art.reauthErr
+		art.mu.Unlock()
+		return err
+	}
+
+	art.reauthing = true
+	art.reauthCh = make(chan struct{})
+	art.mu.Unlock()
+
+	art.client.logger.Warn().Msg("qBittorrent: 403 Forbidden, attempting to re-authenticate")
+	loginErr := art.client.Login()
+	if loginErr != nil {
+		art.client.logger.Err(loginErr).Msg("qBittorrent: failed to re-authenticate")
+	}
+
+	art.mu.Lock()
+	art.reauthing = false
+	art.reauthErr = loginErr
+	close(art.reauthCh)
+	art.mu.Unlock()
+
+	return loginErr
 }
 
 func (art *authedRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -213,26 +255,17 @@ func (art *authedRoundTripper) RoundTrip(req *http.Request) (*http.Response, err
 	}
 
 	if resp.StatusCode == http.StatusForbidden {
-		art.client.logger.Warn().Msg("qBittorrent: 403 Forbidden, attempting to re-authenticate")
 		resp.Body.Close()
 
-		art.mu.Lock()
-		err = art.client.Login()
-		art.mu.Unlock()
-
-		if err != nil {
-			art.client.logger.Err(err).Msg("qBittorrent: failed to re-authenticate")
-			// Return a new response with the 403 error status code since it failed
-			return resp, err
+		if loginErr := art.reauth(); loginErr != nil {
+			return nil, loginErr
 		}
 
-		// Re-authentication successful, retry the request
+		// Retry the request with the refreshed session cookie
 		newReq := req.Clone(req.Context())
 		if bodyBytes != nil {
 			newReq.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
-
-		// Update cookies in the request
 		newReq.Header.Del("Cookie")
 		if art.client.client.Jar != nil {
 			for _, cookie := range art.client.client.Jar.Cookies(newReq.URL) {
