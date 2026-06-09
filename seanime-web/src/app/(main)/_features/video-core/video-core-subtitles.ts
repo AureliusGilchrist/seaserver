@@ -76,8 +76,6 @@ export class VideoCoreSubtitleManager extends EventTarget {
     private readonly jassubOffscreenRender: boolean
     libassRenderer: JASSUB | null = null
     pgsRenderer: VideoCorePgsRenderer | null = null
-    private _jassubCanvas: HTMLCanvasElement | null = null
-    private _jassubResizeObserver: ResizeObserver | null = null
     private settings: VideoCoreSettings
     private defaultSubtitleHeader = `[Script Info]
 Title: English (US)
@@ -219,19 +217,6 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     private async _init() {
         if (!this.libassRenderer) {
             try {
-                // (function () {
-                //     console.log("Worker test")
-                //     const w = new Worker(workerUrl)
-                //
-                //     w.onerror = (e) => {
-                //         console.error("worker crashed:", e.message, "at line", e.lineno)
-                //     }
-                //
-                //     w.onmessage = (e) => {
-                //         console.log("worker replied:", e.data)
-                //     }
-                // })()
-
                 subtitleLog.info("Initializing libass renderer")
 
                 const defaultFontUrl = "/fonts/Roboto-Medium.ttf"
@@ -1155,49 +1140,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         } else {
             try {
                 subtitleLog.info("Converting subtitle to ASS format")
+                const assContent = await this.fetchAndConvertToASS(fileTrack.info.src, fileTrack.info.content)
 
-                // Try fetching the subtitle content directly in the browser first.
-                // This avoids the backend needing to reach external CDN URLs that may
-                // require specific headers or be inaccessible from the server.
-                let prefetchedContent: string | undefined
-                if (fileTrack.info.src && !fileTrack.info.content) {
-                    try {
-                        const resp = await fetch(fileTrack.info.src)
-                        if (resp.ok) {
-                            const text = await resp.text()
-                            // Only use the fetched content if it looks like an actual subtitle file.
-                            // CDNs sometimes return HTML error pages with a 200 status.
-                            const trimmed = text.trimStart()
-                            const looksLikeSubtitle = trimmed.startsWith("WEBVTT")
-                                || trimmed.startsWith("[Script Info]")
-                                || (text.match(/-->/g) || []).length > 2
-                                || trimmed.startsWith("1\n") || trimmed.startsWith("1\r\n")
-                            if (looksLikeSubtitle) {
-                                prefetchedContent = text
-                                subtitleLog.info("Pre-fetched subtitle content in browser", fileTrack.info.src)
-                            } else {
-                                subtitleLog.warning("Browser pre-fetch returned non-subtitle content, falling back to server-side fetch")
-                            }
-                        } else {
-                            subtitleLog.warning("Browser pre-fetch got non-OK status", resp.status, "falling back to server-side fetch")
-                        }
-                    }
-                    catch (prefetchErr) {
-                        subtitleLog.warning("Browser pre-fetch failed, falling back to server-side fetch", prefetchErr)
-                    }
-                }
-
-                // Pass the prefetched content (if available) to avoid the server having to re-fetch it.
-                const assContent = await this.fetchAndConvertToASS(
-                    prefetchedContent ? undefined : fileTrack.info.src,
-                    prefetchedContent ?? fileTrack.info.content,
-                )
-
-                if (!assContent) {
-                    subtitleLog.error("Failed to convert subtitle to ASS format")
-                    toast.error("Failed to convert subtitle track")
-                    return
-                }
                 // Cache the converted content
                 this.fileTracks[trackNumber].content = assContent
                 subtitleLog.info("Loading converted ASS content")
