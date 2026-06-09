@@ -1153,7 +1153,26 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         } else {
             try {
                 subtitleLog.info("Converting subtitle to ASS format")
-                const assContent = await this.fetchAndConvertToASS(fileTrack.info.src, fileTrack.info.content)
+
+                // Try fetching the subtitle content directly in the browser first.
+                // This avoids the backend needing to reach external CDN URLs that may
+                // require specific headers or be inaccessible from the server.
+                let prefetchedContent: string | undefined
+                if (fileTrack.info.src && !fileTrack.info.content) {
+                    try {
+                        prefetchedContent = await fetch(fileTrack.info.src).then(r => r.text())
+                        subtitleLog.info("Pre-fetched subtitle content in browser", fileTrack.info.src)
+                    }
+                    catch (prefetchErr) {
+                        subtitleLog.warning("Browser pre-fetch failed, falling back to server-side fetch", prefetchErr)
+                    }
+                }
+
+                // Pass the prefetched content (if available) to avoid the server having to re-fetch it.
+                const assContent = await this.fetchAndConvertToASS(
+                    prefetchedContent ? undefined : fileTrack.info.src,
+                    prefetchedContent ?? fileTrack.info.content,
+                )
 
                 if (!assContent) {
                     subtitleLog.error("Failed to convert subtitle to ASS format")

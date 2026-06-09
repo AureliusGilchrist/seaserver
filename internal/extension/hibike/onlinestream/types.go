@@ -121,6 +121,18 @@ type (
 		Quality string `json:"quality"`
 		// Subtitles for the video source.
 		Subtitles []*VideoSubtitle `json:"subtitles"`
+		// Skip times provided by the extension (intro/outro).
+		Skips *VideoSourceSkips `json:"skips,omitempty"`
+	}
+
+	VideoSourceSkips struct {
+		Intro *VideoSourceSkipInterval `json:"intro,omitempty"`
+		Outro *VideoSourceSkipInterval `json:"outro,omitempty"`
+	}
+
+	VideoSourceSkipInterval struct {
+		Start float64 `json:"start"`
+		End   float64 `json:"end"`
 	}
 
 	VideoSubtitle struct {

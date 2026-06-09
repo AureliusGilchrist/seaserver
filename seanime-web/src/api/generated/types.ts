@@ -3697,6 +3697,16 @@ export type HibikeOnlinestream_SubOrDub = "sub" | "dub" | "both"
  */
 export type HibikeOnlinestream_VideoSourceType = "mp4" | "m3u8" | "unknown"
 
+export type HibikeOnlinestream_VideoSourceSkipInterval = {
+    start: number
+    end: number
+}
+
+export type HibikeOnlinestream_VideoSourceSkips = {
+    intro?: HibikeOnlinestream_VideoSourceSkipInterval
+    outro?: HibikeOnlinestream_VideoSourceSkipInterval
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hibiketorrent
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -5526,6 +5536,7 @@ export type Onlinestream_VideoSource = {
     quality: string
     type?: HibikeOnlinestream_VideoSourceType
     subtitles?: Array<Onlinestream_Subtitle>
+    skips?: HibikeOnlinestream_VideoSourceSkips
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

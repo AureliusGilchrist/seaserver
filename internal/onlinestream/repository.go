@@ -60,6 +60,7 @@ type (
 		Quality   string                             `json:"quality"`
 		Type      hibikeonlinestream.VideoSourceType `json:"type"`
 		Subtitles []*Subtitle                        `json:"subtitles,omitempty"`
+		Skips     *hibikeonlinestream.VideoSourceSkips `json:"skips,omitempty"`
 	}
 
 	EpisodeListResponse struct {
@@ -259,6 +260,15 @@ func (r *Repository) GetEpisodeSources(ctx context.Context, provider string, mId
 			for _, es := range ep.Servers {
 
 				for _, vs := range es.VideoSources {
+					// Only include skips if at least one interval has a non-zero end time
+					var skips *hibikeonlinestream.VideoSourceSkips
+					if vs.Skips != nil {
+						hasIntro := vs.Skips.Intro != nil && vs.Skips.Intro.End > 0
+						hasOutro := vs.Skips.Outro != nil && vs.Skips.Outro.End > 0
+						if hasIntro || hasOutro {
+							skips = vs.Skips
+						}
+					}
 					s.VideoSources = append(s.VideoSources, &VideoSource{
 						Server:  es.Server,
 						Headers: es.Headers,
@@ -272,6 +282,7 @@ func (r *Repository) GetEpisodeSources(ctx context.Context, provider string, mId
 								Language: sub.Language,
 							}
 						}),
+						Skips: skips,
 					})
 				}
 			}

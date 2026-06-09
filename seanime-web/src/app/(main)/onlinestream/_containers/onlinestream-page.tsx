@@ -167,7 +167,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
     const currentEpisode = episodes?.find(e => e.number === currentEpisodeNumber)
 
     // AniSkip
-    const { data: aniSkipData } = useSkipData(media.idMal, currentEpisode?.number)
+    const { data: aniSkipDataRaw } = useSkipData(media.idMal, currentEpisode?.number)
 
     // get the current episode source from the provider
     const {
@@ -257,6 +257,22 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
 
         return filtered[0]
     }, [episodeSource, videoSources, server, quality])
+
+    // Merge AniSkip data with provider-supplied skip times.
+    // Provider skip times serve as a fallback when AniSkip has no data for this anime/episode.
+    const aniSkipData = React.useMemo(() => {
+        if (aniSkipDataRaw?.op?.interval?.endTime) return aniSkipDataRaw
+        const providerSkips = videoSource?.skips
+        if (!providerSkips) return aniSkipDataRaw
+        const op = providerSkips.intro?.end
+            ? { interval: { startTime: providerSkips.intro.start, endTime: providerSkips.intro.end }, skipType: "op" as const, skipId: "provider-intro", episodeLength: 0 }
+            : null
+        const ed = providerSkips.outro?.end
+            ? { interval: { startTime: providerSkips.outro.start, endTime: providerSkips.outro.end }, skipType: "ed" as const, skipId: "provider-outro", episodeLength: 0 }
+            : null
+        if (!op && !ed) return aniSkipDataRaw
+        return { op, ed }
+    }, [aniSkipDataRaw, videoSource?.skips])
 
     // Refs
     const currentProviderRef = React.useRef<string | null>(null)
