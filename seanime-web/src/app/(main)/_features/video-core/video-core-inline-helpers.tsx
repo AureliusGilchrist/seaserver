@@ -12,6 +12,7 @@ import { atomWithStorage } from "jotai/utils"
 import React from "react"
 import { AiOutlineArrowLeft } from "react-icons/ai"
 import { TbLayoutSidebarRightCollapse, TbLayoutSidebarRightExpand } from "react-icons/tb"
+import { toast } from "sonner"
 import { useWindowSize } from "react-use"
 
 const vc_inlineHelper_progressUpdateData = atom<{ media: AL_BaseAnime, currentProgress: number, currentEpisodeNumber: number } | null>(null)
@@ -53,7 +54,7 @@ export function VideoCoreInlineHelpers({
 
         const checkProgress = () => {
             const player = playerRef.current
-            if (!player || serverStatus?.settings?.library?.autoUpdateProgress) return
+            if (!player) return
 
             // Skip if already updated or currently updating
             if (hasUpdatedProgress) return
@@ -90,7 +91,6 @@ export function VideoCoreInlineHelpers({
         media,
         playerRef,
         hasUpdatedProgress,
-        serverStatus?.settings?.library?.autoUpdateProgress,
         currentProgress,
         progressUpdateData,
         url,
@@ -100,6 +100,8 @@ export function VideoCoreInlineHelpers({
 }
 
 export function VideoCoreInlineHelperUpdateProgressButton() {
+    const serverStatus = useServerStatus()
+    const autoUpdateProgress = serverStatus?.settings?.library?.autoUpdateProgress ?? false
     const progressUpdateData = useAtomValue(vc_inlineHelper_progressUpdateData)
     const [hasUpdatedProgress, setHasUpdateProgress] = useAtom(vc_inlineHelper_hasUpdatedProgress)
 
@@ -108,7 +110,7 @@ export function VideoCoreInlineHelperUpdateProgressButton() {
         progressUpdateData?.currentEpisodeNumber ?? 0,
     )
 
-    function handleProgressUpdate() {
+    const handleProgressUpdate = React.useCallback(() => {
         if (!progressUpdateData || !progressUpdateData.media) return
         updateProgress({
             episodeNumber: (progressUpdateData?.currentEpisodeNumber || 0),
@@ -118,11 +120,28 @@ export function VideoCoreInlineHelperUpdateProgressButton() {
         }, {
             onSuccess: () => {
                 setHasUpdateProgress(true)
+                toast.success(`Progress updated to episode ${progressUpdateData?.currentEpisodeNumber} on AniList`)
             },
         })
-    }
+    }, [progressUpdateData, updateProgress, setHasUpdateProgress])
 
-    if (progressUpdateData !== null && !hasUpdatedProgress) {
+    // When auto-tracking is enabled, update silently as soon as the threshold is reached. The
+    // online-stream player has no backend playback-manager session to do this, so it is driven
+    // from here. A ref guards against the mutation firing more than once per episode.
+    const autoFiredRef = React.useRef(false)
+    React.useEffect(() => {
+        if (progressUpdateData === null) {
+            autoFiredRef.current = false
+            return
+        }
+        if (autoUpdateProgress && !hasUpdatedProgress && !autoFiredRef.current) {
+            autoFiredRef.current = true
+            handleProgressUpdate()
+        }
+    }, [autoUpdateProgress, progressUpdateData, hasUpdatedProgress, handleProgressUpdate])
+
+    // Manual prompt only when auto-tracking is off (auto mode updates silently with a toast).
+    if (!autoUpdateProgress && progressUpdateData !== null && !hasUpdatedProgress) {
         return <Button
             data-vc-element="update-progress-button"
             className="animate-pulse"

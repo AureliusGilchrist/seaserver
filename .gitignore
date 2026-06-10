@@ -23,7 +23,10 @@ go.work
 _docker-compose.yml
 
 logs
-web/
+# Ignore the (build-regenerated) embedded web assets, but keep a tracked placeholder so
+# `//go:embed all:web` still compiles on a fresh clone before the frontend is built.
+web/*
+!web/.gitkeep
 web-desktop/
 web-denshi/
 out/

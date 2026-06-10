@@ -97,6 +97,8 @@ substep "Removing old ./web..."
 rm -rf web
 substep "Copying seanime-web/out → ./web..."
 cp -r seanime-web/out web
+# Keep the tracked placeholder so the embed compiles on a fresh clone (web/* is gitignored).
+touch web/.gitkeep
 [[ -d web ]] && success "Web output ready at ./web"
 
 # ── 3. Go backend ────────────────────────────────────────

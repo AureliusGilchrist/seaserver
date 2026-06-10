@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -23,10 +24,7 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	e.JSONSerializer = &CustomJSONSerializer{}
 	e.StdLogger = log.Default()
 
-	distFS, err := fs.Sub(webFS, "web")
-	if err != nil {
-		log.Fatal(err)
-	}
+	webFs, webSource := resolveWebFilesystem(app, webFS)
 
 	if app.Config.Server.Tls.Enabled {
 		app.Logger.Debug().Msg("app: TLS is enabled, adding security middleware")
@@ -34,7 +32,7 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	}
 
 	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
-		Filesystem: http.FS(distFS),
+		Filesystem: webFs,
 		Browse:     true,
 		HTML5:      true,
 		Skipper: func(c echo.Context) bool {
@@ -56,7 +54,7 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 		},
 	}))
 
-	app.Logger.Info().Msgf("app: Serving embedded web interface")
+	app.Logger.Info().Msgf("app: Serving web interface (%s)", webSource)
 
 	// Serve web assets
 	app.Logger.Info().Msgf("app: Web assets path: %s", app.Config.Web.AssetDir)
@@ -114,6 +112,53 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	}
 
 	return e
+}
+
+// resolveWebFilesystem decides where the web UI is served from.
+//
+// It prefers an external directory on disk, so the frontend can be updated or replaced
+// independently of the binary — drop a built `web` folder next to the server (or point
+// SEANIME_WEB_DIR at one) on any machine and it is served as-is, with no rebuild. This also
+// means the compile-time embed only needs a placeholder, so the binary builds on a fresh clone
+// even though the real (gitignored) `web/` build is regenerated on every frontend build.
+//
+// Resolution order (first that contains an index.html wins):
+//  1. $SEANIME_WEB_DIR
+//  2. <AppDataDir>/web
+//  3. <directory of the running executable>/web
+//  4. the assets embedded at compile time (fallback)
+func resolveWebFilesystem(app *App, webFS *embed.FS) (http.FileSystem, string) {
+	candidates := make([]string, 0, 3)
+	if env := strings.TrimSpace(os.Getenv("SEANIME_WEB_DIR")); env != "" {
+		candidates = append(candidates, env)
+	}
+	if app.Config != nil && app.Config.Data.AppDataDir != "" {
+		candidates = append(candidates, filepath.Join(app.Config.Data.AppDataDir, "web"))
+	}
+	if exe, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "web"))
+	}
+
+	for _, dir := range candidates {
+		if hasWebContent(dir) {
+			return http.Dir(dir), "external dir: " + dir
+		}
+	}
+
+	distFS, err := fs.Sub(webFS, "web")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return http.FS(distFS), "embedded"
+}
+
+// hasWebContent reports whether dir looks like a built frontend (i.e. has an index.html file).
+func hasWebContent(dir string) bool {
+	if dir == "" {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(dir, "index.html"))
+	return err == nil && !info.IsDir()
 }
 
 type CustomJSONSerializer struct{}
