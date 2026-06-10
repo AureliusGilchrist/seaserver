@@ -21,12 +21,5 @@ export function useDirectstreamConvertSubs() {
         mutationKey: [API_ENDPOINTS.DIRECTSTREAM.DirectstreamConvertSubs.key],
         onSuccess: async (data) => {
         },
-        // Override the default error toast. Subtitle fetch/convert failures are expected for
-        // some sources (e.g. Cloudflare-challenged CDNs) and are handled gracefully by the
-        // caller (the track stays listed and selectable). The per-call onError still rejects
-        // the promise so the caption manager can react; we just avoid spamming a toast on
-        // every episode load.
-        onError: () => {
-        },
     })
 }

@@ -2,9 +2,14 @@ package handlers
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/directstream"
 	"seanime/internal/mkvparser"
+	"seanime/internal/util"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -87,10 +92,67 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 		return h.RespondWithData(c, ret)
 	}
 
-	// Convert from url
-	// Use the video proxy client so the request egresses through the same transport/SOCKS5
-	// proxy that fetches the HLS stream, avoiding Cloudflare challenges from flagged IPs.
-	ret, err := h.App.VideoCore.FetchAndConvertSubsTo(h.getVideoProxyClient(), b.Url, to)
+	// Fetch URL using the video proxy client (same transport that fetches HLS from CDNs).
+	ua := util.GetRandomUserAgent()
+	fetchSubtitle := func(referer string) (*http.Response, error) {
+		r, reqErr := http.NewRequest(http.MethodGet, b.Url, nil)
+		if reqErr != nil {
+			return nil, reqErr
+		}
+		r.Header.Set("User-Agent", ua)
+		r.Header.Set("Accept", "*/*")
+		if referer != "" {
+			r.Header.Set("Referer", referer)
+		}
+		return h.getVideoProxyClient().Do(r)
+	}
+
+	resp, err := fetchSubtitle("")
+	if err != nil {
+		return h.RespondWithError(c, fmt.Errorf("failed to fetch subtitle URL: %w", err))
+	}
+
+	// CDN hotlink protection: retry with common Referer values when blocked.
+	if resp.StatusCode == 403 || resp.StatusCode == 401 {
+		resp.Body.Close()
+		resp = nil
+		referers := []string{""}
+		if parsedURL, parseErr := url.Parse(b.Url); parseErr == nil {
+			referers = []string{
+				parsedURL.Scheme + "://" + parsedURL.Host + "/",
+				"https://animetsu.net/",
+				"https://megacloud.club/",
+				"https://megacloud.tv/",
+			}
+		}
+		for _, referer := range referers {
+			r, retryErr := fetchSubtitle(referer)
+			if retryErr != nil {
+				continue
+			}
+			if r.StatusCode >= 200 && r.StatusCode < 300 {
+				resp = r
+				break
+			}
+			r.Body.Close()
+		}
+		if resp == nil {
+			return h.RespondWithError(c, fmt.Errorf("subtitle URL returned HTTP 403 (hotlink protection, all referers blocked)"))
+		}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return h.RespondWithError(c, fmt.Errorf("subtitle URL returned HTTP %d", resp.StatusCode))
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return h.RespondWithError(c, fmt.Errorf("failed to read subtitle response: %w", err))
+	}
+
+	content := strings.TrimSpace(string(bodyBytes))
+	ret, err := h.App.VideoCore.ConvertSubsTo(content, mkvparser.SubtitleTypeUnknown, to)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}

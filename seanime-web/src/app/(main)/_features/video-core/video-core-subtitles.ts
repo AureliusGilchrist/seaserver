@@ -76,6 +76,8 @@ export class VideoCoreSubtitleManager extends EventTarget {
     private readonly jassubOffscreenRender: boolean
     libassRenderer: JASSUB | null = null
     pgsRenderer: VideoCorePgsRenderer | null = null
+    private _jassubCanvas: HTMLCanvasElement | null = null
+    private _jassubResizeObserver: ResizeObserver | null = null
     private settings: VideoCoreSettings
     private defaultSubtitleHeader = `[Script Info]
 Title: English (US)
@@ -726,9 +728,9 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             return
         }
 
-        // A per-media (per-series) override takes priority over the global preferred
-        // language, including an explicit "Off", so a caption the user picked on one
-        // episode is re-applied on every other episode of the same series.
+        // A per-media (per-series) override takes priority over the global preferred language,
+        // including an explicit "Off", so a caption the user picked on one episode is re-applied
+        // on every other episode of the same series.
         const overrideTrackNumber = resolveOverrideTrackNumber(this.preferredTrackOverride, tracks)
         if (overrideTrackNumber !== null) {
             subtitleLog.info("Applying per-media subtitle override", overrideTrackNumber, this.preferredTrackOverride)
@@ -1169,7 +1171,43 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         } else {
             try {
                 subtitleLog.info("Converting subtitle to ASS format")
-                const assContent = await this.fetchAndConvertToASS(fileTrack.info.src, fileTrack.info.content)
+
+                // Try fetching the subtitle content directly in the browser first.
+                // This avoids the backend needing to reach external CDN URLs that may
+                // require specific headers or be inaccessible from the server.
+                let prefetchedContent: string | undefined
+                if (fileTrack.info.src && !fileTrack.info.content) {
+                    try {
+                        const resp = await fetch(fileTrack.info.src)
+                        if (resp.ok) {
+                            const text = await resp.text()
+                            // Only use the fetched content if it looks like an actual subtitle file.
+                            // CDNs sometimes return HTML error pages with a 200 status.
+                            const trimmed = text.trimStart()
+                            const looksLikeSubtitle = trimmed.startsWith("WEBVTT")
+                                || trimmed.startsWith("[Script Info]")
+                                || (text.match(/-->/g) || []).length > 2
+                                || trimmed.startsWith("1\n") || trimmed.startsWith("1\r\n")
+                            if (looksLikeSubtitle) {
+                                prefetchedContent = text
+                                subtitleLog.info("Pre-fetched subtitle content in browser", fileTrack.info.src)
+                            } else {
+                                subtitleLog.warning("Browser pre-fetch returned non-subtitle content, falling back to server-side fetch")
+                            }
+                        } else {
+                            subtitleLog.warning("Browser pre-fetch got non-OK status", resp.status, "falling back to server-side fetch")
+                        }
+                    }
+                    catch (prefetchErr) {
+                        subtitleLog.warning("Browser pre-fetch failed, falling back to server-side fetch", prefetchErr)
+                    }
+                }
+
+                // Pass the prefetched content (if available) to avoid the server having to re-fetch it.
+                const assContent = await this.fetchAndConvertToASS(
+                    prefetchedContent ? undefined : fileTrack.info.src,
+                    prefetchedContent ?? fileTrack.info.content,
+                )
 
                 if (!assContent) {
                     subtitleLog.error("Failed to convert subtitle to ASS format")
@@ -1198,15 +1236,14 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 }
 
 /**
- * Resolves a per-media subtitle preference to a concrete track number against the
- * given tracks. Returns:
+ * Resolves a per-media subtitle preference to a concrete track number against the given tracks.
+ * Returns:
  * - `NO_TRACK_NUMBER` if the override is an explicit "off"
  * - the matching track number when a track matches the saved label/language/codec
  * - `null` when there is no override or no match (caller should fall back to defaults)
  *
- * Matching is ordered from most to least specific: label, then language (preferring a
- * codec match), so the same caption a user picked carries across episodes even when the
- * track number differs between files.
+ * Matching is ordered from most to least specific (label, then language preferring a codec match)
+ * so the same caption a user picked carries across episodes even when track numbers differ.
  */
 export function resolveOverrideTrackNumber(
     override: PerMediaTrackOverride | undefined,

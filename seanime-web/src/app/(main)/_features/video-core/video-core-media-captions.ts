@@ -9,6 +9,24 @@ import "media-captions/styles/regions.css"
 
 const log = logger("VIDEO CORE MEDIA CAPTIONS")
 
+async function browserFetchText(url: string): Promise<string | undefined> {
+    try {
+        const res = await fetch(url)
+        if (!res.ok) return undefined
+        const text = await res.text()
+        // Reject HTML error pages that CDNs sometimes serve with 200 status
+        const trimmed = text.trimStart()
+        const looksLikeSubtitle = trimmed.startsWith("WEBVTT")
+            || trimmed.startsWith("[Script Info]")
+            || (text.match(/-->/g) || []).length > 2
+            || trimmed.startsWith("1\n") || trimmed.startsWith("1\r\n")
+        return looksLikeSubtitle ? text : undefined
+    }
+    catch {
+        return undefined
+    }
+}
+
 export type MediaCaptionsTrackInfo = {
     src?: string // URL to the captions file
     content?: string // Content of the captions file
@@ -120,8 +138,8 @@ export class MediaCaptionsManager extends EventTarget {
     private readonly sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
     // Remember the translated file tracks to avoid re-fetching them
     private translatedTracks = new Map<number, { translating: boolean }>()
-    // Per-media (per-series) subtitle preference, applied on load so a manually
-    // chosen caption carries across episodes.
+    // Per-media (per-series) subtitle preference, applied on load so a manually chosen
+    // caption carries across episodes.
     private readonly preferredTrackOverride?: PerMediaTrackOverride
 
     constructor(options: MediaCaptionsManagerOptions) {
@@ -241,21 +259,12 @@ export class MediaCaptionsManager extends EventTarget {
         if (this.renderer) {
             if (!track.loaded) {
                 log.info("Loading track", index)
-                try {
-                    const res = await track.loadFn()
-                    if (res) {
-                        track.cues = res.cues
-                        track.regions = res.regions
-                    }
-                    track.loaded = true
+                const res = await track.loadFn()
+                if (res) {
+                    track.cues = res.cues
+                    track.regions = res.regions
                 }
-                catch (error) {
-                    // Content fetch/convert failed (e.g. a Cloudflare-challenged subtitle CDN
-                    // returning 403/500). Don't let it bubble up as an unhandled rejection — the
-                    // track stays in the menu and selectable, so reselecting can retry. We leave
-                    // `loaded` false intentionally so a later attempt re-fetches.
-                    log.error("Failed to load caption track content", index, error)
-                }
+                track.loaded = true
             }
             this.renderer.changeTrack({
                 cues: track.cues,
@@ -297,7 +306,13 @@ export class MediaCaptionsManager extends EventTarget {
             loadFn: async () => {
                 // short circuit for vtt content
                 if (track.content && track.type === "vtt") return await parseText(track.content)
-                const vttContent = await this.fetchAndConvertToVTT(track.src, track.content)
+                // Try browser fetch first to avoid server-side CDN access issues
+                let content = track.content
+                if (!content && track.src) {
+                    content = await browserFetchText(track.src)
+                    if (content) log.info("Browser pre-fetched subtitle content", track.src)
+                }
+                const vttContent = await this.fetchAndConvertToVTT(content ? undefined : track.src, content)
                 if (!vttContent) return null
                 track.content = vttContent
                 return await parseText(vttContent)
@@ -651,7 +666,13 @@ export class MediaCaptionsManager extends EventTarget {
                     loadFn: async () => {
                         // short circuit for vtt content
                         if (track.content && track.type === "vtt") return await parseText(track.content)
-                        const vttContent = await this.fetchAndConvertToVTT(track.src, track.content)
+                        // Try browser fetch first to avoid server-side CDN access issues
+                        let content = track.content
+                        if (!content && track.src) {
+                            content = await browserFetchText(track.src)
+                            if (content) log.info("Browser pre-fetched subtitle content", track.src)
+                        }
+                        const vttContent = await this.fetchAndConvertToVTT(content ? undefined : track.src, content)
                         if (!vttContent) return null
                         track.content = vttContent
                         return await parseText(vttContent)
@@ -664,15 +685,15 @@ export class MediaCaptionsManager extends EventTarget {
                 log.error(`Failed to load track: ${track.label}`, error)
             }
         }
-
-        // Announce the available tracks up front — before any content is fetched — so the
-        // subtitle menu and its CC icon appear immediately. Otherwise, if the default track's
-        // content fails to load (e.g. a Cloudflare-challenged CDN returning 403/500), an
-        // exception below would abort this method and the menu would never learn the tracks
-        // exist, leaving the user with no captions button at all.
-        this._onTracksLoaded?.(this.getTracks())
-        this.dispatchEvent(new CustomEvent("tracksloaded", { detail: { tracks: this.getTracks() } }))
-
+        // When the first track is loaded, start rendering captions
+        // Select default track. A per-media override (a caption the user previously picked for
+        // this series) takes priority over the global preferred language.
+        const tracksForSelection = this.tracks.map((t, idx) => ({ ...t, number: idx }))
+        const overrideTrackNumber = resolveOverrideTrackNumber(this.preferredTrackOverride, tracksForSelection)
+        const defaultTrackNumber = overrideTrackNumber !== null
+            ? overrideTrackNumber
+            : getDefaultSubtitleTrackNumber(this.settings, tracksForSelection)
+        await this.selectTrack(defaultTrackNumber)
         // Setup time update listener
         this.timeUpdateListener = () => {
             if (this.renderer && this.currentTrackIndex !== NO_TRACK_IDX) {
@@ -680,16 +701,9 @@ export class MediaCaptionsManager extends EventTarget {
             }
         }
         this.videoElement.addEventListener("timeupdate", this.timeUpdateListener)
+        this._onTracksLoaded?.(this.getTracks())
 
-        // Select default track. A per-media override (a caption the user previously
-        // picked for this series) takes priority over the global preferred language.
-        // This is done last because it triggers the content fetch, which may fail without
-        // affecting the already-announced track list above.
-        const tracksForSelection = this.tracks.map((t, idx) => ({ ...t, number: idx }))
-        const overrideTrackNumber = resolveOverrideTrackNumber(this.preferredTrackOverride, tracksForSelection)
-        const defaultTrackNumber = overrideTrackNumber !== null
-            ? overrideTrackNumber
-            : getDefaultSubtitleTrackNumber(this.settings, tracksForSelection)
-        await this.selectTrack(defaultTrackNumber)
+        const event: MediaCaptionsTracksLoadedEvent = new CustomEvent("tracksloaded", { detail: { tracks: this.getTracks() } })
+        this.dispatchEvent(event)
     }
 }

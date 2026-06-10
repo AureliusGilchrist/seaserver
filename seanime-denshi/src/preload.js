@@ -123,12 +123,6 @@ contextBridge.exposeInMainWorld(
             set: (settings) => ipcRenderer.invoke("denshi:setSettings", settings),
         },
 
-        // Cloudflare-challenged subtitle fetch via a hidden real-browser window.
-        // Returns the raw subtitle file content, or "" if the challenge couldn't be solved.
-        cloudflare: {
-            solve: (url) => ipcRenderer.invoke("cf:solve", url),
-        },
-
         // Discord Rich Presence (used when server runs on a different machine
         // than this Electron instance; renderer forwards server-broadcast
         // activities to the LOCAL Discord client via these handlers).

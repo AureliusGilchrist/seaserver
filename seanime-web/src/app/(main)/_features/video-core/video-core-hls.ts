@@ -29,6 +29,15 @@ export const vc_hlsAudioTracks = atom<HlsAudioTrack[]>([])
 export const vc_hlsCurrentAudioTrack = atom<number>(-1)
 export const vc_hlsSetAudioTrack = atom<((trackId: number) => void) | null>(null)
 
+export type HlsSubtitleTrack = {
+    id: number
+    name: string
+    language?: string
+    url?: string
+    default?: boolean
+}
+export const vc_hlsSubtitleTracks = atom<HlsSubtitleTrack[]>([])
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const hlsLog = logger("VIDEO CORE HLS")
@@ -72,6 +81,7 @@ export function useVideoCoreHls({
     const setSetQuality = useSetAtom(vc_hlsSetQuality)
     const setAudioTracks = useSetAtom(vc_hlsAudioTracks)
     const setSetAudioTrack = useSetAtom(vc_hlsSetAudioTrack)
+    const setSubtitleTracks = useSetAtom(vc_hlsSubtitleTracks)
 
     useEffect(() => {
         if (!streamUrl || !videoElement) return
@@ -91,6 +101,7 @@ export function useVideoCoreHls({
             setAudioTracks([])
             setCurrentAudioTrack(-1)
             setSetAudioTrack(() => {})
+            setSubtitleTracks([])
             return
         }
 
@@ -109,19 +120,6 @@ export function useVideoCoreHls({
                 backBufferLength: 90,
                 enableWebVTT: true,
                 renderTextTracksNatively: false, // don't use native text tracks for subtitles
-                // Buffer more aggressively so slow proxy/CDN throughput doesn't drain the buffer
-                // to ~0 and stall playback (bufferStalledError). Defaults are 30s / 60MB.
-                maxBufferLength: 60,
-                maxMaxBufferLength: 600,
-                maxBufferSize: 120 * 1000 * 1000, // 120MB
-                // Be more patient and retry harder when segments load slowly.
-                fragLoadingMaxRetry: 8,
-                fragLoadingRetryDelay: 500,
-                fragLoadingMaxRetryTimeout: 64000,
-                manifestLoadingMaxRetry: 4,
-                levelLoadingMaxRetry: 4,
-                // Try harder to recover from buffer stalls before giving up (default 3).
-                nudgeMaxRetry: 10,
             })
 
             hlsRef.current = hls
@@ -155,6 +153,22 @@ export function useVideoCoreHls({
             hls.on(Events.MEDIA_DETACHED, () => {
                 hlsLog.info("HLS media detached")
                 onMediaDetached?.()
+            })
+
+            hls.on(Events.SUBTITLE_TRACKS_UPDATED, (event, data) => {
+                if (!data.subtitleTracks?.length) {
+                    setSubtitleTracks([])
+                    return
+                }
+                const tracks: HlsSubtitleTrack[] = data.subtitleTracks.map((t, index) => ({
+                    id: typeof t.id === "number" ? t.id : index,
+                    name: t.name || t.lang || `Subtitle ${index + 1}`,
+                    language: t.lang,
+                    url: t.url,
+                    default: !!t.default,
+                }))
+                hlsLog.info("HLS subtitle tracks", tracks)
+                setSubtitleTracks(tracks)
             })
 
             hls.on(Events.MANIFEST_PARSED, (event, data) => {
@@ -260,6 +274,7 @@ export function useVideoCoreHls({
             setAudioTracks([])
             setCurrentAudioTrack(-1)
             setSetAudioTrack(() => {})
+            setSubtitleTracks([])
         } else {
             hlsLog.error("HLS not supported on this browser")
             toast.error("HLS playback not supported on this browser")

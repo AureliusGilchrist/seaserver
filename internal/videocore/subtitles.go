@@ -1,87 +1,26 @@
 package videocore
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"seanime/internal/mkvparser"
 	"seanime/internal/util"
 	"strings"
+	"time"
+
+	"github.com/imroc/req/v3"
 )
 
-// CloudflareChallengeErrorPrefix marks a subtitle fetch that was blocked by a Cloudflare
-// anti-bot challenge. Clients (e.g. the denshi renderer) detect this prefix and re-fetch the
-// content through a real browser surface, then resubmit the raw content for conversion.
-const CloudflareChallengeErrorPrefix = "cloudflare_challenge"
+func (vc *VideoCore) FetchAndConvertSubsTo(url string, to int) (string, error) {
+	client := req.C()
+	client.SetTimeout(30 * time.Second)
+	resp := client.Get(url).Do()
 
-// FetchAndConvertSubsTo fetches a subtitle file and converts it to the target format.
-//
-// The provided client should be the video proxy client (h.getVideoProxyClient()) so the
-// request egresses through the same transport/SOCKS5 proxy that successfully fetches the
-// HLS stream. Subtitle CDNs (e.g. swiftstream.top) sit behind Cloudflare and will return a
-// "Just a moment..." HTML challenge (HTTP 200 or 403) to a bare client from a flagged IP.
-func (vc *VideoCore) FetchAndConvertSubsTo(client *http.Client, subUrl string, to int) (string, error) {
-	if client == nil {
-		client = http.DefaultClient
+	if resp.IsErrorState() {
+		return "", errors.New("failed to fetch subtitle file")
 	}
 
-	r, err := http.NewRequest(http.MethodGet, subUrl, nil)
-	if err != nil {
-		return "", fmt.Errorf("invalid subtitle URL: %w", err)
-	}
-	r.Header.Set("User-Agent", util.GetRandomUserAgent())
-	r.Header.Set("Accept", "*/*")
-
-	resp, err := client.Do(r)
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch subtitle file: %w", err)
-	}
-
-	bodyBytes, readErr := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if readErr != nil {
-		return "", fmt.Errorf("failed to read subtitle response: %w", readErr)
-	}
-
-	payload := strings.TrimSpace(string(bodyBytes))
-
-	// Some subtitle CDNs (e.g. swiftstream.top) sit behind a Cloudflare anti-bot challenge and
-	// return a "Just a moment..." page — often with a 403/503 status — to a plain HTTP client.
-	// When that happens, fall back to a headless browser that can execute the JS challenge and
-	// fetch the real subtitle content. Converting the challenge HTML directly yields garbage.
-	if isCloudflareChallenge(resp.StatusCode, payload) {
-		vc.logger.Warn().
-			Str("url", subUrl).
-			Int("status", resp.StatusCode).
-			Msg("videocore: Subtitle URL is behind a Cloudflare challenge")
-
-		// By default, surface a structured error so a real (non-automated) browser surface — the
-		// denshi Electron renderer — can solve the challenge and resubmit the raw content for
-		// conversion. The in-process headless solver is opt-in (SEANIME_CF_BACKEND_SOLVER=1):
-		// hardened "managed" challenges detect the CDP automation and never clear, and waiting on
-		// them only stalls the request.
-		if os.Getenv("SEANIME_CF_BACKEND_SOLVER") != "1" {
-			return "", fmt.Errorf("%s: %s", CloudflareChallengeErrorPrefix, subUrl)
-		}
-
-		vc.logger.Info().Str("url", subUrl).Msg("videocore: Attempting in-process headless solve")
-		solved, solveErr := vc.solveCloudflareAndFetch(context.Background(), subUrl)
-		if solveErr != nil {
-			return "", fmt.Errorf("%s: headless solve failed: %w", CloudflareChallengeErrorPrefix, solveErr)
-		}
-		payload = strings.TrimSpace(solved)
-		if payload == "" || isCloudflareChallenge(0, payload) {
-			return "", fmt.Errorf("%s: headless solve did not return subtitle content", CloudflareChallengeErrorPrefix)
-		}
-		vc.logger.Info().Str("url", subUrl).Msg("videocore: Headless Cloudflare solve succeeded")
-	} else if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("subtitle URL returned HTTP %d", resp.StatusCode)
-	}
-
-	url := subUrl
+	payload := resp.String()
 
 	from := mkvparser.SubtitleTypeUnknown
 
