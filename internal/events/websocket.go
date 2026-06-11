@@ -80,6 +80,10 @@ type (
 		ID        string
 		ProfileID uint
 		Conn      *websocket.Conn
+		// writeMu serializes writes to THIS connection (gorilla/websocket forbids concurrent
+		// writes) without holding the manager-wide lock — so a slow/stuck client can't block
+		// sends to other clients (which previously stalled e.g. the subtitle event stream).
+		writeMu sync.Mutex
 	}
 
 	WSEvent struct {
@@ -193,47 +197,45 @@ func (m *WSEventManager) RemoveConn(id string) {
 	}
 }
 
-// SendEvent sends a websocket event to the client.
-func (m *WSEventManager) SendEvent(t string, payload interface{}) {
+// wsWriteTimeout bounds an individual WriteJSON/WriteMessage so a stuck client can't hold its
+// write mutex indefinitely.
+const wsWriteTimeout = 10 * time.Second
+
+// snapshotConns returns a copy of the connection list. Callers iterate the copy and write WITHOUT
+// holding m.mu, so a slow write to one client cannot block sends to others (or block AddConn/
+// RemoveConn). Per-connection writes are serialized by each conn's writeMu.
+func (m *WSEventManager) snapshotConns() []*WSConn {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	// If there's no connection, do nothing
-	//if m.Conn == nil {
-	//	return
-	//}
+	out := make([]*WSConn, len(m.Conns))
+	copy(out, m.Conns)
+	return out
+}
 
+// writeJSON serializes the write on the connection and applies a write deadline.
+func (c *WSConn) writeJSON(v interface{}) {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	_ = c.Conn.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
+	_ = c.Conn.WriteJSON(v)
+}
+
+// SendEvent sends a websocket event to all clients.
+func (m *WSEventManager) SendEvent(t string, payload interface{}) {
 	if t != PlaybackManagerProgressPlaybackState && t != ChapterDownloadQueueUpdated && payload == nil {
 		m.Logger.Trace().Str("type", t).Msg("ws: Sending message")
 	}
 
-	for _, conn := range m.Conns {
-		err := conn.Conn.WriteJSON(WSEvent{
-			Type:    t,
-			Payload: payload,
-		})
-		if err != nil {
-			// Note: NaN error coming from [progress_tracking.go]
-			//m.Logger.Err(err).Msg("ws: Failed to send message")
-		}
-		//m.Logger.Trace().Str("type", t).Msg("ws: Sent message")
+	evt := WSEvent{Type: t, Payload: payload}
+	for _, conn := range m.snapshotConns() {
+		conn.writeJSON(evt)
 	}
-
-	//err := m.Conn.WriteJSON(WSEvent{
-	//	Type:    t,
-	//	Payload: payload,
-	//})
-	//if err != nil {
-	//	m.Logger.Err(err).Msg("ws: Failed to send message")
-	//}
-	//m.Logger.Trace().Str("type", t).Msg("ws: Sent message")
 }
 
 // SendEventTo sends a websocket event to the specified client.
 func (m *WSEventManager) SendEventTo(clientId string, t string, payload interface{}, noLog ...bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for _, conn := range m.Conns {
+	evt := WSEvent{Type: t, Payload: payload}
+	for _, conn := range m.snapshotConns() {
 		if conn.ID == clientId {
 			if t != "pong" {
 				if len(noLog) == 0 || !noLog[0] {
@@ -244,10 +246,7 @@ func (m *WSEventManager) SendEventTo(clientId string, t string, payload interfac
 					m.Logger.Trace().Str("to", clientId).Str("type", t).Str("payload", truncated).Msg("ws: Sending message")
 				}
 			}
-			_ = conn.Conn.WriteJSON(WSEvent{
-				Type:    t,
-				Payload: payload,
-			})
+			conn.writeJSON(evt)
 		}
 	}
 }
@@ -260,28 +259,23 @@ func (m *WSEventManager) SendEventToProfile(profileID uint, t string, payload in
 		return
 	}
 
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	m.Logger.Trace().Uint("profileID", profileID).Str("type", t).Msg("ws: Sending message to profile")
 
-	for _, conn := range m.Conns {
+	evt := WSEvent{Type: t, Payload: payload}
+	for _, conn := range m.snapshotConns() {
 		if conn.ProfileID == profileID {
-			_ = conn.Conn.WriteJSON(WSEvent{
-				Type:    t,
-				Payload: payload,
-			})
+			conn.writeJSON(evt)
 		}
 	}
 }
 
 func (m *WSEventManager) SendStringTo(clientId string, s string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for _, conn := range m.Conns {
+	for _, conn := range m.snapshotConns() {
 		if conn.ID == clientId {
+			conn.writeMu.Lock()
+			_ = conn.Conn.SetWriteDeadline(time.Now().Add(wsWriteTimeout))
 			_ = conn.Conn.WriteMessage(websocket.TextMessage, []byte(s))
+			conn.writeMu.Unlock()
 		}
 	}
 }

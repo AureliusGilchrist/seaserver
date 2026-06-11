@@ -1835,6 +1835,8 @@ app.whenReady().then(async () => {
             if (activity.buttons.length === 0) delete activity.buttons
         }
         if (typeof p.type === "number") activity.type = p.type
+        // Controls Discord's status text: 0=name ("Watching Karasu Player"), 2=details ("Reading from Karasu").
+        if (typeof p.statusDisplayType === "number") activity.statusDisplayType = p.statusDisplayType
         activity.instance = !!p.instance
         return activity
     }

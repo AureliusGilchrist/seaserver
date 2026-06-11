@@ -300,6 +300,9 @@ func (p *Presence) SetAnimeActivity(a *AnimeActivity) {
 	}
 
 	activity := defaultActivity
+	activity.Name = "Karasu Player"
+	// Show "Watching Karasu Player" as the Discord status (NAME display + Watching type).
+	activity.StatusDisplayType = 0
 	activity.Details = a.Title
 	activity.DetailsURL = fmt.Sprintf("https://anilist.co/anime/%d", a.ID)
 	activity.State = state
@@ -501,6 +504,9 @@ func (p *Presence) LegacySetAnimeActivity(a *LegacyAnimeActivity) {
 	}
 
 	activity := defaultActivity
+	activity.Name = "Karasu Player"
+	// Show "Watching Karasu Player" as the Discord status (NAME display + Watching type).
+	activity.StatusDisplayType = 0
 	activity.Details = a.Title
 	activity.DetailsURL = fmt.Sprintf("https://anilist.co/anime/%d", a.ID)
 	activity.State = state
@@ -555,9 +561,14 @@ func (p *Presence) SetMangaActivity(a *MangaActivity) {
 	event := &DiscordPresenceMangaActivityRequestedEvent{}
 
 	activity := defaultActivity
-	activity.Details = a.Title
+	activity.Name = "Karasu"
+	// Show "Reading from Karasu" as the Discord status. Discord has no "Reading" verb, so we put
+	// the phrase in Details and select DETAILS display (no verb prefix). The manga title/chapter
+	// stay in State and on the card.
+	activity.StatusDisplayType = 2
+	activity.Details = "Reading from Karasu"
 	activity.DetailsURL = fmt.Sprintf("https://anilist.co/manga/%d", a.ID)
-	activity.State = fmt.Sprintf("Reading Chapter %s", a.Chapter)
+	activity.State = fmt.Sprintf("%s · Chapter %s", a.Title, a.Chapter)
 	activity.Assets.LargeImage = a.Image
 	activity.Assets.LargeText = a.Title
 	activity.Assets.LargeURL = fmt.Sprintf("https://anilist.co/manga/%d", a.ID)
@@ -682,9 +693,10 @@ type DiscordActivityPayload struct {
 	SmallURL       string                      `json:"smallUrl,omitempty"`
 	StartTimestamp *int64                      `json:"startTimestamp,omitempty"`
 	EndTimestamp   *int64                      `json:"endTimestamp,omitempty"`
-	Buttons        []*discordrpc_client.Button `json:"buttons,omitempty"`
-	Instance       bool                        `json:"instance,omitempty"`
-	Type           int                         `json:"type,omitempty"`
+	Buttons          []*discordrpc_client.Button `json:"buttons,omitempty"`
+	Instance         bool                        `json:"instance,omitempty"`
+	Type             int                         `json:"type,omitempty"`
+	StatusDisplayType int                        `json:"statusDisplayType,omitempty"`
 }
 
 func (p *Presence) broadcastActivity(activity *discordrpc_client.Activity) {
@@ -702,9 +714,10 @@ func (p *Presence) broadcastActivity(activity *discordrpc_client.Activity) {
 		Details:       activity.Details,
 		DetailsURL:    activity.DetailsURL,
 		State:         activity.State,
-		Buttons:       activity.Buttons,
-		Instance:      activity.Instance,
-		Type:          activity.Type,
+		Buttons:           activity.Buttons,
+		Instance:          activity.Instance,
+		Type:              activity.Type,
+		StatusDisplayType: activity.StatusDisplayType,
 	}
 	if activity.Assets != nil {
 		payload.LargeImage = activity.Assets.LargeImage
@@ -751,8 +764,8 @@ func discordActivitySignature(p *DiscordActivityPayload) string {
 	if p.EndTimestamp != nil {
 		end = *p.EndTimestamp
 	}
-	return fmt.Sprintf("%s|%s|%s|%s|%s|%d|%d|%d",
-		p.Name, p.Details, p.State, p.LargeImage, p.SmallImage, start, end, p.Type)
+	return fmt.Sprintf("%s|%s|%s|%s|%s|%d|%d|%d|%d",
+		p.Name, p.Details, p.State, p.LargeImage, p.SmallImage, start, end, p.Type, p.StatusDisplayType)
 }
 
 func (p *Presence) broadcastClear() {
