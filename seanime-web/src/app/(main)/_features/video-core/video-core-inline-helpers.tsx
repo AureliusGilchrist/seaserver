@@ -1,6 +1,7 @@
 import { AL_BaseAnime } from "@/api/generated/types"
 import { useUpdateAnimeEntryProgress } from "@/api/hooks/anime_entries.hooks"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { enqueuePendingProgress } from "@/lib/offline-progress/offline-progress"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -15,7 +16,7 @@ import { TbLayoutSidebarRightCollapse, TbLayoutSidebarRightExpand } from "react-
 import { toast } from "sonner"
 import { useWindowSize } from "react-use"
 
-const vc_inlineHelper_progressUpdateData = atom<{ media: AL_BaseAnime, currentProgress: number, currentEpisodeNumber: number } | null>(null)
+const vc_inlineHelper_progressUpdateData = atom<{ media: AL_BaseAnime, currentProgress: number, currentEpisodeNumber: number, currentTime?: number } | null>(null)
 const vc_inlineHelper_hasUpdatedProgress = atom<boolean>(false)
 
 type VideoCoreInlineHelpers = {
@@ -76,6 +77,7 @@ export function VideoCoreInlineHelpers({
                 media,
                 currentProgress,
                 currentEpisodeNumber,
+                currentTime,
             })
         }
 
@@ -120,7 +122,22 @@ export function VideoCoreInlineHelperUpdateProgressButton() {
         }, {
             onSuccess: () => {
                 setHasUpdateProgress(true)
-                toast.success(`Progress updated to episode ${progressUpdateData?.currentEpisodeNumber} on AniList`)
+                toast.success(`AniList updated from episode ${progressUpdateData?.currentProgress} to ${progressUpdateData?.currentEpisodeNumber}`)
+            },
+            onError: () => {
+                // AniList couldn't be reached — keep the update offline (with the exact playback
+                // position) so it syncs automatically later, and don't re-prompt every tick.
+                setHasUpdateProgress(true)
+                enqueuePendingProgress({
+                    mediaId: progressUpdateData.media.id,
+                    episodeNumber: progressUpdateData.currentEpisodeNumber || 0,
+                    totalEpisodes: progressUpdateData.media.episodes || 0,
+                    malId: progressUpdateData.media.idMal || undefined,
+                    currentTime: progressUpdateData.currentTime,
+                    title: progressUpdateData.media.title?.userPreferred ?? undefined,
+                    savedAt: Date.now(),
+                })
+                toast.error("Couldn't reach AniList — progress saved offline and will sync automatically")
             },
         })
     }, [progressUpdateData, updateProgress, setHasUpdateProgress])

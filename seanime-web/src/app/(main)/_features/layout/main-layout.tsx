@@ -58,11 +58,15 @@ import { RewardParticlesLayer } from "@/lib/rewards/reward-particles"
 import { WorkspaceBar, WORKSPACE_BAR_HEIGHT } from "../navigation/workspace-bar"
 import { useGetProfiles } from "@/api/hooks/profiles.hooks"
 import { ClientPrefsHydrator } from "@/lib/sea-storage/client-prefs-hydrator"
+import { useOfflineProgressSync } from "@/lib/offline-progress/use-offline-progress-sync"
 
 export const MainLayout = ({ children }: { children: React.ReactNode }) => {
     const { data: profiles } = useGetProfiles(true)
     const hasMultipleProfiles = (profiles?.length ?? 0) > 1
     const topOffset = hasMultipleProfiles ? WORKSPACE_BAR_HEIGHT : 0
+
+    // Retry any AniList progress updates that were saved offline (AniList unreachable).
+    useOfflineProgressSync()
 
     return (
         <>

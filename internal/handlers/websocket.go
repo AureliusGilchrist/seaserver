@@ -4,11 +4,19 @@ import (
 	"net/http"
 	"seanime/internal/core"
 	"seanime/internal/events"
+	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 )
+
+// wsReadTimeout bounds how long the server waits for any message from a client before treating
+// the connection as dead. The web client pings every 15s (≈every 60s when its tab is throttled in
+// the background), so 120s gives ample margin while ensuring half-open connections — which would
+// otherwise block ReadMessage until the OS TCP keepalive fires (potentially hours), leaking a
+// goroutine each time — are reaped within ~2 minutes.
+const wsReadTimeout = 120 * time.Second
 
 var (
 	upgrader = websocket.Upgrader{
@@ -54,6 +62,11 @@ func (h *Handler) webSocketEventHandler(c echo.Context) error {
 	h.App.WSEventManager.AddConn(id, profileID, ws)
 	h.App.Logger.Debug().Str("id", id).Uint("profileID", profileID).Msg("ws: Client connected")
 
+	// Reap half-open connections: require a message (the client pings periodically) within the
+	// read timeout, otherwise ReadMessage returns and this goroutine exits instead of blocking
+	// indefinitely on a dead socket.
+	_ = ws.SetReadDeadline(time.Now().Add(wsReadTimeout))
+
 	for {
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
@@ -62,9 +75,11 @@ func (h *Handler) webSocketEventHandler(c echo.Context) error {
 			} else {
 				h.App.Logger.Debug().Str("id", id).Msg("ws: Client disconnection")
 			}
-			h.App.WSEventManager.RemoveConn(id)
+			h.App.WSEventManager.RemoveConnByConn(ws)
 			break
 		}
+		// A message arrived (often a ping) — the connection is alive, extend the deadline.
+		_ = ws.SetReadDeadline(time.Now().Add(wsReadTimeout))
 
 		event, err := UnmarshalWebsocketClientEvent(msg)
 		if err != nil {

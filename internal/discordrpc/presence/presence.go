@@ -30,6 +30,12 @@ type Presence struct {
 	lastSent   time.Time
 	eventQueue chan func()
 	cancelFunc context.CancelFunc // Cancel function for the event loop context
+
+	// lastBroadcastSig is a signature of the last activity broadcast to remote (WebSocket)
+	// clients. It is used to skip re-broadcasting identical presence, which otherwise spams the
+	// logs and triggers redundant setActivity calls on the desktop client every few seconds.
+	lastBroadcastSig string
+	broadcastMu      sync.Mutex
 }
 
 // New creates a new Presence instance.
@@ -227,7 +233,7 @@ func (p *Presence) check() (proceed bool) {
 var (
 	defaultActivity = discordrpc_client.Activity{
 		Name:    "Using Karasu App",
-		Details: "",
+		Details: "Anime and Manga watching application. Custom-built for custom-usecases.",
 		State:   "",
 		Assets: &discordrpc_client.Assets{
 			LargeImage: "",
@@ -718,8 +724,35 @@ func (p *Presence) broadcastActivity(activity *discordrpc_client.Activity) {
 			payload.EndTimestamp = &t
 		}
 	}
+	// Skip if the meaningful payload is unchanged since the last broadcast. During steady
+	// playback the presence is refreshed every few seconds with near-identical content; without
+	// this guard it spams the logs and triggers a redundant setActivity on every desktop client.
+	sig := discordActivitySignature(&payload)
+	p.broadcastMu.Lock()
+	if sig == p.lastBroadcastSig {
+		p.broadcastMu.Unlock()
+		return
+	}
+	p.lastBroadcastSig = sig
+	p.broadcastMu.Unlock()
+
 	p.logger.Debug().Str("name", payload.Name).Str("details", payload.Details).Str("state", payload.State).Msg("discordrpc: broadcasting activity to remote clients")
 	events.GlobalWSEventManager.SendEvent(DiscordActivityUpdateEvent, payload)
+}
+
+// discordActivitySignature builds a stable signature of the fields that meaningfully change a
+// Discord presence (title, episode, images, and timestamps). Discord computes the live elapsed
+// time itself from StartTimestamp, so a steady stream of identical payloads need not be re-sent.
+func discordActivitySignature(p *DiscordActivityPayload) string {
+	var start, end int64
+	if p.StartTimestamp != nil {
+		start = *p.StartTimestamp
+	}
+	if p.EndTimestamp != nil {
+		end = *p.EndTimestamp
+	}
+	return fmt.Sprintf("%s|%s|%s|%s|%s|%d|%d|%d",
+		p.Name, p.Details, p.State, p.LargeImage, p.SmallImage, start, end, p.Type)
 }
 
 func (p *Presence) broadcastClear() {
@@ -727,6 +760,9 @@ func (p *Presence) broadcastClear() {
 	if events.GlobalWSEventManager == nil {
 		return
 	}
+	p.broadcastMu.Lock()
+	p.lastBroadcastSig = ""
+	p.broadcastMu.Unlock()
 	p.logger.Debug().Msg("discordrpc: broadcasting clear to remote clients")
 	events.GlobalWSEventManager.SendEvent(DiscordActivityClearEvent, struct{}{})
 }

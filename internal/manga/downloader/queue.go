@@ -158,8 +158,10 @@ func (q *Queue) Run() {
 	q.mu.Lock()
 	wasActive := q.active
 	q.active = true
-	// Always start a new ensureProgress goroutine on Run().
-	// The old one (if any) will exit on its next tick when it sees it's been superseded.
+	// Only start the ensureProgress goroutine once. Previously every Run() spawned a new one
+	// (and the old ones never actually exited), so repeated start calls leaked a 10s-ticker
+	// goroutine each time. A single long-lived nudger is enough.
+	startEnsure := !q.ensureRunning
 	q.ensureRunning = true
 	q.mu.Unlock()
 
@@ -170,8 +172,10 @@ func (q *Queue) Run() {
 	// Tells queue to run next if possible (in a goroutine to avoid blocking)
 	go q.runNext()
 
-	// Safety net: if the queue stalls (e.g. current is nil and nothing running), nudge it periodically
-	go q.ensureProgress()
+	// Safety net: if the queue stalls (e.g. current is nil and nothing running), nudge it periodically.
+	if startEnsure {
+		go q.ensureProgress()
+	}
 }
 
 // Stop deactivates the queue and resets any in-progress downloads
@@ -190,15 +194,13 @@ func (q *Queue) Stop() {
 	_ = q.db.ResetDownloadingChapterDownloadQueueItems()
 }
 
-// ensureProgress nudges the queue in case it stalls (e.g. current cleared but runNext not triggered)
+// ensureProgress nudges the queue in case it stalls (e.g. current cleared but runNext not
+// triggered). It is a single long-lived goroutine (guarded by q.ensureRunning in Run): when the
+// queue is inactive it simply idles rather than exiting, so it is never duplicated and never
+// leaks. It only nudges while the queue is active and nothing is currently downloading.
 func (q *Queue) ensureProgress() {
 	ticker := time.NewTicker(10 * time.Second)
-	defer func() {
-		ticker.Stop()
-		q.mu.Lock()
-		q.ensureRunning = false
-		q.mu.Unlock()
-	}()
+	defer ticker.Stop()
 
 	for range ticker.C {
 		q.mu.Lock()
@@ -206,11 +208,7 @@ func (q *Queue) ensureProgress() {
 		hasCurrent := q.current != nil
 		q.mu.Unlock()
 
-		if !active {
-			return
-		}
-
-		if !hasCurrent {
+		if active && !hasCurrent {
 			// Kick runNext in a goroutine to avoid blocking the ticker
 			go q.runNext()
 		}

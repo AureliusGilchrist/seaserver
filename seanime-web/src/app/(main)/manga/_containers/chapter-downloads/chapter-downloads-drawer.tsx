@@ -14,10 +14,10 @@ import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Modal } from "@/components/ui/modal"
 import { ProgressBar } from "@/components/ui/progress-bar"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { atom } from "jotai"
 import { useAtom } from "jotai/react"
 import React from "react"
+import { Virtuoso } from "react-virtuoso"
 import { MdClear } from "react-icons/md"
 import { PiWarningOctagonDuotone } from "react-icons/pi"
 import { TbWorldDownload } from "react-icons/tb"
@@ -210,16 +210,21 @@ function QueueSection(props: {
         </div>
 
         {!!items.length ? (
-            <ScrollArea className="h-[14rem]" data-chapter-download-queue-scroll-area>
-                <div className="space-y-2" data-chapter-download-queue-scroll-area-content>
-                    {items.map(item => {
-                        const media = mediaMap.get(item.mediaId)
-                        const displayName = item.mediaTitle || displayTitle(media?.title)
-                        const chapterDisplay = item.chapterTitle || `Chapter ${item.chapterNumber}`
+            // Virtualized: only the visible rows are rendered, so a queue with thousands of
+            // chapters stays smooth (and re-renders from polling stay cheap).
+            <Virtuoso
+                style={{ height: "14rem" }}
+                data={items}
+                computeItemKey={(_index, item) => item.mediaId + item.provider + item.chapterId}
+                data-chapter-download-queue-scroll-area
+                itemContent={(_index, item) => {
+                    const media = mediaMap.get(item.mediaId)
+                    const displayName = item.mediaTitle || displayTitle(media?.title)
+                    const chapterDisplay = item.chapterTitle || `Chapter ${item.chapterNumber}`
 
-                        return (
+                    return (
+                        <div className="pb-2">
                             <Card
-                                key={item.mediaId + item.provider + item.chapterId + title}
                                 className={cn(
                                     "px-3 py-2 space-y-1.5 transition-all duration-200",
                                     item.status === "downloading" && "backdrop-blur-sm bg-white/5 hover:bg-white/10 shadow-lg",
@@ -229,8 +234,8 @@ function QueueSection(props: {
                             >
                                 <div className="flex items-center gap-2">
                                     <p className="font-semibold">
-                                        <SeaLink 
-                                            href={`/manga/entry?id=${item.mediaId}`} 
+                                        <SeaLink
+                                            href={`/manga/entry?id=${item.mediaId}`}
                                             className="hover:underline hover:text-brand-200 transition-colors"
                                             title={displayName}
                                         >
@@ -256,10 +261,10 @@ function QueueSection(props: {
                                     </>
                                 )}
                             </Card>
-                        )
-                    })}
-                </div>
-            </ScrollArea>
+                        </div>
+                    )
+                }}
+            />
         ) : (
             <p className="text-center text-[--muted] text-sm">{emptyText}</p>
         )}

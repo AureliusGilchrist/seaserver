@@ -35,6 +35,7 @@ import { Popover, PopoverProps } from "@/components/ui/popover"
 import { Select } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { logger, useLatestFunction } from "@/lib/helpers/debug"
+import { getPendingProgressFor } from "@/lib/offline-progress/offline-progress"
 import { useWindowSize } from "@uidotdev/usehooks"
 import { AxiosError } from "axios"
 import { useAtom, useAtomValue } from "jotai/react"
@@ -279,10 +280,19 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
     const [previousState, setPreviousState] = React.useState<{ currentTime: number, paused: boolean } | null>(null)
 
     React.useEffect(() => {
-        setPreviousState(null)
-        React.startTransition(() => {
+        // If this episode has a saved offline position (a progress update that couldn't reach
+        // AniList), resume exactly where the user left off. Otherwise fall back to continuity.
+        const pending = (media?.id != null && currentEpisodeNumber != null)
+            ? getPendingProgressFor(media.id, currentEpisodeNumber)
+            : undefined
+        if (pending?.currentTime && pending.currentTime > 0) {
+            setPreviousState({ currentTime: pending.currentTime, paused: false })
+        } else {
             setPreviousState(null)
-        })
+            React.startTransition(() => {
+                setPreviousState(null)
+            })
+        }
     }, [currentEpisodeNumber, media])
 
     const { getHMACTokenQueryParam } = useServerHMACAuth()

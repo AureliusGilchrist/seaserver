@@ -668,13 +668,17 @@ func (vc *VideoCore) GetTextTracks() (ret []*VideoTextTrack, ok bool) {
 		}
 		return true // keep listening
 	})
-	go func(cancel func()) {
-		defer cancel()
-		<-time.After(5 * time.Second)
-	}(cancel)
+	defer cancel()
 	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetTextTracks), nil)
-	<-done
-	return ret, ret != nil
+	// Wait for the response, but never block forever: if the client doesn't reply within the
+	// timeout we give up. (Previously the caller blocked on the response channel indefinitely
+	// when no reply arrived, leaking a goroutine on every call.)
+	select {
+	case <-done:
+		return ret, ret != nil
+	case <-time.After(5 * time.Second):
+		return nil, false
+	}
 }
 
 // GetPlaylist sends a get-playlist request to the video player and returns the playlist state.
@@ -693,13 +697,14 @@ func (vc *VideoCore) GetPlaylist() (ret *VideoPlaylistState, ok bool) {
 		}
 		return true // keep listening
 	})
-	go func(cancel func()) {
-		defer cancel()
-		<-time.After(5 * time.Second)
-	}(cancel)
+	defer cancel()
 	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetPlaylist), nil)
-	<-done
-	return ret, ret != nil
+	select {
+	case <-done:
+		return ret, ret != nil
+	case <-time.After(5 * time.Second):
+		return nil, false
+	}
 }
 
 // PullStatus pulls the current playback status from the video player.
@@ -718,13 +723,14 @@ func (vc *VideoCore) PullStatus() (ret VideoStatusEvent, ok bool) {
 		}
 		return true // keep listening
 	})
-	go func(cancel func()) {
-		defer cancel()
-		<-time.After(5 * time.Second)
-	}(cancel)
+	defer cancel()
 	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetStatus), nil, true)
-	<-done
-	return ret, true
+	select {
+	case <-done:
+		return ret, true
+	case <-time.After(5 * time.Second):
+		return VideoStatusEvent{}, false
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

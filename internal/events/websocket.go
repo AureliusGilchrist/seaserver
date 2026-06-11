@@ -158,6 +158,8 @@ func (m *WSEventManager) Stop() {
 }
 
 func (m *WSEventManager) AddConn(id string, profileID uint, conn *websocket.Conn) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.hasHadConnection = true
 	m.Conns = append(m.Conns, &WSConn{
 		ID:        id,
@@ -166,7 +168,23 @@ func (m *WSEventManager) AddConn(id string, profileID uint, conn *websocket.Conn
 	})
 }
 
+// RemoveConnByConn removes the specific connection instance. This is preferred over RemoveConn(id)
+// because a reconnecting client reuses the same id, so removing by id can drop the wrong (live)
+// connection. Removing by pointer guarantees each read goroutine only ever removes its own conn.
+func (m *WSEventManager) RemoveConnByConn(conn *websocket.Conn) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i, c := range m.Conns {
+		if c.Conn == conn {
+			m.Conns = append(m.Conns[:i], m.Conns[i+1:]...)
+			break
+		}
+	}
+}
+
 func (m *WSEventManager) RemoveConn(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	for i, conn := range m.Conns {
 		if conn.ID == id {
 			m.Conns = append(m.Conns[:i], m.Conns[i+1:]...)
