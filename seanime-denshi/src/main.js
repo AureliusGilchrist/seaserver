@@ -1816,6 +1816,9 @@ app.whenReady().then(async () => {
     function mapDiscordPayload(p) {
         if (!p || typeof p !== "object") return null
         const activity = {}
+        // Forward the activity name so Discord shows it (e.g. "Watching Karasu Player") instead of
+        // falling back to the registered application's name.
+        if (p.name) activity.name = String(p.name)
         if (p.details) activity.details = String(p.details)
         if (p.state) activity.state = String(p.state)
         if (typeof p.startTimestamp === "number") activity.startTimestamp = p.startTimestamp
