@@ -232,14 +232,14 @@ func (p *Presence) check() (proceed bool) {
 
 var (
 	defaultActivity = discordrpc_client.Activity{
-		Name:    "Using Karasu App",
-		Details: "Anime and Manga watching application. Custom-built for custom-usecases.",
+		Name:    "Karasu Player",
+		Details: "Watching anime",
 		State:   "",
 		Assets: &discordrpc_client.Assets{
 			LargeImage: "",
 			LargeText:  "",
-			SmallImage: "E:\\Main\\server\\seaserver\\web\\images\\seanime-logo.png",
-			SmallText:  "Karasu v" + constants.Version,
+			SmallImage: "",
+			SmallText:  "Karasu Player v" + constants.Version,
 		},
 		Timestamps: &discordrpc_client.Timestamps{
 			Start: &discordrpc_client.Epoch{
