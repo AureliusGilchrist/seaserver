@@ -259,20 +259,12 @@ export class MediaCaptionsManager extends EventTarget {
         if (this.renderer) {
             if (!track.loaded) {
                 log.info("Loading track", index)
-                try {
-                    const res = await track.loadFn()
-                    if (res) {
-                        track.cues = res.cues
-                        track.regions = res.regions
-                    }
-                    track.loaded = true
+                const res = await track.loadFn()
+                if (res) {
+                    track.cues = res.cues
+                    track.regions = res.regions
                 }
-                catch (error) {
-                    // Content fetch/convert failed (e.g. an unreachable / Cloudflare-protected
-                    // CDN). Don't let it bubble up — the track stays in the menu and selectable, so
-                    // reselecting can retry. We leave `loaded` false so a later attempt re-fetches.
-                    log.error("Failed to load caption track content", index, error)
-                }
+                track.loaded = true
             }
             this.renderer.changeTrack({
                 cues: track.cues,
@@ -694,14 +686,15 @@ export class MediaCaptionsManager extends EventTarget {
             }
         }
 
-        // Announce the available tracks up front — before any content is fetched — so the
-        // subtitle menu and its CC button appear immediately. Otherwise, if the default track's
-        // content fails to load (e.g. an unreachable / Cloudflare-protected CDN), the exception
-        // below would abort this method and the menu would never learn the tracks exist, leaving
-        // the player with no captions button at all.
-        this._onTracksLoaded?.(this.getTracks())
-        this.dispatchEvent(new CustomEvent("tracksloaded", { detail: { tracks: this.getTracks() } }))
-
+        // When the first track is loaded, start rendering captions
+        // Select default track. A per-media override (a caption the user previously picked
+        // for this series) takes priority over the global preferred language.
+        const tracksForSelection = this.tracks.map((t, idx) => ({ ...t, number: idx }))
+        const overrideTrackNumber = resolveOverrideTrackNumber(this.preferredTrackOverride, tracksForSelection)
+        const defaultTrackNumber = overrideTrackNumber !== null
+            ? overrideTrackNumber
+            : getDefaultSubtitleTrackNumber(this.settings, tracksForSelection)
+        await this.selectTrack(defaultTrackNumber)
         // Setup time update listener
         this.timeUpdateListener = () => {
             if (this.renderer && this.currentTrackIndex !== NO_TRACK_IDX) {
@@ -709,15 +702,9 @@ export class MediaCaptionsManager extends EventTarget {
             }
         }
         this.videoElement.addEventListener("timeupdate", this.timeUpdateListener)
+        this._onTracksLoaded?.(this.getTracks())
 
-        // Select default track last — it triggers the content fetch, which may fail without
-        // affecting the already-announced track list. A per-media override (a caption the user
-        // previously picked for this series) takes priority over the global preferred language.
-        const tracksForSelection = this.tracks.map((t, idx) => ({ ...t, number: idx }))
-        const overrideTrackNumber = resolveOverrideTrackNumber(this.preferredTrackOverride, tracksForSelection)
-        const defaultTrackNumber = overrideTrackNumber !== null
-            ? overrideTrackNumber
-            : getDefaultSubtitleTrackNumber(this.settings, tracksForSelection)
-        await this.selectTrack(defaultTrackNumber)
+        const event: MediaCaptionsTracksLoadedEvent = new CustomEvent("tracksloaded", { detail: { tracks: this.getTracks() } })
+        this.dispatchEvent(event)
     }
 }
