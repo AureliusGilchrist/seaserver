@@ -203,13 +203,6 @@ func ServeLocalFile(w http.ResponseWriter, r *http.Request, lfStream *LocalFileS
 		return
 	}
 
-	if lfStream.serveContentCancelFunc != nil {
-		lfStream.serveContentCancelFunc()
-	}
-
-	ct, cancel := context.WithCancel(lfStream.PlaybackCtx())
-	lfStream.serveContentCancelFunc = cancel
-
 	reader, err := lfStream.newReader()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -233,7 +226,7 @@ func ServeLocalFile(w http.ResponseWriter, r *http.Request, lfStream *LocalFileS
 		go lfStream.StartSubtitleStream(lfStream, lfStream.PlaybackCtx(), subReader, ra.Start)
 	}
 
-	serveContentRange(w, r, ct, reader, lfStream.localFile.Path, size, playbackInfo.MimeType, ra)
+	serveContentRange(w, r, r.Context(), reader, lfStream.localFile.Path, size, playbackInfo.MimeType, ra)
 }
 
 type PlayLocalFileOptions struct {

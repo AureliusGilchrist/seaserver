@@ -390,7 +390,6 @@ type BaseStream struct {
 	playbackInfoOnce       sync.Once
 	subtitleEventCache     *result.Map[string, *mkvparser.SubtitleEvent]
 	terminateOnce          sync.Once
-	serveContentCancelFunc context.CancelFunc
 	filename               string // Name of the file being streamed, if applicable
 
 	// Subtitle stream management
