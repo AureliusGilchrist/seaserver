@@ -4,6 +4,7 @@ import { OfflineLayout } from "@/app/(main)/_features/layout/offline-layout"
 import { TopNavbar } from "@/app/(main)/_features/layout/top-navbar"
 import { MilestoneNotificationOverlay } from "@/app/(main)/_features/milestone/milestone-notification-overlay"
 import { TourOverlay } from "@/app/(main)/_features/tour/tour-overlay"
+import { PendingSyncIndicator } from "@/lib/offline-progress/pending-sync-indicator"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { ServerDataWrapper } from "@/app/(main)/server-data-wrapper"
 import { AppErrorBoundary } from "@/components/shared/app-error-boundary"
@@ -53,6 +54,7 @@ function Layout() {
             <TourOverlay />
             <AchievementCelebrationOverlay />
             <MilestoneNotificationOverlay />
+            <PendingSyncIndicator />
         </ServerDataWrapper>
     )
 }

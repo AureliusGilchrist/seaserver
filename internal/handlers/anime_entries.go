@@ -820,7 +820,15 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 			completedAt,
 		)
 		if err != nil {
-			return h.RespondWithError(c, err)
+			// If AniList is unreachable, queue the update so the user's true progress is never
+			// lost; it syncs automatically when the API recovers. Treat as success to the client
+			// so achievements/activity below still record the episode as watched.
+			if h.App.AnilistClientManager != nil && shared_platform.IsOutageError(err) {
+				h.App.AnilistClientManager.EnqueueProgressUpdate(profileID, b.MediaId, b.EpisodeNumber, &status, startedAt, completedAt)
+				h.App.Logger.Warn().Int("mediaId", b.MediaId).Int("episode", b.EpisodeNumber).Msg("handler: AniList unreachable; queued progress update for later sync")
+			} else {
+				return h.RespondWithError(c, err)
+			}
 		}
 	} else {
 		// Admin: use platform layer (includes hooks, custom source handling, etc.)
@@ -890,6 +898,28 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 	}
 
 	return h.RespondWithData(c, true)
+}
+
+//-----------------------------------------------------------------------------------------------------------------------------
+
+// HandleGetPendingProgressSync
+//
+//	@summary returns how many progress updates are queued locally awaiting AniList sync.
+//	@desc When AniList is unreachable, watched episodes are recorded locally and queued for retry.
+//	@desc This returns the queued count for the current profile so the UI can reassure the user.
+//	@route /api/v1/library/anime-entry/pending-sync [GET]
+//	@returns handlers.PendingProgressSyncResponse
+func (h *Handler) HandleGetPendingProgressSync(c echo.Context) error {
+	count := 0
+	if h.App.AnilistClientManager != nil {
+		count = h.App.AnilistClientManager.PendingProgressCount(h.GetProfileID(c))
+	}
+	return h.RespondWithData(c, PendingProgressSyncResponse{Count: count})
+}
+
+// PendingProgressSyncResponse is the payload returned by HandleGetPendingProgressSync.
+type PendingProgressSyncResponse struct {
+	Count int `json:"count"`
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------

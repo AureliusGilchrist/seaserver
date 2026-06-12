@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"seanime/internal/api/anilist"
+	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util/filecache"
 	"strconv"
 	"sync"
@@ -59,6 +61,14 @@ type AnilistClientManager struct {
 	fileCacher       *filecache.Cacher
 	animeColBucket   filecache.PermanentBucket
 	mangaColBucket   filecache.PermanentBucket
+
+	// Per-profile pending-mutation queues. When a profile's progress update can't reach
+	// AniList (API down / network outage), the update is queued here and replayed once the
+	// API is reachable again, so the user's true last-watched episode is never lost.
+	// The admin/global path already has this via the shared_platform cache layer; profile
+	// clients are raw clients, so they need their own queues.
+	pendingStores map[uint]*shared_platform.PendingMutationStore
+	pendingMu     sync.Mutex
 }
 
 func NewAnilistClientManager(app *App) *AnilistClientManager {
@@ -79,7 +89,134 @@ func NewAnilistClientManager(app *App) *AnilistClientManager {
 		fileCacher:     fc,
 		animeColBucket: filecache.NewPermanentBucket("profile-anime-collection"),
 		mangaColBucket: filecache.NewPermanentBucket("profile-manga-collection"),
+		pendingStores:  make(map[uint]*shared_platform.PendingMutationStore),
 	}
+}
+
+// getPendingStore lazily creates the per-profile pending-mutation queue. Each profile gets
+// its own JSON file under a profile-scoped subdirectory of the AniList cache dir.
+func (m *AnilistClientManager) getPendingStore(profileID uint) *shared_platform.PendingMutationStore {
+	m.pendingMu.Lock()
+	defer m.pendingMu.Unlock()
+	if store, ok := m.pendingStores[profileID]; ok {
+		return store
+	}
+	dir := filepath.Join(m.cacheDir, "pending-mutations", "profile-"+strconv.FormatUint(uint64(profileID), 10))
+	store := shared_platform.NewPendingMutationStore(dir, m.logger)
+	m.pendingStores[profileID] = store
+	return store
+}
+
+// EnqueueProgressUpdate queues a progress update for a profile when AniList is unreachable.
+// It is replayed automatically once the API becomes available again (see startPendingFlusher).
+func (m *AnilistClientManager) EnqueueProgressUpdate(
+	profileID uint,
+	mediaID int,
+	progress int,
+	status *anilist.MediaListStatus,
+	startedAt *anilist.FuzzyDateInput,
+	completedAt *anilist.FuzzyDateInput,
+) {
+	if profileID == 0 {
+		return // admin path already queues via the shared cache layer
+	}
+	mid := mediaID
+	prog := progress
+	m.getPendingStore(profileID).Enqueue(&shared_platform.PendingMutation{
+		Kind:        shared_platform.PendingKindUpdateEntryProgress,
+		MediaID:     &mid,
+		Progress:    &prog,
+		Status:      status,
+		StartedAt:   startedAt,
+		CompletedAt: completedAt,
+	})
+}
+
+// PendingProgressCount returns how many progress updates are queued for a profile.
+func (m *AnilistClientManager) PendingProgressCount(profileID uint) int {
+	if profileID == 0 {
+		return 0
+	}
+	m.pendingMu.Lock()
+	store, ok := m.pendingStores[profileID]
+	m.pendingMu.Unlock()
+	if !ok {
+		// Touch the store so a queue persisted from a previous run is loaded/counted.
+		store = m.getPendingStore(profileID)
+	}
+	return store.Len()
+}
+
+// FlushPending attempts to replay a profile's queued mutations against its AniList client.
+func (m *AnilistClientManager) FlushPending(ctx context.Context, profileID uint) {
+	if profileID == 0 {
+		return
+	}
+	client := m.GetClient(profileID)
+	if client == nil || !client.IsAuthenticated() {
+		return
+	}
+	store := m.getPendingStore(profileID)
+	if store.Len() == 0 {
+		return
+	}
+	store.Flush(ctx, client)
+	// Refresh the profile's cached collection so the UI reflects the synced progress.
+	m.InvalidateAnimeCollection(profileID)
+}
+
+// loadPersistedStores scans the pending-mutations directory for profile queues persisted by a
+// previous run and registers a store for each, so they are flushed even before any new enqueue.
+func (m *AnilistClientManager) loadPersistedStores() {
+	base := filepath.Join(m.cacheDir, "pending-mutations")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		return // no persisted queues yet
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		const prefix = "profile-"
+		if len(name) <= len(prefix) || name[:len(prefix)] != prefix {
+			continue
+		}
+		id, err := strconv.ParseUint(name[len(prefix):], 10, 64)
+		if err != nil {
+			continue
+		}
+		_ = m.getPendingStore(uint(id)) // registers + lazily loads on first Len()
+	}
+}
+
+// StartPendingFlusher launches a background goroutine that periodically retries every
+// profile's queued progress updates. It stops when ctx is cancelled. Each flush stops at
+// the first failure, so a still-down API simply leaves the queue for the next tick.
+func (m *AnilistClientManager) StartPendingFlusher(ctx context.Context) {
+	m.loadPersistedStores()
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				m.pendingMu.Lock()
+				ids := make([]uint, 0, len(m.pendingStores))
+				for id, store := range m.pendingStores {
+					if store.Len() > 0 {
+						ids = append(ids, id)
+					}
+				}
+				m.pendingMu.Unlock()
+				for _, id := range ids {
+					m.FlushPending(ctx, id)
+				}
+			}
+		}
+	}()
 }
 
 // GetClient returns the AniList client for the given profile.
@@ -139,6 +276,11 @@ func (m *AnilistClientManager) UpdateClient(profileID uint, token string) {
 	// so background subsystems (auto-downloader, playback manager, etc.) use it
 	if m.isAdminProfile(profileID) {
 		m.app.UpdateAnilistClientToken(token)
+	}
+
+	// A fresh login is a good moment to flush any progress queued while logged out / offline.
+	if client.IsAuthenticated() {
+		go m.FlushPending(context.Background(), profileID)
 	}
 
 	m.logger.Info().Uint("profileID", profileID).Bool("authenticated", client.IsAuthenticated()).Msg("anilist_client_manager: Updated client for profile")

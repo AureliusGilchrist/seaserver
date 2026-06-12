@@ -64,6 +64,9 @@ type (
 		// invalidateProfileAnimeCollectionFunc invalidates the profile's cached anime collection
 		// after a successful progress update so the next fetch returns fresh data.
 		invalidateProfileAnimeCollectionFunc func(profileID uint)
+		// enqueueProfilePendingProgressFunc queues a profile's progress update when AniList is
+		// unreachable, so it is replayed automatically once the API is available again.
+		enqueueProfilePendingProgressFunc func(profileID uint, mediaID int, progress int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput)
 		mu                         sync.Mutex
 		eventMu                    sync.RWMutex
 		cancel                     context.CancelFunc
@@ -226,6 +229,7 @@ type (
 		ContinuityManager           *continuity.Manager
 		GetProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
 		InvalidateProfileAnimeCollectionFunc func(profileID uint)
+		EnqueueProfilePendingProgressFunc    func(profileID uint, mediaID int, progress int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput)
 	}
 
 	Settings struct {
@@ -273,6 +277,7 @@ func New(opts *NewPlaybackManagerOptions) *PlaybackManager {
 		refreshAnimeCollectionFunc:   opts.RefreshAnimeCollectionFunc,
 		getProfileAnilistClientFunc:  opts.GetProfileAnilistClientFunc,
 		invalidateProfileAnimeCollectionFunc: opts.InvalidateProfileAnimeCollectionFunc,
+		enqueueProfilePendingProgressFunc:    opts.EnqueueProfilePendingProgressFunc,
 		mu:                           sync.Mutex{},
 		autoPlayMu:                   sync.Mutex{},
 		eventMu:                      sync.RWMutex{},

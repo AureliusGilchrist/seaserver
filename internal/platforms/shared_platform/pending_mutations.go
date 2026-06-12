@@ -5,15 +5,46 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"seanime/internal/api/anilist"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog"
 )
+
+// IsOutageError reports whether an error from an AniList request looks like a transient
+// connectivity/availability problem (network down, timeout, 5xx, rate-limit) rather than a
+// permanent client error (auth, validation). Only outage-type errors should be queued for
+// retry, so a genuinely-bad mutation never blocks the queue forever.
+func IsOutageError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	for _, sig := range []string{
+		"connection refused", "no such host", "network is unreachable", "timeout",
+		"timed out", "eof", "connection reset", "tls handshake", "dial tcp",
+		"temporary failure", "503", "502", "504", "500", "server error",
+		"service unavailable", "too many requests", "429",
+	} {
+		if strings.Contains(msg, sig) {
+			return true
+		}
+	}
+	return false
+}
 
 // PendingMutationKind identifies which AniList mutation a queued entry represents.
 type PendingMutationKind string

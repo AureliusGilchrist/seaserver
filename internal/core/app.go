@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	crypto_rand "crypto/rand"
 	"fmt"
 	"os"
@@ -547,6 +548,9 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 
 	// Initialize AnilistClientManager after app struct is created (it references app)
 	app.AnilistClientManager = NewAnilistClientManager(app)
+	// Start the background flusher that replays per-profile progress updates queued while
+	// AniList was unreachable. Picks up queues persisted from previous runs on startup.
+	app.AnilistClientManager.StartPendingFlusher(context.Background())
 
 	app.AddCleanupFunctionOnce("ws-event-manager.stop", func() {
 		if app.WSEventManager != nil {

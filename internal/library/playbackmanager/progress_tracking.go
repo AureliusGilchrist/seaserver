@@ -11,6 +11,7 @@ import (
 	"seanime/internal/events"
 	"seanime/internal/library/anime"
 	"seanime/internal/mediaplayers/mediaplayer"
+	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util"
 	"time"
 
@@ -751,6 +752,14 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 				completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
 			}
 			_, err = client.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
+			// If AniList is unreachable, queue the update so the user's true progress is never
+			// lost; it is replayed automatically when the API is available again. We then treat
+			// this as a (locally) successful update so activity/achievements still advance.
+			if err != nil && shared_platform.IsOutageError(err) && pm.enqueueProfilePendingProgressFunc != nil {
+				pm.enqueueProfilePendingProgressFunc(activeProfileID, mediaId, epNum, &status, startedAt, completedAt)
+				pm.Logger.Warn().Int("mediaId", mediaId).Int("episode", epNum).Msg("playback manager: AniList unreachable; queued progress update for later sync")
+				err = nil
+			}
 		} else {
 			err = errors.New("profile AniList account not authenticated")
 		}

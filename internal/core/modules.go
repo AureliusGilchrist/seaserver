@@ -130,6 +130,11 @@ func (a *App) initModulesOnce() {
 				a.AnilistClientManager.InvalidateAnimeCollection(profileID)
 			}
 		},
+		EnqueueProfilePendingProgressFunc: func(profileID uint, mediaID int, progress int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput) {
+			if a.AnilistClientManager != nil {
+				a.AnilistClientManager.EnqueueProgressUpdate(profileID, mediaID, progress, status, startedAt, completedAt)
+			}
+		},
 	})
 
 	// +---------------------+
