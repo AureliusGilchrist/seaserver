@@ -804,11 +804,24 @@ async function launchSeanimeServer(isRestart) {
         let startupResolved = false
         let startupPollInterval = null
         let waitingForRenderer = false
+        let rendererFallbackArmed = false
+        let rendererFallbackTimer = null
+
+        // On some first/cold launches the renderer's "startup:renderer-ready" signal is missed
+        // or arrives late, and since startup only finalizes when BOTH the server is reachable
+        // AND the renderer reported ready, the splash would stay up forever — the user had to
+        // kill the app from the tray and relaunch. This grace period lets us finalize anyway
+        // once the server is confirmed reachable, so a missed renderer signal can't deadlock boot.
+        const RENDERER_READY_GRACE_MS = 8000
 
         function clearStartupProbe() {
             if (startupPollInterval) {
                 clearInterval(startupPollInterval)
                 startupPollInterval = null
+            }
+            if (rendererFallbackTimer) {
+                clearTimeout(rendererFallbackTimer)
+                rendererFallbackTimer = null
             }
         }
 
@@ -821,6 +834,22 @@ async function launchSeanimeServer(isRestart) {
                 if (!waitingForRenderer) {
                     waitingForRenderer = true
                     logStartupEvent("WAITING FOR RENDERER", source)
+                }
+                // Safety net: we're here because the server is reachable (or the frontend WS
+                // connected), but the renderer hasn't reported ready. Arm a one-shot fallback so
+                // a missed/late renderer signal can't strand the user on the splash screen.
+                if (!rendererFallbackArmed) {
+                    rendererFallbackArmed = true
+                    rendererFallbackTimer = setTimeout(() => {
+                        rendererFallbackTimer = null
+                        if (startupResolved || mainWindowStartupReady) {
+                            return
+                        }
+                        // Make sure a deferred main window is actually loading before we reveal it.
+                        ensureMainWindowLoaded()
+                        logStartupEvent("RENDERER READY FALLBACK", `forced after ${RENDERER_READY_GRACE_MS}ms (${source})`)
+                        finalizeStartup("renderer-ready timeout fallback")
+                    }, RENDERER_READY_GRACE_MS)
                 }
                 return
             }
