@@ -2038,3 +2038,21 @@ h1.sea-profile-name,
     animation: none !important;
     text-shadow: none !important;
 }
+
+/* Mako marks — favorited card holographic overlay.
+   Keyframes live here (not inline in the component) so card re-renders never re-inject the
+   stylesheet and restart the animation mid-cycle (which looked like stutter/cut-off). */
+@keyframes mako-sheen-slide {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 100% 100%; }
+}
+@keyframes mako-sparkle-twinkle {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+}
+[data-mako-mark] .mako-sheen {
+    animation: mako-sheen-slide 4.5s linear infinite;
+}
+[data-mako-mark] .mako-sparkle {
+    animation: mako-sparkle-twinkle 2.5s ease-in-out infinite;
+}
