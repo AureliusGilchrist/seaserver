@@ -175,7 +175,24 @@ export const vc_beautifyImageAtom = atomWithStorage("sea-video-core-increase-sat
 export const vc_autoNextAtom = atomWithStorage("sea-video-core-auto-next", true, undefined, { getOnInit: true })
 export const vc_autoPlayVideoAtom = atomWithStorage("sea-video-core-auto-play", true, undefined, { getOnInit: true })
 export const vc_autoSkipOPEDAtom = atomWithStorage("sea-video-core-auto-skip-op-ed", false, undefined, { getOnInit: true })
-// Fork additions: separate OP/ED + filler skip atoms
+// Fork additions: separate OP/ED + filler skip atoms.
+// One-time migration: seed the separate OP/ED skip prefs from the legacy combined pref so a
+// user who had "Skip OP/ED" on keeps both auto-skips on after the split.
+if (typeof window !== "undefined") {
+    try {
+        const legacy = window.localStorage.getItem("sea-video-core-auto-skip-op-ed")
+        if (legacy != null) {
+            if (window.localStorage.getItem("sea-video-core-auto-skip-op") == null) {
+                window.localStorage.setItem("sea-video-core-auto-skip-op", legacy)
+            }
+            if (window.localStorage.getItem("sea-video-core-auto-skip-ed") == null) {
+                window.localStorage.setItem("sea-video-core-auto-skip-ed", legacy)
+            }
+        }
+    } catch {
+        // ignore storage access errors
+    }
+}
 export const vc_autoSkipOPAtom = atomWithStorage("sea-video-core-auto-skip-op", false, undefined, { getOnInit: true })
 export const vc_autoSkipEDAtom = atomWithStorage("sea-video-core-auto-skip-ed", false, undefined, { getOnInit: true })
 export const vc_autoSkipFillerAtom = atomWithStorage<"off" | "full" | "partial">(

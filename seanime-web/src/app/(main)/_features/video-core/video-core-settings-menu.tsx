@@ -27,8 +27,9 @@ import { videoCorePreferencesModalAtom } from "@/app/(main)/_features/video-core
 import {
     vc_autoNextAtom,
     vc_autoPlayVideoAtom,
+    vc_autoSkipEDAtom,
     vc_autoSkipFillerAtom,
-    vc_autoSkipOPEDAtom,
+    vc_autoSkipOPAtom,
     vc_beautifyImageAtom,
     vc_highlightOPEDChaptersAtom,
     vc_initialSettings,
@@ -218,7 +219,8 @@ export function VideoCoreSettingsMenu() {
     const [beautifyImage, setBeautifyImage] = useAtom(vc_beautifyImageAtom)
     const [autoNext, setAutoNext] = useAtom(vc_autoNextAtom)
     const [autoPlay, setAutoPlay] = useAtom(vc_autoPlayVideoAtom)
-    const [autoSkipOPED, setAutoSkipOPED] = useAtom(vc_autoSkipOPEDAtom)
+    const [autoSkipOP, setAutoSkipOP] = useAtom(vc_autoSkipOPAtom)
+    const [autoSkipED, setAutoSkipED] = useAtom(vc_autoSkipEDAtom)
     const [autoSkipFiller, setAutoSkipFiller] = useAtom(vc_autoSkipFillerAtom)
 
     const [menuOpen, setMenuOpen] = useAtom(vc_menuOpen)
@@ -346,7 +348,8 @@ export function VideoCoreSettingsMenu() {
                     <VideoCoreMenuOption title="Playback Speed" icon={MdSpeed} value={`${(playbackRate).toFixed(2)}x`} />
                     <VideoCoreMenuOption title="Auto Play" icon={IoCaretForwardCircleOutline} value={autoPlay ? "On" : "Off"} />
                     <VideoCoreMenuOption title="Auto Next" icon={HiFastForward} value={autoNext ? "On" : "Off"} />
-                    <VideoCoreMenuOption title="Skip OP/ED" icon={TbArrowForwardUp} value={autoSkipOPED ? "On" : "Off"} />
+                    <VideoCoreMenuOption title="Skip Opening" icon={TbArrowForwardUp} value={autoSkipOP ? "On" : "Off"} />
+                    <VideoCoreMenuOption title="Skip Ending" icon={TbArrowForwardUp} value={autoSkipED ? "On" : "Off"} />
                     <VideoCoreMenuOption title="Skip Filler" icon={TbArrowForwardUp} value={autoSkipFiller !== "off" ? "On" : "Off"} />
                     <VideoCoreMenuOption title="Anime4K" icon={LuSparkles} value={currentAnime4kOption?.label || "Off"} />
                     {(subtitleManager || mediaCaptionsManager) && <VideoCoreMenuOption
@@ -554,16 +557,28 @@ export function VideoCoreSettingsMenu() {
                             value={autoNext ? 1 : 0}
                         />
                     </VideoCoreMenuOption>
-                    <VideoCoreMenuOption title="Skip OP/ED" icon={TbArrowForwardUp}>
+                    <VideoCoreMenuOption title="Skip Opening" icon={TbArrowForwardUp}>
                         <VideoCoreSettingSelect
                             options={[
                                 { label: "On", value: 1 },
                                 { label: "Off", value: 0 },
                             ]}
                             onValueChange={(v: number) => {
-                                setAutoSkipOPED(!!v)
+                                setAutoSkipOP(!!v)
                             }}
-                            value={autoSkipOPED ? 1 : 0}
+                            value={autoSkipOP ? 1 : 0}
+                        />
+                    </VideoCoreMenuOption>
+                    <VideoCoreMenuOption title="Skip Ending" icon={TbArrowForwardUp}>
+                        <VideoCoreSettingSelect
+                            options={[
+                                { label: "On", value: 1 },
+                                { label: "Off", value: 0 },
+                            ]}
+                            onValueChange={(v: number) => {
+                                setAutoSkipED(!!v)
+                            }}
+                            value={autoSkipED ? 1 : 0}
                         />
                     </VideoCoreMenuOption>
                     <VideoCoreMenuOption title="Skip Filler" icon={TbArrowForwardUp}>
