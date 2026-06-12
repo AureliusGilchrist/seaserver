@@ -508,13 +508,11 @@ func (e *Engine) evalStatOrFirst(meta map[string]interface{}, def *Definition, t
 	if val > 0 || threshold > 0 {
 		return e.evalStatThreshold(meta, def, threshold)
 	}
-	// One-time achievement with no matching metadata key:
-	// Only auto-unlock for event-driven triggers (e.g. first episode watched).
-	// During a collection refresh we have full stats context, so the absence of a
-	// matching key means the condition simply hasn't been met yet.
-	if def.MaxTier == 0 && event.Trigger != TriggerCollectionRefresh {
-		return 100, true
-	}
+	// One-time achievement with no matching metadata key: we have no data that confirms this
+	// achievement's specific condition was met, so we must NOT award it. Previously this
+	// blanket-unlocked every keyless one-time stat achievement on any event-driven trigger,
+	// which fired piles of unrelated achievements at "random". If we can't verify it, don't
+	// award it — the proper stat key is evaluated on collection refresh when full context exists.
 	return 0, false
 }
 
@@ -549,7 +547,9 @@ func (e *Engine) evalIncremental(def *Definition, threshold int, currentProgress
 	// currentProgress stores the raw accumulated count (not percentage)
 	newCount := currentProgress + increment
 	if threshold <= 0 {
-		return 100, true
+		// No real threshold to compare against — we can't verify the condition is met, so don't
+		// award it (previously this unlocked immediately, firing achievements at "random").
+		return newCount, false
 	}
 	progress := newCount // Store raw count as progress
 	if newCount >= float64(threshold) {
@@ -808,9 +808,10 @@ func (e *Engine) evalObscureFun(def *Definition, event *AchievementEvent, curren
 	case "leap_year", "leap_year_read":
 		return boolResult(t.Month() == time.February && t.Day() == 29)
 	case "all_tens":
-		// Complete an anime with exactly 10 episodes and rate it 10
-		completedCount := getMetaFloat(event.Metadata, "completed_count")
-		return boolResult(completedCount > 0) // simplified: check from event handler
+		// Real condition: complete an anime with exactly 10 episodes and rate it 10. We can't
+		// verify that here, so don't award it on a weak proxy (this previously fired on any
+		// completion). Requires a dedicated metadata flag set by the handler that knows the context.
+		return boolResult(getMetaBool(event.Metadata, "all_tens"))
 	case "answer_42":
 		completedCount := int(getMetaFloat(event.Metadata, "completed_count"))
 		return boolResult(completedCount == 42)
