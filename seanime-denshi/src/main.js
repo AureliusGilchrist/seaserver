@@ -305,7 +305,13 @@ function setupChromiumFlags() {
     app.commandLine.appendSwitch("disable-background-media-suspend")
 
     app.commandLine.appendSwitch("double-buffer-compositing")
-    app.commandLine.appendSwitch("disable-direct-composition-video-overlays")
+    // NOTE: Do NOT disable DirectComposition video overlays. On Windows this is the
+    // zero-copy hardware path that presents decoded video frames straight to an overlay
+    // plane. Disabling it forces every frame through the GPU compositor, which is cheap
+    // windowed but drops frames at full-screen size — perceived as constant buffering/
+    // stutter in fullscreen. It also contradicts the enable-hardware-overlays /
+    // enable-zero-copy switches above.
+    // app.commandLine.appendSwitch("disable-direct-composition-video-overlays")
 
     // 120 FPS rendering
     app.commandLine.appendSwitch("disable-frame-rate-limit")
