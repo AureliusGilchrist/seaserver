@@ -64,6 +64,7 @@ import {
     vc_hlsQualityLevels,
     vc_hlsSetAudioTrack,
     vc_hlsSetQuality,
+    vc_hlsSubtitleTracks,
 } from "@/app/(main)/_features/video-core/video-core-hls"
 import { vc_inSight_data } from "@/app/(main)/_features/video-core/video-core-in-sight"
 import { vc_inSight_open } from "@/app/(main)/_features/video-core/video-core-in-sight"
@@ -97,8 +98,8 @@ import { VideoCoreWatchPartyChat } from "@/app/(main)/_features/video-core/video
 import {
     vc_autoNextAtom,
     vc_autoPlayVideoAtom,
-    vc_autoSkipOPEDAtom,
     vc_beautifyImageAtom,
+    vc_perMediaTrackOverrides,
     vc_settings,
     vc_showStatsForNerdsAtom,
     vc_storedMutedAtom,
@@ -110,6 +111,7 @@ import {
     VideoCoreLifecycleState,
 } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
+import { useTrackPreferenceSync } from "@/app/(main)/_features/video-core/video-core-track-sync"
 import {
     useVideoCoreBindings,
     vc_createChapterCues,
@@ -138,7 +140,6 @@ import { atom } from "jotai"
 import { ScopeProvider } from "jotai-scope"
 import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
 import React, { useMemo, useRef, useState } from "react"
-import { flushSync } from "react-dom"
 import { BiExpand, BiX } from "react-icons/bi"
 import { FiMinimize2 } from "react-icons/fi"
 import { ImSpinner2 } from "react-icons/im"
@@ -152,44 +153,19 @@ export const VIDEOCORE_DEBUG_ELEMENTS = false
 
 const DELAY_BEFORE_NOT_BUSY = 1_000 //ms
 
-type ViewTransitionDocument = Document & {
-    startViewTransition?: (callback: () => void) => {
-        finished: Promise<void>
-    }
-}
-
 export function startVideoCoreMiniPlayerTransition(update: () => void) {
     if (typeof document === "undefined" || typeof window === "undefined") {
         update()
         return
     }
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        update()
-        return
-    }
-
-    const documentWithViewTransition = document as ViewTransitionDocument
-    if (!documentWithViewTransition.startViewTransition) {
-        update()
-        return
-    }
-
-    document.documentElement.setAttribute("data-vc-miniplayer-view-transition", "")
-
-    try {
-        const transition = documentWithViewTransition.startViewTransition(() => {
-            flushSync(update)
-        })
-
-        void transition.finished.finally(() => {
-            document.documentElement.removeAttribute("data-vc-miniplayer-view-transition")
-        }).catch(() => { })
-    }
-    catch {
-        document.documentElement.removeAttribute("data-vc-miniplayer-view-transition")
-        update()
-    }
+    // NOTE: We intentionally bypass the View Transitions API here.
+    // Wrapping the mini-player toggle in document.startViewTransition() causes the
+    // Chromium renderer to hang/freeze on heavy player layouts (the snapshot phase
+    // has to capture the live <video> element + WASM subtitle canvas + ASS overlay
+    // + jassub worker output simultaneously). The mini-player drawer already has
+    // its own CSS slide/resize transitions, so the UX impact is minimal.
+    update()
 }
 
 export const vc_subtitleManager = atom<VideoCoreSubtitleManager | null>(null)
@@ -268,6 +244,7 @@ export function VideoCoreProvider(props: { id: string, children: React.ReactNode
                 vc_hlsAudioTracks,
                 vc_hlsCurrentAudioTrack,
                 vc_hlsSetAudioTrack,
+                vc_hlsSubtitleTracks,
                 vc_isSwiping,
                 vc_isMobile,
                 vc_swipeSeekTime,
@@ -771,6 +748,10 @@ export function VideoCore(props: VideoCoreProps) {
     // States
     const qc = useQueryClient()
     const settings = useAtomValue(vc_settings)
+    // Loads per-media (per-series) track preferences from the server and registers the
+    // write-through callback so the subtitle menu can persist the user's caption choice.
+    useTrackPreferenceSync()
+    const perMediaTrackOverrides = useAtomValue(vc_perMediaTrackOverrides)
     const [isMiniPlayer, setIsMiniPlayer] = useAtom(vc_miniPlayer)
     const [busy, setBusy] = useAtom(vc_busy)
     const [buffering, setBuffering] = useAtom(vc_buffering)
@@ -784,7 +765,6 @@ export function VideoCore(props: VideoCoreProps) {
 
     const [autoNext] = useAtom(vc_autoNextAtom)
     const [autoPlay] = useAtom(vc_autoPlayVideoAtom)
-    const [autoSkipOpeningOutro] = useAtom(vc_autoSkipOPEDAtom)
     const [volume] = useAtom(vc_storedVolumeAtom)
     const [muted] = useAtom(vc_storedMutedAtom)
     const [playbackRate, setPlaybackRate] = useAtom(vc_storedPlaybackRateAtom)
@@ -1095,6 +1075,9 @@ export function VideoCore(props: VideoCoreProps) {
     const hlsCurrentAudioTrack = useAtomValue(vc_hlsCurrentAudioTrack)
     const hlsSetAudioTrack = useAtomValue(vc_hlsSetAudioTrack)
 
+    // HLS subtitle tracks extracted from the manifest
+    const hlsSubtitleTracks = useAtomValue(vc_hlsSubtitleTracks)
+
     // events
     const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         onLoadedMetadata?.(e)
@@ -1146,6 +1129,9 @@ export function VideoCore(props: VideoCoreProps) {
                         ? serverStatus?.settings?.mediaPlayer?.vcTranslateTargetLanguage
                         : null,
                     settings: settings,
+                    preferredTrackOverride: state.playbackInfo?.media?.id != null
+                        ? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
+                        : undefined,
                     fetchAndConvertToVTT: (url?: string, content?: string) => {
                         return new Promise((resolve, reject) => {
                             convertSubs({ url: url ?? "", content: content ?? "", to: "vtt" }, {
@@ -1180,6 +1166,9 @@ export function VideoCore(props: VideoCoreProps) {
                         ? serverStatus?.settings?.mediaPlayer?.vcTranslateTargetLanguage
                         : null,
                     settings: settings,
+                    preferredTrackOverride: state.playbackInfo?.media?.id != null
+                        ? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
+                        : undefined,
                     fetchAndConvertToASS: (url?: string, content?: string) => {
                         return new Promise((resolve, reject) => {
                             convertSubs({ url: url ?? "", content: content ?? "", to: "ass" }, {
@@ -1311,6 +1300,67 @@ export function VideoCore(props: VideoCoreProps) {
             setupPreviewManager()
         }
     }, [streamType, currentPlaybackRef.current])
+
+    // When HLS subtitle tracks become available, inject them into the subtitle manager.
+    // They arrive via SUBTITLE_TRACKS_UPDATED which fires after MANIFEST_PARSED and
+    // therefore after handleLoadedMetadata has already run.
+    React.useEffect(() => {
+        if (!hlsSubtitleTracks.length || !videoRef.current) return
+        const v = videoRef.current
+
+        // Build subtitle track objects compatible with the subtitle manager
+        const hlsAsSubtitleTracks: VideoCore_VideoPlaybackInfo["subtitleTracks"] = hlsSubtitleTracks.map((t, index) => ({
+            index: index,
+            src: t.url,
+            label: t.name,
+            language: t.language || t.name,
+            default: t.default,
+            useLibassRenderer: true,
+        }))
+
+        // If the current playback already has external subtitle tracks, don't override them
+        if (state.playbackInfo?.subtitleTracks?.length) return
+
+        // Build a synthetic playbackInfo with the HLS subtitle tracks so the subtitle
+        // manager can be (re)created with them.
+        const syntheticPlaybackInfo: VideoCore_VideoPlaybackInfo = {
+            ...(state.playbackInfo ?? ({} as VideoCore_VideoPlaybackInfo)),
+            subtitleTracks: hlsAsSubtitleTracks,
+        }
+
+        setMediaCaptionsManager(p => {
+            if (p) p.destroy()
+            return null
+        })
+        setSubtitleManager(p => {
+            if (p) p.destroy()
+            return new VideoCoreSubtitleManager({
+                videoElement: v,
+                playbackInfo: syntheticPlaybackInfo,
+                jassubOffscreenRender: true,
+                hmacToken: directstreamAttToken,
+                translateTargetLang: serverStatus?.settings?.mediaPlayer?.vcTranslate
+                    ? serverStatus?.settings?.mediaPlayer?.vcTranslateTargetLanguage
+                    : null,
+                settings: settings,
+                preferredTrackOverride: state.playbackInfo?.media?.id != null
+                    ? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
+                    : undefined,
+                fetchAndConvertToASS: (url?: string, content?: string) => {
+                    return new Promise((resolve, reject) => {
+                        convertSubs({ url: url ?? "", content: content ?? "", to: "ass" }, {
+                            onSuccess: (data) => resolve(data),
+                            onError: (error) => reject(error),
+                        })
+                    })
+                },
+                sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => {
+                    if (text) dispatchTranslateTextEvent(text)
+                    if (track) dispatchTranslateSubtitleTrackEvent(track)
+                },
+            })
+        })
+    }, [hlsSubtitleTracks])
 
     const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
         onTimeUpdate?.(e)
@@ -1680,8 +1730,9 @@ export function VideoCore(props: VideoCoreProps) {
                 return cues
             }
 
-            // Otherwise, create chapters from skip data if available
-            if (!!resolvedSkipData?.op?.interval && duration > 0) {
+            // Otherwise, create chapters from skip data if available. Build from OP, ED, or both
+            // so episodes that only have ending skip data still get a "Skip Ending" button.
+            if ((!!resolvedSkipData?.op?.interval || !!resolvedSkipData?.ed?.interval) && duration > 0) {
                 log.info("Creating chapter cues from skip data", resolvedSkipData)
                 const chapters = vc_createChaptersFromAniSkip(resolvedSkipData, duration, state?.playbackInfo?.media?.format)
                 const cues = vc_createChapterCues(chapters, duration)

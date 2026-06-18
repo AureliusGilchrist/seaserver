@@ -232,6 +232,30 @@ export class VideoCoreFullscreenManager extends EventTarget {
     }
 
     private async _enterElectronFullscreen(): Promise<void> {
+        // IMPORTANT: Request element fullscreen FIRST, while we are still inside the
+        // user-activation (click) gesture. Awaiting the Electron IPC below consumes
+        // the user gesture, after which containerElement.requestFullscreen() would be
+        // rejected by Chromium ("API can only be initiated by a user gesture") — which
+        // is why the app window would go fullscreen but the video itself would not.
+        if (this.containerElement) {
+            try {
+                if (this.containerElement.requestFullscreen) {
+                    await this.containerElement.requestFullscreen()
+                } else if ((this.containerElement as any).webkitRequestFullscreen) {
+                    await (this.containerElement as any).webkitRequestFullscreen()
+                } else if ((this.containerElement as any).mozRequestFullScreen) {
+                    await (this.containerElement as any).mozRequestFullScreen()
+                } else if ((this.containerElement as any).msRequestFullscreen) {
+                    await (this.containerElement as any).msRequestFullscreen()
+                }
+                log.info("Entered element fullscreen (Electron)")
+            }
+            catch (error) {
+                log.error("Failed to enter element fullscreen in Electron", error)
+            }
+        }
+
+        // Then ensure the Electron window itself is fullscreen (removes OS chrome).
         if (!(window as any)?.electron?.window?.setFullscreen) {
             log.warning("Electron fullscreen API not available")
             return
@@ -248,6 +272,31 @@ export class VideoCoreFullscreenManager extends EventTarget {
     }
 
     private async _exitElectronFullscreen(): Promise<void> {
+        // Exit element fullscreen first so the video collapses back into the layout
+        // before the OS window leaves fullscreen.
+        if (
+            document.fullscreenElement ||
+            (document as any).webkitFullscreenElement ||
+            (document as any).mozFullScreenElement ||
+            (document as any).msFullscreenElement
+        ) {
+            try {
+                if (document.exitFullscreen) {
+                    await document.exitFullscreen()
+                } else if ((document as any).webkitExitFullscreen) {
+                    await (document as any).webkitExitFullscreen()
+                } else if ((document as any).mozCancelFullScreen) {
+                    await (document as any).mozCancelFullScreen()
+                } else if ((document as any).msExitFullscreen) {
+                    await (document as any).msExitFullscreen()
+                }
+                log.info("Exited element fullscreen (Electron)")
+            }
+            catch (error) {
+                log.error("Failed to exit element fullscreen in Electron", error)
+            }
+        }
+
         if (!window.electron?.window?.setFullscreen) {
             log.warning("Electron fullscreen API not available")
             return

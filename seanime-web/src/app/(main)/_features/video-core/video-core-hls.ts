@@ -29,6 +29,15 @@ export const vc_hlsAudioTracks = atom<HlsAudioTrack[]>([])
 export const vc_hlsCurrentAudioTrack = atom<number>(-1)
 export const vc_hlsSetAudioTrack = atom<((trackId: number) => void) | null>(null)
 
+export type HlsSubtitleTrack = {
+    id: number
+    name: string
+    language?: string
+    url?: string
+    default?: boolean
+}
+export const vc_hlsSubtitleTracks = atom<HlsSubtitleTrack[]>([])
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const hlsLog = logger("VIDEO CORE HLS")
@@ -73,6 +82,7 @@ export function useVideoCoreHls({
     const setSetQuality = useSetAtom(vc_hlsSetQuality)
     const setAudioTracks = useSetAtom(vc_hlsAudioTracks)
     const setSetAudioTrack = useSetAtom(vc_hlsSetAudioTrack)
+    const setSubtitleTracks = useSetAtom(vc_hlsSubtitleTracks)
 
     useEffect(() => {
         if (!streamUrl || !videoElement) return
@@ -92,6 +102,7 @@ export function useVideoCoreHls({
             setAudioTracks([])
             setCurrentAudioTrack(-1)
             setSetAudioTrack(() => {})
+            setSubtitleTracks([])
             return
         }
 
@@ -111,12 +122,13 @@ export function useVideoCoreHls({
                 enableWebVTT: true,
                 renderTextTracksNatively: false, // don't use native text tracks for subtitles
             })
+
+            hlsRef.current = hls
+
             let sourceLoaded = false
             let recoveringMediaError = false
             let mediaErrorRecoveryAttempts = 0
             let fatalErrorReported = false
-
-            hlsRef.current = hls
 
             const reportFatalError = (data: ErrorData) => {
                 if (fatalErrorReported) return
@@ -193,6 +205,22 @@ export function useVideoCoreHls({
                 }
             })
 
+            hls.on(Events.SUBTITLE_TRACKS_UPDATED, (event, data) => {
+                if (!data.subtitleTracks?.length) {
+                    setSubtitleTracks([])
+                    return
+                }
+                const tracks: HlsSubtitleTrack[] = data.subtitleTracks.map((t, index) => ({
+                    id: typeof t.id === "number" ? t.id : index,
+                    name: t.name || t.lang || `Subtitle ${index + 1}`,
+                    language: t.lang,
+                    url: t.url,
+                    default: !!t.default,
+                }))
+                hlsLog.info("HLS subtitle tracks", tracks)
+                setSubtitleTracks(tracks)
+            })
+
             hls.on(Events.MANIFEST_PARSED, (event, data) => {
                 hlsLog.info("HLS manifest parsed", data)
 
@@ -258,7 +286,7 @@ export function useVideoCoreHls({
 
             hls.on(Events.FRAG_CHANGED, () => {
                 if (mediaErrorRecoveryAttempts > 0) {
-                    hlsLog.success("HLS media error recovery succeeded")
+                    hlsLog.info("HLS media error recovery succeeded")
                     mediaErrorRecoveryAttempts = 0
                 }
             })
@@ -271,6 +299,8 @@ export function useVideoCoreHls({
 
                 if (!data.fatal) return
 
+                // Try to recover from fatal media errors (decode/buffer-append failures) before
+                // giving up — this is the common transient failure on flaky online streams.
                 if (data.type === Hls.ErrorTypes.MEDIA_ERROR && recoverFatalMediaError()) {
                     return
                 }
@@ -294,6 +324,7 @@ export function useVideoCoreHls({
             setAudioTracks([])
             setCurrentAudioTrack(-1)
             setSetAudioTrack(() => {})
+            setSubtitleTracks([])
         } else {
             hlsLog.error("HLS not supported on this browser")
             toast.error("HLS playback not supported on this browser")
@@ -347,3 +378,4 @@ export async function isProbablyHls(url: string): Promise<"hls" | "unknown"> {
         return "unknown"
     }
 }
+

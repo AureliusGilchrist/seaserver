@@ -19,6 +19,7 @@ import { vc_storedMutedAtom, vc_storedVolumeAtom } from "@/app/(main)/_features/
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
 import { vc_formatTime } from "@/app/(main)/_features/video-core/video-core.utils"
 import { cn } from "@/components/ui/core/styling"
+import { useEffectEvent } from "@/lib/react/use-effect-event"
 import { useAtomValue } from "jotai"
 import { useAtom, useSetAtom } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
@@ -62,7 +63,7 @@ export function VideoCoreControlBar(props: {
         cursorPositionRef.current = cursorPosition
     }, [cursorPosition])
 
-    const setCursorPositionC = React.useEffectEvent((nextPosition: "outside" | "approaching" | "hover") => {
+    const setCursorPositionC = useEffectEvent((nextPosition: "outside" | "approaching" | "hover") => {
         if (cursorPositionRef.current === nextPosition) return
         cursorPositionRef.current = nextPosition
         setCursorPosition(nextPosition)

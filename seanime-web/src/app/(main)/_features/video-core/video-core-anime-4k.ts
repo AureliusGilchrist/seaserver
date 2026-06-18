@@ -7,6 +7,7 @@ import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atom
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_pip } from "@/app/(main)/_features/video-core/video-core-pip"
 import { logger } from "@/lib/helpers/debug"
+import { useEffectEvent } from "@/lib/react/use-effect-event"
 import { useAtomValue } from "jotai"
 import { useAtom } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
@@ -27,7 +28,7 @@ export const VideoCoreAnime4K = () => {
     const manager = useAtomValue(vc_anime4kManager)
     const [selectedOption] = useAtom(vc_anime4kOption)
 
-    const resizeCanvas = React.useEffectEvent(() => {
+    const resizeCanvas = useEffectEvent(() => {
         if (!video || !manager) return
 
         const rect = video.getBoundingClientRect()

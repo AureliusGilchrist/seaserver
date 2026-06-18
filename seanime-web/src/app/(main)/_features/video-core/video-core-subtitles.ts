@@ -2,7 +2,7 @@ import { getServerBaseUrl } from "@/api/client/server-url"
 import { MKVParser_SubtitleEvent, MKVParser_TrackInfo } from "@/api/generated/types"
 import { VideoCorePgsRenderer } from "@/app/(main)/_features/video-core/video-core-pgs-renderer"
 import { vc_getSubtitleStyle } from "@/app/(main)/_features/video-core/video-core-settings-menu"
-import { VideoCore_VideoPlaybackInfo, VideoCore_VideoSubtitleTrack, VideoCoreSettings } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { PerMediaTrackOverride, VideoCore_VideoPlaybackInfo, VideoCore_VideoSubtitleTrack, VideoCoreSettings } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { logger } from "@/lib/helpers/debug"
 import { detectTrackLanguage } from "@/lib/helpers/language"
 import { getAssetUrl } from "@/lib/server/assets"
@@ -117,6 +117,9 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     private readonly translateFn?: (event: CachedEvent) => void
 
     private playbackInfo: VideoCore_VideoPlaybackInfo
+    // Per-media (per-series) subtitle preference. When set, the matching track is
+    // auto-selected on load so a manually chosen caption carries across episodes.
+    private preferredTrackOverride?: PerMediaTrackOverride
     private currentTrackNumber: number = NO_TRACK_NUMBER
     private fonts: string[] = []
     private hmacToken: string = ""
@@ -141,6 +144,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         sendTranslateRequest,
         translateTargetLang,
         hmacToken,
+        preferredTrackOverride,
     }: {
         videoElement: HTMLVideoElement
         jassubOffscreenRender: boolean
@@ -150,11 +154,13 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
         translateTargetLang: string | null
         hmacToken?: string
+        preferredTrackOverride?: PerMediaTrackOverride
     }) {
         super()
         this.videoElement = videoElement
         this.jassubOffscreenRender = jassubOffscreenRender
         this.playbackInfo = playbackInfo
+        this.preferredTrackOverride = preferredTrackOverride
         this.settings = settings
         this.hmacToken = hmacToken || ""
         this.shouldTranslate = translateTargetLang
@@ -217,19 +223,6 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     private async _init() {
         if (!this.libassRenderer) {
             try {
-                // (function () {
-                //     console.log("Worker test")
-                //     const w = new Worker(workerUrl)
-                //
-                //     w.onerror = (e) => {
-                //         console.error("worker crashed:", e.message, "at line", e.lineno)
-                //     }
-                //
-                //     w.onmessage = (e) => {
-                //         console.log("worker replied:", e.data)
-                //     }
-                // })()
-
                 subtitleLog.info("Initializing libass renderer")
 
                 const defaultFontUrl = "/fonts/Roboto-Medium.ttf"
@@ -245,6 +238,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                     availableFonts: {
                         [DEFAULT_FONT_NAME]: defaultFontUrl,
                     },
+                    maxRenderHeight: 1080,
                     debug: false,
                 })
 
@@ -254,7 +248,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
 
                 this.fonts = this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
-                    ?.map(a => `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}${this.hmacToken}`) || []
+                    ?.map(a => `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}?id=${this.playbackInfo.id}${this.hmacToken.replace(/^\?/,
+                        "&")}`) || []
 
                 if (!this.playbackInfo.libassFonts) {
                     this.fonts = [...new Set([...this.fonts, defaultFontUrl])]
@@ -719,6 +714,16 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             return
         }
 
+        // A per-media (per-series) override takes priority over the global preferred language,
+        // including an explicit "Off", so a caption the user picked on one episode is re-applied
+        // on every other episode of the same series.
+        const overrideTrackNumber = resolveOverrideTrackNumber(this.preferredTrackOverride, tracks)
+        if (overrideTrackNumber !== null) {
+            subtitleLog.info("Applying per-media subtitle override", overrideTrackNumber, this.preferredTrackOverride)
+            await this.selectTrack(overrideTrackNumber)
+            return
+        }
+
         if (tracks.length === 1) {
             subtitleLog.info("Only one track found, selecting it")
             await this.selectTrack(tracks[0].number)
@@ -976,10 +981,39 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     }
 
     private _createAssEvent(event: MKVParser_SubtitleEvent, index: number): ASSEvent {
+        // Resolve the style index. If the style name isn't in the track's parsed styles map
+        // (e.g. case mismatch, codecPrivate not yet parsed), fall back to "Default" or 1.
+        // Returning `undefined` here causes JASSUB to drop the event or render it with an
+        // unexpected style, which manifests as subtitles not showing at all.
+        const styles = this.eventTracks[event.trackNumber]?.styles
+        const styleName = event.extraData?.style
+        let styleIdx: number = 1
+        if (styleName && styles) {
+            const idx = styles[styleName]
+            if (typeof idx === "number" && idx > 0) {
+                styleIdx = idx
+            } else if (typeof styles["Default"] === "number" && styles["Default"] > 0) {
+                styleIdx = styles["Default"]
+            }
+        }
+
+        // Sanitize the duration. Some malformed MKV/ASS sources emit events with absurdly long
+        // durations or non-positive values. Clamp anything beyond a reasonable maximum and
+        // replace non-positive/NaN values with a short fallback so the event still flashes
+        // rather than becoming permanent or being dropped.
+        const MAX_EVENT_DURATION_MS = 10_000
+        const DEFAULT_EVENT_DURATION_MS = 1_500
+        let duration = event.duration
+        if (!Number.isFinite(duration) || duration <= 0) {
+            duration = DEFAULT_EVENT_DURATION_MS
+        } else if (duration > MAX_EVENT_DURATION_MS) {
+            duration = MAX_EVENT_DURATION_MS
+        }
+
         return {
             Start: event.startTime,
-            Duration: event.duration,
-            Style: event.extraData?.style ? this.eventTracks[event.trackNumber]?.styles?.[event.extraData?.style ?? "Default"] : 1,
+            Duration: duration,
+            Style: styleIdx,
             Name: event.extraData?.name ?? "",
             MarginL: event.extraData?.marginL ? Number(event.extraData.marginL) : 0,
             MarginR: event.extraData?.marginR ? Number(event.extraData.marginR) : 0,
@@ -1124,12 +1158,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             try {
                 subtitleLog.info("Converting subtitle to ASS format")
                 const assContent = await this.fetchAndConvertToASS(fileTrack.info.src, fileTrack.info.content)
+                if (!assContent) return
 
-                if (!assContent) {
-                    subtitleLog.error("Failed to convert subtitle to ASS format")
-                    toast.error("Failed to convert subtitle track")
-                    return
-                }
                 // Cache the converted content
                 this.fileTracks[trackNumber].content = assContent
                 subtitleLog.info("Loading converted ASS content")
@@ -1149,6 +1179,51 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
         this._translateFileTrack(trackNumber)
     }
+}
+
+/**
+ * Resolves a per-media subtitle preference to a concrete track number against the given tracks.
+ * Returns:
+ * - `NO_TRACK_NUMBER` if the override is an explicit "off"
+ * - the matching track number when a track matches the saved label/language/codec
+ * - `null` when there is no override or no match (caller should fall back to defaults)
+ *
+ * Matching is ordered from most to least specific (label, then language preferring a codec match)
+ * so the same caption a user picked carries across episodes even when track numbers differ.
+ */
+export function resolveOverrideTrackNumber(
+    override: PerMediaTrackOverride | undefined,
+    tracks: { label?: string, language?: string, languageIETF?: string, codecID?: string, number: number }[] | null = null,
+): number | null {
+    if (!override) return null
+
+    // Explicit "Off" — the user turned subtitles off and wants that to stick.
+    if (override.subtitleLanguage === "none") return NO_TRACK_NUMBER
+
+    const ts = tracks ?? []
+    if (!ts.length) return null
+
+    // 1. Match by label (most specific, e.g. "English (Honorifics)")
+    if (override.subtitleLabel) {
+        const wanted = override.subtitleLabel.toLowerCase()
+        const byLabel = ts.find(t => t.label?.toLowerCase() === wanted)
+        if (byLabel) return byLabel.number
+    }
+
+    // 2. Match by language, preferring the same codec when one was recorded.
+    if (override.subtitleLanguage) {
+        const wantedLang = override.subtitleLanguage.toLowerCase()
+        const sameLang = ts.filter(t => t.language?.toLowerCase() === wantedLang || t.languageIETF?.toLowerCase() === wantedLang)
+        if (sameLang.length) {
+            if (override.subtitleCodecID) {
+                const byCodec = sameLang.find(t => t.codecID === override.subtitleCodecID)
+                if (byCodec) return byCodec.number
+            }
+            return sameLang[0].number
+        }
+    }
+
+    return null
 }
 
 export function getDefaultSubtitleTrackNumber(
