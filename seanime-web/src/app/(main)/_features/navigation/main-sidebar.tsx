@@ -130,7 +130,7 @@ export function MainSidebar() {
 }
 
 
-function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean, containerRef: React.RefObject<HTMLDivElement> }) {
+function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean, containerRef: React.RefObject<HTMLDivElement | null> }) {
     const ctx = useAppSidebarContext()
     const ts = useThemeSettings()
     const router = useRouter()
@@ -362,7 +362,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
 
     // Overflow logic
     const [autoUnpinnedIds, setAutoUnpinnedIds] = React.useState<string[]>([])
-    const overflowCheckTimeoutRef = React.useRef<NodeJS.Timeout>()
+    const overflowCheckTimeoutRef = React.useRef<NodeJS.Timeout | undefined>(undefined)
 
     React.useEffect(() => {
         const handleResize = () => setAutoUnpinnedIds([])

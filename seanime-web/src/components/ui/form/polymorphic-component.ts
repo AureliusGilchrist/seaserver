@@ -2,8 +2,8 @@ import * as React from "react"
 
 type ExtendedProps<Props = {}, OverrideProps = {}> = OverrideProps &
     Omit<Props, keyof OverrideProps>;
-type ElementType = keyof JSX.IntrinsicElements | React.JSXElementConstructor<any>;
-type PropsOf<C extends ElementType> = JSX.LibraryManagedAttributes<C,
+type ElementType = keyof React.JSX.IntrinsicElements | React.JSXElementConstructor<any>;
+type PropsOf<C extends ElementType> = React.JSX.LibraryManagedAttributes<C,
     React.ComponentPropsWithoutRef<C>>;
 type ComponentProp<C> = {
     component?: C;

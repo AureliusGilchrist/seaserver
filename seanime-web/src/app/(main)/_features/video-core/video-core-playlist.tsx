@@ -31,7 +31,6 @@ import { useAtom, useSetAtom } from "jotai/react"
 import React from "react"
 import { useUpdateEffect } from "react-use"
 import { toast } from "sonner"
-import { vc_autoSkipFillerAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
 
 export type VideoCorePlaylistState = {
     type: VideoCore_PlaybackType
@@ -90,22 +89,7 @@ export function useVideoCorePlaylistSetup(providedState: VideoCoreLifecycleState
 
     const currentEpisode = episodes.find?.(ep => ep.progressNumber === currProgressNumber) ?? null
     const previousEpisode = episodes.find?.(ep => ep.progressNumber === currProgressNumber - 1) ?? null
-
-    // Fork: when "skip filler" is enabled, advance past any episodes whose metadata
-    // marks them as filler so the "next" / autoplay target lands on the next non-filler.
-    const autoSkipFiller = useAtomValue(vc_autoSkipFillerAtom)
-    const nextEpisode = React.useMemo(() => {
-        let candidate = episodes.find?.(ep => ep.progressNumber === currProgressNumber + 1) ?? null
-        if (autoSkipFiller !== "off") {
-            let guard = 0
-            while (candidate && candidate.episodeMetadata?.isFiller && guard < 500) {
-                const nextProgress = (candidate.progressNumber ?? currProgressNumber + 1) + 1
-                candidate = episodes.find?.(ep => ep.progressNumber === nextProgress) ?? null
-                guard++
-            }
-        }
-        return candidate
-    }, [episodes, currProgressNumber, autoSkipFiller])
+    const nextEpisode = episodes.find?.(ep => ep.progressNumber === currProgressNumber + 1) ?? null
 
     React.useEffect(() => {
         if (!playbackInfo || !playbackInfo.streamUrl || !currentEpisode || !episodes.length || !animeEntry) {

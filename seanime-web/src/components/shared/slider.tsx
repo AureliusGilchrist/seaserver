@@ -17,7 +17,7 @@ export const Slider: React.FC<SliderProps> = (props) => {
 
     const { children, onSlideEnd, ...rest } = props
 
-    const ref = useRef<HTMLDivElement>() as React.MutableRefObject<HTMLInputElement>
+    const ref = useRef<HTMLDivElement>(null) as React.MutableRefObject<HTMLInputElement>
     const { events } = useDraggableScroll(ref, {
         decayRate: 0.96,
         safeDisplacement: 15,

@@ -14,7 +14,7 @@ export function useDiscordMangaPresence(entry: { media?: AL_BaseManga } | undefi
     const { mutate } = useSetDiscordMangaActivity()
     const { mutate: cancelActivity } = useCancelDiscordActivity()
 
-    const prevChapter = React.useRef<any>()
+    const prevChapter = React.useRef<any>(undefined)
 
     React.useEffect(() => {
         if (serverStatus?.isOffline) return

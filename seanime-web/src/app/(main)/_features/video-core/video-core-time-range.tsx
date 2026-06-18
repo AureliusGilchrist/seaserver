@@ -17,7 +17,7 @@ import { vc_skipOpeningTime } from "@/app/(main)/_features/video-core/video-core
 import { vc_skipEndingTime } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_showOverlayFeedback } from "@/app/(main)/_features/video-core/video-core-overlay-display"
 import { VIDEOCORE_PREVIEW_CAPTURE_INTERVAL_SECONDS, VIDEOCORE_PREVIEW_THUMBNAIL_SIZE } from "@/app/(main)/_features/video-core/video-core-preview"
-import { vc_autoSkipEDAtom, vc_autoSkipOPAtom, vc_highlightOPEDChaptersAtom, vc_showChapterMarkersAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { vc_autoSkipOPEDAtom, vc_highlightOPEDChaptersAtom, vc_showChapterMarkersAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
 import { vc_formatTime, vc_getChapterType, vc_getOPEDChapters } from "@/app/(main)/_features/video-core/video-core.utils"
 import { SeaImage as Image } from "@/components/shared/sea-image"
@@ -64,8 +64,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
     const [previouslyPaused, setPreviouslyPaused] = useAtom(vc_previousPausedState)
     const action = useSetAtom(vc_dispatchAction)
     const showChapterMarkers = useAtomValue(vc_showChapterMarkersAtom)
-    const autoSkipOpening = useAtomValue(vc_autoSkipOPAtom)
-    const autoSkipEnding = useAtomValue(vc_autoSkipEDAtom)
+    const autoSkipIntroOutro = useAtomValue(vc_autoSkipOPEDAtom)
     const showOverlayFeedback = useSetAtom(vc_showOverlayFeedback)
     const [skipOpeningTime, setSkipOpeningTime] = useAtom(vc_skipOpeningTime)
     const [skipEndingTime, setSkipEndingTime] = useAtom(vc_skipEndingTime)
@@ -141,7 +140,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
             currentTime >= opEdChapters.opening.start &&
             currentTime < opEdChapters.opening.end
         ) {
-            if (autoSkipOpening && !restoreProgressTo) {
+            if (autoSkipIntroOutro && !restoreProgressTo) {
                 console.log("auto skip", opEdChapters.opening.end)
                 action({ type: "seekTo", payload: { time: opEdChapters.opening.end } })
                 showOverlayFeedback({ message: "Skipped OP", duration: 1000 })
@@ -159,7 +158,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
             currentTime < opEdChapters.ending.end &&
             currentTime < duration
         ) {
-            if (autoSkipEnding && !restoreProgressTo) {
+            if (autoSkipIntroOutro && !restoreProgressTo) {
                 console.log("auto skip", opEdChapters.ending.end)
                 action({ type: "seekTo", payload: { time: opEdChapters.ending.end } })
                 showOverlayFeedback({ message: "Skipped ED", duration: 1000 })
@@ -170,7 +169,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
             setSkipEndingTime(0)
         }
 
-    }, [currentTime, autoSkipOpening, autoSkipEnding, opEdChapters, duration, restoreProgressTo, isWatchPartyPeer])
+    }, [currentTime, autoSkipIntroOutro, opEdChapters, duration, restoreProgressTo, isWatchPartyPeer])
 
     // start seeking
     function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {

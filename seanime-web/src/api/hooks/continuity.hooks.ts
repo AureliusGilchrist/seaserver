@@ -68,7 +68,7 @@ function resolveContinuityEnabled(globalEnabled: boolean | undefined, playerOver
     return !!globalEnabled
 }
 
-export function useHandleContinuityWithMediaPlayer(playerRef: React.RefObject<MediaPlayerInstance | HTMLVideoElement>,
+export function useHandleContinuityWithMediaPlayer(playerRef: React.RefObject<MediaPlayerInstance | HTMLVideoElement | null>,
     episodeNumber: Nullish<number>,
     mediaId: Nullish<number | string>,
     playerOverride?: "inherit" | "on" | "off",

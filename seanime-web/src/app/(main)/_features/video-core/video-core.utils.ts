@@ -346,61 +346,44 @@ export function vc_createChaptersFromAniSkip(
 ): Array<MKVParser_ChapterInfo> {
     const { op, ed } = normalizeAniSkipData(aniSkipData)
 
-    // We can build chapters from OP, ED, or both. Bail only when neither is present (or the
-    // duration is unknown). Previously this returned early without an OP, so episodes that only
-    // had ED skip data (common on streaming providers / AniSkip) produced no chapters at all —
-    // and therefore no "Skip Ending" button.
-    const hasOp = !!op?.interval
-    const hasEd = !!ed?.interval
-    if ((!hasOp && !hasEd) || duration <= 0) {
+    if (!op?.interval || duration <= 0) {
         return []
     }
 
     const clampToDuration = (time: number) => Math.min(duration, Math.max(0, time))
+    const openingStart = op.interval.startTime > 5 ? clampToDuration(op.interval.startTime) : 0
+    const openingEnd = clampToDuration(op.interval.endTime)
 
-    // Opening interval (may be absent).
-    let openingStart: number | null = null
-    let openingEnd: number | null = null
-    if (hasOp) {
-        const start = op!.interval.startTime > 5 ? clampToDuration(op!.interval.startTime) : 0
-        const end = clampToDuration(op!.interval.endTime)
-        if (end > start) {
-            openingStart = start
-            openingEnd = end
-        }
+    if (openingEnd <= openingStart) {
+        return []
     }
 
-    const endingStart = hasEd ? clampToDuration(ed!.interval.startTime) : null
-    const endingEnd = hasEd ? clampToDuration(ed!.interval.endTime) : null
+    const endingStart = ed?.interval ? clampToDuration(ed.interval.startTime) : null
+    const endingEnd = ed?.interval ? clampToDuration(ed.interval.endTime) : null
 
     const chapters: MKVParser_ChapterInfo[] = []
 
-    if (openingStart !== null && openingEnd !== null) {
-        if (openingStart > 0) {
-            chapters.push({
-                uid: 90,
-                start: 0,
-                end: openingStart,
-                text: "Prologue",
-            })
-        }
-
+    if (openingStart > 0) {
         chapters.push({
-            uid: 91,
-            start: openingStart,
-            end: openingEnd,
-            text: "Opening",
+            uid: 90,
+            start: 0,
+            end: openingStart,
+            text: "Prologue",
         })
     }
 
-    // Body chapter runs from the end of the OP (or the start, if there's no OP) to the start of
-    // the ED (or the end of the video, if there's no ED).
-    const middleStart = openingEnd ?? 0
+    chapters.push({
+        uid: 91,
+        start: openingStart,
+        end: openingEnd,
+        text: "Opening",
+    })
+
     const middleEnd = endingStart ?? duration
-    if (middleEnd > middleStart) {
+    if (middleEnd > openingEnd) {
         chapters.push({
             uid: 93,
-            start: middleStart,
+            start: openingEnd,
             end: middleEnd,
             text: mediaFormat !== "MOVIE" ? "Episode" : "Movie",
         })

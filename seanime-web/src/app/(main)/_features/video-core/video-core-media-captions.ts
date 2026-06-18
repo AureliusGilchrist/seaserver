@@ -1,6 +1,6 @@
 import { vc_getCaptionStyle } from "@/app/(main)/_features/video-core/video-core-settings-menu"
-import { getDefaultSubtitleTrackNumber, resolveOverrideTrackNumber } from "@/app/(main)/_features/video-core/video-core-subtitles"
-import { PerMediaTrackOverride, VideoCore_VideoSubtitleTrack, VideoCoreSettings } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { getDefaultSubtitleTrackNumber } from "@/app/(main)/_features/video-core/video-core-subtitles"
+import { VideoCore_VideoSubtitleTrack, VideoCoreSettings } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { logger } from "@/lib/helpers/debug"
 import { detectTrackLanguage } from "@/lib/helpers/language"
 import { CaptionsRenderer, ParsedCaptionsResult, parseText, VTTCue, VTTRegion } from "media-captions"
@@ -8,24 +8,6 @@ import "media-captions/styles/captions.css"
 import "media-captions/styles/regions.css"
 
 const log = logger("VIDEO CORE MEDIA CAPTIONS")
-
-async function browserFetchText(url: string): Promise<string | undefined> {
-    try {
-        const res = await fetch(url)
-        if (!res.ok) return undefined
-        const text = await res.text()
-        // Reject HTML error pages that CDNs sometimes serve with 200 status
-        const trimmed = text.trimStart()
-        const looksLikeSubtitle = trimmed.startsWith("WEBVTT")
-            || trimmed.startsWith("[Script Info]")
-            || (text.match(/-->/g) || []).length > 2
-            || trimmed.startsWith("1\n") || trimmed.startsWith("1\r\n")
-        return looksLikeSubtitle ? text : undefined
-    }
-    catch {
-        return undefined
-    }
-}
 
 export type MediaCaptionsTrackInfo = {
     src?: string // URL to the captions file
@@ -52,7 +34,6 @@ export type MediaCaptionsManagerOptions = {
     fetchAndConvertToVTT: FetchAndConvertToVTT
     sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
     translateTargetLang: string | null
-    preferredTrackOverride?: PerMediaTrackOverride
 }
 
 type LoadedTrack = {
@@ -138,9 +119,6 @@ export class MediaCaptionsManager extends EventTarget {
     private readonly sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
     // Remember the translated file tracks to avoid re-fetching them
     private translatedTracks = new Map<number, { translating: boolean }>()
-    // Per-media (per-series) subtitle preference, applied on load so a manually chosen
-    // caption carries across episodes.
-    private readonly preferredTrackOverride?: PerMediaTrackOverride
 
     constructor(options: MediaCaptionsManagerOptions) {
         super()
@@ -152,7 +130,6 @@ export class MediaCaptionsManager extends EventTarget {
         this.fetchAndConvertToVTT = options.fetchAndConvertToVTT
         this.sendTranslateRequest = options.sendTranslateRequest
         this.shouldTranslate = options.translateTargetLang
-        this.preferredTrackOverride = options.preferredTrackOverride
 
         this.init()
     }
@@ -306,13 +283,7 @@ export class MediaCaptionsManager extends EventTarget {
             loadFn: async () => {
                 // short circuit for vtt content
                 if (track.content && track.type === "vtt") return await parseText(track.content)
-                // Try browser fetch first to avoid server-side CDN access issues
-                let content = track.content
-                if (!content && track.src) {
-                    content = await browserFetchText(track.src)
-                    if (content) log.info("Browser pre-fetched subtitle content", track.src)
-                }
-                const vttContent = await this.fetchAndConvertToVTT(content ? undefined : track.src, content)
+                const vttContent = await this.fetchAndConvertToVTT(track.src, track.content)
                 if (!vttContent) return null
                 track.content = vttContent
                 return await parseText(vttContent)
@@ -666,13 +637,7 @@ export class MediaCaptionsManager extends EventTarget {
                     loadFn: async () => {
                         // short circuit for vtt content
                         if (track.content && track.type === "vtt") return await parseText(track.content)
-                        // Try browser fetch first to avoid server-side CDN access issues
-                        let content = track.content
-                        if (!content && track.src) {
-                            content = await browserFetchText(track.src)
-                            if (content) log.info("Browser pre-fetched subtitle content", track.src)
-                        }
-                        const vttContent = await this.fetchAndConvertToVTT(content ? undefined : track.src, content)
+                        const vttContent = await this.fetchAndConvertToVTT(track.src, track.content)
                         if (!vttContent) return null
                         track.content = vttContent
                         return await parseText(vttContent)
@@ -685,15 +650,9 @@ export class MediaCaptionsManager extends EventTarget {
                 log.error(`Failed to load track: ${track.label}`, error)
             }
         }
-
         // When the first track is loaded, start rendering captions
-        // Select default track. A per-media override (a caption the user previously picked
-        // for this series) takes priority over the global preferred language.
-        const tracksForSelection = this.tracks.map((t, idx) => ({ ...t, number: idx }))
-        const overrideTrackNumber = resolveOverrideTrackNumber(this.preferredTrackOverride, tracksForSelection)
-        const defaultTrackNumber = overrideTrackNumber !== null
-            ? overrideTrackNumber
-            : getDefaultSubtitleTrackNumber(this.settings, tracksForSelection)
+        // Select default track
+        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, this.tracks.map((t, idx) => ({ ...t, number: idx })))
         await this.selectTrack(defaultTrackNumber)
         // Setup time update listener
         this.timeUpdateListener = () => {

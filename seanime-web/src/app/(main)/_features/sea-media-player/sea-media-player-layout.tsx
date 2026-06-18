@@ -61,7 +61,7 @@ export function SeaMediaPlayerLayout(props: SeaMediaPlayerLayoutProps) {
     // Scroll to selected episode element when the episode list changes (on mount)
     const episodeListContainerRef = React.useRef<HTMLDivElement>(null)
     const episodeListViewportRef = React.useRef<HTMLDivElement>(null)
-    const scrollTimeoutRef = React.useRef<NodeJS.Timeout>()
+    const scrollTimeoutRef = React.useRef<NodeJS.Timeout | undefined>(undefined)
     const mediaPlayerContainerRef = React.useRef<HTMLDivElement>(null)
     const contentContainerRef = React.useRef<HTMLDivElement>(null)
 

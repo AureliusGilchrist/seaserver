@@ -136,7 +136,7 @@ export function useOnlinestreamVideoSource(episodeSource: Onlinestream_EpisodeSo
 
 type LegacyHandleOnlinestreamProps = {
     mediaId: number
-    ref: React.RefObject<MediaPlayerInstance>
+    ref: React.RefObject<MediaPlayerInstance | null>
 }
 
 export function useLegacyHandleOnlinestream(props: LegacyHandleOnlinestreamProps) {

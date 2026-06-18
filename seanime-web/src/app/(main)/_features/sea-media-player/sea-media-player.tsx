@@ -65,7 +65,7 @@ export type SeaMediaPlayerProps = {
     poster?: string
     isLoading?: boolean
     isPlaybackError?: string
-    playerRef: React.RefObject<MediaPlayerInstance>
+    playerRef: React.RefObject<MediaPlayerInstance | null>
     onProviderChange?: (provider: MediaProviderAdapter | null, e: MediaProviderChangeEvent) => void
     onProviderSetup?: (provider: MediaProviderAdapter, e: MediaProviderSetupEvent) => void
     onTimeUpdate?: (detail: MediaTimeUpdateEventDetail, e: MediaTimeUpdateEvent) => void

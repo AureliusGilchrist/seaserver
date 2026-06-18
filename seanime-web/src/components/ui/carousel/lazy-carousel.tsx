@@ -173,8 +173,8 @@ export const LazyCarouselContent = React.forwardRef<HTMLDivElement, LazyCarousel
                             key={!!(child as React.ReactElement)?.key ? (child as React.ReactElement)?.key : index}
                             className={cn(
                                 CarouselAnatomy.item({ orientation, gap }),
-                                isVisible && React.isValidElement(child) && child.props.containerClassName
-                                    ? child.props.containerClassName.split(" ").filter((cls: string) => cls.includes("basis-")).join(" ")
+                                isVisible && React.isValidElement(child) && (child.props as any).containerClassName
+                                    ? (child.props as any).containerClassName.split(" ").filter((cls: string) => cls.includes("basis-")).join(" ")
                                     : "",
                             )}
                             style={{
@@ -185,9 +185,9 @@ export const LazyCarouselContent = React.forwardRef<HTMLDivElement, LazyCarousel
                             }}
                         >
                             {isVisible ? (
-                                React.isValidElement(child) && child.props.containerClassName ? (
-                                    React.cloneElement(child as React.ReactElement, {
-                                        containerClassName: child.props.containerClassName
+                                React.isValidElement(child) && (child.props as any).containerClassName ? (
+                                    React.cloneElement(child as React.ReactElement<any>, {
+                                        containerClassName: (child.props as any).containerClassName
                                             .split(" ")
                                             .filter((cls: string) => !cls.includes("basis-"))
                                             .join(" "),

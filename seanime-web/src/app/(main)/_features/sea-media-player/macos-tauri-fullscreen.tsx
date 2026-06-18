@@ -2,7 +2,7 @@ import { __isDesktop__ } from "@/types/constants"
 import { MediaEnterFullscreenRequestEvent, MediaFullscreenRequestTarget, MediaPlayerInstance } from "@vidstack/react"
 import React from "react"
 
-export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInstance>) {
+export function useFullscreenHandler(playerRef: React.RefObject<MediaPlayerInstance | null>) {
 
     React.useEffect(() => {
         let unlisten: any | null = null
