@@ -1,11 +1,9 @@
-"use client"
-
 import { weekStartsOnAtom } from "@/app/(main)/schedule/_components/schedule-calendar"
 import { cva } from "class-variance-authority"
 import { Day, formatISO, getYear, Locale, setYear } from "date-fns"
 import { useAtomValue } from "jotai/react"
 import * as React from "react"
-import { DayPickerBase } from "react-day-picker"
+import { PropsBase } from "react-day-picker"
 import { BasicField, BasicFieldOptions, extractBasicFieldProps } from "../basic-field"
 import { Calendar } from "../calendar"
 import { cn, ComponentAnatomy, defineStyleAnatomy } from "../core/styling"
@@ -66,7 +64,7 @@ export type DatePickerProps = Omit<React.ComponentPropsWithRef<"button">, "size"
      * Props to pass to the date picker
      * @see https://react-day-picker.js.org/api/interfaces/DayPickerBase
      */
-    pickerOptions?: Omit<DayPickerBase, "locale">
+    pickerOptions?: Omit<PropsBase, "locale">
     /**
      * Ref to the input element
      */
@@ -201,7 +199,7 @@ export const DatePicker = React.forwardRef<HTMLButtonElement, DatePickerProps>((
                 onSelect={handleOnSelect}
                 locale={locale}
                 initialFocus
-                tableClass="w-auto mx-auto"
+                monthGridClass="w-auto mx-auto"
                 weekStartsOn={weekStartOn as Day}
             />
             <div className="flex justify-center p-1 border-t">

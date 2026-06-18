@@ -116,7 +116,7 @@
         "react-compiler-runtime": "19.0.0-beta-e993439-20250405",
         "react-cookie": "^8.0.1",
         "react-currency-input-field": "^3.10.0",
-        "react-day-picker": "^8.10.1",
+        "react-day-picker": "^9.14.0",
         "react-dom": "^19",
         "react-draggable": "^4.5.0",
         "react-dropzone": "^14.3.8",
