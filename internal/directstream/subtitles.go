@@ -157,20 +157,44 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 		// same overall events-per-second so the pre-extraction buffer still fills well ahead
 		// of playback.
 		isLocalFile := stream.Type() == nativeplayer.StreamTypeFile
-		batchSleepDuration := 50 * time.Millisecond
-		flushInterval := 50 * time.Millisecond
-		maxBatchSize := 100
+
+		// Steady-state throttle (the gentle pace described above).
+		steadyBatchSleep := 50 * time.Millisecond
+		steadyFlushInterval := 50 * time.Millisecond
+		steadyMaxBatch := 100
 		if isLocalFile {
-			batchSleepDuration = 200 * time.Millisecond
-			flushInterval = 150 * time.Millisecond
-			maxBatchSize = 20
+			steadyBatchSleep = 200 * time.Millisecond
+			steadyFlushInterval = 150 * time.Millisecond
+			steadyMaxBatch = 20
 		}
 
-		eventBatch := make([]*mkvparser.SubtitleEvent, 0, maxBatchSize)
+		// Catch-up burst: when this stream starts mid-file (offset > 0 — a seek, or a resume
+		// after a long idle that re-initiated the stream), the parser begins extracting from the
+		// seek offset and, at the steady-state pace, takes a long time to reach the user's current
+		// position — leaving the subtitle area blank for many seconds while the trickle catches up.
+		// Send the first chunk of events quickly so subs reappear within a second or two, then
+		// settle back to the gentle pace. The burst is capped (count + modest batch size) so it
+		// can't reintroduce the steady-state stutter the throttle exists to prevent.
+		batchSleepDuration := steadyBatchSleep
+		flushInterval := steadyFlushInterval
+		maxBatchSize := steadyMaxBatch
+		catchUpRemaining := 0
+		if isLocalFile && offset > 0 {
+			catchUpRemaining = 400
+			batchSleepDuration = 25 * time.Millisecond
+			flushInterval = 30 * time.Millisecond
+			maxBatchSize = 50
+		}
+
+		eventBatch := make([]*mkvparser.SubtitleEvent, 0, 64)
+		ticker := time.NewTicker(flushInterval)
+		defer ticker.Stop()
+
 		flushBatch := func() {
 			if len(eventBatch) == 0 {
 				return
 			}
+			sent := len(eventBatch)
 			s.manager.nativePlayer.SubtitleEvents(stream.ClientId(), eventBatch)
 			lastSubtitleEventRWMutex.Lock()
 			lastSubtitleEvent = eventBatch[len(eventBatch)-1]
@@ -180,10 +204,18 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 
 			// sleep between batches to prevent flooding
 			time.Sleep(batchSleepDuration)
-		}
 
-		ticker := time.NewTicker(flushInterval)
-		defer ticker.Stop()
+			// Once the catch-up burst is spent, settle to the steady-state throttle.
+			if catchUpRemaining > 0 {
+				catchUpRemaining -= sent
+				if catchUpRemaining <= 0 {
+					batchSleepDuration = steadyBatchSleep
+					flushInterval = steadyFlushInterval
+					maxBatchSize = steadyMaxBatch
+					ticker.Reset(flushInterval)
+				}
+			}
+		}
 
 		for subtitleChannelActive || errorChannelActive { // Loop as long as at least one channel might still produce data or a final status
 			select {

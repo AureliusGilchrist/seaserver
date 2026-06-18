@@ -497,7 +497,12 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                     filter: (settings.videoEnhancement.enabled && beautifyImage)
                                         ? `contrast(${settings.videoEnhancement.contrast}) saturate(${settings.videoEnhancement.saturation}) brightness(${settings.videoEnhancement.brightness})`
                                         : "none",
-                                    imageRendering: "crisp-edges",
+                                    // Use the browser's default (hardware-accelerated, linear) scaling.
+                                    // `crisp-edges` forces nearest-neighbor scaling, which makes Chromium drop the
+                                    // zero-copy hardware video overlay and rasterize every frame through the GPU
+                                    // compositor. That's cheap windowed (near 1:1) but causes constant frame drops /
+                                    // stutter once the video is upscaled to fill a fullscreen surface.
+                                    imageRendering: "auto",
                                 }}
                             >
                                 {state.playbackInfo?.mkvMetadata?.subtitleTracks?.map(track => (
