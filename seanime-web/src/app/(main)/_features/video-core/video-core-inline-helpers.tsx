@@ -45,6 +45,12 @@ export function VideoCoreInlineHelpers({
     }, [media, currentEpisodeNumber, url])
 
     React.useEffect(() => {
+        // Superseded by the in-player progress prompt/auto-update (video-core-auto-progress.tsx),
+        // which covers both the online and local players. Disabled here to avoid a duplicate
+        // "Update progress" UI on the online stream page.
+        const SUPERSEDED_BY_PROGRESS_PROMPT = true as boolean
+        if (SUPERSEDED_BY_PROGRESS_PROMPT) return
+
         if (!playerRef.current || !media || currentEpisodeNumber === null || !url) return
 
         const PROGRESS_THRESHOLD = 0.8

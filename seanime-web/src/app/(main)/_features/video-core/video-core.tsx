@@ -56,6 +56,7 @@ import {
 import { VideoCoreDrawer } from "@/app/(main)/_features/video-core/video-core-drawer"
 import { useVideoCoreSetupEvents } from "@/app/(main)/_features/video-core/video-core-events"
 import { vc_fullscreenManager, VideoCoreFullscreenManager } from "@/app/(main)/_features/video-core/video-core-fullscreen"
+import { useVideoCoreAutoProgress, VideoCoreProgressPrompt } from "@/app/(main)/_features/video-core/video-core-auto-progress"
 import {
     useVideoCoreHls,
     vc_hlsAudioTracks,
@@ -401,6 +402,8 @@ const PlayerContent = React.memo<PlayerContentProps>(({
 
                         <VideoCoreOverlayDisplay />
 
+                        <VideoCoreProgressPrompt />
+
                         {buffering && (
                             <div
                                 data-vc-element="buffering-indicator"
@@ -722,6 +725,9 @@ export function VideoCore(props: VideoCoreProps) {
     const setRealVideoSize = useSetAtom(vc_realVideoSize)
     useVideoCoreBindings(videoElement, state.playbackInfo)
     useVideoCorePlaylistSetup(state, onPlayEpisode)
+
+    // Client-side AniList progress at 80% (reliable REST path) for both online + local players
+    const { onReachedThreshold: onReachedProgressThreshold } = useVideoCoreAutoProgress(state)
 
     const { isParticipant: isWatchPartyParticipant } = useNakamaWatchParty()
 
@@ -1373,6 +1379,7 @@ export function VideoCore(props: VideoCoreProps) {
             videoCompletedRef.current = true
             onCompleted?.()
             dispatchVideoCompletedEvent()
+            onReachedProgressThreshold()
         }
     }
 
