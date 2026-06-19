@@ -39,10 +39,14 @@ type (
 		refreshAnimeCollectionFunc func() // This function is called to refresh the AniList collection
 		isOfflineRef               *util.Ref[bool]
 
-		playbackStatusMu sync.RWMutex
-		playbackStatus   *PlaybackStatus
-		playbackStateMu  sync.RWMutex
-		playbackState    *PlaybackState
+		// Per-client playback state/status, keyed by clientId, so multiple frontends
+		// (e.g. several Denshi apps connected to one server over a LAN/NAS) can watch
+		// independently without clobbering each other. lastActiveClientId is used by the
+		// legacy single-playback accessors (GetPlaybackState/controls without a clientId).
+		playbackMu         sync.RWMutex
+		playbackStates     map[string]*PlaybackState
+		playbackStatuses   map[string]*PlaybackStatus
+		lastActiveClientId string
 
 		subscribers *result.Map[string, *Subscriber]
 
@@ -89,6 +93,8 @@ func New(opts NewVideoCoreOptions) *VideoCore {
 		platformRef:                 opts.PlatformRef,
 		refreshAnimeCollectionFunc:  opts.RefreshAnimeCollectionFunc,
 		isOfflineRef:                opts.IsOfflineRef,
+		playbackStates:              make(map[string]*PlaybackState),
+		playbackStatuses:            make(map[string]*PlaybackStatus),
 		subscribers:                 result.NewMap[string, *Subscriber](),
 		clientPlayerEventSubscriber: opts.WsEventManager.SubscribeToClientVideoCoreEvents("videocore"),
 		logger:                      opts.Logger,
@@ -148,8 +154,13 @@ func (vc *VideoCore) RecordEvent(event *mkvparser.SubtitleEvent) {
 }
 
 func (vc *VideoCore) PushEvent(event VideoEvent) {
-	// Before pushing the event, identify it with the playback state.
-	state, ok := vc.GetPlaybackState()
+	// Legacy push: identify against the last-active client's state.
+	vc.pushEventFor(vc.currentClientId(), event)
+}
+
+// pushEventFor identifies and pushes an event using a specific client's playback state.
+func (vc *VideoCore) pushEventFor(clientId string, event VideoEvent) {
+	state, ok := vc.getPlaybackStateFor(clientId)
 	if !ok {
 		return
 	}
@@ -191,11 +202,11 @@ func (vc *VideoCore) dispatchEvent(event VideoEvent) {
 
 // sendPlayerEventTo sends an event of type events.VideoCoreEventType to the client.
 func (vc *VideoCore) sendPlayerEventTo(clientId string, t string, payload interface{}, noLog ...bool) {
-	vc.playbackStatusMu.RLock()
-	if vc.playbackStatus != nil && len(vc.playbackStatus.Id) > 0 && vc.playbackStatus.Duration > 0 && clientId == "" {
-		clientId = vc.playbackStatus.ClientId
+	if clientId == "" {
+		if st, ok := vc.getPlaybackStatusFor(vc.currentClientId()); ok {
+			clientId = st.ClientId
+		}
 	}
-	vc.playbackStatusMu.RUnlock()
 
 	if len(noLog) == 0 || !noLog[0] {
 		vc.logger.Trace().Msgf("videocore: Sending event %s to client %s", t, clientId)
@@ -281,33 +292,104 @@ func (vc *VideoCore) RegisterEventCallback(callback func(event VideoEvent) bool)
 	return cancel
 }
 
+func (vc *VideoCore) currentClientId() string {
+	vc.playbackMu.RLock()
+	defer vc.playbackMu.RUnlock()
+	return vc.lastActiveClientId
+}
+
+// ---- Per-client state accessors ----
+
+func (vc *VideoCore) getPlaybackStateFor(clientId string) (*PlaybackState, bool) {
+	vc.playbackMu.RLock()
+	defer vc.playbackMu.RUnlock()
+	state := vc.playbackStates[clientId]
+	return state, state != nil && state.PlaybackInfo != nil && state.PlaybackInfo.Episode != nil
+}
+
+func (vc *VideoCore) getPlaybackStatusFor(clientId string) (*PlaybackStatus, bool) {
+	vc.playbackMu.RLock()
+	defer vc.playbackMu.RUnlock()
+	status := vc.playbackStatuses[clientId]
+	return status, status != nil && len(status.Id) > 0 && status.Duration > 0
+}
+
+func (vc *VideoCore) setPlaybackStateFor(clientId string, state *PlaybackState) {
+	vc.playbackMu.Lock()
+	if state == nil {
+		delete(vc.playbackStates, clientId)
+		if vc.lastActiveClientId == clientId {
+			vc.lastActiveClientId = ""
+		}
+		vc.playbackMu.Unlock()
+		return
+	}
+	vc.playbackStates[clientId] = state
+	vc.lastActiveClientId = clientId
+	vc.playbackMu.Unlock()
+}
+
+func (vc *VideoCore) setPlaybackStatusFor(clientId string, status *PlaybackStatus) {
+	vc.playbackMu.Lock()
+	if status == nil {
+		delete(vc.playbackStatuses, clientId)
+		vc.playbackMu.Unlock()
+		return
+	}
+	vc.playbackStatuses[clientId] = status
+	shouldNotify := len(status.Id) > 0 && status.Duration > 0
+	ct, dur, paused := status.CurrentTime, status.Duration, status.Paused
+	vc.playbackMu.Unlock()
+	if shouldNotify {
+		vc.pushEventFor(clientId, &VideoStatusEvent{CurrentTime: ct, Duration: dur, Paused: paused})
+	}
+}
+
+// updatePlaybackStatusForFn mutates a specific client's status (if it exists) and notifies subscribers.
+func (vc *VideoCore) updatePlaybackStatusForFn(clientId string, do func(s *PlaybackStatus)) {
+	vc.playbackMu.Lock()
+	status := vc.playbackStatuses[clientId]
+	if status == nil || len(status.Id) == 0 || status.Duration <= 0 {
+		vc.playbackMu.Unlock()
+		return
+	}
+	do(status)
+	ct, dur, paused := status.CurrentTime, status.Duration, status.Paused
+	vc.playbackMu.Unlock()
+	vc.pushEventFor(clientId, &VideoStatusEvent{CurrentTime: ct, Duration: dur, Paused: paused})
+}
+
+func (vc *VideoCore) clearPlaybackFor(clientId string) {
+	vc.playbackMu.Lock()
+	delete(vc.playbackStates, clientId)
+	delete(vc.playbackStatuses, clientId)
+	if vc.lastActiveClientId == clientId {
+		vc.lastActiveClientId = ""
+	}
+	vc.playbackMu.Unlock()
+}
+
+// ---- Legacy (last-active client) accessors ----
+
 func (vc *VideoCore) GetPlaybackStatus() (*PlaybackStatus, bool) {
-	vc.playbackStatusMu.RLock()
-	defer vc.playbackStatusMu.RUnlock()
-	return vc.playbackStatus, vc.playbackStatus != nil && len(vc.playbackStatus.Id) > 0 && vc.playbackStatus.Duration > 0
+	return vc.getPlaybackStatusFor(vc.currentClientId())
 }
 
-// GetPlaybackState returns the current playback state of the player.
-// This will return nil right after VideoTerminatedEvent is received.
+// GetPlaybackState returns the last-active client's playback state.
 func (vc *VideoCore) GetPlaybackState() (*PlaybackState, bool) {
-	vc.playbackStateMu.RLock()
-	defer vc.playbackStateMu.RUnlock()
-	return vc.playbackState, vc.playbackState != nil && vc.playbackState.PlaybackInfo != nil && vc.playbackState.PlaybackInfo.Episode != nil
+	return vc.getPlaybackStateFor(vc.currentClientId())
 }
 
-// GetCurrentPlaybackInfo returns the current playback info of the player.
-// This will return nil right after VideoTerminatedEvent is received.
+// GetCurrentPlaybackInfo returns the last-active client's playback info.
 func (vc *VideoCore) GetCurrentPlaybackInfo() (*VideoPlaybackInfo, bool) {
-	vc.playbackStateMu.RLock()
-	defer vc.playbackStateMu.RUnlock()
-	if vc.playbackState == nil {
+	state, ok := vc.GetPlaybackState()
+	if !ok {
 		return nil, false
 	}
-	return vc.playbackState.PlaybackInfo, true
+	return state.PlaybackInfo, true
 }
 
-// GetCurrentMedia returns the current media.
-// This will return nil right after VideoTerminatedEvent is received.
+// GetCurrentMedia returns the last-active client's media.
 func (vc *VideoCore) GetCurrentMedia() (*anilist.BaseAnime, bool) {
 	info, ok := vc.GetCurrentPlaybackInfo()
 	if !ok {
@@ -316,18 +398,12 @@ func (vc *VideoCore) GetCurrentMedia() (*anilist.BaseAnime, bool) {
 	return info.Media, true
 }
 
-// GetCurrentClientId returns the current client id.
-// This will return an empty string right after VideoTerminatedEvent is received, use VideoEvent.GetClientId() instead.
+// GetCurrentClientId returns the last-active client id.
 func (vc *VideoCore) GetCurrentClientId() string {
-	state, ok := vc.GetPlaybackState()
-	if !ok {
-		return ""
-	}
-	return state.ClientId
+	return vc.currentClientId()
 }
 
-// GetCurrentPlayerType returns the current player type.
-// This will return false right after VideoTerminatedEvent is received, use VideoEvent.GetPlayerType() instead.
+// GetCurrentPlayerType returns the last-active client's player type.
 func (vc *VideoCore) GetCurrentPlayerType() (PlayerType, bool) {
 	state, ok := vc.GetPlaybackState()
 	if !ok {
@@ -336,8 +412,7 @@ func (vc *VideoCore) GetCurrentPlayerType() (PlayerType, bool) {
 	return state.PlayerType, true
 }
 
-// GetCurrentPlaybackType returns the current playback type.
-// This will return false right after VideoTerminatedEvent is received, use VideoEvent.GetPlaybackType() instead.
+// GetCurrentPlaybackType returns the last-active client's playback type.
 func (vc *VideoCore) GetCurrentPlaybackType() (PlaybackType, bool) {
 	info, ok := vc.GetCurrentPlaybackInfo()
 	if !ok {
@@ -347,63 +422,22 @@ func (vc *VideoCore) GetCurrentPlaybackType() (PlaybackType, bool) {
 }
 
 func (vc *VideoCore) clearPlayback() {
-	vc.setPlaybackStatus(nil)
-	vc.setPlaybackState(nil)
+	vc.clearPlaybackFor(vc.currentClientId())
 }
 
 func (vc *VideoCore) setPlaybackState(state *PlaybackState) {
-	vc.playbackStateMu.Lock()
-	defer vc.playbackStateMu.Unlock()
-	vc.playbackState = state
+	if state == nil {
+		vc.clearPlaybackFor(vc.currentClientId())
+		return
+	}
+	vc.setPlaybackStateFor(state.ClientId, state)
 }
 
 func (vc *VideoCore) setPlaybackStatus(status *PlaybackStatus) {
-	vc.setPlaybackStatusFn(status)
-}
-
-// setPlaybackStatus sets the current playback status of the player.
-// and notifies all subscribers of the change (if it exists).
-func (vc *VideoCore) setPlaybackStatusFn(status *PlaybackStatus) {
-	vc.playbackStatusMu.Lock()
-	vc.playbackStatus = status
-	shouldNotify := vc.playbackStatus != nil && len(vc.playbackStatus.Id) > 0 && vc.playbackStatus.Duration > 0
-	var currentTime, duration float64
-	var paused bool
-	if shouldNotify {
-		currentTime = vc.playbackStatus.CurrentTime
-		duration = vc.playbackStatus.Duration
-		paused = vc.playbackStatus.Paused
-	}
-	vc.playbackStatusMu.Unlock()
-
-	if shouldNotify {
-		vc.PushEvent(&VideoStatusEvent{
-			CurrentTime: currentTime,
-			Duration:    duration,
-			Paused:      paused,
-		})
-	}
-}
-
-// updatePlaybackStatus updates the current playback status of the player only if it exists.
-// and notifies all subscribers of the change.
-func (vc *VideoCore) updatePlaybackStatusFn(do func()) {
-	vc.playbackStatusMu.Lock()
-	if vc.playbackStatus == nil || len(vc.playbackStatus.Id) == 0 || vc.playbackStatus.Duration <= 0 {
-		vc.playbackStatusMu.Unlock()
+	if status == nil {
 		return
 	}
-	do()
-	currentTime := vc.playbackStatus.CurrentTime
-	duration := vc.playbackStatus.Duration
-	paused := vc.playbackStatus.Paused
-	vc.playbackStatusMu.Unlock()
-
-	vc.PushEvent(&VideoStatusEvent{
-		CurrentTime: currentTime,
-		Duration:    duration,
-		Paused:      paused,
-	})
+	vc.setPlaybackStatusFor(status.ClientId, status)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -746,45 +780,43 @@ func (vc *VideoCore) listenToClientEvents() {
 				marshaled, _ := json.Marshal(clientEvent.Payload)
 				// Unmarshal the player event
 				if err := json.Unmarshal(marshaled, &playerEvent); err == nil {
-					// Validate that the event is from the current client
-					currentState, hasState := vc.GetPlaybackState()
-					if hasState && clientEvent.ClientID != "" && clientEvent.ClientID != currentState.ClientId {
-						continue
-					}
+					// Route every event by its originating client so multiple frontends
+					// (several Denshi apps on one server) can play independently.
+					clientId := clientEvent.ClientID
 
 					// Handle events
 					switch playerEvent.Type {
 					case PlayerEventVideoLoaded:
 						payload := &clientVideoLoadedPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.setPlaybackState(&payload.State)
-							vc.PushEvent(&VideoLoadedEvent{
+							vc.setPlaybackStateFor(clientId, &payload.State)
+							vc.pushEventFor(clientId, &VideoLoadedEvent{
 								State: payload.State,
 							})
 						}
 					case PlayerEventVideoPlaybackState:
 						payload := &clientVideoLoadedPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.setPlaybackState(&payload.State)
-							vc.PushEvent(&VideoPlaybackStateEvent{
+							vc.setPlaybackStateFor(clientId, &payload.State)
+							vc.pushEventFor(clientId, &VideoPlaybackStateEvent{
 								State: payload.State,
 							})
 						}
 					case PlayerEventVideoLoadedMetadata:
 						payload := &clientVideoStatusPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							ps, ok := vc.GetPlaybackState()
+							ps, ok := vc.getPlaybackStateFor(clientId)
 							if !ok {
 								continue
 							}
-							vc.setPlaybackStatus(&PlaybackStatus{
+							vc.setPlaybackStatusFor(clientId, &PlaybackStatus{
 								Id:          ps.PlaybackInfo.Id,
-								ClientId:    ps.ClientId,
+								ClientId:    clientId,
 								CurrentTime: payload.CurrentTime,
 								Duration:    payload.Duration,
 								Paused:      payload.Paused,
 							})
-							vc.PushEvent(&VideoLoadedMetadataEvent{
+							vc.pushEventFor(clientId, &VideoLoadedMetadataEvent{
 								CurrentTime: payload.CurrentTime,
 								Duration:    payload.Duration,
 								Paused:      payload.Paused,
@@ -793,12 +825,12 @@ func (vc *VideoCore) listenToClientEvents() {
 					case PlayerEventVideoCanPlay:
 						payload := &clientVideoStatusPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.updatePlaybackStatusFn(func() {
-								vc.playbackStatus.Duration = payload.Duration
-								vc.playbackStatus.CurrentTime = payload.CurrentTime
-								vc.playbackStatus.Paused = payload.Paused
+							vc.updatePlaybackStatusForFn(clientId, func(s *PlaybackStatus) {
+								s.Duration = payload.Duration
+								s.CurrentTime = payload.CurrentTime
+								s.Paused = payload.Paused
 							})
-							vc.PushEvent(&VideoCanPlayEvent{
+							vc.pushEventFor(clientId, &VideoCanPlayEvent{
 								CurrentTime: payload.CurrentTime,
 								Duration:    payload.Duration,
 								Paused:      payload.Paused,
@@ -807,12 +839,12 @@ func (vc *VideoCore) listenToClientEvents() {
 					case PlayerEventVideoSeeked:
 						payload := &clientVideoStatusPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.updatePlaybackStatusFn(func() {
-								vc.playbackStatus.Duration = payload.Duration
-								vc.playbackStatus.CurrentTime = payload.CurrentTime
-								vc.playbackStatus.Paused = payload.Paused
+							vc.updatePlaybackStatusForFn(clientId, func(s *PlaybackStatus) {
+								s.Duration = payload.Duration
+								s.CurrentTime = payload.CurrentTime
+								s.Paused = payload.Paused
 							})
-							vc.PushEvent(&VideoSeekedEvent{
+							vc.pushEventFor(clientId, &VideoSeekedEvent{
 								CurrentTime: payload.CurrentTime,
 								Duration:    payload.Duration,
 								Paused:      payload.Paused,
@@ -821,12 +853,12 @@ func (vc *VideoCore) listenToClientEvents() {
 					case PlayerEventVideoPaused:
 						payload := &clientVideoStatusPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.updatePlaybackStatusFn(func() {
-								vc.playbackStatus.Duration = payload.Duration
-								vc.playbackStatus.CurrentTime = payload.CurrentTime
-								vc.playbackStatus.Paused = true
+							vc.updatePlaybackStatusForFn(clientId, func(s *PlaybackStatus) {
+								s.Duration = payload.Duration
+								s.CurrentTime = payload.CurrentTime
+								s.Paused = true
 							})
-							vc.PushEvent(&VideoPausedEvent{
+							vc.pushEventFor(clientId, &VideoPausedEvent{
 								CurrentTime: payload.CurrentTime,
 								Duration:    payload.Duration,
 							})
@@ -834,12 +866,12 @@ func (vc *VideoCore) listenToClientEvents() {
 					case PlayerEventVideoResumed:
 						payload := &clientVideoStatusPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.updatePlaybackStatusFn(func() {
-								vc.playbackStatus.Duration = payload.Duration
-								vc.playbackStatus.CurrentTime = payload.CurrentTime
-								vc.playbackStatus.Paused = false
+							vc.updatePlaybackStatusForFn(clientId, func(s *PlaybackStatus) {
+								s.Duration = payload.Duration
+								s.CurrentTime = payload.CurrentTime
+								s.Paused = false
 							})
-							vc.PushEvent(&VideoResumedEvent{
+							vc.pushEventFor(clientId, &VideoResumedEvent{
 								CurrentTime: payload.CurrentTime,
 								Duration:    payload.Duration,
 							})
@@ -847,32 +879,32 @@ func (vc *VideoCore) listenToClientEvents() {
 					case PlayerEventVideoEnded:
 						payload := &clientVideoEndedPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.updatePlaybackStatusFn(func() {
-								vc.playbackStatus.CurrentTime = vc.playbackStatus.Duration
-								vc.playbackStatus.Paused = true
+							vc.updatePlaybackStatusForFn(clientId, func(s *PlaybackStatus) {
+								s.CurrentTime = s.Duration
+								s.Paused = true
 							})
-							vc.PushEvent(&VideoEndedEvent{
+							vc.pushEventFor(clientId, &VideoEndedEvent{
 								AutoNext: payload.AutoNext,
 							})
 						}
 					case PlayerEventVideoStatus:
 						payload := &clientVideoStatusPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.updatePlaybackStatusFn(func() {
-								vc.playbackStatus.Duration = payload.Duration
-								vc.playbackStatus.CurrentTime = payload.CurrentTime
-								vc.playbackStatus.Paused = payload.Paused
+							vc.updatePlaybackStatusForFn(clientId, func(s *PlaybackStatus) {
+								s.Duration = payload.Duration
+								s.CurrentTime = payload.CurrentTime
+								s.Paused = payload.Paused
 							})
 						}
 					case PlayerEventVideoCompleted:
 						payload := &clientVideoStatusPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.updatePlaybackStatusFn(func() {
-								vc.playbackStatus.Duration = payload.Duration
-								vc.playbackStatus.CurrentTime = payload.CurrentTime
-								vc.playbackStatus.Paused = payload.Paused
+							vc.updatePlaybackStatusForFn(clientId, func(s *PlaybackStatus) {
+								s.Duration = payload.Duration
+								s.CurrentTime = payload.CurrentTime
+								s.Paused = payload.Paused
 							})
-							vc.PushEvent(&VideoCompletedEvent{
+							vc.pushEventFor(clientId, &VideoCompletedEvent{
 								CurrentTime: payload.CurrentTime,
 								Duration:    payload.Duration,
 							})
@@ -880,14 +912,14 @@ func (vc *VideoCore) listenToClientEvents() {
 					case PlayerEventVideoFullscreen:
 						payload := &clientVideoFullscreenPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.PushEvent(&VideoFullscreenEvent{
+							vc.pushEventFor(clientId, &VideoFullscreenEvent{
 								Fullscreen: payload.Fullscreen,
 							})
 						}
 					case PlayerEventVideoSubtitleTrack:
 						payload := &clientVideoSubtitleTrackPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.PushEvent(&VideoSubtitleTrackEvent{
+							vc.pushEventFor(clientId, &VideoSubtitleTrackEvent{
 								TrackNumber: payload.TrackNumber,
 								Kind:        payload.Kind,
 							})
@@ -895,7 +927,7 @@ func (vc *VideoCore) listenToClientEvents() {
 					case PlayerEventVideoSubtitleTrackContent:
 						payload := &clientVideoSubtitleTrackContentPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.PushEvent(&VideoSubtitleTrackContentEvent{
+							vc.pushEventFor(clientId, &VideoSubtitleTrackContentEvent{
 								Content: payload.Content,
 								Type:    payload.Type,
 							})
@@ -903,14 +935,14 @@ func (vc *VideoCore) listenToClientEvents() {
 					case PlayerEventMediaCaptionTrack:
 						payload := &clientVideoMediaCaptionTrackPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.PushEvent(&VideoMediaCaptionTrackEvent{
+							vc.pushEventFor(clientId, &VideoMediaCaptionTrackEvent{
 								TrackIndex: payload.TrackIndex,
 							})
 						}
 					case PlayerEventVideoAudioTrack:
 						payload := &clientVideoAudioTrackPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.PushEvent(&VideoAudioTrackEvent{
+							vc.pushEventFor(clientId, &VideoAudioTrackEvent{
 								TrackNumber: payload.TrackNumber,
 								IsHls:       payload.IsHls,
 							})
@@ -918,32 +950,32 @@ func (vc *VideoCore) listenToClientEvents() {
 					case PlayerEventAnime4K:
 						payload := &clientVideoAnime4KPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.PushEvent(&VideoAnime4KEvent{
+							vc.pushEventFor(clientId, &VideoAnime4KEvent{
 								Option: payload.Option,
 							})
 						}
 					case PlayerEventVideoPip:
 						payload := &clientVideoPipPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.PushEvent(&VideoPipEvent{
+							vc.pushEventFor(clientId, &VideoPipEvent{
 								Pip: payload.Pip,
 							})
 						}
 					case PlayerEventVideoError:
 						payload := &clientVideoErrorPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.PushEvent(&VideoErrorEvent{
+							vc.pushEventFor(clientId, &VideoErrorEvent{
 								Error: payload.Error,
 							})
 						}
 					case PlayerEventVideoTerminated:
 						// No payload
-						vc.PushEvent(&VideoTerminatedEvent{})
-						vc.clearPlayback()
+						vc.pushEventFor(clientId, &VideoTerminatedEvent{})
+						vc.clearPlaybackFor(clientId)
 					case PlayerEventSubtitleFileUploaded:
 						payload := &clientSubtitleFileUploadedPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							vc.PushEvent(&SubtitleFileUploadedEvent{
+							vc.pushEventFor(clientId, &SubtitleFileUploadedEvent{
 								Filename: payload.Filename,
 								Content:  payload.Content,
 							})
@@ -951,14 +983,14 @@ func (vc *VideoCore) listenToClientEvents() {
 					case PlayerEventVideoPlaylist:
 						payload := &clientVideoPlaylistPayload{}
 						if err := playerEvent.UnmarshalAs(payload); err == nil {
-							vc.PushEvent(&VideoPlaylistEvent{
+							vc.pushEventFor(clientId, &VideoPlaylistEvent{
 								Playlist: &payload.Playlist,
 							})
 						}
 					case PlayerEventVideoTextTracks:
 						payload := &clientVideoTextTracksPayload{}
 						if err := playerEvent.UnmarshalAs(payload); err == nil {
-							vc.PushEvent(&VideoTextTracksEvent{
+							vc.pushEventFor(clientId, &VideoTextTracksEvent{
 								TextTracks: payload.TextTracks,
 							})
 						}
@@ -967,7 +999,7 @@ func (vc *VideoCore) listenToClientEvents() {
 						if err := playerEvent.UnmarshalAs(payload); err == nil {
 							// Translate in a goroutine
 							go func() {
-								state, ok := vc.GetPlaybackState()
+								state, ok := vc.getPlaybackStateFor(clientId)
 								if !ok {
 									return
 								}
@@ -988,7 +1020,7 @@ func (vc *VideoCore) listenToClientEvents() {
 							// Translate in a goroutine
 							go func() {
 								vc.logger.Trace().Msgf("videocore: Received subtitle track translation request")
-								state, ok := vc.GetPlaybackState()
+								state, ok := vc.getPlaybackStateFor(clientId)
 								if !ok {
 									return
 								}

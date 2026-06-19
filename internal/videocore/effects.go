@@ -34,7 +34,7 @@ func (vc *VideoCore) setupSharedEffects() {
 					go vc.discordPresence.Close()
 				}
 			case *VideoLoadedMetadataEvent:
-				state, ok := vc.GetPlaybackState()
+				state, ok := vc.getPlaybackStateFor(event.GetClientId())
 				if !ok {
 					continue
 				}
@@ -55,7 +55,7 @@ func (vc *VideoCore) setupSharedEffects() {
 					go vc.discordPresence.Close()
 				}
 			case *VideoCompletedEvent:
-				state, ok := vc.GetPlaybackState()
+				state, ok := vc.getPlaybackStateFor(event.GetClientId())
 				if !ok {
 					continue
 				}
@@ -99,7 +99,7 @@ func (vc *VideoCore) setupSharedEffects() {
 					go vc.discordPresence.Close()
 				}
 			case *VideoStatusEvent:
-				state, ok := vc.GetPlaybackState()
+				state, ok := vc.getPlaybackStateFor(event.GetClientId())
 				if !ok {
 					continue
 				}
