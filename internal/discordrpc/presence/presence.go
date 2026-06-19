@@ -27,6 +27,13 @@ type Presence struct {
 	animeActivity               *AnimeActivity
 	lastAnimeActivityUpdateSent time.Time
 
+	// Per-client anime activity (keyed by VideoCore clientId) so multiple frontends
+	// connected to one server each get their own Discord rich presence, applied on
+	// their own machine via the Electron Discord bridge.
+	clientActivities    map[string]*AnimeActivity
+	clientLastUpdate    map[string]time.Time
+	clientBroadcastSigs map[string]string
+
 	lastSent   time.Time
 	eventQueue chan func()
 	cancelFunc context.CancelFunc // Cancel function for the event loop context
@@ -62,6 +69,9 @@ func New(settings *models.DiscordSettings, logger *zerolog.Logger) *Presence {
 		lastSent:                    time.Now().Add(-5 * time.Second),
 		hasSent:                     false,
 		eventQueue:                  make(chan func(), 100),
+		clientActivities:            make(map[string]*AnimeActivity),
+		clientLastUpdate:            make(map[string]time.Time),
+		clientBroadcastSigs:         make(map[string]string),
 	}
 
 	if settings != nil && settings.EnableRichPresence {
@@ -271,6 +281,16 @@ func animeActivityKey(a *AnimeActivity) string {
 }
 
 func (p *Presence) SetAnimeActivity(a *AnimeActivity) {
+	p.setAnimeActivityImpl("", a)
+}
+
+// SetAnimeActivityFor sets a per-client anime activity, delivered only to that client's
+// machine (via the Electron Discord bridge), so multiple frontends each show their own status.
+func (p *Presence) SetAnimeActivityFor(clientId string, a *AnimeActivity) {
+	p.setAnimeActivityImpl(clientId, a)
+}
+
+func (p *Presence) setAnimeActivityImpl(clientId string, a *AnimeActivity) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -285,7 +305,11 @@ func (p *Presence) SetAnimeActivity(a *AnimeActivity) {
 	}
 
 	// Clear the queue if the anime activity is different
-	if p.animeActivity != nil && animeActivityKey(a) != animeActivityKey(p.animeActivity) {
+	prevActivity := p.animeActivity
+	if clientId != "" {
+		prevActivity = p.clientActivities[clientId]
+	}
+	if prevActivity != nil && animeActivityKey(a) != animeActivityKey(prevActivity) {
 		p.clearEventQueue()
 	}
 
@@ -341,7 +365,11 @@ func (p *Presence) SetAnimeActivity(a *AnimeActivity) {
 
 	// p.logger.Debug().Msgf("discordrpc: Setting anime activity: %s", a.Title)
 
-	p.animeActivity = a
+	if clientId != "" {
+		p.clientActivities[clientId] = a
+	} else {
+		p.animeActivity = a
+	}
 
 	event.AnimeActivity = a
 	event.Name = activity.Name
@@ -410,7 +438,58 @@ func (p *Presence) SetAnimeActivity(a *AnimeActivity) {
 	default:
 		//p.logger.Error().Msgf("discordrpc: event queue is full for %s", a.Title)
 	}
-	p.broadcastActivity(&activity)
+	p.broadcastActivityTo(clientId, &activity)
+}
+
+// UpdateAnimeActivityFor updates a specific client's anime activity (progress/pause).
+func (p *Presence) UpdateAnimeActivityFor(clientId string, progress int, duration int, paused bool) {
+	defer util.HandlePanicInModuleThen("discordrpc/presence/UpdateAnimeActivityFor", func() {})
+	if clientId == "" {
+		p.UpdateAnimeActivity(progress, duration, paused)
+		return
+	}
+
+	p.mu.Lock()
+	act := p.clientActivities[clientId]
+	if act == nil {
+		p.mu.Unlock()
+		return
+	}
+	act.Progress = progress
+	act.Duration = duration
+	pauseChanged := act.Paused != paused
+	if pauseChanged {
+		act.Paused = paused
+		p.clientLastUpdate[clientId] = time.Now()
+	}
+	last := p.clientLastUpdate[clientId]
+	p.mu.Unlock()
+
+	if pauseChanged {
+		p.clearEventQueue()
+		p.SetAnimeActivityFor(clientId, act)
+		return
+	}
+	if !paused && time.Since(last) > 6*time.Second {
+		p.mu.Lock()
+		p.clientLastUpdate[clientId] = time.Now()
+		p.mu.Unlock()
+		p.SetAnimeActivityFor(clientId, act)
+	}
+}
+
+// CloseFor clears a specific client's Discord presence (on that client's machine).
+func (p *Presence) CloseFor(clientId string) {
+	if clientId == "" {
+		p.Close()
+		return
+	}
+	defer util.HandlePanicInModuleThen("discordrpc/presence/CloseFor", func() {})
+	p.mu.Lock()
+	delete(p.clientActivities, clientId)
+	delete(p.clientLastUpdate, clientId)
+	p.mu.Unlock()
+	p.broadcastClearTo(clientId)
 }
 
 // clearEventQueue drains the event queue channel
@@ -700,6 +779,12 @@ type DiscordActivityPayload struct {
 }
 
 func (p *Presence) broadcastActivity(activity *discordrpc_client.Activity) {
+	p.broadcastActivityTo("", activity)
+}
+
+// broadcastActivityTo sends the activity to a single client (clientId != "") via the Electron
+// Discord bridge, or to all clients (clientId == "") for the legacy single-presence path.
+func (p *Presence) broadcastActivityTo(clientId string, activity *discordrpc_client.Activity) {
 	defer util.HandlePanicInModuleThen("discordrpc/presence/broadcastActivity", func() {})
 	if events.GlobalWSEventManager == nil {
 		p.logger.Warn().Msg("discordrpc: WS event manager is nil, cannot broadcast activity to remote clients")
@@ -742,13 +827,26 @@ func (p *Presence) broadcastActivity(activity *discordrpc_client.Activity) {
 	// this guard it spams the logs and triggers a redundant setActivity on every desktop client.
 	sig := discordActivitySignature(&payload)
 	p.broadcastMu.Lock()
-	if sig == p.lastBroadcastSig {
-		p.broadcastMu.Unlock()
-		return
+	if clientId != "" {
+		if sig == p.clientBroadcastSigs[clientId] {
+			p.broadcastMu.Unlock()
+			return
+		}
+		p.clientBroadcastSigs[clientId] = sig
+	} else {
+		if sig == p.lastBroadcastSig {
+			p.broadcastMu.Unlock()
+			return
+		}
+		p.lastBroadcastSig = sig
 	}
-	p.lastBroadcastSig = sig
 	p.broadcastMu.Unlock()
 
+	if clientId != "" {
+		p.logger.Debug().Str("clientId", clientId).Str("details", payload.Details).Str("state", payload.State).Msg("discordrpc: sending activity to client")
+		events.GlobalWSEventManager.SendEventTo(clientId, DiscordActivityUpdateEvent, payload)
+		return
+	}
 	p.logger.Debug().Str("name", payload.Name).Str("details", payload.Details).Str("state", payload.State).Msg("discordrpc: broadcasting activity to remote clients")
 	events.GlobalWSEventManager.SendEvent(DiscordActivityUpdateEvent, payload)
 }
@@ -778,4 +876,16 @@ func (p *Presence) broadcastClear() {
 	p.broadcastMu.Unlock()
 	p.logger.Debug().Msg("discordrpc: broadcasting clear to remote clients")
 	events.GlobalWSEventManager.SendEvent(DiscordActivityClearEvent, struct{}{})
+}
+
+// broadcastClearTo tells a single client to clear its Discord presence.
+func (p *Presence) broadcastClearTo(clientId string) {
+	defer util.HandlePanicInModuleThen("discordrpc/presence/broadcastClearTo", func() {})
+	if events.GlobalWSEventManager == nil {
+		return
+	}
+	p.broadcastMu.Lock()
+	delete(p.clientBroadcastSigs, clientId)
+	p.broadcastMu.Unlock()
+	events.GlobalWSEventManager.SendEventTo(clientId, DiscordActivityClearEvent, struct{}{})
 }
