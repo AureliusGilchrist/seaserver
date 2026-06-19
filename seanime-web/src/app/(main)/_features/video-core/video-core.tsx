@@ -760,6 +760,7 @@ export function VideoCore(props: VideoCoreProps) {
     const perMediaTrackOverrides = useAtomValue(vc_perMediaTrackOverrides)
     const [isMiniPlayer, setIsMiniPlayer] = useAtom(vc_miniPlayer)
     const [busy, setBusy] = useAtom(vc_busy)
+    const paused = useAtomValue(vc_paused)
     const [buffering, setBuffering] = useAtom(vc_buffering)
     const duration = useAtomValue(vc_duration)
     const fullscreen = useAtomValue(vc_isFullscreen)
@@ -1679,6 +1680,21 @@ export function VideoCore(props: VideoCoreProps) {
             }
         }
     }, [])
+
+    // Auto-hide the controls/cursor a short while after playback becomes active, even
+    // without pointer movement. Without this, after an auto-next episode change the
+    // control bar reappears (busy resets to its default) and never closes until the
+    // mouse is moved over it — which also keeps the cursor visible the whole time.
+    React.useEffect(() => {
+        if (paused || cursorBusy || isMiniPlayer || !state.playbackInfo?.id) return
+        const t = setTimeout(() => {
+            if (!cursorBusyRef.current && !videoRef.current?.paused) {
+                busyRef.current = false
+                setBusy(false)
+            }
+        }, DELAY_BEFORE_NOT_BUSY)
+        return () => clearTimeout(t)
+    }, [paused, cursorBusy, isMiniPlayer, state.playbackInfo?.id])
 
     const handleContainerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
         const { x, y } = e.nativeEvent
