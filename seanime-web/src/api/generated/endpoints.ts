@@ -441,6 +441,17 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route returns how many progress updates are queued locally awaiting AniList sync.
+         *  When AniList is unreachable, watched episodes are recorded locally and queued for retry.
+         *  This returns the queued count for the current profile so the UI can reassure the user.
+         */
+        GetPendingProgressSync: {
+            key: "ANIME-ENTRIES-get-pending-progress-sync",
+            methods: ["GET"],
+            endpoint: "/api/v1/library/anime-entry/pending-sync",
+        },
+        /**
+         *  @description
          *  Route update the repeat value of the given anime media entry.
          *  This is used to update the repeat value of the given anime media entry on AniList.
          *  The response is not used in the frontend, the client should just refetch the entire media entry data.

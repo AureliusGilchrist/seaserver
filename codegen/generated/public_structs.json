@@ -1671,6 +1671,15 @@
         "comments": []
       },
       {
+        "name": "tokenExpiredEvent",
+        "jsonName": "tokenExpiredEvent",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "httpClient",
         "jsonName": "httpClient",
         "goType": "http.Client",
@@ -30057,6 +30066,28 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "pendingStores",
+        "jsonName": "pendingStores",
+        "goType": "map[uint]shared_platform.PendingMutationStore",
+        "typescriptType": "Record\u003cnumber, PendingMutationStore\u003e",
+        "usedTypescriptType": "PendingMutationStore",
+        "usedStructName": "shared_platform.PendingMutationStore",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "pendingMu",
+        "jsonName": "pendingMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": [
@@ -40814,6 +40845,15 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "episodeCollectionCache",
+        "jsonName": "episodeCollectionCache",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": [
@@ -41374,17 +41414,6 @@
         "typescriptType": "Once",
         "usedTypescriptType": "Once",
         "usedStructName": "sync.Once",
-        "required": false,
-        "public": false,
-        "comments": []
-      },
-      {
-        "name": "serveContentCancelFunc",
-        "jsonName": "serveContentCancelFunc",
-        "goType": "context.CancelFunc",
-        "typescriptType": "CancelFunc",
-        "usedTypescriptType": "CancelFunc",
-        "usedStructName": "context.CancelFunc",
         "required": false,
         "public": false,
         "comments": []
@@ -42846,6 +42875,36 @@
         "comments": []
       },
       {
+        "name": "clientActivities",
+        "jsonName": "clientActivities",
+        "goType": "map[string]AnimeActivity",
+        "typescriptType": "Record\u003cstring, DiscordRPC_AnimeActivity\u003e",
+        "usedTypescriptType": "DiscordRPC_AnimeActivity",
+        "usedStructName": "discordrpc_presence.AnimeActivity",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "clientLastUpdate",
+        "jsonName": "clientLastUpdate",
+        "goType": "map[string]time.Time",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "clientBroadcastSigs",
+        "jsonName": "clientBroadcastSigs",
+        "goType": "map[string]string",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "lastSent",
         "jsonName": "lastSent",
         "goType": "time.Time",
@@ -42876,6 +42935,26 @@
         "comments": [
           " Cancel function for the event loop context"
         ]
+      },
+      {
+        "name": "lastBroadcastSig",
+        "jsonName": "lastBroadcastSig",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "broadcastMu",
+        "jsonName": "broadcastMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -43237,6 +43316,15 @@
       {
         "name": "Type",
         "jsonName": "type",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StatusDisplayType",
+        "jsonName": "statusDisplayType",
         "goType": "int",
         "typescriptType": "number",
         "required": false,
@@ -45109,6 +45197,17 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "writeMu",
+        "jsonName": "writeMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -46793,6 +46892,77 @@
         "usedTypescriptType": "HibikeOnlinestream_VideoSubtitle",
         "usedStructName": "hibikeonlinestream.VideoSubtitle",
         "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Skips",
+        "jsonName": "skips",
+        "goType": "VideoSourceSkips",
+        "typescriptType": "HibikeOnlinestream_VideoSourceSkips",
+        "usedTypescriptType": "HibikeOnlinestream_VideoSourceSkips",
+        "usedStructName": "hibikeonlinestream.VideoSourceSkips",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/extension/hibike/onlinestream/types.go",
+    "filename": "types.go",
+    "name": "VideoSourceSkips",
+    "formattedName": "HibikeOnlinestream_VideoSourceSkips",
+    "package": "hibikeonlinestream",
+    "fields": [
+      {
+        "name": "Intro",
+        "jsonName": "intro",
+        "goType": "VideoSourceSkipInterval",
+        "typescriptType": "HibikeOnlinestream_VideoSourceSkipInterval",
+        "usedTypescriptType": "HibikeOnlinestream_VideoSourceSkipInterval",
+        "usedStructName": "hibikeonlinestream.VideoSourceSkipInterval",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Outro",
+        "jsonName": "outro",
+        "goType": "VideoSourceSkipInterval",
+        "typescriptType": "HibikeOnlinestream_VideoSourceSkipInterval",
+        "usedTypescriptType": "HibikeOnlinestream_VideoSourceSkipInterval",
+        "usedStructName": "hibikeonlinestream.VideoSourceSkipInterval",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/extension/hibike/onlinestream/types.go",
+    "filename": "types.go",
+    "name": "VideoSourceSkipInterval",
+    "formattedName": "HibikeOnlinestream_VideoSourceSkipInterval",
+    "package": "hibikeonlinestream",
+    "fields": [
+      {
+        "name": "Start",
+        "jsonName": "start",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "End",
+        "jsonName": "end",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
         "public": true,
         "comments": []
       }
@@ -50054,6 +50224,27 @@
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/handlers/anime_entries.go",
+    "filename": "anime_entries.go",
+    "name": "PendingProgressSyncResponse",
+    "formattedName": "PendingProgressSyncResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Count",
+        "jsonName": "count",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " PendingProgressSyncResponse is the payload returned by HandleGetPendingProgressSync."
+    ]
   },
   {
     "filepath": "../internal/handlers/anime_themes.go",
@@ -61411,6 +61602,15 @@
         "comments": []
       },
       {
+        "name": "enqueueProfilePendingProgressFunc",
+        "jsonName": "enqueueProfilePendingProgressFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "mu",
         "jsonName": "mu",
         "goType": "sync.Mutex",
@@ -62321,6 +62521,15 @@
       {
         "name": "InvalidateProfileAnimeCollectionFunc",
         "jsonName": "InvalidateProfileAnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EnqueueProfilePendingProgressFunc",
+        "jsonName": "EnqueueProfilePendingProgressFunc",
         "goType": "",
         "typescriptType": "any",
         "required": true,
@@ -66705,6 +66914,15 @@
         "comments": [
           " AniList list data"
         ]
+      },
+      {
+        "name": "DownloadedChapterCount",
+        "jsonName": "downloadedChapterCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -81442,6 +81660,17 @@
         "typescriptType": "Array\u003cOnlinestream_Subtitle\u003e",
         "usedTypescriptType": "Onlinestream_Subtitle",
         "usedStructName": "onlinestream.Subtitle",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Skips",
+        "jsonName": "skips",
+        "goType": "hibikeonlinestream.VideoSourceSkips",
+        "typescriptType": "HibikeOnlinestream_VideoSourceSkips",
+        "usedTypescriptType": "HibikeOnlinestream_VideoSourceSkips",
+        "usedStructName": "hibikeonlinestream.VideoSourceSkips",
         "required": false,
         "public": true,
         "comments": []
@@ -105323,6 +105552,37 @@
   {
     "filepath": "../internal/videocore/types.go",
     "filename": "types.go",
+    "name": "VideoSubtitleTrackContentEvent",
+    "formattedName": "VideoCore_VideoSubtitleTrackContentEvent",
+    "package": "videocore",
+    "fields": [
+      {
+        "name": "Content",
+        "jsonName": "content",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [],
+    "embeddedStructNames": [
+      "videocore.BaseVideoEvent"
+    ]
+  },
+  {
+    "filepath": "../internal/videocore/types.go",
+    "filename": "types.go",
     "name": "VideoMediaCaptionTrackEvent",
     "formattedName": "VideoCore_VideoMediaCaptionTrackEvent",
     "package": "videocore",
@@ -105604,8 +105864,8 @@
         "comments": []
       },
       {
-        "name": "playbackStatusMu",
-        "jsonName": "playbackStatusMu",
+        "name": "playbackMu",
+        "jsonName": "playbackMu",
         "goType": "sync.RWMutex",
         "typescriptType": "RWMutex",
         "usedTypescriptType": "RWMutex",
@@ -105615,10 +105875,21 @@
         "comments": []
       },
       {
-        "name": "playbackStatus",
-        "jsonName": "playbackStatus",
-        "goType": "PlaybackStatus",
-        "typescriptType": "VideoCore_PlaybackStatus",
+        "name": "playbackStates",
+        "jsonName": "playbackStates",
+        "goType": "map[string]PlaybackState",
+        "typescriptType": "Record\u003cstring, VideoCore_PlaybackState\u003e",
+        "usedTypescriptType": "VideoCore_PlaybackState",
+        "usedStructName": "videocore.PlaybackState",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "playbackStatuses",
+        "jsonName": "playbackStatuses",
+        "goType": "map[string]PlaybackStatus",
+        "typescriptType": "Record\u003cstring, VideoCore_PlaybackStatus\u003e",
         "usedTypescriptType": "VideoCore_PlaybackStatus",
         "usedStructName": "videocore.PlaybackStatus",
         "required": false,
@@ -105626,24 +105897,11 @@
         "comments": []
       },
       {
-        "name": "playbackStateMu",
-        "jsonName": "playbackStateMu",
-        "goType": "sync.RWMutex",
-        "typescriptType": "RWMutex",
-        "usedTypescriptType": "RWMutex",
-        "usedStructName": "sync.RWMutex",
-        "required": false,
-        "public": false,
-        "comments": []
-      },
-      {
-        "name": "playbackState",
-        "jsonName": "playbackState",
-        "goType": "PlaybackState",
-        "typescriptType": "VideoCore_PlaybackState",
-        "usedTypescriptType": "VideoCore_PlaybackState",
-        "usedStructName": "videocore.PlaybackState",
-        "required": false,
+        "name": "lastActiveClientId",
+        "jsonName": "lastActiveClientId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
         "public": false,
         "comments": []
       },

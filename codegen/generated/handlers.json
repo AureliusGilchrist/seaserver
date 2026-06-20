@@ -2028,6 +2028,38 @@
     }
   },
   {
+    "name": "HandleGetPendingProgressSync",
+    "trimmedName": "GetPendingProgressSync",
+    "comments": [
+      "HandleGetPendingProgressSync",
+      "",
+      "\t@summary returns how many progress updates are queued locally awaiting AniList sync.",
+      "\t@desc When AniList is unreachable, watched episodes are recorded locally and queued for retry.",
+      "\t@desc This returns the queued count for the current profile so the UI can reassure the user.",
+      "\t@route /api/v1/library/anime-entry/pending-sync [GET]",
+      "\t@returns handlers.PendingProgressSyncResponse",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_entries.go",
+    "filename": "anime_entries.go",
+    "api": {
+      "summary": "returns how many progress updates are queued locally awaiting AniList sync.",
+      "descriptions": [
+        "When AniList is unreachable, watched episodes are recorded locally and queued for retry.",
+        "This returns the queued count for the current profile so the UI can reassure the user."
+      ],
+      "endpoint": "/api/v1/library/anime-entry/pending-sync",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.PendingProgressSyncResponse",
+      "returnGoType": "handlers.PendingProgressSyncResponse",
+      "returnTypescriptType": "PendingProgressSyncResponse"
+    }
+  },
+  {
     "name": "HandleUpdateAnimeEntryRepeat",
     "trimmedName": "UpdateAnimeEntryRepeat",
     "comments": [

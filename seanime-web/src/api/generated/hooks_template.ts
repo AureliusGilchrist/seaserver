@@ -503,6 +503,15 @@
 //     })
 // }
 
+// export function useGetPendingProgressSync() {
+//     return useServerQuery<PendingProgressSyncResponse>({
+//         endpoint: API_ENDPOINTS.ANIME_ENTRIES.GetPendingProgressSync.endpoint,
+//         method: API_ENDPOINTS.ANIME_ENTRIES.GetPendingProgressSync.methods[0],
+//         queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetPendingProgressSync.key],
+//         enabled: true,
+//     })
+// }
+
 // export function useUpdateAnimeEntryRepeat() {
 //     return useServerMutation<boolean, UpdateAnimeEntryRepeat_Variables>({
 //         endpoint: API_ENDPOINTS.ANIME_ENTRIES.UpdateAnimeEntryRepeat.endpoint,

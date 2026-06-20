@@ -3471,6 +3471,17 @@ export type NotificationsResponse = {
 }
 
 /**
+ * - Filepath: internal/handlers/anime_entries.go
+ * - Filename: anime_entries.go
+ * - Package: handlers
+ * @description
+ *  PendingProgressSyncResponse is the payload returned by HandleGetPendingProgressSync.
+ */
+export type PendingProgressSyncResponse = {
+    count: number
+}
+
+/**
  * - Filepath: internal/handlers/docs.go
  * - Filename: docs.go
  * - Package: handlers
@@ -3695,17 +3706,27 @@ export type HibikeOnlinestream_SubOrDub = "sub" | "dub" | "both"
  * - Filename: types.go
  * - Package: hibikeonlinestream
  */
-export type HibikeOnlinestream_VideoSourceType = "mp4" | "m3u8" | "unknown"
-
 export type HibikeOnlinestream_VideoSourceSkipInterval = {
     start: number
     end: number
 }
 
+/**
+ * - Filepath: internal/extension/hibike/onlinestream/types.go
+ * - Filename: types.go
+ * - Package: hibikeonlinestream
+ */
 export type HibikeOnlinestream_VideoSourceSkips = {
     intro?: HibikeOnlinestream_VideoSourceSkipInterval
     outro?: HibikeOnlinestream_VideoSourceSkipInterval
 }
+
+/**
+ * - Filepath: internal/extension/hibike/onlinestream/types.go
+ * - Filename: types.go
+ * - Package: hibikeonlinestream
+ */
+export type HibikeOnlinestream_VideoSourceType = "mp4" | "m3u8" | "unknown"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hibiketorrent
@@ -3911,6 +3932,7 @@ export type Manga_CollectionEntry = {
      * AniList list data
      */
     listData?: Manga_EntryListData
+    downloadedChapterCount: number
 }
 
 /**

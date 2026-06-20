@@ -177,6 +177,7 @@ const (
 	GetOnlineStreamEpisodeListEndpoint                 = "ONLINESTREAM-get-online-stream-episode-list"
 	GetOnlineStreamEpisodeSourceEndpoint               = "ONLINESTREAM-get-online-stream-episode-source"
 	GetOnlinestreamMappingEndpoint                     = "ONLINESTREAM-get-onlinestream-mapping"
+	GetPendingProgressSyncEndpoint                     = "ANIME-ENTRIES-get-pending-progress-sync"
 	GetPlanningSlutInfoEndpoint                        = "PLANNING-SLUT-get-planning-slut-info"
 	GetPlaylistEpisodesEndpoint                        = "PLAYLIST-get-playlist-episodes"
 	GetPlaylistsEndpoint                               = "PLAYLIST-get-playlists"
