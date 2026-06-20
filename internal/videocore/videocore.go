@@ -298,6 +298,24 @@ func (vc *VideoCore) currentClientId() string {
 	return vc.lastActiveClientId
 }
 
+// targetClientId resolves which client a server-initiated command targets: an explicit
+// clientId when provided (per-client control), otherwise the last-active client. Returns
+// ok=false when there is no valid playback state for that client.
+func (vc *VideoCore) targetClientId(clientId ...string) (string, bool) {
+	cid := ""
+	if len(clientId) > 0 {
+		cid = clientId[0]
+	}
+	if cid == "" {
+		cid = vc.currentClientId()
+	}
+	if cid == "" {
+		return "", false
+	}
+	_, ok := vc.getPlaybackStateFor(cid)
+	return cid, ok
+}
+
 // ---- Per-client state accessors ----
 
 func (vc *VideoCore) getPlaybackStateFor(clientId string) (*PlaybackState, bool) {
@@ -445,121 +463,121 @@ func (vc *VideoCore) setPlaybackStatus(status *PlaybackStatus) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Pause sends a pause command to the video player.
-func (vc *VideoCore) Pause() {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) Pause(clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventPause), nil)
+	vc.sendPlayerEventTo(cid, string(ServerEventPause), nil)
 }
 
 // Resume sends a resume command to the video player.
-func (vc *VideoCore) Resume() {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) Resume(clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventResume), nil)
+	vc.sendPlayerEventTo(cid, string(ServerEventResume), nil)
 }
 
 // Seek sends a seek command to the video player.
 // seconds is the amount to seek forward (positive) or backward (negative).
-func (vc *VideoCore) Seek(seconds float64) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) Seek(seconds float64, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventSeek), seconds)
+	vc.sendPlayerEventTo(cid, string(ServerEventSeek), seconds)
 }
 
 // SeekTo sends a seek-to command to the video player.
 // seconds is the absolute time position to seek to.
-func (vc *VideoCore) SeekTo(seconds float64) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SeekTo(seconds float64, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventSeekTo), seconds)
+	vc.sendPlayerEventTo(cid, string(ServerEventSeekTo), seconds)
 }
 
 // SetFullscreen sends a set-fullscreen command to the video player.
-func (vc *VideoCore) SetFullscreen(fullscreen bool) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SetFullscreen(fullscreen bool, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventSetFullscreen), fullscreen)
+	vc.sendPlayerEventTo(cid, string(ServerEventSetFullscreen), fullscreen)
 }
 
 // SetPip sends a set-pip command to the video player.
-func (vc *VideoCore) SetPip(pip bool) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SetPip(pip bool, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventSetPip), pip)
+	vc.sendPlayerEventTo(cid, string(ServerEventSetPip), pip)
 }
 
 // SetSubtitleTrack sends a set-subtitle-track command to the video player.
-func (vc *VideoCore) SetSubtitleTrack(trackNumber int) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SetSubtitleTrack(trackNumber int, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventSetSubtitleTrack), trackNumber)
+	vc.sendPlayerEventTo(cid, string(ServerEventSetSubtitleTrack), trackNumber)
 }
 
 // AddSubtitleTrack sends an add-subtitle-track command to the video player.
-func (vc *VideoCore) AddSubtitleTrack(track *mkvparser.TrackInfo) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) AddSubtitleTrack(track *mkvparser.TrackInfo, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventAddSubtitleTrack), track)
+	vc.sendPlayerEventTo(cid, string(ServerEventAddSubtitleTrack), track)
 }
 
 // AddSubtitleTrack sends an add-external-subtitle-track command to the video player.
-func (vc *VideoCore) AddExternalSubtitleTrack(track *VideoSubtitleTrack) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) AddExternalSubtitleTrack(track *VideoSubtitleTrack, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventAddExternalSubtitleTrack), track)
+	vc.sendPlayerEventTo(cid, string(ServerEventAddExternalSubtitleTrack), track)
 }
 
 // SetMediaCaptionTrack sends a set-media-caption-track command to the video player.
-func (vc *VideoCore) SetMediaCaptionTrack(trackIndex int) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SetMediaCaptionTrack(trackIndex int, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventSetMediaCaptionTrack), trackIndex)
+	vc.sendPlayerEventTo(cid, string(ServerEventSetMediaCaptionTrack), trackIndex)
 }
 
 // AddMediaCaptionTrack sends an add-media-caption-track command to the video player.
-func (vc *VideoCore) AddMediaCaptionTrack(track interface{}) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) AddMediaCaptionTrack(track interface{}, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventAddMediaCaptionTrack), track)
+	vc.sendPlayerEventTo(cid, string(ServerEventAddMediaCaptionTrack), track)
 }
 
 // SetAudioTrack sends a set-audio-track command to the video player.
-func (vc *VideoCore) SetAudioTrack(trackNumber int) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SetAudioTrack(trackNumber int, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventSetAudioTrack), trackNumber)
+	vc.sendPlayerEventTo(cid, string(ServerEventSetAudioTrack), trackNumber)
 }
 
-func (vc *VideoCore) ShowMessage(message string, milliseconds int) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) ShowMessage(message string, milliseconds int, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventShowMessage), struct {
+	vc.sendPlayerEventTo(cid, string(ServerEventShowMessage), struct {
 		Message  string `json:"message"`
 		Duration int    `json:"duration"`
 	}{
@@ -570,33 +588,33 @@ func (vc *VideoCore) ShowMessage(message string, milliseconds int) {
 
 // PlayPlaylistEpisode sends a play-episode command to the video player.
 // which is "next", "previous", or the AniDB episode ID.
-func (vc *VideoCore) PlayPlaylistEpisode(which string) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) PlayPlaylistEpisode(which string, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventPlayPlaylistEpisode), which)
+	vc.sendPlayerEventTo(cid, string(ServerEventPlayPlaylistEpisode), which)
 }
 
 // Terminate sends a terminate command to the video player and clears the playback state.
 // The video player should stop on the client.
-func (vc *VideoCore) Terminate() {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) Terminate(clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventTerminate), nil)
-	vc.clearPlayback()
+	vc.sendPlayerEventTo(cid, string(ServerEventTerminate), nil)
+	vc.clearPlaybackFor(cid)
 }
 
 // Reset clears the current playback state without sending a terminate command to the video player.
 // This will cause further client events to be ignored until a new playback state is set.
-func (vc *VideoCore) Reset() {
-	_, ok := vc.GetPlaybackState()
+func (vc *VideoCore) Reset(clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.clearPlayback()
+	vc.clearPlaybackFor(cid)
 }
 
 // StartOnlinestreamPlayback sends a start-onlinestream-playback command to the video player.
@@ -606,89 +624,89 @@ func (vc *VideoCore) StartOnlinestreamWatchParty(params *OnlinestreamParams) {
 }
 
 // SendGetFullscreen sends a get-fullscreen request to the video player.
-func (vc *VideoCore) SendGetFullscreen() {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SendGetFullscreen(clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetFullscreen), nil)
+	vc.sendPlayerEventTo(cid, string(ServerEventGetFullscreen), nil)
 }
 
 // SendGetPip sends a get-pip request to the video player.
-func (vc *VideoCore) SendGetPip() {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SendGetPip(clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetPip), nil)
+	vc.sendPlayerEventTo(cid, string(ServerEventGetPip), nil)
 }
 
 // SendGetAnime4K sends a get-anime-4k request to the video player.
-func (vc *VideoCore) SendGetAnime4K() {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SendGetAnime4K(clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetAnime4K), nil)
+	vc.sendPlayerEventTo(cid, string(ServerEventGetAnime4K), nil)
 }
 
 // SendGetSubtitleTrack sends a get-subtitle-track request to the video player.
-func (vc *VideoCore) SendGetSubtitleTrack() {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SendGetSubtitleTrack(clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetSubtitleTrack), nil)
+	vc.sendPlayerEventTo(cid, string(ServerEventGetSubtitleTrack), nil)
 }
 
 // SendGetSubtitleTrackContent sends a get-subtitle-track-content request to the video player.
-func (vc *VideoCore) SendGetSubtitleTrackContent() {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SendGetSubtitleTrackContent(clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetSubtitleTrackContent), nil)
+	vc.sendPlayerEventTo(cid, string(ServerEventGetSubtitleTrackContent), nil)
 }
 
 // SendInSightData sends in-sight data to the video player.
-func (vc *VideoCore) SendInSightData(data *InSightData) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SendInSightData(data *InSightData, clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventInSightData), data)
+	vc.sendPlayerEventTo(cid, string(ServerEventInSightData), data)
 }
 
 // SendGetAudioTrack sends a get-audio-track request to the video player.
-func (vc *VideoCore) SendGetAudioTrack() {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SendGetAudioTrack(clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetAudioTrack), nil)
+	vc.sendPlayerEventTo(cid, string(ServerEventGetAudioTrack), nil)
 }
 
 // SendGetMediaCaptionTrack sends a get-media-caption-track request to the video player.
-func (vc *VideoCore) SendGetMediaCaptionTrack() {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SendGetMediaCaptionTrack(clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetMediaCaptionTrack), nil)
+	vc.sendPlayerEventTo(cid, string(ServerEventGetMediaCaptionTrack), nil)
 }
 
 // SendGetPlaybackState sends a get-playback-state request to the video player.
-func (vc *VideoCore) SendGetPlaybackState() {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) SendGetPlaybackState(clientId ...string) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return
 	}
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetPlaybackState), nil)
+	vc.sendPlayerEventTo(cid, string(ServerEventGetPlaybackState), nil)
 }
 
 // GetPlaylist sends a get-text-tracks request to the video player and returns the text tracks.
-func (vc *VideoCore) GetTextTracks() (ret []*VideoTextTrack, ok bool) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) GetTextTracks(clientId ...string) (ret []*VideoTextTrack, ok bool) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return nil, false
 	}
@@ -703,7 +721,7 @@ func (vc *VideoCore) GetTextTracks() (ret []*VideoTextTrack, ok bool) {
 		return true // keep listening
 	})
 	defer cancel()
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetTextTracks), nil)
+	vc.sendPlayerEventTo(cid, string(ServerEventGetTextTracks), nil)
 	// Wait for the response, but never block forever: if the client doesn't reply within the
 	// timeout we give up. (Previously the caller blocked on the response channel indefinitely
 	// when no reply arrived, leaking a goroutine on every call.)
@@ -716,8 +734,8 @@ func (vc *VideoCore) GetTextTracks() (ret []*VideoTextTrack, ok bool) {
 }
 
 // GetPlaylist sends a get-playlist request to the video player and returns the playlist state.
-func (vc *VideoCore) GetPlaylist() (ret *VideoPlaylistState, ok bool) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) GetPlaylist(clientId ...string) (ret *VideoPlaylistState, ok bool) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return nil, false
 	}
@@ -732,7 +750,7 @@ func (vc *VideoCore) GetPlaylist() (ret *VideoPlaylistState, ok bool) {
 		return true // keep listening
 	})
 	defer cancel()
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetPlaylist), nil)
+	vc.sendPlayerEventTo(cid, string(ServerEventGetPlaylist), nil)
 	select {
 	case <-done:
 		return ret, ret != nil
@@ -742,8 +760,8 @@ func (vc *VideoCore) GetPlaylist() (ret *VideoPlaylistState, ok bool) {
 }
 
 // PullStatus pulls the current playback status from the video player.
-func (vc *VideoCore) PullStatus() (ret VideoStatusEvent, ok bool) {
-	state, ok := vc.GetPlaybackState()
+func (vc *VideoCore) PullStatus(clientId ...string) (ret VideoStatusEvent, ok bool) {
+	cid, ok := vc.targetClientId(clientId...)
 	if !ok {
 		return VideoStatusEvent{}, false
 	}
@@ -758,7 +776,7 @@ func (vc *VideoCore) PullStatus() (ret VideoStatusEvent, ok bool) {
 		return true // keep listening
 	})
 	defer cancel()
-	vc.sendPlayerEventTo(state.ClientId, string(ServerEventGetStatus), nil, true)
+	vc.sendPlayerEventTo(cid, string(ServerEventGetStatus), nil, true)
 	select {
 	case <-done:
 		return ret, true
