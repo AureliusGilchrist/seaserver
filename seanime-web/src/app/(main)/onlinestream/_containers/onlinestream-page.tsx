@@ -719,7 +719,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                                     onError={v => onFatalError(v)}
                                     onPlayEpisode={handlePlayEpisode}
                                     onVideoSourceChange={changeQuality}
-                                    onHlsFatalError={(err) => onFatalError(`HLS error: ${err.error.message}`)}
+                                    onHlsFatalError={() => onFatalError("Provider Error")}
                                     onTerminateStream={() => {
                                         setUrl(null)
                                         setPlaybackError("Stream terminated")

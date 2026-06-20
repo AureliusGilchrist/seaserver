@@ -41,8 +41,10 @@ export const vc_hlsSubtitleTracks = atom<HlsSubtitleTrack[]>([])
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const hlsLog = logger("VIDEO CORE HLS")
-const MAX_MEDIA_ERROR_RECOVERY_ATTEMPTS = 2
-const MAX_NETWORK_ERROR_RECOVERY_ATTEMPTS = 3
+// Total fatal-error recovery attempts (network + media combined) before giving up and
+// surfacing a provider error.
+const MAX_RECOVERY_ATTEMPTS = 8
+const HLS_LOAD_TIMEOUT_MS = 30_000
 
 
 export const HLS_VIDEO_EXTENSIONS = /\.(m3u8)($|\?)/i
@@ -128,24 +130,24 @@ export function useVideoCoreHls({
                 // on the first hiccup.
                 manifestLoadPolicy: {
                     default: {
-                        maxTimeToFirstByteMs: 20_000,
-                        maxLoadTimeMs: 20_000,
+                        maxTimeToFirstByteMs: HLS_LOAD_TIMEOUT_MS,
+                        maxLoadTimeMs: HLS_LOAD_TIMEOUT_MS,
                         timeoutRetry: { maxNumRetry: 4, retryDelayMs: 1_000, maxRetryDelayMs: 8_000 },
                         errorRetry: { maxNumRetry: 5, retryDelayMs: 1_000, maxRetryDelayMs: 8_000 },
                     },
                 },
                 playlistLoadPolicy: {
                     default: {
-                        maxTimeToFirstByteMs: 20_000,
-                        maxLoadTimeMs: 20_000,
+                        maxTimeToFirstByteMs: HLS_LOAD_TIMEOUT_MS,
+                        maxLoadTimeMs: HLS_LOAD_TIMEOUT_MS,
                         timeoutRetry: { maxNumRetry: 4, retryDelayMs: 1_000, maxRetryDelayMs: 8_000 },
                         errorRetry: { maxNumRetry: 5, retryDelayMs: 1_000, maxRetryDelayMs: 8_000 },
                     },
                 },
                 fragLoadPolicy: {
                     default: {
-                        maxTimeToFirstByteMs: 20_000,
-                        maxLoadTimeMs: 30_000,
+                        maxTimeToFirstByteMs: HLS_LOAD_TIMEOUT_MS,
+                        maxLoadTimeMs: HLS_LOAD_TIMEOUT_MS,
                         timeoutRetry: { maxNumRetry: 4, retryDelayMs: 1_000, maxRetryDelayMs: 8_000 },
                         errorRetry: { maxNumRetry: 6, retryDelayMs: 1_000, maxRetryDelayMs: 8_000 },
                     },
@@ -156,8 +158,9 @@ export function useVideoCoreHls({
 
             let sourceLoaded = false
             let recoveringMediaError = false
-            let mediaErrorRecoveryAttempts = 0
-            let networkErrorRecoveryAttempts = 0
+            // Single shared counter: we attempt to recover from any fatal error up to
+            // MAX_RECOVERY_ATTEMPTS (8) times total before surfacing a provider error.
+            let recoveryAttempts = 0
             let fatalErrorReported = false
 
             const reportFatalError = (data: ErrorData) => {
@@ -173,19 +176,18 @@ export function useVideoCoreHls({
             }
 
             const recoverFatalMediaError = () => {
-                if (mediaErrorRecoveryAttempts >= MAX_MEDIA_ERROR_RECOVERY_ATTEMPTS) {
+                if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
                     return false
                 }
 
                 recoveringMediaError = true
-                mediaErrorRecoveryAttempts += 1
+                recoveryAttempts += 1
 
                 try {
-                    if (mediaErrorRecoveryAttempts === MAX_MEDIA_ERROR_RECOVERY_ATTEMPTS) {
-                        hlsLog.warning("Fatal media error, swapping audio codec and retrying")
+                    hlsLog.warning(`Fatal media error, attempting recovery (${recoveryAttempts}/${MAX_RECOVERY_ATTEMPTS})`)
+                    // On even attempts, also swap the audio codec (helps with some bad audio segments).
+                    if (recoveryAttempts % 2 === 0) {
                         hls.swapAudioCodec()
-                    } else {
-                        hlsLog.warning("Fatal media error, attempting recovery")
                     }
 
                     hls.recoverMediaError()
@@ -203,11 +205,11 @@ export function useVideoCoreHls({
             // already exhausted its per-request retries by the time a NETWORK_ERROR is fatal, so we
             // restart loading the source a couple more times with a short delay.
             const recoverFatalNetworkError = () => {
-                if (networkErrorRecoveryAttempts >= MAX_NETWORK_ERROR_RECOVERY_ATTEMPTS) {
+                if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
                     return false
                 }
-                networkErrorRecoveryAttempts += 1
-                hlsLog.warning(`Fatal network error, refreshing stream (attempt ${networkErrorRecoveryAttempts})`)
+                recoveryAttempts += 1
+                hlsLog.warning(`Fatal network error, refreshing stream (${recoveryAttempts}/${MAX_RECOVERY_ATTEMPTS})`)
                 try {
                     window.setTimeout(() => {
                         if (hlsRef.current !== hls) return
@@ -344,13 +346,10 @@ export function useVideoCoreHls({
             })
 
             hls.on(Events.FRAG_CHANGED, () => {
-                if (mediaErrorRecoveryAttempts > 0) {
-                    hlsLog.info("HLS media error recovery succeeded")
-                    mediaErrorRecoveryAttempts = 0
-                }
-                if (networkErrorRecoveryAttempts > 0) {
-                    hlsLog.info("HLS network error recovery succeeded")
-                    networkErrorRecoveryAttempts = 0
+                // Playback resumed successfully — reset the recovery budget.
+                if (recoveryAttempts > 0) {
+                    hlsLog.info("HLS error recovery succeeded")
+                    recoveryAttempts = 0
                 }
             })
 
