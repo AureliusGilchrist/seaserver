@@ -1,5 +1,6 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { Anime_Entry } from "@/api/generated/types"
+import { useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { useGetOnlineStreamEpisodeList, useGetOnlineStreamEpisodeSource, useOnlineStreamEmptyCache } from "@/api/hooks/onlinestream.hooks"
 import { serverStatusAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { EpisodeGridItem } from "@/app/(main)/_features/anime/_components/episode-grid-item"
@@ -73,6 +74,7 @@ function isValidVideoSourceType(type: string | null | undefined) {
 
 export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton }: OnlinestreamPageProps) {
     const serverStatus = useAtomValue(serverStatusAtom)
+    const { data: continuityWatchHistory } = useGetContinuityWatchHistory()
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
@@ -417,6 +419,18 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
     /*
      * Set episode number on mount
      */
+    // Resume: the last in-progress episode from watch continuity (if watched > 30s and not
+    // finished), used to load where the user left off regardless of AniList progress.
+    const continuityEnabled = serverStatus?.settings?.library?.enableWatchContinuity
+    const resumeItem = React.useMemo(() => {
+        if (!continuityEnabled || !mediaId || !continuityWatchHistory) return null
+        const item = continuityWatchHistory[Number(mediaId)]
+        if (!item || !item.currentTime || item.currentTime < 30) return null
+        // Skip if effectively finished.
+        if (item.duration && (item.currentTime / item.duration) > 0.9) return null
+        return item
+    }, [continuityEnabled, mediaId, continuityWatchHistory])
+
     const firstRenderRef = React.useRef(true)
     React.useEffect(() => {
         // Do not auto set the episode number if the user is in a watch party and is not the host
@@ -428,18 +442,27 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
         }
 
         if (!!media && firstRenderRef.current && !!episodes) {
+            // When continuity is enabled, wait for the watch history to load before deciding,
+            // so we can resume the correct episode instead of jumping to AniList progress.
+            if (continuityEnabled && continuityWatchHistory === undefined) return
+
             const episodeNumberFromURL = urlEpNumber ? Number(urlEpNumber) : undefined
-            const progress = animeEntry?.listData?.progress ?? 0
             let episodeNumber = 1
-            const episodeToWatch = episodes.find(e => e.number === progress + 1)
-            if (episodeToWatch) {
-                episodeNumber = episodeToWatch.number
+            if (!episodeNumberFromURL && resumeItem && episodes.some(e => e.number === resumeItem.episodeNumber)) {
+                // Resume the last-watched episode (position is restored by VideoCore on canplay).
+                episodeNumber = resumeItem.episodeNumber
+            } else {
+                const progress = animeEntry?.listData?.progress ?? 0
+                const episodeToWatch = episodes.find(e => e.number === progress + 1)
+                if (episodeToWatch) {
+                    episodeNumber = episodeToWatch.number
+                }
             }
             setSelectedEpisodeNumber(episodeNumberFromURL || episodeNumber || 1)
             log.info("Setting episode number to", episodeNumberFromURL || episodeNumber || 1)
             firstRenderRef.current = false
         }
-    }, [episodes, media, animeEntry?.listData, urlEpNumber, currentPlaylist, isWatchPartyPeer])
+    }, [episodes, media, animeEntry?.listData, urlEpNumber, currentPlaylist, isWatchPartyPeer, continuityEnabled, continuityWatchHistory, resumeItem])
 
 
     function onCanPlay() {
