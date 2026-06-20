@@ -31,7 +31,11 @@ type (
 		Media         *anilist.BaseManga `json:"media"`
 		MediaId       int                `json:"mediaId"`
 		EntryListData *EntryListData     `json:"listData"` // AniList list data
+		// DownloadedChapterCount is the highest number of downloaded chapters across providers for this media.
+		// 0 if nothing is downloaded.
+		DownloadedChapterCount int `json:"downloadedChapterCount"`
 	}
+
 	// UnknownGroup holds the data for a group of downloaded manga whose media is not in the user's AniList.
 	// The client will use this data to suggest manga to the user, so they can add it to their AniList.
 	UnknownGroup struct {
@@ -143,6 +147,26 @@ func NewCollection(opts *NewCollectionOptions) (collection *Collection, err erro
 	}
 
 	coll.Lists = lists
+
+	// Populate each entry's downloaded chapter count (max across providers) so the
+	// frontend can compute a "downloaded" badge threshold (e.g. >=96% of chapters).
+	if opts.MediaMap != nil {
+		for _, list := range coll.Lists {
+			for _, entry := range list.Entries {
+				downloadData, ok := (*opts.MediaMap)[entry.MediaId]
+				if !ok {
+					continue
+				}
+				maxDownloaded := 0
+				for _, chapters := range downloadData {
+					if len(chapters) > maxDownloaded {
+						maxDownloaded = len(chapters)
+					}
+				}
+				entry.DownloadedChapterCount = maxDownloaded
+			}
+		}
+	}
 
 	// Populate UnknownGroups with downloaded manga not in collection
 	coll.UnknownGroups = make([]*UnknownGroup, 0)

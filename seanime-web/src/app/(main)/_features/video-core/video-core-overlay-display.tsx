@@ -72,7 +72,7 @@ export function VideoCoreOverlayDisplay() {
             <div
                 data-vc-overlay-display
                 className={cn(
-                    "text-white px-2 py-1 text-sm md:text-md lg:text-xl font-semibold rounded-lg bg-black/80 tracking-wide",
+                    "text-white px-2 py-1 text-sm md:text-md lg:text-xl font-semibold rounded-lg bg-black/50 backdrop-blur-sm tracking-wide",
                     isMiniPlayer && "text-xs md:text-xs lg:text-xs",
                 )}
             >

@@ -118,7 +118,7 @@ export function VideoCoreProgressPrompt() {
             onClick={e => e.stopPropagation()}
             onPointerMove={e => e.stopPropagation()}
         >
-            <div className="bg-gray-950/95 rounded-xl p-6 text-center shadow-2xl border border-[--border] max-w-sm">
+            <div className="bg-gray-950/80 backdrop-blur-md rounded-xl p-6 text-center shadow-2xl border border-[--border] max-w-sm">
                 <p className="text-white text-lg font-medium mb-1">Update AniList progress?</p>
                 <p className="text-gray-300 text-sm mb-1">{line}</p>
                 <p className="text-gray-300 text-sm mb-5">Update it to episode {episodeNumber}?</p>
