@@ -42,6 +42,7 @@ export const vc_hlsSubtitleTracks = atom<HlsSubtitleTrack[]>([])
 
 const hlsLog = logger("VIDEO CORE HLS")
 const MAX_MEDIA_ERROR_RECOVERY_ATTEMPTS = 2
+const MAX_NETWORK_ERROR_RECOVERY_ATTEMPTS = 3
 
 
 export const HLS_VIDEO_EXTENSIONS = /\.(m3u8)($|\?)/i
@@ -121,6 +122,34 @@ export function useVideoCoreHls({
                 backBufferLength: 90,
                 enableWebVTT: true,
                 renderTextTracksNatively: false, // don't use native text tracks for subtitles
+                // Resilience: many online-stream sources are flaky CDNs that intermittently time out
+                // or 404 a manifest/playlist/fragment. Retry these transient failures (with backoff)
+                // before surfacing a fatal "Timeout after 10000ms" / 404 error, instead of giving up
+                // on the first hiccup.
+                manifestLoadPolicy: {
+                    default: {
+                        maxTimeToFirstByteMs: 20_000,
+                        maxLoadTimeMs: 20_000,
+                        timeoutRetry: { maxNumRetry: 4, retryDelayMs: 1_000, maxRetryDelayMs: 8_000 },
+                        errorRetry: { maxNumRetry: 5, retryDelayMs: 1_000, maxRetryDelayMs: 8_000 },
+                    },
+                },
+                playlistLoadPolicy: {
+                    default: {
+                        maxTimeToFirstByteMs: 20_000,
+                        maxLoadTimeMs: 20_000,
+                        timeoutRetry: { maxNumRetry: 4, retryDelayMs: 1_000, maxRetryDelayMs: 8_000 },
+                        errorRetry: { maxNumRetry: 5, retryDelayMs: 1_000, maxRetryDelayMs: 8_000 },
+                    },
+                },
+                fragLoadPolicy: {
+                    default: {
+                        maxTimeToFirstByteMs: 20_000,
+                        maxLoadTimeMs: 30_000,
+                        timeoutRetry: { maxNumRetry: 4, retryDelayMs: 1_000, maxRetryDelayMs: 8_000 },
+                        errorRetry: { maxNumRetry: 6, retryDelayMs: 1_000, maxRetryDelayMs: 8_000 },
+                    },
+                },
             })
 
             hlsRef.current = hls
@@ -128,6 +157,7 @@ export function useVideoCoreHls({
             let sourceLoaded = false
             let recoveringMediaError = false
             let mediaErrorRecoveryAttempts = 0
+            let networkErrorRecoveryAttempts = 0
             let fatalErrorReported = false
 
             const reportFatalError = (data: ErrorData) => {
@@ -164,6 +194,35 @@ export function useVideoCoreHls({
                 catch (error) {
                     recoveringMediaError = false
                     hlsLog.error("Failed to recover from fatal media error", error)
+                    return false
+                }
+            }
+
+            // Refresh/reload the stream on a fatal network error (timeout, 404, CDN drop) before
+            // giving up — this is the "refresh the stream after the error" behaviour. hls.js has
+            // already exhausted its per-request retries by the time a NETWORK_ERROR is fatal, so we
+            // restart loading the source a couple more times with a short delay.
+            const recoverFatalNetworkError = () => {
+                if (networkErrorRecoveryAttempts >= MAX_NETWORK_ERROR_RECOVERY_ATTEMPTS) {
+                    return false
+                }
+                networkErrorRecoveryAttempts += 1
+                hlsLog.warning(`Fatal network error, refreshing stream (attempt ${networkErrorRecoveryAttempts})`)
+                try {
+                    window.setTimeout(() => {
+                        if (hlsRef.current !== hls) return
+                        try {
+                            hls.stopLoad()
+                            hls.startLoad()
+                        }
+                        catch (error) {
+                            hlsLog.error("Failed to restart stream load", error)
+                        }
+                    }, 1_000)
+                    return true
+                }
+                catch (error) {
+                    hlsLog.error("Failed to recover from fatal network error", error)
                     return false
                 }
             }
@@ -289,6 +348,10 @@ export function useVideoCoreHls({
                     hlsLog.info("HLS media error recovery succeeded")
                     mediaErrorRecoveryAttempts = 0
                 }
+                if (networkErrorRecoveryAttempts > 0) {
+                    hlsLog.info("HLS network error recovery succeeded")
+                    networkErrorRecoveryAttempts = 0
+                }
             })
 
             hls.on(Events.ERROR, (event, data: ErrorData) => {
@@ -298,6 +361,11 @@ export function useVideoCoreHls({
                 }
 
                 if (!data.fatal) return
+
+                // Refresh the stream on a fatal network error (timeout/404/CDN drop) before failing.
+                if (data.type === Hls.ErrorTypes.NETWORK_ERROR && recoverFatalNetworkError()) {
+                    return
+                }
 
                 // Try to recover from fatal media errors (decode/buffer-append failures) before
                 // giving up — this is the common transient failure on flaky online streams.
