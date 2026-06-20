@@ -409,7 +409,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 data-vc-element="buffering-indicator"
                                 className="absolute inset-0 flex items-center justify-center z-[50] pointer-events-none"
                             >
-                                <div className="bg-black/20 backdrop-blur-sm rounded-full p-4">
+                                <div className="bg-black/60 rounded-full p-4">
                                     <PiSpinnerDuotone className="size-12 text-white animate-spin" />
                                 </div>
                             </div>

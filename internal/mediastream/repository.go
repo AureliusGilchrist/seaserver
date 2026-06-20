@@ -187,9 +187,17 @@ func (r *Repository) RequestTranscodeStream(filepath string, clientId string) (r
 		return nil, errors.New("module not initialized")
 	}
 
-	// Reinitialize the transcoder for each new transcode request
-	if ok := r.initializeTranscoder(r.settings); !ok {
-		return nil, errors.New("real-time transcoder not initialized, check your settings")
+	// Initialize the transcoder if it isn't already running. The transcoder itself supports
+	// multiple concurrent FileStreams (keyed by file path), so it must stay alive across
+	// requests — recreating it here on every request would destroy every other client's
+	// in-flight ffmpeg process (see initializeTranscoder/Transcoder.Destroy), which is what
+	// caused concurrent clients (e.g. web + denshi) to fail to start ffmpeg for each other.
+	// Settings changes are picked up via InitOrRefreshMediastreamSettings -> InitializeModules,
+	// not here.
+	if !r.transcoder.IsPresent() {
+		if ok := r.initializeTranscoder(r.settings); !ok {
+			return nil, errors.New("real-time transcoder not initialized, check your settings")
+		}
 	}
 
 	ret, err = r.playbackManager.RequestPlayback(filepath, StreamTypeTranscode, clientId)

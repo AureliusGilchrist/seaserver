@@ -69,6 +69,8 @@ type MediaEntryCardProps<T extends "anime" | "manga"> = {
     showTrailer?: T extends "anime" ? boolean : never
     libraryData?: T extends "anime" ? Anime_EntryLibraryData : never
     nakamaLibraryData?: T extends "anime" ? Anime_NakamaEntryLibraryData : never
+    // Manga-only: number of chapters downloaded, used to show the "downloaded" badge once >=96% of chapters are downloaded
+    downloadedChapterCount?: T extends "manga" ? number : never
     hideUnseenCountBadge?: boolean
     hideAnilistEntryEditButton?: boolean
     onClick?: () => void
@@ -115,12 +117,15 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
 
     const [__atomicLibraryCollection, getAtomicLibraryEntry] = useAtom(getAtomicLibraryEntryAtom)
 
-    const showLibraryBadge = !!libraryData && !!props.showLibraryBadge
-
     const mediaId = media.id
     const mediaEpisodes = (media as AL_BaseAnime)?.episodes
     const mediaChapters = (media as AL_BaseManga)?.chapters
     const mediaIsAdult = media?.isAdult
+
+    const showAnimeLibraryBadge = !!libraryData && !!props.showLibraryBadge
+    const showMangaDownloadedBadge = type === "manga" && !!mediaChapters
+        && ((props.downloadedChapterCount ?? 0) / mediaChapters) >= 0.96
+    const showLibraryBadge = showAnimeLibraryBadge || showMangaDownloadedBadge
 
     const showProgressBar = React.useMemo(() => {
         return !!listData?.progress

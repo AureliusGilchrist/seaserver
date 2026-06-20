@@ -64,7 +64,7 @@ export function VideoCoreWatchPartyChat() {
             isDrawer
             name="watch-party-chat"
             sideOffset={8}
-            className="bg-black/85 rounded-xl p-2 backdrop-blur-sm w-[30rem] !top-auto !h-fit max-h-[70dvh] z-[100] lg:top-10 lg:bottom-24"
+            className="bg-black/85 rounded-xl p-2 w-[30rem] !top-auto !h-fit max-h-[70dvh] z-[100] lg:top-10 lg:bottom-24"
             trigger={<VideoCoreControlButtonIcon
                 icons={[
                     ["default", LuMessagesSquare],

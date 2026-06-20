@@ -61,7 +61,7 @@ export function VideoCoreMenu(props: VideoCoreMenuProps) {
             trigger={<div>{trigger}</div>}
             allowOutsideInteraction={true}
             contentClass={cn(
-                "bg-black/85 rounded-xl p-3 backdrop-blur-sm w-[20rem] z-[100]",
+                "bg-black/85 rounded-xl p-3 w-[20rem] z-[100]",
                 className,
             )}
             portalContainer={isFullscreen ? containerElement || undefined : undefined}
@@ -85,7 +85,7 @@ export function VideoCoreMenu(props: VideoCoreMenuProps) {
             side="top"
             modal={false}
             className={cn(
-                "bg-black/85 rounded-xl p-3 backdrop-blur-sm w-[20rem] z-[100]",
+                "bg-black/85 rounded-xl p-3 w-[20rem] z-[100]",
                 className,
             )}
             portalContainer={isFullscreen ? containerElement || undefined : undefined}

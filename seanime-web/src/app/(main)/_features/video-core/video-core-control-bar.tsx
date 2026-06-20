@@ -185,7 +185,7 @@ export function VideoCoreControlBar(props: {
                     "pointer-events-none",
                     "absolute bottom-0 left-0 right-0 w-full z-[5] h-28 transition-opacity duration-300 opacity-0",
                     "bg-gradient-to-t to-transparent",
-                    !isMiniPlayer ? "from-black/40" : "from-black/80 via-black/40",
+                    !isMiniPlayer ? "from-black/75" : "from-black/80 via-black/40",
                     isMiniPlayer && "h-20",
                     !hideShadow && "opacity-100",
                 )}
@@ -196,7 +196,7 @@ export function VideoCoreControlBar(props: {
                     "pointer-events-none",
                     "absolute bottom-0 left-0 right-0 w-full z-[5] h-14 transition-opacity duration-400 opacity-0",
                     "bg-gradient-to-t to-transparent",
-                    !isMiniPlayer ? "from-black/40" : "from-black/60",
+                    !isMiniPlayer ? "from-black/75" : "from-black/60",
                     isMiniPlayer && "h-10",
                     (showOnlyTimeRange && paused && hideShadow) && "opacity-100",
                 )}
@@ -308,7 +308,7 @@ export function VideoCoreMobileControlBar(props: {
                     "vc-mobile-control-bar-bottom-gradient pointer-events-none",
                     "absolute bottom-0 left-0 right-0 w-full z-[10] h-28 transition-opacity duration-300 opacity-0",
                     "bg-gradient-to-t to-transparent",
-                    !isMiniPlayer ? "from-black/40" : "from-black/80 via-black/40",
+                    !isMiniPlayer ? "from-black/75" : "from-black/80 via-black/40",
                     "h-20",
                     (showShadow || isSwiping) && "opacity-100",
                 )}

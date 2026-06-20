@@ -13,6 +13,11 @@ const { publicVars } = loadEnv({ prefixes: ["SEA_"] })
 const isElectronDesktop = process.env.SEA_PUBLIC_DESKTOP === "electron"
 const distPath = isElectronDesktop ? "out-denshi" : "out"
 
+// App version (single source of truth: package.json, kept in sync by sync-versions.js).
+// Exposed to the client so the react-query persister buster is tied to the build,
+// busting stale persisted cache automatically on every update.
+const appVersion = JSON.parse(fs.readFileSync(path.resolve(__dirname, "package.json"), "utf8")).version
+
 export default defineConfig({
     plugins: [
         pluginReact(),
@@ -72,6 +77,7 @@ export default defineConfig({
             "process.env.NEXT_PUBLIC_PLATFORM": JSON.stringify(process.env.NEXT_PUBLIC_PLATFORM ?? ""),
             "process.env.NEXT_PUBLIC_DESKTOP": JSON.stringify(process.env.NEXT_PUBLIC_DESKTOP ?? ""),
             "process.env.NEXT_PUBLIC_DEVBUILD": JSON.stringify(process.env.NEXT_PUBLIC_DEVBUILD ?? ""),
+            "process.env.SEA_APP_VERSION": JSON.stringify(appVersion),
         },
     },
     resolve: {

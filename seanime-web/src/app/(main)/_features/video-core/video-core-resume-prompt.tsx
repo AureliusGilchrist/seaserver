@@ -74,7 +74,7 @@ export function VideoCoreResumePrompt({ videoRef }: { videoRef: React.MutableRef
             onClick={e => e.stopPropagation()}
             onPointerMove={e => e.stopPropagation()}
         >
-            <div className="bg-gray-950/80 backdrop-blur-md rounded-xl p-6 text-center shadow-2xl border border-[--border] max-w-sm">
+            <div className="bg-gray-950/95 rounded-xl p-6 text-center shadow-2xl border border-[--border] max-w-sm">
                 <p className="text-white text-lg font-medium mb-1">Resume playback?</p>
                 <p className="text-gray-300 text-sm mb-5">
                     You left off at <span className="font-semibold text-white">{prompt.formatted}</span>

@@ -66,7 +66,9 @@ export const ClientProviders: React.FC<ClientProvidersProps> = ({ children }) =>
                         persistOptions={{
                             persister: asyncStoragePersister,
                             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-                            buster: "seanime-v1",
+                            // Tied to the app version (injected via rsbuild define) so every
+                            // update busts stale persisted cache automatically.
+                            buster: `seanime-${process.env.SEA_APP_VERSION || "v2"}`,
                         }}
                     >
                         <WebsocketProvider>

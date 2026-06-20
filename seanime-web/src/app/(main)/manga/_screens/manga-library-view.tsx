@@ -210,6 +210,7 @@ export function FilteredCollectionLists({ collectionList, genres, showStatuses, 
                         <MediaEntryCard
                             media={entry.media!}
                             listData={entry.listData}
+                            downloadedChapterCount={entry.downloadedChapterCount}
                             showListDataButton
                             withAudienceScore={false}
                             type="manga"
@@ -234,6 +235,7 @@ export function FilteredCollectionLists({ collectionList, genres, showStatuses, 
                             key={entry.media?.id}
                             media={entry.media!}
                             listData={entry.listData}
+                            downloadedChapterCount={entry.downloadedChapterCount}
                             showListDataButton
                             withAudienceScore={false}
                             type="manga"
@@ -490,6 +492,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                                     <MediaEntryCard
                                         media={item.entry.media!}
                                         listData={item.entry.listData}
+                                        downloadedChapterCount={item.entry.downloadedChapterCount}
                                         showListDataButton
                                         withAudienceScore={false}
                                         type="manga"
@@ -559,6 +562,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                                         <MediaEntryCard
                                             media={item.entry.media!}
                                             listData={item.entry.listData}
+                                            downloadedChapterCount={item.entry.downloadedChapterCount}
                                             showListDataButton
                                             withAudienceScore={false}
                                             type="manga"
@@ -610,6 +614,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                             <MediaEntryCard
                                 media={entry.media!}
                                 listData={entry.listData}
+                                downloadedChapterCount={entry.downloadedChapterCount}
                                 showListDataButton
                                 withAudienceScore={false}
                                 type="manga"
@@ -640,6 +645,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                                 <MediaEntryCard
                                     media={entry.media!}
                                     listData={entry.listData}
+                                    downloadedChapterCount={entry.downloadedChapterCount}
                                     showListDataButton
                                     withAudienceScore={false}
                                     type="manga"

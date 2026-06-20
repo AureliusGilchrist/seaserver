@@ -115,14 +115,19 @@ export function useHandleMangaCollection() {
         let _lists = data.lists.map(obj => {
             if (!obj) return obj
 
+            // Entries with no listData only exist in the user's collection because they were merged in
+            // from the shared "planning slut" account (matched by locally downloaded media). Those don't
+            // belong to the user's own Planning list — they're only meant to surface in Local Manga Library.
+            const ownEntries = obj.type === "PLANNING" ? obj.entries?.filter(e => !!e.listData) : obj.entries
+
             const newParams = { ...params, sorting: mangaLibraryCollectionDefaultSorting as any }
-            let arr = filterMangaCollectionEntries(obj.entries, newParams, true, storedProviders, storedFilters, latestChapterNumbers,
+            let arr = filterMangaCollectionEntries(ownEntries, newParams, true, storedProviders, storedFilters, latestChapterNumbers,
                 mangaGojuuonMap)
 
             // Reset `unreadOnly` if it's about to make the list disappear
             if (arr.length === 0 && newParams.unreadOnly) {
                 const newParams = { ...params, unreadOnly: false, sorting: mangaLibraryCollectionDefaultSorting as any }
-                arr = filterMangaCollectionEntries(obj.entries, newParams, true, storedProviders, storedFilters, latestChapterNumbers,
+                arr = filterMangaCollectionEntries(ownEntries, newParams, true, storedProviders, storedFilters, latestChapterNumbers,
                     mangaGojuuonMap)
             }
 
@@ -150,8 +155,10 @@ export function useHandleMangaCollection() {
         let _lists = data.lists.map(obj => {
             if (!obj) return obj
 
+            const ownEntries = obj.type === "PLANNING" ? obj.entries?.filter(e => !!e.listData) : obj.entries
+
             const newParams = { ...params, sorting: mangaLibraryCollectionDefaultSorting as any }
-            const arr = filterMangaCollectionEntries(obj.entries, newParams, true, storedProviders, storedFilters, latestChapterNumbers,
+            const arr = filterMangaCollectionEntries(ownEntries, newParams, true, storedProviders, storedFilters, latestChapterNumbers,
                 mangaGojuuonMap)
             return {
                 type: obj.type,

@@ -264,7 +264,13 @@ export function AnimeEntryPage() {
 
     return (
         <div data-anime-entry-page data-media={JSON.stringify(animeEntry.media)} data-anime-entry-list-data={JSON.stringify(animeEntry.listData)}>
-            <MetaSection entry={animeEntry} details={animeDetails} />
+            {/* Lift the whole header (banner + details) above the global true-background
+                effects layer (CustomBackgroundImage Section B, z-[5]) so the scanlines /
+                grain / vignette only decorate the true background that shows below/around
+                the banner — never the banner itself. Content sits above at z-[8]. */}
+            <div className="relative z-[6]">
+                <MetaSection entry={animeEntry} details={animeDetails} />
+            </div>
 
             <div
                 data-anime-entry-page-content-container

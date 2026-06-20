@@ -32,7 +32,6 @@ type (
 		MediaId       int                `json:"mediaId"`
 		EntryListData *EntryListData     `json:"listData"` // AniList list data
 	}
-
 	// UnknownGroup holds the data for a group of downloaded manga whose media is not in the user's AniList.
 	// The client will use this data to suggest manga to the user, so they can add it to their AniList.
 	UnknownGroup struct {
@@ -144,7 +143,7 @@ func NewCollection(opts *NewCollectionOptions) (collection *Collection, err erro
 	}
 
 	coll.Lists = lists
-	
+
 	// Populate UnknownGroups with downloaded manga not in collection
 	coll.UnknownGroups = make([]*UnknownGroup, 0)
 	if opts.MediaMap != nil {

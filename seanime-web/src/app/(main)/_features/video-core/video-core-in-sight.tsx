@@ -265,7 +265,7 @@ export function VideoCoreInSight() {
                                         className="object-cover object-center transition-transform duration-500 ease-in-out group-hover/in-sight-character:scale-105"
                                     />
                                 </div>
-                                <div className="w-32 p-1.5 rounded-lg tracking-wide bg-gray-950 group-hover/in-sight-character:bg-opacity-70 bg-opacity-50 backdrop-blur-sm line-clamp-3 text-base font-semibold mt-2 text-center text-white transition-opacity duration-300 text-shadow-md">
+                                <div className="w-32 p-1.5 rounded-lg tracking-wide bg-gray-950 group-hover/in-sight-character:bg-opacity-90 bg-opacity-80 line-clamp-3 text-base font-semibold mt-2 text-center text-white transition-opacity duration-300 text-shadow-md">
                                     {character.name}
                                 </div>
                             </div>}
