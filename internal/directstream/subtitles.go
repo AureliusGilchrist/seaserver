@@ -173,24 +173,54 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 		// seek offset and, at the steady-state pace, takes a long time to reach the user's current
 		// position — leaving the subtitle area blank for many seconds while the trickle catches up.
 		// Send the first chunk of events quickly so subs reappear within a second or two, then
-		// settle back to the gentle pace. The burst is capped (count + modest batch size) so it
-		// can't reintroduce the steady-state stutter the throttle exists to prevent.
+		// settle back to the gentle pace. The burst batch size is kept modest (smaller than the
+		// old 50) so even the fast pace doesn't dump a big chunk of postMessages on the JASSUB
+		// worker in one go and cause a visible stutter.
+		burstBatchSleep := 25 * time.Millisecond
+		burstFlushInterval := 30 * time.Millisecond
+		burstMaxBatch := 16
+
 		batchSleepDuration := steadyBatchSleep
 		flushInterval := steadyFlushInterval
 		maxBatchSize := steadyMaxBatch
 		catchUpRemaining := 0
-		if isLocalFile && offset > 0 {
-			catchUpRemaining = 400
-			batchSleepDuration = 25 * time.Millisecond
-			flushInterval = 30 * time.Millisecond
-			maxBatchSize = 50
-		}
+		inBurst := false
 
 		eventBatch := make([]*mkvparser.SubtitleEvent, 0, 64)
 		ticker := time.NewTicker(flushInterval)
 		defer ticker.Stop()
 
-		flushBatch := func() {
+		enterBurst := func() {
+			if !inBurst {
+				inBurst = true
+				batchSleepDuration = burstBatchSleep
+				flushInterval = burstFlushInterval
+				maxBatchSize = burstMaxBatch
+				ticker.Reset(flushInterval)
+			}
+			// Refill the burst budget so a sustained backlog keeps the fast pace going.
+			catchUpRemaining = 400
+		}
+
+		leaveBurst := func() {
+			inBurst = false
+			catchUpRemaining = 0
+			batchSleepDuration = steadyBatchSleep
+			flushInterval = steadyFlushInterval
+			maxBatchSize = steadyMaxBatch
+			ticker.Reset(flushInterval)
+		}
+
+		if isLocalFile && offset > 0 {
+			enterBurst()
+		}
+
+		// flushBatch sends whatever's buffered. filledByBacklog indicates the flush was triggered
+		// because the batch hit maxBatchSize before the ticker fired — i.e. the parser is producing
+		// events faster than we're draining them, which means we're behind and should be (or stay)
+		// in the fast catch-up pace. A ticker-triggered flush with a partial batch means we've
+		// drained the backlog and are keeping pace with real-time, so it's safe to settle down.
+		flushBatch := func(filledByBacklog bool) {
 			if len(eventBatch) == 0 {
 				return
 			}
@@ -205,14 +235,16 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 			// sleep between batches to prevent flooding
 			time.Sleep(batchSleepDuration)
 
+			if filledByBacklog {
+				enterBurst()
+				return
+			}
+
 			// Once the catch-up burst is spent, settle to the steady-state throttle.
 			if catchUpRemaining > 0 {
 				catchUpRemaining -= sent
 				if catchUpRemaining <= 0 {
-					batchSleepDuration = steadyBatchSleep
-					flushInterval = steadyFlushInterval
-					maxBatchSize = steadyMaxBatch
-					ticker.Reset(flushInterval)
+					leaveBurst()
 				}
 			}
 		}
@@ -221,18 +253,18 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 			select {
 			case <-ctx.Done():
 				s.logger.Debug().Int64("offset", offset).Msg("directstream: Subtitle streaming cancelled by context")
-				flushBatch()
+				flushBatch(false)
 				return
 
 			case <-ticker.C:
-				flushBatch()
+				flushBatch(false)
 
 			case subtitle, ok := <-subtitleCh:
 				if !ok {
 					subtitleCh = nil // Mark as exhausted
 					subtitleChannelActive = false
 					if !errorChannelActive { // If both channels are exhausted, exit
-						flushBatch()
+						flushBatch(false)
 						return
 					}
 					continue // Continue to wait for errorChannel or ctx.Done()
@@ -242,7 +274,7 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 					// Buffer the event
 					eventBatch = append(eventBatch, subtitle)
 					if len(eventBatch) >= maxBatchSize {
-						flushBatch()
+						flushBatch(true)
 					}
 				}
 
@@ -251,7 +283,7 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 					errCh = nil // Mark as exhausted
 					errorChannelActive = false
 					if !subtitleChannelActive { // If both channels are exhausted, exit
-						flushBatch()
+						flushBatch(false)
 						return
 					}
 					continue // Continue to wait for subtitleChannel or ctx.Done()
@@ -264,7 +296,7 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 					s.logger.Info().Int64("offset", offset).Msg("directstream: Subtitle streaming completed by parser.")
 					subtitleStream.Stop(true)
 				}
-				flushBatch()
+				flushBatch(false)
 				return // Terminate goroutine
 			}
 		}
