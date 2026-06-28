@@ -76,6 +76,7 @@ export class VideoCoreSubtitleManager extends EventTarget {
     private readonly jassubOffscreenRender: boolean
     libassRenderer: JASSUB | null = null
     pgsRenderer: VideoCorePgsRenderer | null = null
+    private libassLoadedMetadataListener: (() => void) | null = null
     private settings: VideoCoreSettings
     private defaultSubtitleHeader = `[Script Info]
 Title: English (US)
@@ -246,6 +247,17 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 await this.libassRenderer.ready
                 subtitleLog.info("Libass renderer ready")
 
+                // JASSUB can compute a NaN/Infinity canvas size if it resizes (e.g. via its
+                // internal ResizeObserver firing as soon as the video element is attached)
+                // before the video's intrinsic dimensions (videoWidth/videoHeight) are known,
+                // which throws inside the render worker ("not of type unsigned long") and can
+                // leave subtitles stuck unrendered. Force a clean resize once real dimensions
+                // are available to recover from that race.
+                this.libassLoadedMetadataListener = () => {
+                    this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer", e))?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer on loadedmetadata", e))
+                }
+                this.videoElement.addEventListener("loadedmetadata", this.libassLoadedMetadataListener)
+
 
                 this.fonts = this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
                     ?.map(a => `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}?id=${this.playbackInfo.id}${this.hmacToken.replace(/^\?/,
@@ -325,7 +337,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.currentTrackNumber = NO_TRACK_NUMBER
         this._disableNativeTextTracks()
         this.libassRenderer?.renderer?.setTrack(this.defaultSubtitleHeader)
-        this.libassRenderer?.resize?.()
+        this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer", e))
         this.pgsRenderer?.clear()
         this._onSelectedTrackChanged?.(NO_TRACK_NUMBER)
 
@@ -444,6 +456,10 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     destroy() {
         subtitleLog.info("Destroying subtitle manager")
         this._disableNativeTextTracks()
+        if (this.libassLoadedMetadataListener) {
+            this.videoElement.removeEventListener("loadedmetadata", this.libassLoadedMetadataListener)
+            this.libassLoadedMetadataListener = null
+        }
         this.libassRenderer?.destroy()
         this.libassRenderer = null
         this.pgsRenderer?.destroy()
@@ -659,7 +675,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         }
         // Select the track
         await this.selectTrack(number)
-        this.libassRenderer?.resize?.()
+        this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer", e))
         this.pgsRenderer?.resize()
 
         const tracks = this._getTracks()
@@ -686,7 +702,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this._storeEventTrackStyles()
         // Select the track
         await this.selectTrack(track.number)
-        this.libassRenderer?.resize?.()
+        this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer", e))
         this.pgsRenderer?.resize()
 
         const tracks = this._getTracks()
@@ -977,7 +993,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             }
         }
 
-        this.libassRenderer?.resize?.()
+        this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer", e))
     }
 
     private _createAssEvent(event: MKVParser_SubtitleEvent, index: number): ASSEvent {
@@ -1133,7 +1149,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             subtitleLog.info("Using cached converted content for track", trackNumber)
             this.libassRenderer?.renderer?.setTrack(fileTrack.content)
             await this._applySubtitleCustomization()
-            await this.libassRenderer?.resize?.()
+            await this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer", e))
             this.pgsRenderer?.resize()
             return
         }
