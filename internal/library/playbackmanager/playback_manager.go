@@ -140,6 +140,12 @@ type (
 		sessionEpisodeCount   int
 		sessionMinutes        int
 		sessionLastCompletion time.Time
+
+		// AniSkip: loaded once per episode on tracking start, cleared on stop.
+		// Guarded by eventMu (same lock as playback status).
+		currentAniSkipData   *aniskipData
+		aniSkipSkippedOP     bool // true once we've auto-sought past the opening this episode
+		aniSkipSkippedED     bool // true once we've auto-sought past the ending this episode
 	}
 
 	// PlaybackStatusSubscriber provides a single event channel for all playback events

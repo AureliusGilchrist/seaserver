@@ -202,6 +202,9 @@ type MediaPlayerSettings struct {
 	VcTranslateApiKey         string `gorm:"column:vc_translate_api_key" json:"vcTranslateApiKey"`
 	VcTranslateBaseUrl        string `gorm:"column:vc_translate_base_url" json:"vcTranslateBaseUrl"`
 	VcTranslateModel          string `gorm:"column:vc_translate_model" json:"vcTranslateModel"`
+	// Auto-skip opening/ending for external players (mpv/IINA) via AniSkip
+	MpvAutoSkipOpening bool `gorm:"column:mpv_auto_skip_opening;default:false" json:"mpvAutoSkipOpening"`
+	MpvAutoSkipEnding  bool `gorm:"column:mpv_auto_skip_ending;default:false" json:"mpvAutoSkipEnding"`
 }
 
 type TorrentSettings struct {

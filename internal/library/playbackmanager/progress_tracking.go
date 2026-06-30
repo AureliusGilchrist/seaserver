@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"seanime/internal/api/anilist"
+	"seanime/internal/api/aniskip"
 	"seanime/internal/continuity"
 	discordrpc_presence "seanime/internal/discordrpc/presence"
 	"seanime/internal/events"
@@ -17,6 +18,16 @@ import (
 
 	"github.com/samber/mo"
 )
+
+// aniskipData holds the OP/ED intervals fetched from AniSkip for the current episode.
+type aniskipData struct {
+	opStart float64
+	opEnd   float64
+	edStart float64
+	edEnd   float64
+	hasOP   bool
+	hasED   bool
+}
 
 var (
 	ErrProgressUpdateAnilist = errors.New("playback manager: Failed to update progress on AniList")
@@ -135,6 +146,48 @@ func (pm *PlaybackManager) handleTrackingStarted(status *mediaplayer.PlaybackSta
 		}
 	}
 
+	// ------- AniSkip auto-skip (mpv/IINA) ------- //
+	pm.currentAniSkipData = nil
+	pm.aniSkipSkippedOP = false
+	pm.aniSkipSkippedED = false
+	dbSettings, _ := pm.Database.GetSettings()
+	var mpvAutoSkipOpening, mpvAutoSkipEnding bool
+	if dbSettings != nil && dbSettings.MediaPlayer != nil {
+		mpvAutoSkipOpening = dbSettings.MediaPlayer.MpvAutoSkipOpening
+		mpvAutoSkipEnding = dbSettings.MediaPlayer.MpvAutoSkipEnding
+	}
+	if mpvAutoSkipOpening || mpvAutoSkipEnding {
+		malIdPtr := currentMediaListEntry.GetMedia().GetIDMal()
+		episodeNumber := currentLocalFileWrapperEntry.GetProgressNumber(currentLocalFile)
+		if malIdPtr != nil && *malIdPtr > 0 && episodeNumber > 0 {
+			go func(malId, ep int) {
+				data, err := aniskip.FetchSkipData(malId, ep)
+				if err != nil {
+					pm.Logger.Warn().Err(err).Int("malId", malId).Int("episode", ep).Msg("playback manager: AniSkip fetch failed")
+					return
+				}
+				if data == nil {
+					return
+				}
+				sd := &aniskipData{}
+				if data.OP != nil {
+					sd.hasOP = true
+					sd.opStart = data.OP.Interval.StartTime
+					sd.opEnd = data.OP.Interval.EndTime
+				}
+				if data.ED != nil {
+					sd.hasED = true
+					sd.edStart = data.ED.Interval.StartTime
+					sd.edEnd = data.ED.Interval.EndTime
+				}
+				pm.eventMu.Lock()
+				pm.currentAniSkipData = sd
+				pm.eventMu.Unlock()
+				pm.Logger.Debug().Int("malId", malId).Int("episode", ep).Msg("playback manager: AniSkip data loaded")
+			}(*malIdPtr, episodeNumber)
+		}
+	}
+
 	// ------- Discord ------- //
 	if pm.discordPresence != nil && !pm.isOfflineRef.Get() {
 		go pm.discordPresence.SetAnimeActivity(&discordrpc_presence.AnimeActivity{
@@ -191,6 +244,10 @@ func (pm *PlaybackManager) handleTrackingStopped(reason string) {
 	pm.eventMu.Lock()
 	defer pm.eventMu.Unlock()
 
+	pm.currentAniSkipData = nil
+	pm.aniSkipSkippedOP = false
+	pm.aniSkipSkippedED = false
+
 	pm.Logger.Debug().Msg("playback manager: Received tracking stopped event")
 	pm.sendEventToCurrentClient(events.PlaybackManagerProgressTrackingStopped, reason)
 
@@ -239,6 +296,35 @@ func (pm *PlaybackManager) handlePlaybackStatus(status *mediaplayer.PlaybackStat
 	// PlaybackStatusCh has no way of knowing if the progress has been updated
 	if h, ok := pm.historyMap[status.Filename]; ok {
 		_ps.ProgressUpdated = h.ProgressUpdated
+	}
+
+	// ------- AniSkip auto-seek ------- //
+	if pm.currentAniSkipData != nil && status.Playing {
+		t := status.CurrentTimeInSeconds
+		sd := pm.currentAniSkipData
+		dbSettings, _ := pm.Database.GetSettings()
+		skipOP := dbSettings != nil && dbSettings.MediaPlayer != nil && dbSettings.MediaPlayer.MpvAutoSkipOpening
+		skipED := dbSettings != nil && dbSettings.MediaPlayer != nil && dbSettings.MediaPlayer.MpvAutoSkipEnding
+		if skipOP && sd.hasOP && !pm.aniSkipSkippedOP && t >= sd.opStart && t < sd.opEnd {
+			pm.aniSkipSkippedOP = true
+			go func(seekTo float64) {
+				if err := pm.MediaPlayerRepository.SeekTo(seekTo); err != nil {
+					pm.Logger.Warn().Err(err).Float64("seekTo", seekTo).Msg("playback manager: AniSkip OP seek failed")
+				} else {
+					pm.Logger.Debug().Float64("seekTo", seekTo).Msg("playback manager: AniSkip skipped opening")
+				}
+			}(sd.opEnd)
+		}
+		if skipED && sd.hasED && !pm.aniSkipSkippedED && t >= sd.edStart && t < sd.edEnd {
+			pm.aniSkipSkippedED = true
+			go func(seekTo float64) {
+				if err := pm.MediaPlayerRepository.SeekTo(seekTo); err != nil {
+					pm.Logger.Warn().Err(err).Float64("seekTo", seekTo).Msg("playback manager: AniSkip ED seek failed")
+				} else {
+					pm.Logger.Debug().Float64("seekTo", seekTo).Msg("playback manager: AniSkip skipped ending")
+				}
+			}(sd.edEnd)
+		}
 	}
 
 	// Notify subscribers

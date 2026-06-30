@@ -400,6 +400,8 @@ export default function Page() {
                                         vcTranslateTargetLanguage: data.vcTranslateTargetLanguage || "",
                                         vcTranslateBaseUrl: data.vcTranslateBaseUrl || "",
                                         vcTranslateModel: data.vcTranslateModel || "",
+                                        mpvAutoSkipOpening: data.mpvAutoSkipOpening ?? false,
+                                        mpvAutoSkipEnding: data.mpvAutoSkipEnding ?? false,
                                     },
                                     torrent: {
                                         defaultTorrentClient: data.defaultTorrentClient,
@@ -540,6 +542,8 @@ export default function Page() {
                                 vcTranslateTargetLanguage: status?.settings?.mediaPlayer?.vcTranslateTargetLanguage ?? "",
                                 vcTranslateBaseUrl: status?.settings?.mediaPlayer?.vcTranslateBaseUrl ?? "",
                                 vcTranslateModel: status?.settings?.mediaPlayer?.vcTranslateModel ?? "",
+                                mpvAutoSkipOpening: status?.settings?.mediaPlayer?.mpvAutoSkipOpening ?? false,
+                                mpvAutoSkipEnding: status?.settings?.mediaPlayer?.mpvAutoSkipEnding ?? false,
                                 scannerUseLegacyMatching: status?.settings?.library?.scannerUseLegacyMatching ?? false,
                                 scannerConfig: status?.settings?.library?.scannerConfig ?? "",
                                 updateChannel: status?.settings?.library?.updateChannel || "github",

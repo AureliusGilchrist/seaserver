@@ -4881,6 +4881,8 @@ export type Models_MediaPlayerSettings = {
     vcTranslateApiKey: string
     vcTranslateBaseUrl: string
     vcTranslateModel: string
+    mpvAutoSkipOpening: boolean
+    mpvAutoSkipEnding: boolean
 }
 
 /**
