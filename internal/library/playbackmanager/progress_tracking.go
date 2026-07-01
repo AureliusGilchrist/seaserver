@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"seanime/internal/api/anilist"
 	"seanime/internal/api/aniskip"
+	"seanime/internal/api/filler"
 	"seanime/internal/continuity"
 	discordrpc_presence "seanime/internal/discordrpc/presence"
 	"seanime/internal/events"
@@ -14,6 +15,7 @@ import (
 	"seanime/internal/mediaplayers/mediaplayer"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util"
+	"strconv"
 	"time"
 
 	"github.com/samber/mo"
@@ -188,6 +190,64 @@ func (pm *PlaybackManager) handleTrackingStarted(status *mediaplayer.PlaybackSta
 		}
 	}
 
+	// ------- Filler skip (mpv/IINA) ------- //
+	pm.currentFillerEpisodes = nil
+	var mpvAutoSkipFiller bool
+	if dbSettings != nil && dbSettings.MediaPlayer != nil {
+		mpvAutoSkipFiller = dbSettings.MediaPlayer.MpvAutoSkipFiller
+	}
+	if mpvAutoSkipFiller {
+		media := currentMediaListEntry.GetMedia()
+		titles := []string{media.GetRomajiTitleSafe(), media.GetEnglishTitleSafe()}
+		episodeNumber := currentLocalFileWrapperEntry.GetProgressNumber(currentLocalFile)
+		go func(titles []string, currentEp int, wrapperEntry *anime.LocalFileWrapperEntry, currentLF *anime.LocalFile) {
+			af := filler.NewAnimeFillerList(pm.Logger)
+			result, err := af.Search(filler.SearchOptions{Titles: titles})
+			if err != nil || result == nil {
+				pm.Logger.Warn().Err(err).Msg("playback manager: Filler search failed")
+				return
+			}
+			data, err := af.FindFillerData(result.Slug)
+			if err != nil || data == nil {
+				pm.Logger.Warn().Err(err).Msg("playback manager: Filler data fetch failed")
+				return
+			}
+			fillerSet := make(map[int]bool, len(data.FillerEpisodes))
+			for _, s := range data.FillerEpisodes {
+				n, err := strconv.Atoi(s)
+				if err == nil {
+					fillerSet[n] = true
+				}
+			}
+			pm.eventMu.Lock()
+			pm.currentFillerEpisodes = make([]int, 0, len(fillerSet))
+			for n := range fillerSet {
+				pm.currentFillerEpisodes = append(pm.currentFillerEpisodes, n)
+			}
+			pm.eventMu.Unlock()
+			// If the currently playing episode is filler, jump to next non-filler
+			if fillerSet[currentEp] {
+				pm.Logger.Info().Int("episode", currentEp).Msg("playback manager: Episode is filler, skipping")
+				// Find next non-filler local file
+				next := currentLF
+				for {
+					n, ok := wrapperEntry.FindNextEpisode(next)
+					if !ok {
+						break
+					}
+					nextEp := wrapperEntry.GetProgressNumber(n)
+					if !fillerSet[nextEp] {
+						pm.Logger.Info().Int("episode", nextEp).Msg("playback manager: Jumping to next non-filler episode")
+						_ = pm.MediaPlayerRepository.Play(n.Path)
+						return
+					}
+					next = n
+				}
+				pm.Logger.Warn().Msg("playback manager: No non-filler episode found to skip to")
+			}
+		}(titles, episodeNumber, currentLocalFileWrapperEntry, currentLocalFile)
+	}
+
 	// ------- Discord ------- //
 	if pm.discordPresence != nil && !pm.isOfflineRef.Get() {
 		go pm.discordPresence.SetAnimeActivity(&discordrpc_presence.AnimeActivity{
@@ -247,6 +307,7 @@ func (pm *PlaybackManager) handleTrackingStopped(reason string) {
 	pm.currentAniSkipData = nil
 	pm.aniSkipSkippedOP = false
 	pm.aniSkipSkippedED = false
+	pm.currentFillerEpisodes = nil
 
 	pm.Logger.Debug().Msg("playback manager: Received tracking stopped event")
 	pm.sendEventToCurrentClient(events.PlaybackManagerProgressTrackingStopped, reason)

@@ -205,6 +205,7 @@ type MediaPlayerSettings struct {
 	// Auto-skip opening/ending for external players (mpv/IINA) via AniSkip
 	MpvAutoSkipOpening bool `gorm:"column:mpv_auto_skip_opening;default:false" json:"mpvAutoSkipOpening"`
 	MpvAutoSkipEnding  bool `gorm:"column:mpv_auto_skip_ending;default:false" json:"mpvAutoSkipEnding"`
+	MpvAutoSkipFiller  bool `gorm:"column:mpv_auto_skip_filler;default:false" json:"mpvAutoSkipFiller"`
 }
 
 type TorrentSettings struct {

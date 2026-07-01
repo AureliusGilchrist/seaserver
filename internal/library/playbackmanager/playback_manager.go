@@ -146,6 +146,9 @@ type (
 		currentAniSkipData   *aniskipData
 		aniSkipSkippedOP     bool // true once we've auto-sought past the opening this episode
 		aniSkipSkippedED     bool // true once we've auto-sought past the ending this episode
+
+		// Filler skip: set of filler episode numbers for the current anime, loaded async on tracking start.
+		currentFillerEpisodes []int
 	}
 
 	// PlaybackStatusSubscriber provides a single event channel for all playback events

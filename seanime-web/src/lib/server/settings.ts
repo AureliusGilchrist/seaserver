@@ -120,6 +120,7 @@ export const settingsSchema = z.object({
     vcTranslateModel: z.string().optional().default(""),
     mpvAutoSkipOpening: z.boolean().optional().default(false),
     mpvAutoSkipEnding: z.boolean().optional().default(false),
+    mpvAutoSkipFiller: z.boolean().optional().default(false),
     scannerUseLegacyMatching: z.boolean().optional().default(false),
     scannerConfig: z.string().optional().default(""),
     updateChannel: z.string().optional().default("github"),
@@ -197,6 +198,7 @@ export const getDefaultSettings = (data: z.infer<typeof gettingStartedSchema>): 
         vcTranslateModel: "",
         mpvAutoSkipOpening: false,
         mpvAutoSkipEnding: false,
+        mpvAutoSkipFiller: false,
     },
     discord: {
         enableRichPresence: data.enableRichPresence,

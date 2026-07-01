@@ -4883,6 +4883,7 @@ export type Models_MediaPlayerSettings = {
     vcTranslateModel: string
     mpvAutoSkipOpening: boolean
     mpvAutoSkipEnding: boolean
+    mpvAutoSkipFiller: boolean
 }
 
 /**

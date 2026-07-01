@@ -214,6 +214,11 @@ export function MediaplayerSettings(props: MediaplayerSettingsProps) {
                     label="Auto-skip ending (external player)"
                     help="Automatically seek past the ending when playing local files in MPV or IINA."
                 />
+                <Field.Switch
+                    name="mpvAutoSkipFiller"
+                    label="Auto-skip filler episodes (external player)"
+                    help="Automatically skip to the next non-filler episode when a filler starts in MPV or IINA. Uses AnimeFillerList data."
+                />
             </SettingsCard>
 
             <SettingsSubmitButton isPending={isPending} />
