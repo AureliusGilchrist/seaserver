@@ -5159,6 +5159,7 @@ export type Models_TorrentSettings = {
     transmissionPassword: string
     showActiveTorrentCount: boolean
     hideTorrentList: boolean
+    builtinDownloadDir: string
 }
 
 /**

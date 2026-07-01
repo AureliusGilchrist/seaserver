@@ -28,6 +28,7 @@ const MEDIASTREAM_HW_ACCEL_OPTIONS = [
     { label: "NVIDIA (NVENC)", value: "nvidia" },
     { label: "NVIDIA (Decode Only)", value: "nvidia-decode" },
     { label: "Intel (QSV)", value: "qsv" },
+    { label: "Intel (QSV Low-Power)", value: "qsv-low-power" },
     { label: "VAAPI", value: "vaapi" },
     { label: "Apple VideoToolbox", value: "videotoolbox" },
     { label: "Custom", value: "custom" },
@@ -73,6 +74,7 @@ export function MediastreamSettings(props: MediastreamSettingsProps) {
             />
 
             <Form
+                key={settings?.updatedAt ?? "mediastream-settings"}
                 schema={mediastreamSchema}
                 mRef={formRef}
                 onSubmit={data => {
@@ -108,7 +110,6 @@ export function MediastreamSettings(props: MediastreamSettingsProps) {
                     transcodeHwAccelCustomSettings: settings?.transcodeHwAccelCustomSettings || "{\n	\"name\": \"\",\n	\"decodeFlags\": [\n		\"-hwaccel\", \"\",\n		\"-hwaccel_output_format\", \"\",\n	],\n	\"encodeFlags\": [\n		\"-c:v\", \"\",\n		\"-preset\", \"\",\n		\"-pix_fmt\", \"yuv420p\",\n	],\n	\"scaleFilter\": \"scale=%d:%d\"\n}",
                 }}
                 stackClass="space-y-4"
-                noFormElement
             >
                 {(f) => (
                     <>

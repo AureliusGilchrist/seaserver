@@ -227,6 +227,21 @@ type TorrentSettings struct {
 	// v2.2+
 	// DEPRECATED, no longer used
 	HideTorrentList bool `gorm:"column:hide_torrent_list" json:"hideTorrentList"`
+	// v3.6+
+	BuiltinDownloadDir string `gorm:"column:builtin_download_dir" json:"builtinDownloadDir"`
+}
+
+// +---------------------+
+// |  BuiltinTorrent     |
+// +---------------------+
+
+type BuiltinTorrentItem struct {
+	BaseModel
+	Hash        string `gorm:"column:hash;uniqueIndex" json:"hash"`
+	Magnet      string `gorm:"column:magnet;type:text" json:"magnet"`
+	Name        string `gorm:"column:name" json:"name"`
+	DownloadDir string `gorm:"column:download_dir" json:"downloadDir"`
+	Status      string `gorm:"column:status" json:"status"`
 }
 
 type ListSyncSettings struct {

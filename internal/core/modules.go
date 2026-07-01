@@ -34,6 +34,7 @@ import (
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/playlist"
 	"seanime/internal/plugin"
+	"seanime/internal/torrent_clients/builtin_client"
 	"seanime/internal/torrent_clients/qbittorrent"
 	"seanime/internal/torrent_clients/torrent_client"
 	"seanime/internal/torrent_clients/transmission"
@@ -795,11 +796,27 @@ func (a *App) InitOrRefreshModules() {
 			a.TorrentClientRepository.Shutdown()
 		}
 
+		// Built-in torrent client
+		var builtinTorrentClient *builtin_client.Client
+		if settings.Torrent.Default == torrent_client.BuiltinClient {
+			builtinTorrentClient = builtin_client.NewClient(&builtin_client.NewClientOptions{
+				Logger:      a.Logger,
+				Database:    a.Database,
+				DownloadDir: settings.Torrent.BuiltinDownloadDir,
+				OnComplete: func() {
+					if a.UnmatchedScanner != nil {
+						a.UnmatchedScanner.TriggerScan()
+					}
+				},
+			})
+		}
+
 		// Torrent Client Repository
 		a.TorrentClientRepository = torrent_client.NewRepository(&torrent_client.NewRepositoryOptions{
 			Logger:              a.Logger,
 			QbittorrentClient:   qbit,
 			Transmission:        trans,
+			BuiltinClient:       builtinTorrentClient,
 			TorrentRepository:   a.TorrentRepository,
 			Provider:            settings.Torrent.Default,
 			MetadataProviderRef: a.MetadataProviderRef,

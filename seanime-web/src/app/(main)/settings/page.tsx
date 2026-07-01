@@ -420,6 +420,7 @@ export default function Page() {
                                         transmissionPassword: data.transmissionPassword,
                                         showActiveTorrentCount: data.showActiveTorrentCount ?? false,
                                         hideTorrentList: data.hideTorrentList ?? false,
+                                        builtinDownloadDir: data.builtinDownloadDir ?? "",
                                     },
                                     discord: {
                                         enableRichPresence: data?.enableRichPresence ?? false,
@@ -492,6 +493,7 @@ export default function Page() {
                                 transmissionPort: status?.settings?.torrent?.transmissionPort,
                                 transmissionUsername: status?.settings?.torrent?.transmissionUsername,
                                 transmissionPassword: status?.settings?.torrent?.transmissionPassword,
+                                builtinDownloadDir: status?.settings?.torrent?.builtinDownloadDir ?? "/aeternae/Soul/Otaku Media/Unmatched/",
                                 hideAudienceScore: status?.settings?.anilist?.hideAudienceScore ?? false,
                                 autoUpdateProgress: status?.settings?.library?.autoUpdateProgress ?? false,
                                 disableUpdateCheck: status?.settings?.library?.disableUpdateCheck ?? false,
@@ -772,6 +774,7 @@ export default function Page() {
                                                 options={[
                                                     { label: "qBittorrent", value: "qbittorrent" },
                                                     { label: "Transmission", value: "transmission" },
+                                                    { label: "Built-in", value: "builtin" },
                                                     { label: "None", value: "none" },
                                                 ]}
                                             />
@@ -836,7 +839,7 @@ export default function Page() {
                                                     <h4 className="flex gap-2 items-center">
                                                         <SiTransmission className="text-orange-200" /> Transmission</h4>
                                                 </AccordionTrigger>
-                                                <AccordionContent className="p-0 py-4 space-y-4 !border-b-0">
+                                                <AccordionContent className="p-0 py-4 space-y-4">
                                                     <Field.Text
                                                         name="transmissionHost"
                                                         label="Host"
@@ -861,6 +864,20 @@ export default function Page() {
                                                     <Field.Text
                                                         name="transmissionPath"
                                                         label="Executable"
+                                                    />
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                            <AccordionItem value="builtin">
+                                                <AccordionTrigger>
+                                                    <h4 className="flex gap-2 items-center">
+                                                        <SiBittorrent className="text-brand-300" /> Built-in client
+                                                    </h4>
+                                                </AccordionTrigger>
+                                                <AccordionContent className="p-0 py-4 space-y-4 !border-b-0">
+                                                    <Field.Text
+                                                        name="builtinDownloadDir"
+                                                        label="Download directory"
+                                                        help="Where downloaded torrents will be saved. Leave empty to use the system cache directory."
                                                     />
                                                 </AccordionContent>
                                             </AccordionItem>

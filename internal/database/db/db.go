@@ -140,6 +140,7 @@ func migrateTables(db *gorm.DB) error {
 		&models.MediaCacheEntry{},
 		&models.ClientPref{},
 		&models.EasterEggDiscovery{},
+		&models.BuiltinTorrentItem{},
 	)
 	if err != nil {
 

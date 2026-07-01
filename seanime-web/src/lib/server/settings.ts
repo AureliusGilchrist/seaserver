@@ -12,6 +12,7 @@ export const DEFAULT_MPV_TYPE = "socket"
 export const enum TORRENT_CLIENT {
     QBITTORRENT = "qbittorrent",
     TRANSMISSION = "transmission",
+    BUILTIN = "builtin",
     NONE = "none",
 }
 
@@ -64,6 +65,7 @@ export const settingsSchema = z.object({
     transmissionPort: z.number().optional().default(9091),
     transmissionUsername: z.string().optional().default(""),
     transmissionPassword: z.string().optional().default(""),
+    builtinDownloadDir: z.string().optional().default(""),
     hideAudienceScore: z.boolean().optional().default(false),
     autoUpdateProgress: z.boolean().optional().default(false),
     disableUpdateCheck: z.boolean().optional().default(false),
@@ -225,6 +227,7 @@ export const getDefaultSettings = (data: z.infer<typeof gettingStartedSchema>): 
         transmissionPassword: data.transmissionPassword,
         showActiveTorrentCount: false,
         hideTorrentList: false,
+        builtinDownloadDir: data.builtinDownloadDir ?? "/aeternae/Soul/Otaku Media/Unmatched/",
     },
     anilist: {
         hideAudienceScore: false,

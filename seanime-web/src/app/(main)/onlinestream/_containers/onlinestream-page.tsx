@@ -23,8 +23,8 @@ import { useNakamaOnlineStreamWatchParty } from "@/app/(main)/onlinestream/_lib/
 import { useHandleOnlinestreamProviderExtensions } from "@/app/(main)/onlinestream/_lib/handle-onlinestream-providers"
 import { useOnlinestreamAutoProviderCycler } from "@/app/(main)/onlinestream/_lib/use-onlinestream-auto-provider-cycler"
 import {
+    __onlinestream_dubbedPreferenceByMediaAtom,
     __onlinestream_qualityAtom,
-    __onlinestream_selectedDubbedAtom,
     __onlinestream_selectedEpisodeNumberAtom,
     __onlinestream_selectedProviderAtom,
     __onlinestream_selectedServerAtom,
@@ -91,7 +91,21 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
     const [currentEpisodeNumber, setSelectedEpisodeNumber] = useAtom(__onlinestream_selectedEpisodeNumberAtom)
     const [server, setServer] = useAtom(__onlinestream_selectedServerAtom)
     const [quality, setQuality] = useAtom(__onlinestream_qualityAtom)
-    const [dubbed, setDubbed] = useAtom(__onlinestream_selectedDubbedAtom)
+    const [dubbedPreferenceByMedia, setDubbedPreferenceByMedia] = useAtom(__onlinestream_dubbedPreferenceByMediaAtom)
+    const dubbedPreferenceKey = mediaId ? String(mediaId) : null
+    const dubbed = dubbedPreferenceKey ? dubbedPreferenceByMedia[dubbedPreferenceKey] ?? false : false
+    const setDubbed = React.useCallback((update: boolean | ((prev: boolean) => boolean)) => {
+        if (!dubbedPreferenceKey) return
+        setDubbedPreferenceByMedia(prev => {
+            const current = prev[dubbedPreferenceKey] ?? false
+            const next = typeof update === "function" ? update(current) : update
+            if (current === next && Object.prototype.hasOwnProperty.call(prev, dubbedPreferenceKey)) return prev
+            return {
+                ...prev,
+                [dubbedPreferenceKey]: next,
+            }
+        })
+    }, [dubbedPreferenceKey, setDubbedPreferenceByMedia])
     const [provider, setProvider] = useAtom(__onlinestream_selectedProviderAtom)
 
     const [overrideStreamType, setOverrideStreamType] = React.useState<VideoCore_VideoPlaybackInfo["streamType"] | null>(null)

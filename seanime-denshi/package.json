@@ -1,6 +1,6 @@
 {
   "name": "seanime-denshi",
-  "version": "4.1.0-10",
+  "version": "4.1.2-0",
   "description": "Electron-based Desktop client for Seaserver",
   "main": "src/main.js",
   "author": "5rahim <talkwithrahim@gmail.com>",

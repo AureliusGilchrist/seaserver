@@ -24,7 +24,6 @@ import { Alert } from "@/components/ui/alert"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
-import { DataGridSearchInput } from "@/components/ui/datagrid"
 import { NumberInput } from "@/components/ui/number-input"
 import { Select } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -76,6 +75,8 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
         providerExtensions,
         globalFilter,
         setGlobalFilter,
+        debouncedGlobalFilter,
+        triggerImmediateSearch,
         selectedTorrents,
         setSelectedTorrents,
         searchType,
@@ -84,6 +85,8 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
         setSmartSearchBatch,
         smartSearchEpisode,
         setSmartSearchEpisode,
+        debouncedSmartSearchEpisode,
+        triggerImmediateEpisode,
         smartSearchResolution,
         setSmartSearchResolution,
         smartSearchBest,
@@ -91,6 +94,8 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
         data,
         isLoading,
         isFetching,
+        isError,
+        refetch,
         soughtEpisode,
     } = useHandleTorrentSearch({
         isAdult: false,
@@ -266,6 +271,14 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
                                                 setSmartSearchEpisode(value)
                                             })
                                         }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                triggerImmediateEpisode()
+                                                if (smartSearchEpisode === debouncedSmartSearchEpisode) {
+                                                    refetch()
+                                                }
+                                            }
+                                        }}
                                         formatOptions={{ useGrouping: false }}
                                         // hideControls
                                         size="sm"
@@ -333,13 +346,22 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
 
                                 {!hasOneWarning && selectedProviderExtension?.settings?.smartSearchFilters?.includes("query") &&
                                     <div className="py-1" data-torrent-search-smart-search-query-input-container>
-                                        <DataGridSearchInput
+                                        <TextInput
                                             value={globalFilter ?? ""}
-                                            onChange={v => setGlobalFilter(v)}
+                                            onValueChange={v => setGlobalFilter(v)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    triggerImmediateSearch()
+                                                    if (globalFilter === debouncedGlobalFilter) {
+                                                        refetch()
+                                                    }
+                                                }
+                                            }}
                                             placeholder={searchType === Torrent_SearchType.SMART
                                                 ? `Refine the title (${entry.media?.title?.romaji})`
                                                 : "Search"}
                                             fieldClass="md:max-w-full w-full"
+                                            leftIcon={<FiSearch className="text-lg" />}
                                         />
                                     </div>}
 
@@ -349,6 +371,14 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
                             <TextInput
                                 value={globalFilter}
                                 onValueChange={setGlobalFilter}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        triggerImmediateSearch()
+                                        if (globalFilter === debouncedGlobalFilter) {
+                                            refetch()
+                                        }
+                                    }
+                                }}
                                 leftIcon={<FiSearch className="text-lg" />}
                             />
                         )}
@@ -386,7 +416,23 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
                                 />}
 
                             {hasOneWarning && <LuffyError />}
-                            {(searchType === Torrent_SearchType.SMART) && !hasOneWarning && (
+                            {isError && !hasOneWarning && (
+                                <LuffyError
+                                    title="Search failed"
+                                >
+                                    <div className="flex flex-col items-center gap-2">
+                                        <p className="text-sm text-[--muted]">Failed to retrieve torrents from the provider.</p>
+                                        <Button
+                                            size="sm"
+                                            intent="gray-outline"
+                                            onClick={() => refetch()}
+                                        >
+                                            Retry Search
+                                        </Button>
+                                    </div>
+                                </LuffyError>
+                            )}
+                            {(searchType === Torrent_SearchType.SMART) && !hasOneWarning && !isError && (
                                 <>
                                     <TorrentPreviewList
                                         entry={entry}
@@ -403,7 +449,7 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
                                 </>
                             )}
 
-                            {((searchType !== Torrent_SearchType.SMART) && !hasOneWarning && !previews?.length) && (
+                            {((searchType !== Torrent_SearchType.SMART) && !hasOneWarning && !isError && !previews?.length) && (
                                 <>
                                     <TorrentTable
                                         entry={entry}

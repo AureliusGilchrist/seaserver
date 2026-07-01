@@ -62,6 +62,10 @@ type Manager interface {
 
 	OnAnimeScheduleItems() *Hook[hook_resolver.Resolver]
 
+	// Torrent search events
+	OnTorrentSearchRequested() *Hook[hook_resolver.Resolver]
+	OnTorrentSearch() *Hook[hook_resolver.Resolver]
+
 	// Auto Downloader events
 	OnAutoDownloaderRunStarted() *Hook[hook_resolver.Resolver]
 	OnAutoDownloaderMatchVerified() *Hook[hook_resolver.Resolver]
@@ -196,6 +200,9 @@ type ManagerImpl struct {
 	onAnimeLibraryStreamCollectionRequested *Hook[hook_resolver.Resolver]
 	onAnimeLibraryStreamCollection          *Hook[hook_resolver.Resolver]
 	onAnimeScheduleItems                    *Hook[hook_resolver.Resolver]
+	// Torrent search events
+	onTorrentSearchRequested *Hook[hook_resolver.Resolver]
+	onTorrentSearch          *Hook[hook_resolver.Resolver]
 	// Auto Downloader events
 	onAutoDownloaderMatchVerified         *Hook[hook_resolver.Resolver]
 	onAutoDownloaderRunStarted            *Hook[hook_resolver.Resolver]
@@ -339,6 +346,9 @@ func (m *ManagerImpl) initHooks() {
 	m.onAnimeLibraryStreamCollectionRequested = &Hook[hook_resolver.Resolver]{}
 	m.onAnimeLibraryStreamCollection = &Hook[hook_resolver.Resolver]{}
 	m.onAnimeScheduleItems = &Hook[hook_resolver.Resolver]{}
+	// Torrent search events
+	m.onTorrentSearchRequested = &Hook[hook_resolver.Resolver]{}
+	m.onTorrentSearch = &Hook[hook_resolver.Resolver]{}
 	// Auto Downloader events
 	m.onAutoDownloaderMatchVerified = &Hook[hook_resolver.Resolver]{}
 	m.onAutoDownloaderRunStarted = &Hook[hook_resolver.Resolver]{}
@@ -736,6 +746,22 @@ func (m *ManagerImpl) OnAutoDownloaderAfterDownloadTorrent() *Hook[hook_resolver
 		return &Hook[hook_resolver.Resolver]{}
 	}
 	return m.onAutoDownloaderAfterDownloadTorrent
+}
+
+// Torrent search events
+
+func (m *ManagerImpl) OnTorrentSearchRequested() *Hook[hook_resolver.Resolver] {
+	if m == nil {
+		return &Hook[hook_resolver.Resolver]{}
+	}
+	return m.onTorrentSearchRequested
+}
+
+func (m *ManagerImpl) OnTorrentSearch() *Hook[hook_resolver.Resolver] {
+	if m == nil {
+		return &Hook[hook_resolver.Resolver]{}
+	}
+	return m.onTorrentSearch
 }
 
 // Scanner events

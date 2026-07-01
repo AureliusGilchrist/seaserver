@@ -423,7 +423,7 @@ export function useLegacyHandleOnlinestream(props: LegacyHandleOnlinestreamProps
         }
         catch {
         }
-        setDubbed((prev) => !prev)
+        setDubbed((prev: boolean) => !prev)
     }, [videoSource])
 
     // Episode

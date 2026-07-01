@@ -5,6 +5,7 @@ import (
 	"errors"
 	"seanime/internal/api/metadata_provider"
 	"seanime/internal/events"
+	"seanime/internal/torrent_clients/builtin_client"
 	"seanime/internal/torrent_clients/qbittorrent"
 	"seanime/internal/torrent_clients/qbittorrent/model"
 	"seanime/internal/torrent_clients/transmission"
@@ -23,6 +24,7 @@ const (
 	QbittorrentClient  = "qbittorrent"
 	TransmissionClient = "transmission"
 	NoneClient         = "none"
+	BuiltinClient      = "builtin"
 )
 
 type (
@@ -30,6 +32,7 @@ type (
 		logger                      *zerolog.Logger
 		qBittorrentClient           *qbittorrent.Client
 		transmission                *transmission.Transmission
+		builtinClient               *builtin_client.Client
 		torrentRepository           *torrent.Repository
 		provider                    string
 		metadataProviderRef         *util.Ref[metadata_provider.Provider]
@@ -41,6 +44,7 @@ type (
 		Logger              *zerolog.Logger
 		QbittorrentClient   *qbittorrent.Client
 		Transmission        *transmission.Transmission
+		BuiltinClient       *builtin_client.Client
 		TorrentRepository   *torrent.Repository
 		Provider            string
 		MetadataProviderRef *util.Ref[metadata_provider.Provider]
@@ -61,6 +65,7 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 		logger:              opts.Logger,
 		qBittorrentClient:   opts.QbittorrentClient,
 		transmission:        opts.Transmission,
+		builtinClient:       opts.BuiltinClient,
 		torrentRepository:   opts.TorrentRepository,
 		provider:            opts.Provider,
 		metadataProviderRef: opts.MetadataProviderRef,
@@ -72,6 +77,9 @@ func (r *Repository) Shutdown() {
 	if r.activeTorrentCountCtxCancel != nil {
 		r.activeTorrentCountCtxCancel()
 		r.activeTorrentCountCtxCancel = nil
+	}
+	if r.builtinClient != nil {
+		r.builtinClient.Shutdown()
 	}
 }
 
@@ -113,6 +121,11 @@ func (r *Repository) Start() bool {
 		return r.qBittorrentClient.CheckStart()
 	case TransmissionClient:
 		return r.transmission.CheckStart()
+	case BuiltinClient:
+		if r.builtinClient == nil {
+			return false
+		}
+		return r.builtinClient.Start()
 	case NoneClient:
 		return true
 	default:
@@ -127,6 +140,11 @@ func (r *Repository) TorrentExists(hash string) bool {
 	case TransmissionClient:
 		torrents, err := r.transmission.Client.TorrentGetAllForHashes(context.Background(), []string{hash})
 		return err == nil && len(torrents) > 0
+	case BuiltinClient:
+		if r.builtinClient == nil {
+			return false
+		}
+		return r.builtinClient.TorrentExists(hash)
 	default:
 		return false
 	}
@@ -222,6 +240,12 @@ func (r *Repository) GetList(opts *GetListOptions) ([]*Torrent, error) {
 
 		return r.FromTransmissionTorrents(torrents), nil
 
+	case BuiltinClient:
+		if r.builtinClient == nil {
+			return nil, errors.New("torrent client: Built-in client not initialized")
+		}
+		return r.FromBuiltinTorrents(r.builtinClient.GetList()), nil
+
 	default:
 		return nil, errors.New("torrent client: No torrent client provider found")
 	}
@@ -272,6 +296,20 @@ func (r *Repository) GetActiveCount(ret *ActiveCount) {
 			}
 		}
 		return
+	case BuiltinClient:
+		if r.builtinClient == nil {
+			return
+		}
+		for _, t := range r.builtinClient.GetList() {
+			switch t.Status {
+			case builtin_client.StatusDownloading:
+				ret.Downloading++
+			case builtin_client.StatusSeeding:
+				ret.Seeding++
+			case builtin_client.StatusPaused:
+				ret.Paused++
+			}
+		}
 	default:
 		return
 	}
@@ -333,6 +371,11 @@ func (r *Repository) AddMagnets(magnets []string, dest string) error {
 				break
 			}
 		}
+	case BuiltinClient:
+		if r.builtinClient == nil {
+			return errors.New("torrent client: Built-in client not initialized")
+		}
+		err = r.builtinClient.AddMagnets(magnets, dest)
 	case NoneClient:
 		return errors.New("torrent client: No torrent client selected")
 	}
@@ -372,6 +415,11 @@ func (r *Repository) RemoveTorrents(hashes []string) error {
 			r.logger.Err(err).Msg("torrent client: Error while removing torrents (Transmission)")
 			return err
 		}
+	case BuiltinClient:
+		if r.builtinClient == nil {
+			return errors.New("torrent client: Built-in client not initialized")
+		}
+		err = r.builtinClient.RemoveTorrents(hashes, true)
 	}
 	if err != nil {
 		r.logger.Err(err).Msg("torrent client: Error while removing torrents")
@@ -391,6 +439,11 @@ func (r *Repository) PauseTorrents(hashes []string) error {
 		err = r.qBittorrentClient.Torrent.StopTorrents(hashes)
 	case TransmissionClient:
 		err = r.transmission.Client.TorrentStopHashes(context.Background(), hashes)
+	case BuiltinClient:
+		if r.builtinClient == nil {
+			return errors.New("torrent client: Built-in client not initialized")
+		}
+		err = r.builtinClient.PauseTorrents(hashes)
 	}
 
 	if err != nil {
@@ -412,6 +465,11 @@ func (r *Repository) ResumeTorrents(hashes []string) error {
 		err = r.qBittorrentClient.Torrent.ResumeTorrents(hashes)
 	case TransmissionClient:
 		err = r.transmission.Client.TorrentStartHashes(context.Background(), hashes)
+	case BuiltinClient:
+		if r.builtinClient == nil {
+			return errors.New("torrent client: Built-in client not initialized")
+		}
+		err = r.builtinClient.ResumeTorrents(hashes)
 	}
 
 	if err != nil {
@@ -428,6 +486,9 @@ func (r *Repository) DeselectFiles(hash string, indices []int) error {
 
 	var err error
 	switch r.provider {
+	case BuiltinClient:
+		// Built-in client: file deselection not supported; no-op
+		return nil
 	case QbittorrentClient:
 		strIndices := make([]string, len(indices), len(indices))
 		for i, v := range indices {
@@ -463,6 +524,14 @@ func (r *Repository) DeselectFiles(hash string, indices []int) error {
 
 // GetFiles blocks until the files are retrieved, or until timeout.
 func (r *Repository) GetFiles(hash string) (filenames []string, err error) {
+	// Built-in client has its own timeout logic
+	if r.provider == BuiltinClient {
+		if r.builtinClient == nil {
+			return nil, errors.New("torrent client: Built-in client not initialized")
+		}
+		return r.builtinClient.GetFiles(hash)
+	}
+
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
@@ -509,4 +578,38 @@ func (r *Repository) GetFiles(hash string) (filenames []string, err error) {
 	<-done // wait for the files to be retrieved
 
 	return
+}
+
+func (r *Repository) FromBuiltinTorrents(torrents []*builtin_client.TorrentInfo) []*Torrent {
+	ret := make([]*Torrent, 0, len(torrents))
+	for _, t := range torrents {
+		ret = append(ret, &Torrent{
+			Name:        t.Name,
+			Hash:        t.Hash,
+			Seeds:       t.Seeds,
+			UpSpeed:     t.UpSpeed,
+			DownSpeed:   t.DownSpeed,
+			Progress:    t.Progress,
+			Size:        t.Size,
+			Eta:         t.Eta,
+			Status:      fromBuiltinTorrentStatus(t.Status),
+			ContentPath: t.ContentPath,
+		})
+	}
+	return ret
+}
+
+func fromBuiltinTorrentStatus(status string) TorrentStatus {
+	switch status {
+	case builtin_client.StatusDownloading:
+		return TorrentStatusDownloading
+	case builtin_client.StatusSeeding:
+		return TorrentStatusSeeding
+	case builtin_client.StatusPaused:
+		return TorrentStatusPaused
+	case builtin_client.StatusStopped:
+		return TorrentStatusStopped
+	default:
+		return TorrentStatusOther
+	}
 }
