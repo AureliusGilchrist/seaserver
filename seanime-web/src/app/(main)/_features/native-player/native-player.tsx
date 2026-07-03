@@ -69,6 +69,20 @@ export function NativePlayer() {
     const subtitleManagerRef = React.useRef(subtitleManager)
     subtitleManagerRef.current = subtitleManager
 
+    const resetSubtitleBuffer = React.useCallback(() => {
+        subtitleBufferRef.current = []
+
+        if (subtitleFlushTimerRef.current !== null) {
+            clearTimeout(subtitleFlushTimerRef.current)
+            subtitleFlushTimerRef.current = null
+        }
+
+        if (subtitleIdleHandleRef.current !== null && typeof cancelIdleCallback !== "undefined") {
+            cancelIdleCallback(subtitleIdleHandleRef.current)
+            subtitleIdleHandleRef.current = null
+        }
+    }, [])
+
     const flushSubtitleBuffer = React.useCallback(() => {
         subtitleFlushTimerRef.current = null
         subtitleIdleHandleRef.current = null
@@ -104,14 +118,9 @@ export function NativePlayer() {
     // cleanup subtitle buffer timers on unmount
     React.useEffect(() => {
         return () => {
-            if (subtitleFlushTimerRef.current !== null) {
-                clearTimeout(subtitleFlushTimerRef.current)
-            }
-            if (subtitleIdleHandleRef.current !== null && typeof cancelIdleCallback !== "undefined") {
-                cancelIdleCallback(subtitleIdleHandleRef.current)
-            }
+            resetSubtitleBuffer()
         }
-    }, [])
+    }, [resetSubtitleBuffer])
 
     //
     // Server events
@@ -125,6 +134,7 @@ export function NativePlayer() {
                 // The server is loading the stream
                 case "open-and-await":
                     log.info("Open and await event received", { payload })
+                    resetSubtitleBuffer()
                     setState(draft => {
                         draft.active = true
                         draft.loadingState = payload as string
@@ -137,6 +147,18 @@ export function NativePlayer() {
                     break
                 case "abort-open":
                     log.info("Abort open event received", { payload })
+                    resetSubtitleBuffer()
+                    if (!(payload as string)) {
+                        setMiniPlayer(true)
+                        setState(draft => {
+                            draft.active = false
+                            draft.loadingState = null
+                            draft.playbackInfo = null
+                            draft.playbackError = null
+                            return
+                        })
+                        break
+                    }
                     setState(draft => {
                         draft.loadingState = "An error occurred while loading the stream: " + ((payload as string) || "Unknown error")
                         draft.playbackError = payload as string
@@ -152,6 +174,7 @@ export function NativePlayer() {
                 // We received the playback info
                 case "watch":
                     log.info("Watch event received", { payload })
+                    resetSubtitleBuffer()
                     setState(draft => {
                         draft.playbackInfo = payload as NativePlayer_PlaybackInfo
                         draft.loadingState = null
@@ -188,10 +211,17 @@ export function NativePlayer() {
     //
 
     function handleTerminateStream() {
+        const playbackId = state.playbackInfo?.id || ""
+        const playbackType = state.playbackInfo?.streamType || ""
+
+        resetSubtitleBuffer()
+
         // Clean up player first
         if (videoElement) {
             log.info("Cleaning up media")
             videoElement.pause()
+            videoElement.removeAttribute("src")
+            videoElement.load()
         }
 
         setMiniPlayer(true)
@@ -214,6 +244,12 @@ export function NativePlayer() {
             payload: {
                 clientId: clientId,
                 type: "video-terminated",
+                payload: {
+                    id: playbackId,
+                    clientId: clientId,
+                    playerType: "native",
+                    playbackType: playbackType,
+                },
             },
         })
     }
@@ -330,16 +366,16 @@ export function NativePlayer() {
             active: state.active,
             loadingState: state.loadingState,
             playbackError: state.playbackError,
-            playbackInfo: {
-                id: state.playbackInfo?.id!,
-                playbackType: state.playbackInfo?.streamType!,
-                streamUrl: state.playbackInfo?.streamUrl!,
-                mkvMetadata: state.playbackInfo?.mkvMetadata,
-                media: state.playbackInfo?.media,
-                episode: state.playbackInfo?.episode,
-                localFile: state.playbackInfo?.localFile,
+            playbackInfo: state.playbackInfo ? {
+                id: state.playbackInfo.id,
+                playbackType: state.playbackInfo.streamType,
+                streamUrl: state.playbackInfo.streamUrl,
+                mkvMetadata: state.playbackInfo.mkvMetadata,
+                media: state.playbackInfo.media,
+                episode: state.playbackInfo.episode,
+                localFile: state.playbackInfo.localFile,
                 streamType: "native",
-            },
+            } : null,
         }
     }, [state])
 
