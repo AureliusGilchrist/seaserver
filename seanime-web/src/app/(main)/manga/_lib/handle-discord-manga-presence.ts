@@ -4,12 +4,14 @@ import { displayTitle } from "@/lib/helpers/media"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 
 import { __manga_selectedChapterAtom } from "@/app/(main)/manga/_lib/handle-chapter-reader"
+import { clientIdAtom } from "@/app/websocket-provider"
 import { useAtomValue } from "jotai/react"
 import React from "react"
 
 export function useDiscordMangaPresence(entry: { media?: AL_BaseManga } | undefined) {
     const serverStatus = useServerStatus()
     const currentChapter = useAtomValue(__manga_selectedChapterAtom)
+    const clientId = useAtomValue(clientIdAtom) ?? undefined
 
     const { mutate } = useSetDiscordMangaActivity()
     const { mutate: cancelActivity } = useCancelDiscordActivity()
@@ -33,7 +35,7 @@ export function useDiscordMangaPresence(entry: { media?: AL_BaseManga } | undefi
             }
 
             if (!currentChapter) {
-                cancelActivity()
+                cancelActivity({ clientId })
             }
         }
 
