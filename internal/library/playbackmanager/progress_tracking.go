@@ -250,7 +250,8 @@ func (pm *PlaybackManager) handleTrackingStarted(status *mediaplayer.PlaybackSta
 
 	// ------- Discord ------- //
 	if pm.discordPresence != nil && !pm.isOfflineRef.Get() {
-		go pm.discordPresence.SetAnimeActivity(&discordrpc_presence.AnimeActivity{
+		clientID := pm.GetCurrentClientID()
+		go pm.discordPresence.SetAnimeActivityFor(clientID, &discordrpc_presence.AnimeActivity{
 			ID:                  pm.currentMediaListEntry.MustGet().GetMedia().GetID(),
 			Title:               pm.currentMediaListEntry.MustGet().GetMedia().GetPreferredTitle(),
 			Image:               pm.currentMediaListEntry.MustGet().GetMedia().GetCoverImageSafe(),
@@ -339,7 +340,8 @@ func (pm *PlaybackManager) handleTrackingStopped(reason string) {
 
 	// ------- Discord ------- //
 	if pm.discordPresence != nil && !pm.isOfflineRef.Get() {
-		go pm.discordPresence.Close()
+		clientID := pm.GetCurrentClientID()
+		go pm.discordPresence.CloseFor(clientID)
 	}
 }
 
@@ -404,7 +406,8 @@ func (pm *PlaybackManager) handlePlaybackStatus(status *mediaplayer.PlaybackStat
 
 	// ------- Discord ------- //
 	if pm.discordPresence != nil && !pm.isOfflineRef.Get() {
-		go pm.discordPresence.UpdateAnimeActivity(int(pm.currentMediaPlaybackStatus.CurrentTimeInSeconds), int(pm.currentMediaPlaybackStatus.DurationInSeconds), !pm.currentMediaPlaybackStatus.Playing)
+		clientID := pm.GetCurrentClientID()
+		go pm.discordPresence.UpdateAnimeActivityFor(clientID, int(pm.currentMediaPlaybackStatus.CurrentTimeInSeconds), int(pm.currentMediaPlaybackStatus.DurationInSeconds), !pm.currentMediaPlaybackStatus.Playing)
 	}
 }
 
@@ -482,7 +485,8 @@ func (pm *PlaybackManager) handleStreamingTrackingStarted(status *mediaplayer.Pl
 
 	// ------- Discord ------- //
 	if pm.discordPresence != nil && !pm.isOfflineRef.Get() {
-		go pm.discordPresence.SetAnimeActivity(&discordrpc_presence.AnimeActivity{
+		clientID := pm.GetCurrentClientID()
+		go pm.discordPresence.SetAnimeActivityFor(clientID, &discordrpc_presence.AnimeActivity{
 			ID:                  pm.currentStreamMedia.MustGet().GetID(),
 			Title:               pm.currentStreamMedia.MustGet().GetPreferredTitle(),
 			Image:               pm.currentStreamMedia.MustGet().GetCoverImageSafe(),
@@ -532,7 +536,8 @@ func (pm *PlaybackManager) handleStreamingPlaybackStatus(status *mediaplayer.Pla
 
 	// ------- Discord ------- //
 	if pm.discordPresence != nil && !pm.isOfflineRef.Get() {
-		go pm.discordPresence.UpdateAnimeActivity(int(pm.currentMediaPlaybackStatus.CurrentTimeInSeconds), int(pm.currentMediaPlaybackStatus.DurationInSeconds), !pm.currentMediaPlaybackStatus.Playing)
+		clientID := pm.GetCurrentClientID()
+		go pm.discordPresence.UpdateAnimeActivityFor(clientID, int(pm.currentMediaPlaybackStatus.CurrentTimeInSeconds), int(pm.currentMediaPlaybackStatus.DurationInSeconds), !pm.currentMediaPlaybackStatus.Playing)
 	}
 }
 
@@ -602,7 +607,8 @@ func (pm *PlaybackManager) handleStreamingTrackingStopped(reason string) {
 
 	// ------- Discord ------- //
 	if pm.discordPresence != nil && !pm.isOfflineRef.Get() {
-		go pm.discordPresence.Close()
+		clientID := pm.GetCurrentClientID()
+		go pm.discordPresence.CloseFor(clientID)
 	}
 }
 

@@ -912,6 +912,7 @@ export type SetDiscordLegacyAnimeActivity_Variables = {
  * Route sets anime activity for discord rich presence with progress.
  */
 export type SetDiscordAnimeActivityWithProgress_Variables = {
+    clientId?: string
     mediaId: number
     title: string
     image: string
@@ -932,9 +933,14 @@ export type SetDiscordAnimeActivityWithProgress_Variables = {
  * Route updates the anime activity for discord rich presence with progress.
  */
 export type UpdateDiscordAnimeActivityWithProgress_Variables = {
+    clientId?: string
     progress: number
     duration: number
     paused: boolean
+}
+
+export type CancelDiscordActivity_Variables = {
+    clientId?: string
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

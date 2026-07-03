@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { useHandleCurrentMediaContinuity } from "@/api/hooks/continuity.hooks"
 import { useDirectstreamConvertSubs } from "@/api/hooks/directstream.hooks"
 import { useCancelDiscordActivity } from "@/api/hooks/discord.hooks"
+import { clientIdAtom } from "@/app/websocket-provider"
 import { useNakamaWatchParty } from "@/app/(main)/_features/nakama/nakama-manager"
 import { nativePlayer_initialState, nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { type NormalizedSkipData } from "@/app/(main)/_features/video-core/_lib/aniskip.utils"
@@ -777,6 +778,7 @@ export function VideoCore(props: VideoCoreProps) {
     const [playbackRate, setPlaybackRate] = useAtom(vc_storedPlaybackRateAtom)
 
     const { mutate: cancelDiscordActivity } = useCancelDiscordActivity()
+    const clientId = useAtomValue(clientIdAtom) ?? undefined
 
     const { mutate: convertSubs } = useDirectstreamConvertSubs()
 
@@ -987,7 +989,7 @@ export function VideoCore(props: VideoCoreProps) {
         if (!state.playbackInfo) {
             log.info("Cleaning up")
             dispatchTerminatedEvent()
-            cancelDiscordActivity()
+            cancelDiscordActivity({ clientId })
             hasSoughtRef.current = false
             isFirstError.current = true
             if (videoRef.current) {

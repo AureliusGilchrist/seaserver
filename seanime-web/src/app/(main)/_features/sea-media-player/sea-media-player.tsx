@@ -27,6 +27,7 @@ import {
     __seaMediaPlayer_watchContinuityAtom,
 } from "@/app/(main)/_features/sea-media-player/sea-media-player.atoms"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { clientIdAtom } from "@/app/websocket-provider"
 import { LuffyError } from "@/components/shared/luffy-error"
 import { vidstackLayoutIcons } from "@/components/shared/vidstack"
 import { Button, IconButton } from "@/components/ui/button"
@@ -112,6 +113,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
     } = props
 
     const serverStatus = useServerStatus()
+    const clientId = useAtomValue(clientIdAtom) ?? undefined
 
     const [duration, setDuration] = React.useState(0)
 
@@ -213,6 +215,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
 
             if (serverStatus?.settings?.discord?.enableRichPresence && serverStatus?.settings?.discord?.enableAnimeRichPresence) {
                 updateAnimeDiscordActivity({
+                    clientId,
                     progress: Math.floor(playerRef.current?.currentTime ?? 0),
                     duration: Math.floor(playerRef.current?.duration ?? 0),
                     paused: playerRef.current?.paused ?? false,
@@ -403,6 +406,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
                 videoDuration,
             })
             setAnimeDiscordActivity({
+                clientId,
                 mediaId: media?.id ?? 0,
                 title: media?.title?.romaji
                     || media?.title?.english
@@ -477,7 +481,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
             mousetrap.unbind("f")
 
             if (serverStatus?.settings?.discord?.enableRichPresence && serverStatus?.settings?.discord?.enableAnimeRichPresence) {
-                cancelDiscordActivity()
+                cancelDiscordActivity({ clientId })
             }
         }
     }, [])

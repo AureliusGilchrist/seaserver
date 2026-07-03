@@ -76,6 +76,7 @@ func (h *Handler) HandleSetDiscordLegacyAnimeActivity(c echo.Context) error {
 func (h *Handler) HandleSetDiscordAnimeActivityWithProgress(c echo.Context) error {
 
 	type body struct {
+		ClientId            string  `json:"clientId"`
 		MediaId             int     `json:"mediaId"`
 		Title               string  `json:"title"`
 		Image               string  `json:"image"`
@@ -94,7 +95,7 @@ func (h *Handler) HandleSetDiscordAnimeActivityWithProgress(c echo.Context) erro
 		return h.RespondWithData(c, false)
 	}
 
-	h.App.DiscordPresence.SetAnimeActivity(&discordrpc_presence.AnimeActivity{
+	h.App.DiscordPresence.SetAnimeActivityFor(b.ClientId, &discordrpc_presence.AnimeActivity{
 		ID:                  b.MediaId,
 		Title:               b.Title,
 		Image:               b.Image,
@@ -118,9 +119,10 @@ func (h *Handler) HandleSetDiscordAnimeActivityWithProgress(c echo.Context) erro
 func (h *Handler) HandleUpdateDiscordAnimeActivityWithProgress(c echo.Context) error {
 
 	type body struct {
-		Progress int  `json:"progress"`
-		Duration int  `json:"duration"`
-		Paused   bool `json:"paused"`
+		ClientId string `json:"clientId"`
+		Progress int    `json:"progress"`
+		Duration int    `json:"duration"`
+		Paused   bool   `json:"paused"`
 	}
 
 	var b body
@@ -129,7 +131,7 @@ func (h *Handler) HandleUpdateDiscordAnimeActivityWithProgress(c echo.Context) e
 		return h.RespondWithData(c, false)
 	}
 
-	h.App.DiscordPresence.UpdateAnimeActivity(b.Progress, b.Duration, b.Paused)
+	h.App.DiscordPresence.UpdateAnimeActivityFor(b.ClientId, b.Progress, b.Duration, b.Paused)
 	return h.RespondWithData(c, true)
 }
 
@@ -139,6 +141,11 @@ func (h *Handler) HandleUpdateDiscordAnimeActivityWithProgress(c echo.Context) e
 //	@route /api/v1/discord/presence/cancel [POST]
 //	@returns bool
 func (h *Handler) HandleCancelDiscordActivity(c echo.Context) error {
-	h.App.DiscordPresence.Close()
+	type body struct {
+		ClientId string `json:"clientId"`
+	}
+	var b body
+	_ = c.Bind(&b) // non-fatal if missing
+	h.App.DiscordPresence.CloseFor(b.ClientId)
 	return h.RespondWithData(c, true)
 }

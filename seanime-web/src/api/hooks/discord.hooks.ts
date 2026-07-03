@@ -1,5 +1,6 @@
 import { useServerMutation } from "@/api/client/requests"
 import {
+    CancelDiscordActivity_Variables,
     SetDiscordAnimeActivityWithProgress_Variables,
     SetDiscordLegacyAnimeActivity_Variables,
     SetDiscordMangaActivity_Variables,
@@ -52,7 +53,7 @@ export function useUpdateDiscordAnimeActivityWithProgress() {
 }
 
 export function useCancelDiscordActivity() {
-    return useServerMutation<boolean>({
+    return useServerMutation<boolean, CancelDiscordActivity_Variables>({
         endpoint: API_ENDPOINTS.DISCORD.CancelDiscordActivity.endpoint,
         method: API_ENDPOINTS.DISCORD.CancelDiscordActivity.methods[0],
         mutationKey: [API_ENDPOINTS.DISCORD.CancelDiscordActivity.key],
