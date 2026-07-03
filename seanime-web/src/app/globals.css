@@ -369,8 +369,13 @@ h6 {
     border-radius: 14px;
 }
 
+/* JASSUB sets its own wrapper to `position: relative` so its absolutely-positioned canvas
+   child computes correct on-screen coordinates relative to the <video> it's inserted after.
+   Forcing `position: absolute` here (as the old Vidstack-based player required) detaches the
+   wrapper from that flow position and throws off the canvas's top/left math, rendering
+   subtitles far off from the actual video position. The old Vidstack player is retired, so
+   don't override the positioning JASSUB relies on. */
 .JASSUB {
-    position: absolute !important;
     width: 100%;
     z-index: 10;
 }
