@@ -369,14 +369,20 @@ h6 {
     border-radius: 14px;
 }
 
-/* JASSUB sets its own wrapper to `position: relative` so its absolutely-positioned canvas
-   child computes correct on-screen coordinates relative to the <video> it's inserted after.
-   Forcing `position: absolute` here (as the old Vidstack-based player required) detaches the
-   wrapper from that flow position and throws off the canvas's top/left math, rendering
-   subtitles far off from the actual video position. The old Vidstack player is retired, so
-   don't override the positioning JASSUB relies on. */
+/* JASSUB inserts this wrapper as a sibling right after <video>, inside video-core's flex
+   container (`inner-container`: display:flex; align-items:center; justify-content:center).
+   The wrapper has no intrinsic size (its canvas child is itself absolutely positioned, so it
+   doesn't contribute to the wrapper's box), so if left with `position: absolute` and no inset
+   values, the browser resolves its "auto" static position using the flex container's
+   align-items/justify-content -- i.e. it gets centered like a flex item, landing its own
+   top around the vertical midpoint of the player instead of at (0,0). JASSUB's own resize()
+   math then computes the canvas's `top` as a correction against that wrong anchor, which
+   roughly doubles the error instead of fixing it (observed: top offset == half the canvas
+   height). Setting `inset: 0` gives the wrapper an explicit (non-auto) position, which
+   bypasses that flex alignment behavior entirely and pins it to exactly overlay the video. */
 .JASSUB {
-    width: 100%;
+    position: absolute !important;
+    inset: 0;
     z-index: 10;
 }
 
