@@ -39,14 +39,17 @@ export default defineConfig({
                     if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true })
 
                     // transpile using esbuild (goated)
+                    // NOTE: jassub instantiates the worker with `type: "module"` (see
+                    // node_modules/jassub/dist/jassub.js), so the bundled worker MUST be an ES
+                    // module. Emitting IIFE here breaks the abslink worker handshake at runtime
+                    // (TypeError: Cannot read properties of undefined (reading 'apply')).
+                    // In an ES module worker `import.meta.url` resolves natively to the worker
+                    // URL, so we no longer need to define it manually.
                     buildSync({
                         entryPoints: [source],
                         outfile: outFile,
                         bundle: true,
-                        format: "iife",
-                        define: {
-                            "import.meta.url": "self.location.href",
-                        },
+                        format: "esm",
                         minify: false,
                     })
 
