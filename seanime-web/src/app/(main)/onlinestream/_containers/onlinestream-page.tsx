@@ -7,9 +7,18 @@ import { EpisodeGridItem } from "@/app/(main)/_features/anime/_components/episod
 import { MediaEpisodeInfoModal } from "@/app/(main)/_features/media/_components/media-episode-info-modal"
 import { useNakamaStatus, useNakamaWatchParty } from "@/app/(main)/_features/nakama/nakama-manager"
 import { usePlaylistManager } from "@/app/(main)/_features/playlists/_containers/global-playlist-manager"
-import { useSkipData } from "@/app/(main)/_features/sea-media-player/aniskip"
+import { EpisodePillsGrid } from "@/app/(main)/_features/video-core/_components/episode-pills-grid"
+import { useSkipData } from "@/app/(main)/_features/video-core/_lib/aniskip"
 import { VideoCore, VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
-import { isHLSSrc, isNativeVideoExtension, isProbablyHls } from "@/app/(main)/_features/video-core/video-core-hls"
+import {
+    HlsAudioTrack,
+    isHLSSrc,
+    isNativeVideoExtension,
+    isProbablyHls,
+    vc_hlsAudioTracks,
+    vc_hlsCurrentAudioTrack,
+    vc_hlsSetAudioTrack,
+} from "@/app/(main)/_features/video-core/video-core-hls"
 import {
     VideoCoreInlineHelpers,
     VideoCoreInlineHelperUpdateProgressButton,
@@ -17,18 +26,19 @@ import {
 } from "@/app/(main)/_features/video-core/video-core-inline-helpers"
 import { vc_useLibassRendererAtom, VideoCore_VideoPlaybackInfo, VideoCore_VideoSource } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { useServerHMACAuth } from "@/app/(main)/_hooks/use-server-status"
-import { EpisodePillsGrid } from "@/app/(main)/onlinestream/_components/episode-pills-grid"
 import { OnlinestreamManualMappingModal } from "@/app/(main)/onlinestream/_containers/onlinestream-manual-matching"
 import { useNakamaOnlineStreamWatchParty } from "@/app/(main)/onlinestream/_lib/handle-onlinestream"
 import { useHandleOnlinestreamProviderExtensions } from "@/app/(main)/onlinestream/_lib/handle-onlinestream-providers"
-import { useOnlinestreamAutoProviderCycler } from "@/app/(main)/onlinestream/_lib/use-onlinestream-auto-provider-cycler"
 import {
+    __onlinestream_audioTrackPreferenceByMediaAtom,
     __onlinestream_dubbedPreferenceByMediaAtom,
     __onlinestream_qualityAtom,
     __onlinestream_selectedEpisodeNumberAtom,
     __onlinestream_selectedProviderAtom,
     __onlinestream_selectedServerAtom,
+    OnlinestreamAudioTrackPreference,
 } from "@/app/(main)/onlinestream/_lib/onlinestream.atoms"
+import { useOnlinestreamAutoProviderCycler } from "@/app/(main)/onlinestream/_lib/use-onlinestream-auto-provider-cycler"
 import { LuffyError } from "@/components/shared/luffy-error"
 import { Button, IconButton } from "@/components/ui/button"
 import { Modal, ModalProps } from "@/components/ui/modal"
@@ -51,7 +61,7 @@ import { FaSearch } from "react-icons/fa"
 import "@/app/vidstack-theme.css"
 import "@vidstack/react/player/styles/default/layouts/video.css"
 import { HiOutlineCog6Tooth } from "react-icons/hi2"
-import { LuSpeech } from "react-icons/lu"
+import { LuRefreshCw, LuSpeech } from "react-icons/lu"
 import { MdOutlineSubtitles } from "react-icons/md"
 import { toast } from "sonner"
 import { PluginEpisodeGridItemMenuItems } from "../../_features/plugin/actions/plugin-actions"
@@ -70,6 +80,179 @@ export const __onlineStream_episodeViewModeAtom = atomWithStorage<"list" | "grid
 function isValidVideoSourceType(type: string | null | undefined) {
     if (!type) return false
     return ["unknown", "mp4", "m3u8"].includes(type)
+}
+
+function _normalizeLabel(value: string | null | undefined) {
+    return value?.trim().toLowerCase() ?? null
+}
+
+function getQualityResolution(value: string | null | undefined) {
+    const normalized = _normalizeLabel(value)
+    if (!normalized) return null
+
+    return normalized.match(/\b(\d{3,4}p|auto|default)\b/i)?.[1]?.toLowerCase() ?? null
+}
+
+function normalizeAudioTrackValue(value: string | null | undefined) {
+    return value?.trim().toLowerCase() ?? ""
+}
+
+function normalizeAudioTrackLanguage(value: string | null | undefined) {
+    const normalized = normalizeAudioTrackValue(value).split("-")[0]
+    const aliases: Record<string, string> = {
+        en: "eng",
+        eng: "eng",
+        english: "eng",
+        ja: "jpn",
+        jp: "jpn",
+        jap: "jpn",
+        jpn: "jpn",
+        japanese: "jpn",
+        fr: "fra",
+        fra: "fra",
+        fre: "fra",
+        french: "fra",
+        es: "spa",
+        spa: "spa",
+        spanish: "spa",
+        pt: "por",
+        por: "por",
+        portuguese: "por",
+        de: "deu",
+        deu: "deu",
+        ger: "deu",
+        german: "deu",
+        it: "ita",
+        ita: "ita",
+        italian: "ita",
+        ru: "rus",
+        rus: "rus",
+        russian: "rus",
+        ko: "kor",
+        kor: "kor",
+        korean: "kor",
+        zh: "zho",
+        zho: "zho",
+        chi: "zho",
+        chinese: "zho",
+    }
+    return aliases[normalized] ?? normalized
+}
+
+function findPreferredAudioTrack(audioTracks: HlsAudioTrack[], preference: OnlinestreamAudioTrackPreference | undefined) {
+    if (!preference) return null
+
+    const language = normalizeAudioTrackLanguage(preference.language)
+    const name = normalizeAudioTrackValue(preference.name)
+
+    const byNameAndLanguage = audioTracks.find(track => {
+        if (!name || normalizeAudioTrackValue(track.name) !== name) return false
+        if (!language) return true
+        return normalizeAudioTrackLanguage(track.language) === language
+    })
+    if (byNameAndLanguage) return byNameAndLanguage
+
+    if (language) {
+        const byLanguage = audioTracks.find(track => normalizeAudioTrackLanguage(track.language) === language)
+        if (byLanguage) return byLanguage
+    }
+
+    if (name) {
+        const byName = audioTracks.find(track => normalizeAudioTrackValue(track.name) === name)
+        if (byName) return byName
+    }
+
+    if (preference.trackId !== undefined) {
+        return audioTracks.find(track => track.id === preference.trackId) ?? null
+    }
+
+    return null
+}
+
+// Applies the user's remembered audio-track preference (by name/language, falling back to
+// track id) for this media as soon as HLS audio tracks become available, and persists the
+// preference whenever the user manually switches tracks.
+function OnlinestreamAudioTrackPreferenceSync(props: { mediaId?: number, playbackId?: string | null }) {
+    const { mediaId, playbackId } = props
+    const audioTracks = useAtomValue(vc_hlsAudioTracks)
+    const currentAudioTrack = useAtomValue(vc_hlsCurrentAudioTrack)
+    const setHlsAudioTrack = useAtomValue(vc_hlsSetAudioTrack)
+    const [preferenceByMedia, setPreferenceByMedia] = useAtom(__onlinestream_audioTrackPreferenceByMediaAtom)
+    const preferenceKey = mediaId ? String(mediaId) : null
+    const preference = preferenceKey ? preferenceByMedia[preferenceKey] : undefined
+    const hasAppliedPreferenceRef = React.useRef(false)
+    const applyingTrackIdRef = React.useRef<number | null>(null)
+    const lastAudioTrackRef = React.useRef<number | null>(null)
+
+    React.useEffect(() => {
+        hasAppliedPreferenceRef.current = false
+        applyingTrackIdRef.current = null
+        lastAudioTrackRef.current = null
+    }, [playbackId, mediaId])
+
+    React.useEffect(() => {
+        if (!preferenceKey || !audioTracks.length || !setHlsAudioTrack || hasAppliedPreferenceRef.current) return
+
+        hasAppliedPreferenceRef.current = true
+        const preferredTrack = findPreferredAudioTrack(audioTracks, preference)
+        if (!preferredTrack) return
+
+        if (preferredTrack.id === currentAudioTrack) {
+            lastAudioTrackRef.current = currentAudioTrack
+            return
+        }
+
+        applyingTrackIdRef.current = preferredTrack.id
+        setHlsAudioTrack(preferredTrack.id)
+    }, [audioTracks, currentAudioTrack, preference, preferenceKey, setHlsAudioTrack])
+
+    React.useEffect(() => {
+        if (!preferenceKey || !audioTracks.length || currentAudioTrack === -1 || !hasAppliedPreferenceRef.current) return
+
+        if (applyingTrackIdRef.current !== null) {
+            if (applyingTrackIdRef.current === currentAudioTrack) {
+                lastAudioTrackRef.current = currentAudioTrack
+                applyingTrackIdRef.current = null
+            }
+            return
+        }
+
+        if (lastAudioTrackRef.current === null) {
+            lastAudioTrackRef.current = currentAudioTrack
+            return
+        }
+
+        if (lastAudioTrackRef.current === currentAudioTrack) return
+
+        lastAudioTrackRef.current = currentAudioTrack
+
+        const currentTrack = audioTracks.find(track => track.id === currentAudioTrack)
+        if (!currentTrack) return
+
+        const nextPreference: OnlinestreamAudioTrackPreference = {
+            trackId: currentTrack.id,
+            language: currentTrack.language,
+            name: currentTrack.name,
+        }
+
+        setPreferenceByMedia(prev => {
+            const current = prev[preferenceKey]
+            if (
+                current?.trackId === nextPreference.trackId &&
+                current?.language === nextPreference.language &&
+                current?.name === nextPreference.name
+            ) {
+                return prev
+            }
+
+            return {
+                ...prev,
+                [preferenceKey]: nextPreference,
+            }
+        })
+    }, [audioTracks, currentAudioTrack, preferenceKey, setPreferenceByMedia])
+
+    return null
 }
 
 export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton }: OnlinestreamPageProps) {
@@ -230,27 +413,31 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
         if (!episodeSource || !videoSources) return undefined
 
         let filtered = [...videoSources]
-        let qualitySatinized = quality
-        qualitySatinized = qualitySatinized?.includes("p") ? qualitySatinized?.split("p")?.[0]?.toLowerCase() + "p" : qualitySatinized
+        const normalizedQuality = _normalizeLabel(quality) // e.g. '720P - Group' -> '720p - group'
+        const preferredResolution = getQualityResolution(quality) // e.g. '720p - group' -> '720p'
 
-        log.info("Selecting video source", { qualitySatinized, server })
+        log.info("Selecting video source", { normalizedQuality, preferredResolution, server })
         // If server is set, filter sources by server
         if (server && filtered.some(n => n.server === server)) {
             filtered = filtered.filter(s => s.server === server)
         }
 
-        const hasPreferredQuality = qualitySatinized && filtered.some(n => n.quality.toLowerCase().includes(qualitySatinized!))
+        const hasExactQuality = normalizedQuality && filtered.some(n => _normalizeLabel(n.quality) === normalizedQuality)
+        const hasPreferredResolution = preferredResolution && filtered.some(n => getQualityResolution(n.quality) === preferredResolution)
         const hasAuto = filtered.some(n => n.quality === "auto")
 
         log.info("Filtering video sources by quality", {
+            hasExactQuality,
             hasAuto,
-            hasPreferredQuality,
+            hasPreferredResolution,
         })
 
         // If quality is set, filter sources by quality
         // Only filter by quality if the quality is present in the sources
-        if (qualitySatinized && hasPreferredQuality) {
-            filtered = filtered.filter(n => n.quality.toLowerCase().includes(qualitySatinized!))
+        if (normalizedQuality && hasExactQuality) {
+            filtered = filtered.filter(n => _normalizeLabel(n.quality) === normalizedQuality)
+        } else if (preferredResolution && hasPreferredResolution) {
+            filtered = filtered.filter(n => getQualityResolution(n.quality) === preferredResolution)
         } else if (hasAuto) {
             filtered = filtered.filter(n => n.quality.toLowerCase() === "auto" || n.quality.toLowerCase().includes("default"))
         } else {
@@ -291,8 +478,6 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
         return { op, ed }
     }, [aniSkipDataRaw, videoSource?.skips])
 
-    // Refs
-    const currentProviderRef = React.useRef<string | null>(null)
     const [previousState, setPreviousState] = React.useState<{ currentTime: number, paused: boolean } | null>(null)
 
     React.useEffect(() => {
@@ -406,7 +591,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
     // episode clicks — that caused permanently-locked episode lists.
     const episodeLoading = isLoadingEpisodeSource
 
-    useOnlinestreamAutoProviderCycler({
+    const autoProviderCycler = useOnlinestreamAutoProviderCycler({
         mediaId,
         provider,
         server,
@@ -480,6 +665,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
 
 
     function onCanPlay() {
+        autoProviderCycler.onLoadedMetadata()
         if (urlEpNumber) {
             router.replace(pathname + `?id=${mediaId}`)
         }
@@ -524,45 +710,24 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
 
     const useLibassRenderer = useAtomValue(vc_useLibassRendererAtom)
 
-    // Store the errored servers, so we can switch to the next server
-    const [erroredServers, setErroredServers] = React.useState<string[]>([])
-    // Clear errored servers when the episode details change
-    React.useEffect(() => {
-        setErroredServers([])
-    }, [currentEpisode])
-
     /*
      * Handle fatal errors
      * This function is called when the player encounters a fatal error
-     * - Change the server if the server is errored
-     * - Change the provider if all servers are errored
      */
     const onFatalError = (reason: string) => {
-        log.error("onFatalError", {
-            sameProvider: provider == currentProviderRef.current,
-            reason: reason,
-        })
-        if (provider == currentProviderRef.current) {
-            setUrl(null)
-            log.error("Setting stream URL to undefined")
-            toast.warning("Playback error, trying another server...")
-            log.error("Player encountered a fatal error")
-            setTimeout(() => {
-                log.error("erroredServers", erroredServers)
-                if (videoSource?.server) {
-                    const otherServers = servers.filter((server) => server !== videoSource?.server && !erroredServers.includes(server))
-                    if (otherServers.length > 0) {
-                        setErroredServers((prev) => [...prev, videoSource?.server])
-                        setServer(otherServers[0])
-                    } else {
-                        setProvider((prev) => providerExtensionOptions.find((p) => p.value !== prev)?.value ?? null)
-                    }
-                }
-            }, 500)
-        } else {
-            setPlaybackError(reason)
-        }
+        log.error("onFatalError", { reason: reason })
+        autoProviderCycler.onPlaybackError(reason)
     }
+
+    const tryAllProvidersButton = autoProviderCycler.showButton ? <Button
+        size="sm"
+        rounded
+        intent="warning-subtle"
+        leftIcon={<LuRefreshCw className={autoProviderCycler.isTrying ? "text-xl animate-spin" : "text-xl"} />}
+        onClick={() => autoProviderCycler.isTrying ? autoProviderCycler.cancel() : autoProviderCycler.tryAllProviders()}
+    >
+        {autoProviderCycler.isTrying ? "Cancel trying" : "Try all available providers"}
+    </Button> : null
 
     const parameters = (
         <>
@@ -661,6 +826,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                 loadingEpisodeList={episodeListLoading}
                 leftHeaderActions={<>
                     {parameters}
+                    {tryAllProvidersButton}
                     {(animeEntry && !!provider) && <OnlinestreamManualMappingModal entry={animeEntry}>
                         <Button
                             size="sm"
@@ -704,6 +870,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                     <>
                         <VideoCoreProvider id="onlinestream">
                             <div data-onlinestream-video-container className="w-full aspect-video mx-auto border rounded-lg overflow-hidden">
+                                <OnlinestreamAudioTrackPreferenceSync mediaId={mediaId} playbackId={url} />
                                 <VideoCore
                                     id="onlinestream"
                                     mRef={playerRef}
@@ -753,10 +920,12 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                                     inline
                                     aniSkipData={aniSkipData}
                                     onLoadedMetadata={onCanPlay}
+                                    onTimeUpdate={autoProviderCycler.onTimeUpdate}
                                     onError={v => onFatalError(v)}
+                                    onStalled={v => autoProviderCycler.onPlaybackStalled(v)}
                                     onPlayEpisode={handlePlayEpisode}
                                     onVideoSourceChange={changeQuality}
-                                    onHlsFatalError={() => onFatalError("Provider Error")}
+                                    onHlsFatalError={(err) => onFatalError(`HLS error: ${err.error.message}`)}
                                     onTerminateStream={() => {
                                         setUrl(null)
                                         setPlaybackError("Stream terminated")
@@ -815,6 +984,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                             <EpisodePillsGrid
                                 key="grid-view"
                                 episodes={episodes?.map(ep => ({
+                                    id: String(ep.number),
                                     number: ep.number,
                                     title: ep.title,
                                     isFiller: ep.isFiller,
