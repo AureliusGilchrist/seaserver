@@ -33,6 +33,7 @@ import { vc_ended } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_paused } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_cursorPosition } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_cursorBusy } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_busy } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -150,6 +151,8 @@ import { useUnmount, useUpdateEffect, useWindowSize } from "react-use"
 const log = logger("VIDEO CORE")
 
 export const VIDEOCORE_DEBUG_ELEMENTS = false
+
+const DELAY_BEFORE_NOT_BUSY = 1_000 //ms
 
 export function startVideoCoreMiniPlayerTransition(update: () => void) {
     if (typeof document === "undefined" || typeof window === "undefined") {
@@ -757,6 +760,7 @@ export function VideoCore(props: VideoCoreProps) {
     const perMediaTrackOverrides = useAtomValue(vc_perMediaTrackOverrides)
     const [isMiniPlayer, setIsMiniPlayer] = useAtom(vc_miniPlayer)
     const [busy, setBusy] = useAtom(vc_busy)
+    const cursorBusy = useAtomValue(vc_cursorBusy)
     const paused = useAtomValue(vc_paused)
     const [buffering, setBuffering] = useAtom(vc_buffering)
     const duration = useAtomValue(vc_duration)
@@ -1656,9 +1660,11 @@ export function VideoCore(props: VideoCoreProps) {
     })
 
     // container events
+    const setNotBusyTimeout = React.useRef<NodeJS.Timeout | null>(null)
     const lastPointerPosition = React.useRef({ x: 0, y: 0 })
     const isHoveringContainer = React.useRef(false)
     const busyRef = React.useRef(busy)
+    const cursorBusyRef = React.useRef(cursorBusy)
     // When true, the controls/cursor are forced hidden via a right-click and stay hidden
     // regardless of pointer movement, until the pointer leaves the player or it's right-clicked again.
     const forceHiddenRef = React.useRef(false)
@@ -1666,6 +1672,18 @@ export function VideoCore(props: VideoCoreProps) {
     React.useEffect(() => {
         busyRef.current = busy
     }, [busy])
+
+    React.useEffect(() => {
+        cursorBusyRef.current = cursorBusy
+    }, [cursorBusy])
+
+    React.useEffect(() => {
+        return () => {
+            if (setNotBusyTimeout.current) {
+                clearTimeout(setNotBusyTimeout.current)
+            }
+        }
+    }, [])
 
     const handleContainerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
         // While forced hidden (via right-click), pointer movement doesn't bring the controls
@@ -1676,10 +1694,22 @@ export function VideoCore(props: VideoCoreProps) {
         const dx = x - lastPointerPosition.current.x
         const dy = y - lastPointerPosition.current.y
         if (Math.abs(dx) < 15 && Math.abs(dy) < 15) return
+        if (setNotBusyTimeout.current) {
+            clearTimeout(setNotBusyTimeout.current)
+        }
         if (!busyRef.current) {
             busyRef.current = true
             setBusy(true)
         }
+        // Auto-clear busy state ~1s after the pointer stops moving, unless something
+        // (e.g. an open menu) is holding cursorBusy true. Right-click force-hide (above)
+        // takes precedence over this and short-circuits before it ever runs.
+        setNotBusyTimeout.current = setTimeout(() => {
+            if (!cursorBusyRef.current && !forceHiddenRef.current) {
+                busyRef.current = false
+                setBusy(false)
+            }
+        }, DELAY_BEFORE_NOT_BUSY)
         lastPointerPosition.current = { x, y }
     }
 
