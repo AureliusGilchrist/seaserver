@@ -254,6 +254,20 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 // leave subtitles stuck unrendered. Force a clean resize once real dimensions
                 // are available to recover from that race.
                 this.libassLoadedMetadataListener = () => {
+                    // Cap subtitle render resolution to the source video height. In fullscreen,
+                    // JASSUB otherwise renders the ASS overlay at up to maxRenderHeight (1080)
+                    // and composites that full-screen ARGB canvas on every video frame. For the
+                    // many online streams that are <=720p, that means rendering subtitles at a
+                    // higher resolution than the video itself -- wasted GPU work that causes
+                    // playback to stutter in fullscreen. Rendering no larger than the source
+                    // (clamped to a 720-1080 range for legibility) removes that cost with no
+                    // visible quality loss, since the video is upscaled to the same size anyway.
+                    if (this.libassRenderer) {
+                        const videoHeight = this.videoElement?.videoHeight || 0
+                        if (videoHeight > 0) {
+                            this.libassRenderer.maxRenderHeight = Math.min(1080, Math.max(720, videoHeight))
+                        }
+                    }
                     this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer", e))?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer on loadedmetadata", e))
                 }
                 this.videoElement.addEventListener("loadedmetadata", this.libassLoadedMetadataListener)
