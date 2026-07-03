@@ -4,6 +4,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/goccy/go-json"
 )
@@ -16,6 +17,47 @@ type (
 		FfmpegPath     string
 	}
 )
+
+// ffmpegFiltersCache memoizes the output of `ffmpeg -filters` per binary path so that
+// repeated hardware-acceleration probes don't spawn a new (slow, cold-start) ffmpeg
+// subprocess on the first playback. The result is stable for the lifetime of the process.
+var (
+	ffmpegFiltersCache   = map[string]string{}
+	ffmpegFiltersCacheMu sync.Mutex
+)
+
+// getFFmpegFilters returns the cached `ffmpeg -filters` output for the given binary,
+// running the subprocess only once per binary path.
+func getFFmpegFilters(ffmpegPath string) string {
+	ffmpegBin := ffmpegPath
+	if ffmpegBin == "" {
+		ffmpegBin = "ffmpeg"
+	}
+
+	ffmpegFiltersCacheMu.Lock()
+	defer ffmpegFiltersCacheMu.Unlock()
+
+	if out, ok := ffmpegFiltersCache[ffmpegBin]; ok {
+		return out
+	}
+
+	out, err := exec.Command(ffmpegBin, "-hide_banner", "-filters").CombinedOutput()
+	if err != nil {
+		// Cache the (empty) result to avoid re-running a failing command repeatedly.
+		ffmpegFiltersCache[ffmpegBin] = ""
+		return ""
+	}
+
+	result := string(out)
+	ffmpegFiltersCache[ffmpegBin] = result
+	return result
+}
+
+// WarmUpHardwareAccel pre-populates the ffmpeg filters cache in the background so the
+// first stream doesn't pay the cold-start cost of probing ffmpeg. Safe to call multiple times.
+func WarmUpHardwareAccel(ffmpegPath string) {
+	_ = getFFmpegFilters(ffmpegPath)
+}
 
 func GetHardwareAccelSettings(opts HwAccelOptions) HwAccelSettings {
 	name := opts.Kind
@@ -37,16 +79,10 @@ func GetHardwareAccelSettings(opts HwAccelOptions) HwAccelSettings {
 	}
 
 	// probeFFmpegFilter checks whether a given filter name is available in the ffmpeg binary.
+	// The underlying `ffmpeg -filters` output is memoized (see getFFmpegFilters), so this is
+	// cheap after the first call and never re-spawns ffmpeg on the hot path.
 	probeFFmpegFilter := func(o HwAccelOptions, filterName string) bool {
-		ffmpegBin := o.FfmpegPath
-		if ffmpegBin == "" {
-			ffmpegBin = "ffmpeg"
-		}
-		out, err := exec.Command(ffmpegBin, "-hide_banner", "-filters").CombinedOutput()
-		if err != nil {
-			return false
-		}
-		return strings.Contains(string(out), filterName)
+		return strings.Contains(getFFmpegFilters(o.FfmpegPath), filterName)
 	}
 
 	defaultOSDevice := "/dev/dri/renderD128"

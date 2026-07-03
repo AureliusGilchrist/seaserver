@@ -3,6 +3,7 @@ package mediastream
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"seanime/internal/database/models"
 	"seanime/internal/events"
@@ -96,7 +97,38 @@ func (r *Repository) InitializeModules(settings *models.MediastreamSettings, cac
 	if ok := r.initializeTranscoder(r.settings); ok {
 	}
 
+	// Warm up ffmpeg/ffprobe in the background so the first stream doesn't pay the
+	// binary cold-start + hardware-acceleration probing cost. This addresses the
+	// first-launch lag where subtitles/streams stutter until the process warms up.
+	go r.warmUp(settings)
+
 	r.logger.Info().Msg("mediastream: Module initialized")
+}
+
+// warmUp pre-warms the ffmpeg and ffprobe binaries (OS binary cache) and memoizes the
+// hardware-acceleration filter probe so the first playback request is not delayed by
+// cold-start costs. It is safe to run in the background and errors are non-fatal.
+func (r *Repository) warmUp(settings *models.MediastreamSettings) {
+	if settings == nil {
+		return
+	}
+
+	ffmpegPath := settings.FfmpegPath
+	if ffmpegPath == "" {
+		ffmpegPath = "ffmpeg"
+	}
+	ffprobePath := settings.FfprobePath
+	if ffprobePath == "" {
+		ffprobePath = "ffprobe"
+	}
+
+	// Memoize `ffmpeg -filters` so hardware-accel probing is instant on first stream.
+	transcoder.WarmUpHardwareAccel(ffmpegPath)
+
+	// Touch ffprobe so its binary is resident in the OS cache before the first probe.
+	_ = exec.Command(ffprobePath, "-version").Run()
+
+	r.logger.Debug().Msg("mediastream: Warm-up complete (ffmpeg/ffprobe ready)")
 }
 
 // CacheWasCleared should be called when the cache directory is manually cleared.

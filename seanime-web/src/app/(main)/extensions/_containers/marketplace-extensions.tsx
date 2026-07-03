@@ -20,6 +20,7 @@ import { Modal } from "@/components/ui/modal"
 import { Popover } from "@/components/ui/popover"
 import { Select } from "@/components/ui/select"
 import { StaticTabs } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import { TextInput } from "@/components/ui/text-input"
 import { useAtom } from "jotai/react"
 import { orderBy } from "lodash"
@@ -149,17 +150,24 @@ export function MarketplaceExtensions(props: MarketplaceExtensionsProps) {
 
     // if (isLoadingMarketplace || isLoadingAllExtensions) return <LoadingSpinner />
 
-    // validate URL
+    // validate one or more URLs (separated by new lines, commas or semicolons)
     const validateUrl = (url: string): boolean => {
-        try {
-            new URL(url)
-            setUrlError("")
-            return true
-        }
-        catch (e) {
+        const parts = url.split(/[\n\r,;]+/).map(u => u.trim()).filter(Boolean)
+        if (parts.length === 0) {
             setUrlError("Please enter a valid URL")
             return false
         }
+        for (const part of parts) {
+            try {
+                new URL(part)
+            }
+            catch (e) {
+                setUrlError(`Invalid URL: ${part}`)
+                return false
+            }
+        }
+        setUrlError("")
+        return true
     }
 
     // handle URL change
@@ -215,11 +223,14 @@ export function MarketplaceExtensions(props: MarketplaceExtensionsProps) {
             >
                 <div className="space-y-4">
                     <p className="text-sm text-[--muted]">
-                        Enter the URL of the repository JSON file.
+                        Enter one or more repository JSON URLs. Add several (one per line) to merge
+                        multiple marketplaces &mdash; useful for adding community streaming providers,
+                        which are no longer served by the official repository. The official repository
+                        is always included.
                     </p>
 
-                    <TextInput
-                        label="Marketplace URL"
+                    <Textarea
+                        label="Marketplace URL(s)"
                         value={tempUrl}
                         onValueChange={(value) => {
                             setTempUrl(value)
@@ -227,7 +238,8 @@ export function MarketplaceExtensions(props: MarketplaceExtensionsProps) {
                             if (value) validateUrl(value)
                         }}
                         error={urlError}
-                        placeholder="Enter marketplace URL"
+                        placeholder={"https://example.com/marketplace.json\nhttps://another.com/providers.json"}
+                        rows={4}
                     />
 
                     <div className="flex justify-between">
@@ -280,7 +292,7 @@ export function MarketplaceExtensions(props: MarketplaceExtensionsProps) {
                     <p className="text-[--muted] text-xs mt-1">
                         Source: {marketplaceUrl === DEFAULT_MARKETPLACE_URL ?
                         <span>Official repository</span> :
-                        <span>{marketplaceUrl}</span>
+                        <span>Official repository + {marketplaceUrl.split(/[\n\r,;]+/).map(u => u.trim()).filter(Boolean).length} custom source(s)</span>
                     }
                     </p>
                 </div>
