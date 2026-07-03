@@ -64,6 +64,14 @@ export function NativePlayer() {
     //
 
     const subtitleBufferRef = React.useRef<MKVParser_SubtitleEvent[]>([])
+    // Every event received since the current stream was opened. The subtitle manager is
+    // destroyed and recreated around episode transitions (video-core rebuilds it on
+    // loadedmetadata), while the server streams the whole subtitle track within the first
+    // seconds of playback. Events flushed while the OLD manager was still current (or while
+    // no manager existed) die with it, which intermittently left episodes with partial or no
+    // subtitles. Keeping the full history lets us replay it into each newly created manager;
+    // the manager dedupes by event content, so replaying already-delivered events is a no-op.
+    const allSubtitleEventsRef = React.useRef<MKVParser_SubtitleEvent[]>([])
     const subtitleFlushTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     const subtitleIdleHandleRef = React.useRef<number | null>(null)
     const subtitleManagerRef = React.useRef(subtitleManager)
@@ -71,6 +79,7 @@ export function NativePlayer() {
 
     const resetSubtitleBuffer = React.useCallback(() => {
         subtitleBufferRef.current = []
+        allSubtitleEventsRef.current = []
 
         if (subtitleFlushTimerRef.current !== null) {
             clearTimeout(subtitleFlushTimerRef.current)
@@ -90,10 +99,21 @@ export function NativePlayer() {
         const events = subtitleBufferRef.current
         if (events.length === 0) return
         subtitleBufferRef.current = []
+        allSubtitleEventsRef.current.push(...events)
 
         // process outside the websocket message handler
         subtitleManagerRef.current?.onSubtitleEvents(events)?.then()
     }, [])
+
+    // Replay the stream's full event history into each newly created subtitle manager, so
+    // events delivered before this manager existed (or delivered to its predecessor during
+    // an episode transition) aren't lost. Duplicates are filtered by the manager's own
+    // content-keyed event cache.
+    React.useEffect(() => {
+        if (!subtitleManager || !allSubtitleEventsRef.current.length) return
+        log.info(`Replaying ${allSubtitleEventsRef.current.length} subtitle events into new subtitle manager`)
+        subtitleManager.onSubtitleEvents(allSubtitleEventsRef.current)?.then()
+    }, [subtitleManager])
 
     const scheduleSubtitleFlush = React.useCallback(() => {
         if (subtitleFlushTimerRef.current !== null) return // already scheduled

@@ -926,9 +926,10 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     }
 
     private __eventMapKey(event: MKVParser_SubtitleEvent): string {
-        if (event.extraData && event.extraData["_id"]) {
-            return event.extraData["_id"]
-        }
+        // Key by content, NOT by the server-assigned extraData._id: the id is unique per
+        // extraction run, and the server re-extracts (and re-sends) already-delivered events
+        // when a seek restarts the subtitle stream mid-file. Keying by id made those re-sent
+        // events look new, so they were rendered a second time — visibly doubled subtitles.
         return `${event.trackNumber}:${event.startTime}:${event.duration}:${this.__fastStringHash(event.text)}`
     }
 
