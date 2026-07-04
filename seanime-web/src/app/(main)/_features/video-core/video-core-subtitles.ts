@@ -19,6 +19,55 @@ const subtitleLog = logger("VIDEO CORE SUBTITLES")
 const NO_TRACK_NUMBER = -1
 const DEFAULT_FONT_NAME = "roboto medium"
 
+// Font bytes fetched on the main thread so we can validate them before handing them to
+// libass. Feeding libass a failed response (the SPA fallback serves index.html with HTTP
+// 200 for dead URLs) poisons it with "Error opening memory font" entries and triggers a
+// per-glyph fallback search on every rendered frame — visible as playback lag and
+// completely missing subtitles when the track's own font is the broken one.
+// Cached by a stable key (attachment filename / asset URL) so episodes of the same series
+// don't refetch identical fonts.
+const fontDataCache = new Map<string, Uint8Array | null>()
+
+async function fetchFontData(url: string, cacheKey: string = url): Promise<Uint8Array | null> {
+    if (fontDataCache.has(cacheKey)) return fontDataCache.get(cacheKey) ?? null
+    let data: Uint8Array | null = null
+    try {
+        const res = await fetch(url)
+        const contentType = res.headers.get("content-type") || ""
+        if (res.ok && !contentType.includes("text/html") && !contentType.includes("application/json")) {
+            const buf = await res.arrayBuffer()
+            if (buf.byteLength > 0) {
+                data = new Uint8Array(buf)
+            }
+        }
+        if (!data) {
+            subtitleLog.warning("Font failed to load, skipping", url, res.status, contentType)
+        }
+    }
+    catch (e) {
+        subtitleLog.warning("Font fetch error, skipping", url, e)
+    }
+    fontDataCache.set(cacheKey, data)
+    return data
+}
+
+// One JASSUB instance (worker + WASM + loaded fonts) shared across subtitle managers.
+//
+// The manager is destroyed and recreated on every episode transition, and a fresh JASSUB
+// means spawning a worker, fetching + compiling the WASM and reloading fonts — observed to
+// take many seconds mid-playback (the network is busy streaming the new episode), during
+// which selectTrack is blocked and the episode plays without subtitles. Reusing the
+// renderer makes track selection on episode 2+ effectively instant.
+// The instance is only torn down if reuse fails (worker died), in which case a fresh one
+// is created.
+let sharedRenderer: JASSUB | null = null
+// The manager currently driving the shared renderer; prevents a late destroy() of a
+// previous manager from blanking the track of the current one.
+let sharedRendererOwner: VideoCoreSubtitleManager | null = null
+// Stable keys of fonts already loaded into the shared renderer's libass instance, so the
+// same fonts aren't re-added (and re-buffered) on every episode of a series.
+const sharedRendererLoadedFontKeys = new Set<string>()
+
 function hexToASSColor(hex: string, alpha: number = 0): number {
     hex = hex.replace(/^#/, "")
     if (hex.length === 3) {
@@ -122,6 +171,11 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     // auto-selected on load so a manually chosen caption carries across episodes.
     private preferredTrackOverride?: PerMediaTrackOverride
     private currentTrackNumber: number = NO_TRACK_NUMBER
+    // Set on destroy(). The manager is torn down and recreated around episode transitions
+    // while async work (renderer init, track selection, font fetches) is still in flight;
+    // finished awaits must bail instead of calling into the released JASSUB worker proxy
+    // ("Proxy has been released and is not useable").
+    private isDestroyed = false
     private fonts: string[] = []
     private hmacToken: string = ""
 
@@ -222,30 +276,75 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     }
 
     private async _init() {
-        if (!this.libassRenderer) {
+        if (!this.libassRenderer && !this.isDestroyed) {
             try {
-                subtitleLog.info("Initializing libass renderer")
-
                 const defaultFontUrl = "/fonts/Roboto-Medium.ttf"
 
-                this.libassRenderer = new JASSUB({
-                    video: this.videoElement,
-                    subContent: this.defaultSubtitleHeader,
-                    wasmUrl: wasmUrl,
-                    workerUrl: workerUrl,
-                    modernWasmUrl: modernWasmUrl,
-                    fonts: this.fonts,
-                    defaultFont: DEFAULT_FONT_NAME,
-                    availableFonts: {
-                        [DEFAULT_FONT_NAME]: defaultFontUrl,
-                    },
-                    maxRenderHeight: 1080,
-                    debug: false,
-                })
+                // Try to reuse the shared renderer from the previous episode first
+                if (sharedRenderer) {
+                    try {
+                        subtitleLog.info("Reusing existing libass renderer")
+                        await sharedRenderer.ready
+                        if (this.isDestroyed) return
+                        // Re-attach the canvas wrapper next to the current video element —
+                        // the previous episode's wrapper location unmounted with its video.
+                        const canvasParent = (sharedRenderer as any)._canvasParent as HTMLDivElement | undefined
+                        if (canvasParent && this.videoElement.nextElementSibling !== canvasParent) {
+                            this.videoElement.insertAdjacentElement("afterend", canvasParent)
+                        }
+                        await sharedRenderer.setVideo(this.videoElement)
+                        if (this.isDestroyed) return
+                        sharedRenderer.renderer.setTrack(this.defaultSubtitleHeader)
+                        this.libassRenderer = sharedRenderer
+                        sharedRendererOwner = this
+                        subtitleLog.info("Libass renderer reused")
+                    }
+                    catch (e) {
+                        subtitleLog.warning("Failed to reuse libass renderer, creating a fresh one", e)
+                        try {
+                            sharedRenderer.destroy()
+                        }
+                        catch {
+                        }
+                        sharedRenderer = null
+                        sharedRendererOwner = null
+                        sharedRendererLoadedFontKeys.clear()
+                        this.libassRenderer = null
+                    }
+                }
 
-                subtitleLog.info("Waiting for libass renderer...")
-                await this.libassRenderer.ready
-                subtitleLog.info("Libass renderer ready")
+                if (!this.libassRenderer) {
+                    if (this.isDestroyed) return
+                    subtitleLog.info("Initializing libass renderer")
+
+                    sharedRenderer = new JASSUB({
+                        video: this.videoElement,
+                        subContent: this.defaultSubtitleHeader,
+                        wasmUrl: wasmUrl,
+                        workerUrl: workerUrl,
+                        modernWasmUrl: modernWasmUrl,
+                        fonts: [],
+                        defaultFont: DEFAULT_FONT_NAME,
+                        availableFonts: {
+                            [DEFAULT_FONT_NAME]: defaultFontUrl,
+                        },
+                        // Never query local/remote fonts on glyph misses: each miss round-trips
+                        // to the main thread and stacks another broken "memory font" in libass,
+                        // on every rendered frame — a major source of playback stutter whenever
+                        // a track references a font we don't have. Missing glyphs simply render
+                        // with the default font instead.
+                        queryFonts: false,
+                        maxRenderHeight: 1080,
+                        debug: false,
+                    })
+                    this.libassRenderer = sharedRenderer
+                    sharedRendererOwner = this
+
+                    subtitleLog.info("Waiting for libass renderer...")
+                    await this.libassRenderer.ready
+                    subtitleLog.info("Libass renderer ready")
+                    if (this.isDestroyed) return
+                }
 
                 // JASSUB can compute a NaN/Infinity canvas size if it resizes (e.g. via its
                 // internal ResizeObserver firing as soon as the video element is attached)
@@ -273,19 +372,43 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 this.videoElement.addEventListener("loadedmetadata", this.libassLoadedMetadataListener)
 
 
-                this.fonts = this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
-                    ?.map(a => `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}?id=${this.playbackInfo.id}${this.hmacToken.replace(/^\?/,
-                        "&")}`) || []
+                // Keyed by attachment filename (stable across episodes of a series, while
+                // the URL changes per stream) so fonts already in the shared renderer are
+                // neither refetched nor re-added.
+                const fontEntries = [
+                    { key: defaultFontUrl, url: defaultFontUrl },
+                    ...(this.playbackInfo.mkvMetadata?.attachments?.filter(a => a.type === "font")
+                        ?.map(a => ({
+                            key: `att:${a.filename}`,
+                            url: `${getServerBaseUrl()}/api/v1/directstream/att/${a.filename}?id=${this.playbackInfo.id}${this.hmacToken.replace(
+                                /^\?/,
+                                "&")}`,
+                        })) || []),
+                ]
 
-                if (!this.playbackInfo.libassFonts) {
-                    this.fonts = [...new Set([...this.fonts, defaultFontUrl])]
+                this.fonts = [...new Set(fontEntries.map(f => f.url))]
+
+                const newEntries = fontEntries.filter(f => !sharedRendererLoadedFontKeys.has(f.key))
+
+                // Fetch each font on the main thread and validate it, so a failed request
+                // (expired token, missing file, SPA HTML fallback) never reaches libass.
+                const fontBuffers: Uint8Array[] = []
+                await Promise.all(newEntries.map(async f => {
+                    const data = await fetchFontData(f.url, f.key)
+                    if (data) {
+                        fontBuffers.push(data)
+                        sharedRendererLoadedFontKeys.add(f.key)
+                    }
+                }))
+
+                if (this.isDestroyed || !this.libassRenderer) return
+                if (fontBuffers.length > 0) {
+                    subtitleLog.info(`Adding ${fontBuffers.length}/${newEntries.length} new fonts to libass renderer`)
+                    await this.libassRenderer.renderer.addFonts(fontBuffers)
                 }
-
-                this.fonts = [defaultFontUrl, ...this.fonts]
-
-                await this.libassRenderer.renderer.addFonts(this.fonts)
             }
             catch (e) {
+                if (this.isDestroyed) return
                 subtitleLog.error("Error initializing libass renderer", e)
                 toast.error("Error initializing libass renderer: " + e)
             }
@@ -364,7 +487,9 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     // Selects a track by its number.
     async selectTrack(trackNumber: number) {
         subtitleLog.info("Track selection requested", trackNumber)
+        if (this.isDestroyed) return
         await this._init()
+        if (this.isDestroyed) return
 
         this.shouldTranslate = this.translationTargetLang
 
@@ -451,6 +576,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             this.libassRenderer?.renderer?.setTrack(codecPrivate)
             // Apply customization to Default styles
             await this._applySubtitleCustomization()
+            if (this.isDestroyed) return
 
             this._populateEventTrack(trackNumber)
         }
@@ -469,12 +595,25 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
     destroy() {
         subtitleLog.info("Destroying subtitle manager")
+        this.isDestroyed = true
         this._disableNativeTextTracks()
         if (this.libassLoadedMetadataListener) {
             this.videoElement.removeEventListener("loadedmetadata", this.libassLoadedMetadataListener)
             this.libassLoadedMetadataListener = null
         }
-        this.libassRenderer?.destroy()
+        // Release the shared renderer instead of destroying it — the next manager (next
+        // episode) reuses the live worker so its subtitles appear instantly instead of
+        // waiting for a full worker + WASM + font re-initialization mid-playback.
+        // Only blank the track if this manager still owns it, so a late destroy can't wipe
+        // the next episode's already-selected track.
+        if (this.libassRenderer && sharedRendererOwner === this) {
+            try {
+                this.libassRenderer.renderer?.setTrack(this.defaultSubtitleHeader)
+            }
+            catch {
+            }
+            sharedRendererOwner = null
+        }
         this.libassRenderer = null
         this.pgsRenderer?.destroy()
         this.pgsRenderer = null
@@ -549,6 +688,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
     // This will record the events and add them to the renderers if they are new.
     async onSubtitleEvents(events: MKVParser_SubtitleEvent[]) {
+        if (this.isDestroyed) return
         const pgsEvents: any[] = []
         const assEvents: CachedEvent[] = []
 
@@ -601,7 +741,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         const CHUNK_SIZE = 50
         for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
             // Abort if the renderer was destroyed or the user switched tracks mid-injection
-            if (!this.libassRenderer || this.currentTrackNumber !== trackNumber) return
+            if (this.isDestroyed || !this.libassRenderer || this.currentTrackNumber !== trackNumber) return
             const end = Math.min(i + CHUNK_SIZE, entries.length)
             for (let j = i; j < end; j++) {
                 const cached = entries[j]
@@ -844,11 +984,12 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     }
 
     private async _applySubtitleCustomization() {
-        if (!this.libassRenderer) {
+        if (!this.libassRenderer || this.isDestroyed) {
             return
         }
 
         await this.libassRenderer.ready
+        if (this.isDestroyed) return
         // Handle undefined or disabled customization
         if (!this.settings.subtitleCustomization?.enabled) {
             // Disable style override if customization is disabled
@@ -923,18 +1064,27 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             }
             const fontName = _fontName.split(".")[0]
 
-            subtitleLog.info("Applying font change", url, ", setting default font to", fontName)
+            // Validate the font actually loads BEFORE making it the default. Setting a
+            // default font whose asset is broken/missing makes libass fail glyph lookup
+            // on every event ("failed to find any fallback with glyph ... for font") and
+            // renders nothing, while also churning the renderer every frame.
+            const fontData = await fetchFontData(url)
+            if (this.isDestroyed || !this.libassRenderer) return
 
-            // add font if it's not already added
-            if (!this.fonts.includes(url)) {
-                subtitleLog.info("Adding font to renderer", fontName)
-                // this.libassRenderer.renderer.setDefaultFont(fontName)
-                this.fonts.push(url)
-                this.libassRenderer.renderer.addFonts([url])
+            if (fontData) {
+                subtitleLog.info("Applying font change", url, ", setting default font to", fontName)
+                if (!sharedRendererLoadedFontKeys.has(url)) {
+                    subtitleLog.info("Adding font to renderer", fontName)
+                    sharedRendererLoadedFontKeys.add(url)
+                    this.fonts.push(url)
+                    this.libassRenderer.renderer.addFonts([fontData])
+                }
+                await this.libassRenderer.renderer.setDefaultFont(fontName)
+                customStyle.FontName = fontName
+            } else {
+                subtitleLog.warning(`Custom subtitle font "${fontName}" could not be loaded, keeping default font`)
+                await this.libassRenderer.renderer.setDefaultFont(DEFAULT_FONT_NAME)
             }
-
-            await this.libassRenderer!.renderer.setDefaultFont(fontName)
-            customStyle.FontName = fontName
             await this.libassRenderer.renderer.styleOverride(customStyle)
         } else {
             await this.libassRenderer.renderer.setDefaultFont(DEFAULT_FONT_NAME)
@@ -988,8 +1138,10 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         // using the new settings logic
         if (this.libassRenderer) {
             await this.libassRenderer.ready
+            if (this.isDestroyed) return
             this.libassRenderer?.renderer?.setTrack(this.eventTracks[track]?.info.codecPrivate?.slice(0, -1) || this.defaultSubtitleHeader)
             await this._applySubtitleCustomization()
+            if (this.isDestroyed) return
         }
 
         // Re-run the selection logic to populate events
@@ -1184,6 +1336,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 if (fileTrack.info.src) subtitleLog.info("Fetching subtitle content", fileTrack.info.src)
                 // fetch subtitle file content
                 const content = fileTrack.info.src ? await fetch(fileTrack.info.src).then(res => res.text()) : (fileTrack.info.content || "")
+                if (this.isDestroyed) return
                 this.fileTracks[trackNumber].content = content // cache it
                 this.libassRenderer?.renderer?.setTrack(content) // load it
                 await this._applySubtitleCustomization()
@@ -1198,7 +1351,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             try {
                 subtitleLog.info("Converting subtitle to ASS format")
                 const assContent = await this.fetchAndConvertToASS(fileTrack.info.src, fileTrack.info.content)
-                if (!assContent) return
+                if (!assContent || this.isDestroyed) return
 
                 // Cache the converted content
                 this.fileTracks[trackNumber].content = assContent
