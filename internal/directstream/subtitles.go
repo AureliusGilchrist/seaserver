@@ -40,8 +40,15 @@ func (s *SubtitleStream) Stop(completed bool) {
 
 // StartSubtitleStreamP starts a subtitle stream for the given stream at the given offset with a specified backoff bytes.
 func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Context, newReader io.ReadSeekCloser, offset int64, backoffBytes int64) {
+	// The playback info may not be loaded yet when this is triggered by early playback
+	// events (the safety-net triggers can fire before LoadPlaybackInfo completes)
+	if s.playbackInfo == nil {
+		_ = newReader.Close()
+		return
+	}
 	mkvMetadataParser, ok := s.playbackInfo.MkvMetadataParser.Get()
 	if !ok {
+		_ = newReader.Close()
 		return
 	}
 

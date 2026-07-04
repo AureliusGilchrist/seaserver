@@ -217,145 +217,153 @@ func (m *Manager) listenToPlayerEvents() {
 		for {
 			select {
 			case event := <-m.videoCoreSubscriber.Events():
-				if !event.IsNativePlayer() {
-					continue
-				}
-
-				// Find the session whose stream matches this event's clientId
-				var cs Stream
-				var session *ProfileStreamSession
-				m.sessions.Range(func(_ string, s *ProfileStreamSession) bool {
-					if s.Stream.ClientId() == event.GetClientId() {
-						cs = s.Stream
-						session = s
-						return false // stop iterating
-					}
-					return true
-				})
-
-				if cs == nil || session == nil {
-					continue
-				}
-
-				switch event := event.(type) {
-				case *videocore.VideoLoadedMetadataEvent:
-					m.Logger.Debug().Msgf("directstream: Video loaded metadata")
-					m.startInitialSubtitleStream(cs, session)
-				case *videocore.VideoStatusEvent, *videocore.VideoCanPlayEvent, *videocore.VideoResumedEvent, *videocore.VideoSeekedEvent:
-					// Safety net: the client's "video-loaded-metadata" can be lost around
-					// episode transitions (listener registration races the media load).
-					// These recurring playback events guarantee the subtitle stream still
-					// starts; startInitialSubtitleStream no-ops once one is running.
-					m.startInitialSubtitleStream(cs, session)
-				case *videocore.VideoErrorEvent:
-					m.Logger.Debug().Msgf("directstream: Video error, Error: %s", event.Error)
-					cs.StreamError(errors.New(event.Error))
-				case *videocore.SubtitleFileUploadedEvent:
-					m.Logger.Debug().Msgf("directstream: Subtitle file uploaded, Filename: %s", event.Filename)
-					cs.OnSubtitleFileUploaded(event.Filename, event.Content)
-				case *videocore.VideoTerminatedEvent:
-					// Only terminate if the event refers to THIS stream's playback.
-					// video-core dispatches a terminate during its cleanup phase at every
-					// episode transition; by the time it reaches us the NEW episode's
-					// session has already replaced the old one under the same clientId.
-					// That stale terminate (empty or old id) was tearing down the new
-					// stream's subtitle pipeline — every episode after the first played
-					// without subtitles until the user manually terminated and restarted.
-					currentId := ""
-					if pi, err := cs.LoadPlaybackInfo(); err == nil && pi != nil {
-						currentId = pi.ID
-					}
-					if event.Id == "" || (currentId != "" && event.Id != currentId) {
-						m.Logger.Debug().Str("eventId", event.Id).Str("currentId", currentId).Msg("directstream: Ignoring stale video terminated event")
-						continue
-					}
-					m.Logger.Debug().Msgf("directstream: Video terminated")
-					cs.Terminate()
-				case *videocore.VideoCompletedEvent:
-					m.Logger.Debug().Msgf("directstream: Video completed")
-
-					// Extract the embedded *BaseStream from whichever concrete
-					// stream type we're dealing with. Type-asserting cs directly
-					// to *BaseStream never succeeds because LocalFileStream /
-					// TorrentStream embed BaseStream by value.
-					var baseStream *BaseStream
-					switch s := cs.(type) {
-					case *LocalFileStream:
-						baseStream = &s.BaseStream
-					case *TorrentStream:
-						baseStream = &s.BaseStream
-					case *BaseStream:
-						baseStream = s
-					}
-
-					if baseStream != nil && baseStream.media != nil && baseStream.episode != nil {
-						baseStream.updateProgress.Do(func() {
-							mediaId := baseStream.media.GetID()
-							epNum := baseStream.episode.GetProgressNumber()
-							totalEpisodes := baseStream.media.GetTotalEpisodeCount()
-
-							var updateErr error
-							// For profile users, route the AniList update through the
-							// profile's own AniList client so the correct account is updated.
-							// Otherwise fall back to the admin platform layer (with hooks).
-							if baseStream.profileId > 0 && baseStream.manager.getProfileAnilistClientFunc != nil {
-								client := baseStream.manager.getProfileAnilistClientFunc(baseStream.profileId)
-								if client != nil && client.IsAuthenticated() {
-									status := anilist.MediaListStatusCurrent
-									isCompleted := totalEpisodes > 0 && epNum >= totalEpisodes
-									if isCompleted {
-										status = anilist.MediaListStatusCompleted
-									}
-									now := time.Now()
-									year, monthVal, day := now.Year(), int(now.Month()), now.Day()
-									var startedAt, completedAt *anilist.FuzzyDateInput
-									if epNum == 1 {
-										startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-									}
-									if isCompleted {
-										completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-									}
-									_, updateErr = client.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
-								} else {
-									updateErr = errors.New("profile AniList account not authenticated")
-								}
-							} else {
-								updateErr = baseStream.manager.platformRef.Get().UpdateEntryProgress(context.Background(), mediaId, epNum, &totalEpisodes)
-							}
-
-							if updateErr != nil {
-								baseStream.manager.Logger.Warn().Err(updateErr).Uint("profileID", baseStream.profileId).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Failed to update AniList progress")
-							} else {
-								baseStream.manager.Logger.Info().Uint("profileID", baseStream.profileId).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Updated AniList progress")
-								// For profile users, invalidate their cached anime collection so the next fetch is fresh.
-								if baseStream.profileId > 0 && baseStream.manager.invalidateProfileAnimeCollectionFunc != nil {
-									baseStream.manager.invalidateProfileAnimeCollectionFunc(baseStream.profileId)
-								}
-								// Record playback activity for profile XP / level / achievements / community feed.
-								// Mirrors what PlaybackManager does for external players.
-								if baseStream.profileId > 0 && baseStream.manager.recordPlaybackActivityFunc != nil {
-									// Duration not tracked at this layer — pass 0; activity tracker only uses it for stat metadata.
-									go baseStream.manager.recordPlaybackActivityFunc(baseStream.profileId, mediaId, epNum, totalEpisodes, 0)
-								}
-								baseStream.manager.wsEventManager.SendEventTo(baseStream.clientId, events.PlaybackManagerProgressUpdated, map[string]interface{}{
-									"mediaId":              mediaId,
-									"episodeNumber":        epNum,
-									"mediaTitle":           baseStream.media.GetPreferredTitle(),
-									"mediaCoverImage":      baseStream.media.GetCoverImageSafe(),
-									"mediaTotalEpisodes":   totalEpisodes,
-									"progressUpdated":      true,
-									"completionPercentage": 1.0,
-								})
-								if baseStream.manager.refreshAnimeCollectionFunc != nil {
-									go baseStream.manager.refreshAnimeCollectionFunc()
-								}
-							}
-						})
-					}
-				}
+				// Recover per event: a panic in one handler must not kill the loop (and
+				// with it all future playback/subtitle handling) or crash the server.
+				m.handlePlayerEvent(event)
 			}
 		}
 	}()
+}
+
+func (m *Manager) handlePlayerEvent(event videocore.VideoEvent) {
+	defer util.HandlePanicInModuleThen("directstream/handlePlayerEvent", func() {})
+
+	if !event.IsNativePlayer() {
+		return
+	}
+
+	// Find the session whose stream matches this event's clientId
+	var cs Stream
+	var session *ProfileStreamSession
+	m.sessions.Range(func(_ string, s *ProfileStreamSession) bool {
+		if s.Stream.ClientId() == event.GetClientId() {
+			cs = s.Stream
+			session = s
+			return false // stop iterating
+		}
+		return true
+	})
+
+	if cs == nil || session == nil {
+		return
+	}
+
+	switch event := event.(type) {
+	case *videocore.VideoLoadedMetadataEvent:
+		m.Logger.Debug().Msgf("directstream: Video loaded metadata")
+		m.startInitialSubtitleStream(cs, session)
+	case *videocore.VideoStatusEvent, *videocore.VideoCanPlayEvent, *videocore.VideoResumedEvent, *videocore.VideoSeekedEvent:
+		// Safety net: the client's "video-loaded-metadata" can be lost around
+		// episode transitions (listener registration races the media load).
+		// These recurring playback events guarantee the subtitle stream still
+		// starts; startInitialSubtitleStream no-ops once one is running.
+		m.startInitialSubtitleStream(cs, session)
+	case *videocore.VideoErrorEvent:
+		m.Logger.Debug().Msgf("directstream: Video error, Error: %s", event.Error)
+		cs.StreamError(errors.New(event.Error))
+	case *videocore.SubtitleFileUploadedEvent:
+		m.Logger.Debug().Msgf("directstream: Subtitle file uploaded, Filename: %s", event.Filename)
+		cs.OnSubtitleFileUploaded(event.Filename, event.Content)
+	case *videocore.VideoTerminatedEvent:
+		// Only terminate if the event refers to THIS stream's playback.
+		// video-core dispatches a terminate during its cleanup phase at every
+		// episode transition; by the time it reaches us the NEW episode's
+		// session has already replaced the old one under the same clientId.
+		// That stale terminate (empty or old id) was tearing down the new
+		// stream's subtitle pipeline — every episode after the first played
+		// without subtitles until the user manually terminated and restarted.
+		currentId := ""
+		if pi, err := cs.LoadPlaybackInfo(); err == nil && pi != nil {
+			currentId = pi.ID
+		}
+		if event.Id == "" || (currentId != "" && event.Id != currentId) {
+			m.Logger.Debug().Str("eventId", event.Id).Str("currentId", currentId).Msg("directstream: Ignoring stale video terminated event")
+			return
+		}
+		m.Logger.Debug().Msgf("directstream: Video terminated")
+		cs.Terminate()
+	case *videocore.VideoCompletedEvent:
+		m.Logger.Debug().Msgf("directstream: Video completed")
+
+		// Extract the embedded *BaseStream from whichever concrete
+		// stream type we're dealing with. Type-asserting cs directly
+		// to *BaseStream never succeeds because LocalFileStream /
+		// TorrentStream embed BaseStream by value.
+		var baseStream *BaseStream
+		switch s := cs.(type) {
+		case *LocalFileStream:
+			baseStream = &s.BaseStream
+		case *TorrentStream:
+			baseStream = &s.BaseStream
+		case *BaseStream:
+			baseStream = s
+		}
+
+		if baseStream != nil && baseStream.media != nil && baseStream.episode != nil {
+			baseStream.updateProgress.Do(func() {
+				mediaId := baseStream.media.GetID()
+				epNum := baseStream.episode.GetProgressNumber()
+				totalEpisodes := baseStream.media.GetTotalEpisodeCount()
+
+				var updateErr error
+				// For profile users, route the AniList update through the
+				// profile's own AniList client so the correct account is updated.
+				// Otherwise fall back to the admin platform layer (with hooks).
+				if baseStream.profileId > 0 && baseStream.manager.getProfileAnilistClientFunc != nil {
+					client := baseStream.manager.getProfileAnilistClientFunc(baseStream.profileId)
+					if client != nil && client.IsAuthenticated() {
+						status := anilist.MediaListStatusCurrent
+						isCompleted := totalEpisodes > 0 && epNum >= totalEpisodes
+						if isCompleted {
+							status = anilist.MediaListStatusCompleted
+						}
+						now := time.Now()
+						year, monthVal, day := now.Year(), int(now.Month()), now.Day()
+						var startedAt, completedAt *anilist.FuzzyDateInput
+						if epNum == 1 {
+							startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+						}
+						if isCompleted {
+							completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+						}
+						_, updateErr = client.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
+					} else {
+						updateErr = errors.New("profile AniList account not authenticated")
+					}
+				} else {
+					updateErr = baseStream.manager.platformRef.Get().UpdateEntryProgress(context.Background(), mediaId, epNum, &totalEpisodes)
+				}
+
+				if updateErr != nil {
+					baseStream.manager.Logger.Warn().Err(updateErr).Uint("profileID", baseStream.profileId).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Failed to update AniList progress")
+				} else {
+					baseStream.manager.Logger.Info().Uint("profileID", baseStream.profileId).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Updated AniList progress")
+					// For profile users, invalidate their cached anime collection so the next fetch is fresh.
+					if baseStream.profileId > 0 && baseStream.manager.invalidateProfileAnimeCollectionFunc != nil {
+						baseStream.manager.invalidateProfileAnimeCollectionFunc(baseStream.profileId)
+					}
+					// Record playback activity for profile XP / level / achievements / community feed.
+					// Mirrors what PlaybackManager does for external players.
+					if baseStream.profileId > 0 && baseStream.manager.recordPlaybackActivityFunc != nil {
+						// Duration not tracked at this layer — pass 0; activity tracker only uses it for stat metadata.
+						go baseStream.manager.recordPlaybackActivityFunc(baseStream.profileId, mediaId, epNum, totalEpisodes, 0)
+					}
+					baseStream.manager.wsEventManager.SendEventTo(baseStream.clientId, events.PlaybackManagerProgressUpdated, map[string]interface{}{
+						"mediaId":              mediaId,
+						"episodeNumber":        epNum,
+						"mediaTitle":           baseStream.media.GetPreferredTitle(),
+						"mediaCoverImage":      baseStream.media.GetCoverImageSafe(),
+						"mediaTotalEpisodes":   totalEpisodes,
+						"progressUpdated":      true,
+						"completionPercentage": 1.0,
+					})
+					if baseStream.manager.refreshAnimeCollectionFunc != nil {
+						go baseStream.manager.refreshAnimeCollectionFunc()
+					}
+				}
+			})
+		}
+	}
 }
 
 // startInitialSubtitleStream starts the initial (offset 0) subtitle stream for stream
@@ -365,7 +373,9 @@ func (m *Manager) listenToPlayerEvents() {
 func (m *Manager) startInitialSubtitleStream(cs Stream, session *ProfileStreamSession) {
 	switch s := cs.(type) {
 	case *LocalFileStream:
-		if s.hasSubtitleStream() {
+		// The playback info (and its MKV parser) may not be loaded yet when triggered by
+		// early playback events; the loaded-metadata/heartbeat events will retry later.
+		if s.playbackInfo == nil || s.hasSubtitleStream() {
 			return
 		}
 		subReader, err := s.newReader()
@@ -376,7 +386,10 @@ func (m *Manager) startInitialSubtitleStream(cs Stream, session *ProfileStreamSe
 		m.Logger.Debug().Msg("directstream: Starting initial subtitle stream")
 		s.StartSubtitleStream(s, session.PlaybackCtx, subReader, 0)
 	case *TorrentStream:
-		if s.hasSubtitleStream() {
+		if s.playbackInfo == nil || s.hasSubtitleStream() {
+			return
+		}
+		if s.file == nil {
 			return
 		}
 		m.Logger.Debug().Msg("directstream: Starting initial subtitle stream")
@@ -424,21 +437,21 @@ func (m *Manager) unloadStream(profileID uint, clientId string) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type BaseStream struct {
-	logger                 *zerolog.Logger
-	clientId               string
-	profileId              uint
-	contentType            string
-	contentTypeOnce        sync.Once
-	episode                *anime.Episode
-	media                  *anilist.BaseAnime
-	listEntryData          *anime.EntryListData
-	episodeCollection      *anime.EpisodeCollection
-	playbackInfo           *nativeplayer.PlaybackInfo
-	playbackInfoErr        error
-	playbackInfoOnce       sync.Once
-	subtitleEventCache     *result.Map[string, *mkvparser.SubtitleEvent]
-	terminateOnce          sync.Once
-	filename               string // Name of the file being streamed, if applicable
+	logger             *zerolog.Logger
+	clientId           string
+	profileId          uint
+	contentType        string
+	contentTypeOnce    sync.Once
+	episode            *anime.Episode
+	media              *anilist.BaseAnime
+	listEntryData      *anime.EntryListData
+	episodeCollection  *anime.EpisodeCollection
+	playbackInfo       *nativeplayer.PlaybackInfo
+	playbackInfoErr    error
+	playbackInfoOnce   sync.Once
+	subtitleEventCache *result.Map[string, *mkvparser.SubtitleEvent]
+	terminateOnce      sync.Once
+	filename           string // Name of the file being streamed, if applicable
 
 	// Subtitle stream management
 	activeSubtitleStreams *result.Map[string, *SubtitleStream]
