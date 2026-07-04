@@ -823,17 +823,20 @@ func (vc *VideoCore) listenToClientEvents() {
 					case PlayerEventVideoLoadedMetadata:
 						payload := &clientVideoStatusPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
-							ps, ok := vc.getPlaybackStateFor(clientId)
-							if !ok {
-								continue
+							// Register the playback status when the state is known, but ALWAYS
+							// forward the event — the directstream manager relies on it to start
+							// the subtitle stream, and dropping it (e.g. when the state hasn't
+							// been registered yet during an episode transition) left episodes
+							// without subtitles.
+							if ps, ok := vc.getPlaybackStateFor(clientId); ok {
+								vc.setPlaybackStatusFor(clientId, &PlaybackStatus{
+									Id:          ps.PlaybackInfo.Id,
+									ClientId:    clientId,
+									CurrentTime: payload.CurrentTime,
+									Duration:    payload.Duration,
+									Paused:      payload.Paused,
+								})
 							}
-							vc.setPlaybackStatusFor(clientId, &PlaybackStatus{
-								Id:          ps.PlaybackInfo.Id,
-								ClientId:    clientId,
-								CurrentTime: payload.CurrentTime,
-								Duration:    payload.Duration,
-								Paused:      payload.Paused,
-							})
 							vc.pushEventFor(clientId, &VideoLoadedMetadataEvent{
 								CurrentTime: payload.CurrentTime,
 								Duration:    payload.Duration,
@@ -987,8 +990,11 @@ func (vc *VideoCore) listenToClientEvents() {
 							})
 						}
 					case PlayerEventVideoTerminated:
-						// No payload
-						vc.pushEventFor(clientId, &VideoTerminatedEvent{})
+						// Forward the playback id (may be empty for cleanup-phase dispatches
+						// during episode transitions) so consumers can ignore stale terminates.
+						payload := &clientVideoTerminatedPayload{}
+						_ = playerEvent.UnmarshalAs(&payload)
+						vc.pushEventFor(clientId, &VideoTerminatedEvent{Id: payload.Id})
 						vc.clearPlaybackFor(clientId)
 					case PlayerEventSubtitleFileUploaded:
 						payload := &clientSubtitleFileUploadedPayload{}

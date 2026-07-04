@@ -183,6 +183,9 @@ type (
 		Duration    float64 `json:"duration"`
 		Paused      bool    `json:"paused"`
 	}
+	clientVideoTerminatedPayload struct {
+		Id string `json:"id"`
+	}
 	clientVideoFullscreenPayload struct {
 		Fullscreen bool `json:"fullscreen"`
 	}
@@ -331,6 +334,12 @@ type (
 	// For the Web Player, this happens when the video player unmounts (user navigates away from the page).
 	VideoTerminatedEvent struct {
 		BaseVideoEvent
+		// Id is the playback id the client was terminating, when it knew it.
+		// Empty for the cleanup-phase dispatch during episode transitions (the client's
+		// playback info is already null at that point) — consumers must NOT tear down the
+		// current session on an empty or mismatched id, or they will kill the incoming
+		// episode's stream.
+		Id string `json:"id"`
 	}
 	VideoCompletedEvent struct {
 		BaseVideoEvent

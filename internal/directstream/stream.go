@@ -240,19 +240,13 @@ func (m *Manager) listenToPlayerEvents() {
 				switch event := event.(type) {
 				case *videocore.VideoLoadedMetadataEvent:
 					m.Logger.Debug().Msgf("directstream: Video loaded metadata")
-					if lfStream, ok := cs.(*LocalFileStream); ok {
-						subReader, err := lfStream.newReader()
-						if err != nil {
-							m.Logger.Error().Err(err).Msg("directstream: Failed to create subtitle reader")
-							cs.StreamError(fmt.Errorf("failed to create subtitle reader: %w", err))
-							return
-						}
-						lfStream.StartSubtitleStream(lfStream, session.PlaybackCtx, subReader, 0)
-					} else if ts, ok := cs.(*TorrentStream); ok {
-						subReader := ts.file.NewReader()
-						subReader.SetResponsive()
-						ts.StartSubtitleStream(ts, session.PlaybackCtx, subReader, 0)
-					}
+					m.startInitialSubtitleStream(cs, session)
+				case *videocore.VideoStatusEvent, *videocore.VideoCanPlayEvent, *videocore.VideoResumedEvent, *videocore.VideoSeekedEvent:
+					// Safety net: the client's "video-loaded-metadata" can be lost around
+					// episode transitions (listener registration races the media load).
+					// These recurring playback events guarantee the subtitle stream still
+					// starts; startInitialSubtitleStream no-ops once one is running.
+					m.startInitialSubtitleStream(cs, session)
 				case *videocore.VideoErrorEvent:
 					m.Logger.Debug().Msgf("directstream: Video error, Error: %s", event.Error)
 					cs.StreamError(errors.New(event.Error))
@@ -260,6 +254,21 @@ func (m *Manager) listenToPlayerEvents() {
 					m.Logger.Debug().Msgf("directstream: Subtitle file uploaded, Filename: %s", event.Filename)
 					cs.OnSubtitleFileUploaded(event.Filename, event.Content)
 				case *videocore.VideoTerminatedEvent:
+					// Only terminate if the event refers to THIS stream's playback.
+					// video-core dispatches a terminate during its cleanup phase at every
+					// episode transition; by the time it reaches us the NEW episode's
+					// session has already replaced the old one under the same clientId.
+					// That stale terminate (empty or old id) was tearing down the new
+					// stream's subtitle pipeline — every episode after the first played
+					// without subtitles until the user manually terminated and restarted.
+					currentId := ""
+					if pi, err := cs.LoadPlaybackInfo(); err == nil && pi != nil {
+						currentId = pi.ID
+					}
+					if event.Id == "" || (currentId != "" && event.Id != currentId) {
+						m.Logger.Debug().Str("eventId", event.Id).Str("currentId", currentId).Msg("directstream: Ignoring stale video terminated event")
+						continue
+					}
 					m.Logger.Debug().Msgf("directstream: Video terminated")
 					cs.Terminate()
 				case *videocore.VideoCompletedEvent:
@@ -347,6 +356,45 @@ func (m *Manager) listenToPlayerEvents() {
 			}
 		}
 	}()
+}
+
+// startInitialSubtitleStream starts the initial (offset 0) subtitle stream for stream
+// types that support it. No-ops if a subtitle stream is already running for the stream,
+// so it can safely be triggered by both "video-loaded-metadata" and the periodic
+// "video-status" heartbeat.
+func (m *Manager) startInitialSubtitleStream(cs Stream, session *ProfileStreamSession) {
+	switch s := cs.(type) {
+	case *LocalFileStream:
+		if s.hasSubtitleStream() {
+			return
+		}
+		subReader, err := s.newReader()
+		if err != nil {
+			m.Logger.Error().Err(err).Msg("directstream: Failed to create subtitle reader")
+			return
+		}
+		m.Logger.Debug().Msg("directstream: Starting initial subtitle stream")
+		s.StartSubtitleStream(s, session.PlaybackCtx, subReader, 0)
+	case *TorrentStream:
+		if s.hasSubtitleStream() {
+			return
+		}
+		m.Logger.Debug().Msg("directstream: Starting initial subtitle stream")
+		subReader := s.file.NewReader()
+		subReader.SetResponsive()
+		s.StartSubtitleStream(s, session.PlaybackCtx, subReader, 0)
+	}
+}
+
+// hasSubtitleStream reports whether any subtitle stream (running or completed) exists for
+// this stream. Used to make the initial subtitle stream start idempotent.
+func (s *BaseStream) hasSubtitleStream() bool {
+	found := false
+	s.activeSubtitleStreams.Range(func(_ string, _ *SubtitleStream) bool {
+		found = true
+		return false
+	})
+	return found
 }
 
 func (m *Manager) unloadStream(profileID uint, clientId string) {
