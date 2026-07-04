@@ -183,7 +183,7 @@ func (h *Handler) HandleGetActivityFeed(c echo.Context) error {
 			if d, ok := defMap[ach.Key]; ok {
 				name = d.Name
 				iconSVG = d.IconSVG
-				desc = d.Description
+				desc = achievement.FormatThreshold(d.Description, d.TierThresholds, ach.Tier)
 				xpReward = d.XPReward
 			}
 			feed = append(feed, &ActivityFeedEntry{

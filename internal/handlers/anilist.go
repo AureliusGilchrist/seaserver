@@ -199,6 +199,11 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 		if p.Progress != nil {
 			meta["progress"] = *p.Progress
 		}
+		// Embed the title so the timeline can display it even if the media later
+		// leaves the collection (avoids "Media #123" entries).
+		if title := h.lookupMediaTitle(profileID, p.Type, *p.MediaId); title != "" {
+			meta["title"] = title
+		}
 		_ = pdb.RecordActivityEvent(models.ActivityEventAnilistEntryEdited, *p.MediaId, meta)
 	}()
 
@@ -482,10 +487,16 @@ func (h *Handler) HandleDeleteAnilistListEntry(c echo.Context) error {
 		}
 	}
 
-	// Record activity event for delete
+	// Record activity event for delete.
+	// Look up the title BEFORE the collection refreshes below removes the entry.
 	pdbDelete := h.GetProfileDatabase(c)
+	deletedTitle := h.lookupMediaTitle(profileID, *p.Type, *p.MediaId)
 	go func() {
-		_ = pdbDelete.RecordActivityEvent(models.ActivityEventAnilistEntryDeleted, *p.MediaId, map[string]interface{}{"type": *p.Type})
+		meta := map[string]interface{}{"type": *p.Type}
+		if deletedTitle != "" {
+			meta["title"] = deletedTitle
+		}
+		_ = pdbDelete.RecordActivityEvent(models.ActivityEventAnilistEntryDeleted, *p.MediaId, meta)
 	}()
 
 	switch *p.Type {

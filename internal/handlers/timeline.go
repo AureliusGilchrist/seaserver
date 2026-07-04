@@ -69,12 +69,30 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 	// Build a lookup map for achievement definitions
 	achDefMap := achievement.DefinitionMap()
 
-	// Build lookup maps from cached collections
+	// Build lookup maps from cached collections.
+	// Use the profile's own collections when available — resolving against the global
+	// (legacy) collection misses media that only exists in the profile's AniList account,
+	// which left timeline entries displaying "Media #123" instead of the title.
 	animeLookup := make(map[int]*anilist.BaseAnime)
 	mangaLookup := make(map[int]*anilist.BaseManga)
 
-	if col, err := h.App.GetAnimeCollection(false); err == nil && col != nil {
-		for _, l := range col.GetMediaListCollection().GetLists() {
+	profileID := h.GetProfileID(c)
+
+	var animeCol *anilist.AnimeCollection
+	var mangaCol *anilist.MangaCollection
+	if profileID > 0 && h.App.AnilistClientManager != nil {
+		animeCol, _ = h.App.AnilistClientManager.GetAnimeCollection(profileID)
+		mangaCol, _ = h.App.AnilistClientManager.GetMangaCollection(profileID)
+	}
+	if animeCol == nil {
+		animeCol, _ = h.App.GetAnimeCollection(false)
+	}
+	if mangaCol == nil {
+		mangaCol, _ = h.App.GetMangaCollection(false)
+	}
+
+	if animeCol != nil {
+		for _, l := range animeCol.GetMediaListCollection().GetLists() {
 			for _, e := range l.GetEntries() {
 				if e.GetMedia() != nil {
 					animeLookup[e.GetMedia().ID] = e.GetMedia()
@@ -83,8 +101,8 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 		}
 	}
 
-	if col, err := h.App.GetMangaCollection(false); err == nil && col != nil {
-		for _, l := range col.GetMediaListCollection().GetLists() {
+	if mangaCol != nil {
+		for _, l := range mangaCol.GetMediaListCollection().GetLists() {
 			for _, e := range l.GetEntries() {
 				if e.GetMedia() != nil {
 					mangaLookup[e.GetMedia().ID] = e.GetMedia()
@@ -132,6 +150,18 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 		} else {
 			// Infer type from event
 			te.MediaType = inferMediaType(ev.EventType, ev.Metadata)
+			// Fall back to the title/image stored in the event's metadata at record time —
+			// covers media that has since left the collection.
+			if meta := ParseEventMetadata(ev.Metadata); meta != nil {
+				if t, ok := meta["title"].(string); ok && t != "" {
+					title := t
+					te.MediaTitle = &title
+				}
+				if img, ok := meta["image"].(string); ok && img != "" {
+					image := img
+					te.MediaImage = &image
+				}
+			}
 		}
 
 		// Enrich achievement events with definition data
@@ -141,7 +171,12 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 				if key, ok := meta["key"].(string); ok {
 					if def, ok := achDefMap[key]; ok && def != nil {
 						svg := def.IconSVG
-						desc := def.Description
+						// Substitute {threshold} with the unlocked tier's actual value
+						tier := 1
+						if t, ok := meta["tier"].(float64); ok && t > 0 {
+							tier = int(t)
+						}
+						desc := achievement.FormatThreshold(def.Description, def.TierThresholds, tier)
 						te.AchievementIconSVG = &svg
 						te.AchievementDesc = &desc
 					}
@@ -158,6 +193,55 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 		HasMore: int64(page*pageSize) < total,
 		Total:   total,
 	})
+}
+
+// lookupMediaTitle resolves a media title from the profile's (or global) cached
+// collections so it can be embedded in activity event metadata at record time.
+// Returns "" when the media can't be found.
+func (h *Handler) lookupMediaTitle(profileID uint, mediaType string, mediaId int) string {
+	if mediaId <= 0 {
+		return ""
+	}
+
+	if mediaType != "manga" {
+		var col *anilist.AnimeCollection
+		if profileID > 0 && h.App.AnilistClientManager != nil {
+			col, _ = h.App.AnilistClientManager.GetAnimeCollection(profileID)
+		}
+		if col == nil {
+			col, _ = h.App.GetAnimeCollection(false)
+		}
+		if col != nil {
+			for _, l := range col.GetMediaListCollection().GetLists() {
+				for _, e := range l.GetEntries() {
+					if m := e.GetMedia(); m != nil && m.ID == mediaId {
+						return m.GetPreferredTitle()
+					}
+				}
+			}
+		}
+	}
+
+	if mediaType != "anime" {
+		var col *anilist.MangaCollection
+		if profileID > 0 && h.App.AnilistClientManager != nil {
+			col, _ = h.App.AnilistClientManager.GetMangaCollection(profileID)
+		}
+		if col == nil {
+			col, _ = h.App.GetMangaCollection(false)
+		}
+		if col != nil {
+			for _, l := range col.GetMediaListCollection().GetLists() {
+				for _, e := range l.GetEntries() {
+					if m := e.GetMedia(); m != nil && m.ID == mediaId {
+						return m.GetPreferredTitle()
+					}
+				}
+			}
+		}
+	}
+
+	return ""
 }
 
 // inferMediaType guesses media type from event type and metadata payload.

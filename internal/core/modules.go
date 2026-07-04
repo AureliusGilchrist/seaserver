@@ -243,12 +243,8 @@ func (a *App) initModulesOnce() {
 			}
 			durationMinutes := durationSeconds / 60
 
-			_ = pdb.RecordAnimeActivity(1, durationMinutes)
-			_ = pdb.RecordActivityEvent(models.ActivityEventEpisodeWatched, mediaID, map[string]interface{}{
-				"episode":       episodeNumber,
-				"totalEpisodes": totalEpisodes,
-				"duration":      durationMinutes,
-			})
+			// Deduped: the client's update-progress call may record the same episode
+			_ = pdb.RecordEpisodeWatched(mediaID, episodeNumber, totalEpisodes, durationMinutes)
 
 			if a.AchievementEngine != nil {
 				a.AchievementEngine.ProcessEvent(&achievement.AchievementEvent{
@@ -528,13 +524,9 @@ func (a *App) initModulesOnce() {
 			return
 		}
 
-		// Daily heatmap / streak stats
-		_ = pdb.RecordAnimeActivity(1, evt.DurationMinutes)
-		_ = pdb.RecordActivityEvent(models.ActivityEventEpisodeWatched, evt.MediaID, map[string]interface{}{
-			"episode":       evt.EpisodeNumber,
-			"totalEpisodes": evt.TotalEpisodes,
-			"duration":      evt.DurationMinutes,
-		})
+		// Daily heatmap / streak stats.
+		// Deduped: other playback paths may record the same episode at completion.
+		_ = pdb.RecordEpisodeWatched(evt.MediaID, evt.EpisodeNumber, evt.TotalEpisodes, evt.DurationMinutes)
 
 		// Session-based metadata for binge/streak achievement evaluation
 		sessionHours := float64(evt.SessionMinutes) / 60.0

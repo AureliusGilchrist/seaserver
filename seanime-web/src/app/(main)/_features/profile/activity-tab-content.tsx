@@ -47,18 +47,111 @@ function parseMetadata(raw: string): Record<string, any> | null {
   try { return JSON.parse(raw) as Record<string, any> } catch { return null }
 }
 
-function formatEventDescription(event: Handlers_TimelineEvent): string {
+// ────────────────────────── Consecutive watch/read merging ──────────────────────────
+
+// Two watch/read events of the same media merge into one timeline entry
+// ("Watched Episodes 1-2 of X") when they happen within this window of each other.
+const MERGE_DEAD_PERIOD_MS = 24 * 60 * 60 * 1000
+
+type MergedTimelineEvent = Handlers_TimelineEvent & {
+  __mergedEpisodes?: (number | string)[]
+  __mergedChapters?: (number | string)[]
+}
+
+// Compresses a list of episode/chapter numbers into range notation: [1,2,3,5] → "1-3, 5".
+// Non-numeric values (e.g. chapter "10.5") fall back to a plain sorted list.
+function compressRanges(values: (number | string)[]): string {
+  const nums = values.map(v => Number(v))
+  if (nums.some(n => !Number.isFinite(n) || !Number.isInteger(n))) {
+    return [...values].sort((a, b) => Number(a) - Number(b)).join(", ")
+  }
+  const unique = [...new Set(nums)].sort((a, b) => a - b)
+  const parts: string[] = []
+  let start = unique[0]
+  let prev = unique[0]
+  for (let i = 1; i <= unique.length; i++) {
+    const cur = unique[i]
+    if (cur != null && cur === prev + 1) {
+      prev = cur
+      continue
+    }
+    parts.push(start === prev ? `${start}` : `${start}-${prev}`)
+    if (cur != null) {
+      start = cur
+      prev = cur
+    }
+  }
+  return parts.join(", ")
+}
+
+// Collapses episode-watched / chapter-read events of the same media into one entry when
+// each successive event is within MERGE_DEAD_PERIOD_MS of the previous one (events arrive
+// newest-first). The merged entry keeps the newest event's position and timestamp.
+function mergeConsecutiveWatchEvents(events: Handlers_TimelineEvent[]): MergedTimelineEvent[] {
+  const out: MergedTimelineEvent[] = []
+  const openGroups = new Map<string, { index: number; lastTime: number }>()
+
+  for (const event of events) {
+    const isEpisode = event.eventType === "episode_watched"
+    const isChapter = event.eventType === "manga_chapter_read"
+    const meta = (isEpisode || isChapter) ? parseMetadata(event.metadata) : null
+    const value = isEpisode ? meta?.episode : isChapter ? meta?.chapter : null
+
+    if ((!isEpisode && !isChapter) || !event.mediaId || value == null) {
+      out.push(event)
+      continue
+    }
+
+    const key = `${event.eventType}:${event.mediaId}`
+    const time = new Date(event.createdAt).getTime()
+    const group = openGroups.get(key)
+
+    if (group && (group.lastTime - time) <= MERGE_DEAD_PERIOD_MS) {
+      const target = out[group.index]
+      if (isEpisode) (target.__mergedEpisodes ??= []).push(value)
+      else (target.__mergedChapters ??= []).push(value)
+      group.lastTime = time
+      continue
+    }
+
+    const merged: MergedTimelineEvent = { ...event }
+    if (isEpisode) merged.__mergedEpisodes = [value]
+    else merged.__mergedChapters = [value]
+    out.push(merged)
+    openGroups.set(key, { index: out.length - 1, lastTime: time })
+  }
+
+  return out
+}
+
+function formatEventDescription(event: MergedTimelineEvent): string {
   const meta = parseMetadata(event.metadata)
   const cfg = EVENT_CONFIG[event.eventType]
-  const title = event.mediaTitle || (event.mediaId > 0 ? `Media #${event.mediaId}` : "")
+  // Prefer the resolved title, then the title embedded in the event metadata at record
+  // time, and only then the raw "Media #N" fallback.
+  const metaTitle = typeof meta?.title === "string" ? meta.title : ""
+  const title = event.mediaTitle || metaTitle || (event.mediaId > 0 ? `Media #${event.mediaId}` : "")
 
   switch (event.eventType) {
     case "episode_watched": {
-      const ep = meta?.episode
+      // Dedupe merged values — historical data contains double-recorded episodes
+      const merged = event.__mergedEpisodes
+        ? [...new Set<string>((event.__mergedEpisodes as (number | string)[]).map(String))]
+        : undefined
+      if (merged && merged.length > 1) {
+        return `Watched Episodes ${compressRanges(merged)}${title ? ` of ${title}` : ""}`
+      }
+      const ep = merged?.[0] ?? meta?.episode
       return ep != null ? `Watched Episode ${ep}${title ? ` of ${title}` : ""}` : `Watched${title ? ` ${title}` : ""}`
     }
     case "manga_chapter_read": {
-      const ch = meta?.chapter
+      const merged = event.__mergedChapters
+        ? [...new Set<string>((event.__mergedChapters as (number | string)[]).map(String))]
+        : undefined
+      if (merged && merged.length > 1) {
+        return `Read Chapters ${compressRanges(merged)}${title ? ` of ${title}` : ""}`
+      }
+      const ch = merged?.[0] ?? meta?.chapter
       return ch != null ? `Read Chapter ${ch}${title ? ` of ${title}` : ""}` : `Read${title ? ` ${title}` : ""}`
     }
     case "file_matched":
@@ -218,7 +311,8 @@ function InfiniteTimeline() {
 
   const allEvents = React.useMemo(() => {
     if (!data?.pages) return []
-    return data.pages.flatMap((p) => p?.events ?? [])
+    // Collapse per-episode/per-chapter spam into "Episodes 1-3"-style entries
+    return mergeConsecutiveWatchEvents(data.pages.flatMap((p) => p?.events ?? []))
   }, [data])
 
   const groupedByDay = React.useMemo(() => {
@@ -290,7 +384,8 @@ export function ActivityTabContent({
         </div>
 
         {/* Center — infinite scroll timeline */}
-        <div className="space-y-1">
+        {/* Blurred/darkened panel so the timeline stays readable over decorative page backgrounds */}
+        <div className="space-y-1 rounded-xl border border-[--border] bg-black/40 backdrop-blur-md p-4">
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-2">
             <LuActivity className="text-blue-400" />
             Timeline

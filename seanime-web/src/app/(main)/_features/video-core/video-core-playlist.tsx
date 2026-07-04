@@ -6,6 +6,7 @@ import { getNextBatchFileSelection, useAutoPlaySelectedTorrent, useTorrentstream
 import { useNakamaWatchParty } from "@/app/(main)/_features/nakama/nakama-manager"
 import { usePlaylistManager } from "@/app/(main)/_features/playlists/_containers/global-playlist-manager"
 import { VideoCoreNextButton, VideoCorePreviousButton } from "@/app/(main)/_features/video-core/video-core-control-bar"
+import { VideoCoreEpisodeListMenu } from "@/app/(main)/_features/video-core/video-core-episode-list"
 import { VideoCore_PlaybackType, VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { useHandleStartDebridStream } from "@/app/(main)/entry/_containers/debrid-stream/_lib/handle-debrid-stream"
 import {
@@ -345,6 +346,39 @@ export function useVideoCorePlaylist() {
         }
     }
 
+    // Plays a specific episode object directly (used by the episode list popup) —
+    // same routing as playEpisode but without the previous/next/aniDBEpisode lookup.
+    const playSpecificEpisode = (episode: Anime_Episode) => {
+        if (isWatchPartyPeer) return
+        if (!playlistState || !animeEntry) {
+            toast.error("Unexpected error: No playlist state")
+            return
+        }
+
+        log.info("Playing specific episode", episode.episodeNumber)
+
+        switch (playbackType) {
+            case "localfile":
+            case "nakama":
+                if (!episode?.localFile?.path) {
+                    toast.error("Local file not found")
+                    return
+                }
+                playMediaFile({
+                    path: episode.localFile.path,
+                    episode: episode,
+                    mediaId: animeEntry.mediaId,
+                })
+                break
+            case "torrent":
+            case "debrid":
+                startStream(episode)
+                break
+            default:
+                toast.error("Episode selection is not supported for this stream type")
+        }
+    }
+
     return {
         playlistState,
         animeEntry: playlistState?.animeEntry,
@@ -352,6 +386,7 @@ export function useVideoCorePlaylist() {
         hasPreviousEpisode: !!playlistState?.previousEpisode && !isWatchPartyPeer,
         hasNextEpisode: !!playlistState?.nextEpisode && !isWatchPartyPeer,
         playEpisode,
+        playSpecificEpisode,
     }
 }
 
@@ -423,6 +458,7 @@ export function VideoCorePlaylistControl() {
                     playEpisode("next")
                 }}
             />}
+            <VideoCoreEpisodeListMenu />
             {animeEntry && <TorrentSearchDrawer entry={animeEntry as Anime_Entry} />}
         </>
     )

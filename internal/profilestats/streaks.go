@@ -2,6 +2,7 @@ package profilestats
 
 import (
 	"seanime/internal/database/models"
+	"sort"
 	"time"
 )
 
@@ -110,6 +111,79 @@ func ComputeStreaks(logs []*models.ActivityLog, animeOnly bool) *StreakInfo {
 		Longest:    longest,
 		LastActive: lastDate,
 	}
+}
+
+// StreakDeadPeriod is the maximum gap between two consecutive activity events for a
+// streak to stay alive. Slightly over a day so a routine that drifts (episode at 8pm one
+// day, 10pm the next — or a session just past midnight that skips a calendar day) doesn't
+// break the chain on a technicality.
+const StreakDeadPeriod = 26 * time.Hour
+
+// ComputeStreaksFromEvents chains discrete activity timestamps: consecutive events within
+// StreakDeadPeriod of each other extend the chain. A streak's length is the number of
+// distinct calendar days the chain covers, so values stay comparable with the daily-log
+// based computation.
+func ComputeStreaksFromEvents(times []time.Time) *StreakInfo {
+	if len(times) == 0 {
+		return &StreakInfo{}
+	}
+
+	sorted := make([]time.Time, len(times))
+	copy(sorted, times)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Before(sorted[j]) })
+
+	longest := 0
+	chainDays := map[string]struct{}{sorted[0].Format("2006-01-02"): {}}
+
+	for i := 1; i < len(sorted); i++ {
+		if sorted[i].Sub(sorted[i-1]) <= StreakDeadPeriod {
+			chainDays[sorted[i].Format("2006-01-02")] = struct{}{}
+			continue
+		}
+		if len(chainDays) > longest {
+			longest = len(chainDays)
+		}
+		chainDays = map[string]struct{}{sorted[i].Format("2006-01-02"): {}}
+	}
+	if len(chainDays) > longest {
+		longest = len(chainDays)
+	}
+
+	// The final chain counts as the current streak only while the last event is still
+	// within the dead period of now.
+	current := 0
+	last := sorted[len(sorted)-1]
+	if time.Since(last) <= StreakDeadPeriod {
+		current = len(chainDays)
+	}
+
+	return &StreakInfo{
+		Current:    current,
+		Longest:    longest,
+		LastActive: last.Format("2006-01-02"),
+	}
+}
+
+// MergeStreaks combines two streak computations, keeping the most favorable values.
+// Used to overlay the event-timestamp streaks (26h dead period, but only as far back as
+// granular events exist) onto the daily-log streaks (full history, midnight-bounded).
+func MergeStreaks(a, b *StreakInfo) *StreakInfo {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	out := &StreakInfo{
+		Current:    max(a.Current, b.Current),
+		Longest:    max(a.Longest, b.Longest),
+		LastActive: a.LastActive,
+	}
+	// Dates are YYYY-MM-DD, so lexicographic comparison is chronological
+	if b.LastActive > out.LastActive {
+		out.LastActive = b.LastActive
+	}
+	return out
 }
 
 // ComputeWatchPatterns aggregates activity by day of week.

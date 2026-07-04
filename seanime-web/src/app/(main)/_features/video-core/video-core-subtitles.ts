@@ -587,19 +587,39 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         }
 
         if (assEvents.length > 0 && this.libassRenderer) {
-            for (const cachedEntry of assEvents) {
+            await this._injectAssEventsChunked(assEvents, this.currentTrackNumber)
+        }
+    }
+
+    // Injecting an event into JASSUB is one worker postMessage per event. Bursts of hundreds
+    // (full-track population on track select, or the event-history replay at episode
+    // transitions) dispatch them in a tight loop, which stalls the main thread and causes a
+    // visible playback hitch. Spread large batches across macrotasks in small chunks: the
+    // steady-state trickle (a few dozen events) still goes out in a single pass, while a
+    // full-episode burst takes a few hundred ms without ever blocking a frame.
+    private async _injectAssEventsChunked(entries: CachedEvent[], trackNumber: number) {
+        const CHUNK_SIZE = 50
+        for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
+            // Abort if the renderer was destroyed or the user switched tracks mid-injection
+            if (!this.libassRenderer || this.currentTrackNumber !== trackNumber) return
+            const end = Math.min(i + CHUNK_SIZE, entries.length)
+            for (let j = i; j < end; j++) {
+                const cached = entries[j]
                 if (this.shouldTranslate) {
-                    if (cachedEntry.translatedAssEvent) {
+                    if (cached.translatedAssEvent) {
                         // already translated, use it
-                        this.libassRenderer.renderer.createEvent(cachedEntry.translatedAssEvent)
+                        this.libassRenderer.renderer.createEvent(cached.translatedAssEvent)
                     } else {
                         // fetch the translation, it will be rendered once returned
-                        this._fetchEventTranslationIfNeeded(cachedEntry)
+                        this._fetchEventTranslationIfNeeded(cached)
                     }
                 } else {
                     // not translating, use the original event
-                    this.libassRenderer.renderer.createEvent(cachedEntry.assEvent)
+                    this.libassRenderer.renderer.createEvent(cached.assEvent)
                 }
+            }
+            if (end < entries.length) {
+                await new Promise(resolve => setTimeout(resolve, 12))
             }
         }
     }
@@ -993,22 +1013,11 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
         subtitleLog.info(`Populating ${trackEventMap.size} events for track ${trackNumber}`)
 
-        for (const cached of trackEventMap.values()) {
-            if (this.shouldTranslate) {
-                if (cached.translatedAssEvent) {
-                    // already translated, use it
-                    this.libassRenderer?.renderer?.createEvent(cached.translatedAssEvent)
-                } else {
-                    // fetch the translation, it will be rendered by the callback
-                    this._fetchEventTranslationIfNeeded(cached)
-                }
-            } else {
-                // normal flow, just render the event
-                this.libassRenderer?.renderer?.createEvent(cached.assEvent)
-            }
-        }
-
-        this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer", e))
+        // Chunked so a full track's worth of createEvent postMessages doesn't stall the main
+        // thread (see _injectAssEventsChunked). Fire-and-forget; resize once done.
+        this._injectAssEventsChunked([...trackEventMap.values()], trackNumber).then(() => {
+            this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer", e))
+        })
     }
 
     private _createAssEvent(event: MKVParser_SubtitleEvent, index: number): ASSEvent {

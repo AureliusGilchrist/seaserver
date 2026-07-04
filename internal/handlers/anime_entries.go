@@ -862,12 +862,9 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 					minutes = *anime.Duration
 				}
 			}
-			_ = pdb.RecordAnimeActivity(1, minutes)
-			_ = pdb.RecordActivityEvent(models.ActivityEventEpisodeWatched, b.MediaId, map[string]interface{}{
-				"episode":       b.EpisodeNumber,
-				"totalEpisodes": b.TotalEpisodes,
-				"duration":      minutes,
-			})
+			// Deduped: the direct-stream server-side auto-update may have already
+			// recorded this same episode at video completion.
+			_ = pdb.RecordEpisodeWatched(b.MediaId, b.EpisodeNumber, b.TotalEpisodes, minutes)
 		}
 	}()
 

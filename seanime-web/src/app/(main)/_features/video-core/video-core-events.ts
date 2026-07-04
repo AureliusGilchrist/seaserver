@@ -243,6 +243,9 @@ export function useVideoCoreSetupEvents(id: string,
     }, [isActivePlayer, state, anime4kManager])
 
     const lastSeekedSent = useRef(Date.now() - 1000)
+    // Tracks which playback already had "video-loaded-metadata" sent, so the readyState
+    // catch-up below doesn't re-send it on every effect re-run (deps include `state`).
+    const loadedMetadataSentFor = useRef<string | null>(null)
 
     // video events
     React.useEffect(() => {
@@ -268,6 +271,7 @@ export function useVideoCoreSetupEvents(id: string,
 
         function handleLoadedMetadata() {
             log.trace("Video loaded metadata")
+            loadedMetadataSentFor.current = state.playbackInfo?.id || ""
             sendEvent("video-loaded-metadata")
             sendEvent("video-loaded-metadata", {
                 id: state.playbackInfo?.id || "",
@@ -299,6 +303,21 @@ export function useVideoCoreSetupEvents(id: string,
         player.addEventListener("loadedmetadata", handleLoadedMetadata)
         player.addEventListener("ended", handleEnded)
         player.addEventListener("seeked", handleSeeked)
+
+        // The video can finish loading metadata BEFORE this listener is registered — episode
+        // transitions (auto-next) load from a warm pipeline, so `loadedmetadata` often fires in
+        // the gap between src assignment and this effect running. The server only starts the
+        // subtitle event stream when it receives "video-loaded-metadata"; missing it leaves the
+        // entire episode without subtitles. If metadata is already available for the current
+        // playback and we haven't announced it yet, announce it now.
+        if (
+            player.readyState >= HTMLMediaElement.HAVE_METADATA
+            && !!state.playbackInfo?.id
+            && loadedMetadataSentFor.current !== state.playbackInfo.id
+        ) {
+            log.info("Metadata already loaded before listener registration, sending video-loaded-metadata now")
+            handleLoadedMetadata()
+        }
 
         return () => {
             player.removeEventListener("play", handlePlay)

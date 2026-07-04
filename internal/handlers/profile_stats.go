@@ -50,9 +50,18 @@ func (h *Handler) HandleGetProfileStats(c echo.Context) error {
 	// Build heatmap
 	heatmap := profilestats.BuildHeatmap(heatmapLogs, startDate, endDate)
 
-	// Compute streaks (anime and manga separately)
+	// Compute streaks (anime and manga separately).
+	// Daily logs give the full history but break streaks at calendar-day boundaries;
+	// overlay the event-timestamp computation, whose 26h dead period forgives sessions
+	// that drift past midnight and skip a calendar day.
 	animeStreak := profilestats.ComputeStreaks(allLogs, true)
 	mangaStreak := profilestats.ComputeStreaks(allLogs, false)
+	if times, err := profileDB.GetActivityEventTimes(models.ActivityEventEpisodeWatched); err == nil && len(times) > 0 {
+		animeStreak = profilestats.MergeStreaks(animeStreak, profilestats.ComputeStreaksFromEvents(times))
+	}
+	if times, err := profileDB.GetActivityEventTimes(models.ActivityEventMangaChapterRead); err == nil && len(times) > 0 {
+		mangaStreak = profilestats.MergeStreaks(mangaStreak, profilestats.ComputeStreaksFromEvents(times))
+	}
 
 	// Compute watch patterns from heatmap range
 	watchPatterns := profilestats.ComputeWatchPatterns(heatmapLogs)
@@ -151,8 +160,15 @@ func (h *Handler) HandleGetUserProfileStats(c echo.Context) error {
 	}
 
 	heatmap := profilestats.BuildHeatmap(heatmapLogs, startDate, endDate)
+	// Same overlay as HandleGetProfileStats: 26h event-based dead period on top of daily logs
 	animeStreak := profilestats.ComputeStreaks(allLogs, true)
 	mangaStreak := profilestats.ComputeStreaks(allLogs, false)
+	if times, err := profileDB.GetActivityEventTimes(models.ActivityEventEpisodeWatched); err == nil && len(times) > 0 {
+		animeStreak = profilestats.MergeStreaks(animeStreak, profilestats.ComputeStreaksFromEvents(times))
+	}
+	if times, err := profileDB.GetActivityEventTimes(models.ActivityEventMangaChapterRead); err == nil && len(times) > 0 {
+		mangaStreak = profilestats.MergeStreaks(mangaStreak, profilestats.ComputeStreaksFromEvents(times))
+	}
 	watchPatterns := profilestats.ComputeWatchPatterns(heatmapLogs)
 	totalActive, animeDays, mangaDays := profilestats.CountActiveDays(allLogs)
 	animeHoursPerWeek, mangaChaptersPerWeek := computeWeeklyAverages(allLogs)
