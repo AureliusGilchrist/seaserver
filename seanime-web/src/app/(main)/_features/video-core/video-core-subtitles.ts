@@ -294,7 +294,12 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                         }
                         await sharedRenderer.setVideo(this.videoElement)
                         if (this.isDestroyed) return
+                        // Fresh start for the new episode: blank the previous track and
+                        // unwedge the render loop in case a failed draw left `busy` stuck
+                        // (which freezes the last subtitle on the canvas indefinitely).
+                        sharedRenderer.busy = false
                         sharedRenderer.renderer.setTrack(this.defaultSubtitleHeader)
+                        sharedRenderer.resize(true)?.catch?.(() => {})
                         this.libassRenderer = sharedRenderer
                         sharedRendererOwner = this
                         subtitleLog.info("Libass renderer reused")

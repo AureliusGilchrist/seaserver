@@ -1,0 +1,26 @@
+diff --git a/node_modules/jassub/dist/jassub.js b/node_modules/jassub/dist/jassub.js
+index 8eb70e3..185f2bd 100644
+--- a/node_modules/jassub/dist/jassub.js
++++ b/node_modules/jassub/dist/jassub.js
+@@ -233,9 +233,18 @@ export default class JASSUB {
+         this.busy = true;
+         this._skipped = false;
+         this.debug?._startFrame();
+-        await this.renderer._draw(mediaTime + this.timeOffset, repaint);
+-        this.debug?._endFrame(this._lastDemandTime);
+-        this.busy = false;
++        try {
++            await this.renderer._draw(mediaTime + this.timeOffset, repaint);
++        }
++        catch (e) {
++            // A failed draw must never leave `busy` stuck at true — that permanently
++            // freezes the render loop with the last-painted subtitle on the canvas.
++            console.warn('JASSUB: draw failed', e);
++        }
++        finally {
++            this.debug?._endFrame(this._lastDemandTime);
++            this.busy = false;
++        }
+         if (this._skipped)
+             await this._demandRender();
+     }

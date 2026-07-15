@@ -227,8 +227,14 @@ func (m *AnilistClientManager) GetClient(profileID uint) anilist.AnilistClient {
 		return m.app.AnilistClientRef.Get()
 	}
 
+	// Only short-circuit on a cached AUTHENTICATED client. A cached unauthenticated
+	// client may simply have been created before the profile's token was readable
+	// (startup ordering after a crash/restart, transient DB error) — pinning that
+	// state until the next restart made every AniList update fail with
+	// "profile AniList account not authenticated" despite a valid linked token.
+	// Instead, retry the token load whenever the cached client isn't authenticated.
 	m.mu.RLock()
-	if client, ok := m.clients[profileID]; ok {
+	if client, ok := m.clients[profileID]; ok && client.IsAuthenticated() {
 		m.mu.RUnlock()
 		return client
 	}
@@ -238,20 +244,31 @@ func (m *AnilistClientManager) GetClient(profileID uint) anilist.AnilistClient {
 	defer m.mu.Unlock()
 
 	// Double-check after acquiring write lock
-	if client, ok := m.clients[profileID]; ok {
+	if client, ok := m.clients[profileID]; ok && client.IsAuthenticated() {
 		return client
 	}
 
-	// Load token from profile's database
+	// (Re)load token from profile's database
+	token := ""
 	profileDB, err := m.app.ProfileDatabaseManager.GetDatabase(profileID)
 	if err != nil {
 		m.logger.Error().Err(err).Uint("profileID", profileID).Msg("anilist_client_manager: Failed to get profile DB, returning unauthenticated client")
+	} else {
+		token = profileDB.GetAnilistToken()
+	}
+
+	if token == "" {
+		// Keep (or cache) an unauthenticated client so callers get a usable object,
+		// but the authenticated-only cache check above guarantees the token is
+		// re-read from the DB on the next request.
+		if client, ok := m.clients[profileID]; ok {
+			return client
+		}
 		client := anilist.NewAnilistClient("", m.cacheDir)
 		client.SetWSEventManager(m.app.WSEventManager)
 		m.clients[profileID] = client
 		return client
 	}
-	token := profileDB.GetAnilistToken()
 
 	client := anilist.NewAnilistClient(token, m.cacheDir)
 	client.SetWSEventManager(m.app.WSEventManager)
