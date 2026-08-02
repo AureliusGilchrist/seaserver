@@ -66,6 +66,56 @@ type (
 	}
 )
 
+const (
+	// airingMetadataTTL is used for series that are still airing (or haven't started).
+	// Their episode list grows every week, so a long-lived cache entry means newly
+	// released episodes stay invisible until the entry expires.
+	airingMetadataTTL = 10 * time.Minute
+	// finishedMetadataTTL is used for series whose episode list can no longer change.
+	finishedMetadataTTL = 4 * time.Hour
+)
+
+// metadataCacheTTL picks a cache lifetime based on the airing status reported by the
+// metadata source. Ongoing series get a short TTL so new episodes appear quickly.
+func metadataCacheTTL(status string) time.Duration {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "airing", "releasing", "ongoing", "currently airing", "upcoming", "not yet released", "unreleased":
+		return airingMetadataTTL
+	}
+	return finishedMetadataTTL
+}
+
+// inferOngoingFromEpisodes guesses whether a series is still releasing when the source
+// doesn't report an airing status (AniZip). A series whose newest episode aired within
+// the last 30 days — or is dated in the future — is almost certainly still ongoing.
+func inferOngoingFromEpisodes(m *metadata.AnimeMetadata) bool {
+	if m == nil {
+		return false
+	}
+	var newest time.Time
+	for _, ep := range m.Episodes {
+		if ep == nil || ep.AirDate == "" {
+			continue
+		}
+		// Air dates are "YYYY-MM-DD", sometimes with a time suffix.
+		date := strings.TrimSpace(ep.AirDate)
+		if len(date) < 10 {
+			continue
+		}
+		t, err := time.Parse("2006-01-02", date[:10])
+		if err != nil {
+			continue
+		}
+		if t.After(newest) {
+			newest = t
+		}
+	}
+	if newest.IsZero() {
+		return false
+	}
+	return time.Since(newest) < 30*24*time.Hour
+}
+
 func GetAnimeMetadataCacheKey(platform metadata.Platform, mId int) string {
 	return fmt.Sprintf("%s$%d", platform, mId)
 }
@@ -118,8 +168,9 @@ func (p *ProviderImpl) GetAnimeMetadata(platform metadata.Platform, mId int) (re
 	})
 	if err != nil {
 		// Network fetch failed — try disk cache for offline resilience.
+		// Short TTL: the disk copy is a stale offline fallback, so retry the network soon.
 		if diskMeta := p.loadMetadataFromDisk(cacheKey); diskMeta != nil {
-			p.animeMetadataCache.SetT(cacheKey, diskMeta, 4*time.Hour)
+			p.animeMetadataCache.SetT(cacheKey, diskMeta, airingMetadataTTL)
 			return diskMeta, nil
 		}
 		return nil, err
@@ -136,6 +187,10 @@ func (p *ProviderImpl) fetchAnimeMetadata(platform metadata.Platform, mId int) (
 		SpecialCount: 0,
 		Mappings:     &metadata.AnimeMappings{},
 	}
+
+	// Cache lifetime for this entry. Downgraded to airingMetadataTTL below when the
+	// source reports the series is still airing, so ongoing shows aren't stashed.
+	ttl := finishedMetadataTTL
 
 	// Invoke AnimeMetadataRequested hook
 	reqEvent := &metadata.AnimeMetadataRequestedEvent{
@@ -190,6 +245,8 @@ func (p *ProviderImpl) fetchAnimeMetadata(platform metadata.Platform, mId int) (
 		if err != nil || m == nil {
 			return nil, err
 		}
+
+		ttl = metadataCacheTTL(m.Status)
 
 		ret.Titles = m.Titles
 		ret.EpisodeCount = 0
@@ -261,7 +318,7 @@ func (p *ProviderImpl) fetchAnimeMetadata(platform metadata.Platform, mId int) (
 	ret = event.AnimeMetadata
 	mId = event.MediaId
 
-	p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, 4*time.Hour)
+	p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, ttl)
 	// Write-through to disk for offline resilience.
 	p.saveMetadataToDisk(GetAnimeMetadataCacheKey(platform, mId), ret)
 
@@ -415,7 +472,13 @@ func (p *ProviderImpl) AnizipFallback(platform metadata.Platform, mId int) (ret 
 	ret = event.AnimeMetadata
 	mId = event.MediaId
 
-	p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, 4*time.Hour)
+	// AniZip doesn't report an airing status, so infer it from the episode air dates.
+	anizipTTL := finishedMetadataTTL
+	if inferOngoingFromEpisodes(ret) {
+		anizipTTL = airingMetadataTTL
+	}
+
+	p.animeMetadataCache.SetT(GetAnimeMetadataCacheKey(platform, mId), ret, anizipTTL)
 	// Write-through to disk for offline resilience.
 	p.saveMetadataToDisk(GetAnimeMetadataCacheKey(platform, mId), ret)
 

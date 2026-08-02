@@ -60,6 +60,10 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 		Url     string `json:"url"`
 		Content string `json:"content"`
 		To      string `json:"to"`
+		// Headers are the request headers the extension supplied for the video source
+		// (typically Referer/Origin). Subtitle CDNs behind hotlink protection reject
+		// requests that don't carry the same headers as the video request.
+		Headers map[string]string `json:"headers"`
 	}
 
 	var b body
@@ -94,51 +98,85 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 
 	// Fetch URL using the video proxy client (same transport that fetches HLS from CDNs).
 	ua := util.GetRandomUserAgent()
+	// Honour a User-Agent supplied by the extension — some CDNs pin the token to it.
+	for k, v := range b.Headers {
+		if strings.EqualFold(k, "User-Agent") && v != "" {
+			ua = v
+		}
+	}
+
 	fetchSubtitle := func(referer string) (*http.Response, error) {
 		r, reqErr := http.NewRequest(http.MethodGet, b.Url, nil)
 		if reqErr != nil {
 			return nil, reqErr
 		}
+		// Extension-supplied headers first, so the subtitle request looks exactly like
+		// the video request the same provider already accepted.
+		for k, v := range b.Headers {
+			if v == "" || strings.EqualFold(k, "Range") || strings.EqualFold(k, "Host") {
+				continue
+			}
+			r.Header.Set(k, v)
+		}
 		r.Header.Set("User-Agent", ua)
 		r.Header.Set("Accept", "*/*")
 		if referer != "" {
 			r.Header.Set("Referer", referer)
+			// Hotlink checks usually validate Origin alongside Referer.
+			if origin, parseErr := url.Parse(referer); parseErr == nil && origin.Host != "" {
+				r.Header.Set("Origin", origin.Scheme+"://"+origin.Host)
+			}
 		}
 		return h.getVideoProxyClient().Do(r)
 	}
 
-	resp, err := fetchSubtitle("")
-	if err != nil {
-		return h.RespondWithError(c, fmt.Errorf("failed to fetch subtitle URL: %w", err))
+	// Referer candidates, most specific first: whatever the extension supplied, then the
+	// subtitle host itself, then known embed hosts.
+	refererCandidates := []string{""}
+	for k, v := range b.Headers {
+		if v != "" && (strings.EqualFold(k, "Referer") || strings.EqualFold(k, "Origin")) {
+			refererCandidates = append([]string{v}, refererCandidates...)
+		}
+	}
+	if parsedURL, parseErr := url.Parse(b.Url); parseErr == nil && parsedURL.Host != "" {
+		refererCandidates = append(refererCandidates,
+			parsedURL.Scheme+"://"+parsedURL.Host+"/",
+		)
+	}
+	refererCandidates = append(refererCandidates,
+		"https://kickassanime.mx/",
+		"https://kaa.mx/",
+		"https://animetsu.net/",
+		"https://megacloud.club/",
+		"https://megacloud.tv/",
+	)
+
+	var resp *http.Response
+	var lastStatus int
+	var lastErr error
+	for _, referer := range refererCandidates {
+		r, retryErr := fetchSubtitle(referer)
+		if retryErr != nil {
+			lastErr = retryErr
+			continue
+		}
+		if r.StatusCode >= 200 && r.StatusCode < 300 {
+			resp = r
+			break
+		}
+		lastStatus = r.StatusCode
+		r.Body.Close()
+		// Only hotlink-protection responses are worth retrying with another referer.
+		if r.StatusCode != 401 && r.StatusCode != 403 {
+			break
+		}
 	}
 
-	// CDN hotlink protection: retry with common Referer values when blocked.
-	if resp.StatusCode == 403 || resp.StatusCode == 401 {
-		resp.Body.Close()
-		resp = nil
-		referers := []string{""}
-		if parsedURL, parseErr := url.Parse(b.Url); parseErr == nil {
-			referers = []string{
-				parsedURL.Scheme + "://" + parsedURL.Host + "/",
-				"https://animetsu.net/",
-				"https://megacloud.club/",
-				"https://megacloud.tv/",
-			}
+	if resp == nil {
+		if lastStatus != 0 {
+			return h.RespondWithError(c, fmt.Errorf("subtitle URL returned HTTP %d (hotlink protection, all referers blocked)", lastStatus))
 		}
-		for _, referer := range referers {
-			r, retryErr := fetchSubtitle(referer)
-			if retryErr != nil {
-				continue
-			}
-			if r.StatusCode >= 200 && r.StatusCode < 300 {
-				resp = r
-				break
-			}
-			r.Body.Close()
-		}
-		if resp == nil {
-			return h.RespondWithError(c, fmt.Errorf("subtitle URL returned HTTP 403 (hotlink protection, all referers blocked)"))
-		}
+		return h.RespondWithError(c, fmt.Errorf("failed to fetch subtitle URL: %w", lastErr))
 	}
 	defer resp.Body.Close()
 

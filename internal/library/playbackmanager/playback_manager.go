@@ -58,9 +58,11 @@ type (
 		platformRef                *util.Ref[platform.Platform]
 		metadataProviderRef        *util.Ref[metadata_provider.Provider]
 		refreshAnimeCollectionFunc func() // This function is called to refresh the AniList collection
-		// getProfileAnilistClientFunc returns the per-profile AniList client.
-		// Used so that progress updates target the active profile's account, not the admin's.
-		getProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
+		// getProfileAnilistClientFunc resolves the AniList client that progress updates should
+		// be written with, plus the profile it belongs to. It targets the user's own account
+		// rather than the shared admin/global one, even when the playback request carried no
+		// profile session.
+		getProfileAnilistClientFunc func(profileID uint) (anilist.AnilistClient, uint)
 		// invalidateProfileAnimeCollectionFunc invalidates the profile's cached anime collection
 		// after a successful progress update so the next fetch returns fresh data.
 		invalidateProfileAnimeCollectionFunc func(profileID uint)
@@ -236,7 +238,7 @@ type (
 		DiscordPresence             *discordrpc_presence.Presence
 		IsOfflineRef                *util.Ref[bool]
 		ContinuityManager           *continuity.Manager
-		GetProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
+		GetProfileAnilistClientFunc func(profileID uint) (anilist.AnilistClient, uint)
 		InvalidateProfileAnimeCollectionFunc func(profileID uint)
 		EnqueueProfilePendingProgressFunc    func(profileID uint, mediaID int, progress int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput)
 	}

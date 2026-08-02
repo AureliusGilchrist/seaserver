@@ -887,36 +887,45 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 	activeProfileID := pm.activeProfileID
 	pm.activeProfileIDMu.RUnlock()
 
-	if activeProfileID > 0 && pm.getProfileAnilistClientFunc != nil {
-		client := pm.getProfileAnilistClientFunc(activeProfileID)
-		if client != nil && client.IsAuthenticated() {
-			status := anilist.MediaListStatusCurrent
-			isCompleted := totalEpisodes > 0 && epNum >= totalEpisodes
-			if isCompleted {
-				status = anilist.MediaListStatusCompleted
-			}
-			now := time.Now()
-			year, monthVal, day := now.Year(), int(now.Month()), now.Day()
-			var startedAt, completedAt *anilist.FuzzyDateInput
-			if epNum == 1 {
-				startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-			}
-			if isCompleted {
-				completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-			}
-			_, err = client.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
-			// If AniList is unreachable, queue the update so the user's true progress is never
-			// lost; it is replayed automatically when the API is available again. We then treat
-			// this as a (locally) successful update so activity/achievements still advance.
-			if err != nil && shared_platform.IsOutageError(err) && pm.enqueueProfilePendingProgressFunc != nil {
-				pm.enqueueProfilePendingProgressFunc(activeProfileID, mediaId, epNum, &status, startedAt, completedAt)
-				pm.Logger.Warn().Int("mediaId", mediaId).Int("episode", epNum).Msg("playback manager: AniList unreachable; queued progress update for later sync")
-				err = nil
-			}
-		} else {
-			err = errors.New("profile AniList account not authenticated")
+	// Resolve the account to write to. This is attempted even when activeProfileID is 0:
+	// playback started from a request without a profile session would otherwise fall through
+	// to the global platform, which on multi-profile installs is the shared account.
+	var resolvedClient anilist.AnilistClient
+	resolvedProfileID := activeProfileID
+	if pm.getProfileAnilistClientFunc != nil {
+		resolvedClient, resolvedProfileID = pm.getProfileAnilistClientFunc(activeProfileID)
+		if resolvedProfileID == 0 {
+			resolvedProfileID = activeProfileID
+		}
+	}
+
+	if resolvedClient != nil && resolvedClient.IsAuthenticated() {
+		status := anilist.MediaListStatusCurrent
+		isCompleted := totalEpisodes > 0 && epNum >= totalEpisodes
+		if isCompleted {
+			status = anilist.MediaListStatusCompleted
+		}
+		now := time.Now()
+		year, monthVal, day := now.Year(), int(now.Month()), now.Day()
+		var startedAt, completedAt *anilist.FuzzyDateInput
+		if epNum == 1 {
+			startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+		}
+		if isCompleted {
+			completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+		}
+		_, err = resolvedClient.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
+		// If AniList is unreachable, queue the update so the user's true progress is never
+		// lost; it is replayed automatically when the API is available again. We then treat
+		// this as a (locally) successful update so activity/achievements still advance.
+		if err != nil && shared_platform.IsOutageError(err) && pm.enqueueProfilePendingProgressFunc != nil {
+			pm.enqueueProfilePendingProgressFunc(resolvedProfileID, mediaId, epNum, &status, startedAt, completedAt)
+			pm.Logger.Warn().Int("mediaId", mediaId).Int("episode", epNum).Msg("playback manager: AniList unreachable; queued progress update for later sync")
+			err = nil
 		}
 	} else {
+		// No linked AniList account anywhere — fall back to the platform layer, which
+		// handles the simulated (offline) account.
 		err = pm.platformRef.Get().UpdateEntryProgress(
 			context.Background(),
 			mediaId,
@@ -930,8 +939,8 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 	}
 
 	// For profile users, invalidate their cached anime collection so subsequent fetches are fresh.
-	if activeProfileID > 0 && pm.invalidateProfileAnimeCollectionFunc != nil {
-		pm.invalidateProfileAnimeCollectionFunc(activeProfileID)
+	if resolvedProfileID > 0 && pm.invalidateProfileAnimeCollectionFunc != nil {
+		pm.invalidateProfileAnimeCollectionFunc(resolvedProfileID)
 	}
 
 	pm.refreshAnimeCollectionFunc() // Refresh the AniList collection

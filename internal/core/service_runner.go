@@ -96,6 +96,38 @@ func (sr *ServiceRunner) Start() {
 		}
 	}()
 
+	// Daily full metadata refresh.
+	// Runs once 2 minutes after start (so the app is fully initialized), then every 24h.
+	// Drops every cached anime/episode metadata entry and re-pulls each account's AniList
+	// collections, so long-running installs never accumulate stale metadata.
+	sr.wg.Add(1)
+	go func() {
+		defer sr.wg.Done()
+		initial := time.NewTimer(2 * time.Minute)
+		select {
+		case <-sr.stopCh:
+			initial.Stop()
+			return
+		case <-initial.C:
+		}
+		if !sr.app.IsOffline() {
+			sr.RunRefreshAllMetadata()
+		}
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-sr.stopCh:
+				return
+			case <-ticker.C:
+				if sr.app.IsOffline() {
+					continue
+				}
+				sr.RunRefreshAllMetadata()
+			}
+		}
+	}()
+
 	// Periodic runtime cleanup.
 	// Every 3 hours, force a GC pass and return freed memory back to the OS.
 	// Helps long-running desktop sessions keep their resident set under control.
@@ -249,44 +281,102 @@ func (sr *ServiceRunner) RunFindMangaLibrarySorting() (map[int]interface{}, erro
 // RunAutoPauseStaleWatching scans the user's CURRENT (watching) AniList entries and
 // transitions any entry whose AniList list-entry `updatedAt` is older than 7 days to PAUSED.
 // This runs without external scheduler dependencies.
+//
+// Each profile is processed with its OWN AniList client and its OWN collection. The
+// admin/global collection is merged with the shared "planning slut" account, so running
+// this against the global platform would read someone else's list and write with the
+// wrong (often unauthenticated) token — which is what produced the recurring
+// "not logged in to AniList" failures.
 func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
 	sr.logger.Info().Msg("services: auto-pause stale watching: starting")
-	if sr.app.AnilistPlatformRef == nil || !sr.app.AnilistPlatformRef.IsPresent() {
-		sr.logger.Debug().Msg("services: auto-pause stale watching: anilist platform not available, skipping")
-		return nil
-	}
-
-	ac, err := sr.app.GetAnimeCollection(false)
-	if err != nil {
-		return err
-	}
-	if ac == nil || ac.MediaListCollection == nil {
-		return nil
-	}
 
 	threshold := time.Now().Unix() - 7*24*3600
-	paused := anilist.MediaListStatusPaused
-	pausedCount := 0
-	ctx := context.Background()
+	totalPaused := 0
+	handled := 0
 
+	// Per-profile pass: use the profile's own authenticated AniList client.
+	if sr.app.ProfileManager != nil && sr.app.AnilistClientManager != nil {
+		profiles, err := sr.app.ProfileManager.GetAllProfiles()
+		if err != nil {
+			sr.logger.Warn().Err(err).Msg("services: auto-pause stale watching: failed to list profiles")
+		}
+		for _, p := range profiles {
+			if p == nil {
+				continue
+			}
+			client := sr.app.AnilistClientManager.GetClient(p.ID)
+			if client == nil || !client.IsAuthenticated() {
+				sr.logger.Debug().Uint("profileID", p.ID).Msg("services: auto-pause stale watching: profile not linked to AniList, skipping")
+				continue
+			}
+			ac, err := sr.app.AnilistClientManager.GetAnimeCollection(p.ID)
+			if err != nil || ac == nil {
+				sr.logger.Warn().Err(err).Uint("profileID", p.ID).Msg("services: auto-pause stale watching: failed to get profile collection")
+				continue
+			}
+			handled++
+			paused := sr.autoPauseCollection(ac, threshold, func(mediaID int) error {
+				status := anilist.MediaListStatusPaused
+				_, updateErr := client.UpdateMediaListEntry(context.Background(), &mediaID, &status, nil, nil, nil, nil)
+				return updateErr
+			})
+			if paused > 0 {
+				sr.app.AnilistClientManager.InvalidateAnimeCollection(p.ID)
+			}
+			totalPaused += paused
+			sr.logger.Info().Uint("profileID", p.ID).Int("count", paused).Msg("services: auto-paused stale entries for profile")
+		}
+	}
+
+	// Fall back to the global platform only when there are no profile accounts to act on
+	// (single-user install without the profile system).
+	if handled == 0 && sr.app.AnilistPlatformRef != nil && sr.app.AnilistPlatformRef.IsPresent() {
+		ac, err := sr.app.GetAnimeCollection(false)
+		if err != nil {
+			return err
+		}
+		if ac == nil {
+			return nil
+		}
+		ctx := context.Background()
+		paused := sr.autoPauseCollection(ac, threshold, func(mediaID int) error {
+			status := anilist.MediaListStatusPaused
+			return sr.app.AnilistPlatformRef.Get().UpdateEntry(ctx, mediaID, &status, nil, nil, nil, nil)
+		})
+		totalPaused += paused
+		if paused > 0 {
+			go func() {
+				_, _ = sr.app.GetAnimeCollection(true)
+			}()
+		}
+	}
+
+	sr.logger.Info().Int("count", totalPaused).Msg("services: auto-pause stale watching: done")
+	return nil
+}
+
+// autoPauseCollection pauses every CURRENT entry in ac whose updatedAt is older than
+// threshold, using the supplied update function. Returns how many entries were paused.
+func (sr *ServiceRunner) autoPauseCollection(ac *anilist.AnimeCollection, threshold int64, update func(mediaID int) error) int {
+	if ac == nil || ac.MediaListCollection == nil {
+		return 0
+	}
+	pausedCount := 0
 	for _, list := range ac.MediaListCollection.Lists {
 		if list == nil || len(list.Entries) == 0 {
 			continue
 		}
 		for _, e := range list.Entries {
-			if e == nil || e.Media == nil || e.Status == nil {
+			if e == nil || e.Media == nil || e.Status == nil || e.UpdatedAt == nil {
 				continue
 			}
 			if *e.Status != anilist.MediaListStatusCurrent {
 				continue
 			}
-			if e.UpdatedAt == nil {
-				continue
-			}
 			if int64(*e.UpdatedAt) > threshold {
 				continue
 			}
-			if err := sr.app.AnilistPlatformRef.Get().UpdateEntry(ctx, e.Media.ID, &paused, nil, nil, nil, nil); err != nil {
+			if err := update(e.Media.ID); err != nil {
 				sr.logger.Warn().Err(err).Int("mediaId", e.Media.ID).Msg("services: failed to auto-pause stale entry")
 				continue
 			}
@@ -294,16 +384,61 @@ func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
 			sr.logger.Info().Int("mediaId", e.Media.ID).Msg("services: auto-paused stale watching entry")
 		}
 	}
+	return pausedCount
+}
 
-	if pausedCount > 0 {
-		// Refresh the cached anime collection asynchronously so the UI reflects the new statuses.
-		go func() {
-			_, _ = sr.app.GetAnimeCollection(true)
-		}()
+// RunRefreshAllMetadata drops every cached anime/episode metadata entry and re-fetches
+// each account's AniList collections. Runs daily (and can be triggered manually) so that
+// episode counts, airing status and artwork never go stale for long-running installs.
+func (sr *ServiceRunner) RunRefreshAllMetadata() {
+	sr.logger.Info().Msg("services: daily metadata refresh: starting")
+
+	// Drop the in-memory anime metadata cache (episode lists, images, mappings).
+	if sr.app.MetadataProviderRef != nil && sr.app.MetadataProviderRef.IsPresent() {
+		sr.app.MetadataProviderRef.Get().ClearCache()
 	}
 
-	sr.logger.Info().Int("count", pausedCount).Msg("services: auto-pause stale watching: done")
-	return nil
+	// Drop cached AniList media objects (episode counts, status, nextAiringEpisode).
+	if sr.app.AnilistPlatformRef != nil && sr.app.AnilistPlatformRef.IsPresent() {
+		sr.app.AnilistPlatformRef.Get().ClearCache()
+	}
+
+	// Refresh the admin/global collections.
+	if _, err := sr.app.RefreshAnimeCollection(); err != nil {
+		sr.logger.Warn().Err(err).Msg("services: daily metadata refresh: failed to refresh anime collection")
+	}
+	if _, err := sr.app.RefreshMangaCollection(); err != nil {
+		sr.logger.Warn().Err(err).Msg("services: daily metadata refresh: failed to refresh manga collection")
+	}
+
+	// Refresh every profile's own AniList collections so each account sees fresh data.
+	refreshed := 0
+	if sr.app.ProfileManager != nil && sr.app.AnilistClientManager != nil {
+		profiles, err := sr.app.ProfileManager.GetAllProfiles()
+		if err != nil {
+			sr.logger.Warn().Err(err).Msg("services: daily metadata refresh: failed to list profiles")
+		}
+		for _, p := range profiles {
+			if p == nil {
+				continue
+			}
+			if !sr.app.AnilistClientManager.IsAuthenticated(p.ID) {
+				continue
+			}
+			sr.app.AnilistClientManager.InvalidateAnimeCollection(p.ID)
+			sr.app.AnilistClientManager.InvalidateMangaCollection(p.ID)
+			if _, err := sr.app.AnilistClientManager.GetAnimeCollection(p.ID); err != nil {
+				sr.logger.Warn().Err(err).Uint("profileID", p.ID).Msg("services: daily metadata refresh: failed to refresh profile anime collection")
+			}
+			if _, err := sr.app.AnilistClientManager.GetMangaCollection(p.ID); err != nil {
+				sr.logger.Warn().Err(err).Uint("profileID", p.ID).Msg("services: daily metadata refresh: failed to refresh profile manga collection")
+			}
+			refreshed++
+		}
+	}
+
+	sr.app.WSEventManager.SendEvent(events.RefreshedAnilistAnimeCollection, nil)
+	sr.logger.Info().Int("profiles", refreshed).Msg("services: daily metadata refresh: done")
 }
 
 // RunRuntimeCleanup performs a forced GC pass and asks the runtime to release

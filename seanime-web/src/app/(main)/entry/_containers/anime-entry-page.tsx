@@ -79,7 +79,9 @@ export function AnimeEntryPage() {
     const isSynthetic = searchParams.get("synthetic") === "true"
     
     // Regular anime entry (only fetch if not synthetic)
-    const { data: animeEntry, isLoading: animeEntryLoading } = useGetAnimeEntry(isSynthetic ? null : mediaId)
+    const { data: animeEntry, isLoading: animeEntryLoading, isError: animeEntryError, refetch: refetchAnimeEntry } = useGetAnimeEntry(isSynthetic
+        ? null
+        : mediaId)
     const { data: animeDetails, isLoading: animeDetailsLoading } = useGetAnilistAnimeDetails(isSynthetic ? null : mediaId)
     
     // Synthetic anime entry (only fetch if synthetic)
@@ -168,19 +170,40 @@ export function AnimeEntryPage() {
 
     }, [animeEntry, animeEntryLoading, mediaId, searchParams, serverStatus, currentView, tab])
 
-    // Redirect guard: only redirect once the query has settled (not loading) AND we've
-    // waited at least 1 s to avoid false positives from stale-while-revalidate flicker.
+    // Redirect guard.
+    //
+    // A failed request must NOT bounce the user back home — a transient server error
+    // (AniList hiccup, cold cache, slow metadata fetch) used to eject them from the page
+    // they just clicked. We retry instead, and only redirect when the query genuinely
+    // succeeded with no entry (e.g. the media doesn't exist).
     const settledTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+    const retryTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+    const retryCount = React.useRef(0)
+
     React.useEffect(() => {
         if (isSynthetic) return
         if (!mediaId) { router.push("/"); return }
 
+        if (animeEntryError && !animeEntry) {
+            // Request failed — retry a few times with a short backoff instead of redirecting.
+            if (retryCount.current < 4) {
+                const delay = 800 * (retryCount.current + 1)
+                retryCount.current++
+                retryTimer.current = setTimeout(() => { refetchAnimeEntry() }, delay)
+            }
+            return () => {
+                if (retryTimer.current) clearTimeout(retryTimer.current)
+            }
+        }
+
+        if (animeEntry) retryCount.current = 0
+
         if (!animeEntryLoading && !animeEntry) {
-            // Query completed with no data — wait 1 s before redirecting in case a
-            // background refetch is about to fill in the entry.
+            // Query completed with no data and no error — wait before redirecting in case
+            // a background refetch is about to fill in the entry.
             settledTimer.current = setTimeout(() => {
                 if (!animeEntry) router.push("/")
-            }, 1000)
+            }, 2500)
         } else {
             if (settledTimer.current) {
                 clearTimeout(settledTimer.current)
@@ -189,8 +212,9 @@ export function AnimeEntryPage() {
         }
         return () => {
             if (settledTimer.current) clearTimeout(settledTimer.current)
+            if (retryTimer.current) clearTimeout(retryTimer.current)
         }
-    }, [animeEntry, animeEntryLoading, isSynthetic, mediaId])
+    }, [animeEntry, animeEntryLoading, animeEntryError, isSynthetic, mediaId])
 
     // Reset view when unmounting
     useUnmount(() => {

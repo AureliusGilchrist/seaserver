@@ -161,7 +161,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         content: string | null // converted content
     }> = {}
 
-    private readonly fetchAndConvertToASS?: (url?: string, content?: string) => Promise<string | undefined>
+    private readonly fetchAndConvertToASS?: (url?: string, content?: string, headers?: Record<string, string>) => Promise<string | undefined>
     // Sends translate request to the server
     private readonly sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
     private readonly translateFn?: (event: CachedEvent) => void
@@ -205,7 +205,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         jassubOffscreenRender: boolean
         playbackInfo: VideoCore_VideoPlaybackInfo
         settings: VideoCoreSettings
-        fetchAndConvertToASS: (url?: string, content?: string) => Promise<string | undefined>
+        fetchAndConvertToASS: (url?: string, content?: string, headers?: Record<string, string>) => Promise<string | undefined>
         sendTranslateRequest: (text?: string, track?: VideoCore_VideoSubtitleTrack) => void
         translateTargetLang: string | null
         hmacToken?: string
@@ -1355,7 +1355,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         } else {
             try {
                 subtitleLog.info("Converting subtitle to ASS format")
-                const assContent = await this.fetchAndConvertToASS(fileTrack.info.src, fileTrack.info.content)
+                const assContent = await this.fetchAndConvertToASS(fileTrack.info.src, fileTrack.info.content, fileTrack.info.headers)
                 if (!assContent || this.isDestroyed) return
 
                 // Cache the converted content

@@ -37,10 +37,12 @@ type (
 		platformRef                *util.Ref[platform.Platform]
 		refreshAnimeCollectionFunc func()                                      // This function is called to refresh the AniList collection
 		hmacTokenFunc              func(endpoint string, symbol string) string // Generates HMAC token query param for stream URLs
-		// getProfileAnilistClientFunc returns the per-profile AniList client.
+		// getProfileAnilistClientFunc resolves the AniList client that list updates should be
+		// written with, plus the profile it belongs to. It never returns the shared global
+		// account, so progress can't land on the wrong list.
 		// It is used to update progress on the correct AniList account when a profile is active.
 		// Falls back to the admin client if profileID is 0 or no profile manager is available.
-		getProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
+		getProfileAnilistClientFunc func(profileID uint) (anilist.AnilistClient, uint)
 		// invalidateProfileAnimeCollectionFunc invalidates the profile's cached anime collection
 		// after a successful progress update so the next fetch returns fresh data.
 		invalidateProfileAnimeCollectionFunc func(profileID uint)
@@ -100,7 +102,7 @@ type (
 		DiscordPresence            *discordrpc_presence.Presence
 		PlatformRef                 *util.Ref[platform.Platform]
 		RefreshAnimeCollectionFunc  func()
-		GetProfileAnilistClientFunc func(profileID uint) anilist.AnilistClient
+		GetProfileAnilistClientFunc func(profileID uint) (anilist.AnilistClient, uint)
 		InvalidateProfileAnimeCollectionFunc func(profileID uint)
 		RecordPlaybackActivityFunc func(profileID uint, mediaID int, episodeNumber int, totalEpisodes int, durationSeconds int)
 		IsOfflineRef               *util.Ref[bool]

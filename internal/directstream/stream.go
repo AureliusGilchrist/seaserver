@@ -306,47 +306,54 @@ func (m *Manager) handlePlayerEvent(event videocore.VideoEvent) {
 				totalEpisodes := baseStream.media.GetTotalEpisodeCount()
 
 				var updateErr error
-				// For profile users, route the AniList update through the
-				// profile's own AniList client so the correct account is updated.
-				// Otherwise fall back to the admin platform layer (with hooks).
-				if baseStream.profileId > 0 && baseStream.manager.getProfileAnilistClientFunc != nil {
-					client := baseStream.manager.getProfileAnilistClientFunc(baseStream.profileId)
-					if client != nil && client.IsAuthenticated() {
-						status := anilist.MediaListStatusCurrent
-						isCompleted := totalEpisodes > 0 && epNum >= totalEpisodes
-						if isCompleted {
-							status = anilist.MediaListStatusCompleted
-						}
-						now := time.Now()
-						year, monthVal, day := now.Year(), int(now.Month()), now.Day()
-						var startedAt, completedAt *anilist.FuzzyDateInput
-						if epNum == 1 {
-							startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-						}
-						if isCompleted {
-							completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-						}
-						_, updateErr = client.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
-					} else {
-						updateErr = errors.New("profile AniList account not authenticated")
+				// Route the AniList update through the user's own AniList client so the
+				// correct account is updated. Resolved even when profileId is 0 (playback
+				// started without a profile session) so the update can't land on the shared
+				// admin/global account. Only when no account is linked at all do we fall
+				// back to the platform layer (with hooks).
+				var client anilist.AnilistClient
+				resolvedProfileID := baseStream.profileId
+				if baseStream.manager.getProfileAnilistClientFunc != nil {
+					client, resolvedProfileID = baseStream.manager.getProfileAnilistClientFunc(baseStream.profileId)
+					if resolvedProfileID == 0 {
+						resolvedProfileID = baseStream.profileId
 					}
+				}
+				if client != nil && client.IsAuthenticated() {
+					status := anilist.MediaListStatusCurrent
+					isCompleted := totalEpisodes > 0 && epNum >= totalEpisodes
+					if isCompleted {
+						status = anilist.MediaListStatusCompleted
+					}
+					now := time.Now()
+					year, monthVal, day := now.Year(), int(now.Month()), now.Day()
+					var startedAt, completedAt *anilist.FuzzyDateInput
+					if epNum == 1 {
+						startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+					}
+					if isCompleted {
+						completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+					}
+					_, updateErr = client.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
 				} else {
+					// No linked AniList account anywhere — fall back to the platform layer,
+					// which handles the simulated (offline) account.
 					updateErr = baseStream.manager.platformRef.Get().UpdateEntryProgress(context.Background(), mediaId, epNum, &totalEpisodes)
 				}
 
 				if updateErr != nil {
-					baseStream.manager.Logger.Warn().Err(updateErr).Uint("profileID", baseStream.profileId).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Failed to update AniList progress")
+					baseStream.manager.Logger.Warn().Err(updateErr).Uint("profileID", resolvedProfileID).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Failed to update AniList progress")
 				} else {
-					baseStream.manager.Logger.Info().Uint("profileID", baseStream.profileId).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Updated AniList progress")
+					baseStream.manager.Logger.Info().Uint("profileID", resolvedProfileID).Int("mediaId", mediaId).Int("episode", epNum).Msg("directstream: Updated AniList progress")
 					// For profile users, invalidate their cached anime collection so the next fetch is fresh.
-					if baseStream.profileId > 0 && baseStream.manager.invalidateProfileAnimeCollectionFunc != nil {
-						baseStream.manager.invalidateProfileAnimeCollectionFunc(baseStream.profileId)
+					if resolvedProfileID > 0 && baseStream.manager.invalidateProfileAnimeCollectionFunc != nil {
+						baseStream.manager.invalidateProfileAnimeCollectionFunc(resolvedProfileID)
 					}
 					// Record playback activity for profile XP / level / achievements / community feed.
 					// Mirrors what PlaybackManager does for external players.
-					if baseStream.profileId > 0 && baseStream.manager.recordPlaybackActivityFunc != nil {
+					if resolvedProfileID > 0 && baseStream.manager.recordPlaybackActivityFunc != nil {
 						// Duration not tracked at this layer — pass 0; activity tracker only uses it for stat metadata.
-						go baseStream.manager.recordPlaybackActivityFunc(baseStream.profileId, mediaId, epNum, totalEpisodes, 0)
+						go baseStream.manager.recordPlaybackActivityFunc(resolvedProfileID, mediaId, epNum, totalEpisodes, 0)
 					}
 					baseStream.manager.wsEventManager.SendEventTo(baseStream.clientId, events.PlaybackManagerProgressUpdated, map[string]interface{}{
 						"mediaId":              mediaId,

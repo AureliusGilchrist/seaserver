@@ -34,6 +34,8 @@ export type MediaCaptionsTrackInfo = {
     language: string
     type?: "vtt" | "srt" | "ssa" | "ass" | string
     default?: boolean
+    // Request headers required to fetch `src` (hotlink-protected subtitle CDNs).
+    headers?: Record<string, string>
 }
 
 export type MediaCaptionsTrack = {
@@ -43,7 +45,7 @@ export type MediaCaptionsTrack = {
     selected: boolean
 }
 
-type FetchAndConvertToVTT = (url?: string, content?: string) => Promise<string | undefined>
+type FetchAndConvertToVTT = (url?: string, content?: string, headers?: Record<string, string>) => Promise<string | undefined>
 
 export type MediaCaptionsManagerOptions = {
     videoElement: HTMLVideoElement
@@ -312,7 +314,7 @@ export class MediaCaptionsManager extends EventTarget {
                     content = await browserFetchText(track.src)
                     if (content) log.info("Browser pre-fetched subtitle content", track.src)
                 }
-                const vttContent = await this.fetchAndConvertToVTT(content ? undefined : track.src, content)
+                const vttContent = await this.fetchAndConvertToVTT(content ? undefined : track.src, content, track.headers)
                 if (!vttContent) return null
                 track.content = vttContent
                 return await parseText(vttContent)
@@ -672,7 +674,7 @@ export class MediaCaptionsManager extends EventTarget {
                             content = await browserFetchText(track.src)
                             if (content) log.info("Browser pre-fetched subtitle content", track.src)
                         }
-                        const vttContent = await this.fetchAndConvertToVTT(content ? undefined : track.src, content)
+                        const vttContent = await this.fetchAndConvertToVTT(content ? undefined : track.src, content, track.headers)
                         if (!vttContent) return null
                         track.content = vttContent
                         return await parseText(vttContent)

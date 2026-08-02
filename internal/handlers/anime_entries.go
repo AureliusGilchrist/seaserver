@@ -66,18 +66,33 @@ func (h *Handler) getAnimeEntry(c echo.Context, lfs []*anime.LocalFile, mId int)
 		var err error
 		animeCollection, err = h.App.AnilistClientManager.GetAnimeCollection(profileID)
 		if err != nil {
-			return nil, err
+			h.App.Logger.Warn().Err(err).Uint("profileID", profileID).Msg("handlers: Failed to get profile anime collection for entry, falling back")
+			animeCollection = nil
 		}
 	} else {
 		var err error
 		animeCollection, err = h.App.GetAnimeCollection(false)
 		if err != nil {
-			return nil, err
+			h.App.Logger.Warn().Err(err).Msg("handlers: Failed to get anime collection for entry, falling back")
+			animeCollection = nil
 		}
 	}
 
+	// A collection fetch failure (AniList hiccup, rate limit, cold cache) must not make the
+	// whole entry page unavailable — the page redirects home when the entry request fails.
+	// Fall back to the global collection, then to an empty one; NewEntry then fetches the
+	// media directly from the platform and the page renders without list data.
+	if animeCollection == nil && profileID > 0 {
+		if global, err := h.App.GetAnimeCollection(false); err == nil {
+			animeCollection = global
+		}
+	}
 	if animeCollection == nil {
-		return nil, errors.New("anime collection not found")
+		animeCollection = &anilist.AnimeCollection{
+			MediaListCollection: &anilist.AnimeCollection_MediaListCollection{
+				Lists: []*anilist.AnimeCollection_MediaListCollection_Lists{},
+			},
+		}
 	}
 
 	// Create a new media entry
@@ -102,12 +117,19 @@ func (h *Handler) getAnimeEntry(c echo.Context, lfs []*anime.LocalFile, mId int)
 	entry = fillerEvent.Entry
 
 	if !fillerEvent.DefaultPrevented {
-		// Auto-fetch filler data on first load if not already cached
+		// Auto-fetch filler data on first load if not already cached.
+		// Done in the background: this scrapes an external site and used to block the
+		// entry response, so the first visit to a series could time out (and the page
+		// redirects home on failure). Filler flags simply show up on the next load.
 		if entry.Media != nil && !h.App.FillerManager.HasFillerFetched(entry.Media.ID) {
+			mediaID := entry.Media.ID
 			titles := entry.Media.GetAllTitlesDeref()
-			if fetchErr := h.App.FillerManager.FetchAndStoreFillerData(entry.Media.ID, titles); fetchErr != nil {
-				h.App.Logger.Warn().Err(fetchErr).Int("mediaId", entry.Media.ID).Msg("handlers: Failed to auto-fetch filler data")
-			}
+			go func() {
+				defer util.HandlePanicInModuleThen("handlers/getAnimeEntry/fetchFiller", func() {})
+				if fetchErr := h.App.FillerManager.FetchAndStoreFillerData(mediaID, titles); fetchErr != nil {
+					h.App.Logger.Warn().Err(fetchErr).Int("mediaId", mediaID).Msg("handlers: Failed to auto-fetch filler data")
+				}
+			}()
 		}
 		h.App.FillerManager.HydrateFillerData(fillerEvent.Entry)
 	}

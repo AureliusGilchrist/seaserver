@@ -6748,6 +6748,11 @@ export type VideoCore_VideoSubtitleTrack = {
      * e.g., "S_TEXT/ASS" for codec matching
      */
     codecID?: string
+    /**
+     * Request headers required to fetch `src` (Referer/Origin/User-Agent).
+     * Set for online streams whose subtitle CDN enforces hotlink protection.
+     */
+    headers?: Record<string, string>
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

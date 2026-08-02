@@ -65,6 +65,9 @@ type VideoSubtitleTrack struct {
 	Default           *bool   `json:"default"`
 	UseLibassRenderer *bool   `json:"useLibassRenderer"`
 	CodecID           *string `json:"codecID,omitempty"` // e.g., "S_TEXT/ASS" for codec matching
+	// Headers are the request headers required to fetch Src (Referer/Origin/User-Agent).
+	// Set for online streams whose subtitle CDN enforces hotlink protection.
+	Headers map[string]string `json:"headers,omitempty"`
 }
 
 type VideoLibassFont struct {

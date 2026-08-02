@@ -19,7 +19,11 @@ import (
 
 // profileCollectionCacheTTL controls how long a per-profile collection is
 // served from memory before a fresh fetch is triggered.
-const profileCollectionCacheTTL = 7 * 24 * time.Hour // cache for 7 days; disk cache provides permanent offline fallback
+// The collection carries each entry's episode count, airing status and nextAiringEpisode,
+// so a long TTL means newly aired episodes of ongoing series stay invisible. Keep it short;
+// the disk cache still provides a permanent offline fallback, and ServiceRunner refreshes
+// every collection once a day regardless.
+const profileCollectionCacheTTL = 30 * time.Minute
 
 // profileAnimeCache is a time-stamped cache entry for an anime collection.
 type profileAnimeCache struct {
@@ -277,6 +281,62 @@ func (m *AnilistClientManager) GetClient(profileID uint) anilist.AnilistClient {
 	m.logger.Debug().Uint("profileID", profileID).Bool("authenticated", client.IsAuthenticated()).Msg("anilist_client_manager: Loaded client for profile")
 
 	return client
+}
+
+// ResolveClientForWrites returns the AniList client that list updates (progress, status)
+// should be written with, along with the profile it belongs to.
+//
+// Unlike GetClient it never falls back to the global/admin client: that client is the
+// shared "planning slut" account on multi-profile installs, so writing to it would update
+// the wrong list — or fail outright with "not authenticated" when no global token is set.
+// When the caller has no profile context (a playback request that arrived without a
+// profile session), we resolve to the real user account instead: the admin profile's
+// linked account, or the only linked account if there is exactly one.
+//
+// Returns (nil, 0) when no profile has a linked AniList account.
+func (m *AnilistClientManager) ResolveClientForWrites(profileID uint) (anilist.AnilistClient, uint) {
+	// Preferred: the profile that actually initiated playback.
+	if profileID > 0 {
+		if client := m.GetClient(profileID); client != nil && client.IsAuthenticated() {
+			return client, profileID
+		}
+	}
+
+	if m.app.ProfileManager == nil {
+		return nil, 0
+	}
+	profiles, err := m.app.ProfileManager.GetAllProfiles()
+	if err != nil {
+		m.logger.Warn().Err(err).Msg("anilist_client_manager: Failed to list profiles while resolving write client")
+		return nil, 0
+	}
+
+	var linked []*Profile
+	var admin *Profile
+	for _, p := range profiles {
+		if p == nil {
+			continue
+		}
+		client := m.GetClient(p.ID)
+		if client == nil || !client.IsAuthenticated() {
+			continue
+		}
+		linked = append(linked, p)
+		if p.IsAdmin && admin == nil {
+			admin = p
+		}
+	}
+
+	// Exactly one linked account — unambiguous, use it.
+	if len(linked) == 1 {
+		return m.GetClient(linked[0].ID), linked[0].ID
+	}
+	// Several linked accounts — the admin's is the owner's own account.
+	if admin != nil {
+		return m.GetClient(admin.ID), admin.ID
+	}
+
+	return nil, 0
 }
 
 // UpdateClient creates a new AniList client with the given token for a profile

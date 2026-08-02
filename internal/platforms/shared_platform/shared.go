@@ -175,8 +175,25 @@ func (h *PlatformHelper) GetCachedBaseAnime(mediaID int) (*anilist.BaseAnime, bo
 	return h.baseAnimeCache.Get(mediaID)
 }
 
+// ongoingMediaCacheTTL is the cache lifetime used for media that is still releasing
+// (or hasn't aired yet). Those entries change every week — episode count, next airing
+// episode, status — so caching them for hours makes new episodes unwatchable.
+const ongoingMediaCacheTTL = 10 * time.Minute
+
+// isOngoingStatus reports whether a media status means the entry can still change.
+func isOngoingStatus(status *anilist.MediaStatus) bool {
+	if status == nil {
+		return true // unknown status — treat as volatile rather than stashing it
+	}
+	return *status == anilist.MediaStatusReleasing || *status == anilist.MediaStatusNotYetReleased
+}
+
 func (h *PlatformHelper) SetCachedBaseAnime(mediaID int, anime *anilist.BaseAnime) {
-	h.baseAnimeCache.SetT(mediaID, anime, time.Hour*2)
+	ttl := time.Hour * 2
+	if anime != nil && isOngoingStatus(anime.Status) {
+		ttl = ongoingMediaCacheTTL
+	}
+	h.baseAnimeCache.SetT(mediaID, anime, ttl)
 }
 
 func (h *PlatformHelper) ClearBaseAnimeCache(mediaID int) {
@@ -200,7 +217,11 @@ func (h *PlatformHelper) GetCachedCompleteAnime(mediaID int) (*anilist.CompleteA
 }
 
 func (h *PlatformHelper) SetCachedCompleteAnime(mediaID int, anime *anilist.CompleteAnime) {
-	h.completeAnimeCache.SetT(mediaID, anime, 4*time.Hour)
+	ttl := 4 * time.Hour
+	if anime != nil && isOngoingStatus(anime.Status) {
+		ttl = ongoingMediaCacheTTL
+	}
+	h.completeAnimeCache.SetT(mediaID, anime, ttl)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

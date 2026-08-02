@@ -72,6 +72,7 @@ export function useVideoCoreIOSFullscreenSubtitles({
                 let subtitleLabel = "Subtitles"
                 let subtitleLanguage = "en"
                 let subtitleType = "vtt"
+                let subtitleHeaders: Record<string, string> | undefined
 
                 // Get the currently selected subtitle track from either manager
                 if (mediaCaptionsManager) {
@@ -82,6 +83,7 @@ export function useVideoCoreIOSFullscreenSubtitles({
                         subtitleLabel = selectedTrack.label
                         subtitleLanguage = selectedTrack.language
                         subtitleType = selectedTrack.type ?? "vtt"
+                        subtitleHeaders = selectedTrack.headers
                         log.info("Using MediaCaptionsManager track", selectedTrack)
                     }
                 } else if (subtitleManager) {
@@ -97,6 +99,7 @@ export function useVideoCoreIOSFullscreenSubtitles({
                             subtitleLabel = fileTrack.info.label || selectedTrack?.label || "Subtitles"
                             subtitleLanguage = fileTrack.info.language || selectedTrack?.language || "en"
                             subtitleType = fileTrack.info.type || "vtt"
+                            subtitleHeaders = fileTrack.info.headers
                             log.info("Using SubtitleManager file track", fileTrack)
                         } else {
                             log.warning("Selected track is event-based, cannot use for iOS native subtitles")
@@ -114,7 +117,7 @@ export function useVideoCoreIOSFullscreenSubtitles({
                 log.info("Parsing subtitle file:", subtitleSrc)
                 const convertedContent = subtitleType === "vtt" && !!subtitleContent
                     ? subtitleContent
-                    : await convertSubs({ url: subtitleSrc || "", content: subtitleContent || "", to: "vtt" })
+                    : await convertSubs({ url: subtitleSrc || "", content: subtitleContent || "", to: "vtt", headers: subtitleHeaders })
                 if (!convertedContent) {
                     log.error("Failed to convert subtitle file")
                     return

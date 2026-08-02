@@ -120,11 +120,11 @@ func (a *App) initModulesOnce() {
 		RefreshAnimeCollectionFunc: func() {
 			_, _ = a.RefreshAnimeCollection()
 		},
-		GetProfileAnilistClientFunc: func(profileID uint) anilist.AnilistClient {
+		GetProfileAnilistClientFunc: func(profileID uint) (anilist.AnilistClient, uint) {
 			if a.AnilistClientManager == nil {
-				return a.AnilistClientRef.Get()
+				return a.AnilistClientRef.Get(), profileID
 			}
-			return a.AnilistClientManager.GetClient(profileID)
+			return a.AnilistClientManager.ResolveClientForWrites(profileID)
 		},
 		InvalidateProfileAnimeCollectionFunc: func(profileID uint) {
 			if a.AnilistClientManager != nil {
@@ -218,11 +218,11 @@ func (a *App) initModulesOnce() {
 		RefreshAnimeCollectionFunc: func() {
 			_, _ = a.RefreshAnimeCollection()
 		},
-		GetProfileAnilistClientFunc: func(profileID uint) anilist.AnilistClient {
+		GetProfileAnilistClientFunc: func(profileID uint) (anilist.AnilistClient, uint) {
 			if a.AnilistClientManager == nil {
-				return a.AnilistClientRef.Get()
+				return a.AnilistClientRef.Get(), profileID
 			}
-			return a.AnilistClientManager.GetClient(profileID)
+			return a.AnilistClientManager.ResolveClientForWrites(profileID)
 		},
 		InvalidateProfileAnimeCollectionFunc: func(profileID uint) {
 			if a.AnilistClientManager != nil {
