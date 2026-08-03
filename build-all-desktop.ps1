@@ -218,7 +218,32 @@ Invoke-BuildStep '5.1' 'Denshi npm dependencies (seanime-denshi)' -Dir $DenshiDi
     Install-NpmDependencies
 }
 
-Invoke-BuildStep '5.2' 'electron-builder (target: win x64)' -Dir $DenshiDir {
+Invoke-BuildStep '5.2' 'Release locks on previous build output' -Dir $DenshiDir {
+    # electron-builder runs rcedit to stamp the icon and version strings into the packaged
+    # exe, rewriting its resources in place. That write fails with
+    #   Fatal error: Unable to commit changes
+    # whenever something still holds a handle on the file - most often a Seaserver Denshi
+    # left running from a previous session, or a scanner that grabbed the exe moments after
+    # the asar integrity step wrote it. electron-builder retries and usually wins the race,
+    # but clearing the two common causes up front keeps the build quiet and deterministic.
+    foreach ($procName in @('Seaserver Denshi', 'seanime-server-windows', 'seanime')) {
+        $procs = Get-Process -Name $procName -ErrorAction SilentlyContinue
+        foreach ($p in $procs) {
+            Write-Host "  Stopping running process: $($p.Name) (pid $($p.Id))"
+            try { $p.Kill(); $p.WaitForExit(5000) } catch { }
+        }
+    }
+
+    $unpacked = Join-Path $DenshiDir 'dist\win-unpacked'
+    if (Test-Path $unpacked) {
+        Write-Host '  Removing previous dist\win-unpacked'
+        try { Remove-Item -Recurse -Force $unpacked -ErrorAction Stop } catch {
+            Write-Host "  Could not fully remove it ($($_.Exception.Message)); electron-builder will overwrite in place"
+        }
+    }
+}
+
+Invoke-BuildStep '5.3' 'electron-builder (target: win x64)' -Dir $DenshiDir {
     Invoke-Npm @('run', 'build:win')
 }
 
