@@ -53,6 +53,9 @@ type (
 		GetCache() *result.BoundedCache[string, *metadata.AnimeMetadata]
 		SetUseFallbackProvider(bool)
 		ClearCache()
+		// ClearCacheForMedia evicts a single media's metadata from both the in-memory and
+		// the disk cache, so the next request refetches it from the source.
+		ClearCacheForMedia(mId int)
 		Close()
 	}
 
@@ -143,6 +146,21 @@ func (p *ProviderImpl) Close() {
 
 func (p *ProviderImpl) ClearCache() {
 	p.animeMetadataCache.Clear()
+}
+
+// ClearCacheForMedia evicts one media's metadata from the in-memory and disk caches.
+// Every platform key is cleared, since the same media can be cached under more than one.
+func (p *ProviderImpl) ClearCacheForMedia(mId int) {
+	for _, plat := range []metadata.Platform{metadata.AnilistPlatform, metadata.MalPlatform} {
+		key := GetAnimeMetadataCacheKey(plat, mId)
+		p.animeMetadataCache.Delete(key)
+		if p.fileCacher != nil {
+			if err := p.fileCacher.DeletePerm(p.metadataBucket, key); err != nil {
+				p.logger.Debug().Err(err).Str("key", key).Msg("metadata_provider: Failed to delete disk metadata entry")
+			}
+		}
+	}
+	p.logger.Info().Int("mediaId", mId).Msg("metadata_provider: Cleared cached metadata for media")
 }
 
 // GetCache returns the anime metadata cache.

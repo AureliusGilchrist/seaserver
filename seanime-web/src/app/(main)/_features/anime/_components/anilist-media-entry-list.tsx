@@ -1,15 +1,25 @@
 import { AL_AnimeCollection_MediaListCollection_Lists, AL_AnimeCollection_MediaListCollection_Lists_Entries } from "@/api/generated/types"
 import { MediaCardLazyGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
+import { Button } from "@/components/ui/button"
 import { Carousel, CarouselContent, CarouselDotButtons } from "@/components/ui/carousel"
 import { cn } from "@/components/ui/core/styling"
 import React from "react"
+import { LuChevronDown, LuChevronUp } from "react-icons/lu"
+
+// Number of cards shown before a collapsible list is truncated.
+const COLLAPSED_ITEM_COUNT = 12
 
 
 type AnilistAnimeEntryListProps = {
     list: AL_AnimeCollection_MediaListCollection_Lists | undefined
     type: "anime" | "manga"
     layout?: "grid" | "carousel"
+    /**
+     * Truncate the grid to {@link COLLAPSED_ITEM_COUNT} items with a "Show more" toggle.
+     * Keeps long lists (Completed, Planning, …) from burying everything below them.
+     */
+    collapsible?: boolean
 }
 
 /**
@@ -21,8 +31,15 @@ export function AnilistAnimeEntryList(props: AnilistAnimeEntryListProps) {
         list,
         type,
         layout = "grid",
+        collapsible = false,
         ...rest
     } = props
+
+    const [expanded, setExpanded] = React.useState(false)
+
+    const entries = React.useMemo(() => list?.entries?.filter(Boolean) ?? [], [list?.entries])
+    const canCollapse = collapsible && layout === "grid" && entries.length > COLLAPSED_ITEM_COUNT
+    const visibleEntries = canCollapse && !expanded ? entries.slice(0, COLLAPSED_ITEM_COUNT) : entries
 
     function getListData(entry: AL_AnimeCollection_MediaListCollection_Lists_Entries) {
         return {
@@ -70,17 +87,33 @@ export function AnilistAnimeEntryList(props: AnilistAnimeEntryListProps) {
     )
 
     return (
-        <MediaCardLazyGrid itemCount={list?.entries?.filter(Boolean)?.length || 0} data-anilist-anime-entry-list>
-            {list?.entries?.filter(Boolean)?.map((entry) => (
-                <MediaEntryCard
-                    key={`${entry.media?.id}`}
-                    listData={getListData(entry)}
-                    showLibraryBadge
-                    media={entry.media!}
-                    showListDataButton
-                    type={type}
-                />
-            ))}
-        </MediaCardLazyGrid>
+        <>
+            <MediaCardLazyGrid itemCount={visibleEntries.length} data-anilist-anime-entry-list>
+                {visibleEntries.map((entry) => (
+                    <MediaEntryCard
+                        key={`${entry.media?.id}`}
+                        listData={getListData(entry)}
+                        showLibraryBadge
+                        media={entry.media!}
+                        showListDataButton
+                        type={type}
+                    />
+                ))}
+            </MediaCardLazyGrid>
+
+            {canCollapse && (
+                <div className="flex justify-center pt-2" data-anilist-anime-entry-list-toggle>
+                    <Button
+                        intent="gray-subtle"
+                        size="sm"
+                        rounded
+                        rightIcon={expanded ? <LuChevronUp /> : <LuChevronDown />}
+                        onClick={() => setExpanded(p => !p)}
+                    >
+                        {expanded ? "Show less" : `Show ${entries.length - COLLAPSED_ITEM_COUNT} more`}
+                    </Button>
+                </div>
+            )}
+        </>
     )
 }

@@ -1,6 +1,6 @@
 import { Anime_Entry } from "@/api/generated/types"
 import { useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
-import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
+import { useGetAnimeEntry, useResetAnimeEntryMetadata } from "@/api/hooks/anime_entries.hooks"
 import { useGetSyntheticAnimeDetails, SyntheticAnime } from "@/api/hooks/synthetic-anime.hooks"
 import { MediaEntryCharactersSection } from "@/app/(main)/_features/media/_components/media-entry-characters-section"
 import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_components/media-entry-page-loading-display"
@@ -179,6 +179,16 @@ export function AnimeEntryPage() {
     const settledTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     const retryTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
     const retryCount = React.useRef(0)
+    const didAutoResetMetadata = React.useRef(false)
+
+    // Silent: the user didn't ask for this reset, it's automatic recovery.
+    const { mutate: resetMetadata } = useResetAnimeEntryMetadata(mediaId, false)
+
+    // Allow one automatic reset per anime.
+    React.useEffect(() => {
+        didAutoResetMetadata.current = false
+        retryCount.current = 0
+    }, [mediaId])
 
     React.useEffect(() => {
         if (isSynthetic) return
@@ -188,8 +198,19 @@ export function AnimeEntryPage() {
             // Request failed — retry a few times with a short backoff instead of redirecting.
             if (retryCount.current < 4) {
                 const delay = 800 * (retryCount.current + 1)
+                const attempt = retryCount.current
                 retryCount.current++
-                retryTimer.current = setTimeout(() => { refetchAnimeEntry() }, delay)
+                retryTimer.current = setTimeout(() => {
+                    // A stale or partially-written metadata cache entry is the usual reason an
+                    // entry won't load, so clear this anime's cached metadata once (on the
+                    // second attempt, after a plain retry has already failed) and try again.
+                    if (attempt === 1 && mediaId && !didAutoResetMetadata.current) {
+                        didAutoResetMetadata.current = true
+                        resetMetadata({ mediaId: Number(mediaId) })
+                        return
+                    }
+                    refetchAnimeEntry()
+                }, delay)
             }
             return () => {
                 if (retryTimer.current) clearTimeout(retryTimer.current)

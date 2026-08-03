@@ -80,6 +80,15 @@ func (r *Repository) SearchAnime(ctx context.Context, opts AnimeSearchOptions) (
 	requestedEvent := &TorrentSearchRequestedEvent{Options: opts}
 	_ = hook.GlobalHookManager.OnTorrentSearchRequested().Trigger(requestedEvent)
 	opts = requestedEvent.Options
+
+	// A batch/season search covers every episode, so an episode number is meaningless here
+	// and actively harmful: providers append it to the query ("<title> 1080p 01 batch") and
+	// resolve it to a single AniDB episode ID, so a batch search returned nothing but single
+	// episodes. Drop it before anything downstream — including the cache key — sees it.
+	// Movies and single-episode media keep their number, where episode 1 *is* the whole thing.
+	if opts.Batch && opts.Media != nil && !opts.Media.IsMovieOrSingleEpisode() {
+		opts.EpisodeNumber = 0
+	}
 	if requestedEvent.DefaultPrevented {
 		if requestedEvent.SearchData == nil {
 			return &SearchData{}, nil
@@ -224,9 +233,14 @@ func (r *Repository) SearchAnime(ctx context.Context, opts AnimeSearchOptions) (
 
 		if animeMetadata.MustGet().GetMappings() != nil {
 			anidbAID = animeMetadata.MustGet().GetMappings().AnidbId
-			episodeMetadata, found := animeMetadata.MustGet().FindEpisode(strconv.Itoa(opts.EpisodeNumber))
-			if found {
-				anidbEID = episodeMetadata.AnidbEid
+			// Only resolve a specific AniDB episode ID for episode searches. Providers that
+			// key off the EID (AnimeTosho and friends) return exactly that one episode, which
+			// is the opposite of what a batch search wants — the AID alone covers the series.
+			if opts.EpisodeNumber > 0 {
+				episodeMetadata, found := animeMetadata.MustGet().FindEpisode(strconv.Itoa(opts.EpisodeNumber))
+				if found {
+					anidbEID = episodeMetadata.AnidbEid
+				}
 			}
 		}
 	}

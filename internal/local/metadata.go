@@ -43,6 +43,10 @@ func (mp *OfflineMetadataProvider) ClearCache() {
 	// no-op
 }
 
+func (mp *OfflineMetadataProvider) ClearCacheForMedia(mId int) {
+	// no-op — offline metadata is served from the local snapshot, nothing to refetch
+}
+
 func (mp *OfflineMetadataProvider) SetUseFallbackProvider(useFallback bool) {
 	// no-op
 }

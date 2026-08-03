@@ -8,6 +8,7 @@ import (
 	"seanime/internal/events"
 	"seanime/internal/util/limiter"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -22,6 +23,13 @@ type ServiceRunner struct {
 	stopCh chan struct{}
 	once   sync.Once
 	wg     sync.WaitGroup
+
+	// startOnce guards against Start() being called more than once for the same runner:
+	// each call would otherwise spawn a duplicate set of loops, so every job would fire
+	// several times per interval.
+	startOnce sync.Once
+	// autoPauseRunning prevents overlapping auto-pause passes.
+	autoPauseRunning atomic.Bool
 }
 
 // NewServiceRunner creates a new ServiceRunner.
@@ -33,8 +41,13 @@ func NewServiceRunner(app *App) *ServiceRunner {
 	}
 }
 
-// Start begins the background service loops.
+// Start begins the background service loops. Safe to call more than once — only the
+// first call starts them.
 func (sr *ServiceRunner) Start() {
+	sr.startOnce.Do(sr.start)
+}
+
+func (sr *ServiceRunner) start() {
 	// GoJuuon sort recomputation daily at 3 AM
 	sr.wg.Add(1)
 	go func() {
@@ -288,7 +301,19 @@ func (sr *ServiceRunner) RunFindMangaLibrarySorting() (map[int]interface{}, erro
 // wrong (often unauthenticated) token — which is what produced the recurring
 // "not logged in to AniList" failures.
 func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
+	// Never let two passes overlap — a slow pass plus a manual trigger would otherwise
+	// double up and hammer AniList with the same mutations.
+	if !sr.autoPauseRunning.CompareAndSwap(false, true) {
+		sr.logger.Debug().Msg("services: auto-pause stale watching: already running, skipping")
+		return nil
+	}
+	defer sr.autoPauseRunning.Store(false)
+
 	sr.logger.Info().Msg("services: auto-pause stale watching: starting")
+
+	if sr.app.AnilistClientManager == nil {
+		return nil
+	}
 
 	threshold := time.Now().Unix() - 7*24*3600
 	totalPaused := 0
@@ -328,9 +353,17 @@ func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
 		}
 	}
 
-	// Fall back to the global platform only when there are no profile accounts to act on
-	// (single-user install without the profile system).
-	if handled == 0 && sr.app.AnilistPlatformRef != nil && sr.app.AnilistPlatformRef.IsPresent() {
+	// Fall back to the global account only when there are no profile accounts to act on
+	// (single-user install, or the AniList token lives on the account row rather than in
+	// a profile database).
+	if handled == 0 {
+		client, _ := sr.app.AnilistClientManager.ResolveClientForWrites(0)
+		if client == nil || !client.IsAuthenticated() {
+			// Nothing is linked — there is nothing this job can legitimately do. Staying
+			// quiet here matters: this used to log an AniList auth failure on every run.
+			sr.logger.Debug().Msg("services: auto-pause stale watching: no linked AniList account, skipping")
+			return nil
+		}
 		ac, err := sr.app.GetAnimeCollection(false)
 		if err != nil {
 			return err
@@ -338,10 +371,10 @@ func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
 		if ac == nil {
 			return nil
 		}
-		ctx := context.Background()
 		paused := sr.autoPauseCollection(ac, threshold, func(mediaID int) error {
 			status := anilist.MediaListStatusPaused
-			return sr.app.AnilistPlatformRef.Get().UpdateEntry(ctx, mediaID, &status, nil, nil, nil, nil)
+			_, updateErr := client.UpdateMediaListEntry(context.Background(), &mediaID, &status, nil, nil, nil, nil)
+			return updateErr
 		})
 		totalPaused += paused
 		if paused > 0 {
@@ -362,6 +395,8 @@ func (sr *ServiceRunner) autoPauseCollection(ac *anilist.AnimeCollection, thresh
 		return 0
 	}
 	pausedCount := 0
+	failedCount := 0
+	var firstErr error
 	for _, list := range ac.MediaListCollection.Lists {
 		if list == nil || len(list.Entries) == 0 {
 			continue
@@ -377,12 +412,22 @@ func (sr *ServiceRunner) autoPauseCollection(ac *anilist.AnimeCollection, thresh
 				continue
 			}
 			if err := update(e.Media.ID); err != nil {
-				sr.logger.Warn().Err(err).Int("mediaId", e.Media.ID).Msg("services: failed to auto-pause stale entry")
+				// One log line per run, not per entry: a shared collection can contain
+				// hundreds of entries that don't belong to the writing account, and
+				// warning on each one buried the logs.
+				failedCount++
+				if firstErr == nil {
+					firstErr = err
+				}
+				sr.logger.Debug().Err(err).Int("mediaId", e.Media.ID).Msg("services: failed to auto-pause stale entry")
 				continue
 			}
 			pausedCount++
 			sr.logger.Info().Int("mediaId", e.Media.ID).Msg("services: auto-paused stale watching entry")
 		}
+	}
+	if failedCount > 0 {
+		sr.logger.Warn().Err(firstErr).Int("failed", failedCount).Msg("services: some stale entries could not be auto-paused")
 	}
 	return pausedCount
 }

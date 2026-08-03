@@ -7,6 +7,7 @@ import (
 	"time"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
+	"seanime/internal/platforms/anilist_platform"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/database/models"
@@ -740,6 +741,58 @@ func (h *Handler) HandleGetAnimeEntrySilenceStatus(c echo.Context) error {
 	}
 
 	return h.RespondWithData(c, animeEntry)
+}
+
+// HandleResetAnimeEntryMetadata
+//
+//	@summary clears every cached metadata entry for a single anime.
+//	@desc Drops the cached episode metadata (in-memory + disk), the cached AniList media
+//	@desc object and the filler data for one media ID, so the next request refetches all of
+//	@desc it from source. Used by the "Reset metadata" action and automatically when an
+//	@desc entry fails to load, since a poisoned/stale cache entry is the usual cause.
+//	@route /api/v1/library/anime-entry/reset-metadata [POST]
+//	@returns bool
+func (h *Handler) HandleResetAnimeEntryMetadata(c echo.Context) error {
+	type body struct {
+		MediaId int `json:"mediaId"`
+	}
+
+	b := new(body)
+	if err := c.Bind(b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if b.MediaId == 0 {
+		return h.RespondWithError(c, errors.New("mediaId is required"))
+	}
+
+	// Episode metadata (Animap/AniZip), in-memory and on disk.
+	if h.App.MetadataProviderRef != nil && h.App.MetadataProviderRef.IsPresent() {
+		h.App.MetadataProviderRef.Get().ClearCacheForMedia(b.MediaId)
+	}
+
+	// Cached AniList media object (episode count, status, nextAiringEpisode).
+	if h.App.AnilistPlatformRef != nil && h.App.AnilistPlatformRef.IsPresent() {
+		if anilistPlatform, ok := h.App.AnilistPlatformRef.Get().(*anilist_platform.AnilistPlatform); ok {
+			anilistPlatform.GetHelper().ClearBaseAnimeCache(b.MediaId)
+		}
+	}
+
+	// Filler data, so it is re-scraped on the next load.
+	if h.App.FillerManager != nil {
+		if err := h.App.FillerManager.RemoveFillerData(b.MediaId); err != nil {
+			h.App.Logger.Debug().Err(err).Int("mediaId", b.MediaId).Msg("handlers: Failed to remove filler data during metadata reset")
+		}
+	}
+
+	// The user's collection entry can also be stale (progress, status, episode count).
+	profileID := h.GetProfileID(c)
+	if profileID > 0 && h.App.AnilistClientManager != nil {
+		h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
+	}
+
+	h.App.Logger.Info().Int("mediaId", b.MediaId).Msg("handlers: Reset metadata for anime entry")
+
+	return h.RespondWithData(c, true)
 }
 
 // HandleToggleAnimeEntrySilenceStatus

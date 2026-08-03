@@ -4,6 +4,7 @@ import {
     AnimeEntryManualMatch_Variables,
     FetchAnimeEntrySuggestions_Variables,
     OpenAnimeEntryInExplorer_Variables,
+    ResetAnimeEntryMetadata_Variables,
     ToggleAnimeEntrySilenceStatus_Variables,
     UpdateAnimeEntryProgress_Variables,
     UpdateAnimeEntryRepeat_Variables,
@@ -123,6 +124,27 @@ export function useToggleAnimeEntrySilenceStatus() {
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntrySilenceStatus.key] })
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetMissingEpisodes.key] })
+        },
+    })
+}
+
+/**
+ * Clears all cached metadata for one anime (episode metadata, AniList media object, filler
+ * data) and refetches the entry. Used by the "Reset metadata" action and automatically when
+ * an entry fails to load, since stale/poisoned cache entries are the usual cause.
+ */
+export function useResetAnimeEntryMetadata(mediaId: Nullish<string | number>, showToast: boolean = true) {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<boolean, ResetAnimeEntryMetadata_Variables>({
+        endpoint: API_ENDPOINTS.ANIME_ENTRIES.ResetAnimeEntryMetadata.endpoint,
+        method: API_ENDPOINTS.ANIME_ENTRIES.ResetAnimeEntryMetadata.methods[0],
+        mutationKey: [API_ENDPOINTS.ANIME_ENTRIES.ResetAnimeEntryMetadata.key, String(mediaId)],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key, String(mediaId)] })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetMissingEpisodes.key] })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.key, String(mediaId)] })
+            if (showToast) toast.success("Metadata reset")
         },
     })
 }

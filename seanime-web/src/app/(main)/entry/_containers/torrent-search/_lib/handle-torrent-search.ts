@@ -156,7 +156,9 @@ export function useHandleTorrentSearch(props: TorrentSearchHookProps) {
      */
     const { data: _data, isLoading: _isLoading, isFetching: _isFetching, isError: _isError, refetch } = useSearchTorrent({
         query: debouncedGlobalFilter.trim().toLowerCase(),
-        episodeNumber: debouncedSmartSearchEpisode,
+        // A batch covers every episode, so don't narrow the search to one. Sending both made
+        // providers build contradictory queries and return single episodes only.
+        episodeNumber: smartSearchBatch ? 0 : debouncedSmartSearchEpisode,
             batch: smartSearchBatch,
             media: entry?.media,
             absoluteOffset: downloadInfo?.absoluteOffset || 0,

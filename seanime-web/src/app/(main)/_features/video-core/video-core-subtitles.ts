@@ -126,6 +126,7 @@ export class VideoCoreSubtitleManager extends EventTarget {
     libassRenderer: JASSUB | null = null
     pgsRenderer: VideoCorePgsRenderer | null = null
     private libassLoadedMetadataListener: (() => void) | null = null
+    private libassFullscreenListener: (() => void) | null = null
     private settings: VideoCoreSettings
     private defaultSubtitleHeader = `[Script Info]
 Title: English (US)
@@ -358,23 +359,29 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 // leave subtitles stuck unrendered. Force a clean resize once real dimensions
                 // are available to recover from that race.
                 this.libassLoadedMetadataListener = () => {
-                    // Cap subtitle render resolution to the source video height. In fullscreen,
-                    // JASSUB otherwise renders the ASS overlay at up to maxRenderHeight (1080)
-                    // and composites that full-screen ARGB canvas on every video frame. For the
-                    // many online streams that are <=720p, that means rendering subtitles at a
-                    // higher resolution than the video itself -- wasted GPU work that causes
-                    // playback to stutter in fullscreen. Rendering no larger than the source
-                    // (clamped to a 720-1080 range for legibility) removes that cost with no
-                    // visible quality loss, since the video is upscaled to the same size anyway.
-                    if (this.libassRenderer) {
-                        const videoHeight = this.videoElement?.videoHeight || 0
-                        if (videoHeight > 0) {
-                            this.libassRenderer.maxRenderHeight = Math.min(1080, Math.max(720, videoHeight))
-                        }
-                    }
-                    this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer", e))?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer on loadedmetadata", e))
+                    this._applyLibassRenderHeightCap()
+                    this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer on loadedmetadata", e))
                 }
                 this.videoElement.addEventListener("loadedmetadata", this.libassLoadedMetadataListener)
+
+                // Apply the cap right away too: when the renderer attaches to a video that has
+                // already loaded (episode switches, or the shared renderer being handed over),
+                // "loadedmetadata" has come and gone, so the listener alone would leave the
+                // render height at the uncapped 1080 default.
+                this._applyLibassRenderHeightCap()
+
+                // Re-apply on fullscreen transitions. JASSUB derives its canvas size from the
+                // video element's offset size multiplied by devicePixelRatio, both of which jump
+                // on entering fullscreen (a 1.5x-DPI 1440p screen asks for a 2160px-tall overlay).
+                // Its ResizeObserver resizes the canvas but never revisits maxRenderHeight, so
+                // without this the overlay is re-rendered at full screen resolution on every
+                // video frame — which is the fullscreen stutter.
+                this.libassFullscreenListener = () => {
+                    this._applyLibassRenderHeightCap()
+                    this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer on fullscreen change", e))
+                }
+                document.addEventListener("fullscreenchange", this.libassFullscreenListener)
+                document.addEventListener("webkitfullscreenchange", this.libassFullscreenListener)
 
 
                 // Keyed by attachment filename (stable across episodes of a series, while
@@ -490,6 +497,22 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Selects a track by its number.
+    /**
+     * Caps the ASS overlay's render resolution to the source video height.
+     *
+     * JASSUB re-renders the overlay on every video frame. Left uncapped it renders at the
+     * displayed size times devicePixelRatio, so a 720p stream in fullscreen on a high-DPI
+     * screen pays for a >1080p ARGB canvas per frame — far more pixels than the video
+     * itself. Clamping to the source height (kept within 720-1080 for legibility) removes
+     * that cost with no visible quality loss, since the video is upscaled to the same size.
+     */
+    private _applyLibassRenderHeightCap() {
+        if (!this.libassRenderer) return
+        const videoHeight = this.videoElement?.videoHeight || 0
+        if (videoHeight <= 0) return
+        this.libassRenderer.maxRenderHeight = Math.min(1080, Math.max(720, videoHeight))
+    }
+
     async selectTrack(trackNumber: number) {
         subtitleLog.info("Track selection requested", trackNumber)
         if (this.isDestroyed) return
@@ -602,6 +625,11 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         subtitleLog.info("Destroying subtitle manager")
         this.isDestroyed = true
         this._disableNativeTextTracks()
+        if (this.libassFullscreenListener) {
+            document.removeEventListener("fullscreenchange", this.libassFullscreenListener)
+            document.removeEventListener("webkitfullscreenchange", this.libassFullscreenListener)
+            this.libassFullscreenListener = null
+        }
         if (this.libassLoadedMetadataListener) {
             this.videoElement.removeEventListener("loadedmetadata", this.libassLoadedMetadataListener)
             this.libassLoadedMetadataListener = null

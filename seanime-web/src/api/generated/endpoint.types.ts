@@ -861,6 +861,17 @@ export type DirectstreamPlayLocalFile_Variables = {
  * @description
  * Route converts subtitles from one format to another.
  */
+/**
+ * - Filepath: internal/handlers/anime_entries.go
+ * - Filename: anime_entries.go
+ * - Endpoint: /api/v1/library/anime-entry/reset-metadata
+ * @description
+ * Route clears every cached metadata entry for a single anime.
+ */
+export type ResetAnimeEntryMetadata_Variables = {
+    mediaId: number
+}
+
 export type DirectstreamConvertSubs_Variables = {
     url: string
     content: string

@@ -429,6 +429,16 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route clears every cached metadata entry for a single anime, so the next request
+         *  refetches episode metadata, the AniList media object and filler data from source.
+         */
+        ResetAnimeEntryMetadata: {
+            key: "ANIME-ENTRIES-reset-anime-entry-metadata",
+            methods: ["POST"],
+            endpoint: "/api/v1/library/anime-entry/reset-metadata",
+        },
+        /**
+         *  @description
          *  Route update the progress of the given anime media entry.
          *  This is used to update the progress of the given anime media entry on AniList.
          *  The response is not used in the frontend, the client should just refetch the entire media entry data.

@@ -55,11 +55,12 @@ func (n *Nyaa) SmartSearch(opts hibiketorrent.AnimeSmartSearchOptions) ([]*hibik
 	if opts.Resolution != "" {
 		suffixParts = append(suffixParts, opts.Resolution)
 	}
-	if opts.EpisodeNumber > 0 {
-		suffixParts = append(suffixParts, fmt.Sprintf("%02d", opts.EpisodeNumber))
-	}
+	// Batch and episode number are mutually exclusive: "<title> 01 batch" matches neither a
+	// batch nor episode 1 well. Batch wins, since that's what the user explicitly asked for.
 	if opts.Batch {
 		suffixParts = append(suffixParts, "batch")
+	} else if opts.EpisodeNumber > 0 {
+		suffixParts = append(suffixParts, fmt.Sprintf("%02d", opts.EpisodeNumber))
 	}
 
 	results, err := smartSearchAllVariants(opts.Media, opts.Query, strings.Join(suffixParts, " "), n.fetchRSS)

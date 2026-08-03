@@ -1,6 +1,6 @@
 "use client"
 import { AL_AnimeDetailsById_Media, Anime_Entry } from "@/api/generated/types"
-import { useOpenAnimeEntryInExplorer } from "@/api/hooks/anime_entries.hooks"
+import { useOpenAnimeEntryInExplorer, useResetAnimeEntryMetadata } from "@/api/hooks/anime_entries.hooks"
 import { useStartDefaultMediaPlayer } from "@/api/hooks/mediaplayer.hooks"
 import { useLibraryExplorer } from "@/app/(main)/_features/library-explorer/library-explorer.atoms"
 import { PluginAnimePageDropdownItems } from "@/app/(main)/_features/plugin/actions/plugin-actions"
@@ -27,7 +27,7 @@ import { useSetAtom } from "jotai"
 import React from "react"
 import { BiDotsVerticalRounded, BiFolder, BiRightArrowAlt } from "react-icons/bi"
 import { FiArrowUpRight, FiDownload, FiTrash } from "react-icons/fi"
-import { LuCopy, LuFolderTree, LuGlobe, LuImage } from "react-icons/lu"
+import { LuCopy, LuFolderTree, LuGlobe, LuImage, LuRefreshCw } from "react-icons/lu"
 import { MdOutlineRemoveDone } from "react-icons/md"
 import { SiMyanimelist } from "react-icons/si"
 
@@ -44,6 +44,8 @@ export function AnimeEntryDropdownMenu({ entry, details }: { entry: Anime_Entry,
     const { mutate: startDefaultMediaPlayer } = useStartDefaultMediaPlayer()
     // Open entry in explorer
     const { mutate: openEntryInExplorer } = useOpenAnimeEntryInExplorer()
+    // Clear all cached metadata for this anime and refetch it
+    const { mutate: resetMetadata, isPending: isResettingMetadata } = useResetAnimeEntryMetadata(entry.mediaId)
 
     const setBulkDeleteFilesModalOpen = useSetAtom(__bulkDeleteFilesModalIsOpenAtom)
     const setAnimeEntryUnmatchFilesModalOpen = useSetAtom(__animeEntryUnmatchFilesModalIsOpenAtom)
@@ -108,6 +110,12 @@ export function AnimeEntryDropdownMenu({ entry, details }: { entry: Anime_Entry,
                     onClick={() => setIsMetadataManagerOpen(p => !p)}
                 >
                     <LuImage /> Metadata
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    disabled={isResettingMetadata}
+                    onClick={() => resetMetadata({ mediaId: entry.mediaId })}
+                >
+                    <LuRefreshCw className={isResettingMetadata ? "animate-spin" : ""} /> Reset metadata
                 </DropdownMenuItem>
 
 

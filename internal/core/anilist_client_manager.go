@@ -286,14 +286,16 @@ func (m *AnilistClientManager) GetClient(profileID uint) anilist.AnilistClient {
 // ResolveClientForWrites returns the AniList client that list updates (progress, status)
 // should be written with, along with the profile it belongs to.
 //
-// Unlike GetClient it never falls back to the global/admin client: that client is the
-// shared "planning slut" account on multi-profile installs, so writing to it would update
-// the wrong list — or fail outright with "not authenticated" when no global token is set.
-// When the caller has no profile context (a playback request that arrived without a
-// profile session), we resolve to the real user account instead: the admin profile's
-// linked account, or the only linked account if there is exactly one.
+// Resolution order, most specific first:
+//  1. The profile that initiated the action, if its AniList client is authenticated.
+//  2. The only linked profile account, if exactly one profile has one.
+//  3. The admin profile's linked account.
+//  4. The global account client — this holds the owner's own AniList token from the
+//     account row, so it is a valid write target on installs where the token was never
+//     copied into a per-profile database. Without this step those setups reported
+//     "not authenticated" on every update despite being visibly logged in.
 //
-// Returns (nil, 0) when no profile has a linked AniList account.
+// Returns (nil, 0) only when no AniList account is linked anywhere.
 func (m *AnilistClientManager) ResolveClientForWrites(profileID uint) (anilist.AnilistClient, uint) {
 	// Preferred: the profile that actually initiated playback.
 	if profileID > 0 {
@@ -302,38 +304,43 @@ func (m *AnilistClientManager) ResolveClientForWrites(profileID uint) (anilist.A
 		}
 	}
 
-	if m.app.ProfileManager == nil {
-		return nil, 0
-	}
-	profiles, err := m.app.ProfileManager.GetAllProfiles()
-	if err != nil {
-		m.logger.Warn().Err(err).Msg("anilist_client_manager: Failed to list profiles while resolving write client")
-		return nil, 0
+	if m.app.ProfileManager != nil {
+		profiles, err := m.app.ProfileManager.GetAllProfiles()
+		if err != nil {
+			m.logger.Warn().Err(err).Msg("anilist_client_manager: Failed to list profiles while resolving write client")
+		}
+
+		var linked []*Profile
+		var admin *Profile
+		for _, p := range profiles {
+			if p == nil {
+				continue
+			}
+			client := m.GetClient(p.ID)
+			if client == nil || !client.IsAuthenticated() {
+				continue
+			}
+			linked = append(linked, p)
+			if p.IsAdmin && admin == nil {
+				admin = p
+			}
+		}
+
+		// Exactly one linked account — unambiguous, use it.
+		if len(linked) == 1 {
+			return m.GetClient(linked[0].ID), linked[0].ID
+		}
+		// Several linked accounts — the admin's is the owner's own account.
+		if admin != nil {
+			return m.GetClient(admin.ID), admin.ID
+		}
 	}
 
-	var linked []*Profile
-	var admin *Profile
-	for _, p := range profiles {
-		if p == nil {
-			continue
+	// Last resort: the global account client (the owner's own AniList token).
+	if m.app.AnilistClientRef != nil && m.app.AnilistClientRef.IsPresent() {
+		if global := m.app.AnilistClientRef.Get(); global != nil && global.IsAuthenticated() {
+			return global, 0
 		}
-		client := m.GetClient(p.ID)
-		if client == nil || !client.IsAuthenticated() {
-			continue
-		}
-		linked = append(linked, p)
-		if p.IsAdmin && admin == nil {
-			admin = p
-		}
-	}
-
-	// Exactly one linked account — unambiguous, use it.
-	if len(linked) == 1 {
-		return m.GetClient(linked[0].ID), linked[0].ID
-	}
-	// Several linked accounts — the admin's is the owner's own account.
-	if admin != nil {
-		return m.GetClient(admin.ID), admin.ID
 	}
 
 	return nil, 0
