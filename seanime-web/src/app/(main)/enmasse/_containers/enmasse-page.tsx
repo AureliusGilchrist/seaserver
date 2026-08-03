@@ -283,7 +283,7 @@ export function EnMassePage() {
                         <li>
                             Reads anime list from{" "}
                             <code className="bg-[--subtle] px-1 rounded">
-                                /aeternae/Soul/Otaku Media/Database/anilist-minified.json
+                                /zroot/Soul/Otaku Media/Database/anilist-minified.json
                             </code>
                         </li>
                         <li>Searches for each anime using the default torrent provider</li>
@@ -294,7 +294,7 @@ export function EnMassePage() {
                         <li>
                             Downloads to{" "}
                             <code className="bg-[--subtle] px-1 rounded">
-                                /aeternae/Otaku/Unmatched
+                                /zroot/torrents/Anime/Unmatched
                             </code>
                         </li>
                         <li>

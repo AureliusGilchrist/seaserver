@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	HakunekoMangasPath       = "/aeternae/Soul/Otaku Media/Databases/weebcentral.json"
-	MangaProgressFilePath    = "/aeternae/Soul/Otaku Media/Databases/enmasse-manga-progress.json"
+	HakunekoMangasPath       = "/zroot/Soul/Otaku Media/Databases/weebcentral.json"
+	MangaProgressFilePath    = "/zroot/Soul/Otaku Media/Databases/enmasse-manga-progress.json"
 	DefaultMangaProvider     = "weebcentral"
 	// Rate limiting: max concurrent requests and delay between manga processing
 	MaxConcurrentManga       = 1  // Process one manga at a time

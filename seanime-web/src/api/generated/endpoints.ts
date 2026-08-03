@@ -3252,7 +3252,7 @@ export const API_ENDPOINTS = {
          *  @description
          *  Route adds torrents to the torrent client.
          *  It fetches the magnets from the provided URLs and adds them to the torrent client.
-         *  All torrents are downloaded to /aeternae/Otaku/Unmatched/$TorrentName for manual matching.
+         *  All torrents are downloaded to /zroot/torrents/Anime/Unmatched/$TorrentName for manual matching.
          */
         TorrentClientDownload: {
             key: "TORRENT-CLIENT-torrent-client-download",

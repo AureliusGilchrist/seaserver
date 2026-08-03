@@ -165,7 +165,7 @@ func (h *Handler) HandleTorrentClientGetFiles(c echo.Context) error {
 //
 //	@summary adds torrents to the torrent client.
 //	@desc It fetches the magnets from the provided URLs and adds them to the torrent client.
-//	@desc All torrents are downloaded to /aeternae/Otaku/Unmatched/$TorrentName for manual matching.
+//	@desc All torrents are downloaded to /zroot/torrents/Anime/Unmatched/$TorrentName for manual matching.
 //	@route /api/v1/torrent-client/download [POST]
 //	@returns bool
 func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
@@ -203,7 +203,7 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 	}
 
 	// OVERRIDE: Always download to unmatched directory
-	// Each torrent goes to /aeternae/Otaku/Unmatched/$TorrentName
+	// Each torrent goes to /zroot/torrents/Anime/Unmatched/$TorrentName
 	for _, t := range b.Torrents {
 		// Get the unmatched destination for this torrent
 		destination := h.App.UnmatchedRepository.GetUnmatchedDestination(t.Name)

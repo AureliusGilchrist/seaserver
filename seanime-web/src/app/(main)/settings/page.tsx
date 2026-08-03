@@ -493,7 +493,7 @@ export default function Page() {
                                 transmissionPort: status?.settings?.torrent?.transmissionPort,
                                 transmissionUsername: status?.settings?.torrent?.transmissionUsername,
                                 transmissionPassword: status?.settings?.torrent?.transmissionPassword,
-                                builtinDownloadDir: status?.settings?.torrent?.builtinDownloadDir ?? "/aeternae/Soul/Otaku Media/Unmatched/",
+                                builtinDownloadDir: status?.settings?.torrent?.builtinDownloadDir ?? "/zroot/torrents/Anime/Unmatched/",
                                 hideAudienceScore: status?.settings?.anilist?.hideAudienceScore ?? false,
                                 autoUpdateProgress: status?.settings?.library?.autoUpdateProgress ?? false,
                                 disableUpdateCheck: status?.settings?.library?.disableUpdateCheck ?? false,

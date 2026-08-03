@@ -285,7 +285,7 @@ export function MangaEnMassePage() {
                         <li>
                             Reads manga list from{" "}
                             <code className="bg-[--subtle] px-1 rounded">
-                                /aeternae/Soul/Otaku Media/Databases/weebcentral.json
+                                /zroot/Soul/Otaku Media/Databases/weebcentral.json
                             </code>
                         </li>
                         <li>Searches for each manga on AniList to find a match</li>

@@ -151,9 +151,9 @@ func NewConfig(options *ConfigOptions, logger *zerolog.Logger) (*Config, error) 
 	viper.SetDefault("web.assetDir", "$SEANIME_DATA_DIR/assets")
 	viper.SetDefault("cache.dir", "$SEANIME_DATA_DIR/cache")
 	viper.SetDefault("cache.transcodeDir", "$SEANIME_DATA_DIR/cache/transcode")
-	viper.SetDefault("manga.downloadDir", "/aeternae/Soul/Otaku Media/Manga")
-	viper.SetDefault("manga.localDir", "/aeternae/Soul/Otaku Media/Manga")
-	viper.SetDefault("manga.localDir", "/aeternae/Soul/Otaku Media/Manga")
+	viper.SetDefault("manga.downloadDir", "/zroot/Soul/Otaku Media/Manga")
+	viper.SetDefault("manga.localDir", "/zroot/Soul/Otaku Media/Manga")
+	viper.SetDefault("manga.localDir", "/zroot/Soul/Otaku Media/Manga")
 	viper.SetDefault("logs.dir", "$SEANIME_DATA_DIR/logs")
 	viper.SetDefault("offline.dir", "$SEANIME_DATA_DIR/offline")
 	viper.SetDefault("offline.assetDir", "$SEANIME_DATA_DIR/offline/assets")
@@ -232,7 +232,7 @@ func NewConfig(options *ConfigOptions, logger *zerolog.Logger) (*Config, error) 
 	cfg.Data.WorkingDir = os.Getenv("SEANIME_WORKING_DIR")
 
 	// Force manga download/local directories to the new path for ALL profiles
-	forcedMangaPath := filepath.FromSlash("/aeternae/Soul/Otaku Media/Manga")
+	forcedMangaPath := filepath.FromSlash("/zroot/Soul/Otaku Media/Manga")
 	cfg.Manga.DownloadDir = forcedMangaPath
 	cfg.Manga.LocalDir = forcedMangaPath
 	viper.Set("manga.downloadDir", forcedMangaPath)

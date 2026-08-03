@@ -529,8 +529,8 @@ func (d *Downloader) filterOutSeasonEpisodePattern(torrents []*hibiketorrent.Ani
 }
 
 const (
-	GlobalAnimeOfflineDatabasePath = "/aeternae/Soul/Otaku Media/Databases/anime-offline-database-minified.json"
-	AnimeProgressFilePath   = "/aeternae/Soul/Otaku Media/Databases/enmasse-anime-progress.json"
+	GlobalAnimeOfflineDatabasePath = "/zroot/Soul/Otaku Media/Databases/anime-offline-database-minified.json"
+	AnimeProgressFilePath   = "/zroot/Soul/Otaku Media/Databases/enmasse-anime-progress.json"
 	MaxConcurrentSearches   = 6
 	DelayBetweenAnime       = 500 * time.Millisecond
 	DelayBetweenSearches    = 300 * time.Millisecond

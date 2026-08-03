@@ -12,7 +12,7 @@ import (
     "github.com/labstack/echo/v4"
 )
 
-const animeOfflineDatabasePath = "/aeternae/Otaku/Anime/database.json"
+const animeOfflineDatabasePath = "/zroot/Otaku/Anime/database.json"
 
 var seasonalCache = struct {
     mu   sync.RWMutex

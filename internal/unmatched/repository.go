@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	UnmatchedBasePath = "/aeternae/Soul/Otaku Media/Unmatched"
+	UnmatchedBasePath = "/zroot/torrents/Anime/Unmatched"
 )
 
 type Repository struct {
@@ -54,12 +54,12 @@ func NewRepository(logger *zerolog.Logger, database *db.Database) *Repository {
 func (r *Repository) getAnimeBasePath() string {
 	if r.database == nil {
 		r.logger.Warn().Msg("unmatched: Database not available, using default path")
-		return "/aeternae/Soul/Otaku Media/Anime"
+		return "/zroot/Soul/Otaku Media/Anime"
 	}
 	libraryPath, err := r.database.GetLibraryPathFromSettings()
 	if err != nil || libraryPath == "" {
 		r.logger.Warn().Err(err).Msg("unmatched: Could not get library path from settings, using default")
-		return "/aeternae/Soul/Otaku Media/Anime"
+		return "/zroot/Soul/Otaku Media/Anime"
 	}
 	return libraryPath
 }

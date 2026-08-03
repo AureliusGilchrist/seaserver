@@ -227,7 +227,7 @@ export const getDefaultSettings = (data: z.infer<typeof gettingStartedSchema>): 
         transmissionPassword: data.transmissionPassword,
         showActiveTorrentCount: false,
         hideTorrentList: false,
-        builtinDownloadDir: data.builtinDownloadDir ?? "/aeternae/Soul/Otaku Media/Unmatched/",
+        builtinDownloadDir: data.builtinDownloadDir ?? "/zroot/torrents/Anime/Unmatched",
     },
     anilist: {
         hideAudienceScore: false,
