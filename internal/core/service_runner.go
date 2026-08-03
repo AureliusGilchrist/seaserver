@@ -111,13 +111,18 @@ func (sr *ServiceRunner) start() {
 	}()
 
 	// Daily full metadata refresh.
-	// Runs once 2 minutes after start (so the app is fully initialized), then every 24h.
-	// Drops every cached anime/episode metadata entry and re-pulls each account's AniList
-	// collections, so long-running installs never accumulate stale metadata.
+	// Runs once 15 minutes after start, then every 24h. Drops every cached anime/episode
+	// metadata entry and re-pulls each account's AniList collections, so long-running
+	// installs never accumulate stale metadata.
+	//
+	// The initial delay is deliberately well clear of startup and of the auto-pause pass at
+	// +60s: this forcibly re-fetches a collection per profile, and stacking that burst on top
+	// of the app's own bootstrap requests risks tripping AniList's rate limit, which would
+	// leave collections failing to load right when the user opens the app.
 	sr.wg.Add(1)
 	go func() {
 		defer sr.wg.Done()
-		initial := time.NewTimer(2 * time.Minute)
+		initial := time.NewTimer(15 * time.Minute)
 		select {
 		case <-sr.stopCh:
 			initial.Stop()

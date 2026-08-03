@@ -169,10 +169,13 @@ func (h *Handler) HandleGetRawAnilistMangaCollection(c echo.Context) error {
 func (h *Handler) HandleGetMangaCollection(c echo.Context) error {
 	profileID := h.GetProfileID(c)
 
-	// Catalogue = admin's manga collection (media metadata source, cached)
+	// Catalogue = admin's manga collection (media metadata source, cached).
+	// Note this returns (nil, nil) when the admin account has no AniList username, so a nil
+	// collection is normal here and must not be treated as a failure.
 	catalogueMangaCollection, err := h.App.GetMangaCollection(false)
 	if err != nil {
-		return h.RespondWithError(c, err)
+		h.App.Logger.Warn().Err(err).Msg("manga: Failed to get catalogue collection, continuing with profile collection")
+		catalogueMangaCollection = nil
 	}
 
 	// For profile users with their own AniList: use their personal collection.
@@ -180,8 +183,23 @@ func (h *Handler) HandleGetMangaCollection(c echo.Context) error {
 	mangaCollection := catalogueMangaCollection
 	if profileID > 0 {
 		profileMangaCollection, ferr := h.App.AnilistClientManager.GetMangaCollection(profileID)
+		if ferr != nil {
+			h.App.Logger.Warn().Err(ferr).Uint("profileID", profileID).Msg("manga: Failed to get profile manga collection")
+		}
 		if ferr == nil && profileMangaCollection != nil {
 			mangaCollection = profileMangaCollection
+		}
+	}
+
+	// Both sources unavailable — carry on with an empty collection rather than failing the
+	// whole request. Downloaded manga and planning-slut entries are merged in below, so the
+	// library still renders what is on disk instead of showing up completely empty.
+	if mangaCollection == nil || mangaCollection.MediaListCollection == nil {
+		h.App.Logger.Warn().Msg("manga: No AniList manga collection available, serving downloaded entries only")
+		mangaCollection = &anilist.MangaCollection{
+			MediaListCollection: &anilist.MangaCollection_MediaListCollection{
+				Lists: []*anilist.MangaCollection_MediaListCollection_Lists{},
+			},
 		}
 	}
 

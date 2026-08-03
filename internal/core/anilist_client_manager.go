@@ -512,10 +512,23 @@ func (m *AnilistClientManager) GetAnimeCollection(profileID uint) (*anilist.Anim
 	result, err, _ := m.animeSfg.Do(key, func() (interface{}, error) {
 		client := m.GetClient(profileID)
 		if !client.IsAuthenticated() {
+			// Serve the last known collection rather than nothing: a token that is
+			// momentarily unreadable must not empty the user's library.
+			if diskCol := m.loadAnimeCollectionFromDisk(profileID); diskCol != nil {
+				m.logger.Warn().Uint("profileID", profileID).Msg("anilist_client_manager: Not authenticated, serving anime collection from disk cache")
+				return diskCol, nil
+			}
 			return nil, anilist.ErrNotAuthenticated
 		}
+		// GetUsername performs a Viewer request, so it fails on a rate limit or a network
+		// blip. Falling through to the disk cache here keeps the library populated; without
+		// it this path bypassed the offline fallback entirely and returned an error.
 		username := m.GetUsername(profileID)
 		if username == "" {
+			if diskCol := m.loadAnimeCollectionFromDisk(profileID); diskCol != nil {
+				m.logger.Warn().Uint("profileID", profileID).Msg("anilist_client_manager: No username, serving anime collection from disk cache")
+				return diskCol, nil
+			}
 			return nil, errors.New("anilist: no username for profile")
 		}
 		col, err := client.AnimeCollection(context.Background(), &username)
@@ -607,10 +620,19 @@ func (m *AnilistClientManager) GetMangaCollection(profileID uint) (*anilist.Mang
 	result, err, _ := m.mangaSfg.Do(key, func() (interface{}, error) {
 		client := m.GetClient(profileID)
 		if !client.IsAuthenticated() {
+			if diskCol := m.loadMangaCollectionFromDisk(profileID); diskCol != nil {
+				m.logger.Warn().Uint("profileID", profileID).Msg("anilist_client_manager: Not authenticated, serving manga collection from disk cache")
+				return diskCol, nil
+			}
 			return nil, anilist.ErrNotAuthenticated
 		}
+		// See GetAnimeCollection: a failed Viewer request must not empty the library.
 		username := m.GetUsername(profileID)
 		if username == "" {
+			if diskCol := m.loadMangaCollectionFromDisk(profileID); diskCol != nil {
+				m.logger.Warn().Uint("profileID", profileID).Msg("anilist_client_manager: No username, serving manga collection from disk cache")
+				return diskCol, nil
+			}
 			return nil, errors.New("anilist: no username for profile")
 		}
 		col, err := client.MangaCollection(context.Background(), &username)
