@@ -152,7 +152,10 @@ func (ad *AutoDownloader) saveUnmatchedMetadata(t *NormalizedTorrent, rule *anim
 	}
 
 	// Write file to unmatched directory/torrent name/.seanime-metadata.json
-	torrentPath := filepath.Join(unmatched.UnmatchedBasePath, t.Name)
+	// Use the shared helper so this lands in exactly the directory the torrent
+	// downloads into — a raw Join here diverges whenever the name needs
+	// sanitizing, leaving the sidecar somewhere the scan never looks.
+	torrentPath := unmatched.DestinationFor(t.Name)
 	if err := os.MkdirAll(torrentPath, 0755); err != nil {
 		ad.logger.Warn().Err(err).Str("torrent", t.Name).Msg("autodownloader: failed to ensure unmatched directory")
 		return
@@ -1226,8 +1229,14 @@ downloadScope:
 
 			ad.logger.Debug().Msgf("autodownloader: Downloading torrent: %s", t.Name)
 
-			// Override destination to unmatched path
-			destination := unmatched.UnmatchedBasePath
+			// Override destination to unmatched path.
+			// This must be the torrent's OWN directory, not the base directory:
+			// saveUnmatchedMetadata writes the sidecar into that directory, and
+			// the scan only reads a sidecar from the torrent root it finds. When
+			// this pointed at UnmatchedBasePath, single-file torrents landed as
+			// bare files beside an otherwise-empty metadata directory, so they
+			// were always listed with no anime attached.
+			destination := unmatched.DestinationFor(t.Name)
 			if rule.Destination != "" && filepath.IsAbs(rule.Destination) {
 				destination = rule.Destination
 			}

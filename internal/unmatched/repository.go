@@ -347,25 +347,7 @@ func (r *Repository) scanTorrentDirectory(name, path string) (*UnmatchedTorrent,
 	}
 
 	// Load anime metadata if it exists
-	if metadata := r.loadTorrentMetadata(path); metadata != nil {
-		torrent.AnimeID = metadata.AnimeID
-		torrent.AnimeTitleRomaji = metadata.AnimeTitleRomaji
-		torrent.AnimeTitleNative = metadata.AnimeTitleNative
-		torrent.AnimeFormat = metadata.AnimeFormat
-		torrent.AnimeStartYear = metadata.AnimeStartYear
-		torrent.AnimeExpectedEpisodes = metadata.AnimeExpectedEpisodes
-		torrent.AutoMatch = metadata.AutoMatch
-
-		// Best-effort: fetch episode titles from Animap using AniList ID to name files
-		if metadata.AnimeID > 0 {
-			if animeMeta, err := r.fetchAnimeMetadata(metadata.AnimeID); err == nil && animeMeta != nil {
-				torrent.AnimeTitleRomaji = firstNonEmpty(torrent.AnimeTitleRomaji, animeMeta.Title, animeMeta.Titles["romaji"], animeMeta.Titles["english"], animeMeta.Titles["native"])
-				if animeMeta.Episodes != nil && torrent.AnimeExpectedEpisodes == 0 {
-					torrent.AnimeExpectedEpisodes = len(animeMeta.Episodes)
-				}
-			}
-		}
-	}
+	r.applyMetadata(torrent, r.loadTorrentMetadata(path))
 
 	seasonMap := make(map[string]*UnmatchedSeason)
 
@@ -782,9 +764,28 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		}
 	}
 
+	// Send the metadata sidecar to the anime folder the episodes went to, so it
+	// travels with the files instead of dying with the staging directory.
+	// CleanupTorrentDirectory removes the staging copy below, which makes this a
+	// move for a fully-matched torrent and a copy for a partial one (where the
+	// staging directory survives and still needs its own sidecar).
+	if result.Success && result.Destination != "" && len(result.MovedFiles) > 0 {
+		if err := r.writeMetadataToDestination(req.TorrentName, result.Destination); err != nil {
+			r.logger.Warn().Err(err).
+				Str("torrent", req.TorrentName).
+				Str("destination", result.Destination).
+				Msg("unmatched: Failed to write metadata to destination")
+		}
+	}
+
 	// Clean up the staging directory last, so nothing recreates it afterwards.
 	if len(result.FailedFiles) == 0 {
 		r.CleanupTorrentDirectory(req.TorrentName)
+		// The files are out; take the opportunity to drop any other staging
+		// directories left holding nothing at all. Directories still carrying a
+		// metadata sidecar are preserved — those belong to torrents that have not
+		// finished downloading yet.
+		r.SweepEmptyDirectories()
 		r.invalidateCache()
 	}
 
@@ -1091,6 +1092,17 @@ func (r *Repository) SweepEmptyTorrentDirectories() int {
 			continue
 		}
 
+		// A directory holding nothing but a sidecar is ambiguous: it is either a
+		// leftover from an old match, or a torrent that was just added and whose
+		// client has not written any files yet. Removing the second kind destroys
+		// the only record of which anime the download came from, and it resurfaces
+		// later in the Unmatched screen with nothing attached. Give a freshly
+		// written sidecar time to grow files before treating it as garbage.
+		if metadataWrittenWithin(path, metadataSweepGracePeriod) {
+			r.logger.Debug().Str("path", path).Msg("unmatched: Skipping recent metadata directory during sweep")
+			continue
+		}
+
 		if err := os.RemoveAll(path); err != nil {
 			r.logger.Warn().Err(err).Str("path", path).Msg("unmatched: Failed to sweep empty torrent directory")
 			continue
@@ -1103,6 +1115,88 @@ func (r *Repository) SweepEmptyTorrentDirectories() int {
 		r.invalidateCache()
 	}
 	return removed
+}
+
+// SweepEmptyDirectories removes staging directories that hold no files whatsoever,
+// including ones that only became empty when their season folders were pruned.
+//
+// Directories holding a metadata sidecar are deliberately left alone. That sidecar is
+// the only record of which anime a torrent came from, and a torrent that has been added
+// but has not started writing files yet has nothing else on disk — removing it there
+// would strand the download in the Unmatched screen with no anime attached.
+func (r *Repository) SweepEmptyDirectories() int {
+	entries, err := os.ReadDir(UnmatchedBasePath)
+	if err != nil {
+		return 0
+	}
+
+	removed := 0
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(UnmatchedBasePath, entry.Name())
+		if !isInsideUnmatchedBase(path) {
+			continue
+		}
+
+		// Prune emptied season folders first so the directory can qualify below.
+		r.pruneEmptyDirs(path)
+
+		if !holdsNoFiles(path) {
+			continue
+		}
+
+		if err := os.RemoveAll(path); err != nil {
+			r.logger.Warn().Err(err).Str("path", path).Msg("unmatched: Failed to sweep empty directory")
+			continue
+		}
+		removed++
+		r.logger.Info().Str("torrent", entry.Name()).Msg("unmatched: Swept empty directory")
+	}
+
+	if removed > 0 {
+		r.invalidateCache()
+	}
+	return removed
+}
+
+// holdsNoFiles reports whether a directory tree contains no files at all. A metadata
+// sidecar counts as a file here, so directories holding one are preserved.
+func holdsNoFiles(path string) bool {
+	empty := true
+	err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		empty = false
+		return filepath.SkipAll
+	})
+	if err != nil {
+		return false
+	}
+	return empty
+}
+
+// metadataSweepGracePeriod is how long a metadata-only directory is protected from the
+// unattended sweep. It covers a torrent sitting queued in the client before it starts
+// writing files. The sweep exists to clear leftovers from old matches, which are far
+// older than this, so a generous window costs nothing — these directories are skipped
+// by the scan and never shown in the UI.
+const metadataSweepGracePeriod = 7 * 24 * time.Hour
+
+// metadataWrittenWithin reports whether the directory's metadata sidecar was written
+// within the given duration. A missing or unreadable sidecar reports false, leaving the
+// caller's other checks to decide.
+func metadataWrittenWithin(path string, within time.Duration) bool {
+	info, err := os.Stat(filepath.Join(path, metadataFileName))
+	if err != nil {
+		return false
+	}
+	return time.Since(info.ModTime()) < within
 }
 
 // onlyHoldsMetadata reports whether a directory contains nothing but our metadata sidecar
@@ -1200,16 +1294,26 @@ func (r *Repository) DeleteTorrent(torrentName string) error {
 	return err
 }
 
+// DestinationFor returns the directory a torrent by this name downloads into.
+//
+// Every producer of unmatched torrents must route downloads here and write the
+// metadata sidecar into the same directory. Downloading to UnmatchedBasePath
+// directly drops the torrent's files next to the metadata directory rather than
+// inside it, and the scan then reports the torrent with no anime attached.
+func DestinationFor(torrentName string) string {
+	return filepath.Join(UnmatchedBasePath, sanitizeNamePreserveWhitespace(torrentName))
+}
+
 // GetUnmatchedDestination returns the path where a torrent should be downloaded
 func (r *Repository) GetUnmatchedDestination(torrentName string) string {
-	return filepath.Join(UnmatchedBasePath, sanitizeNamePreserveWhitespace(torrentName))
+	return DestinationFor(torrentName)
 }
 
 const metadataFileName = ".seanime-metadata.json"
 
 // SaveTorrentMetadata saves anime metadata for a torrent
 func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleRomaji, titleNative, format string, startYear int, autoMatch bool) error {
-	torrentPath := filepath.Join(UnmatchedBasePath, sanitizeNamePreserveWhitespace(torrentName))
+	torrentPath := DestinationFor(torrentName)
 
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(torrentPath, 0755); err != nil {
@@ -1239,9 +1343,47 @@ func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleR
 	return nil
 }
 
+// writeMetadataToDestination writes the torrent's metadata sidecar into the anime
+// folder its episodes were moved into. Paired with the staging cleanup, this is
+// what moves the metadata out of Unmatched and into the anime's own folder.
+//
+// A missing sidecar is not an error: torrents added before the metadata existed,
+// or matched entirely by hand, simply have nothing to carry over.
+func (r *Repository) writeMetadataToDestination(torrentName, destination string) error {
+	metadata := r.GetTorrentMetadata(torrentName)
+	if metadata == nil {
+		return nil
+	}
+
+	info, err := os.Stat(destination)
+	if err != nil {
+		return fmt.Errorf("destination unavailable: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("destination is not a directory: %s", destination)
+	}
+
+	data, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	metadataPath := filepath.Join(destination, metadataFileName)
+	if err := os.WriteFile(metadataPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write metadata: %w", err)
+	}
+
+	r.logger.Debug().
+		Str("torrent", torrentName).
+		Str("path", metadataPath).
+		Int("animeId", metadata.AnimeID).
+		Msg("unmatched: Moved torrent metadata to anime folder")
+	return nil
+}
+
 // GetTorrentMetadata loads the stored metadata for a torrent by name, or nil if absent.
 func (r *Repository) GetTorrentMetadata(torrentName string) *TorrentMetadata {
-	return r.loadTorrentMetadata(filepath.Join(UnmatchedBasePath, sanitizeNamePreserveWhitespace(torrentName)))
+	return r.loadTorrentMetadata(DestinationFor(torrentName))
 }
 
 // loadTorrentMetadata loads anime metadata for a torrent if it exists
@@ -1315,7 +1457,57 @@ func (r *Repository) scanSingleFile(name, path string) (*UnmatchedTorrent, error
 	torrent.Size = info.Size()
 	torrent.FileCount = 1
 
+	// A bare file has no directory of its own to hold the sidecar, so the
+	// metadata written when the torrent was added sits in a directory named
+	// after the torrent. Adopt it so these are not stranded without an anime.
+	r.applyMetadata(torrent, r.loadSingleFileMetadata(name))
+
 	return torrent, nil
+}
+
+// loadSingleFileMetadata finds the metadata belonging to a bare video file in
+// the unmatched root. The torrent name may or may not carry the file
+// extension, so both spellings are tried.
+func (r *Repository) loadSingleFileMetadata(fileName string) *TorrentMetadata {
+	candidates := []string{
+		fileName,
+		strings.TrimSuffix(fileName, filepath.Ext(fileName)),
+	}
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		if metadata := r.loadTorrentMetadata(DestinationFor(candidate)); metadata != nil {
+			return metadata
+		}
+	}
+	return nil
+}
+
+// applyMetadata copies stored anime metadata onto a torrent, filling in what it
+// can from Animap. Safe to call with a nil metadata.
+func (r *Repository) applyMetadata(torrent *UnmatchedTorrent, metadata *TorrentMetadata) {
+	if torrent == nil || metadata == nil {
+		return
+	}
+
+	torrent.AnimeID = metadata.AnimeID
+	torrent.AnimeTitleRomaji = metadata.AnimeTitleRomaji
+	torrent.AnimeTitleNative = metadata.AnimeTitleNative
+	torrent.AnimeFormat = metadata.AnimeFormat
+	torrent.AnimeStartYear = metadata.AnimeStartYear
+	torrent.AnimeExpectedEpisodes = metadata.AnimeExpectedEpisodes
+	torrent.AutoMatch = metadata.AutoMatch
+
+	// Best-effort: fetch episode titles from Animap using AniList ID to name files
+	if metadata.AnimeID > 0 {
+		if animeMeta, err := r.fetchAnimeMetadata(metadata.AnimeID); err == nil && animeMeta != nil {
+			torrent.AnimeTitleRomaji = firstNonEmpty(torrent.AnimeTitleRomaji, animeMeta.Title, animeMeta.Titles["romaji"], animeMeta.Titles["english"], animeMeta.Titles["native"])
+			if animeMeta.Episodes != nil && torrent.AnimeExpectedEpisodes == 0 {
+				torrent.AnimeExpectedEpisodes = len(animeMeta.Episodes)
+			}
+		}
+	}
 }
 
 func extractSeasonNumber(name string) int {

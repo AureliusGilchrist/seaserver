@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/db_bridge"
@@ -220,13 +221,14 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 			return h.RespondWithError(c, err)
 		}
 
-		// Add torrent to client with unmatched destination
-		err = h.App.TorrentClientRepository.AddMagnets([]string{magnet}, destination)
-		if err != nil {
-			return h.RespondWithError(c, err)
-		}
-
-		// Save anime metadata if available
+		// Save anime metadata BEFORE queueing the download.
+		//
+		// The sidecar written here is the ONLY record of which anime a torrent
+		// came from — the Unmatched screen has no other way to recover it. If
+		// this write fails and the torrent is added anyway, the download lands
+		// with nothing linking it back to its anime and has to be matched by
+		// hand. That failure used to be logged as a warning and swallowed,
+		// which let it go unnoticed across many downloads.
 		if b.Media != nil {
 			titleRomaji := ""
 			titleNative := ""
@@ -247,8 +249,15 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 				startYear = *b.Media.StartDate.Year
 			}
 			if err := h.App.UnmatchedRepository.SaveTorrentMetadata(t.Name, b.Media.ID, titleRomaji, titleNative, format, startYear, b.AutoMatch); err != nil {
-				h.App.Logger.Warn().Err(err).Str("torrent", t.Name).Msg("torrent client: Failed to save torrent metadata")
+				h.App.Logger.Error().Err(err).Str("torrent", t.Name).Msg("torrent client: Failed to save torrent metadata")
+				return h.RespondWithError(c, fmt.Errorf("could not save anime metadata for %q, torrent not added: %w", t.Name, err))
 			}
+		}
+
+		// Add torrent to client with unmatched destination
+		err = h.App.TorrentClientRepository.AddMagnets([]string{magnet}, destination)
+		if err != nil {
+			return h.RespondWithError(c, err)
 		}
 
 		h.App.Logger.Info().Str("torrent", t.Name).Str("destination", destination).Bool("autoMatch", b.AutoMatch && b.Media != nil).Msg("torrent client: Added torrent to unmatched directory")
