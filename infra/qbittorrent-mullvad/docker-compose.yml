@@ -1,0 +1,85 @@
+# qBittorrent behind Mullvad (WireGuard) via gluetun.
+#
+# qBittorrent has NO network stack of its own — it shares gluetun's network
+# namespace. If the tunnel drops, gluetun's firewall drops with it and
+# qBittorrent has nowhere to send packets. There is no leak path, including
+# during container restarts, because the namespace itself is the killswitch.
+#
+#   docker compose up -d
+#   docker compose logs -f gluetun          # confirm the tunnel came up
+#   docker compose exec gluetun wget -qO- https://am.i.mullvad.net/connected
+
+services:
+  gluetun:
+    image: qmcgaw/gluetun:v3
+    container_name: gluetun
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      # Every port qBittorrent needs is published HERE, not on the qbittorrent
+      # service — qbittorrent has no network namespace to publish from.
+      - "8080:8080"          # qBittorrent WebUI
+      - "6881:6881/tcp"      # BitTorrent (see PORT FORWARDING note in README)
+      - "6881:6881/udp"
+    volumes:
+      - ./gluetun:/gluetun
+    environment:
+      VPN_SERVICE_PROVIDER: mullvad
+      VPN_TYPE: wireguard
+
+      # From your Mullvad WireGuard config file. See README for how to get it.
+      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY:?set in .env}
+      WIREGUARD_ADDRESSES: ${WIREGUARD_ADDRESSES:?set in .env}
+
+      # Server selection. Pick ONE approach:
+      SERVER_CITIES: ${SERVER_CITIES:-Amsterdam}
+      # SERVER_COUNTRIES: Netherlands
+      # SERVER_HOSTNAMES: nl-ams-wg-001
+      # OWNED_ONLY: "yes"        # only Mullvad-owned servers, not rented
+
+      # Encrypted DNS through the tunnel, with a local cache.
+      DOT: "on"
+      DOT_PROVIDERS: cloudflare
+      DNS_KEEP_NAMESERVER: "off"
+      BLOCK_MALICIOUS: "on"
+
+      # Let the LAN reach the WebUI without going through the tunnel.
+      # MUST match your actual LAN subnet or the WebUI will be unreachable.
+      FIREWALL_OUTBOUND_SUBNETS: ${LAN_SUBNET:-192.168.1.0/24}
+
+      # Reconnect if the tunnel silently dies.
+      HEALTH_VPN_DURATION_INITIAL: 30s
+      HEALTH_VPN_DURATION_ADDITION: 10s
+
+      TZ: ${TZ:-Etc/UTC}
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: unless-stopped
+    # THE important line. No ports:, no networks: — it lives inside gluetun.
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Etc/UTC}
+      WEBUI_PORT: 8080
+      TORRENTING_PORT: 6881
+    volumes:
+      - ./qbittorrent:/config
+      # Downloads. Points at the ZFS dataset from the raidz3 setup.
+      # Keep incomplete/ and complete/ on the SAME dataset so finished
+      # torrents are moved by rename, not copied across filesystems.
+      - ${DOWNLOADS_PATH:-/tank/torrents}:/downloads
