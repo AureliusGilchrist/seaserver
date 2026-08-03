@@ -25,6 +25,12 @@ import (
 // every collection once a day regardless.
 const profileCollectionCacheTTL = 30 * time.Minute
 
+// profileMangaCollectionCacheTTL keeps the original long-lived manga behaviour. Manga
+// entries don't gain "episodes" week to week the way airing anime do, so there is nothing
+// to gain from refetching often — and the manga library is left exactly as it was before
+// the anime staleness work.
+const profileMangaCollectionCacheTTL = 7 * 24 * time.Hour
+
 // profileAnimeCache is a time-stamped cache entry for an anime collection.
 type profileAnimeCache struct {
 	data      *anilist.AnimeCollection
@@ -608,7 +614,7 @@ func (m *AnilistClientManager) loadAnimeCollectionFromDisk(profileID uint) *anil
 func (m *AnilistClientManager) GetMangaCollection(profileID uint) (*anilist.MangaCollection, error) {
 	// Fast path.
 	m.colMu.RLock()
-	if entry, ok := m.mangaColCache[profileID]; ok && time.Since(entry.fetchedAt) < profileCollectionCacheTTL {
+	if entry, ok := m.mangaColCache[profileID]; ok && time.Since(entry.fetchedAt) < profileMangaCollectionCacheTTL {
 		col := entry.data
 		m.colMu.RUnlock()
 		return col, nil
@@ -620,19 +626,10 @@ func (m *AnilistClientManager) GetMangaCollection(profileID uint) (*anilist.Mang
 	result, err, _ := m.mangaSfg.Do(key, func() (interface{}, error) {
 		client := m.GetClient(profileID)
 		if !client.IsAuthenticated() {
-			if diskCol := m.loadMangaCollectionFromDisk(profileID); diskCol != nil {
-				m.logger.Warn().Uint("profileID", profileID).Msg("anilist_client_manager: Not authenticated, serving manga collection from disk cache")
-				return diskCol, nil
-			}
 			return nil, anilist.ErrNotAuthenticated
 		}
-		// See GetAnimeCollection: a failed Viewer request must not empty the library.
 		username := m.GetUsername(profileID)
 		if username == "" {
-			if diskCol := m.loadMangaCollectionFromDisk(profileID); diskCol != nil {
-				m.logger.Warn().Uint("profileID", profileID).Msg("anilist_client_manager: No username, serving manga collection from disk cache")
-				return diskCol, nil
-			}
 			return nil, errors.New("anilist: no username for profile")
 		}
 		col, err := client.MangaCollection(context.Background(), &username)

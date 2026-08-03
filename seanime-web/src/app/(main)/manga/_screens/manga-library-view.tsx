@@ -1,6 +1,6 @@
 import { AL_MediaListStatus, Manga_Collection, Manga_CollectionList } from "@/api/generated/types"
 import { useGetMangaReadingHistory, useGetRecentlyReadSyntheticManga, useRefetchMangaChapterContainers } from "@/api/hooks/manga.hooks"
-import { MediaCardLazyGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
+import { PaginatedMediaGrid } from "@/app/(main)/_features/media/_components/paginated-media-grid"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { MediaGenreSelector } from "@/app/(main)/_features/media/_components/media-genre-selector"
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
@@ -202,11 +202,10 @@ export function FilteredCollectionLists({ collectionList, genres, showStatuses, 
                 <GenreSelector genres={genres} />
             </div>}
 
-            {type === "grid" && <MediaCardLazyGrid itemCount={entries?.length || 0}>
-                {entries.map(entry => {
-                    return <div
-                        key={entry.media?.id}
-                    >
+            {type === "grid" && <PaginatedMediaGrid
+                items={entries}
+                renderItem={entry => (
+                    <div key={entry.media?.id}>
                         <MediaEntryCard
                             media={entry.media!}
                             listData={entry.listData}
@@ -217,8 +216,8 @@ export function FilteredCollectionLists({ collectionList, genres, showStatuses, 
                             onHoverImage={onHoverImage}
                         />
                     </div>
-                })}
-            </MediaCardLazyGrid>}
+                )}
+            />}
             {type === "carousel" && <Carousel
                 className={cn("w-full max-w-full !mt-0")}
                 gap="xl"
@@ -475,8 +474,9 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
 
             {/* CURRENT list: Use merged entries sorted by reading history */}
             {list.type === "CURRENT" && type === "grid" && displayEntries && (
-                <MediaCardLazyGrid itemCount={displayEntries.length}>
-                    {displayEntries.map(item => {
+                <PaginatedMediaGrid
+                    items={displayEntries}
+                    renderItem={item => {
                         if (item.type === "regular" && item.entry) {
                             return (
                                 <div
@@ -529,8 +529,8 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                             )
                         }
                         return null
-                    })}
-                </MediaCardLazyGrid>
+                    }}
+                />
             )}
 
             {list.type === "CURRENT" && type === "carousel" && displayEntries && (
@@ -606,11 +606,10 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
 
             {/* Non-CURRENT lists: Use original entries */}
             {list.type !== "CURRENT" && type === "grid" && (
-                <MediaCardLazyGrid itemCount={list.entries?.length ?? 0}>
-                    {list.entries?.map(entry => {
-                        return <div
-                            key={entry.media?.id}
-                        >
+                <PaginatedMediaGrid
+                    items={list.entries}
+                    renderItem={entry => (
+                        <div key={entry.media?.id}>
                             <MediaEntryCard
                                 media={entry.media!}
                                 listData={entry.listData}
@@ -621,8 +620,8 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                                 onHoverImage={onHoverImage}
                             />
                         </div>
-                    })}
-                </MediaCardLazyGrid>
+                    )}
+                />
             )}
 
             {list.type !== "CURRENT" && type === "carousel" && (

@@ -7,7 +7,7 @@ import {
     DETAILED_LIBRARY_DEFAULT_PARAMS,
     useHandleDetailedLibraryCollection,
 } from "@/app/(main)/(library)/_lib/handle-detailed-library-collection"
-import { MediaCardLazyGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
+import { PaginatedMediaGrid } from "@/app/(main)/_features/media/_components/paginated-media-grid"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { MediaGenreSelector } from "@/app/(main)/_features/media/_components/media-genre-selector"
 import { useNakamaStatus } from "@/app/(main)/_features/nakama/nakama-manager"
@@ -186,11 +186,12 @@ const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, type }:
     return (
         <React.Fragment key={list.type}>
             <h2>{getLibraryCollectionTitle(list.type)} <span className="text-[--muted] font-medium ml-3">{list?.entries?.length ?? 0}</span></h2>
-            {type === "grid" && <MediaCardLazyGrid itemCount={list?.entries?.length || 0}>
-                {list.entries?.map(entry => {
-                    return <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
-                })}
-            </MediaCardLazyGrid>}
+            {type === "grid" && <PaginatedMediaGrid
+                items={list.entries}
+                renderItem={entry => (
+                    <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
+                )}
+            />}
 
             {type === "carousel" && <Carousel
                 className={cn("w-full max-w-full !mt-0")}
@@ -220,11 +221,12 @@ const MergedLibraryCollectionList = React.memo(({ entries, streamingMediaIds, ty
 
     return (
         <React.Fragment>
-            {type === "grid" && <MediaCardLazyGrid itemCount={entries?.length || 0}>
-                {entries?.map(entry => {
-                    return <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
-                })}
-            </MediaCardLazyGrid>}
+            {type === "grid" && <PaginatedMediaGrid
+                items={entries}
+                renderItem={entry => (
+                    <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
+                )}
+            />}
 
             {type === "carousel" && <Carousel
                 className={cn("w-full max-w-full !mt-0")}

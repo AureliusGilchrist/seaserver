@@ -1,6 +1,6 @@
 import { AL_MediaListStatus, Anime_LibraryCollectionEntry, Anime_LibraryCollectionList } from "@/api/generated/types"
 import { __mainLibrary_paramsAtom } from "@/app/(main)/(library)/_lib/handle-library-collection"
-import { MediaCardLazyGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
+import { PaginatedMediaGrid } from "@/app/(main)/_features/media/_components/paginated-media-grid"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { IconButton } from "@/components/ui/button"
@@ -77,11 +77,12 @@ export function LibraryCollectionFilteredLists({ collectionList, isLoading, stre
                     duration: 0.25,
                 },
             }}>
-            {type === "grid" && <MediaCardLazyGrid itemCount={filteredCollectionList?.flatMap(n => n.entries)?.length ?? 0}>
-                {filteredCollectionList?.flatMap(n => n.entries)?.filter(Boolean)?.map(entry => {
-                    return <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
-                })}
-            </MediaCardLazyGrid>}
+            {type === "grid" && <PaginatedMediaGrid
+                items={filteredCollectionList?.flatMap(n => n.entries)?.filter(Boolean)}
+                renderItem={entry => (
+                    <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
+                )}
+            />}
             {type === "carousel" && <Carousel
                 className={cn("w-full max-w-full !mt-0")}
                 gap="xl"
@@ -145,15 +146,16 @@ export const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, 
                     </DropdownMenuItem>
                 </DropdownMenu>}
             </div>
-            {type === "grid" && <MediaCardLazyGrid
-                itemCount={list?.entries?.length || 0}
-                data-library-collection-list-item-media-card-lazy-grid
-                data-list-type={list.type}
-            >
-                {list.entries?.map(entry => {
-                    return <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
-                })}
-            </MediaCardLazyGrid>}
+            {type === "grid" && <PaginatedMediaGrid
+                items={list.entries}
+                gridProps={{
+                    "data-library-collection-list-item-media-card-lazy-grid": true,
+                    "data-list-type": list.type,
+                }}
+                renderItem={entry => (
+                    <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
+                )}
+            />}
             {type === "carousel" && <Carousel
                 className={cn("w-full max-w-full !mt-0")}
                 gap="xl"

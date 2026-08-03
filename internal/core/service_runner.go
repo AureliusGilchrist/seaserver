@@ -453,8 +453,10 @@ func (sr *ServiceRunner) autoPauseCollection(ac *anilist.AnimeCollection, thresh
 }
 
 // RunRefreshAllMetadata drops every cached anime/episode metadata entry and re-fetches
-// each account's AniList collections. Runs daily (and can be triggered manually) so that
-// episode counts, airing status and artwork never go stale for long-running installs.
+// each account's AniList anime collection. Runs daily (and can be triggered manually) so
+// that episode counts, airing status and artwork never go stale for long-running installs.
+//
+// Anime only: manga collections are deliberately left untouched by this job.
 func (sr *ServiceRunner) RunRefreshAllMetadata() {
 	sr.logger.Info().Msg("services: daily metadata refresh: starting")
 
@@ -472,9 +474,6 @@ func (sr *ServiceRunner) RunRefreshAllMetadata() {
 	if _, err := sr.app.RefreshAnimeCollection(); err != nil {
 		sr.logger.Warn().Err(err).Msg("services: daily metadata refresh: failed to refresh anime collection")
 	}
-	if _, err := sr.app.RefreshMangaCollection(); err != nil {
-		sr.logger.Warn().Err(err).Msg("services: daily metadata refresh: failed to refresh manga collection")
-	}
 
 	// Refresh every profile's own AniList collections so each account sees fresh data.
 	refreshed := 0
@@ -491,12 +490,8 @@ func (sr *ServiceRunner) RunRefreshAllMetadata() {
 				continue
 			}
 			sr.app.AnilistClientManager.InvalidateAnimeCollection(p.ID)
-			sr.app.AnilistClientManager.InvalidateMangaCollection(p.ID)
 			if _, err := sr.app.AnilistClientManager.GetAnimeCollection(p.ID); err != nil {
 				sr.logger.Warn().Err(err).Uint("profileID", p.ID).Msg("services: daily metadata refresh: failed to refresh profile anime collection")
-			}
-			if _, err := sr.app.AnilistClientManager.GetMangaCollection(p.ID); err != nil {
-				sr.logger.Warn().Err(err).Uint("profileID", p.ID).Msg("services: daily metadata refresh: failed to refresh profile manga collection")
 			}
 			refreshed++
 		}
