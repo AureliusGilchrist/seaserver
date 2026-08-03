@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"runtime"
 	"runtime/debug"
 	"seanime/internal/api/anilist"
@@ -340,10 +341,8 @@ func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
 				continue
 			}
 			handled++
-			paused := sr.autoPauseCollection(ac, threshold, func(mediaID int) error {
-				status := anilist.MediaListStatusPaused
-				_, updateErr := client.UpdateMediaListEntry(context.Background(), &mediaID, &status, nil, nil, nil, nil)
-				return updateErr
+			paused := sr.autoPauseCollection(ac, threshold, func(e *anilist.AnimeListEntry) error {
+				return pauseEntry(context.Background(), client, e)
 			})
 			if paused > 0 {
 				sr.app.AnilistClientManager.InvalidateAnimeCollection(p.ID)
@@ -371,10 +370,8 @@ func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
 		if ac == nil {
 			return nil
 		}
-		paused := sr.autoPauseCollection(ac, threshold, func(mediaID int) error {
-			status := anilist.MediaListStatusPaused
-			_, updateErr := client.UpdateMediaListEntry(context.Background(), &mediaID, &status, nil, nil, nil, nil)
-			return updateErr
+		paused := sr.autoPauseCollection(ac, threshold, func(e *anilist.AnimeListEntry) error {
+			return pauseEntry(context.Background(), client, e)
 		})
 		totalPaused += paused
 		if paused > 0 {
@@ -388,9 +385,27 @@ func (sr *ServiceRunner) RunAutoPauseStaleWatching() error {
 	return nil
 }
 
+// pauseEntry sets a single list entry to PAUSED, leaving score, progress and dates alone.
+//
+// This uses the status-only mutation deliberately. The general UpdateMediaListEntry always
+// sends every variable, so nil scoreRaw/progress arrive as explicit nulls and AniList refuses
+// the whole mutation ("The score raw must be an integer", "The progress must be an integer").
+// Filling in placeholder values instead is not an option either: scoreRaw is a raw 0-100
+// value while the entry's Score is in the user's display format, so echoing it back would
+// silently rewrite everyone's scores.
+func pauseEntry(ctx context.Context, client anilist.AnilistClient, e *anilist.AnimeListEntry) error {
+	if e == nil || e.Media == nil {
+		return errors.New("nil list entry")
+	}
+	mediaID := e.Media.ID
+	status := anilist.MediaListStatusPaused
+	_, err := client.UpdateMediaListEntryStatus(ctx, &mediaID, &status)
+	return err
+}
+
 // autoPauseCollection pauses every CURRENT entry in ac whose updatedAt is older than
 // threshold, using the supplied update function. Returns how many entries were paused.
-func (sr *ServiceRunner) autoPauseCollection(ac *anilist.AnimeCollection, threshold int64, update func(mediaID int) error) int {
+func (sr *ServiceRunner) autoPauseCollection(ac *anilist.AnimeCollection, threshold int64, update func(e *anilist.AnimeListEntry) error) int {
 	if ac == nil || ac.MediaListCollection == nil {
 		return 0
 	}
@@ -411,7 +426,7 @@ func (sr *ServiceRunner) autoPauseCollection(ac *anilist.AnimeCollection, thresh
 			if int64(*e.UpdatedAt) > threshold {
 				continue
 			}
-			if err := update(e.Media.ID); err != nil {
+			if err := update(e); err != nil {
 				// One log line per run, not per entry: a shared collection can contain
 				// hundreds of entries that don't belong to the writing account, and
 				// warning on each one buried the logs.

@@ -136,6 +136,24 @@ func (m *AnilistClientManager) EnqueueProgressUpdate(
 	})
 }
 
+// EnqueueStatusUpdate queues a list-status change for a profile when AniList is unreachable,
+// so it is replayed automatically once the API is available again.
+//
+// Only Status is set on the queued mutation: score, progress and dates are deliberately left
+// nil so the replay uses the status-only mutation and can't overwrite them.
+func (m *AnilistClientManager) EnqueueStatusUpdate(profileID uint, mediaID int, status anilist.MediaListStatus) {
+	if profileID == 0 {
+		return // admin path already queues via the shared cache layer
+	}
+	mid := mediaID
+	st := status
+	m.getPendingStore(profileID).Enqueue(&shared_platform.PendingMutation{
+		Kind:    shared_platform.PendingKindUpdateEntry,
+		MediaID: &mid,
+		Status:  &st,
+	})
+}
+
 // PendingProgressCount returns how many progress updates are queued for a profile.
 func (m *AnilistClientManager) PendingProgressCount(profileID uint) int {
 	if profileID == 0 {

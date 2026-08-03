@@ -182,6 +182,9 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 			Indices []int `json:"indices"`
 		} `json:"deselect,omitempty"`
 		Media *anilist.BaseAnime `json:"media"`
+		// AutoMatch matches the torrent to Media automatically once it finishes downloading,
+		// instead of leaving it in the Unmatched screen for manual matching.
+		AutoMatch bool `json:"autoMatch,omitempty"`
 	}
 
 	var b body
@@ -243,12 +246,12 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 			if b.Media.StartDate != nil && b.Media.StartDate.Year != nil {
 				startYear = *b.Media.StartDate.Year
 			}
-			if err := h.App.UnmatchedRepository.SaveTorrentMetadata(t.Name, b.Media.ID, titleRomaji, titleNative, format, startYear); err != nil {
+			if err := h.App.UnmatchedRepository.SaveTorrentMetadata(t.Name, b.Media.ID, titleRomaji, titleNative, format, startYear, b.AutoMatch); err != nil {
 				h.App.Logger.Warn().Err(err).Str("torrent", t.Name).Msg("torrent client: Failed to save torrent metadata")
 			}
 		}
 
-		h.App.Logger.Info().Str("torrent", t.Name).Str("destination", destination).Msg("torrent client: Added torrent to unmatched directory")
+		h.App.Logger.Info().Str("torrent", t.Name).Str("destination", destination).Bool("autoMatch", b.AutoMatch && b.Media != nil).Msg("torrent client: Added torrent to unmatched directory")
 	}
 
 	// NOTE: We do NOT add the media to the collection automatically anymore

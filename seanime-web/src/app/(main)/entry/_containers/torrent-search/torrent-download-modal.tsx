@@ -24,12 +24,20 @@ import { openTab } from "@/lib/helpers/browser"
 import { TORRENT_CLIENT } from "@/lib/server/settings"
 import { atom } from "jotai"
 import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
+import { atomWithStorage } from "jotai/utils"
 import { useRouter } from "@/lib/navigation"
 import React, { useMemo, useState } from "react"
 import { AiOutlineCloudServer } from "react-icons/ai"
 import { BiCollection, BiDownload, BiX } from "react-icons/bi"
 import { FcFilmReel, FcFolder } from "react-icons/fc"
 import { LuDownload, LuPlay } from "react-icons/lu"
+
+/**
+ * When enabled, a torrent is matched to its anime automatically as soon as it finishes
+ * downloading — the same match the user would otherwise perform by hand in the Unmatched
+ * screen. Persisted so the preference carries across downloads and sessions.
+ */
+export const __torrentDownload_autoMatchAtom = atomWithStorage("sea-torrent-download-auto-match", false)
 
 const confirmationModalOpenAtom = atom(false)
 
@@ -54,6 +62,7 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
     }, [entry, libraryPath])
 
     const [destination, setDestination] = useState(defaultPath)
+    const [autoMatch, setAutoMatch] = useAtom(__torrentDownload_autoMatchAtom)
 
     const libraryPathSelectionProps = useLibraryPathSelection({
         destination,
@@ -133,6 +142,7 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
                     missingEpisodeNumbers: entry.downloadInfo?.episodesToDownload?.map(n => n.episodeNumber) || [],
                 },
                 media,
+                autoMatch,
             })
         } else if (type === "deselect") {
             setFileSelection({
@@ -148,6 +158,7 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
                     missingEpisodeNumbers: [],
                 },
                 media,
+                autoMatch,
             })
         }
     }
@@ -199,6 +210,14 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
                             onValueChange={v => setIsDebrid(v)}
                         />
                     )}
+
+                    <Switch
+                        data-torrent-confirmation-modal-auto-match-switch
+                        label="Match automatically when finished"
+                        help="Once the download completes, the files are matched to this anime and moved into your library — exactly as if you matched them by hand. Leave off to review it in the Unmatched screen first."
+                        value={autoMatch}
+                        onValueChange={setAutoMatch}
+                    />
 
                     <DirectorySelector
                         name="destination"

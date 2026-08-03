@@ -267,6 +267,13 @@ func (s *PendingMutationStore) Flush(ctx context.Context, client anilist.Anilist
 func (s *PendingMutationStore) replay(ctx context.Context, client anilist.AnilistClient, m *PendingMutation) error {
 	switch m.Kind {
 	case PendingKindUpdateEntry:
+		// A status-only mutation must not go through UpdateMediaListEntry: its nil scoreRaw
+		// and progress are sent as explicit nulls, which AniList rejects with a validation
+		// error ("The score raw must be an integer").
+		if m.ScoreRaw == nil && m.Progress == nil && m.StartedAt == nil && m.CompletedAt == nil && m.Status != nil {
+			_, err := client.UpdateMediaListEntryStatus(ctx, m.MediaID, m.Status)
+			return err
+		}
 		_, err := client.UpdateMediaListEntry(ctx, m.MediaID, m.Status, m.ScoreRaw, m.Progress, m.StartedAt, m.CompletedAt)
 		return err
 	case PendingKindUpdateEntryProgress:

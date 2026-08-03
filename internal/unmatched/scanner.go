@@ -27,6 +27,17 @@ type Scanner struct {
 
 	// debounceCh coalesces rapid file-system events into a single scan
 	debounceCh chan struct{}
+
+	// onAutoMatched is invoked after a torrent is matched automatically, so the app can
+	// refresh the library and notify the client. Optional.
+	onAutoMatched func(torrentName string, result *MatchResult)
+}
+
+// SetOnAutoMatched registers a callback fired after a successful automatic match.
+func (s *Scanner) SetOnAutoMatched(fn func(torrentName string, result *MatchResult)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onAutoMatched = fn
 }
 
 // addRecursiveWatch registers the base directory and all existing subdirectories with the watcher.
@@ -214,6 +225,11 @@ func (s *Scanner) scanForCompletedDownloads() {
 		return
 	}
 
+	// Clear out directories left behind by earlier matches before looking for new downloads.
+	if s.repository != nil {
+		s.repository.SweepEmptyTorrentDirectories()
+	}
+
 	entries, err := os.ReadDir(UnmatchedBasePath)
 	if err != nil {
 		return
@@ -270,7 +286,68 @@ func (s *Scanner) scanForCompletedDownloads() {
 			}
 			s.completedTorrents = append(s.completedTorrents, torrentRel)
 			s.logger.Info().Str("torrent", torrentRel).Msg("unmatched scanner: Download completed!")
+
+			// If the torrent was queued with auto-match enabled, match it now — the same
+			// match the user would perform by hand in the Unmatched screen. Runs outside the
+			// lock so a slow file move can't stall the scanner.
+			go s.autoMatchIfRequested(torrentRel)
 		}(rel, path)
+	}
+}
+
+// autoMatchIfRequested matches a just-completed torrent if it was queued with auto-match.
+// Does nothing for torrents the user intends to match manually.
+func (s *Scanner) autoMatchIfRequested(torrentName string) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			s.logger.Error().Interface("panic", rec).Str("torrent", torrentName).Msg("unmatched scanner: Auto-match panicked")
+		}
+	}()
+
+	if s.repository == nil {
+		return
+	}
+
+	// The freshly-written files may not be reflected in the cached listing yet.
+	s.repository.InvalidateCache()
+
+	result, err := s.repository.AutoMatchTorrent(torrentName)
+	if err != nil {
+		s.logger.Error().Err(err).Str("torrent", torrentName).Msg("unmatched scanner: Auto-match failed, torrent left for manual matching")
+		return
+	}
+	if result == nil {
+		return // auto-match not requested for this torrent
+	}
+
+	if !result.Success || len(result.FailedFiles) > 0 {
+		s.logger.Warn().
+			Str("torrent", torrentName).
+			Int("moved", len(result.MovedFiles)).
+			Int("failed", len(result.FailedFiles)).
+			Str("error", result.ErrorMessage).
+			Msg("unmatched scanner: Auto-match completed with errors")
+		return
+	}
+
+	s.logger.Info().
+		Str("torrent", torrentName).
+		Int("moved", len(result.MovedFiles)).
+		Str("destination", result.Destination).
+		Msg("unmatched scanner: Auto-matched completed download")
+
+	// Belt and braces: the match already cleans up, but make sure nothing is left staged.
+	s.repository.CleanupTorrentDirectory(torrentName)
+
+	// The torrent directory is gone (or emptied) now, so drop it from the completed list.
+	s.ClearCompletedTorrent(torrentName)
+	s.repository.InvalidateCache()
+
+	s.mu.Lock()
+	cb := s.onAutoMatched
+	s.mu.Unlock()
+	if cb != nil {
+		cb(torrentName, result)
 	}
 }
 

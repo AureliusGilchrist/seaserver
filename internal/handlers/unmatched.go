@@ -7,6 +7,7 @@ import (
 	"seanime/internal/library/anime"
 	"seanime/internal/library/scanner"
 	"seanime/internal/unmatched"
+	"seanime/internal/util"
 	"seanime/internal/util/limiter"
 	"sync"
 	"time"
@@ -88,95 +89,105 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 	if result.Success {
 		reqCopy := req
 		resultCopy := *result
-		go func() {
-			// DB injection: inject moved files as locked local-file entries so the
-			// "Resolve unmatched" step on the home page is never needed.
-			if reqCopy.AnimeID > 0 && len(resultCopy.MovedFiles) > 0 {
-				libraryPath := h.App.UnmatchedRepository.GetAnimeBasePath()
-				newLFs := make([]*anime.LocalFile, 0, len(resultCopy.MovedFiles))
-				for _, name := range resultCopy.MovedFiles {
-					fullPath := resultCopy.Destination + "/" + name
-					lf := anime.NewLocalFile(fullPath, libraryPath)
-					lf.MediaId = reqCopy.AnimeID
-					lf.Locked = false // Temporarily unlocked so hydrator processes it
-					lf.Ignored = false
-					lf.Metadata = &anime.LocalFileMetadata{
-						Episode:      0,
-						AniDBEpisode: "",
-						Type:         anime.LocalFileTypeMain,
-					}
-					newLFs = append(newLFs, lf)
-				}
-
-				// Hydrate episode metadata — use a fresh context with a hard timeout
-				// so a slow AniList response never stalls the goroutine indefinitely.
-				hydrateCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				defer cancel()
-				media, fetchErr := h.App.AnilistPlatformRef.Get().GetAnime(hydrateCtx, reqCopy.AnimeID)
-				if fetchErr == nil && media != nil {
-					normalizedMedia := anime.NewNormalizedMedia(media)
-					fh := &scanner.FileHydrator{
-						AllMedia:            []*anime.NormalizedMedia{normalizedMedia},
-						LocalFiles:          newLFs,
-						MetadataProviderRef: h.App.MetadataProviderRef,
-						PlatformRef:         h.App.AnilistPlatformRef,
-						CompleteAnimeCache:  anilist.NewCompleteAnimeCache(),
-						AnilistRateLimiter:  limiter.NewAnilistLimiter(),
-						Logger:              h.App.Logger,
-					}
-					fh.HydrateMetadata()
-				} else {
-					h.App.Logger.Warn().Err(fetchErr).Int("mediaId", reqCopy.AnimeID).
-						Msg("unmatched: failed to fetch media for episode hydration, episodes will be 0")
-				}
-
-				// Lock all files after hydration
-				for _, lf := range newLFs {
-					lf.Locked = true
-				}
-
-				existingLFs, lfsId, lfsErr := db_bridge.GetLocalFiles(h.App.Database)
-				if lfsErr != nil {
-					h.App.Logger.Warn().Err(lfsErr).Msg("unmatched: failed to load local files for DB injection")
-				} else {
-					merged := append(existingLFs, newLFs...)
-					if _, saveErr := db_bridge.SaveLocalFiles(h.App.Database, lfsId, merged); saveErr != nil {
-						h.App.Logger.Warn().Err(saveErr).Msg("unmatched: failed to save injected local files")
-					} else {
-						h.App.Logger.Info().
-							Int("count", len(newLFs)).
-							Int("mediaId", reqCopy.AnimeID).
-							Msg("unmatched: injected moved files into library DB")
-					}
-				}
-			}
-
-			// Auto-add to Planning list
-			if reqCopy.AnimeID > 0 {
-				if addErr := h.addAnimeToPlanningSlutPlanning(context.Background(), reqCopy.AnimeID); addErr != nil {
-					h.App.Logger.Warn().Err(addErr).Int("mediaId", reqCopy.AnimeID).
-						Msg("unmatched: failed to add anime to planning slut's PLANNING list")
-				} else {
-					h.App.Logger.Info().Int("mediaId", reqCopy.AnimeID).
-						Msg("unmatched: added anime to planning slut's PLANNING list")
-				}
-			}
-
-			// Trigger scan AFTER injection so the scanner doesn't overwrite fresh entries
-			if reqCopy.TorrentName != "" {
-				h.App.UnmatchedScanner.ClearCompletedTorrent(reqCopy.TorrentName)
-			}
-			h.App.UnmatchedRepository.InvalidateCache()
-			h.App.UnmatchedScanner.TriggerScan()
-
-			// Refresh AniList collection
-			if _, err := h.App.GetAnimeCollection(true); err != nil {
-				h.App.Logger.Warn().Err(err).Msg("unmatched: failed to refresh anime collection after match")
-			}
-		}()
+		go h.FinalizeUnmatchedMatch(reqCopy, resultCopy)
 	}
 
 	return h.RespondWithData(c, result)
+}
+
+// FinalizeUnmatchedMatch performs everything that follows a successful file move: it injects
+// the moved files into the library database as hydrated, locked local files, adds the anime to
+// the planning list, refreshes the unmatched view and re-pulls the AniList collection.
+//
+// Shared by the manual match endpoint and the automatic post-download match, so an auto-match
+// produces exactly the same result as matching by hand. Safe to call in a goroutine.
+func (h *Handler) FinalizeUnmatchedMatch(reqCopy unmatched.MatchRequest, resultCopy unmatched.MatchResult) {
+	defer util.HandlePanicInModuleThen("handlers/FinalizeUnmatchedMatch", func() {})
+
+		// DB injection: inject moved files as locked local-file entries so the
+		// "Resolve unmatched" step on the home page is never needed.
+		if reqCopy.AnimeID > 0 && len(resultCopy.MovedFiles) > 0 {
+			libraryPath := h.App.UnmatchedRepository.GetAnimeBasePath()
+			newLFs := make([]*anime.LocalFile, 0, len(resultCopy.MovedFiles))
+			for _, name := range resultCopy.MovedFiles {
+				fullPath := resultCopy.Destination + "/" + name
+				lf := anime.NewLocalFile(fullPath, libraryPath)
+				lf.MediaId = reqCopy.AnimeID
+				lf.Locked = false // Temporarily unlocked so hydrator processes it
+				lf.Ignored = false
+				lf.Metadata = &anime.LocalFileMetadata{
+					Episode:      0,
+					AniDBEpisode: "",
+					Type:         anime.LocalFileTypeMain,
+				}
+				newLFs = append(newLFs, lf)
+			}
+
+			// Hydrate episode metadata — use a fresh context with a hard timeout
+			// so a slow AniList response never stalls the goroutine indefinitely.
+			hydrateCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			media, fetchErr := h.App.AnilistPlatformRef.Get().GetAnime(hydrateCtx, reqCopy.AnimeID)
+			if fetchErr == nil && media != nil {
+				normalizedMedia := anime.NewNormalizedMedia(media)
+				fh := &scanner.FileHydrator{
+					AllMedia:            []*anime.NormalizedMedia{normalizedMedia},
+					LocalFiles:          newLFs,
+					MetadataProviderRef: h.App.MetadataProviderRef,
+					PlatformRef:         h.App.AnilistPlatformRef,
+					CompleteAnimeCache:  anilist.NewCompleteAnimeCache(),
+					AnilistRateLimiter:  limiter.NewAnilistLimiter(),
+					Logger:              h.App.Logger,
+				}
+				fh.HydrateMetadata()
+			} else {
+				h.App.Logger.Warn().Err(fetchErr).Int("mediaId", reqCopy.AnimeID).
+					Msg("unmatched: failed to fetch media for episode hydration, episodes will be 0")
+			}
+
+			// Lock all files after hydration
+			for _, lf := range newLFs {
+				lf.Locked = true
+			}
+
+			existingLFs, lfsId, lfsErr := db_bridge.GetLocalFiles(h.App.Database)
+			if lfsErr != nil {
+				h.App.Logger.Warn().Err(lfsErr).Msg("unmatched: failed to load local files for DB injection")
+			} else {
+				merged := append(existingLFs, newLFs...)
+				if _, saveErr := db_bridge.SaveLocalFiles(h.App.Database, lfsId, merged); saveErr != nil {
+					h.App.Logger.Warn().Err(saveErr).Msg("unmatched: failed to save injected local files")
+				} else {
+					h.App.Logger.Info().
+						Int("count", len(newLFs)).
+						Int("mediaId", reqCopy.AnimeID).
+						Msg("unmatched: injected moved files into library DB")
+				}
+			}
+		}
+
+		// Auto-add to Planning list
+		if reqCopy.AnimeID > 0 {
+			if addErr := h.addAnimeToPlanningSlutPlanning(context.Background(), reqCopy.AnimeID); addErr != nil {
+				h.App.Logger.Warn().Err(addErr).Int("mediaId", reqCopy.AnimeID).
+					Msg("unmatched: failed to add anime to planning slut's PLANNING list")
+			} else {
+				h.App.Logger.Info().Int("mediaId", reqCopy.AnimeID).
+					Msg("unmatched: added anime to planning slut's PLANNING list")
+			}
+		}
+
+		// Trigger scan AFTER injection so the scanner doesn't overwrite fresh entries
+		if reqCopy.TorrentName != "" {
+			h.App.UnmatchedScanner.ClearCompletedTorrent(reqCopy.TorrentName)
+		}
+		h.App.UnmatchedRepository.InvalidateCache()
+		h.App.UnmatchedScanner.TriggerScan()
+
+		// Refresh AniList collection
+		if _, err := h.App.GetAnimeCollection(true); err != nil {
+			h.App.Logger.Warn().Err(err).Msg("unmatched: failed to refresh anime collection after match")
+		}
 }
 
 // HandleUnmatchedFamilySearch

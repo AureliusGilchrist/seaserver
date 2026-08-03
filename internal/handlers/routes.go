@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"seanime/internal/achievement"
 	"seanime/internal/core"
+	"seanime/internal/unmatched"
 	util "seanime/internal/util/proxies"
 	"strings"
 	"time"
@@ -130,6 +131,26 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	e.Use(RateLimitMiddleware(rateLimiter))
 
 	h := &Handler{App: app}
+
+	// Run the same post-match pipeline for automatically matched downloads as for manual
+	// matches, so a torrent downloaded with "auto-match" enabled ends up in the library
+	// exactly as if it had been matched by hand.
+	if app.UnmatchedScanner != nil {
+		app.UnmatchedScanner.SetOnAutoMatched(func(torrentName string, result *unmatched.MatchResult) {
+			if result == nil {
+				return
+			}
+			metadata := app.UnmatchedRepository.GetTorrentMetadata(torrentName)
+			animeID := 0
+			if metadata != nil {
+				animeID = metadata.AnimeID
+			}
+			h.FinalizeUnmatchedMatch(unmatched.MatchRequest{
+				TorrentName: torrentName,
+				AnimeID:     animeID,
+			}, *result)
+		})
+	}
 
 	// Load exp bar progression data
 	if err := loadExpBarProgression(app); err != nil {
@@ -330,6 +351,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	v1Anilist.GET("/collection/raw", h.HandleGetRawAnimeCollection)
 	v1Anilist.POST("/collection/raw", h.HandleGetRawAnimeCollection)
+
+	v1Anilist.POST("/planning", h.HandleAddAnimeToPlanning, h.RequireProfileSession)
 
 	v1Anilist.GET("/media-details/:id", h.HandleGetAnilistAnimeDetails)
 

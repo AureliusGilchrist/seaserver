@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"seanime/internal/util/comparison"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"seanime/internal/database/db"
 	"seanime/internal/util/result"
 
+	"github.com/5rahim/habari"
 	"github.com/samber/lo"
 
 	"github.com/rs/zerolog"
@@ -82,6 +84,9 @@ type UnmatchedTorrent struct {
 	AnimeFormat           string `json:"animeFormat,omitempty"`
 	AnimeStartYear        int    `json:"animeStartYear,omitempty"`
 	AnimeExpectedEpisodes int    `json:"animeExpectedEpisodes,omitempty"`
+	// AutoMatch marks the torrent to be matched automatically as soon as it finishes
+	// downloading, without waiting for the user to match it by hand.
+	AutoMatch bool `json:"autoMatch,omitempty"`
 }
 
 // TorrentMetadata stores anime info for an unmatched torrent
@@ -92,6 +97,9 @@ type TorrentMetadata struct {
 	AnimeFormat           string `json:"animeFormat,omitempty"`
 	AnimeStartYear        int    `json:"animeStartYear,omitempty"`
 	AnimeExpectedEpisodes int    `json:"animeExpectedEpisodes,omitempty"`
+	// AutoMatch marks the torrent to be matched automatically as soon as it finishes
+	// downloading, without waiting for the user to match it by hand.
+	AutoMatch bool `json:"autoMatch,omitempty"`
 }
 
 // UnmatchedSeason represents a season folder within a torrent
@@ -126,9 +134,11 @@ type MatchRequest struct {
 
 // MatchResult represents the result of a match operation
 type MatchResult struct {
-	Success      bool     `json:"success"`
-	MovedFiles   []string `json:"movedFiles"`
-	FailedFiles  []string `json:"failedFiles"`
+	Success     bool     `json:"success"`
+	MovedFiles  []string `json:"movedFiles"`
+	FailedFiles []string `json:"failedFiles"`
+	// RemovedFiles are creditless/bonus files and "Extra" content deleted rather than moved.
+	RemovedFiles []string `json:"removedFiles,omitempty"`
 	Destination  string   `json:"destination"`
 	ErrorMessage string   `json:"errorMessage,omitempty"`
 }
@@ -344,6 +354,7 @@ func (r *Repository) scanTorrentDirectory(name, path string) (*UnmatchedTorrent,
 		torrent.AnimeFormat = metadata.AnimeFormat
 		torrent.AnimeStartYear = metadata.AnimeStartYear
 		torrent.AnimeExpectedEpisodes = metadata.AnimeExpectedEpisodes
+		torrent.AutoMatch = metadata.AutoMatch
 
 		// Best-effort: fetch episode titles from Animap using AniList ID to name files
 		if metadata.AnimeID > 0 {
@@ -489,6 +500,59 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+// AutoMatchTorrent matches a finished torrent to the anime it was downloaded for, using the
+// media that was recorded when the torrent was added. It performs exactly the same match a
+// user would perform by hand: every video file in the torrent is selected and moved into the
+// anime's library folder with episode numbering derived from the file names.
+//
+// It is a no-op (nil, nil) unless the torrent was queued with auto-match enabled and has a
+// known AniList media ID — there is nothing to match against otherwise.
+func (r *Repository) AutoMatchTorrent(torrentName string) (*MatchResult, error) {
+	metadata := r.GetTorrentMetadata(torrentName)
+	if metadata == nil || !metadata.AutoMatch {
+		return nil, nil
+	}
+	if metadata.AnimeID == 0 {
+		r.logger.Warn().Str("torrent", torrentName).Msg("unmatched: Auto-match requested but no anime ID was recorded, leaving for manual matching")
+		return nil, nil
+	}
+
+	torrent, err := r.GetTorrentContents(torrentName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read torrent contents: %w", err)
+	}
+
+	// Select every video file, which is what a user matching the whole torrent would do.
+	selected := make([]string, 0, len(torrent.Files))
+	for _, f := range torrent.Files {
+		if f != nil && f.IsVideo {
+			selected = append(selected, f.RelativePath)
+		}
+	}
+	if len(selected) == 0 {
+		return nil, errors.New("no video files to match")
+	}
+
+	titleClean := firstNonEmpty(metadata.AnimeTitleRomaji, metadata.AnimeTitleNative, torrentName)
+	titleJP := firstNonEmpty(metadata.AnimeTitleNative, metadata.AnimeTitleRomaji)
+
+	r.logger.Info().
+		Str("torrent", torrentName).
+		Int("animeId", metadata.AnimeID).
+		Int("files", len(selected)).
+		Msg("unmatched: Auto-matching completed download")
+
+	return r.MatchAndMoveFiles(&MatchRequest{
+		TorrentName:     torrentName,
+		SelectedFiles:   selected,
+		AnimeID:         metadata.AnimeID,
+		AnimeTitleJP:    titleJP,
+		AnimeTitleClean: titleClean,
+		// Name-based episode numbering, matching the modal's default.
+		UseIndexBasedEpisodes: false,
+	})
+}
+
 // MatchAndMoveFiles matches selected files to an anime and moves them to the anime directory
 func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) {
 	result := &MatchResult{
@@ -540,6 +604,24 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	videoFiles := lo.Filter(filesToMove, func(f fileWithSeason, _ int) bool {
 		return f.file.IsVideo
 	})
+
+	// Never move creditless/bonus content or anything under an "Extra" folder into the
+	// library — delete it instead. Auto-match selects every video file in the torrent, so
+	// without this the NCOP/NCED would be moved in and numbered as if they were episodes.
+	kept := videoFiles[:0]
+	for _, fw := range videoFiles {
+		if !isNCName(fw.file.Name) && !pathHasExtraSegment(fw.file.RelativePath) {
+			kept = append(kept, fw)
+			continue
+		}
+		if err := os.Remove(fw.file.Path); err != nil {
+			r.logger.Warn().Err(err).Str("path", fw.file.Path).Msg("unmatched: Failed to delete creditless/extra file")
+			continue
+		}
+		result.RemovedFiles = append(result.RemovedFiles, fw.file.RelativePath)
+		r.logger.Info().Str("path", fw.file.Path).Msg("unmatched: Deleted creditless/extra file instead of matching it")
+	}
+	videoFiles = kept
 
 	// Sort video files by season, then by name (to maintain episode order)
 	sort.Slice(videoFiles, func(i, j int) bool {
@@ -672,15 +754,11 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		}
 	}
 
-	// Clean up empty torrent directory if all files were moved
-	if len(result.FailedFiles) == 0 {
-		r.cleanupEmptyDirectories(filepath.Join(UnmatchedBasePath, req.TorrentName))
-		r.invalidateCache()
-	}
-
-	// Save user's selection back to torrent metadata if the match was successful
-	// This ensures that if any files remain, they use the correct metadata in future scans
-	if result.Success && req.AnimeID > 0 && len(result.MovedFiles) > 0 {
+	// Save user's selection back to torrent metadata only if files were left behind.
+	// SaveTorrentMetadata does an MkdirAll, so running it for a fully-matched torrent
+	// recreated the staging directory (containing nothing but the sidecar) immediately
+	// after it had been cleaned up — the main source of the empty Unmatched folders.
+	if result.Success && req.AnimeID > 0 && len(result.MovedFiles) > 0 && hasVideoFiles(filepath.Join(UnmatchedBasePath, sanitizeNamePreserveWhitespace(req.TorrentName))) {
 		// Fetch metadata for the user-selected anime
 		if animeMeta, err := r.fetchAnimeMetadata(req.AnimeID); err == nil && animeMeta != nil {
 			startYear := 0
@@ -692,12 +770,22 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			}
 			
 			// Save the user's selection to override the cached metadata
-			if err := r.SaveTorrentMetadata(req.TorrentName, req.AnimeID, animeMeta.Title, "", animeMeta.Type, startYear); err != nil {
+			existingAutoMatch := false
+			if existing := r.GetTorrentMetadata(req.TorrentName); existing != nil {
+				existingAutoMatch = existing.AutoMatch
+			}
+			if err := r.SaveTorrentMetadata(req.TorrentName, req.AnimeID, animeMeta.Title, "", animeMeta.Type, startYear, existingAutoMatch); err != nil {
 				r.logger.Warn().Err(err).Str("torrent", req.TorrentName).Msg("unmatched: Failed to save user's selection metadata")
 			} else {
 				r.logger.Debug().Int("animeId", req.AnimeID).Str("torrent", req.TorrentName).Msg("unmatched: Saved user's selection metadata")
 			}
 		}
+	}
+
+	// Clean up the staging directory last, so nothing recreates it afterwards.
+	if len(result.FailedFiles) == 0 {
+		r.CleanupTorrentDirectory(req.TorrentName)
+		r.invalidateCache()
 	}
 
 	if len(result.FailedFiles) > 0 {
@@ -776,26 +864,315 @@ func (r *Repository) moveFile(src, dest string) error {
 	return os.Remove(src)
 }
 
-// cleanupEmptyDirectories removes empty directories recursively
-func (r *Repository) cleanupEmptyDirectories(path string) {
-	filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+// extraDirName is the exact name of the junk folder releases ship alongside the episodes.
+const extraDirName = "Extra"
+
+// ncWithNumberRegex catches the "NCOP1"/"NCED2" form. The shared ValueContainsNC patterns
+// require a word boundary right after the tag, which a trailing digit does not provide, so
+// numbered creditless files slipped through.
+var ncWithNumberRegex = regexp.MustCompile(`(?i)\bNC(OP|ED)\d*\b`)
+
+// explicitNCRegex marks content that is unambiguously creditless/bonus material. These tags
+// never appear in a genuine episode title, so a match is safe on its own.
+var explicitNCRegex = regexp.MustCompile(`(?i)\b(NCOP|NCED|creditless|textless|clean[ _.-]*(opening|ending))\b`)
+
+// bareOpeningEndingRegex matches a standalone "Opening"/"Ending" (optionally numbered, and
+// optionally prefixed, as in "OP"/"ED"). On its own this is far weaker evidence than the
+// explicit tags above — "Ending of an Era" is a perfectly ordinary episode title — so it is
+// only trusted once the episode title has been blanked out and the file has no episode
+// number. See isNCName.
+// The trailing capture group matters: digits directly after the word ("Opening 2") mean a
+// numbered OP/ED, whereas digits elsewhere in the name are an episode number.
+var bareOpeningEndingRegex = regexp.MustCompile(`(?i)\b(opening|ending)\b[ _.-]*(\d{1,2})?`)
+
+// isNCName reports whether a file name looks like creditless/bonus content — NCOP, NCED,
+// creditless/textless openings and endings, trailers, promos, commercials.
+//
+// The name is normalized the same way anime.LocalFile.IsProbablyNC does before matching:
+// the release group and episode title are blanked out first, because either can contain a
+// bare "OP"/"ED"/"Opening" that would otherwise make a perfectly ordinary episode look like
+// an NC and get it deleted.
+//
+// Callers delete what this reports, so it is deliberately asymmetric: an explicit creditless
+// tag is trusted outright, while a bare "Opening"/"Ending" is only trusted for a file that
+// carries no episode number. "05 - The Opening Ceremony" is an episode; "Opening 2" is not.
+func isNCName(name string) bool {
+	m := habari.Parse(name)
+
+	normalized := name
+	hasEpisodeNumber := false
+	if m != nil {
+		if m.EpisodeTitle != "" {
+			normalized = strings.Replace(normalized, m.EpisodeTitle, "PLACEHOLDER", 1)
 		}
+		if m.ReleaseGroup != "" {
+			normalized = strings.Replace(normalized, m.ReleaseGroup, "PLACEHOLDER", 1)
+		}
+		hasEpisodeNumber = len(m.EpisodeNumber) > 0
+	}
+
+	// Unambiguous markers — safe regardless of anything else in the name.
+	if explicitNCRegex.MatchString(normalized) || ncWithNumberRegex.MatchString(normalized) {
+		return true
+	}
+
+	if match := bareOpeningEndingRegex.FindStringSubmatch(normalized); match != nil {
+		// "Opening 2" / "Ending 1" — the number belongs to the word, so this is a numbered
+		// OP/ED even though the parser reports it as an episode number.
+		if match[2] != "" {
+			return true
+		}
+		// Otherwise a bare "Opening"/"Ending" only counts when the file has no episode
+		// number at all. "05 - The Opening Ceremony" is an episode; "Opening" is not.
+		if !hasEpisodeNumber {
+			return true
+		}
+		return false
+	}
+
+	// A numbered episode is an episode — don't let the broader shared patterns delete it.
+	if hasEpisodeNumber {
+		return false
+	}
+
+	return comparison.ValueContainsNC(normalized)
+}
+
+// pathHasExtraSegment reports whether any directory in a relative path is the "Extra" folder.
+func pathHasExtraSegment(relPath string) bool {
+	for _, seg := range strings.Split(filepath.ToSlash(relPath), "/") {
+		if isExtraName(seg) {
+			return true
+		}
+	}
+	return false
+}
+
+// isExtraName reports whether an entry is the "Extra" junk folder/file (exact name).
+func isExtraName(name string) bool {
+	return strings.EqualFold(name, extraDirName)
+}
+
+// purgeDiscardableContent deletes creditless/bonus content and "Extra" entries from a
+// torrent's staging directory. These are never wanted in the library, and leaving them
+// behind also kept the staging directory alive after everything else had been moved out.
+//
+// Returns the number of entries removed.
+func (r *Repository) purgeDiscardableContent(path string) int {
+	if !isInsideUnmatchedBase(path) {
+		return 0
+	}
+
+	type victim struct {
+		path  string
+		isDir bool
+	}
+	var victims []victim
+
+	_ = filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+		if err != nil || p == path {
+			return nil
+		}
+		name := info.Name()
 		if info.IsDir() {
-			entries, _ := os.ReadDir(p)
-			if len(entries) == 0 {
-				os.Remove(p)
+			if isExtraName(name) {
+				victims = append(victims, victim{p, true})
+				return filepath.SkipDir
 			}
+			return nil
+		}
+		// Only video files are considered for NC removal — subtitles and artwork ride along
+		// with whatever remains, and non-video junk is handled by the directory cleanup.
+		if isExtraName(name) || (isVideoFile(name) && isNCName(name)) {
+			victims = append(victims, victim{p, false})
 		}
 		return nil
 	})
 
-	// Try to remove the root directory if empty
-	entries, _ := os.ReadDir(path)
-	if len(entries) == 0 {
-		os.Remove(path)
+	removed := 0
+	for _, v := range victims {
+		var err error
+		if v.isDir {
+			err = os.RemoveAll(v.path)
+		} else {
+			err = os.Remove(v.path)
+		}
+		if err != nil {
+			r.logger.Warn().Err(err).Str("path", v.path).Msg("unmatched: Failed to delete discardable content")
+			continue
+		}
+		removed++
+		r.logger.Info().Str("path", v.path).Bool("dir", v.isDir).Msg("unmatched: Deleted creditless/extra content")
 	}
+
+	return removed
+}
+
+// CleanupTorrentDirectory removes a torrent's staging directory once every video file has
+// been moved out of it. Call this after any operation that moves files out of Unmatched.
+//
+// This previously left a directory behind almost every time, for three separate reasons:
+//   - the caller passed the raw torrent name, while the directory on disk is created from the
+//     sanitized name, so the cleanup often pointed at a path that did not exist;
+//   - the .seanime-metadata.json sidecar we write ourselves kept the directory permanently
+//     "non-empty", so the empty-directory check never fired;
+//   - filepath.Walk is top-down, so a parent directory was always inspected before its
+//     children were removed and therefore never looked empty.
+func (r *Repository) CleanupTorrentDirectory(torrentName string) {
+	if torrentName == "" {
+		return
+	}
+
+	path := filepath.Join(UnmatchedBasePath, sanitizeNamePreserveWhitespace(torrentName))
+
+	// Never let a crafted or empty name escape the staging area — this deletes recursively.
+	if !isInsideUnmatchedBase(path) {
+		r.logger.Warn().Str("path", path).Msg("unmatched: Refusing to clean a path outside the unmatched directory")
+		return
+	}
+
+	info, err := os.Stat(path)
+	if err != nil || !info.IsDir() {
+		return
+	}
+
+	// Our own sidecar is meaningless once the torrent has been matched.
+	_ = os.Remove(filepath.Join(path, metadataFileName))
+
+	// Drop NCOP/NCED/creditless content and "Extra" folders before checking what remains,
+	// so a torrent whose only leftovers are junk still gets its directory removed.
+	r.purgeDiscardableContent(path)
+
+	// Video files still present means this was a partial match — keep the directory, but
+	// still tidy up any season folders that were emptied.
+	if hasVideoFiles(path) {
+		r.pruneEmptyDirs(path)
+		return
+	}
+
+	// Everything is out: drop the directory along with any leftover torrent cruft
+	// (.nfo files, sample folders, artwork) that would otherwise linger forever.
+	if err := os.RemoveAll(path); err != nil {
+		r.logger.Warn().Err(err).Str("path", path).Msg("unmatched: Failed to remove emptied torrent directory")
+		return
+	}
+
+	r.logger.Info().Str("torrent", torrentName).Msg("unmatched: Removed emptied torrent directory")
+	r.invalidateCache()
+}
+
+// SweepEmptyTorrentDirectories removes staging directories that hold nothing of value:
+// either completely empty, or containing only our own metadata sidecar and empty folders.
+// It clears out leftovers from matches that ran before the cleanup was fixed.
+//
+// Deliberately conservative — unlike CleanupTorrentDirectory, which runs as part of an
+// explicit match, this runs unattended, so a directory holding any unrecognised file is
+// left alone rather than deleted.
+func (r *Repository) SweepEmptyTorrentDirectories() int {
+	entries, err := os.ReadDir(UnmatchedBasePath)
+	if err != nil {
+		return 0
+	}
+
+	removed := 0
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(UnmatchedBasePath, entry.Name())
+		if !isInsideUnmatchedBase(path) {
+			continue
+		}
+
+		// Prune emptied season folders first so the directory can qualify below.
+		r.pruneEmptyDirs(path)
+
+		if !onlyHoldsMetadata(path) {
+			continue
+		}
+
+		if err := os.RemoveAll(path); err != nil {
+			r.logger.Warn().Err(err).Str("path", path).Msg("unmatched: Failed to sweep empty torrent directory")
+			continue
+		}
+		removed++
+		r.logger.Info().Str("torrent", entry.Name()).Msg("unmatched: Swept empty torrent directory")
+	}
+
+	if removed > 0 {
+		r.invalidateCache()
+	}
+	return removed
+}
+
+// onlyHoldsMetadata reports whether a directory contains nothing but our metadata sidecar
+// (and empty subdirectories). Any other file makes it unsafe to remove unattended.
+func onlyHoldsMetadata(path string) bool {
+	empty := true
+	err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if info.Name() == metadataFileName {
+			return nil
+		}
+		empty = false
+		return filepath.SkipAll
+	})
+	if err != nil {
+		return false
+	}
+	return empty
+}
+
+// pruneEmptyDirs removes empty subdirectories of root, deepest first so that a directory
+// which only becomes empty after its children are removed is still cleaned up. root itself
+// is left alone.
+func (r *Repository) pruneEmptyDirs(root string) {
+	var dirs []string
+	_ = filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() && p != root {
+			dirs = append(dirs, p)
+		}
+		return nil
+	})
+
+	// Deepest paths first.
+	sort.Slice(dirs, func(i, j int) bool { return len(dirs[i]) > len(dirs[j]) })
+
+	for _, d := range dirs {
+		if entries, err := os.ReadDir(d); err == nil && len(entries) == 0 {
+			_ = os.Remove(d)
+		}
+	}
+}
+
+// isInsideUnmatchedBase reports whether path is strictly within the unmatched staging
+// directory. Guards the recursive delete against path traversal and against being handed
+// the base directory itself.
+func isInsideUnmatchedBase(path string) bool {
+	base, err := filepath.Abs(UnmatchedBasePath)
+	if err != nil {
+		return false
+	}
+	target, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	if target == base {
+		return false
+	}
+	rel, err := filepath.Rel(base, target)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // DeleteTorrent removes a torrent directory from the unmatched folder
@@ -831,7 +1208,7 @@ func (r *Repository) GetUnmatchedDestination(torrentName string) string {
 const metadataFileName = ".seanime-metadata.json"
 
 // SaveTorrentMetadata saves anime metadata for a torrent
-func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleRomaji, titleNative, format string, startYear int) error {
+func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleRomaji, titleNative, format string, startYear int, autoMatch bool) error {
 	torrentPath := filepath.Join(UnmatchedBasePath, sanitizeNamePreserveWhitespace(torrentName))
 
 	// Create directory if it doesn't exist
@@ -845,6 +1222,7 @@ func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleR
 		AnimeTitleNative: titleNative,
 		AnimeFormat:      format,
 		AnimeStartYear:   startYear,
+		AutoMatch:        autoMatch,
 	}
 
 	data, err := json.MarshalIndent(metadata, "", "  ")
@@ -859,6 +1237,11 @@ func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleR
 
 	r.logger.Debug().Str("torrent", torrentName).Int("animeId", animeID).Str("title", titleRomaji).Msg("unmatched: Saved torrent metadata")
 	return nil
+}
+
+// GetTorrentMetadata loads the stored metadata for a torrent by name, or nil if absent.
+func (r *Repository) GetTorrentMetadata(torrentName string) *TorrentMetadata {
+	return r.loadTorrentMetadata(filepath.Join(UnmatchedBasePath, sanitizeNamePreserveWhitespace(torrentName)))
 }
 
 // loadTorrentMetadata loads anime metadata for a torrent if it exists

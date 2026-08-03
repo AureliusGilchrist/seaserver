@@ -11,7 +11,7 @@ import { TorrentTable } from "@/app/(main)/entry/_containers/torrent-search/_com
 import { Torrent_SearchType, useHandleTorrentSearch } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-search"
 import { useTorrentSearchSelectedStreamEpisode } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-selection"
 import { TorrentDownloadFileSelection } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-file-selection"
-import { TorrentDownloadModal } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-modal"
+import { __torrentDownload_autoMatchAtom, TorrentDownloadModal } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-modal"
 import { __torrentSearch_selectionAtom, TorrentSelectionType } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-drawer"
 import { useHandleStartTorrentStream } from "@/app/(main)/entry/_containers/torrent-stream/_lib/handle-torrent-stream"
 import {
@@ -31,8 +31,7 @@ import { Switch } from "@/components/ui/switch"
 import { TextInput } from "@/components/ui/text-input"
 import { displayTitle } from "@/lib/helpers/media"
 import { TORRENT_PROVIDER } from "@/lib/server/settings"
-import { subDays, subMonths } from "date-fns"
-import { atom, useSetAtom } from "jotai"
+import { atom, useAtom, useSetAtom } from "jotai"
 import React, { startTransition } from "react"
 import { FiSearch } from "react-icons/fi"
 import { LuCornerLeftDown, LuFileSearch, LuPlus } from "react-icons/lu"
@@ -43,25 +42,16 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
     const downloadInfo = React.useMemo(() => entry.downloadInfo, [entry.downloadInfo])
     const serverStatus = useServerStatus()
 
-    const shouldLookForBatches = React.useMemo(() => {
-        const endedDate = entry.media?.endDate?.year ? new Date(entry.media?.endDate?.year,
-            entry.media?.endDate?.month ? entry.media?.endDate?.month - 1 : 0,
-            entry.media?.endDate?.day || 0) : null
-        const now = new Date()
-        let flag = true
+    // Always search for batches by default, for every entry and both search types.
+    //
+    // This used to be gated on downloadInfo.canBatch plus a recency heuristic (no batches if
+    // the series ended within the last 6 days / 1 month), which meant plenty of finished shows
+    // silently opened in single-episode mode. Batch is what's wanted essentially always, so it
+    // is now the default everywhere; the "Batches" switch still turns it off per search.
+    const shouldLookForBatches = true
 
-        if (type === "download") {
-            if (endedDate && subDays(now, 6) < endedDate) {
-                flag = false
-            }
-            return !!downloadInfo?.canBatch && !!downloadInfo?.episodesToDownload?.length && flag
-        } else {
-            if (endedDate && subMonths(now, 1) < endedDate) {
-                flag = false
-            }
-            return !!downloadInfo?.canBatch && flag
-        }
-    }, [downloadInfo?.canBatch, downloadInfo?.episodesToDownload?.length, type, entry.media?.endDate])
+    // Shared with the download confirmation modal, so the choice made here carries through.
+    const [autoMatch, setAutoMatch] = useAtom(__torrentDownload_autoMatchAtom)
 
     const hasEpisodesToDownload = React.useMemo(() => !!downloadInfo?.episodesToDownload?.length, [downloadInfo?.episodesToDownload?.length])
     const [isAdult, setIsAdult] = React.useState(entry.media?.isAdult === true)
@@ -228,6 +218,19 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
                             />
                         </div>
 
+                        <div
+                            className="h-10 rounded-[--radius] px-2 flex items-center"
+                            data-torrent-search-container-param-container-auto-match-switch-container
+                        >
+                            <Switch
+                                label="Auto-match"
+                                moreHelp="When the download finishes, the files are matched to this anime and moved into your library automatically — exactly as if you matched them by hand. Leave off to review it in the Unmatched screen first."
+                                value={autoMatch}
+                                onValueChange={setAutoMatch}
+                                containerClass="flex-row-reverse gap-1"
+                            />
+                        </div>
+
                         {/*{<div*/}
                         {/*    className="h-10 rounded-[--radius] px-2 flex items-center"*/}
                         {/*    data-torrent-search-container-param-container-adult-switch-container*/}
@@ -297,10 +300,10 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
                                         label="Batches"
                                         value={smartSearchBatch}
                                         onValueChange={setSmartSearchBatch}
-                                        disabled={smartSearchBest || !downloadInfo?.canBatch}
+                                        disabled={smartSearchBest}
                                         fieldClass={cn(
                                             "flex flex-none w-fit",
-                                            { "opacity-50 cursor-not-allowed pointer-events-none": !downloadInfo?.canBatch || smartSearchBest },
+                                            { "opacity-50 cursor-not-allowed pointer-events-none": smartSearchBest },
                                         )}
                                         size="sm"
                                         containerClass="flex-row-reverse gap-1"

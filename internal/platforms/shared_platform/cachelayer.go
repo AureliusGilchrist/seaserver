@@ -964,6 +964,32 @@ func (c *CacheLayer) UpdateMediaListEntry(ctx context.Context, mediaID *int, sta
 	return result, err
 }
 
+func (c *CacheLayer) UpdateMediaListEntryStatus(ctx context.Context, mediaID *int, status *anilist.MediaListStatus, interceptors ...clientv2.RequestInterceptor) (*anilist.UpdateMediaListEntry, error) {
+	// Same outage handling as UpdateMediaListEntry: queue a status-only mutation for replay.
+	if !IsWorking.Load() {
+		c.pendingMutations.Enqueue(&PendingMutation{
+			Kind:    PendingKindUpdateEntry,
+			MediaID: mediaID,
+			Status:  status,
+		})
+		if mediaID != nil {
+			c.invalidateMediaCaches(*mediaID)
+			c.invalidateCollectionCaches()
+		}
+		return &anilist.UpdateMediaListEntry{}, nil
+	}
+
+	result, err := c.anilistClientRef.Get().UpdateMediaListEntryStatus(ctx, mediaID, status, interceptors...)
+	c.checkAndUpdateWorkingState(err)
+
+	if err == nil && mediaID != nil {
+		c.invalidateMediaCaches(*mediaID)
+		c.invalidateCollectionCaches()
+	}
+
+	return result, err
+}
+
 func (c *CacheLayer) UpdateMediaListEntryProgress(ctx context.Context, mediaID *int, progress *int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput, interceptors ...clientv2.RequestInterceptor) (*anilist.UpdateMediaListEntryProgress, error) {
 	// Queue progress updates when AniList is unreachable so the user's place is
 	// preserved and eventually synced. Local caches are invalidated so the UI updates.

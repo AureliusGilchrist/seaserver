@@ -2605,6 +2605,11 @@ export type TorrentClientDownload_Variables = {
     smartSelect: { enabled: boolean; missingEpisodeNumbers: Array<number>; }
     deselect?: { enabled: boolean; indices: Array<number>; }
     media?: AL_BaseAnime
+    /**
+     * Match the torrent to `media` automatically once it finishes downloading, instead of
+     * leaving it in the Unmatched screen for manual matching.
+     */
+    autoMatch?: boolean
 }
 
 /**

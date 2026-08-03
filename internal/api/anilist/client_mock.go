@@ -486,6 +486,11 @@ func (ac *MockAnilistClientImpl) UpdateMediaListEntry(ctx context.Context, media
 	return &UpdateMediaListEntry{}, nil
 }
 
+func (ac *MockAnilistClientImpl) UpdateMediaListEntryStatus(ctx context.Context, mediaID *int, status *MediaListStatus, interceptors ...clientv2.RequestInterceptor) (*UpdateMediaListEntry, error) {
+	ac.logger.Debug().Int("mediaId", *mediaID).Msg("anilist: Updating media list entry status")
+	return &UpdateMediaListEntry{}, nil
+}
+
 func (ac *MockAnilistClientImpl) UpdateMediaListEntryProgress(ctx context.Context, mediaID *int, progress *int, status *MediaListStatus, startedAt *FuzzyDateInput, completedAt *FuzzyDateInput, interceptors ...clientv2.RequestInterceptor) (*UpdateMediaListEntryProgress, error) {
 	ac.logger.Debug().Int("mediaId", *mediaID).Msg("anilist: Updating media list entry progress")
 	return &UpdateMediaListEntryProgress{}, nil

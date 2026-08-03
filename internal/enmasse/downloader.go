@@ -1266,7 +1266,9 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 	if startYear == 0 && animeItem.AnimeSeason != nil {
 		startYear = animeItem.AnimeSeason.Year
 	}
-	if err := d.unmatchedRepository.SaveTorrentMetadata(selectedTorrent.Name, resolved.ID, romajiTitle, nativeTitle, format, startYear); err != nil {
+	// autoMatch=false: en-masse downloads keep their existing behaviour of landing in the
+	// Unmatched screen for review. The auto-match toggle is per-download in torrent search.
+	if err := d.unmatchedRepository.SaveTorrentMetadata(selectedTorrent.Name, resolved.ID, romajiTitle, nativeTitle, format, startYear, false); err != nil {
 		d.logger.Warn().Err(err).Str("torrent", selectedTorrent.Name).Msg("enmasse-anime: Failed to save torrent metadata")
 	}
 
