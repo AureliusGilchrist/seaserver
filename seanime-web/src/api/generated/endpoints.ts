@@ -183,6 +183,16 @@ export const API_ENDPOINTS = {
          *  Route returns more details about an AniList anime entry.
          *  This fetches more fields omitted from the base queries.
          */
+        /**
+         *  @description
+         *  Route adds an anime to the signed-in user's own AniList PLANNING list.
+         *  Queues the change if AniList is unreachable.
+         */
+        AddAnimeToPlanning: {
+            key: "ANILIST-add-anime-to-planning",
+            methods: ["POST"],
+            endpoint: "/api/v1/anilist/planning",
+        },
         GetAnilistAnimeDetails: {
             key: "ANILIST-get-anilist-anime-details",
             methods: ["GET"],

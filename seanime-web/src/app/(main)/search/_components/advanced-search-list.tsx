@@ -20,6 +20,7 @@ export function AdvancedSearchList() {
                     media={media}
                     showLibraryBadge={true}
                     showTrailer
+                    showAddToPlanning={type === "anime"}
                     type={type}
                 />
             ))}

@@ -1,5 +1,6 @@
 import { useServerMutation, useServerQuery } from "@/api/client/requests"
 import {
+    AddAnimeToPlanning_Variables,
     AnilistListAnime_Variables,
     AnilistListRecentAiringAnime_Variables,
     DeleteAnilistListEntry_Variables,
@@ -15,6 +16,7 @@ import {
     AL_Stats,
     AL_StudioDetails,
     AL_StaffDetails,
+    Handlers_AddToPlanningResponse,
     Nullish,
 } from "@/api/generated/types"
 import { useQueryClient } from "@tanstack/react-query"
@@ -55,6 +57,30 @@ export function useRefreshAnimeCollection() {
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key] })
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaEntry.key] })
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_COLLECTION.GetAnimeCollectionSchedule.key] })
+        },
+    })
+}
+
+/**
+ * Adds an anime to the user's OWN AniList planning list (not the shared planning account).
+ * If AniList is unreachable the change is queued server-side and replayed automatically.
+ */
+export function useAddAnimeToPlanning(mediaId: Nullish<string | number>) {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<Handlers_AddToPlanningResponse, AddAnimeToPlanning_Variables>({
+        endpoint: API_ENDPOINTS.ANILIST.AddAnimeToPlanning.endpoint,
+        method: API_ENDPOINTS.ANILIST.AddAnimeToPlanning.methods[0],
+        mutationKey: [API_ENDPOINTS.ANILIST.AddAnimeToPlanning.key, String(mediaId)],
+        onSuccess: async (data) => {
+            if (data?.queued) {
+                toast.info("AniList is unreachable — queued, it'll sync automatically")
+            } else {
+                toast.success("Added to planning")
+            }
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANILIST.GetAnimeCollection.key] })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANILIST.GetRawAnimeCollection.key] })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.key] })
         },
     })
 }

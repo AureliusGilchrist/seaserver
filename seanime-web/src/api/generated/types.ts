@@ -6732,6 +6732,19 @@ export type VideoCore_VideoSource = {
  * @description
  *  VideoSubtitleTrack is an external subtitle track.
  */
+/**
+ * - Filepath: internal/handlers/anilist_planning.go
+ * - Filename: anilist_planning.go
+ * - Package: handlers
+ */
+export type Handlers_AddToPlanningResponse = {
+    added: boolean
+    /**
+     * True when AniList was unreachable and the change was stored for replay.
+     */
+    queued: boolean
+}
+
 export type VideoCore_VideoSubtitleTrack = {
     index: number
     src?: string

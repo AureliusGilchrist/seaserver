@@ -868,6 +868,17 @@ export type DirectstreamPlayLocalFile_Variables = {
  * @description
  * Route clears every cached metadata entry for a single anime.
  */
+/**
+ * - Filepath: internal/handlers/anilist_planning.go
+ * - Filename: anilist_planning.go
+ * - Endpoint: /api/v1/anilist/planning
+ * @description
+ * Route adds an anime to the signed-in user's own AniList PLANNING list.
+ */
+export type AddAnimeToPlanning_Variables = {
+    mediaId: number
+}
+
 export type ResetAnimeEntryMetadata_Variables = {
     mediaId: number
 }

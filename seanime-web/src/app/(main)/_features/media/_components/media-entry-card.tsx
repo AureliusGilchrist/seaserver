@@ -47,10 +47,11 @@ import { usePathname, useRouter } from "@/lib/navigation"
 import React, { useState } from "react"
 import { BiAddToQueue, BiPlay } from "react-icons/bi"
 import { IoLibrarySharp } from "react-icons/io5"
-import { LuDownload, LuEye, LuFolderTree } from "react-icons/lu"
+import { LuDownload, LuEye, LuFolderTree, LuListPlus } from "react-icons/lu"
 import { RiCalendarLine } from "react-icons/ri"
 import { PluginMediaCardContextMenuItems } from "../../plugin/actions/plugin-actions"
 import { useAnimeFavorites } from "@/app/(main)/(library)/_lib/use-anime-favorites"
+import { useAddAnimeToPlanning } from "@/api/hooks/anilist.hooks"
 
 type MediaEntryCardBaseProps = {
     overlay?: React.ReactNode
@@ -75,6 +76,12 @@ type MediaEntryCardProps<T extends "anime" | "manga"> = {
     hideAnilistEntryEditButton?: boolean
     onClick?: () => void
     hideReleasingBadge?: boolean
+    /**
+     * Adds a "Add to planning" entry to the context menu, which puts the anime straight on
+     * the user's own AniList planning list. Opt-in so it only shows where it makes sense
+     * (search results), rather than on cards for anime already in a list.
+     */
+    showAddToPlanning?: T extends "anime" ? boolean : never
 } & MediaEntryCardBaseProps
 
 export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCardProps<T>) {
@@ -93,6 +100,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
         hideAnilistEntryEditButton = false,
         onClick,
         hideReleasingBadge = false,
+        showAddToPlanning = false,
         onHoverImage,
     } = props
 
@@ -102,6 +110,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
     const missingEpisodes = useMissingEpisodes()
     const { isDownloading } = useDownloadingAnime()
     const { isFavorite } = useAnimeFavorites()
+    const { mutate: addToPlanning, isPending: isAddingToPlanning } = useAddAnimeToPlanning(media.id)
     const isFav = type === "anime" && isFavorite(media.id)
 
     const isCurrentlyDownloading = type === "anime" && isDownloading(media.id)
@@ -283,6 +292,14 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                         onClick={handleOpenInExplorerClick}
                     >
                         <LuFolderTree /> Open in Library Explorer
+                    </ContextMenuItem>}
+
+                    {(showAddToPlanning && type === "anime" && !serverStatus?.isOffline) && <ContextMenuItem
+                        data-media-entry-card-add-to-planning
+                        disabled={isAddingToPlanning}
+                        onClick={() => addToPlanning({ mediaId: media.id })}
+                    >
+                        <LuListPlus /> {listData?.status === "PLANNING" ? "Already planning" : "Add to planning"}
                     </ContextMenuItem>}
 
                     <PluginMediaCardContextMenuItems for={type} media={media} />
