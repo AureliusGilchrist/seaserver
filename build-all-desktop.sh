@@ -237,7 +237,18 @@ success "Desktop dependencies installed"
 
 step "5.2" "Tauri build (target: $TARGET_TRIPLE)"
 (
-  cd seanime-desktop/src-tauri
+  # tauri-cli v2 resolves the project by searching SUBFOLDERS of the current
+  # directory for tauri.conf.json. Run it from src-tauri and the config is in
+  # the cwd itself, not a subfolder, so the search fails. Run from the app root.
+  cd seanime-desktop
+  TAURI_CONF=$(find . -maxdepth 3 \
+    \( -name tauri.conf.json -o -name tauri.conf.json5 -o -name Tauri.toml \) \
+    -not -path './node_modules/*' -print -quit)
+  if [[ -z "$TAURI_CONF" ]]; then
+    fail "No tauri.conf.json found under seanime-desktop/"
+    exit 1
+  fi
+  substep "Using config: $TAURI_CONF"
   substep "Running cargo tauri build --target $TARGET_TRIPLE..."
   cargo tauri build --target "$TARGET_TRIPLE"
 )
