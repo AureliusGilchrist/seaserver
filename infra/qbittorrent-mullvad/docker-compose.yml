@@ -41,8 +41,14 @@ services:
       # OWNED_ONLY: "yes"        # only Mullvad-owned servers, not rented
 
       # Encrypted DNS through the tunnel, with a local cache.
-      DOT: "on"
-      DOT_PROVIDERS: cloudflare
+      # gluetun renamed these: DOT -> DNS_SERVER, DOT_PROVIDERS ->
+      # DNS_UPSTREAM_RESOLVERS, and the protocol split out into its own var.
+      # Resolvers are provider NAMES here, not URLs (cloudflare, quad9,
+      # google, opendns, cleanbrowsing security, ...).
+      DNS_SERVER: "on"
+      DNS_UPSTREAM_RESOLVER_TYPE: dot
+      DNS_UPSTREAM_RESOLVERS: cloudflare
+      DNS_CACHING: "on"
       DNS_KEEP_NAMESERVER: "off"
       BLOCK_MALICIOUS: "on"
 
@@ -50,9 +56,13 @@ services:
       # MUST match your actual LAN subnet or the WebUI will be unreachable.
       FIREWALL_OUTBOUND_SUBNETS: ${LAN_SUBNET:-192.168.1.0/24}
 
-      # Reconnect if the tunnel silently dies.
-      HEALTH_VPN_DURATION_INITIAL: 30s
-      HEALTH_VPN_DURATION_ADDITION: 10s
+      # Reconnecting on a dead tunnel is built-in as of v3.41 — the old
+      # HEALTH_VPN_DURATION_* vars are obsolete and were removed from here.
+
+      # If the tunnel connects but passes no traffic, try forcing the
+      # userspace WireGuard implementation. The kernel module in a container
+      # silently drops packets on some host/kernel combinations.
+      # WIREGUARD_IMPLEMENTATION: userspace
 
       TZ: ${TZ:-Etc/UTC}
     healthcheck:

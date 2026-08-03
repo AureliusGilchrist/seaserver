@@ -219,6 +219,9 @@ step "4.3" "Copy sidecar binary"
 SIDECAR_NAME="seanime-${TARGET_TRIPLE}.exe"
 SIDECAR_PATH="seanime-desktop/src-tauri/binaries/$SIDECAR_NAME"
 substep "Copying seanime.exe → $SIDECAR_PATH"
+# git does not track empty directories, so binaries/ is absent on a fresh
+# clone and cp will not create the parent.
+mkdir -p "$(dirname "$SIDECAR_PATH")"
 cp seanime.exe "$SIDECAR_PATH"
 success "Sidecar placed at $SIDECAR_PATH"
 
