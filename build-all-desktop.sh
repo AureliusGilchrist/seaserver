@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Desktop build script for seaserver (Tauri + Go sidecar)
+# Desktop build script for seaserver (Electron/denshi + Go sidecar)
 # Targets: Windows x86_64 cross-compiled from Linux
 # Also produces the standalone web build (seanime_exe + web/)
 #
 # Prerequisites: Go 1.23+, Node.js 18+, npm, jq
-# Auto-installs: Rust (rustup), mingw-w64, nsis, cargo-tauri
+# NSIS is bundled by electron-builder; nothing to install manually.
+#
+# This mirrors build-all-desktop.ps1. The desktop app is Electron
+# (seanime-denshi) — the old Tauri path (seanime-desktop/src-tauri) is gone.
 
 set -euo pipefail
 
@@ -14,7 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 STATS_FILE="$SCRIPT_DIR/build-all-stats.json"
-TARGET_TRIPLE="x86_64-pc-windows-gnu"
+DENSHI_DIR="$SCRIPT_DIR/seanime-denshi"
 
 # Colors
 BOLD="\033[1m"; DIM="\033[2m"; RESET="\033[0m"
@@ -73,88 +76,14 @@ if [[ ! -d "$SCRIPT_DIR/seanime-web" ]]; then
   fail "Missing directory: seanime-web"
   exit 1
 fi
-if [[ ! -d "$SCRIPT_DIR/seanime-desktop" ]]; then
-  fail "Missing directory: seanime-desktop"
+if [[ ! -d "$DENSHI_DIR" ]]; then
+  fail "Missing directory: seanime-denshi"
   exit 1
 fi
 
-step "0.3" "Rust toolchain"
-if ! type rustc &>/dev/null; then
-  substep "Rust not found — installing via rustup..."
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
-  export PATH="$HOME/.cargo/bin:$PATH"
-  success "Rust installed: $(rustc --version)"
-else
-  substep "Rust: $(rustc --version)"
-fi
-
-if ! type cargo &>/dev/null; then
-  fail "cargo not found even after rustup install"
-  exit 1
-fi
-
-step "0.4" "Windows cross-compile target"
-if ! rustup target list --installed | grep -q "$TARGET_TRIPLE"; then
-  substep "Adding Rust target $TARGET_TRIPLE..."
-  rustup target add "$TARGET_TRIPLE"
-  success "Target added"
-else
-  substep "Target $TARGET_TRIPLE already installed"
-fi
-
-step "0.5" "System dependencies (mingw-w64, nsis)"
-
-# Helper: install packages via dnf, skipping unavailable repos gracefully
-_dnf_install() {
-  sudo dnf install -y --skip-unavailable --setopt=skip_if_unavailable=True "$@"
-}
-
-if ! type x86_64-w64-mingw32-gcc &>/dev/null; then
-  substep "Installing mingw64-gcc..."
-  _dnf_install mingw64-gcc
-  type x86_64-w64-mingw32-gcc &>/dev/null && success "mingw64-gcc installed" || fail "mingw64-gcc installation failed"
-else
-  substep "mingw-w64 already available"
-fi
-
-if ! type makensis &>/dev/null; then
-  substep "Installing nsis..."
-  # Try multiple package names — Fedora may use 'nsis' or 'mingw32-nsis'
-  _dnf_install nsis 2>/dev/null || _dnf_install mingw32-nsis 2>/dev/null || true
-  if ! type makensis &>/dev/null; then
-    warn "nsis not available from repos — downloading NSIS portable..."
-    NSIS_VER="3.10"
-    NSIS_DIR="/opt/nsis"
-    if [[ ! -x "$NSIS_DIR/makensis" ]]; then
-      NSIS_ZIP="/tmp/nsis-${NSIS_VER}.zip"
-      curl -sSfL "https://sourceforge.net/projects/nsis/files/NSIS%203/${NSIS_VER}/nsis-${NSIS_VER}.zip/download" -o "$NSIS_ZIP"
-      sudo mkdir -p "$NSIS_DIR"
-      sudo unzip -qo "$NSIS_ZIP" -d /opt
-      sudo mv "/opt/nsis-${NSIS_VER}"/* "$NSIS_DIR/" 2>/dev/null || true
-      sudo rmdir "/opt/nsis-${NSIS_VER}" 2>/dev/null || true
-      rm -f "$NSIS_ZIP"
-    fi
-    export PATH="$NSIS_DIR:$PATH"
-    if type makensis &>/dev/null; then
-      success "NSIS installed from portable: $(makensis -VERSION 2>/dev/null || echo "$NSIS_VER")"
-    else
-      warn "NSIS not available — Tauri NSIS bundler may download it automatically during build"
-    fi
-  else
-    success "nsis installed"
-  fi
-else
-  substep "nsis already available"
-fi
-
-step "0.6" "cargo-tauri CLI"
-if ! type cargo-tauri &>/dev/null; then
-  substep "Installing tauri-cli..."
-  cargo install tauri-cli
-  success "tauri-cli installed"
-else
-  substep "cargo-tauri already installed"
-fi
+# No Rust, mingw-w64, NSIS or tauri-cli steps here any more: the desktop app is
+# Electron. electron-builder ships its own NSIS, and the Go sidecar is built
+# with CGO_ENABLED=0, so there is no cross-compiler to install either.
 
 # ── 1. Frontend (desktop build) ──────────────────────────
 
@@ -166,24 +95,24 @@ step "1.1" "Frontend dependencies"
 )
 success "Dependencies installed"
 
-step "1.2" "Frontend build (desktop variant)"
+step "1.2" "Frontend build (Electron/denshi variant)"
 (
   cd seanime-web
-  substep "Type-checking and bundling with desktop env..."
-  npm run build:desktop
-  substep "Checking build output (./out)..."
-  [[ -d out ]] || { fail "Frontend build output missing (expected seanime-web/out/)"; exit 1; }
+  substep "Type-checking and bundling with denshi env..."
+  npm run build:denshi
+  substep "Checking build output (./out-denshi)..."
+  [[ -d out-denshi ]] || { fail "Frontend build output missing (expected seanime-web/out-denshi/)"; exit 1; }
 )
-success "Frontend built (desktop)"
+success "Frontend built (denshi)"
 
 # ── 2. Copy web output ───────────────────────────────────
 
-step "2.1" "Prepare desktop web output"
-substep "Removing old ./web-desktop..."
-rm -rf web-desktop
-substep "Copying seanime-web/out → ./web-desktop..."
-cp -r seanime-web/out web-desktop
-[[ -d web-desktop ]] && success "Desktop web output ready at ./web-desktop"
+step "2.1" "Prepare denshi web output"
+substep "Removing old seanime-denshi/web-denshi..."
+rm -rf "$DENSHI_DIR/web-denshi"
+substep "Copying seanime-web/out-denshi → seanime-denshi/web-denshi..."
+cp -r seanime-web/out-denshi "$DENSHI_DIR/web-denshi"
+[[ -d "$DENSHI_DIR/web-denshi" ]] && success "Denshi web output ready at seanime-denshi/web-denshi"
 
 # ── 3. Also build standalone web output ──────────────────
 
@@ -216,8 +145,7 @@ CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o s
 [[ -f seanime.exe ]] && success "Windows backend built: ./seanime.exe"
 
 step "4.3" "Copy sidecar binary"
-SIDECAR_NAME="seanime-${TARGET_TRIPLE}.exe"
-SIDECAR_PATH="seanime-desktop/src-tauri/binaries/$SIDECAR_NAME"
+SIDECAR_PATH="$DENSHI_DIR/binaries/seanime-server-windows.exe"
 substep "Copying seanime.exe → $SIDECAR_PATH"
 # git does not track empty directories, so binaries/ is absent on a fresh
 # clone and cp will not create the parent.
@@ -225,34 +153,40 @@ mkdir -p "$(dirname "$SIDECAR_PATH")"
 cp seanime.exe "$SIDECAR_PATH"
 success "Sidecar placed at $SIDECAR_PATH"
 
-# ── 5. Desktop (Tauri) build ─────────────────────────────
+# ── 5. Desktop (Electron) build ──────────────────────────
 
-step "5.1" "Desktop npm dependencies"
+step "5.1" "Denshi npm dependencies"
 (
-  cd seanime-desktop
+  cd "$DENSHI_DIR"
   substep "Running npm ci..."
   npm ci
 )
-success "Desktop dependencies installed"
+success "Denshi dependencies installed"
 
-step "5.2" "Tauri build (target: $TARGET_TRIPLE)"
-(
-  # tauri-cli v2 resolves the project by searching SUBFOLDERS of the current
-  # directory for tauri.conf.json. Run it from src-tauri and the config is in
-  # the cwd itself, not a subfolder, so the search fails. Run from the app root.
-  cd seanime-desktop
-  TAURI_CONF=$(find . -maxdepth 3 \
-    \( -name tauri.conf.json -o -name tauri.conf.json5 -o -name Tauri.toml \) \
-    -not -path './node_modules/*' -print -quit)
-  if [[ -z "$TAURI_CONF" ]]; then
-    fail "No tauri.conf.json found under seanime-desktop/"
-    exit 1
+step "5.2" "Release locks on previous build output"
+# electron-builder runs rcedit to stamp icon and version strings into the
+# packaged exe, rewriting resources in place. That fails with "Unable to commit
+# changes" if anything still holds the file — usually a previous build's app
+# left running. Clearing it up front keeps the build deterministic.
+for proc in "Seaserver Denshi" seanime-server-windows seanime; do
+  if pgrep -f "$proc" >/dev/null 2>&1; then
+    substep "Stopping running process: $proc"
+    pkill -f "$proc" 2>/dev/null || true
   fi
-  substep "Using config: $TAURI_CONF"
-  substep "Running cargo tauri build --target $TARGET_TRIPLE..."
-  cargo tauri build --target "$TARGET_TRIPLE"
+done
+if [[ -d "$DENSHI_DIR/dist/win-unpacked" ]]; then
+  substep "Removing previous dist/win-unpacked"
+  rm -rf "$DENSHI_DIR/dist/win-unpacked" 2>/dev/null \
+    || warn "Could not fully remove it; electron-builder will overwrite in place"
+fi
+
+step "5.3" "electron-builder (target: win x64)"
+(
+  cd "$DENSHI_DIR"
+  substep "Running npm run build:win..."
+  npm run build:win
 )
-success "Tauri desktop build complete"
+success "Electron desktop build complete"
 
 # ── Done ─────────────────────────────────────────────────
 
@@ -268,8 +202,8 @@ printf "${GREEN}${BOLD}All steps finished successfully.${RESET} Duration: ${BOLD
 divider
 printf "Outputs:\n"
 printf "  ${BOLD}Standalone:${RESET}  ./seanime_exe + ./web/\n"
-printf "  ${BOLD}Sidecar:${RESET}     %s\n" "$SIDECAR_PATH"
-printf "  ${BOLD}Installer:${RESET}   seanime-desktop/src-tauri/target/%s/release/bundle/\n" "$TARGET_TRIPLE"
+printf "  ${BOLD}Sidecar:${RESET}     seanime-denshi/binaries/seanime-server-windows.exe\n"
+printf "  ${BOLD}Installer:${RESET}   seanime-denshi/dist/ (NSIS .exe + unpacked)\n"
 divider
 print_stats
 divider
