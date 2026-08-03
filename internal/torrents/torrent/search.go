@@ -393,6 +393,36 @@ func (r *Repository) SearchAnime(ctx context.Context, opts AnimeSearchOptions) (
 	}
 	wg.Wait()
 
+	// Batch search: keep only batch/season releases.
+	//
+	// The merged result set can't be trusted to honour the Batch flag on its own. Selecting
+	// AnimeTosho silently appends nyaa-sukebei and nyaa as fallbacks, and providers that
+	// can't smart-search are downgraded to a simple title search — which never sees Batch and
+	// happily returns every single episode of the series. Sorted by seeders, those individual
+	// episodes bury (or entirely crowd out) the batches the user asked for.
+	//
+	// Classification matches what generatePreviews uses to render an entry as a batch, so the
+	// filter keeps exactly the torrents that would have displayed as batches.
+	if opts.Batch && opts.Media != nil && !opts.Media.IsMovieOrSingleEpisode() {
+		batches := make([]*hibiketorrent.AnimeTorrent, 0, len(torrents))
+		for _, t := range torrents {
+			if isBatchTorrent(t, torrentMetadata[t.InfoHash]) {
+				batches = append(batches, t)
+			}
+		}
+		// Only apply when something survives: if a series genuinely has no batch release,
+		// showing the episodes is more useful than an empty screen.
+		if len(batches) > 0 {
+			r.logger.Debug().
+				Int("before", len(torrents)).
+				Int("after", len(batches)).
+				Msg("torrent search: Filtered results to batches")
+			torrents = batches
+		} else {
+			r.logger.Debug().Msg("torrent search: Batch search found no batch releases, returning all results")
+		}
+	}
+
 	// sort by seeders, put best releases on top
 	slices.SortFunc(torrents, func(i, j *hibiketorrent.AnimeTorrent) int {
 		if i.IsBestRelease != j.IsBestRelease {
@@ -587,6 +617,32 @@ type createAnimeTorrentPreviewOptions struct {
 	searchOpts    *AnimeSearchOptions
 }
 
+// isMultiEpisodeRelease reports whether a parsed torrent name covers more than one episode:
+// either an explicit range ("01-13") or no episode number at all, which is how season packs
+// and complete-series releases are normally named.
+func isMultiEpisodeRelease(parsedData *habari.Metadata) bool {
+	if parsedData == nil {
+		return false
+	}
+	return len(parsedData.EpisodeNumber) > 1 || len(parsedData.EpisodeNumber) == 0
+}
+
+// isBatchTorrent reports whether a torrent is a batch/season release. It mirrors the
+// classification createAnimeTorrentPreview uses to render an entry as a batch, so a batch
+// search and the preview list can never disagree about what counts as a batch.
+func isBatchTorrent(t *hibiketorrent.AnimeTorrent, tMetadata *TorrentMetadata) bool {
+	if t == nil {
+		return false
+	}
+	if t.IsBatch || t.IsBestRelease {
+		return true
+	}
+	if tMetadata == nil {
+		return false
+	}
+	return isMultiEpisodeRelease(tMetadata.Metadata)
+}
+
 func (r *Repository) createAnimeTorrentPreview(opts createAnimeTorrentPreviewOptions) *Preview {
 	defer util.HandlePanicInModuleThen("torrents/torrent/createAnimeTorrentPreview", func() {})
 
@@ -598,13 +654,17 @@ func (r *Repository) createAnimeTorrentPreview(opts createAnimeTorrentPreviewOpt
 			Distance: 1000,
 			Metadata: parsedData,
 		})
+	} else {
+		// Only read from the cache entry on a hit — on a miss tMetadata is nil, and
+		// dereferencing it panicked out of this function, silently dropping the preview
+		// (the torrent then renders without its batch/episode classification).
+		parsedData = tMetadata.Metadata
 	}
-	parsedData = tMetadata.Metadata
 
 	isBatch := opts.torrent.IsBestRelease ||
 		opts.torrent.IsBatch ||
 		//comparison.ValueContainsBatchKeywords(opts.torrent.Name) || // Contains batch keywords
-		(!opts.media.IsMovieOrSingleEpisode() && (len(parsedData.EpisodeNumber) > 1 || len(parsedData.EpisodeNumber) == 0)) // Multiple episodes parsed & not a movie
+		(!opts.media.IsMovieOrSingleEpisode() && isMultiEpisodeRelease(parsedData)) // Multiple episodes parsed & not a movie
 
 	if opts.torrent.ReleaseGroup == "" {
 		opts.torrent.ReleaseGroup = parsedData.ReleaseGroup
