@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"seanime/internal/database/db_bridge"
 	hibiketorrent "seanime/internal/extension/hibike/torrent"
 	"seanime/internal/torrent_clients/torrent_client"
+	"seanime/internal/util"
 
 	"github.com/labstack/echo/v4"
 )
@@ -46,6 +48,49 @@ func (h *Handler) HandleGetActiveTorrentList(c echo.Context) error {
 
 	return h.RespondWithData(c, res)
 
+}
+
+// HandleGetDownloadingMediaIds
+//
+//	@summary returns the AniList media IDs that currently have an unfinished download.
+//	@desc The IDs come from the metadata sidecar written when the download was started from a
+//	@desc media page, so the "Downloading" badge survives page reloads and server restarts and
+//	@desc keeps showing until the torrent actually finishes.
+//	@route /api/v1/torrent-client/downloading-media [GET]
+//	@returns []int
+func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
+
+	// This route is polled by the client. Never start the torrent client for it and never
+	// fail the request: no reachable client simply means nothing is known to be downloading.
+	torrents, err := h.App.TorrentClientRepository.GetActiveTorrents(&torrent_client.GetListOptions{})
+	if err != nil {
+		return h.RespondWithData(c, []int{})
+	}
+
+	seen := make(map[int]struct{})
+	mediaIds := make([]int, 0)
+
+	for _, t := range torrents {
+		if t == nil {
+			continue
+		}
+		// Finished: seeding, or fully downloaded but paused/stopped in the client.
+		if t.Status == torrent_client.TorrentStatusSeeding || t.Progress >= 1 {
+			continue
+		}
+
+		metadata := h.App.UnmatchedRepository.GetTorrentMetadata(t.Name)
+		if metadata == nil || metadata.AnimeID == 0 {
+			continue
+		}
+		if _, ok := seen[metadata.AnimeID]; ok {
+			continue
+		}
+		seen[metadata.AnimeID] = struct{}{}
+		mediaIds = append(mediaIds, metadata.AnimeID)
+	}
+
+	return h.RespondWithData(c, mediaIds)
 }
 
 // HandleTorrentClientAction
@@ -266,8 +311,46 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 	// NOTE: We do NOT add the media to the collection automatically anymore
 	// The user must manually match the torrent after it finishes downloading
 
+	// Downloading a series by hand means it belongs in the shared library, so add it to the
+	// shared (planning slut) planning list. Anything already on the main account is left
+	// alone: the user's own list is the authority for those and must not be duplicated.
+	if b.Media != nil {
+		h.addManualDownloadToPlanning(b.Media.ID)
+	}
+
 	return h.RespondWithData(c, true)
 
+}
+
+// addManualDownloadToPlanning adds a manually downloaded series to the shared (planning slut)
+// planning list, unless the main account already tracks it.
+//
+// Runs in the background: AniList is rate limited to one write per second and the download has
+// already been queued, so a slow or failing list update must not hold up (or fail) the request.
+func (h *Handler) addManualDownloadToPlanning(mediaID int) {
+	if mediaID <= 0 {
+		return
+	}
+
+	go func() {
+		defer util.HandlePanicInModuleThen("handlers/addManualDownloadToPlanning", func() {})
+
+		// Already on the main account — that list wins, leave it as is.
+		if animeCollection, err := h.App.GetAnimeCollection(false); err == nil && animeCollection != nil {
+			if _, found := animeCollection.GetListEntryFromAnimeId(mediaID); found {
+				h.App.Logger.Debug().Int("mediaId", mediaID).Msg("torrent client: Media already on the main account, not adding to planning")
+				return
+			}
+		}
+
+		if err := h.addAnimeToPlanningSlutPlanning(context.Background(), mediaID); err != nil {
+			h.App.Logger.Warn().Err(err).Int("mediaId", mediaID).Msg("torrent client: Failed to add manually downloaded media to planning")
+			return
+		}
+
+		invalidatePlanningSlutCollectionCaches()
+		h.App.Logger.Info().Int("mediaId", mediaID).Msg("torrent client: Added manually downloaded media to planning")
+	}()
 }
 
 // HandleTorrentClientAddMagnetFromRule

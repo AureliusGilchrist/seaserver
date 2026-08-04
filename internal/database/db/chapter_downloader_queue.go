@@ -62,8 +62,12 @@ func (db *Database) DequeueChapterDownloadQueueItem() (*models.ChapterDownloadQu
 	return &res, nil
 }
 
-// MaxQueuedSeries is the maximum number of unique manga series allowed in the download queue at once.
-// Chapters per series are unlimited.
+// MaxQueuedSeries is the maximum number of unique manga series the en masse downloader is
+// allowed to have in the download queue at once. Chapters per series are unlimited.
+//
+// The cap exists to keep the bulk downloader from flooding the queue. Chapters the user queues
+// by hand are not subject to it and are not counted towards it: those are deliberate, one-off
+// picks, and a full en masse run must never block them.
 const MaxQueuedSeries = 50
 
 func (db *Database) InsertChapterDownloadQueueItem(item *models.ChapterDownloadQueueItem) error {
@@ -78,25 +82,31 @@ func (db *Database) InsertChapterDownloadQueueItem(item *models.ChapterDownloadQ
 		return errors.New("chapter is already in the download queue")
 	}
 
-	// Check if this media is already in the queue (if so, allow adding more chapters)
-	var existingMediaItem models.ChapterDownloadQueueItem
-	mediaAlreadyInQueue := retryOnBusy(func() error {
-		return db.gormdb.Where("media_id = ?", item.MediaID).First(&existingMediaItem).Error
-	}) == nil
+	// The series limit only applies to the en masse downloader. Chapters queued by hand go
+	// straight through, no matter how many series are already queued.
+	if item.EnMasse {
+		// Check if this media is already in the queue (if so, allow adding more chapters)
+		var existingMediaItem models.ChapterDownloadQueueItem
+		mediaAlreadyInQueue := retryOnBusy(func() error {
+			return db.gormdb.Where("media_id = ? AND en_masse = ?", item.MediaID, true).First(&existingMediaItem).Error
+		}) == nil
 
-	// If this is a new series, check the series limit
-	if !mediaAlreadyInQueue {
-		var uniqueSeriesCount int64
-		retryOnBusy(func() error {
-			// Count all distinct media_ids in the queue regardless of status
-			return db.gormdb.Raw(`
-				SELECT COUNT(DISTINCT media_id) 
-				FROM chapter_download_queue_items
-			`).Count(&uniqueSeriesCount).Error
-		})
-		if uniqueSeriesCount >= MaxQueuedSeries {
-			db.Logger.Debug().Int64("currentCount", uniqueSeriesCount).Int("max", MaxQueuedSeries).Msg("db: Maximum queued series limit reached")
-			return errors.New("maximum of 50 series allowed in the download queue at once")
+		// If this is a new series, check the series limit
+		if !mediaAlreadyInQueue {
+			var uniqueSeriesCount int64
+			retryOnBusy(func() error {
+				// Count distinct en masse media_ids in the queue regardless of status.
+				// Hand-queued series are excluded so they never eat into the budget.
+				return db.gormdb.Raw(`
+					SELECT COUNT(DISTINCT media_id)
+					FROM chapter_download_queue_items
+					WHERE en_masse = 1
+				`).Count(&uniqueSeriesCount).Error
+			})
+			if uniqueSeriesCount >= MaxQueuedSeries {
+				db.Logger.Debug().Int64("currentCount", uniqueSeriesCount).Int("max", MaxQueuedSeries).Msg("db: Maximum queued series limit reached")
+				return errors.New("maximum of 50 series allowed in the download queue at once")
+			}
 		}
 	}
 

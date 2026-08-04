@@ -235,6 +235,84 @@ export function useHandleLibraryCollection() {
     }, [data, params, serverStatus?.settings?.anilist?.enableAdultContent, watchHistory, animeGojuuonMap])
 
     /**
+     * Entries the user marked COMPLETED on their own AniList account that the full collection
+     * dropped because nothing is downloaded for them anymore.
+     *
+     * The full collection only keeps entries backed by local files, so a series only stayed
+     * visible if it happened to overlap with the shared (planning slut) library. The light
+     * collection is the user's own lists untouched, so it's the right source for "everything
+     * I've finished".
+     */
+    const completedEntriesWithoutLocalFiles = React.useMemo(() => {
+        const lightCompleted = lightData?.lists?.find(n => n.type === "COMPLETED")?.entries ?? []
+        if (!lightCompleted.length) return []
+        const known = new Set((data?.lists?.find(n => n.type === "COMPLETED")?.entries ?? []).map(e => e.mediaId))
+        return lightCompleted.filter(e => !known.has(e.mediaId))
+    }, [lightData?.lists, data?.lists])
+
+    /**
+     * Lists for the home screen's status sections ("Currently watching", "Completed", ...).
+     *
+     * Two differences from the library lists:
+     * - COMPLETED also carries the entries above, so finished series show without needing a
+     *   local copy.
+     * - The LOCAL list is dropped. Those entries exist only because the shared (planning slut)
+     *   account has them; they are not part of the user's own lists and don't belong in a
+     *   status section.
+     */
+    const buildStatusLists = React.useCallback((
+        lists: Anime_LibraryCollectionList[],
+        extraCompletedParams: CollectionParams<"anime">,
+    ) => {
+        const withoutShared = lists.filter(l => (l.type as string) !== "LOCAL")
+
+        if (!completedEntriesWithoutLocalFiles.length) return withoutShared
+
+        // Run the extra entries through the same filter/sort as the rest of the collection so
+        // the genre selector and search keep working on them.
+        const extra = filterAnimeCollectionEntries(
+            completedEntriesWithoutLocalFiles,
+            extraCompletedParams,
+            serverStatus?.settings?.anilist?.enableAdultContent,
+            [],
+            watchHistory,
+            animeGojuuonMap,
+        )
+
+        if (!extra.length) return withoutShared
+
+        if (!withoutShared.some(l => l.type === "COMPLETED")) {
+            // Nothing completed is downloaded — the section doesn't exist yet, so create it in
+            // its usual place (before "Dropped").
+            const completedList = { type: "COMPLETED", status: "COMPLETED", entries: extra } as Anime_LibraryCollectionList
+            const droppedIdx = withoutShared.findIndex(l => l.type === "DROPPED")
+            if (droppedIdx === -1) return [...withoutShared, completedList]
+            return [...withoutShared.slice(0, droppedIdx), completedList, ...withoutShared.slice(droppedIdx)]
+        }
+
+        return withoutShared.map(l => l.type !== "COMPLETED" ? l : {
+            ...l,
+            entries: [...(l.entries ?? []), ...extra]
+                .sort((a, b) => (a.media?.title?.userPreferred ?? "").localeCompare(b.media?.title?.userPreferred ?? "")),
+        })
+    }, [
+        completedEntriesWithoutLocalFiles,
+        serverStatus?.settings?.anilist?.enableAdultContent,
+        watchHistory,
+        animeGojuuonMap,
+    ])
+
+    const statusCollectionList = React.useMemo(() => buildStatusLists(sortedCollection, {
+        ...DEFAULT_ANIME_COLLECTION_PARAMS,
+        sorting: animeLibraryCollectionDefaultSorting as any,
+    } as CollectionParams<"anime">), [sortedCollection, buildStatusLists, animeLibraryCollectionDefaultSorting])
+
+    const filteredStatusCollectionList = React.useMemo(() => buildStatusLists(filteredCollection, {
+        ...params,
+        sorting: animeLibraryCollectionDefaultSorting,
+    } as CollectionParams<"anime">), [filteredCollection, buildStatusLists, params, animeLibraryCollectionDefaultSorting])
+
+    /**
      * Sort the continue watching list
      */
     const continueWatchingList = React.useMemo(() => {
@@ -283,6 +361,9 @@ export function useHandleLibraryCollection() {
         isLoading: isLoading,
         libraryCollectionList: sortedCollection,
         filteredLibraryCollectionList: filteredCollection,
+        // Same lists, for the home screen's status sections. See `buildStatusLists`.
+        statusCollectionList,
+        filteredStatusCollectionList,
         continueWatchingList: continueWatchingList,
         unmatchedLocalFiles: data?.unmatchedLocalFiles ?? [],
         ignoredLocalFiles: data?.ignoredLocalFiles ?? [],

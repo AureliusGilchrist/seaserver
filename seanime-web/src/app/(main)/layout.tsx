@@ -1,4 +1,5 @@
 "use client"
+import { useSyncDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { MainLayout } from "@/app/(main)/_features/layout/main-layout"
 import { TopNavbar } from "@/app/(main)/_features/layout/top-navbar"
 import { GlobalErrorToast } from "@/app/(main)/_features/diagnostics/global-error-toast"
@@ -12,6 +13,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const serverStatus = useServerStatus()
     const [host, setHost] = React.useState<string>("")
     React.useEffect(() => { setHost(window?.location?.host || "") }, [])
+
+    // Single app-wide poll feeding the "Downloading" badge on every media card.
+    useSyncDownloadingAnime()
 
     return (
         <ServerDataWrapper host={host}>

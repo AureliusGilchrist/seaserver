@@ -118,6 +118,12 @@ func (h *Handler) HandleDebridAddTorrents(c echo.Context) error {
 		}
 	}
 
+	// Same rule as the torrent client: a hand-picked download goes on the shared planning
+	// list unless the main account already tracks the series.
+	if b.Media != nil {
+		h.addManualDownloadToPlanning(b.Media.ID)
+	}
+
 	return h.RespondWithData(c, true)
 }
 

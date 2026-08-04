@@ -95,6 +95,9 @@ type (
 		DownloadID
 		Pages    []*hibikemanga.ChapterPage
 		StartNow bool
+		// EnMasse marks the chapter as queued by the bulk downloader, which is what makes it
+		// count against (and be capped by) the queued-series limit.
+		EnMasse bool
 	}
 )
 
@@ -164,7 +167,7 @@ func (cd *Downloader) AddToQueue(opts DownloadOptions) error {
 	// Start download
 	cd.logger.Debug().Msgf("chapter downloader: Adding chapter to download queue: %s", opts.ChapterId)
 	// Add to queue
-	return cd.queue.Add(downloadId, opts.Pages, opts.StartNow)
+	return cd.queue.Add(downloadId, opts.Pages, opts.StartNow, opts.EnMasse)
 }
 
 // DeleteChapter deletes a chapter directory from the download directory.

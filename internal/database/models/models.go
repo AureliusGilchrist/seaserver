@@ -456,6 +456,9 @@ type ChapterDownloadQueueItem struct {
 	Status          string `gorm:"column:status" json:"status"`
 	DownloadedPages int    `gorm:"column:downloaded_pages;default:0" json:"downloadedPages"` // Number of pages downloaded
 	TotalPages      int    `gorm:"column:total_pages;default:0" json:"totalPages"`           // Total number of pages
+	// EnMasse marks chapters queued by the bulk downloader. Only those count towards (and are
+	// capped by) the queued-series limit; chapters the user queues themselves are unlimited.
+	EnMasse bool `gorm:"column:en_masse;default:false" json:"enMasse"`
 }
 
 // +---------------------+

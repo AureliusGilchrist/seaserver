@@ -387,7 +387,9 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
                         </div>
                     )}
 
-                    {(showLibraryBadge) &&
+                    {/* An unfinished download wins over the library badge: a series that is
+                     partly downloaded should read as "still coming", not as "you have it". */}
+                    {(showLibraryBadge && !isDownloading) &&
                         <div data-media-entry-card-body-library-badge className="absolute z-[1] left-0 top-0">
                             <Badge
                                 size="xl" intent="warning-solid"
@@ -395,7 +397,7 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
                             ><IoLibrarySharp /></Badge>
                         </div>}
 
-                    {(!showLibraryBadge && isDownloading) && (
+                    {isDownloading && (
                         <div data-media-entry-card-body-downloading-badge className="absolute z-[1] left-0 top-0">
                             <Badge
                                 size="xl" intent="primary-solid"

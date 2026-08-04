@@ -44,6 +44,7 @@ import { LiaPlayCircle } from "react-icons/lia"
 import { LuPlus } from "react-icons/lu"
 import { useWindowSize } from "react-use"
 import { MediaCardLazyGrid } from "../../_features/media/_components/media-card-grid"
+import { PaginatedMediaGrid } from "../../_features/media/_components/paginated-media-grid"
 import { MediaEntryCard } from "../../_features/media/_components/media-entry-card"
 import { MediaEntryCardSkeleton } from "../../_features/media/_components/media-entry-card-skeleton"
 import { MediaEntryPageLoadingDisplay } from "../../_features/media/_components/media-entry-page-loading-display"
@@ -76,6 +77,8 @@ export function HomeScreen() {
         libraryGenres,
         libraryCollectionList,
         filteredLibraryCollectionList,
+        statusCollectionList,
+        filteredStatusCollectionList,
         isLoading,
         continueWatchingList,
         unmatchedLocalFiles,
@@ -412,6 +415,8 @@ export function HomeScreen() {
                                         libraryGenres,
                                         libraryCollectionList,
                                         filteredLibraryCollectionList,
+                                        statusCollectionList,
+                                        filteredStatusCollectionList,
                                         isLoading,
                                         continueWatchingList,
                                         unmatchedLocalFiles,
@@ -487,6 +492,8 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
         libraryGenres,
         libraryCollectionList,
         filteredLibraryCollectionList,
+        statusCollectionList,
+        filteredStatusCollectionList,
         isLoading,
         continueWatchingList,
         unmatchedLocalFiles,
@@ -552,8 +559,8 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
             <>
                 <LibraryView
                     genres={libraryGenres}
-                    collectionList={libraryCollectionList}
-                    filteredCollectionList={filteredLibraryCollectionList}
+                    collectionList={statusCollectionList}
+                    filteredCollectionList={filteredStatusCollectionList}
                     continueWatchingList={continueWatchingList}
                     isLoading={isLoading}
                     hasEntries={hasEntries}
@@ -747,7 +754,6 @@ export function ComingSoonPlaceholder({ title }: { title: string }) {
 function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollectionProps, item: Models_HomeItem, index: number }) {
     const serverStatus = useServerStatus()
     const layout = props.item?.options?.layout || "grid"
-    const PAGE_SIZE = 28
     const collectionList = props.libraryCollectionProps.libraryCollectionList
 
     // Search state
@@ -755,15 +761,19 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
     const [debouncedSearch] = useDebounce(searchInput, 250)
 
     // Use parent's data directly — light data arrives instantly, full data refines later.
-    // In full mode, the backend already excludes entries without local files from lists.
+    // Once the full collection is in, every list is narrowed to entries that actually have
+    // local files: this grid is "what you have on disk", and the COMPLETED list now also
+    // carries watched-but-not-downloaded series for the status sections below.
+    // While only light data is available (no entry has library data yet) nothing is filtered,
+    // otherwise the grid would flash empty on every page load.
+    const requireLocalFiles = !props.libraryCollectionProps.isStreamingOnly
     const localEntries: Anime_LibraryCollectionEntry[] = React.useMemo(() => {
         if (!collectionList?.length) return []
         const allEntries: Anime_LibraryCollectionEntry[] = collectionList
             .filter(l => (l.type as string) !== "CURRENT")
             .flatMap(l => {
                 const entries = l.entries ?? []
-                // For PLANNING lists, only include entries that have local files
-                if ((l.type as string) === "PLANNING") {
+                if (requireLocalFiles) {
                     return entries.filter(e => e.libraryData && e.libraryData.mainFileCount > 0)
                 }
                 return entries
@@ -793,38 +803,11 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
         // Sort alphabetically
         filtered.sort((a, b) => (a.media?.title?.userPreferred ?? "").localeCompare(b.media?.title?.userPreferred ?? ""))
         return filtered
-    }, [collectionList, serverStatus?.settings?.anilist?.enableAdultContent, debouncedSearch])
-
-    // Lazy pagination state
-    const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE)
-    const sentinelRef = React.useRef<HTMLDivElement>(null)
-
-    // Reset visible count when entries change significantly
-    React.useEffect(() => {
-        setVisibleCount(PAGE_SIZE)
-    }, [localEntries.length])
-
-    // Intersection observer to load more
-    React.useEffect(() => {
-        const sentinel = sentinelRef.current
-        if (!sentinel) return
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0]?.isIntersecting) {
-                    setVisibleCount(prev => Math.min(prev + PAGE_SIZE, localEntries.length))
-                }
-            },
-            { rootMargin: "200px" },
-        )
-        observer.observe(sentinel)
-        return () => observer.disconnect()
-    }, [localEntries.length])
-
-    const visibleEntries = localEntries.slice(0, visibleCount)
-    const hasMore = visibleCount < localEntries.length
+    }, [collectionList, serverStatus?.settings?.anilist?.enableAdultContent, debouncedSearch, requireLocalFiles])
 
     if (props.libraryCollectionProps.isLoading) return <LoadingSpinner />
-    if (!localEntries.length) return null
+    // Keep the section (and its search box) mounted when a search simply matched nothing.
+    if (!localEntries.length && !debouncedSearch.trim()) return null
 
     if (layout === "carousel") {
         return (
@@ -867,8 +850,9 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                     className="w-full pl-10 pr-3 py-2 rounded-lg bg-[--paper] border border-[--border] text-sm placeholder:text-[--muted] focus:outline-none focus:ring-1 focus:ring-brand-500"
                 />
             </div>
-            <MediaCardLazyGrid itemCount={visibleEntries.length}>
-                {visibleEntries.map(entry => (
+            <PaginatedMediaGrid
+                items={localEntries}
+                renderItem={entry => (
                     <MediaEntryCard
                         key={entry.mediaId}
                         media={entry.media!}
@@ -879,9 +863,8 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                         withAudienceScore={false}
                         type="anime"
                     />
-                ))}
-            </MediaCardLazyGrid>
-            {hasMore && <div ref={sentinelRef} className="h-8" />}
+                )}
+            />
         </PageWrapper>
     )
 

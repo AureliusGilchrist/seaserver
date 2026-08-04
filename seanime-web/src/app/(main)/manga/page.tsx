@@ -457,6 +457,8 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                     isLoading: false,
                     libraryCollectionList: [],
                     filteredLibraryCollectionList: [],
+                    statusCollectionList: [],
+                    filteredStatusCollectionList: [],
                     continueWatchingList: [],
                     unmatchedLocalFiles: [],
                     ignoredLocalFiles: [],

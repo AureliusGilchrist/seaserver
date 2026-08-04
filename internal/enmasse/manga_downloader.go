@@ -1047,6 +1047,7 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 				MediaTitle:    mediaTitle,
 				Pages:         pages,
 				StartNow:      false,
+				EnMasse:       true,
 			})
 
 			if err != nil {

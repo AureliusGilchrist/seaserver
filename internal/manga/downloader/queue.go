@@ -80,7 +80,10 @@ func (q *Queue) markSkipChecked(provider string, mediaID int) {
 
 // Add adds a chapter to the download queue.
 // It tells the queue to download the next item if possible.
-func (q *Queue) Add(id DownloadID, pages []*hibikemanga.ChapterPage, runNext bool) error {
+//
+// `enMasse` marks the item as coming from the bulk downloader, which is what subjects it to the
+// queued-series limit; hand-queued chapters are unlimited.
+func (q *Queue) Add(id DownloadID, pages []*hibikemanga.ChapterPage, runNext bool, enMasse bool) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -103,6 +106,7 @@ func (q *Queue) Add(id DownloadID, pages []*hibikemanga.ChapterPage, runNext boo
 		Status:          string(QueueStatusNotStarted),
 		TotalPages:      len(pages),
 		DownloadedPages: 0,
+		EnMasse:         enMasse,
 	})
 	if err != nil {
 		q.logger.Error().Err(err).Msgf("Failed to insert chapter download queue item for id %v", id)

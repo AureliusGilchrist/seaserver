@@ -359,6 +359,8 @@ type DownloadChapterDirectOptions struct {
 	MediaTitle    string
 	Pages         []*hibikemanga.ChapterPage
 	StartNow      bool
+	// EnMasse marks the chapter as part of a bulk run, subjecting it to the queued-series limit.
+	EnMasse bool
 }
 
 // DownloadChapterDirect is called to download a chapter with pre-fetched pages.
@@ -387,6 +389,7 @@ func (d *Downloader) DownloadChapterDirect(opts DownloadChapterDirectOptions) er
 		},
 		Pages:    opts.Pages,
 		StartNow: opts.StartNow,
+		EnMasse:  opts.EnMasse,
 	})
 	if err == nil && d.OnMangaQueued != nil {
 		go d.OnMangaQueued(opts.MediaId)
