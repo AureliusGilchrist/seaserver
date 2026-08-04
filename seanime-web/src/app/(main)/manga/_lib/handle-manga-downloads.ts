@@ -104,7 +104,11 @@ export function useHandleDownloadMangaChapter(mediaId: string | undefined | null
                     coverImage: "",
                 }, {
                     onSuccess: () => {
-                        toast.success("Chapters added to download queue")
+                        // The server queues them one at a time in the background; rows flip to
+                        // "queued" as they land, and it keeps going once you navigate away.
+                        toast.success(chapters.length > 1
+                            ? `Queueing ${chapters.length} chapters in the background`
+                            : "Chapter added to download queue")
                     },
                 })
             }

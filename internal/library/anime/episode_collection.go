@@ -27,6 +27,13 @@ func ClearEpisodeCollectionCache() {
 	EpisodeCollectionFromLocalFilesCache.Clear()
 }
 
+// ClearEpisodeCollectionCacheForMedia drops the cached episode lists of a single media, for the
+// per-entry deep refresh — no reason to throw away every other entry's episodes with it.
+func ClearEpisodeCollectionCacheForMedia(mediaId int) {
+	episodeCollectionCache.Delete(mediaId)
+	EpisodeCollectionFromLocalFilesCache.Delete(mediaId)
+}
+
 type (
 	// EpisodeCollection represents a collection of episodes.
 	EpisodeCollection struct {

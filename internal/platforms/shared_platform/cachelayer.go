@@ -23,6 +23,7 @@ import (
 type MediaCacheStore interface {
 	GetMediaCache(bucket, key string) ([]byte, bool)
 	SetMediaCache(bucket, key string, data []byte) error
+	DeleteMediaCache(bucket, key string) error
 }
 
 // devnote: I got lazy and used global variables
@@ -652,12 +653,26 @@ func (c *CacheLayer) updateCollectionTrackingFromMangaCollection(collection *ani
 	c.lastCollectionUpdate = time.Now()
 }
 
+// InvalidateMediaCaches drops every cached copy of one media — file cache and, when present,
+// the SQLite media cache. Exported for the per-entry deep refresh, which has to clear the disk
+// caches as well as the in-memory ones for a refetch to actually reach AniList.
+//
+// Unlike the internal version this ignores ShouldCache: the user asked for stale data to go,
+// and entries written while caching was on must not survive because it is off now.
+func (c *CacheLayer) InvalidateMediaCaches(mediaID int) {
+	c.deleteMediaFromBuckets(mediaID)
+}
+
 // invalidateMediaCaches invalidates caches for a specific media ID
 func (c *CacheLayer) invalidateMediaCaches(mediaID int) {
 	if !ShouldCache.Load() {
 		return
 	}
 
+	c.deleteMediaFromBuckets(mediaID)
+}
+
+func (c *CacheLayer) deleteMediaFromBuckets(mediaID int) {
 	mediaIDStr := strconv.Itoa(mediaID)
 
 	// Delete from all media-specific buckets
@@ -673,6 +688,11 @@ func (c *CacheLayer) invalidateMediaCaches(mediaID int) {
 		bucket := c.buckets[bucketName]
 		if err := c.fileCacher.DeletePerm(bucket, mediaIDStr); err != nil {
 			c.logger.Debug().Err(err).Str("bucket", bucketName).Int("mediaID", mediaID).Msg("anilist cache: Failed to invalidate cache entry")
+		}
+		if c.db != nil {
+			if err := c.db.DeleteMediaCache(bucketName, mediaIDStr); err != nil {
+				c.logger.Debug().Err(err).Str("bucket", bucketName).Int("mediaID", mediaID).Msg("anilist cache: Failed to invalidate SQLite cache entry")
+			}
 		}
 	}
 }

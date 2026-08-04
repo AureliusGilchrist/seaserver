@@ -149,6 +149,30 @@ export function useResetAnimeEntryMetadata(mediaId: Nullish<string | number>, sh
     })
 }
 
+/**
+ * Deep refresh of one entry: the server drops every cache keyed to the media and refetches the
+ * AniList collection, then we throw away the client-side copies so the page rebuilds from it.
+ */
+export function useRefreshAnimeEntryStats(mediaId: Nullish<string | number>) {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<boolean, { mediaId: number }>({
+        endpoint: "/api/v1/library/anime-entry/refresh-stats",
+        method: "POST",
+        mutationKey: ["refresh-anime-entry-stats", String(mediaId)],
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key, String(mediaId)] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetMissingEpisodes.key] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.key, String(mediaId)] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME.GetAnimeEpisodeCollection.key, String(mediaId)] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.key] }),
+            ])
+            toast.success("Library stats refreshed")
+        },
+    })
+}
+
 export function useUpdateAnimeEntryProgress(id: Nullish<string | number>, episodeNumber: number, showToast: boolean = true) {
     const queryClient = useQueryClient()
 

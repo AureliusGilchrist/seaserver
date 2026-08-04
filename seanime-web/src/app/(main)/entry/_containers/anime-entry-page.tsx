@@ -14,6 +14,9 @@ import { CommentSection } from "@/app/(main)/_features/comment/comment-section"
 import { RelationsRecommendationsSection } from "@/app/(main)/entry/_components/relations-recommendations-section"
 import { AnimeThemesSection } from "@/app/(main)/entry/_components/anime-themes-section"
 import { DebridStreamPage } from "@/app/(main)/entry/_containers/debrid-stream/debrid-stream-page"
+import {
+    AnimeEntryRefreshStatsButton,
+} from "@/app/(main)/entry/_containers/entry-actions/anime-entry-refresh-stats-button"
 import { EpisodeSection } from "@/app/(main)/entry/_containers/episode-list/episode-section"
 import { __torrentSearch_selectionAtom, TorrentSearchDrawer } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-drawer"
 import { TorrentStreamPage } from "@/app/(main)/entry/_containers/torrent-stream/torrent-stream-page"
@@ -442,6 +445,8 @@ export function AnimeEntryPage() {
                     </AnimatePresence>
 
                     <PluginWebviewSlot slot="anime-screen-bottom" />
+
+                    <AnimeEntryRefreshStatsButton entry={animeEntry} />
                 </PageWrapper>
             </div>
 

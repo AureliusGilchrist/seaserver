@@ -429,6 +429,11 @@ func (scn *Scanner) Scan(ctx context.Context) (lfs []*anime.LocalFile, err error
 		return nil, err
 	}
 
+	// Files the matcher couldn't place may still carry a metadata sidecar from the download
+	// that produced them. Using it here, before hydration, means they are treated exactly like
+	// any other matched file instead of being surfaced as unmatched.
+	MatchLocalFilesFromSidecars(localFiles, scn.Logger, scn.ScanLogger)
+
 	scn.WSEventManager.SendEvent(events.EventScanProgress, 70)
 	scn.WSEventManager.SendEvent(events.EventScanStatus, "Hydrating metadata...")
 

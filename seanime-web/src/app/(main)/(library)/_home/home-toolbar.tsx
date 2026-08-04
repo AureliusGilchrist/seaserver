@@ -6,7 +6,6 @@ import { __bulkAction_modalAtomIsOpen } from "@/app/(main)/(library)/_containers
 import { __ignoredFileManagerIsOpen } from "@/app/(main)/(library)/_containers/ignored-file-manager"
 import { __scanner_modalIsOpen } from "@/app/(main)/(library)/_containers/scanner-modal"
 import { __unknownMedia_drawerIsOpen } from "@/app/(main)/(library)/_containers/unknown-media-manager"
-import { __unmatchedFileManagerIsOpen } from "@/app/(main)/(library)/_containers/unmatched-file-manager"
 import { __home_currentView } from "@/app/(main)/(library)/_home/home-screen"
 import { HomeSettingsButton } from "@/app/(main)/(library)/_home/home-settings-button"
 import { libraryExplorer_drawerOpenAtom } from "@/app/(main)/_features/library-explorer/library-explorer.atoms"
@@ -64,7 +63,6 @@ export function HomeToolbar(props: HomeToolbarProps) {
 
     const status = useServerStatus()
     const setScannerModalOpen = useSetAtom(__scanner_modalIsOpen)
-    const setUnmatchedFileManagerOpen = useSetAtom(__unmatchedFileManagerIsOpen)
     const setIgnoredFileManagerOpen = useSetAtom(__ignoredFileManagerIsOpen)
     const setUnknownMediaManagerOpen = useSetAtom(__unknownMedia_drawerIsOpen)
     const setLibraryExplorerDrawerOpen = useSetAtom(libraryExplorer_drawerOpenAtom)
@@ -130,7 +128,6 @@ export function HomeToolbar(props: HomeToolbarProps) {
                                 onClick={() => {
                                     setLibraryExplorerDrawerOpen(true)
                                 }}
-                                className={cn(unmatchedLocalFiles.length > 0 && "animate-pulse")}
                             />}
                         >
                             Library Explorer
@@ -162,15 +159,10 @@ export function HomeToolbar(props: HomeToolbarProps) {
                 >
                     {hasEntries ? "Refresh Anime Library" : "Scan Anime Library"}
                 </Tooltip>}
-                {(!isNakamaLibrary && unmatchedLocalFiles.length > 0) && <Button
-                    data-home-toolbar-unmatched-button
-                    intent="alert"
-                    leftIcon={<IoLibrarySharp />}
-                    className="animate-bounce"
-                    onClick={() => setUnmatchedFileManagerOpen(true)}
-                >
-                    Resolve unmatched ({unmatchedLocalFiles.length})
-                </Button>}
+                {/* "Resolve unmatched" was removed: files that reach the library carry a
+                 metadata sidecar from their download, and the scanner now matches from it, so
+                 there is nothing left worth nagging about. The manager itself still exists and
+                 is reachable from the Library Explorer for the rare file that needs it. */}
                 {(!isNakamaLibrary && unknownGroups.length > 0) && <Button
                     data-home-toolbar-unknown-button
                     intent="warning"

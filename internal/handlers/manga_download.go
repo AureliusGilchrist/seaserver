@@ -1,10 +1,10 @@
 package handlers
 
 import (
+	"fmt"
 	"seanime/internal/events"
 	"seanime/internal/manga"
 	chapter_downloader "seanime/internal/manga/downloader"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -30,7 +30,7 @@ func (h *Handler) HandleDownloadMangaChapters(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	h.App.WSEventManager.SendEvent(events.InfoToast, "Adding chapters to download queue...")
+	profileID := h.GetProfileID(c)
 
 	// Store manga metadata for display purposes (even if not in AniList collection)
 	// This ensures titles and covers display correctly in the download queue and local library
@@ -65,20 +65,27 @@ func (h *Handler) HandleDownloadMangaChapters(c echo.Context) error {
 		}
 	}
 
-	// Add chapters to the download queue
+	// Hand the chapters to the background worker, which adds one every few seconds and keeps
+	// going after this request (and the page that made it) is gone.
+	jobs := make([]chapterQueueingJob, 0, len(b.ChapterIds))
 	for _, chapterId := range b.ChapterIds {
-		err := h.App.MangaDownloader.DownloadChapter(manga.DownloadChapterOptions{
-			ProfileID:  h.GetProfileID(c),
+		jobs = append(jobs, chapterQueueingJob{
+			ProfileID:  profileID,
 			Provider:   b.Provider,
-			MediaId:    b.MediaId,
-			ChapterId:  chapterId,
-			StartNow:   b.StartNow,
+			MediaID:    b.MediaId,
 			MediaTitle: b.MediaTitle,
+			ChapterID:  chapterId,
+			StartNow:   b.StartNow,
 		})
-		if err != nil {
-			return h.RespondWithError(c, err)
-		}
-		time.Sleep(400 * time.Millisecond) // Sleep to avoid rate limiting
+	}
+
+	scheduled := h.queueChaptersInBackground(jobs)
+
+	if scheduled > 0 {
+		h.App.WSEventManager.SendEvent(events.InfoToast, fmt.Sprintf(
+			"Queueing %d chapter(s), one every %d seconds — you can leave this page",
+			scheduled, int(chapterQueueingInterval.Seconds()),
+		))
 	}
 
 	return h.RespondWithData(c, true)

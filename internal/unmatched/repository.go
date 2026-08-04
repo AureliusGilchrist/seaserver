@@ -1309,7 +1309,31 @@ func (r *Repository) GetUnmatchedDestination(torrentName string) string {
 	return DestinationFor(torrentName)
 }
 
-const metadataFileName = ".seanime-metadata.json"
+// MetadataFileName is the sidecar written next to a torrent's files (and carried into the
+// anime folder when it is matched) recording which anime the download came from.
+const MetadataFileName = ".seanime-metadata.json"
+
+const metadataFileName = MetadataFileName
+
+// AnimeIDFromSidecar returns the anime ID recorded in the sidecar in dir, if there is one.
+// Used by the scanner to match files that a title comparison couldn't place: the download
+// already knows what it is, so there is no reason to ask the user.
+func AnimeIDFromSidecar(dir string) (int, bool) {
+	data, err := os.ReadFile(filepath.Join(dir, MetadataFileName))
+	if err != nil {
+		return 0, false
+	}
+
+	var metadata TorrentMetadata
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		return 0, false
+	}
+	if metadata.AnimeID <= 0 {
+		return 0, false
+	}
+
+	return metadata.AnimeID, true
+}
 
 // SaveTorrentMetadata saves anime metadata for a torrent
 func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleRomaji, titleNative, format string, startYear int, autoMatch bool) error {

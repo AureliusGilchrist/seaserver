@@ -200,6 +200,10 @@ func (h *PlatformHelper) ClearBaseAnimeCache(mediaID int) {
 	h.baseAnimeCache.Delete(mediaID)
 }
 
+func (h *PlatformHelper) ClearCompleteAnimeCache(mediaID int) {
+	h.completeAnimeCache.Delete(mediaID)
+}
+
 func (h *PlatformHelper) GetCachedBaseManga(mediaID int) (*anilist.BaseManga, bool) {
 	return h.baseMangaCache.Get(mediaID)
 }

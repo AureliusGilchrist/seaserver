@@ -66,6 +66,19 @@ func (ap *AnilistPlatform) ClearCache() {
 	ap.helper.ClearCache()
 }
 
+// ClearMediaCache drops every cached copy of one media: the in-memory base/complete anime
+// caches and the on-disk (and SQLite) caches behind them. Used by the per-entry deep refresh,
+// where clearing only the in-memory layer would just repopulate it from disk.
+func (ap *AnilistPlatform) ClearMediaCache(mediaID int) {
+	ap.helper.ClearBaseAnimeCache(mediaID)
+	ap.helper.ClearCompleteAnimeCache(mediaID)
+	ap.helper.ClearBaseMangaCache(mediaID)
+
+	if cacheLayer, ok := ap.anilistClient.(*shared_platform.CacheLayer); ok {
+		cacheLayer.InvalidateMediaCaches(mediaID)
+	}
+}
+
 func (ap *AnilistPlatform) Close() {
 	ap.helper.Close()
 }

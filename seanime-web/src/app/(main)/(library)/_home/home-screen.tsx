@@ -10,7 +10,6 @@ import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-l
 import { IgnoredFileManager } from "@/app/(main)/(library)/_containers/ignored-file-manager"
 import { __scanner_modalIsOpen } from "@/app/(main)/(library)/_containers/scanner-modal"
 import { UnknownMediaManager } from "@/app/(main)/(library)/_containers/unknown-media-manager"
-import { UnmatchedFileManager } from "@/app/(main)/(library)/_containers/unmatched-file-manager"
 import { DEFAULT_HOME_ITEMS, HOME_ITEMS, isAnimeLibraryItemsOnly } from "@/app/(main)/(library)/_home/home-items.utils"
 import { __home_settingsModalOpen, HomeSettingsModal } from "@/app/(main)/(library)/_home/home-settings-modal"
 import { HomeToolbar } from "@/app/(main)/(library)/_home/home-toolbar"
@@ -257,9 +256,6 @@ export function HomeScreen() {
 
                 <HomeSettingsModal emptyLibrary isNakamaLibrary={isNakamaLibrary} />
 
-                <UnmatchedFileManager
-                    unmatchedGroups={unmatchedGroups}
-                />
                 <UnknownMediaManager
                     unknownGroups={unknownGroups}
                 />
@@ -464,9 +460,6 @@ export function HomeScreen() {
 
             <HomeSettingsModal isNakamaLibrary={isNakamaLibrary} />
 
-            <UnmatchedFileManager
-                unmatchedGroups={unmatchedGroups}
-            />
             <UnknownMediaManager
                 unknownGroups={unknownGroups}
             />
