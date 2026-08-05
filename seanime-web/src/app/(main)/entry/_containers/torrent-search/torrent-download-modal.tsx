@@ -6,6 +6,10 @@ import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websocke
 import { useLibraryPathSelection } from "@/app/(main)/_hooks/use-library-path-selection"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import {
+    __torrentDownload_autoMatchAtom as autoMatchAtom,
+    AutoMatchConfirmationModal,
+} from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
+import {
     __torrentDownload_fileSelectionAtom,
     getDefaultDestination,
     sanitizeDirectoryName,
@@ -17,6 +21,7 @@ import { DirectorySelector } from "@/components/shared/directory-selector"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
+import { Modal } from "@/components/ui/modal"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Vaul, VaulContent } from "@/components/vaul"
@@ -24,7 +29,6 @@ import { openTab } from "@/lib/helpers/browser"
 import { TORRENT_CLIENT } from "@/lib/server/settings"
 import { atom } from "jotai"
 import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
-import { atomWithStorage } from "jotai/utils"
 import { useRouter } from "@/lib/navigation"
 import React, { useMemo, useState } from "react"
 import { AiOutlineCloudServer } from "react-icons/ai"
@@ -32,12 +36,7 @@ import { BiCollection, BiDownload, BiX } from "react-icons/bi"
 import { FcFilmReel, FcFolder } from "react-icons/fc"
 import { LuDownload, LuPlay } from "react-icons/lu"
 
-/**
- * When enabled, a torrent is matched to its anime automatically as soon as it finishes
- * downloading — the same match the user would otherwise perform by hand in the Unmatched
- * screen. Persisted so the preference carries across downloads and sessions.
- */
-export const __torrentDownload_autoMatchAtom = atomWithStorage("sea-torrent-download-auto-match", false)
+export { __torrentDownload_autoMatchAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 
 const confirmationModalOpenAtom = atom(false)
 
@@ -62,7 +61,9 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
     }, [entry, libraryPath])
 
     const [destination, setDestination] = useState(defaultPath)
-    const [autoMatch, setAutoMatch] = useAtom(__torrentDownload_autoMatchAtom)
+    const [autoMatch, setAutoMatch] = useAtom(autoMatchAtom)
+    // Download waiting on the auto-match confirmation, or null when nothing is pending.
+    const [pendingAutoMatchDownload, setPendingAutoMatchDownload] = useState<"default" | "smart-select" | null>(null)
 
     const libraryPathSelectionProps = useLibraryPathSelection({
         destination,
@@ -99,10 +100,12 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
 
 
     // download via torrent client
+    // Closes the download sheet and the torrent search drawer, leaving the user on the screen they
+    // opened the search from. No navigation and no reload — nothing about queueing a download
+    // requires leaving the entry page.
     const { mutate, isPending } = useTorrentClientDownload(() => {
         setConfirmationModalOpen(false)
         setTorrentDrawerIsOpen(undefined)
-        router.push("/torrent-list")
     }, media.id)
 
     // download torrent file
@@ -132,35 +135,36 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
 
     const isDisabled = isPending || isDownloadingFiles || isDownloadingDebrid
 
+    function launchDownload(type: "default" | "smart-select") {
+        mutate({
+            torrents: selectedTorrents,
+            destination,
+            smartSelect: {
+                enabled: type === "smart-select",
+                missingEpisodeNumbers: type === "smart-select"
+                    ? (entry.downloadInfo?.episodesToDownload?.map(n => n.episodeNumber) || [])
+                    : [],
+            },
+            media,
+            autoMatch,
+        })
+    }
+
     function handleLaunchDownload(type: "default" | "smart-select" | "deselect") {
-        if (type === "smart-select") {
-            mutate({
-                torrents: selectedTorrents,
-                destination,
-                smartSelect: {
-                    enabled: true,
-                    missingEpisodeNumbers: entry.downloadInfo?.episodesToDownload?.map(n => n.episodeNumber) || [],
-                },
-                media,
-                autoMatch,
-            })
-        } else if (type === "deselect") {
+        if (type === "deselect") {
             setFileSelection({
                 torrent: selectedTorrents[0],
                 destination,
             })
-        } else if (type === "default") {
-            mutate({
-                torrents: selectedTorrents,
-                destination,
-                smartSelect: {
-                    enabled: false,
-                    missingEpisodeNumbers: [],
-                },
-                media,
-                autoMatch,
-            })
+            return
         }
+        // Auto-match moves the finished download straight into the library with no review step,
+        // so confirm it explicitly rather than letting a toggle left on from last time decide.
+        if (autoMatch) {
+            setPendingAutoMatchDownload(type)
+            return
+        }
+        launchDownload(type)
     }
 
     function handleDownloadFiles() {
@@ -186,6 +190,17 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
     if (selectedTorrents.length === 0) return null
 
     return (
+        <>
+        <AutoMatchConfirmationModal
+            open={pendingAutoMatchDownload !== null}
+            onOpenChange={open => !open && setPendingAutoMatchDownload(null)}
+            animeTitle={media.title?.userPreferred || media.title?.romaji || media.title?.english || undefined}
+            onConfirm={() => {
+                const type = pendingAutoMatchDownload
+                setPendingAutoMatchDownload(null)
+                if (type) launchDownload(type)
+            }}
+        />
         <Vaul
             open={isConfirmationModalOpen}
             onOpenChange={() => setConfirmationModalOpen(false)}
@@ -352,6 +367,7 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
                 </AppLayoutStack>
             </VaulContent>
         </Vaul>
+        </>
     )
 
 }

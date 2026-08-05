@@ -1,6 +1,5 @@
 "use client"
 
-import { useScanLocalFiles } from "@/api/hooks/scan.hooks"
 import { useGetUnmatchedTorrents, UnmatchedTorrent } from "@/api/hooks/unmatched.hooks"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { UnmatchedTorrentCard } from "@/app/(main)/unmatched/_components/unmatched-torrent-card"
@@ -24,7 +23,6 @@ export function UnmatchedTorrentsPage() {
     })
     const { data: libraryCollection } = useGetLibraryCollection({ staleTime: 30_000 })
     const [selectedTorrent, setSelectedTorrent] = useAtom(selectedUnmatchedTorrentAtom)
-    const { mutate: scanLibrary } = useScanLocalFiles()
     const [search, setSearch] = React.useState("")
     const [hideMatched, setHideMatched] = React.useState(true)
 
@@ -149,12 +147,10 @@ export function UnmatchedTorrentsPage() {
                 onSuccess={() => {
                     setSelectedTorrent(null)
                     refetch()
-                    // Trigger a library scan so matched files appear on the home page
-                    scanLibrary({
-                        enhanced: true,
-                        skipLockedFiles: true,
-                        skipIgnoredFiles: true,
-                    })
+                    // NOTE: no library scan here on purpose. The server already injects the moved
+                    // files into the library DB as hydrated, locked local files, so a scan adds
+                    // nothing — and a full enhanced scan after *every* match is what made matching
+                    // get slower and slower the longer a matching session ran.
                 }}
             />
         </PageWrapper>

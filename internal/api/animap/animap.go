@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"regexp"
 	"seanime/internal/constants"
 	"seanime/internal/hook"
 	"seanime/internal/util/result"
@@ -59,6 +60,30 @@ type (
 		AbsoluteNumber int    `json:"absoluteNumber,omitempty"`
 	}
 )
+
+// mainEpisodeKey matches the keys Animap uses for regular, numbered episodes. Anything else —
+// specials ("S1"), credits ("C1"), trailers ("T1"), parodies ("P1") — carries a letter prefix.
+var mainEpisodeKey = regexp.MustCompile(`^\d+$`)
+
+// MainEpisodeCount returns how many regular episodes the entry has.
+//
+// len(Episodes) is NOT the episode count: the map is keyed by AniDB episode number and also holds
+// specials, credits and trailers, and for entries mapped to a multi-season TVDB show it holds every
+// season's episodes at once. Counting the whole map therefore reports far more episodes than the
+// entry actually has — never fewer — which is what made "15 episodes" show up as 60.
+func (a *Anime) MainEpisodeCount() int {
+	if a == nil || a.Episodes == nil {
+		return 0
+	}
+	count := 0
+	for key, ep := range a.Episodes {
+		if ep == nil || !mainEpisodeKey.MatchString(key) {
+			continue
+		}
+		count++
+	}
+	return count
+}
 
 //----------------------------------------------------------------------------------------------------------------------
 

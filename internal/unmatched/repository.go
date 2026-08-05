@@ -620,13 +620,15 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	// If we have fewer files than the expected count, log a warning but continue. Some torrents
 	// legitimately have fewer episodes than AniList metadata, and users may intentionally match a subset.
 	// Use the user-selected AniList ID instead of the torrent's cached ID to respect manual selection.
+	// Prefer the count recorded when the torrent was queued (AniList's, for this exact entry) over
+	// the Animap map, which also holds specials and, for multi-season mappings, other seasons.
 	var expectedEpisodes int
-	if req.AnimeID > 0 {
-		if animeMeta, err := r.fetchAnimeMetadata(req.AnimeID); err == nil && animeMeta != nil && animeMeta.Episodes != nil {
-			expectedEpisodes = len(animeMeta.Episodes)
-		}
-	} else if torrent.AnimeExpectedEpisodes > 0 {
+	if torrent.AnimeExpectedEpisodes > 0 && (req.AnimeID == 0 || req.AnimeID == torrent.AnimeID) {
 		expectedEpisodes = torrent.AnimeExpectedEpisodes
+	} else if req.AnimeID > 0 {
+		if animeMeta, err := r.fetchAnimeMetadata(req.AnimeID); err == nil && animeMeta != nil {
+			expectedEpisodes = animeMeta.MainEpisodeCount()
+		}
 	}
 
 	if expectedEpisodes > 0 {
@@ -753,10 +755,15 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			
 			// Save the user's selection to override the cached metadata
 			existingAutoMatch := false
+			existingEpisodes := 0
 			if existing := r.GetTorrentMetadata(req.TorrentName); existing != nil {
 				existingAutoMatch = existing.AutoMatch
+				existingEpisodes = existing.AnimeExpectedEpisodes
 			}
-			if err := r.SaveTorrentMetadata(req.TorrentName, req.AnimeID, animeMeta.Title, "", animeMeta.Type, startYear, existingAutoMatch); err != nil {
+			if existingEpisodes == 0 {
+				existingEpisodes = animeMeta.MainEpisodeCount()
+			}
+			if err := r.SaveTorrentMetadata(req.TorrentName, req.AnimeID, animeMeta.Title, "", animeMeta.Type, startYear, existingEpisodes, existingAutoMatch); err != nil {
 				r.logger.Warn().Err(err).Str("torrent", req.TorrentName).Msg("unmatched: Failed to save user's selection metadata")
 			} else {
 				r.logger.Debug().Int("animeId", req.AnimeID).Str("torrent", req.TorrentName).Msg("unmatched: Saved user's selection metadata")
@@ -1335,8 +1342,13 @@ func AnimeIDFromSidecar(dir string) (int, bool) {
 	return metadata.AnimeID, true
 }
 
-// SaveTorrentMetadata saves anime metadata for a torrent
-func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleRomaji, titleNative, format string, startYear int, autoMatch bool) error {
+// SaveTorrentMetadata saves anime metadata for a torrent.
+//
+// expectedEpisodes should be the AniList episode count for the entry when the caller has it. That
+// number is authoritative for the entry being downloaded, unlike the Animap fallback used when the
+// sidecar carries no count, so recording it here keeps the episode count shown in the Unmatched
+// screen exact. Pass 0 when it isn't known.
+func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleRomaji, titleNative, format string, startYear, expectedEpisodes int, autoMatch bool) error {
 	torrentPath := DestinationFor(torrentName)
 
 	// Create directory if it doesn't exist
@@ -1345,12 +1357,13 @@ func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleR
 	}
 
 	metadata := TorrentMetadata{
-		AnimeID:          animeID,
-		AnimeTitleRomaji: titleRomaji,
-		AnimeTitleNative: titleNative,
-		AnimeFormat:      format,
-		AnimeStartYear:   startYear,
-		AutoMatch:        autoMatch,
+		AnimeID:               animeID,
+		AnimeTitleRomaji:      titleRomaji,
+		AnimeTitleNative:      titleNative,
+		AnimeFormat:           format,
+		AnimeStartYear:        startYear,
+		AnimeExpectedEpisodes: expectedEpisodes,
+		AutoMatch:             autoMatch,
 	}
 
 	data, err := json.MarshalIndent(metadata, "", "  ")
@@ -1527,8 +1540,10 @@ func (r *Repository) applyMetadata(torrent *UnmatchedTorrent, metadata *TorrentM
 	if metadata.AnimeID > 0 {
 		if animeMeta, err := r.fetchAnimeMetadata(metadata.AnimeID); err == nil && animeMeta != nil {
 			torrent.AnimeTitleRomaji = firstNonEmpty(torrent.AnimeTitleRomaji, animeMeta.Title, animeMeta.Titles["romaji"], animeMeta.Titles["english"], animeMeta.Titles["native"])
-			if animeMeta.Episodes != nil && torrent.AnimeExpectedEpisodes == 0 {
-				torrent.AnimeExpectedEpisodes = len(animeMeta.Episodes)
+			// Only a fallback — the sidecar's count comes from AniList and is exact for this
+			// entry, whereas the Animap map counts specials and sibling seasons too.
+			if torrent.AnimeExpectedEpisodes == 0 {
+				torrent.AnimeExpectedEpisodes = animeMeta.MainEpisodeCount()
 			}
 		}
 	}

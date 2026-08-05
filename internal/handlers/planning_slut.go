@@ -267,6 +267,61 @@ func (h *Handler) addAnimeToPlanningSlutPlanning(ctx context.Context, mediaID in
 	return err
 }
 
+// planningSlutAddedAnime records the media this process has already put on the shared PLANNING
+// list. Without it, matching several torrents of the same series would issue one rate-limited
+// AniList write per match — the collection caches only refresh every five minutes, so the
+// collection lookups alone cannot see an entry added moments earlier.
+var planningSlutAddedAnime = result.NewCache[int, struct{}]()
+
+// animeIsAlreadyTracked reports whether an anime is already on a list and therefore must not be
+// (re-)added to the shared PLANNING list.
+//
+// Deliberately does not fetch anything: it consults the user's own collection, whatever shared
+// collection is already cached, and what this process has added. Fetching the shared collection
+// here would put an AniList round-trip in front of every single match.
+func (h *Handler) animeIsAlreadyTracked(mediaID int) bool {
+	if _, ok := planningSlutAddedAnime.Get(mediaID); ok {
+		return true
+	}
+
+	// The user's own list is the authority for anything on it.
+	if collection, err := h.App.GetAnimeCollection(false); err == nil && collection != nil {
+		if _, found := collection.GetListEntryFromAnimeId(mediaID); found {
+			return true
+		}
+	}
+
+	if collection, ok := planningSlutAnimeCollectionCache.Get(1); ok && collection != nil {
+		if _, found := collection.GetListEntryFromAnimeId(mediaID); found {
+			return true
+		}
+	}
+
+	return false
+}
+
+// addAnimeToPlanningIfAbsent puts an anime on the shared (planning slut) PLANNING list only when it
+// isn't already on a list, and reports whether it actually wrote anything.
+//
+// UpdateMediaListEntry is a blind write: running it for an entry the account already tracks moves
+// that entry back to PLANNING and discards the status and progress it carried. Checking first also
+// keeps repeat matches of one series from burning a rate-limited AniList write each time.
+func (h *Handler) addAnimeToPlanningIfAbsent(ctx context.Context, mediaID int) (bool, error) {
+	if mediaID <= 0 {
+		return false, nil
+	}
+	if h.animeIsAlreadyTracked(mediaID) {
+		return false, nil
+	}
+
+	if err := h.addAnimeToPlanningSlutPlanning(ctx, mediaID); err != nil {
+		return false, err
+	}
+
+	planningSlutAddedAnime.SetT(mediaID, struct{}{}, 6*time.Hour)
+	return true, nil
+}
+
 // getPlanningSlutAnimeCollectionCached returns the planning slut's anime collection,
 // using a 5-minute in-memory cache to avoid hammering AniList on every page load.
 func (h *Handler) getPlanningSlutAnimeCollectionCached(ctx context.Context, bypassCache bool) (*anilist.AnimeCollection, error) {

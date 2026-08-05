@@ -283,7 +283,9 @@ func (h *Handler) HandleUpdateLocalFiles(c echo.Context) error {
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
 
-			if err := h.addAnimeToPlanningSlutPlanning(ctx, mediaID); err != nil {
+			// Only when the anime isn't already on a list — re-writing an existing entry would
+			// reset it to PLANNING and throw away its status and progress.
+			if _, err := h.addAnimeToPlanningIfAbsent(ctx, mediaID); err != nil {
 				if !errors.Is(err, anilist.ErrNotAuthenticated) {
 					h.App.Logger.Debug().Err(err).Int("mediaId", mediaID).Msg("library: failed to add matched anime to planning slut")
 				}

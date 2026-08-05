@@ -293,7 +293,13 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 			if b.Media.StartDate != nil && b.Media.StartDate.Year != nil {
 				startYear = *b.Media.StartDate.Year
 			}
-			if err := h.App.UnmatchedRepository.SaveTorrentMetadata(t.Name, b.Media.ID, titleRomaji, titleNative, format, startYear, b.AutoMatch); err != nil {
+			// AniList's count for this exact entry — recorded so the Unmatched screen doesn't have
+			// to fall back to the Animap map, which also counts specials and sibling seasons.
+			expectedEpisodes := 0
+			if b.Media.Episodes != nil {
+				expectedEpisodes = *b.Media.Episodes
+			}
+			if err := h.App.UnmatchedRepository.SaveTorrentMetadata(t.Name, b.Media.ID, titleRomaji, titleNative, format, startYear, expectedEpisodes, b.AutoMatch); err != nil {
 				h.App.Logger.Error().Err(err).Str("torrent", t.Name).Msg("torrent client: Failed to save torrent metadata")
 				return h.RespondWithError(c, fmt.Errorf("could not save anime metadata for %q, torrent not added: %w", t.Name, err))
 			}
@@ -335,16 +341,13 @@ func (h *Handler) addManualDownloadToPlanning(mediaID int) {
 	go func() {
 		defer util.HandlePanicInModuleThen("handlers/addManualDownloadToPlanning", func() {})
 
-		// Already on the main account — that list wins, leave it as is.
-		if animeCollection, err := h.App.GetAnimeCollection(false); err == nil && animeCollection != nil {
-			if _, found := animeCollection.GetListEntryFromAnimeId(mediaID); found {
-				h.App.Logger.Debug().Int("mediaId", mediaID).Msg("torrent client: Media already on the main account, not adding to planning")
-				return
-			}
-		}
-
-		if err := h.addAnimeToPlanningSlutPlanning(context.Background(), mediaID); err != nil {
+		added, err := h.addAnimeToPlanningIfAbsent(context.Background(), mediaID)
+		if err != nil {
 			h.App.Logger.Warn().Err(err).Int("mediaId", mediaID).Msg("torrent client: Failed to add manually downloaded media to planning")
+			return
+		}
+		if !added {
+			h.App.Logger.Debug().Int("mediaId", mediaID).Msg("torrent client: Media already tracked, not adding to planning")
 			return
 		}
 

@@ -19,6 +19,11 @@ import (
 // don't race on the DB read-modify-write of local files.
 var matchMu sync.Mutex
 
+// injectMu guards the local-file DB read-modify-write in FinalizeUnmatchedMatch. That runs in a
+// goroutine after matchMu has been released, so two matches finishing close together could
+// otherwise read the same list and have the second save drop the first one's entries.
+var injectMu sync.Mutex
+
 // HandleGetUnmatchedTorrents
 //
 //	@summary returns all unmatched torrents.
@@ -150,30 +155,41 @@ func (h *Handler) FinalizeUnmatchedMatch(reqCopy unmatched.MatchRequest, resultC
 				lf.Locked = true
 			}
 
-			existingLFs, lfsId, lfsErr := db_bridge.GetLocalFiles(h.App.Database)
-			if lfsErr != nil {
-				h.App.Logger.Warn().Err(lfsErr).Msg("unmatched: failed to load local files for DB injection")
-			} else {
+			func() {
+				injectMu.Lock()
+				defer injectMu.Unlock()
+
+				existingLFs, lfsId, lfsErr := db_bridge.GetLocalFiles(h.App.Database)
+				if lfsErr != nil {
+					h.App.Logger.Warn().Err(lfsErr).Msg("unmatched: failed to load local files for DB injection")
+					return
+				}
 				merged := append(existingLFs, newLFs...)
 				if _, saveErr := db_bridge.SaveLocalFiles(h.App.Database, lfsId, merged); saveErr != nil {
 					h.App.Logger.Warn().Err(saveErr).Msg("unmatched: failed to save injected local files")
-				} else {
-					h.App.Logger.Info().
-						Int("count", len(newLFs)).
-						Int("mediaId", reqCopy.AnimeID).
-						Msg("unmatched: injected moved files into library DB")
+					return
 				}
-			}
+				h.App.Logger.Info().
+					Int("count", len(newLFs)).
+					Int("mediaId", reqCopy.AnimeID).
+					Msg("unmatched: injected moved files into library DB")
+			}()
 		}
 
-		// Auto-add to Planning list
+		// Auto-add to Planning list — but only when the anime isn't already on a list. Writing
+		// over an existing entry would reset it to PLANNING and discard its progress.
 		if reqCopy.AnimeID > 0 {
-			if addErr := h.addAnimeToPlanningSlutPlanning(context.Background(), reqCopy.AnimeID); addErr != nil {
+			added, addErr := h.addAnimeToPlanningIfAbsent(context.Background(), reqCopy.AnimeID)
+			switch {
+			case addErr != nil:
 				h.App.Logger.Warn().Err(addErr).Int("mediaId", reqCopy.AnimeID).
 					Msg("unmatched: failed to add anime to planning slut's PLANNING list")
-			} else {
+			case added:
 				h.App.Logger.Info().Int("mediaId", reqCopy.AnimeID).
 					Msg("unmatched: added anime to planning slut's PLANNING list")
+			default:
+				h.App.Logger.Debug().Int("mediaId", reqCopy.AnimeID).
+					Msg("unmatched: anime already tracked, left its list entry alone")
 			}
 		}
 
@@ -182,12 +198,45 @@ func (h *Handler) FinalizeUnmatchedMatch(reqCopy unmatched.MatchRequest, resultC
 			h.App.UnmatchedScanner.ClearCompletedTorrent(reqCopy.TorrentName)
 		}
 		h.App.UnmatchedRepository.InvalidateCache()
+
+		h.scheduleAnimeCollectionRefresh()
+}
+
+// postMatchRefreshDelay is how long the coalesced post-match refresh waits for more matches before
+// running. Long enough that working through a queue of torrents produces one refresh rather than
+// one per torrent, short enough that a single match still lands promptly.
+const postMatchRefreshDelay = 8 * time.Second
+
+var (
+	postMatchRefreshMu    sync.Mutex
+	postMatchRefreshTimer *time.Timer
+)
+
+// scheduleAnimeCollectionRefresh queues the expensive tail of a match — the unmatched re-scan and
+// the AniList collection refresh — and coalesces repeated calls into a single run.
+//
+// Running these inline per match is what made matching get progressively slower over a session:
+// every match forced a full AniList collection refetch (rate limited, and slower the larger the
+// collection gets) and a fresh scan of the whole staging directory, all while the next match was
+// competing for the same disk and API budget.
+func (h *Handler) scheduleAnimeCollectionRefresh() {
+	postMatchRefreshMu.Lock()
+	defer postMatchRefreshMu.Unlock()
+
+	if postMatchRefreshTimer != nil {
+		postMatchRefreshTimer.Reset(postMatchRefreshDelay)
+		return
+	}
+
+	postMatchRefreshTimer = time.AfterFunc(postMatchRefreshDelay, func() {
+		defer util.HandlePanicInModuleThen("handlers/scheduleAnimeCollectionRefresh", func() {})
+
 		h.App.UnmatchedScanner.TriggerScan()
 
-		// Refresh AniList collection
 		if _, err := h.App.GetAnimeCollection(true); err != nil {
 			h.App.Logger.Warn().Err(err).Msg("unmatched: failed to refresh anime collection after match")
 		}
+	})
 }
 
 // HandleUnmatchedFamilySearch

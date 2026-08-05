@@ -26,6 +26,8 @@ import { TextInput } from "@/components/ui/text-input"
 import { Alert } from "@/components/ui/alert/alert"
 import React, { useState, useMemo, useCallback, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { useAtom } from "jotai/react"
+import { atomWithStorage } from "jotai/utils"
 import { toast } from "sonner"
 import { BiCheck, BiFolder, BiFile, BiSearch, BiFolderOpen, BiSolidStar } from "react-icons/bi"
 import { LuChevronDown, LuChevronRight } from "react-icons/lu"
@@ -45,6 +47,43 @@ interface UnmatchedMatchModalProps {
     torrent: UnmatchedTorrent | null
     onClose: () => void
     onSuccess: () => void
+}
+
+/**
+ * The series that was matched to most recently. Used to pre-fill the anime search box the next
+ * time the picker opens with nothing already matched, so working through a run of downloads from
+ * the same show doesn't mean retyping its title every single time.
+ * Persisted so it survives a reload.
+ */
+export const __unmatched_lastMatchedTitleAtom = atomWithStorage<string>(
+    "sea-unmatched-last-matched-title",
+    "",
+    undefined,
+    { getOnInit: true }, // read synchronously, so the first picker opened after a reload is seeded too
+)
+
+// Every title an AniList entry is known by, lowercased — used to decide whether a search result
+// is the series we're prioritising.
+function animeTitleVariants(anime: AL_BaseAnime & { synonyms?: string[] } | null | undefined): string[] {
+    if (!anime) return []
+    return [
+        anime.title?.romaji,
+        anime.title?.english,
+        anime.title?.native,
+        anime.title?.userPreferred,
+        ...(anime.synonyms ?? []),
+    ].filter(Boolean).map(t => String(t).toLowerCase())
+}
+
+// Ranks a search result against the prioritised title: 0 = exact title, 1 = title contains it,
+// 2 = everything else. Used to float the series we pre-filled the search with to the top.
+function priorityRank(anime: AL_BaseAnime & { synonyms?: string[] } | null | undefined, priorityTitle: string): number {
+    const q = priorityTitle.trim().toLowerCase()
+    if (!q) return 2
+    const variants = animeTitleVariants(anime)
+    if (variants.some(t => t === q)) return 0
+    if (variants.some(t => t.includes(q))) return 1
+    return 2
 }
 
 // Safely extract a title string from AniList details, handling generated type shapes
@@ -110,6 +149,12 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     // Family detail fetch — when a family entry is clicked, fetch full details progressively
     const [familyDetailId, setFamilyDetailId] = useState<number | null>(null)
     const { data: familyAnimeDetails } = useGetAnilistAnimeDetails(familyDetailId)
+    // Title carried over from the previous match, used to pre-fill (and pre-run) the search.
+    const [lastMatchedTitle, setLastMatchedTitle] = useAtom(__unmatched_lastMatchedTitleAtom)
+    // The title the search box was seeded with — its results are floated to the top.
+    const [priorityTitle, setPriorityTitle] = useState("")
+    // Torrent the search box has already been seeded for, so we never overwrite typing.
+    const [seededForTorrent, setSeededForTorrent] = useState<string | null>(null)
 
     const { mutate: fetchTorrentContents } = useGetUnmatchedTorrentContents(torrent?.name || null)
 
@@ -170,6 +215,11 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             setSelectedAnime(null)
             setHasAutoSelectedAnime(false)
             setSearchQuery("")
+            setSearchInputValue("")
+            setHasSearched(false)
+            // Let the search box be seeded again for this torrent.
+            setSeededForTorrent(null)
+            setPriorityTitle("")
             fetchTorrentContents({ name: torrent.name }, {
                 onSuccess: (data) => {
                     setTorrentContents(data || null)
@@ -221,6 +271,10 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setSelectedAnime(null)
         setHasAutoSelectedAnime(false)
         setSearchQuery("")
+        setSearchInputValue("")
+        setHasSearched(false)
+        setSeededForTorrent(null)
+        setPriorityTitle("")
         setDependOnIndex(false)
         setEpisodeOffset(1)
         setFamilyDetailId(null)
@@ -250,11 +304,15 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setFamilyResults(null)
         setFamilySearchTargetId(null)
         setFamilyDetailId(null)
+        setPriorityTitle("")
+        setSeededForTorrent(null)
     }, [])
 
-    const handleSearch = useCallback(() => {
-        if (!searchInputValue || searchInputValue.length < 2) return
-        setSearchQuery(searchInputValue)
+    const runSearch = useCallback((term: string) => {
+        const q = term.trim()
+        if (q.length < 2) return
+        setSearchInputValue(term)
+        setSearchQuery(q)
         setHasSearched(true)
         // Reset family search when doing new search
         setFamilySearchDone(false)
@@ -262,7 +320,28 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setFamilySearchTargetId(null)
         // Trigger refetch
         setTimeout(() => refetchSearch(), 0)
-    }, [searchInputValue, refetchSearch])
+    }, [refetchSearch])
+
+    const handleSearch = useCallback(() => {
+        // A hand-typed search replaces the seeded one, so stop floating the seeded title.
+        setPriorityTitle("")
+        runSearch(searchInputValue)
+    }, [searchInputValue, runSearch])
+
+    // Seed the anime search as soon as the picker opens: with the title this torrent is already
+    // matched to if it has one, otherwise with the series matched most recently. The request goes
+    // out immediately so the seeded series is on screen (and ranked first) without another click.
+    useEffect(() => {
+        if (step !== "select-anime") return
+        if (!torrent?.name || seededForTorrent === torrent.name) return
+        if (searchInputValue) return
+
+        const seed = (storedAnimeTitleRomaji || "").trim() || lastMatchedTitle.trim()
+        setSeededForTorrent(torrent.name)
+        if (seed.length < 2) return
+        setPriorityTitle(seed)
+        runSearch(seed)
+    }, [step, torrent?.name, seededForTorrent, searchInputValue, storedAnimeTitleRomaji, lastMatchedTitle, runSearch])
 
     const handleSearchInputKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === "Enter") {
@@ -333,6 +412,9 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             || torrent.name
             || ""
 
+        // Remember what we matched to so the next torrent's picker opens on this series.
+        if (titleClean) setLastMatchedTitle(titleClean)
+
         matchTorrent({
             torrentName: torrent.name,
             selectedFiles: Array.from(selectedFiles),
@@ -342,7 +424,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             useIndexBasedEpisodes: dependOnIndex,
             episodeOffset: dependOnIndex ? (episodeOffset > 0 ? episodeOffset : 1) : undefined,
         })
-    }, [torrent, selectedAnime, selectedFiles, matchTorrent, torrentContents])
+    }, [torrent, selectedAnime, selectedFiles, matchTorrent, torrentContents, dependOnIndex, episodeOffset, setLastMatchedTitle])
 
     const handleMatch = useCallback(() => {
         if (!torrent || !selectedAnime || selectedFiles.size === 0) return
@@ -425,15 +507,6 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setExpandedSeasons(new Set())
     }, [])
 
-    // Get all file paths under a folder path (all files, for tree display)
-    const getFilesUnderPath = useCallback((path: string): string[] => {
-        if (!torrentContents?.files) return []
-        const prefix = path ? path + "/" : ""
-        return torrentContents.files
-            .filter(f => f.relativePath.startsWith(prefix) || f.relativePath === path)
-            .map(f => f.relativePath)
-    }, [torrentContents])
-
     // Get only video file paths under a folder path (for episode counting and selection)
     const getVideoFilesUnderPath = useCallback((path: string): string[] => {
         if (!torrentContents?.files) return []
@@ -467,6 +540,13 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         if (selectedCount === videoFiles.length) return "all"
         return "some"
     }, [getVideoFilesUnderPath, selectedFiles])
+
+    // Float the seeded series to the top of the results — that's the one the search was run for.
+    const rankedSearchResults = useMemo(() => {
+        const media = (searchResults?.Page?.media ?? []).filter(Boolean) as AL_BaseAnime[]
+        if (!priorityTitle) return media
+        return [...media].sort((a, b) => priorityRank(a, priorityTitle) - priorityRank(b, priorityTitle))
+    }, [searchResults, priorityTitle])
 
     if (!torrent) return null
 
@@ -621,7 +701,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                     toggleFile={toggleFile}
                                     toggleFolder={toggleFolder}
                                     getFolderSelectionState={getFolderSelectionState}
-                                    getFilesUnderPath={getFilesUnderPath}
+                                    getVideoFilesUnderPath={getVideoFilesUnderPath}
                                 />
                             ))}
                         </div>
@@ -785,9 +865,9 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                 <div className="flex justify-center py-10">
                                     <LoadingSpinner />
                                 </div>
-                            ) : searchResults?.Page?.media && searchResults.Page.media.length > 0 ? (
+                            ) : rankedSearchResults.length > 0 ? (
                                 <div className="p-2 space-y-2">
-                                    {searchResults.Page.media.map((anime) => (
+                                    {rankedSearchResults.map((anime) => (
                                         <AnimeSearchItem
                                             key={anime?.id}
                                             anime={anime as AL_BaseAnime}
@@ -926,7 +1006,7 @@ interface TreeNodeItemProps {
     toggleFile: (path: string) => void
     toggleFolder: (path: string) => void
     getFolderSelectionState: (path: string) => "all" | "some" | "none"
-    getFilesUnderPath: (path: string) => string[]
+    getVideoFilesUnderPath: (path: string) => string[]
 }
 
 function TreeNodeItem({
@@ -938,13 +1018,15 @@ function TreeNodeItem({
     toggleFile,
     toggleFolder,
     getFolderSelectionState,
-    getFilesUnderPath,
+    getVideoFilesUnderPath,
 }: TreeNodeItemProps) {
     const isExpanded = expandedFolders.has(node.path)
 
     if (node.isFolder) {
         const selectionState = getFolderSelectionState(node.path)
-        const fileCount = getFilesUnderPath(node.path).length
+        // Count only the episodes — i.e. what the folder checkbox actually selects. Counting
+        // every file made a folder look like it held far more episodes than it does.
+        const fileCount = getVideoFilesUnderPath(node.path).length
 
         return (
             <div>
@@ -978,7 +1060,7 @@ function TreeNodeItem({
                         )}
                         <span className="text-sm text-gray-200" onClick={() => toggleFolder(node.path)}>{node.name}</span>
                         <span className="text-xs text-[--muted] ml-auto flex-shrink-0">
-                            {fileCount} files
+                            {fileCount} {fileCount === 1 ? "episode" : "episodes"}
                         </span>
                     </div>
                 </div>
@@ -995,7 +1077,7 @@ function TreeNodeItem({
                                 toggleFile={toggleFile}
                                 toggleFolder={toggleFolder}
                                 getFolderSelectionState={getFolderSelectionState}
-                                getFilesUnderPath={getFilesUnderPath}
+                                getVideoFilesUnderPath={getVideoFilesUnderPath}
                             />
                         ))}
                     </div>

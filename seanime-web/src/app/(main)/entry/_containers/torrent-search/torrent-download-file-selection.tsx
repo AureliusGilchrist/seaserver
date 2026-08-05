@@ -4,6 +4,10 @@ import { useLibraryPathSelection } from "@/app/(main)/_hooks/use-library-path-se
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { __torrentSearch_selectedTorrentsAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
 import { __torrentSearch_selectionAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-drawer"
+import {
+    __torrentDownload_autoMatchAtom,
+    AutoMatchConfirmationModal,
+} from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 import { DirectorySelector } from "@/components/shared/directory-selector"
 import { FileTreeMultiSelector } from "@/components/shared/file-tree-selector"
 import { AppLayoutStack } from "@/components/ui/app-layout"
@@ -15,7 +19,6 @@ import { logger } from "@/lib/helpers/debug"
 import { upath } from "@/lib/helpers/upath"
 import { atom } from "jotai"
 import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
-import { useRouter } from "@/lib/navigation"
 import React from "react"
 import { BiDownload } from "react-icons/bi"
 import { FcFolder } from "react-icons/fc"
@@ -40,7 +43,6 @@ export function sanitizeDirectoryName(input: string): string {
 }
 
 export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) {
-    const router = useRouter()
     const serverStatus = useServerStatus()
     const libraryPath = serverStatus?.settings?.library?.libraryPath
 
@@ -50,6 +52,8 @@ export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) 
     const selectedTorrents = useAtomValue(__torrentSearch_selectedTorrentsAtom)
 
     const [selectedFileIndices, setSelectedFileIndices] = React.useState<number[]>([])
+    const autoMatch = useAtomValue(__torrentDownload_autoMatchAtom)
+    const [confirmingAutoMatch, setConfirmingAutoMatch] = React.useState(false)
 
     const animeFolderName = React.useMemo(() => {
         return sanitizeDirectoryName(entry.media?.title?.romaji || "")
@@ -82,10 +86,11 @@ export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) 
     const { data: filepaths, isLoading } = useTorrentClientGetFiles({ torrent: selectedTorrent, provider: selectedTorrent?.provider })
 
     // download via torrent client
+    // Closes the file picker and the torrent search drawer and leaves the user where they were —
+    // no navigation, no reload.
     const { mutate, isPending } = useTorrentClientDownload(() => {
         setFileSelection(undefined)
         setTorrentDrawerIsOpen(undefined)
-        router.push("/torrent-list")
     }, entry.mediaId)
 
     // Convert file paths to file previews format
@@ -119,7 +124,7 @@ export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) 
 
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
-    const handleDownload = () => {
+    const launchDownload = () => {
         if (!selectedTorrent || selectedFileIndices.length === 0) return
 
         mutate({
@@ -134,10 +139,31 @@ export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) 
                 indices: deselectedIndices,
             },
             media: entry.media,
+            autoMatch,
         })
     }
 
+    const handleDownload = () => {
+        if (!selectedTorrent || selectedFileIndices.length === 0) return
+        // Same explicit confirmation as the main download sheet — this path honours the toggle too.
+        if (autoMatch) {
+            setConfirmingAutoMatch(true)
+            return
+        }
+        launchDownload()
+    }
+
     return (
+        <>
+        <AutoMatchConfirmationModal
+            open={confirmingAutoMatch}
+            onOpenChange={open => !open && setConfirmingAutoMatch(false)}
+            animeTitle={entry.media?.title?.userPreferred || entry.media?.title?.romaji || entry.media?.title?.english || undefined}
+            onConfirm={() => {
+                setConfirmingAutoMatch(false)
+                launchDownload()
+            }}
+        />
         <Vaul
             open={!!selectedTorrent}
             onOpenChange={open => {
@@ -199,6 +225,7 @@ export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) 
                 </AppLayoutStack>
             </VaulContent>
         </Vaul>
+        </>
     )
 
 }
