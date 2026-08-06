@@ -139,7 +139,10 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     const [loadError, setLoadError] = useState<string | null>(null)
     const [fetchedName, setFetchedName] = useState<string | null>(null)
     const [hasAutoSelectedAnime, setHasAutoSelectedAnime] = useState(false)
-    const [dependOnIndex, setDependOnIndex] = useState(false)
+    // Index-based numbering is the default: release filenames lie about episode numbers far more
+    // often than the sorted order does. The confirmation prompt spells out what it will do before
+    // anything is moved, so defaulting it on doesn't renumber a library behind the user's back.
+    const [dependOnIndex, setDependOnIndex] = useState(true)
     const [episodeOffset, setEpisodeOffset] = useState(1)
     // Family search (Feature 2) - now works for any selected anime
     const [familySearchDone, setFamilySearchDone] = useState(false)
@@ -275,7 +278,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setHasSearched(false)
         setSeededForTorrent(null)
         setPriorityTitle("")
-        setDependOnIndex(false)
+        setDependOnIndex(true)
         setEpisodeOffset(1)
         setFamilyDetailId(null)
         // Keep the files list but drop selections after a match
@@ -306,6 +309,8 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setFamilyDetailId(null)
         setPriorityTitle("")
         setSeededForTorrent(null)
+        setDependOnIndex(true)
+        setEpisodeOffset(1)
     }, [])
 
     const runSearch = useCallback((term: string) => {
@@ -397,20 +402,79 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         })
     }, [])
 
-    const [confirmOverwrite, setConfirmOverwrite] = useState(false)
+    const [confirmPlan, setConfirmPlan] = useState(false)
+
+    // The titles the match is sent with — also what the destination folder is named.
+    const matchTitles = useMemo(() => {
+        const titleJp = selectedAnime?.title?.native || selectedAnime?.title?.romaji || selectedAnime?.title?.english || ""
+        // Fallback to torrent metadata titles if anime title is empty
+        const titleClean = selectedAnime?.title?.romaji
+            || selectedAnime?.title?.english
+            || selectedAnime?.title?.native
+            || torrentContents?.animeTitleRomaji
+            || torrent?.animeTitleRomaji
+            || torrent?.name
+            || ""
+        return { titleJp, titleClean }
+    }, [selectedAnime, torrentContents, torrent])
+
+    // Exactly what the server will do with the current selection, worked out client-side so the
+    // confirmation prompt can show it. Mirrors internal/unmatched/repository.go: only video files
+    // are moved, sorted by season then filename, and numbered from there.
+    const matchPlan = useMemo(() => {
+        const all = (torrentContents?.files ?? []).filter(f => selectedFiles.has(f.relativePath))
+        const videos = all.filter(f => f.isVideo)
+        const sorted = [...videos].sort((a, b) => {
+            const sa = a.seasonNumber || 0
+            const sb = b.seasonNumber || 0
+            if (sa !== sb) return sa - sb
+            return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+        })
+
+        // Season stacking offsets, the way the server computes them for name-based numbering.
+        const counts = new Map<number, number>()
+        for (const f of sorted) {
+            const s = f.seasonNumber || 0
+            if (s > 0) counts.set(s, (counts.get(s) ?? 0) + 1)
+        }
+        const seasonOffsets = new Map<number, number>()
+        let cumulative = 0
+        for (const s of [...counts.keys()].sort((a, b) => a - b)) {
+            seasonOffsets.set(s, cumulative)
+            cumulative += counts.get(s)!
+        }
+
+        const offset = episodeOffset > 0 ? episodeOffset : 1
+        const entries = sorted.map((file, i) => {
+            const parsed = extractEpisodeNumber(file.name)
+            let episode: number
+            if (dependOnIndex) {
+                episode = i + offset
+            } else {
+                const season = file.seasonNumber || 0
+                if (season > 0 && parsed) {
+                    episode = (seasonOffsets.get(season) ?? 0) + parsed
+                } else {
+                    episode = parsed ?? i + 1
+                }
+            }
+            return { file, episode, parsed }
+        })
+
+        return {
+            entries,
+            // Selected files that aren't video — the server skips these, they stay where they are.
+            skippedNonVideo: all.length - videos.length,
+            // Files whose filename says one episode number and the plan says another.
+            renumbered: entries.filter(e => e.parsed !== null && e.parsed !== e.episode).length,
+            lastEpisode: entries.length ? entries[entries.length - 1].episode : 0,
+        }
+    }, [torrentContents, selectedFiles, dependOnIndex, episodeOffset])
 
     const doMatch = useCallback(() => {
         if (!torrent || !selectedAnime || selectedFiles.size === 0) return
 
-        const titleJp = selectedAnime.title?.native || selectedAnime.title?.romaji || selectedAnime.title?.english || ""
-        // Fallback to torrent metadata titles if anime title is empty
-        const titleClean = selectedAnime.title?.romaji 
-            || selectedAnime.title?.english 
-            || selectedAnime.title?.native 
-            || torrentContents?.animeTitleRomaji
-            || torrent?.animeTitleRomaji
-            || torrent.name
-            || ""
+        const { titleJp, titleClean } = matchTitles
 
         // Remember what we matched to so the next torrent's picker opens on this series.
         if (titleClean) setLastMatchedTitle(titleClean)
@@ -424,16 +488,14 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             useIndexBasedEpisodes: dependOnIndex,
             episodeOffset: dependOnIndex ? (episodeOffset > 0 ? episodeOffset : 1) : undefined,
         })
-    }, [torrent, selectedAnime, selectedFiles, matchTorrent, torrentContents, dependOnIndex, episodeOffset, setLastMatchedTitle])
+    }, [torrent, selectedAnime, selectedFiles, matchTorrent, matchTitles, dependOnIndex, episodeOffset, setLastMatchedTitle])
 
+    // Never match straight from the button — moving and renaming files can't be undone from here,
+    // so the plan gets laid out for confirmation first.
     const handleMatch = useCallback(() => {
         if (!torrent || !selectedAnime || selectedFiles.size === 0) return
-        if (isAnimeInLibrary(selectedAnime.id, localFiles)) {
-            setConfirmOverwrite(true)
-            return
-        }
-        doMatch()
-    }, [torrent, selectedAnime, selectedFiles, localFiles, doMatch])
+        setConfirmPlan(true)
+    }, [torrent, selectedAnime, selectedFiles])
 
     // Build a folder tree from all files
     const fileTree = useMemo(() => {
@@ -576,24 +638,26 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
 
     return (
         <>
-        {confirmOverwrite && selectedAnime && (
+        {confirmPlan && selectedAnime && (
             <Modal
-                open={confirmOverwrite}
-                onOpenChange={(open) => !open && setConfirmOverwrite(false)}
-                contentClass="max-w-md"
-                title="This series already has files"
+                open={confirmPlan}
+                onOpenChange={(open) => !open && setConfirmPlan(false)}
+                contentClass="max-w-2xl"
+                title="Confirm this match"
             >
-                <div className="space-y-4 py-2">
-                    <p className="text-[--muted]">
-                        <span className="font-semibold text-[--foreground]">{selectedAnime.title?.romaji || selectedAnime.title?.english}</span> already
-                        has files matched to it in your library. Matching more files to it may cause conflicts.
-                    </p>
-                    <p className="text-sm text-[--muted]">Do you want to continue anyway?</p>
-                    <div className="flex justify-end gap-2 pt-2">
-                        <Button intent="gray" onClick={() => setConfirmOverwrite(false)}>Cancel</Button>
-                        <Button intent="warning" onClick={() => { setConfirmOverwrite(false); doMatch() }}>Continue Anyway</Button>
-                    </div>
-                </div>
+                <MatchPlanConfirmation
+                    anime={selectedAnime}
+                    animeTitle={displayAnimeTitle || torrent.name}
+                    destinationFolder={matchTitles.titleClean}
+                    plan={matchPlan}
+                    dependOnIndex={dependOnIndex}
+                    episodeOffset={episodeOffset > 0 ? episodeOffset : 1}
+                    expectedEpisodes={typeof displayEpisodeCount === "number" ? displayEpisodeCount : null}
+                    alreadyInLibrary={isAnimeInLibrary(selectedAnime.id, localFiles)}
+                    isMatching={isMatching}
+                    onCancel={() => setConfirmPlan(false)}
+                    onConfirm={() => { setConfirmPlan(false); doMatch() }}
+                />
             </Modal>
         )}
         <Modal
@@ -937,6 +1001,185 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             )}
         </Modal>
         </>
+    )
+}
+
+// ─── Match confirmation ──────────────────────────────────────────────
+
+interface MatchPlanEntry {
+    file: UnmatchedFile
+    episode: number
+    parsed: number | null
+}
+
+interface MatchPlan {
+    entries: MatchPlanEntry[]
+    skippedNonVideo: number
+    renumbered: number
+    lastEpisode: number
+}
+
+/**
+ * Lays out everything the match is about to do — where the files go, what they get renamed to,
+ * which episode number each one lands on, and anything that looks off — before a single file is
+ * touched. Matching moves and renames files on disk (and deletes creditless extras), none of which
+ * this screen can undo, so it's spelled out rather than summarised.
+ */
+function MatchPlanConfirmation({
+    anime,
+    animeTitle,
+    destinationFolder,
+    plan,
+    dependOnIndex,
+    episodeOffset,
+    expectedEpisodes,
+    alreadyInLibrary,
+    isMatching,
+    onCancel,
+    onConfirm,
+}: {
+    anime: AL_BaseAnime
+    animeTitle: string
+    destinationFolder: string
+    plan: MatchPlan
+    dependOnIndex: boolean
+    episodeOffset: number
+    expectedEpisodes: number | null
+    alreadyInLibrary: boolean
+    isMatching: boolean
+    onCancel: () => void
+    onConfirm: () => void
+}) {
+    const count = plan.entries.length
+    const isMovie = (anime.format || "").toUpperCase() === "MOVIE"
+
+    const warnings: string[] = []
+    if (alreadyInLibrary) {
+        warnings.push(`${animeTitle} already has files in your library. These files are added alongside them, and any that land on an episode number you already have will sit next to it as a duplicate.`)
+    }
+    if (isMovie && count > 1) {
+        warnings.push(`This entry is a movie, so every file is renamed to "${destinationFolder}" — matching ${count} files at once means they overwrite each other. Match one file, or pick the TV entry instead.`)
+    }
+    if (dependOnIndex && plan.renumbered > 0) {
+        warnings.push(`${plan.renumbered} of ${count} file${count === 1 ? "" : "s"} will be given an episode number that differs from the one in its filename. Check the list above — if the filenames are right, turn "Depend on index" off.`)
+    }
+    if (!dependOnIndex && plan.renumbered > 0) {
+        warnings.push(`${plan.renumbered} file${plan.renumbered === 1 ? "" : "s"} had no usable episode number in the filename and fall back to their position in the list.`)
+    }
+    if (expectedEpisodes && plan.lastEpisode > expectedEpisodes) {
+        warnings.push(`Numbering runs up to episode ${plan.lastEpisode}, but AniList lists ${expectedEpisodes} episode${expectedEpisodes === 1 ? "" : "s"} for this entry. Anything past ${expectedEpisodes} won't have metadata.`)
+    }
+    if (expectedEpisodes && count > 0 && count < expectedEpisodes) {
+        warnings.push(`You're matching ${count} of ${expectedEpisodes} episodes. The rest stay in the Unmatched folder.`)
+    }
+    if (plan.skippedNonVideo > 0) {
+        warnings.push(`${plan.skippedNonVideo} selected file${plan.skippedNonVideo === 1 ? " isn't a video and is" : "s aren't videos and are"} left in the Unmatched folder.`)
+    }
+
+    return (
+        <div className="space-y-4 py-2">
+            {/* What happens, in one line */}
+            <p className="text-sm">
+                <span className="font-semibold">{count}</span> file{count === 1 ? "" : "s"} will be{" "}
+                <span className="font-semibold">moved</span> out of the Unmatched folder into your library under{" "}
+                <span className="font-semibold text-brand-200">{destinationFolder}</span>, renamed, and matched to{" "}
+                <span className="font-semibold text-brand-200">{animeTitle}</span>
+                {anime.format ? ` (${anime.format}${expectedEpisodes ? `, ${expectedEpisodes} eps` : ""})` : ""}.
+            </p>
+
+            {/* How the episode numbers are decided */}
+            <div className="p-3 border rounded-md bg-[--subtle] space-y-1">
+                <p className="text-sm font-medium">
+                    {dependOnIndex ? "Episode numbers come from the file order" : "Episode numbers come from the filenames"}
+                </p>
+                <p className="text-xs text-[--muted]">
+                    {dependOnIndex
+                        ? `"Depend on index" is ON. The files are sorted by season and filename, then numbered in that order starting at episode ${episodeOffset} — whatever numbers the filenames contain are ignored. Use this when the release numbers episodes oddly (per-season resets, absolute numbering, batch offsets).`
+                        : `"Depend on index" is OFF. Each episode number is read out of its filename, with season folders stacked on top of one another. Files with no readable number fall back to their position in the list. Use this when the filenames are trustworthy.`}
+                </p>
+            </div>
+
+            {/* Exact per-file result */}
+            {count > 0 ? (
+                <div className="border rounded-md overflow-hidden">
+                    <div className="px-3 py-2 border-b bg-gray-950/40 flex items-center justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-[--muted]">File → episode</p>
+                        <p className="text-xs text-[--muted]">
+                            {isMovie ? "Movie naming" : `Episodes ${plan.entries[0].episode}–${plan.lastEpisode}`}
+                        </p>
+                    </div>
+                    <div className="max-h-[220px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                        <div className="divide-y divide-gray-800/60">
+                            {plan.entries.map(entry => {
+                                const differs = entry.parsed !== null && entry.parsed !== entry.episode
+                                return (
+                                    <div key={entry.file.relativePath} className="flex items-center gap-3 px-3 py-1.5 text-xs">
+                                        <span className="flex-1 min-w-0 truncate text-gray-300" title={entry.file.relativePath}>
+                                            {entry.file.name}
+                                        </span>
+                                        {differs && (
+                                            <span className="flex-shrink-0 text-[10px] text-amber-400" title={`Filename says episode ${entry.parsed}`}>
+                                                was ep {entry.parsed}
+                                            </span>
+                                        )}
+                                        <span className={cn("flex-shrink-0 font-medium", differs ? "text-amber-300" : "text-brand-300")}>
+                                            {isMovie ? "Movie" : `Ep ${entry.episode}`}
+                                        </span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <Alert
+                    intent="alert"
+                    title="Nothing to match"
+                    description="None of the selected files are video files, so there's nothing to move."
+                    className="border border-red-500/30 bg-red-900/20"
+                />
+            )}
+
+            {/* Renaming and deletion — the parts that aren't reversible from here */}
+            <div className="text-xs text-[--muted] space-y-1">
+                <p>
+                    Files are renamed to{" "}
+                    <span className="text-gray-300">
+                        {isMovie ? `${destinationFolder} (year).ext` : `${destinationFolder} - Episode 001 - <episode title>.ext`}
+                    </span>.
+                </p>
+                <p>Creditless openings/endings and anything inside an "Extra" folder are <span className="text-gray-300">deleted</span>, not moved.</p>
+                <p>Moving and renaming can't be undone from here — files would have to be moved back by hand.</p>
+            </div>
+
+            {warnings.length > 0 && (
+                <div className="space-y-2">
+                    {warnings.map((w, i) => (
+                        <Alert
+                            key={i}
+                            intent="warning"
+                            description={w}
+                            className="border border-amber-500/30 bg-amber-900/10 text-xs"
+                        />
+                    ))}
+                </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+                <Button intent="gray-outline" onClick={onCancel} disabled={isMatching}>
+                    Cancel
+                </Button>
+                <Button
+                    intent={warnings.length > 0 ? "warning" : "primary"}
+                    onClick={onConfirm}
+                    disabled={count === 0 || isMatching}
+                    loading={isMatching}
+                    leftIcon={<BiCheck />}
+                >
+                    Move &amp; match {count} file{count === 1 ? "" : "s"}
+                </Button>
+            </div>
+        </div>
     )
 }
 
