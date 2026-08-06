@@ -123,12 +123,18 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// Secure headers middleware (always-on)
 	e.Use(SecureHeadersMiddleware)
 
-	// Rate limiting middleware. 600 req/min (~10/sec) per client session is generous
-	// enough for the web client's parallel bootstrap fan-out while still throttling
-	// abusive behaviour. Streaming, image proxy, and bootstrap collection endpoints
-	// are explicitly skipped inside the middleware.
-	rateLimiter := NewRateLimiter(600, 1*time.Minute)
-	e.Use(RateLimitMiddleware(rateLimiter))
+	// Rate limiting middleware, off unless SEANIME_RATE_LIMIT asks for it.
+	//
+	// The limit only ever protected the server from its own client: it counts requests per
+	// browser session, and the web client's fan-out (extension lists, entry pages, provider
+	// polling) trips it during ordinary use, which surfaces as a "Too Many Requests" toast
+	// and a failed request. On a personal server there is no abusive caller to throttle, so
+	// the default is no limit. Set SEANIME_RATE_LIMIT to a per-minute request count to turn
+	// it back on — e.g. SEANIME_RATE_LIMIT=600 restores the previous behaviour.
+	if limit := rateLimitFromEnv(); limit > 0 {
+		app.Logger.Info().Int("limit", limit).Msg("server: Rate limiting enabled")
+		e.Use(RateLimitMiddleware(NewRateLimiter(limit, 1*time.Minute)))
+	}
 
 	h := &Handler{App: app}
 

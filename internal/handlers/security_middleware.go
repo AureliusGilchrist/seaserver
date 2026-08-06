@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -77,6 +79,20 @@ func (rl *RateLimiter) Allow(clientID string) bool {
 
 	entry.count++
 	return entry.count <= rl.limit
+}
+
+// rateLimitFromEnv reads the per-minute request limit from SEANIME_RATE_LIMIT. Anything unset,
+// zero, negative or unparseable means no limit, which is the default for a personal server.
+func rateLimitFromEnv() int {
+	raw := strings.TrimSpace(os.Getenv("SEANIME_RATE_LIMIT"))
+	if raw == "" {
+		return 0
+	}
+	limit, err := strconv.Atoi(raw)
+	if err != nil || limit <= 0 {
+		return 0
+	}
+	return limit
 }
 
 // RateLimitMiddleware limits requests per client session (identified by Seanime-Client-Id cookie).
