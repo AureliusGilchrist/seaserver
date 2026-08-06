@@ -1,5 +1,6 @@
 import { AL_BaseAnime, AL_BaseManga } from "@/api/generated/types"
 import { SyntheticManga } from "@/api/hooks/manga.hooks"
+import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import { useMediaPreviewModal } from "@/app/(main)/_features/media/_containers/media-preview-modal"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -25,6 +26,7 @@ export function CommandItemMedia({ media, type, isSynthetic }: { media: AL_BaseA
             </div>
             <div className="flex gap-1 items-center w-full">
                 <p className="w-full line-clamp-1">{media?.title?.userPreferred || ""}</p>
+                {type === "anime" && <AnimeDownloadingBadge mediaId={media.id} className="flex-shrink-0" />}
                 {isSynthetic && (
                     <Badge intent="warning" size="sm" className="flex-shrink-0 gap-1">
                         <LuSparkles className="text-xs" />

@@ -21,7 +21,7 @@ import { __anilist_userAnimeMediaAtom } from "@/app/(main)/_atoms/anilist.atoms"
 import { AnilistAnimeEntryList } from "@/app/(main)/_features/anime/_components/anilist-media-entry-list"
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
 import { DiscoverMissedSequelsSection } from "@/app/(main)/discover/_containers/discover-missed-sequels"
-import { useHandleUserAnilistLists } from "@/app/(main)/lists/_lib/handle-user-anilist-lists"
+import { TO_BE_RELEASED_LIST_NAME, useHandleUserAnilistLists } from "@/app/(main)/lists/_lib/handle-user-anilist-lists"
 import { MangaLibraryHeader } from "@/app/(main)/manga/_components/library-header"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
@@ -1133,6 +1133,7 @@ function MyLists(props: { item: Models_HomeItem }) {
         currentList,
         repeatingList,
         planningList,
+        toBeReleasedList,
         pausedList,
         completedList,
         droppedList,
@@ -1155,6 +1156,12 @@ function MyLists(props: { item: Models_HomeItem }) {
             {(!!planningList?.entries?.length && !isCustomList && (!item.options?.statuses?.length || item.options?.statuses?.includes("PLANNING"))) && <>
                 <h2>Planning <span className="text-[--muted] font-medium ml-3">{planningList?.entries?.length}</span></h2>
                 <AnilistAnimeEntryList type={item.options?.type ?? "anime"} layout={item.options?.layout} list={planningList} />
+            </>}
+            {/* Carved out of Planning, so it follows the same PLANNING status filter. */}
+            {(!!toBeReleasedList?.entries?.length && !isCustomList && (!item.options?.statuses?.length || item.options?.statuses?.includes("PLANNING"))) && <>
+                <h2>{TO_BE_RELEASED_LIST_NAME}
+                    <span className="text-[--muted] font-medium ml-3">{toBeReleasedList?.entries?.length}</span></h2>
+                <AnilistAnimeEntryList type={item.options?.type ?? "anime"} layout={item.options?.layout} list={toBeReleasedList} />
             </>}
             {(!!pausedList?.entries?.length && !isCustomList && (!item.options?.statuses?.length || item.options?.statuses?.includes("PAUSED"))) && <>
                 <h2>Paused <span className="text-[--muted] font-medium ml-3">{pausedList?.entries?.length}</span></h2>

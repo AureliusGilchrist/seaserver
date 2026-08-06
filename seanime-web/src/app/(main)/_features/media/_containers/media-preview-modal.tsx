@@ -3,6 +3,7 @@ import { useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { useGetMangaEntry, useGetMangaEntryDetails } from "@/api/hooks/manga.hooks"
 import { TrailerModal } from "@/app/(main)/_features/anime/_components/trailer-modal"
+import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import { AnimeEntryStudio } from "@/app/(main)/_features/media/_components/anime-entry-studio"
 import {
     AnimeEntryRankings,
@@ -245,6 +246,8 @@ function Content({ entry, entryLoading, detailsLoading, details, type }: {
                             )}
                         >
                             <MediaEntryAudienceScore meanScore={entry?.media?.meanScore} badgeClass="bg-transparent" />
+
+                            {type === "anime" && <AnimeDownloadingBadge mediaId={entry.mediaId} />}
 
                             {(details as AL_AnimeDetailsById_Media)?.studios &&
                                 <AnimeEntryStudio studios={(details as AL_AnimeDetailsById_Media)?.studios} />}

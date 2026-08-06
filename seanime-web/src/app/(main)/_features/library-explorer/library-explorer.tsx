@@ -12,6 +12,7 @@ import {
     libraryExplorer_collectLocalFileNodes,
     libraryExplorer_getCheckboxState,
 } from "@/app/(main)/_features/library-explorer/library-explorer.utils"
+import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import { FilepathSelector } from "@/app/(main)/_features/media/_components/filepath-selector"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -1171,6 +1172,7 @@ const VirtualizedTreeNode = memo(({
                                         <span>{!isUnknownMedia ? media?.title?.userPreferred : "(?)"}</span>
                                     </span>
                                 )}
+                                <AnimeDownloadingBadge mediaId={media?.id} className="flex-shrink-0" />
                                 {isUnknownMedia && <Tooltip trigger={<Badge intent="unstyled">Unknown media</Badge>}>
                                     This media is not in your collection.
                                 </Tooltip>}

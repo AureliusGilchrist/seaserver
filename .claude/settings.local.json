@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
+      "Read(//e/Main/seaserver/seanime-web/src/app/\\(main\\)/unmatched/**)",
+      "Read(//e/Main/seaserver/seanime-web/src/api/hooks/**)",
+      "Read(//e/Main/seaserver/seanime-web/src/api/generated/**)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(npm install *)",
+      "Bash(node scripts/export-themes.mjs)",
+      "Bash(node -e \"const t = JSON.parse\\(require\\('fs'\\).readFileSync\\('E:/Main/server/seanime-themes/seanime-themes/themes/toradora/theme.json','utf-8'\\)\\); console.log\\('fontFamily:', t.fontFamily\\); console.log\\('previewColors:', JSON.stringify\\(t.previewColors\\)\\); console.log\\('sidebarOverrides:', JSON.stringify\\(t.sidebarOverrides\\)\\); console.log\\('milestoneNames keys:', Object.keys\\(t.milestoneNames\\).length\\)\")",
+      "Bash(node -e ' *)"
+    ]
+  }
+}

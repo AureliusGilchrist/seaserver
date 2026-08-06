@@ -4,6 +4,7 @@ import { TrailerModal } from "@/app/(main)/_features/anime/_components/trailer-m
 import { PVBackgroundPlayer } from "@/app/(main)/_features/anime/_components/pv-background-player"
 import { AnimeAutoDownloaderButton } from "@/app/(main)/_features/anime/_containers/anime-auto-downloader-button"
 import { ToggleLockFilesButton } from "@/app/(main)/_features/anime/_containers/toggle-lock-files-button"
+import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import { AnimeEntryStudio } from "@/app/(main)/_features/media/_components/anime-entry-studio"
 import {
     AnimeEntryRankings,
@@ -111,6 +112,8 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                     >
 
                         <MediaEntryAudienceScore meanScore={entry.media?.meanScore} badgeClass="bg-transparent" />
+
+                        <AnimeDownloadingBadge mediaId={entry.mediaId} size="lg" />
 
 
                         {!isCustomSource(entry.mediaId) ? <AnimeEntryStudio studios={details?.studios} /> : (

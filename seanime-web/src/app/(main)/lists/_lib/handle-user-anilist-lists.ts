@@ -1,4 +1,4 @@
-import { AL_AnimeCollection_MediaListCollection_Lists } from "@/api/generated/types"
+import { AL_AnimeCollection_MediaListCollection_Lists, AL_AnimeCollection_MediaListCollection_Lists_Entries } from "@/api/generated/types"
 import { useGetRawAnimeCollection } from "@/api/hooks/anilist.hooks"
 import { useGetRawAnilistMangaCollection } from "@/api/hooks/manga.hooks"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
@@ -20,6 +20,18 @@ export const __myListsSearch_paramsAtom = atomWithImmer<CollectionParams<"anime"
 export const __myListsSearch_paramsInputAtom = atomWithImmer<CollectionParams<"anime"> | CollectionParams<"manga">>(MYLISTS_DEFAULT_PARAMS)
 
 export const __myLists_selectedTypeAtom = atomWithImmer<"anime" | "manga" | "stats">("anime")
+
+/**
+ * Heading of the section holding anime that has been announced but hasn't started airing.
+ * Not an AniList list — it's carved out of Planning client-side, so the entries still live in
+ * PLANNING on the account and keep behaving like planning entries everywhere else.
+ */
+export const TO_BE_RELEASED_LIST_NAME = "To Be Released"
+
+/** Whether a list entry is for a series that hasn't started airing. */
+function isUnreleasedEntry(entry: AL_AnimeCollection_MediaListCollection_Lists_Entries | undefined): boolean {
+    return entry?.media?.status === "NOT_YET_RELEASED"
+}
 
 export function useHandleUserAnilistLists(debouncedSearchInput: string, type?: "anime" | "manga") {
 
@@ -80,10 +92,43 @@ export function useHandleUserAnilistLists(debouncedSearchInput: string, type?: "
         return filteredLists?.filter(obj => obj?.isCustomList) ?? []
     }, [filteredLists])
 
+    // The type actually being shown: the caller's when it pins one, otherwise the page's tab.
+    const resolvedType = type ?? selectedType
+
+    const rawPlanningList = React.useMemo(() => filteredLists?.find(l => l?.status === "PLANNING"), [filteredLists])
+
+    // Anime that hasn't aired yet is split out of Planning into its own section. Planning is a
+    // list of things you can start right now; an announced series you cannot watch for months
+    // buries the ones you can, so it gets a section of its own instead.
+    //
+    // Anime only — manga keeps a single Planning list.
+    const splitToBeReleased = resolvedType === "anime"
+
+    const toBeReleasedList: AL_AnimeCollection_MediaListCollection_Lists | undefined = React.useMemo(() => {
+        if (!splitToBeReleased || !rawPlanningList) return undefined
+        const entries = rawPlanningList.entries?.filter(isUnreleasedEntry) ?? []
+        if (!entries.length) return undefined
+        return {
+            name: TO_BE_RELEASED_LIST_NAME,
+            isCustomList: false,
+            status: rawPlanningList.status,
+            entries,
+        }
+    }, [rawPlanningList, splitToBeReleased])
+
+    const planningList: AL_AnimeCollection_MediaListCollection_Lists | undefined = React.useMemo(() => {
+        if (!splitToBeReleased || !rawPlanningList) return rawPlanningList
+        return {
+            ...rawPlanningList,
+            entries: rawPlanningList.entries?.filter(entry => !isUnreleasedEntry(entry)) ?? [],
+        }
+    }, [rawPlanningList, splitToBeReleased])
+
     return {
         currentList: React.useMemo(() => filteredLists?.find(l => l?.status === "CURRENT"), [filteredLists]),
         repeatingList: React.useMemo(() => filteredLists?.find(l => l?.status === "REPEATING"), [filteredLists]),
-        planningList: React.useMemo(() => filteredLists?.find(l => l?.status === "PLANNING"), [filteredLists]),
+        planningList,
+        toBeReleasedList,
         pausedList: React.useMemo(() => filteredLists?.find(l => l?.status === "PAUSED"), [filteredLists]),
         completedList: React.useMemo(() => filteredLists?.find(l => l?.status === "COMPLETED"), [filteredLists]),
         droppedList: React.useMemo(() => filteredLists?.find(l => l?.status === "DROPPED"), [filteredLists]),

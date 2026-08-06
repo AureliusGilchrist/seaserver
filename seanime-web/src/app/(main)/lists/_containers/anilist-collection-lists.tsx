@@ -7,6 +7,7 @@ import {
     __myLists_selectedTypeAtom,
     __myListsSearch_paramsAtom,
     __myListsSearch_paramsInputAtom,
+    TO_BE_RELEASED_LIST_NAME,
     useHandleUserAnilistLists,
 } from "@/app/(main)/lists/_lib/handle-user-anilist-lists"
 import {
@@ -53,6 +54,7 @@ export function AnilistCollectionLists() {
         currentList,
         repeatingList,
         planningList,
+        toBeReleasedList,
         pausedList,
         completedList,
         droppedList,
@@ -128,6 +130,11 @@ export function AnilistCollectionLists() {
                         {(!!planningList?.entries?.length && ["-", "PLANNING"].includes(selectedIndex)) && <>
                             <h2>Planning <span className="text-[--muted] font-medium ml-3">{planningList?.entries?.length}</span></h2>
                             <AnilistAnimeEntryList type={pageType} list={planningList} collapsible />
+                        </>}
+                        {(!!toBeReleasedList?.entries?.length && ["-", TO_BE_RELEASED_LIST_NAME].includes(selectedIndex)) && <>
+                            <h2>{TO_BE_RELEASED_LIST_NAME}
+                                <span className="text-[--muted] font-medium ml-3">{toBeReleasedList?.entries?.length}</span></h2>
+                            <AnilistAnimeEntryList type={pageType} list={toBeReleasedList} collapsible />
                         </>}
                         {(!!pausedList?.entries?.length && ["-", "PAUSED"].includes(selectedIndex)) && <>
                             <h2>Paused <span className="text-[--muted] font-medium ml-3">{pausedList?.entries?.length}</span></h2>
@@ -214,6 +221,14 @@ export function SearchOptions({
         setActualParams(params)
     }, [debouncedParams])
 
+    // "To Be Released" only exists for anime, so switching to manga while it's selected would
+    // leave the filter pointing at a section that isn't there.
+    React.useEffect(() => {
+        if (pageType !== "anime" && selectedIndex === TO_BE_RELEASED_LIST_NAME) {
+            setSelectedIndex("-")
+        }
+    }, [pageType, selectedIndex])
+
     const [input, setInput] = useAtom(watchListSearchInputAtom)
 
     const highlightTrash = React.useMemo(() => {
@@ -232,6 +247,8 @@ export function SearchOptions({
                         { value: "CURRENT", label: "Watching" },
                         { value: "REPEATING", label: "Repeating" },
                         { value: "PLANNING", label: "Planning" },
+                        // Anime-only: manga keeps a single Planning list.
+                        ...(pageType === "anime" ? [{ value: TO_BE_RELEASED_LIST_NAME, label: TO_BE_RELEASED_LIST_NAME }] : []),
                         { value: "PAUSED", label: "Paused" },
                         { value: "COMPLETED", label: "Completed" },
                         { value: "DROPPED", label: "Dropped" },

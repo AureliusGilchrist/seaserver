@@ -1,6 +1,7 @@
 import { Anime_Episode } from "@/api/generated/types"
 import { SeaContextMenu } from "@/app/(main)/_features/context-menu/sea-context-menu"
 import { EpisodeItemBottomGradient } from "@/app/(main)/_features/custom-ui/item-bottom-gradients"
+import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import { useMediaPreviewModal } from "@/app/(main)/_features/media/_containers/media-preview-modal"
 import { usePlaylistEditorManager } from "@/app/(main)/_features/playlists/lib/playlist-editor-manager"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
@@ -255,6 +256,13 @@ export function EpisodeCard(props: EpisodeCardProps) {
                                 )}
                             >Filler</span>
                         )}
+
+                        {/* Sits opposite the filler badge so the two never collide. */}
+                        <AnimeDownloadingBadge
+                            mediaId={anime?.id ?? episode?.baseAnime?.id}
+                            variant="compact"
+                            className="absolute top-2 right-2 z-[4]"
+                        />
 
                         {isSingleContainer && (
                             <div className="absolute bottom-0 left-0 w-full h-fit z-[3] p-3">

@@ -13,6 +13,7 @@ import { AnimeEntryCardUnwatchedBadge } from "@/app/(main)/_features/anime/_cont
 import { ToggleLockFilesButton } from "@/app/(main)/_features/anime/_containers/toggle-lock-files-button"
 import { SeaContextMenu } from "@/app/(main)/_features/context-menu/sea-context-menu"
 import { useLibraryExplorer } from "@/app/(main)/_features/library-explorer/library-explorer.atoms"
+import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import {
     __mediaEntryCard_hoveredPopupId,
     AnimeEntryCardNextAiring,
@@ -349,6 +350,13 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                                 // onHover={() => setHoveringTitle(true)}
                                 // onHoverLeave={() => setHoveringTitle(false)}
                             />
+
+                            {/* The popup covers the card body's badge while it's open, so it carries its own. */}
+                            {isCurrentlyDownloading && (
+                                <div className="flex justify-center py-1">
+                                    <AnimeDownloadingBadge mediaId={media.id} />
+                                </div>
+                            )}
 
                             {type === "anime" && (
                                 <AnimeEntryCardNextAiring nextAiring={(media as AL_BaseAnime).nextAiringEpisode} />
