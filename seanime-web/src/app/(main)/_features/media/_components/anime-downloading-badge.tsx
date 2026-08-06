@@ -21,8 +21,9 @@ export type AnimeDownloadingBadgeProps = {
     /**
      * "badge" is the pill used in prose-like rows (entry page, preview modal).
      * "compact" is the smaller corner marker used over artwork, like an episode card.
+     * "overlay" is the corner flag pinned to the top-left of cover art.
      */
-    variant?: "badge" | "compact"
+    variant?: "badge" | "compact" | "overlay"
     size?: "sm" | "lg"
     className?: string
 }
@@ -39,6 +40,25 @@ export function AnimeDownloadingBadge(props: AnimeDownloadingBadgeProps) {
 
     const isDownloading = useIsAnimeDownloading(mediaId)
     if (!isDownloading) return null
+
+    if (variant === "overlay") {
+        return (
+            <div
+                data-anime-downloading-overlay-badge
+                // Above the card's own layers — the bottom gradient sits at z-5, the adult-content
+                // blur at z-3 and a playing trailer at z-14, so anything lower gets painted over.
+                className={cn("absolute z-[15] left-0 top-0 pointer-events-none", className)}
+            >
+                <Badge
+                    size="xl"
+                    intent="primary-solid"
+                    className="rounded-[--radius] rounded-bl-none rounded-tr-none text-white animate-pulse"
+                >
+                    <LuDownload className="mr-1" /> Downloading
+                </Badge>
+            </div>
+        )
+    }
 
     if (variant === "compact") {
         return (

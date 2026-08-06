@@ -351,13 +351,6 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                                 // onHoverLeave={() => setHoveringTitle(false)}
                             />
 
-                            {/* The popup covers the card body's badge while it's open, so it carries its own. */}
-                            {isCurrentlyDownloading && (
-                                <div className="flex justify-center py-1">
-                                    <AnimeDownloadingBadge mediaId={media.id} />
-                                </div>
-                            )}
-
                             {type === "anime" && (
                                 <AnimeEntryCardNextAiring nextAiring={(media as AL_BaseAnime).nextAiringEpisode} />
                             )}
@@ -446,6 +439,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                 bannerImage={media.coverImage?.extraLarge || ""}
                 isAdult={media.isAdult}
                 showLibraryBadge={showLibraryBadge}
+                mediaId={type === "anime" ? media.id : undefined}
                 isDownloading={isCurrentlyDownloading}
                 blurAdultContent={serverStatus?.settings?.anilist?.blurAdultContent}
                 onClick={onClick}

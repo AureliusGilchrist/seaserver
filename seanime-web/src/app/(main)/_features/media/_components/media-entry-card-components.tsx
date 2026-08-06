@@ -1,6 +1,7 @@
 import { AL_BaseAnime_NextAiringEpisode, AL_MediaListStatus, AL_MediaStatus } from "@/api/generated/types"
 import { ElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
 import { MediaCardBodyBottomGradient } from "@/app/(main)/_features/custom-ui/item-bottom-gradients"
+import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import { MediaEntryProgressBadge } from "@/app/(main)/_features/media/_components/media-entry-progress-badge"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -18,7 +19,6 @@ import startCase from "lodash/startCase"
 import React, { memo } from "react"
 import { BiCalendarAlt } from "react-icons/bi"
 import { IoLibrarySharp } from "react-icons/io5"
-import { LuDownload } from "react-icons/lu"
 import { RiSignalTowerLine } from "react-icons/ri"
 
 type MediaEntryCardContainerProps = {
@@ -318,6 +318,9 @@ type MediaEntryCardBodyProps = {
     bannerImage?: string
     isAdult?: boolean
     showLibraryBadge?: boolean
+    /** Drives the downloading badge pinned to the cover art. */
+    mediaId?: number
+    /** Whether that anime is downloading — also suppresses the library badge. */
     isDownloading?: boolean
     blurAdultContent?: boolean
     onClick?: () => void
@@ -340,6 +343,7 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
         bannerImage,
         isAdult,
         showLibraryBadge,
+        mediaId,
         isDownloading,
         blurAdultContent,
         onClick,
@@ -397,14 +401,9 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
                             ><IoLibrarySharp /></Badge>
                         </div>}
 
-                    {isDownloading && (
-                        <div data-media-entry-card-body-downloading-badge className="absolute z-[1] left-0 top-0">
-                            <Badge
-                                size="xl" intent="primary-solid"
-                                className="rounded-[--radius] rounded-bl-none rounded-tr-none text-white animate-pulse"
-                            ><LuDownload className="mr-1" /> Downloading</Badge>
-                        </div>
-                    )}
+                    {/* Pinned to the cover art itself, above the gradient, the adult-content blur
+                     and any trailer playing on hover — at z-1 it was being painted over. */}
+                    <AnimeDownloadingBadge mediaId={mediaId} variant="overlay" />
 
                     {/*RELEASING BADGE*/}
                     {(status === "RELEASING" || status === "NOT_YET_RELEASED") && !hideReleasingBadge &&
@@ -551,6 +550,9 @@ export const MediaEntryCardHoverPopupBanner = memo(({
                         {status === "RELEASING" ? "Releasing" : "Not yet released"}
                     </Tooltip>
                 </div>}
+
+            {/* The popup covers the card's own artwork, so the badge is repeated on this one. */}
+            <AnimeDownloadingBadge mediaId={mediaId} variant="overlay" />
 
             {(!!bannerImage) ? <div className="absolute object-cover top-0 object-center w-full h-full overflow-hidden"><SeaImage
                 data-media-entry-card-hover-popup-banner-image
