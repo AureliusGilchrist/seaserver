@@ -416,6 +416,13 @@ func (h *Handler) HandleDeleteUnmatchedTorrent(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	// Drop the scanner's record of the torrent too. It is keyed by name, so leaving it behind
+	// means re-downloading the same release later is skipped as "already completed" — never
+	// marked done, never auto-matched.
+	if h.App.UnmatchedScanner != nil {
+		h.App.UnmatchedScanner.ClearCompletedTorrent(b.Name)
+	}
+
 	return h.RespondWithData(c, true)
 }
 

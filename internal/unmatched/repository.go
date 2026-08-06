@@ -25,9 +25,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
-const (
-	UnmatchedBasePath = "/zroot/torrents/Anime/Unmatched"
-)
+// UnmatchedBasePath is the staging directory downloads land in before they are matched.
+// A variable rather than a constant only so tests can point it at a temporary directory —
+// nothing outside of tests ever assigns to it.
+var UnmatchedBasePath = "/zroot/torrents/Anime/Unmatched"
 
 type Repository struct {
 	logger   *zerolog.Logger
@@ -454,17 +455,27 @@ func (r *Repository) fetchAnimeMetadata(anilistID int) (*animap.Anime, error) {
 
 // getEpisodeTitle returns the English episode title when available, falling back to AniDB titles.
 func (r *Repository) getEpisodeTitle(anilistID int, episodeNum int) string {
-	if anilistID <= 0 || episodeNum <= 0 {
+	if anilistID <= 0 {
 		return ""
 	}
 
 	media, err := r.fetchAnimeMetadata(anilistID)
-	if err != nil || media == nil || media.Episodes == nil {
+	if err != nil {
 		return ""
 	}
 
-	epKey := strconv.Itoa(episodeNum)
-	ep, ok := media.Episodes[epKey]
+	return episodeTitleFrom(media, episodeNum)
+}
+
+// episodeTitleFrom reads an episode title out of metadata that has already been fetched. Same
+// lookup getEpisodeTitle does, without the fetch — a match resolves every one of its titles from
+// the single copy of the metadata it fetched up front.
+func episodeTitleFrom(media *animap.Anime, episodeNum int) string {
+	if media == nil || media.Episodes == nil || episodeNum <= 0 {
+		return ""
+	}
+
+	ep, ok := media.Episodes[strconv.Itoa(episodeNum)]
 	if !ok || ep == nil {
 		return ""
 	}
@@ -616,6 +627,22 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	// Calculate episode offset for each season (stacking) using video files only
 	seasonOffsets := r.calculateSeasonOffsets(videoFiles)
 
+	// Animap metadata is fetched once for the whole match, then reused for the episode count, the
+	// format, the year and every episode title. It used to be re-fetched inside the per-file loop,
+	// three times per file: on a cache hit that was merely wasteful, but a failed fetch is never
+	// cached, so an unreachable Animap turned a single 8-second timeout into three per file —
+	// minutes of stalling before anything moved. Nothing about what gets fetched changes here.
+	var animeMeta *animap.Anime
+	if req.AnimeID > 0 {
+		meta, metaErr := r.fetchAnimeMetadata(req.AnimeID)
+		if metaErr != nil {
+			r.logger.Warn().Err(metaErr).Int("animeId", req.AnimeID).
+				Msg("unmatched: Could not fetch Animap metadata for this match")
+		} else {
+			animeMeta = meta
+		}
+	}
+
 	// Enforce expected episode count for TV/OVA using video files only (ignore folders)
 	// If we have fewer files than the expected count, log a warning but continue. Some torrents
 	// legitimately have fewer episodes than AniList metadata, and users may intentionally match a subset.
@@ -625,10 +652,8 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	var expectedEpisodes int
 	if torrent.AnimeExpectedEpisodes > 0 && (req.AnimeID == 0 || req.AnimeID == torrent.AnimeID) {
 		expectedEpisodes = torrent.AnimeExpectedEpisodes
-	} else if req.AnimeID > 0 {
-		if animeMeta, err := r.fetchAnimeMetadata(req.AnimeID); err == nil && animeMeta != nil {
-			expectedEpisodes = animeMeta.MainEpisodeCount()
-		}
+	} else if animeMeta != nil {
+		expectedEpisodes = animeMeta.MainEpisodeCount()
 	}
 
 	if expectedEpisodes > 0 {
@@ -644,37 +669,40 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		}
 	}
 
-	// Move and rename files
-	for i, fw := range videoFiles {
-		ext := filepath.Ext(fw.file.Name)
-
-		// Determine format from user-selected AniList ID, falling back to torrent cached format
-		var format string
-		if req.AnimeID > 0 {
-			if animeMeta, err := r.fetchAnimeMetadata(req.AnimeID); err == nil && animeMeta != nil && animeMeta.Type != "" {
-				format = animeMeta.Type
-			}
-		} else if torrent.AnimeFormat != "" {
-			format = torrent.AnimeFormat
+	// Determine format from user-selected AniList ID, falling back to torrent cached format
+	var format string
+	if req.AnimeID > 0 {
+		if animeMeta != nil && animeMeta.Type != "" {
+			format = animeMeta.Type
 		}
-		// Normalize to uppercase to match existing checks
-		formatUpper := strings.ToUpper(format)
+	} else if torrent.AnimeFormat != "" {
+		format = torrent.AnimeFormat
+	}
+	// Normalize to uppercase to match existing checks
+	formatUpper := strings.ToUpper(format)
 
-		// Movie naming: <AnimeTitle> (<Year>)
-		// Use user-selected AniList ID to fetch the correct year instead of cached torrent metadata
-		var startYear int
-		if req.AnimeID > 0 {
-			if animeMeta, err := r.fetchAnimeMetadata(req.AnimeID); err == nil && animeMeta != nil && animeMeta.StartDate != "" {
-				// Extract year from StartDate (format: YYYY-MM-DD)
-				if len(animeMeta.StartDate) >= 4 {
-					if parsed, err := strconv.Atoi(animeMeta.StartDate[:4]); err == nil {
-						startYear = parsed
-					}
+	// Movie naming: <AnimeTitle> (<Year>)
+	// Use user-selected AniList ID to fetch the correct year instead of cached torrent metadata
+	var startYear int
+	if req.AnimeID > 0 {
+		if animeMeta != nil && animeMeta.StartDate != "" {
+			// Extract year from StartDate (format: YYYY-MM-DD)
+			if len(animeMeta.StartDate) >= 4 {
+				if parsed, err := strconv.Atoi(animeMeta.StartDate[:4]); err == nil {
+					startYear = parsed
 				}
 			}
-		} else if torrent.AnimeStartYear > 0 {
-			startYear = torrent.AnimeStartYear
 		}
+	} else if torrent.AnimeStartYear > 0 {
+		startYear = torrent.AnimeStartYear
+	}
+
+	// Work out every destination name first — this is pure string work, no I/O — then do the moves.
+	// Splitting the two is what lets the moves run concurrently below; the names, the numbering and
+	// the episode titles are exactly what the sequential version produced.
+	planned := make([]plannedMove, 0, len(videoFiles))
+	for i, fw := range videoFiles {
+		ext := filepath.Ext(fw.file.Name)
 
 		if formatUpper == "MOVIE" {
 			yearSuffix := ""
@@ -684,16 +712,12 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			movieBase := fmt.Sprintf("%s%s", cleanTitle, yearSuffix)
 			safeMovieBase := sanitizeNamePreserveWhitespace(movieBase)
 			newName := fmt.Sprintf("%s%s", safeMovieBase, ext)
-			destPath := filepath.Join(destination, newName)
-
-			if err := r.moveFile(fw.file.Path, destPath); err != nil {
-				r.logger.Error().Err(err).Str("src", fw.file.Path).Str("dest", destPath).Msg("unmatched: Failed to move file")
-				result.FailedFiles = append(result.FailedFiles, fw.file.RelativePath)
-				result.Success = false
-			} else {
-				result.MovedFiles = append(result.MovedFiles, newName)
-				r.logger.Info().Str("src", fw.file.Path).Str("dest", destPath).Msg("unmatched: Moved file")
-			}
+			planned = append(planned, plannedMove{
+				src:     fw.file.Path,
+				dest:    filepath.Join(destination, newName),
+				newName: newName,
+				relPath: fw.file.RelativePath,
+			})
 			continue
 		}
 
@@ -718,24 +742,36 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			}
 		}
 
-		episodeTitle := r.getEpisodeTitle(req.AnimeID, episodeNum)
+		episodeTitle := episodeTitleFrom(animeMeta, episodeNum)
 		baseName := fmt.Sprintf("%s - Episode %03d", cleanTitle, episodeNum)
 		if episodeTitle != "" {
 			baseName = fmt.Sprintf("%s - Episode %03d - %s", cleanTitle, episodeNum, episodeTitle)
 		}
 		safeBaseName := sanitizeNamePreserveWhitespace(baseName)
 		newName := fmt.Sprintf("%s%s", safeBaseName, ext)
-		destPath := filepath.Join(destination, newName)
+		planned = append(planned, plannedMove{
+			src:     fw.file.Path,
+			dest:    filepath.Join(destination, newName),
+			newName: newName,
+			relPath: fw.file.RelativePath,
+		})
+	}
 
-		// Move the file
-		if err := r.moveFile(fw.file.Path, destPath); err != nil {
-			r.logger.Error().Err(err).Str("src", fw.file.Path).Str("dest", destPath).Msg("unmatched: Failed to move file")
-			result.FailedFiles = append(result.FailedFiles, fw.file.RelativePath)
+	// Move the files. A same-filesystem match renames, which costs nothing, but a cross-filesystem
+	// one copies every episode end to end — and doing that one file at a time leaves most of the
+	// available throughput idle. Outcomes are collected by index, so the result is the same list,
+	// in the same order, as when the moves ran one after another.
+	moveErrs := r.runMoves(planned)
+
+	for i, p := range planned {
+		if err := moveErrs[i]; err != nil {
+			r.logger.Error().Err(err).Str("src", p.src).Str("dest", p.dest).Msg("unmatched: Failed to move file")
+			result.FailedFiles = append(result.FailedFiles, p.relPath)
 			result.Success = false
-		} else {
-			result.MovedFiles = append(result.MovedFiles, newName)
-			r.logger.Info().Str("src", fw.file.Path).Str("dest", destPath).Msg("unmatched: Moved file")
+			continue
 		}
+		result.MovedFiles = append(result.MovedFiles, p.newName)
+		r.logger.Info().Str("src", p.src).Str("dest", p.dest).Msg("unmatched: Moved file")
 	}
 
 	// Save user's selection back to torrent metadata only if files were left behind.
@@ -836,6 +872,78 @@ func (r *Repository) calculateSeasonOffsets(files []fileWithSeason) map[int]int 
 	}
 
 	return offsets
+}
+
+// plannedMove is a single file move worked out ahead of time: where it comes from, where it goes,
+// and the names needed to report the outcome.
+type plannedMove struct {
+	src     string
+	dest    string
+	newName string
+	relPath string
+}
+
+// matchMoveConcurrency is how many files a match moves at once. Enough to keep a copy across
+// filesystems (or to a NAS) busy, low enough not to turn one disk's worth of sequential reads
+// into a seek storm.
+const matchMoveConcurrency = 4
+
+// runMoves performs the planned moves concurrently and returns their errors, indexed to match
+// the plan. Files that share a destination stay in one group and move in plan order, so a
+// duplicate episode number resolves exactly the way it did when every move ran sequentially.
+func (r *Repository) runMoves(planned []plannedMove) []error {
+	errs := make([]error, len(planned))
+	if len(planned) == 0 {
+		return errs
+	}
+
+	groups := make([][]int, 0, len(planned))
+	groupByDest := make(map[string]int, len(planned))
+	for i, p := range planned {
+		if gi, ok := groupByDest[p.dest]; ok {
+			groups[gi] = append(groups[gi], i)
+			continue
+		}
+		groupByDest[p.dest] = len(groups)
+		groups = append(groups, []int{i})
+	}
+
+	workers := matchMoveConcurrency
+	if len(groups) < workers {
+		workers = len(groups)
+	}
+
+	queue := make(chan int)
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for gi := range queue {
+				for _, idx := range groups[gi] {
+					errs[idx] = r.moveFileSafely(planned[idx].src, planned[idx].dest)
+				}
+			}
+		}()
+	}
+	for gi := range groups {
+		queue <- gi
+	}
+	close(queue)
+	wg.Wait()
+
+	return errs
+}
+
+// moveFileSafely is moveFile with panic recovery. The moves run on worker goroutines, where an
+// unrecovered panic would take the server down instead of failing the one file.
+func (r *Repository) moveFileSafely(src, dest string) (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf("panic while moving file: %v", rec)
+		}
+	}()
+	return r.moveFile(src, dest)
 }
 
 // moveFile moves a file from src to dest, handling cross-device moves
@@ -1276,29 +1384,113 @@ func isInsideUnmatchedBase(path string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-// DeleteTorrent removes a torrent directory from the unmatched folder
+// DeleteTorrent removes everything a torrent left in the unmatched folder.
+//
+// "Everything" is deliberate: a delete that leaves anything behind means the torrent keeps
+// showing up, or the staging directory lingers as an empty husk. So this removes the torrent's
+// own directory or file, the partial files a download leaves next to it (.!qb, .part, and the
+// rest), and any directory that is empty once that is gone. Both the raw name and the sanitized
+// name the download directory is actually created from are tried, since a caller holding the
+// torrent's own name rather than the on-disk one used to delete nothing at all.
 func (r *Repository) DeleteTorrent(torrentName string) error {
-	torrentPath := filepath.Join(UnmatchedBasePath, torrentName)
-	info, err := os.Stat(torrentPath)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("torrent not found: %s", torrentName)
-	}
-	if err != nil {
-		return err
+	if strings.TrimSpace(torrentName) == "" {
+		return errors.New("torrent name is required")
 	}
 
-	if info.IsDir() {
-		err := os.RemoveAll(torrentPath)
-		if err == nil {
-			r.invalidateCache()
+	// The directory is created from the sanitized name, but callers may hold either.
+	candidates := []string{filepath.Join(UnmatchedBasePath, torrentName)}
+	if sanitized := DestinationFor(torrentName); sanitized != candidates[0] {
+		candidates = append(candidates, sanitized)
+	}
+
+	var (
+		removedAny bool
+		firstErr   error
+	)
+	seen := make(map[string]bool, len(candidates))
+	for _, path := range candidates {
+		if seen[path] {
+			continue
 		}
-		return err
+		seen[path] = true
+
+		// Never let a crafted name walk out of the staging directory.
+		if !isInsideUnmatchedBase(path) {
+			r.logger.Warn().Str("path", path).Msg("unmatched: Refusing to delete outside the unmatched directory")
+			continue
+		}
+		if _, err := os.Lstat(path); err != nil {
+			continue // nothing there under this name
+		}
+		if err := os.RemoveAll(path); err != nil {
+			r.logger.Error().Err(err).Str("path", path).Msg("unmatched: Failed to delete")
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		removedAny = true
+		r.logger.Info().Str("path", path).Msg("unmatched: Deleted")
 	}
-	err = os.Remove(torrentPath)
-	if err == nil {
-		r.invalidateCache()
+
+	// A half-finished download leaves its partial files beside the target rather than inside it,
+	// so removing only the target leaves them sitting in the staging directory forever.
+	if r.removePartialLeftovers(torrentName) {
+		removedAny = true
 	}
-	return err
+
+	if firstErr != nil {
+		return firstErr
+	}
+	if !removedAny {
+		return fmt.Errorf("torrent not found: %s", torrentName)
+	}
+
+	// Removing a torrent's files can leave the folders that held them behind. Prune whatever is
+	// empty now so the delete leaves nothing in the staging directory.
+	r.pruneEmptyDirs(UnmatchedBasePath)
+	r.invalidateCache()
+	return nil
+}
+
+// removePartialLeftovers deletes the in-progress files a download leaves next to a torrent —
+// "<name>.!qB", "<name>.part" and the rest. Matching is done on the name with the temp
+// extension stripped, so it catches the exact casing the client happened to write.
+//
+// Reports whether anything was removed.
+func (r *Repository) removePartialLeftovers(torrentName string) bool {
+	wanted := make(map[string]bool, 2)
+	wanted[strings.ToLower(torrentName)] = true
+	wanted[strings.ToLower(sanitizeNamePreserveWhitespace(torrentName))] = true
+
+	entries, err := os.ReadDir(UnmatchedBasePath)
+	if err != nil {
+		return false
+	}
+
+	removed := false
+	for _, entry := range entries {
+		name := entry.Name()
+		if !isTempFileName(name) {
+			continue
+		}
+		if !wanted[strings.ToLower(strings.TrimSuffix(name, filepath.Ext(name)))] {
+			continue
+		}
+
+		path := filepath.Join(UnmatchedBasePath, name)
+		if !isInsideUnmatchedBase(path) {
+			continue
+		}
+		if err := os.RemoveAll(path); err != nil {
+			r.logger.Warn().Err(err).Str("path", path).Msg("unmatched: Failed to delete partial download leftover")
+			continue
+		}
+		removed = true
+		r.logger.Info().Str("path", path).Msg("unmatched: Deleted partial download leftover")
+	}
+
+	return removed
 }
 
 // DestinationFor returns the directory a torrent by this name downloads into.
