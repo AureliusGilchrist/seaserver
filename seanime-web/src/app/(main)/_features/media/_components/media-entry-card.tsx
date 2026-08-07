@@ -75,8 +75,10 @@ type MediaEntryCardProps<T extends "anime" | "manga"> = {
     /**
      * Drops both the downloading badge and the library badge.
      *
-     * For the Local Anime Library, where every card is by definition in the library: saying so on
-     * each one tells the user nothing they didn't already know by being on that screen.
+     * Only for the Local Anime Library home item, which is filtered to entries that already have
+     * local files: saying "you have this" on every card there tells the user nothing they didn't
+     * know by being on that screen. Not for the library screens' status sections — those list
+     * Planning and Dropped entries too, which are exactly the cards worth badging.
      */
     hideDownloadBadges?: boolean
     showTrailer?: T extends "anime" ? boolean : never

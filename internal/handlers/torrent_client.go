@@ -16,6 +16,20 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// torrentClientRepo returns the torrent client repository, or an error explaining that there
+// isn't one yet.
+//
+// The repository is built when the settings are loaded, so it is nil for the whole window between
+// the server accepting requests and that finishing — and it stays nil if the settings never load.
+// Every method on it dereferences the receiver, so reaching for it unguarded is a nil-pointer
+// panic in the request handler, which is what a download queued during that window used to hit.
+func (h *Handler) torrentClientRepo() (*torrent_client.Repository, error) {
+	if h.App.TorrentClientRepository == nil {
+		return nil, errors.New("torrent client is not set up yet, verify your settings or try again in a moment")
+	}
+	return h.App.TorrentClientRepository, nil
+}
+
 // HandleGetActiveTorrentList
 //
 //	@summary returns all active torrents.
@@ -30,19 +44,24 @@ func (h *Handler) HandleGetActiveTorrentList(c echo.Context) error {
 	}
 	sort := c.QueryParam("sort")
 
+	repo, err := h.torrentClientRepo()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
 	// Get torrent list
-	res, err := h.App.TorrentClientRepository.GetActiveTorrents(&torrent_client.GetListOptions{
+	res, err := repo.GetActiveTorrents(&torrent_client.GetListOptions{
 		Category: category,
 		Sort:     sort,
 	})
 	// If an error occurred, try to start the torrent client and get the list again
 	// DEVNOTE: We try to get the list first because this route is called repeatedly by the client.
 	if err != nil {
-		ok := h.App.TorrentClientRepository.Start()
+		ok := repo.Start()
 		if !ok {
 			return h.RespondWithError(c, errors.New("could not start torrent client, verify your settings"))
 		}
-		res, err = h.App.TorrentClientRepository.GetActiveTorrents(&torrent_client.GetListOptions{
+		res, err = repo.GetActiveTorrents(&torrent_client.GetListOptions{
 			Category: category,
 			Sort:     sort,
 		})
@@ -79,9 +98,46 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 	downloading := make(map[int]struct{})
 	finished := make(map[int]struct{})
 
-	// The durable source. Every download queued from a media page writes its sidecar into the
-	// staging directory before the torrent is added, so the directory outlives any one thing the
-	// torrent client happens to be reporting at the moment this route is polled.
+	// What the torrent client says, keyed by the staging directory each torrent is writing into.
+	// Asked once for the whole request — this route is polled, and it must never start the client
+	// or fail: no reachable client simply means the disk has to answer on its own below.
+	clientSaysFinished := make(map[string]bool)
+	if repo := h.App.TorrentClientRepository; repo != nil {
+		if torrents, err := repo.GetActiveTorrents(&torrent_client.GetListOptions{}); err == nil {
+			for _, t := range torrents {
+				if t == nil {
+					continue
+				}
+				// Finished: seeding, or fully downloaded but paused/stopped in the client.
+				isFinished := t.Status == torrent_client.TorrentStatusSeeding || t.Progress >= 1
+
+				if dir, ok := unmatched.StagingDirForTorrent(t.Name, t.ContentPath); ok {
+					// A directory fed by two torrents is downloading until both are done.
+					if wasFinished, seen := clientSaysFinished[dir]; !seen || wasFinished {
+						clientSaysFinished[dir] = isFinished
+					}
+				}
+
+				// Covers downloads writing somewhere other than the staging area. Resolved by
+				// where the client is writing, falling back to the torrent's name — name alone
+				// only works while the client's name matches the release title the download was
+				// started from, and the two disagree often enough.
+				metadata := h.App.UnmatchedRepository.MetadataForTorrent(t.Name, t.ContentPath)
+				if metadata == nil || metadata.AnimeID == 0 {
+					continue
+				}
+				if isFinished {
+					finished[metadata.AnimeID] = struct{}{}
+				} else {
+					downloading[metadata.AnimeID] = struct{}{}
+				}
+			}
+		}
+	}
+
+	// The durable source. Every download queued from a media page writes its record before the
+	// torrent is added, so the staging directory outlives whatever the torrent client happens to
+	// be reporting at the moment this route is polled.
 	if entries, err := os.ReadDir(unmatched.UnmatchedBasePath); err == nil {
 		for _, entry := range entries {
 			if !entry.IsDir() {
@@ -91,31 +147,7 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 			if metadata == nil || metadata.AnimeID == 0 {
 				continue
 			}
-			if h.stagingDownloadFinished(entry.Name()) {
-				finished[metadata.AnimeID] = struct{}{}
-			} else {
-				downloading[metadata.AnimeID] = struct{}{}
-			}
-		}
-	}
-
-	// The live source, which also covers downloads writing somewhere other than the staging area.
-	// Never start the torrent client for this route and never fail the request: this is polled,
-	// and no reachable client simply means there is nothing more to add.
-	if torrents, err := h.App.TorrentClientRepository.GetActiveTorrents(&torrent_client.GetListOptions{}); err == nil {
-		for _, t := range torrents {
-			if t == nil {
-				continue
-			}
-			// Resolved by where the client is writing, falling back to the torrent's name. Name
-			// alone only works while the client's name for the torrent matches the release title
-			// the download was started from, and the two disagree often enough.
-			metadata := h.App.UnmatchedRepository.MetadataForTorrent(t.Name, t.ContentPath)
-			if metadata == nil || metadata.AnimeID == 0 {
-				continue
-			}
-			// Finished: seeding, or fully downloaded but paused/stopped in the client.
-			if t.Status == torrent_client.TorrentStatusSeeding || t.Progress >= 1 {
+			if h.stagingDownloadFinished(entry.Name(), clientSaysFinished) {
 				finished[metadata.AnimeID] = struct{}{}
 			} else {
 				downloading[metadata.AnimeID] = struct{}{}
@@ -146,16 +178,21 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 
 // stagingDownloadFinished reports whether the download writing into a staging directory is over.
 //
-// Not knowing counts as still downloading. The badge is meant to stay up until something says the
-// download is done, and "the torrent client has nothing to say about this one" is not that.
-func (h *Handler) stagingDownloadFinished(dirName string) bool {
+// The torrent client is the authority whenever it can account for the directory. When it cannot —
+// unreachable, or the torrent removed the moment it completed — the answer is whatever the
+// auto-match scanner has already concluded from watching the directory itself, which is the same
+// evidence it acts on when it decides a download is ready to be matched.
+//
+// Failing both, the download counts as still running. The badge is meant to stay up until
+// something says otherwise, and "nobody has anything to say about this one" is not that.
+func (h *Handler) stagingDownloadFinished(dirName string, clientSaysFinished map[string]bool) bool {
+	if isFinished, ok := clientSaysFinished[dirName]; ok {
+		return isFinished
+	}
 	if h.App.UnmatchedScanner == nil {
 		return false
 	}
-	if h.App.UnmatchedScanner.IsMarkedCompleted(dirName) {
-		return true
-	}
-	return h.App.UnmatchedScanner.CompletionStateFor(dirName) == unmatched.CompletionFinished
+	return h.App.UnmatchedScanner.IsMarkedCompleted(dirName)
 }
 
 // HandleTorrentClientAction
@@ -181,19 +218,24 @@ func (h *Handler) HandleTorrentClientAction(c echo.Context) error {
 		return h.RespondWithError(c, errors.New("missing arguments"))
 	}
 
+	repo, err := h.torrentClientRepo()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
 	switch b.Action {
 	case "pause":
-		err := h.App.TorrentClientRepository.PauseTorrents([]string{b.Hash})
+		err := repo.PauseTorrents([]string{b.Hash})
 		if err != nil {
 			return h.RespondWithError(c, err)
 		}
 	case "resume":
-		err := h.App.TorrentClientRepository.ResumeTorrents([]string{b.Hash})
+		err := repo.ResumeTorrents([]string{b.Hash})
 		if err != nil {
 			return h.RespondWithError(c, err)
 		}
 	case "remove":
-		err := h.App.TorrentClientRepository.RemoveTorrents([]string{b.Hash})
+		err := repo.RemoveTorrents([]string{b.Hash})
 		if err != nil {
 			return h.RespondWithError(c, err)
 		}
@@ -247,26 +289,31 @@ func (h *Handler) HandleTorrentClientGetFiles(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	exists := h.App.TorrentClientRepository.TorrentExists(b.Torrent.InfoHash)
+	repo, err := h.torrentClientRepo()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	exists := repo.TorrentExists(b.Torrent.InfoHash)
 
 	if !exists {
 		h.App.Logger.Info().Msgf("torrent client: Torrent %s does not exist, adding", b.Torrent.InfoHash)
 		// Add the torrent
-		err = h.App.TorrentClientRepository.AddMagnets([]string{magnet}, tempDir)
+		err = repo.AddMagnets([]string{magnet}, tempDir)
 		if err != nil {
 			return err
 		}
 	}
 
 	h.App.Logger.Info().Msgf("torrent client: Getting files for %s", b.Torrent.InfoHash)
-	files, err := h.App.TorrentClientRepository.GetFiles(b.Torrent.InfoHash)
+	files, err := repo.GetFiles(b.Torrent.InfoHash)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
 
 	if !exists {
 		h.App.Logger.Info().Msgf("torrent client: Removing torrent %s", b.Torrent.InfoHash)
-		_ = h.App.TorrentClientRepository.RemoveTorrents([]string{b.Torrent.InfoHash})
+		_ = repo.RemoveTorrents([]string{b.Torrent.InfoHash})
 	}
 
 	return h.RespondWithData(c, files)
@@ -307,8 +354,13 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 		return h.RespondWithError(c, errors.New("no torrents provided"))
 	}
 
+	repo, err := h.torrentClientRepo()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
 	// try to start torrent client if it's not running
-	ok := h.App.TorrentClientRepository.Start()
+	ok := repo.Start()
 	if !ok {
 		return h.RespondWithError(c, errors.New("could not contact torrent client, verify your settings or make sure it's running"))
 	}
@@ -380,7 +432,7 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 		}
 
 		// Add torrent to client with unmatched destination
-		err = h.App.TorrentClientRepository.AddMagnets([]string{magnet}, destination)
+		err = repo.AddMagnets([]string{magnet}, destination)
 		if err != nil {
 			return h.RespondWithError(c, err)
 		}
@@ -461,14 +513,19 @@ func (h *Handler) HandleTorrentClientAddMagnetFromRule(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	repo, err := h.torrentClientRepo()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
 	// try to start torrent client if it's not running
-	ok := h.App.TorrentClientRepository.Start()
+	ok := repo.Start()
 	if !ok {
 		return h.RespondWithError(c, errors.New("could not start torrent client, verify your settings"))
 	}
 
 	// try to add torrents to client, on error return error
-	err = h.App.TorrentClientRepository.AddMagnets([]string{b.MagnetUrl}, rule.Destination)
+	err = repo.AddMagnets([]string{b.MagnetUrl}, rule.Destination)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}

@@ -263,8 +263,6 @@ const LibraryCollectionEntryItem = React.memo(({ entry, streamingMediaIds, type 
             withAudienceScore={false}
             type="anime"
             containerClassName={type === "carousel" ? "basis-[200px] md:basis-[250px] mx-2 mt-8 mb-0" : undefined}
-            // Same as the main library view: everything here is already in the local library.
-            hideDownloadBadges
         />
     )
 })

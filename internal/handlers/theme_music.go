@@ -339,11 +339,16 @@ func (h *Handler) HandleDownloadThemeMusic(c echo.Context) error {
 		removeThemeAudioFiles(dir)
 	}
 
-	if ok := h.App.TorrentClientRepository.Start(); !ok {
+	repo, err := h.torrentClientRepo()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	if ok := repo.Start(); !ok {
 		return h.RespondWithError(c, errors.New("could not start torrent client, verify your settings"))
 	}
 
-	if err := h.App.TorrentClientRepository.AddMagnets([]string{magnet}, dir); err != nil {
+	if err := repo.AddMagnets([]string{magnet}, dir); err != nil {
 		return h.RespondWithError(c, err)
 	}
 

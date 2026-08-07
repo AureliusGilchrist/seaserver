@@ -191,10 +191,6 @@ export const LibraryCollectionEntryItem = React.memo(({ entry, streamingMediaIds
             withAudienceScore={false}
             type="anime"
             containerClassName={type === "carousel" ? "basis-[200px] md:basis-[250px] mx-2 mt-8 mb-0" : undefined}
-            // Every card on the Local Anime Library is in the local library, so neither the
-            // "in your library" badge nor the downloading one says anything here. They are for the
-            // screens where a card could go either way.
-            hideDownloadBadges
         />
     )
 })
