@@ -10,6 +10,7 @@ import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-l
 import { IgnoredFileManager } from "@/app/(main)/(library)/_containers/ignored-file-manager"
 import { __scanner_modalIsOpen } from "@/app/(main)/(library)/_containers/scanner-modal"
 import { UnknownMediaManager } from "@/app/(main)/(library)/_containers/unknown-media-manager"
+import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { DEFAULT_HOME_ITEMS, HOME_ITEMS, isAnimeLibraryItemsOnly } from "@/app/(main)/(library)/_home/home-items.utils"
 import { __home_settingsModalOpen, HomeSettingsModal } from "@/app/(main)/(library)/_home/home-settings-modal"
 import { HomeToolbar } from "@/app/(main)/(library)/_home/home-toolbar"
@@ -753,24 +754,26 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
     const [searchInput, setSearchInput] = React.useState("")
     const [debouncedSearch] = useDebounce(searchInput, 250)
 
-    // Use parent's data directly — light data arrives instantly, full data refines later.
-    // Once the full collection is in, every list is narrowed to entries that actually have
-    // local files: this grid is "what you have on disk", and the COMPLETED list now also
-    // carries watched-but-not-downloaded series for the status sections below.
-    // While only light data is available (no entry has library data yet) nothing is filtered,
-    // otherwise the grid would flash empty on every page load.
-    const requireLocalFiles = !props.libraryCollectionProps.isStreamingOnly
+    // This grid is what you have on disk, and nothing else.
+    //
+    // An entry earns a place here by having local files — never by being on a list. That matters
+    // because queueing a download puts the series on the shared planning list, so the lists
+    // themselves fill up with things that have not arrived yet, and anything downloading is held
+    // back until it lands. Series still on their way are marked by the downloading badge on the
+    // screens that show every anime; this one is only for the ones that made it.
+    //
+    // Filtering is unconditional. It used to be skipped while the collection was still light (no
+    // entry carries library data until the full collection arrives) to avoid the grid flashing
+    // empty — but that traded a flash for showing the entire library, which is worse and lasts as
+    // long as the full data takes. An empty moment is the honest answer.
+    const { isDownloading } = useDownloadingAnime()
     const localEntries: Anime_LibraryCollectionEntry[] = React.useMemo(() => {
         if (!collectionList?.length) return []
         const allEntries: Anime_LibraryCollectionEntry[] = collectionList
             .filter(l => (l.type as string) !== "CURRENT")
-            .flatMap(l => {
-                const entries = l.entries ?? []
-                if (requireLocalFiles) {
-                    return entries.filter(e => e.libraryData && e.libraryData.mainFileCount > 0)
-                }
-                return entries
-            }).filter(Boolean)
+            .flatMap(l => (l.entries ?? []).filter(e => !!e?.libraryData && e.libraryData.mainFileCount > 0))
+            .filter(Boolean)
+            .filter(e => !isDownloading(e.mediaId))
         const seen = new Set<number>()
         let filtered = allEntries.filter(e => {
             if (seen.has(e.mediaId)) return false
@@ -796,7 +799,7 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
         // Sort alphabetically
         filtered.sort((a, b) => (a.media?.title?.userPreferred ?? "").localeCompare(b.media?.title?.userPreferred ?? ""))
         return filtered
-    }, [collectionList, serverStatus?.settings?.anilist?.enableAdultContent, debouncedSearch, requireLocalFiles])
+    }, [collectionList, serverStatus?.settings?.anilist?.enableAdultContent, debouncedSearch, isDownloading])
 
     if (props.libraryCollectionProps.isLoading) return <LoadingSpinner />
     // Keep the section (and its search box) mounted when a search simply matched nothing.
