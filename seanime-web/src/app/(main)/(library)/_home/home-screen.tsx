@@ -822,6 +822,9 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                                 withAudienceScore={false}
                                 type="anime"
                                 containerClassName="basis-[200px] md:basis-[250px] mx-2 mt-8 mb-0"
+                                // Everything in this row is in the local library by construction —
+                                // see the card's `hideDownloadBadges`.
+                                hideDownloadBadges
                             />
                         ))}
                     </CarouselContent>
@@ -855,6 +858,7 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                         showListDataButton
                         withAudienceScore={false}
                         type="anime"
+                        hideDownloadBadges
                     />
                 )}
             />

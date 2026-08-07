@@ -67,7 +67,18 @@ type MediaEntryCardProps<T extends "anime" | "manga"> = {
     media: T extends "anime" ? AL_BaseAnime : T extends "manga" ? AL_BaseManga : never
     // Anime-only
     listData?: T extends "anime" ? Anime_EntryListData : T extends "manga" ? Manga_EntryListData : never
+    /**
+     * The "in your library" badge is on by default — an anime card says whether you have it
+     * wherever it is shown. Pass `false` to suppress it for a grid where it would be noise.
+     */
     showLibraryBadge?: T extends "anime" ? boolean : never
+    /**
+     * Drops both the downloading badge and the library badge.
+     *
+     * For the Local Anime Library, where every card is by definition in the library: saying so on
+     * each one tells the user nothing they didn't already know by being on that screen.
+     */
+    hideDownloadBadges?: boolean
     showTrailer?: T extends "anime" ? boolean : never
     libraryData?: T extends "anime" ? Anime_EntryLibraryData : never
     nakamaLibraryData?: T extends "anime" ? Anime_NakamaEntryLibraryData : never
@@ -102,6 +113,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
         onClick,
         hideReleasingBadge = false,
         showAddToPlanning = false,
+        hideDownloadBadges = false,
         onHoverImage,
     } = props
 
@@ -114,7 +126,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
     const { mutate: addToPlanning, isPending: isAddingToPlanning } = useAddAnimeToPlanning(media.id)
     const isFav = type === "anime" && isFavorite(media.id)
 
-    const isCurrentlyDownloading = type === "anime" && isDownloading(media.id)
+    const isCurrentlyDownloading = type === "anime" && !hideDownloadBadges && isDownloading(media.id)
 
     const prevListDataRef = React.useRef(_listData)
     const prevLibraryDataRef = React.useRef(_libraryData)
@@ -132,10 +144,12 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
     const mediaChapters = (media as AL_BaseManga)?.chapters
     const mediaIsAdult = media?.isAdult
 
-    const showAnimeLibraryBadge = !!libraryData && !!props.showLibraryBadge
+    // Opt-out rather than opt-in: whether you already have an anime is worth knowing on every card
+    // that shows it, not only on the handful of screens that remembered to ask for the badge.
+    const showAnimeLibraryBadge = type === "anime" && !!libraryData && props.showLibraryBadge !== false
     const showMangaDownloadedBadge = type === "manga" && !!mediaChapters
         && ((props.downloadedChapterCount ?? 0) / mediaChapters) >= 0.96
-    const showLibraryBadge = showAnimeLibraryBadge || showMangaDownloadedBadge
+    const showLibraryBadge = !hideDownloadBadges && (showAnimeLibraryBadge || showMangaDownloadedBadge)
 
     const showProgressBar = React.useMemo(() => {
         return !!listData?.progress
@@ -176,16 +190,16 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
         }
     }, [_libraryData])
 
-    // Dynamically refresh data when LibraryCollection is updated
+    // Dynamically refresh data when LibraryCollection is updated.
+    // Runs on every screen, home included — a card that doesn't look itself up can't know it is in
+    // the library, and so never shows the badge for it.
     React.useEffect(() => {
-        if (pathname !== "/") {
-            const entry = getAtomicLibraryEntry(mediaId)
-            if (!_listData) {
-                setListData(entry?.listData)
-            }
-            if (!_libraryData) {
-                setLibraryData(entry?.libraryData)
-            }
+        const entry = getAtomicLibraryEntry(mediaId)
+        if (!_listData) {
+            setListData(entry?.listData)
+        }
+        if (!_libraryData) {
+            setLibraryData(entry?.libraryData)
         }
     }, [pathname, __atomicLibraryCollection])
 
@@ -323,6 +337,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                                 trailerId={(media as any)?.trailer?.id}
                                 showProgressBar={showProgressBar}
                                 mediaId={media.id}
+                                hideDownloadingBadge={hideDownloadBadges}
                                 progress={listData?.progress}
                                 progressTotal={progressTotal}
                                 showTrailer={showTrailer}
@@ -439,7 +454,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                 bannerImage={media.coverImage?.extraLarge || ""}
                 isAdult={media.isAdult}
                 showLibraryBadge={showLibraryBadge}
-                mediaId={type === "anime" ? media.id : undefined}
+                mediaId={(type === "anime" && !hideDownloadBadges) ? media.id : undefined}
                 isDownloading={isCurrentlyDownloading}
                 blurAdultContent={serverStatus?.settings?.anilist?.blurAdultContent}
                 onClick={onClick}

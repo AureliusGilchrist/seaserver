@@ -11,6 +11,7 @@ import (
 	"seanime/internal/torrent_clients/torrent_client"
 	"seanime/internal/unmatched"
 	"seanime/internal/util"
+	"sort"
 
 	"github.com/labstack/echo/v4"
 )
@@ -51,51 +52,110 @@ func (h *Handler) HandleGetActiveTorrentList(c echo.Context) error {
 
 }
 
+// DownloadingMediaStatus is what the client needs in order to decide, for each anime, whether to
+// show the "downloading" badge or the "in your library" one — never both.
+type DownloadingMediaStatus struct {
+	// Downloading holds AniList media IDs with a download still in flight.
+	Downloading []int `json:"downloading"`
+	// Finished holds media IDs whose download is over.
+	//
+	// The client deliberately keeps a downloading badge on screen once it has appeared, so this
+	// is the only thing that takes one down promptly. Silence is not an answer: a media ID
+	// missing from both lists means "nothing known", which must not be read as "finished".
+	Finished []int `json:"finished"`
+}
+
 // HandleGetDownloadingMediaIds
 //
-//	@summary returns the AniList media IDs that currently have an unfinished download.
-//	@desc The IDs come from the metadata sidecar written when the download was started from a
-//	@desc media page, so the "Downloading" badge survives page reloads and server restarts and
-//	@desc keeps showing until the torrent actually finishes.
+//	@summary returns which AniList media have a download in flight, and which have just finished.
+//	@desc Read from the staging directories on disk — each holds the metadata sidecar naming the
+//	@desc anime its download is for — so the answer is the same across page reloads, server
+//	@desc restarts and a torrent client that is momentarily unreachable. That is what lets the
+//	@desc "Downloading" badge stay up for the whole download instead of blinking in and out.
 //	@route /api/v1/torrent-client/downloading-media [GET]
-//	@returns []int
+//	@returns handlers.DownloadingMediaStatus
 func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 
-	// This route is polled by the client. Never start the torrent client for it and never
-	// fail the request: no reachable client simply means nothing is known to be downloading.
-	torrents, err := h.App.TorrentClientRepository.GetActiveTorrents(&torrent_client.GetListOptions{})
-	if err != nil {
-		return h.RespondWithData(c, []int{})
+	downloading := make(map[int]struct{})
+	finished := make(map[int]struct{})
+
+	// The durable source. Every download queued from a media page writes its sidecar into the
+	// staging directory before the torrent is added, so the directory outlives any one thing the
+	// torrent client happens to be reporting at the moment this route is polled.
+	if entries, err := os.ReadDir(unmatched.UnmatchedBasePath); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			metadata := h.App.UnmatchedRepository.GetTorrentMetadata(entry.Name())
+			if metadata == nil || metadata.AnimeID == 0 {
+				continue
+			}
+			if h.stagingDownloadFinished(entry.Name()) {
+				finished[metadata.AnimeID] = struct{}{}
+			} else {
+				downloading[metadata.AnimeID] = struct{}{}
+			}
+		}
 	}
 
-	seen := make(map[int]struct{})
-	mediaIds := make([]int, 0)
-
-	for _, t := range torrents {
-		if t == nil {
-			continue
+	// The live source, which also covers downloads writing somewhere other than the staging area.
+	// Never start the torrent client for this route and never fail the request: this is polled,
+	// and no reachable client simply means there is nothing more to add.
+	if torrents, err := h.App.TorrentClientRepository.GetActiveTorrents(&torrent_client.GetListOptions{}); err == nil {
+		for _, t := range torrents {
+			if t == nil {
+				continue
+			}
+			// Resolved by where the client is writing, falling back to the torrent's name. Name
+			// alone only works while the client's name for the torrent matches the release title
+			// the download was started from, and the two disagree often enough.
+			metadata := h.App.UnmatchedRepository.MetadataForTorrent(t.Name, t.ContentPath)
+			if metadata == nil || metadata.AnimeID == 0 {
+				continue
+			}
+			// Finished: seeding, or fully downloaded but paused/stopped in the client.
+			if t.Status == torrent_client.TorrentStatusSeeding || t.Progress >= 1 {
+				finished[metadata.AnimeID] = struct{}{}
+			} else {
+				downloading[metadata.AnimeID] = struct{}{}
+			}
 		}
-		// Finished: seeding, or fully downloaded but paused/stopped in the client.
-		if t.Status == torrent_client.TorrentStatusSeeding || t.Progress >= 1 {
-			continue
-		}
-
-		// Resolved by where the client is writing, falling back to the torrent's name. Name alone
-		// only works while the client's name for the torrent matches the release title the
-		// download was started from, and the two disagree often enough that the badge was
-		// showing for some downloads and not others.
-		metadata := h.App.UnmatchedRepository.MetadataForTorrent(t.Name, t.ContentPath)
-		if metadata == nil || metadata.AnimeID == 0 {
-			continue
-		}
-		if _, ok := seen[metadata.AnimeID]; ok {
-			continue
-		}
-		seen[metadata.AnimeID] = struct{}{}
-		mediaIds = append(mediaIds, metadata.AnimeID)
 	}
 
-	return h.RespondWithData(c, mediaIds)
+	res := DownloadingMediaStatus{
+		Downloading: make([]int, 0, len(downloading)),
+		Finished:    make([]int, 0, len(finished)),
+	}
+	for id := range downloading {
+		res.Downloading = append(res.Downloading, id)
+	}
+	for id := range finished {
+		// One torrent finishing says nothing while another for the same anime is still going.
+		if _, ok := downloading[id]; ok {
+			continue
+		}
+		res.Finished = append(res.Finished, id)
+	}
+	// Sorted so a poll that changed nothing looks like it changed nothing.
+	sort.Ints(res.Downloading)
+	sort.Ints(res.Finished)
+
+	return h.RespondWithData(c, res)
+}
+
+// stagingDownloadFinished reports whether the download writing into a staging directory is over.
+//
+// Not knowing counts as still downloading. The badge is meant to stay up until something says the
+// download is done, and "the torrent client has nothing to say about this one" is not that.
+func (h *Handler) stagingDownloadFinished(dirName string) bool {
+	if h.App.UnmatchedScanner == nil {
+		return false
+	}
+	if h.App.UnmatchedScanner.IsMarkedCompleted(dirName) {
+		return true
+	}
+	return h.App.UnmatchedScanner.CompletionStateFor(dirName) == unmatched.CompletionFinished
 }
 
 // HandleTorrentClientAction

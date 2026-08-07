@@ -483,6 +483,7 @@ export const MediaEntryCardHoverPopupBanner = memo(({
     trailerId,
     showProgressBar,
     mediaId,
+    hideDownloadingBadge,
     progress,
     progressTotal,
     showTrailer,
@@ -496,6 +497,8 @@ export const MediaEntryCardHoverPopupBanner = memo(({
     onClick,
 }: {
     mediaId: number
+    /** Matches the card's own suppression — see `hideDownloadBadges` on MediaEntryCard. */
+    hideDownloadingBadge?: boolean
     trailerId?: string
     progress?: number
     progressTotal?: number
@@ -552,7 +555,7 @@ export const MediaEntryCardHoverPopupBanner = memo(({
                 </div>}
 
             {/* The popup covers the card's own artwork, so the badge is repeated on this one. */}
-            <AnimeDownloadingBadge mediaId={mediaId} variant="overlay" />
+            <AnimeDownloadingBadge mediaId={hideDownloadingBadge ? undefined : mediaId} variant="overlay" />
 
             {(!!bannerImage) ? <div className="absolute object-cover top-0 object-center w-full h-full overflow-hidden"><SeaImage
                 data-media-entry-card-hover-popup-banner-image
