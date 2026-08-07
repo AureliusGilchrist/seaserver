@@ -22,6 +22,57 @@ func ClearLocalFilesCache() {
 	CurrLocalFilesDbId = 0
 }
 
+// PreserveConcurrentLocalFiles folds locked local files that reached the database *while a scan was
+// running* back into that scan's results.
+//
+// A scan reads the existing local files once at the start and replaces the whole list at the end,
+// which makes the entire scan one long read-modify-write. Anything written in between is discarded
+// — and the writer that matters is the Unmatched screen, whose matches inject locked entries as
+// they move files into the library. Those moves are also what wakes the auto-scanner, so a session
+// spent matching downloads is a session spent racing a scan that is guaranteed to be running: the
+// match lands after the scan has already walked the directory, so the files are in neither the scan
+// results nor the surviving list, and the match silently disappears.
+//
+// Call this immediately before writing the scan results. Locked files are the ones worth rescuing:
+// they represent a deliberate user match, and unlocked entries the scan did not find are files the
+// scan is entitled to consider gone.
+func PreserveConcurrentLocalFiles(database *db.Database, scanned []*anime.LocalFile) []*anime.LocalFile {
+	// Read past the cache: the cached list may be the snapshot this scan started from.
+	ClearLocalFilesCache()
+	fresh, _, err := GetLocalFiles(database)
+	if err != nil || len(fresh) == 0 {
+		return scanned
+	}
+
+	byPath := make(map[string]int, len(scanned))
+	for i, lf := range scanned {
+		byPath[lf.GetNormalizedPath()] = i
+	}
+
+	for _, dbLf := range fresh {
+		if !dbLf.IsLocked() || dbLf.MediaId == 0 {
+			continue
+		}
+		idx, found := byPath[dbLf.GetNormalizedPath()]
+		if !found {
+			// The scan never saw this file — it was matched into the library after the walk.
+			scanned = append(scanned, dbLf)
+			continue
+		}
+		// The scan did see it. Prefer its version only when the scan's re-hydration pass filled in
+		// an episode number the stored entry is still missing; otherwise the stored match wins.
+		scanLf := scanned[idx]
+		if scanLf.IsLocked() && scanLf.MediaId == dbLf.MediaId &&
+			scanLf.Metadata != nil && scanLf.Metadata.Episode > 0 &&
+			(dbLf.Metadata == nil || dbLf.Metadata.Episode == 0) {
+			continue
+		}
+		scanned[idx] = dbLf
+	}
+
+	return scanned
+}
+
 // GetLocalFiles will return the latest local files and the id of the entry.
 func GetLocalFiles(db *db.Database) ([]*anime.LocalFile, uint, error) {
 

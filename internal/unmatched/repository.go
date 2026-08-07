@@ -527,8 +527,31 @@ func (r *Repository) AutoMatchTorrent(torrentName string) (*MatchResult, error) 
 	if metadata == nil || !metadata.AutoMatch {
 		return nil, nil
 	}
+	return r.matchFromMetadata(torrentName, metadata)
+}
+
+// MatchTorrentFromMetadata performs the same match as AutoMatchTorrent, but without requiring the
+// download to have been queued with auto-match enabled.
+//
+// Auto-match is a per-download choice made before the download starts — En Masse never sets it, and
+// the torrent-search toggle defaults to off — so a library can end up with hundreds of finished
+// downloads that carry a perfectly good anime ID and would match without a single decision from the
+// user. This is what the "Match all" sweep calls to work through them.
+//
+// Returns (nil, nil) when the download has no recorded anime to match against, which is the one
+// case that genuinely needs a human.
+func (r *Repository) MatchTorrentFromMetadata(torrentName string) (*MatchResult, error) {
+	return r.matchFromMetadata(torrentName, r.GetTorrentMetadata(torrentName))
+}
+
+// matchFromMetadata is the body shared by AutoMatchTorrent and MatchTorrentFromMetadata: it turns a
+// stored metadata record into the match a user would have performed by hand.
+func (r *Repository) matchFromMetadata(torrentName string, metadata *TorrentMetadata) (*MatchResult, error) {
+	if metadata == nil {
+		return nil, nil
+	}
 	if metadata.AnimeID == 0 {
-		r.logger.Warn().Str("torrent", torrentName).Msg("unmatched: Auto-match requested but no anime ID was recorded, leaving for manual matching")
+		r.logger.Warn().Str("torrent", torrentName).Msg("unmatched: No anime ID was recorded for this download, leaving it for manual matching")
 		return nil, nil
 	}
 
@@ -833,7 +856,7 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	// and anything that looks this download up later — reflect the choice rather than whatever the
 	// download was queued for. Writing a row costs nothing and cannot recreate a staging directory,
 	// which is why this no longer has to check whether one still exists.
-	if result.Success && req.AnimeID > 0 && len(result.MovedFiles) > 0 {
+	if req.AnimeID > 0 && len(result.MovedFiles) > 0 {
 		selection := TorrentMetadata{
 			AnimeID:          req.AnimeID,
 			AnimeTitleRomaji: req.AnimeTitleClean,
@@ -859,7 +882,7 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	// one place a metadata file is still written, and it is the library — never the Unmatched
 	// folder, where nothing can be relied on to exist. The library scanner reads it to place
 	// files it could not match by title.
-	if result.Success && result.Destination != "" && len(result.MovedFiles) > 0 {
+	if result.Destination != "" && len(result.MovedFiles) > 0 {
 		if err := r.writeMetadataToDestination(req.TorrentName, result.Destination); err != nil {
 			r.logger.Warn().Err(err).
 				Str("torrent", req.TorrentName).

@@ -246,6 +246,18 @@ func (as *AutoScanner) scan() {
 	if as.db != nil && len(allLfs) > 0 {
 		as.logger.Trace().Msg("autoscanner: Updating local files")
 
+		// Matching a download moves files into the library, which is what woke this scan in the
+		// first place — so a user working through the Unmatched screen is writing local files for
+		// the whole time the scan runs. Fold those back in before replacing the list, or every
+		// match made since the directory walk is lost.
+		before := len(allLfs)
+		allLfs = db_bridge.PreserveConcurrentLocalFiles(as.db, allLfs)
+		if rescued := len(allLfs) - before; rescued > 0 {
+			as.logger.Info().
+				Int("count", rescued).
+				Msg("autoscanner: Preserved local files matched while the scan was running")
+		}
+
 		// Insert the local files
 		_, err = db_bridge.InsertLocalFiles(as.db, allLfs)
 		if err != nil {

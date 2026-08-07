@@ -92,7 +92,12 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 	// Everything after the move is async so the client gets an immediate response.
 	// The scan is triggered INSIDE the goroutine, after DB injection, to avoid a
 	// race where the scanner runs before the new local-file entries are persisted.
-	if result.Success {
+	//
+	// Keyed on what actually moved, not on overall success: one file failing to move sets
+	// Success false for the whole torrent, and skipping the finalize then would leave every
+	// episode that *did* move sitting in the library with no database entry — invisible until
+	// the next full rescan.
+	if len(result.MovedFiles) > 0 {
 		reqCopy := req
 		resultCopy := *result
 		go h.FinalizeUnmatchedMatch(reqCopy, resultCopy)

@@ -101,6 +101,21 @@ const UNMATCHED_ENDPOINTS = {
         methods: ["GET"] as const,
         endpoint: "/api/v1/unmatched/diagnostics",
     },
+    SweepMatchAll: {
+        key: "UNMATCHED-sweep-match-all",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/match-all",
+    },
+    GetSweepStatus: {
+        key: "UNMATCHED-get-sweep-status",
+        methods: ["GET"] as const,
+        endpoint: "/api/v1/unmatched/match-all/status",
+    },
+    StopSweep: {
+        key: "UNMATCHED-stop-sweep",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/match-all/stop",
+    },
 }
 
 export function useGetUnmatchedTorrents({
@@ -168,6 +183,68 @@ export function useDeleteUnmatchedTorrent(onSuccess?: () => void) {
             toast.success("Torrent deleted")
             await queryClient.invalidateQueries({ queryKey: [UNMATCHED_ENDPOINTS.GetUnmatchedTorrents.key] })
             onSuccess?.()
+        },
+    })
+}
+
+// ─── Match all (sweep) ───────────────────────────────────────────────
+//
+// Auto-match is chosen before a download starts and defaults to off, but the anime a download was
+// queued for is recorded either way. This runs the ordinary match over every finished download that
+// has one, so a backlog doesn't have to be worked through one modal at a time.
+// See internal/handlers/unmatched_sweep.go.
+
+export interface UnmatchedSweepStatus {
+    running: boolean
+    total: number
+    processed: number
+    matched: number
+    /** Passed over: no anime recorded, or still downloading. */
+    skipped: number
+    failed: number
+    current: string
+    errors: string[]
+    stopping: boolean
+    startedAt?: string
+    finishedAt?: string
+}
+
+/** Polls only while a sweep is running, so an idle screen isn't asking every second. */
+export function useGetUnmatchedSweepStatus({ enabled }: { enabled?: boolean } = {}) {
+    return useServerQuery<UnmatchedSweepStatus>({
+        endpoint: UNMATCHED_ENDPOINTS.GetSweepStatus.endpoint,
+        method: UNMATCHED_ENDPOINTS.GetSweepStatus.methods[0],
+        queryKey: [UNMATCHED_ENDPOINTS.GetSweepStatus.key],
+        gcTime: 0,
+        staleTime: 0,
+        refetchInterval: query => (query.state.data?.running ? 1_000 : false),
+        enabled,
+    })
+}
+
+export function useSweepUnmatchedTorrents() {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<UnmatchedSweepStatus, {}>({
+        endpoint: UNMATCHED_ENDPOINTS.SweepMatchAll.endpoint,
+        method: UNMATCHED_ENDPOINTS.SweepMatchAll.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.SweepMatchAll.key],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [UNMATCHED_ENDPOINTS.GetSweepStatus.key] })
+        },
+    })
+}
+
+export function useStopUnmatchedSweep() {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<UnmatchedSweepStatus, {}>({
+        endpoint: UNMATCHED_ENDPOINTS.StopSweep.endpoint,
+        method: UNMATCHED_ENDPOINTS.StopSweep.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.StopSweep.key],
+        onSuccess: async () => {
+            toast.info("Stopping after the current download")
+            await queryClient.invalidateQueries({ queryKey: [UNMATCHED_ENDPOINTS.GetSweepStatus.key] })
         },
     })
 }

@@ -99,37 +99,7 @@ func (h *Handler) HandleScanLocalFiles(c echo.Context) error {
 
 	// Race condition guard: re-read current DB state to preserve any manual matches
 	// made while this scan was running. Locked files in DB always take priority.
-	db_bridge.ClearLocalFilesCache()
-	freshDbLfs, _, _ := db_bridge.GetLocalFiles(h.App.Database)
-	if len(freshDbLfs) > 0 {
-		// Build a lookup of scan results by normalized path
-		scanResultPaths := make(map[string]int, len(allLfs))
-		for i, lf := range allLfs {
-			scanResultPaths[lf.GetNormalizedPath()] = i
-		}
-		// For each locked file in the fresh DB state, ensure it survives in scan results
-		for _, dbLf := range freshDbLfs {
-			if dbLf.IsLocked() && dbLf.MediaId != 0 {
-				npath := dbLf.GetNormalizedPath()
-				if idx, exists := scanResultPaths[npath]; exists {
-					scanLf := allLfs[idx]
-					// If the scan result was re-hydrated with richer metadata
-					// (e.g. episode numbers from re-hydration pass), prefer it
-					// over the stale DB version that may still have Episode=0.
-					if scanLf.IsLocked() && scanLf.MediaId == dbLf.MediaId &&
-						scanLf.Metadata != nil && scanLf.Metadata.Episode > 0 &&
-						(dbLf.Metadata == nil || dbLf.Metadata.Episode == 0) {
-						continue // keep re-hydrated scan result
-					}
-					// Replace scan result with the locked DB version
-					allLfs[idx] = dbLf
-				} else {
-					// Locked file wasn't in scan — add it back
-					allLfs = append(allLfs, dbLf)
-				}
-			}
-		}
-	}
+	allLfs = db_bridge.PreserveConcurrentLocalFiles(h.App.Database, allLfs)
 
 	// Insert the local files
 	lfs, err := db_bridge.InsertLocalFiles(h.App.Database, allLfs)

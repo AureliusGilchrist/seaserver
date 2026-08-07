@@ -524,6 +524,18 @@ func (s *Scanner) autoMatchIfRequested(torrentName string) {
 			Int("failed", len(result.FailedFiles)).
 			Str("error", result.ErrorMessage).
 			Msg("unmatched scanner: Auto-match completed with errors")
+
+		// Whatever did move is in the library now and still has to reach the library database,
+		// or those episodes are invisible until the next full rescan. The staging directory is
+		// deliberately left alone below: the files that failed are still in it.
+		if len(result.MovedFiles) > 0 {
+			s.mu.Lock()
+			cb := s.onAutoMatched
+			s.mu.Unlock()
+			if cb != nil {
+				cb(torrentName, result)
+			}
+		}
 		return
 	}
 
