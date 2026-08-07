@@ -206,6 +206,8 @@ func migrateTables(db *gorm.DB) error {
 		&models.ClientPref{},
 		&models.EasterEggDiscovery{},
 		&models.BuiltinTorrentItem{},
+		&models.UnmatchedMatchRecord{},
+		&models.UnmatchedTorrentMetadata{},
 	)
 	if err != nil {
 

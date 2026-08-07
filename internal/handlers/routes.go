@@ -817,6 +817,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Unmatched.POST("/destination", h.HandleGetUnmatchedDestination)
 	v1Unmatched.GET("/scanner/status", h.HandleGetUnmatchedScannerStatus)
 	v1Unmatched.POST("/scanner/clear", h.HandleClearCompletedTorrent)
+	v1Unmatched.GET("/diagnostics", h.HandleGetUnmatchedDiagnostics)
+	v1Unmatched.GET("/history", h.HandleGetUnmatchedMatchHistory)
+	v1Unmatched.POST("/history/entry", h.HandleGetUnmatchedMatchHistoryEntry)
+	v1Unmatched.POST("/history/revert", h.HandleRevertUnmatchedMatch)
+	v1Unmatched.POST("/history/dismiss", h.HandleDismissUnmatchedMatchRecord)
 
 	//
 	// En Masse Downloader

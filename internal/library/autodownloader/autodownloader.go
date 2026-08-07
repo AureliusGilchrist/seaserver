@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"seanime/internal/api/anilist"
@@ -151,23 +150,16 @@ func (ad *AutoDownloader) saveUnmatchedMetadata(t *NormalizedTorrent, rule *anim
 		AnimeStartYear:   startYear,
 	}
 
-	// Write file to unmatched directory/torrent name/.seanime-metadata.json
-	// Use the shared helper so this lands in exactly the directory the torrent
-	// downloads into — a raw Join here diverges whenever the name needs
-	// sanitizing, leaving the sidecar somewhere the scan never looks.
-	torrentPath := unmatched.DestinationFor(t.Name)
-	if err := os.MkdirAll(torrentPath, 0755); err != nil {
-		ad.logger.Warn().Err(err).Str("torrent", t.Name).Msg("autodownloader: failed to ensure unmatched directory")
-		return
-	}
-	metaPath := filepath.Join(torrentPath, ".seanime-metadata.json")
-	data, err := json.MarshalIndent(meta, "", "  ")
+	// Stored in the database rather than as a file beside the download: the download's folder does
+	// not exist yet, may never be somewhere this server can see, and is deleted the moment the
+	// torrent is matched.
+	data, err := json.Marshal(meta)
 	if err != nil {
 		ad.logger.Warn().Err(err).Str("torrent", t.Name).Msg("autodownloader: failed to marshal metadata")
 		return
 	}
-	if err := os.WriteFile(metaPath, data, 0644); err != nil {
-		ad.logger.Warn().Err(err).Str("torrent", t.Name).Msg("autodownloader: failed to write metadata")
+	if err := ad.database.UpsertUnmatchedTorrentMetadata(unmatched.MetadataKey(t.Name), meta.AnimeID, data); err != nil {
+		ad.logger.Warn().Err(err).Str("torrent", t.Name).Msg("autodownloader: failed to save metadata")
 	}
 }
 

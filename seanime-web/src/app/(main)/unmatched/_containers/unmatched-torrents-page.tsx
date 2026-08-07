@@ -4,13 +4,15 @@ import { useGetUnmatchedTorrents, UnmatchedTorrent } from "@/api/hooks/unmatched
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { UnmatchedTorrentCard } from "@/app/(main)/unmatched/_components/unmatched-torrent-card"
 import { UnmatchedMatchModal } from "@/app/(main)/unmatched/_components/unmatched-match-modal"
+import { UnmatchedUndoModal } from "@/app/(main)/unmatched/_components/unmatched-undo-modal"
+import { UnmatchedDiagnosticsModal } from "@/app/(main)/unmatched/_components/unmatched-diagnostics-modal"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { atom, useAtom } from "jotai"
 import React from "react"
-import { LuFolderSearch, LuEye, LuEyeOff } from "react-icons/lu"
+import { LuFolderSearch, LuEye, LuEyeOff, LuUndo2, LuStethoscope } from "react-icons/lu"
 
 export const selectedUnmatchedTorrentAtom = atom<UnmatchedTorrent | null>(null)
 
@@ -25,6 +27,8 @@ export function UnmatchedTorrentsPage() {
     const [selectedTorrent, setSelectedTorrent] = useAtom(selectedUnmatchedTorrentAtom)
     const [search, setSearch] = React.useState("")
     const [hideMatched, setHideMatched] = React.useState(true)
+    const [undoOpen, setUndoOpen] = React.useState(false)
+    const [diagnosticsOpen, setDiagnosticsOpen] = React.useState(false)
 
     const torrentsList = torrents ?? []
     const initialLoading = isLoading && torrentsList.length === 0
@@ -77,6 +81,15 @@ export function UnmatchedTorrentsPage() {
                 <LuFolderSearch className="text-3xl text-brand-200" />
                 <h2 className="text-2xl font-bold">Unmatched Downloads</h2>
                 <LoadingSpinner className={`h-4 w-4 transition-opacity duration-200 ${isRefreshing ? "opacity-100" : "opacity-0"}`} />
+                <div className="flex-1" />
+                {/* For "my download isn't here" — the screen can't say why on its own. */}
+                <Button intent="gray-outline" size="sm" leftIcon={<LuStethoscope />} onClick={() => setDiagnosticsOpen(true)}>
+                    Diagnose
+                </Button>
+                {/* Matching renames files and moves them out of this folder. This is the way back. */}
+                <Button intent="gray-outline" size="sm" leftIcon={<LuUndo2 />} onClick={() => setUndoOpen(true)}>
+                    Undo matches
+                </Button>
             </div>
 
             <p className="text-[--muted]">
@@ -151,6 +164,18 @@ export function UnmatchedTorrentsPage() {
                     // files into the library DB as hydrated, locked local files, so a scan adds
                     // nothing — and a full enhanced scan after *every* match is what made matching
                     // get slower and slower the longer a matching session ran.
+                }}
+            />
+
+            <UnmatchedDiagnosticsModal open={diagnosticsOpen} onClose={() => setDiagnosticsOpen(false)} />
+
+            <UnmatchedUndoModal
+                open={undoOpen}
+                onClose={() => {
+                    setUndoOpen(false)
+                    // A revert puts files back in the staging folder, so the list behind the modal
+                    // is out of date the moment one runs.
+                    refetch()
                 }}
             />
         </PageWrapper>

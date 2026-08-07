@@ -415,6 +415,40 @@ func (a *App) initModulesOnce() {
 
 	a.UnmatchedRepository = unmatched.NewRepository(a.Logger, a.Database)
 	a.UnmatchedScanner = unmatched.NewScanner(a.Logger, a.UnmatchedRepository)
+
+	// Let the scanner ask the torrent client whether a download has actually finished, instead of
+	// inferring it from temp-file extensions the client may well not use. Read through the ref so
+	// this keeps working after the client is re-created on a settings change, and never call
+	// Start() on the client: this runs on a timer, and a scan must not be what brings a torrent
+	// client up.
+	a.UnmatchedScanner.SetTorrentStateSource(func() ([]unmatched.TorrentState, bool) {
+		repo := a.TorrentClientRepositoryRef.Get()
+		if repo == nil {
+			return nil, false
+		}
+		torrents, err := repo.GetList(&torrent_client.GetListOptions{})
+		if err != nil {
+			return nil, false
+		}
+
+		states := make([]unmatched.TorrentState, 0, len(torrents))
+		for _, t := range torrents {
+			if t == nil {
+				continue
+			}
+			states = append(states, unmatched.TorrentState{
+				Name:     t.Name,
+				SavePath: t.ContentPath,
+				// Seeding means the data is all there. Progress covers a finished torrent that has
+				// been paused or stopped, which no longer reports as seeding.
+				Finished: t.Status == torrent_client.TorrentStatusSeeding ||
+					t.Status == torrent_client.TorrentStatusStopped ||
+					t.Progress >= 1,
+			})
+		}
+		return states, true
+	})
+
 	a.UnmatchedScanner.Start()
 
 	// +---------------------+

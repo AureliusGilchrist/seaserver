@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"os"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/library/anime"
@@ -158,6 +159,23 @@ func (h *Handler) FinalizeUnmatchedMatch(reqCopy unmatched.MatchRequest, resultC
 			func() {
 				injectMu.Lock()
 				defer injectMu.Unlock()
+
+				// Hydration runs for up to 30 seconds, and the match can be undone in that window.
+				// Injecting a file the revert has already moved back would leave the library
+				// pointing at a path that no longer exists, so anything gone by now is dropped.
+				stillThere := make([]*anime.LocalFile, 0, len(newLFs))
+				for _, lf := range newLFs {
+					if _, statErr := os.Stat(lf.Path); statErr != nil {
+						h.App.Logger.Debug().Str("path", lf.Path).
+							Msg("unmatched: skipping DB injection for a file that is no longer there")
+						continue
+					}
+					stillThere = append(stillThere, lf)
+				}
+				if len(stillThere) == 0 {
+					return
+				}
+				newLFs = stillThere
 
 				existingLFs, lfsId, lfsErr := db_bridge.GetLocalFiles(h.App.Database)
 				if lfsErr != nil {

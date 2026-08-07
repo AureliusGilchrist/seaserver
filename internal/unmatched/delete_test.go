@@ -3,6 +3,7 @@ package unmatched
 import (
 	"os"
 	"path/filepath"
+	"seanime/internal/database/db"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -20,6 +21,31 @@ func stageBase(t *testing.T) (*Repository, string) {
 
 	logger := zerolog.Nop()
 	return NewRepository(&logger, nil), base
+}
+
+// stageBaseWithDB is stageBase with a real database behind it, for the paths that store what a
+// download is for. Torrent metadata lives in the database rather than beside the files, so testing
+// those paths against a nil database would only prove that nothing was written.
+func stageBaseWithDB(t *testing.T) (*Repository, string) {
+	t.Helper()
+
+	base := t.TempDir()
+	original := UnmatchedBasePath
+	UnmatchedBasePath = base
+	t.Cleanup(func() { UnmatchedBasePath = original })
+
+	logger := zerolog.Nop()
+	database, err := db.NewDatabase(t.TempDir(), "test", &logger)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() {
+		if sqlDB, dbErr := database.Gorm().DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	return NewRepository(&logger, database), base
 }
 
 // remaining lists what is left inside the staging directory, deepest paths included.

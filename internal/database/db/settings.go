@@ -44,10 +44,18 @@ func (db *Database) GetSettings() (*models.Settings, error) {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// GetLibraryPathFromSettings returns the configured library path, or "" when there is none.
+//
+// The settings row is read with Find, which reports no error when the row does not exist — so
+// before onboarding (or with the row wiped) this receives a zero-valued Settings whose embedded
+// Library pointer is nil. Reading through it panicked, taking down whatever request asked.
 func (db *Database) GetLibraryPathFromSettings() (string, error) {
 	settings, err := db.GetSettings()
 	if err != nil {
 		return "", err
+	}
+	if settings == nil || settings.Library == nil {
+		return "", nil
 	}
 	return settings.Library.LibraryPath, nil
 }
@@ -56,6 +64,9 @@ func (db *Database) GetAdditionalLibraryPathsFromSettings() ([]string, error) {
 	settings, err := db.GetSettings()
 	if err != nil {
 		return []string{}, err
+	}
+	if settings == nil || settings.Library == nil {
+		return []string{}, nil
 	}
 	return settings.Library.LibraryPaths, nil
 }

@@ -345,6 +345,47 @@ type SilencedMediaEntry struct {
 }
 
 // +---------------------+
+// |  Unmatched metadata |
+// +---------------------+
+
+// UnmatchedTorrentMetadata records which anime a download is for, along with everything naming its
+// files needs — the episode titles included. Written when the download is queued, from the media
+// page that already knows exactly what is being downloaded.
+//
+// It lives here rather than as a file beside the download because the download's folder is the one
+// thing that cannot be relied on: the torrent client may be writing somewhere the server cannot
+// see, and matching deletes the folder as its last step. A row survives all of that and is read
+// without touching the disk.
+type UnmatchedTorrentMetadata struct {
+	BaseModel
+	// TorrentName is the sanitized name, matching the folder the download is saved into, so a
+	// lookup by torrent name and a lookup by staging folder find the same row.
+	TorrentName string `gorm:"column:torrent_name;uniqueIndex" json:"torrentName"`
+	AnimeID     int    `gorm:"column:anime_id;index" json:"animeId"`
+	Value       []byte `gorm:"column:value" json:"value"`
+}
+
+// +---------------------+
+// |  Unmatched matches  |
+// +---------------------+
+
+// UnmatchedMatchRecord is one match performed from the Unmatched Downloads screen, kept so it can
+// be reviewed and undone afterwards. The columns are what the undo list is built and sorted from;
+// Value holds the full record (every file's original and new path) as JSON.
+type UnmatchedMatchRecord struct {
+	BaseModel
+	TorrentName string     `gorm:"column:torrent_name" json:"torrentName"`
+	AnimeID     int        `gorm:"column:anime_id" json:"animeId"`
+	AnimeTitle  string     `gorm:"column:anime_title" json:"animeTitle"`
+	Destination string     `gorm:"column:destination" json:"destination"`
+	FileCount   int        `gorm:"column:file_count" json:"fileCount"`
+	// RevertedAt is nil while the match still stands, and set once it has been undone. Reverted
+	// records are kept rather than deleted so the screen can show what was undone and when.
+	RevertedAt *time.Time `gorm:"column:reverted_at" json:"revertedAt"`
+	Value      []byte     `gorm:"column:value" json:"value"`
+}
+
+// +---------------------+
 // |        Theme        |
 // +---------------------+
 

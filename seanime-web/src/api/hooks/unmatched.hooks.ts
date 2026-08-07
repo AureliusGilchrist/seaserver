@@ -81,6 +81,26 @@ const UNMATCHED_ENDPOINTS = {
         methods: ["POST"] as const,
         endpoint: "/api/v1/unmatched/torrent/delete",
     },
+    GetMatchHistory: {
+        key: "UNMATCHED-get-match-history",
+        methods: ["GET"] as const,
+        endpoint: "/api/v1/unmatched/history",
+    },
+    RevertMatch: {
+        key: "UNMATCHED-revert-match",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/history/revert",
+    },
+    DismissMatchRecord: {
+        key: "UNMATCHED-dismiss-match-record",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/history/dismiss",
+    },
+    GetDiagnostics: {
+        key: "UNMATCHED-get-diagnostics",
+        methods: ["GET"] as const,
+        endpoint: "/api/v1/unmatched/diagnostics",
+    },
 }
 
 export function useGetUnmatchedTorrents({
@@ -147,6 +167,207 @@ export function useDeleteUnmatchedTorrent(onSuccess?: () => void) {
         onSuccess: async () => {
             toast.success("Torrent deleted")
             await queryClient.invalidateQueries({ queryKey: [UNMATCHED_ENDPOINTS.GetUnmatchedTorrents.key] })
+            onSuccess?.()
+        },
+    })
+}
+
+// ─── Diagnostics ─────────────────────────────────────────────────────
+//
+// A download only reaches this screen once its files are on disk where the server expects them.
+// When that doesn't happen the screen has nothing to show and no way to say why, so the server
+// reports the whole chain instead. See internal/handlers/unmatched_diagnostics.go.
+
+export interface DiagnosticsTorrent {
+    name: string
+    status: string
+    progress: number
+    savePath: string
+    stagingDir: string
+    /** Whether the client is writing inside the folder the server watches. */
+    insideUnmatched: boolean
+    stagingExists: boolean
+    sidecarFound: boolean
+    animeId?: number
+    autoMatch: boolean
+}
+
+export interface DiagnosticsStagingDir {
+    name: string
+    fileCount: number
+    videoCount: number
+    hasTempFile: boolean
+    sidecarFound: boolean
+    animeId?: number
+    autoMatch: boolean
+    /** What the torrent client says: "finished", "downloading" or "unknown". */
+    completion: string
+    markedCompleted: boolean
+    /** Whether it shows up in the Unmatched screen. */
+    listed: boolean
+}
+
+export interface UnmatchedDiagnostics {
+    unmatchedBasePath: string
+    basePathExists: boolean
+    basePathWritable: boolean
+    libraryPath: string
+    torrentClient: string
+    torrentClientOk: boolean
+    torrentClientError?: string
+    torrents: DiagnosticsTorrent[]
+    stagingDirs: DiagnosticsStagingDir[]
+}
+
+export function useGetUnmatchedDiagnostics({ enabled }: { enabled?: boolean } = {}) {
+    return useServerQuery<UnmatchedDiagnostics>({
+        endpoint: UNMATCHED_ENDPOINTS.GetDiagnostics.endpoint,
+        method: UNMATCHED_ENDPOINTS.GetDiagnostics.methods[0],
+        queryKey: [UNMATCHED_ENDPOINTS.GetDiagnostics.key],
+        // Everything here is measured against the disk and the torrent client when asked. A cached
+        // answer would describe a state that has already moved on.
+        gcTime: 0,
+        staleTime: 0,
+        enabled,
+    })
+}
+
+// ─── Match history (undo) ────────────────────────────────────────────
+//
+// Every match is written down so it can be reviewed and undone: which file came from where, and
+// what it was renamed to. See internal/unmatched/history.go.
+
+/** What a revert would do — or did — with one file. */
+export type RevertFileStatus =
+    | "ready"     // still where the match left it, and its original path is free
+    | "missing"   // no longer at the path the match moved it to
+    | "blocked"   // something already occupies the path it would go back to
+    | "restored"  // the match was reverted and this file was put back
+
+export interface MatchHistoryFile {
+    originalName: string
+    originalRelPath: string
+    originalPath: string
+    newName: string
+    newPath: string
+    size: number
+    status: RevertFileStatus
+}
+
+export interface RevertFailure {
+    name: string
+    reason: string
+}
+
+export interface RevertOutcome {
+    revertedAt: string
+    restored: string[]
+    missing?: string[]
+    failed?: RevertFailure[]
+    destinationRemoved: boolean
+}
+
+export interface MatchHistoryEntry {
+    id: number
+    torrentName: string
+    animeId: number
+    animeTitle: string
+    destination: string
+    stagingPath: string
+    matchedAt: string
+    revertedAt?: string | null
+    files: MatchHistoryFile[]
+    /** Creditless/bonus files the match deleted rather than moved. A revert cannot bring these back. */
+    deletedFiles?: string[]
+    readyCount: number
+    missingCount: number
+    blockedCount: number
+    restoredCount: number
+    revert?: RevertOutcome
+}
+
+export interface RestoredFile {
+    newPath: string
+    newName: string
+    originalPath: string
+    originalRelPath: string
+}
+
+export interface RevertResult {
+    success: boolean
+    id: number
+    torrentName: string
+    animeId: number
+    animeTitle: string
+    stagingPath: string
+    restored: RestoredFile[]
+    missing?: string[]
+    failed?: RevertFailure[]
+    deletedFiles?: string[]
+    destinationRemoved: boolean
+    errorMessage?: string
+}
+
+export function useGetUnmatchedMatchHistory({ enabled }: { enabled?: boolean } = {}) {
+    return useServerQuery<MatchHistoryEntry[]>({
+        endpoint: UNMATCHED_ENDPOINTS.GetMatchHistory.endpoint,
+        method: UNMATCHED_ENDPOINTS.GetMatchHistory.methods[0],
+        queryKey: [UNMATCHED_ENDPOINTS.GetMatchHistory.key],
+        // File statuses are recomputed against the disk on every read, so a cached list would
+        // happily offer to restore files that are no longer there.
+        gcTime: 0,
+        staleTime: 0,
+        enabled,
+    })
+}
+
+/**
+ * Undoes a match. `confirmed` is required by the server — a revert moves files across the disk, so
+ * it is never performed on the strength of an ID alone.
+ */
+export function useRevertUnmatchedMatch(onSuccess?: (result: RevertResult | undefined) => void) {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<RevertResult, { id: number, confirmed: boolean }>({
+        endpoint: UNMATCHED_ENDPOINTS.RevertMatch.endpoint,
+        method: UNMATCHED_ENDPOINTS.RevertMatch.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.RevertMatch.key],
+        onSuccess: async (data) => {
+            if (data?.success) {
+                const restored = data.restored?.length || 0
+                const failed = data.failed?.length || 0
+                const missing = data.missing?.length || 0
+                let message = `Moved ${restored} file${restored === 1 ? "" : "s"} back to Unmatched`
+                if (missing > 0) message += ` — ${missing} were no longer there`
+                if (failed > 0) message += ` — ${failed} couldn't be restored`
+                failed > 0 || missing > 0 ? toast.warning(message) : toast.success(message)
+            } else {
+                toast.error(data?.errorMessage || "Could not undo this match")
+            }
+            onSuccess?.(data)
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: [UNMATCHED_ENDPOINTS.GetMatchHistory.key] }),
+                queryClient.invalidateQueries({ queryKey: [UNMATCHED_ENDPOINTS.GetUnmatchedTorrents.key] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_COLLECTION.GetLibraryCollection.key] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.LOCALFILES.GetLocalFiles.key] }),
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.LIBRARY_EXPLORER.GetLibraryExplorerFileTree.key] }),
+            ])
+        },
+    })
+}
+
+/** Takes a match off the undo list without touching a single file. */
+export function useDismissUnmatchedMatchRecord(onSuccess?: () => void) {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<boolean, { id: number }>({
+        endpoint: UNMATCHED_ENDPOINTS.DismissMatchRecord.endpoint,
+        method: UNMATCHED_ENDPOINTS.DismissMatchRecord.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.DismissMatchRecord.key],
+        onSuccess: async () => {
+            toast.success("Match kept")
+            await queryClient.invalidateQueries({ queryKey: [UNMATCHED_ENDPOINTS.GetMatchHistory.key] })
             onSuccess?.()
         },
     })

@@ -9,6 +9,7 @@ import (
 	"seanime/internal/database/db_bridge"
 	hibiketorrent "seanime/internal/extension/hibike/torrent"
 	"seanime/internal/torrent_clients/torrent_client"
+	"seanime/internal/unmatched"
 	"seanime/internal/util"
 
 	"github.com/labstack/echo/v4"
@@ -79,7 +80,11 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 			continue
 		}
 
-		metadata := h.App.UnmatchedRepository.GetTorrentMetadata(t.Name)
+		// Resolved by where the client is writing, falling back to the torrent's name. Name alone
+		// only works while the client's name for the torrent matches the release title the
+		// download was started from, and the two disagree often enough that the badge was
+		// showing for some downloads and not others.
+		metadata := h.App.UnmatchedRepository.MetadataForTorrent(t.Name, t.ContentPath)
 		if metadata == nil || metadata.AnimeID == 0 {
 			continue
 		}
@@ -248,6 +253,40 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 		return h.RespondWithError(c, errors.New("could not contact torrent client, verify your settings or make sure it's running"))
 	}
 
+	// Everything known about what is being downloaded, worked out once for the whole request: the
+	// media page has already told us exactly which anime this is, so the episode metadata is
+	// fetched here rather than in the middle of a match. Every torrent in the request is for this
+	// same anime, so this is a single call however many torrents were selected.
+	var queuedMetadata unmatched.TorrentMetadata
+	if b.Media != nil {
+		queuedMetadata = unmatched.TorrentMetadata{
+			AnimeID:   b.Media.ID,
+			AutoMatch: b.AutoMatch,
+		}
+		if b.Media.Title != nil {
+			if b.Media.Title.Romaji != nil {
+				queuedMetadata.AnimeTitleRomaji = *b.Media.Title.Romaji
+			}
+			if b.Media.Title.Native != nil {
+				queuedMetadata.AnimeTitleNative = *b.Media.Title.Native
+			}
+		}
+		if b.Media.Format != nil {
+			queuedMetadata.AnimeFormat = string(*b.Media.Format)
+		}
+		if b.Media.StartDate != nil && b.Media.StartDate.Year != nil {
+			queuedMetadata.AnimeStartYear = *b.Media.StartDate.Year
+		}
+		// AniList's count for this exact entry — recorded so the Unmatched screen doesn't have to
+		// fall back to the Animap map, which also counts specials and sibling seasons.
+		if b.Media.Episodes != nil {
+			queuedMetadata.AnimeExpectedEpisodes = *b.Media.Episodes
+		}
+
+		// The episode titles. Fetched now, so naming the files later is pure string work.
+		h.App.UnmatchedRepository.EnrichMetadata(&queuedMetadata)
+	}
+
 	// OVERRIDE: Always download to unmatched directory
 	// Each torrent goes to /zroot/torrents/Anime/Unmatched/$TorrentName
 	for _, t := range b.Torrents {
@@ -268,38 +307,13 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 
 		// Save anime metadata BEFORE queueing the download.
 		//
-		// The sidecar written here is the ONLY record of which anime a torrent
-		// came from — the Unmatched screen has no other way to recover it. If
-		// this write fails and the torrent is added anyway, the download lands
-		// with nothing linking it back to its anime and has to be matched by
-		// hand. That failure used to be logged as a warning and swallowed,
-		// which let it go unnoticed across many downloads.
+		// This record is the ONLY thing linking the download back to its anime — the Unmatched
+		// screen has no other way to recover it. If this write fails and the torrent is added
+		// anyway, the download lands with nothing attached and has to be matched by hand. That
+		// failure used to be logged as a warning and swallowed, which let it go unnoticed across
+		// many downloads.
 		if b.Media != nil {
-			titleRomaji := ""
-			titleNative := ""
-			if b.Media.Title != nil {
-				if b.Media.Title.Romaji != nil {
-					titleRomaji = *b.Media.Title.Romaji
-				}
-				if b.Media.Title.Native != nil {
-					titleNative = *b.Media.Title.Native
-				}
-			}
-			format := ""
-			if b.Media.Format != nil {
-				format = string(*b.Media.Format)
-			}
-			startYear := 0
-			if b.Media.StartDate != nil && b.Media.StartDate.Year != nil {
-				startYear = *b.Media.StartDate.Year
-			}
-			// AniList's count for this exact entry — recorded so the Unmatched screen doesn't have
-			// to fall back to the Animap map, which also counts specials and sibling seasons.
-			expectedEpisodes := 0
-			if b.Media.Episodes != nil {
-				expectedEpisodes = *b.Media.Episodes
-			}
-			if err := h.App.UnmatchedRepository.SaveTorrentMetadata(t.Name, b.Media.ID, titleRomaji, titleNative, format, startYear, expectedEpisodes, b.AutoMatch); err != nil {
+			if err := h.App.UnmatchedRepository.SaveTorrentMetadataRecord(t.Name, queuedMetadata); err != nil {
 				h.App.Logger.Error().Err(err).Str("torrent", t.Name).Msg("torrent client: Failed to save torrent metadata")
 				return h.RespondWithError(c, fmt.Errorf("could not save anime metadata for %q, torrent not added: %w", t.Name, err))
 			}

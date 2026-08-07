@@ -1221,23 +1221,32 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 		details.Destination = destination
 	})
 
-	// Save metadata BEFORE queueing the download. The sidecar is the only record
-	// of which anime this torrent came from; if it cannot be written, adding the
+	// Save metadata BEFORE queueing the download. This record is the only thing
+	// linking the torrent back to its anime; if it cannot be written, adding the
 	// torrent anyway strands it in the Unmatched screen with no way back to its
 	// anime. Fail here instead, while the error is still attributable.
 	romajiTitle := resolved.TitleRomaji
 	if romajiTitle == "" {
 		romajiTitle = resolved.Title
 	}
-	nativeTitle := ""
-	format := resolved.Format
 	startYear := baseAnime.GetStartYearSafe()
 	if startYear == 0 && animeItem.AnimeSeason != nil {
 		startYear = animeItem.AnimeSeason.Year
 	}
-	// autoMatch=false: en-masse downloads keep their existing behaviour of landing in the
-	// Unmatched screen for review. The auto-match toggle is per-download in torrent search.
-	if err := d.unmatchedRepository.SaveTorrentMetadata(selectedTorrent.Name, resolved.ID, romajiTitle, nativeTitle, format, startYear, animeItem.Episodes, false); err != nil {
+	metadata := unmatched.TorrentMetadata{
+		AnimeID:               resolved.ID,
+		AnimeTitleRomaji:      romajiTitle,
+		AnimeFormat:           resolved.Format,
+		AnimeStartYear:        startYear,
+		AnimeExpectedEpisodes: animeItem.Episodes,
+		// autoMatch=false: en-masse downloads keep their existing behaviour of landing in the
+		// Unmatched screen for review. The auto-match toggle is per-download in torrent search.
+		AutoMatch: false,
+	}
+	// The episode titles, fetched here rather than in the middle of the match that names the files.
+	d.unmatchedRepository.EnrichMetadata(&metadata)
+
+	if err := d.unmatchedRepository.SaveTorrentMetadataRecord(selectedTorrent.Name, metadata); err != nil {
 		d.logger.Error().Err(err).Str("torrent", selectedTorrent.Name).Msg("enmasse-anime: Failed to save torrent metadata")
 		return fmt.Errorf("failed to save anime metadata for %q, torrent not added: %w", selectedTorrent.Name, err)
 	}

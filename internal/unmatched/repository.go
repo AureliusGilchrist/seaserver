@@ -30,6 +30,11 @@ import (
 // nothing outside of tests ever assigns to it.
 var UnmatchedBasePath = "/zroot/torrents/Anime/Unmatched"
 
+// FallbackAnimeBasePath is the library directory used when settings cannot be read. Like
+// UnmatchedBasePath, it is a variable only so tests can point it at a temporary directory —
+// nothing outside of tests ever assigns to it.
+var FallbackAnimeBasePath = "/zroot/Soul/Otaku Media/Anime"
+
 type Repository struct {
 	logger   *zerolog.Logger
 	database *db.Database
@@ -39,15 +44,20 @@ type Repository struct {
 	cachedTorrents []*UnmatchedTorrent
 	cacheExpiry    time.Time
 	// contentCache stores full torrent contents (files + seasons) for instant retrieval
-	contentCache   map[string]*UnmatchedTorrent
+	contentCache map[string]*UnmatchedTorrent
+
+	// metadataByTorrent memoises the stored records, misses included. Keyed by metadataKey.
+	metadataMu        sync.Mutex
+	metadataByTorrent map[string]*TorrentMetadata
 }
 
 func NewRepository(logger *zerolog.Logger, database *db.Database) *Repository {
 	return &Repository{
-		logger:        logger,
-		database:      database,
-		metadataCache: &animap.Cache{Cache: result.NewCache[string, *animap.Anime]()},
-		contentCache:  make(map[string]*UnmatchedTorrent),
+		logger:            logger,
+		database:          database,
+		metadataCache:     &animap.Cache{Cache: result.NewCache[string, *animap.Anime]()},
+		contentCache:      make(map[string]*UnmatchedTorrent),
+		metadataByTorrent: make(map[string]*TorrentMetadata),
 	}
 }
 
@@ -55,12 +65,12 @@ func NewRepository(logger *zerolog.Logger, database *db.Database) *Repository {
 func (r *Repository) getAnimeBasePath() string {
 	if r.database == nil {
 		r.logger.Warn().Msg("unmatched: Database not available, using default path")
-		return "/zroot/Soul/Otaku Media/Anime"
+		return FallbackAnimeBasePath
 	}
 	libraryPath, err := r.database.GetLibraryPathFromSettings()
 	if err != nil || libraryPath == "" {
 		r.logger.Warn().Err(err).Msg("unmatched: Could not get library path from settings, using default")
-		return "/zroot/Soul/Otaku Media/Anime"
+		return FallbackAnimeBasePath
 	}
 	return libraryPath
 }
@@ -90,7 +100,12 @@ type UnmatchedTorrent struct {
 	AutoMatch bool `json:"autoMatch,omitempty"`
 }
 
-// TorrentMetadata stores anime info for an unmatched torrent
+// TorrentMetadata is everything known about a download: which anime it is for, and what naming
+// its files will need.
+//
+// It is captured when the download is queued, from the media page that already knows exactly what
+// is being downloaded — including the episode titles, which are the one thing a match cannot work
+// out for itself and used to cost a network round trip in the middle of moving files.
 type TorrentMetadata struct {
 	AnimeID               int    `json:"animeId"`
 	AnimeTitleRomaji      string `json:"animeTitleRomaji"`
@@ -101,6 +116,12 @@ type TorrentMetadata struct {
 	// AutoMatch marks the torrent to be matched automatically as soon as it finishes
 	// downloading, without waiting for the user to match it by hand.
 	AutoMatch bool `json:"autoMatch,omitempty"`
+	// EpisodeTitles maps episode number to title, keyed the way Animap keys them ("1", "2", …).
+	// Present when the metadata was fetched at queue time; absent records simply fall back to
+	// fetching at match time.
+	EpisodeTitles map[string]string `json:"episodeTitles,omitempty"`
+	// MetadataFetchedAt is when the episode data above was captured, RFC 3339.
+	MetadataFetchedAt string `json:"metadataFetchedAt,omitempty"`
 }
 
 // UnmatchedSeason represents a season folder within a torrent
@@ -347,8 +368,9 @@ func (r *Repository) scanTorrentDirectory(name, path string) (*UnmatchedTorrent,
 		Seasons: make([]*UnmatchedSeason, 0),
 	}
 
-	// Load anime metadata if it exists
-	r.applyMetadata(torrent, r.loadTorrentMetadata(path))
+	// What this download is for, from the record written when it was queued. Keyed by the
+	// directory's own name, which is the name the download was saved under.
+	r.applyMetadata(torrent, r.GetTorrentMetadata(name))
 
 	seasonMap := make(map[string]*UnmatchedSeason)
 
@@ -575,6 +597,12 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		return nil, err
 	}
 
+	// Everything recorded when this download was queued: which anime it is for, and the episode
+	// titles the naming below needs. Read once, and kept for the match record too, so undoing the
+	// match can put it back — without it the torrent would return to the Unmatched screen with no
+	// anime attached.
+	preMatchMetadata := r.GetTorrentMetadata(req.TorrentName)
+
 	// Build a map of selected files
 	selectedMap := make(map[string]bool)
 	for _, f := range req.SelectedFiles {
@@ -627,13 +655,23 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	// Calculate episode offset for each season (stacking) using video files only
 	seasonOffsets := r.calculateSeasonOffsets(videoFiles)
 
-	// Animap metadata is fetched once for the whole match, then reused for the episode count, the
-	// format, the year and every episode title. It used to be re-fetched inside the per-file loop,
-	// three times per file: on a cache hit that was merely wasteful, but a failed fetch is never
-	// cached, so an unreachable Animap turned a single 8-second timeout into three per file —
-	// minutes of stalling before anything moved. Nothing about what gets fetched changes here.
+	// Everything the naming needs — the episode count, the format, the year, every episode title —
+	// was captured when the download was queued, so the usual match reads it from the stored record
+	// and touches the network not at all.
+	//
+	// The fetch below is the fallback, for a record that predates this, one that was never enriched
+	// because Animap was unreachable at queue time, and for a match to a *different* anime than the
+	// one the download was queued for (the user is free to pick another in the modal, and the
+	// stored titles belong to the original). It is done once for the whole match: it used to run
+	// three times per file, which with an unreachable Animap meant three 8-second timeouts per
+	// file — minutes of stalling before anything moved.
+	storedMeta := preMatchMetadata
+	if !storedMeta.CoversMatch(req.AnimeID) {
+		storedMeta = nil
+	}
+
 	var animeMeta *animap.Anime
-	if req.AnimeID > 0 {
+	if req.AnimeID > 0 && storedMeta == nil {
 		meta, metaErr := r.fetchAnimeMetadata(req.AnimeID)
 		if metaErr != nil {
 			r.logger.Warn().Err(metaErr).Int("animeId", req.AnimeID).
@@ -641,6 +679,9 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		} else {
 			animeMeta = meta
 		}
+	} else if storedMeta != nil {
+		r.logger.Debug().Int("animeId", req.AnimeID).Int("episodeTitles", len(storedMeta.EpisodeTitles)).
+			Msg("unmatched: Using the metadata stored when this download was queued")
 	}
 
 	// Enforce expected episode count for TV/OVA using video files only (ignore folders)
@@ -652,6 +693,8 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	var expectedEpisodes int
 	if torrent.AnimeExpectedEpisodes > 0 && (req.AnimeID == 0 || req.AnimeID == torrent.AnimeID) {
 		expectedEpisodes = torrent.AnimeExpectedEpisodes
+	} else if storedMeta != nil && storedMeta.AnimeExpectedEpisodes > 0 {
+		expectedEpisodes = storedMeta.AnimeExpectedEpisodes
 	} else if animeMeta != nil {
 		expectedEpisodes = animeMeta.MainEpisodeCount()
 	}
@@ -669,11 +712,14 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		}
 	}
 
-	// Determine format from user-selected AniList ID, falling back to torrent cached format
+	// Determine format from user-selected AniList ID, falling back to what was stored when the
+	// download was queued and then to the torrent's cached format.
 	var format string
 	if req.AnimeID > 0 {
 		if animeMeta != nil && animeMeta.Type != "" {
 			format = animeMeta.Type
+		} else if storedMeta != nil {
+			format = storedMeta.AnimeFormat
 		}
 	} else if torrent.AnimeFormat != "" {
 		format = torrent.AnimeFormat
@@ -682,16 +728,15 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	formatUpper := strings.ToUpper(format)
 
 	// Movie naming: <AnimeTitle> (<Year>)
-	// Use user-selected AniList ID to fetch the correct year instead of cached torrent metadata
 	var startYear int
 	if req.AnimeID > 0 {
-		if animeMeta != nil && animeMeta.StartDate != "" {
+		if animeMeta != nil && len(animeMeta.StartDate) >= 4 {
 			// Extract year from StartDate (format: YYYY-MM-DD)
-			if len(animeMeta.StartDate) >= 4 {
-				if parsed, err := strconv.Atoi(animeMeta.StartDate[:4]); err == nil {
-					startYear = parsed
-				}
+			if parsed, err := strconv.Atoi(animeMeta.StartDate[:4]); err == nil {
+				startYear = parsed
 			}
+		} else if storedMeta != nil {
+			startYear = storedMeta.AnimeStartYear
 		}
 	} else if torrent.AnimeStartYear > 0 {
 		startYear = torrent.AnimeStartYear
@@ -742,7 +787,12 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			}
 		}
 
-		episodeTitle := episodeTitleFrom(animeMeta, episodeNum)
+		// Stored first: the titles captured at queue time are the same ones a fetch would return,
+		// and reading them costs nothing.
+		episodeTitle := storedMeta.EpisodeTitle(episodeNum)
+		if episodeTitle == "" {
+			episodeTitle = episodeTitleFrom(animeMeta, episodeNum)
+		}
 		baseName := fmt.Sprintf("%s - Episode %03d", cleanTitle, episodeNum)
 		if episodeTitle != "" {
 			baseName = fmt.Sprintf("%s - Episode %03d - %s", cleanTitle, episodeNum, episodeTitle)
@@ -774,44 +824,41 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		r.logger.Info().Str("src", p.src).Str("dest", p.dest).Msg("unmatched: Moved file")
 	}
 
-	// Save user's selection back to torrent metadata only if files were left behind.
-	// SaveTorrentMetadata does an MkdirAll, so running it for a fully-matched torrent
-	// recreated the staging directory (containing nothing but the sidecar) immediately
-	// after it had been cleaned up — the main source of the empty Unmatched folders.
-	if result.Success && req.AnimeID > 0 && len(result.MovedFiles) > 0 && hasVideoFiles(filepath.Join(UnmatchedBasePath, sanitizeNamePreserveWhitespace(req.TorrentName))) {
-		// Fetch metadata for the user-selected anime
-		if animeMeta, err := r.fetchAnimeMetadata(req.AnimeID); err == nil && animeMeta != nil {
-			startYear := 0
-			if animeMeta.StartDate != "" && len(animeMeta.StartDate) >= 4 {
-				// Extract year from StartDate (format: YYYY-MM-DD)
-				if parsed, err := strconv.Atoi(animeMeta.StartDate[:4]); err == nil {
-					startYear = parsed
-				}
-			}
-			
-			// Save the user's selection to override the cached metadata
-			existingAutoMatch := false
-			existingEpisodes := 0
-			if existing := r.GetTorrentMetadata(req.TorrentName); existing != nil {
-				existingAutoMatch = existing.AutoMatch
-				existingEpisodes = existing.AnimeExpectedEpisodes
-			}
-			if existingEpisodes == 0 {
-				existingEpisodes = animeMeta.MainEpisodeCount()
-			}
-			if err := r.SaveTorrentMetadata(req.TorrentName, req.AnimeID, animeMeta.Title, "", animeMeta.Type, startYear, existingEpisodes, existingAutoMatch); err != nil {
-				r.logger.Warn().Err(err).Str("torrent", req.TorrentName).Msg("unmatched: Failed to save user's selection metadata")
-			} else {
-				r.logger.Debug().Int("animeId", req.AnimeID).Str("torrent", req.TorrentName).Msg("unmatched: Saved user's selection metadata")
-			}
+	// Write down what just happened while the plan and its outcomes are still to hand. This is the
+	// only record of where each file came from and what it was called, and it is what the undo
+	// screen replays backwards.
+	r.recordMatch(req, result, planned, moveErrs, preMatchMetadata)
+
+	// Record which anime the user actually matched to, so a partial torrent's remaining files —
+	// and anything that looks this download up later — reflect the choice rather than whatever the
+	// download was queued for. Writing a row costs nothing and cannot recreate a staging directory,
+	// which is why this no longer has to check whether one still exists.
+	if result.Success && req.AnimeID > 0 && len(result.MovedFiles) > 0 {
+		selection := TorrentMetadata{
+			AnimeID:          req.AnimeID,
+			AnimeTitleRomaji: req.AnimeTitleClean,
+			AnimeTitleNative: req.AnimeTitleJP,
+		}
+		if preMatchMetadata != nil && preMatchMetadata.AnimeID == req.AnimeID {
+			// Same anime as queued: keep everything already captured, episode titles included.
+			selection = *preMatchMetadata
+		} else {
+			// A different anime than the download was queued for. Its episode titles are the wrong
+			// ones, so they are replaced rather than carried over.
+			selection.AutoMatch = preMatchMetadata != nil && preMatchMetadata.AutoMatch
+			r.EnrichMetadata(&selection)
+		}
+
+		if err := r.SaveTorrentMetadataRecord(req.TorrentName, selection); err != nil {
+			r.logger.Warn().Err(err).Str("torrent", req.TorrentName).Msg("unmatched: Failed to save user's selection metadata")
 		}
 	}
 
-	// Send the metadata sidecar to the anime folder the episodes went to, so it
-	// travels with the files instead of dying with the staging directory.
-	// CleanupTorrentDirectory removes the staging copy below, which makes this a
-	// move for a fully-matched torrent and a copy for a partial one (where the
-	// staging directory survives and still needs its own sidecar).
+	// Leave a sidecar in the anime folder the episodes went to, so the files carry their own
+	// provenance: which anime they are, and the episode titles they were named from. This is the
+	// one place a metadata file is still written, and it is the library — never the Unmatched
+	// folder, where nothing can be relied on to exist. The library scanner reads it to place
+	// files it could not match by title.
 	if result.Success && result.Destination != "" && len(result.MovedFiles) > 0 {
 		if err := r.writeMetadataToDestination(req.TorrentName, result.Destination); err != nil {
 			r.logger.Warn().Err(err).
@@ -1449,6 +1496,11 @@ func (r *Repository) DeleteTorrent(torrentName string) error {
 	// Removing a torrent's files can leave the folders that held them behind. Prune whatever is
 	// empty now so the delete leaves nothing in the staging directory.
 	r.pruneEmptyDirs(UnmatchedBasePath)
+
+	// The record of what this download was for goes with it. Keeping it would have a later
+	// re-download of the same release silently inherit the anime it used to be matched to.
+	r.DeleteTorrentMetadata(torrentName)
+
 	r.invalidateCache()
 	return nil
 }
@@ -1495,10 +1547,10 @@ func (r *Repository) removePartialLeftovers(torrentName string) bool {
 
 // DestinationFor returns the directory a torrent by this name downloads into.
 //
-// Every producer of unmatched torrents must route downloads here and write the
-// metadata sidecar into the same directory. Downloading to UnmatchedBasePath
-// directly drops the torrent's files next to the metadata directory rather than
-// inside it, and the scan then reports the torrent with no anime attached.
+// Every producer of unmatched torrents must route downloads here, and must record what the
+// download is for under the same name (see SaveTorrentMetadataRecord) — that name is what joins
+// the two. Downloading to UnmatchedBasePath directly drops the torrent's files loose in the
+// staging area, where the scan reports them with no anime attached.
 func DestinationFor(torrentName string) string {
 	return filepath.Join(UnmatchedBasePath, sanitizeNamePreserveWhitespace(torrentName))
 }
@@ -1508,8 +1560,11 @@ func (r *Repository) GetUnmatchedDestination(torrentName string) string {
 	return DestinationFor(torrentName)
 }
 
-// MetadataFileName is the sidecar written next to a torrent's files (and carried into the
-// anime folder when it is matched) recording which anime the download came from.
+// MetadataFileName is the sidecar left in an anime's library folder when a match moves files into
+// it, recording which anime the files are and the titles they were named from.
+//
+// New downloads no longer write one of these into the staging folder — that lives in the database
+// now — but they are still read there, for downloads queued before the move.
 const MetadataFileName = ".seanime-metadata.json"
 
 const metadataFileName = MetadataFileName
@@ -1534,21 +1589,15 @@ func AnimeIDFromSidecar(dir string) (int, bool) {
 	return metadata.AnimeID, true
 }
 
-// SaveTorrentMetadata saves anime metadata for a torrent.
+// SaveTorrentMetadata records the basics about a torrent, for callers that have nothing more.
+// Prefer SaveTorrentMetadataRecord, which carries the episode titles a match will need.
 //
 // expectedEpisodes should be the AniList episode count for the entry when the caller has it. That
-// number is authoritative for the entry being downloaded, unlike the Animap fallback used when the
-// sidecar carries no count, so recording it here keeps the episode count shown in the Unmatched
-// screen exact. Pass 0 when it isn't known.
+// number is authoritative for the entry being downloaded, unlike the Animap fallback used when no
+// count was recorded, so passing it keeps the episode count shown in the Unmatched screen exact.
+// Pass 0 when it isn't known.
 func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleRomaji, titleNative, format string, startYear, expectedEpisodes int, autoMatch bool) error {
-	torrentPath := DestinationFor(torrentName)
-
-	// Create directory if it doesn't exist
-	if err := os.MkdirAll(torrentPath, 0755); err != nil {
-		return fmt.Errorf("failed to create torrent directory: %w", err)
-	}
-
-	metadata := TorrentMetadata{
+	return r.SaveTorrentMetadataRecord(torrentName, TorrentMetadata{
 		AnimeID:               animeID,
 		AnimeTitleRomaji:      titleRomaji,
 		AnimeTitleNative:      titleNative,
@@ -1556,20 +1605,139 @@ func (r *Repository) SaveTorrentMetadata(torrentName string, animeID int, titleR
 		AnimeStartYear:        startYear,
 		AnimeExpectedEpisodes: expectedEpisodes,
 		AutoMatch:             autoMatch,
+	})
+}
+
+// SaveTorrentMetadataRecord stores everything known about a download, keyed by torrent name.
+//
+// This goes to the database, not to a file beside the download. The download's own folder is the
+// one place this cannot live: the torrent client may be writing somewhere the server cannot see,
+// nothing exists there at all until the first byte arrives, and matching deletes the folder as its
+// last step — which is what used to take the "Downloading" badge with it. A row is also read
+// without touching the disk, so listing the Unmatched screen no longer stats a file per torrent.
+func (r *Repository) SaveTorrentMetadataRecord(torrentName string, metadata TorrentMetadata) error {
+	if strings.TrimSpace(torrentName) == "" {
+		return errors.New("torrent name is required")
+	}
+	if r.database == nil {
+		return errors.New("database unavailable, cannot save torrent metadata")
 	}
 
-	data, err := json.MarshalIndent(metadata, "", "  ")
+	data, err := json.Marshal(metadata)
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
-	metadataPath := filepath.Join(torrentPath, metadataFileName)
-	if err := os.WriteFile(metadataPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write metadata: %w", err)
+	if err := r.database.UpsertUnmatchedTorrentMetadata(metadataKey(torrentName), metadata.AnimeID, data); err != nil {
+		return fmt.Errorf("failed to save torrent metadata: %w", err)
 	}
 
-	r.logger.Debug().Str("torrent", torrentName).Int("animeId", animeID).Str("title", titleRomaji).Msg("unmatched: Saved torrent metadata")
+	r.metadataMu.Lock()
+	r.metadataByTorrent[metadataKey(torrentName)] = &metadata
+	r.metadataMu.Unlock()
+
+	r.logger.Debug().
+		Str("torrent", torrentName).
+		Int("animeId", metadata.AnimeID).
+		Str("title", metadata.AnimeTitleRomaji).
+		Int("episodeTitles", len(metadata.EpisodeTitles)).
+		Msg("unmatched: Saved torrent metadata")
 	return nil
+}
+
+// metadataKey normalises a torrent name into the key its record is stored under — the same
+// spelling the download folder is created with, so a lookup by torrent name and a lookup by
+// staging folder name find the same record.
+func metadataKey(torrentName string) string {
+	return sanitizeNamePreserveWhitespace(strings.TrimSpace(torrentName))
+}
+
+// MetadataKey is metadataKey for callers that write records without going through the repository.
+func MetadataKey(torrentName string) string { return metadataKey(torrentName) }
+
+// DeleteTorrentMetadata drops a torrent's record. Called when the download is deleted, so a later
+// re-download of the same release does not inherit the old anime.
+func (r *Repository) DeleteTorrentMetadata(torrentName string) {
+	key := metadataKey(torrentName)
+
+	r.metadataMu.Lock()
+	delete(r.metadataByTorrent, key)
+	r.metadataMu.Unlock()
+
+	if r.database == nil {
+		return
+	}
+	if err := r.database.DeleteUnmatchedTorrentMetadata(key); err != nil {
+		r.logger.Debug().Err(err).Str("torrent", torrentName).Msg("unmatched: Could not delete torrent metadata")
+	}
+}
+
+// EnrichMetadata fills in everything a match will need that is not already known — the episode
+// titles above all — so the match itself is pure file work with no network call in the middle.
+//
+// This is what makes the call at download time worth making: the media page already knows exactly
+// what is being downloaded, and the answer is the same whenever it is asked. Best-effort: metadata
+// that cannot be fetched now is simply fetched at match time as before.
+func (r *Repository) EnrichMetadata(metadata *TorrentMetadata) {
+	if metadata == nil || metadata.AnimeID <= 0 {
+		return
+	}
+
+	animeMeta, err := r.fetchAnimeMetadata(metadata.AnimeID)
+	if err != nil || animeMeta == nil {
+		r.logger.Warn().Err(err).Int("animeId", metadata.AnimeID).
+			Msg("unmatched: Could not fetch episode metadata while queueing, it will be fetched when matching")
+		return
+	}
+
+	titles := make(map[string]string, len(animeMeta.Episodes))
+	for key, ep := range animeMeta.Episodes {
+		if ep == nil {
+			continue
+		}
+		if title := firstNonEmpty(ep.TvdbTitle, ep.AnidbTitle); title != "" {
+			titles[key] = title
+		}
+	}
+	if len(titles) > 0 {
+		metadata.EpisodeTitles = titles
+	}
+
+	// AniList's own values are kept where the caller supplied them: they describe the exact entry
+	// being downloaded, whereas the Animap map also covers sibling seasons and specials.
+	metadata.AnimeTitleRomaji = firstNonEmpty(metadata.AnimeTitleRomaji, animeMeta.Title)
+	if metadata.AnimeFormat == "" {
+		metadata.AnimeFormat = animeMeta.Type
+	}
+	if metadata.AnimeStartYear == 0 && len(animeMeta.StartDate) >= 4 {
+		if year, convErr := strconv.Atoi(animeMeta.StartDate[:4]); convErr == nil {
+			metadata.AnimeStartYear = year
+		}
+	}
+	if metadata.AnimeExpectedEpisodes == 0 {
+		metadata.AnimeExpectedEpisodes = animeMeta.MainEpisodeCount()
+	}
+	metadata.MetadataFetchedAt = time.Now().UTC().Format(time.RFC3339)
+}
+
+// EpisodeTitle returns the stored title for an episode, if the metadata carries one.
+func (m *TorrentMetadata) EpisodeTitle(episodeNum int) string {
+	if m == nil || len(m.EpisodeTitles) == 0 || episodeNum <= 0 {
+		return ""
+	}
+	return m.EpisodeTitles[strconv.Itoa(episodeNum)]
+}
+
+// CoversMatch reports whether the stored metadata already holds everything a match of animeID
+// needs, so the match can skip fetching it again.
+func (m *TorrentMetadata) CoversMatch(animeID int) bool {
+	if m == nil || animeID <= 0 || m.AnimeID != animeID {
+		return false
+	}
+	// Episode titles are the part that is expensive to get and impossible to derive, so their
+	// presence is what marks a record as complete. A movie has no episode titles worth having,
+	// hence the format check standing in for them.
+	return len(m.EpisodeTitles) > 0 || strings.EqualFold(m.AnimeFormat, "MOVIE")
 }
 
 // writeMetadataToDestination writes the torrent's metadata sidecar into the anime
@@ -1611,8 +1779,57 @@ func (r *Repository) writeMetadataToDestination(torrentName, destination string)
 }
 
 // GetTorrentMetadata loads the stored metadata for a torrent by name, or nil if absent.
+//
+// The database is the source of truth. The sidecar file is still read as a fallback so downloads
+// queued before the move to the database — and the ones the auto-downloader still writes beside
+// their files — keep their anime.
 func (r *Repository) GetTorrentMetadata(torrentName string) *TorrentMetadata {
+	if metadata := r.storedMetadata(torrentName); metadata != nil {
+		return metadata
+	}
 	return r.loadTorrentMetadata(DestinationFor(torrentName))
+}
+
+// storedMetadata reads a torrent's record from the database, memoised for the process.
+//
+// The listing path asks for this once per torrent on every refresh, and the Unmatched screen
+// polls; the record only changes when a download is queued, matched or deleted, and every one of
+// those paths updates the memo.
+func (r *Repository) storedMetadata(torrentName string) *TorrentMetadata {
+	key := metadataKey(torrentName)
+	if key == "" {
+		return nil
+	}
+
+	r.metadataMu.Lock()
+	if cached, ok := r.metadataByTorrent[key]; ok {
+		r.metadataMu.Unlock()
+		return cached
+	}
+	r.metadataMu.Unlock()
+
+	if r.database == nil {
+		return nil
+	}
+
+	record, err := r.database.GetUnmatchedTorrentMetadata(key)
+	var metadata *TorrentMetadata
+	if err == nil && record != nil {
+		var decoded TorrentMetadata
+		if jsonErr := json.Unmarshal(record.Value, &decoded); jsonErr == nil {
+			metadata = &decoded
+		} else {
+			r.logger.Warn().Err(jsonErr).Str("torrent", torrentName).Msg("unmatched: Failed to parse stored torrent metadata")
+		}
+	}
+
+	// A miss is memoised too — a torrent with no record is the common case for anything the user
+	// dropped in by hand, and re-querying for it on every listing is pure overhead.
+	r.metadataMu.Lock()
+	r.metadataByTorrent[key] = metadata
+	r.metadataMu.Unlock()
+
+	return metadata
 }
 
 // loadTorrentMetadata loads anime metadata for a torrent if it exists
@@ -1706,7 +1923,7 @@ func (r *Repository) loadSingleFileMetadata(fileName string) *TorrentMetadata {
 		if candidate == "" {
 			continue
 		}
-		if metadata := r.loadTorrentMetadata(DestinationFor(candidate)); metadata != nil {
+		if metadata := r.GetTorrentMetadata(candidate); metadata != nil {
 			return metadata
 		}
 	}
@@ -1727,6 +1944,14 @@ func (r *Repository) applyMetadata(torrent *UnmatchedTorrent, metadata *TorrentM
 	torrent.AnimeStartYear = metadata.AnimeStartYear
 	torrent.AnimeExpectedEpisodes = metadata.AnimeExpectedEpisodes
 	torrent.AutoMatch = metadata.AutoMatch
+
+	// A record written at queue time already carries the title and the episode count, so listing
+	// the screen reads rows and stops there. Only a record from before that — or one whose
+	// enrichment failed — falls through to the network, and it is the listing path, so that fetch
+	// happens once per torrent shown.
+	if metadata.AnimeID > 0 && metadata.AnimeTitleRomaji != "" && torrent.AnimeExpectedEpisodes > 0 {
+		return
+	}
 
 	// Best-effort: fetch episode titles from Animap using AniList ID to name files
 	if metadata.AnimeID > 0 {
