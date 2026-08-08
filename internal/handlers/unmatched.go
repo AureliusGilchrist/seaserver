@@ -115,6 +115,19 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 func (h *Handler) FinalizeUnmatchedMatch(reqCopy unmatched.MatchRequest, resultCopy unmatched.MatchResult) {
 	defer util.HandlePanicInModuleThen("handlers/FinalizeUnmatchedMatch", func() {})
 
+		// Files that moved but were never injected are the worst possible outcome: they are in the
+		// library on disk, absent from the library database, and nothing says so. The auto-match
+		// path derives its anime ID from the stored metadata record after the match has already
+		// run, so a lookup that comes back empty silently skips the injection for the whole
+		// torrent — which reads as "it downloaded and matched but my library is empty".
+		if len(resultCopy.MovedFiles) > 0 && reqCopy.AnimeID <= 0 {
+			h.App.Logger.Error().
+				Str("torrent", reqCopy.TorrentName).
+				Int("movedFiles", len(resultCopy.MovedFiles)).
+				Str("destination", resultCopy.Destination).
+				Msg("unmatched: Files were moved into the library but no anime ID is known for them, so they cannot be recorded in the library database — they will only appear after a library scan")
+		}
+
 		// DB injection: inject moved files as locked local-file entries so the
 		// "Resolve unmatched" step on the home page is never needed.
 		if reqCopy.AnimeID > 0 && len(resultCopy.MovedFiles) > 0 {

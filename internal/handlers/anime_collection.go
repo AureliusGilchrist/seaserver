@@ -233,6 +233,15 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 			}
 		}
 		sharedOnlyAnimeIDs = mergePlanningSlutAnimeCollection(animeCollection, psCollection, localFileMediaIDs)
+	} else {
+		// This merge is what makes a freshly matched anime visible: a match adds it to the planning
+		// slut's PLANNING list, and an entry with no list membership is not in any library list at
+		// all — it falls through to the "unknown media" bucket instead. Skipping the merge silently
+		// therefore reads as "my library is empty" with nothing anywhere to say why.
+		h.App.Logger.Warn().Err(psErr).
+			Bool("nilCollection", psCollection == nil).
+			Int("localFiles", len(lfs)).
+			Msg("library collection: planning slut collection unavailable, recently matched anime may not appear in any list")
 	}
 
 	// Use a background context so that browser refresh/navigation doesn't cancel
