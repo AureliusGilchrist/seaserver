@@ -700,12 +700,10 @@ func (r *Repository) shouldSkip(rec recommendation) (bool, string) {
 }
 
 // MinSeeders is the seeder count the best torrent for an anime has to beat for the entry to be worth
-// showing.
+// keeping.
 //
-// Below this a download is not really available: it either never starts or crawls for days, so
-// putting the entry in front of you is asking you to make a decision about nothing. Those entries are
-// kept as rows — that record is what stops them being rediscovered on the next run — but they are not
-// part of the queue you walk.
+// Below this a download is not really available: it either never starts or crawls for days, so putting
+// the entry in front of you is asking you to make a decision about nothing.
 const MinSeeders = 5
 
 // bestSeeders returns the seeder count of the healthiest torrent found, and how many were found.
@@ -725,9 +723,8 @@ func bestSeeders(data *torrent.SearchData) (best int, count int) {
 	return best, count
 }
 
-// storeSnapshot writes a prepared item, marking it ready — or no_results when the search found
-// nothing worth downloading, which is worth distinguishing from a failure: those are worth revisiting
-// with a different provider rather than being an error.
+// storeSnapshot writes a prepared item and marks it ready — or drops it from the queue entirely when
+// the search found nothing downloadable.
 func (r *Repository) storeSnapshot(mediaID int, result *prepared) {
 	value, err := json.Marshal(result.snapshot)
 	if err != nil {
@@ -736,42 +733,41 @@ func (r *Repository) storeSnapshot(mediaID int, result *prepared) {
 		return
 	}
 
-	status := db.EnqueueFutureStatusReady
-	lastError := ""
-
 	var searchData *torrent.SearchData
 	if result.snapshot != nil {
 		searchData = result.snapshot.SearchData
 	}
 	best, count := bestSeeders(searchData)
-	switch {
-	case count == 0:
-		status = db.EnqueueFutureStatusNoResults
-		lastError = "no torrents found"
-	case best < MinSeeders:
-		// Found something, but nothing anyone is actually seeding.
-		status = db.EnqueueFutureStatusNoResults
-		lastError = "best torrent has " + strconv.Itoa(best) + " seeders"
-	}
 
-	if status == db.EnqueueFutureStatusNoResults {
+	// Nothing to download and nothing to decide about, so the row goes rather than lingering as one
+	// more thing to scroll past. Deleted rather than marked, the same way a tethered OVA is: it gives
+	// its franchise slot back, and if a later run finds the anime again the search will have moved on
+	// anyway. There is nothing here worth remembering.
+	if count == 0 || best < MinSeeders {
+		reason := "no torrents found"
+		if count > 0 {
+			reason = "best torrent has " + strconv.Itoa(best) + " seeders"
+		}
 		r.logger.Debug().
 			Int("mediaId", mediaID).
 			Int("torrents", count).
 			Int("bestSeeders", best).
 			Str("title", result.title).
-			Msg("enqueuefuture: Nothing downloadable, leaving it out of the queue")
-	}
-
-	if err := r.database.SaveEnqueueFutureItemSnapshot(
-		mediaID, status, result.title, result.coverImage, value,
-	); err != nil {
-		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Failed to store snapshot")
+			Str("reason", reason).
+			Msg("enqueuefuture: Nothing downloadable, dropping it from the queue")
+		if err := r.database.DeleteEnqueueFutureItem(mediaID); err != nil {
+			r.logger.Warn().Err(err).Int("mediaId", mediaID).
+				Msg("enqueuefuture: Could not drop an entry with nothing downloadable")
+		}
+		r.bumpSkipped()
 		return
 	}
 
-	if lastError != "" {
-		_ = r.database.SetEnqueueFutureItemStatus(mediaID, status, lastError)
+	if err := r.database.SaveEnqueueFutureItemSnapshot(
+		mediaID, db.EnqueueFutureStatusReady, result.title, result.coverImage, value,
+	); err != nil {
+		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Failed to store snapshot")
+		return
 	}
 }
 

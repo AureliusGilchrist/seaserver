@@ -52,22 +52,64 @@ func (db *Database) GetEnqueueFutureItems() ([]*models.EnqueueFutureItem, error)
 	return res, nil
 }
 
-// GetEnqueueFutureListItems returns the queue without the snapshot blobs.
+// enqueueFutureListColumns is everything the queue screen draws — deliberately not the snapshot blob,
+// which is hundreds of kilobytes per row and would make opening the screen cost more than preparing
+// the queue did.
+var enqueueFutureListColumns = []string{
+	"id", "created_at", "updated_at", "profile_id", "media_id", "root_media_id",
+	"family_id", "position", "depth", "status", "attempts", "last_error", "title", "cover_image",
+}
+
+// enqueueFutureUnresolvedStatuses are the rows the queue screen has any use for: the ones still being
+// worked on and the ones ready to act on.
 //
-// The list view renders every row, and the blobs are hundreds of kilobytes each — selecting them to
-// draw a title and a cover would make opening the screen cost more than preparing the queue did.
+// NoResults is deliberately not among them. Nothing writes that status any more — an entry with nothing
+// downloadable is dropped from the queue outright — so the only rows carrying it were written before
+// that changed, and shipping them on every poll would be work in aid of something the screen filters
+// out anyway.
+var enqueueFutureUnresolvedStatuses = []string{
+	EnqueueFutureStatusPending,
+	EnqueueFutureStatusPreparing,
+	EnqueueFutureStatusReady,
+}
+
+// GetEnqueueFutureListItems returns everything the queue screen needs, without the snapshot blobs.
+//
+// Terminal rows are left out. They are kept in the table forever on purpose — that record is what
+// stops an anime being rediscovered — but they accumulate across every run, and the screen filters
+// them out anyway. Sending the whole history to the browser and re-sending it every few seconds while
+// a run fills the queue turned opening this page into a wait that grew with the table.
 func (db *Database) GetEnqueueFutureListItems() ([]*models.EnqueueFutureItem, error) {
 	var res []*models.EnqueueFutureItem
 	err := retryOnBusy(func() error {
 		return db.gormdb.
 			Model(&models.EnqueueFutureItem{}).
-			Select("id", "created_at", "updated_at", "profile_id", "media_id", "root_media_id",
-				"family_id", "position", "depth", "status", "attempts", "last_error", "title", "cover_image").
+			Select(enqueueFutureListColumns).
+			Where("status IN ?", enqueueFutureUnresolvedStatuses).
 			Order("position ASC, id ASC").
 			Find(&res).Error
 	})
 	if err != nil {
 		db.Logger.Error().Err(err).Msg("db: Failed to get enqueue future list items")
+		return nil, err
+	}
+	return res, nil
+}
+
+// GetAllEnqueueFutureListItems is GetEnqueueFutureListItems without the status filter, for callers
+// that have to see terminal rows too — clearing promotional entries out of the whole table, in
+// particular, which has to reach the ones already dealt with.
+func (db *Database) GetAllEnqueueFutureListItems() ([]*models.EnqueueFutureItem, error) {
+	var res []*models.EnqueueFutureItem
+	err := retryOnBusy(func() error {
+		return db.gormdb.
+			Model(&models.EnqueueFutureItem{}).
+			Select(enqueueFutureListColumns).
+			Order("position ASC, id ASC").
+			Find(&res).Error
+	})
+	if err != nil {
+		db.Logger.Error().Err(err).Msg("db: Failed to get all enqueue future list items")
 		return nil, err
 	}
 	return res, nil

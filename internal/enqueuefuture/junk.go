@@ -87,7 +87,9 @@ func isJunkTitle(title string) bool {
 // Title-only, because the episode count is not stored on the row. Entries with no episodes are kept
 // out at discovery instead.
 func (r *Repository) purgeJunkItems() {
-	items, err := r.database.GetEnqueueFutureListItems()
+	// Every row, terminal ones included: a promotional entry that was skipped rather than dealt with
+	// is still a row nobody wants back.
+	items, err := r.database.GetAllEnqueueFutureListItems()
 	if err != nil {
 		r.logger.Warn().Err(err).Msg("enqueuefuture: Could not read the queue to clear out promotional entries")
 		return

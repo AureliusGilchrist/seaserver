@@ -9,38 +9,31 @@ import { LuBan, LuCheck, LuCircleAlert, LuLink2, LuLoader, LuSkipForward } from 
 export type EnqueueFutureFamily = EnqueueFuture_Item[]
 
 /**
- * Orders the queue by age — oldest first — and gathers every member of a franchise into the slot of
- * its oldest member.
+ * Draws a spine around franchise members that are *already adjacent*. Pure decoration — it takes the
+ * order it is given and hands it back untouched.
  *
- * Age is `position`, which the server assigns on insert and never reassigns, so it is the only thing
- * here that fixes a row in place. Everything else is derived from it: bundles sit at their oldest
- * member, and members within a bundle are in age order too.
- *
- * A franchise is one thing to decide about, so it is drawn as one thing however far apart its members
- * were discovered. A new anime is appended at the end of the queue, so when it turns out to be related
- * to something already queued it joins that bundle rather than sitting on its own at the bottom — it
- * was never anywhere anyone had looked at yet.
+ * The caller freezes the order so that a row, once placed, keeps its slot (see the page container).
+ * Gathering scattered members would undo that in one stroke: lifting a season up to join its siblings
+ * pushes every row between them down, and a run discovering anime behind you does that over and over.
+ * A franchise being adjacent is not worth the list moving while you work down it — and the server
+ * already walks a family to its end before the next spread of recommendations, so members usually
+ * arrive together and get their spine anyway.
  *
  * Degrouping is free: when the rest of a bundle is matched, skipped or ignored, the survivor is a
- * bundle of one, so it loses the "related" spine and header and keeps the slot it already had.
+ * bundle of one, so it loses the spine and header and keeps the slot it already had.
  *
- * Both the list and Next/Previous walk the flattened result, so they agree on this order.
+ * Flattening the result returns the input, which is what lets the list and Next/Previous agree.
  */
 export function groupIntoFamilies(items: EnqueueFuture_Item[]): EnqueueFutureFamily[] {
-    // Sorted rather than trusting the response order, so age is unambiguously what decides the layout.
-    const ordered = [...items].sort((a, b) => (a.position - b.position) || (a.mediaId - b.mediaId))
-
-    const byFamily = new Map<number, EnqueueFutureFamily>()
-    for (const item of ordered) {
+    const families: EnqueueFutureFamily[] = []
+    for (const item of items) {
         const key = item.familyId || item.mediaId
-        const existing = byFamily.get(key)
-        if (existing) existing.push(item)
-        else byFamily.set(key, [item])
+        const current = families[families.length - 1]
+        const currentKey = current ? (current[0].familyId || current[0].mediaId) : undefined
+        if (current && currentKey === key) current.push(item)
+        else families.push([item])
     }
-
-    // Map iteration is insertion-ordered, and insertion followed age — so the bundles come back
-    // oldest-member first.
-    return Array.from(byFamily.values())
+    return families
 }
 
 /**
@@ -66,10 +59,10 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
         <div className="rounded-[--radius-md] border bg-gray-950 max-h-[70vh] overflow-y-auto" data-enqueue-future-list>
             {families.map(family => (
                 <FamilyBundle
-                    // Keyed on the family, which every member shares and which is unique now that a
-                    // franchise is always one bundle — so the bundle keeps its identity when its
-                    // oldest entry is dealt with and drops out from under it.
-                    key={family[0].familyId || family[0].mediaId}
+                    // Keyed on the first entry rather than the family: a franchise whose members are
+                    // not adjacent is drawn as more than one bundle, and a family id would collide
+                    // between them. Every entry appears exactly once, so this is unique.
+                    key={family[0].mediaId}
                     family={family}
                     activeMediaId={activeMediaId}
                     onSelect={onSelect}

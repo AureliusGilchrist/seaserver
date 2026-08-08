@@ -274,6 +274,66 @@ func TestEnqueueFutureQueue(t *testing.T) {
 		}
 	})
 
+	// The queue screen has no use for rows already dealt with, and they accumulate forever — sending
+	// the whole history to the browser, and re-sending it every few seconds during a run, made opening
+	// the screen a wait that grew with the table.
+	t.Run("the list view leaves terminal rows out", func(t *testing.T) {
+		db := enqueueFutureTestDatabase(t)
+
+		unresolved := map[int]string{
+			1: EnqueueFutureStatusPending,
+			2: EnqueueFutureStatusPreparing,
+			3: EnqueueFutureStatusReady,
+		}
+		terminal := map[int]string{
+			5: EnqueueFutureStatusDownloaded,
+			6: EnqueueFutureStatusSkipped,
+			7: EnqueueFutureStatusIgnored,
+			8: EnqueueFutureStatusFailed,
+			// Nothing writes this any more — an entry with nothing downloadable is dropped outright —
+			// so rows carrying it are leftovers and the screen has no use for them either.
+			9: EnqueueFutureStatusNoResults,
+		}
+		for id, status := range unresolved {
+			insertItem(t, db, id)
+			if err := db.SetEnqueueFutureItemStatus(id, status, ""); err != nil {
+				t.Fatalf("set status: %v", err)
+			}
+		}
+		for id, status := range terminal {
+			insertItem(t, db, id)
+			if err := db.SetEnqueueFutureItemStatus(id, status, ""); err != nil {
+				t.Fatalf("set status: %v", err)
+			}
+		}
+
+		list, err := db.GetEnqueueFutureListItems()
+		if err != nil {
+			t.Fatalf("read list: %v", err)
+		}
+		if len(list) != len(unresolved) {
+			ids := make([]int, 0, len(list))
+			for _, item := range list {
+				ids = append(ids, item.MediaID)
+			}
+			t.Fatalf("list view returned %v, want only the unresolved rows %v", ids, []int{1, 2, 3, 4})
+		}
+		for _, item := range list {
+			if _, ok := unresolved[item.MediaID]; !ok {
+				t.Errorf("media %d (%s) should not be in the list view", item.MediaID, item.Status)
+			}
+		}
+
+		// The purge has to reach terminal rows, so it gets the unfiltered read.
+		all, err := db.GetAllEnqueueFutureListItems()
+		if err != nil {
+			t.Fatalf("read all: %v", err)
+		}
+		if len(all) != len(unresolved)+len(terminal) {
+			t.Errorf("got %d rows unfiltered, want %d", len(all), len(unresolved)+len(terminal))
+		}
+	})
+
 	t.Run("counts franchises rather than anime for the cap", func(t *testing.T) {
 		db := enqueueFutureTestDatabase(t)
 

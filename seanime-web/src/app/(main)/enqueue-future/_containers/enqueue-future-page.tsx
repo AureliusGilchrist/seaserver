@@ -43,16 +43,42 @@ export function EnqueueFuturePage() {
 
     // Only what you have not dealt with. Downloaded and skipped items stay in the database — that
     // record is what stops them being rediscovered — but walking back through them is not the job.
-    const items = React.useMemo(() => (queue ?? []).filter(isEnqueueFuturePending), [queue])
-
-    // The queue's real order: oldest first, with each franchise gathered into the slot of its oldest
-    // member. A newly discovered anime is appended at the end, so joining it to a franchise already
-    // queued costs nothing anyone had looked at yet; dealing with an entry removes it and closes the
-    // gap, everything below moving up one slot to fill it.
     //
-    // The list draws this and Next/Previous walk it, which has to be the same order — otherwise
-    // finishing one season sends you to an unrelated show while the rest of the series waits
-    // elsewhere, which reads as the remaining entries having been skipped.
+    // The order is frozen rather than re-derived. A run changes the queue underneath this screen
+    // constantly — entries prepared, entries dropped for having nothing downloadable, new anime
+    // appended — and anything computed fresh from that reshuffles on every poll, which makes working
+    // down a list of hundreds impossible: what was three rows ahead of you is somewhere else by the
+    // time you get there.
+    //
+    // So a slot, once given, is kept. Entries already on screen hold the order they are already in;
+    // anything new goes on the end, where it cannot disturb what is above it; anything gone is dropped
+    // and the rows below close up. Those are the only two movements this list makes.
+    //
+    // The trade is that a late-discovered season lands at the bottom rather than beside its siblings.
+    // Splicing it in would push every row beneath it down, and during a run that happens over and over
+    // — a franchise being adjacent is not worth the list moving under you.
+    const orderRef = React.useRef<number[]>([])
+    const items = React.useMemo(() => {
+        const visible = (queue ?? []).filter(isEnqueueFuturePending)
+        const byId = new Map(visible.map(item => [item.mediaId, item]))
+
+        // Whatever is still here, in the order it already had.
+        const held = orderRef.current.filter(id => byId.has(id))
+        const known = new Set(held)
+
+        // Everything new, appended in server order so the tail reads oldest-first like the rest.
+        const appended = visible
+            .filter(item => !known.has(item.mediaId))
+            .sort((a, b) => (a.position - b.position) || (a.mediaId - b.mediaId))
+            .map(item => item.mediaId)
+
+        orderRef.current = held.concat(appended)
+        return orderRef.current.map(id => byId.get(id)!)
+    }, [queue])
+
+    // Bundling adjacent franchise members is decoration over the frozen order above — it reorders
+    // nothing, so orderedItems is items. The list draws this and Next/Previous walk it, which has to be
+    // the same order.
     //
     // Grouping is presentation only. Every action — skip, ignore, add torrents — applies to the one
     // entry it was pressed on and never to its siblings.
