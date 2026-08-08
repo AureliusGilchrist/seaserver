@@ -26721,6 +26721,136 @@
     ]
   },
   {
+    "filepath": "../internal/api/aniskip/aniskip.go",
+    "filename": "aniskip.go",
+    "name": "SkipType",
+    "formattedName": "SkipType",
+    "package": "aniskip",
+    "fields": [],
+    "aliasOf": {
+      "goType": "string",
+      "typescriptType": "string",
+      "declaredValues": [
+        "\"op\"",
+        "\"ed\"",
+        "\"mixed-op\"",
+        "\"mixed-ed\"",
+        "\"recap\""
+      ]
+    },
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/aniskip/aniskip.go",
+    "filename": "aniskip.go",
+    "name": "Interval",
+    "formattedName": "Interval",
+    "package": "aniskip",
+    "fields": [
+      {
+        "name": "StartTime",
+        "jsonName": "startTime",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EndTime",
+        "jsonName": "endTime",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/aniskip/aniskip.go",
+    "filename": "aniskip.go",
+    "name": "SkipTime",
+    "formattedName": "SkipTime",
+    "package": "aniskip",
+    "fields": [
+      {
+        "name": "Interval",
+        "jsonName": "interval",
+        "goType": "Interval",
+        "typescriptType": "Interval",
+        "usedTypescriptType": "Interval",
+        "usedStructName": "aniskip.Interval",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SkipType",
+        "jsonName": "skipType",
+        "goType": "SkipType",
+        "typescriptType": "SkipType",
+        "usedTypescriptType": "SkipType",
+        "usedStructName": "aniskip.SkipType",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SkipId",
+        "jsonName": "skipId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeLength",
+        "jsonName": "episodeLength",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/api/aniskip/aniskip.go",
+    "filename": "aniskip.go",
+    "name": "SkipData",
+    "formattedName": "SkipData",
+    "package": "aniskip",
+    "fields": [
+      {
+        "name": "OP",
+        "jsonName": "OP",
+        "goType": "SkipTime",
+        "typescriptType": "SkipTime",
+        "usedTypescriptType": "SkipTime",
+        "usedStructName": "aniskip.SkipTime",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ED",
+        "jsonName": "ED",
+        "goType": "SkipTime",
+        "typescriptType": "SkipTime",
+        "usedTypescriptType": "SkipTime",
+        "usedStructName": "aniskip.SkipTime",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
     "filepath": "../internal/api/anizip/anizip.go",
     "filename": "anizip.go",
     "name": "Episode",
@@ -30776,6 +30906,17 @@
         "comments": []
       },
       {
+        "name": "EnqueueFutureRepository",
+        "jsonName": "EnqueueFutureRepository",
+        "goType": "enqueuefuture.Repository",
+        "typescriptType": "EnqueueFuture_Repository",
+        "usedTypescriptType": "EnqueueFuture_Repository",
+        "usedStructName": "enqueuefuture.Repository",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "EnMasseDownloader",
         "jsonName": "EnMasseDownloader",
         "goType": "enmasse.Downloader",
@@ -32653,6 +32794,28 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "startOnce",
+        "jsonName": "startOnce",
+        "goType": "sync.Once",
+        "typescriptType": "Once",
+        "usedTypescriptType": "Once",
+        "usedStructName": "sync.Once",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "autoPauseRunning",
+        "jsonName": "autoPauseRunning",
+        "goType": "atomic.Bool",
+        "typescriptType": "Bool",
+        "usedTypescriptType": "Bool",
+        "usedStructName": "atomic.Bool",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": [
@@ -33864,6 +34027,33 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "MpvAutoSkipOpening",
+        "jsonName": "mpvAutoSkipOpening",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MpvAutoSkipEnding",
+        "jsonName": "mpvAutoSkipEnding",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MpvAutoSkipFiller",
+        "jsonName": "mpvAutoSkipFiller",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -34009,9 +34199,76 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "BuiltinDownloadDir",
+        "jsonName": "builtinDownloadDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "BuiltinTorrentItem",
+    "formattedName": "Models_BuiltinTorrentItem",
+    "package": "models",
+    "fields": [
+      {
+        "name": "Hash",
+        "jsonName": "hash",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Magnet",
+        "jsonName": "magnet",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DownloadDir",
+        "jsonName": "downloadDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
   },
   {
     "filepath": "../internal/database/models/models.go",
@@ -34494,6 +34751,256 @@
     "package": "models",
     "fields": [],
     "comments": [],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "UnmatchedTorrentMetadata",
+    "formattedName": "Models_UnmatchedTorrentMetadata",
+    "package": "models",
+    "fields": [
+      {
+        "name": "TorrentName",
+        "jsonName": "torrentName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeID",
+        "jsonName": "animeId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Value",
+        "jsonName": "value",
+        "goType": "string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " UnmatchedTorrentMetadata records which anime a download is for, along with everything naming its",
+      " files needs — the episode titles included. Written when the download is queued, from the media",
+      " page that already knows exactly what is being downloaded.",
+      "",
+      " It lives here rather than as a file beside the download because the download's folder is the one",
+      " thing that cannot be relied on: the torrent client may be writing somewhere the server cannot",
+      " see, and matching deletes the folder as its last step. A row survives all of that and is read",
+      " without touching the disk."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "UnmatchedMatchRecord",
+    "formattedName": "Models_UnmatchedMatchRecord",
+    "package": "models",
+    "fields": [
+      {
+        "name": "TorrentName",
+        "jsonName": "torrentName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeID",
+        "jsonName": "animeId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeTitle",
+        "jsonName": "animeTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Destination",
+        "jsonName": "destination",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FileCount",
+        "jsonName": "fileCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RevertedAt",
+        "jsonName": "revertedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Value",
+        "jsonName": "value",
+        "goType": "string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " UnmatchedMatchRecord is one match performed from the Unmatched Downloads screen, kept so it can",
+      " be reviewed and undone afterwards. The columns are what the undo list is built and sorted from;",
+      " Value holds the full record (every file's original and new path) as JSON."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "EnqueueFutureItem",
+    "formattedName": "Models_EnqueueFutureItem",
+    "package": "models",
+    "fields": [
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RootMediaID",
+        "jsonName": "rootMediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Position",
+        "jsonName": "position",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Depth",
+        "jsonName": "depth",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Attempts",
+        "jsonName": "attempts",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastError",
+        "jsonName": "lastError",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Value",
+        "jsonName": "",
+        "goType": "string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " EnqueueFutureItem is one anime discovered by walking the recommendation graph outward from a",
+      " series, prepared ahead of time so the download screen for it opens with no waiting.",
+      "",
+      " The indexed columns are everything the queue list and the worker need to make decisions without",
+      " touching the blob — which is large, holding the whole entry and a full torrent search result.",
+      " Title and CoverImage are denormalized out of it for the same reason: the list view renders every",
+      " item, and unmarshalling a hundred snapshots to read two strings would be absurd."
+    ],
     "embeddedStructNames": [
       "models.BaseModel"
     ]
@@ -35145,6 +35652,15 @@
         "comments": [
           " Total number of pages"
         ]
+      },
+      {
+        "name": "EnMasse",
+        "jsonName": "enMasse",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [],
@@ -44863,6 +45379,705 @@
     ]
   },
   {
+    "filepath": "../internal/enqueuefuture/repository.go",
+    "filename": "repository.go",
+    "name": "Repository",
+    "formattedName": "EnqueueFuture_Repository",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "database",
+        "jsonName": "database",
+        "goType": "db.Database",
+        "typescriptType": "DB_Database",
+        "usedTypescriptType": "DB_Database",
+        "usedStructName": "db.Database",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "platformRef",
+        "jsonName": "platformRef",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "metadataProviderRef",
+        "jsonName": "metadataProviderRef",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "torrentRepository",
+        "jsonName": "torrentRepository",
+        "goType": "torrent.Repository",
+        "typescriptType": "Torrent_Repository",
+        "usedTypescriptType": "Torrent_Repository",
+        "usedStructName": "torrent.Repository",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "wsEventManager",
+        "jsonName": "wsEventManager",
+        "goType": "events.WSEventManagerInterface",
+        "typescriptType": "Events_WSEventManagerInterface",
+        "usedTypescriptType": "Events_WSEventManagerInterface",
+        "usedStructName": "events.WSEventManagerInterface",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "animeCollectionFunc",
+        "jsonName": "animeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "defaultProviderFunc",
+        "jsonName": "defaultProviderFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "isSimulatedFunc",
+        "jsonName": "isSimulatedFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "limiter",
+        "jsonName": "limiter",
+        "goType": "limiter.Limiter",
+        "typescriptType": "Limiter",
+        "usedTypescriptType": "Limiter",
+        "usedStructName": "limiter.Limiter",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "status",
+        "jsonName": "status",
+        "goType": "Status",
+        "typescriptType": "EnqueueFuture_Status",
+        "usedTypescriptType": "EnqueueFuture_Status",
+        "usedStructName": "enqueuefuture.Status",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "running",
+        "jsonName": "running",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cancel",
+        "jsonName": "cancel",
+        "goType": "context.CancelFunc",
+        "typescriptType": "CancelFunc",
+        "usedTypescriptType": "CancelFunc",
+        "usedStructName": "context.CancelFunc",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enqueuefuture/repository.go",
+    "filename": "repository.go",
+    "name": "NewRepositoryOptions",
+    "formattedName": "EnqueueFuture_NewRepositoryOptions",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "Logger",
+        "jsonName": "Logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Database",
+        "jsonName": "Database",
+        "goType": "db.Database",
+        "typescriptType": "DB_Database",
+        "usedTypescriptType": "DB_Database",
+        "usedStructName": "db.Database",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PlatformRef",
+        "jsonName": "PlatformRef",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MetadataProviderRef",
+        "jsonName": "MetadataProviderRef",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TorrentRepository",
+        "jsonName": "TorrentRepository",
+        "goType": "torrent.Repository",
+        "typescriptType": "Torrent_Repository",
+        "usedTypescriptType": "Torrent_Repository",
+        "usedStructName": "torrent.Repository",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WSEventManager",
+        "jsonName": "WSEventManager",
+        "goType": "events.WSEventManagerInterface",
+        "typescriptType": "Events_WSEventManagerInterface",
+        "usedTypescriptType": "Events_WSEventManagerInterface",
+        "usedStructName": "events.WSEventManagerInterface",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeCollectionFunc",
+        "jsonName": "AnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DefaultProviderFunc",
+        "jsonName": "DefaultProviderFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "IsSimulatedFunc",
+        "jsonName": "IsSimulatedFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/enqueuefuture/types.go",
+    "filename": "types.go",
+    "name": "SearchParams",
+    "formattedName": "EnqueueFuture_SearchParams",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Provider",
+        "jsonName": "provider",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Query",
+        "jsonName": "query",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeNumber",
+        "jsonName": "episodeNumber",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Batch",
+        "jsonName": "batch",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AbsoluteOffset",
+        "jsonName": "absoluteOffset",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Resolution",
+        "jsonName": "resolution",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BestRelease",
+        "jsonName": "bestRelease",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " SearchParams are the torrent search settings a snapshot was produced with.",
+      "",
+      " This is deliberately only the scalars, not the media object: the queue screen compares these",
+      " against what its search UI is currently asking for, to decide whether the stored results still",
+      " answer the question. Media never varies within an item, so including it would only make an",
+      " expensive comparison out of a cheap one."
+    ]
+  },
+  {
+    "filepath": "../internal/enqueuefuture/types.go",
+    "filename": "types.go",
+    "name": "Snapshot",
+    "formattedName": "EnqueueFuture_Snapshot",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "Entry",
+        "jsonName": "entry",
+        "goType": "anime.Entry",
+        "typescriptType": "Anime_Entry",
+        "usedTypescriptType": "Anime_Entry",
+        "usedStructName": "anime.Entry",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SearchData",
+        "jsonName": "searchData",
+        "goType": "torrent.SearchData",
+        "typescriptType": "Torrent_SearchData",
+        "usedTypescriptType": "Torrent_SearchData",
+        "usedStructName": "torrent.SearchData",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SearchParams",
+        "jsonName": "searchParams",
+        "goType": "SearchParams",
+        "typescriptType": "EnqueueFuture_SearchParams",
+        "usedTypescriptType": "EnqueueFuture_SearchParams",
+        "usedStructName": "enqueuefuture.SearchParams",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProviderID",
+        "jsonName": "providerId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PreparedAt",
+        "jsonName": "preparedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Snapshot is everything the download screen for one queued anime needs, prepared in advance.",
+      "",
+      " It is stored as a JSON blob rather than as columns because none of it is ever queried on — the",
+      " queue looks items up by media ID and hands the whole thing to the frontend untouched."
+    ]
+  },
+  {
+    "filepath": "../internal/enqueuefuture/types.go",
+    "filename": "types.go",
+    "name": "Item",
+    "formattedName": "EnqueueFuture_Item",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RootMediaID",
+        "jsonName": "rootMediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Position",
+        "jsonName": "position",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Depth",
+        "jsonName": "depth",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Attempts",
+        "jsonName": "attempts",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastError",
+        "jsonName": "lastError",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Snapshot",
+        "jsonName": "snapshot",
+        "goType": "Snapshot",
+        "typescriptType": "EnqueueFuture_Snapshot",
+        "usedTypescriptType": "EnqueueFuture_Snapshot",
+        "usedStructName": "enqueuefuture.Snapshot",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Item is one queue row as the frontend sees it. The snapshot is only present on the single-item",
+      " endpoint; the list endpoint leaves it nil."
+    ]
+  },
+  {
+    "filepath": "../internal/enqueuefuture/types.go",
+    "filename": "types.go",
+    "name": "Status",
+    "formattedName": "EnqueueFuture_Status",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "Running",
+        "jsonName": "running",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RootMediaID",
+        "jsonName": "rootMediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RootTitle",
+        "jsonName": "rootTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Discovered",
+        "jsonName": "discovered",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Prepared",
+        "jsonName": "prepared",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Failed",
+        "jsonName": "failed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Skipped",
+        "jsonName": "skipped",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Cap",
+        "jsonName": "cap",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CurrentTitle",
+        "jsonName": "currentTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RateLimited",
+        "jsonName": "rateLimited",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RetryAt",
+        "jsonName": "retryAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BackoffRung",
+        "jsonName": "backoffRung",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BackoffRungs",
+        "jsonName": "backoffRungs",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BackoffAttempt",
+        "jsonName": "backoffAttempt",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BackoffAttempts",
+        "jsonName": "backoffAttempts",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastError",
+        "jsonName": "lastError",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FinishedAt",
+        "jsonName": "finishedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Status is the progress of a running (or the last) Enqueue Future run."
+    ]
+  },
+  {
     "filepath": "../internal/events/events.go",
     "filename": "events.go",
     "name": "WebsocketClientEventType",
@@ -50038,6 +51253,36 @@
     "comments": []
   },
   {
+    "filepath": "../internal/handlers/anilist_planning.go",
+    "filename": "anilist_planning.go",
+    "name": "AddToPlanningResponse",
+    "formattedName": "AddToPlanningResponse",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Added",
+        "jsonName": "added",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Queued",
+        "jsonName": "queued",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AddToPlanningResponse is the result of adding an anime to the user's planning list."
+    ]
+  },
+  {
     "filepath": "../internal/handlers/anime_collection.go",
     "filename": "anime_collection.go",
     "name": "AnimeHydrationDetail",
@@ -54697,6 +55942,148 @@
     ]
   },
   {
+    "filepath": "../internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "name": "DownloadingMediaStatus",
+    "formattedName": "DownloadingMediaStatus",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Downloading",
+        "jsonName": "downloading",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Finished",
+        "jsonName": "finished",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " DownloadingMediaStatus is what the client needs in order to decide, for each anime, whether to",
+      " show the \"downloading\" badge or the \"in your library\" one — never both."
+    ]
+  },
+  {
+    "filepath": "../internal/handlers/unmatched_sweep.go",
+    "filename": "unmatched_sweep.go",
+    "name": "UnmatchedSweepStatus",
+    "formattedName": "UnmatchedSweepStatus",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Running",
+        "jsonName": "running",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Total",
+        "jsonName": "total",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Processed",
+        "jsonName": "processed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Matched",
+        "jsonName": "matched",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Skipped",
+        "jsonName": "skipped",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Failed",
+        "jsonName": "failed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Current",
+        "jsonName": "current",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Errors",
+        "jsonName": "errors",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Stopping",
+        "jsonName": "stopping",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FinishedAt",
+        "jsonName": "finishedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " UnmatchedSweepStatus is the progress of a running (or the last) sweep."
+    ]
+  },
+  {
     "filepath": "../internal/hook/helper.go",
     "filename": "helper.go",
     "name": "HookTriggerOptions",
@@ -55207,6 +56594,24 @@
       {
         "name": "onAnimeScheduleItems",
         "jsonName": "onAnimeScheduleItems",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "onTorrentSearchRequested",
+        "jsonName": "onTorrentSearchRequested",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "onTorrentSearch",
+        "jsonName": "onTorrentSearch",
         "goType": "",
         "typescriptType": "any",
         "required": false,
@@ -61990,6 +63395,48 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "currentAniSkipData",
+        "jsonName": "currentAniSkipData",
+        "goType": "aniskipData",
+        "typescriptType": "PlaybackManager_aniskipData",
+        "usedTypescriptType": "PlaybackManager_aniskipData",
+        "usedStructName": "playbackmanager.aniskipData",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "aniSkipSkippedOP",
+        "jsonName": "aniSkipSkippedOP",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": [
+          " true once we've auto-sought past the opening this episode"
+        ]
+      },
+      {
+        "name": "aniSkipSkippedED",
+        "jsonName": "aniSkipSkippedED",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": [
+          " true once we've auto-sought past the ending this episode"
+        ]
+      },
+      {
+        "name": "currentFillerEpisodes",
+        "jsonName": "currentFillerEpisodes",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": []
@@ -67562,6 +69009,15 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "EnMasse",
+        "jsonName": "EnMasse",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -68041,6 +69497,15 @@
       {
         "name": "StartNow",
         "jsonName": "StartNow",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EnMasse",
+        "jsonName": "EnMasse",
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,
@@ -92724,6 +94189,280 @@
     "comments": []
   },
   {
+    "filepath": "../internal/torrent_clients/builtin_client/client.go",
+    "filename": "client.go",
+    "name": "TorrentInfo",
+    "formattedName": "TorrentInfo",
+    "package": "builtin_client",
+    "fields": [
+      {
+        "name": "Hash",
+        "jsonName": "hash",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Seeds",
+        "jsonName": "seeds",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpSpeed",
+        "jsonName": "upSpeed",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DownSpeed",
+        "jsonName": "downSpeed",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Progress",
+        "jsonName": "progress",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Size",
+        "jsonName": "size",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Eta",
+        "jsonName": "eta",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ContentPath",
+        "jsonName": "contentPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/torrent_clients/builtin_client/client.go",
+    "filename": "client.go",
+    "name": "Client",
+    "formattedName": "Client",
+    "package": "builtin_client",
+    "fields": [
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "db",
+        "jsonName": "db",
+        "goType": "db.Database",
+        "typescriptType": "DB_Database",
+        "usedTypescriptType": "DB_Database",
+        "usedStructName": "db.Database",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "downloadDir",
+        "jsonName": "downloadDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "onComplete",
+        "jsonName": "onComplete",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": [
+          " optional callback when a torrent finishes downloading"
+        ]
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.RWMutex",
+        "typescriptType": "RWMutex",
+        "usedTypescriptType": "RWMutex",
+        "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "torrentClient",
+        "jsonName": "torrentClient",
+        "goType": "torrent.Client",
+        "typescriptType": "Torrent_Client",
+        "usedTypescriptType": "Torrent_Client",
+        "usedStructName": "torrent.Client",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "activeTorrents",
+        "jsonName": "activeTorrents",
+        "goType": "map[string]torrent.Torrent",
+        "typescriptType": "Record\u003cstring, Torrent_Torrent\u003e",
+        "usedTypescriptType": "Torrent_Torrent",
+        "usedStructName": "torrent.Torrent",
+        "required": false,
+        "public": false,
+        "comments": [
+          " hash -\u003e active torrent handle"
+        ]
+      },
+      {
+        "name": "inactiveTorrents",
+        "jsonName": "inactiveTorrents",
+        "goType": "map[string]inactiveEntry",
+        "typescriptType": "Record\u003cstring, inactiveEntry\u003e",
+        "usedTypescriptType": "inactiveEntry",
+        "usedStructName": "builtin_client.inactiveEntry",
+        "required": false,
+        "public": false,
+        "comments": [
+          " hash -\u003e paused/stopped entry"
+        ]
+      },
+      {
+        "name": "speedTracker",
+        "jsonName": "speedTracker",
+        "goType": "map[string]speedEntry",
+        "typescriptType": "Record\u003cstring, speedEntry\u003e",
+        "usedTypescriptType": "speedEntry",
+        "usedStructName": "builtin_client.speedEntry",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "seedTimerCancels",
+        "jsonName": "seedTimerCancels",
+        "goType": "map[string]context.CancelFunc",
+        "typescriptType": "Record\u003cstring, CancelFunc\u003e",
+        "usedTypescriptType": "CancelFunc",
+        "usedStructName": "context.CancelFunc",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
+    "filepath": "../internal/torrent_clients/builtin_client/client.go",
+    "filename": "client.go",
+    "name": "NewClientOptions",
+    "formattedName": "NewClientOptions",
+    "package": "builtin_client",
+    "fields": [
+      {
+        "name": "Logger",
+        "jsonName": "Logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Database",
+        "jsonName": "Database",
+        "goType": "db.Database",
+        "typescriptType": "DB_Database",
+        "usedTypescriptType": "DB_Database",
+        "usedStructName": "db.Database",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DownloadDir",
+        "jsonName": "DownloadDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "OnComplete",
+        "jsonName": "OnComplete",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": [
+          " called when any torrent finishes downloading (before seed timeout)"
+        ]
+      }
+    ],
+    "comments": []
+  },
+  {
     "filepath": "../internal/torrent_clients/qbittorrent/application/client.go",
     "filename": "client.go",
     "name": "Client",
@@ -96635,6 +98374,17 @@
         "comments": []
       },
       {
+        "name": "builtinClient",
+        "jsonName": "builtinClient",
+        "goType": "builtin_client.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "builtin_client.Client",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "torrentRepository",
         "jsonName": "torrentRepository",
         "goType": "torrent.Repository",
@@ -96724,6 +98474,17 @@
         "typescriptType": "Transmission",
         "usedTypescriptType": "Transmission",
         "usedStructName": "transmission.Transmission",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BuiltinClient",
+        "jsonName": "BuiltinClient",
+        "goType": "builtin_client.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "builtin_client.Client",
         "required": false,
         "public": true,
         "comments": []
@@ -97815,6 +99576,82 @@
     ]
   },
   {
+    "filepath": "../internal/torrents/torrent/hook_events.go",
+    "filename": "hook_events.go",
+    "name": "TorrentSearchRequestedEvent",
+    "formattedName": "Torrent_TorrentSearchRequestedEvent",
+    "package": "torrent",
+    "fields": [
+      {
+        "name": "Options",
+        "jsonName": "options",
+        "goType": "AnimeSearchOptions",
+        "typescriptType": "Torrent_AnimeSearchOptions",
+        "usedTypescriptType": "Torrent_AnimeSearchOptions",
+        "usedStructName": "torrent.AnimeSearchOptions",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SearchData",
+        "jsonName": "searchData",
+        "goType": "SearchData",
+        "typescriptType": "Torrent_SearchData",
+        "usedTypescriptType": "Torrent_SearchData",
+        "usedStructName": "torrent.SearchData",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TorrentSearchRequestedEvent is triggered before Seanime searches anime torrents.",
+      " Prevent default to skip the native search and return SearchData."
+    ],
+    "embeddedStructNames": [
+      "hook_resolver.Event"
+    ]
+  },
+  {
+    "filepath": "../internal/torrents/torrent/hook_events.go",
+    "filename": "hook_events.go",
+    "name": "TorrentSearchEvent",
+    "formattedName": "Torrent_TorrentSearchEvent",
+    "package": "torrent",
+    "fields": [
+      {
+        "name": "Options",
+        "jsonName": "options",
+        "goType": "AnimeSearchOptions",
+        "typescriptType": "Torrent_AnimeSearchOptions",
+        "usedTypescriptType": "Torrent_AnimeSearchOptions",
+        "usedStructName": "torrent.AnimeSearchOptions",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SearchData",
+        "jsonName": "searchData",
+        "goType": "SearchData",
+        "typescriptType": "Torrent_SearchData",
+        "usedTypescriptType": "Torrent_SearchData",
+        "usedStructName": "torrent.SearchData",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TorrentSearchEvent is triggered after Seanime assembles the torrent search response.",
+      " Handlers can mutate SearchData before it is cached and returned."
+    ],
+    "embeddedStructNames": [
+      "hook_resolver.Event"
+    ]
+  },
+  {
     "filepath": "../internal/torrents/torrent/repository.go",
     "filename": "repository.go",
     "name": "Repository",
@@ -97844,15 +99681,6 @@
       {
         "name": "animeProviderSearchCaches",
         "jsonName": "animeProviderSearchCaches",
-        "goType": "",
-        "typescriptType": "any",
-        "required": false,
-        "public": false,
-        "comments": []
-      },
-      {
-        "name": "animeProviderSmartSearchCaches",
-        "jsonName": "animeProviderSmartSearchCaches",
         "goType": "",
         "typescriptType": "any",
         "required": false,
@@ -100142,6 +101970,611 @@
     "comments": []
   },
   {
+    "filepath": "../internal/unmatched/history.go",
+    "filename": "history.go",
+    "name": "MatchHistoryFile",
+    "formattedName": "MatchHistoryFile",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "OriginalName",
+        "jsonName": "originalName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "OriginalRelPath",
+        "jsonName": "originalRelPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "OriginalPath",
+        "jsonName": "originalPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewName",
+        "jsonName": "newName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewPath",
+        "jsonName": "newPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Size",
+        "jsonName": "size",
+        "goType": "int64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MatchHistoryFile is one file a match moved: where it came from, and what it became."
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/history.go",
+    "filename": "history.go",
+    "name": "MatchHistoryDetails",
+    "formattedName": "MatchHistoryDetails",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "TorrentName",
+        "jsonName": "torrentName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StagingPath",
+        "jsonName": "stagingPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeID",
+        "jsonName": "animeId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeTitle",
+        "jsonName": "animeTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Destination",
+        "jsonName": "destination",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Files",
+        "jsonName": "files",
+        "goType": "[]MatchHistoryFile",
+        "typescriptType": "Array\u003cMatchHistoryFile\u003e",
+        "usedTypescriptType": "MatchHistoryFile",
+        "usedStructName": "unmatched.MatchHistoryFile",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DeletedFiles",
+        "jsonName": "deletedFiles",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Metadata",
+        "jsonName": "metadata",
+        "goType": "TorrentMetadata",
+        "typescriptType": "TorrentMetadata",
+        "usedTypescriptType": "TorrentMetadata",
+        "usedStructName": "unmatched.TorrentMetadata",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Revert",
+        "jsonName": "revert",
+        "goType": "RevertOutcome",
+        "typescriptType": "RevertOutcome",
+        "usedTypescriptType": "RevertOutcome",
+        "usedStructName": "unmatched.RevertOutcome",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MatchHistoryDetails is the full record of a match, stored as JSON alongside the row."
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/history.go",
+    "filename": "history.go",
+    "name": "RevertOutcome",
+    "formattedName": "RevertOutcome",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "RevertedAt",
+        "jsonName": "revertedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Restored",
+        "jsonName": "restored",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Missing",
+        "jsonName": "missing",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Failed",
+        "jsonName": "failed",
+        "goType": "[]RevertFailure",
+        "typescriptType": "Array\u003cRevertFailure\u003e",
+        "usedTypescriptType": "RevertFailure",
+        "usedStructName": "unmatched.RevertFailure",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DestinationRemoved",
+        "jsonName": "destinationRemoved",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " RevertOutcome is what a completed revert managed to do."
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/history.go",
+    "filename": "history.go",
+    "name": "RevertFailure",
+    "formattedName": "RevertFailure",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Reason",
+        "jsonName": "reason",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " RevertFailure is one file a revert could not put back, and why."
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/history.go",
+    "filename": "history.go",
+    "name": "MatchHistoryFileStatus",
+    "formattedName": "MatchHistoryFileStatus",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MatchHistoryFileStatus is a recorded file plus what a revert would (or did) do with it."
+    ],
+    "embeddedStructNames": [
+      "unmatched.MatchHistoryFile"
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/history.go",
+    "filename": "history.go",
+    "name": "MatchHistoryEntry",
+    "formattedName": "MatchHistoryEntry",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TorrentName",
+        "jsonName": "torrentName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeID",
+        "jsonName": "animeId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeTitle",
+        "jsonName": "animeTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Destination",
+        "jsonName": "destination",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StagingPath",
+        "jsonName": "stagingPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MatchedAt",
+        "jsonName": "matchedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RevertedAt",
+        "jsonName": "revertedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Files",
+        "jsonName": "files",
+        "goType": "[]MatchHistoryFileStatus",
+        "typescriptType": "Array\u003cMatchHistoryFileStatus\u003e",
+        "usedTypescriptType": "MatchHistoryFileStatus",
+        "usedStructName": "unmatched.MatchHistoryFileStatus",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DeletedFiles",
+        "jsonName": "deletedFiles",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ReadyCount",
+        "jsonName": "readyCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MissingCount",
+        "jsonName": "missingCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BlockedCount",
+        "jsonName": "blockedCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RestoredCount",
+        "jsonName": "restoredCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Revert",
+        "jsonName": "revert",
+        "goType": "RevertOutcome",
+        "typescriptType": "RevertOutcome",
+        "usedTypescriptType": "RevertOutcome",
+        "usedStructName": "unmatched.RevertOutcome",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MatchHistoryEntry is one match as the undo screen sees it."
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/history.go",
+    "filename": "history.go",
+    "name": "RestoredFile",
+    "formattedName": "RestoredFile",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "NewPath",
+        "jsonName": "newPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewName",
+        "jsonName": "newName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "OriginalPath",
+        "jsonName": "originalPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "OriginalRelPath",
+        "jsonName": "originalRelPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " RestoredFile is one file a revert moved back, reported so callers can undo what they did with",
+      " it — the library database entry the match injected, in particular."
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/history.go",
+    "filename": "history.go",
+    "name": "RevertResult",
+    "formattedName": "RevertResult",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "Success",
+        "jsonName": "success",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TorrentName",
+        "jsonName": "torrentName",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeID",
+        "jsonName": "animeId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeTitle",
+        "jsonName": "animeTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StagingPath",
+        "jsonName": "stagingPath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Restored",
+        "jsonName": "restored",
+        "goType": "[]RestoredFile",
+        "typescriptType": "Array\u003cRestoredFile\u003e",
+        "usedTypescriptType": "RestoredFile",
+        "usedStructName": "unmatched.RestoredFile",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Missing",
+        "jsonName": "missing",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Failed",
+        "jsonName": "failed",
+        "goType": "[]RevertFailure",
+        "typescriptType": "Array\u003cRevertFailure\u003e",
+        "usedTypescriptType": "RevertFailure",
+        "usedStructName": "unmatched.RevertFailure",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DeletedFiles",
+        "jsonName": "deletedFiles",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DestinationRemoved",
+        "jsonName": "destinationRemoved",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ErrorMessage",
+        "jsonName": "errorMessage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " RevertResult is the outcome of undoing a match."
+    ]
+  },
+  {
     "filepath": "../internal/unmatched/repository.go",
     "filename": "repository.go",
     "name": "Repository",
@@ -100220,6 +102653,28 @@
         "typescriptType": "Record\u003cstring, UnmatchedTorrent\u003e",
         "usedTypescriptType": "UnmatchedTorrent",
         "usedStructName": "unmatched.UnmatchedTorrent",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "metadataMu",
+        "jsonName": "metadataMu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "metadataByTorrent",
+        "jsonName": "metadataByTorrent",
+        "goType": "map[string]TorrentMetadata",
+        "typescriptType": "Record\u003cstring, TorrentMetadata\u003e",
+        "usedTypescriptType": "TorrentMetadata",
+        "usedStructName": "unmatched.TorrentMetadata",
         "required": false,
         "public": false,
         "comments": []
@@ -100345,6 +102800,15 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "AutoMatch",
+        "jsonName": "autoMatch",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -100411,10 +102875,42 @@
         "required": false,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "AutoMatch",
+        "jsonName": "autoMatch",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeTitles",
+        "jsonName": "episodeTitles",
+        "goType": "map[string]string",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MetadataFetchedAt",
+        "jsonName": "metadataFetchedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
-      " TorrentMetadata stores anime info for an unmatched torrent"
+      " TorrentMetadata is everything known about a download: which anime it is for, and what naming",
+      " its files will need.",
+      "",
+      " It is captured when the download is queued, from the media page that already knows exactly what",
+      " is being downloaded — including the episode titles, which are the one thing a match cannot work",
+      " out for itself and used to cost a network round trip in the middle of moving files."
     ]
   },
   {
@@ -100666,6 +103162,15 @@
         "comments": []
       },
       {
+        "name": "RemovedFiles",
+        "jsonName": "removedFiles",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "Destination",
         "jsonName": "destination",
         "goType": "string",
@@ -100787,11 +103292,143 @@
         "required": true,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "onAutoMatched",
+        "jsonName": "onAutoMatched",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "torrentStateSource",
+        "jsonName": "torrentStateSource",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cachedStates",
+        "jsonName": "cachedStates",
+        "goType": "[]TorrentState",
+        "typescriptType": "Array\u003cTorrentState\u003e",
+        "usedTypescriptType": "TorrentState",
+        "usedStructName": "unmatched.TorrentState",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cachedStatesOK",
+        "jsonName": "cachedStatesOK",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cachedStatesAt",
+        "jsonName": "cachedStatesAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "fingerprints",
+        "jsonName": "fingerprints",
+        "goType": "map[string]dirFingerprint",
+        "typescriptType": "Record\u003cstring, dirFingerprint\u003e",
+        "usedTypescriptType": "dirFingerprint",
+        "usedStructName": "unmatched.dirFingerprint",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": [
-      " Scanner monitors the Unmatched folder for completed downloads",
-      " by checking for qBittorrent temporary files (.!qB extension)"
+      " Scanner monitors the Unmatched folder for completed downloads.",
+      "",
+      " Deciding that a download has finished is the whole job, and getting it wrong is expensive: a",
+      " torrent queued with auto-match is matched the moment this says \"done\", which moves its files",
+      " into the library and deletes the staging directory. Do that to a download still in progress and",
+      " the client is left writing into files that have been moved out from under it, the episodes that",
+      " land in the library are fragments, and the torrent vanishes from the Unmatched screen.",
+      "",
+      " Temp-file extensions alone cannot answer the question. qBittorrent's \".!qB\" suffix is an option",
+      " that is off by default, Transmission uses \".part\" only for the file it is actively writing, and",
+      " the built-in client writes final filenames from the first byte. An in-progress download in the",
+      " default configuration therefore looks exactly like a finished one on disk. So the client is",
+      " asked first, and only when it has nothing to say does this fall back to watching the directory",
+      " stop changing."
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/scanner.go",
+    "filename": "scanner.go",
+    "name": "TorrentState",
+    "formattedName": "TorrentState",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "Name",
+        "jsonName": "Name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "SavePath",
+        "jsonName": "SavePath",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Finished",
+        "jsonName": "Finished",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TorrentState is the part of a torrent client's report that says whether a download is done and",
+      " where it is being written. Deliberately minimal: the scanner must not depend on the torrent",
+      " client package, which would make the dependency circular."
+    ]
+  },
+  {
+    "filepath": "../internal/unmatched/scanner.go",
+    "filename": "scanner.go",
+    "name": "CompletionState",
+    "formattedName": "CompletionState",
+    "package": "unmatched",
+    "fields": [],
+    "aliasOf": {
+      "goType": "string",
+      "typescriptType": "string",
+      "declaredValues": [
+        "\"unknown\"",
+        "\"downloading\"",
+        "\"finished\""
+      ]
+    },
+    "comments": [
+      " CompletionState is what the torrent client says about a staging directory."
     ]
   },
   {
@@ -102890,6 +105527,61 @@
     "comments": []
   },
   {
+    "filepath": "../internal/util/local_subtitles.go",
+    "filename": "local_subtitles.go",
+    "name": "LocalSubtitleFile",
+    "formattedName": "Util_LocalSubtitleFile",
+    "package": "util",
+    "fields": [
+      {
+        "name": "Path",
+        "jsonName": "path",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Filename",
+        "jsonName": "filename",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Label",
+        "jsonName": "label",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Language",
+        "jsonName": "language",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": []
+  },
+  {
     "filepath": "../internal/util/map.go",
     "filename": "map.go",
     "name": "RWMutexMap",
@@ -104353,6 +107045,15 @@
         "comments": [
           " e.g., \"S_TEXT/ASS\" for codec matching"
         ]
+      },
+      {
+        "name": "Headers",
+        "jsonName": "headers",
+        "goType": "map[string]string",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -105426,7 +108127,17 @@
     "name": "VideoTerminatedEvent",
     "formattedName": "VideoCore_VideoTerminatedEvent",
     "package": "videocore",
-    "fields": [],
+    "fields": [
+      {
+        "name": "Id",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
     "comments": [],
     "embeddedStructNames": [
       "videocore.BaseVideoEvent"

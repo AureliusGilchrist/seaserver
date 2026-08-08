@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/ui/modal"
+import { atom } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 import React from "react"
 
@@ -12,6 +13,16 @@ import React from "react"
  * each other) can both reach it without an import cycle.
  */
 export const __torrentDownload_autoMatchAtom = atomWithStorage("sea-torrent-download-auto-match", false)
+
+/**
+ * Whether auto-match has already been confirmed once in this session.
+ *
+ * Only consulted where downloads are queued back-to-back — the Enqueue Future queue, where you may
+ * work through a hundred anime in a sitting and confirming the same thing a hundred times is not a
+ * safeguard, it is an obstacle to clicking through. Deliberately not persisted: a new session asks
+ * again, so the answer is never older than the sitting it was given in.
+ */
+export const __torrentDownload_autoMatchConfirmedAtom = atom(false)
 
 /**
  * Confirmation shown before queueing a download that will match itself once it finishes.

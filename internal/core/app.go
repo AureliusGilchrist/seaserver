@@ -19,6 +19,7 @@ import (
 	"seanime/internal/directstream"
 	discordrpc_presence "seanime/internal/discordrpc/presence"
 	"seanime/internal/enmasse"
+	"seanime/internal/enqueuefuture"
 	"seanime/internal/events"
 	"seanime/internal/extension"
 	"seanime/internal/extension_playground"
@@ -182,6 +183,9 @@ type (
 		// Unmatched torrent management
 		UnmatchedRepository *unmatched.Repository
 		UnmatchedScanner    *unmatched.Scanner
+
+		// Enqueue Future
+		EnqueueFutureRepository *enqueuefuture.Repository
 
 		// En Masse Downloader
 		EnMasseDownloader      *enmasse.Downloader

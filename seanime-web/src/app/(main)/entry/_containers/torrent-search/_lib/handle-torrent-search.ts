@@ -1,4 +1,4 @@
-import { Anime_Entry, Anime_EntryDownloadInfo } from "@/api/generated/types"
+import { Anime_Entry, Anime_EntryDownloadInfo, Torrent_SearchData } from "@/api/generated/types"
 import { useAnimeListTorrentProviderExtensions } from "@/api/hooks/extensions.hooks"
 import { useSearchTorrent } from "@/api/hooks/torrent_search.hooks"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
@@ -18,6 +18,30 @@ type TorrentSearchHookProps = {
     entry: Anime_Entry | undefined
     isAdult: boolean
     type: TorrentSelectionType
+    /**
+     * Results already fetched for this anime, along with the settings that produced them.
+     *
+     * Enqueue Future prepares these on the server in advance, which is the whole point of the
+     * queue: opening an anime should not mean waiting for a search that was already run. They are
+     * used only while the search below is still asking the same question — change the provider or
+     * any filter and the search happens live, exactly as it would anywhere else.
+     */
+    snapshot?: TorrentSearchSnapshot
+}
+
+export type TorrentSearchSnapshot = {
+    params: {
+        type: string
+        provider: string
+        query: string
+        episodeNumber: number
+        batch: boolean
+        absoluteOffset: number
+        resolution: string
+        bestRelease: boolean
+    }
+    data: Torrent_SearchData
+    preparedAt?: number
 }
 
 export const enum Torrent_SearchType {
@@ -39,6 +63,7 @@ export function useHandleTorrentSearch(props: TorrentSearchHookProps) {
         downloadInfo,
         entry,
         isAdult,
+        snapshot,
     } = props
 
     const serverStatus = useServerStatus()
@@ -151,6 +176,38 @@ export function useHandleTorrentSearch(props: TorrentSearchHookProps) {
 
     console.log("smartSearchResolution", smartSearchResolution)
 
+    // What the search is currently asking for, reduced to the settings a snapshot records. Kept
+    // separate from the request below so the comparison is against the same values that are sent.
+    const activeSearchParams = React.useMemo(() => ({
+        type: searchType as string,
+        provider: searchProvider,
+        query: debouncedGlobalFilter.trim().toLowerCase(),
+        episodeNumber: smartSearchBatch ? 0 : debouncedSmartSearchEpisode,
+        batch: smartSearchBatch,
+        absoluteOffset: downloadInfo?.absoluteOffset || 0,
+        resolution: smartSearchResolution,
+        bestRelease: searchType === Torrent_SearchType.SMART && smartSearchBest,
+    }), [searchType, searchProvider, debouncedGlobalFilter, smartSearchBatch, debouncedSmartSearchEpisode,
+        downloadInfo?.absoluteOffset, smartSearchResolution, smartSearchBest])
+
+    // Use the prepared results only while they still answer the question being asked. Touch the
+    // provider selector or any filter and this goes undefined, so the search runs for real.
+    const seed = React.useMemo(() => {
+        if (!snapshot?.data) return undefined
+        const p = snapshot.params
+        const a = activeSearchParams
+        const matches = p.type === a.type
+            && p.provider === a.provider
+            && p.query === a.query
+            && p.episodeNumber === a.episodeNumber
+            && p.batch === a.batch
+            && p.absoluteOffset === a.absoluteOffset
+            && p.resolution === a.resolution
+            && p.bestRelease === a.bestRelease
+        if (!matches) return undefined
+        return { data: snapshot.data, preparedAt: snapshot.preparedAt }
+    }, [snapshot, activeSearchParams])
+
     /**
      * Fetch torrent search data
      */
@@ -173,6 +230,7 @@ export function useHandleTorrentSearch(props: TorrentSearchHookProps) {
         && !warnings.extensionDoesNotSupportSmartSearch
         && !warnings.extensionDoesNotSupportBestRelease
         && !!providerExtensions, // Provider extensions must be loaded
+        seed,
     )
 
     React.useLayoutEffect(() => {

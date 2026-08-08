@@ -1301,6 +1301,50 @@
     }
   },
   {
+    "name": "HandleAddAnimeToPlanning",
+    "trimmedName": "AddAnimeToPlanning",
+    "comments": [
+      "HandleAddAnimeToPlanning",
+      "",
+      "\t@summary adds an anime to the signed-in user's own AniList PLANNING list.",
+      "\t@desc This targets the user's real AniList account, NOT the shared planning-slut account.",
+      "\t@desc If AniList is unreachable, the change is queued and replayed automatically once the",
+      "\t@desc API is available again, and the response reports queued=true.",
+      "\t@route /api/v1/anilist/planning [POST]",
+      "\t@returns handlers.AddToPlanningResponse",
+      ""
+    ],
+    "filepath": "internal/handlers/anilist_planning.go",
+    "filename": "anilist_planning.go",
+    "api": {
+      "summary": "adds an anime to the signed-in user's own AniList PLANNING list.",
+      "descriptions": [
+        "This targets the user's real AniList account, NOT the shared planning-slut account.",
+        "If AniList is unreachable, the change is queued and replayed automatically once the",
+        "API is available again, and the response reports queued=true."
+      ],
+      "endpoint": "/api/v1/anilist/planning",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "handlers.AddToPlanningResponse",
+      "returnGoType": "handlers.AddToPlanningResponse",
+      "returnTypescriptType": "AddToPlanningResponse"
+    }
+  },
+  {
     "name": "HandleGetAnimeEpisodeCollection",
     "trimmedName": "GetAnimeEpisodeCollection",
     "comments": [
@@ -1917,6 +1961,56 @@
     }
   },
   {
+    "name": "HandleResetAnimeEntryMetadata",
+    "trimmedName": "ResetAnimeEntryMetadata",
+    "comments": [
+      "HandleResetAnimeEntryMetadata",
+      "",
+      "\t@summary clears every cached metadata entry for a single anime.",
+      "\t@desc Deep clean: drops the episode metadata (memory + disk), the AniList media objects",
+      "\t@desc (memory, file cache and SQLite), the built episode collections, the online streaming",
+      "\t@desc episode lists, the filler data and the missing-episode summary for one media ID, so",
+      "\t@desc the next request rebuilds all of it from source. Used by the \"Reset metadata\" action",
+      "\t@desc and automatically when an entry fails to load, since a poisoned/stale cache entry is",
+      "\t@desc the usual cause.",
+      "\t@route /api/v1/library/anime-entry/reset-metadata [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_entries.go",
+    "filename": "anime_entries.go",
+    "api": {
+      "summary": "clears every cached metadata entry for a single anime.",
+      "descriptions": [
+        "Deep clean: drops the episode metadata (memory + disk), the AniList media objects",
+        "(memory, file cache and SQLite), the built episode collections, the online streaming",
+        "episode lists, the filler data and the missing-episode summary for one media ID, so",
+        "the next request rebuilds all of it from source. Used by the \"Reset metadata\" action",
+        "and automatically when an entry fails to load, since a poisoned/stale cache entry is",
+        "the usual cause."
+      ],
+      "endpoint": "/api/v1/library/anime-entry/reset-metadata",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleToggleAnimeEntrySilenceStatus",
     "trimmedName": "ToggleAnimeEntrySilenceStatus",
     "comments": [
@@ -2105,6 +2199,82 @@
           "descriptions": []
         }
       ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleRefreshAnimeEntryStats",
+    "trimmedName": "RefreshAnimeEntryStats",
+    "comments": [
+      "HandleRefreshAnimeEntryStats",
+      "",
+      "\t@summary rebuilds everything the server knows about one anime entry.",
+      "\t@desc Deep cleans every cache keyed to the media ID (episode metadata, AniList media",
+      "\t@desc objects in memory/disk/SQLite, episode collections, online streaming episode lists,",
+      "\t@desc filler data, missing-episode summary) and then refetches the AniList collection, so",
+      "\t@desc the entry's library stats — file counts, progress, episode counts, status — are",
+      "\t@desc rebuilt from source. User data is left untouched.",
+      "\t@route /api/v1/library/anime-entry/refresh-stats [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_entry_refresh.go",
+    "filename": "anime_entry_refresh.go",
+    "api": {
+      "summary": "rebuilds everything the server knows about one anime entry.",
+      "descriptions": [
+        "Deep cleans every cache keyed to the media ID (episode metadata, AniList media",
+        "objects in memory/disk/SQLite, episode collections, online streaming episode lists,",
+        "filler data, missing-episode summary) and then refetches the AniList collection, so",
+        "the entry's library stats — file counts, progress, episode counts, status — are",
+        "rebuilt from source. User data is left untouched."
+      ],
+      "endpoint": "/api/v1/library/anime-entry/refresh-stats",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "deepCleanAnimeEntry",
+    "trimmedName": "deepCleanAnimeEntry",
+    "comments": [
+      "deepCleanAnimeEntry throws away every cached, derived or stale piece of data the server holds",
+      "for one anime, so the next request rebuilds all of it from source.",
+      "",
+      "\"Reset metadata\" used to clear three caches, which left the entry looking unchanged whenever",
+      "the stale copy lived somewhere else — the disk/SQLite AniList caches, the episode collection,",
+      "the online-streaming episode lists or the missing-episode summary. Anything keyed by media ID",
+      "that the server can rebuild on its own belongs here; user data (list progress, overrides,",
+      "watch history, favourites) deliberately does not.",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_entry_refresh.go",
+    "filename": "anime_entry_refresh.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
@@ -4308,6 +4478,23 @@
           "typescriptType": "string",
           "required": true,
           "descriptions": []
+        },
+        {
+          "name": "Headers",
+          "jsonName": "headers",
+          "goType": "map[string]string",
+          "usedStructType": "",
+          "typescriptType": "Record\u003cstring, string\u003e",
+          "required": true,
+          "descriptions": [
+            "Headers are the request headers the extension supplied for the video source",
+            "(typically Referer/Origin). Subtitle CDNs behind hotlink protection reject",
+            "requests that don't carry the same headers as the video request.",
+            "",
+            "Headers are the request headers the extension supplied for the video source",
+            "(typically Referer/Origin). Subtitle CDNs behind hotlink protection reject",
+            "requests that don't carry the same headers as the video request."
+          ]
         }
       ],
       "returns": "string",
@@ -4529,6 +4716,15 @@
       "params": [],
       "bodyFields": [
         {
+          "name": "ClientId",
+          "jsonName": "clientId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
           "name": "MediaId",
           "jsonName": "mediaId",
           "goType": "int",
@@ -4647,6 +4843,15 @@
       "params": [],
       "bodyFields": [
         {
+          "name": "ClientId",
+          "jsonName": "clientId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
           "name": "Progress",
           "jsonName": "progress",
           "goType": "int",
@@ -4700,7 +4905,17 @@
         "POST"
       ],
       "params": [],
-      "bodyFields": [],
+      "bodyFields": [
+        {
+          "name": "ClientId",
+          "jsonName": "clientId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
@@ -5128,6 +5343,318 @@
         "Stops the manga en masse downloader if it's running."
       ],
       "endpoint": "/api/v1/enmasse/manga/stop",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleEnqueueFuture",
+    "trimmedName": "EnqueueFuture",
+    "comments": [
+      "HandleEnqueueFuture",
+      "",
+      "\t@summary starts preparing the recommendation graph around an anime.",
+      "\t@desc Walks outward from the given anime, queueing what it recommends and what those recommend",
+      "\t@desc in turn, up to a per-run cap. Each queued anime gets its full entry metadata and a torrent",
+      "\t@desc search stored, so its download screen opens with no waiting.",
+      "\t@desc Returns as soon as the run starts — the work continues with no page open.",
+      "\t@route /api/v1/enqueue-future/enqueue [POST]",
+      "\t@returns enqueuefuture.Status",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "starts preparing the recommendation graph around an anime.",
+      "descriptions": [
+        "Walks outward from the given anime, queueing what it recommends and what those recommend",
+        "in turn, up to a per-run cap. Each queued anime gets its full entry metadata and a torrent",
+        "search stored, so its download screen opens with no waiting.",
+        "Returns as soon as the run starts — the work continues with no page open."
+      ],
+      "endpoint": "/api/v1/enqueue-future/enqueue",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Title",
+          "jsonName": "title",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "enqueuefuture.Status",
+      "returnGoType": "enqueuefuture.Status",
+      "returnTypescriptType": "EnqueueFuture_Status"
+    }
+  },
+  {
+    "name": "HandleGetEnqueueFutureStatus",
+    "trimmedName": "GetEnqueueFutureStatus",
+    "comments": [
+      "HandleGetEnqueueFutureStatus",
+      "",
+      "\t@summary returns the progress of the running (or last) Enqueue Future run.",
+      "\t@route /api/v1/enqueue-future/status [GET]",
+      "\t@returns enqueuefuture.Status",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "returns the progress of the running (or last) Enqueue Future run.",
+      "descriptions": [],
+      "endpoint": "/api/v1/enqueue-future/status",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "enqueuefuture.Status",
+      "returnGoType": "enqueuefuture.Status",
+      "returnTypescriptType": "EnqueueFuture_Status"
+    }
+  },
+  {
+    "name": "HandleStopEnqueueFuture",
+    "trimmedName": "StopEnqueueFuture",
+    "comments": [
+      "HandleStopEnqueueFuture",
+      "",
+      "\t@summary cancels the running Enqueue Future run.",
+      "\t@desc Everything already prepared stays in the queue.",
+      "\t@route /api/v1/enqueue-future/stop [POST]",
+      "\t@returns enqueuefuture.Status",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "cancels the running Enqueue Future run.",
+      "descriptions": [
+        "Everything already prepared stays in the queue."
+      ],
+      "endpoint": "/api/v1/enqueue-future/stop",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "enqueuefuture.Status",
+      "returnGoType": "enqueuefuture.Status",
+      "returnTypescriptType": "EnqueueFuture_Status"
+    }
+  },
+  {
+    "name": "HandleGetEnqueueFutureQueue",
+    "trimmedName": "GetEnqueueFutureQueue",
+    "comments": [
+      "HandleGetEnqueueFutureQueue",
+      "",
+      "\t@summary returns the queue in walk order.",
+      "\t@desc Snapshots are omitted — they are large, and the list view only needs titles and covers.",
+      "\t@route /api/v1/enqueue-future/queue [GET]",
+      "\t@returns []*enqueuefuture.Item",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "returns the queue in walk order.",
+      "descriptions": [
+        "Snapshots are omitted — they are large, and the list view only needs titles and covers."
+      ],
+      "endpoint": "/api/v1/enqueue-future/queue",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]*enqueuefuture.Item",
+      "returnGoType": "enqueuefuture.Item",
+      "returnTypescriptType": "Array\u003cEnqueueFuture_Item\u003e"
+    }
+  },
+  {
+    "name": "HandleGetEnqueueFutureItem",
+    "trimmedName": "GetEnqueueFutureItem",
+    "comments": [
+      "HandleGetEnqueueFutureItem",
+      "",
+      "\t@summary returns one queued anime with its prepared snapshot.",
+      "\t@desc The snapshot holds the anime entry and the torrent search results, which is everything the",
+      "\t@desc download screen needs to open without asking the server anything.",
+      "\t@param mediaId - int - true - \"AniList ID of the queued anime\"",
+      "\t@route /api/v1/enqueue-future/item/{mediaId} [GET]",
+      "\t@returns enqueuefuture.Item",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "returns one queued anime with its prepared snapshot.",
+      "descriptions": [
+        "The snapshot holds the anime entry and the torrent search results, which is everything the",
+        "download screen needs to open without asking the server anything."
+      ],
+      "endpoint": "/api/v1/enqueue-future/item/{mediaId}",
+      "methods": [
+        "GET"
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "AniList ID of the queued anime"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "enqueuefuture.Item",
+      "returnGoType": "enqueuefuture.Item",
+      "returnTypescriptType": "EnqueueFuture_Item"
+    }
+  },
+  {
+    "name": "HandleSetEnqueueFutureItemStatus",
+    "trimmedName": "SetEnqueueFutureItemStatus",
+    "comments": [
+      "HandleSetEnqueueFutureItemStatus",
+      "",
+      "\t@summary records what you did with a queued anime.",
+      "\t@desc Accepts \"downloaded\" or \"skipped\". Both are terminal — the item stays in the queue as a",
+      "\t@desc record of the decision, which is also what stops it being discovered again later.",
+      "\t@param mediaId - int - true - \"AniList ID of the queued anime\"",
+      "\t@route /api/v1/enqueue-future/item/{mediaId}/status [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "records what you did with a queued anime.",
+      "descriptions": [
+        "Accepts \"downloaded\" or \"skipped\". Both are terminal — the item stays in the queue as a",
+        "record of the decision, which is also what stops it being discovered again later."
+      ],
+      "endpoint": "/api/v1/enqueue-future/item/{mediaId}/status",
+      "methods": [
+        "POST"
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "AniList ID of the queued anime"
+          ]
+        }
+      ],
+      "bodyFields": [
+        {
+          "name": "Status",
+          "jsonName": "status",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDeleteEnqueueFutureItem",
+    "trimmedName": "DeleteEnqueueFutureItem",
+    "comments": [
+      "HandleDeleteEnqueueFutureItem",
+      "",
+      "\t@summary removes one anime from the queue.",
+      "\t@param mediaId - int - true - \"AniList ID of the queued anime\"",
+      "\t@route /api/v1/enqueue-future/item/{mediaId} [DELETE]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "removes one anime from the queue.",
+      "descriptions": [],
+      "endpoint": "/api/v1/enqueue-future/item/{mediaId}",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "AniList ID of the queued anime"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleClearEnqueueFuture",
+    "trimmedName": "ClearEnqueueFuture",
+    "comments": [
+      "HandleClearEnqueueFuture",
+      "",
+      "\t@summary empties the queue.",
+      "\t@desc Stops any run first, so the worker does not immediately refill what was just cleared.",
+      "\t@route /api/v1/enqueue-future/clear [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "empties the queue.",
+      "descriptions": [
+        "Stops any run first, so the worker does not immediately refill what was just cleared."
+      ],
+      "endpoint": "/api/v1/enqueue-future/clear",
       "methods": [
         "POST"
       ],
@@ -8912,6 +9439,50 @@
     }
   },
   {
+    "name": "ChapterQueueingPendingCount",
+    "trimmedName": "ChapterQueueingPendingCount",
+    "comments": [
+      "ChapterQueueingPendingCount returns how many chapters are still waiting to be added to the",
+      "download queue.",
+      ""
+    ],
+    "filepath": "internal/handlers/manga_download_queueing.go",
+    "filename": "manga_download_queueing.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "queueChaptersInBackground",
+    "trimmedName": "queueChaptersInBackground",
+    "comments": [
+      "queueChaptersInBackground schedules the chapters and starts the worker if it isn't running.",
+      "Returns the number of chapters actually scheduled (duplicates are dropped).",
+      ""
+    ],
+    "filepath": "internal/handlers/manga_download_queueing.go",
+    "filename": "manga_download_queueing.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetMangaFavorites",
     "trimmedName": "GetMangaFavorites",
     "comments": [
@@ -11264,6 +11835,58 @@
       "returns": "map[string]interface{}",
       "returnGoType": "interface{}",
       "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+    }
+  },
+  {
+    "name": "animeIsAlreadyTracked",
+    "trimmedName": "animeIsAlreadyTracked",
+    "comments": [
+      "animeIsAlreadyTracked reports whether an anime is already on a list and therefore must not be",
+      "(re-)added to the shared PLANNING list.",
+      "",
+      "Deliberately does not fetch anything: it consults the user's own collection, whatever shared",
+      "collection is already cached, and what this process has added. Fetching the shared collection",
+      "here would put an AniList round-trip in front of every single match.",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "addAnimeToPlanningIfAbsent",
+    "trimmedName": "addAnimeToPlanningIfAbsent",
+    "comments": [
+      "addAnimeToPlanningIfAbsent puts an anime on the shared (planning slut) PLANNING list only when it",
+      "isn't already on a list, and reports whether it actually wrote anything.",
+      "",
+      "UpdateMediaListEntry is a blind write: running it for an entry the account already tracks moves",
+      "that entry back to PLANNING and discards the status and progress it carried. Checking first also",
+      "keeps repeat matches of one series from burning a rate-limited AniList write each time.",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {
@@ -13854,6 +14477,28 @@
     }
   },
   {
+    "name": "rateLimitFromEnv",
+    "trimmedName": "rateLimitFromEnv",
+    "comments": [
+      "rateLimitFromEnv reads the per-minute request limit from SEANIME_RATE_LIMIT. Anything unset,",
+      "zero, negative or unparseable means no limit, which is the default for a personal server.",
+      ""
+    ],
+    "filepath": "internal/handlers/security_middleware.go",
+    "filename": "security_middleware.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "RateLimitMiddleware",
     "trimmedName": "RateLimitMiddleware",
     "comments": [
@@ -16067,6 +16712,29 @@
     }
   },
   {
+    "name": "lookupMediaTitle",
+    "trimmedName": "lookupMediaTitle",
+    "comments": [
+      "lookupMediaTitle resolves a media title from the profile's (or global) cached",
+      "collections so it can be embedded in activity event metadata at record time.",
+      "Returns \"\" when the media can't be found.",
+      ""
+    ],
+    "filepath": "internal/handlers/timeline.go",
+    "filename": "timeline.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "inferMediaType",
     "trimmedName": "inferMediaType",
     "comments": [
@@ -16109,6 +16777,33 @@
     }
   },
   {
+    "name": "torrentClientRepo",
+    "trimmedName": "torrentClientRepo",
+    "comments": [
+      "torrentClientRepo returns the torrent client repository, or an error explaining that there",
+      "isn't one yet.",
+      "",
+      "The repository is built when the settings are loaded, so it is nil for the whole window between",
+      "the server accepting requests and that finishing — and it stays nil if the settings never load.",
+      "Every method on it dereferences the receiver, so reaching for it unguarded is a nil-pointer",
+      "panic in the request handler, which is what a download queued during that window used to hit.",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetActiveTorrentList",
     "trimmedName": "GetActiveTorrentList",
     "comments": [
@@ -16137,6 +16832,71 @@
       "returns": "[]torrent_client.Torrent",
       "returnGoType": "torrent_client.Torrent",
       "returnTypescriptType": "Array\u003cTorrentClient_Torrent\u003e"
+    }
+  },
+  {
+    "name": "HandleGetDownloadingMediaIds",
+    "trimmedName": "GetDownloadingMediaIds",
+    "comments": [
+      "HandleGetDownloadingMediaIds",
+      "",
+      "\t@summary returns which AniList media have a download in flight, and which have just finished.",
+      "\t@desc Read from the staging directories on disk — each holds the metadata sidecar naming the",
+      "\t@desc anime its download is for — so the answer is the same across page reloads, server",
+      "\t@desc restarts and a torrent client that is momentarily unreachable. That is what lets the",
+      "\t@desc \"Downloading\" badge stay up for the whole download instead of blinking in and out.",
+      "\t@route /api/v1/torrent-client/downloading-media [GET]",
+      "\t@returns handlers.DownloadingMediaStatus",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "api": {
+      "summary": "returns which AniList media have a download in flight, and which have just finished.",
+      "descriptions": [
+        "Read from the staging directories on disk — each holds the metadata sidecar naming the",
+        "anime its download is for — so the answer is the same across page reloads, server",
+        "restarts and a torrent client that is momentarily unreachable. That is what lets the",
+        "\"Downloading\" badge stay up for the whole download instead of blinking in and out."
+      ],
+      "endpoint": "/api/v1/torrent-client/downloading-media",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.DownloadingMediaStatus",
+      "returnGoType": "handlers.DownloadingMediaStatus",
+      "returnTypescriptType": "DownloadingMediaStatus"
+    }
+  },
+  {
+    "name": "stagingDownloadFinished",
+    "trimmedName": "stagingDownloadFinished",
+    "comments": [
+      "stagingDownloadFinished reports whether the download writing into a staging directory is over.",
+      "",
+      "The torrent client is the authority whenever it can account for the directory. When it cannot —",
+      "unreachable, or the torrent removed the moment it completed — the answer is whatever the",
+      "auto-match scanner has already concluded from watching the directory itself, which is the same",
+      "evidence it acts on when it decides a download is ready to be matched.",
+      "",
+      "Failing both, the download counts as still running. The badge is meant to stay up until",
+      "something says otherwise, and \"nobody has anything to say about this one\" is not that.",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {
@@ -16319,8 +17079,48 @@
           "typescriptType": "AL_BaseAnime",
           "required": false,
           "descriptions": []
+        },
+        {
+          "name": "AutoMatch",
+          "jsonName": "autoMatch",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": false,
+          "descriptions": [
+            "AutoMatch matches the torrent to Media automatically once it finishes downloading,",
+            "instead of leaving it in the Unmatched screen for manual matching.",
+            "",
+            "AutoMatch matches the torrent to Media automatically once it finishes downloading,",
+            "instead of leaving it in the Unmatched screen for manual matching."
+          ]
         }
       ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "addManualDownloadToPlanning",
+    "trimmedName": "addManualDownloadToPlanning",
+    "comments": [
+      "addManualDownloadToPlanning adds a manually downloaded series to the shared (planning slut)",
+      "planning list, unless the main account already tracks it.",
+      "",
+      "Runs in the background: AniList is rate limited to one write per second and the download has",
+      "already been queued, so a slow or failing list update must not hold up (or fail) the request.",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
@@ -17202,6 +18002,59 @@
     }
   },
   {
+    "name": "FinalizeUnmatchedMatch",
+    "trimmedName": "FinalizeUnmatchedMatch",
+    "comments": [
+      "FinalizeUnmatchedMatch performs everything that follows a successful file move: it injects",
+      "the moved files into the library database as hydrated, locked local files, adds the anime to",
+      "the planning list, refreshes the unmatched view and re-pulls the AniList collection.",
+      "",
+      "Shared by the manual match endpoint and the automatic post-download match, so an auto-match",
+      "produces exactly the same result as matching by hand. Safe to call in a goroutine.",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched.go",
+    "filename": "unmatched.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "scheduleAnimeCollectionRefresh",
+    "trimmedName": "scheduleAnimeCollectionRefresh",
+    "comments": [
+      "scheduleAnimeCollectionRefresh queues the expensive tail of a match — the unmatched re-scan and",
+      "the AniList collection refresh — and coalesces repeated calls into a single run.",
+      "",
+      "Running these inline per match is what made matching get progressively slower over a session:",
+      "every match forced a full AniList collection refetch (rate limited, and slower the larger the",
+      "collection gets) and a fresh scan of the whole staging directory, all while the next match was",
+      "competing for the same disk and API budget.",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched.go",
+    "filename": "unmatched.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleUnmatchedFamilySearch",
     "trimmedName": "UnmatchedFamilySearch",
     "comments": [
@@ -17386,6 +18239,469 @@
           "descriptions": []
         }
       ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetUnmatchedDiagnostics",
+    "trimmedName": "GetUnmatchedDiagnostics",
+    "comments": [
+      "HandleGetUnmatchedDiagnostics",
+      "",
+      "\t@summary reports why downloads are or aren't showing up in the Unmatched screen.",
+      "\t@desc This handler reports the whole download chain: what the torrent client is writing and",
+      "\t@desc where, what is in the staging folder, and what the scanner makes of each directory.",
+      "\t@route /api/v1/unmatched/diagnostics [GET]",
+      "\t@returns unmatchedDiagnostics",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_diagnostics.go",
+    "filename": "unmatched_diagnostics.go",
+    "api": {
+      "summary": "reports why downloads are or aren't showing up in the Unmatched screen.",
+      "descriptions": [
+        "This handler reports the whole download chain: what the torrent client is writing and",
+        "where, what is in the staging folder, and what the scanner makes of each directory."
+      ],
+      "endpoint": "/api/v1/unmatched/diagnostics",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "unmatchedDiagnostics",
+      "returnGoType": "unmatchedDiagnostics",
+      "returnTypescriptType": "unmatchedDiagnostics"
+    }
+  },
+  {
+    "name": "inspectStagingDir",
+    "trimmedName": "inspectStagingDir",
+    "comments": [
+      "inspectStagingDir counts what a staging directory holds, and whether anything in it is still",
+      "being written under a temporary name.",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_diagnostics.go",
+    "filename": "unmatched_diagnostics.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "isWritableDir",
+    "trimmedName": "isWritableDir",
+    "comments": [
+      "isWritableDir reports whether the server can create files in a directory. A staging folder the",
+      "server can read but not write is a download that will never be matched.",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_diagnostics.go",
+    "filename": "unmatched_diagnostics.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetUnmatchedMatchHistory",
+    "trimmedName": "GetUnmatchedMatchHistory",
+    "comments": [
+      "HandleGetUnmatchedMatchHistory",
+      "",
+      "\t@summary returns the matches that can be undone.",
+      "\t@desc This handler returns every recorded match from the Unmatched screen, newest first, with",
+      "\t@desc the original and new name of each file and whether it can still be restored.",
+      "\t@route /api/v1/unmatched/history [GET]",
+      "\t@returns []*unmatched.MatchHistoryEntry",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_history.go",
+    "filename": "unmatched_history.go",
+    "api": {
+      "summary": "returns the matches that can be undone.",
+      "descriptions": [
+        "This handler returns every recorded match from the Unmatched screen, newest first, with",
+        "the original and new name of each file and whether it can still be restored."
+      ],
+      "endpoint": "/api/v1/unmatched/history",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]*unmatched.MatchHistoryEntry",
+      "returnGoType": "unmatched.MatchHistoryEntry",
+      "returnTypescriptType": "Array\u003cMatchHistoryEntry\u003e"
+    }
+  },
+  {
+    "name": "HandleGetUnmatchedMatchHistoryEntry",
+    "trimmedName": "GetUnmatchedMatchHistoryEntry",
+    "comments": [
+      "HandleGetUnmatchedMatchHistoryEntry",
+      "",
+      "\t@summary returns a single recorded match.",
+      "\t@desc This handler returns one recorded match with the current state of every file it moved,",
+      "\t@desc which is what the revert confirmation is built from.",
+      "\t@route /api/v1/unmatched/history/entry [POST]",
+      "\t@returns *unmatched.MatchHistoryEntry",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_history.go",
+    "filename": "unmatched_history.go",
+    "api": {
+      "summary": "returns a single recorded match.",
+      "descriptions": [
+        "This handler returns one recorded match with the current state of every file it moved,",
+        "which is what the revert confirmation is built from."
+      ],
+      "endpoint": "/api/v1/unmatched/history/entry",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ID",
+          "jsonName": "id",
+          "goType": "uint",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "*unmatched.MatchHistoryEntry",
+      "returnGoType": "unmatched.MatchHistoryEntry",
+      "returnTypescriptType": "MatchHistoryEntry"
+    }
+  },
+  {
+    "name": "HandleRevertUnmatchedMatch",
+    "trimmedName": "RevertUnmatchedMatch",
+    "comments": [
+      "HandleRevertUnmatchedMatch",
+      "",
+      "\t@summary undoes a match, moving its files back to the Unmatched folder.",
+      "\t@desc This handler restores every file a match moved to the exact path and name it had before,",
+      "\t@desc removes the library entries the match created, and puts the torrent's metadata back.",
+      "\t@route /api/v1/unmatched/history/revert [POST]",
+      "\t@returns *unmatched.RevertResult",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_history.go",
+    "filename": "unmatched_history.go",
+    "api": {
+      "summary": "undoes a match, moving its files back to the Unmatched folder.",
+      "descriptions": [
+        "This handler restores every file a match moved to the exact path and name it had before,",
+        "removes the library entries the match created, and puts the torrent's metadata back."
+      ],
+      "endpoint": "/api/v1/unmatched/history/revert",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ID",
+          "jsonName": "id",
+          "goType": "uint",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Confirmed",
+          "jsonName": "confirmed",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": true,
+          "descriptions": [
+            "Confirmed is the client's acknowledgement that the user was shown what the revert will",
+            "do and said yes. A revert moves files across the disk, so it is never performed on the",
+            "strength of an ID alone.",
+            "",
+            "Confirmed is the client's acknowledgement that the user was shown what the revert will",
+            "do and said yes. A revert moves files across the disk, so it is never performed on the",
+            "strength of an ID alone."
+          ]
+        }
+      ],
+      "returns": "*unmatched.RevertResult",
+      "returnGoType": "unmatched.RevertResult",
+      "returnTypescriptType": "RevertResult"
+    }
+  },
+  {
+    "name": "HandleDismissUnmatchedMatchRecord",
+    "trimmedName": "DismissUnmatchedMatchRecord",
+    "comments": [
+      "HandleDismissUnmatchedMatchRecord",
+      "",
+      "\t@summary keeps a match and takes it off the undo list.",
+      "\t@desc This handler deletes the record of a match without touching a single file.",
+      "\t@route /api/v1/unmatched/history/dismiss [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_history.go",
+    "filename": "unmatched_history.go",
+    "api": {
+      "summary": "keeps a match and takes it off the undo list.",
+      "descriptions": [
+        "This handler deletes the record of a match without touching a single file."
+      ],
+      "endpoint": "/api/v1/unmatched/history/dismiss",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "ID",
+          "jsonName": "id",
+          "goType": "uint",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "removeRevertedLocalFiles",
+    "trimmedName": "removeRevertedLocalFiles",
+    "comments": [
+      "removeRevertedLocalFiles drops the library entries a match injected for the files a revert has",
+      "just moved back out. Without this the library keeps pointing at paths that no longer exist, and",
+      "the anime carries on showing episodes that are sitting in the Unmatched folder again.",
+      "",
+      "Entries are matched on path, compared the way the filesystem does — the match wrote them with",
+      "forward slashes, and a user's library may well be on Windows.",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_history.go",
+    "filename": "unmatched_history.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "normalizeLocalFilePath",
+    "trimmedName": "normalizeLocalFilePath",
+    "comments": [
+      "normalizeLocalFilePath puts a path into the one form the comparison above can rely on: forward",
+      "slashes, lowercased. Local file paths are written by several different code paths (the scanner,",
+      "the match injection) and on Windows they disagree on separator and on drive-letter case.",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_history.go",
+    "filename": "unmatched_history.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleSweepUnmatchedTorrents",
+    "trimmedName": "SweepUnmatchedTorrents",
+    "comments": [
+      "HandleSweepUnmatchedTorrents",
+      "",
+      "\t@summary matches every staged download that already knows which anime it is for.",
+      "\t@desc This handler starts a background sweep that runs the ordinary match over each unmatched",
+      "\t@desc download carrying a recorded AniList ID. Downloads with no recorded anime, and ones the",
+      "\t@desc torrent client still reports as in progress, are left alone. Poll the status endpoint for",
+      "\t@desc progress. Starting a sweep while one is running is a no-op.",
+      "\t@route /api/v1/unmatched/match-all [POST]",
+      "\t@returns UnmatchedSweepStatus",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_sweep.go",
+    "filename": "unmatched_sweep.go",
+    "api": {
+      "summary": "matches every staged download that already knows which anime it is for.",
+      "descriptions": [
+        "This handler starts a background sweep that runs the ordinary match over each unmatched",
+        "download carrying a recorded AniList ID. Downloads with no recorded anime, and ones the",
+        "torrent client still reports as in progress, are left alone. Poll the status endpoint for",
+        "progress. Starting a sweep while one is running is a no-op."
+      ],
+      "endpoint": "/api/v1/unmatched/match-all",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "UnmatchedSweepStatus",
+      "returnGoType": "UnmatchedSweepStatus",
+      "returnTypescriptType": "UnmatchedSweepStatus"
+    }
+  },
+  {
+    "name": "HandleGetUnmatchedSweepStatus",
+    "trimmedName": "GetUnmatchedSweepStatus",
+    "comments": [
+      "HandleGetUnmatchedSweepStatus",
+      "",
+      "\t@summary returns the progress of the \"match all\" sweep.",
+      "\t@desc This handler reports how far the sweep has got, and what it could not match. Safe to poll.",
+      "\t@route /api/v1/unmatched/match-all/status [GET]",
+      "\t@returns UnmatchedSweepStatus",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_sweep.go",
+    "filename": "unmatched_sweep.go",
+    "api": {
+      "summary": "returns the progress of the \"match all\" sweep.",
+      "descriptions": [
+        "This handler reports how far the sweep has got, and what it could not match. Safe to poll."
+      ],
+      "endpoint": "/api/v1/unmatched/match-all/status",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "UnmatchedSweepStatus",
+      "returnGoType": "UnmatchedSweepStatus",
+      "returnTypescriptType": "UnmatchedSweepStatus"
+    }
+  },
+  {
+    "name": "HandleStopUnmatchedSweep",
+    "trimmedName": "StopUnmatchedSweep",
+    "comments": [
+      "HandleStopUnmatchedSweep",
+      "",
+      "\t@summary asks the running \"match all\" sweep to stop.",
+      "\t@desc This handler stops the sweep after the download it is currently matching. Files already",
+      "\t@desc moved stay moved — a match is not undone by stopping the sweep.",
+      "\t@route /api/v1/unmatched/match-all/stop [POST]",
+      "\t@returns UnmatchedSweepStatus",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_sweep.go",
+    "filename": "unmatched_sweep.go",
+    "api": {
+      "summary": "asks the running \"match all\" sweep to stop.",
+      "descriptions": [
+        "This handler stops the sweep after the download it is currently matching. Files already",
+        "moved stay moved — a match is not undone by stopping the sweep."
+      ],
+      "endpoint": "/api/v1/unmatched/match-all/stop",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "UnmatchedSweepStatus",
+      "returnGoType": "UnmatchedSweepStatus",
+      "returnTypescriptType": "UnmatchedSweepStatus"
+    }
+  },
+  {
+    "name": "runUnmatchedSweep",
+    "trimmedName": "runUnmatchedSweep",
+    "comments": [
+      "runUnmatchedSweep works through the staged downloads one at a time.",
+      "",
+      "Sequential on purpose. Every match moves files and then hydrates episode metadata from AniList;",
+      "running them in parallel would put hundreds of rate-limited requests in flight at once and have",
+      "the moves compete for the same disk, which is slower overall as well as far harder to report on.",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_sweep.go",
+    "filename": "unmatched_sweep.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "sweepOne",
+    "trimmedName": "sweepOne",
+    "comments": [
+      "sweepOne matches a single staged download and records the outcome.",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_sweep.go",
+    "filename": "unmatched_sweep.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "recordSweepFailure",
+    "trimmedName": "recordSweepFailure",
+    "comments": [
+      "recordSweepFailure counts a failure and keeps its detail, up to sweepMaxErrors.",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched_sweep.go",
+    "filename": "unmatched_sweep.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"

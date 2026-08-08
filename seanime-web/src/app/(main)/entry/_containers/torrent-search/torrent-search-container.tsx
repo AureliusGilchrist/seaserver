@@ -8,7 +8,11 @@ import { DebridStreamFileSelectionModal } from "@/app/(main)/entry/_containers/d
 import { TorrentListItem } from "@/app/(main)/entry/_containers/torrent-search/_components/torrent-preview-item"
 import { TorrentPreviewList } from "@/app/(main)/entry/_containers/torrent-search/_components/torrent-preview-list"
 import { TorrentTable } from "@/app/(main)/entry/_containers/torrent-search/_components/torrent-table"
-import { Torrent_SearchType, useHandleTorrentSearch } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-search"
+import {
+    Torrent_SearchType,
+    TorrentSearchSnapshot,
+    useHandleTorrentSearch,
+} from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-search"
 import { useTorrentSearchSelectedStreamEpisode } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-selection"
 import { TorrentDownloadFileSelection } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-file-selection"
 import { __torrentDownload_autoMatchAtom, TorrentDownloadModal } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-modal"
@@ -38,7 +42,23 @@ import { LuCornerLeftDown, LuFileSearch, LuPlus } from "react-icons/lu"
 
 export const __torrentSearch_selectedTorrentsAtom = atom<HibikeTorrent_AnimeTorrent[]>([])
 
-export function TorrentSearchContainer({ type, entry }: { type: TorrentSelectionType, entry: Anime_Entry }) {
+export function TorrentSearchContainer({
+    type, entry, snapshot, onDownloadStarted, confirmAutoMatchOnce, autoMatchValue, onAutoMatchChange,
+}: {
+    type: TorrentSelectionType,
+    entry: Anime_Entry,
+    /**
+     * Torrent results already fetched for this anime. Enqueue Future prepares them in the
+     * background so its queue opens instantly; everywhere else this is absent and the search runs
+     * on mount as it always has.
+     */
+    snapshot?: TorrentSearchSnapshot,
+    onDownloadStarted?: () => void,
+    confirmAutoMatchOnce?: boolean,
+    /** Decide auto-match per anime instead of using the shared, persisted preference. */
+    autoMatchValue?: boolean,
+    onAutoMatchChange?: (value: boolean) => void,
+}) {
     const downloadInfo = React.useMemo(() => entry.downloadInfo, [entry.downloadInfo])
     const serverStatus = useServerStatus()
 
@@ -50,8 +70,11 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
     // is now the default everywhere; the "Batches" switch still turns it off per search.
     const shouldLookForBatches = true
 
-    // Shared with the download confirmation modal, so the choice made here carries through.
-    const [autoMatch, setAutoMatch] = useAtom(__torrentDownload_autoMatchAtom)
+    // Shared with the download confirmation modal, so the choice made here carries through. A
+    // caller deciding auto-match per anime rather than app-wide supplies its own value and setter.
+    const [globalAutoMatch, setGlobalAutoMatch] = useAtom(__torrentDownload_autoMatchAtom)
+    const autoMatch = autoMatchValue ?? globalAutoMatch
+    const setAutoMatch = onAutoMatchChange ?? setGlobalAutoMatch
 
     const hasEpisodesToDownload = React.useMemo(() => !!downloadInfo?.episodesToDownload?.length, [downloadInfo?.episodesToDownload?.length])
     const [isAdult, setIsAdult] = React.useState(entry.media?.isAdult === true)
@@ -94,6 +117,7 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
         downloadInfo,
         entry,
         type,
+        snapshot,
     })
 
     React.useEffect(() => {
@@ -496,6 +520,10 @@ export function TorrentSearchContainer({ type, entry }: { type: TorrentSelection
                 onToggleTorrent={handleToggleTorrent}
                 media={entry.media!!}
                 entry={entry}
+                onDownloadStarted={onDownloadStarted}
+                confirmAutoMatchOnce={confirmAutoMatchOnce}
+                autoMatchValue={autoMatchValue}
+                onAutoMatchChange={onAutoMatchChange}
             />}
 
             {type === "download" && <TorrentDownloadFileSelection entry={entry} />}

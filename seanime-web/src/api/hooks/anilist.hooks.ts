@@ -16,7 +16,7 @@ import {
     AL_Stats,
     AL_StudioDetails,
     AL_StaffDetails,
-    Handlers_AddToPlanningResponse,
+    AddToPlanningResponse,
     Nullish,
 } from "@/api/generated/types"
 import { useQueryClient } from "@tanstack/react-query"
@@ -68,10 +68,10 @@ export function useRefreshAnimeCollection() {
 export function useAddAnimeToPlanning(mediaId: Nullish<string | number>) {
     const queryClient = useQueryClient()
 
-    return useServerMutation<Handlers_AddToPlanningResponse, AddAnimeToPlanning_Variables>({
-        endpoint: API_ENDPOINTS.ANILIST.AddAnimeToPlanning.endpoint,
-        method: API_ENDPOINTS.ANILIST.AddAnimeToPlanning.methods[0],
-        mutationKey: [API_ENDPOINTS.ANILIST.AddAnimeToPlanning.key, String(mediaId)],
+    return useServerMutation<AddToPlanningResponse, AddAnimeToPlanning_Variables>({
+        endpoint: API_ENDPOINTS.ANILIST_PLANNING.AddAnimeToPlanning.endpoint,
+        method: API_ENDPOINTS.ANILIST_PLANNING.AddAnimeToPlanning.methods[0],
+        mutationKey: [API_ENDPOINTS.ANILIST_PLANNING.AddAnimeToPlanning.key, String(mediaId)],
         onSuccess: async (data) => {
             if (data?.queued) {
                 toast.info("AniList is unreachable — queued, it'll sync automatically")

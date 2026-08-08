@@ -236,6 +236,21 @@ export type AnilistListRecentAiringAnime_Variables = {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// anilist_planning
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/handlers/anilist_planning.go
+ * - Filename: anilist_planning.go
+ * - Endpoint: /api/v1/anilist/planning
+ * @description
+ * Route adds an anime to the signed-in user's own AniList PLANNING list.
+ */
+export type AddAnimeToPlanning_Variables = {
+    mediaId: number
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // anime
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -351,6 +366,17 @@ export type GetAnimeEntrySilenceStatus_Variables = {
 /**
  * - Filepath: internal/handlers/anime_entries.go
  * - Filename: anime_entries.go
+ * - Endpoint: /api/v1/library/anime-entry/reset-metadata
+ * @description
+ * Route clears every cached metadata entry for a single anime.
+ */
+export type ResetAnimeEntryMetadata_Variables = {
+    mediaId: number
+}
+
+/**
+ * - Filepath: internal/handlers/anime_entries.go
+ * - Filename: anime_entries.go
  * - Endpoint: /api/v1/library/anime-entry/silence
  * @description
  * Route toggles the silence status of a media entry.
@@ -383,6 +409,21 @@ export type UpdateAnimeEntryProgress_Variables = {
 export type UpdateAnimeEntryRepeat_Variables = {
     mediaId: number
     repeat: number
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// anime_entry_refresh
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/handlers/anime_entry_refresh.go
+ * - Filename: anime_entry_refresh.go
+ * - Endpoint: /api/v1/library/anime-entry/refresh-stats
+ * @description
+ * Route rebuilds everything the server knows about one anime entry.
+ */
+export type RefreshAnimeEntryStats_Variables = {
+    mediaId: number
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -861,33 +902,20 @@ export type DirectstreamPlayLocalFile_Variables = {
  * @description
  * Route converts subtitles from one format to another.
  */
-/**
- * - Filepath: internal/handlers/anime_entries.go
- * - Filename: anime_entries.go
- * - Endpoint: /api/v1/library/anime-entry/reset-metadata
- * @description
- * Route clears every cached metadata entry for a single anime.
- */
-/**
- * - Filepath: internal/handlers/anilist_planning.go
- * - Filename: anilist_planning.go
- * - Endpoint: /api/v1/anilist/planning
- * @description
- * Route adds an anime to the signed-in user's own AniList PLANNING list.
- */
-export type AddAnimeToPlanning_Variables = {
-    mediaId: number
-}
-
-export type ResetAnimeEntryMetadata_Variables = {
-    mediaId: number
-}
-
 export type DirectstreamConvertSubs_Variables = {
     url: string
     content: string
     to: string
-    headers?: Record<string, string>
+    /**
+     *  Headers are the request headers the extension supplied for the video source
+     *  (typically Referer/Origin). Subtitle CDNs behind hotlink protection reject
+     *  requests that don't carry the same headers as the video request.
+     *  
+     *  Headers are the request headers the extension supplied for the video source
+     *  (typically Referer/Origin). Subtitle CDNs behind hotlink protection reject
+     *  requests that don't carry the same headers as the video request.
+     */
+    headers: Record<string, string>
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -935,7 +963,7 @@ export type SetDiscordLegacyAnimeActivity_Variables = {
  * Route sets anime activity for discord rich presence with progress.
  */
 export type SetDiscordAnimeActivityWithProgress_Variables = {
-    clientId?: string
+    clientId: string
     mediaId: number
     title: string
     image: string
@@ -956,14 +984,21 @@ export type SetDiscordAnimeActivityWithProgress_Variables = {
  * Route updates the anime activity for discord rich presence with progress.
  */
 export type UpdateDiscordAnimeActivityWithProgress_Variables = {
-    clientId?: string
+    clientId: string
     progress: number
     duration: number
     paused: boolean
 }
 
+/**
+ * - Filepath: internal/handlers/discord.go
+ * - Filename: discord.go
+ * - Endpoint: /api/v1/discord/presence/cancel
+ * @description
+ * Route cancels the current discord rich presence activity.
+ */
 export type CancelDiscordActivity_Variables = {
-    clientId?: string
+    clientId: string
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1019,6 +1054,61 @@ export type DownloadMacDenshiUpdate_Variables = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // enmasse
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// enqueue_future
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/handlers/enqueue_future.go
+ * - Filename: enqueue_future.go
+ * - Endpoint: /api/v1/enqueue-future/enqueue
+ * @description
+ * Route starts preparing the recommendation graph around an anime.
+ */
+export type EnqueueFuture_Variables = {
+    mediaId: number
+    title: string
+}
+
+/**
+ * - Filepath: internal/handlers/enqueue_future.go
+ * - Filename: enqueue_future.go
+ * - Endpoint: /api/v1/enqueue-future/item/{mediaId}
+ * @description
+ * Route returns one queued anime with its prepared snapshot.
+ */
+export type GetEnqueueFutureItem_Variables = {
+    /**
+     *  AniList ID of the queued anime
+     */
+    mediaId: number
+}
+
+/**
+ * - Filepath: internal/handlers/enqueue_future.go
+ * - Filename: enqueue_future.go
+ * - Endpoint: /api/v1/enqueue-future/item/{mediaId}/status
+ * @description
+ * Route records what you did with a queued anime.
+ */
+export type SetEnqueueFutureItemStatus_Variables = {
+    status: string
+}
+
+/**
+ * - Filepath: internal/handlers/enqueue_future.go
+ * - Filename: enqueue_future.go
+ * - Endpoint: /api/v1/enqueue-future/item/{mediaId}
+ * @description
+ * Route removes one anime from the queue.
+ */
+export type DeleteEnqueueFutureItem_Variables = {
+    /**
+     *  AniList ID of the queued anime
+     */
+    mediaId: number
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // entity_favorite
@@ -1648,6 +1738,10 @@ export type GetMangaDownloadData_Variables = {
 export type DeleteMangaDownloadedChapters_Variables = {
     downloadIds: Array<ChapterDownloader_DownloadID>
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// manga_download_queueing
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // manga_favorite
@@ -2617,8 +2711,11 @@ export type TorrentClientDownload_Variables = {
     deselect?: { enabled: boolean; indices: Array<number>; }
     media?: AL_BaseAnime
     /**
-     * Match the torrent to `media` automatically once it finishes downloading, instead of
-     * leaving it in the Unmatched screen for manual matching.
+     *  AutoMatch matches the torrent to Media automatically once it finishes downloading,
+     *  instead of leaving it in the Unmatched screen for manual matching.
+     *  
+     *  AutoMatch matches the torrent to Media automatically once it finishes downloading,
+     *  instead of leaving it in the Unmatched screen for manual matching.
      */
     autoMatch?: boolean
 }
@@ -2818,6 +2915,61 @@ export type GetUnmatchedDestination_Variables = {
 export type ClearCompletedTorrent_Variables = {
     torrentName: string
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// unmatched_diagnostics
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// unmatched_history
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/handlers/unmatched_history.go
+ * - Filename: unmatched_history.go
+ * - Endpoint: /api/v1/unmatched/history/entry
+ * @description
+ * Route returns a single recorded match.
+ */
+export type GetUnmatchedMatchHistoryEntry_Variables = {
+    id: number
+}
+
+/**
+ * - Filepath: internal/handlers/unmatched_history.go
+ * - Filename: unmatched_history.go
+ * - Endpoint: /api/v1/unmatched/history/revert
+ * @description
+ * Route undoes a match, moving its files back to the Unmatched folder.
+ */
+export type RevertUnmatchedMatch_Variables = {
+    id: number
+    /**
+     *  Confirmed is the client's acknowledgement that the user was shown what the revert will
+     *  do and said yes. A revert moves files across the disk, so it is never performed on the
+     *  strength of an ID alone.
+     *  
+     *  Confirmed is the client's acknowledgement that the user was shown what the revert will
+     *  do and said yes. A revert moves files across the disk, so it is never performed on the
+     *  strength of an ID alone.
+     */
+    confirmed: boolean
+}
+
+/**
+ * - Filepath: internal/handlers/unmatched_history.go
+ * - Filename: unmatched_history.go
+ * - Endpoint: /api/v1/unmatched/history/dismiss
+ * @description
+ * Route keeps a match and takes it off the undo list.
+ */
+export type DismissUnmatchedMatchRecord_Variables = {
+    id: number
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// unmatched_sweep
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // websocket

@@ -2727,6 +2727,101 @@ export type MangaDownloaderStatus = {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Enqueuefuture
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/enqueuefuture/types.go
+ * - Filename: types.go
+ * - Package: enqueuefuture
+ * @description
+ *  Item is one queue row as the frontend sees it. The snapshot is only present on the single-item
+ *  endpoint; the list endpoint leaves it nil.
+ */
+export type EnqueueFuture_Item = {
+    mediaId: number
+    rootMediaId: number
+    position: number
+    depth: number
+    status: string
+    attempts: number
+    lastError: string
+    title: string
+    coverImage: string
+    createdAt?: string
+    snapshot?: EnqueueFuture_Snapshot
+}
+
+/**
+ * - Filepath: internal/enqueuefuture/types.go
+ * - Filename: types.go
+ * - Package: enqueuefuture
+ * @description
+ *  SearchParams are the torrent search settings a snapshot was produced with.
+ *  
+ *  This is deliberately only the scalars, not the media object: the queue screen compares these
+ *  against what its search UI is currently asking for, to decide whether the stored results still
+ *  answer the question. Media never varies within an item, so including it would only make an
+ *  expensive comparison out of a cheap one.
+ */
+export type EnqueueFuture_SearchParams = {
+    type: string
+    provider: string
+    query: string
+    episodeNumber: number
+    batch: boolean
+    absoluteOffset: number
+    resolution: string
+    bestRelease: boolean
+}
+
+/**
+ * - Filepath: internal/enqueuefuture/types.go
+ * - Filename: types.go
+ * - Package: enqueuefuture
+ * @description
+ *  Snapshot is everything the download screen for one queued anime needs, prepared in advance.
+ *  
+ *  It is stored as a JSON blob rather than as columns because none of it is ever queried on — the
+ *  queue looks items up by media ID and hands the whole thing to the frontend untouched.
+ */
+export type EnqueueFuture_Snapshot = {
+    entry?: Anime_Entry
+    searchData?: Torrent_SearchData
+    searchParams: EnqueueFuture_SearchParams
+    providerId: string
+    preparedAt?: string
+}
+
+/**
+ * - Filepath: internal/enqueuefuture/types.go
+ * - Filename: types.go
+ * - Package: enqueuefuture
+ * @description
+ *  Status is the progress of a running (or the last) Enqueue Future run.
+ */
+export type EnqueueFuture_Status = {
+    running: boolean
+    rootMediaId: number
+    rootTitle: string
+    discovered: number
+    prepared: number
+    failed: number
+    skipped: number
+    cap: number
+    currentTitle: string
+    rateLimited: boolean
+    retryAt?: string
+    backoffRung: number
+    backoffRungs: number
+    backoffAttempt: number
+    backoffAttempts: number
+    lastError: string
+    startedAt?: string
+    finishedAt?: string
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Extension
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -3164,6 +3259,18 @@ export type SortEntry = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * - Filepath: internal/handlers/anilist_planning.go
+ * - Filename: anilist_planning.go
+ * - Package: handlers
+ * @description
+ *  AddToPlanningResponse is the result of adding an anime to the user's planning list.
+ */
+export type AddToPlanningResponse = {
+    added: boolean
+    queued: boolean
+}
+
+/**
  * - Filepath: internal/handlers/anime_collection.go
  * - Filename: anime_collection.go
  * - Package: handlers
@@ -3277,6 +3384,19 @@ export type DirectorySelectorResponse = {
 export type DownloadReleaseResponse = {
     destination: string
     error?: string
+}
+
+/**
+ * - Filepath: internal/handlers/torrent_client.go
+ * - Filename: torrent_client.go
+ * - Package: handlers
+ * @description
+ *  DownloadingMediaStatus is what the client needs in order to decide, for each anime, whether to
+ *  show the "downloading" badge or the "in your library" one — never both.
+ */
+export type DownloadingMediaStatus = {
+    downloading?: Array<number>
+    finished?: Array<number>
 }
 
 /**
@@ -4688,6 +4808,7 @@ export type Models_ChapterDownloadQueueItem = {
      * Total number of pages
      */
     totalPages: number
+    enMasse: boolean
     id: number
     createdAt?: string
     updatedAt?: string
@@ -6204,6 +6325,48 @@ export type Torrentstream_TorrentStatus = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * - Filepath: internal/unmatched/history.go
+ * - Filename: history.go
+ * - Package: unmatched
+ * @description
+ *  MatchHistoryEntry is one match as the undo screen sees it.
+ */
+export type MatchHistoryEntry = {
+    id: number
+    torrentName: string
+    animeId: number
+    animeTitle: string
+    destination: string
+    stagingPath: string
+    matchedAt?: string
+    revertedAt?: string
+    files?: Array<MatchHistoryFileStatus>
+    deletedFiles?: Array<string>
+    readyCount: number
+    missingCount: number
+    blockedCount: number
+    restoredCount: number
+    revert?: RevertOutcome
+}
+
+/**
+ * - Filepath: internal/unmatched/history.go
+ * - Filename: history.go
+ * - Package: unmatched
+ * @description
+ *  MatchHistoryFileStatus is a recorded file plus what a revert would (or did) do with it.
+ */
+export type MatchHistoryFileStatus = {
+    status: string
+    originalName: string
+    originalRelPath: string
+    originalPath: string
+    newName: string
+    newPath: string
+    size: number
+}
+
+/**
  * - Filepath: internal/unmatched/repository.go
  * - Filename: repository.go
  * - Package: unmatched
@@ -6214,7 +6377,72 @@ export type MatchResult = {
     success: boolean
     movedFiles?: Array<string>
     failedFiles?: Array<string>
+    removedFiles?: Array<string>
     destination: string
+    errorMessage?: string
+}
+
+/**
+ * - Filepath: internal/unmatched/history.go
+ * - Filename: history.go
+ * - Package: unmatched
+ * @description
+ *  RestoredFile is one file a revert moved back, reported so callers can undo what they did with
+ *  it — the library database entry the match injected, in particular.
+ */
+export type RestoredFile = {
+    newPath: string
+    newName: string
+    originalPath: string
+    originalRelPath: string
+}
+
+/**
+ * - Filepath: internal/unmatched/history.go
+ * - Filename: history.go
+ * - Package: unmatched
+ * @description
+ *  RevertFailure is one file a revert could not put back, and why.
+ */
+export type RevertFailure = {
+    name: string
+    reason: string
+}
+
+/**
+ * - Filepath: internal/unmatched/history.go
+ * - Filename: history.go
+ * - Package: unmatched
+ * @description
+ *  RevertOutcome is what a completed revert managed to do.
+ */
+export type RevertOutcome = {
+    revertedAt?: string
+    restored?: Array<string>
+    missing?: Array<string>
+    failed?: Array<RevertFailure>
+    destinationRemoved: boolean
+}
+
+/**
+ * - Filepath: internal/unmatched/history.go
+ * - Filename: history.go
+ * - Package: unmatched
+ * @description
+ *  RevertResult is the outcome of undoing a match.
+ */
+export type RevertResult = {
+    success: boolean
+    id: number
+    torrentName: string
+    animeId: number
+    animeTitle: string
+    stagingPath: string
+    restored?: Array<RestoredFile>
+    missing?: Array<string>
+    failed?: Array<RevertFailure>
+    deletedFiles?: Array<string>
+    destinationRemoved: boolean
     errorMessage?: string
 }
 
@@ -6291,6 +6519,7 @@ export type UnmatchedTorrent = {
     animeFormat?: string
     animeStartYear?: number
     animeExpectedEpisodes?: number
+    autoMatch?: boolean
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -6732,19 +6961,6 @@ export type VideoCore_VideoSource = {
  * @description
  *  VideoSubtitleTrack is an external subtitle track.
  */
-/**
- * - Filepath: internal/handlers/anilist_planning.go
- * - Filename: anilist_planning.go
- * - Package: handlers
- */
-export type Handlers_AddToPlanningResponse = {
-    added: boolean
-    /**
-     * True when AniList was unreachable and the change was stored for replay.
-     */
-    queued: boolean
-}
-
 export type VideoCore_VideoSubtitleTrack = {
     index: number
     src?: string
@@ -6761,10 +6977,6 @@ export type VideoCore_VideoSubtitleTrack = {
      * e.g., "S_TEXT/ASS" for codec matching
      */
     codecID?: string
-    /**
-     * Request headers required to fetch `src` (Referer/Origin/User-Agent).
-     * Set for online streams whose subtitle CDN enforces hotlink protection.
-     */
     headers?: Record<string, string>
 }
 

@@ -55,6 +55,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 		"/api/v1/enmasse/manga/status",
 		"/api/v1/manga/hydrate-all/status",
 		"/api/v1/library/hydrate-all/status",
+		"/api/v1/enqueue-future/status",
 	}
 
 	// Logging middleware
@@ -825,6 +826,19 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Unmatched.POST("/history/entry", h.HandleGetUnmatchedMatchHistoryEntry)
 	v1Unmatched.POST("/history/revert", h.HandleRevertUnmatchedMatch)
 	v1Unmatched.POST("/history/dismiss", h.HandleDismissUnmatchedMatchRecord)
+
+	//
+	// Enqueue Future
+	//
+	v1EnqueueFuture := v1.Group("/enqueue-future")
+	v1EnqueueFuture.POST("/enqueue", h.HandleEnqueueFuture)
+	v1EnqueueFuture.GET("/status", h.HandleGetEnqueueFutureStatus)
+	v1EnqueueFuture.POST("/stop", h.HandleStopEnqueueFuture)
+	v1EnqueueFuture.GET("/queue", h.HandleGetEnqueueFutureQueue)
+	v1EnqueueFuture.GET("/item/:mediaId", h.HandleGetEnqueueFutureItem)
+	v1EnqueueFuture.POST("/item/:mediaId/status", h.HandleSetEnqueueFutureItemStatus)
+	v1EnqueueFuture.DELETE("/item/:mediaId", h.HandleDeleteEnqueueFutureItem)
+	v1EnqueueFuture.POST("/clear", h.HandleClearEnqueueFuture)
 
 	//
 	// En Masse Downloader

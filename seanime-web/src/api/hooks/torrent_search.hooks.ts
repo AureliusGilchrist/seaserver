@@ -4,7 +4,18 @@ import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { Anime_AutoSelectProfile, Torrent_SearchData } from "@/api/generated/types"
 import { useQueryClient } from "@tanstack/react-query"
 
-export function useSearchTorrent(variables: SearchTorrent_Variables, enabled: boolean) {
+/**
+ * `seed` pre-fills the results for a search that has already been run elsewhere — Enqueue Future
+ * prepares them on the server ahead of time, so the queue screen paints without a request.
+ *
+ * The caller is responsible for only passing it while the seed actually answers the search being
+ * made; the moment the provider or any filter changes, drop it and this fetches normally.
+ */
+export function useSearchTorrent(
+    variables: SearchTorrent_Variables,
+    enabled: boolean,
+    seed?: { data: Torrent_SearchData, preparedAt?: number },
+) {
     return useServerQuery<Torrent_SearchData, SearchTorrent_Variables>({
         endpoint: API_ENDPOINTS.TORRENT_SEARCH.SearchTorrent.endpoint,
         method: API_ENDPOINTS.TORRENT_SEARCH.SearchTorrent.methods[0],
@@ -12,6 +23,10 @@ export function useSearchTorrent(variables: SearchTorrent_Variables, enabled: bo
         queryKey: [API_ENDPOINTS.TORRENT_SEARCH.SearchTorrent.key, JSON.stringify(variables)],
         enabled: enabled,
         gcTime: variables.episodeNumber === 0 ? 0 : undefined,
+        initialData: seed?.data,
+        // Without this the seed is treated as having arrived at time zero, i.e. instantly stale, and
+        // react-query refetches it on mount — which would defeat the entire point of having it.
+        initialDataUpdatedAt: seed ? (seed.preparedAt ?? Date.now()) : undefined,
     })
 }
 

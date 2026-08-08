@@ -183,16 +183,6 @@ export const API_ENDPOINTS = {
          *  Route returns more details about an AniList anime entry.
          *  This fetches more fields omitted from the base queries.
          */
-        /**
-         *  @description
-         *  Route adds an anime to the signed-in user's own AniList PLANNING list.
-         *  Queues the change if AniList is unreachable.
-         */
-        AddAnimeToPlanning: {
-            key: "ANILIST-add-anime-to-planning",
-            methods: ["POST"],
-            endpoint: "/api/v1/anilist/planning",
-        },
         GetAnilistAnimeDetails: {
             key: "ANILIST-get-anilist-anime-details",
             methods: ["GET"],
@@ -289,6 +279,20 @@ export const API_ENDPOINTS = {
             key: "ANILIST-toggle-anilist-cache-layer-status",
             methods: ["POST"],
             endpoint: "/api/v1/anilist/cache-layer/status",
+        },
+    },
+    ANILIST_PLANNING: {
+        /**
+         *  @description
+         *  Route adds an anime to the signed-in user's own AniList PLANNING list.
+         *  This targets the user's real AniList account, NOT the shared planning-slut account.
+         *  If AniList is unreachable, the change is queued and replayed automatically once the
+         *  API is available again, and the response reports queued=true.
+         */
+        AddAnimeToPlanning: {
+            key: "ANILIST-PLANNING-add-anime-to-planning",
+            methods: ["POST"],
+            endpoint: "/api/v1/anilist/planning",
         },
     },
     ANIME: {
@@ -429,6 +433,21 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route clears every cached metadata entry for a single anime.
+         *  Deep clean: drops the episode metadata (memory + disk), the AniList media objects
+         *  (memory, file cache and SQLite), the built episode collections, the online streaming
+         *  episode lists, the filler data and the missing-episode summary for one media ID, so
+         *  the next request rebuilds all of it from source. Used by the "Reset metadata" action
+         *  and automatically when an entry fails to load, since a poisoned/stale cache entry is
+         *  the usual cause.
+         */
+        ResetAnimeEntryMetadata: {
+            key: "ANIME-ENTRIES-reset-anime-entry-metadata",
+            methods: ["POST"],
+            endpoint: "/api/v1/library/anime-entry/reset-metadata",
+        },
+        /**
+         *  @description
          *  Route toggles the silence status of a media entry.
          *  The missing episodes should be re-fetched after this.
          */
@@ -436,16 +455,6 @@ export const API_ENDPOINTS = {
             key: "ANIME-ENTRIES-toggle-anime-entry-silence-status",
             methods: ["POST"],
             endpoint: "/api/v1/library/anime-entry/silence",
-        },
-        /**
-         *  @description
-         *  Route clears every cached metadata entry for a single anime, so the next request
-         *  refetches episode metadata, the AniList media object and filler data from source.
-         */
-        ResetAnimeEntryMetadata: {
-            key: "ANIME-ENTRIES-reset-anime-entry-metadata",
-            methods: ["POST"],
-            endpoint: "/api/v1/library/anime-entry/reset-metadata",
         },
         /**
          *  @description
@@ -480,6 +489,22 @@ export const API_ENDPOINTS = {
             key: "ANIME-ENTRIES-update-anime-entry-repeat",
             methods: ["POST"],
             endpoint: "/api/v1/library/anime-entry/update-repeat",
+        },
+    },
+    ANIME_ENTRY_REFRESH: {
+        /**
+         *  @description
+         *  Route rebuilds everything the server knows about one anime entry.
+         *  Deep cleans every cache keyed to the media ID (episode metadata, AniList media
+         *  objects in memory/disk/SQLite, episode collections, online streaming episode lists,
+         *  filler data, missing-episode summary) and then refetches the AniList collection, so
+         *  the entry's library stats — file counts, progress, episode counts, status — are
+         *  rebuilt from source. User data is left untouched.
+         */
+        RefreshAnimeEntryStats: {
+            key: "ANIME-ENTRY-REFRESH-refresh-anime-entry-stats",
+            methods: ["POST"],
+            endpoint: "/api/v1/library/anime-entry/refresh-stats",
         },
     },
     ANIME_FAVORITE: {
@@ -1133,6 +1158,83 @@ export const API_ENDPOINTS = {
             key: "ENMASSE-manga-en-masse-stop",
             methods: ["POST"],
             endpoint: "/api/v1/enmasse/manga/stop",
+        },
+    },
+    ENQUEUE_FUTURE: {
+        /**
+         *  @description
+         *  Route starts preparing the recommendation graph around an anime.
+         *  Walks outward from the given anime, queueing what it recommends and what those recommend
+         *  in turn, up to a per-run cap. Each queued anime gets its full entry metadata and a torrent
+         *  search stored, so its download screen opens with no waiting.
+         *  Returns as soon as the run starts — the work continues with no page open.
+         */
+        EnqueueFuture: {
+            key: "ENQUEUE-FUTURE-enqueue-future",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/enqueue",
+        },
+        GetEnqueueFutureStatus: {
+            key: "ENQUEUE-FUTURE-get-enqueue-future-status",
+            methods: ["GET"],
+            endpoint: "/api/v1/enqueue-future/status",
+        },
+        /**
+         *  @description
+         *  Route cancels the running Enqueue Future run.
+         *  Everything already prepared stays in the queue.
+         */
+        StopEnqueueFuture: {
+            key: "ENQUEUE-FUTURE-stop-enqueue-future",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/stop",
+        },
+        /**
+         *  @description
+         *  Route returns the queue in walk order.
+         *  Snapshots are omitted — they are large, and the list view only needs titles and covers.
+         */
+        GetEnqueueFutureQueue: {
+            key: "ENQUEUE-FUTURE-get-enqueue-future-queue",
+            methods: ["GET"],
+            endpoint: "/api/v1/enqueue-future/queue",
+        },
+        /**
+         *  @description
+         *  Route returns one queued anime with its prepared snapshot.
+         *  The snapshot holds the anime entry and the torrent search results, which is everything the
+         *  download screen needs to open without asking the server anything.
+         */
+        GetEnqueueFutureItem: {
+            key: "ENQUEUE-FUTURE-get-enqueue-future-item",
+            methods: ["GET"],
+            endpoint: "/api/v1/enqueue-future/item/{mediaId}",
+        },
+        /**
+         *  @description
+         *  Route records what you did with a queued anime.
+         *  Accepts "downloaded" or "skipped". Both are terminal — the item stays in the queue as a
+         *  record of the decision, which is also what stops it being discovered again later.
+         */
+        SetEnqueueFutureItemStatus: {
+            key: "ENQUEUE-FUTURE-set-enqueue-future-item-status",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/item/{mediaId}/status",
+        },
+        DeleteEnqueueFutureItem: {
+            key: "ENQUEUE-FUTURE-delete-enqueue-future-item",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/enqueue-future/item/{mediaId}",
+        },
+        /**
+         *  @description
+         *  Route empties the queue.
+         *  Stops any run first, so the worker does not immediately refill what was just cleared.
+         */
+        ClearEnqueueFuture: {
+            key: "ENQUEUE-FUTURE-clear-enqueue-future",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/clear",
         },
     },
     ENTITY_FAVORITE: {
@@ -3230,6 +3332,19 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route returns which AniList media have a download in flight, and which have just finished.
+         *  Read from the staging directories on disk — each holds the metadata sidecar naming the
+         *  anime its download is for — so the answer is the same across page reloads, server
+         *  restarts and a torrent client that is momentarily unreachable. That is what lets the
+         *  "Downloading" badge stay up for the whole download instead of blinking in and out.
+         */
+        GetDownloadingMediaIds: {
+            key: "TORRENT-CLIENT-get-downloading-media-ids",
+            methods: ["GET"],
+            endpoint: "/api/v1/torrent-client/downloading-media",
+        },
+        /**
+         *  @description
          *  Route performs an action on a torrent.
          *  This handler is used to pause, resume or remove a torrent.
          */
@@ -3477,6 +3592,100 @@ export const API_ENDPOINTS = {
             key: "UNMATCHED-clear-completed-torrent",
             methods: ["POST"],
             endpoint: "/api/v1/unmatched/scanner/clear",
+        },
+    },
+    UNMATCHED_DIAGNOSTICS: {
+        /**
+         *  @description
+         *  Route reports why downloads are or aren't showing up in the Unmatched screen.
+         *  This handler reports the whole download chain: what the torrent client is writing and
+         *  where, what is in the staging folder, and what the scanner makes of each directory.
+         */
+        GetUnmatchedDiagnostics: {
+            key: "UNMATCHED-DIAGNOSTICS-get-unmatched-diagnostics",
+            methods: ["GET"],
+            endpoint: "/api/v1/unmatched/diagnostics",
+        },
+    },
+    UNMATCHED_HISTORY: {
+        /**
+         *  @description
+         *  Route returns the matches that can be undone.
+         *  This handler returns every recorded match from the Unmatched screen, newest first, with
+         *  the original and new name of each file and whether it can still be restored.
+         */
+        GetUnmatchedMatchHistory: {
+            key: "UNMATCHED-HISTORY-get-unmatched-match-history",
+            methods: ["GET"],
+            endpoint: "/api/v1/unmatched/history",
+        },
+        /**
+         *  @description
+         *  Route returns a single recorded match.
+         *  This handler returns one recorded match with the current state of every file it moved,
+         *  which is what the revert confirmation is built from.
+         */
+        GetUnmatchedMatchHistoryEntry: {
+            key: "UNMATCHED-HISTORY-get-unmatched-match-history-entry",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/history/entry",
+        },
+        /**
+         *  @description
+         *  Route undoes a match, moving its files back to the Unmatched folder.
+         *  This handler restores every file a match moved to the exact path and name it had before,
+         *  removes the library entries the match created, and puts the torrent's metadata back.
+         */
+        RevertUnmatchedMatch: {
+            key: "UNMATCHED-HISTORY-revert-unmatched-match",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/history/revert",
+        },
+        /**
+         *  @description
+         *  Route keeps a match and takes it off the undo list.
+         *  This handler deletes the record of a match without touching a single file.
+         */
+        DismissUnmatchedMatchRecord: {
+            key: "UNMATCHED-HISTORY-dismiss-unmatched-match-record",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/history/dismiss",
+        },
+    },
+    UNMATCHED_SWEEP: {
+        /**
+         *  @description
+         *  Route matches every staged download that already knows which anime it is for.
+         *  This handler starts a background sweep that runs the ordinary match over each unmatched
+         *  download carrying a recorded AniList ID. Downloads with no recorded anime, and ones the
+         *  torrent client still reports as in progress, are left alone. Poll the status endpoint for
+         *  progress. Starting a sweep while one is running is a no-op.
+         */
+        SweepUnmatchedTorrents: {
+            key: "UNMATCHED-SWEEP-sweep-unmatched-torrents",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/match-all",
+        },
+        /**
+         *  @description
+         *  Route returns the progress of the "match all" sweep.
+         *  This handler reports how far the sweep has got, and what it could not match. Safe to poll.
+         */
+        GetUnmatchedSweepStatus: {
+            key: "UNMATCHED-SWEEP-get-unmatched-sweep-status",
+            methods: ["GET"],
+            endpoint: "/api/v1/unmatched/match-all/status",
+        },
+        /**
+         *  @description
+         *  Route asks the running "match all" sweep to stop.
+         *  This handler stops the sweep after the download it is currently matching. Files already
+         *  moved stay moved — a match is not undone by stopping the sweep.
+         */
+        StopUnmatchedSweep: {
+            key: "UNMATCHED-SWEEP-stop-unmatched-sweep",
+            methods: ["POST"],
+            endpoint: "/api/v1/unmatched/match-all/stop",
         },
     },
 } satisfies ApiEndpoints

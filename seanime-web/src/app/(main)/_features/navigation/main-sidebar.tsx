@@ -16,6 +16,7 @@ import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loa
 import { useCurrentUser, useServerStatus, useSetServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
 import { useGetLevel } from "@/api/hooks/community.hooks"
+import { isEnqueueFuturePending, useGetEnqueueFutureQueue } from "@/api/hooks/enqueue_future.hooks"
 import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
 import { useGetUnreadNotificationCount, useNotificationWSListener } from "@/api/hooks/notifications.hooks"
 import { NotificationDrawer } from "@/app/(main)/_features/notification/notification-drawer"
@@ -50,7 +51,7 @@ import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
-import { LuBook, LuBookOpen, LuBell, LuCalendar, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUsers } from "react-icons/lu"
+import { LuBook, LuBookOpen, LuBell, LuCalendar, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuLayers, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUsers } from "react-icons/lu"
 import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
 import { PiArrowCircleLeftDuotone, PiArrowCircleRightDuotone } from "react-icons/pi"
 import { RiListCheck3 } from "react-icons/ri"
@@ -169,6 +170,12 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     const { data: achievementSummary } = useGetAchievementSummary()
     const { data: unmatchedTorrents } = useGetUnmatchedTorrents({ staleTime: 60_000 })
     const unmatchedCount = unmatchedTorrents?.length ?? 0
+    // Anime still waiting on a decision — the badge is what tells you the queue has work in it
+    // without having to open it.
+    const { data: enqueueFutureQueue } = useGetEnqueueFutureQueue()
+    const enqueueFutureCount = React.useMemo(
+        () => (enqueueFutureQueue ?? []).filter(isEnqueueFuturePending).length,
+        [enqueueFutureQueue])
     const achievementUnlockedCount = achievementSummary?.unlockedCount ?? 0
 
     // Items
@@ -268,6 +275,16 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             href: "/unmatched",
             isCurrent: pathname === "/unmatched",
             addon: unmatchedCount > 0 ? <Badge className="absolute right-0 top-0" size="sm" intent="alert-solid">{unmatchedCount}</Badge> : undefined,
+        },
+        {
+            id: "enqueue-future",
+            iconType: LuLayers,
+            name: "Enqueue Future",
+            href: "/enqueue-future",
+            isCurrent: pathname === "/enqueue-future",
+            addon: enqueueFutureCount > 0
+                ? <Badge className="absolute right-0 top-0" size="sm" intent="alert-solid">{enqueueFutureCount}</Badge>
+                : undefined,
         },
         {
             id: "enmasse",

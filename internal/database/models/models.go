@@ -386,6 +386,41 @@ type UnmatchedMatchRecord struct {
 }
 
 // +---------------------+
+// |   Enqueue Future    |
+// +---------------------+
+
+// EnqueueFutureItem is one anime discovered by walking the recommendation graph outward from a
+// series, prepared ahead of time so the download screen for it opens with no waiting.
+//
+// The indexed columns are everything the queue list and the worker need to make decisions without
+// touching the blob — which is large, holding the whole entry and a full torrent search result.
+// Title and CoverImage are denormalized out of it for the same reason: the list view renders every
+// item, and unmarshalling a hundred snapshots to read two strings would be absurd.
+type EnqueueFutureItem struct {
+	BaseModel
+	ProfileID uint `gorm:"column:profile_id;index" json:"profileId"`
+	// MediaID is the AniList ID and the identity of the row: enqueueing from ten different pages
+	// whose recommendations overlap has to converge on one queue, not ten copies of the same anime.
+	MediaID int `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
+	// RootMediaID is the anime whose page started the run that discovered this item. The 125-item
+	// cap is per run, so the worker counts rows by this.
+	RootMediaID int `gorm:"column:root_media_id;index" json:"rootMediaId"`
+	// Position is the queue order, and is what Next and Previous walk. Assigned on insert in
+	// discovery order, so the queue reads as breadth-first rings out from the root.
+	Position int `gorm:"column:position;index" json:"position"`
+	// Depth is how many recommendation hops from the root this was found at. Informational.
+	Depth      int    `gorm:"column:depth" json:"depth"`
+	Status     string `gorm:"column:status;index" json:"status"`
+	Attempts   int    `gorm:"column:attempts" json:"attempts"`
+	LastError  string `gorm:"column:last_error" json:"lastError"`
+	Title      string `gorm:"column:title" json:"title"`
+	CoverImage string `gorm:"column:cover_image" json:"coverImage"`
+	// Value is the prepared snapshot as JSON — the anime entry, the torrent search results, and the
+	// exact search variables that produced them. Nil until the item has been prepared.
+	Value []byte `gorm:"column:value" json:"-"`
+}
+
+// +---------------------+
 // |        Theme        |
 // +---------------------+
 

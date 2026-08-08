@@ -1733,6 +1733,45 @@ declare namespace $app {
 
 
     /**
+     * @package torrent
+     */
+
+    /**
+     * @event TorrentSearchRequestedEvent
+     * @file internal/torrents/torrent/hook_events.go
+     * @description
+     * TorrentSearchRequestedEvent is triggered before Seanime searches anime torrents.
+     * Prevent default to skip the native search and return SearchData.
+     */
+    function onTorrentSearchRequested(cb: (event: TorrentSearchRequestedEvent) => void): void;
+
+    interface TorrentSearchRequestedEvent {
+        next(): void;
+
+        preventDefault(): void;
+
+        options: Torrent_AnimeSearchOptions;
+        searchData?: Torrent_SearchData;
+    }
+
+    /**
+     * @event TorrentSearchEvent
+     * @file internal/torrents/torrent/hook_events.go
+     * @description
+     * TorrentSearchEvent is triggered after Seanime assembles the torrent search response.
+     * Handlers can mutate SearchData before it is cached and returned.
+     */
+    function onTorrentSearch(cb: (event: TorrentSearchEvent) => void): void;
+
+    interface TorrentSearchEvent {
+        next(): void;
+
+        options: Torrent_AnimeSearchOptions;
+        searchData?: Torrent_SearchData;
+    }
+
+
+    /**
      * @package torrentstream
      */
 
@@ -3661,6 +3700,24 @@ declare namespace $app {
     }
 
     /**
+     * - Filepath: internal/debrid/debrid/debrid.go
+     */
+    interface Debrid_CachedFile {
+        size: number;
+        name: string;
+    }
+
+    /**
+     * - Filepath: internal/debrid/debrid/debrid.go
+     */
+    interface Debrid_TorrentItemInstantAvailability {
+        /**
+         * Key is the file ID (or index)
+         */
+        cachedFiles?: Record<string, Debrid_CachedFile>;
+    }
+
+    /**
      * - Filepath: internal/discordrpc/presence/presence.go
      */
     interface DiscordRPC_AnimeActivity {
@@ -3774,6 +3831,7 @@ declare namespace $app {
          * AniList list data
          */
         listData?: Manga_EntryListData;
+        downloadedChapterCount: number;
     }
 
     /**
@@ -3961,5 +4019,72 @@ declare namespace $app {
      * - Filepath: internal/torrent_clients/torrent_client/torrent.go
      */
     export type TorrentClient_TorrentStatus = "downloading" | "seeding" | "paused" | "other" | "stopped";
+
+    /**
+     * - Filepath: internal/torrents/torrent/search.go
+     */
+    interface Torrent_AnimeSearchOptions {
+        Provider: string;
+        Type: Torrent_AnimeSearchType;
+        Media?: AL_BaseAnime;
+        Query: string;
+        Batch: boolean;
+        EpisodeNumber: number;
+        BestReleases: boolean;
+        Resolution: string;
+        IncludeSpecialProviders: boolean;
+        SkipPreviews: boolean;
+    }
+
+    /**
+     * - Filepath: internal/torrents/torrent/search.go
+     */
+    export type Torrent_AnimeSearchType = "smart" | "simple";
+
+    /**
+     * - Filepath: internal/torrents/torrent/search.go
+     */
+    interface Torrent_Preview {
+        /**
+         * nil if batch
+         */
+        episode?: Anime_Episode;
+        torrent?: HibikeTorrent_AnimeTorrent;
+    }
+
+    /**
+     * - Filepath: internal/torrents/torrent/search.go
+     */
+    interface Torrent_SearchData {
+        /**
+         * Torrents found
+         */
+        torrents?: Array<HibikeTorrent_AnimeTorrent>;
+        /**
+         * TorrentPreview for each torrent
+         */
+        previews?: Array<Torrent_Preview>;
+        /**
+         * Torrent metadata
+         */
+        torrentMetadata?: Record<string, Torrent_TorrentMetadata>;
+        /**
+         * Debrid instant availability
+         */
+        debridInstantAvailability?: Record<string, Debrid_TorrentItemInstantAvailability>;
+        /**
+         * Animap media
+         */
+        animeMetadata?: Metadata_AnimeMetadata;
+        includedSpecialProviders?: Array<string>;
+    }
+
+    /**
+     * - Filepath: internal/torrents/torrent/search.go
+     */
+    interface Torrent_TorrentMetadata {
+        distance: number;
+        metadata?: $habari.Metadata;
+    }
 
 }

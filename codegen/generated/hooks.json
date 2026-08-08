@@ -6831,6 +6831,142 @@
     }
   },
   {
+    "package": "torrent",
+    "goStruct": {
+      "filepath": "../internal/torrents/torrent/hook_events.go",
+      "filename": "hook_events.go",
+      "name": "TorrentSearchRequestedEvent",
+      "formattedName": "Torrent_TorrentSearchRequestedEvent",
+      "package": "torrent",
+      "fields": [
+        {
+          "name": "Options",
+          "jsonName": "options",
+          "goType": "AnimeSearchOptions",
+          "typescriptType": "Torrent_AnimeSearchOptions",
+          "usedTypescriptType": "Torrent_AnimeSearchOptions",
+          "usedStructName": "torrent.AnimeSearchOptions",
+          "required": true,
+          "public": true,
+          "comments": []
+        },
+        {
+          "name": "SearchData",
+          "jsonName": "searchData",
+          "goType": "SearchData",
+          "typescriptType": "Torrent_SearchData",
+          "usedTypescriptType": "Torrent_SearchData",
+          "usedStructName": "torrent.SearchData",
+          "required": false,
+          "public": true,
+          "comments": []
+        },
+        {
+          "name": "next",
+          "jsonName": "next",
+          "goType": "",
+          "typescriptType": "any",
+          "required": true,
+          "public": false,
+          "comments": []
+        },
+        {
+          "name": "preventDefault",
+          "jsonName": "preventDefault",
+          "goType": "",
+          "typescriptType": "any",
+          "required": true,
+          "public": false,
+          "comments": []
+        },
+        {
+          "name": "DefaultPrevented",
+          "jsonName": "defaultPrevented",
+          "goType": "bool",
+          "typescriptType": "boolean",
+          "required": true,
+          "public": true,
+          "comments": []
+        }
+      ],
+      "comments": [
+        " TorrentSearchRequestedEvent is triggered before Seanime searches anime torrents.",
+        " Prevent default to skip the native search and return SearchData."
+      ],
+      "embeddedStructNames": [
+        "hook_resolver.Event"
+      ]
+    }
+  },
+  {
+    "package": "torrent",
+    "goStruct": {
+      "filepath": "../internal/torrents/torrent/hook_events.go",
+      "filename": "hook_events.go",
+      "name": "TorrentSearchEvent",
+      "formattedName": "Torrent_TorrentSearchEvent",
+      "package": "torrent",
+      "fields": [
+        {
+          "name": "Options",
+          "jsonName": "options",
+          "goType": "AnimeSearchOptions",
+          "typescriptType": "Torrent_AnimeSearchOptions",
+          "usedTypescriptType": "Torrent_AnimeSearchOptions",
+          "usedStructName": "torrent.AnimeSearchOptions",
+          "required": true,
+          "public": true,
+          "comments": []
+        },
+        {
+          "name": "SearchData",
+          "jsonName": "searchData",
+          "goType": "SearchData",
+          "typescriptType": "Torrent_SearchData",
+          "usedTypescriptType": "Torrent_SearchData",
+          "usedStructName": "torrent.SearchData",
+          "required": false,
+          "public": true,
+          "comments": []
+        },
+        {
+          "name": "next",
+          "jsonName": "next",
+          "goType": "",
+          "typescriptType": "any",
+          "required": true,
+          "public": false,
+          "comments": []
+        },
+        {
+          "name": "preventDefault",
+          "jsonName": "preventDefault",
+          "goType": "",
+          "typescriptType": "any",
+          "required": true,
+          "public": false,
+          "comments": []
+        },
+        {
+          "name": "DefaultPrevented",
+          "jsonName": "defaultPrevented",
+          "goType": "bool",
+          "typescriptType": "boolean",
+          "required": true,
+          "public": true,
+          "comments": []
+        }
+      ],
+      "comments": [
+        " TorrentSearchEvent is triggered after Seanime assembles the torrent search response.",
+        " Handlers can mutate SearchData before it is cached and returned."
+      ],
+      "embeddedStructNames": [
+        "hook_resolver.Event"
+      ]
+    }
+  },
+  {
     "package": "torrentstream",
     "goStruct": {
       "filepath": "../internal/torrentstream/hook_events.go",

@@ -60,6 +60,9 @@ const MainQbittorrentIndexLazyRouteImport = createFileRoute(
 )()
 const MainMangaIndexLazyRouteImport = createFileRoute('/_main/manga/')()
 const MainListsIndexLazyRouteImport = createFileRoute('/_main/lists/')()
+const MainEnqueueFutureIndexLazyRouteImport = createFileRoute(
+  '/_main/enqueue-future/',
+)()
 const MainEnmasseMangaIndexLazyRouteImport = createFileRoute(
   '/_main/enmasse-manga/',
 )()
@@ -181,6 +184,14 @@ const MainListsIndexLazyRoute = MainListsIndexLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_main/lists/index.lazy').then((d) => d.Route),
 )
+const MainEnqueueFutureIndexLazyRoute =
+  MainEnqueueFutureIndexLazyRouteImport.update({
+    id: '/enqueue-future/',
+    path: '/enqueue-future/',
+    getParentRoute: () => MainRoute,
+  } as any).lazy(() =>
+    import('./routes/_main/enqueue-future/index.lazy').then((d) => d.Route),
+  )
 const MainEnmasseMangaIndexLazyRoute =
   MainEnmasseMangaIndexLazyRouteImport.update({
     id: '/enmasse-manga/',
@@ -443,6 +454,7 @@ export interface FileRoutesByFullPath {
   '/debrid/': typeof MainDebridIndexLazyRoute
   '/enmasse-anime/': typeof MainEnmasseAnimeIndexLazyRoute
   '/enmasse-manga/': typeof MainEnmasseMangaIndexLazyRoute
+  '/enqueue-future/': typeof MainEnqueueFutureIndexLazyRoute
   '/lists/': typeof MainListsIndexLazyRoute
   '/manga/': typeof MainMangaIndexLazyRoute
   '/qbittorrent/': typeof MainQbittorrentIndexLazyRoute
@@ -492,6 +504,7 @@ export interface FileRoutesByTo {
   '/debrid': typeof MainDebridIndexLazyRoute
   '/enmasse-anime': typeof MainEnmasseAnimeIndexLazyRoute
   '/enmasse-manga': typeof MainEnmasseMangaIndexLazyRoute
+  '/enqueue-future': typeof MainEnqueueFutureIndexLazyRoute
   '/lists': typeof MainListsIndexLazyRoute
   '/manga': typeof MainMangaIndexLazyRoute
   '/qbittorrent': typeof MainQbittorrentIndexLazyRoute
@@ -543,6 +556,7 @@ export interface FileRoutesById {
   '/_main/debrid/': typeof MainDebridIndexLazyRoute
   '/_main/enmasse-anime/': typeof MainEnmasseAnimeIndexLazyRoute
   '/_main/enmasse-manga/': typeof MainEnmasseMangaIndexLazyRoute
+  '/_main/enqueue-future/': typeof MainEnqueueFutureIndexLazyRoute
   '/_main/lists/': typeof MainListsIndexLazyRoute
   '/_main/manga/': typeof MainMangaIndexLazyRoute
   '/_main/qbittorrent/': typeof MainQbittorrentIndexLazyRoute
@@ -594,6 +608,7 @@ export interface FileRouteTypes {
     | '/debrid/'
     | '/enmasse-anime/'
     | '/enmasse-manga/'
+    | '/enqueue-future/'
     | '/lists/'
     | '/manga/'
     | '/qbittorrent/'
@@ -643,6 +658,7 @@ export interface FileRouteTypes {
     | '/debrid'
     | '/enmasse-anime'
     | '/enmasse-manga'
+    | '/enqueue-future'
     | '/lists'
     | '/manga'
     | '/qbittorrent'
@@ -693,6 +709,7 @@ export interface FileRouteTypes {
     | '/_main/debrid/'
     | '/_main/enmasse-anime/'
     | '/_main/enmasse-manga/'
+    | '/_main/enqueue-future/'
     | '/_main/lists/'
     | '/_main/manga/'
     | '/_main/qbittorrent/'
@@ -836,6 +853,13 @@ declare module '@tanstack/react-router' {
       path: '/lists'
       fullPath: '/lists/'
       preLoaderRoute: typeof MainListsIndexLazyRouteImport
+      parentRoute: typeof MainRoute
+    }
+    '/_main/enqueue-future/': {
+      id: '/_main/enqueue-future/'
+      path: '/enqueue-future'
+      fullPath: '/enqueue-future/'
+      preLoaderRoute: typeof MainEnqueueFutureIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/enmasse-manga/': {
@@ -1088,6 +1112,7 @@ interface MainRouteChildren {
   MainDebridIndexLazyRoute: typeof MainDebridIndexLazyRoute
   MainEnmasseAnimeIndexLazyRoute: typeof MainEnmasseAnimeIndexLazyRoute
   MainEnmasseMangaIndexLazyRoute: typeof MainEnmasseMangaIndexLazyRoute
+  MainEnqueueFutureIndexLazyRoute: typeof MainEnqueueFutureIndexLazyRoute
   MainListsIndexLazyRoute: typeof MainListsIndexLazyRoute
   MainMangaIndexLazyRoute: typeof MainMangaIndexLazyRoute
   MainQbittorrentIndexLazyRoute: typeof MainQbittorrentIndexLazyRoute
@@ -1132,6 +1157,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainDebridIndexLazyRoute: MainDebridIndexLazyRoute,
   MainEnmasseAnimeIndexLazyRoute: MainEnmasseAnimeIndexLazyRoute,
   MainEnmasseMangaIndexLazyRoute: MainEnmasseMangaIndexLazyRoute,
+  MainEnqueueFutureIndexLazyRoute: MainEnqueueFutureIndexLazyRoute,
   MainListsIndexLazyRoute: MainListsIndexLazyRoute,
   MainMangaIndexLazyRoute: MainMangaIndexLazyRoute,
   MainQbittorrentIndexLazyRoute: MainQbittorrentIndexLazyRoute,

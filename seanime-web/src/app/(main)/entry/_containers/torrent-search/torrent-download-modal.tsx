@@ -7,6 +7,7 @@ import { useLibraryPathSelection } from "@/app/(main)/_hooks/use-library-path-se
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import {
     __torrentDownload_autoMatchAtom as autoMatchAtom,
+    __torrentDownload_autoMatchConfirmedAtom as autoMatchConfirmedAtom,
     AutoMatchConfirmationModal,
 } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 import {
@@ -40,10 +41,30 @@ export { __torrentDownload_autoMatchAtom } from "@/app/(main)/entry/_containers/
 
 const confirmationModalOpenAtom = atom(false)
 
-export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
+export function TorrentDownloadModal({
+    onToggleTorrent, media, entry, onDownloadStarted, confirmAutoMatchOnce, autoMatchValue, onAutoMatchChange,
+}: {
     onToggleTorrent: (t: HibikeTorrent_AnimeTorrent) => void,
     media: AL_BaseAnime,
-    entry: Anime_Entry
+    entry: Anime_Entry,
+    /**
+     * Called instead of closing the torrent search drawer once the download is queued.
+     *
+     * The Enqueue Future queue is not a drawer over an anime page — it is the screen itself — so
+     * "download started" means mark this one done and move to the next anime, not close anything.
+     */
+    onDownloadStarted?: () => void,
+    /**
+     * Ask for auto-match confirmation once per session rather than per download. Set by the
+     * Enqueue Future queue, where the same answer would otherwise be demanded for every anime.
+     */
+    confirmAutoMatchOnce?: boolean,
+    /**
+     * Overrides the app-wide auto-match preference for this one download. Pass both of these to
+     * decide auto-match per anime; omit them and the shared, persisted preference is used.
+     */
+    autoMatchValue?: boolean,
+    onAutoMatchChange?: (value: boolean) => void,
 }) {
 
     const router = useRouter()
@@ -61,7 +82,14 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
     }, [entry, libraryPath])
 
     const [destination, setDestination] = useState(defaultPath)
-    const [autoMatch, setAutoMatch] = useAtom(autoMatchAtom)
+    // Auto-match is a sticky, app-wide preference by default. A caller that needs it decided
+    // separately per anime — the Enqueue Future queue, where one show should go straight into the
+    // library and the next should be reviewed first — hands in its own value and setter instead.
+    const [globalAutoMatch, setGlobalAutoMatch] = useAtom(autoMatchAtom)
+    const autoMatch = autoMatchValue ?? globalAutoMatch
+    const setAutoMatch = onAutoMatchChange ?? setGlobalAutoMatch
+
+    const [autoMatchConfirmed, setAutoMatchConfirmed] = useAtom(autoMatchConfirmedAtom)
     // Download waiting on the auto-match confirmation, or null when nothing is pending.
     const [pendingAutoMatchDownload, setPendingAutoMatchDownload] = useState<"default" | "smart-select" | null>(null)
 
@@ -105,6 +133,10 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
     // requires leaving the entry page.
     const { mutate, isPending } = useTorrentClientDownload(() => {
         setConfirmationModalOpen(false)
+        if (onDownloadStarted) {
+            onDownloadStarted()
+            return
+        }
         setTorrentDrawerIsOpen(undefined)
     }, media.id)
 
@@ -160,7 +192,8 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
         }
         // Auto-match moves the finished download straight into the library with no review step,
         // so confirm it explicitly rather than letting a toggle left on from last time decide.
-        if (autoMatch) {
+        // Once per session is enough where downloads are queued one after another.
+        if (autoMatch && !(confirmAutoMatchOnce && autoMatchConfirmed)) {
             setPendingAutoMatchDownload(type)
             return
         }
@@ -198,6 +231,7 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
             onConfirm={() => {
                 const type = pendingAutoMatchDownload
                 setPendingAutoMatchDownload(null)
+                if (confirmAutoMatchOnce) setAutoMatchConfirmed(true)
                 if (type) launchDownload(type)
             }}
         />

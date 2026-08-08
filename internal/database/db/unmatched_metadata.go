@@ -32,6 +32,19 @@ func (db *Database) GetUnmatchedTorrentMetadata(torrentName string) (*models.Unm
 	return &record, nil
 }
 
+// CountUnmatchedTorrentMetadataByAnimeID returns how many staged downloads are for an anime.
+//
+// A record exists from the moment a download is queued until its files have been matched into the
+// library, so a non-zero count means "something for this anime is already on its way" — which is
+// what Enqueue Future checks before putting an anime in the queue for you to download again.
+func (db *Database) CountUnmatchedTorrentMetadataByAnimeID(animeID int) (int, error) {
+	var count int64
+	if err := db.gormdb.Model(&models.UnmatchedTorrentMetadata{}).Where("anime_id = ?", animeID).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return int(count), nil
+}
+
 // DeleteUnmatchedTorrentMetadata drops a torrent's record. Called when the download is deleted —
 // keeping it would have a re-download of the same release inherit the old anime.
 func (db *Database) DeleteUnmatchedTorrentMetadata(torrentName string) error {

@@ -11,6 +11,7 @@ import (
 	"seanime/internal/directstream"
 	discordrpc_presence "seanime/internal/discordrpc/presence"
 	"seanime/internal/enmasse"
+	"seanime/internal/enqueuefuture"
 	"seanime/internal/events"
 	"seanime/internal/library/anime"
 	"seanime/internal/local"
@@ -450,6 +451,36 @@ func (a *App) initModulesOnce() {
 	})
 
 	a.UnmatchedScanner.Start()
+
+	// +---------------------+
+	// |   Enqueue Future    |
+	// +---------------------+
+
+	a.EnqueueFutureRepository = enqueuefuture.NewRepository(&enqueuefuture.NewRepositoryOptions{
+		Logger:              a.Logger,
+		Database:            a.Database,
+		PlatformRef:         a.AnilistPlatformRef,
+		MetadataProviderRef: a.MetadataProviderRef,
+		TorrentRepository:   a.TorrentRepository,
+		WSEventManager:      a.WSEventManager,
+		AnimeCollectionFunc: func() (*anilist.AnimeCollection, error) {
+			return a.GetAnimeCollection(false)
+		},
+		DefaultProviderFunc: func() string {
+			if a.Settings == nil || a.Settings.Library == nil {
+				return ""
+			}
+			return a.Settings.Library.TorrentProvider
+		},
+		IsSimulatedFunc: func() bool {
+			user := a.GetUser()
+			return user != nil && user.IsSimulated
+		},
+	})
+
+	// A run holds an item as "preparing" while it works on it, which is only true for as long as the
+	// worker is alive. Nothing survived the restart, so neither should that claim.
+	a.EnqueueFutureRepository.ResetStaleItems()
 
 	// +---------------------+
 	// | En Masse Downloader |
