@@ -11,7 +11,10 @@ import React from "react"
 export function useDiscordMangaPresence(entry: { media?: AL_BaseManga } | undefined) {
     const serverStatus = useServerStatus()
     const currentChapter = useAtomValue(__manga_selectedChapterAtom)
-    const clientId = useAtomValue(clientIdAtom) ?? undefined
+    // Empty string rather than undefined: the server reads a missing clientId as "" anyway
+    // and treats it as the global presence, so this is the same request with a type that
+    // matches what the endpoint actually accepts.
+    const clientId = useAtomValue(clientIdAtom) ?? ""
 
     const { mutate } = useSetDiscordMangaActivity()
     const { mutate: cancelActivity } = useCancelDiscordActivity()

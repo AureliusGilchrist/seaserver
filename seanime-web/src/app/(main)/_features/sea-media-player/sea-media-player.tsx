@@ -113,7 +113,10 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
     } = props
 
     const serverStatus = useServerStatus()
-    const clientId = useAtomValue(clientIdAtom) ?? undefined
+    // Empty string rather than undefined: the server reads a missing clientId as "" anyway
+    // and treats it as the global presence, so this is the same request with a type that
+    // matches what the endpoint actually accepts.
+    const clientId = useAtomValue(clientIdAtom) ?? ""
 
     const [duration, setDuration] = React.useState(0)
 

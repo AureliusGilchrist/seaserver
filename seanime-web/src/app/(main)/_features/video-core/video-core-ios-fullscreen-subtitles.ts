@@ -117,7 +117,7 @@ export function useVideoCoreIOSFullscreenSubtitles({
                 log.info("Parsing subtitle file:", subtitleSrc)
                 const convertedContent = subtitleType === "vtt" && !!subtitleContent
                     ? subtitleContent
-                    : await convertSubs({ url: subtitleSrc || "", content: subtitleContent || "", to: "vtt", headers: subtitleHeaders })
+                    : await convertSubs({ url: subtitleSrc || "", content: subtitleContent || "", to: "vtt", headers: subtitleHeaders ?? {} })
                 if (!convertedContent) {
                     log.error("Failed to convert subtitle file")
                     return

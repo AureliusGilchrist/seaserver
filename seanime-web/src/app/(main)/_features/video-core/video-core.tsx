@@ -778,7 +778,10 @@ export function VideoCore(props: VideoCoreProps) {
     const [playbackRate, setPlaybackRate] = useAtom(vc_storedPlaybackRateAtom)
 
     const { mutate: cancelDiscordActivity } = useCancelDiscordActivity()
-    const clientId = useAtomValue(clientIdAtom) ?? undefined
+    // Empty string rather than undefined: the server reads a missing clientId as "" anyway
+    // and treats it as the global presence, so this is the same request with a type that
+    // matches what the endpoint actually accepts.
+    const clientId = useAtomValue(clientIdAtom) ?? ""
 
     const { mutate: convertSubs } = useDirectstreamConvertSubs()
 
@@ -1143,7 +1146,7 @@ export function VideoCore(props: VideoCoreProps) {
                         : undefined,
                     fetchAndConvertToVTT: (url?: string, content?: string, headers?: Record<string, string>) => {
                         return new Promise((resolve, reject) => {
-                            convertSubs({ url: url ?? "", content: content ?? "", to: "vtt", headers: headers }, {
+                            convertSubs({ url: url ?? "", content: content ?? "", to: "vtt", headers: headers ?? {} }, {
                                 onSuccess: (data) => resolve(data),
                                 onError: (error) => reject(error),
                             })
@@ -1180,7 +1183,7 @@ export function VideoCore(props: VideoCoreProps) {
                         : undefined,
                     fetchAndConvertToASS: (url?: string, content?: string, headers?: Record<string, string>) => {
                         return new Promise((resolve, reject) => {
-                            convertSubs({ url: url ?? "", content: content ?? "", to: "ass", headers: headers }, {
+                            convertSubs({ url: url ?? "", content: content ?? "", to: "ass", headers: headers ?? {} }, {
                                 onSuccess: (data) => resolve(data),
                                 onError: (error) => reject(error),
                             })
@@ -1357,7 +1360,7 @@ export function VideoCore(props: VideoCoreProps) {
                     : undefined,
                 fetchAndConvertToASS: (url?: string, content?: string, headers?: Record<string, string>) => {
                     return new Promise((resolve, reject) => {
-                        convertSubs({ url: url ?? "", content: content ?? "", to: "ass", headers: headers }, {
+                        convertSubs({ url: url ?? "", content: content ?? "", to: "ass", headers: headers ?? {} }, {
                             onSuccess: (data) => resolve(data),
                             onError: (error) => reject(error),
                         })
