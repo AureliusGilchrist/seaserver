@@ -13,14 +13,6 @@ import React from "react"
 import { LuListFilter } from "react-icons/lu"
 
 /**
- * The list of everything on disk that is not on one of the user's AniList lists — anime.MediaListStatusLocal
- * on the server. Not a status, despite travelling with them, so the status filters do not apply to it.
- */
-export function isLocalLibraryList(type?: string | null): boolean {
-    return type?.toString() === "LOCAL"
-}
-
-/**
  * A React key that survives the local library.
  *
  * Every other list is AniList entries, where the media id is unique. The local library also carries
@@ -81,9 +73,6 @@ export function LibraryCollectionFilteredLists({ collectionList, isLoading, stre
 
     const filteredCollectionList = React.useMemo(() => {
         return collectionList.filter(collection => {
-            // See LibraryCollectionListItem — the local library is not an AniList status and is never
-            // filtered out by one.
-            if (isLocalLibraryList(collection.type)) return true
             return !showStatuses || (!!showStatuses && !!collection.type && showStatuses.includes(collection.type))
         })
     }, [collectionList, showStatuses])
@@ -139,10 +128,7 @@ export const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, 
 
     const [params, setParams] = useAtom(__mainLibrary_paramsAtom)
 
-    // LOCAL is exempt: showStatuses picks which AniList statuses a home layout shows, and the local
-    // library is not one of them. Filtering it here would hide everything on disk that is not on a
-    // list, which is the one thing this section exists to show.
-    if (!isLocalLibraryList(list.type) && !!showStatuses && !!list.type && !showStatuses.includes(list.type)) return null
+    if (!!showStatuses && !!list.type && !showStatuses.includes(list.type)) return null
 
     return (
         <React.Fragment key={list.type}>

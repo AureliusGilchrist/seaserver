@@ -253,22 +253,19 @@ export function useHandleLibraryCollection() {
     /**
      * Lists for the home screen's status sections ("Currently watching", "Completed", ...).
      *
-     * One difference from the library lists: COMPLETED also carries the entries above, so finished
-     * series show without needing a local copy.
-     *
-     * The LOCAL list is kept. It used to be dropped here on the grounds that its entries "exist only
-     * because the shared (planning slut) account has them" — which is true of the ones
-     * relocatePlanningSlutEntriesToLocal moves into it, and false of everything else in it. The server
-     * builds that list from every local file group that is not in the user's AniList lists, which is
-     * exactly what a download you never added to a list looks like. Dropping the list hid those: a
-     * library of a hundred-odd folders showing forty-odd shows, with no indication the rest existed.
-     * Anything on disk is part of the local library and is shown.
+     * Two differences from the library lists:
+     * - COMPLETED also carries the entries above, so finished series show without needing a
+     *   local copy.
+     * - The LOCAL list is dropped, because these sections are the user's own lists and LOCAL is by
+     *   definition everything that is not on one. It is not lost by being dropped here: the home
+     *   screen's "Local Anime Library" item draws it, out of `libraryCollectionList` rather than
+     *   these, which is where a grid of what is on disk belongs.
      */
     const buildStatusLists = React.useCallback((
         lists: Anime_LibraryCollectionList[],
         extraCompletedParams: CollectionParams<"anime">,
     ) => {
-        const allLists = lists
+        const allLists = lists.filter(l => (l.type as string) !== "LOCAL")
 
         if (!completedEntriesWithoutLocalFiles.length) return allLists
 

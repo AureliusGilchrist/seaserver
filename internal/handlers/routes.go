@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"path/filepath"
 	"seanime/internal/achievement"
 	"seanime/internal/core"
 	"seanime/internal/unmatched"
+	coreutil "seanime/internal/util"
 	util "seanime/internal/util/proxies"
 	"strings"
 	"time"
@@ -159,6 +161,23 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 		})
 	}
 
+	// Catch up the shared PLANNING list with whatever is already in the library.
+	//
+	// Matching keeps the two in step from here on, but only for matches made while that worked — a
+	// library carries the history of every match made before it did. Idempotent and rate limited, so
+	// a run with nothing to do costs one collection read and a library where everything is already
+	// tracked costs nothing at all.
+	//
+	// Delayed rather than immediate: at this point the server is still coming up, and this is the
+	// least urgent thing it will do all session.
+	go func() {
+		defer coreutil.HandlePanicInModuleThen("handlers/planningSlutStartupBackfill", func() {})
+		time.Sleep(2 * time.Minute)
+		if _, err := h.BackfillLocalLibraryToPlanning(context.Background()); err != nil {
+			app.Logger.Warn().Err(err).Msg("planning slut: Startup library backfill failed")
+		}
+	}()
+
 	// Load exp bar progression data
 	if err := loadExpBarProgression(app); err != nil {
 		app.Logger.Error().Err(err).Msg("Failed to load exp bar progression data")
@@ -272,6 +291,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.GET("/planning-slut/info", h.HandleGetPlanningSlutInfo, h.RequireProfileAdmin)
 	v1.POST("/planning-slut/token", h.HandleSavePlanningSlutToken)
 	v1.DELETE("/planning-slut/token", h.HandleDeletePlanningSlutToken, h.RequireProfileAdmin)
+	v1.POST("/planning-slut/backfill-library", h.HandlePlanningSlutBackfillLibrary, h.RequireProfileAdmin)
 
 	// Admin announcements
 	v1.GET("/admin/announcements", h.HandleGetActiveAdminAnnouncements)

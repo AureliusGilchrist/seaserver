@@ -756,6 +756,15 @@ export function ComingSoonPlaceholder({ title }: { title: string }) {
     )
 }
 
+/**
+ * Unmatched folders all arrive with media id 0, so they need something else to be told apart by.
+ * Their title is their directory name.
+ */
+function localEntryKey(entry: Anime_LibraryCollectionEntry): string {
+    if (entry.mediaId) return String(entry.mediaId)
+    return `unmatched:${entry.media?.title?.userPreferred ?? ""}`
+}
+
 function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollectionProps, item: Models_HomeItem, index: number }) {
     const serverStatus = useServerStatus()
     const layout = props.item?.options?.layout || "grid"
@@ -765,13 +774,17 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
     const [searchInput, setSearchInput] = React.useState("")
     const [debouncedSearch] = useDebounce(searchInput, 250)
 
-    // This grid is what you have on disk, and nothing else.
+    // This grid is the whole local library: every anime with files on disk, wherever it sits.
     //
-    // An entry earns a place here by having local files — never by being on a list. That matters
-    // because queueing a download puts the series on the shared planning list, so the lists
-    // themselves fill up with things that have not arrived yet, and anything downloading is held
-    // back until it lands. Series still on their way are marked by the downloading badge on the
-    // screens that show every anime; this one is only for the ones that made it.
+    // An entry earns a place by having local files — never by being on a list. Every list is walked,
+    // including CURRENT and the server's LOCAL list, which is where anything downloaded but never
+    // added to an AniList list ends up. Excluding lists meant a show could be on disk and absent from
+    // the one grid whose whole job is to show what is on disk.
+    //
+    // Anything downloading is here too, badged as such rather than withheld until it lands. A queued
+    // series is part of the library in the sense that matters — you are not going to queue it twice —
+    // and its card says which of the two it is. That is also why libraryData alone is not the test:
+    // a download that has not produced a file yet has none.
     //
     // Filtering is unconditional. It used to be skipped while the collection was still light (no
     // entry carries library data until the full collection arrives) to avoid the grid flashing
@@ -781,14 +794,14 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
     const localEntries: Anime_LibraryCollectionEntry[] = React.useMemo(() => {
         if (!collectionList?.length) return []
         const allEntries: Anime_LibraryCollectionEntry[] = collectionList
-            .filter(l => (l.type as string) !== "CURRENT")
-            .flatMap(l => (l.entries ?? []).filter(e => !!e?.libraryData && e.libraryData.mainFileCount > 0))
+            .flatMap(l => (l.entries ?? []).filter(e => !!e && (!!e.libraryData || isDownloading(e.mediaId))))
             .filter(Boolean)
-            .filter(e => !isDownloading(e.mediaId))
-        const seen = new Set<number>()
+        // Media id 0 is every unmatched folder at once, so those are kept apart by title instead.
+        const seen = new Set<string>()
         let filtered = allEntries.filter(e => {
-            if (seen.has(e.mediaId)) return false
-            seen.add(e.mediaId)
+            const key = e.mediaId ? String(e.mediaId) : `unmatched:${e.media?.title?.userPreferred ?? ""}`
+            if (seen.has(key)) return false
+            seen.add(key)
             return true
         })
         // Filter adult content
@@ -827,7 +840,7 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                     <CarouselContent>
                         {localEntries.map(entry => (
                             <MediaEntryCard
-                                key={entry.mediaId}
+                                key={localEntryKey(entry)}
                                 media={entry.media!}
                                 listData={entry.listData}
                                 libraryData={entry.libraryData}
@@ -836,9 +849,6 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                                 withAudienceScore={false}
                                 type="anime"
                                 containerClassName="basis-[200px] md:basis-[250px] mx-2 mt-8 mb-0"
-                                // Everything in this row is in the local library by construction —
-                                // see the card's `hideDownloadBadges`.
-                                hideDownloadBadges
                             />
                         ))}
                     </CarouselContent>
@@ -863,8 +873,10 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
             <PaginatedMediaGrid
                 items={localEntries}
                 renderItem={entry => (
+                    // Badges are left on: on this grid they are the difference between a series that
+                    // has landed and one still coming down, which is the question you ask of it.
                     <MediaEntryCard
-                        key={entry.mediaId}
+                        key={localEntryKey(entry)}
                         media={entry.media!}
                         listData={entry.listData}
                         libraryData={entry.libraryData}
@@ -872,7 +884,6 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                         showListDataButton
                         withAudienceScore={false}
                         type="anime"
-                        hideDownloadBadges
                     />
                 )}
             />

@@ -75,10 +75,10 @@ type MediaEntryCardProps<T extends "anime" | "manga"> = {
     /**
      * Drops both the downloading badge and the library badge.
      *
-     * Only for the Local Anime Library home item, which is filtered to entries that already have
-     * local files: saying "you have this" on every card there tells the user nothing they didn't
-     * know by being on that screen. Not for the library screens' status sections — those list
-     * Planning and Dropped entries too, which are exactly the cards worth badging.
+     * Nothing sets this today. The Local Anime Library home item used to, on the grounds that every
+     * card there was already downloaded so the badge said nothing — but that grid now also carries
+     * what is still coming down, and which of the two a card is happens to be the most useful thing
+     * on it. Kept as an escape hatch for a screen where every card really is the same state.
      */
     hideDownloadBadges?: boolean
     showTrailer?: T extends "anime" ? boolean : never

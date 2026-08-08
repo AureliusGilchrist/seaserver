@@ -6,6 +6,8 @@ import (
 	"seanime/internal/api/anilist"
 	"seanime/internal/core"
 	"seanime/internal/database/db"
+	"seanime/internal/database/db_bridge"
+	"seanime/internal/util"
 	"seanime/internal/util/limiter"
 	"seanime/internal/util/result"
 	libanime "seanime/internal/library/anime"
@@ -177,6 +179,29 @@ func (h *Handler) HandleGetPlanningSlutInfo(c echo.Context) error {
 // The token and client live on App now, because the shared account is not a handler concern: the
 // Enqueue Future worker reads the same collection, and it has no handler to ask.
 
+// HandlePlanningSlutBackfillLibrary
+//
+//	@summary adds every anime in the local library to the shared PLANNING list. Admin only.
+//	@desc Runs in the background — anything already on a list is left alone. Returns immediately.
+//	@route /api/v1/planning-slut/backfill-library [POST]
+//	@returns bool
+func (h *Handler) HandlePlanningSlutBackfillLibrary(c echo.Context) error {
+	if h.getPlanningSlutToken() == "" {
+		return h.RespondWithError(c, errors.New("no shared account is configured"))
+	}
+
+	// Detached from the request: writes are one a second, so a full library is minutes of work and
+	// nothing about it needs the caller to wait.
+	go func() {
+		defer util.HandlePanicInModuleThen("handlers/HandlePlanningSlutBackfillLibrary", func() {})
+		if _, err := h.BackfillLocalLibraryToPlanning(context.Background()); err != nil {
+			h.App.Logger.Warn().Err(err).Msg("planning slut: Library backfill failed")
+		}
+	}()
+
+	return h.RespondWithData(c, true)
+}
+
 func (h *Handler) getPlanningSlutToken() string {
 	return h.App.GetPlanningSlutToken()
 }
@@ -313,6 +338,94 @@ func (h *Handler) addAnimeToPlanningIfAbsent(ctx context.Context, mediaID int) (
 
 	planningSlutAddedAnime.SetT(mediaID, struct{}{}, 6*time.Hour)
 	return true, nil
+}
+
+// BackfillLocalLibraryToPlanning puts everything already in the local library onto the shared
+// (planning slut) PLANNING list.
+//
+// Matching adds an anime as it happens, so in principle this has nothing to do — but "in principle"
+// covers only the matches made since that was true. Anything matched before it existed, matched while
+// the token was unset, or matched during an AniList outage is on disk and on no list at all, and
+// nothing goes back for it. That is what this is: the catch-up pass, so the shared account describes
+// the whole library rather than the part of it that happened to be matched on a good day.
+//
+// Returns how many anime it actually wrote. Safe to run repeatedly — anything already on a list, on
+// the user's own account or on the shared one, is left exactly as it is, because a blind write would
+// reset a watched series to PLANNING and discard its progress.
+func (h *Handler) BackfillLocalLibraryToPlanning(ctx context.Context) (int, error) {
+	if h.getPlanningSlutToken() == "" {
+		return 0, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	lfs, _, err := db_bridge.GetLocalFiles(h.App.Database)
+	if err != nil {
+		return 0, err
+	}
+
+	// Distinct anime with files on disk. Ignored files are still files you have, but an anime whose
+	// every file is ignored is one you have deliberately pushed out of the library, so it is not
+	// something to go and put on a list.
+	inLibrary := make(map[int]struct{})
+	for _, lf := range lfs {
+		if lf == nil || lf.MediaId <= 0 || lf.Ignored {
+			continue
+		}
+		inLibrary[lf.MediaId] = struct{}{}
+	}
+	if len(inLibrary) == 0 {
+		return 0, nil
+	}
+
+	// One fresh read of the shared account, rather than the five-minute cache: this decides whether
+	// each of potentially hundreds of anime gets written, and being wrong costs a series its status.
+	shared, err := h.getPlanningSlutAnimeCollectionCached(ctx, true)
+	if err != nil {
+		return 0, err
+	}
+
+	missing := make([]int, 0)
+	for mediaID := range inLibrary {
+		if shared != nil {
+			if _, found := shared.GetListEntryFromAnimeId(mediaID); found {
+				continue
+			}
+		}
+		// animeIsAlreadyTracked also covers the user's own list and what this process has written.
+		if h.animeIsAlreadyTracked(mediaID) {
+			continue
+		}
+		missing = append(missing, mediaID)
+	}
+
+	if len(missing) == 0 {
+		h.App.Logger.Debug().Int("inLibrary", len(inLibrary)).
+			Msg("planning slut: Local library is already fully tracked")
+		return 0, nil
+	}
+
+	h.App.Logger.Info().Int("count", len(missing)).Int("inLibrary", len(inLibrary)).
+		Msg("planning slut: Adding local library anime missing from the shared PLANNING list")
+
+	// Rate limited to one write a second by addMediaToPlanningSlutBatch, so a few hundred entries is
+	// a few minutes of background work rather than a burst AniList will reject.
+	if err := h.addMediaToPlanningSlutBatch(ctx, missing); err != nil {
+		return 0, err
+	}
+
+	for _, mediaID := range missing {
+		planningSlutAddedAnime.SetT(mediaID, struct{}{}, 6*time.Hour)
+	}
+	h.App.InvalidatePlanningSlutAnimeCollection()
+	invalidatePlanningSlutCollectionCaches()
+	h.scheduleAnimeCollectionRefresh()
+
+	h.App.Logger.Info().Int("count", len(missing)).
+		Msg("planning slut: Finished adding local library anime to the shared PLANNING list")
+
+	return len(missing), nil
 }
 
 // getPlanningSlutAnimeCollectionCached returns the planning slut's anime collection,
