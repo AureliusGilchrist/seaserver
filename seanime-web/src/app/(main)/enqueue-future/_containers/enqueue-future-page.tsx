@@ -82,13 +82,23 @@ export function EnqueueFuturePage() {
         return orderRef.current.map(id => byId.get(id)!)
     }, [queue])
 
-    // Bundling franchise members gathers each family at its earliest member, so this is the order
-    // that is actually drawn — not items. The list draws it and Next/Previous walk it, which has to
-    // be the same order, hence orderedItems rather than items everywhere below.
+    // Bundling franchise members reorders rows, so this — not items — is the order actually drawn.
+    // The list draws it and Next/Previous walk it, which has to be the same order, hence orderedItems
+    // rather than items everywhere below.
+    //
+    // The family order is frozen exactly as the item order above is, and for a stronger reason: a
+    // group's place must not depend on which of its members is still in it, or dealing with the top
+    // entry of a group throws the rest of the group down the list. groupIntoFamilies holds that
+    // invariant; this ref is the memory it needs to hold it across polls.
     //
     // Grouping is presentation only. Every action — skip, ignore, add torrents — applies to the one
     // entry it was pressed on and never to its siblings.
-    const families = React.useMemo(() => groupIntoFamilies(items), [items])
+    const familyOrderRef = React.useRef<number[]>([])
+    const families = React.useMemo(() => {
+        const grouped = groupIntoFamilies(items, familyOrderRef.current)
+        familyOrderRef.current = grouped.order
+        return grouped.families
+    }, [items])
     const orderedItems = React.useMemo(() => families.flat(), [families])
 
     const [activeMediaId, setActiveMediaId] = React.useState<number | undefined>(undefined)

@@ -12,24 +12,37 @@ export type EnqueueFutureFamily = EnqueueFuture_Item[]
 /**
  * Gathers a franchise into one bundle wherever its members turn up, and draws a spine around it.
  *
- * A family is placed at its *earliest* member — the slot that franchise already held — and every
- * later member is spliced up into it rather than left stranded further down. A season discovered
- * mid-run therefore joins its siblings instead of landing at the bottom of a list of hundreds, and a
- * row that was alone becomes a group the moment a relative shows up behind it.
+ * **The slot belongs to the family, not to a member of it.** Once a franchise has been given a place
+ * in the list it keeps that place until it is gone entirely, and `order` is what carries that from
+ * one poll to the next — the caller holds it and hands it back.
  *
- * The cost is that splicing a member up pushes the rows between it and its family down by one. That
- * only happens on the poll that discovers a relative of something already queued, and only for rows
- * below the family's slot — everything above it, including the whole stretch you have already worked
- * through, is untouched.
+ * That distinction is the whole point of this function. Placing a family at whichever member happens
+ * to be its earliest survivor looks identical while nothing is happening, and then throws the group
+ * across the screen the moment you deal with its top entry: the anchor becomes the next member, and
+ * if that one arrived from a run three hundred rows later, the entire bundle lands there. Working the
+ * top of a group meant watching the rest of it vanish down the list.
  *
- * Degrouping is free: when the rest of a bundle is matched, skipped or ignored, the survivor is a
- * bundle of one, so it loses the spine and header and keeps the slot it already had.
+ * So the movements this list can make are exactly two, and they are the only two:
+ *
+ *  - an entry is dealt with and leaves; whatever was below it inside its group closes up by one, and
+ *    if that emptied the group, whatever was below the group closes up by one.
+ *  - a franchise nobody has seen yet appears, and goes on the end. A new *member* of a franchise
+ *    already listed joins that group where it already is — it had no slot to lose, and nothing that
+ *    was already placed gives one up.
+ *
+ * Nothing is ever re-sorted, re-anchored or re-gathered. The order will not be alphabetical, or by
+ * position, or by anything else describable; it is the order things were first shown in, and that is
+ * the property worth having.
  *
  * Each entry appears exactly once in the result, so flattening it is a reordering of the input and
  * never a duplication — which is what lets the list and Next/Previous agree on the same order.
  */
-export function groupIntoFamilies(items: EnqueueFuture_Item[]): EnqueueFutureFamily[] {
-    const families: EnqueueFutureFamily[] = []
+export function groupIntoFamilies(
+    items: EnqueueFuture_Item[],
+    order: number[] = [],
+): { families: EnqueueFutureFamily[], order: number[] } {
+    // Bucket first. Map keeps insertion order, so families not yet placed come out below in the order
+    // their first member arrived.
     const byKey = new Map<number, EnqueueFutureFamily>()
     const seen = new Set<number>()
     for (const item of items) {
@@ -40,15 +53,24 @@ export function groupIntoFamilies(items: EnqueueFuture_Item[]): EnqueueFutureFam
 
         const key = item.familyId || item.mediaId
         const family = byKey.get(key)
-        if (family) {
-            family.push(item)
-        } else {
-            const created = [item]
-            byKey.set(key, created)
-            families.push(created)
-        }
+        if (family) family.push(item)
+        else byKey.set(key, [item])
     }
-    return families
+
+    // Everything still here, exactly where it already was. A family whose every member has been dealt
+    // with drops out, and the groups below it close up — the one time a group changes place.
+    const placed = new Set<number>()
+    const held = order.filter(key => {
+        if (!byKey.has(key) || placed.has(key)) return false
+        placed.add(key)
+        return true
+    })
+
+    // Franchises seen for the first time, on the end where they cannot disturb anything above them.
+    const appended = [...byKey.keys()].filter(key => !placed.has(key))
+
+    const nextOrder = held.concat(appended)
+    return { families: nextOrder.map(key => byKey.get(key)!), order: nextOrder }
 }
 
 /**
@@ -74,9 +96,10 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
         <div className="rounded-[--radius-md] border bg-gray-950 max-h-[70vh] overflow-y-auto" data-enqueue-future-list>
             {families.map(family => (
                 <FamilyBundle
-                    // Keyed on the first entry rather than the family id, which is 0 for an anime
-                    // with no relatives. Every entry appears exactly once, so this is unique.
-                    key={family[0].mediaId}
+                    // Keyed on the family, not on its first entry: dealing with the entry a bundle
+                    // happens to start with must not look to React like a different bundle appearing
+                    // where the old one was. One bundle per key, so this is unique.
+                    key={family[0].familyId || family[0].mediaId}
                     family={family}
                     activeMediaId={activeMediaId}
                     onSelect={onSelect}
