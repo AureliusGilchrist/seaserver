@@ -181,10 +181,7 @@ export function EnqueueFuturePage() {
         })
     }
 
-    // Only ever on the very first load. Gating on isLoading alone meant any refetch — and every action
-    // on this screen triggers one — replaced the whole page with a spinner, which on a queue of any size
-    // looked exactly like the page hanging.
-    if (isLoading && !queue) {
+    if (isLoading) {
         return <PageWrapper className="p-4 sm:p-8 space-y-4">
             <LoadingSpinner />
         </PageWrapper>

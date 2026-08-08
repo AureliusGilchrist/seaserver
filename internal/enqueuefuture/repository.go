@@ -180,19 +180,9 @@ func (r *Repository) CanResume() bool {
 func (r *Repository) start(progress *RunProgress) (Status, error) {
 	r.mu.Lock()
 	if r.running {
-		// Flagged as running with no worker ever recorded: whatever set the flag is gone and nothing
-		// is coming to clear it. Stop already treats this state as "not really running"; refusing here
-		// as well meant a single lost worker made the feature answer 409 to every attempt until the
-		// server was restarted. Take it over instead.
-		if r.workerDone == nil {
-			r.logger.Warn().Msg("enqueuefuture: A run was flagged as in progress with no worker behind it, taking it over")
-			r.running = false
-			r.cancel = nil
-		} else {
-			status := r.status
-			r.mu.Unlock()
-			return status, errors.New("a run is already in progress")
-		}
+		status := r.status
+		r.mu.Unlock()
+		return status, errors.New("a run is already in progress")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -314,11 +304,6 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 
 	// The root itself is never queued — you are already on its page, and it has its own download
 	// button. It is only walked to get its recommendations and its own family.
-	//
-	// Which is what makes any anime a valid root, whatever its status. Every filter in this package
-	// decides what belongs *in the queue*, and the root never enters it: airing, unreleased, a special,
-	// a PV, no episodes listed, nothing downloadable — none of it disqualifies an anime from being the
-	// place a walk starts from.
 	rootPending := !progress.RootWalked
 
 	bo := &backoff{}
