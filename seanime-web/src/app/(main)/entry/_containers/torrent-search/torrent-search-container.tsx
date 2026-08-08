@@ -43,7 +43,7 @@ import { LuCornerLeftDown, LuFileSearch, LuPlus } from "react-icons/lu"
 export const __torrentSearch_selectedTorrentsAtom = atom<HibikeTorrent_AnimeTorrent[]>([])
 
 export function TorrentSearchContainer({
-    type, entry, snapshot, onDownloadStarted, confirmAutoMatchOnce, autoMatchValue, onAutoMatchChange,
+    type, entry, snapshot, onDownloadStarted, confirmAutoMatchOnce, autoMatchValue, onAutoMatchChange, editSearchSignal,
 }: {
     type: TorrentSelectionType,
     entry: Anime_Entry,
@@ -58,6 +58,12 @@ export function TorrentSearchContainer({
     /** Decide auto-match per anime instead of using the shared, persisted preference. */
     autoMatchValue?: boolean,
     onAutoMatchChange?: (value: boolean) => void,
+    /**
+     * Bumping this number drops the search into plain-text mode with the title prefilled, so the
+     * query can be typed by hand. A counter rather than a boolean because asking for it twice in a
+     * row on the same anime has to work — the second press should still take you back to the box.
+     */
+    editSearchSignal?: number,
 }) {
     const downloadInfo = React.useMemo(() => entry.downloadInfo, [entry.downloadInfo])
     const serverStatus = useServerStatus()
@@ -123,6 +129,14 @@ export function TorrentSearchContainer({
     React.useEffect(() => {
         setSelectedTorrents([])
     }, [])
+
+    // "Edit search": drop to plain-text search so the query can be typed by hand. Smart search
+    // builds the query from the anime's metadata, which is what you want until it is wrong — a bad
+    // title match, or a release the provider only indexes under a name AniList has never heard of.
+    React.useEffect(() => {
+        if (!editSearchSignal) return
+        setSearchType(Torrent_SearchType.SIMPLE)
+    }, [editSearchSignal])
 
     React.useLayoutEffect(() => {
         if (searchType === Torrent_SearchType.SMART) {

@@ -10,9 +10,13 @@ import (
 // MaxItemsPerRun is how many anime a single Enqueue Future run will discover before it stops
 // walking the recommendation graph.
 //
-// The graph is effectively unbounded — every anime recommends eight more — so a run has to be told
-// when to stop or it never will. 125 is a queue you can realistically work through in a sitting.
-const MaxItemsPerRun = 125
+// The graph is effectively unbounded — every anime recommends eight more, and pulls its own sequels
+// in besides — so a run has to be told when to stop or it never will.
+//
+// At the sustained rate a full run is roughly 17 minutes of background work, which is fine for
+// something you start and walk away from. The queue survives restarts and resumes on its own, so
+// the cap is about how much is worth having waiting for you, not about what the run can finish.
+const MaxItemsPerRun = 350
 
 // SearchParams are the torrent search settings a snapshot was produced with.
 //

@@ -1,12 +1,13 @@
 import { EnqueueFuture_Item, EnqueueFuture_Snapshot } from "@/api/generated/types"
 import { __torrentSearch_selectedTorrentsAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { formatDistanceToNowSafe } from "@/lib/helpers/date"
 import { displayTitle } from "@/lib/helpers/media"
 import { useAtomValue } from "jotai/react"
 import React from "react"
-import { LuCircleCheck, LuDownload } from "react-icons/lu"
+import { LuCircleCheck, LuDownload, LuPencil } from "react-icons/lu"
 
 /**
  * States plainly which show the torrents below belong to.
@@ -16,9 +17,10 @@ import { LuCircleCheck, LuDownload } from "react-icons/lu"
  * will land in your library — is "what am I actually torrenting right now". A title in a header bar
  * scrolls away; this does not, and it names the exact releases that are selected.
  */
-export function EnqueueFutureCurrentShow({ item, snapshot }: {
+export function EnqueueFutureCurrentShow({ item, snapshot, onEditSearch }: {
     item: EnqueueFuture_Item
     snapshot: EnqueueFuture_Snapshot | undefined
+    onEditSearch: () => void
 }) {
 
     const selectedTorrents = useAtomValue(__torrentSearch_selectedTorrentsAtom)
@@ -85,6 +87,19 @@ export function EnqueueFutureCurrentShow({ item, snapshot }: {
                             prepared {formatDistanceToNowSafe(snapshot.preparedAt)}
                         </span>
                     )}
+
+                    {/* The prepared search is built from AniList's metadata, which is right until
+                        it isn't — a title the provider indexes under some other name, a bad match.
+                        This drops to a plain text box so the query can be typed by hand. */}
+                    <Button
+                        intent="gray-subtle"
+                        size="xs"
+                        leftIcon={<LuPencil />}
+                        onClick={onEditSearch}
+                        data-enqueue-future-edit-search-button
+                    >
+                        Edit search
+                    </Button>
                 </div>
 
                 <SelectedTorrents torrents={selectedTorrents} />

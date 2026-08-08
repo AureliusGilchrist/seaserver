@@ -97,6 +97,14 @@ export function EnqueueFuturePage() {
         setAutoMatchByMedia(prev => ({ ...prev, [activeItem.mediaId]: value }))
     }, [activeItem])
 
+    // Bumped by "Edit search" to drop the search UI into plain-text mode. Reset on every step, so
+    // arriving at the next anime starts from its prepared smart search rather than inheriting the
+    // last one's decision to go manual.
+    const [editSearchSignal, setEditSearchSignal] = React.useState(0)
+    React.useEffect(() => {
+        setEditSearchSignal(0)
+    }, [activeMediaId])
+
     // The torrent selection is module-global and shared with the anime page's drawer, so it has to
     // be emptied on every step — otherwise the previous anime's picks come along to the next one.
     React.useEffect(() => {
@@ -134,7 +142,21 @@ export function EnqueueFuturePage() {
     }
 
     return (
-        <PageWrapper className="p-4 sm:p-8 space-y-4" data-enqueue-future-page>
+        <PageWrapper className="relative p-4 sm:p-8 space-y-4" data-enqueue-future-page>
+
+            {/* The theme wallpaper is painted across the whole app at z-index -1 and dimmed by the
+                theme, not by the page. This screen puts far more small text over it than a normal
+                one — a torrent list, release names, filter labels — so it darkens its own patch of
+                background instead of asking you to turn the wallpaper down everywhere else. */}
+            <div
+                aria-hidden
+                className="fixed inset-0 z-0 bg-[--background] opacity-80 pointer-events-none"
+                data-enqueue-future-scrim
+            />
+
+            {/* One positioned wrapper for everything, so the scrim above sits between the
+                wallpaper and the page rather than on top of it. */}
+            <div className="relative z-[1] space-y-4">
 
             <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -198,15 +220,21 @@ export function EnqueueFuturePage() {
                             onDownloadStarted={handleDownloadStarted}
                             autoMatch={activeAutoMatch}
                             onAutoMatchChange={setActiveAutoMatch}
+                            editSearchSignal={editSearchSignal}
+                            onEditSearch={() => setEditSearchSignal(n => n + 1)}
                         />
                     </AppLayoutStack>
                 </div>
             )}
+
+            </div>
         </PageWrapper>
     )
 }
 
-function ActiveItemBody({ item, detail, isLoading, snapshot, onDownloadStarted, autoMatch, onAutoMatchChange }: {
+function ActiveItemBody({
+    item, detail, isLoading, snapshot, onDownloadStarted, autoMatch, onAutoMatchChange, editSearchSignal, onEditSearch,
+}: {
     item: EnqueueFuture_Item | undefined
     detail: EnqueueFuture_Item | undefined
     isLoading: boolean
@@ -214,6 +242,8 @@ function ActiveItemBody({ item, detail, isLoading, snapshot, onDownloadStarted, 
     onDownloadStarted: () => void
     autoMatch: boolean
     onAutoMatchChange: (value: boolean) => void
+    editSearchSignal: number
+    onEditSearch: () => void
 }) {
     if (!item) return null
 
@@ -243,21 +273,32 @@ function ActiveItemBody({ item, detail, isLoading, snapshot, onDownloadStarted, 
 
     return (
         <>
-            <EnqueueFutureCurrentShow item={item} snapshot={detail?.snapshot} />
-
-            {/* Keyed by anime so stepping to the next one gets a fresh search rather than the
-                previous one's state carried across — the search UI holds its own filters and
-                query internally. */}
-            <TorrentSearchContainer
-                key={item.mediaId}
-                type="download"
-                entry={entry}
-                snapshot={snapshot}
-                onDownloadStarted={onDownloadStarted}
-                confirmAutoMatchOnce
-                autoMatchValue={autoMatch}
-                onAutoMatchChange={onAutoMatchChange}
+            <EnqueueFutureCurrentShow
+                item={item}
+                snapshot={detail?.snapshot}
+                onEditSearch={onEditSearch}
             />
+
+            {/* The search UI has no surface of its own — on the anime page it sits inside a drawer
+                that provides one. Rendered bare here it would be small text straight over the theme
+                wallpaper, which is fixed behind the whole app, so it gets the same solid panel every
+                other block on this screen has. */}
+            <div className="rounded-[--radius-md] border bg-gray-950 p-4">
+                {/* Keyed by anime so stepping to the next one gets a fresh search rather than the
+                    previous one's state carried across — the search UI holds its own filters and
+                    query internally. */}
+                <TorrentSearchContainer
+                    key={item.mediaId}
+                    type="download"
+                    entry={entry}
+                    snapshot={snapshot}
+                    onDownloadStarted={onDownloadStarted}
+                    confirmAutoMatchOnce
+                    autoMatchValue={autoMatch}
+                    onAutoMatchChange={onAutoMatchChange}
+                    editSearchSignal={editSearchSignal}
+                />
+            </div>
 
             <EnqueueFutureAddTorrents
                 entry={entry}

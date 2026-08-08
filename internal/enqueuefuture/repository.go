@@ -429,7 +429,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 		if !rootPending {
 			if result.tetheredOVA {
 				// Dropped rather than marked skipped, so it gives its slot back: the cap should be
-				// spent on 125 anime worth downloading, not on extras filtered out along the way.
+				// spent on anime worth downloading, not on extras filtered out along the way.
 				r.logger.Debug().Int("mediaId", mediaID).Msg("enqueuefuture: Dropping OVA tied to a parent series")
 				_ = r.database.DeleteEnqueueFutureItem(profileID, mediaID)
 				r.dropDiscovered()
