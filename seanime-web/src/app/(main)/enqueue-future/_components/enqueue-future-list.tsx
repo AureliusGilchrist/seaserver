@@ -9,28 +9,37 @@ import { LuBan, LuCheck, LuCircleAlert, LuLink2, LuLoader, LuSkipForward } from 
 export type EnqueueFutureFamily = EnqueueFuture_Item[]
 
 /**
- * Gathers every entry of a franchise into one bundle, however far apart they sit in the queue.
+ * Orders the queue by age — oldest first — and gathers every member of a franchise into the slot of
+ * its oldest member.
  *
- * A franchise is one thing to decide about, so it is always drawn as one thing — a season discovered
- * two hundred entries later is still that same story and belongs next to the rest of it, not stranded
- * on its own further down. Each bundle takes the slot of its earliest member, so the queue still reads
- * in discovery order; what moves is a distant member being lifted up to join its family.
+ * Age is `position`, which the server assigns on insert and never reassigns, so it is the only thing
+ * here that fixes a row in place. Everything else is derived from it: bundles sit at their oldest
+ * member, and members within a bundle are in age order too.
  *
- * That movement is the deliberate trade. The server already walks a franchise to its end before
- * widening out again (see drainFrontier), so members are usually adjacent already and there is little
- * left to lift — but when there is, keeping the family together wins.
+ * A franchise is one thing to decide about, so it is drawn as one thing however far apart its members
+ * were discovered. A new anime is appended at the end of the queue, so when it turns out to be related
+ * to something already queued it joins that bundle rather than sitting on its own at the bottom — it
+ * was never anywhere anyone had looked at yet.
+ *
+ * Degrouping is free: when the rest of a bundle is matched, skipped or ignored, the survivor is a
+ * bundle of one, so it loses the "related" spine and header and keeps the slot it already had.
  *
  * Both the list and Next/Previous walk the flattened result, so they agree on this order.
  */
 export function groupIntoFamilies(items: EnqueueFuture_Item[]): EnqueueFutureFamily[] {
+    // Sorted rather than trusting the response order, so age is unambiguously what decides the layout.
+    const ordered = [...items].sort((a, b) => (a.position - b.position) || (a.mediaId - b.mediaId))
+
     const byFamily = new Map<number, EnqueueFutureFamily>()
-    for (const item of items) {
+    for (const item of ordered) {
         const key = item.familyId || item.mediaId
         const existing = byFamily.get(key)
         if (existing) existing.push(item)
         else byFamily.set(key, [item])
     }
-    // Map iteration is insertion-ordered, so the bundles come back in first-seen order.
+
+    // Map iteration is insertion-ordered, and insertion followed age — so the bundles come back
+    // oldest-member first.
     return Array.from(byFamily.values())
 }
 
@@ -57,8 +66,9 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
         <div className="rounded-[--radius-md] border bg-gray-950 max-h-[70vh] overflow-y-auto" data-enqueue-future-list>
             {families.map(family => (
                 <FamilyBundle
-                    // Keyed on the family, which every member of the bundle shares — so the bundle
-                    // keeps its identity when its first entry is dealt with and leaves the list.
+                    // Keyed on the family, which every member shares and which is unique now that a
+                    // franchise is always one bundle — so the bundle keeps its identity when its
+                    // oldest entry is dealt with and drops out from under it.
                     key={family[0].familyId || family[0].mediaId}
                     family={family}
                     activeMediaId={activeMediaId}

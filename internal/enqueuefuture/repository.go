@@ -518,10 +518,15 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 		// one step further from what you asked for; it is the same show.
 		for _, rel := range result.relations {
 			if seen[rel.mediaID] {
-				// Already queued under some other family — pull that whole family in with this one,
-				// which is what makes a franchise discovered from two directions end up as one
-				// bundle instead of two.
-				r.mergeFamilies(rel.mediaID, familyID)
+				// Already queued, and deliberately left exactly where it is.
+				//
+				// This used to re-point its whole family onto this one, so a franchise discovered from
+				// two directions ended up as a single bundle. The cost was that the younger bundle
+				// jumped up the queue to join the older one, taking every one of its members with it —
+				// entries already in the list, already scrolled past, moving under the user while they
+				// worked. The only movement worth that is splicing in an anime nobody has seen yet, so
+				// a newly discovered relation joins its family (below) and an established entry does
+				// not get dragged anywhere.
 				continue
 			}
 			seen[rel.mediaID] = true
@@ -572,20 +577,10 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 	}
 }
 
-// mergeFamilies re-points every item of one family onto another, so a franchise found from two
-// directions ends up as a single bundle rather than two halves.
-func (r *Repository) mergeFamilies(mediaID int, intoFamilyID int) {
-	if intoFamilyID == 0 {
-		return
-	}
-	item, err := r.database.GetEnqueueFutureItem(mediaID)
-	if err != nil || item == nil || item.FamilyID == intoFamilyID || item.FamilyID == 0 {
-		return
-	}
-	if err := r.database.MergeEnqueueFutureFamily(item.FamilyID, intoFamilyID); err != nil {
-		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to merge families")
-	}
-}
+// Nothing here merges families any more. Re-pointing an already-queued franchise onto another one
+// moved every entry it held, which is the one thing the queue must not do to a list somebody is
+// working down. Database.MergeEnqueueFutureFamily is left in place for a caller that wants to tidy
+// the grouping up between runs, when moving things costs nobody anything.
 
 // drainFrontier inserts discovered anime into the queue, applying the skip rules and the per-run
 // franchise cap. Returns whatever it could not insert.

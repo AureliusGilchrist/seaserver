@@ -45,10 +45,10 @@ export function EnqueueFuturePage() {
     // record is what stops them being rediscovered — but walking back through them is not the job.
     const items = React.useMemo(() => (queue ?? []).filter(isEnqueueFuturePending), [queue])
 
-    // The queue's real order: every franchise gathered into one bundle, each bundle taking the slot of
-    // its earliest member. A franchise is always kept together however far apart its entries were
-    // discovered, so a distant season is lifted up to join the rest of its story rather than sitting
-    // stranded further down.
+    // The queue's real order: oldest first, with each franchise gathered into the slot of its oldest
+    // member. A newly discovered anime is appended at the end, so joining it to a franchise already
+    // queued costs nothing anyone had looked at yet; dealing with an entry removes it and closes the
+    // gap, everything below moving up one slot to fill it.
     //
     // The list draws this and Next/Previous walk it, which has to be the same order — otherwise
     // finishing one season sends you to an unrelated show while the rest of the series waits
