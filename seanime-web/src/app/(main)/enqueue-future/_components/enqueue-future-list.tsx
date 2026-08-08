@@ -9,29 +9,43 @@ import { LuBan, LuCheck, LuCircleAlert, LuLink2, LuLoader, LuSkipForward } from 
 export type EnqueueFutureFamily = EnqueueFuture_Item[]
 
 /**
- * Draws a spine around franchise members that are *already adjacent*. Pure decoration — it takes the
- * order it is given and hands it back untouched.
+ * Gathers a franchise into one bundle wherever its members turn up, and draws a spine around it.
  *
- * The caller freezes the order so that a row, once placed, keeps its slot (see the page container).
- * Gathering scattered members would undo that in one stroke: lifting a season up to join its siblings
- * pushes every row between them down, and a run discovering anime behind you does that over and over.
- * A franchise being adjacent is not worth the list moving while you work down it — and the server
- * already walks a family to its end before the next spread of recommendations, so members usually
- * arrive together and get their spine anyway.
+ * A family is placed at its *earliest* member — the slot that franchise already held — and every
+ * later member is spliced up into it rather than left stranded further down. A season discovered
+ * mid-run therefore joins its siblings instead of landing at the bottom of a list of hundreds, and a
+ * row that was alone becomes a group the moment a relative shows up behind it.
+ *
+ * The cost is that splicing a member up pushes the rows between it and its family down by one. That
+ * only happens on the poll that discovers a relative of something already queued, and only for rows
+ * below the family's slot — everything above it, including the whole stretch you have already worked
+ * through, is untouched.
  *
  * Degrouping is free: when the rest of a bundle is matched, skipped or ignored, the survivor is a
  * bundle of one, so it loses the spine and header and keeps the slot it already had.
  *
- * Flattening the result returns the input, which is what lets the list and Next/Previous agree.
+ * Each entry appears exactly once in the result, so flattening it is a reordering of the input and
+ * never a duplication — which is what lets the list and Next/Previous agree on the same order.
  */
 export function groupIntoFamilies(items: EnqueueFuture_Item[]): EnqueueFutureFamily[] {
     const families: EnqueueFutureFamily[] = []
+    const byKey = new Map<number, EnqueueFutureFamily>()
+    const seen = new Set<number>()
     for (const item of items) {
+        // The same anime reaching here twice would otherwise be drawn twice and counted twice by the
+        // header — the queue can carry a repeat while a run is writing to it.
+        if (seen.has(item.mediaId)) continue
+        seen.add(item.mediaId)
+
         const key = item.familyId || item.mediaId
-        const current = families[families.length - 1]
-        const currentKey = current ? (current[0].familyId || current[0].mediaId) : undefined
-        if (current && currentKey === key) current.push(item)
-        else families.push([item])
+        const family = byKey.get(key)
+        if (family) {
+            family.push(item)
+        } else {
+            const created = [item]
+            byKey.set(key, created)
+            families.push(created)
+        }
     }
     return families
 }
@@ -59,9 +73,8 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
         <div className="rounded-[--radius-md] border bg-gray-950 max-h-[70vh] overflow-y-auto" data-enqueue-future-list>
             {families.map(family => (
                 <FamilyBundle
-                    // Keyed on the first entry rather than the family: a franchise whose members are
-                    // not adjacent is drawn as more than one bundle, and a family id would collide
-                    // between them. Every entry appears exactly once, so this is unique.
+                    // Keyed on the first entry rather than the family id, which is 0 for an anime
+                    // with no relatives. Every entry appears exactly once, so this is unique.
                     key={family[0].mediaId}
                     family={family}
                     activeMediaId={activeMediaId}

@@ -54,21 +54,27 @@ export function EnqueueFuturePage() {
     // anything new goes on the end, where it cannot disturb what is above it; anything gone is dropped
     // and the rows below close up. Those are the only two movements this list makes.
     //
-    // The trade is that a late-discovered season lands at the bottom rather than beside its siblings.
-    // Splicing it in would push every row beneath it down, and during a run that happens over and over
-    // — a franchise being adjacent is not worth the list moving under you.
+    // Grouping below then lifts a late-discovered season up beside its siblings, which is the one
+    // exception to "new goes on the end" — see groupIntoFamilies.
     const orderRef = React.useRef<number[]>([])
     const items = React.useMemo(() => {
         const visible = (queue ?? []).filter(isEnqueueFuturePending)
+        // Keyed by media id, so an anime the queue happens to return twice — a run writing to it
+        // while it is read can do that — collapses to one row here rather than being drawn twice.
         const byId = new Map(visible.map(item => [item.mediaId, item]))
 
-        // Whatever is still here, in the order it already had.
-        const held = orderRef.current.filter(id => byId.has(id))
-        const known = new Set(held)
+        // Whatever is still here, in the order it already had. Deduplicated as well: an id that
+        // somehow got into the order twice would otherwise stay there for the life of the screen.
+        const seen = new Set<number>()
+        const held = orderRef.current.filter(id => {
+            if (!byId.has(id) || seen.has(id)) return false
+            seen.add(id)
+            return true
+        })
 
         // Everything new, appended in server order so the tail reads oldest-first like the rest.
-        const appended = visible
-            .filter(item => !known.has(item.mediaId))
+        const appended = [...byId.values()]
+            .filter(item => !seen.has(item.mediaId))
             .sort((a, b) => (a.position - b.position) || (a.mediaId - b.mediaId))
             .map(item => item.mediaId)
 
@@ -76,9 +82,9 @@ export function EnqueueFuturePage() {
         return orderRef.current.map(id => byId.get(id)!)
     }, [queue])
 
-    // Bundling adjacent franchise members is decoration over the frozen order above — it reorders
-    // nothing, so orderedItems is items. The list draws this and Next/Previous walk it, which has to be
-    // the same order.
+    // Bundling franchise members gathers each family at its earliest member, so this is the order
+    // that is actually drawn — not items. The list draws it and Next/Previous walk it, which has to
+    // be the same order, hence orderedItems rather than items everywhere below.
     //
     // Grouping is presentation only. Every action — skip, ignore, add torrents — applies to the one
     // entry it was pressed on and never to its siblings.
