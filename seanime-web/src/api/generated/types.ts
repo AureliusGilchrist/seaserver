@@ -2084,6 +2084,8 @@ export type Anime_LibraryCollectionStats = {
     totalMovies: number
     totalSpecials: number
     totalSize: string
+    unresolvedItems: number
+    unresolvedFiles: number
 }
 
 /**

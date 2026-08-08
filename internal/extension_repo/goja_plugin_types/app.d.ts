@@ -3432,6 +3432,8 @@ declare namespace $app {
         totalMovies: number;
         totalSpecials: number;
         totalSize: string;
+        unresolvedItems: number;
+        unresolvedFiles: number;
     }
 
     /**

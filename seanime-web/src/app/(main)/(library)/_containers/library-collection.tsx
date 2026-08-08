@@ -12,6 +12,27 @@ import { useAtom } from "jotai/react"
 import React from "react"
 import { LuListFilter } from "react-icons/lu"
 
+/**
+ * The list of everything on disk that is not on one of the user's AniList lists — anime.MediaListStatusLocal
+ * on the server. Not a status, despite travelling with them, so the status filters do not apply to it.
+ */
+export function isLocalLibraryList(type?: string | null): boolean {
+    return type?.toString() === "LOCAL"
+}
+
+/**
+ * A React key that survives the local library.
+ *
+ * Every other list is AniList entries, where the media id is unique. The local library also carries
+ * folders that matched no anime at all, and the server gives all of those media id 0 — so keying on
+ * the id alone collapsed them into one key and React drew one folder in place of however many there
+ * are. Those entries are titled after their directory, which is what distinguishes them.
+ */
+function entryKey(entry: Anime_LibraryCollectionEntry): string {
+    if (entry.mediaId) return String(entry.mediaId)
+    return `unmatched:${entry.media?.title?.userPreferred ?? entry.libraryData?.sharedPath ?? ""}`
+}
+
 export function LibraryCollectionLists({ collectionList, isLoading, streamingMediaIds, showStatuses, type }: {
     collectionList: Anime_LibraryCollectionList[],
     isLoading: boolean,
@@ -60,6 +81,9 @@ export function LibraryCollectionFilteredLists({ collectionList, isLoading, stre
 
     const filteredCollectionList = React.useMemo(() => {
         return collectionList.filter(collection => {
+            // See LibraryCollectionListItem — the local library is not an AniList status and is never
+            // filtered out by one.
+            if (isLocalLibraryList(collection.type)) return true
             return !showStatuses || (!!showStatuses && !!collection.type && showStatuses.includes(collection.type))
         })
     }, [collectionList, showStatuses])
@@ -80,7 +104,7 @@ export function LibraryCollectionFilteredLists({ collectionList, isLoading, stre
             {type === "grid" && <PaginatedMediaGrid
                 items={filteredCollectionList?.flatMap(n => n.entries)?.filter(Boolean)}
                 renderItem={entry => (
-                    <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
+                    <LibraryCollectionEntryItem key={entryKey(entry)} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
                 )}
             />}
             {type === "carousel" && <Carousel
@@ -95,7 +119,7 @@ export function LibraryCollectionFilteredLists({ collectionList, isLoading, stre
                 <CarouselDotButtons className="-top-2" />
                 <CarouselContent className="px-6">
                     {filteredCollectionList?.flatMap(n => n.entries)?.filter(Boolean)?.map(entry => {
-                        return <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
+                        return <LibraryCollectionEntryItem key={entryKey(entry)} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
                     })}
                 </CarouselContent>
             </Carousel>}
@@ -115,7 +139,10 @@ export const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, 
 
     const [params, setParams] = useAtom(__mainLibrary_paramsAtom)
 
-    if (!!showStatuses && !!list.type && !showStatuses.includes(list.type)) return null
+    // LOCAL is exempt: showStatuses picks which AniList statuses a home layout shows, and the local
+    // library is not one of them. Filtering it here would hide everything on disk that is not on a
+    // list, which is the one thing this section exists to show.
+    if (!isLocalLibraryList(list.type) && !!showStatuses && !!list.type && !showStatuses.includes(list.type)) return null
 
     return (
         <React.Fragment key={list.type}>
@@ -153,7 +180,7 @@ export const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, 
                     "data-list-type": list.type,
                 }}
                 renderItem={entry => (
-                    <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
+                    <LibraryCollectionEntryItem key={entryKey(entry)} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
                 )}
             />}
             {type === "carousel" && <Carousel
@@ -168,7 +195,7 @@ export const LibraryCollectionListItem = React.memo(({ list, streamingMediaIds, 
                 <CarouselDotButtons className="-top-2" />
                 <CarouselContent className="px-6">
                     {list.entries?.map(entry => {
-                        return <LibraryCollectionEntryItem key={entry.mediaId} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
+                        return <LibraryCollectionEntryItem key={entryKey(entry)} entry={entry} streamingMediaIds={streamingMediaIds} type={type} />
                     })}
                 </CarouselContent>
             </Carousel>}

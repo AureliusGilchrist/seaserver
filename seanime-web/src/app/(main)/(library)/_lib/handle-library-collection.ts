@@ -253,20 +253,24 @@ export function useHandleLibraryCollection() {
     /**
      * Lists for the home screen's status sections ("Currently watching", "Completed", ...).
      *
-     * Two differences from the library lists:
-     * - COMPLETED also carries the entries above, so finished series show without needing a
-     *   local copy.
-     * - The LOCAL list is dropped. Those entries exist only because the shared (planning slut)
-     *   account has them; they are not part of the user's own lists and don't belong in a
-     *   status section.
+     * One difference from the library lists: COMPLETED also carries the entries above, so finished
+     * series show without needing a local copy.
+     *
+     * The LOCAL list is kept. It used to be dropped here on the grounds that its entries "exist only
+     * because the shared (planning slut) account has them" — which is true of the ones
+     * relocatePlanningSlutEntriesToLocal moves into it, and false of everything else in it. The server
+     * builds that list from every local file group that is not in the user's AniList lists, which is
+     * exactly what a download you never added to a list looks like. Dropping the list hid those: a
+     * library of a hundred-odd folders showing forty-odd shows, with no indication the rest existed.
+     * Anything on disk is part of the local library and is shown.
      */
     const buildStatusLists = React.useCallback((
         lists: Anime_LibraryCollectionList[],
         extraCompletedParams: CollectionParams<"anime">,
     ) => {
-        const withoutShared = lists.filter(l => (l.type as string) !== "LOCAL")
+        const allLists = lists
 
-        if (!completedEntriesWithoutLocalFiles.length) return withoutShared
+        if (!completedEntriesWithoutLocalFiles.length) return allLists
 
         // Run the extra entries through the same filter/sort as the rest of the collection so
         // the genre selector and search keep working on them.
@@ -279,18 +283,18 @@ export function useHandleLibraryCollection() {
             animeGojuuonMap,
         )
 
-        if (!extra.length) return withoutShared
+        if (!extra.length) return allLists
 
-        if (!withoutShared.some(l => l.type === "COMPLETED")) {
+        if (!allLists.some(l => l.type === "COMPLETED")) {
             // Nothing completed is downloaded — the section doesn't exist yet, so create it in
             // its usual place (before "Dropped").
             const completedList = { type: "COMPLETED", status: "COMPLETED", entries: extra } as Anime_LibraryCollectionList
-            const droppedIdx = withoutShared.findIndex(l => l.type === "DROPPED")
-            if (droppedIdx === -1) return [...withoutShared, completedList]
-            return [...withoutShared.slice(0, droppedIdx), completedList, ...withoutShared.slice(droppedIdx)]
+            const droppedIdx = allLists.findIndex(l => l.type === "DROPPED")
+            if (droppedIdx === -1) return [...allLists, completedList]
+            return [...allLists.slice(0, droppedIdx), completedList, ...allLists.slice(droppedIdx)]
         }
 
-        return withoutShared.map(l => l.type !== "COMPLETED" ? l : {
+        return allLists.map(l => l.type !== "COMPLETED" ? l : {
             ...l,
             entries: [...(l.entries ?? []), ...extra]
                 .sort((a, b) => (a.media?.title?.userPreferred ?? "").localeCompare(b.media?.title?.userPreferred ?? "")),

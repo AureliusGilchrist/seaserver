@@ -128,8 +128,12 @@ export function DetailedLibraryView(props: LibraryViewProps) {
 
             {(!isHomeItem) && <div
                 className={cn(
-                    "grid grid-cols-3 lg:grid-cols-6 gap-4 [&>div]:text-center [&>div>p]:text-[--muted]",
-                    isNakamaLibrary && "lg:grid-cols-5",
+                    "grid grid-cols-3 gap-4 [&>div]:text-center [&>div>p]:text-[--muted]",
+                    // The unresolved tile only exists when there is something unresolved, so the row
+                    // widens to hold it rather than leaving a gap on a tidy library.
+                    isNakamaLibrary
+                        ? ((stats?.unresolvedItems ?? 0) > 0 ? "lg:grid-cols-6" : "lg:grid-cols-5")
+                        : ((stats?.unresolvedItems ?? 0) > 0 ? "lg:grid-cols-7" : "lg:grid-cols-6"),
                 )}
                 data-detailed-library-view-stats-container
             >
@@ -157,6 +161,15 @@ export function DetailedLibraryView(props: LibraryViewProps) {
                     <h3>{stats?.totalSpecials}</h3>
                     <p>Specials</p>
                 </div>
+                {/* Only when there is something to report. The counts to its left describe what the
+                    library can show; this is what it found and could not, which is the difference
+                    between a grid that looks empty and a drive that plainly is not. */}
+                {(stats?.unresolvedItems ?? 0) > 0 && <div data-detailed-library-view-unresolved>
+                    <h3 className="text-orange-300">{stats?.unresolvedItems}</h3>
+                    <p title={`${stats?.unresolvedFiles ?? 0} files that are matched to anime missing from your AniList collection, or that matched nothing at all. Resolve them from the Unknown and Unmatched sections.`}>
+                        Unresolved
+                    </p>
+                </div>}
             </div>}
 
             <SearchOptions />

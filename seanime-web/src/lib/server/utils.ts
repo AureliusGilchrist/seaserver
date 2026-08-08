@@ -4,6 +4,10 @@ export function getLibraryCollectionTitle(type?: string) {
     switch (type) {
         case "CURRENT":
             return "Currently watching"
+        case "LOCAL":
+            // Everything on disk that is not on one of the user's AniList lists. "Local" alone read as
+            // a status next to "Completed" and "Planning"; this says what the section actually is.
+            return "Local library"
         default:
             return capitalize(type ?? "")
     }

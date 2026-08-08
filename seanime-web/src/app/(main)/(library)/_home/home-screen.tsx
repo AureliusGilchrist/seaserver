@@ -695,8 +695,12 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
             <PageWrapper>
                 <div
                     className={cn(
-                        "grid grid-cols-3 lg:grid-cols-6 gap-4 [&>div]:text-center [&>div>p]:text-[--muted] py-4",
-                        isNakamaLibrary && "lg:grid-cols-5",
+                        "grid grid-cols-3 gap-4 [&>div]:text-center [&>div>p]:text-[--muted] py-4",
+                        // Widens only when there is an unresolved tile to hold — see the same row in
+                        // detailed-library-view.
+                        isNakamaLibrary
+                            ? ((data?.stats?.unresolvedItems ?? 0) > 0 ? "lg:grid-cols-6" : "lg:grid-cols-5")
+                            : ((data?.stats?.unresolvedItems ?? 0) > 0 ? "lg:grid-cols-7" : "lg:grid-cols-6"),
                     )}
                     data-detailed-library-view-stats-container
                 >
@@ -724,6 +728,13 @@ export function HomeScreenItem(props: HomeScreenItemProps) {
                         <h3>{data?.stats?.totalSpecials ?? "-"}</h3>
                         <p>Specials</p>
                     </div>
+                    {/* What the scan found and the library cannot show. Absent when there is none. */}
+                    {(data?.stats?.unresolvedItems ?? 0) > 0 && <div data-detailed-library-view-unresolved>
+                        <h3 className="text-orange-300">{data?.stats?.unresolvedItems}</h3>
+                        <p title={`${data?.stats?.unresolvedFiles ?? 0} files that are matched to anime missing from your AniList collection, or that matched nothing at all. Resolve them from the Unknown and Unmatched sections.`}>
+                            Unresolved
+                        </p>
+                    </div>}
                 </div>
             </PageWrapper>
         )

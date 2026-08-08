@@ -48,13 +48,28 @@ type (
 
 	LibraryCollectionListType string
 
+	// LibraryCollectionStats is the readout above the library.
+	//
+	// Two populations, and the distinction matters: TotalFiles and TotalSize describe what is on disk,
+	// while TotalEntries and the format breakdown describe what the library can actually show you.
+	// Everything counted as an entry is something you can click on below; anything on disk that never
+	// became one is counted as unresolved instead of quietly inflating the totals.
 	LibraryCollectionStats struct {
+		// TotalEntries and the three format counts only ever include entries with local files, so they
+		// match the grid underneath. Planning entries you do not have are not part of your library.
 		TotalEntries  int    `json:"totalEntries"`
 		TotalFiles    int    `json:"totalFiles"`
 		TotalShows    int    `json:"totalShows"`
 		TotalMovies   int    `json:"totalMovies"`
 		TotalSpecials int    `json:"totalSpecials"`
 		TotalSize     string `json:"totalSize"`
+		// UnresolvedItems is what the scanner found and the library cannot show: anime matched to a
+		// media that is not in your AniList collection, plus folders that matched nothing at all. Each
+		// one is roughly one show's worth of files sitting invisible, which is the thing worth knowing
+		// when the grid looks emptier than the drive does.
+		UnresolvedItems int `json:"unresolvedItems"`
+		// UnresolvedFiles is how many files those items account for.
+		UnresolvedFiles int `json:"unresolvedFiles"`
 	}
 
 	LibraryCollectionList struct {
@@ -218,8 +233,6 @@ func NewLibraryCollection(ctx context.Context, opts *NewLibraryCollectionOptions
 		opts.PlatformRef,
 	)
 
-	lc.hydrateStats(opts.LocalFiles)
-
 	// Add Continue Watching list
 	lc.hydrateContinueWatchingList(
 		ctx,
@@ -244,6 +257,9 @@ func NewLibraryCollection(ctx context.Context, opts *NewLibraryCollectionOptions
 	lc.hydrateUnmatchedGroups()
 
 	lc.hydrateUnknownGroups(opts.LocalFiles, opts.AnimeCollection)
+
+	// Last, because it counts the unmatched and unknown groups hydrated just above.
+	lc.hydrateStats(opts.LocalFiles)
 
 	// Event
 	event := &AnimeLibraryCollectionEvent{
@@ -480,6 +496,14 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 
 //----------------------------------------------------------------------------------------------------------------------
 
+// hydrateStats counts the library. Call it after the unmatched and unknown groups are hydrated —
+// it reports those too.
+//
+// Only entries that actually have local files are counted. The lists this walks are not purely a
+// picture of your library: hydrateCollectionLists deliberately carries every Planning entry, files or
+// no files, so the planning shelf can be browsed from here. Counting those made the readout describe
+// an AniList account rather than a drive — a library of forty shows reading "403 TV Shows" because
+// the other 363 were things the user had only ever meant to watch.
 func (lc *LibraryCollection) hydrateStats(lfs []*LocalFile) {
 	stats := &LibraryCollectionStats{
 		TotalFiles:    len(lfs),
@@ -490,8 +514,22 @@ func (lc *LibraryCollection) hydrateStats(lfs []*LocalFile) {
 		TotalSize:     "", // Will be set by the route handler
 	}
 
+	// An anime holds one list status at a time, so this cannot double count today; it is here so that
+	// a future list which repeats an entry cannot make the library look bigger than it is.
+	counted := make(map[int]struct{}, len(lc.Lists))
+
 	for _, list := range lc.Lists {
 		for _, entry := range list.Entries {
+			// No local files, no place in the count. Non-nil is the right test rather than a main file
+			// count: an entry held entirely in specials is still something you have.
+			if entry.EntryLibraryData == nil {
+				continue
+			}
+			if _, ok := counted[entry.MediaId]; ok {
+				continue
+			}
+			counted[entry.MediaId] = struct{}{}
+
 			stats.TotalEntries++
 			if entry.Media.Format != nil {
 				if *entry.Media.Format == anilist.MediaFormatMovie {
@@ -503,6 +541,16 @@ func (lc *LibraryCollection) hydrateStats(lfs []*LocalFile) {
 				}
 			}
 		}
+	}
+
+	// What the scan found and the library cannot show. Unknown groups are one media each and unmatched
+	// groups one directory each, so both count as roughly one show's worth of files.
+	stats.UnresolvedItems = len(lc.UnknownGroups) + len(lc.UnmatchedGroups)
+	for _, group := range lc.UnknownGroups {
+		stats.UnresolvedFiles += len(group.LocalFiles)
+	}
+	for _, group := range lc.UnmatchedGroups {
+		stats.UnresolvedFiles += len(group.LocalFiles)
 	}
 
 	lc.Stats = stats
