@@ -773,21 +773,17 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		startYear = torrent.AnimeStartYear
 	}
 
-	// Work out every destination name first — this is pure string work, no I/O — then do the moves.
+	// Work out every destination name first, then do the moves.
 	// Splitting the two is what lets the moves run concurrently below; the names, the numbering and
 	// the episode titles are exactly what the sequential version produced.
+	//
+	// Nothing here writes, but a movie's name does read the destination — see movieFileName.
 	planned := make([]plannedMove, 0, len(videoFiles))
 	for i, fw := range videoFiles {
 		ext := filepath.Ext(fw.file.Name)
 
 		if formatUpper == "MOVIE" {
-			yearSuffix := ""
-			if startYear > 0 {
-				yearSuffix = fmt.Sprintf(" (%d)", startYear)
-			}
-			movieBase := fmt.Sprintf("%s%s", cleanTitle, yearSuffix)
-			safeMovieBase := sanitizeNamePreserveWhitespace(movieBase)
-			newName := fmt.Sprintf("%s%s", safeMovieBase, ext)
+			newName := movieFileName(destination, cleanTitle, startYear, ext)
 			planned = append(planned, plannedMove{
 				src:     fw.file.Path,
 				dest:    filepath.Join(destination, newName),
@@ -2141,6 +2137,31 @@ func extractEpisodeNumber(name string) int {
 
 func sanitizeDirectoryName(input string) string {
 	return sanitizeNamePreserveWhitespace(input)
+}
+
+// movieFileName is what a matched movie is filed as: the title and the extension, nothing else —
+// "The Wind Rises.mkv". A movie is one file, so there is no episode to number and no season to place
+// it in, and the year only ever got in the way of reading the shelf.
+//
+// The one exception is a movie already in the library under the older "<Title> (<Year>).mkv"
+// spelling, which is kept. Renaming it is not this function's business — matching a download is —
+// and filing the new copy under the new name instead would leave two of the same movie side by side,
+// each half of a library entry. Whichever name is already there wins, so re-matching, repairing or
+// overwriting an existing movie lands on the existing file the way it always did.
+func movieFileName(destination string, cleanTitle string, startYear int, ext string) string {
+	name := sanitizeNamePreserveWhitespace(cleanTitle) + ext
+	if startYear <= 0 {
+		return name
+	}
+
+	legacy := sanitizeNamePreserveWhitespace(fmt.Sprintf("%s (%d)", cleanTitle, startYear)) + ext
+	if legacy == name {
+		return name
+	}
+	if _, err := os.Stat(filepath.Join(destination, legacy)); err == nil {
+		return legacy
+	}
+	return name
 }
 
 func sanitizeNamePreserveWhitespace(input string) string {

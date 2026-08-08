@@ -42,6 +42,27 @@ export function sanitizeDirectoryName(input: string): string {
     return input.replaceAll("/", "-")
 }
 
+/**
+ * How much is actually inside a torrent, counted off its file list.
+ *
+ * Folders are counted at every level and deduplicated, so a season pack laid out as
+ * `Show/Season 1/ep.mkv` counts two folders rather than one per file. The torrent's own top-level
+ * folder is one of them — that is what it contains, and hiding it would make a tidy single-folder
+ * release read as having none at all.
+ */
+export function countFilesAndFolders(paths: string[] | null | undefined): { files: number, folders: number } {
+    if (!paths?.length) return { files: 0, folders: 0 }
+    const folders = new Set<string>()
+    for (const path of paths) {
+        const parts = path.split("/").filter(Boolean)
+        // Every part but the last is a directory on the way to the file.
+        for (let i = 1; i < parts.length; i++) {
+            folders.add(parts.slice(0, i).join("/"))
+        }
+    }
+    return { files: paths.length, folders: folders.size }
+}
+
 export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) {
     const serverStatus = useServerStatus()
     const libraryPath = serverStatus?.settings?.library?.libraryPath
@@ -122,6 +143,8 @@ export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) 
         return filePreview.index
     }, [])
 
+    const contents = React.useMemo(() => countFilesAndFolders(filepaths), [filepaths])
+
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
     const launchDownload = () => {
@@ -175,9 +198,21 @@ export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) 
         >
             <VaulContent className="max-w-5xl mx-auto">
                 <AppLayoutStack className="mt-4 p-3 lg:p-6">
-                    <h4 className="text-center mb-4">
+                    <h4 className="text-center mb-1">
                         Select files to download
                     </h4>
+
+                    {/* What the torrent actually holds, before anything is picked. The file list is
+                        already loaded to draw the tree below, so this costs nothing — and it is the
+                        first thing worth knowing about a batch. */}
+                    <p className="text-center text-sm text-[--muted] mb-4">
+                        {isLoading
+                            ? "Reading the torrent's contents…"
+                            : contents.files === 0
+                                ? "No files could be read from this torrent"
+                                : `${contents.files} ${contents.files === 1 ? "file" : "files"}`
+                                + ` in ${contents.folders} ${contents.folders === 1 ? "folder" : "folders"}`}
+                    </p>
 
                     <DirectorySelector
                         name="destination"

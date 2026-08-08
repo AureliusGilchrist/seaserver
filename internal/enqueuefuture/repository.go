@@ -518,15 +518,15 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 		// one step further from what you asked for; it is the same show.
 		for _, rel := range result.relations {
 			if seen[rel.mediaID] {
-				// Already queued, and deliberately left exactly where it is.
+				// Already queued. It stays exactly where it is in the queue — but the fact that this
+				// anime is related to it is new information, and it is the only place that connection
+				// is ever known. Thrown away, the two halves of one story keep separate family ids and
+				// the queue screen draws the same franchise as two unrelated groups pages apart.
 				//
-				// This used to re-point its whole family onto this one, so a franchise discovered from
-				// two directions ended up as a single bundle. The cost was that the younger bundle
-				// jumped up the queue to join the older one, taking every one of its members with it —
-				// entries already in the list, already scrolled past, moving under the user while they
-				// worked. The only movement worth that is splicing in an anime nobody has seen yet, so
-				// a newly discovered relation joins its family (below) and an established entry does
-				// not get dragged anywhere.
+				// So the families are folded together into whichever sits higher up, and nothing moves
+				// in the queue itself: only the grouping changes, and it changes towards the half the
+				// user has already been shown.
+				_ = r.database.LinkEnqueueFutureFamilies(rel.mediaID, familyID)
 				continue
 			}
 			seen[rel.mediaID] = true
@@ -577,10 +577,13 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 	}
 }
 
-// Nothing here merges families any more. Re-pointing an already-queued franchise onto another one
-// moved every entry it held, which is the one thing the queue must not do to a list somebody is
-// working down. Database.MergeEnqueueFutureFamily is left in place for a caller that wants to tidy
-// the grouping up between runs, when moving things costs nobody anything.
+// Families are folded together wherever a franchise is reached a second time, by
+// Database.LinkEnqueueFutureFamilies — see the two call sites above.
+//
+// This does not move anything in the queue: positions are untouched, so no row changes place and
+// nothing the user has already worked past shifts under them. All that changes is which family id
+// the rows carry, and it always changes towards the half that is higher up the queue, so the screen
+// gathers the franchise at the point the user has already seen rather than somewhere below them.
 
 // drainFrontier inserts discovered anime into the queue, applying the skip rules and the per-run
 // franchise cap. Returns whatever it could not insert.
@@ -649,6 +652,14 @@ func (r *Repository) drainFrontier(
 					Msg("enqueuefuture: Reached the per-run franchise cap, only completing what is already queued")
 			}
 			continue
+		}
+
+		// A family edge landing on something a previous run already queued is the same second sighting
+		// the relations loop handles, reached the other way round — the row exists but this run never
+		// saw it, so `seen` says nothing about it. Fold the two families together before the skip below
+		// discards the edge, or the connection is lost with it.
+		if rec.isFamily && r.database.HasEnqueueFutureItem(rec.mediaID) {
+			_ = r.database.LinkEnqueueFutureFamilies(rec.mediaID, familyID)
 		}
 
 		if skip, reason := r.shouldSkip(rec); skip {

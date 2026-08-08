@@ -1,6 +1,7 @@
 import { EnqueueFuture_Item } from "@/api/generated/types"
 import { ENQUEUE_FUTURE_STATUS } from "@/api/hooks/enqueue_future.hooks"
 import { EnqueueFutureItemActions } from "@/app/(main)/enqueue-future/_components/enqueue-future-item-actions"
+import { AnimeDownloadingIcon, useIsAnimeDownloading } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/components/ui/core/styling"
 import React from "react"
@@ -152,15 +153,18 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                         )}
                         data-enqueue-future-list-item
                     >
-                        {item.coverImage
-                            ? <img
-                                src={item.coverImage}
-                                alt=""
-                                loading="lazy"
-                                decoding="async"
-                                className="h-12 w-9 rounded-[--radius] object-cover flex-none"
-                            />
-                            : <div className="h-12 w-9 rounded-[--radius] bg-gray-800 flex-none" />}
+                        <span className="relative flex-none">
+                            {item.coverImage
+                                ? <img
+                                    src={item.coverImage}
+                                    alt=""
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="h-12 w-9 rounded-[--radius] object-cover block"
+                                />
+                                : <div className="h-12 w-9 rounded-[--radius] bg-gray-800" />}
+                            <RowDownloadingMark mediaId={item.mediaId} />
+                        </span>
 
                         <span className="flex-1 min-w-0">
                             <span className={cn("block truncate text-sm", isActive && "font-semibold")}>
@@ -191,6 +195,40 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
         </div>
     )
 })
+
+/**
+ * The downloading mark, pinned to the corner of the cover art.
+ *
+ * On the artwork rather than in the status line because it is true of the anime, not of the queue
+ * row: an entry is normally taken off this list the moment you download it, so what this catches is
+ * everything else — a download started from the anime page, from another device, or by the
+ * auto-downloader, and the gap between pressing download here and the row leaving. Seeing it means
+ * "you are already getting this", which is the one thing worth interrupting a cover for.
+ *
+ * A leaf of its own so that subscribing to the download state costs one row rather than the whole
+ * bundle: FamilyBundle is memoised, and reading the atom in it would re-render every row it holds
+ * on every poll.
+ */
+function RowDownloadingMark({ mediaId }: { mediaId: number }) {
+    const isDownloading = useIsAnimeDownloading(mediaId)
+    if (!isDownloading) return null
+
+    return (
+        <span
+            data-enqueue-future-downloading-mark
+            title="Downloading"
+            aria-label="Downloading"
+            className={cn(
+                "absolute -bottom-1 -right-1 flex items-center justify-center h-4 w-4 rounded-full",
+                // Purple and the same glyph as everywhere else downloads are marked, so it reads as
+                // the same state here as it does on a card. The ring keeps it legible over artwork.
+                "bg-purple-500 text-white ring-2 ring-gray-950",
+            )}
+        >
+            <AnimeDownloadingIcon className="h-2.5 w-2.5" />
+        </span>
+    )
+}
 
 function ItemStatusLabel({ item }: { item: EnqueueFuture_Item }) {
     switch (item.status) {

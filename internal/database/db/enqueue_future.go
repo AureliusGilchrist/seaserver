@@ -311,6 +311,74 @@ func (db *Database) MergeEnqueueFutureFamily(fromFamilyID int, intoFamilyID int)
 	})
 }
 
+// EarliestEnqueueFutureFamilyPosition returns the queue position of a franchise's first member, or
+// 0 when the family has no rows. This is what "upper" means when two families are folded together.
+func (db *Database) EarliestEnqueueFutureFamilyPosition(familyID int) (int, error) {
+	if familyID == 0 {
+		return 0, nil
+	}
+	var position int64
+	err := retryOnBusy(func() error {
+		return db.gormdb.Model(&models.EnqueueFutureItem{}).
+			Where("family_id = ?", familyID).
+			Select("COALESCE(MIN(position), 0)").
+			Scan(&position).Error
+	})
+	if err != nil {
+		return 0, err
+	}
+	return int(position), nil
+}
+
+// LinkEnqueueFutureFamilies folds the franchise an already-queued anime belongs to together with the
+// franchise that has just reached it, so a story discovered from two directions ends up as one group.
+//
+// A recommendation graph reaches the same franchise more than once as a matter of course: an anime
+// queued as a recommendation anchors a family of its own, and a later member of some other family
+// then turns out to be related to it. Both halves are real and both are already in the queue, so
+// neither can simply be dropped — they have to be pointed at one family id, or the screen draws the
+// same story as two separate groups in two different places.
+//
+// The surviving family is whichever one sits higher in the queue, so folding pulls the later half up
+// to join the part you have already been shown rather than dragging the earlier half down.
+func (db *Database) LinkEnqueueFutureFamilies(mediaID int, familyID int) error {
+	if mediaID == 0 || familyID == 0 {
+		return nil
+	}
+
+	var existing int64
+	err := retryOnBusy(func() error {
+		return db.gormdb.Model(&models.EnqueueFutureItem{}).
+			Where("media_id = ?", mediaID).
+			Select("COALESCE(MAX(family_id), 0)").
+			Scan(&existing).Error
+	})
+	if err != nil {
+		return err
+	}
+	// Not queued, or already the same story — nothing to fold.
+	if existing == 0 || int(existing) == familyID {
+		return nil
+	}
+
+	from, into := int(existing), familyID
+	fromAt, err := db.EarliestEnqueueFutureFamilyPosition(from)
+	if err != nil {
+		return err
+	}
+	intoAt, err := db.EarliestEnqueueFutureFamilyPosition(into)
+	if err != nil {
+		return err
+	}
+	// Keep the upper one. Equal positions cannot happen — position is assigned per row — but the
+	// zero case can, when a family id has no rows yet, and that one must not win.
+	if fromAt != 0 && (intoAt == 0 || fromAt < intoAt) {
+		from, into = into, from
+	}
+
+	return db.MergeEnqueueFutureFamily(from, into)
+}
+
 // GetNextPendingEnqueueFutureItem returns the oldest unprepared item, or nil when there is none.
 func (db *Database) GetNextPendingEnqueueFutureItem() (*models.EnqueueFutureItem, error) {
 	var res models.EnqueueFutureItem

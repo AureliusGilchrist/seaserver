@@ -1,6 +1,10 @@
 package unmatched
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestExtractEpisodeNumber(t *testing.T) {
 	tests := []struct {
@@ -52,4 +56,46 @@ func TestExtractEpisodeNumber(t *testing.T) {
 			}
 		})
 	}
+}
+// A movie is filed under its title alone, except where the older naming is already on disk.
+func TestMovieFileName(t *testing.T) {
+	t.Run("the title and nothing else", func(t *testing.T) {
+		got := movieFileName(t.TempDir(), "The Wind Rises", 2013, ".mkv")
+		if got != "The Wind Rises.mkv" {
+			t.Errorf("got %q, want %q", got, "The Wind Rises.mkv")
+		}
+	})
+
+	t.Run("no year to drop", func(t *testing.T) {
+		got := movieFileName(t.TempDir(), "The Wind Rises", 0, ".mkv")
+		if got != "The Wind Rises.mkv" {
+			t.Errorf("got %q, want %q", got, "The Wind Rises.mkv")
+		}
+	})
+
+	// The backwards-compatible case: a movie already filed the old way keeps its name, so matching
+	// it again replaces that file rather than putting a second copy beside it.
+	t.Run("an existing legacy name wins", func(t *testing.T) {
+		dir := t.TempDir()
+		legacy := filepath.Join(dir, "The Wind Rises (2013).mkv")
+		if err := os.WriteFile(legacy, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		got := movieFileName(dir, "The Wind Rises", 2013, ".mkv")
+		if got != "The Wind Rises (2013).mkv" {
+			t.Errorf("got %q, want the existing %q", got, "The Wind Rises (2013).mkv")
+		}
+	})
+
+	// Only the exact legacy spelling counts — a different year is a different film.
+	t.Run("another film's file is not mistaken for it", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "The Wind Rises (1999).mkv"), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		got := movieFileName(dir, "The Wind Rises", 2013, ".mkv")
+		if got != "The Wind Rises.mkv" {
+			t.Errorf("got %q, want %q", got, "The Wind Rises.mkv")
+		}
+	})
 }
