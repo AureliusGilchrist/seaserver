@@ -82,7 +82,10 @@ func (r *Repository) discover(ctx context.Context, mediaID int) (*prepared, erro
 		return nil, errors.New("anilist platform is unavailable")
 	}
 
-	r.limiter.Wait()
+	if err := r.pacer.wait(ctx); err != nil {
+		return nil, err
+	}
+
 	details, err := platform.GetAnimeDetails(ctx, mediaID)
 	if err != nil {
 		return nil, err
@@ -111,9 +114,15 @@ func (r *Repository) prepare(ctx context.Context, mediaID int) (*prepared, error
 	// |       Details       |
 	// +---------------------+
 
+	// Paced once for the whole item rather than per call. The three requests below belong to one
+	// anime and are made back to back; charging each of them separately made a run take three times
+	// as long as the rate it claimed to run at.
+	if err := r.pacer.wait(ctx); err != nil {
+		return nil, err
+	}
+
 	// This is also where the next ring of recommendations comes from, which is why discovery is
 	// driven by preparation rather than running ahead of it: one request answers both questions.
-	r.limiter.Wait()
 	details, err := platform.GetAnimeDetails(ctx, mediaID)
 	if err != nil {
 		return nil, err
@@ -145,7 +154,6 @@ func (r *Repository) prepare(ctx context.Context, mediaID int) (*prepared, error
 		}
 	}
 
-	r.limiter.Wait()
 	entry, err := anime.NewEntry(ctx, &anime.NewEntryOptions{
 		MediaId:             mediaID,
 		LocalFiles:          localFiles,
@@ -183,7 +191,6 @@ func (r *Repository) prepare(ctx context.Context, mediaID int) (*prepared, error
 
 	var searchData *torrent.SearchData
 	if r.torrentRepository != nil {
-		r.limiter.Wait()
 		searchData, err = r.torrentRepository.SearchAnime(ctx, torrent.AnimeSearchOptions{
 			Provider:      params.Provider,
 			Type:          torrent.AnimeSearchType(params.Type),

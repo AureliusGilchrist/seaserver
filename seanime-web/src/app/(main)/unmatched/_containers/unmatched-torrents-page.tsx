@@ -154,6 +154,7 @@ export function UnmatchedTorrentsPage() {
                             {sweep!.matched} matched
                             {sweep!.failed > 0 ? ` · ${sweep!.failed} failed` : ""}
                             {sweep!.skipped > 0 ? ` · ${sweep!.skipped} skipped` : ""}
+                            {sweep!.conflicts > 0 ? ` · ${sweep!.conflicts} already in library` : ""}
                         </span>
                     </div>
 
@@ -173,6 +174,14 @@ export function UnmatchedTorrentsPage() {
                     {sweep!.skipped > 0 && !sweepRunning && (
                         <p className="text-xs text-[--muted]">
                             Skipped downloads are ones with no anime recorded, or still in progress — match those from the list below.
+                        </p>
+                    )}
+
+                    {sweep!.conflicts > 0 && !sweepRunning && (
+                        <p className="text-xs text-amber-200/90">
+                            {sweep!.conflicts} download{sweep!.conflicts === 1 ? "" : "s"} already had{" "}
+                            {sweep!.conflicts === 1 ? "its" : "their"} episodes in the library, so nothing was overwritten.
+                            Match {sweep!.conflicts === 1 ? "it" : "them"} from the list below to choose which copy to keep.
                         </p>
                     )}
 

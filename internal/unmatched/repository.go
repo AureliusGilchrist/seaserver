@@ -152,6 +152,10 @@ type MatchRequest struct {
 	AnimeTitleClean       string   `json:"animeTitleClean"` // Cleaned title for folder name
 	UseIndexBasedEpisodes bool     `json:"useIndexBasedEpisodes"`
 	EpisodeOffset         int      `json:"episodeOffset"`
+	// OverwriteExisting replaces library files this match would land on top of. Without it, a
+	// match that finds any destination already occupied moves nothing and reports the conflict
+	// instead — see MatchResult.Conflict.
+	OverwriteExisting bool `json:"overwriteExisting,omitempty"`
 }
 
 // MatchResult represents the result of a match operation
@@ -163,6 +167,10 @@ type MatchResult struct {
 	RemovedFiles []string `json:"removedFiles,omitempty"`
 	Destination  string   `json:"destination"`
 	ErrorMessage string   `json:"errorMessage,omitempty"`
+	// Conflict is set, with nothing moved or deleted, when the match found library files already
+	// occupying the destinations it wanted. Re-send the request with OverwriteExisting to replace
+	// them, or delete this torrent to throw the incoming copy away.
+	Conflict *MatchConflict `json:"conflict,omitempty"`
 }
 
 // GetUnmatchedTorrents returns all torrents in the unmatched directory that are fully downloaded
@@ -652,18 +660,18 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	// Never move creditless/bonus content or anything under an "Extra" folder into the
 	// library — delete it instead. Auto-match selects every video file in the torrent, so
 	// without this the NCOP/NCED would be moved in and numbered as if they were episodes.
-	kept := videoFiles[:0]
+	//
+	// Only worked out here; the deletion itself waits until the match is committed, below. The
+	// conflict check can still send the whole match back for the user to decide on, and doing
+	// that after having already destroyed files would leave nothing to decide about.
+	kept := make([]fileWithSeason, 0, len(videoFiles))
+	discardable := make([]fileWithSeason, 0)
 	for _, fw := range videoFiles {
-		if !isNCName(fw.file.Name) && !pathHasExtraSegment(fw.file.RelativePath) {
-			kept = append(kept, fw)
+		if isNCName(fw.file.Name) || pathHasExtraSegment(fw.file.RelativePath) {
+			discardable = append(discardable, fw)
 			continue
 		}
-		if err := os.Remove(fw.file.Path); err != nil {
-			r.logger.Warn().Err(err).Str("path", fw.file.Path).Msg("unmatched: Failed to delete creditless/extra file")
-			continue
-		}
-		result.RemovedFiles = append(result.RemovedFiles, fw.file.RelativePath)
-		r.logger.Info().Str("path", fw.file.Path).Msg("unmatched: Deleted creditless/extra file instead of matching it")
+		kept = append(kept, fw)
 	}
 	videoFiles = kept
 
@@ -828,6 +836,41 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			newName: newName,
 			relPath: fw.file.RelativePath,
 		})
+	}
+
+	// Last chance to stop: nothing has been moved, renamed or deleted yet. If any destination is
+	// already occupied, hand the whole match back so the caller can decide between replacing the
+	// copy in the library and throwing this download away. OverwriteExisting is the "replace" answer
+	// coming back in.
+	if !req.OverwriteExisting {
+		if conflict := r.detectConflicts(req.TorrentName, destination, planned); conflict != nil {
+			result.Success = false
+			result.Conflict = conflict
+			if conflict.SameTorrent {
+				result.ErrorMessage = fmt.Sprintf("%d of %d files are already in the library from this same torrent", len(conflict.Files), conflict.TotalPlanned)
+			} else {
+				result.ErrorMessage = fmt.Sprintf("%d of %d files are already in the library from a different torrent", len(conflict.Files), conflict.TotalPlanned)
+			}
+			r.logger.Warn().
+				Str("torrent", req.TorrentName).
+				Str("destination", destination).
+				Int("conflicts", len(conflict.Files)).
+				Int("planned", conflict.TotalPlanned).
+				Strs("sourceTorrents", conflict.SourceTorrents).
+				Bool("sameTorrent", conflict.SameTorrent).
+				Msg("unmatched: Destination files already exist, awaiting a decision before overwriting")
+			return result, nil
+		}
+	}
+
+	// Committed now, so the creditless/bonus content set aside earlier can go.
+	for _, fw := range discardable {
+		if err := os.Remove(fw.file.Path); err != nil {
+			r.logger.Warn().Err(err).Str("path", fw.file.Path).Msg("unmatched: Failed to delete creditless/extra file")
+			continue
+		}
+		result.RemovedFiles = append(result.RemovedFiles, fw.file.RelativePath)
+		r.logger.Info().Str("path", fw.file.Path).Msg("unmatched: Deleted creditless/extra file instead of matching it")
 	}
 
 	// Move the files. A same-filesystem match renames, which costs nothing, but a cross-filesystem

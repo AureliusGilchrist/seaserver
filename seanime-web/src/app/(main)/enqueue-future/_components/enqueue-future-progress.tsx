@@ -25,6 +25,20 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
         return () => clearInterval(id)
     }, [status?.rateLimited, status?.retryAt])
 
+    // A run that ended with something to say says it. Silence here is what made a failed run and a
+    // run that never started look the same from the outside.
+    if (!status?.running && status?.lastError && !status?.resumable) {
+        return (
+            <div
+                className="rounded-[--radius-md] border border-[--orange] bg-[--orange]/5 p-4"
+                data-enqueue-future-progress
+            >
+                <p className="font-semibold">Stopped{status.rootTitle ? ` — ${status.rootTitle}` : ""}</p>
+                <p className="text-sm text-[--muted]">{status.lastError}</p>
+            </div>
+        )
+    }
+
     // A stopped run that still has a progress record can be picked up exactly where it was — worth
     // offering plainly, since otherwise the only obvious move is to enqueue from scratch.
     if (!status?.running) {

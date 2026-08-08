@@ -127,6 +127,55 @@ func (db *Database) CountEnqueueFutureFamiliesForRoot(profileID uint, rootMediaI
 	return int(count), nil
 }
 
+// EnqueueFutureRunCounts is what a run has actually achieved, read back from the queue itself.
+type EnqueueFutureRunCounts struct {
+	Items    int
+	Prepared int
+	Failed   int
+	Families int
+}
+
+// GetEnqueueFutureRunCounts reads a run's progress off the queue rather than trusting a counter.
+//
+// In-memory tallies drift: a resumed run starts from whatever the progress file last recorded, and
+// anything that happened between the final write and the process dying is lost — leaving a screen
+// reading "0 of 0" over a queue with a hundred rows in it. The database is the thing that is
+// actually true, so the readout comes from there.
+func (db *Database) GetEnqueueFutureRunCounts(profileID uint, rootMediaID int) (EnqueueFutureRunCounts, error) {
+	var counts EnqueueFutureRunCounts
+
+	base := func() *gorm.DB {
+		return db.gormdb.Model(&models.EnqueueFutureItem{}).
+			Where("profile_id = ? AND root_media_id = ?", profileID, rootMediaID)
+	}
+
+	var items, prepared, failed, families int64
+	err := retryOnBusy(func() error {
+		if err := base().Count(&items).Error; err != nil {
+			return err
+		}
+		if err := base().Where("status IN ?", []string{
+			EnqueueFutureStatusReady, EnqueueFutureStatusNoResults,
+			EnqueueFutureStatusDownloaded, EnqueueFutureStatusSkipped, EnqueueFutureStatusIgnored,
+		}).Count(&prepared).Error; err != nil {
+			return err
+		}
+		if err := base().Where("status = ?", EnqueueFutureStatusFailed).Count(&failed).Error; err != nil {
+			return err
+		}
+		return base().Distinct("family_id").Count(&families).Error
+	})
+	if err != nil {
+		return counts, err
+	}
+
+	counts.Items = int(items)
+	counts.Prepared = int(prepared)
+	counts.Failed = int(failed)
+	counts.Families = int(families)
+	return counts, nil
+}
+
 // HasEnqueueFutureFamily reports whether any member of a franchise is already queued.
 //
 // A candidate joining a family that is already in the queue is free — it is part of a franchise you

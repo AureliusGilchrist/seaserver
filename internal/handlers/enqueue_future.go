@@ -44,9 +44,10 @@ func (h *Handler) HandleEnqueueFuture(c echo.Context) error {
 
 	status, err := h.App.EnqueueFutureRepository.Enqueue(b.MediaId, b.Title, h.GetProfileID(c))
 	if err != nil {
-		// A run already being in progress is not a failure worth an error toast — the queue is
-		// still filling, which is what was asked for. Hand back the status so the UI can say so.
-		return h.RespondWithData(c, status)
+		// Say so rather than returning a success the caller cannot tell apart from a started run.
+		// Swallowing this made a stuck run indistinguishable from a working one: the button did
+		// nothing, reported nothing, and there was no way to tell the queue was not filling.
+		return h.RespondWithError(c, echo.NewHTTPError(409, err.Error()))
 	}
 
 	return h.RespondWithData(c, status)

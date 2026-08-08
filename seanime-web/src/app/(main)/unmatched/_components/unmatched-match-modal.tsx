@@ -5,10 +5,13 @@ import {
     UnmatchedFile,
     FamilyEntry,
     FamilyResult,
+    MatchConflict,
     useMatchUnmatchedTorrent,
+    useDeleteUnmatchedTorrent,
     useGetUnmatchedTorrentContents,
     useUnmatchedFamilySearch,
 } from "@/api/hooks/unmatched.hooks"
+import { UnmatchedConflictModal } from "./unmatched-conflict-modal"
 import { useAnilistListAnime, useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetLocalFiles } from "@/api/hooks/localfiles.hooks"
@@ -269,6 +272,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     }, [torrent?.name])
 
     const { mutate: matchTorrent, isPending: isMatching } = useMatchUnmatchedTorrent(() => {
+        setConflict(null)
         onSuccess()
         // Reset selection to avoid carrying the previous anime into subsequent matches in the same modal session
         setSelectedAnime(null)
@@ -283,6 +287,13 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setFamilyDetailId(null)
         // Keep the files list but drop selections after a match
         setSelectedFiles(new Set())
+    }, (c) => setConflict(c))
+
+    // Declining a conflict throws the incoming copy away: this staged torrent and its episodes are
+    // deleted, and the library keeps what it already had. Only this one torrent is touched.
+    const { mutate: deleteTorrent, isPending: isDeletingTorrent } = useDeleteUnmatchedTorrent(() => {
+        setConflict(null)
+        onSuccess()
     })
 
     // Search only triggers when user hits Enter or clicks Search button
@@ -294,6 +305,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
 
     const resetState = useCallback(() => {
         setStep("select-files")
+        setConflict(null)
         setSelectedFiles(new Set())
         setSelectedAnime(null)
         setSearchQuery("")
@@ -404,6 +416,11 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
 
     const [confirmPlan, setConfirmPlan] = useState(false)
 
+    // Set when the server refused to overwrite library files already sitting at the destinations.
+    // Nothing moved, so the modal stays open behind the conflict dialog and the match can still be
+    // completed (replacing) or abandoned (deleting this torrent).
+    const [conflict, setConflict] = useState<MatchConflict | null>(null)
+
     // The titles the match is sent with — also what the destination folder is named.
     const matchTitles = useMemo(() => {
         const titleJp = selectedAnime?.title?.native || selectedAnime?.title?.romaji || selectedAnime?.title?.english || ""
@@ -471,7 +488,9 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         }
     }, [torrentContents, selectedFiles, dependOnIndex, episodeOffset])
 
-    const doMatch = useCallback(() => {
+    // overwriteExisting is the answer coming back from the conflict dialog: the first attempt always
+    // goes without it, so the server gets the chance to stop and ask before replacing anything.
+    const doMatch = useCallback((overwriteExisting: boolean = false) => {
         if (!torrent || !selectedAnime || selectedFiles.size === 0) return
 
         const { titleJp, titleClean } = matchTitles
@@ -487,6 +506,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             animeTitleClean: titleClean,
             useIndexBasedEpisodes: dependOnIndex,
             episodeOffset: dependOnIndex ? (episodeOffset > 0 ? episodeOffset : 1) : undefined,
+            overwriteExisting: overwriteExisting || undefined,
         })
     }, [torrent, selectedAnime, selectedFiles, matchTorrent, matchTitles, dependOnIndex, episodeOffset, setLastMatchedTitle])
 
@@ -659,6 +679,18 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                     onConfirm={() => { setConfirmPlan(false); doMatch() }}
                 />
             </Modal>
+        )}
+        {conflict && torrent && (
+            <UnmatchedConflictModal
+                conflict={conflict}
+                torrentName={torrent.name}
+                animeTitle={displayAnimeTitle || torrent.name}
+                isReplacing={isMatching}
+                isDeleting={isDeletingTorrent}
+                onAccept={() => doMatch(true)}
+                onDecline={() => deleteTorrent({ name: torrent.name })}
+                onCancel={() => setConflict(null)}
+            />
         )}
         <Modal
             open={!!torrent}

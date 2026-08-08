@@ -9,23 +9,29 @@ import { LuBan, LuCheck, LuCircleAlert, LuLink2, LuLoader, LuSkipForward } from 
 export type EnqueueFutureFamily = EnqueueFuture_Item[]
 
 /**
- * Groups the queue into franchises, each group keeping the position of its first member.
+ * Bundles *consecutive* queue entries that belong to the same franchise, leaving the order itself
+ * exactly as the server gave it.
  *
- * This is the queue's real order, and both the list and Next/Previous walk it. They have to agree:
- * a franchise's later seasons are discovered when the earlier one is prepared, so by raw insertion
- * order they land scattered among other shows. Grouping only for display would mean finishing one
- * season and having Next jump to some unrelated anime while the rest of the series sat further down
- * — the remaining seasons looking, from where you are sitting, skipped.
+ * Position is assigned append-only server-side, so an entry's slot never changes once it is queued.
+ * Gathering every member of a family together would undo that: a later season discovered halfway
+ * through a run would be lifted out of the slot it was queued into and dropped next to its first
+ * season, pushing everything between them down. Entries moving under you while you work through the
+ * queue is worse than a franchise being drawn as two bundles — so grouping only ever joins entries
+ * that are already neighbours, and nothing is ever reordered.
+ *
+ * Flattening the result therefore returns the input unchanged, which is what lets the list and
+ * Next/Previous walk the same order without either of them moving anything.
  */
 export function groupIntoFamilies(items: EnqueueFuture_Item[]): EnqueueFutureFamily[] {
-    const byFamily = new Map<number, EnqueueFutureFamily>()
+    const families: EnqueueFutureFamily[] = []
     for (const item of items) {
         const key = item.familyId || item.mediaId
-        const existing = byFamily.get(key)
-        if (existing) existing.push(item)
-        else byFamily.set(key, [item])
+        const current = families[families.length - 1]
+        const currentKey = current ? (current[0].familyId || current[0].mediaId) : undefined
+        if (current && currentKey === key) current.push(item)
+        else families.push([item])
     }
-    return Array.from(byFamily.values())
+    return families
 }
 
 /**
@@ -51,7 +57,10 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
         <div className="rounded-[--radius-md] border bg-gray-950 max-h-[70vh] overflow-y-auto" data-enqueue-future-list>
             {families.map(family => (
                 <FamilyBundle
-                    key={family[0].familyId || family[0].mediaId}
+                    // Keyed on the first entry, not the family: a franchise whose seasons are not
+                    // neighbours in the queue is drawn as more than one bundle, and a family id
+                    // would collide between them. Every entry appears once, so this is unique.
+                    key={family[0].mediaId}
                     family={family}
                     activeMediaId={activeMediaId}
                     onSelect={onSelect}

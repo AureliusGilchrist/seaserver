@@ -38,7 +38,18 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 		if profileID > 0 {
 			animeCollection, err = h.App.AnilistClientManager.GetAnimeCollection(profileID)
 			if err != nil || animeCollection == nil {
-				return h.RespondWithData(c, &anime.LibraryCollection{})
+				// Light mode drives the first paint, so bailing here shows an empty library
+				// before the full request can correct it. Fall back the same way full mode does.
+				h.App.Logger.Warn().Err(err).Uint("profileID", profileID).
+					Bool("nilCollection", animeCollection == nil).
+					Msg("library collection: profile AniList collection unavailable, falling back to global collection (light)")
+				animeCollection = nil
+				if global, globalErr := h.App.GetAnimeCollection(false); globalErr == nil {
+					animeCollection = global
+				}
+				if animeCollection == nil {
+					return h.RespondWithData(c, &anime.LibraryCollection{})
+				}
 			}
 		} else {
 			animeCollection, err = h.App.GetAnimeCollection(false)
@@ -66,7 +77,10 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 	if profileID > 0 {
 		animeCollection, err = h.App.AnilistClientManager.GetAnimeCollection(profileID)
 		if err != nil || animeCollection == nil {
-			return h.RespondWithData(c, &anime.LibraryCollection{})
+			h.App.Logger.Warn().Err(err).Uint("profileID", profileID).
+				Bool("nilCollection", animeCollection == nil).
+				Msg("library collection: profile AniList collection unavailable, falling back to global collection")
+			animeCollection = nil
 		}
 	} else {
 		animeCollection, err = h.App.GetAnimeCollection(false)
@@ -75,7 +89,23 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 		}
 	}
 
+	// The client manager only knows real AniList clients — it has no simulated-platform
+	// fallback — so a profile running on the simulated platform gets nothing from it and the
+	// entire library renders as empty even though every file is on disk and in the database.
+	// Fall back to the global collection, which does resolve through the current platform.
+	// Same reasoning as the entry handler.
+	if animeCollection == nil && profileID > 0 {
+		if global, globalErr := h.App.GetAnimeCollection(false); globalErr == nil {
+			animeCollection = global
+		} else {
+			h.App.Logger.Warn().Err(globalErr).Uint("profileID", profileID).
+				Msg("library collection: global collection fallback also failed")
+		}
+	}
+
 	if animeCollection == nil {
+		h.App.Logger.Warn().Uint("profileID", profileID).
+			Msg("library collection: no anime collection available, returning empty library")
 		return h.RespondWithData(c, &anime.LibraryCollection{})
 	}
 

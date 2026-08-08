@@ -18,26 +18,6 @@ import (
 	"seanime/internal/platforms/platform"
 	"seanime/internal/torrents/torrent"
 	"seanime/internal/util"
-	"seanime/internal/util/limiter"
-)
-
-// RateWindow and RateBurst set the pace of a run: RateBurst entries may go through in any
-// RateWindow, which works out to a sustained 20 entries per minute with a burst of 10.
-//
-// The numbers are chosen against AniList's budget, not against how fast the queue could be filled.
-// Each entry costs about two AniList requests (the details that also yield the next ring of
-// recommendations, plus building the entry), so 20 entries/minute is ~40 requests/minute against a
-// budget of about 90 — comfortably under, with room left for whatever you are doing in the app while
-// this runs in the background.
-//
-// The burst is what makes short runs feel instant: enqueue one page's eight recommendations and all
-// eight are prepared almost at once. Only a long recursive run ever settles to the sustained rate.
-// Pushing harder is counterproductive — past the budget the backoff ladder stops being a safety
-// valve and becomes the main loop, and the run finishes later than a polite one would while
-// degrading everything else that talks to AniList.
-const (
-	RateWindow = 30 * time.Second
-	RateBurst  = 10
 )
 
 type (
@@ -56,12 +36,15 @@ type (
 		defaultProviderFunc func() string
 		isSimulatedFunc     func() bool
 
-		limiter *limiter.Limiter
+		pacer *pacer
 
 		mu      sync.Mutex
 		status  Status
 		running bool
 		cancel  context.CancelFunc
+		// workerDone is closed when the goroutine behind the current run exits, so Stop can tell a
+		// worker that is winding down from one that is not there at all.
+		workerDone chan struct{}
 	}
 
 	NewRepositoryOptions struct {
@@ -91,7 +74,7 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 		animeCollectionFunc: opts.AnimeCollectionFunc,
 		defaultProviderFunc: opts.DefaultProviderFunc,
 		isSimulatedFunc:     opts.IsSimulatedFunc,
-		limiter:             limiter.NewLimiter(RateWindow, RateBurst),
+		pacer:               newPacer(ItemsPerMinute, RateBurst),
 		status: Status{
 			Cap:             MaxFamiliesPerRun,
 			BackoffRungs:    len(backoffLadder),
@@ -225,25 +208,68 @@ func (r *Repository) start(progress *RunProgress) (Status, error) {
 	// resumable rather than having lost the fact that a run was ever asked for.
 	r.saveProgress(progress)
 
-	go r.run(ctx, progress)
+	// The channel is what lets Stop tell "the worker is finishing up" from "there is no worker" —
+	// the second being the state that used to leave the feature permanently unusable.
+	done := make(chan struct{})
+	r.mu.Lock()
+	r.workerDone = done
+	r.mu.Unlock()
+
+	go func() {
+		defer close(done)
+		r.run(ctx, progress)
+	}()
 
 	return status, nil
 }
 
+// StopGracePeriod is how long Stop waits for the worker to notice before clearing the run anyway.
+//
+// Everything the worker blocks on now takes the context — the pacing, the backoff, the upstream
+// calls — so a live worker stops well inside this. Waiting at all is only to let it finish tidily.
+const StopGracePeriod = 5 * time.Second
+
 // Stop cancels a running run. Everything already prepared stays in the queue, and the progress file
 // is deliberately left behind so the run can be picked up again later.
+//
+// Always leaves the run cleared, even if the worker is already gone. A run flagged as running with
+// nothing behind it is the worst state this feature can be in: Stop appears to do nothing, every
+// Enqueue is refused, and the only way out is restarting the server.
 func (r *Repository) Stop() Status {
 	r.mu.Lock()
 	if r.cancel != nil {
 		r.cancel()
 	}
-	status := r.status
+	done := r.workerDone
+	running := r.running
 	r.mu.Unlock()
-	return status
+
+	if !running {
+		return r.Status()
+	}
+
+	if done == nil {
+		// Flagged as running with no worker ever recorded — nothing is coming to clear it.
+		r.finish("stopped")
+		return r.Status()
+	}
+
+	select {
+	case <-done:
+	case <-time.After(StopGracePeriod):
+		r.logger.Warn().Msg("enqueuefuture: Worker did not stop in time, clearing the run anyway")
+		r.finish("stopped")
+	}
+
+	return r.Status()
 }
 
 // run is the worker. One at a time, rate limited, until the frontier empties or the cap is hit.
 func (r *Repository) run(ctx context.Context, progress *RunProgress) {
+	// Two guards, because a run that exits without clearing its flag wedges the feature for good:
+	// every later Enqueue is refused as "already in progress" and the button silently does nothing
+	// until the server is restarted. finish is idempotent, so the explicit calls below still stand.
+	defer r.finish("")
 	defer util.HandlePanicInModuleThen("enqueuefuture/run", func() {
 		r.finish("the run stopped unexpectedly")
 	})
@@ -275,8 +301,13 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 
 	bo := &backoff{}
 
+	// Guards against the run getting stuck retrying one anime — see the failure path below.
+	lastFailedID := 0
+	consecutiveFailures := 0
+
 	// Called after every decision so the run is never more than one item ahead of what is on disk.
 	checkpoint := func() {
+		r.refreshCounts(profileID, rootMediaID)
 		status := r.Status()
 		progress.Seen = progress.Seen[:0]
 		for id := range seen {
@@ -334,7 +365,6 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			if item.Attempts >= MaxItemAttempts {
 				_ = r.database.SetEnqueueFutureItemStatus(profileID, mediaID, db.EnqueueFutureStatusFailed,
 					"gave up after "+strconv.Itoa(item.Attempts)+" attempts")
-				r.bumpFailed()
 				continue
 			}
 			_ = r.database.SetEnqueueFutureItemStatus(profileID, mediaID, db.EnqueueFutureStatusPreparing, "")
@@ -410,16 +440,37 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 
 			_ = r.database.IncrementEnqueueFutureItemAttempts(profileID, mediaID, err.Error())
 
-			// A dropped connection or a provider having a bad minute should not cost an anime its
-			// place in the queue, so give it a couple more tries before writing it off. The next
-			// one is paced by the rate limiter like everything else, so this cannot spin.
-			if attempts, readErr := r.attemptsFor(profileID, mediaID); readErr == nil && attempts < MaxItemAttempts {
+			// Counted here as well as in the database, and the stricter of the two wins.
+			//
+			// The persisted counter is what survives a restart, but relying on it alone means that
+			// if the write ever fails, the item goes back on the queue as pending, comes straight
+			// back as the oldest pending item, and the run spends the rest of its life retrying one
+			// anime — looking, from outside, exactly like a run that has hung.
+			if mediaID == lastFailedID {
+				consecutiveFailures++
+			} else {
+				lastFailedID = mediaID
+				consecutiveFailures = 1
+			}
+
+			attempts, readErr := r.attemptsFor(profileID, mediaID)
+			if readErr != nil {
+				attempts = consecutiveFailures
+			}
+			if attempts < consecutiveFailures {
+				attempts = consecutiveFailures
+			}
+
+			if attempts < MaxItemAttempts {
+				// A dropped connection or a provider having a bad minute should not cost an anime
+				// its place in the queue, so give it a couple more tries before writing it off.
 				_ = r.database.SetEnqueueFutureItemStatus(profileID, mediaID, db.EnqueueFutureStatusPending, err.Error())
 				continue
 			}
 
+			r.logger.Warn().Int("mediaId", mediaID).Int("attempts", attempts).
+				Msg("enqueuefuture: Giving up on this anime")
 			_ = r.database.SetEnqueueFutureItemStatus(profileID, mediaID, db.EnqueueFutureStatusFailed, err.Error())
-			r.bumpFailed()
 			continue
 		}
 
@@ -432,9 +483,21 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 				// spent on anime worth downloading, not on extras filtered out along the way.
 				r.logger.Debug().Int("mediaId", mediaID).Msg("enqueuefuture: Dropping OVA tied to a parent series")
 				_ = r.database.DeleteEnqueueFutureItem(profileID, mediaID)
-				r.dropDiscovered()
+				r.bumpSkipped()
 			} else {
 				r.storeSnapshot(profileID, mediaID, result)
+				// One line per anime, so a long run can be watched from the log rather than only
+				// through the screen — the difference between "slow" and "stuck" has to be visible
+				// somewhere.
+				torrents := 0
+				if result.snapshot != nil && result.snapshot.SearchData != nil {
+					torrents = len(result.snapshot.SearchData.Torrents)
+				}
+				r.logger.Info().
+					Int("mediaId", mediaID).
+					Str("title", result.title).
+					Int("torrents", torrents).
+					Msg("enqueuefuture: Prepared")
 			}
 		}
 
@@ -467,6 +530,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			frontier = append(frontier, rec)
 		}
 
+		wasRoot := rootPending
 		if rootPending {
 			rootPending = false
 		}
@@ -474,6 +538,23 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 		// Insert as much of the frontier as the cap allows, then drop the rest: past the cap there
 		// is no point holding on to anime that will never be queued.
 		frontier = r.drainFrontier(profileID, rootMediaID, frontier, depths)
+
+		// A root that produces nothing is a dead end worth naming. It is the one case that leaves
+		// the screen reading "0 of 0" with no explanation, and it has real causes — an anime with
+		// no recommendations and no relations, or one whose every neighbour you already own.
+		if wasRoot {
+			counts, _ := r.database.GetEnqueueFutureRunCounts(profileID, rootMediaID)
+			if counts.Items == 0 {
+				r.logger.Warn().
+					Int("rootMediaId", rootMediaID).
+					Int("recommendations", len(result.recommendations)).
+					Int("relations", len(result.relations)).
+					Msg("enqueuefuture: Nothing to queue from this anime — everything it leads to was filtered out")
+				r.clearProgress()
+				r.finish("nothing to queue from this anime — everything it leads to was already in your library, already downloading, or not out yet")
+				return
+			}
+		}
 
 		checkpoint()
 	}
@@ -554,8 +635,6 @@ func (r *Repository) drainFrontier(profileID uint, rootMediaID int, frontier []r
 		if isNewFamily {
 			families++
 		}
-		r.setFamilies(families)
-		r.bumpDiscovered()
 	}
 
 	return frontier
@@ -590,7 +669,6 @@ func (r *Repository) storeSnapshot(profileID uint, mediaID int, result *prepared
 	if err != nil {
 		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Failed to encode snapshot")
 		_ = r.database.SetEnqueueFutureItemStatus(profileID, mediaID, db.EnqueueFutureStatusFailed, err.Error())
-		r.bumpFailed()
 		return
 	}
 
@@ -603,11 +681,8 @@ func (r *Repository) storeSnapshot(profileID uint, mediaID int, result *prepared
 		profileID, mediaID, status, result.title, result.coverImage, value,
 	); err != nil {
 		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Failed to store snapshot")
-		r.bumpFailed()
 		return
 	}
-
-	r.bumpPrepared()
 }
 
 // +---------------------+
@@ -632,24 +707,27 @@ func (r *Repository) update(fn func(s *Status)) {
 	r.broadcast()
 }
 
-func (r *Repository) bumpDiscovered() { r.update(func(s *Status) { s.Discovered++ }) }
-func (r *Repository) bumpPrepared()   { r.update(func(s *Status) { s.Prepared++ }) }
-func (r *Repository) bumpFailed()     { r.update(func(s *Status) { s.Failed++ }) }
-func (r *Repository) bumpSkipped()    { r.update(func(s *Status) { s.Skipped++ }) }
+// Skipped is the one tally kept in memory: an anime rejected during discovery is never written to
+// the queue at all, so there is no row for it to be counted from. Everything else comes from the
+// database — see refreshCounts.
+func (r *Repository) bumpSkipped() { r.update(func(s *Status) { s.Skipped++ }) }
 
-// dropDiscovered accounts for an item that was queued and then removed once preparation revealed it
-// did not belong, so the counters still add up.
-func (r *Repository) dropDiscovered() {
+// refreshCounts re-reads the run's progress from the queue.
+//
+// Called after every item, so the readout is whatever the database actually holds rather than a
+// tally that drifts across a restart or a resume. Cheap next to the upstream calls it sits between.
+func (r *Repository) refreshCounts(profileID uint, rootMediaID int) {
+	counts, err := r.database.GetEnqueueFutureRunCounts(profileID, rootMediaID)
+	if err != nil {
+		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to read run counts")
+		return
+	}
 	r.update(func(s *Status) {
-		if s.Discovered > 0 {
-			s.Discovered--
-		}
-		s.Skipped++
+		s.Discovered = counts.Items
+		s.Prepared = counts.Prepared
+		s.Failed = counts.Failed
+		s.Families = counts.Families
 	})
-}
-
-func (r *Repository) setFamilies(count int) {
-	r.update(func(s *Status) { s.Families = count })
 }
 
 func (r *Repository) setCurrentTitle(title string) {
@@ -675,10 +753,18 @@ func (r *Repository) clearRateLimited() {
 	})
 }
 
+// finish marks the run over. Idempotent, because it is called both explicitly on each exit path and
+// from a deferred guard — and because a run left flagged as running is unrecoverable without a
+// restart: every later Enqueue would be refused and the feature would simply stop responding.
 func (r *Repository) finish(lastError string) {
 	r.mu.Lock()
+	if !r.running {
+		r.mu.Unlock()
+		return
+	}
 	r.running = false
 	r.cancel = nil
+	r.workerDone = nil
 	r.status.Running = false
 	r.status.RateLimited = false
 	r.status.CurrentTitle = ""

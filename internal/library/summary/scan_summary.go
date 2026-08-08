@@ -81,6 +81,9 @@ func NewScanSummaryLogger() *ScanSummaryLogger {
 
 // HydrateData will hydrate the data needed to generate the summary.
 func (l *ScanSummaryLogger) HydrateData(lfs []*anime.LocalFile, media []*anime.NormalizedMedia, animeCollection *anilist.AnimeCollectionWithRelations) {
+	if l == nil {
+		return
+	}
 	l.LocalFiles = lfs
 	l.AllMedia = media
 	l.AnimeCollection = animeCollection

@@ -45,10 +45,12 @@ export function EnqueueFuturePage() {
     // record is what stops them being rediscovered — but walking back through them is not the job.
     const items = React.useMemo(() => (queue ?? []).filter(isEnqueueFuturePending), [queue])
 
-    // The queue's real order: franchises grouped, each keeping the position of its first member.
-    // The list draws this and Next/Previous walk it, which has to be the same order — otherwise
-    // finishing one season sends you to an unrelated show while the rest of the series sits further
-    // down, which reads as the remaining entries having been skipped.
+    // The queue in the order the server gave it, with neighbouring entries of the same franchise
+    // bundled for display. Bundling never reorders, so orderedItems is just items: an entry keeps the
+    // slot it was queued into for as long as it is in the queue, and nothing shifts under you while
+    // you work down the list.
+    //
+    // The list draws this and Next/Previous walk it, which has to be the same order.
     //
     // Grouping is presentation only. Every action — skip, ignore, add torrents — applies to the one
     // entry it was pressed on and never to its siblings.

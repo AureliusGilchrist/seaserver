@@ -31,6 +31,11 @@ type UnmatchedSweepStatus struct {
 	// Skipped counts downloads passed over: no anime recorded, or still downloading.
 	Skipped int `json:"skipped"`
 	Failed  int `json:"failed"`
+	// Conflicts counts downloads left alone because the library already holds files at the
+	// destinations they wanted. A sweep never overwrites — replacing one copy of a show with
+	// another is a decision, so these are left for the user to match by hand and answer the
+	// conflict dialog.
+	Conflicts int `json:"conflicts"`
 	// Current is the download being matched right now.
 	Current string `json:"current"`
 	// Errors holds one line per failure, capped so a bad run cannot grow without bound.
@@ -231,6 +236,21 @@ func (h *Handler) sweepOne(torrentName string, animeID int) {
 		// getting here. Nothing to do, and nothing worth reporting as a failure.
 		sweepMu.Lock()
 		sweepState.Skipped++
+		sweepMu.Unlock()
+		return
+	}
+
+	// The destinations are already occupied. Nothing was moved and nothing was deleted, so the
+	// download stays staged for the user to match by hand and decide whether to replace what is
+	// there. Counted separately: this is neither a match nor a failure.
+	if result.Conflict != nil {
+		h.App.Logger.Info().
+			Str("torrent", torrentName).
+			Int("conflicts", len(result.Conflict.Files)).
+			Strs("sourceTorrents", result.Conflict.SourceTorrents).
+			Msg("unmatched sweep: Left staged, the library already has these episodes")
+		sweepMu.Lock()
+		sweepState.Conflicts++
 		sweepMu.Unlock()
 		return
 	}

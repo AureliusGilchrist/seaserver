@@ -45,6 +45,34 @@ export interface MatchRequest {
     animeTitleClean: string
     useIndexBasedEpisodes?: boolean
     episodeOffset?: number
+    /**
+     * Replace library files this match would land on top of. Without it, a match that finds any
+     * destination already occupied moves nothing and returns `conflict` instead.
+     */
+    overwriteExisting?: boolean
+}
+
+/** One destination file a match would overwrite. See internal/unmatched/conflict.go. */
+export interface ConflictingFile {
+    newName: string
+    newPath: string
+    relPath: string
+    existingSize: number
+    incomingSize: number
+    /** The torrent that put the existing file there, when a match record still says so. */
+    sourceTorrent?: string
+    matchRecordId?: number
+}
+
+/** What a match found already in place, reported instead of overwriting it. */
+export interface MatchConflict {
+    destination: string
+    files: ConflictingFile[]
+    /** Distinct torrents that put the existing files there, most recently matched first. */
+    sourceTorrents?: string[]
+    /** Every existing file came from this same torrent — a match being re-run, not a rival release. */
+    sameTorrent: boolean
+    totalPlanned: number
 }
 
 export interface MatchResult {
@@ -53,6 +81,12 @@ export interface MatchResult {
     failedFiles: string[]
     destination: string
     errorMessage?: string
+    /**
+     * Set, with nothing moved or deleted, when the library already holds files at the destinations
+     * this match wanted. Re-send with `overwriteExisting` to replace them, or delete the torrent to
+     * throw the incoming copy away.
+     */
+    conflict?: MatchConflict
 }
 
 const UNMATCHED_ENDPOINTS = {
@@ -146,7 +180,12 @@ export function useGetUnmatchedTorrentContents(torrentName: string | null) {
     })
 }
 
-export function useMatchUnmatchedTorrent(onSuccess?: () => void) {
+/**
+ * `onConflict` is called when the server refused to overwrite library files already sitting at the
+ * destinations — nothing was moved or deleted. The match is not finished in that case, so the modal
+ * must stay open to ask, which is why this path deliberately skips `onSuccess` and the toast.
+ */
+export function useMatchUnmatchedTorrent(onSuccess?: () => void, onConflict?: (conflict: MatchConflict) => void) {
     const queryClient = useQueryClient()
 
     return useServerMutation<MatchResult, MatchRequest>({
@@ -154,6 +193,10 @@ export function useMatchUnmatchedTorrent(onSuccess?: () => void) {
         method: UNMATCHED_ENDPOINTS.MatchUnmatchedTorrent.methods[0],
         mutationKey: [UNMATCHED_ENDPOINTS.MatchUnmatchedTorrent.key],
         onSuccess: async (data) => {
+            if (data?.conflict) {
+                onConflict?.(data.conflict)
+                return
+            }
             if (data?.success) {
                 toast.success(`Matched ${data.movedFiles?.length || 0} files successfully`)
             } else {
@@ -202,6 +245,11 @@ export interface UnmatchedSweepStatus {
     /** Passed over: no anime recorded, or still downloading. */
     skipped: number
     failed: number
+    /**
+     * Left alone because the library already holds files at the destinations they wanted. A sweep
+     * never overwrites; these need matching by hand to answer the conflict dialog.
+     */
+    conflicts: number
     current: string
     errors: string[]
     stopping: boolean

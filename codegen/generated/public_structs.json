@@ -33037,6 +33037,54 @@
     "comments": []
   },
   {
+    "filepath": "../internal/database/db/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "name": "EnqueueFutureRunCounts",
+    "formattedName": "DB_EnqueueFutureRunCounts",
+    "package": "db",
+    "fields": [
+      {
+        "name": "Items",
+        "jsonName": "Items",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Prepared",
+        "jsonName": "Prepared",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Failed",
+        "jsonName": "Failed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Families",
+        "jsonName": "Families",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " EnqueueFutureRunCounts is what a run has actually achieved, read back from the queue itself."
+    ]
+  },
+  {
     "filepath": "../internal/database/db/media_filler.go",
     "filename": "media_filler.go",
     "name": "MediaFillerItem",
@@ -45625,12 +45673,12 @@
         "comments": []
       },
       {
-        "name": "limiter",
-        "jsonName": "limiter",
-        "goType": "limiter.Limiter",
-        "typescriptType": "Limiter",
-        "usedTypescriptType": "Limiter",
-        "usedStructName": "limiter.Limiter",
+        "name": "pacer",
+        "jsonName": "pacer",
+        "goType": "pacer",
+        "typescriptType": "EnqueueFuture_pacer",
+        "usedTypescriptType": "EnqueueFuture_pacer",
+        "usedStructName": "enqueuefuture.pacer",
         "required": false,
         "public": false,
         "comments": []
