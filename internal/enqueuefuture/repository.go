@@ -93,7 +93,7 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 		isSimulatedFunc:     opts.IsSimulatedFunc,
 		limiter:             limiter.NewLimiter(RateWindow, RateBurst),
 		status: Status{
-			Cap:             MaxItemsPerRun,
+			Cap:             MaxFamiliesPerRun,
 			BackoffRungs:    len(backoffLadder),
 			BackoffAttempts: MaxBackoffAttempts,
 		},
@@ -139,7 +139,7 @@ func (r *Repository) Status() Status {
 }
 
 // Enqueue starts a run rooted at an anime: its recommendations seed the queue, and each item's own
-// recommendations extend it as that item is prepared, up to MaxItemsPerRun.
+// recommendations extend it as that item is prepared, up to MaxFamiliesPerRun franchises.
 //
 // Returns immediately — the run is the point of the feature, and it has to outlive the page you
 // started it from.
@@ -213,7 +213,7 @@ func (r *Repository) start(progress *RunProgress) (Status, error) {
 		Prepared:        progress.Prepared,
 		Failed:          progress.Failed,
 		Skipped:         progress.Skipped,
-		Cap:             MaxItemsPerRun,
+		Cap:             MaxFamiliesPerRun,
 		BackoffRungs:    len(backoffLadder),
 		BackoffAttempts: MaxBackoffAttempts,
 		StartedAt:       progress.StartedAt,
@@ -256,7 +256,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 	// frontier holds anime discovered but not yet inserted; seen guards against walking in circles,
 	// which a recommendation graph does constantly. Both are restored from the progress record on a
 	// resumed run, so it carries on walking rather than rediscovering what it already decided about.
-	frontier := make([]recommendation, 0, MaxItemsPerRun)
+	frontier := make([]recommendation, 0, MaxFamiliesPerRun)
 	seen := make(map[int]bool, len(progress.Seen))
 	for _, id := range progress.Seen {
 		seen[id] = true
@@ -494,33 +494,48 @@ func (r *Repository) mergeFamilies(profileID uint, mediaID int, intoFamilyID int
 	}
 }
 
-// drainFrontier inserts discovered anime into the queue until the run's cap is reached, applying the
-// skip rules. Returns whatever it could not insert yet.
+// drainFrontier inserts discovered anime into the queue, applying the skip rules and the per-run
+// franchise cap. Returns whatever it could not insert.
+//
+// The cap is spent on franchises, not anime. A candidate joining a family that is already queued
+// goes in regardless of how full the run is — the alternative is a queue holding season 1 and season
+// 3 of something because a counter ran out between them, which is worse than not holding it at all.
+// Only a candidate that would start a *new* franchise has to pay.
 func (r *Repository) drainFrontier(profileID uint, rootMediaID int, frontier []recommendation, depths map[int]int) []recommendation {
-	count, err := r.database.CountEnqueueFutureItemsForRoot(profileID, rootMediaID)
+	families, err := r.database.CountEnqueueFutureFamiliesForRoot(profileID, rootMediaID)
 	if err != nil {
-		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to count queued items")
+		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to count queued franchises")
 		return frontier
 	}
 
-	for len(frontier) > 0 {
-		if count >= MaxItemsPerRun {
-			r.logger.Info().Int("cap", MaxItemsPerRun).Msg("enqueuefuture: Reached the per-run cap, stopping discovery")
-			return nil
-		}
+	full := false
 
+	for len(frontier) > 0 {
 		rec := frontier[0]
 		frontier = frontier[1:]
+
+		familyID := rec.familyID
+		if familyID == 0 {
+			familyID = rec.mediaID
+		}
+
+		// Draining continues past the cap rather than stopping, because later entries in the
+		// frontier may well belong to franchises already taken on — those still have to get in.
+		isNewFamily := !r.database.HasEnqueueFutureFamily(profileID, familyID)
+		if isNewFamily && families >= MaxFamiliesPerRun {
+			if !full {
+				full = true
+				r.logger.Info().
+					Int("cap", MaxFamiliesPerRun).
+					Msg("enqueuefuture: Reached the per-run franchise cap, only completing what is already queued")
+			}
+			continue
+		}
 
 		if skip, reason := r.shouldSkip(profileID, rec); skip {
 			r.logger.Debug().Int("mediaId", rec.mediaID).Str("reason", reason).Msg("enqueuefuture: Skipping")
 			r.bumpSkipped()
 			continue
-		}
-
-		familyID := rec.familyID
-		if familyID == 0 {
-			familyID = rec.mediaID
 		}
 
 		inserted, err := r.database.InsertEnqueueFutureItem(&models.EnqueueFutureItem{
@@ -536,7 +551,10 @@ func (r *Repository) drainFrontier(profileID uint, rootMediaID int, frontier []r
 			continue
 		}
 
-		count++
+		if isNewFamily {
+			families++
+		}
+		r.setFamilies(families)
 		r.bumpDiscovered()
 	}
 
@@ -628,6 +646,10 @@ func (r *Repository) dropDiscovered() {
 		}
 		s.Skipped++
 	})
+}
+
+func (r *Repository) setFamilies(count int) {
+	r.update(func(s *Status) { s.Families = count })
 }
 
 func (r *Repository) setCurrentTitle(title string) {

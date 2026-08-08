@@ -6,12 +6,34 @@ import { cn } from "@/components/ui/core/styling"
 import React from "react"
 import { LuBan, LuCheck, LuCircleAlert, LuLink2, LuLoader, LuSkipForward } from "react-icons/lu"
 
+export type EnqueueFutureFamily = EnqueueFuture_Item[]
+
+/**
+ * Groups the queue into franchises, each group keeping the position of its first member.
+ *
+ * This is the queue's real order, and both the list and Next/Previous walk it. They have to agree:
+ * a franchise's later seasons are discovered when the earlier one is prepared, so by raw insertion
+ * order they land scattered among other shows. Grouping only for display would mean finishing one
+ * season and having Next jump to some unrelated anime while the rest of the series sat further down
+ * — the remaining seasons looking, from where you are sitting, skipped.
+ */
+export function groupIntoFamilies(items: EnqueueFuture_Item[]): EnqueueFutureFamily[] {
+    const byFamily = new Map<number, EnqueueFutureFamily>()
+    for (const item of items) {
+        const key = item.familyId || item.mediaId
+        const existing = byFamily.get(key)
+        if (existing) existing.push(item)
+        else byFamily.set(key, [item])
+    }
+    return Array.from(byFamily.values())
+}
+
 /**
  * The queue at a glance, so Next is not the only way to get somewhere. Jumping straight to an anime
  * you recognise is usually what you want after the first dozen.
  */
-export function EnqueueFutureList({ items, activeMediaId, onSelect }: {
-    items: EnqueueFuture_Item[]
+export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
+    families: EnqueueFutureFamily[]
     activeMediaId: number | undefined
     onSelect: (item: EnqueueFuture_Item) => void
 }) {
@@ -23,21 +45,7 @@ export function EnqueueFutureList({ items, activeMediaId, onSelect }: {
         activeRef.current?.scrollIntoView({ block: "nearest" })
     }, [activeMediaId])
 
-    // A show and its sequels are one thing to decide about, not three scattered across a hundred
-    // unrelated recommendations, so they are drawn as one bundle. Groups keep the order of their
-    // first member, which keeps the queue reading as rings out from where you started.
-    const families = React.useMemo(() => {
-        const byFamily = new Map<number, EnqueueFuture_Item[]>()
-        for (const item of items) {
-            const key = item.familyId || item.mediaId
-            const existing = byFamily.get(key)
-            if (existing) existing.push(item)
-            else byFamily.set(key, [item])
-        }
-        return Array.from(byFamily.values())
-    }, [items])
-
-    if (!items.length) return null
+    if (!families.length) return null
 
     return (
         <div className="rounded-[--radius-md] border bg-gray-950 max-h-[70vh] overflow-y-auto" data-enqueue-future-list>
@@ -57,6 +65,10 @@ export function EnqueueFutureList({ items, activeMediaId, onSelect }: {
 /**
  * One franchise: a single anime drawn plainly, or a group drawn with a spine tying its seasons
  * together so it is obvious at a glance that they are the same story.
+ *
+ * The group header is a label and nothing more — deliberately not clickable and carrying no
+ * actions. Every decision in this queue is made about one entry: a franchise is a thing to
+ * recognise, not a thing to skip, ignore or download in one go.
  */
 function FamilyBundle({ family, activeMediaId, onSelect, activeRef }: {
     family: EnqueueFuture_Item[]

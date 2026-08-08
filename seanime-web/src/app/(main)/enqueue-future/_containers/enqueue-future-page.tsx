@@ -13,7 +13,7 @@ import {
 import { EnqueueFutureAddTorrents } from "@/app/(main)/enqueue-future/_components/enqueue-future-add-torrents"
 import { EnqueueFutureCurrentShow } from "@/app/(main)/enqueue-future/_components/enqueue-future-current-show"
 import { EnqueueFutureHeader } from "@/app/(main)/enqueue-future/_components/enqueue-future-header"
-import { EnqueueFutureList } from "@/app/(main)/enqueue-future/_components/enqueue-future-list"
+import { EnqueueFutureList, groupIntoFamilies } from "@/app/(main)/enqueue-future/_components/enqueue-future-list"
 import { EnqueueFutureProgress } from "@/app/(main)/enqueue-future/_components/enqueue-future-progress"
 import { TorrentSearchSnapshot } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-search"
 import { __torrentDownload_autoMatchAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
@@ -45,6 +45,16 @@ export function EnqueueFuturePage() {
     // record is what stops them being rediscovered — but walking back through them is not the job.
     const items = React.useMemo(() => (queue ?? []).filter(isEnqueueFuturePending), [queue])
 
+    // The queue's real order: franchises grouped, each keeping the position of its first member.
+    // The list draws this and Next/Previous walk it, which has to be the same order — otherwise
+    // finishing one season sends you to an unrelated show while the rest of the series sits further
+    // down, which reads as the remaining entries having been skipped.
+    //
+    // Grouping is presentation only. Every action — skip, ignore, add torrents — applies to the one
+    // entry it was pressed on and never to its siblings.
+    const families = React.useMemo(() => groupIntoFamilies(items), [items])
+    const orderedItems = React.useMemo(() => families.flat(), [families])
+
     const [activeMediaId, setActiveMediaId] = React.useState<number | undefined>(undefined)
 
     // Resolved during render, not in an effect.
@@ -55,14 +65,14 @@ export function EnqueueFuturePage() {
     // simply already the one being drawn.
     const lastIndexRef = React.useRef(0)
     const index = React.useMemo(() => {
-        if (!items.length) return -1
-        const found = items.findIndex(n => n.mediaId === activeMediaId)
+        if (!orderedItems.length) return -1
+        const found = orderedItems.findIndex(n => n.mediaId === activeMediaId)
         // Hold the position rather than the anime — that is what "next" means when the current one
         // has just been dealt with.
-        return found >= 0 ? found : Math.min(lastIndexRef.current, items.length - 1)
-    }, [items, activeMediaId])
+        return found >= 0 ? found : Math.min(lastIndexRef.current, orderedItems.length - 1)
+    }, [orderedItems, activeMediaId])
 
-    const activeItem = index >= 0 ? items[index] : undefined
+    const activeItem = index >= 0 ? orderedItems[index] : undefined
 
     React.useEffect(() => {
         if (index >= 0) lastIndexRef.current = index
@@ -122,8 +132,8 @@ export function EnqueueFuturePage() {
     }, [detail?.snapshot])
 
     function goTo(nextIndex: number) {
-        if (nextIndex < 0 || nextIndex >= items.length) return
-        setActiveMediaId(items[nextIndex].mediaId)
+        if (nextIndex < 0 || nextIndex >= orderedItems.length) return
+        setActiveMediaId(orderedItems[nextIndex].mediaId)
     }
 
     function handleDownloadStarted() {
@@ -184,7 +194,7 @@ export function EnqueueFuturePage() {
 
             <EnqueueFutureProgress status={status} />
 
-            {!items.length ? (
+            {!orderedItems.length ? (
                 <div className="text-center py-16 space-y-2 border rounded-[--radius-md] bg-gray-950">
                     <p className="text-lg font-semibold">Nothing queued</p>
                     <p className="text-sm text-[--muted]">
@@ -196,7 +206,7 @@ export function EnqueueFuturePage() {
                 <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-4 items-start">
 
                     <EnqueueFutureList
-                        items={items}
+                        families={families}
                         activeMediaId={activeMediaId}
                         onSelect={item => setActiveMediaId(item.mediaId)}
                     />
@@ -205,7 +215,7 @@ export function EnqueueFuturePage() {
                         <EnqueueFutureHeader
                             item={activeItem}
                             index={index}
-                            total={items.length}
+                            total={orderedItems.length}
                             onPrevious={() => goTo(index - 1)}
                             onNext={() => goTo(index + 1)}
                             autoMatch={activeAutoMatch}

@@ -2810,6 +2810,7 @@ export type EnqueueFuture_Status = {
     prepared: number
     failed: number
     skipped: number
+    families: number
     cap: number
     currentTitle: string
     rateLimited: boolean

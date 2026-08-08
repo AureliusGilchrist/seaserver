@@ -94,8 +94,7 @@ func (db *Database) HasEnqueueFutureItem(profileID uint, mediaID int) bool {
 	return err == nil && count > 0
 }
 
-// CountEnqueueFutureItemsForRoot returns how many items a given run has discovered so far. This is
-// what the per-run cap is checked against.
+// CountEnqueueFutureItemsForRoot returns how many items a given run has discovered so far.
 func (db *Database) CountEnqueueFutureItemsForRoot(profileID uint, rootMediaID int) (int, error) {
 	var count int64
 	err := retryOnBusy(func() error {
@@ -107,6 +106,43 @@ func (db *Database) CountEnqueueFutureItemsForRoot(profileID uint, rootMediaID i
 		return 0, err
 	}
 	return int(count), nil
+}
+
+// CountEnqueueFutureFamiliesForRoot returns how many distinct franchises a run has queued.
+//
+// This, not the item count, is what the per-run cap is checked against: a show and all its seasons,
+// sequels and side stories are one thing to decide about, so a franchise costs one slot whether it
+// has one entry or fifteen.
+func (db *Database) CountEnqueueFutureFamiliesForRoot(profileID uint, rootMediaID int) (int, error) {
+	var count int64
+	err := retryOnBusy(func() error {
+		return db.gormdb.Model(&models.EnqueueFutureItem{}).
+			Where("profile_id = ? AND root_media_id = ?", profileID, rootMediaID).
+			Distinct("family_id").
+			Count(&count).Error
+	})
+	if err != nil {
+		return 0, err
+	}
+	return int(count), nil
+}
+
+// HasEnqueueFutureFamily reports whether any member of a franchise is already queued.
+//
+// A candidate joining a family that is already in the queue is free — it is part of a franchise you
+// have already taken on, and leaving half a series out because a counter ran out mid-way would be
+// worse than useless.
+func (db *Database) HasEnqueueFutureFamily(profileID uint, familyID int) bool {
+	if familyID == 0 {
+		return false
+	}
+	var count int64
+	err := retryOnBusy(func() error {
+		return db.gormdb.Model(&models.EnqueueFutureItem{}).
+			Where("profile_id = ? AND family_id = ?", profileID, familyID).
+			Count(&count).Error
+	})
+	return err == nil && count > 0
 }
 
 // InsertEnqueueFutureItem adds a newly discovered anime to the end of the queue.

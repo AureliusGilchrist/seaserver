@@ -246,6 +246,62 @@ func TestEnqueueFutureQueue(t *testing.T) {
 		}
 	})
 
+	t.Run("counts franchises rather than anime for the cap", func(t *testing.T) {
+		db := enqueueFutureTestDatabase(t)
+
+		// One franchise with four entries, plus two standalone shows: three franchises, six anime.
+		for _, spec := range []struct{ mediaID, familyID int }{
+			{1, 1}, {2, 1}, {3, 1}, {4, 1},
+			{5, 5},
+			{6, 6},
+		} {
+			if _, err := db.InsertEnqueueFutureItem(&models.EnqueueFutureItem{
+				ProfileID: 1, MediaID: spec.mediaID, RootMediaID: 100,
+				FamilyID: spec.familyID, Status: EnqueueFutureStatusPending,
+			}); err != nil {
+				t.Fatalf("insert %d: %v", spec.mediaID, err)
+			}
+		}
+
+		families, err := db.CountEnqueueFutureFamiliesForRoot(1, 100)
+		if err != nil {
+			t.Fatalf("count families: %v", err)
+		}
+		// The whole point: four seasons of one show cost one slot between them, not four.
+		if families != 3 {
+			t.Errorf("got %d franchises, want 3", families)
+		}
+
+		items, _ := db.CountEnqueueFutureItemsForRoot(1, 100)
+		if items != 6 {
+			t.Errorf("got %d items, want 6", items)
+		}
+	})
+
+	t.Run("recognises a franchise that is already queued", func(t *testing.T) {
+		db := enqueueFutureTestDatabase(t)
+
+		if _, err := db.InsertEnqueueFutureItem(&models.EnqueueFutureItem{
+			ProfileID: 1, MediaID: 1, RootMediaID: 100, FamilyID: 42, Status: EnqueueFutureStatusPending,
+		}); err != nil {
+			t.Fatalf("insert: %v", err)
+		}
+
+		// A later season joining this franchise is free even when the run is full.
+		if !db.HasEnqueueFutureFamily(1, 42) {
+			t.Error("an already-queued franchise was not recognised")
+		}
+		if db.HasEnqueueFutureFamily(1, 99) {
+			t.Error("an unknown franchise was reported as queued")
+		}
+		if db.HasEnqueueFutureFamily(2, 42) {
+			t.Error("another profile's franchise leaked through")
+		}
+		if db.HasEnqueueFutureFamily(1, 0) {
+			t.Error("a zero family id should never count as queued")
+		}
+	})
+
 	t.Run("counts a run's items so the cap can be enforced", func(t *testing.T) {
 		db := enqueueFutureTestDatabase(t)
 

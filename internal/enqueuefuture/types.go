@@ -7,16 +7,18 @@ import (
 	"seanime/internal/torrents/torrent"
 )
 
-// MaxItemsPerRun is how many anime a single Enqueue Future run will discover before it stops
-// walking the recommendation graph.
+// MaxFamiliesPerRun is how many distinct franchises a single Enqueue Future run will take on before
+// it stops branching out into new ones.
 //
-// The graph is effectively unbounded — every anime recommends eight more, and pulls its own sequels
-// in besides — so a run has to be told when to stop or it never will.
+// The graph is effectively unbounded — every anime recommends eight more — so a run has to be told
+// when to stop or it never will. What it counts is franchises, not anime: a show and everything
+// AniList relates to it as the same story costs one slot between them, whether that is one entry or
+// fifteen. Once a franchise is in, the rest of it comes in free and the cap does not apply, because
+// a queue holding seasons 1 and 3 of something is worse than not holding it at all.
 //
-// At the sustained rate a full run is roughly 17 minutes of background work, which is fine for
-// something you start and walk away from. The queue survives restarts and resumes on its own, so
-// the cap is about how much is worth having waiting for you, not about what the run can finish.
-const MaxItemsPerRun = 350
+// The queue survives restarts and resumes on its own, so this is about how much is worth having
+// waiting for you rather than about what a run can finish in one go.
+const MaxFamiliesPerRun = 350
 
 // SearchParams are the torrent search settings a snapshot was produced with.
 //
@@ -86,7 +88,10 @@ type Status struct {
 	Prepared   int `json:"prepared"`
 	Failed     int `json:"failed"`
 	Skipped    int `json:"skipped"`
-	Cap        int `json:"cap"`
+	// Families is how many distinct franchises are queued, which is what Cap limits — a show and
+	// all of its seasons count as one between them.
+	Families int `json:"families"`
+	Cap      int `json:"cap"`
 	// CurrentTitle is the anime being prepared right now, for the progress readout.
 	CurrentTitle string `json:"currentTitle"`
 	// RateLimited and the fields below describe a run that is parked on the backoff ladder.

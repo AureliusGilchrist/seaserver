@@ -45512,7 +45512,7 @@
       " duplicated here. What the database cannot answer is the part that only exists while the worker is",
       " alive: which anime this run started from, and which ones it has already walked. Without the walk",
       " state a resumed run would rediscover anime it had already decided about and re-expand rings it",
-      " had already expanded, and the 125 it eventually queued would not be the 125 it was going to.",
+      " had already expanded, and the set it eventually queued would not be the set it was going to.",
       "",
       " It is a file rather than a table because it is scratch state for one run, rewritten constantly and",
       " meaningless once the run ends — putting it in the database would mean migrating a table whose",
@@ -46141,6 +46141,15 @@
       {
         "name": "Skipped",
         "jsonName": "skipped",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Families",
+        "jsonName": "families",
         "goType": "int",
         "typescriptType": "number",
         "required": true,

@@ -8,15 +8,19 @@ import { LuBan, LuSkipForward } from "react-icons/lu"
 import { toast } from "sonner"
 
 /**
- * Skip and Ignore for one queued anime.
+ * Skip and Ignore for one queued entry.
  *
  * Both take it off the queue and differ only in what they mean, which is the distinction worth
- * having: skipping is "not this time" and ignoring is "never suggest this show again". Neither
- * deletes the row — that record is what keeps the anime from turning up again the next time a
+ * having: skipping is "not this time" and ignoring is "never suggest this again". Neither deletes
+ * the row — that record is what keeps the entry from turning up again the next time a
  * recommendation chain passes through it.
  *
+ * Strictly one entry at a time. Seasons of the same show are drawn together in the list, but that
+ * is presentation: skipping season 1 says nothing about season 2, and acting on a whole franchise
+ * at once is never what a button here does.
+ *
  * The same component serves the list rows and the header so the two can never drift apart, and so
- * that acting on an anime never requires navigating to it first.
+ * that acting on an entry never requires navigating to it first.
  */
 export function EnqueueFutureItemActions({ item, compact, onDone }: {
     item: EnqueueFuture_Item | undefined
@@ -27,7 +31,7 @@ export function EnqueueFutureItemActions({ item, compact, onDone }: {
 
     const { mutate: setStatus, isPending } = useSetEnqueueFutureItemStatus(item?.mediaId)
 
-    const title = item?.title || "This show"
+    const title = item?.title || "This entry"
 
     function apply(status: string, message: string) {
         if (!item) return
@@ -40,10 +44,11 @@ export function EnqueueFutureItemActions({ item, compact, onDone }: {
     }
 
     // Ignoring is the one decision here that is meant to stick, so it asks first — and names the
-    // show, because on a list of a hundred covers the wrong row is easy to hit.
+    // entry, because on a list of a hundred covers the wrong row is easy to hit, and seasons of the
+    // same show sit right next to each other.
     const ignoreConfirmation = useConfirmationDialog({
-        title: "Ignore this show?",
-        description: `${title} will be removed from the queue and won't be suggested again, even if other anime keep recommending it. Nothing already downloaded is affected.`,
+        title: "Ignore this entry?",
+        description: `${title} will be removed from the queue and won't be suggested again, even if other anime keep recommending it. Only this entry — any other seasons stay in the queue, and nothing already downloaded is affected.`,
         actionText: "Ignore it",
         actionIntent: "alert-subtle",
         onConfirm: () => apply(ENQUEUE_FUTURE_STATUS.IGNORED, `Ignoring ${title}`),
@@ -80,7 +85,7 @@ export function EnqueueFutureItemActions({ item, compact, onDone }: {
                             onClick={ignoreConfirmation.open}
                             data-enqueue-future-ignore-button
                         />}>
-                            Ignore this show
+                            Ignore this entry
                         </Tooltip>
                     </>
                 ) : (
@@ -104,7 +109,7 @@ export function EnqueueFutureItemActions({ item, compact, onDone }: {
                             onClick={ignoreConfirmation.open}
                             data-enqueue-future-ignore-button
                         >
-                            Ignore this show
+                            Ignore this entry
                         </Button>
                     </>
                 )}

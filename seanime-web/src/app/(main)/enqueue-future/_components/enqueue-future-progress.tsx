@@ -84,6 +84,7 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                         ) : (
                             <>
                                 {status.prepared} of {status.discovered} ready
+                                {status.families ? ` · ${status.families}/${status.cap} series` : ""}
                                 {status.currentTitle ? ` · ${status.currentTitle}` : ""}
                                 {status.skipped ? ` · ${status.skipped} skipped` : ""}
                                 {status.failed ? ` · ${status.failed} failed` : ""}
@@ -107,7 +108,8 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
 
             <p className="text-xs text-[--muted]">
                 This runs on the server — you can close this page, or go and do something else, and it keeps going.
-                It stops on its own at {status.cap} anime.
+                It stops taking on new series at {status.cap}; a show and all of its seasons count as one, and once a
+                series is in, the rest of it comes along regardless.
             </p>
         </div>
     )
