@@ -40,6 +40,9 @@ type recommendation struct {
 	// notYetReleased is read from the recommendation itself so an unreleased anime can be rejected
 	// without spending a request finding out it has nothing to download.
 	notYetReleased bool
+	// isFamily marks an edge that continues the same story rather than merely resembling it. Family
+	// edges are queued ahead of every recommendation and never cost a franchise slot.
+	isFamily bool
 }
 
 // hasFullLibraryCopy reports whether every episode of an anime is already on disk.
@@ -261,27 +264,29 @@ func relationsFrom(details *anilist.AnimeDetailsById_Media) []recommendation {
 		}
 
 		node := edge.Node
-		// Relations cross media types freely — the manga it came from, the light novel under that.
 		if node.Type != nil && *node.Type != anilist.MediaTypeAnime {
 			continue
-		}
-		if node.Format != nil {
-			switch *node.Format {
-			case anilist.MediaFormatManga, anilist.MediaFormatNovel, anilist.MediaFormatOneShot:
-				continue
-			}
 		}
 
 		episodes := 0
 		if node.Episodes != nil {
 			episodes = *node.Episodes
 		}
+		title := node.GetPreferredTitle()
+		notYetReleased := node.Status != nil && *node.Status == anilist.MediaStatusNotYetReleased
+
+		// A franchise's relations are where the PVs and CMs live: they hang off the series as
+		// side stories and specials, so this is the path that was queueing most of them.
+		if reason := rejectReason(title, node.Format, episodes, notYetReleased); reason != "" {
+			continue
+		}
 
 		out = append(out, recommendation{
 			mediaID:        node.ID,
-			title:          node.GetPreferredTitle(),
+			title:          title,
 			episodes:       episodes,
-			notYetReleased: node.Status != nil && *node.Status == anilist.MediaStatusNotYetReleased,
+			notYetReleased: notYetReleased,
+			isFamily:       true,
 		})
 	}
 	return out
@@ -424,12 +429,17 @@ func recommendationsFrom(details *anilist.AnimeDetailsById_Media) []recommendati
 		if rec.Episodes != nil {
 			episodes = *rec.Episodes
 		}
+		notYetReleased := rec.Status != nil && *rec.Status == anilist.MediaStatusNotYetReleased
+
+		if reason := rejectReason(title, rec.Format, episodes, notYetReleased); reason != "" {
+			continue
+		}
 
 		out = append(out, recommendation{
 			mediaID:        rec.ID,
 			title:          title,
 			episodes:       episodes,
-			notYetReleased: rec.Status != nil && *rec.Status == anilist.MediaStatusNotYetReleased,
+			notYetReleased: notYetReleased,
 		})
 	}
 	return out

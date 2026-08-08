@@ -279,6 +279,10 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 
 	r.logger.Info().Int("rootMediaId", rootMediaID).Msg("enqueuefuture: Starting run")
 
+	// Clear out the PVs, CMs and other promotional entries queued before they were filtered at
+	// discovery, so a run does not hand back a queue of things nobody wants to work through.
+	r.purgeJunkItems()
+
 	// frontier holds anime discovered but not yet inserted; seen guards against walking in circles,
 	// which a recommendation graph does constantly. Both are restored from the progress record on a
 	// resumed run, so it carries on walking rather than rediscovering what it already decided about.
@@ -501,10 +505,16 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			}
 		}
 
-		// This anime's own family comes first — its sequels, prequels and side stories are the
-		// things most likely to be wanted alongside it, and queueing them behind a hundred
-		// recommendations would bury them. They inherit its family and its depth, because a sequel
-		// is not one step further from what you asked for; it is the same show.
+		// This anime's own family comes first, and "first" means ahead of everything already waiting —
+		// not merely ahead of this anime's own recommendations. Family edges go to the front of the
+		// frontier, so a franchise is walked to its end before the queue moves on to merely similar
+		// shows. Since each member's own relations are discovered when it is prepared, and each of
+		// those also jumps the queue, the whole relation tree is exhausted transitively: every season,
+		// every side story, however deep the chain runs.
+		//
+		// They inherit the family and the depth of the anime they came from, because a sequel is not
+		// one step further from what you asked for; it is the same show.
+		family := make([]recommendation, 0, len(result.relations))
 		for _, rel := range result.relations {
 			if seen[rel.mediaID] {
 				// Already queued under some other family — pull that whole family in with this one,
@@ -516,7 +526,11 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			seen[rel.mediaID] = true
 			depths[rel.mediaID] = depth
 			rel.familyID = familyID
-			frontier = append(frontier, rel)
+			rel.isFamily = true
+			family = append(family, rel)
+		}
+		if len(family) > 0 {
+			frontier = append(family, frontier...)
 		}
 
 		// Then what it recommends, each starting a family of its own.
@@ -603,7 +617,14 @@ func (r *Repository) drainFrontier(profileID uint, rootMediaID int, frontier []r
 		// Draining continues past the cap rather than stopping, because later entries in the
 		// frontier may well belong to franchises already taken on — those still have to get in.
 		isNewFamily := !r.database.HasEnqueueFutureFamily(familyID)
-		if isNewFamily && families >= MaxFamiliesPerRun {
+
+		// Family edges never pay. A member joining a franchise already queued was always free, but a
+		// family edge whose family has no row yet was not — and that is exactly the root's own
+		// sequels and prequels, since the root itself is never queued. With a full cap that split the
+		// franchise you started from, which is the one thing the run must never do. Family edges
+		// inherit their parent's family, so the only new family reachable this way is the root's own:
+		// the exemption cannot be used to walk past the cap indefinitely.
+		if isNewFamily && !rec.isFamily && families >= MaxFamiliesPerRun {
 			if !full {
 				full = true
 				r.logger.Info().

@@ -41,17 +41,43 @@ func TestRecommendationsFrom(t *testing.T) {
 
 	got := recommendationsFrom(details)
 
-	if len(got) != 2 {
-		t.Fatalf("got %d recommendations, want 2 (manga and nils dropped): %+v", len(got), got)
+	// Only the finished show survives. Unreleased entries and non-anime are now rejected here, at
+	// discovery, rather than being queued and skipped later — see rejectReason.
+	if len(got) != 1 {
+		t.Fatalf("got %d recommendations, want 1 (manga, unreleased and nils dropped): %+v", len(got), got)
 	}
 	if got[0].mediaID != 1 || got[0].title != "Finished Show" || got[0].episodes != 12 {
-		t.Errorf("first recommendation is %+v", got[0])
+		t.Errorf("recommendation is %+v", got[0])
 	}
 	if got[0].notYetReleased {
 		t.Error("a finished show was flagged as unreleased")
 	}
-	if !got[1].notYetReleased {
-		t.Error("an unreleased show was not flagged, so it would be queued with nothing to download")
+	if got[0].isFamily {
+		t.Error("a recommendation is not a family edge")
+	}
+}
+
+// The entries that were filling the queue: promotional material, and anything AniList lists no
+// episodes for.
+func TestRecommendationsFromRejectsPromoAndEpisodeless(t *testing.T) {
+	details := &anilist.AnimeDetailsById_Media{
+		Recommendations: &anilist.AnimeDetailsById_Media_Recommendations{
+			Edges: []*anilist.AnimeDetailsById_Media_Recommendations_Edges{
+				recEdge(1, "Real Show", anilist.MediaStatusFinished, anilist.MediaTypeAnime, 12),
+				recEdge(2, "Real Show PV", anilist.MediaStatusFinished, anilist.MediaTypeAnime, 1),
+				recEdge(3, "Real Show CM", anilist.MediaStatusFinished, anilist.MediaTypeAnime, 1),
+				recEdge(4, "Something With No Episodes", anilist.MediaStatusFinished, anilist.MediaTypeAnime, 0),
+			},
+		},
+	}
+
+	got := recommendationsFrom(details)
+	if len(got) != 1 || got[0].mediaID != 1 {
+		ids := make([]int, 0, len(got))
+		for _, r := range got {
+			ids = append(ids, r.mediaID)
+		}
+		t.Fatalf("got %v, want just [1]", ids)
 	}
 }
 
@@ -71,13 +97,17 @@ func relationEdge(relation anilist.MediaRelation, format anilist.MediaFormat) *a
 	}
 }
 
+// Episodes is set because relationsFrom now rejects anything AniList lists no episodes for. These
+// tests are about which relation *types* belong to a franchise, so the nodes are given an episode
+// count to keep that the only thing under test.
 func relationEdgeID(id int, relation anilist.MediaRelation, format anilist.MediaFormat) *anilist.AnimeDetailsById_Media_Relations_Edges {
 	return &anilist.AnimeDetailsById_Media_Relations_Edges{
 		RelationType: lo.ToPtr(relation),
 		Node: &anilist.BaseAnime{
-			ID:     id,
-			Format: lo.ToPtr(format),
-			Type:   lo.ToPtr(anilist.MediaTypeAnime),
+			ID:       id,
+			Format:   lo.ToPtr(format),
+			Type:     lo.ToPtr(anilist.MediaTypeAnime),
+			Episodes: lo.ToPtr(12),
 		},
 	}
 }
@@ -116,6 +146,51 @@ func TestRelationsFrom(t *testing.T) {
 		if ids[i] != id {
 			t.Errorf("position %d: got %d, want %d", i, ids[i], id)
 		}
+	}
+
+	// Family edges are queued ahead of every recommendation and never cost a franchise slot, so the
+	// walker has to be able to tell them apart from one.
+	for _, rel := range got {
+		if !rel.isFamily {
+			t.Errorf("media %d came from a relation edge but is not marked as family", rel.mediaID)
+		}
+	}
+}
+
+// A franchise's relations are where the PVs and CMs live — they hang off the series as specials and
+// side stories, which is the path that was queueing most of them.
+func TestRelationsFromRejectsPromoEntries(t *testing.T) {
+	promoEdge := func(id int, title string) *anilist.AnimeDetailsById_Media_Relations_Edges {
+		return &anilist.AnimeDetailsById_Media_Relations_Edges{
+			RelationType: lo.ToPtr(anilist.MediaRelationSideStory),
+			Node: &anilist.BaseAnime{
+				ID:       id,
+				Format:   lo.ToPtr(anilist.MediaFormatSpecial),
+				Type:     lo.ToPtr(anilist.MediaTypeAnime),
+				Episodes: lo.ToPtr(1),
+				Title:    &anilist.BaseAnime_Title{UserPreferred: lo.ToPtr(title)},
+			},
+		}
+	}
+
+	details := &anilist.AnimeDetailsById_Media{
+		Relations: &anilist.AnimeDetailsById_Media_Relations{
+			Edges: []*anilist.AnimeDetailsById_Media_Relations_Edges{
+				relationEdgeID(10, anilist.MediaRelationSequel, anilist.MediaFormatTv),
+				promoEdge(20, "Show PV"),
+				promoEdge(21, "Show CM 3"),
+				promoEdge(22, "Show Special Program"),
+			},
+		},
+	}
+
+	got := relationsFrom(details)
+	if len(got) != 1 || got[0].mediaID != 10 {
+		ids := make([]int, 0, len(got))
+		for _, r := range got {
+			ids = append(ids, r.mediaID)
+		}
+		t.Fatalf("got %v, want just [10] — the promotional relations should be rejected", ids)
 	}
 }
 
