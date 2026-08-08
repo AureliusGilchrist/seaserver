@@ -83,7 +83,9 @@ export function EnqueueFutureButton({ entry, details }: {
                 ? `Already preparing a queue from ${status.rootTitle}. Wait for it, or stop it from the Enqueue Future screen.`
                 : "Already preparing a queue. Wait for it, or stop it from the Enqueue Future screen."
         }
-        if (recommendationCount === 0) return "No recommendations to walk from this anime"
+        if (recommendationCount === 0) {
+            return "AniList lists no recommendations for this anime — a run from here will only find its own sequels, prequels and side stories, if it has any"
+        }
         return "Queue up what this anime leads to — metadata and torrents prepared in the background, ready to download one after another"
     }, [isRateLimited, isThisRun, isRunning, status?.currentTitle, status?.prepared, status?.discovered,
         status?.rootTitle, status?.backoffAttempt, status?.backoffAttempts, recommendationCount])
@@ -100,7 +102,13 @@ export function EnqueueFutureButton({ entry, details }: {
                     // Only the request itself spins. A run in progress is reported by the label —
                     // spinning for the whole run made a background job look like a stuck button.
                     loading={isPending}
-                    disabled={recommendationCount === 0 && !isThisRun}
+                    // Never disabled. Any anime can be the root of a run, whatever its status and
+                    // whatever AniList has to say about it: the root is only ever walked, never queued,
+                    // so none of the filters that decide what belongs in the queue apply to it.
+                    // Recommendations are also not the only thing a run walks — a show with none at all
+                    // can still have a whole franchise of relations worth queueing — so refusing to
+                    // start on an empty recommendation list turned "nothing recommended" into "you may
+                    // not begin here". If a root really does lead nowhere, the run says so.
                     data-enqueue-future-button
                     data-enqueue-future-rate-limited={isRateLimited || undefined}
                 >

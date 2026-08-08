@@ -103,6 +103,12 @@ export function useStopEnqueueFuture() {
 
 /**
  * The queue itself. Refetched while a run is filling it so new anime appear as they are prepared.
+ *
+ * Note the absence of `gcTime: 0`, which this used to carry. With it, every invalidation — and Resume,
+ * Skip, Ignore and Clear all invalidate this — threw the cached rows away, so the query went back to
+ * pending and the screen, which gates its whole render on the first load, dropped to a full-page
+ * spinner until the refetch landed. On a queue of any size that read as the page hanging. Keeping the
+ * data means an invalidation refetches quietly underneath what is already on screen.
  */
 export function useGetEnqueueFutureQueue({ isRunning }: { isRunning?: boolean } = {}) {
     return useServerQuery<EnqueueFuture_Item[]>({
@@ -110,7 +116,6 @@ export function useGetEnqueueFutureQueue({ isRunning }: { isRunning?: boolean } 
         method: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.methods[0],
         queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key],
         enabled: true,
-        gcTime: 0,
         refetchInterval: isRunning ? 4_000 : false,
     })
 }
