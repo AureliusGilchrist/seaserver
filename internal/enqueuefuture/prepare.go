@@ -277,7 +277,7 @@ func relationsFrom(details *anilist.AnimeDetailsById_Media) []recommendation {
 
 		// A franchise's relations are where the PVs and CMs live: they hang off the series as
 		// side stories and specials, so this is the path that was queueing most of them.
-		if reason := rejectReason(title, node.Format, episodes, notYetReleased); reason != "" {
+		if reason := rejectReason(title, node.Format, episodes, node.Status); reason != "" {
 			continue
 		}
 
@@ -431,7 +431,7 @@ func recommendationsFrom(details *anilist.AnimeDetailsById_Media) []recommendati
 		}
 		notYetReleased := rec.Status != nil && *rec.Status == anilist.MediaStatusNotYetReleased
 
-		if reason := rejectReason(title, rec.Format, episodes, notYetReleased); reason != "" {
+		if reason := rejectReason(title, rec.Format, episodes, rec.Status); reason != "" {
 			continue
 		}
 

@@ -17,11 +17,12 @@ import {
     ThemeMediaPageBannerTypeOptions,
     useThemeSettings,
 } from "@/lib/theme/hooks"
+import { animeThemeBaseColorAtom, mixWithThemeTint } from "@/lib/theme/color-mixing"
 import { THEME_COLOR_BANK } from "@/lib/theme/theme-bank"
 import { __isDesktop__ } from "@/types/constants"
 import { colord } from "colord"
 import { atom } from "jotai"
-import { useAtom } from "jotai/react"
+import { useAtom, useAtomValue } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
 import React, { useState } from "react"
 import { useFormContext, UseFormReturn, useWatch } from "react-hook-form"
@@ -104,6 +105,7 @@ export function UISettings() {
     const { mutate, isPending } = useUpdateTheme()
     const [fixBorderRenderingArtifacts, setFixBorerRenderingArtifacts] = useAtom(__ui_fixBorderRenderingArtifacts)
     const [enableLivePreview, setEnableLivePreview] = useState(false)
+    const animeThemeBaseColor = useAtomValue(animeThemeBaseColorAtom)
 
     const [tab, setTab] = useAtom(selectUISettingTabAtom)
 
@@ -111,10 +113,13 @@ export function UISettings() {
 
     const { customCSS, setCustomCSS } = useCustomCSS()
 
-    const applyLivePreview = React.useCallback((bgColor: string, accentColor: string) => {
+    const applyLivePreview = React.useCallback((rawBgColor: string, accentColor: string) => {
         if (!enableLivePreview) return
 
         let r = document.querySelector(":root") as any
+
+        // Match the runtime: the active anime theme's background is mixed into the chosen one.
+        const bgColor = mixWithThemeTint(rawBgColor, animeThemeBaseColor)
 
         // Background color
         r.style.setProperty("--background", bgColor)
@@ -187,7 +192,7 @@ export function UISettings() {
         r.style.setProperty("--color-brand-950",
             `${colord(accentColor).darken(0.3).toRgb().r} ${colord(accentColor).darken(0.3).toRgb().g} ${colord(accentColor).darken(0.3).toRgb().b}`)
         r.style.setProperty("--brand", colord(accentColor).lighten(0.35).desaturate(0.1).toHex())
-    }, [enableLivePreview])
+    }, [enableLivePreview, animeThemeBaseColor])
 
     function ObserveColorSettings() {
 
@@ -384,7 +389,7 @@ export function UISettings() {
                                                 >
                                                     <div
                                                         className="w-6 h-6 rounded-full border"
-                                                        style={{ backgroundColor: opt.backgroundColor }}
+                                                        style={{ backgroundColor: mixWithThemeTint(opt.backgroundColor, animeThemeBaseColor) }}
                                                     />
                                                     <div
                                                         className="w-6 h-6 rounded-full border"

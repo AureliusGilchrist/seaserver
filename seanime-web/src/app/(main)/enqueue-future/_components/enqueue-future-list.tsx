@@ -9,29 +9,29 @@ import { LuBan, LuCheck, LuCircleAlert, LuLink2, LuLoader, LuSkipForward } from 
 export type EnqueueFutureFamily = EnqueueFuture_Item[]
 
 /**
- * Bundles *consecutive* queue entries that belong to the same franchise, leaving the order itself
- * exactly as the server gave it.
+ * Gathers every entry of a franchise into one bundle, however far apart they sit in the queue.
  *
- * Position is assigned append-only server-side, so an entry's slot never changes once it is queued.
- * Gathering every member of a family together would undo that: a later season discovered halfway
- * through a run would be lifted out of the slot it was queued into and dropped next to its first
- * season, pushing everything between them down. Entries moving under you while you work through the
- * queue is worse than a franchise being drawn as two bundles — so grouping only ever joins entries
- * that are already neighbours, and nothing is ever reordered.
+ * A franchise is one thing to decide about, so it is always drawn as one thing — a season discovered
+ * two hundred entries later is still that same story and belongs next to the rest of it, not stranded
+ * on its own further down. Each bundle takes the slot of its earliest member, so the queue still reads
+ * in discovery order; what moves is a distant member being lifted up to join its family.
  *
- * Flattening the result therefore returns the input unchanged, which is what lets the list and
- * Next/Previous walk the same order without either of them moving anything.
+ * That movement is the deliberate trade. The server already walks a franchise to its end before
+ * widening out again (see drainFrontier), so members are usually adjacent already and there is little
+ * left to lift — but when there is, keeping the family together wins.
+ *
+ * Both the list and Next/Previous walk the flattened result, so they agree on this order.
  */
 export function groupIntoFamilies(items: EnqueueFuture_Item[]): EnqueueFutureFamily[] {
-    const families: EnqueueFutureFamily[] = []
+    const byFamily = new Map<number, EnqueueFutureFamily>()
     for (const item of items) {
         const key = item.familyId || item.mediaId
-        const current = families[families.length - 1]
-        const currentKey = current ? (current[0].familyId || current[0].mediaId) : undefined
-        if (current && currentKey === key) current.push(item)
-        else families.push([item])
+        const existing = byFamily.get(key)
+        if (existing) existing.push(item)
+        else byFamily.set(key, [item])
     }
-    return families
+    // Map iteration is insertion-ordered, so the bundles come back in first-seen order.
+    return Array.from(byFamily.values())
 }
 
 /**
@@ -57,10 +57,9 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
         <div className="rounded-[--radius-md] border bg-gray-950 max-h-[70vh] overflow-y-auto" data-enqueue-future-list>
             {families.map(family => (
                 <FamilyBundle
-                    // Keyed on the first entry, not the family: a franchise whose seasons are not
-                    // neighbours in the queue is drawn as more than one bundle, and a family id
-                    // would collide between them. Every entry appears once, so this is unique.
-                    key={family[0].mediaId}
+                    // Keyed on the family, which every member of the bundle shares — so the bundle
+                    // keeps its identity when its first entry is dealt with and leaves the list.
+                    key={family[0].familyId || family[0].mediaId}
                     family={family}
                     activeMediaId={activeMediaId}
                     onSelect={onSelect}
@@ -78,8 +77,12 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
  * The group header is a label and nothing more — deliberately not clickable and carrying no
  * actions. Every decision in this queue is made about one entry: a franchise is a thing to
  * recognise, not a thing to skip, ignore or download in one go.
+ *
+ * Memoised because the queue runs to hundreds of entries and the list re-renders on every step and
+ * on every poll of a running job. Without this, moving to the next anime re-rendered every row in
+ * the queue rather than the two that actually changed.
  */
-function FamilyBundle({ family, activeMediaId, onSelect, activeRef }: {
+const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, onSelect, activeRef }: {
     family: EnqueueFuture_Item[]
     activeMediaId: number | undefined
     onSelect: (item: EnqueueFuture_Item) => void
@@ -171,7 +174,7 @@ function FamilyBundle({ family, activeMediaId, onSelect, activeRef }: {
             </div>
         </div>
     )
-}
+})
 
 function ItemStatusLabel({ item }: { item: EnqueueFuture_Item }) {
     switch (item.status) {

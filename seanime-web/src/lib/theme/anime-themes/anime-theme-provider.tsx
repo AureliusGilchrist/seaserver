@@ -24,6 +24,8 @@ import { buildThemeCursorCSS } from "@/lib/theme/anime-themes/cursor-svgs"
 import { recordActivatedTheme } from "@/lib/theme/anime-themes/theme-prerequisites"
 import { fetchMarketplaceThemeMeta, getCachedMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 import { applyRootCssVars } from "@/lib/helpers/css"
+import { animeThemeBaseColorAtom, animeThemeBrandOverrideAtom, SETTINGS_OWNED_COLOR_VARS } from "@/lib/theme/color-mixing"
+import { useThemeSettings } from "@/lib/theme/hooks"
 import { seaStorage } from "@/lib/sea-storage/sea-storage"
 
 // ─────────────────────────────────────────────────────────────────
@@ -223,6 +225,11 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const currentProfile = useAtomValue(currentProfileAtom)
     const profileKey = currentProfile?.id ? String(currentProfile.id) : "default"
     const profileId = currentProfile?.id ?? 0
+
+    const themeSettings = useThemeSettings()
+    const colorSettingsEnabled = !!themeSettings?.enableColorSettings
+    const setAnimeThemeBaseColor = useSetAtom(animeThemeBaseColorAtom)
+    const setAnimeThemeBrandOverride = useSetAtom(animeThemeBrandOverrideAtom)
 
     // ── Theme persistence ──
     // Allow any string theme ID (including marketplace themes not bundled in-app)
@@ -580,21 +587,38 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     }, [profileKey, themeId])
 
     // ── CSS var injection ──
+    // When the user's color scheme (Settings > Color scheme) is enabled, it owns the UI
+    // surface and brand colors — `CustomThemeProvider` writes those, mixing this theme's
+    // background in as a tint. The theme still owns everything else: wallpaper, effects,
+    // fonts, cursors, icons and the lighter gray text ramp.
     React.useEffect(() => {
         const root = document.documentElement
         const vars = config.cssVars
-        Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v as string))
-        // Apply brand color override (derived shades) after base vars
-        if (brandColorOverride) {
+        const entries = Object.entries(vars).filter(([k]) => !(colorSettingsEnabled && SETTINGS_OWNED_COLOR_VARS.has(k)))
+        entries.forEach(([k, v]) => root.style.setProperty(k, v as string))
+        // Apply brand color override (derived shades) after base vars.
+        // With color settings on, `CustomThemeProvider` applies it last instead.
+        if (brandColorOverride && !colorSettingsEnabled) {
             const shades = deriveBrandShades(brandColorOverride)
             Object.entries(shades).forEach(([k, v]) => root.style.setProperty(k, v))
         }
 
         return () => {
             // On cleanup, clear only the vars this theme set (next theme will overwrite)
-            Object.keys(vars).forEach(k => root.style.removeProperty(k))
+            entries.forEach(([k]) => root.style.removeProperty(k))
         }
-    }, [config, brandColorOverride])
+    }, [config, brandColorOverride, colorSettingsEnabled])
+
+    // ── Publish the theme's own colors so the settings color scheme can mix them in ──
+    React.useEffect(() => {
+        setAnimeThemeBaseColor(config.id === "seanime" ? null : ((config.cssVars["--background"] as string) ?? null))
+        return () => setAnimeThemeBaseColor(null)
+    }, [config, setAnimeThemeBaseColor])
+
+    React.useEffect(() => {
+        setAnimeThemeBrandOverride(brandColorOverride)
+        return () => setAnimeThemeBrandOverride(null)
+    }, [brandColorOverride, setAnimeThemeBrandOverride])
 
     // ── Background image: hide default body:before AND body:after when a custom bg is active ──
     React.useEffect(() => {

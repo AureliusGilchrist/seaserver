@@ -20,6 +20,16 @@ import (
 // waiting for you rather than about what a run can finish in one go.
 const MaxFamiliesPerRun = 350
 
+// RecommendationSpread is how many recommendations are queued between one franchise and the next.
+//
+// The queue is walked in the order things are inserted, so insertion order is the reading order. Every
+// family edge waiting goes in first — the family spread is unbounded, because half a franchise is
+// worse than none of it — and then a spread of this many recommendations, over and over: family,
+// spread, family, spread. That is what keeps a franchise together and adjacent while still widening
+// out into new shows at a steady rate, rather than emptying the entire recommendation ring of one
+// anime before the next franchise gets a look in.
+const RecommendationSpread = 12
+
 // SearchParams are the torrent search settings a snapshot was produced with.
 //
 // This is deliberately only the scalars, not the media object: the queue screen compares these

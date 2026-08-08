@@ -30,9 +30,17 @@ var promoTitleRegex = regexp.MustCompile(
 // episodes is AniList's episode count for the entry. Zero means AniList does not list a single
 // episode for it, which for the things this rejects is the norm — a PV is one video, filed with no
 // episode count at all.
-func rejectReason(title string, format *anilist.MediaFormat, episodes int, notYetReleased bool) string {
-	if notYetReleased {
-		return "not yet released"
+func rejectReason(title string, format *anilist.MediaFormat, episodes int, status *anilist.MediaStatus) string {
+	if status != nil {
+		switch *status {
+		case anilist.MediaStatusNotYetReleased:
+			return "not yet released"
+		case anilist.MediaStatusReleasing:
+			// Still airing, so there is no complete release to queue: a batch search finds nothing,
+			// and whatever a single-episode search does find goes stale by next week. Worth coming
+			// back to once it has finished, which a later run will do.
+			return "still airing"
+		}
 	}
 
 	if format != nil {

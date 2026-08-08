@@ -21,11 +21,14 @@ export const ENQUEUE_FUTURE_STATUS = {
 
 /**
  * An item you have not dealt with yet — what the queue viewer walks and the sidebar badge counts.
- * "No results" is included on purpose: it needs a look with a different provider, not hiding.
+ *
+ * "No results" is excluded: the server gives an item that status when nothing downloadable was found
+ * for it — no torrents at all, or nothing seeded well enough to actually finish. There is no decision
+ * to make about an entry like that, so it stays as a row (which is what stops it being rediscovered)
+ * without taking up a slot in the queue you work through.
  */
 export function isEnqueueFuturePending(item: EnqueueFuture_Item): boolean {
     return item.status === ENQUEUE_FUTURE_STATUS.READY
-        || item.status === ENQUEUE_FUTURE_STATUS.NO_RESULTS
         || item.status === ENQUEUE_FUTURE_STATUS.PENDING
         || item.status === ENQUEUE_FUTURE_STATUS.PREPARING
 }
@@ -115,8 +118,14 @@ export function useGetEnqueueFutureQueue({ isRunning }: { isRunning?: boolean } 
 /**
  * One item with its prepared snapshot — the anime entry and the torrent results.
  *
- * Held in cache rather than refetched, so stepping back to an anime you have already looked at
- * is instant and costs the server nothing.
+ * Held briefly in cache rather than refetched, so stepping back a couple of anime is instant.
+ *
+ * gcTime is the important part, and it is deliberately short. Each snapshot is a whole anime entry
+ * plus a complete torrent search result — hundreds of kilobytes — and the query key is per media ID,
+ * so every anime you step to leaves another one behind. On the default 5-minute collection that meant
+ * working a little way down the queue accumulated dozens of them in memory and the page slowed to a
+ * crawl; leaving the screen and coming back was the only thing that cleared it, because the remount
+ * is what finally let them be collected. Now they are dropped shortly after you move on.
  */
 export function useGetEnqueueFutureItem(mediaId: number | undefined) {
     return useServerQuery<EnqueueFuture_Item>({
@@ -125,6 +134,7 @@ export function useGetEnqueueFutureItem(mediaId: number | undefined) {
         queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureItem.key, String(mediaId)],
         enabled: !!mediaId,
         staleTime: Infinity,
+        gcTime: 20_000,
     })
 }
 

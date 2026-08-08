@@ -45,12 +45,14 @@ export function EnqueueFuturePage() {
     // record is what stops them being rediscovered — but walking back through them is not the job.
     const items = React.useMemo(() => (queue ?? []).filter(isEnqueueFuturePending), [queue])
 
-    // The queue in the order the server gave it, with neighbouring entries of the same franchise
-    // bundled for display. Bundling never reorders, so orderedItems is just items: an entry keeps the
-    // slot it was queued into for as long as it is in the queue, and nothing shifts under you while
-    // you work down the list.
+    // The queue's real order: every franchise gathered into one bundle, each bundle taking the slot of
+    // its earliest member. A franchise is always kept together however far apart its entries were
+    // discovered, so a distant season is lifted up to join the rest of its story rather than sitting
+    // stranded further down.
     //
-    // The list draws this and Next/Previous walk it, which has to be the same order.
+    // The list draws this and Next/Previous walk it, which has to be the same order — otherwise
+    // finishing one season sends you to an unrelated show while the rest of the series waits
+    // elsewhere, which reads as the remaining entries having been skipped.
     //
     // Grouping is presentation only. Every action — skip, ignore, add torrents — applies to the one
     // entry it was pressed on and never to its siblings.
@@ -138,6 +140,12 @@ export function EnqueueFuturePage() {
         setActiveMediaId(orderedItems[nextIndex].mediaId)
     }
 
+    // Stable, so the memoised rows in the list actually stay memoised — a fresh arrow on every
+    // render would defeat it and re-render all several hundred of them on every step.
+    const handleSelect = React.useCallback((item: EnqueueFuture_Item) => {
+        setActiveMediaId(item.mediaId)
+    }, [])
+
     function handleDownloadStarted() {
         if (!activeItem) return
         setItemStatus({ status: ENQUEUE_FUTURE_STATUS.DOWNLOADED }, {
@@ -210,7 +218,7 @@ export function EnqueueFuturePage() {
                     <EnqueueFutureList
                         families={families}
                         activeMediaId={activeMediaId}
-                        onSelect={item => setActiveMediaId(item.mediaId)}
+                        onSelect={handleSelect}
                     />
 
                     <AppLayoutStack>

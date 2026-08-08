@@ -7,15 +7,16 @@ import (
 )
 
 func format(f anilist.MediaFormat) *anilist.MediaFormat { return &f }
+func status(s anilist.MediaStatus) *anilist.MediaStatus { return &s }
 
 func TestRejectReason(t *testing.T) {
 	tests := []struct {
-		name           string
-		title          string
-		format         *anilist.MediaFormat
-		episodes       int
-		notYetReleased bool
-		wantRejected   bool
+		name         string
+		title        string
+		format       *anilist.MediaFormat
+		episodes     int
+		status       *anilist.MediaStatus
+		wantRejected bool
 	}{
 		// Promotional material — the entries that were filling the queue.
 		{name: "PV", title: "Attack on Titan PV", format: format(anilist.MediaFormatSpecial), episodes: 1, wantRejected: true},
@@ -36,7 +37,11 @@ func TestRejectReason(t *testing.T) {
 
 		// No episodes and nothing out yet.
 		{name: "no episodes", title: "Perfectly Normal Title", format: format(anilist.MediaFormatTv), episodes: 0, wantRejected: true},
-		{name: "not yet released", title: "Upcoming Show", format: format(anilist.MediaFormatTv), episodes: 12, notYetReleased: true, wantRejected: true},
+		{name: "not yet released", title: "Upcoming Show", format: format(anilist.MediaFormatTv), episodes: 12, status: status(anilist.MediaStatusNotYetReleased), wantRejected: true},
+		// Still airing: no complete release to queue, and a single-episode search goes stale weekly.
+		{name: "releasing", title: "Currently Airing Show", format: format(anilist.MediaFormatTv), episodes: 24, status: status(anilist.MediaStatusReleasing), wantRejected: true},
+		{name: "releasing with no episode count", title: "Airing Unknown Length", format: format(anilist.MediaFormatTv), episodes: 0, status: status(anilist.MediaStatusReleasing), wantRejected: true},
+		{name: "finished is kept", title: "Finished Show", format: format(anilist.MediaFormatTv), episodes: 24, status: status(anilist.MediaStatusFinished)},
 
 		// Real shows must survive. The two-letter tokens are the dangerous ones.
 		{name: "ordinary TV", title: "Cowboy Bebop", format: format(anilist.MediaFormatTv), episodes: 26},
@@ -52,7 +57,7 @@ func TestRejectReason(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			reason := rejectReason(tt.title, tt.format, tt.episodes, tt.notYetReleased)
+			reason := rejectReason(tt.title, tt.format, tt.episodes, tt.status)
 			if tt.wantRejected && reason == "" {
 				t.Errorf("rejectReason(%q) = accepted, want rejected", tt.title)
 			}

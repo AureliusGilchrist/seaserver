@@ -286,7 +286,10 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 	// frontier holds anime discovered but not yet inserted; seen guards against walking in circles,
 	// which a recommendation graph does constantly. Both are restored from the progress record on a
 	// resumed run, so it carries on walking rather than rediscovering what it already decided about.
-	frontier := make([]recommendation, 0, MaxFamiliesPerRun)
+	// Two frontiers, drained on different terms: familyFrontier empties completely on every pass,
+	// recFrontier gives up RecommendationSpread at a time. See drainFrontier.
+	familyFrontier := make([]recommendation, 0, MaxFamiliesPerRun)
+	recFrontier := make([]recommendation, 0, MaxFamiliesPerRun)
 	seen := make(map[int]bool, len(progress.Seen))
 	for _, id := range progress.Seen {
 		seen[id] = true
@@ -505,16 +508,14 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			}
 		}
 
-		// This anime's own family comes first, and "first" means ahead of everything already waiting —
-		// not merely ahead of this anime's own recommendations. Family edges go to the front of the
-		// frontier, so a franchise is walked to its end before the queue moves on to merely similar
-		// shows. Since each member's own relations are discovered when it is prepared, and each of
-		// those also jumps the queue, the whole relation tree is exhausted transitively: every season,
-		// every side story, however deep the chain runs.
+		// Family edges are held apart from recommendations, because they are queued on different
+		// terms: every family edge waiting goes in before the next spread of recommendations does.
+		// Since each member's own relations are discovered when it is prepared, and those jump ahead
+		// too, the relation tree is exhausted transitively — every season, every side story, however
+		// deep the chain runs — before the walk widens out again.
 		//
 		// They inherit the family and the depth of the anime they came from, because a sequel is not
 		// one step further from what you asked for; it is the same show.
-		family := make([]recommendation, 0, len(result.relations))
 		for _, rel := range result.relations {
 			if seen[rel.mediaID] {
 				// Already queued under some other family — pull that whole family in with this one,
@@ -527,10 +528,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			depths[rel.mediaID] = depth
 			rel.familyID = familyID
 			rel.isFamily = true
-			family = append(family, rel)
-		}
-		if len(family) > 0 {
-			frontier = append(family, frontier...)
+			familyFrontier = append(familyFrontier, rel)
 		}
 
 		// Then what it recommends, each starting a family of its own.
@@ -541,7 +539,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			seen[rec.mediaID] = true
 			depths[rec.mediaID] = depth + 1
 			rec.familyID = rec.mediaID
-			frontier = append(frontier, rec)
+			recFrontier = append(recFrontier, rec)
 		}
 
 		wasRoot := rootPending
@@ -551,7 +549,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 
 		// Insert as much of the frontier as the cap allows, then drop the rest: past the cap there
 		// is no point holding on to anime that will never be queued.
-		frontier = r.drainFrontier(profileID, rootMediaID, frontier, depths)
+		familyFrontier, recFrontier = r.drainFrontier(profileID, rootMediaID, familyFrontier, recFrontier, depths)
 
 		// A root that produces nothing is a dead end worth naming. It is the one case that leaves
 		// the screen reading "0 of 0" with no explanation, and it has real causes — an anime with
@@ -592,22 +590,46 @@ func (r *Repository) mergeFamilies(mediaID int, intoFamilyID int) {
 // drainFrontier inserts discovered anime into the queue, applying the skip rules and the per-run
 // franchise cap. Returns whatever it could not insert.
 //
+// Insertion order is the order the queue is walked, so this is where "family, then a spread of
+// recommendations, then family again" is decided. The family frontier is drained completely on every
+// pass; the recommendation frontier gives up at most RecommendationSpread. Whatever recommendations
+// are left over wait for the next pass, by which time the family edges discovered from this one have
+// already gone in ahead of them.
+//
 // The cap is spent on franchises, not anime. A candidate joining a family that is already queued
 // goes in regardless of how full the run is — the alternative is a queue holding season 1 and season
 // 3 of something because a counter ran out between them, which is worse than not holding it at all.
 // Only a candidate that would start a *new* franchise has to pay.
-func (r *Repository) drainFrontier(profileID uint, rootMediaID int, frontier []recommendation, depths map[int]int) []recommendation {
+func (r *Repository) drainFrontier(
+	profileID uint,
+	rootMediaID int,
+	familyFrontier []recommendation,
+	recFrontier []recommendation,
+	depths map[int]int,
+) ([]recommendation, []recommendation) {
 	families, err := r.database.CountEnqueueFutureFamiliesForRoot(rootMediaID)
 	if err != nil {
 		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to count queued franchises")
-		return frontier
+		return familyFrontier, recFrontier
 	}
 
 	full := false
 
-	for len(frontier) > 0 {
-		rec := frontier[0]
-		frontier = frontier[1:]
+	// The whole family first, however long the chain is, then a bounded spread of recommendations.
+	batch := make([]recommendation, 0, len(familyFrontier)+RecommendationSpread)
+	batch = append(batch, familyFrontier...)
+	familyFrontier = familyFrontier[:0]
+
+	spread := RecommendationSpread
+	if spread > len(recFrontier) {
+		spread = len(recFrontier)
+	}
+	batch = append(batch, recFrontier[:spread]...)
+	recFrontier = recFrontier[spread:]
+
+	for len(batch) > 0 {
+		rec := batch[0]
+		batch = batch[1:]
 
 		familyID := rec.familyID
 		if familyID == 0 {
@@ -658,7 +680,7 @@ func (r *Repository) drainFrontier(profileID uint, rootMediaID int, frontier []r
 		}
 	}
 
-	return frontier
+	return familyFrontier, recFrontier
 }
 
 // shouldSkip applies the discovery filters: nothing already queued, already in the library, already
@@ -682,9 +704,35 @@ func (r *Repository) shouldSkip(rec recommendation) (bool, string) {
 	return false, ""
 }
 
-// storeSnapshot writes a prepared item, marking it ready — or no_results when the search came back
-// empty, which is worth distinguishing: those are worth revisiting with a different provider rather
-// than being a failure.
+// MinSeeders is the seeder count the best torrent for an anime has to beat for the entry to be worth
+// showing.
+//
+// Below this a download is not really available: it either never starts or crawls for days, so
+// putting the entry in front of you is asking you to make a decision about nothing. Those entries are
+// kept as rows — that record is what stops them being rediscovered on the next run — but they are not
+// part of the queue you walk.
+const MinSeeders = 5
+
+// bestSeeders returns the seeder count of the healthiest torrent found, and how many were found.
+func bestSeeders(data *torrent.SearchData) (best int, count int) {
+	if data == nil {
+		return 0, 0
+	}
+	for _, t := range data.Torrents {
+		if t == nil {
+			continue
+		}
+		count++
+		if t.Seeders > best {
+			best = t.Seeders
+		}
+	}
+	return best, count
+}
+
+// storeSnapshot writes a prepared item, marking it ready — or no_results when the search found
+// nothing worth downloading, which is worth distinguishing from a failure: those are worth revisiting
+// with a different provider rather than being an error.
 func (r *Repository) storeSnapshot(mediaID int, result *prepared) {
 	value, err := json.Marshal(result.snapshot)
 	if err != nil {
@@ -694,8 +742,30 @@ func (r *Repository) storeSnapshot(mediaID int, result *prepared) {
 	}
 
 	status := db.EnqueueFutureStatusReady
-	if result.snapshot.SearchData == nil || len(result.snapshot.SearchData.Torrents) == 0 {
+	lastError := ""
+
+	var searchData *torrent.SearchData
+	if result.snapshot != nil {
+		searchData = result.snapshot.SearchData
+	}
+	best, count := bestSeeders(searchData)
+	switch {
+	case count == 0:
 		status = db.EnqueueFutureStatusNoResults
+		lastError = "no torrents found"
+	case best < MinSeeders:
+		// Found something, but nothing anyone is actually seeding.
+		status = db.EnqueueFutureStatusNoResults
+		lastError = "best torrent has " + strconv.Itoa(best) + " seeders"
+	}
+
+	if status == db.EnqueueFutureStatusNoResults {
+		r.logger.Debug().
+			Int("mediaId", mediaID).
+			Int("torrents", count).
+			Int("bestSeeders", best).
+			Str("title", result.title).
+			Msg("enqueuefuture: Nothing downloadable, leaving it out of the queue")
 	}
 
 	if err := r.database.SaveEnqueueFutureItemSnapshot(
@@ -703,6 +773,10 @@ func (r *Repository) storeSnapshot(mediaID int, result *prepared) {
 	); err != nil {
 		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Failed to store snapshot")
 		return
+	}
+
+	if lastError != "" {
+		_ = r.database.SetEnqueueFutureItemStatus(mediaID, status, lastError)
 	}
 }
 
