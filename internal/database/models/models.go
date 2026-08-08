@@ -398,9 +398,12 @@ type UnmatchedMatchRecord struct {
 // item, and unmarshalling a hundred snapshots to read two strings would be absurd.
 type EnqueueFutureItem struct {
 	BaseModel
+	// ProfileID records which profile started the run that discovered this item. It is provenance
+	// only — the queue itself is global and is never filtered by it. See the queue accessors.
 	ProfileID uint `gorm:"column:profile_id;index" json:"profileId"`
 	// MediaID is the AniList ID and the identity of the row: enqueueing from ten different pages
 	// whose recommendations overlap has to converge on one queue, not ten copies of the same anime.
+	// Globally unique, because the queue is global.
 	MediaID int `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
 	// RootMediaID is the anime whose page started the run that discovered this item. The 125-item
 	// cap is per run, so the worker counts rows by this.

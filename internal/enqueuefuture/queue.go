@@ -9,8 +9,8 @@ import (
 )
 
 // ListItems returns the queue in walk order, without the snapshots.
-func (r *Repository) ListItems(profileID uint) ([]*Item, error) {
-	records, err := r.database.GetEnqueueFutureListItems(profileID)
+func (r *Repository) ListItems() ([]*Item, error) {
+	records, err := r.database.GetEnqueueFutureListItems()
 	if err != nil {
 		return nil, err
 	}
@@ -23,8 +23,8 @@ func (r *Repository) ListItems(profileID uint) ([]*Item, error) {
 }
 
 // GetItem returns one item with its snapshot decoded, or nil when it is not in the queue.
-func (r *Repository) GetItem(profileID uint, mediaID int) (*Item, error) {
-	record, err := r.database.GetEnqueueFutureItem(profileID, mediaID)
+func (r *Repository) GetItem(mediaID int) (*Item, error) {
+	record, err := r.database.GetEnqueueFutureItem(mediaID)
 	if err != nil {
 		return nil, err
 	}
@@ -50,27 +50,27 @@ func (r *Repository) GetItem(profileID uint, mediaID int) (*Item, error) {
 //
 // Only the terminal states are accepted: the worker owns everything else, and letting the UI write
 // "pending" or "preparing" would hand it a way to fight the worker over the same row.
-func (r *Repository) SetItemStatus(profileID uint, mediaID int, status string) error {
+func (r *Repository) SetItemStatus(mediaID int, status string) error {
 	switch status {
 	case db.EnqueueFutureStatusDownloaded, db.EnqueueFutureStatusSkipped, db.EnqueueFutureStatusIgnored:
 	default:
 		return errors.New("invalid status")
 	}
-	return r.database.SetEnqueueFutureItemStatus(profileID, mediaID, status, "")
+	return r.database.SetEnqueueFutureItemStatus(mediaID, status, "")
 }
 
 // DeleteItem removes one item from the queue.
-func (r *Repository) DeleteItem(profileID uint, mediaID int) error {
-	return r.database.DeleteEnqueueFutureItem(profileID, mediaID)
+func (r *Repository) DeleteItem(mediaID int) error {
+	return r.database.DeleteEnqueueFutureItem(mediaID)
 }
 
 // Clear empties the queue. Stops any run first, so the worker does not immediately refill what was
 // just cleared out from under it, and drops the progress record — resuming into an emptied queue
 // would rebuild exactly what was just thrown away.
-func (r *Repository) Clear(profileID uint) error {
+func (r *Repository) Clear() error {
 	r.Stop()
 	r.clearProgress()
-	return r.database.ClearEnqueueFutureItems(profileID)
+	return r.database.ClearEnqueueFutureItems()
 }
 
 func toItem(record *models.EnqueueFutureItem, snapshot *Snapshot) *Item {

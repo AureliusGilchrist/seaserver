@@ -18,6 +18,20 @@ func TestNCAndExtraDetection(t *testing.T) {
 		"Show - Ending 2.mkv",
 		"[Group] Show - Opening 1 (1080p).mkv",
 		"Opening.mkv",
+		// Commercials, promos and trailers. The numbered forms are the ones that used to slip
+		// through: habari reads the trailing digits as an episode number, which short-circuited the
+		// broader patterns and filed every CM and PV in the release as a real episode.
+		"[Judas] Show - CM 3 (1080p).mkv",
+		"[Judas] Show - CM3 (1080p).mkv",
+		"[Group] Show - PV 02 [1080p].mkv",
+		"[Group] Show - PV2 [1080p].mkv",
+		"Show - Trailer 1.mkv",
+		"Show - Promo 2.mkv",
+		"Show - Teaser.mkv",
+		"[Group] Show - Commercial 05 (1080p).mkv",
+		"[Group] Show - Spot 1 (1080p).mkv",
+		"Show CM.mkv",
+		"Show PV.mkv",
 	}
 	for _, n := range shouldDelete {
 		if !isNCName(n) {
@@ -36,6 +50,12 @@ func TestNCAndExtraDetection(t *testing.T) {
 		"[Group] Show - 12 - Ending of an Era [1080p].mkv",
 		"[Group] Show - 03 - Opening Night (1080p).mkv",
 		"[Group] Show - 24 - The Ending [1080p][ABC123].mkv",
+		// The promo tokens must not fire from inside a word or a real episode title. "AD" is
+		// deliberately not one of the tokens for exactly this reason.
+		"[Group] Show - 07 - Advance Notice [1080p].mkv",
+		"[Group] Show - 04 - The Campaign [1080p].mkv",
+		"[Group] Scmp Show - 09 (1080p).mkv",
+		"[Group] Show - 11 - Promotion Day [1080p].mkv",
 	}
 	for _, n := range shouldKeep {
 		if isNCName(n) {

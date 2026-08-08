@@ -50,7 +50,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			insertItem(t, db, id)
 		}
 
-		items, err := db.GetEnqueueFutureItems(1)
+		items, err := db.GetEnqueueFutureItems()
 		if err != nil {
 			t.Fatalf("read queue: %v", err)
 		}
@@ -78,7 +78,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			t.Error("the same anime was queued twice")
 		}
 
-		items, _ := db.GetEnqueueFutureItems(1)
+		items, _ := db.GetEnqueueFutureItems()
 		if len(items) != 1 {
 			t.Errorf("expected 1 item after the duplicate, got %d", len(items))
 		}
@@ -88,12 +88,12 @@ func TestEnqueueFutureQueue(t *testing.T) {
 		db := enqueueFutureTestDatabase(t)
 
 		insertItem(t, db, 7)
-		if err := db.SetEnqueueFutureItemStatus(1, 7, EnqueueFutureStatusDownloaded, ""); err != nil {
+		if err := db.SetEnqueueFutureItemStatus(7, EnqueueFutureStatusDownloaded, ""); err != nil {
 			t.Fatalf("set status: %v", err)
 		}
 
 		// Downloading it is precisely why it must not be rediscovered.
-		if !db.HasEnqueueFutureItem(1, 7) {
+		if !db.HasEnqueueFutureItem(7) {
 			t.Error("a downloaded anime should still count as queued")
 		}
 		if insertItem(t, db, 7) {
@@ -105,7 +105,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 		db := enqueueFutureTestDatabase(t)
 
 		insertItem(t, db, 11)
-		if err := db.SetEnqueueFutureItemStatus(1, 11, EnqueueFutureStatusIgnored, ""); err != nil {
+		if err := db.SetEnqueueFutureItemStatus(11, EnqueueFutureStatusIgnored, ""); err != nil {
 			t.Fatalf("set status: %v", err)
 		}
 
@@ -115,7 +115,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			t.Error("an ignored show was queued again")
 		}
 
-		item, _ := db.GetEnqueueFutureItem(1, 11)
+		item, _ := db.GetEnqueueFutureItem(11)
 		if item == nil || item.Status != EnqueueFutureStatusIgnored {
 			t.Errorf("expected the ignored row to survive, got %+v", item)
 		}
@@ -137,11 +137,11 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			}
 		}
 
-		if err := db.MergeEnqueueFutureFamily(1, 200, 100); err != nil {
+		if err := db.MergeEnqueueFutureFamily(200, 100); err != nil {
 			t.Fatalf("merge: %v", err)
 		}
 
-		items, _ := db.GetEnqueueFutureItems(1)
+		items, _ := db.GetEnqueueFutureItems()
 		for _, item := range items {
 			if item.FamilyID != 100 {
 				t.Errorf("media %d is in family %d, want 100", item.MediaID, item.FamilyID)
@@ -149,7 +149,9 @@ func TestEnqueueFutureQueue(t *testing.T) {
 		}
 	})
 
-	t.Run("a family merge does not reach into another profile", func(t *testing.T) {
+	// The queue is shared by the whole server, so a merge covers every member of the family
+	// regardless of which profile's run happened to discover each one.
+	t.Run("a family merge covers members discovered by other profiles", func(t *testing.T) {
 		db := enqueueFutureTestDatabase(t)
 
 		if _, err := db.InsertEnqueueFutureItem(&models.EnqueueFutureItem{
@@ -158,17 +160,19 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			t.Fatalf("insert: %v", err)
 		}
 
-		if err := db.MergeEnqueueFutureFamily(1, 200, 100); err != nil {
+		if err := db.MergeEnqueueFutureFamily(200, 100); err != nil {
 			t.Fatalf("merge: %v", err)
 		}
 
-		item, _ := db.GetEnqueueFutureItem(2, 300)
-		if item.FamilyID != 200 {
-			t.Errorf("the other profile's family was rewritten to %d", item.FamilyID)
+		item, _ := db.GetEnqueueFutureItem(300)
+		if item.FamilyID != 100 {
+			t.Errorf("family is %d, want 100 — the merge should cover the whole shared queue", item.FamilyID)
 		}
 	})
 
-	t.Run("keeps queues of different profiles apart", func(t *testing.T) {
+	// One queue for the server, not one per profile: a recommendation graph is the same graph
+	// whoever is looking at it, and an anime dealt with once has to stay dealt with.
+	t.Run("shares one queue across profiles", func(t *testing.T) {
 		db := enqueueFutureTestDatabase(t)
 
 		insertItem(t, db, 5)
@@ -180,13 +184,37 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			t.Fatalf("insert for the second profile: %v", err)
 		}
 
-		first, _ := db.GetEnqueueFutureItems(1)
-		second, _ := db.GetEnqueueFutureItems(2)
-		if len(first) != 1 || first[0].MediaID != 5 {
-			t.Errorf("profile 1 sees %d items, want just media 5", len(first))
+		items, _ := db.GetEnqueueFutureItems()
+		if len(items) != 2 {
+			t.Fatalf("got %d items, want both profiles' items in the one queue", len(items))
 		}
-		if len(second) != 1 || second[0].MediaID != 6 {
-			t.Errorf("profile 2 sees %d items, want just media 6", len(second))
+		for _, want := range []int{5, 6} {
+			if !db.HasEnqueueFutureItem(want) {
+				t.Errorf("media %d is missing from the shared queue", want)
+			}
+		}
+	})
+
+	// The old schema made media_id globally unique while every read was scoped per profile, so the
+	// second profile's insert failed the constraint and its item was dropped from the run entirely.
+	// Now it is simply recognised as already queued.
+	t.Run("treats an anime another profile queued as already present", func(t *testing.T) {
+		db := enqueueFutureTestDatabase(t)
+
+		if _, err := db.InsertEnqueueFutureItem(&models.EnqueueFutureItem{
+			ProfileID: 1, MediaID: 100749, RootMediaID: 5081, Status: EnqueueFutureStatusPending,
+		}); err != nil {
+			t.Fatalf("first insert: %v", err)
+		}
+
+		inserted, err := db.InsertEnqueueFutureItem(&models.EnqueueFutureItem{
+			ProfileID: 2, MediaID: 100749, RootMediaID: 5081, Status: EnqueueFutureStatusPending,
+		})
+		if err != nil {
+			t.Fatalf("the second profile's insert must not error, got %v", err)
+		}
+		if inserted {
+			t.Error("the same anime was queued twice")
 		}
 	})
 
@@ -196,15 +224,15 @@ func TestEnqueueFutureQueue(t *testing.T) {
 		insertItem(t, db, 1)
 		insertItem(t, db, 2)
 
-		next, err := db.GetNextPendingEnqueueFutureItem(1)
+		next, err := db.GetNextPendingEnqueueFutureItem()
 		if err != nil || next == nil || next.MediaID != 1 {
 			t.Fatalf("expected media 1 first, got %+v (err %v)", next, err)
 		}
 
-		_ = db.SetEnqueueFutureItemStatus(1, 1, EnqueueFutureStatusReady, "")
-		_ = db.SetEnqueueFutureItemStatus(1, 2, EnqueueFutureStatusReady, "")
+		_ = db.SetEnqueueFutureItemStatus(1, EnqueueFutureStatusReady, "")
+		_ = db.SetEnqueueFutureItemStatus(2, EnqueueFutureStatusReady, "")
 
-		next, err = db.GetNextPendingEnqueueFutureItem(1)
+		next, err = db.GetNextPendingEnqueueFutureItem()
 		if err != nil {
 			t.Fatalf("read next: %v", err)
 		}
@@ -218,11 +246,11 @@ func TestEnqueueFutureQueue(t *testing.T) {
 
 		insertItem(t, db, 9)
 		blob := []byte(`{"providerId":"nyaa"}`)
-		if err := db.SaveEnqueueFutureItemSnapshot(1, 9, EnqueueFutureStatusReady, "Some Anime", "cover.jpg", blob); err != nil {
+		if err := db.SaveEnqueueFutureItemSnapshot(9, EnqueueFutureStatusReady, "Some Anime", "cover.jpg", blob); err != nil {
 			t.Fatalf("save snapshot: %v", err)
 		}
 
-		full, err := db.GetEnqueueFutureItem(1, 9)
+		full, err := db.GetEnqueueFutureItem(9)
 		if err != nil || full == nil {
 			t.Fatalf("read item: %+v (err %v)", full, err)
 		}
@@ -233,7 +261,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			t.Errorf("display fields not stored: %q / %q", full.Title, full.CoverImage)
 		}
 
-		list, err := db.GetEnqueueFutureListItems(1)
+		list, err := db.GetEnqueueFutureListItems()
 		if err != nil || len(list) != 1 {
 			t.Fatalf("read list: %d items (err %v)", len(list), err)
 		}
@@ -263,7 +291,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			}
 		}
 
-		families, err := db.CountEnqueueFutureFamiliesForRoot(1, 100)
+		families, err := db.CountEnqueueFutureFamiliesForRoot(100)
 		if err != nil {
 			t.Fatalf("count families: %v", err)
 		}
@@ -272,7 +300,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			t.Errorf("got %d franchises, want 3", families)
 		}
 
-		items, _ := db.CountEnqueueFutureItemsForRoot(1, 100)
+		items, _ := db.CountEnqueueFutureItemsForRoot(100)
 		if items != 6 {
 			t.Errorf("got %d items, want 6", items)
 		}
@@ -288,16 +316,13 @@ func TestEnqueueFutureQueue(t *testing.T) {
 		}
 
 		// A later season joining this franchise is free even when the run is full.
-		if !db.HasEnqueueFutureFamily(1, 42) {
+		if !db.HasEnqueueFutureFamily(42) {
 			t.Error("an already-queued franchise was not recognised")
 		}
-		if db.HasEnqueueFutureFamily(1, 99) {
+		if db.HasEnqueueFutureFamily(99) {
 			t.Error("an unknown franchise was reported as queued")
 		}
-		if db.HasEnqueueFutureFamily(2, 42) {
-			t.Error("another profile's franchise leaked through")
-		}
-		if db.HasEnqueueFutureFamily(1, 0) {
+		if db.HasEnqueueFutureFamily(0) {
 			t.Error("a zero family id should never count as queued")
 		}
 	})
@@ -313,7 +338,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			t.Fatalf("insert for the other run: %v", err)
 		}
 
-		count, err := db.CountEnqueueFutureItemsForRoot(1, 100)
+		count, err := db.CountEnqueueFutureItemsForRoot(100)
 		if err != nil {
 			t.Fatalf("count: %v", err)
 		}
@@ -327,12 +352,12 @@ func TestEnqueueFutureQueue(t *testing.T) {
 
 		insertItem(t, db, 4)
 		for i := 0; i < 3; i++ {
-			if err := db.IncrementEnqueueFutureItemAttempts(1, 4, "rate limited"); err != nil {
+			if err := db.IncrementEnqueueFutureItemAttempts(4, "rate limited"); err != nil {
 				t.Fatalf("increment: %v", err)
 			}
 		}
 
-		item, _ := db.GetEnqueueFutureItem(1, 4)
+		item, _ := db.GetEnqueueFutureItem(4)
 		if item.Attempts != 3 {
 			t.Errorf("got %d attempts, want 3", item.Attempts)
 		}
@@ -345,7 +370,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 		db := enqueueFutureTestDatabase(t)
 
 		insertItem(t, db, 8)
-		_ = db.SetEnqueueFutureItemStatus(1, 8, EnqueueFutureStatusPreparing, "")
+		_ = db.SetEnqueueFutureItemStatus(8, EnqueueFutureStatusPreparing, "")
 
 		// Without this, a server killed mid-run leaves one item claimed forever and the queue
 		// never gets past it.
@@ -353,7 +378,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 			t.Fatalf("reset: %v", err)
 		}
 
-		item, _ := db.GetEnqueueFutureItem(1, 8)
+		item, _ := db.GetEnqueueFutureItem(8)
 		if item.Status != EnqueueFutureStatusPending {
 			t.Errorf("got status %q, want %q", item.Status, EnqueueFutureStatusPending)
 		}
@@ -365,21 +390,21 @@ func TestEnqueueFutureQueue(t *testing.T) {
 		insertItem(t, db, 1)
 		insertItem(t, db, 2)
 
-		if err := db.DeleteEnqueueFutureItem(1, 1); err != nil {
+		if err := db.DeleteEnqueueFutureItem(1); err != nil {
 			t.Fatalf("delete: %v", err)
 		}
-		if db.HasEnqueueFutureItem(1, 1) {
+		if db.HasEnqueueFutureItem(1) {
 			t.Error("the deleted item is still queued")
 		}
 		// A deleted item gives its slot back, which is what lets discovery keep filling to the cap.
-		if count, _ := db.CountEnqueueFutureItemsForRoot(1, 100); count != 1 {
+		if count, _ := db.CountEnqueueFutureItemsForRoot(100); count != 1 {
 			t.Errorf("got %d items after the delete, want 1", count)
 		}
 
-		if err := db.ClearEnqueueFutureItems(1); err != nil {
+		if err := db.ClearEnqueueFutureItems(); err != nil {
 			t.Fatalf("clear: %v", err)
 		}
-		items, _ := db.GetEnqueueFutureItems(1)
+		items, _ := db.GetEnqueueFutureItems()
 		if len(items) != 0 {
 			t.Errorf("got %d items after clearing, want 0", len(items))
 		}

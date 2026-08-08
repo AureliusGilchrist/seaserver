@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/continuity"
@@ -464,7 +465,18 @@ func (a *App) initModulesOnce() {
 		TorrentRepository:   a.TorrentRepository,
 		WSEventManager:      a.WSEventManager,
 		DataDir:             a.Config.Data.AppDataDir,
+		// The queue is global, so the collection it reasons about has to be global too. The planning
+		// slut is the account that describes this server's library — matching adds to its list, and
+		// the library screen merges it in — whereas the signed-in profile's list describes one
+		// person. Reading the profile's meant a run started by one profile filtered against a
+		// different library than the one the files actually land in.
+		//
+		// Falls back to the server's own collection when no shared account is configured, which is
+		// what the feature did before and is still correct for a single-account setup.
 		AnimeCollectionFunc: func() (*anilist.AnimeCollection, error) {
+			if col, err := a.GetPlanningSlutAnimeCollection(context.Background(), false); err == nil && col != nil {
+				return col, nil
+			}
 			return a.GetAnimeCollection(false)
 		},
 		DefaultProviderFunc: func() string {

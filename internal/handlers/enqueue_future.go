@@ -109,7 +109,7 @@ func (h *Handler) HandleGetEnqueueFutureQueue(c echo.Context) error {
 		return h.RespondWithData(c, []*enqueuefuture.Item{})
 	}
 
-	items, err := h.App.EnqueueFutureRepository.ListItems(h.GetProfileID(c))
+	items, err := h.App.EnqueueFutureRepository.ListItems()
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
@@ -134,7 +134,7 @@ func (h *Handler) HandleGetEnqueueFutureItem(c echo.Context) error {
 		return h.RespondWithError(c, echo.NewHTTPError(500, "enqueue future is unavailable"))
 	}
 
-	item, err := h.App.EnqueueFutureRepository.GetItem(h.GetProfileID(c), mediaID)
+	item, err := h.App.EnqueueFutureRepository.GetItem(mediaID)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
@@ -172,7 +172,7 @@ func (h *Handler) HandleSetEnqueueFutureItemStatus(c echo.Context) error {
 		return h.RespondWithError(c, echo.NewHTTPError(500, "enqueue future is unavailable"))
 	}
 
-	if err := h.App.EnqueueFutureRepository.SetItemStatus(h.GetProfileID(c), mediaID, b.Status); err != nil {
+	if err := h.App.EnqueueFutureRepository.SetItemStatus(mediaID, b.Status); err != nil {
 		return h.RespondWithError(c, err)
 	}
 
@@ -195,7 +195,7 @@ func (h *Handler) HandleDeleteEnqueueFutureItem(c echo.Context) error {
 		return h.RespondWithError(c, echo.NewHTTPError(500, "enqueue future is unavailable"))
 	}
 
-	if err := h.App.EnqueueFutureRepository.DeleteItem(h.GetProfileID(c), mediaID); err != nil {
+	if err := h.App.EnqueueFutureRepository.DeleteItem(mediaID); err != nil {
 		return h.RespondWithError(c, err)
 	}
 
@@ -213,7 +213,7 @@ func (h *Handler) HandleClearEnqueueFuture(c echo.Context) error {
 		return h.RespondWithError(c, echo.NewHTTPError(500, "enqueue future is unavailable"))
 	}
 
-	if err := h.App.EnqueueFutureRepository.Clear(h.GetProfileID(c)); err != nil {
+	if err := h.App.EnqueueFutureRepository.Clear(); err != nil {
 		return h.RespondWithError(c, err)
 	}
 

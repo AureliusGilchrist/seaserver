@@ -92,8 +92,8 @@ func (r *Repository) SetTorrentRepository(repo *torrent.Repository) {
 }
 
 // attemptsFor reads back an item's persisted attempt count.
-func (r *Repository) attemptsFor(profileID uint, mediaID int) (int, error) {
-	item, err := r.database.GetEnqueueFutureItem(profileID, mediaID)
+func (r *Repository) attemptsFor(mediaID int) (int, error) {
+	item, err := r.database.GetEnqueueFutureItem(mediaID)
 	if err != nil || item == nil {
 		return 0, err
 	}
@@ -307,7 +307,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 
 	// Called after every decision so the run is never more than one item ahead of what is on disk.
 	checkpoint := func() {
-		r.refreshCounts(profileID, rootMediaID)
+		r.refreshCounts(rootMediaID)
 		status := r.Status()
 		progress.Seen = progress.Seen[:0]
 		for id := range seen {
@@ -344,7 +344,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 		} else {
 			// Take the next item that is actually in the queue rather than trusting the in-memory
 			// frontier, so a restart or a second enqueue does not lose or duplicate work.
-			item, err := r.database.GetNextPendingEnqueueFutureItem(profileID)
+			item, err := r.database.GetNextPendingEnqueueFutureItem()
 			if err != nil {
 				r.logger.Error().Err(err).Msg("enqueuefuture: Failed to read the queue")
 				r.finish(err.Error())
@@ -363,11 +363,11 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			// Guards against a poisoned item outliving a restart: attempts are persisted, so an
 			// entry that has already used up its tries is failed rather than retried forever.
 			if item.Attempts >= MaxItemAttempts {
-				_ = r.database.SetEnqueueFutureItemStatus(profileID, mediaID, db.EnqueueFutureStatusFailed,
+				_ = r.database.SetEnqueueFutureItemStatus(mediaID, db.EnqueueFutureStatusFailed,
 					"gave up after "+strconv.Itoa(item.Attempts)+" attempts")
 				continue
 			}
-			_ = r.database.SetEnqueueFutureItemStatus(profileID, mediaID, db.EnqueueFutureStatusPreparing, "")
+			_ = r.database.SetEnqueueFutureItemStatus(mediaID, db.EnqueueFutureStatusPreparing, "")
 			r.setCurrentTitle(item.Title)
 		}
 
@@ -396,7 +396,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 				if !ok {
 					r.logger.Error().Msg("enqueuefuture: Giving up, rate limited through the whole ladder")
 					if !rootPending {
-						_ = r.database.SetEnqueueFutureItemStatus(profileID, mediaID, db.EnqueueFutureStatusPending, "rate limited")
+						_ = r.database.SetEnqueueFutureItemStatus(mediaID, db.EnqueueFutureStatusPending, "rate limited")
 					}
 					r.finish("rate limited: gave up after " + strconv.Itoa(MaxBackoffAttempts) + " attempts")
 					return
@@ -414,7 +414,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 				// have a run that hit a wall mark a stretch of perfectly good entries as failed.
 				// The ladder above is what bounds this.
 				if !rootPending {
-					_ = r.database.SetEnqueueFutureItemStatus(profileID, mediaID, db.EnqueueFutureStatusPending, "rate limited")
+					_ = r.database.SetEnqueueFutureItemStatus(mediaID, db.EnqueueFutureStatusPending, "rate limited")
 				}
 
 				r.setRateLimited(delay, rung, attemptInRung, err.Error())
@@ -438,7 +438,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 				return
 			}
 
-			_ = r.database.IncrementEnqueueFutureItemAttempts(profileID, mediaID, err.Error())
+			_ = r.database.IncrementEnqueueFutureItemAttempts(mediaID, err.Error())
 
 			// Counted here as well as in the database, and the stricter of the two wins.
 			//
@@ -453,7 +453,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 				consecutiveFailures = 1
 			}
 
-			attempts, readErr := r.attemptsFor(profileID, mediaID)
+			attempts, readErr := r.attemptsFor(mediaID)
 			if readErr != nil {
 				attempts = consecutiveFailures
 			}
@@ -464,13 +464,13 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			if attempts < MaxItemAttempts {
 				// A dropped connection or a provider having a bad minute should not cost an anime
 				// its place in the queue, so give it a couple more tries before writing it off.
-				_ = r.database.SetEnqueueFutureItemStatus(profileID, mediaID, db.EnqueueFutureStatusPending, err.Error())
+				_ = r.database.SetEnqueueFutureItemStatus(mediaID, db.EnqueueFutureStatusPending, err.Error())
 				continue
 			}
 
 			r.logger.Warn().Int("mediaId", mediaID).Int("attempts", attempts).
 				Msg("enqueuefuture: Giving up on this anime")
-			_ = r.database.SetEnqueueFutureItemStatus(profileID, mediaID, db.EnqueueFutureStatusFailed, err.Error())
+			_ = r.database.SetEnqueueFutureItemStatus(mediaID, db.EnqueueFutureStatusFailed, err.Error())
 			continue
 		}
 
@@ -482,10 +482,10 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 				// Dropped rather than marked skipped, so it gives its slot back: the cap should be
 				// spent on anime worth downloading, not on extras filtered out along the way.
 				r.logger.Debug().Int("mediaId", mediaID).Msg("enqueuefuture: Dropping OVA tied to a parent series")
-				_ = r.database.DeleteEnqueueFutureItem(profileID, mediaID)
+				_ = r.database.DeleteEnqueueFutureItem(mediaID)
 				r.bumpSkipped()
 			} else {
-				r.storeSnapshot(profileID, mediaID, result)
+				r.storeSnapshot(mediaID, result)
 				// One line per anime, so a long run can be watched from the log rather than only
 				// through the screen — the difference between "slow" and "stuck" has to be visible
 				// somewhere.
@@ -510,7 +510,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 				// Already queued under some other family — pull that whole family in with this one,
 				// which is what makes a franchise discovered from two directions end up as one
 				// bundle instead of two.
-				r.mergeFamilies(profileID, rel.mediaID, familyID)
+				r.mergeFamilies(rel.mediaID, familyID)
 				continue
 			}
 			seen[rel.mediaID] = true
@@ -543,7 +543,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 		// the screen reading "0 of 0" with no explanation, and it has real causes — an anime with
 		// no recommendations and no relations, or one whose every neighbour you already own.
 		if wasRoot {
-			counts, _ := r.database.GetEnqueueFutureRunCounts(profileID, rootMediaID)
+			counts, _ := r.database.GetEnqueueFutureRunCounts(rootMediaID)
 			if counts.Items == 0 {
 				r.logger.Warn().
 					Int("rootMediaId", rootMediaID).
@@ -562,15 +562,15 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 
 // mergeFamilies re-points every item of one family onto another, so a franchise found from two
 // directions ends up as a single bundle rather than two halves.
-func (r *Repository) mergeFamilies(profileID uint, mediaID int, intoFamilyID int) {
+func (r *Repository) mergeFamilies(mediaID int, intoFamilyID int) {
 	if intoFamilyID == 0 {
 		return
 	}
-	item, err := r.database.GetEnqueueFutureItem(profileID, mediaID)
+	item, err := r.database.GetEnqueueFutureItem(mediaID)
 	if err != nil || item == nil || item.FamilyID == intoFamilyID || item.FamilyID == 0 {
 		return
 	}
-	if err := r.database.MergeEnqueueFutureFamily(profileID, item.FamilyID, intoFamilyID); err != nil {
+	if err := r.database.MergeEnqueueFutureFamily(item.FamilyID, intoFamilyID); err != nil {
 		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to merge families")
 	}
 }
@@ -583,7 +583,7 @@ func (r *Repository) mergeFamilies(profileID uint, mediaID int, intoFamilyID int
 // 3 of something because a counter ran out between them, which is worse than not holding it at all.
 // Only a candidate that would start a *new* franchise has to pay.
 func (r *Repository) drainFrontier(profileID uint, rootMediaID int, frontier []recommendation, depths map[int]int) []recommendation {
-	families, err := r.database.CountEnqueueFutureFamiliesForRoot(profileID, rootMediaID)
+	families, err := r.database.CountEnqueueFutureFamiliesForRoot(rootMediaID)
 	if err != nil {
 		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to count queued franchises")
 		return frontier
@@ -602,7 +602,7 @@ func (r *Repository) drainFrontier(profileID uint, rootMediaID int, frontier []r
 
 		// Draining continues past the cap rather than stopping, because later entries in the
 		// frontier may well belong to franchises already taken on — those still have to get in.
-		isNewFamily := !r.database.HasEnqueueFutureFamily(profileID, familyID)
+		isNewFamily := !r.database.HasEnqueueFutureFamily(familyID)
 		if isNewFamily && families >= MaxFamiliesPerRun {
 			if !full {
 				full = true
@@ -613,7 +613,7 @@ func (r *Repository) drainFrontier(profileID uint, rootMediaID int, frontier []r
 			continue
 		}
 
-		if skip, reason := r.shouldSkip(profileID, rec); skip {
+		if skip, reason := r.shouldSkip(rec); skip {
 			r.logger.Debug().Int("mediaId", rec.mediaID).Str("reason", reason).Msg("enqueuefuture: Skipping")
 			r.bumpSkipped()
 			continue
@@ -642,11 +642,11 @@ func (r *Repository) drainFrontier(profileID uint, rootMediaID int, frontier []r
 
 // shouldSkip applies the discovery filters: nothing already queued, already in the library, already
 // on its way down, or not out yet.
-func (r *Repository) shouldSkip(profileID uint, rec recommendation) (bool, string) {
+func (r *Repository) shouldSkip(rec recommendation) (bool, string) {
 	if rec.notYetReleased {
 		return true, "not yet released"
 	}
-	if r.database.HasEnqueueFutureItem(profileID, rec.mediaID) {
+	if r.database.HasEnqueueFutureItem(rec.mediaID) {
 		return true, "already in the queue"
 	}
 	if r.hasFullLibraryCopy(rec) {
@@ -664,11 +664,11 @@ func (r *Repository) shouldSkip(profileID uint, rec recommendation) (bool, strin
 // storeSnapshot writes a prepared item, marking it ready — or no_results when the search came back
 // empty, which is worth distinguishing: those are worth revisiting with a different provider rather
 // than being a failure.
-func (r *Repository) storeSnapshot(profileID uint, mediaID int, result *prepared) {
+func (r *Repository) storeSnapshot(mediaID int, result *prepared) {
 	value, err := json.Marshal(result.snapshot)
 	if err != nil {
 		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Failed to encode snapshot")
-		_ = r.database.SetEnqueueFutureItemStatus(profileID, mediaID, db.EnqueueFutureStatusFailed, err.Error())
+		_ = r.database.SetEnqueueFutureItemStatus(mediaID, db.EnqueueFutureStatusFailed, err.Error())
 		return
 	}
 
@@ -678,7 +678,7 @@ func (r *Repository) storeSnapshot(profileID uint, mediaID int, result *prepared
 	}
 
 	if err := r.database.SaveEnqueueFutureItemSnapshot(
-		profileID, mediaID, status, result.title, result.coverImage, value,
+		mediaID, status, result.title, result.coverImage, value,
 	); err != nil {
 		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Failed to store snapshot")
 		return
@@ -716,8 +716,8 @@ func (r *Repository) bumpSkipped() { r.update(func(s *Status) { s.Skipped++ }) }
 //
 // Called after every item, so the readout is whatever the database actually holds rather than a
 // tally that drifts across a restart or a resume. Cheap next to the upstream calls it sits between.
-func (r *Repository) refreshCounts(profileID uint, rootMediaID int) {
-	counts, err := r.database.GetEnqueueFutureRunCounts(profileID, rootMediaID)
+func (r *Repository) refreshCounts(rootMediaID int) {
+	counts, err := r.database.GetEnqueueFutureRunCounts(rootMediaID)
 	if err != nil {
 		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to read run counts")
 		return

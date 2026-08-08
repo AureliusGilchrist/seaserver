@@ -22,6 +22,7 @@ import { PageWrapper } from "@/components/shared/page-wrapper"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Modal } from "@/components/ui/modal"
 import { useAtomValue, useSetAtom } from "jotai/react"
 import React from "react"
 import { LuLayers } from "react-icons/lu"
@@ -133,9 +134,37 @@ export function EnqueueFuturePage() {
         }
     }, [detail?.snapshot])
 
-    function goTo(nextIndex: number) {
+    // An entry whose search came back empty is the one kind you can walk past without noticing: there
+    // is nothing on screen to act on, so Next moves on and the anime is silently left behind, still
+    // pending, having never been decided about. Navigating off one asks first — the answer is
+    // recorded on the item, so it stops being pending either way.
+    const [pendingNavIndex, setPendingNavIndex] = React.useState<number | null>(null)
+    const confirmItem = pendingNavIndex !== null ? activeItem : undefined
+
+    function navigate(nextIndex: number) {
         if (nextIndex < 0 || nextIndex >= orderedItems.length) return
         setActiveMediaId(orderedItems[nextIndex].mediaId)
+    }
+
+    function goTo(nextIndex: number) {
+        if (nextIndex < 0 || nextIndex >= orderedItems.length) return
+        if (activeItem?.status === ENQUEUE_FUTURE_STATUS.NO_RESULTS) {
+            setPendingNavIndex(nextIndex)
+            return
+        }
+        navigate(nextIndex)
+    }
+
+    // Resolving the no-results entry takes it out of the pending list, which shifts everything after
+    // it up a slot — so move by media ID, captured before the status write, rather than by index.
+    function resolveNoResults(status: string) {
+        const target = pendingNavIndex !== null ? orderedItems[pendingNavIndex] : undefined
+        setPendingNavIndex(null)
+        setItemStatus({ status }, {
+            onSuccess: () => {
+                if (target) setActiveMediaId(target.mediaId)
+            },
+        })
     }
 
     function handleDownloadStarted() {
@@ -210,7 +239,9 @@ export function EnqueueFuturePage() {
                     <EnqueueFutureList
                         families={families}
                         activeMediaId={activeMediaId}
-                        onSelect={item => setActiveMediaId(item.mediaId)}
+                        // Through goTo, so jumping straight to another entry from the list is gated
+                        // by the same no-results confirmation that Next and Previous are.
+                        onSelect={item => goTo(orderedItems.findIndex(n => n.mediaId === item.mediaId))}
                     />
 
                     <AppLayoutStack>
@@ -240,6 +271,46 @@ export function EnqueueFuturePage() {
             )}
 
             </div>
+
+            {/* Nothing was found for this anime, so there is nothing on the page to act on. Leaving
+                it at that would drop it back into the queue as still-pending and you would meet it
+                again on the next pass, having already looked at it once. */}
+            <Modal
+                open={!!confirmItem}
+                onOpenChange={open => !open && setPendingNavIndex(null)}
+                contentClass="max-w-lg"
+                title="No torrents were found for this one"
+            >
+                <div className="space-y-4 py-2">
+                    <p className="text-sm">
+                        The search for <span className="font-semibold text-brand-200">{confirmItem?.title}</span> came
+                        back empty. Decide what to do with it before moving on, so it doesn't come back around still
+                        undecided.
+                    </p>
+                    <p className="text-xs text-[--muted]">
+                        An empty search is often the provider or the query rather than the anime — it may be worth
+                        opening it and searching again by hand before skipping it.
+                    </p>
+
+                    <div className="flex flex-wrap justify-end gap-2 pt-1">
+                        <Button intent="gray-outline" onClick={() => setPendingNavIndex(null)}>
+                            Stay here
+                        </Button>
+                        <Button
+                            intent="warning-subtle"
+                            onClick={() => resolveNoResults(ENQUEUE_FUTURE_STATUS.SKIPPED)}
+                        >
+                            Skip for now
+                        </Button>
+                        <Button
+                            intent="alert-subtle"
+                            onClick={() => resolveNoResults(ENQUEUE_FUTURE_STATUS.IGNORED)}
+                        >
+                            Never suggest again
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </PageWrapper>
     )
 }

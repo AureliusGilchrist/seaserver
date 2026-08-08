@@ -1105,6 +1105,23 @@ var ncWithNumberRegex = regexp.MustCompile(`(?i)\bNC(OP|ED)\d*\b`)
 // never appear in a genuine episode title, so a match is safe on its own.
 var explicitNCRegex = regexp.MustCompile(`(?i)\b(NCOP|NCED|creditless|textless|clean[ _.-]*(opening|ending))\b`)
 
+// promoRegex catches commercials, promos and trailers — including the numbered forms.
+//
+// These have to be trusted outright rather than left to the shared patterns below, because the
+// shared ones are only consulted for files with no episode number, and a "CM 3" or "PV 02" parses
+// as episode 3 and episode 2. That put every commercial and promo in a release straight into the
+// library numbered as if it were an episode, which is exactly what they are not.
+//
+// Deliberately narrower than the shared patterns: bare "AD" is left out, since it is far too easy
+// to hit inside an ordinary word or title. Everything here is a standalone token, matched against a
+// name whose episode title and release group have already been blanked out, so a "PV" occurring in
+// a real episode title cannot reach it.
+// The token is not followed by \b on purpose: "CM3" has no boundary between the M and the 3, so
+// requiring one there missed exactly the unseparated forms this exists to catch. The trailing \b
+// after the optional digits still does the work of keeping the token whole — "CMS", "Spotlight" and
+// "Promotion" all fail it, because a letter follows where the boundary has to be.
+var promoRegex = regexp.MustCompile(`(?i)\b(CM|PV|SPOT|TRAILER|PROMO|TEASER|COMMERCIAL)[ _.\-]*\d{0,3}\b`)
+
 // bareOpeningEndingRegex matches a standalone "Opening"/"Ending" (optionally numbered, and
 // optionally prefixed, as in "OP"/"ED"). On its own this is far weaker evidence than the
 // explicit tags above — "Ending of an Era" is a perfectly ordinary episode title — so it is
@@ -1115,7 +1132,8 @@ var explicitNCRegex = regexp.MustCompile(`(?i)\b(NCOP|NCED|creditless|textless|c
 var bareOpeningEndingRegex = regexp.MustCompile(`(?i)\b(opening|ending)\b[ _.-]*(\d{1,2})?`)
 
 // isNCName reports whether a file name looks like creditless/bonus content — NCOP, NCED,
-// creditless/textless openings and endings, trailers, promos, commercials.
+// creditless/textless openings and endings, trailers, promos, commercials (CM), promotional
+// videos (PV) and TV spots.
 //
 // The name is normalized the same way anime.LocalFile.IsProbablyNC does before matching:
 // the release group and episode title are blanked out first, because either can contain a
@@ -1140,8 +1158,9 @@ func isNCName(name string) bool {
 		hasEpisodeNumber = len(m.EpisodeNumber) > 0
 	}
 
-	// Unambiguous markers — safe regardless of anything else in the name.
-	if explicitNCRegex.MatchString(normalized) || ncWithNumberRegex.MatchString(normalized) {
+	// Unambiguous markers — safe regardless of anything else in the name, episode number included.
+	if explicitNCRegex.MatchString(normalized) || ncWithNumberRegex.MatchString(normalized) ||
+		promoRegex.MatchString(normalized) {
 		return true
 	}
 

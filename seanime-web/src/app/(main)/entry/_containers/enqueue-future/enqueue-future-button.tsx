@@ -51,9 +51,42 @@ export function EnqueueFutureButton({ entry, details }: {
         })
     }
 
-    const label = isThisRun
-        ? `Enqueuing… ${status?.prepared ?? 0}/${status?.discovered ?? 0}`
-        : "Enqueue Future"
+    // A run parked on the backoff ladder is still "running" and still reports 0/0, so a label that
+    // only ever counts makes waiting out a rate limit look identical to a hang. Say which it is.
+    const isRateLimited = isThisRun && !!status?.rateLimited
+    const retryInSeconds = React.useMemo(() => {
+        if (!isRateLimited || !status?.retryAt) return 0
+        return Math.max(0, Math.round((new Date(status.retryAt).getTime() - Date.now()) / 1000))
+    }, [isRateLimited, status?.retryAt])
+
+    const label = isRateLimited
+        ? (retryInSeconds > 0 ? `Rate limited — retrying in ${retryInSeconds}s` : "Rate limited — retrying…")
+        : isThisRun
+            ? `Enqueuing… ${status?.prepared ?? 0}/${status?.discovered ?? 0}`
+            : "Enqueue Future"
+
+    // Everything the run knows about itself, so a stalled one can be understood from here rather
+    // than by opening the Enqueue Future screen to find out whether anything is happening.
+    const tooltip = React.useMemo(() => {
+        if (isRateLimited) {
+            const attempt = status?.backoffAttempt ?? 0
+            const attempts = status?.backoffAttempts ?? 0
+            return `AniList is rate limiting this run${attempts > 0 ? ` (attempt ${attempt} of ${attempts})` : ""}. It keeps going by itself once the limit clears — nothing is stuck. Stop it from the Enqueue Future screen if you'd rather not wait.`
+        }
+        if (isThisRun) {
+            return status?.currentTitle
+                ? `Preparing ${status.currentTitle} — ${status?.prepared ?? 0} of ${status?.discovered ?? 0} done. You can leave this page.`
+                : `${status?.prepared ?? 0} of ${status?.discovered ?? 0} prepared. You can leave this page.`
+        }
+        if (isRunning) {
+            return status?.rootTitle
+                ? `Already preparing a queue from ${status.rootTitle}. Wait for it, or stop it from the Enqueue Future screen.`
+                : "Already preparing a queue. Wait for it, or stop it from the Enqueue Future screen."
+        }
+        if (recommendationCount === 0) return "No recommendations to walk from this anime"
+        return "Queue up what this anime leads to — metadata and torrents prepared in the background, ready to download one after another"
+    }, [isRateLimited, isThisRun, isRunning, status?.currentTitle, status?.prepared, status?.discovered,
+        status?.rootTitle, status?.backoffAttempt, status?.backoffAttempts, recommendationCount])
 
     return (
         <div className="contents" data-enqueue-future-button-container>
@@ -64,16 +97,17 @@ export function EnqueueFutureButton({ entry, details }: {
                     leftIcon={<LuLayers />}
                     iconClass="text-2xl"
                     onClick={handleEnqueue}
+                    // Only the request itself spins. A run in progress is reported by the label —
+                    // spinning for the whole run made a background job look like a stuck button.
                     loading={isPending}
                     disabled={recommendationCount === 0 && !isThisRun}
                     data-enqueue-future-button
+                    data-enqueue-future-rate-limited={isRateLimited || undefined}
                 >
                     {label}
                 </AnimeMetaActionButton>}
             >
-                {recommendationCount === 0
-                    ? "No recommendations to walk from this anime"
-                    : "Queue up what this anime leads to — metadata and torrents prepared in the background, ready to download one after another"}
+                {tooltip}
             </Tooltip>
         </div>
     )

@@ -6,7 +6,6 @@ import (
 	"seanime/internal/api/anilist"
 	"seanime/internal/core"
 	"seanime/internal/database/db"
-	"seanime/internal/events"
 	"seanime/internal/util/limiter"
 	"seanime/internal/util/result"
 	libanime "seanime/internal/library/anime"
@@ -175,27 +174,15 @@ func (h *Handler) HandleGetPlanningSlutInfo(c echo.Context) error {
 	return h.RespondWithData(c, info)
 }
 
-func (h *Handler) getPlanningSlutToken() string {
-	settings, err := h.App.Database.GetSettings()
-	if err != nil || settings == nil || settings.Library == nil {
-		return ""
-	}
+// The token and client live on App now, because the shared account is not a handler concern: the
+// Enqueue Future worker reads the same collection, and it has no handler to ask.
 
-	return strings.TrimSpace(settings.Library.PlanningSlutToken)
+func (h *Handler) getPlanningSlutToken() string {
+	return h.App.GetPlanningSlutToken()
 }
 
 func (h *Handler) getPlanningSlutClient() (*anilist.AnilistClientImpl, error) {
-	token := h.getPlanningSlutToken()
-	if token == "" {
-		return nil, errors.New("planning slut token not configured")
-	}
-
-	client := anilist.NewAnilistClient(token, h.App.AnilistCacheDir)
-	if h.App.WSEventManager != nil {
-		client.SetWSEventManager(h.App.WSEventManager)
-		client.SetTokenExpiredEvent(events.AnilistPlanningSlutTokenExpired)
-	}
-	return client, nil
+	return h.App.GetPlanningSlutClient()
 }
 
 func (h *Handler) getPlanningSlutAnimeCollection(ctx context.Context) (*anilist.AnimeCollection, error) {
@@ -317,6 +304,12 @@ func (h *Handler) addAnimeToPlanningIfAbsent(ctx context.Context, mediaID int) (
 	if err := h.addAnimeToPlanningSlutPlanning(ctx, mediaID); err != nil {
 		return false, err
 	}
+
+	// The shared collection is cached for minutes at a time and is now what Enqueue Future filters
+	// against. Leaving it stale means a run keeps queueing the anime that was just matched, as
+	// "not in the library".
+	h.App.InvalidatePlanningSlutAnimeCollection()
+	planningSlutAnimeCollectionCache.Delete(1)
 
 	planningSlutAddedAnime.SetT(mediaID, struct{}{}, 6*time.Hour)
 	return true, nil
