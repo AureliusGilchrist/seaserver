@@ -834,6 +834,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1EnqueueFuture.POST("/enqueue", h.HandleEnqueueFuture)
 	v1EnqueueFuture.GET("/status", h.HandleGetEnqueueFutureStatus)
 	v1EnqueueFuture.POST("/stop", h.HandleStopEnqueueFuture)
+	v1EnqueueFuture.POST("/resume", h.HandleResumeEnqueueFuture)
 	v1EnqueueFuture.GET("/queue", h.HandleGetEnqueueFutureQueue)
 	v1EnqueueFuture.GET("/item/:mediaId", h.HandleGetEnqueueFutureItem)
 	v1EnqueueFuture.POST("/item/:mediaId/status", h.HandleSetEnqueueFutureItemStatus)

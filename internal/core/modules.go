@@ -463,6 +463,7 @@ func (a *App) initModulesOnce() {
 		MetadataProviderRef: a.MetadataProviderRef,
 		TorrentRepository:   a.TorrentRepository,
 		WSEventManager:      a.WSEventManager,
+		DataDir:             a.Config.Data.AppDataDir,
 		AnimeCollectionFunc: func() (*anilist.AnimeCollection, error) {
 			return a.GetAnimeCollection(false)
 		},
@@ -481,6 +482,10 @@ func (a *App) initModulesOnce() {
 	// A run holds an item as "preparing" while it works on it, which is only true for as long as the
 	// worker is alive. Nothing survived the restart, so neither should that claim.
 	a.EnqueueFutureRepository.ResetStaleItems()
+
+	// A run is meant to outlive the page that started it, which has to include the server going
+	// away — so one that was cut off mid-walk picks itself back up here, from its saved progress.
+	a.EnqueueFutureRepository.ResumeIfInterrupted()
 
 	// +---------------------+
 	// | En Masse Downloader |

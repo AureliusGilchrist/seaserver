@@ -52,7 +52,7 @@ func (db *Database) GetEnqueueFutureListItems(profileID uint) ([]*models.Enqueue
 		return db.gormdb.
 			Model(&models.EnqueueFutureItem{}).
 			Select("id", "created_at", "updated_at", "profile_id", "media_id", "root_media_id",
-				"position", "depth", "status", "attempts", "last_error", "title", "cover_image").
+				"family_id", "position", "depth", "status", "attempts", "last_error", "title", "cover_image").
 			Where("profile_id = ?", profileID).
 			Order("position ASC, id ASC").
 			Find(&res).Error
@@ -141,6 +141,21 @@ func (db *Database) InsertEnqueueFutureItem(item *models.EnqueueFutureItem) (boo
 		return false, err
 	}
 	return true, nil
+}
+
+// MergeEnqueueFutureFamily re-points every member of one family onto another.
+//
+// Families are discovered a show at a time, so a franchise reached from two directions starts life
+// as two groups — this is what folds them back into one once the connection between them shows up.
+func (db *Database) MergeEnqueueFutureFamily(profileID uint, fromFamilyID int, intoFamilyID int) error {
+	if fromFamilyID == intoFamilyID || fromFamilyID == 0 || intoFamilyID == 0 {
+		return nil
+	}
+	return retryOnBusy(func() error {
+		return db.gormdb.Model(&models.EnqueueFutureItem{}).
+			Where("profile_id = ? AND family_id = ?", profileID, fromFamilyID).
+			Update("family_id", intoFamilyID).Error
+	})
 }
 
 // GetNextPendingEnqueueFutureItem returns the oldest unprepared item, or nil when there is none.

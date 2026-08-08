@@ -1399,6 +1399,17 @@
 //     })
 // }
 
+// export function useResumeEnqueueFuture() {
+//     return useServerMutation<EnqueueFuture_Status>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.ResumeEnqueueFuture.endpoint,
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.ResumeEnqueueFuture.methods[0],
+//         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.ResumeEnqueueFuture.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
 // export function useGetEnqueueFutureQueue() {
 //     return useServerQuery<Array<EnqueueFuture_Item>>({
 //         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.endpoint,

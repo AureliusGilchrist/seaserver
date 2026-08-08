@@ -47,6 +47,8 @@ export function EnqueueFutureHeader({
                     <img
                         src={item.coverImage}
                         alt=""
+                        loading="lazy"
+                        decoding="async"
                         className="h-16 w-12 rounded-[--radius] object-cover flex-none"
                     />
                 )}

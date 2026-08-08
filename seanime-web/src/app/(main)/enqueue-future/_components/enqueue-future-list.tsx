@@ -4,7 +4,7 @@ import { EnqueueFutureItemActions } from "@/app/(main)/enqueue-future/_component
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/components/ui/core/styling"
 import React from "react"
-import { LuBan, LuCheck, LuCircleAlert, LuLoader, LuSkipForward } from "react-icons/lu"
+import { LuBan, LuCheck, LuCircleAlert, LuLink2, LuLoader, LuSkipForward } from "react-icons/lu"
 
 /**
  * The queue at a glance, so Next is not the only way to get somewhere. Jumping straight to an anime
@@ -23,13 +23,73 @@ export function EnqueueFutureList({ items, activeMediaId, onSelect }: {
         activeRef.current?.scrollIntoView({ block: "nearest" })
     }, [activeMediaId])
 
+    // A show and its sequels are one thing to decide about, not three scattered across a hundred
+    // unrelated recommendations, so they are drawn as one bundle. Groups keep the order of their
+    // first member, which keeps the queue reading as rings out from where you started.
+    const families = React.useMemo(() => {
+        const byFamily = new Map<number, EnqueueFuture_Item[]>()
+        for (const item of items) {
+            const key = item.familyId || item.mediaId
+            const existing = byFamily.get(key)
+            if (existing) existing.push(item)
+            else byFamily.set(key, [item])
+        }
+        return Array.from(byFamily.values())
+    }, [items])
+
     if (!items.length) return null
 
     return (
-        <div className="rounded-[--radius-md] border bg-gray-950 divide-y max-h-[70vh] overflow-y-auto" data-enqueue-future-list>
-            {items.map(item => {
-                const isActive = item.mediaId === activeMediaId
-                return (
+        <div className="rounded-[--radius-md] border bg-gray-950 max-h-[70vh] overflow-y-auto" data-enqueue-future-list>
+            {families.map(family => (
+                <FamilyBundle
+                    key={family[0].familyId || family[0].mediaId}
+                    family={family}
+                    activeMediaId={activeMediaId}
+                    onSelect={onSelect}
+                    activeRef={activeRef}
+                />
+            ))}
+        </div>
+    )
+}
+
+/**
+ * One franchise: a single anime drawn plainly, or a group drawn with a spine tying its seasons
+ * together so it is obvious at a glance that they are the same story.
+ */
+function FamilyBundle({ family, activeMediaId, onSelect, activeRef }: {
+    family: EnqueueFuture_Item[]
+    activeMediaId: number | undefined
+    onSelect: (item: EnqueueFuture_Item) => void
+    activeRef: React.RefObject<HTMLDivElement | null>
+}) {
+
+    const isGroup = family.length > 1
+    const containsActive = family.some(n => n.mediaId === activeMediaId)
+
+    return (
+        <div
+            className={cn(
+                "border-b last:border-b-0",
+                isGroup && "bg-gray-900/40",
+                isGroup && containsActive && "bg-gray-900/70",
+            )}
+            data-enqueue-future-family={isGroup ? "group" : "single"}
+        >
+            {isGroup && (
+                <div className="flex items-center gap-1.5 px-2 pt-2 pb-1 text-xs uppercase tracking-wide text-[--muted]">
+                    <LuLink2 className="flex-none" />
+                    <span className="truncate">
+                        {family.length} related — sequels &amp; side stories
+                    </span>
+                </div>
+            )}
+
+            <div className={cn(isGroup && "pl-2 border-l-2 border-[--brand] ml-2 mb-1")}>
+                {family.map(item => {
+                    const isActive = item.mediaId === activeMediaId
+                    return (
                     // A div rather than a button: the row carries its own Skip and Ignore buttons,
                     // and a button inside a button is invalid markup that browsers resolve however
                     // they like. Role and key handling put the keyboard behaviour back.
@@ -53,7 +113,13 @@ export function EnqueueFutureList({ items, activeMediaId, onSelect }: {
                         data-enqueue-future-list-item
                     >
                         {item.coverImage
-                            ? <img src={item.coverImage} alt="" className="h-12 w-9 rounded-[--radius] object-cover flex-none" />
+                            ? <img
+                                src={item.coverImage}
+                                alt=""
+                                loading="lazy"
+                                decoding="async"
+                                className="h-12 w-9 rounded-[--radius] object-cover flex-none"
+                            />
                             : <div className="h-12 w-9 rounded-[--radius] bg-gray-800 flex-none" />}
 
                         <span className="flex-1 min-w-0">
@@ -79,8 +145,9 @@ export function EnqueueFutureList({ items, activeMediaId, onSelect }: {
                             </span>
                         </span>
                     </div>
-                )
-            })}
+                    )
+                })}
+            </div>
         </div>
     )
 }

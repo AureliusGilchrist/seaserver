@@ -5466,6 +5466,40 @@
     }
   },
   {
+    "name": "HandleResumeEnqueueFuture",
+    "trimmedName": "ResumeEnqueueFuture",
+    "comments": [
+      "HandleResumeEnqueueFuture",
+      "",
+      "\t@summary picks an interrupted Enqueue Future run back up.",
+      "\t@desc Continues from where it stopped rather than starting the graph over — everything already",
+      "\t@desc prepared stays, and the walk carries on from the anime it had reached. The server does this",
+      "\t@desc by itself when it starts, so this is for a run that was stopped by hand.",
+      "\t@route /api/v1/enqueue-future/resume [POST]",
+      "\t@returns enqueuefuture.Status",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "picks an interrupted Enqueue Future run back up.",
+      "descriptions": [
+        "Continues from where it stopped rather than starting the graph over — everything already",
+        "prepared stays, and the walk carries on from the anime it had reached. The server does this",
+        "by itself when it starts, so this is for a run that was stopped by hand."
+      ],
+      "endpoint": "/api/v1/enqueue-future/resume",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "enqueuefuture.Status",
+      "returnGoType": "enqueuefuture.Status",
+      "returnTypescriptType": "EnqueueFuture_Status"
+    }
+  },
+  {
     "name": "HandleGetEnqueueFutureQueue",
     "trimmedName": "GetEnqueueFutureQueue",
     "comments": [
@@ -5547,8 +5581,9 @@
       "HandleSetEnqueueFutureItemStatus",
       "",
       "\t@summary records what you did with a queued anime.",
-      "\t@desc Accepts \"downloaded\" or \"skipped\". Both are terminal — the item stays in the queue as a",
-      "\t@desc record of the decision, which is also what stops it being discovered again later.",
+      "\t@desc Accepts \"downloaded\", \"skipped\" or \"ignored\". All three are terminal — the item stays in",
+      "\t@desc the queue as a record of the decision, which is also what stops it being discovered again",
+      "\t@desc later. Skipped means \"not this time\"; ignored means \"never suggest this show again\".",
       "\t@param mediaId - int - true - \"AniList ID of the queued anime\"",
       "\t@route /api/v1/enqueue-future/item/{mediaId}/status [POST]",
       "\t@returns bool",
@@ -5559,8 +5594,9 @@
     "api": {
       "summary": "records what you did with a queued anime.",
       "descriptions": [
-        "Accepts \"downloaded\" or \"skipped\". Both are terminal — the item stays in the queue as a",
-        "record of the decision, which is also what stops it being discovered again later."
+        "Accepts \"downloaded\", \"skipped\" or \"ignored\". All three are terminal — the item stays in",
+        "the queue as a record of the decision, which is also what stops it being discovered again",
+        "later. Skipped means \"not this time\"; ignored means \"never suggest this show again\"."
       ],
       "endpoint": "/api/v1/enqueue-future/item/{mediaId}/status",
       "methods": [

@@ -71,6 +71,63 @@ func relationEdge(relation anilist.MediaRelation, format anilist.MediaFormat) *a
 	}
 }
 
+func relationEdgeID(id int, relation anilist.MediaRelation, format anilist.MediaFormat) *anilist.AnimeDetailsById_Media_Relations_Edges {
+	return &anilist.AnimeDetailsById_Media_Relations_Edges{
+		RelationType: lo.ToPtr(relation),
+		Node: &anilist.BaseAnime{
+			ID:     id,
+			Format: lo.ToPtr(format),
+			Type:   lo.ToPtr(anilist.MediaTypeAnime),
+		},
+	}
+}
+
+func TestRelationsFrom(t *testing.T) {
+	details := &anilist.AnimeDetailsById_Media{
+		Relations: &anilist.AnimeDetailsById_Media_Relations{
+			Edges: []*anilist.AnimeDetailsById_Media_Relations_Edges{
+				relationEdgeID(10, anilist.MediaRelationSequel, anilist.MediaFormatTv),
+				relationEdgeID(11, anilist.MediaRelationPrequel, anilist.MediaFormatTv),
+				relationEdgeID(12, anilist.MediaRelationSideStory, anilist.MediaFormatOva),
+				// The manga it came from is not a season of it.
+				relationEdgeID(13, anilist.MediaRelationSource, anilist.MediaFormatManga),
+				relationEdgeID(14, anilist.MediaRelationAdaptation, anilist.MediaFormatManga),
+				// A shared cast member is not a continuation.
+				relationEdgeID(15, anilist.MediaRelationCharacter, anilist.MediaFormatTv),
+				// Familial, but still a manga — nothing to download as anime.
+				relationEdgeID(16, anilist.MediaRelationSequel, anilist.MediaFormatNovel),
+				nil,
+			},
+		},
+	}
+
+	got := relationsFrom(details)
+
+	ids := make([]int, 0, len(got))
+	for _, rel := range got {
+		ids = append(ids, rel.mediaID)
+	}
+
+	want := []int{10, 11, 12}
+	if len(ids) != len(want) {
+		t.Fatalf("got %v, want %v", ids, want)
+	}
+	for i, id := range want {
+		if ids[i] != id {
+			t.Errorf("position %d: got %d, want %d", i, ids[i], id)
+		}
+	}
+}
+
+func TestRelationsFromHandlesMissingData(t *testing.T) {
+	if got := relationsFrom(nil); got != nil {
+		t.Errorf("nil details should yield nothing, got %+v", got)
+	}
+	if got := relationsFrom(&anilist.AnimeDetailsById_Media{}); got != nil {
+		t.Errorf("details with no relations should yield nothing, got %+v", got)
+	}
+}
+
 func TestTetheredOVA(t *testing.T) {
 	tests := []struct {
 		name   string

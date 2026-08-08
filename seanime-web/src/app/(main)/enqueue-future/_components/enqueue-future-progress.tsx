@@ -1,10 +1,10 @@
 import { EnqueueFuture_Status } from "@/api/generated/types"
-import { useStopEnqueueFuture } from "@/api/hooks/enqueue_future.hooks"
+import { useResumeEnqueueFuture, useStopEnqueueFuture } from "@/api/hooks/enqueue_future.hooks"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import React from "react"
-import { LuCircleStop, LuTimer } from "react-icons/lu"
+import { LuCircleStop, LuPlay, LuTimer } from "react-icons/lu"
 
 /**
  * What the background run is doing, if anything.
@@ -16,6 +16,7 @@ import { LuCircleStop, LuTimer } from "react-icons/lu"
  */
 export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status | undefined }) {
     const { mutate: stop, isPending: isStopping } = useStopEnqueueFuture()
+    const { mutate: resume, isPending: isResuming } = useResumeEnqueueFuture()
 
     const [now, setNow] = React.useState(() => Date.now())
     React.useEffect(() => {
@@ -24,7 +25,31 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
         return () => clearInterval(id)
     }, [status?.rateLimited, status?.retryAt])
 
-    if (!status?.running) return null
+    // A stopped run that still has a progress record can be picked up exactly where it was — worth
+    // offering plainly, since otherwise the only obvious move is to enqueue from scratch.
+    if (!status?.running) {
+        if (!status?.resumable) return null
+        return (
+            <div className="rounded-[--radius-md] border p-4 flex items-center justify-between gap-4" data-enqueue-future-progress>
+                <div className="space-y-0.5">
+                    <p className="font-semibold">Paused{status.rootTitle ? ` — ${status.rootTitle}` : ""}</p>
+                    <p className="text-sm text-[--muted]">
+                        {status.prepared} of {status.discovered} were ready when it stopped. It'll carry on from there.
+                    </p>
+                </div>
+                <Button
+                    intent="white"
+                    size="sm"
+                    leftIcon={<LuPlay />}
+                    onClick={() => resume()}
+                    loading={isResuming}
+                    data-enqueue-future-resume-button
+                >
+                    Resume
+                </Button>
+            </div>
+        )
+    }
 
     const discovered = status.discovered || 0
     const done = (status.prepared || 0) + (status.failed || 0)

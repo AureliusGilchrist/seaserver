@@ -15,9 +15,13 @@ import (
 // prepared is what preparing one item produced: the snapshot to store, and the recommendations that
 // anime makes, which are the next ring of the graph for discovery to consume.
 type prepared struct {
-	snapshot        *Snapshot
-	title           string
-	coverImage      string
+	snapshot   *Snapshot
+	title      string
+	coverImage string
+	// relations are this anime's own family — sequels, prequels, side stories. Kept apart from
+	// recommendations because they are queued differently: same family, same depth, ahead of the
+	// merely-similar shows.
+	relations       []recommendation
 	recommendations []recommendation
 	// tetheredOVA marks an OVA that belongs to a parent series. Its recommendations are still
 	// worth walking — they were paid for — but it does not stay in the queue itself.
@@ -31,6 +35,8 @@ type recommendation struct {
 	// episodes is the total AniList knows about, used to tell "you have all of this already" from
 	// "you have the first three".
 	episodes int
+	// familyID is the group this belongs to once queued — set by the walker, not by AniList.
+	familyID int
 	// notYetReleased is read from the recommendation itself so an unreleased anime can be rejected
 	// without spending a request finding out it has nothing to download.
 	notYetReleased bool
@@ -70,7 +76,7 @@ func (r *Repository) hasFullLibraryCopy(rec recommendation) bool {
 // Used for the anime a run starts from, which is never queued — you are already on its page and it
 // has its own download button. Everything a full preparation would add for it is work nobody will
 // ever look at, and at the rate this runs, a request not made is worth having.
-func (r *Repository) discover(ctx context.Context, mediaID int) ([]recommendation, error) {
+func (r *Repository) discover(ctx context.Context, mediaID int) (*prepared, error) {
 	platform := r.platformRef.Get()
 	if platform == nil {
 		return nil, errors.New("anilist platform is unavailable")
@@ -85,7 +91,10 @@ func (r *Repository) discover(ctx context.Context, mediaID int) ([]recommendatio
 		return nil, errors.New("no details returned")
 	}
 
-	return recommendationsFrom(details), nil
+	return &prepared{
+		relations:       relationsFrom(details),
+		recommendations: recommendationsFrom(details),
+	}, nil
 }
 
 // prepare does the whole per-item job: fetch the details, build the entry, search for torrents.
@@ -161,6 +170,7 @@ func (r *Repository) prepare(ctx context.Context, mediaID int) (*prepared, error
 		return &prepared{
 			title:           entryTitle(entry),
 			coverImage:      entryCoverImage(entry),
+			relations:       relationsFrom(details),
 			recommendations: recommendationsFrom(details),
 			tetheredOVA:     true,
 		}, nil
@@ -201,8 +211,73 @@ func (r *Repository) prepare(ctx context.Context, mediaID int) (*prepared, error
 		snapshot:        snapshot,
 		title:           entryTitle(entry),
 		coverImage:      entryCoverImage(entry),
+		relations:       relationsFrom(details),
 		recommendations: recommendationsFrom(details),
 	}, nil
+}
+
+// familialRelations are the edges that make two anime the same story rather than merely similar
+// ones — the seasons, the continuations, the side stories told alongside them.
+//
+// ADAPTATION and SOURCE are excluded because they point at the manga, CHARACTER because a shared
+// cast member is not a continuation, and OTHER because AniList uses it for everything it cannot
+// name.
+var familialRelations = map[anilist.MediaRelation]bool{
+	anilist.MediaRelationSequel:      true,
+	anilist.MediaRelationPrequel:     true,
+	anilist.MediaRelationParent:      true,
+	anilist.MediaRelationSideStory:   true,
+	anilist.MediaRelationAlternative: true,
+	anilist.MediaRelationSpinOff:     true,
+	anilist.MediaRelationSummary:     true,
+	anilist.MediaRelationCompilation: true,
+	anilist.MediaRelationContains:    true,
+}
+
+// relationsFrom flattens the relation edges that belong to the same franchise.
+//
+// This is what makes enqueueing a show also queue its later seasons: recommendations are what other
+// people also watched, which is a different question from what continues the story, and a sequel
+// frequently does not show up among them at all.
+func relationsFrom(details *anilist.AnimeDetailsById_Media) []recommendation {
+	if details == nil || details.Relations == nil {
+		return nil
+	}
+
+	out := make([]recommendation, 0, len(details.Relations.Edges))
+	for _, edge := range details.Relations.Edges {
+		if edge == nil || edge.RelationType == nil || edge.Node == nil || edge.Node.ID == 0 {
+			continue
+		}
+		if !familialRelations[*edge.RelationType] {
+			continue
+		}
+
+		node := edge.Node
+		// Relations cross media types freely — the manga it came from, the light novel under that.
+		if node.Type != nil && *node.Type != anilist.MediaTypeAnime {
+			continue
+		}
+		if node.Format != nil {
+			switch *node.Format {
+			case anilist.MediaFormatManga, anilist.MediaFormatNovel, anilist.MediaFormatOneShot:
+				continue
+			}
+		}
+
+		episodes := 0
+		if node.Episodes != nil {
+			episodes = *node.Episodes
+		}
+
+		out = append(out, recommendation{
+			mediaID:        node.ID,
+			title:          node.GetPreferredTitle(),
+			episodes:       episodes,
+			notYetReleased: node.Status != nil && *node.Status == anilist.MediaStatusNotYetReleased,
+		})
+	}
+	return out
 }
 
 // tetheredOVA reports whether an OVA belongs to a parent series rather than standing on its own.

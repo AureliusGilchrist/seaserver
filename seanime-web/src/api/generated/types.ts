@@ -2741,6 +2741,7 @@ export type MangaDownloaderStatus = {
 export type EnqueueFuture_Item = {
     mediaId: number
     rootMediaId: number
+    familyId: number
     position: number
     depth: number
     status: string
@@ -2802,6 +2803,7 @@ export type EnqueueFuture_Snapshot = {
  */
 export type EnqueueFuture_Status = {
     running: boolean
+    resumable: boolean
     rootMediaId: number
     rootTitle: string
     discovered: number

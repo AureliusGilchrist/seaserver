@@ -34920,6 +34920,15 @@
         "comments": []
       },
       {
+        "name": "FamilyID",
+        "jsonName": "familyId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "Position",
         "jsonName": "position",
         "goType": "int",
@@ -45379,6 +45388,138 @@
     ]
   },
   {
+    "filepath": "../internal/enqueuefuture/progress.go",
+    "filename": "progress.go",
+    "name": "RunProgress",
+    "formattedName": "EnqueueFuture_RunProgress",
+    "package": "enqueuefuture",
+    "fields": [
+      {
+        "name": "RootMediaID",
+        "jsonName": "rootMediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RootTitle",
+        "jsonName": "rootTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Seen",
+        "jsonName": "seen",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Depths",
+        "jsonName": "depths",
+        "goType": "map[int]int",
+        "typescriptType": "Record\u003cnumber, number\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RootWalked",
+        "jsonName": "rootWalked",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Discovered",
+        "jsonName": "discovered",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Prepared",
+        "jsonName": "prepared",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Failed",
+        "jsonName": "failed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Skipped",
+        "jsonName": "skipped",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpdatedAt",
+        "jsonName": "updatedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " RunProgress is everything needed to pick a run back up exactly where it stopped.",
+      "",
+      " The queue itself and every prepared snapshot already live in the database, so none of that is",
+      " duplicated here. What the database cannot answer is the part that only exists while the worker is",
+      " alive: which anime this run started from, and which ones it has already walked. Without the walk",
+      " state a resumed run would rediscover anime it had already decided about and re-expand rings it",
+      " had already expanded, and the 125 it eventually queued would not be the 125 it was going to.",
+      "",
+      " It is a file rather than a table because it is scratch state for one run, rewritten constantly and",
+      " meaningless once the run ends — putting it in the database would mean migrating a table whose",
+      " entire contents are deleted the moment the work finishes."
+    ]
+  },
+  {
     "filepath": "../internal/enqueuefuture/repository.go",
     "filename": "repository.go",
     "name": "Repository",
@@ -45444,6 +45585,15 @@
         "usedTypescriptType": "Events_WSEventManagerInterface",
         "usedStructName": "events.WSEventManagerInterface",
         "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "dataDir",
+        "jsonName": "dataDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
         "public": false,
         "comments": []
       },
@@ -45596,6 +45746,15 @@
         "usedTypescriptType": "Events_WSEventManagerInterface",
         "usedStructName": "events.WSEventManagerInterface",
         "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DataDir",
+        "jsonName": "DataDir",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
         "public": true,
         "comments": []
       },
@@ -45811,6 +45970,15 @@
         "comments": []
       },
       {
+        "name": "FamilyID",
+        "jsonName": "familyId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "Position",
         "jsonName": "position",
         "goType": "int",
@@ -45910,6 +46078,15 @@
       {
         "name": "Running",
         "jsonName": "running",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Resumable",
+        "jsonName": "resumable",
         "goType": "bool",
         "typescriptType": "boolean",
         "required": true,

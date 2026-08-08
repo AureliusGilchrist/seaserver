@@ -405,6 +405,11 @@ type EnqueueFutureItem struct {
 	// RootMediaID is the anime whose page started the run that discovered this item. The 125-item
 	// cap is per run, so the worker counts rows by this.
 	RootMediaID int `gorm:"column:root_media_id;index" json:"rootMediaId"`
+	// FamilyID groups a show with its sequels, prequels and side stories — everything AniList
+	// relates to it as the same story rather than merely a similar one. It holds the media ID of
+	// whichever member anchored the group, so the queue can present a franchise as one bundle
+	// instead of scattering three seasons across a hundred unrelated recommendations.
+	FamilyID int `gorm:"column:family_id;index" json:"familyId"`
 	// Position is the queue order, and is what Next and Previous walk. Assigned on insert in
 	// discovery order, so the queue reads as breadth-first rings out from the root.
 	Position int `gorm:"column:position;index" json:"position"`

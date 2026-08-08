@@ -65,9 +65,11 @@ func (r *Repository) DeleteItem(profileID uint, mediaID int) error {
 }
 
 // Clear empties the queue. Stops any run first, so the worker does not immediately refill what was
-// just cleared out from under it.
+// just cleared out from under it, and drops the progress record — resuming into an emptied queue
+// would rebuild exactly what was just thrown away.
 func (r *Repository) Clear(profileID uint) error {
 	r.Stop()
+	r.clearProgress()
 	return r.database.ClearEnqueueFutureItems(profileID)
 }
 
@@ -75,6 +77,7 @@ func toItem(record *models.EnqueueFutureItem, snapshot *Snapshot) *Item {
 	return &Item{
 		MediaID:     record.MediaID,
 		RootMediaID: record.RootMediaID,
+		FamilyID:    record.FamilyID,
 		Position:    record.Position,
 		Depth:       record.Depth,
 		Status:      record.Status,

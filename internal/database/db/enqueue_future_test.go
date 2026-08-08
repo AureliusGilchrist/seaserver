@@ -121,6 +121,53 @@ func TestEnqueueFutureQueue(t *testing.T) {
 		}
 	})
 
+	t.Run("folds two halves of a franchise into one family", func(t *testing.T) {
+		db := enqueueFutureTestDatabase(t)
+
+		// A franchise reached from two directions starts as two groups; the merge is what makes it
+		// show up in the queue as one bundle rather than two.
+		for _, spec := range []struct{ mediaID, familyID int }{
+			{100, 100}, {101, 100}, {200, 200}, {201, 200},
+		} {
+			if _, err := db.InsertEnqueueFutureItem(&models.EnqueueFutureItem{
+				ProfileID: 1, MediaID: spec.mediaID, RootMediaID: 100,
+				FamilyID: spec.familyID, Status: EnqueueFutureStatusPending,
+			}); err != nil {
+				t.Fatalf("insert %d: %v", spec.mediaID, err)
+			}
+		}
+
+		if err := db.MergeEnqueueFutureFamily(1, 200, 100); err != nil {
+			t.Fatalf("merge: %v", err)
+		}
+
+		items, _ := db.GetEnqueueFutureItems(1)
+		for _, item := range items {
+			if item.FamilyID != 100 {
+				t.Errorf("media %d is in family %d, want 100", item.MediaID, item.FamilyID)
+			}
+		}
+	})
+
+	t.Run("a family merge does not reach into another profile", func(t *testing.T) {
+		db := enqueueFutureTestDatabase(t)
+
+		if _, err := db.InsertEnqueueFutureItem(&models.EnqueueFutureItem{
+			ProfileID: 2, MediaID: 300, FamilyID: 200, Status: EnqueueFutureStatusPending,
+		}); err != nil {
+			t.Fatalf("insert: %v", err)
+		}
+
+		if err := db.MergeEnqueueFutureFamily(1, 200, 100); err != nil {
+			t.Fatalf("merge: %v", err)
+		}
+
+		item, _ := db.GetEnqueueFutureItem(2, 300)
+		if item.FamilyID != 200 {
+			t.Errorf("the other profile's family was rewritten to %d", item.FamilyID)
+		}
+	})
+
 	t.Run("keeps queues of different profiles apart", func(t *testing.T) {
 		db := enqueueFutureTestDatabase(t)
 

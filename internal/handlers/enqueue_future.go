@@ -77,6 +77,26 @@ func (h *Handler) HandleStopEnqueueFuture(c echo.Context) error {
 	return h.RespondWithData(c, h.App.EnqueueFutureRepository.Stop())
 }
 
+// HandleResumeEnqueueFuture
+//
+//	@summary picks an interrupted Enqueue Future run back up.
+//	@desc Continues from where it stopped rather than starting the graph over — everything already
+//	@desc prepared stays, and the walk carries on from the anime it had reached. The server does this
+//	@desc by itself when it starts, so this is for a run that was stopped by hand.
+//	@route /api/v1/enqueue-future/resume [POST]
+//	@returns enqueuefuture.Status
+func (h *Handler) HandleResumeEnqueueFuture(c echo.Context) error {
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "enqueue future is unavailable"))
+	}
+
+	status, err := h.App.EnqueueFutureRepository.Resume()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, status)
+}
+
 // HandleGetEnqueueFutureQueue
 //
 //	@summary returns the queue in walk order.

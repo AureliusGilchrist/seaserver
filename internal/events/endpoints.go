@@ -317,6 +317,7 @@ const (
 	ResetAnimeEntryMetadataEndpoint                    = "ANIME-ENTRIES-reset-anime-entry-metadata"
 	ResetErroredChapterDownloadQueueEndpoint           = "MANGA-DOWNLOAD-reset-errored-chapter-download-queue"
 	ResetIncorrectMatchesEndpoint                      = "RESET-MATCHES-reset-incorrect-matches"
+	ResumeEnqueueFutureEndpoint                        = "ENQUEUE-FUTURE-resume-enqueue-future"
 	RevalidateSessionEndpoint                          = "PROFILE-revalidate-session"
 	RevertUnmatchedMatchEndpoint                       = "UNMATCHED-HISTORY-revert-unmatched-match"
 	RunAutoDownloaderEndpoint                          = "AUTO-DOWNLOADER-run-auto-downloader"

@@ -49,6 +49,7 @@ type (
 		metadataProviderRef *util.Ref[metadata_provider.Provider]
 		torrentRepository   *torrent.Repository
 		wsEventManager      events.WSEventManagerInterface
+		dataDir             string
 
 		// Late-bound accessors, so the repository does not have to reach back into the app.
 		animeCollectionFunc func() (*anilist.AnimeCollection, error)
@@ -70,6 +71,8 @@ type (
 		MetadataProviderRef *util.Ref[metadata_provider.Provider]
 		TorrentRepository   *torrent.Repository
 		WSEventManager      events.WSEventManagerInterface
+		// DataDir is where the progress file lives, so an interrupted run can be picked back up.
+		DataDir             string
 		AnimeCollectionFunc func() (*anilist.AnimeCollection, error)
 		DefaultProviderFunc func() string
 		IsSimulatedFunc     func() bool
@@ -84,6 +87,7 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 		metadataProviderRef: opts.MetadataProviderRef,
 		torrentRepository:   opts.TorrentRepository,
 		wsEventManager:      opts.WSEventManager,
+		dataDir:             opts.DataDir,
 		animeCollectionFunc: opts.AnimeCollectionFunc,
 		defaultProviderFunc: opts.DefaultProviderFunc,
 		isSimulatedFunc:     opts.IsSimulatedFunc,
@@ -124,8 +128,14 @@ func (r *Repository) ResetStaleItems() {
 // Status returns a copy of the current run status.
 func (r *Repository) Status() Status {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.status
+	status := r.status
+	r.mu.Unlock()
+
+	// Only meaningful while stopped: a running job is not something to resume.
+	if !status.Running {
+		status.Resumable = r.loadProgress() != nil
+	}
+	return status
 }
 
 // Enqueue starts a run rooted at an anime: its recommendations seed the queue, and each item's own
@@ -134,6 +144,57 @@ func (r *Repository) Status() Status {
 // Returns immediately — the run is the point of the feature, and it has to outlive the page you
 // started it from.
 func (r *Repository) Enqueue(rootMediaID int, rootTitle string, profileID uint) (Status, error) {
+	// A fresh run starts from nothing walked and nothing seen but the root itself, which is never
+	// queued — you are already on its page.
+	return r.start(&RunProgress{
+		RootMediaID: rootMediaID,
+		RootTitle:   rootTitle,
+		ProfileID:   profileID,
+		Seen:        []int{rootMediaID},
+		Depths:      map[int]int{rootMediaID: 0},
+		StartedAt:   time.Now(),
+	})
+}
+
+// Resume picks an interrupted run back up from its saved progress.
+//
+// The queue and every snapshot are in the database already; what this restores is the walk — which
+// anime have been seen and how far out they were found — so the run carries on rather than starting
+// the graph over and rediscovering everything it had already decided about.
+func (r *Repository) Resume() (Status, error) {
+	progress := r.loadProgress()
+	if progress == nil {
+		return r.Status(), errors.New("there is nothing to resume")
+	}
+	return r.start(progress)
+}
+
+// ResumeIfInterrupted restarts a run that was cut off by the process going away. Call once at
+// startup: a run is meant to survive being closed, and the only way it can is to come back by itself.
+func (r *Repository) ResumeIfInterrupted() {
+	progress := r.loadProgress()
+	if progress == nil {
+		return
+	}
+
+	r.logger.Info().
+		Int("rootMediaId", progress.RootMediaID).
+		Int("prepared", progress.Prepared).
+		Int("discovered", progress.Discovered).
+		Msg("enqueuefuture: Resuming an interrupted run")
+
+	if _, err := r.start(progress); err != nil {
+		r.logger.Warn().Err(err).Msg("enqueuefuture: Could not resume")
+	}
+}
+
+// CanResume reports whether an interrupted run is waiting to be picked up.
+func (r *Repository) CanResume() bool {
+	return r.loadProgress() != nil
+}
+
+// start launches the worker from a progress record, fresh or restored.
+func (r *Repository) start(progress *RunProgress) (Status, error) {
 	r.mu.Lock()
 	if r.running {
 		status := r.status
@@ -146,22 +207,31 @@ func (r *Repository) Enqueue(rootMediaID int, rootTitle string, profileID uint) 
 	r.running = true
 	r.status = Status{
 		Running:         true,
-		RootMediaID:     rootMediaID,
-		RootTitle:       rootTitle,
+		RootMediaID:     progress.RootMediaID,
+		RootTitle:       progress.RootTitle,
+		Discovered:      progress.Discovered,
+		Prepared:        progress.Prepared,
+		Failed:          progress.Failed,
+		Skipped:         progress.Skipped,
 		Cap:             MaxItemsPerRun,
 		BackoffRungs:    len(backoffLadder),
 		BackoffAttempts: MaxBackoffAttempts,
-		StartedAt:       time.Now(),
+		StartedAt:       progress.StartedAt,
 	}
 	status := r.status
 	r.mu.Unlock()
 
-	go r.run(ctx, rootMediaID, profileID)
+	// Written before the worker starts, so a process that dies on the very first request is still
+	// resumable rather than having lost the fact that a run was ever asked for.
+	r.saveProgress(progress)
+
+	go r.run(ctx, progress)
 
 	return status, nil
 }
 
-// Stop cancels a running run. Everything already prepared stays in the queue.
+// Stop cancels a running run. Everything already prepared stays in the queue, and the progress file
+// is deliberately left behind so the run can be picked up again later.
 func (r *Repository) Stop() Status {
 	r.mu.Lock()
 	if r.cancel != nil {
@@ -173,39 +243,73 @@ func (r *Repository) Stop() Status {
 }
 
 // run is the worker. One at a time, rate limited, until the frontier empties or the cap is hit.
-func (r *Repository) run(ctx context.Context, rootMediaID int, profileID uint) {
+func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 	defer util.HandlePanicInModuleThen("enqueuefuture/run", func() {
 		r.finish("the run stopped unexpectedly")
 	})
 
+	rootMediaID := progress.RootMediaID
+	profileID := progress.ProfileID
+
 	r.logger.Info().Int("rootMediaId", rootMediaID).Msg("enqueuefuture: Starting run")
 
 	// frontier holds anime discovered but not yet inserted; seen guards against walking in circles,
-	// which a recommendation graph does constantly. The root goes straight into seen without going
-	// through the frontier, so it can never be queued as one of its own recommendations.
+	// which a recommendation graph does constantly. Both are restored from the progress record on a
+	// resumed run, so it carries on walking rather than rediscovering what it already decided about.
 	frontier := make([]recommendation, 0, MaxItemsPerRun)
-	seen := map[int]bool{rootMediaID: true}
-	depths := map[int]int{rootMediaID: 0}
+	seen := make(map[int]bool, len(progress.Seen))
+	for _, id := range progress.Seen {
+		seen[id] = true
+	}
+	seen[rootMediaID] = true
+
+	depths := progress.Depths
+	if depths == nil {
+		depths = map[int]int{}
+	}
+	depths[rootMediaID] = 0
 
 	// The root itself is never queued — you are already on its page, and it has its own download
-	// button. It is only walked to get the first ring of recommendations.
-	rootPending := true
+	// button. It is only walked to get its recommendations and its own family.
+	rootPending := !progress.RootWalked
 
 	bo := &backoff{}
 
+	// Called after every decision so the run is never more than one item ahead of what is on disk.
+	checkpoint := func() {
+		status := r.Status()
+		progress.Seen = progress.Seen[:0]
+		for id := range seen {
+			progress.Seen = append(progress.Seen, id)
+		}
+		progress.Depths = depths
+		progress.RootWalked = !rootPending
+		progress.Discovered = status.Discovered
+		progress.Prepared = status.Prepared
+		progress.Failed = status.Failed
+		progress.Skipped = status.Skipped
+		r.saveProgress(progress)
+	}
+
 	for {
 		if ctx.Err() != nil {
+			// Stopped by hand rather than finished, so the progress file stays put — this is
+			// exactly the state that has to be resumable.
 			r.logger.Info().Msg("enqueuefuture: Run cancelled")
+			checkpoint()
 			r.finish("")
 			return
 		}
 
 		var mediaID int
 		var depth int
+		var familyID int
 
 		if rootPending {
 			mediaID = rootMediaID
 			depth = 0
+			// The root anchors its own family, so its sequels and prequels bundle under it.
+			familyID = rootMediaID
 		} else {
 			// Take the next item that is actually in the queue rather than trusting the in-memory
 			// frontier, so a restart or a second enqueue does not lose or duplicate work.
@@ -216,12 +320,15 @@ func (r *Repository) run(ctx context.Context, rootMediaID int, profileID uint) {
 				return
 			}
 			if item == nil {
+				// Finished on its own terms: nothing left to resume, so the record goes away.
 				r.logger.Info().Msg("enqueuefuture: Run finished, nothing left to prepare")
+				r.clearProgress()
 				r.finish("")
 				return
 			}
 			mediaID = item.MediaID
 			depth = item.Depth
+			familyID = item.FamilyID
 			// Guards against a poisoned item outliving a restart: attempts are persisted, so an
 			// entry that has already used up its tries is failed rather than retried forever.
 			if item.Attempts >= MaxItemAttempts {
@@ -239,9 +346,9 @@ func (r *Repository) run(ctx context.Context, rootMediaID int, profileID uint) {
 		var result *prepared
 		var err error
 		if rootPending {
-			var recs []recommendation
-			recs, err = r.discover(ctx, mediaID)
-			result = &prepared{recommendations: recs}
+			var discovered *prepared
+			discovered, err = r.discover(ctx, mediaID)
+			result = discovered
 		} else {
 			result, err = r.prepare(ctx, mediaID)
 		}
@@ -331,13 +438,32 @@ func (r *Repository) run(ctx context.Context, rootMediaID int, profileID uint) {
 			}
 		}
 
-		// Extend the frontier with what this anime recommends.
+		// This anime's own family comes first — its sequels, prequels and side stories are the
+		// things most likely to be wanted alongside it, and queueing them behind a hundred
+		// recommendations would bury them. They inherit its family and its depth, because a sequel
+		// is not one step further from what you asked for; it is the same show.
+		for _, rel := range result.relations {
+			if seen[rel.mediaID] {
+				// Already queued under some other family — pull that whole family in with this one,
+				// which is what makes a franchise discovered from two directions end up as one
+				// bundle instead of two.
+				r.mergeFamilies(profileID, rel.mediaID, familyID)
+				continue
+			}
+			seen[rel.mediaID] = true
+			depths[rel.mediaID] = depth
+			rel.familyID = familyID
+			frontier = append(frontier, rel)
+		}
+
+		// Then what it recommends, each starting a family of its own.
 		for _, rec := range result.recommendations {
 			if seen[rec.mediaID] {
 				continue
 			}
 			seen[rec.mediaID] = true
 			depths[rec.mediaID] = depth + 1
+			rec.familyID = rec.mediaID
 			frontier = append(frontier, rec)
 		}
 
@@ -348,6 +474,23 @@ func (r *Repository) run(ctx context.Context, rootMediaID int, profileID uint) {
 		// Insert as much of the frontier as the cap allows, then drop the rest: past the cap there
 		// is no point holding on to anime that will never be queued.
 		frontier = r.drainFrontier(profileID, rootMediaID, frontier, depths)
+
+		checkpoint()
+	}
+}
+
+// mergeFamilies re-points every item of one family onto another, so a franchise found from two
+// directions ends up as a single bundle rather than two halves.
+func (r *Repository) mergeFamilies(profileID uint, mediaID int, intoFamilyID int) {
+	if intoFamilyID == 0 {
+		return
+	}
+	item, err := r.database.GetEnqueueFutureItem(profileID, mediaID)
+	if err != nil || item == nil || item.FamilyID == intoFamilyID || item.FamilyID == 0 {
+		return
+	}
+	if err := r.database.MergeEnqueueFutureFamily(profileID, item.FamilyID, intoFamilyID); err != nil {
+		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to merge families")
 	}
 }
 
@@ -375,10 +518,16 @@ func (r *Repository) drainFrontier(profileID uint, rootMediaID int, frontier []r
 			continue
 		}
 
+		familyID := rec.familyID
+		if familyID == 0 {
+			familyID = rec.mediaID
+		}
+
 		inserted, err := r.database.InsertEnqueueFutureItem(&models.EnqueueFutureItem{
 			ProfileID:   profileID,
 			MediaID:     rec.mediaID,
 			RootMediaID: rootMediaID,
+			FamilyID:    familyID,
 			Depth:       depths[rec.mediaID],
 			Status:      db.EnqueueFutureStatusPending,
 			Title:       rec.title,

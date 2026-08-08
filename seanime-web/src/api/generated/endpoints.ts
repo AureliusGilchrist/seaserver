@@ -1191,6 +1191,18 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route picks an interrupted Enqueue Future run back up.
+         *  Continues from where it stopped rather than starting the graph over — everything already
+         *  prepared stays, and the walk carries on from the anime it had reached. The server does this
+         *  by itself when it starts, so this is for a run that was stopped by hand.
+         */
+        ResumeEnqueueFuture: {
+            key: "ENQUEUE-FUTURE-resume-enqueue-future",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/resume",
+        },
+        /**
+         *  @description
          *  Route returns the queue in walk order.
          *  Snapshots are omitted — they are large, and the list view only needs titles and covers.
          */
@@ -1213,8 +1225,9 @@ export const API_ENDPOINTS = {
         /**
          *  @description
          *  Route records what you did with a queued anime.
-         *  Accepts "downloaded" or "skipped". Both are terminal — the item stays in the queue as a
-         *  record of the decision, which is also what stops it being discovered again later.
+         *  Accepts "downloaded", "skipped" or "ignored". All three are terminal — the item stays in
+         *  the queue as a record of the decision, which is also what stops it being discovered again
+         *  later. Skipped means "not this time"; ignored means "never suggest this show again".
          */
         SetEnqueueFutureItemStatus: {
             key: "ENQUEUE-FUTURE-set-enqueue-future-item-status",

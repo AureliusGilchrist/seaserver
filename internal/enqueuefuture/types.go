@@ -52,8 +52,11 @@ type Snapshot struct {
 // Item is one queue row as the frontend sees it. The snapshot is only present on the single-item
 // endpoint; the list endpoint leaves it nil.
 type Item struct {
-	MediaID     int       `json:"mediaId"`
-	RootMediaID int       `json:"rootMediaId"`
+	MediaID     int `json:"mediaId"`
+	RootMediaID int `json:"rootMediaId"`
+	// FamilyID groups a show with its own sequels and prequels. The queue screen bundles items
+	// sharing one rather than listing three seasons of the same show as three unrelated entries.
+	FamilyID    int       `json:"familyId"`
 	Position    int       `json:"position"`
 	Depth       int       `json:"depth"`
 	Status      string    `json:"status"`
@@ -67,7 +70,10 @@ type Item struct {
 
 // Status is the progress of a running (or the last) Enqueue Future run.
 type Status struct {
-	Running     bool   `json:"running"`
+	Running bool `json:"running"`
+	// Resumable means a run was interrupted and is waiting to be picked back up. The server does
+	// that by itself on startup; this covers the case where it was stopped by hand.
+	Resumable   bool   `json:"resumable"`
 	RootMediaID int    `json:"rootMediaId"`
 	RootTitle   string `json:"rootTitle"`
 	// Discovered counts everything this run has put in the queue, Prepared how many of those have

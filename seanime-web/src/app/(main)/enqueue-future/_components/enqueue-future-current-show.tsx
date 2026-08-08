@@ -49,6 +49,8 @@ export function EnqueueFutureCurrentShow({ item, snapshot }: {
                 <img
                     src={media.coverImage.extraLarge || media.coverImage.large}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     className="h-32 w-24 rounded-[--radius] object-cover flex-none"
                 />
             )}

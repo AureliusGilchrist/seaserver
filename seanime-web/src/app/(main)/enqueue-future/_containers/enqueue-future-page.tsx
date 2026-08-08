@@ -10,6 +10,7 @@ import {
     useGetEnqueueFutureStatus,
     useSetEnqueueFutureItemStatus,
 } from "@/api/hooks/enqueue_future.hooks"
+import { EnqueueFutureAddTorrents } from "@/app/(main)/enqueue-future/_components/enqueue-future-add-torrents"
 import { EnqueueFutureCurrentShow } from "@/app/(main)/enqueue-future/_components/enqueue-future-current-show"
 import { EnqueueFutureHeader } from "@/app/(main)/enqueue-future/_components/enqueue-future-header"
 import { EnqueueFutureList } from "@/app/(main)/enqueue-future/_components/enqueue-future-list"
@@ -46,27 +47,33 @@ export function EnqueueFuturePage() {
 
     const [activeMediaId, setActiveMediaId] = React.useState<number | undefined>(undefined)
 
-    const index = React.useMemo(
-        () => items.findIndex(n => n.mediaId === activeMediaId),
-        [items, activeMediaId])
-
-    // Land on the first item, and recover when the current one leaves the list (downloaded, skipped
-    // or removed) by holding the position rather than the anime — which is what "next" means here.
+    // Resolved during render, not in an effect.
+    //
+    // The anime on screen leaves the list the moment you download, skip or ignore it, and an effect
+    // would only reassign the selection on the render *after* that — one frame showing "0 / 0" and
+    // an empty body on the way to the next show. Working this out here means the next anime is
+    // simply already the one being drawn.
     const lastIndexRef = React.useRef(0)
-    React.useEffect(() => {
-        if (!items.length) {
-            setActiveMediaId(undefined)
-            return
-        }
-        if (index >= 0) {
-            lastIndexRef.current = index
-            return
-        }
-        const fallback = Math.min(lastIndexRef.current, items.length - 1)
-        setActiveMediaId(items[fallback].mediaId)
-    }, [items, index])
+    const index = React.useMemo(() => {
+        if (!items.length) return -1
+        const found = items.findIndex(n => n.mediaId === activeMediaId)
+        // Hold the position rather than the anime — that is what "next" means when the current one
+        // has just been dealt with.
+        return found >= 0 ? found : Math.min(lastIndexRef.current, items.length - 1)
+    }, [items, activeMediaId])
 
     const activeItem = index >= 0 ? items[index] : undefined
+
+    React.useEffect(() => {
+        if (index >= 0) lastIndexRef.current = index
+        // Keep the stored id in step with what is actually being shown, so Prev and Next move from
+        // here rather than from an anime that is no longer in the list.
+        if (activeItem && activeItem.mediaId !== activeMediaId) {
+            setActiveMediaId(activeItem.mediaId)
+        } else if (!activeItem && activeMediaId !== undefined) {
+            setActiveMediaId(undefined)
+        }
+    }, [index, activeItem, activeMediaId])
 
     const { data: detail, isLoading: isLoadingDetail } = useGetEnqueueFutureItem(activeItem?.mediaId)
     const { mutate: setItemStatus } = useSetEnqueueFutureItemStatus(activeItem?.mediaId)
@@ -74,15 +81,16 @@ export function EnqueueFuturePage() {
     const setSelectedTorrents = useSetAtom(__torrentSearch_selectedTorrentsAtom)
 
     // Auto-match is decided per anime here, not once for the queue: a show you know the naming of
-    // can go straight into the library while the next one waits in Unmatched for a look. The
-    // app-wide preference is only the starting position each anime inherits the first time you
-    // reach it — changing it for one show never moves any other.
-    const defaultAutoMatch = useAtomValue(__torrentDownload_autoMatchAtom)
+    // can go straight into the library while the next one waits in Unmatched for a look. Changing
+    // it for one show never moves any other.
+    //
+    // Untouched anime default to on, which is the answer that makes a queue worth having — the
+    // point is to work through a hundred shows without filing each one by hand afterwards.
     const [autoMatchByMedia, setAutoMatchByMedia] = React.useState<Record<number, boolean>>({})
 
     const activeAutoMatch = activeItem
-        ? autoMatchByMedia[activeItem.mediaId] ?? defaultAutoMatch
-        : defaultAutoMatch
+        ? autoMatchByMedia[activeItem.mediaId] ?? true
+        : true
 
     const setActiveAutoMatch = React.useCallback((value: boolean) => {
         if (!activeItem) return
@@ -249,6 +257,13 @@ function ActiveItemBody({ item, detail, isLoading, snapshot, onDownloadStarted, 
                 confirmAutoMatchOnce
                 autoMatchValue={autoMatch}
                 onAutoMatchChange={onAutoMatchChange}
+            />
+
+            <EnqueueFutureAddTorrents
+                entry={entry}
+                autoMatch={autoMatch}
+                onAutoMatchChange={onAutoMatchChange}
+                onAdded={onDownloadStarted}
             />
         </>
     )
