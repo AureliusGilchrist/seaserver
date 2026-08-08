@@ -13,12 +13,29 @@
     install (hash marker stored in node_modules/.lockfile-hash).
 .PARAMETER ForceInstall
     Run npm ci in both package directories even if package-lock.json is unchanged.
+.PARAMETER Launch
+    Start the freshly packaged app (dist\win-unpacked) when the build succeeds.
+.PARAMETER Install
+    Run the freshly built NSIS installer to update the installed copy of Denshi.
+
+    THE TRAP THIS EXISTS FOR: a packaged Denshi carries its own copy of both halves of the
+    app -- resources\binaries\seanime-server-windows.exe and the web-denshi bundle -- so an
+    installed copy keeps serving the build it was installed from. Building does not touch it.
+    Testing in a browser hits the standalone seanime.exe instead, which the build *does*
+    refresh, so the two disagree and the desktop app looks broken in ways the browser never
+    reproduces. Nothing about it looks like a stale build, because the build succeeded.
 .EXAMPLE
     .\build-all-desktop.ps1 -ForceInstall
+.EXAMPLE
+    .\build-all-desktop.ps1 -Launch
+.EXAMPLE
+    .\build-all-desktop.ps1 -Install
 #>
 
 param(
-    [switch]$ForceInstall
+    [switch]$ForceInstall,
+    [switch]$Launch,
+    [switch]$Install
 )
 
 $ErrorActionPreference = 'Stop'
@@ -119,6 +136,43 @@ function Assert-Command {
         return $false
     }
     return $true
+}
+
+# -- Installed-copy helpers --------------------------------
+
+# Version electron-builder is packaging, read from the same package.json it builds from.
+function Get-BuiltVersion {
+    $pkg = Join-Path $DenshiDir 'package.json'
+    if (-not (Test-Path $pkg)) { return '' }
+    try { return (Get-Content -Path $pkg -Raw | ConvertFrom-Json).version } catch { return '' }
+}
+
+# The installed Denshi, or $null. Matched on DisplayName rather than a registry key name so it
+# keeps working regardless of how electron-builder names the uninstall entry.
+function Get-InstalledDenshi {
+    $roots = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+    foreach ($r in $roots) {
+        try {
+            $hit = Get-ItemProperty $r -ErrorAction SilentlyContinue |
+                Where-Object { $_.DisplayName -eq 'Seaserver Denshi' } |
+                Select-Object -First 1
+            if ($hit) { return $hit }
+        } catch { }
+    }
+    return $null
+}
+
+# The installer this run produced.
+function Get-BuiltInstallerPath {
+    $version = Get-BuiltVersion
+    if (-not $version) { return '' }
+    $path = Join-Path $DenshiDir ("dist\seanime-denshi-{0}_Windows_x64.exe" -f $version)
+    if (Test-Path $path) { return $path }
+    return ''
 }
 
 # -- Stats helpers -----------------------------------------
@@ -247,6 +301,50 @@ Invoke-BuildStep '5.3' 'electron-builder (target: win x64)' -Dir $DenshiDir {
     Invoke-Npm @('run', 'build:win')
 }
 
+# The packaged app embeds its own server, so "the build succeeded" is not the same as "the app
+# contains what was just built". Step 5.2 may have failed to remove win-unpacked and said so
+# without failing, leaving electron-builder to overwrite in place -- which is exactly how a
+# package ends up carrying a server binary from an earlier run. Compare them and refuse to
+# report success on a stale package.
+Invoke-BuildStep '5.4' 'Verify packaged sidecar matches this build' {
+    $built    = Join-Path $ScriptDir 'seanime.exe'
+    $packaged = Join-Path $DenshiDir 'dist\win-unpacked\resources\binaries\seanime-server-windows.exe'
+
+    if (-not (Test-Path $packaged)) { throw "Packaged sidecar missing: $packaged" }
+
+    $builtHash    = (Get-FileHash -Algorithm SHA256 -Path $built).Hash
+    $packagedHash = (Get-FileHash -Algorithm SHA256 -Path $packaged).Hash
+
+    if ($builtHash -ne $packagedHash) {
+        Fail 'The packaged app contains a different server binary than this build produced.'
+        SubStep "built:    $builtHash"
+        SubStep "packaged: $packagedHash"
+        throw 'Packaged sidecar does not match seanime.exe -- the app would run an older server'
+    }
+    SubStep "Packaged sidecar matches seanime.exe ($($builtHash.Substring(0,12))...)"
+}
+
+# -- 4. Installed copy -------------------------------------
+
+# Building leaves an installed Denshi untouched. Reconcile the two, or at minimum say plainly
+# that they differ, so a build is never mistaken for a deployed build.
+$builtVersion = Get-BuiltVersion
+$installer    = Get-BuiltInstallerPath
+$installed    = Get-InstalledDenshi
+
+if ($Install) {
+    Invoke-BuildStep '6.1' 'Update the installed copy' {
+        if (-not $installer) { throw 'Built installer not found in seanime-denshi\dist' }
+        SubStep "Running $installer (silent, per-machine -- expect an elevation prompt)"
+        # perMachine installs write outside the user profile, so this needs elevation. /S is the
+        # NSIS silent switch; the assisted installer honours it.
+        $p = Start-Process -FilePath $installer -ArgumentList '/S' -Verb RunAs -Wait -PassThru
+        if ($p.ExitCode -ne 0) { throw "Installer exited with code $($p.ExitCode)" }
+        SubStep 'Installed copy updated'
+    }
+    $installed = Get-InstalledDenshi
+}
+
 # -- Done --------------------------------------------------
 
 $Duration = [int]((Get-Date) - $StartTime).TotalSeconds
@@ -256,9 +354,48 @@ BoxTitle 'Desktop build complete'
 Write-Host "$esc[32m$esc[1mAll steps finished successfully.$esc[0m Duration: $esc[1m${Duration}s$esc[0m"
 Divider
 Write-Host 'Outputs:'
-Write-Host "  $esc[1mStandalone:$esc[0m  ./seanime.exe + ./web/"
+Write-Host "  $esc[1mStandalone:$esc[0m  ./seanime.exe + ./web/  $esc[2m(what a browser talks to)$esc[0m"
 Write-Host "  $esc[1mSidecar:$esc[0m     seanime-denshi/binaries/seanime-server-windows.exe"
-Write-Host "  $esc[1mInstaller:$esc[0m   seanime-denshi/dist/ (NSIS .exe + unpacked)"
+Write-Host "  $esc[1mFresh app:$esc[0m   seanime-denshi/dist/win-unpacked/Seaserver Denshi.exe"
+Write-Host "  $esc[1mInstaller:$esc[0m   seanime-denshi/dist/ (NSIS .exe)"
+Divider
+
+# The whole point of this block: a successful build says nothing about what Denshi will run.
+if ($installed) {
+    $installedVersion = $installed.DisplayVersion
+    if ($installedVersion -eq $builtVersion) {
+        Success "Installed Denshi is $installedVersion, matching this build"
+    } else {
+        Warn "Installed Denshi is $installedVersion but this build is $builtVersion."
+        Write-Host '  An installed Denshi bundles its own server and frontend, so it will keep'
+        Write-Host '  running the build it was installed from. Browser testing hits the standalone'
+        Write-Host '  server instead, which is why the two can disagree.'
+        Write-Host "  Update it:  $esc[1m.\build-all-desktop.ps1 -Install$esc[0m"
+        Write-Host "  Or run this build without installing:  $esc[1m.\build-all-desktop.ps1 -Launch$esc[0m"
+    }
+} else {
+    SubStep 'No installed Denshi found -- run the installer, or use -Launch to run this build directly.'
+}
+
+# Two servers on one database is its own class of confusion: each process keeps its own caches,
+# so they disagree about state that is otherwise shared. Worth naming while the build is fresh.
+$standalone = Get-Process -Name 'seanime' -ErrorAction SilentlyContinue
+if ($standalone) {
+    Warn 'A standalone seanime.exe is running.'
+    Write-Host '  Denshi starts its own server, so launching it now means two servers against the'
+    Write-Host '  same database, each with its own in-memory caches. Stop one before testing.'
+}
+
 Divider
 Print-Stats
 Divider
+
+if ($Launch) {
+    $app = Join-Path $DenshiDir 'dist\win-unpacked\Seaserver Denshi.exe'
+    if (Test-Path $app) {
+        SubStep "Launching $app"
+        Start-Process -FilePath $app
+    } else {
+        Warn "Cannot launch -- not found: $app"
+    }
+}
