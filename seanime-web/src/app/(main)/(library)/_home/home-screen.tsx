@@ -11,6 +11,7 @@ import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-l
 import { IgnoredFileManager } from "@/app/(main)/(library)/_containers/ignored-file-manager"
 import { __scanner_modalIsOpen } from "@/app/(main)/(library)/_containers/scanner-modal"
 import { UnknownMediaManager } from "@/app/(main)/(library)/_containers/unknown-media-manager"
+import { UnmatchedFileManager } from "@/app/(main)/(library)/_containers/unmatched-file-manager"
 import { DEFAULT_HOME_ITEMS, HOME_ITEMS, isAnimeLibraryItemsOnly } from "@/app/(main)/(library)/_home/home-items.utils"
 import { __home_settingsModalOpen, HomeSettingsModal } from "@/app/(main)/(library)/_home/home-settings-modal"
 import { HomeToolbar } from "@/app/(main)/(library)/_home/home-toolbar"
@@ -188,6 +189,7 @@ export function HomeScreen() {
                     unmatchedLocalFiles={unmatchedLocalFiles}
                     ignoredLocalFiles={ignoredLocalFiles}
                     unknownGroups={unknownGroups}
+                    unmatchedGroups={unmatchedGroups}
                     isLoading={isLoading}
                     hasEntries={hasEntries}
                     isStreamingOnly={isStreamingOnly}
@@ -260,6 +262,11 @@ export function HomeScreen() {
 
                 <UnknownMediaManager
                     unknownGroups={unknownGroups}
+                />
+                {/* Mounted here, not only in the Library Explorer: the explorer scopes this drawer's
+                    open-atom to itself, so this instance is independent of that one. */}
+                <UnmatchedFileManager
+                    unmatchedGroups={unmatchedGroups}
                 />
                 <IgnoredFileManager
                     files={ignoredLocalFiles}
@@ -346,6 +353,7 @@ export function HomeScreen() {
                 unmatchedLocalFiles={unmatchedLocalFiles}
                 ignoredLocalFiles={ignoredLocalFiles}
                 unknownGroups={unknownGroups}
+                unmatchedGroups={unmatchedGroups}
                 isLoading={isLoading}
                 hasEntries={hasEntries}
                 isStreamingOnly={isStreamingOnly}
@@ -464,6 +472,9 @@ export function HomeScreen() {
 
             <UnknownMediaManager
                 unknownGroups={unknownGroups}
+            />
+            <UnmatchedFileManager
+                unmatchedGroups={unmatchedGroups}
             />
             <IgnoredFileManager
                 files={ignoredLocalFiles}
@@ -924,6 +935,9 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
             </div>
             <PaginatedMediaGrid
                 items={localEntries}
+                // Turning the page lands on the stats row rather than the top of the document, so
+                // the counts and the search box that belong to this grid stay on screen with it.
+                scrollTargetSelector="[data-detailed-library-view-stats-container]"
                 renderItem={entry => (
                     // Every card here is in the library by construction, so neither badge says
                     // anything: "downloaded" is the entry requirement, and "downloading" would be

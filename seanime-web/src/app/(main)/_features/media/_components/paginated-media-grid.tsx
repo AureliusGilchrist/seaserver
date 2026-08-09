@@ -45,23 +45,39 @@ type PaginatedMediaGridProps<T> = {
     pageSize?: number
     /** Forwarded to the grid so existing `data-*` hooks and styling keep working. */
     gridProps?: Record<string, any>
+    /**
+     * CSS selector for what to scroll to when the page changes, instead of the top of the document.
+     *
+     * A library grid usually sits below something that belongs with it — its stats row, its search
+     * box — and the top of *that* is where a new page starts reading. Scrolling to the very top
+     * instead throws away the whole header on the way past. Falls back to the top of the page when
+     * the element is not there, which is what happens when the user has removed that widget from
+     * their home layout.
+     */
+    scrollTargetSelector?: string
 }
 
 /**
  * A media grid split into real pages rather than an endlessly growing lazy-loaded list.
  * Used by the local anime and manga libraries, which can hold thousands of series.
  */
-export function PaginatedMediaGrid<T>({ items, renderItem, pageSize = LIBRARY_PAGE_SIZE, gridProps }: PaginatedMediaGridProps<T>) {
+export function PaginatedMediaGrid<T>({ items, renderItem, pageSize = LIBRARY_PAGE_SIZE, gridProps, scrollTargetSelector }: PaginatedMediaGridProps<T>) {
 
     const { pageItems, page, pageCount, setPage, total, isPaginated } = usePaginatedItems(items, pageSize)
 
     const handlePageChange = React.useCallback((next: number) => {
         if (next < 1 || next > pageCount) return
         setPage(next)
-        // Jump back to the top: the user is looking at a fresh set of series, and staying
-        // scrolled halfway down a new page is disorienting.
+
+        // Move to the start of the new page: the user is looking at a fresh set of series, and
+        // staying scrolled halfway down a new page is disorienting.
+        const target = scrollTargetSelector ? document.querySelector(scrollTargetSelector) : null
+        if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" })
+            return
+        }
         window.scrollTo({ top: 0, behavior: "smooth" })
-    }, [pageCount, setPage])
+    }, [pageCount, setPage, scrollTargetSelector])
 
     // Windowed page numbers with ellipses, so a 40-page library doesn't render 40 buttons.
     const visiblePages = React.useMemo<(number | "ellipsis")[]>(() => {

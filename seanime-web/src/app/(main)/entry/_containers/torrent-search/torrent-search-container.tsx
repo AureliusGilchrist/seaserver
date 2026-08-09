@@ -7,6 +7,7 @@ import { useHandleStartDebridStream } from "@/app/(main)/entry/_containers/debri
 import { DebridStreamFileSelectionModal } from "@/app/(main)/entry/_containers/debrid-stream/debrid-stream-file-selection-modal"
 import { TorrentListItem } from "@/app/(main)/entry/_containers/torrent-search/_components/torrent-preview-item"
 import { TorrentPreviewList } from "@/app/(main)/entry/_containers/torrent-search/_components/torrent-preview-list"
+import { TorrentContentsProvider } from "@/app/(main)/entry/_containers/torrent-search/_lib/torrent-contents-context"
 import { TorrentTable } from "@/app/(main)/entry/_containers/torrent-search/_components/torrent-table"
 import {
     Torrent_SearchType,
@@ -447,6 +448,10 @@ export function TorrentSearchContainer({
                 {(selectedProviderExtensionId !== "none" && selectedProviderExtensionId !== "") ? (
                     <>
 
+                        {/* Mounted once around every list this screen draws, so a row can say what a
+                            torrent holds without each of the three places that render one having to
+                            pass the same map down. */}
+                        <TorrentContentsProvider torrents={torrents}>
                         <div className="space-y-3" data-torrent-search-container-torrents-container>
 
                             {(type === "torrentstream-select" || type === "torrentstream-select-file" || type === "debridstream-select-file" || type === "debridstream-select") &&
@@ -511,6 +516,7 @@ export function TorrentSearchContainer({
                                 </>
                             )}
                         </div>
+                        </TorrentContentsProvider>
 
                     </>
                 ) : (!!providerExtensions) ? <div className="space-y-2">

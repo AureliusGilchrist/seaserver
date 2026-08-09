@@ -251,6 +251,7 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 		PlatformRef:         h.App.AnilistPlatformRef,
 		LocalFiles:          lfs,
 		MetadataProviderRef: h.App.MetadataProviderRef,
+		Logger:              h.App.Logger,
 	})
 	if err != nil {
 		return h.RespondWithError(c, err)

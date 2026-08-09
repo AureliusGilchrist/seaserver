@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
 	"github.com/sourcegraph/conc/pool"
@@ -154,6 +155,9 @@ type (
 		LocalFiles          []*LocalFile
 		PlatformRef         *util.Ref[platform.Platform]
 		MetadataProviderRef *util.Ref[metadata_provider.Provider]
+		// Logger is optional. Without it a metadata lookup that fails leaves no trace at all, which
+		// is what made a blank card in the library impossible to explain.
+		Logger *zerolog.Logger
 	}
 )
 
@@ -276,6 +280,7 @@ func NewLibraryCollection(ctx context.Context, opts *NewLibraryCollectionOptions
 		opts.LocalFiles,
 		aniLists,
 		opts.PlatformRef,
+		opts.Logger,
 	)
 
 	// Add Continue Watching list
@@ -323,6 +328,7 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 	localFiles []*LocalFile,
 	aniLists []*anilist.AnimeCollection_MediaListCollection_Lists,
 	platformRef *util.Ref[platform.Platform],
+	logger *zerolog.Logger,
 ) {
 
 	// Group local files by media id
@@ -529,9 +535,21 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 				var media *anilist.BaseAnime
 				if platformRef != nil {
 					if plat := platformRef.Get(); plat != nil {
-						if ba, err := plat.GetAnime(fetchCtx, candidate.mediaID); err == nil && ba != nil {
+						ba, err := plat.GetAnime(fetchCtx, candidate.mediaID)
+						switch {
+						case err == nil && ba != nil:
 							media = ba
 							rememberLocalEntryMedia(candidate.mediaID, ba)
+						case logger != nil:
+							// The one place this failure is visible. A media ID that AniList does not
+							// recognise never recovers on its own — it is usually a match to an entry
+							// that has been merged or removed — and it is the difference between "the
+							// server is rate limited" and "these files are matched to something that
+							// does not exist", which need opposite responses.
+							logger.Warn().Err(err).
+								Int("mediaId", candidate.mediaID).
+								Str("folder", folderTitleForLocalFiles(candidate.lfs)).
+								Msg("anime collection: Could not fetch metadata for a local-only entry, it will show without art")
 						}
 					}
 				}

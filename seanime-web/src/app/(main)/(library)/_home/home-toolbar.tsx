@@ -1,11 +1,12 @@
 "use client"
-import { Anime_LibraryCollectionList, Anime_LocalFile, Anime_UnknownGroup } from "@/api/generated/types"
+import { Anime_LibraryCollectionList, Anime_LocalFile, Anime_UnknownGroup, Anime_UnmatchedGroup } from "@/api/generated/types"
 import { useOpenInExplorer } from "@/api/hooks/explorer.hooks"
 import { useGetAllExtensions } from "@/api/hooks/extensions.hooks"
 import { __bulkAction_modalAtomIsOpen } from "@/app/(main)/(library)/_containers/bulk-action-modal"
 import { __ignoredFileManagerIsOpen } from "@/app/(main)/(library)/_containers/ignored-file-manager"
 import { __scanner_modalIsOpen } from "@/app/(main)/(library)/_containers/scanner-modal"
 import { __unknownMedia_drawerIsOpen } from "@/app/(main)/(library)/_containers/unknown-media-manager"
+import { __unmatchedFileManagerIsOpen } from "@/app/(main)/(library)/_containers/unmatched-file-manager"
 import { __home_currentView } from "@/app/(main)/(library)/_home/home-screen"
 import { HomeSettingsButton } from "@/app/(main)/(library)/_home/home-settings-button"
 import { libraryExplorer_drawerOpenAtom } from "@/app/(main)/_features/library-explorer/library-explorer.atoms"
@@ -37,6 +38,7 @@ export type HomeToolbarProps = {
     unmatchedLocalFiles: Anime_LocalFile[]
     unknownGroups: Anime_UnknownGroup[]
     isLoading: boolean
+    unmatchedGroups: Anime_UnmatchedGroup[]
     hasEntries: boolean
     isStreamingOnly: boolean
     isNakamaLibrary: boolean
@@ -50,6 +52,7 @@ export function HomeToolbar(props: HomeToolbarProps) {
         ignoredLocalFiles,
         unmatchedLocalFiles,
         unknownGroups,
+        unmatchedGroups,
         hasEntries,
         isStreamingOnly,
         isNakamaLibrary,
@@ -65,6 +68,7 @@ export function HomeToolbar(props: HomeToolbarProps) {
     const setScannerModalOpen = useSetAtom(__scanner_modalIsOpen)
     const setIgnoredFileManagerOpen = useSetAtom(__ignoredFileManagerIsOpen)
     const setUnknownMediaManagerOpen = useSetAtom(__unknownMedia_drawerIsOpen)
+    const setUnmatchedFileManagerOpen = useSetAtom(__unmatchedFileManagerIsOpen)
     const setLibraryExplorerDrawerOpen = useSetAtom(libraryExplorer_drawerOpenAtom)
     const { setModalOpen } = usePlaylistEditorManager()
 
@@ -159,10 +163,22 @@ export function HomeToolbar(props: HomeToolbarProps) {
                 >
                     {hasEntries ? "Refresh Anime Library" : "Scan Anime Library"}
                 </Tooltip>}
-                {/* "Resolve unmatched" was removed: files that reach the library carry a
-                 metadata sidecar from their download, and the scanner now matches from it, so
-                 there is nothing left worth nagging about. The manager itself still exists and
-                 is reachable from the Library Explorer for the rare file that needs it. */}
+                {/* "Resolve unmatched" was removed once, on the grounds that files reaching the
+                 library carry a metadata sidecar from their download and the scanner matches from
+                 it. It does not always: an auto-matched download whose sidecar was missing or
+                 unreadable leaves files with no media ID at all, and those become entries with no
+                 title, no art and no dates — visible in the library, unexplained, and with the only
+                 way to fix them buried three levels into the Library Explorer.
+                 So it is back, and like its neighbour it only appears when there is something to
+                 resolve. A library with nothing unmatched never sees it. */}
+                {(!isNakamaLibrary && unmatchedGroups.length > 0) && <Button
+                    data-home-toolbar-unmatched-button
+                    intent="warning-subtle"
+                    leftIcon={<LuFolderTree />}
+                    onClick={() => setUnmatchedFileManagerOpen(true)}
+                >
+                    Resolve unmatched ({unmatchedGroups.length})
+                </Button>}
                 {(!isNakamaLibrary && unknownGroups.length > 0) && <Button
                     data-home-toolbar-unknown-button
                     intent="warning"

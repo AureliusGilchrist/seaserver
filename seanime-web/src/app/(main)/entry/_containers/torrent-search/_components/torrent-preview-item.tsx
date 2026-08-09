@@ -5,6 +5,7 @@ import {
     TorrentResolutionBadge,
     TorrentSeedersBadge,
 } from "@/app/(main)/entry/_containers/torrent-search/_components/torrent-item-badges"
+import { useTorrentContentsFor } from "@/app/(main)/entry/_containers/torrent-search/_lib/torrent-contents-context"
 import { SeaImage } from "@/components/shared/sea-image"
 import { Badge } from "@/components/ui/badge"
 import { IconButton } from "@/components/ui/button"
@@ -19,13 +20,33 @@ import { AiFillWarning } from "react-icons/ai"
 import { BiCalendarAlt, BiLinkExternal } from "react-icons/bi"
 import { BsFileEarmarkPlayFill } from "react-icons/bs"
 import { FcOpenedFolder } from "react-icons/fc"
-import { LuCircleCheckBig, LuGem } from "react-icons/lu"
+import { LuCircleCheckBig, LuFiles, LuGem } from "react-icons/lu"
 
 export const TorrentList = ({ children }: { children?: React.ReactNode }) => {
     return (
         <div className="grid grid-cols-1 gap-3">
             {children}
         </div>
+    )
+}
+
+/**
+ * What the torrent holds, once the server has read its .torrent file.
+ *
+ * Absent until then, and absent for good on a magnet-only result or one whose file could not be
+ * fetched — the row simply carries no such label rather than claiming "0 files", which would be a
+ * statement about the torrent rather than about what is known of it.
+ */
+function TorrentContentsLabel({ torrent }: { torrent: HibikeTorrent_AnimeTorrent }) {
+    const contents = useTorrentContentsFor(torrent)
+    if (!contents) return null
+
+    return (
+        <p className="text-[--muted] text-sm flex items-center gap-1" data-torrent-contents-label>
+            <LuFiles className="text-md" />
+            {contents.files} {contents.files === 1 ? "file" : "files"}
+            {contents.folders > 0 && <>· {contents.folders} {contents.folders === 1 ? "folder" : "folders"}</>}
+        </p>
     )
 }
 
@@ -72,6 +93,7 @@ export const TorrentListItem = ({ torrent, metadata, debridCached, onClick, isSe
                 <TorrentSeedersBadge seeders={torrent.seeders} />
                 {!!torrent.size && <p className="text-gray-300 text-sm flex items-center gap-1">
                     {torrent.formattedSize}</p>}
+                <TorrentContentsLabel torrent={torrent} />
                 {torrent.date && <p className="text-[--muted] text-sm flex items-center gap-1">
                     <BiCalendarAlt /> {formatDistanceToNowSafe(torrent.date)}
                 </p>}
