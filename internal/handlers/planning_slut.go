@@ -274,8 +274,20 @@ func (h *Handler) addAnimeToPlanningSlutPlanning(ctx context.Context, mediaID in
 		ctx = context.Background()
 	}
 
+	// Explicit zeros for scoreRaw and progress, not nil.
+	//
+	// Both are sent as GraphQL variables, so a nil pointer goes over the wire as `null` and AniList
+	// rejects the whole mutation with "the score raw must be an integer" / "the progress must be an
+	// integer". Nothing about that error names the field that is actually null, and because a failed
+	// add is never recorded as done, every later attempt on the same anime tried again — one 400 per
+	// download, forever.
+	//
+	// Zero is the right value rather than merely an accepted one: this only ever runs for an anime
+	// that is on no list at all (see addAnimeToPlanningIfAbsent), so there is no score or progress
+	// here to overwrite. addMediaToPlanningSlutBatch has always sent zeros, which is why the batch
+	// path worked while this one did not.
 	status := anilist.MediaListStatusPlanning
-	_, err = client.UpdateMediaListEntry(ctx, &mediaID, &status, nil, nil, nil, nil)
+	_, err = client.UpdateMediaListEntry(ctx, &mediaID, &status, lo.ToPtr(0), lo.ToPtr(0), nil, nil)
 	return err
 }
 
