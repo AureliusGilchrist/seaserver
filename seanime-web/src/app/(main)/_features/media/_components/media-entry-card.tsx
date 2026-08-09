@@ -75,12 +75,19 @@ type MediaEntryCardProps<T extends "anime" | "manga"> = {
     /**
      * Drops both the downloading badge and the library badge.
      *
-     * Nothing sets this today. The Local Anime Library home item used to, on the grounds that every
-     * card there was already downloaded so the badge said nothing — but that grid now also carries
-     * what is still coming down, and which of the two a card is happens to be the most useful thing
-     * on it. Kept as an escape hatch for a screen where every card really is the same state.
+     * Nothing sets this today. Kept as an escape hatch for a screen where every card really is the
+     * same state, and saying so on each one would be noise.
      */
     hideDownloadBadges?: boolean
+    /**
+     * Drops the downloading badge only, leaving the library badge alone.
+     *
+     * For a grid whose membership is already "these files are in the library" — the Local Anime
+     * Library. Every card there is matched by construction, so a purple badge could only be about a
+     * *different* download of the same series (a later season still coming down), which is a fact
+     * about somewhere else and reads as though the card itself had not arrived.
+     */
+    hideDownloadingBadge?: boolean
     showTrailer?: T extends "anime" ? boolean : never
     libraryData?: T extends "anime" ? Anime_EntryLibraryData : never
     nakamaLibraryData?: T extends "anime" ? Anime_NakamaEntryLibraryData : never
@@ -116,6 +123,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
         hideReleasingBadge = false,
         showAddToPlanning = false,
         hideDownloadBadges = false,
+        hideDownloadingBadge = false,
         onHoverImage,
     } = props
 
@@ -128,7 +136,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
     const { mutate: addToPlanning, isPending: isAddingToPlanning } = useAddAnimeToPlanning(media.id)
     const isFav = type === "anime" && isFavorite(media.id)
 
-    const isCurrentlyDownloading = type === "anime" && !hideDownloadBadges && isDownloading(media.id)
+    const isCurrentlyDownloading = type === "anime" && !hideDownloadBadges && !hideDownloadingBadge && isDownloading(media.id)
 
     const prevListDataRef = React.useRef(_listData)
     const prevLibraryDataRef = React.useRef(_libraryData)
@@ -339,7 +347,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                                 trailerId={(media as any)?.trailer?.id}
                                 showProgressBar={showProgressBar}
                                 mediaId={media.id}
-                                hideDownloadingBadge={hideDownloadBadges}
+                                hideDownloadingBadge={hideDownloadBadges || hideDownloadingBadge}
                                 progress={listData?.progress}
                                 progressTotal={progressTotal}
                                 showTrailer={showTrailer}

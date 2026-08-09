@@ -10,7 +10,6 @@ import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-l
 import { IgnoredFileManager } from "@/app/(main)/(library)/_containers/ignored-file-manager"
 import { __scanner_modalIsOpen } from "@/app/(main)/(library)/_containers/scanner-modal"
 import { UnknownMediaManager } from "@/app/(main)/(library)/_containers/unknown-media-manager"
-import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { DEFAULT_HOME_ITEMS, HOME_ITEMS, isAnimeLibraryItemsOnly } from "@/app/(main)/(library)/_home/home-items.utils"
 import { __home_settingsModalOpen, HomeSettingsModal } from "@/app/(main)/(library)/_home/home-settings-modal"
 import { HomeToolbar } from "@/app/(main)/(library)/_home/home-toolbar"
@@ -757,6 +756,40 @@ export function ComingSoonPlaceholder({ title }: { title: string }) {
 }
 
 /**
+ * Where downloads land before they are matched, used only when the setting has not loaded yet.
+ *
+ * The same default the settings form carries. A hardcoded path is not something to be pleased about,
+ * but the alternative is worse: with nothing to compare against, a staging directory that has been
+ * scanned into the library shows up in the local library grid, which is the one thing that grid must
+ * never do.
+ */
+const DEFAULT_STAGING_DIR = "/zroot/torrents/Anime/Unmatched"
+
+/**
+ * Whether a path sits inside a directory, or is that directory itself.
+ *
+ * Separators are normalised because the two sides come from different places — the library path is
+ * what was typed into settings, the file path is what the scanner walked — and a trailing slash or a
+ * stray backslash on either would otherwise read as a different folder entirely.
+ *
+ * Compared case-insensitively. That is wrong on a case-sensitive filesystem in the strictest sense,
+ * but the failure it prevents (a library that silently shows nothing because settings say `/zroot`
+ * and the scanner recorded `/Zroot`) is far worse than the one it allows, which requires two folders
+ * differing only in case.
+ *
+ * The boundary matters: `/Anime` must not match `/Anime Movies`, so a prefix is only a parent when
+ * the next character is a separator.
+ */
+export function pathIsUnder(path: string | undefined | null, dir: string): boolean {
+    if (!path) return false
+    const normalize = (p: string) => p.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase()
+    const p = normalize(path)
+    const d = normalize(dir)
+    if (!d) return false
+    return p === d || p.startsWith(d + "/")
+}
+
+/**
  * Unmatched folders all arrive with media id 0, so they need something else to be told apart by.
  * Their title is their directory name.
  */
@@ -774,27 +807,40 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
     const [searchInput, setSearchInput] = React.useState("")
     const [debouncedSearch] = useDebounce(searchInput, 250)
 
-    // This grid is the whole local library: every anime with files on disk, wherever it sits.
+    // This grid is the library folder, and only the library folder.
     //
-    // An entry earns a place by having local files — never by being on a list. Every list is walked,
-    // including CURRENT and the server's LOCAL list, which is where anything downloaded but never
-    // added to an AniList list ends up. Excluding lists meant a show could be on disk and absent from
-    // the one grid whose whole job is to show what is on disk.
+    // An entry earns a place by having files under the configured library path — never by being on a
+    // list, and never by being on its way. Every list is walked, including CURRENT and the server's
+    // LOCAL list (where anything downloaded but never added to an AniList list ends up), because what
+    // decides membership is where the files are, not which shelf the anime sits on.
     //
-    // Anything downloading is here too, badged as such rather than withheld until it lands. A queued
-    // series is part of the library in the sense that matters — you are not going to queue it twice —
-    // and its card says which of the two it is. That is also why libraryData alone is not the test:
-    // a download that has not produced a file yet has none.
+    // Files elsewhere do not count: a download still in the staging area, a series streamed from a
+    // Nakama peer, or anything left under an old library path is not in this folder, and this grid
+    // answers "what is in that folder". Anything still coming down has nothing there yet, so it is
+    // absent until its files land — at which point it appears, already downloaded.
     //
     // Filtering is unconditional. It used to be skipped while the collection was still light (no
     // entry carries library data until the full collection arrives) to avoid the grid flashing
     // empty — but that traded a flash for showing the entire library, which is worse and lasts as
     // long as the full data takes. An empty moment is the honest answer.
-    const { isDownloading } = useDownloadingAnime()
+    const libraryPath = serverStatus?.settings?.library?.libraryPath
+    const stagingPath = serverStatus?.settings?.torrent?.builtinDownloadDir || DEFAULT_STAGING_DIR
     const localEntries: Anime_LibraryCollectionEntry[] = React.useMemo(() => {
         if (!collectionList?.length) return []
+        const isInLibraryFolder = (entry: Anime_LibraryCollectionEntry) => {
+            if (!entry.libraryData) return false
+            const path = entry.libraryData.sharedPath
+            // The staging area is never the library, and this is checked before anything else so it
+            // holds even in the fallback below. A download sitting in there is a download; it becomes
+            // part of the library when a match moves it out, and not one moment sooner.
+            if (pathIsUnder(path, stagingPath)) return false
+            // Until the library path is known, having files is the best answer available — better
+            // than an empty grid on a slow settings load.
+            if (!libraryPath) return true
+            return pathIsUnder(path, libraryPath)
+        }
         const allEntries: Anime_LibraryCollectionEntry[] = collectionList
-            .flatMap(l => (l.entries ?? []).filter(e => !!e && (!!e.libraryData || isDownloading(e.mediaId))))
+            .flatMap(l => (l.entries ?? []).filter(e => !!e && isInLibraryFolder(e)))
             .filter(Boolean)
         // Media id 0 is every unmatched folder at once, so those are kept apart by title instead.
         const seen = new Set<string>()
@@ -823,7 +869,7 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
         // Sort alphabetically
         filtered.sort((a, b) => (a.media?.title?.userPreferred ?? "").localeCompare(b.media?.title?.userPreferred ?? ""))
         return filtered
-    }, [collectionList, serverStatus?.settings?.anilist?.enableAdultContent, debouncedSearch, isDownloading])
+    }, [collectionList, serverStatus?.settings?.anilist?.enableAdultContent, debouncedSearch, libraryPath, stagingPath])
 
     if (props.libraryCollectionProps.isLoading) return <LoadingSpinner />
     // Keep the section (and its search box) mounted when a search simply matched nothing.
@@ -849,6 +895,7 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                                 withAudienceScore={false}
                                 type="anime"
                                 containerClassName="basis-[200px] md:basis-[250px] mx-2 mt-8 mb-0"
+                                hideDownloadingBadge
                             />
                         ))}
                     </CarouselContent>
@@ -873,8 +920,8 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
             <PaginatedMediaGrid
                 items={localEntries}
                 renderItem={entry => (
-                    // Badges are left on: on this grid they are the difference between a series that
-                    // has landed and one still coming down, which is the question you ask of it.
+                    // Every card here is matched by construction, so it wears the downloaded badge
+                    // and never the downloading one — see hideDownloadingBadge.
                     <MediaEntryCard
                         key={localEntryKey(entry)}
                         media={entry.media!}
@@ -884,6 +931,7 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                         showListDataButton
                         withAudienceScore={false}
                         type="anime"
+                        hideDownloadingBadge
                     />
                 )}
             />
