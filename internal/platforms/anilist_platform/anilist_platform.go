@@ -152,14 +152,26 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 			*event.Progress = realTotalCount
 		}
 
-		// Auto-set startedAt on first progress, completedAt on completion
+		// Fill in the dates the entry does not have, and never touch the ones it does.
+		//
+		// A date already on the entry is a fact about when you actually watched something — typed in
+		// by hand, imported from MAL, or set by an earlier watch — and today's date is not a better
+		// answer than that. The previous version wrote both dates blind, so finishing a rewatch
+		// silently replaced the day you first completed a series with today, and starting one
+		// replaced the day you first began it.
+		//
+		// Started is also no longer keyed to progress being exactly 1. Jumping straight to episode 3,
+		// or having the first file you watch be episode 2, is ordinary — the old check meant those
+		// entries never got a start date at all. Any progress at all means you have started it.
+		hasStartedAt, hasCompletedAt := ap.entryHasDates(mediaID)
+
 		now := time.Now()
 		year, monthVal, day := now.Year(), int(now.Month()), now.Day()
 		var startedAt, completedAt *anilist.FuzzyDateInput
-		if *event.Progress == 1 {
+		if *event.Progress >= 1 && !hasStartedAt {
 			startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
 		}
-		if realTotalCount > 0 && *event.Progress >= realTotalCount {
+		if realTotalCount > 0 && *event.Progress >= realTotalCount && !hasCompletedAt {
 			completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
 		}
 
@@ -175,6 +187,32 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 		)
 		return err
 	})
+}
+
+// entryHasDates reports whether the entry already carries a start date and a completion date.
+//
+// A fuzzy date with no year is AniList's way of saying "unset" — the object is present but empty —
+// so the year is what decides, not the pointer.
+//
+// Read from the collection already in memory rather than fetched: this runs on the path that marks
+// an episode watched, which must not wait on a round trip, and a collection that is a few minutes
+// stale can only be wrong about a date set from another device in that window. The cost of being
+// wrong is one date left as it was, which is the safe direction.
+func (ap *AnilistPlatform) entryHasDates(mediaID int) (hasStartedAt bool, hasCompletedAt bool) {
+	if ap.rawAnimeCollection.IsAbsent() {
+		return false, false
+	}
+	entry, found := ap.rawAnimeCollection.MustGet().GetListEntryFromAnimeId(mediaID)
+	if !found || entry == nil {
+		return false, false
+	}
+	if sa := entry.GetStartedAt(); sa != nil && sa.GetYear() != nil && *sa.GetYear() > 0 {
+		hasStartedAt = true
+	}
+	if ca := entry.GetCompletedAt(); ca != nil && ca.GetYear() != nil && *ca.GetYear() > 0 {
+		hasCompletedAt = true
+	}
+	return hasStartedAt, hasCompletedAt
 }
 
 func (ap *AnilistPlatform) UpdateEntryRepeat(ctx context.Context, mediaID int, repeat int) error {

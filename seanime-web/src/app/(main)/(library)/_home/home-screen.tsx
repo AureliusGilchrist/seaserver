@@ -2,6 +2,7 @@ import { AL_ListRecentAnime_Page_AiringSchedules, Anime_LibraryCollectionEntry, 
 import { useAnilistListAnime, useAnilistListRecentAiringAnime } from "@/api/hooks/anilist.hooks"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useAnilistListManga } from "@/api/hooks/manga.hooks"
+import { useGetAnimeGojuuonMap } from "@/api/hooks/services.hooks"
 import { useGetHomeItems } from "@/api/hooks/status.hooks"
 import { LibraryHeader } from "@/app/(main)/(library)/_components/library-header"
 import { BulkActionModal } from "@/app/(main)/(library)/_containers/bulk-action-modal"
@@ -31,6 +32,7 @@ import { cn } from "@/components/ui/core/styling"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
+import { sortByGojuuon } from "@/lib/helpers/filtering"
 import { useDebounce } from "use-debounce"
 import { addDays } from "date-fns/addDays"
 import { atom, useAtomValue, useSetAtom } from "jotai"
@@ -825,6 +827,7 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
     // long as the full data takes. An empty moment is the honest answer.
     const libraryPath = serverStatus?.settings?.library?.libraryPath
     const stagingPath = serverStatus?.settings?.torrent?.builtinDownloadDir || DEFAULT_STAGING_DIR
+    const { data: gojuuonMap } = useGetAnimeGojuuonMap()
     const localEntries: Anime_LibraryCollectionEntry[] = React.useMemo(() => {
         if (!collectionList?.length) return []
         const isInLibraryFolder = (entry: Anime_LibraryCollectionEntry) => {
@@ -866,10 +869,12 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                     || e.media?.synonyms?.some(s => s?.toLowerCase().includes(q))
             })
         }
-        // Sort alphabetically
-        filtered.sort((a, b) => (a.media?.title?.userPreferred ?? "").localeCompare(b.media?.title?.userPreferred ?? ""))
-        return filtered
-    }, [collectionList, serverStatus?.settings?.anilist?.enableAdultContent, debouncedSearch, libraryPath, stagingPath])
+        // Gojuuon order: kana ordering by title, with a franchise kept together and in chronological
+        // order under its root when the server's map knows about it. The same ordering the rest of
+        // the collection offers, rather than a plain A-Z that puts 「うたわれるもの」 wherever its romaji
+        // spelling happens to land.
+        return sortByGojuuon(filtered, gojuuonMap)
+    }, [collectionList, serverStatus?.settings?.anilist?.enableAdultContent, debouncedSearch, libraryPath, stagingPath, gojuuonMap])
 
     if (props.libraryCollectionProps.isLoading) return <LoadingSpinner />
     // Keep the section (and its search box) mounted when a search simply matched nothing.

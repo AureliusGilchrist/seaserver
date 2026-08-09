@@ -178,7 +178,7 @@ function getParamValue<T extends any>(value: T | ""): any {
     return value
 }
 
-function sortByGojuuon<T extends { media?: { id?: number; title?: any } }>(arr: T[], gojuuonMap: Record<number, GojuuonSortEntry> | null | undefined) {
+export function sortByGojuuon<T extends { media?: { id?: number; title?: any } }>(arr: T[], gojuuonMap: Record<number, GojuuonSortEntry> | null | undefined) {
     // Character-by-character gojuuon ordering using `gojuuonSortKey`. Works
     // without any server scan — the moment the user switches to "Gojuuon",
     // entries are sorted by their romaji/userPreferred title using the row

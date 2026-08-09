@@ -104,7 +104,28 @@ export const TorrentTable = memo((
                                     }
                                 }
 
-                                const isBatch = torrent.isBatch ?? (!anilist_animeIsSingleEpisode(entry?.media) && (metadata?.metadata?.episode_number?.length ?? 0) > 1 || (metadata?.metadata?.episode_number?.length ?? 0) == 0)
+                                const parsedEpisodeCount = metadata?.metadata?.episode_number?.length ?? 0
+
+                                const isBatch = torrent.isBatch ?? (
+                                    (!anilist_animeIsSingleEpisode(entry?.media) && parsedEpisodeCount > 1)
+                                    || parsedEpisodeCount === 0
+                                )
+
+                                // Only claim a single episode when the release actually parsed as one.
+                                //
+                                // This name overrides everything the preview item can work out for itself —
+                                // "Episodes 1 to 12", "Seasons 1 and 2", "Batch" — so handing it a number
+                                // pulled from a release that is not a single episode replaced a correct
+                                // description with a wrong one. A season pack whose title happens to carry one
+                                // number (a season, a part, a year, one end of a range the parser only half
+                                // read) was labelled "Episode 2" and read as though it held one file.
+                                //
+                                // When this is empty the preview item derives the title from the parsed
+                                // metadata instead, which is the thing that knows about ranges.
+                                const isSingleEpisode = !isBatch && parsedEpisodeCount === 1
+                                const episodeDisplayName = (isSingleEpisode && (episodeNumber ?? -1) >= 0)
+                                    ? `Episode ${episodeNumber}`
+                                    : ""
 
                                 let episodeImage: string | undefined
                                 if (!!animeMetadata && (episodeNumber ?? -1) >= 0) {
@@ -134,9 +155,7 @@ export const TorrentTable = memo((
                                         onClick={() => onToggleTorrent(torrent!)}
                                         overrideProps={{
                                             releaseGroup: releaseGroup,
-                                            displayName: (episodeNumber ?? -1) >= 0
-                                                ? `Episode ${episodeNumber}`
-                                                : "",
+                                            displayName: episodeDisplayName,
                                             isBatch: torrent.isBestRelease ? true : isBatch,
                                             image: distance <= 20 ? episodeImage : undefined,
                                             fallbackImage: (entry?.media?.coverImage?.large || entry?.media?.bannerImage),
