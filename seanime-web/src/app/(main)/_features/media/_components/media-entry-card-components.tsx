@@ -1,7 +1,7 @@
 import { AL_BaseAnime_NextAiringEpisode, AL_MediaListStatus, AL_MediaStatus } from "@/api/generated/types"
 import { ElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
 import { MediaCardBodyBottomGradient } from "@/app/(main)/_features/custom-ui/item-bottom-gradients"
-import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
+import { AnimeDownloadingBadge, useIsAnimeDownloading } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import { MediaEntryProgressBadge } from "@/app/(main)/_features/media/_components/media-entry-progress-badge"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -352,6 +352,20 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
         ...rest
     } = props
 
+    // One download-state badge per card, never two, and never the wrong one.
+    //
+    // The rule is downloading, then downloaded, then nothing — a series that is partly on disk and
+    // still pulling reads as "still coming", because that is the fact that decides what you do next.
+    //
+    // Read here rather than taken on trust from the caller. The `isDownloading` prop is honoured when
+    // it is given (it is also how a caller says "no download badges at all", by passing false), but a
+    // card that simply asked for the library badge and said nothing about downloads used to claim you
+    // had a series that was in fact still coming down. The two states cannot be decided in different
+    // places and stay consistent.
+    const downloadingFromState = useIsAnimeDownloading(mediaId)
+    const isDownloadingNow = isDownloading ?? downloadingFromState
+    const showDownloadedBadge = !!showLibraryBadge && !isDownloadingNow
+
     return (
         <>
             <SeaLink
@@ -391,19 +405,23 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
                         </div>
                     )}
 
-                    {/* An unfinished download wins over the library badge: a series that is
-                     partly downloaded should read as "still coming", not as "you have it". */}
-                    {(showLibraryBadge && !isDownloading) &&
+                    {/* Downloaded. Same corner and same shape as the downloading badge below, which
+                     is what makes the pair readable at a glance: one orange, one purple, never both. */}
+                    {showDownloadedBadge &&
                         <div data-media-entry-card-body-library-badge className="absolute z-[1] left-0 top-0">
                             <Badge
                                 size="xl" intent="warning-solid"
+                                title="Downloaded"
+                                aria-label="Downloaded"
                                 className="rounded-[--radius] rounded-bl-none rounded-tr-none text-orange-900"
                             ><IoLibrarySharp /></Badge>
                         </div>}
 
-                    {/* Pinned to the cover art itself, above the gradient, the adult-content blur
-                     and any trailer playing on hover — at z-1 it was being painted over. */}
-                    <AnimeDownloadingBadge mediaId={mediaId} variant="overlay" />
+                    {/* Downloading. Pinned to the cover art itself, above the gradient, the
+                     adult-content blur and any trailer playing on hover — at z-1 it was being
+                     painted over. Renders nothing when the anime is not downloading, and the badge
+                     above is suppressed whenever this one appears. */}
+                    {isDownloadingNow && <AnimeDownloadingBadge mediaId={mediaId} variant="overlay" />}
 
                     {/*RELEASING BADGE*/}
                     {(status === "RELEASING" || status === "NOT_YET_RELEASED") && !hideReleasingBadge &&
