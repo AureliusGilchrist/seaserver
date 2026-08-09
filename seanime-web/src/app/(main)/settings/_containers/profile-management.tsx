@@ -9,7 +9,7 @@ import {
 } from "@/api/hooks/profiles.hooks"
 import { useAdminSetProfileAniListToken, useDeletePlanningSlutToken, useGetPlanningSlutInfo, useSavePlanningSlutToken } from "@/api/hooks/admin.hooks"
 import { SeaLink } from "@/components/shared/sea-link"
-import { ANILIST_PIN_URL } from "@/lib/server/config"
+import { AnilistTokenButton } from "@/components/shared/anilist-token-button"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { SettingsCard, SettingsPageHeader } from "@/app/(main)/settings/_components/settings-card"
 import { Avatar } from "@/components/ui/avatar"
@@ -536,9 +536,7 @@ function PlanningSlutTokenCard() {
                 </div>
                 {expanded && (
                     <div className="mt-3 space-y-2">
-                        <SeaLink href={ANILIST_PIN_URL} target="_blank">
-                            <Button intent="white" size="sm">Get AniList token</Button>
-                        </SeaLink>
+                        <AnilistTokenButton intent="white" size="sm" />
                         <textarea
                             value={token}
                             onChange={(e) => setToken(e.target.value)}
