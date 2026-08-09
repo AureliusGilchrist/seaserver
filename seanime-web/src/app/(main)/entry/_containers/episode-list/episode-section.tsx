@@ -106,7 +106,20 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
     //     </div>
     // }
 
-    if (!!media && ((!entry.listData && !entry._isNakamaEntry) || !entry.libraryData) && !serverStatus?.isOffline) {
+    // Episodes show for anything you actually have, whether or not it is on your own AniList list.
+    //
+    // Requiring a list entry made your account's list a precondition for watching your own files: an
+    // anime downloaded and matched — tracked on the shared account, which is what the server uses to
+    // describe itself — showed "add this item to your library" over a folder full of episodes. The
+    // files are the library. A list is how *you* choose to record what you have watched, and that is
+    // what the list controls on this page are for; they still write to your own AniList, so adding to
+    // planning, setting progress and the rest are unchanged and unaffected by this.
+    //
+    // A Nakama entry is the exception the original condition already made: there the files are on
+    // someone else's machine, so libraryData is the only evidence they exist at all.
+    const hasEpisodesToShow = !!entry.libraryData || (!!entry.listData && !entry._isNakamaEntry)
+
+    if (!!media && !hasEpisodesToShow && !serverStatus?.isOffline) {
         return <div className="space-y-10">
             {media?.status !== "NOT_YET_RELEASED"
                 ? <h4 className="text-yellow-50 flex items-center gap-2"><IoLibrarySharp /> {entry._isNakamaEntry

@@ -12,6 +12,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
@@ -19,6 +21,49 @@ import (
 )
 
 const MediaListStatusLocal anilist.MediaListStatus = "LOCAL"
+
+// localEntryMedia is the last good description of an anime that exists only as local files.
+//
+// The platform caches successful lookups, but nothing remembers them across a failure: a rate-limited
+// or cancelled fetch returned an error, the collection fell back to a bare ID, and the card went blank
+// — art, title and all — while the files sat there perfectly fine. That is a display of the fetch,
+// not of the library. So the last answer is kept and reused whenever a later fetch cannot better it.
+//
+// Held for the life of the process. It is at most a few hundred small structs, and it describes
+// something that does not change.
+var localEntryMedia = struct {
+	sync.Mutex
+	byID map[int]*anilist.BaseAnime
+}{byID: make(map[int]*anilist.BaseAnime)}
+
+func rememberLocalEntryMedia(mediaID int, media *anilist.BaseAnime) {
+	if mediaID <= 0 || media == nil {
+		return
+	}
+	localEntryMedia.Lock()
+	defer localEntryMedia.Unlock()
+	localEntryMedia.byID[mediaID] = media
+}
+
+func recallLocalEntryMedia(mediaID int) *anilist.BaseAnime {
+	localEntryMedia.Lock()
+	defer localEntryMedia.Unlock()
+	return localEntryMedia.byID[mediaID]
+}
+
+// folderTitleForLocalFiles names an anime after the directory holding its files, for when nothing
+// else is known about it.
+func folderTitleForLocalFiles(lfs []*LocalFile) string {
+	for _, lf := range lfs {
+		if lf == nil || lf.Path == "" {
+			continue
+		}
+		if dir := filepath.Base(filepath.Dir(lf.GetPath())); dir != "" && dir != "." && dir != string(filepath.Separator) {
+			return dir
+		}
+	}
+	return ""
+}
 
 type (
 	// LibraryCollection holds the main data for the library collection.
@@ -441,7 +486,17 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 		})
 	}
 
-	// For matched files (MediaId > 0 and not already in AniList lists), hydrate with AniList data
+	// For matched files (MediaId > 0 and not already in AniList lists), hydrate with AniList data.
+	//
+	// These are the entries nothing else describes: not on any list, so the collection carries no
+	// title, no cover and no format for them, and every one of those has to be fetched by ID. It is
+	// also the largest group on a server that downloads a lot, which is what makes the details below
+	// matter — done naively this is where a library turns into a wall of blank cards.
+	type localCandidate struct {
+		mediaID int
+		lfs     []*LocalFile
+	}
+	candidates := make([]localCandidate, 0, len(groupedLfs))
 	for mId, entryLfs := range groupedLfs {
 		if mId == 0 {
 			continue // already handled above
@@ -449,28 +504,67 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 		if _, ok := existingIds[mId]; ok {
 			continue // already in AniList lists
 		}
+		candidates = append(candidates, localCandidate{mediaID: mId, lfs: entryLfs})
+	}
 
-		libraryData, _ := NewEntryLibraryData(&NewEntryLibraryDataOptions{
-			EntryLocalFiles: entryLfs,
-			MediaId:         mId,
-			CurrentProgress: 0,
-		})
+	if len(candidates) > 0 {
+		// Detached from the request. This collection is polled every few seconds, so the request's
+		// context is cancelled routinely and often before a few dozen rate-limited AniList lookups
+		// can finish — and a cancelled lookup used to mean a permanently blank card, because the
+		// failure cached nothing and the next poll started from the same place. Fetching on a context
+		// of its own means the work survives the request that triggered it and lands in the platform's
+		// cache, so the following poll is served from memory.
+		fetchCtx, cancelFetch := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancelFetch()
 
-		media := &anilist.BaseAnime{ID: mId}
-		if platformRef != nil {
-			if plat := platformRef.Get(); plat != nil {
-				if ba, err := plat.GetAnime(ctx, mId); err == nil && ba != nil {
-					media = ba
+		p3 := pool.NewWithResults[*LibraryCollectionEntry]().WithMaxGoroutines(8)
+		for _, candidate := range candidates {
+			p3.Go(func() *LibraryCollectionEntry {
+				libraryData, _ := NewEntryLibraryData(&NewEntryLibraryDataOptions{
+					EntryLocalFiles: candidate.lfs,
+					MediaId:         candidate.mediaID,
+					CurrentProgress: 0,
+				})
+
+				var media *anilist.BaseAnime
+				if platformRef != nil {
+					if plat := platformRef.Get(); plat != nil {
+						if ba, err := plat.GetAnime(fetchCtx, candidate.mediaID); err == nil && ba != nil {
+							media = ba
+							rememberLocalEntryMedia(candidate.mediaID, ba)
+						}
+					}
 				}
-			}
-		}
+				// A lookup that failed this time does not undo one that succeeded earlier. Without
+				// this, one rate-limited fetch replaced a fully described anime with a bare ID —
+				// a card with no art and no title — until the server was restarted.
+				if media == nil {
+					media = recallLocalEntryMedia(candidate.mediaID)
+				}
+				// Nothing known at all: name it after the folder its files are in, the same way an
+				// unmatched group is named. An anime you can read the name of is worth more than an
+				// anime-shaped hole, and it tells you which folder to go and look at.
+				if media == nil {
+					media = &anilist.BaseAnime{ID: candidate.mediaID}
+					if title := folderTitleForLocalFiles(candidate.lfs); title != "" {
+						media.Title = &anilist.BaseAnime_Title{
+							UserPreferred: lo.ToPtr(title),
+							Romaji:        lo.ToPtr(title),
+							English:       lo.ToPtr(title),
+							Native:        lo.ToPtr(title),
+						}
+					}
+				}
 
-		localEntries = append(localEntries, &LibraryCollectionEntry{
-			MediaId:          mId,
-			Media:            media,
-			EntryLibraryData: libraryData,
-			EntryListData:    nil,
-		})
+				return &LibraryCollectionEntry{
+					MediaId:          candidate.mediaID,
+					Media:            media,
+					EntryLibraryData: libraryData,
+					EntryListData:    nil,
+				}
+			})
+		}
+		localEntries = append(localEntries, p3.Wait()...)
 	}
 
 	if len(localEntries) > 0 {

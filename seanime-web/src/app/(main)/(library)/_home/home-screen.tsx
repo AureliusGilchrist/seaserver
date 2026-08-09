@@ -895,7 +895,7 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                                 withAudienceScore={false}
                                 type="anime"
                                 containerClassName="basis-[200px] md:basis-[250px] mx-2 mt-8 mb-0"
-                                hideDownloadingBadge
+                                hideDownloadBadges
                             />
                         ))}
                     </CarouselContent>
@@ -920,8 +920,10 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
             <PaginatedMediaGrid
                 items={localEntries}
                 renderItem={entry => (
-                    // Every card here is matched by construction, so it wears the downloaded badge
-                    // and never the downloading one — see hideDownloadingBadge.
+                    // Every card here is in the library by construction, so neither badge says
+                    // anything: "downloaded" is the entry requirement, and "downloading" would be
+                    // about some other download of the same series. Both are noise here and are
+                    // shown everywhere else — see hideDownloadBadges.
                     <MediaEntryCard
                         key={localEntryKey(entry)}
                         media={entry.media!}
@@ -931,7 +933,7 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                         showListDataButton
                         withAudienceScore={false}
                         type="anime"
-                        hideDownloadingBadge
+                        hideDownloadBadges
                     />
                 )}
             />
