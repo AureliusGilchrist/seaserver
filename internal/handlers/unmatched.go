@@ -212,6 +212,14 @@ func (h *Handler) FinalizeUnmatchedMatch(reqCopy unmatched.MatchRequest, resultC
 			}()
 		}
 
+		// The files are in the library now, so say so. Without this the anime only stops being
+		// reported as downloading, and the client treats silence as inconclusive — it waits several
+		// polls, or ten minutes for a download it never saw confirmed, before taking the badge down.
+		// A match is the one unambiguous "this is finished" there is; see unmatched.MarkAnimeMatched.
+		if reqCopy.AnimeID > 0 && len(resultCopy.MovedFiles) > 0 {
+			unmatched.MarkAnimeMatched(reqCopy.AnimeID)
+		}
+
 		// Auto-add to Planning list — but only when the anime isn't already on a list. Writing
 		// over an existing entry would reset it to PLANNING and discard its progress.
 		if reqCopy.AnimeID > 0 {

@@ -11,7 +11,9 @@ import (
 	"seanime/internal/torrent_clients/torrent_client"
 	"seanime/internal/unmatched"
 	"seanime/internal/util"
+	"seanime/internal/util/result"
 	"sort"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -98,6 +100,11 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 	downloading := make(map[int]struct{})
 	finished := make(map[int]struct{})
 
+	// Anime the torrent client is, right now, actively pulling. Kept apart from `downloading` because
+	// it is the only first-hand evidence in this handler — everything else is inferred from what is
+	// lying in the staging area, and leftovers there outlive the download they came from.
+	clientIsPulling := make(map[int]struct{})
+
 	// What the torrent client says, keyed by the staging directory each torrent is writing into.
 	// Asked once for the whole request — this route is polled, and it must never start the client
 	// or fail: no reachable client simply means the disk has to answer on its own below.
@@ -130,6 +137,7 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 					finished[metadata.AnimeID] = struct{}{}
 				} else {
 					downloading[metadata.AnimeID] = struct{}{}
+					clientIsPulling[metadata.AnimeID] = struct{}{}
 				}
 			}
 		}
@@ -153,6 +161,37 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 				downloading[metadata.AnimeID] = struct{}{}
 			}
 		}
+	}
+
+	// Anything already in the library is downloaded, whatever the staging area still says.
+	//
+	// This is the rule the two loops above cannot express, because both reason about downloads rather
+	// than about the library. A dealt-with anime kept reading as "downloading" in two ways: a partial
+	// match keeps its staging directory (video files are still in it) but deletes the sidecar, so the
+	// directory survives as evidence of a download that has already been dealt with, and with the
+	// torrent long gone from the client there is nothing left to call it finished by. A full match
+	// removes the directory, which only makes the anime stop being *mentioned* — and silence is not
+	// "finished", so the badge waited out several polls, or ten minutes for a download the server
+	// never confirmed.
+	//
+	// Files on disk settle both cases and every older one with them: an anime whose episodes are in
+	// the library is not something you are waiting for, no matter what was left behind in staging
+	// months ago. Recent matches are included because a match can land between two polls of the
+	// library, and the answer must not flicker in that gap.
+	//
+	// The exception is the torrent client actively pulling for that anime right now: a second season
+	// coming down while the first is on disk is a real download, and first-hand evidence from the
+	// client beats an inference from the library.
+	settled := unmatched.RecentlyMatchedAnime()
+	for animeID := range h.animeWithLocalFiles() {
+		settled[animeID] = struct{}{}
+	}
+	for animeID := range settled {
+		if _, pulling := clientIsPulling[animeID]; pulling {
+			continue
+		}
+		delete(downloading, animeID)
+		finished[animeID] = struct{}{}
 	}
 
 	res := DownloadingMediaStatus{
@@ -185,6 +224,44 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 //
 // Failing both, the download counts as still running. The badge is meant to stay up until
 // something says otherwise, and "nobody has anything to say about this one" is not that.
+// animeWithLocalFilesCache holds the answer for a few polls at a time.
+//
+// This route is polled every ten seconds by every open client, and the local file list is one row
+// holding the whole library as JSON — a thousand-odd files' worth of parsing to answer a question
+// whose answer changes only when a scan or a match runs. Short enough that a match shows up almost
+// at once, and matches mark themselves anyway (see unmatched.MarkAnimeMatched), so the cache is
+// never what a freshly finished download is waiting on.
+var animeWithLocalFilesCache = result.NewCache[int, map[int]struct{}]()
+
+const animeWithLocalFilesTTL = 30 * time.Second
+
+// animeWithLocalFiles returns every anime with at least one non-ignored file in the library.
+//
+// Ignored files do not count: an anime you have deliberately pushed out of the library is not one
+// you have. An error reading the library returns nothing, which leaves the download state to the
+// staging area alone — the same answer as before this existed.
+func (h *Handler) animeWithLocalFiles() map[int]struct{} {
+	if cached, ok := animeWithLocalFilesCache.Get(1); ok {
+		return cached
+	}
+
+	ids := make(map[int]struct{})
+	lfs, _, err := db_bridge.GetLocalFiles(h.App.Database)
+	if err != nil {
+		h.App.Logger.Debug().Err(err).Msg("torrent client: Could not read local files for download state")
+		return ids
+	}
+	for _, lf := range lfs {
+		if lf == nil || lf.MediaId <= 0 || lf.Ignored {
+			continue
+		}
+		ids[lf.MediaId] = struct{}{}
+	}
+
+	animeWithLocalFilesCache.SetT(1, ids, animeWithLocalFilesTTL)
+	return ids
+}
+
 func (h *Handler) stagingDownloadFinished(dirName string, clientSaysFinished map[string]bool) bool {
 	if isFinished, ok := clientSaysFinished[dirName]; ok {
 		return isFinished
