@@ -56,6 +56,69 @@ type Scanner struct {
 	// fingerprints records what each directory looked like the last time it was measured, for the
 	// settle check.
 	fingerprints map[string]dirFingerprint
+
+	// loggedVerdicts remembers the last thing said about each directory, so a download that is
+	// simply taking a while is reported once instead of on every pass. See noteVerdict.
+	loggedVerdicts map[string]CompletionState
+
+	// verifying holds the directories a verification goroutine is currently working on, so a second
+	// one is never started for the same directory. See beginVerifying.
+	verifying map[string]bool
+}
+
+// beginVerifying claims a directory for verification, reporting false when another goroutine
+// already holds it. Release with finishVerifying.
+//
+// A scan pass launches one goroutine per staging directory, each of which sleeps and then measures
+// the directory. Passes are also triggered by file-system events — and a download in progress is
+// nothing but file-system events, hundreds a second, in the very directory being measured. So every
+// unfinished download accumulated verification goroutines for as long as it ran: dozens of them
+// awake at once, each walking the whole directory tree looking for temp files, each asking the
+// torrent client, each writing the same line to the log. That is what turned one slow download into
+// pages of identical output and a steady background load of directory walks over a large,
+// possibly remote, tree.
+//
+// One at a time per directory is all that was ever wanted; the answer does not get truer for being
+// computed fifty times in parallel.
+func (s *Scanner) beginVerifying(torrent string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.verifying == nil {
+		s.verifying = make(map[string]bool)
+	}
+	if s.verifying[torrent] {
+		return false
+	}
+	s.verifying[torrent] = true
+	return true
+}
+
+func (s *Scanner) finishVerifying(torrent string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.verifying, torrent)
+}
+
+// noteVerdict reports whether this verdict is worth writing to the log: it is, only when it differs
+// from the last one recorded for this directory.
+//
+// The scan runs every few seconds and re-verifies every staging directory it has not yet accepted,
+// so without this a single long download writes the same line hundreds of times and buries
+// everything else in the log. What is worth knowing is that the state changed, not that it has
+// persisted for another few seconds.
+func (s *Scanner) noteVerdict(torrent string, verdict CompletionState) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.loggedVerdicts == nil {
+		s.loggedVerdicts = make(map[string]CompletionState)
+	}
+	if previous, ok := s.loggedVerdicts[torrent]; ok && previous == verdict {
+		return false
+	}
+	s.loggedVerdicts[torrent] = verdict
+	return true
 }
 
 // TorrentState is the part of a torrent client's report that says whether a download is done and
@@ -427,8 +490,17 @@ func (s *Scanner) scanForCompletedDownloads() {
 			continue
 		}
 
+		// One verification at a time per directory. Passes come far faster than a verification
+		// takes — a download in progress triggers them itself, through the watcher — so without
+		// this the goroutines stack up on the same directory for the whole download.
+		if !s.beginVerifying(rel) {
+			continue
+		}
+
 		// No temp files detected — verify asynchronously to avoid blocking other directories
 		go func(torrentRel, torrentPath string) {
+			defer s.finishVerifying(torrentRel)
+
 			time.Sleep(s.verifyDelay)
 			if s.hasTempFiles(torrentPath) {
 				return
@@ -443,15 +515,21 @@ func (s *Scanner) scanForCompletedDownloads() {
 			verdict := s.completionState(torrentRel)
 			switch verdict {
 			case CompletionDownloading:
-				s.logger.Debug().Str("torrent", torrentRel).
-					Msg("unmatched scanner: Torrent client reports this download is still in progress")
+				// Said once per state change, not once per pass — a download that takes an hour
+				// should cost one line, not one line every few seconds for an hour.
+				if s.noteVerdict(torrentRel, verdict) {
+					s.logger.Debug().Str("torrent", torrentRel).
+						Msg("unmatched scanner: Torrent client reports this download is still in progress")
+				}
 				return
 			case CompletionFinished:
 				// The client is the authority — no waiting needed.
 			default:
 				if !s.looksSettled(torrentRel, torrentPath) {
-					s.logger.Debug().Str("torrent", torrentRel).
-						Msg("unmatched scanner: Torrent client has no record of this download, waiting for it to stop changing")
+					if s.noteVerdict(torrentRel, verdict) {
+						s.logger.Debug().Str("torrent", torrentRel).
+							Msg("unmatched scanner: Torrent client has no record of this download, waiting for it to stop changing")
+					}
 					return
 				}
 			}
@@ -464,6 +542,10 @@ func (s *Scanner) scanForCompletedDownloads() {
 				}
 			}
 			s.completedTorrents = append(s.completedTorrents, torrentRel)
+			// Forgotten now it is done, so that if this name ever comes back — a re-download, or
+			// the same release fetched again — its progress is reported afresh rather than being
+			// silenced by what was said about the previous one.
+			delete(s.loggedVerdicts, torrentRel)
 			s.logger.Info().Str("torrent", torrentRel).Str("verdict", string(verdict)).Msg("unmatched scanner: Download completed!")
 
 			// If the torrent was queued with auto-match enabled, match it now — the same

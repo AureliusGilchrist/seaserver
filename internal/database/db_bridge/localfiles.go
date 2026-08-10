@@ -6,20 +6,60 @@ import (
 	"seanime/internal/database/models"
 	"seanime/internal/library/anime"
 
+	"sync"
+
 	"github.com/goccy/go-json"
-	"github.com/samber/mo"
 	"gorm.io/gorm"
 )
 
-var CurrLocalFilesDbId uint
-var CurrLocalFiles mo.Option[[]*anime.LocalFile]
+// The local file list is held in memory because it is read constantly — every entry screen, every
+// playback decision, the auto-downloader, the scanner — and it is stored as one JSON document, so
+// a miss costs unmarshalling the whole library.
+//
+// Two things about how that cache is kept are worth stating, because it used to get both wrong.
+//
+// It is per database, not per process. Each profile has its own seanime.db and therefore its own
+// library; a single shared slot handed whichever profile asked second the files belonging to
+// whichever asked first, and — worse — a save made against that borrowed list wrote one profile's
+// library into another's row.
+//
+// And it is locked. Every one of those readers is a different goroutine, and a scan writing the
+// list while a handler reads it was an unsynchronised write to a package-level variable: a data
+// race in the literal sense, with no upper bound on how it can fail. For a library large enough
+// that a scan takes real time, that window is most of the time.
+type localFilesCacheEntry struct {
+	files []*anime.LocalFile
+	dbID  uint
+}
+
+var (
+	localFilesMu    sync.RWMutex
+	localFilesCache = make(map[*db.Database]localFilesCacheEntry)
+)
+
+func cachedLocalFiles(database *db.Database) (localFilesCacheEntry, bool) {
+	localFilesMu.RLock()
+	defer localFilesMu.RUnlock()
+	entry, ok := localFilesCache[database]
+	return entry, ok
+}
+
+func cacheLocalFiles(database *db.Database, files []*anime.LocalFile, dbID uint) {
+	localFilesMu.Lock()
+	defer localFilesMu.Unlock()
+	localFilesCache[database] = localFilesCacheEntry{files: files, dbID: dbID}
+}
 
 // ClearLocalFilesCache invalidates the in-memory cache so the next GetLocalFiles
 // call reads fresh data from the database. Used to protect against race conditions
 // where manual matches may have been saved while a scan was in progress.
+//
+// Clears every profile's, because the callers that need it are the ones about to overwrite a
+// library wholesale and none of them are in a position to say whose.
 func ClearLocalFilesCache() {
-	CurrLocalFiles = mo.None[[]*anime.LocalFile]()
-	CurrLocalFilesDbId = 0
+	localFilesMu.Lock()
+	defer localFilesMu.Unlock()
+	clear(localFilesCache)
 }
 
 // PreserveConcurrentLocalFiles folds locked local files that reached the database *while a scan was
@@ -76,8 +116,8 @@ func PreserveConcurrentLocalFiles(database *db.Database, scanned []*anime.LocalF
 // GetLocalFiles will return the latest local files and the id of the entry.
 func GetLocalFiles(db *db.Database) ([]*anime.LocalFile, uint, error) {
 
-	if CurrLocalFiles.IsPresent() {
-		return CurrLocalFiles.MustGet(), CurrLocalFilesDbId, nil
+	if entry, ok := cachedLocalFiles(db); ok {
+		return entry.files, entry.dbID, nil
 	}
 
 	// Get the latest entry
@@ -94,10 +134,9 @@ func GetLocalFiles(db *db.Database) ([]*anime.LocalFile, uint, error) {
 		return nil, 0, err
 	}
 
-	db.Logger.Debug().Msg("db: Local files retrieved")
+	db.Logger.Debug().Int("files", len(lfs)).Msg("db: Local files retrieved")
 
-	CurrLocalFiles = mo.Some(lfs)
-	CurrLocalFilesDbId = res.ID
+	cacheLocalFiles(db, lfs, res.ID)
 
 	return lfs, res.ID, nil
 }
@@ -121,16 +160,17 @@ func SaveLocalFiles(db *db.Database, lfsId uint, lfs []*anime.LocalFile) ([]*ani
 		return nil, err
 	}
 
-	// Unmarshal the saved local files
-	var retLfs []*anime.LocalFile
-	if err := json.Unmarshal(ret.Value, &retLfs); err != nil {
-		return lfs, nil
-	}
+	// What used to happen here was a second full pass over the library: the bytes just written were
+	// unmarshalled straight back into a fresh slice, which was then returned and cached. That slice
+	// could only ever be a copy of the one already in hand — the bytes are the ones marshalled three
+	// lines up — so every save of a large library paid to encode it and then to decode it again for
+	// nothing. On a library of thousands of files that is the bulk of the cost of writing, and every
+	// small edit (locking one file, matching one episode) pays it in full.
+	//
+	// InsertLocalFiles has always cached the caller's own slice; this now does the same.
+	cacheLocalFiles(db, lfs, ret.ID)
 
-	CurrLocalFiles = mo.Some(retLfs)
-	CurrLocalFilesDbId = ret.ID
-
-	return retLfs, nil
+	return lfs, nil
 }
 
 // InsertLocalFiles will insert the local files in the database at a new entry.
@@ -151,8 +191,7 @@ func InsertLocalFiles(db *db.Database, lfs []*anime.LocalFile) ([]*anime.LocalFi
 		return nil, err
 	}
 
-	CurrLocalFiles = mo.Some(lfs)
-	CurrLocalFilesDbId = ret.ID
+	cacheLocalFiles(db, lfs, ret.ID)
 
 	return lfs, nil
 
