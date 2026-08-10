@@ -104,12 +104,19 @@ export function UnmatchedTorrentCard({ torrent, onSelect }: UnmatchedTorrentCard
                                 the card because there is otherwise nothing to distinguish it from a
                                 download nobody has got to yet — which is exactly how it looked, and
                                 why these sat here waiting on a decision nobody knew to make. */}
-                            {!!torrent.pendingConflict && (
+                            {(!!torrent.pendingConflict || !!torrent.pendingCountMismatch) && (
                                 <Badge intent="warning" size="sm">
                                     Needs your decision
                                 </Badge>
                             )}
                         </div>
+                        {!!torrent.pendingCountMismatch && (
+                            <p className="text-xs text-[--muted] mt-2">
+                                This download has {torrent.pendingCountMismatch.found} episode
+                                {torrent.pendingCountMismatch.found === 1 ? "" : "s"} but{" "}
+                                {torrent.pendingCountMismatch.expected} were expected. Match it to check the numbering.
+                            </p>
+                        )}
                         {!!torrent.pendingConflict && (
                             <p className="text-xs text-[--muted] mt-2">
                                 {torrent.pendingConflict.files.length} of {torrent.pendingConflict.totalPlanned} episode

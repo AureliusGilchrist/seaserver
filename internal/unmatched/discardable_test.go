@@ -73,3 +73,68 @@ func TestNCAndExtraDetection(t *testing.T) {
 		t.Error("path segment detection wrong")
 	}
 }
+
+// The exact files that were matched into the library as episodes 14 through 17.
+//
+// Two guards should each have caught them on their own, and both missed: the tag sits between
+// underscores, which Go's \b counts as word characters, and the folder was "Extras" where the
+// folder check tested for exactly "Extra".
+func TestUnderscoreSeparatedCreditlessFilesAreDiscarded(t *testing.T) {
+	names := []string{
+		"[DB]Irozuku Sekai no Ashita kara_-_NCED01_(10bit_BD1080p_x265).mkv",
+		"[DB]Irozuku Sekai no Ashita kara_-_NCED02_(10bit_BD1080p_x265).mkv",
+		"[DB]Irozuku Sekai no Ashita kara_-_NCED03_(10bit_BD1080p_x265).mkv",
+		"[DB]Irozuku Sekai no Ashita kara_-_NCOP_(10bit_BD1080p_x265).mkv",
+	}
+	for _, name := range names {
+		if !isNCName(name) {
+			t.Errorf("%q was not recognised as creditless content", name)
+		}
+	}
+}
+
+// Underscores are separators wherever a tag appears, not only for NC tags.
+func TestUnderscoreSeparatedPromosAreDiscarded(t *testing.T) {
+	for _, name := range []string{
+		"Some_Show_-_PV01_(1080p).mkv",
+		"Some_Show_-_CM3_(1080p).mkv",
+		"Some_Show_-_creditless_opening.mkv",
+	} {
+		if !isNCName(name) {
+			t.Errorf("%q was not recognised as discardable", name)
+		}
+	}
+}
+
+// The folder guard stays exact on purpose: everything in a folder it matches is deleted, and
+// "Extras" is where plenty of releases put OVAs and specials worth keeping. Files like the ones
+// above are discarded by name instead, which removes the creditless openings without touching
+// whatever else shares the folder with them.
+func TestExtraFolderMatchingStaysNarrow(t *testing.T) {
+	cases := map[string]bool{
+		"Some Show/Extra/whatever.mkv":     true,
+		"Some Show/extra/whatever.mkv":     true,
+		"Some Show/Extras/OVA 01.mkv":      false,
+		"Some Show/Season 1/ep01.mkv":      false,
+		"Some Show/Extraordinary/ep01.mkv": false,
+	}
+	for path, want := range cases {
+		if got := pathHasExtraSegment(path); got != want {
+			t.Errorf("pathHasExtraSegment(%q) = %v, want %v", path, got, want)
+		}
+	}
+}
+
+// And the thing that must not change: ordinary episodes are still episodes.
+func TestOrdinaryEpisodesAreNotDiscarded(t *testing.T) {
+	for _, name := range []string{
+		"Irozuku Sekai no Ashita kara - 01.mkv",
+		"[DB]Irozuku Sekai no Ashita kara_-_01_(10bit_BD1080p_x265).mkv",
+		"Some Show - 05 - The Opening Ceremony.mkv",
+		"Some_Show_-_12_(1080p).mkv",
+	} {
+		if isNCName(name) {
+			t.Errorf("%q was wrongly treated as creditless/bonus content", name)
+		}
+	}
+}

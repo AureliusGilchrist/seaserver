@@ -5,6 +5,7 @@ import {
     UnmatchedFile,
     FamilyEntry,
     FamilyResult,
+    CountMismatch,
     MatchConflict,
     useMatchUnmatchedTorrent,
     useDeleteUnmatchedTorrent,
@@ -12,6 +13,7 @@ import {
     useUnmatchedFamilySearch,
 } from "@/api/hooks/unmatched.hooks"
 import { UnmatchedConflictModal } from "./unmatched-conflict-modal"
+import { UnmatchedCountMismatchModal } from "./unmatched-count-mismatch-modal"
 import { useAnilistListAnime, useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetLocalFiles } from "@/api/hooks/localfiles.hooks"
@@ -287,7 +289,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setFamilyDetailId(null)
         // Keep the files list but drop selections after a match
         setSelectedFiles(new Set())
-    }, (c) => setConflict(c))
+    }, (c) => setConflict(c), (m) => setCountMismatch(m))
 
     // Declining a conflict throws the incoming copy away: this staged torrent and its episodes are
     // deleted, and the library keeps what it already had. Only this one torrent is touched.
@@ -421,6 +423,11 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     // completed (replacing) or abandoned (deleting this torrent).
     const [conflict, setConflict] = useState<MatchConflict | null>(null)
 
+    // Set when the episode count did not match exactly. Nothing moved; the plan the server was
+    // about to carry out comes back with it, and is shown so the numbering can be checked before
+    // any of it happens.
+    const [countMismatch, setCountMismatch] = useState<CountMismatch | null>(null)
+
     // The titles the match is sent with — also what the destination folder is named.
     const matchTitles = useMemo(() => {
         const titleJp = selectedAnime?.title?.native || selectedAnime?.title?.romaji || selectedAnime?.title?.english || ""
@@ -490,7 +497,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
 
     // overwriteExisting is the answer coming back from the conflict dialog: the first attempt always
     // goes without it, so the server gets the chance to stop and ask before replacing anything.
-    const doMatch = useCallback((overwriteExisting: boolean = false) => {
+    const doMatch = useCallback((overwriteExisting: boolean = false, confirmCountMismatch: boolean = false) => {
         if (!torrent || !selectedAnime || selectedFiles.size === 0) return
 
         const { titleJp, titleClean } = matchTitles
@@ -507,6 +514,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             useIndexBasedEpisodes: dependOnIndex,
             episodeOffset: dependOnIndex ? (episodeOffset > 0 ? episodeOffset : 1) : undefined,
             overwriteExisting: overwriteExisting || undefined,
+            confirmCountMismatch: confirmCountMismatch || undefined,
         })
     }, [torrent, selectedAnime, selectedFiles, matchTorrent, matchTitles, dependOnIndex, episodeOffset, setLastMatchedTitle])
 
@@ -679,6 +687,16 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                     onConfirm={() => { setConfirmPlan(false); doMatch() }}
                 />
             </Modal>
+        )}
+        {countMismatch && torrent && (
+            <UnmatchedCountMismatchModal
+                mismatch={countMismatch}
+                torrentName={torrent.name}
+                animeTitle={displayAnimeTitle || torrent.name}
+                isMatching={isMatching}
+                onConfirm={() => { setCountMismatch(null); doMatch(false, true) }}
+                onCancel={() => setCountMismatch(null)}
+            />
         )}
         {conflict && torrent && (
             <UnmatchedConflictModal

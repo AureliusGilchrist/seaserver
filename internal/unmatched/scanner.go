@@ -694,6 +694,15 @@ func (s *Scanner) autoMatchIfRequested(torrentName string) {
 		// download finished, not because anyone pressed anything. Kept against the torrent so the
 		// Unmatched screen can put it to the user, instead of the download sitting there looking
 		// untouched with the reason it stopped only in the log.
+		if result.CountMismatch != nil {
+			s.repository.SetPendingCountMismatch(torrentName, result.CountMismatch)
+			s.logger.Info().
+				Str("torrent", torrentName).
+				Int("expected", result.CountMismatch.Expected).
+				Int("found", result.CountMismatch.Found).
+				Msg("unmatched scanner: Waiting for a decision on an episode count that does not match")
+		}
+
 		if result.Conflict != nil {
 			s.repository.SetPendingConflict(torrentName, result.Conflict)
 			s.logger.Info().

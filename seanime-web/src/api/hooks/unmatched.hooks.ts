@@ -41,6 +41,12 @@ export interface UnmatchedTorrent {
      * without it the download sits in the list looking exactly like one nobody has got to yet.
      */
     pendingConflict?: MatchConflict
+    /**
+     * Set when an automatic match stopped because the episode count did not match exactly. Same
+     * reasoning as pendingConflict: an automatic match has nobody to ask, so the question is kept
+     * and shown on the card.
+     */
+    pendingCountMismatch?: CountMismatch
 }
 
 export interface MatchRequest {
@@ -56,6 +62,12 @@ export interface MatchRequest {
      * destination already occupied moves nothing and returns `conflict` instead.
      */
     overwriteExisting?: boolean
+    /**
+     * Proceed even though the number of episodes found does not exactly equal the number the anime
+     * is expected to have. Without it, such a match moves nothing and returns `countMismatch` with
+     * the plan it was about to carry out.
+     */
+    confirmCountMismatch?: boolean
 }
 
 /** One destination file a match would overwrite. See internal/unmatched/conflict.go. */
@@ -87,6 +99,26 @@ export interface MatchConflict {
     totalPlanned: number
 }
 
+/** One file and the name it would be given, for the preview shown before a mismatched match runs. */
+export interface PlannedEpisode {
+    relPath: string
+    newName: string
+    episode: number
+    season?: number
+}
+
+/**
+ * A match held back because the number of episodes found does not exactly equal the number the anime
+ * is expected to have. The numbering is positional, so a count that does not agree means the
+ * numbering is wrong — which is only obvious once you can see the plan.
+ */
+export interface CountMismatch {
+    expected: number
+    found: number
+    destination: string
+    planned: PlannedEpisode[]
+}
+
 export interface MatchResult {
     success: boolean
     movedFiles: string[]
@@ -99,6 +131,9 @@ export interface MatchResult {
      * throw the incoming copy away.
      */
     conflict?: MatchConflict
+    countMismatch?: CountMismatch
+    /** OVAs and specials left in the download rather than filed as episodes. Never deleted. */
+    skippedFiles?: string[]
 }
 
 const UNMATCHED_ENDPOINTS = {
@@ -197,7 +232,11 @@ export function useGetUnmatchedTorrentContents(torrentName: string | null) {
  * destinations — nothing was moved or deleted. The match is not finished in that case, so the modal
  * must stay open to ask, which is why this path deliberately skips `onSuccess` and the toast.
  */
-export function useMatchUnmatchedTorrent(onSuccess?: () => void, onConflict?: (conflict: MatchConflict) => void) {
+export function useMatchUnmatchedTorrent(
+    onSuccess?: () => void,
+    onConflict?: (conflict: MatchConflict) => void,
+    onCountMismatch?: (mismatch: CountMismatch) => void,
+) {
     const queryClient = useQueryClient()
 
     return useServerMutation<MatchResult, MatchRequest>({
@@ -205,9 +244,18 @@ export function useMatchUnmatchedTorrent(onSuccess?: () => void, onConflict?: (c
         method: UNMATCHED_ENDPOINTS.MatchUnmatchedTorrent.methods[0],
         mutationKey: [UNMATCHED_ENDPOINTS.MatchUnmatchedTorrent.key],
         onSuccess: async (data) => {
+            // Both of these mean the server moved nothing and is waiting on an answer, so the
+            // match modal stays open behind the dialog that asks for it.
+            if (data?.countMismatch) {
+                onCountMismatch?.(data.countMismatch)
+                return
+            }
             if (data?.conflict) {
                 onConflict?.(data.conflict)
                 return
+            }
+            if (data?.success && data?.skippedFiles?.length) {
+                toast.info(`${data.skippedFiles.length} OVA/special left in the download to match on its own`)
             }
             if (data?.success) {
                 toast.success(`Matched ${data.movedFiles?.length || 0} files successfully`)

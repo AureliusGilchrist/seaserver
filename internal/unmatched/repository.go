@@ -105,6 +105,9 @@ type UnmatchedTorrent struct {
 	// PendingConflict is set when an automatic match for this download stopped because files were
 	// already in the library, and is what lets the screen ask which copy to keep. Nil otherwise.
 	PendingConflict *MatchConflict `json:"pendingConflict,omitempty"`
+	// PendingCountMismatch is set when an automatic match stopped because the number of episodes
+	// did not match exactly, and is what lets the screen show the numbering and ask.
+	PendingCountMismatch *CountMismatch `json:"pendingCountMismatch,omitempty"`
 }
 
 // TorrentMetadata is everything known about a download: which anime it is for, and what naming
@@ -163,6 +166,18 @@ type MatchRequest struct {
 	// match that finds any destination already occupied moves nothing and reports the conflict
 	// instead — see MatchResult.Conflict.
 	OverwriteExisting bool `json:"overwriteExisting,omitempty"`
+	// Automatic marks a match nobody chose the files for: the scanner matching a finished download,
+	// or the bulk sweep working through everything at once. Both select every video file in the
+	// download themselves.
+	//
+	// It is what decides whether OVAs and specials are set aside. Left to itself, a match must not
+	// file them as episodes of the season — that is guesswork with somebody's library. Chosen by
+	// hand, they are exactly what the user asked to match, and the choice is honoured.
+	Automatic bool `json:"-"`
+	// ConfirmCountMismatch lets a match proceed when the number of episodes it found does not
+	// equal the number the anime is expected to have. Without it, such a match stops and reports
+	// what it was about to do — see MatchResult.CountMismatch.
+	ConfirmCountMismatch bool `json:"confirmCountMismatch,omitempty"`
 }
 
 // MatchResult represents the result of a match operation
@@ -178,6 +193,12 @@ type MatchResult struct {
 	// occupying the destinations it wanted. Re-send the request with OverwriteExisting to replace
 	// them, or delete this torrent to throw the incoming copy away.
 	Conflict *MatchConflict `json:"conflict,omitempty"`
+	// CountMismatch is set, with nothing moved or deleted, when the episode count does not match
+	// exactly. Re-send with ConfirmCountMismatch to proceed with the plan as shown.
+	CountMismatch *CountMismatch `json:"countMismatch,omitempty"`
+	// SkippedFiles are OVAs, ONAs and specials left in the download rather than filed as episodes
+	// of this season. They are not deleted — they are things to match deliberately, on their own.
+	SkippedFiles []string `json:"skippedFiles,omitempty"`
 }
 
 // GetUnmatchedTorrents returns all torrents in the unmatched directory that are fully downloaded
@@ -258,6 +279,7 @@ func (r *Repository) withPendingConflicts(torrents []*UnmatchedTorrent) []*Unmat
 			continue
 		}
 		t.PendingConflict = r.PendingConflict(t.Name)
+		t.PendingCountMismatch = r.PendingCountMismatch(t.Name)
 	}
 	return torrents
 }
@@ -612,6 +634,7 @@ func (r *Repository) matchFromMetadata(torrentName string, metadata *TorrentMeta
 		Msg("unmatched: Auto-matching completed download")
 
 	return r.MatchAndMoveFiles(&MatchRequest{
+		Automatic:       true,
 		TorrentName:     torrentName,
 		SelectedFiles:   selected,
 		AnimeID:         metadata.AnimeID,
@@ -689,14 +712,35 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	// that after having already destroyed files would leave nothing to decide about.
 	kept := make([]fileWithSeason, 0, len(videoFiles))
 	discardable := make([]fileWithSeason, 0)
+	// OVAs and specials are set aside rather than discarded. Numbering them as episodes is what put
+	// a release's extras into the library as episodes past the end of the season; deleting them
+	// would be worse still, because unlike a creditless opening an OVA is something somebody
+	// actually wanted. They stay in the download, to be matched on their own terms.
+	skipped := make([]fileWithSeason, 0)
 	for _, fw := range videoFiles {
 		if isNCName(fw.file.Name) || pathHasExtraSegment(fw.file.RelativePath) {
 			discardable = append(discardable, fw)
 			continue
 		}
+		// Only when nobody picked these files. A hand-made match that selected an OVA meant to
+		// select it.
+		if req.Automatic && isSpecialContent(fw.file.Name, fw.file.RelativePath) {
+			skipped = append(skipped, fw)
+			continue
+		}
 		kept = append(kept, fw)
 	}
 	videoFiles = kept
+
+	for _, fw := range skipped {
+		result.SkippedFiles = append(result.SkippedFiles, fw.file.RelativePath)
+	}
+	if len(skipped) > 0 {
+		r.logger.Info().
+			Str("torrent", req.TorrentName).
+			Int("skipped", len(skipped)).
+			Msg("unmatched: Left OVAs/specials out of the episode numbering")
+	}
 
 	// Sort video files by season, then by name (to maintain episode order)
 	sort.Slice(videoFiles, func(i, j int) bool {
@@ -753,17 +797,8 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		expectedEpisodes = animeMeta.MainEpisodeCount()
 	}
 
-	if expectedEpisodes > 0 {
-		if len(videoFiles) == 0 {
-			return nil, fmt.Errorf("no video files selected to match")
-		}
-		if len(videoFiles) < expectedEpisodes {
-			r.logger.Warn().
-				Str("torrent", torrent.Name).
-				Int("expectedEpisodes", expectedEpisodes).
-				Int("selectedVideos", len(videoFiles)).
-				Msg("unmatched: fewer video files than expected; proceeding with selected files")
-		}
+	if expectedEpisodes > 0 && len(videoFiles) == 0 {
+		return nil, fmt.Errorf("no video files selected to match")
 	}
 
 	// Determine format from user-selected AniList ID, falling back to what was stored when the
@@ -812,6 +847,8 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 				dest:    filepath.Join(destination, newName),
 				newName: newName,
 				relPath: fw.file.RelativePath,
+				episode: 1,
+				season:  fw.season,
 			})
 			continue
 		}
@@ -854,7 +891,47 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			dest:    filepath.Join(destination, newName),
 			newName: newName,
 			relPath: fw.file.RelativePath,
+			episode: episodeNum,
+			season:  fw.season,
 		})
+	}
+
+	// Exactly as many episodes as the anime has, or stop and ask.
+	//
+	// The numbering above is positional: the files are sorted and given episode numbers by where
+	// they fall. That is only right when the files really are the episodes of this anime, and the
+	// count is the one cheap check on that assumption. Too few and the download is unfinished or
+	// partly selected — which is how four arrived episodes were filed as episodes 1 to 4 of a
+	// twelve-episode season. Too many and the release is carrying something the season does not,
+	// which lands as episodes past the end of it.
+	//
+	// Neither is necessarily wrong, so this is a question rather than a refusal, and the answer
+	// comes back as ConfirmCountMismatch. Asked here, before the discardable content is deleted
+	// and before anything is moved, so that answering "no" leaves the download exactly as it was.
+	if !req.ConfirmCountMismatch {
+		preview := make([]PlannedEpisode, 0, len(planned))
+		for _, p := range planned {
+			preview = append(preview, PlannedEpisode{
+				RelPath: p.relPath,
+				NewName: p.newName,
+				Episode: p.episode,
+				Season:  p.season,
+			})
+		}
+		if mismatch := countMismatchFor(expectedEpisodes, destination, preview); mismatch != nil {
+			result.Success = false
+			result.CountMismatch = mismatch
+			result.ErrorMessage = fmt.Sprintf(
+				"this download has %d episodes but %s is expected to have %d — check the numbering before matching",
+				mismatch.Found, cleanTitle, mismatch.Expected)
+			r.logger.Warn().
+				Str("torrent", req.TorrentName).
+				Int("expectedEpisodes", mismatch.Expected).
+				Int("foundEpisodes", mismatch.Found).
+				Int("skipped", len(skipped)).
+				Msg("unmatched: Episode count does not match, awaiting confirmation before matching")
+			return result, nil
+		}
 	}
 
 	// Last chance to stop: nothing has been moved, renamed or deleted yet. If any destination is
@@ -1037,6 +1114,10 @@ type plannedMove struct {
 	dest    string
 	newName string
 	relPath string
+	// episode and season are the numbering this move was given, kept so the plan can be shown to
+	// the user before it is carried out. See CountMismatch.
+	episode int
+	season  int
 }
 
 // matchMoveConcurrency is how many files a match moves at once. Enough to keep a copy across
@@ -1137,16 +1218,34 @@ func (r *Repository) moveFile(src, dest string) error {
 }
 
 // extraDirName is the exact name of the junk folder releases ship alongside the episodes.
+//
+// Deliberately exact, and deliberately singular. Widening it to "Extras" would have caught the
+// release whose creditless openings reached the library as episodes 14 to 17 — but everything in a
+// matched folder is deleted, and "Extras" is also where a good number of releases put OVAs and
+// specials that are worth keeping. The files in that release are caught by name instead, which is
+// precise: it discards the creditless openings and leaves anything else in the folder alone.
 const extraDirName = "Extra"
 
-// ncWithNumberRegex catches the "NCOP1"/"NCED2" form. The shared ValueContainsNC patterns
-// require a word boundary right after the tag, which a trailing digit does not provide, so
-// numbered creditless files slipped through.
-var ncWithNumberRegex = regexp.MustCompile(`(?i)\bNC(OP|ED)\d*\b`)
+// The boundaries below are spelled out as "not a letter or digit" rather than written as , and
+// that is the whole point of them.
+//
+// Go's  is a word boundary, and a word character includes the underscore. Release groups
+// separate tokens with underscores constantly, so in a name like
+//
+//	[DB]Irozuku Sekai no Ashita kara_-_NCED01_(10bit_BD1080p_x265).mkv
+//
+// there is no boundary before the N or after the 1: on both sides sits an underscore, which 
+// considers part of the same word. Every one of these patterns therefore failed to match, and the
+// creditless openings and endings of that release were matched into the library as episodes 14
+// through 17. An underscore is a separator to everyone who names files; these patterns now agree.
+//
+// ncWithNumberRegex catches the "NCOP1"/"NCED2" form. A trailing digit gives no word boundary
+// either, which is the second reason numbered creditless files slipped through.
+var ncWithNumberRegex = regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9])NC(?:OP|ED)\d*(?:[^A-Za-z0-9]|$)`)
 
 // explicitNCRegex marks content that is unambiguously creditless/bonus material. These tags
 // never appear in a genuine episode title, so a match is safe on its own.
-var explicitNCRegex = regexp.MustCompile(`(?i)\b(NCOP|NCED|creditless|textless|clean[ _.-]*(opening|ending))\b`)
+var explicitNCRegex = regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9])(?:NCOP|NCED|creditless|textless|clean[ _.\-]*(?:opening|ending))(?:[^A-Za-z0-9]|$)`)
 
 // promoRegex catches commercials, promos and trailers — including the numbered forms.
 //
@@ -1163,7 +1262,7 @@ var explicitNCRegex = regexp.MustCompile(`(?i)\b(NCOP|NCED|creditless|textless|c
 // requiring one there missed exactly the unseparated forms this exists to catch. The trailing \b
 // after the optional digits still does the work of keeping the token whole — "CMS", "Spotlight" and
 // "Promotion" all fail it, because a letter follows where the boundary has to be.
-var promoRegex = regexp.MustCompile(`(?i)\b(CM|PV|SPOT|TRAILER|PROMO|TEASER|COMMERCIAL)[ _.\-]*\d{0,3}\b`)
+var promoRegex = regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9])(?:CM|PV|SPOT|TRAILER|PROMO|TEASER|COMMERCIAL)[ _.\-]*\d{0,3}(?:[^A-Za-z0-9]|$)`)
 
 // bareOpeningEndingRegex matches a standalone "Opening"/"Ending" (optionally numbered, and
 // optionally prefixed, as in "OP"/"ED"). On its own this is far weaker evidence than the
@@ -1172,7 +1271,7 @@ var promoRegex = regexp.MustCompile(`(?i)\b(CM|PV|SPOT|TRAILER|PROMO|TEASER|COMM
 // number. See isNCName.
 // The trailing capture group matters: digits directly after the word ("Opening 2") mean a
 // numbered OP/ED, whereas digits elsewhere in the name are an episode number.
-var bareOpeningEndingRegex = regexp.MustCompile(`(?i)\b(opening|ending)\b[ _.-]*(\d{1,2})?`)
+var bareOpeningEndingRegex = regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9])(opening|ending)(?:[^A-Za-z0-9]|$)[ _.\-]*(\d{1,2})?`)
 
 // isNCName reports whether a file name looks like creditless/bonus content — NCOP, NCED,
 // creditless/textless openings and endings, trailers, promos, commercials (CM), promotional

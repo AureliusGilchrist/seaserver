@@ -22,12 +22,35 @@ import "sync"
 // there.
 
 type pendingConflicts struct {
-	mu sync.RWMutex
-	by map[string]*MatchConflict
+	mu         sync.RWMutex
+	by         map[string]*MatchConflict
+	mismatches map[string]*CountMismatch
 }
 
 func newPendingConflicts() *pendingConflicts {
-	return &pendingConflicts{by: make(map[string]*MatchConflict)}
+	return &pendingConflicts{
+		by:         make(map[string]*MatchConflict),
+		mismatches: make(map[string]*CountMismatch),
+	}
+}
+
+// SetPendingCountMismatch records that an automatic match stopped because the episode count did
+// not match exactly, and is waiting for the user to look at the numbering and say whether it is
+// right. Same reasoning as SetPendingConflict: an automatic match has nobody to ask.
+func (r *Repository) SetPendingCountMismatch(torrentName string, mismatch *CountMismatch) {
+	if torrentName == "" || mismatch == nil {
+		return
+	}
+	r.pending.mu.Lock()
+	defer r.pending.mu.Unlock()
+	r.pending.mismatches[torrentName] = mismatch
+}
+
+// PendingCountMismatch returns the unanswered count mismatch for a torrent, or nil.
+func (r *Repository) PendingCountMismatch(torrentName string) *CountMismatch {
+	r.pending.mu.RLock()
+	defer r.pending.mu.RUnlock()
+	return r.pending.mismatches[torrentName]
 }
 
 // SetPendingConflict records that an automatic match stopped on a conflict and is waiting for the
@@ -54,6 +77,7 @@ func (r *Repository) ClearPendingConflict(torrentName string) {
 	r.pending.mu.Lock()
 	defer r.pending.mu.Unlock()
 	delete(r.pending.by, torrentName)
+	delete(r.pending.mismatches, torrentName)
 }
 
 // PendingConflictCount reports how many downloads are waiting on a decision.

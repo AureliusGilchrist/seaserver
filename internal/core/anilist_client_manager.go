@@ -57,7 +57,10 @@ type AnilistClientManager struct {
 	// Per-profile collection cache (keyed by profileID). Protected by colMu.
 	animeColCache map[uint]*profileAnimeCache
 	mangaColCache map[uint]*profileMangaCache
-	colMu         sync.RWMutex
+	// lastAnimeRefresh is when a background refresh was last started for a profile, so a refresh
+	// that keeps failing is retried at a steady interval rather than on every request.
+	lastAnimeRefresh map[uint]time.Time
+	colMu            sync.RWMutex
 
 	// Singleflight groups collapse concurrent fetches for the same profile
 	// into one in-flight request so we never send duplicates to AniList.
@@ -90,17 +93,18 @@ func NewAnilistClientManager(app *App) *AnilistClientManager {
 	}
 
 	return &AnilistClientManager{
-		clients:        make(map[uint]anilist.AnilistClient),
-		usernames:      make(map[uint]string),
-		animeColCache:  make(map[uint]*profileAnimeCache),
-		mangaColCache:  make(map[uint]*profileMangaCache),
-		app:            app,
-		logger:         app.Logger,
-		cacheDir:       app.AnilistCacheDir,
-		fileCacher:     fc,
-		animeColBucket: filecache.NewPermanentBucket("profile-anime-collection"),
-		mangaColBucket: filecache.NewPermanentBucket("profile-manga-collection"),
-		pendingStores:  make(map[uint]*shared_platform.PendingMutationStore),
+		clients:          make(map[uint]anilist.AnilistClient),
+		usernames:        make(map[uint]string),
+		animeColCache:    make(map[uint]*profileAnimeCache),
+		mangaColCache:    make(map[uint]*profileMangaCache),
+		lastAnimeRefresh: make(map[uint]time.Time),
+		app:              app,
+		logger:           app.Logger,
+		cacheDir:         app.AnilistCacheDir,
+		fileCacher:       fc,
+		animeColBucket:   filecache.NewPermanentBucket("profile-anime-collection"),
+		mangaColBucket:   filecache.NewPermanentBucket("profile-manga-collection"),
+		pendingStores:    make(map[uint]*shared_platform.PendingMutationStore),
 	}
 }
 
@@ -529,24 +533,45 @@ func (m *AnilistClientManager) GetAnimeCollection(profileID uint) (*anilist.Anim
 		return cached.data, nil
 	}
 
-	// Nothing in memory. The disk copy is local and immediate, and the same reasoning applies: a
-	// page that renders from last session's collection beats one that waits on the network.
-	if diskCol := m.loadAnimeCollectionFromDisk(profileID); diskCol != nil {
-		m.colMu.Lock()
-		m.animeColCache[profileID] = &profileAnimeCache{data: diskCol, fetchedAt: time.Now()}
-		m.colMu.Unlock()
-		m.refreshAnimeCollectionInBackground(profileID)
-		return diskCol, nil
-	}
-
-	// Genuinely nothing to serve, so this one waits.
+	// Nothing in memory at all, so this one waits for a real answer.
+	//
+	// The disk copy is deliberately *not* served here, even though it is sitting right there and
+	// would return instantly. It carries no timestamp — it is a permanent bucket, written over on
+	// every successful fetch and never dated — so its age is unbounded: it could be from minutes
+	// ago or from a week ago. Handing it back as though it were current is how the home page came
+	// to show a fraction of what was in it, with lists like Paused down to a single entry, because
+	// the collection being rendered was simply from before those entries existed.
+	//
+	// It remains the fallback inside the fetch below, which is the one place it belongs: when the
+	// network has actually failed, an old collection genuinely is better than none. The difference
+	// is that there it is a last resort, not a shortcut.
+	//
+	// This costs one blocking fetch per profile after a restart or a cache eviction, and no more —
+	// the stale path above covers every load after it, which is where the waiting used to happen.
 	return m.fetchAnimeCollection(profileID)
 }
 
+// backgroundRefreshInterval is the least time between two background refreshes of the same
+// profile's collection.
+//
+// The singleflight stops concurrent refreshes, but not consecutive ones: while a refresh keeps
+// failing the cache stays stale, so every single request would find it stale and start another.
+// A page that makes a dozen requests would make a dozen attempts at a service that has just refused
+// twelve times. This is what keeps a failing refresh to a steady trickle instead.
+const backgroundRefreshInterval = time.Minute
+
 // refreshAnimeCollectionInBackground brings a stale collection up to date without anybody waiting
 // on it. Deduplicated by the same singleflight as the blocking path, so a refresh already under way
-// is never started twice.
+// is never started twice, and rate-limited so a failing one is not started constantly.
 func (m *AnilistClientManager) refreshAnimeCollectionInBackground(profileID uint) {
+	m.colMu.Lock()
+	if last, ok := m.lastAnimeRefresh[profileID]; ok && time.Since(last) < backgroundRefreshInterval {
+		m.colMu.Unlock()
+		return
+	}
+	m.lastAnimeRefresh[profileID] = time.Now()
+	m.colMu.Unlock()
+
 	go func() {
 		defer util.HandlePanicInModuleThen("core/refreshAnimeCollection", func() {})
 		if _, err := m.fetchAnimeCollection(profileID); err != nil {
