@@ -451,6 +451,12 @@ func (a *App) initModulesOnce() {
 		return states, true
 	})
 
+	// A match that was moving files when the server last stopped is carried the rest of the way,
+	// under the names it had already decided on, before the scanner starts looking for new work —
+	// so a download half-moved into the library is finished rather than found again as a partial
+	// staging directory and matched a second time from what is left of it.
+	go a.UnmatchedRepository.ResumePendingMatches()
+
 	a.UnmatchedScanner.Start()
 
 	// +---------------------+

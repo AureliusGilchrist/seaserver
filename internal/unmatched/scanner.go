@@ -533,6 +533,11 @@ func (s *Scanner) scanForCompletedDownloads() {
 		}
 		rel := entry.Name()
 
+		// The journal of interrupted matches lives here too, and it is not a download.
+		if rel == pendingMatchDirName {
+			continue
+		}
+
 		// Skip torrents already confirmed complete — fast O(n) check avoids the 5-second verify-delay re-running.
 		s.mu.Lock()
 		alreadyTracked := false

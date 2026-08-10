@@ -25,9 +25,18 @@ func (h *Handler) ProfileSessionMiddleware(next echo.HandlerFunc) echo.HandlerFu
 			return next(c)
 		}
 
-		payload, err := core.ValidateProfileSessionToken(h.App.ProfileManager.GetJWTSecret(), token)
+		payload, err := core.ValidateProfileSessionToken(
+			h.App.ProfileManager.GetJWTSecret(),
+			h.App.ProfileManager.GetSessionEpoch(),
+			token,
+		)
 		if err != nil {
-			// Token invalid/expired — signal expiry to the frontend so it can clear the stale token
+			// Token invalid/expired — signal expiry to the frontend so it can clear the stale token.
+			//
+			// A session from a previous run lands here too, which is the point: after the server has
+			// been restarted for any reason, the first request a returning client makes is told the
+			// session is over, and it establishes a new one instead of drawing a profile against a
+			// server that has no session behind it.
 			c.Response().Header().Set("X-Seanime-Profile-Expired", "true")
 			return next(c)
 		}
@@ -39,6 +48,7 @@ func (h *Handler) ProfileSessionMiddleware(next echo.HandlerFunc) echo.HandlerFu
 		if time.Now().Unix()-payload.IssuedAt > int64((24 * time.Hour).Seconds()) {
 			if newToken, err := core.CreateProfileSessionToken(
 				h.App.ProfileManager.GetJWTSecret(),
+				h.App.ProfileManager.GetSessionEpoch(),
 				payload.ProfileID,
 				payload.IsAdmin,
 				payload.ClientID,

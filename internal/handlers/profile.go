@@ -183,6 +183,7 @@ func (h *Handler) HandleProfileLogin(c echo.Context) error {
 	// Create session token
 	token, err := core.CreateProfileSessionToken(
 		h.App.ProfileManager.GetJWTSecret(),
+		h.App.ProfileManager.GetSessionEpoch(),
 		profile.ID,
 		profile.IsAdmin,
 		clientID,
@@ -256,6 +257,7 @@ func (h *Handler) HandleRevalidateSession(c echo.Context) error {
 	// Create fresh session token
 	token, err := core.CreateProfileSessionToken(
 		h.App.ProfileManager.GetJWTSecret(),
+		h.App.ProfileManager.GetSessionEpoch(),
 		profile.ID,
 		profile.IsAdmin,
 		clientID,

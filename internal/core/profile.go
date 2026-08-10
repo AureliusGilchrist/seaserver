@@ -107,6 +107,13 @@ type ProfileManager struct {
 
 	// JWT signing key for profile sessions
 	jwtSecret []byte
+
+	// sessionEpoch identifies this run of the server. It is generated in memory at startup and
+	// never written anywhere, which is the entire mechanism: when the process ends — cleanly, by
+	// crash, by the machine going down — the epoch goes with it, and every session token issued
+	// under it stops being accepted. There is nothing to clean up on the way out, which is what
+	// makes it work for the shutdowns nobody gets to handle.
+	sessionEpoch string
 }
 
 // NewProfileManager opens (or creates) the profiles.db and returns a ProfileManager.
@@ -154,15 +161,36 @@ func NewProfileManager(dataDir string, logger *zerolog.Logger) (*ProfileManager,
 		return nil, fmt.Errorf("profile: failed to init JWT secret: %w", err)
 	}
 
+	epoch, err := newSessionEpoch()
+	if err != nil {
+		return nil, fmt.Errorf("profile: failed to init session epoch: %w", err)
+	}
+
 	pm := &ProfileManager{
-		db:        gormDB,
-		dataDir:   dataDir,
-		logger:    logger,
-		jwtSecret: jwtSecret,
+		db:           gormDB,
+		dataDir:      dataDir,
+		logger:       logger,
+		jwtSecret:    jwtSecret,
+		sessionEpoch: epoch,
 	}
 
 	logger.Info().Str("path", dbPath).Msg("profile: Profile registry initialized")
 	return pm, nil
+}
+
+// newSessionEpoch mints the identifier for this run of the server.
+func newSessionEpoch() (string, error) {
+	raw := make([]byte, 16)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(raw), nil
+}
+
+// GetSessionEpoch returns the identifier for this run of the server. Sessions are only accepted
+// while it matches the one they were issued under.
+func (pm *ProfileManager) GetSessionEpoch() string {
+	return pm.sessionEpoch
 }
 
 // loadOrCreateJWTSecret reads a 32-byte secret from disk, creating one if it doesn't exist.

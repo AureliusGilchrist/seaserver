@@ -869,11 +869,23 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		r.logger.Info().Str("path", fw.file.Path).Msg("unmatched: Deleted creditless/extra file instead of matching it")
 	}
 
+	// The plan goes to disk before the first file is touched. Everything above decided where each
+	// episode is going and what it will be called, using all of the files while they were all still
+	// present; if the server stops halfway through the moves below, that decision is what gets
+	// resumed. Recomputing it later from whatever is left in the staging directory would number the
+	// remainder from one. See ResumePendingMatches.
+	r.writePendingMatch(req.TorrentName, req.AnimeID, destination, planned)
+
 	// Move the files. A same-filesystem match renames, which costs nothing, but a cross-filesystem
 	// one copies every episode end to end — and doing that one file at a time leaves most of the
 	// available throughput idle. Outcomes are collected by index, so the result is the same list,
 	// in the same order, as when the moves ran one after another.
 	moveErrs := r.runMoves(planned)
+
+	// Seen through, whatever the individual outcomes were: the files that failed are reported to the
+	// caller and recorded below, and resuming them behind its back would move files it has been told
+	// were left behind.
+	r.clearPendingMatch(req.TorrentName)
 
 	for i, p := range planned {
 		if err := moveErrs[i]; err != nil {

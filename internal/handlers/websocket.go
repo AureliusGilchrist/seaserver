@@ -52,7 +52,11 @@ func (h *Handler) webSocketEventHandler(c echo.Context) error {
 	var profileID uint
 	profileToken := c.QueryParam("profileToken")
 	if profileToken != "" && h.App.ProfileManager != nil {
-		payload, err := core.ValidateProfileSessionToken(h.App.ProfileManager.GetJWTSecret(), profileToken)
+		payload, err := core.ValidateProfileSessionToken(
+			h.App.ProfileManager.GetJWTSecret(),
+			h.App.ProfileManager.GetSessionEpoch(),
+			profileToken,
+		)
 		if err == nil {
 			profileID = payload.ProfileID
 		}

@@ -20,12 +20,30 @@ type ProfileSessionPayload struct {
 	IssuedAt  int64  `json:"iat"`
 	ExpiresAt int64  `json:"exp"`
 	ClientID  string `json:"cid"` // ties to the Seanime-Client-Id cookie
+	// Epoch ties the session to one run of the server. See ProfileManager.GetSessionEpoch.
+	Epoch string `json:"ses"`
 }
 
-const profileSessionDuration = 365 * 24 * time.Hour // 1 year — backend reboots must not force re-login
+const profileSessionDuration = 365 * 24 * time.Hour
 
-// CreateProfileSessionToken creates a signed session token for a profile.
-func CreateProfileSessionToken(secret []byte, profileID uint, isAdmin bool, clientID string) (string, error) {
+// CreateProfileSessionToken creates a signed session token for a profile, valid for the run of the
+// server identified by epoch.
+//
+// The long expiry above is not what decides how long a session lives; the epoch is. A token outlives
+// the server that issued it only in the sense that it is still well-formed — the moment the process
+// ends, for any reason, every session it issued stops being accepted, because the epoch that made
+// them valid died with it.
+//
+// That is deliberate, and it is the fix for a specific broken state. The signing secret is stored on
+// disk and the expiry is a year, so a client that was holding a session when the server went down
+// came back holding one that still verified perfectly. It presented that token, the middleware
+// accepted it, and the client rendered as signed in — to a server that had rebuilt none of the state
+// behind it. Signed in and signed out at the same time: a profile on screen with nothing behind it.
+//
+// The cost is that a client re-establishes its session after every restart of the server, which is
+// what "close the session whenever it shuts down" means. The benefit is that the state above cannot
+// occur, because a session can never outlive the process that knows what it refers to.
+func CreateProfileSessionToken(secret []byte, epoch string, profileID uint, isAdmin bool, clientID string) (string, error) {
 	now := time.Now()
 	payload := ProfileSessionPayload{
 		ProfileID: profileID,
@@ -33,6 +51,7 @@ func CreateProfileSessionToken(secret []byte, profileID uint, isAdmin bool, clie
 		IssuedAt:  now.Unix(),
 		ExpiresAt: now.Add(profileSessionDuration).Unix(),
 		ClientID:  clientID,
+		Epoch:     epoch,
 	}
 
 	payloadBytes, err := json.Marshal(payload)
@@ -49,8 +68,13 @@ func CreateProfileSessionToken(secret []byte, profileID uint, isAdmin bool, clie
 	return payloadB64 + "." + sig, nil
 }
 
-// ValidateProfileSessionToken verifies and decodes a profile session token.
-func ValidateProfileSessionToken(secret []byte, token string) (*ProfileSessionPayload, error) {
+// ErrSessionFromPreviousRun is returned for a token issued by an earlier run of the server. It is
+// a perfectly valid token; it simply refers to a session that ended when that process did.
+var ErrSessionFromPreviousRun = errors.New("session belongs to a previous run of the server")
+
+// ValidateProfileSessionToken verifies and decodes a profile session token, rejecting any that was
+// not issued by the run identified by epoch.
+func ValidateProfileSessionToken(secret []byte, epoch string, token string) (*ProfileSessionPayload, error) {
 	parts := strings.SplitN(token, ".", 2)
 	if len(parts) != 2 {
 		return nil, errors.New("invalid token format")
@@ -82,6 +106,13 @@ func ValidateProfileSessionToken(secret []byte, token string) (*ProfileSessionPa
 	// Check expiration
 	if time.Now().Unix() > payload.ExpiresAt {
 		return nil, errors.New("token expired")
+	}
+
+	// Tokens from an earlier run, and tokens minted before sessions carried an epoch at all, refer
+	// to state this process never had. Refusing them is what makes the client fetch a new session
+	// rather than paint a profile the server cannot stand behind.
+	if payload.Epoch != epoch {
+		return nil, ErrSessionFromPreviousRun
 	}
 
 	return &payload, nil
