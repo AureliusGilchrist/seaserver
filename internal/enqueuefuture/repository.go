@@ -38,6 +38,10 @@ type (
 
 		pacer *pacer
 
+		// backfillOnce guards the one-time repair of seeder totals for items prepared before that
+		// figure was recorded. See backfillSeedersOnce.
+		backfillOnce sync.Once
+
 		mu      sync.Mutex
 		status  Status
 		running bool
@@ -759,14 +763,29 @@ func totalSeeders(data *torrent.SearchData) int {
 	return total
 }
 
+// backfillSeedersOnce runs the seeder backfill the first time the queue is actually looked at, and
+// never again for the life of the process.
+//
+// Deliberately not on the startup path. It reads back every stored snapshot — hundreds of kilobytes
+// apiece — and writes a row for each, which on a server whose database lives on network storage is
+// real I/O at exactly the moment everything else is competing for it. Nothing needs it until the
+// queue screen is open, and the screen polls, so the rows fill in under it within a poll or two of
+// arriving.
+func (r *Repository) backfillSeedersOnce() {
+	r.backfillOnce.Do(func() {
+		go r.BackfillSeederTotals()
+	})
+}
+
 // BackfillSeederTotals fills in the popularity figure for items prepared before it was recorded.
-// Call once at startup.
 //
 // Without this, an existing queue opens sorted entirely by a column of zeroes — every row already in
 // it ranked below every row prepared after the upgrade. The numbers are all recoverable from the
 // snapshots that are already stored, so nothing has to be searched for again.
+//
+// Exported so it can be triggered deliberately; the ordinary path is backfillSeedersOnce above.
 func (r *Repository) BackfillSeederTotals() {
-	// Runs on its own goroutine at startup, where a panic would take the server down with it.
+	// Runs on a goroutine of its own, where a panic would otherwise take the server down with it.
 	defer util.HandlePanicInModuleThen("enqueuefuture/BackfillSeederTotals", func() {})
 
 	filled := 0

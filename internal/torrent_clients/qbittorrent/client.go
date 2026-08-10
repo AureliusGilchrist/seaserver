@@ -16,6 +16,7 @@ import (
 	"seanime/internal/torrent_clients/qbittorrent/transfer"
 	"strings"
 	std_sync "sync"
+	"time"
 
 	"github.com/rs/zerolog"
 	"golang.org/x/net/publicsuffix"
@@ -73,7 +74,15 @@ func NewClient(opts *NewClientOptions) *Client {
 		baseURL = fmt.Sprintf("%s://%s/api/v2", scheme, host)
 	}
 
-	client := &http.Client{}
+	transport := newTransport()
+
+	client := &http.Client{
+		// qBittorrent's WebUI is on the same machine or the same LAN, so nothing here should take
+		// anywhere near this long. Without a timeout at all — which is what an empty http.Client
+		// gives you — a connection the other end has stopped answering on parks the caller forever,
+		// and the pollers that ask for the torrent list every second pile up behind it.
+		Timeout: 60 * time.Second,
+	}
 	c := &Client{
 		baseURL:          baseURL,
 		logger:           opts.Logger,
@@ -124,11 +133,32 @@ func NewClient(opts *NewClientOptions) *Client {
 	}
 
 	c.client.Transport = &authedRoundTripper{
-		wrapped: http.DefaultTransport,
-		client:  c,
+		wrapped:   transport,
+		transport: transport,
+		client:    c,
 	}
 
 	return c
+}
+
+// newTransport builds this client's own HTTP transport rather than sharing http.DefaultTransport.
+//
+// Two reasons, both learned from "Get .../torrents/info: EOF" appearing several times a second
+// against a WebUI that was up the whole time.
+//
+// An EOF on a request that never left is almost always a keep-alive connection the other end has
+// already closed: qBittorrent retires idle WebUI connections, and any NAT or NAS network stack in
+// between does the same. Whoever holds the connection longest is the one who discovers it is dead,
+// so this keeps idle connections for a good deal less time than the other end does and lets them go
+// before they can rot.
+//
+// And a transport of our own means CloseIdleConnections on the retry path below throws away *our*
+// dead connections rather than reaching into the pool every other part of the app is using.
+func newTransport() *http.Transport {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.IdleConnTimeout = 20 * time.Second
+	transport.MaxIdleConnsPerHost = 4
+	return transport
 }
 
 func (c *Client) Login() error {
@@ -190,7 +220,10 @@ func (c *Client) Logout() error {
 }
 
 type authedRoundTripper struct {
-	wrapped   http.RoundTripper
+	wrapped http.RoundTripper
+	// transport is the same object as wrapped, kept typed so idle connections can be dropped when
+	// one of them turns out to be dead. See RoundTrip.
+	transport *http.Transport
 	client    *Client
 	mu        std_sync.Mutex
 	reauthing bool
@@ -239,19 +272,36 @@ func (art *authedRoundTripper) RoundTrip(req *http.Request) (*http.Response, err
 		return art.wrapped.RoundTrip(req)
 	}
 
-	// Read body so we can retry
+	// Buffer the body so both retry paths below can send the request a second time.
+	//
+	// Note what is *not* done here any more: the caller's own request is left exactly as it was. A
+	// RoundTripper is not allowed to modify the request it is handed, and modifying it had a cost
+	// beyond the rule — replacing req.Body with a plain NopCloser dropped the GetBody that
+	// http.NewRequest had set, and GetBody is precisely what tells the transport a request may be
+	// sent again. Without it, a request that failed on a connection the server had already closed
+	// came straight back to the caller as "EOF" instead of being retried on a fresh one.
 	var bodyBytes []byte
-	var err error
 	if req.Body != nil {
+		var err error
 		bodyBytes, err = io.ReadAll(req.Body)
-		if err == nil {
-			req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		req.Body.Close()
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	resp, err := art.wrapped.RoundTrip(req)
+	resp, err := art.wrapped.RoundTrip(art.rebuild(req, bodyBytes))
+
+	// A transport-level failure with no response at all is the dead-keep-alive case: the connection
+	// was taken from the pool, the other end had already closed it, and nothing was ever written.
+	// The request is replayable — the body is in hand — so drop the pool and send it once more
+	// rather than reporting a failure the next attempt would not have had.
 	if err != nil {
-		return resp, err
+		art.transport.CloseIdleConnections()
+		resp, err = art.wrapped.RoundTrip(art.rebuild(req, bodyBytes))
+		if err != nil {
+			return resp, err
+		}
 	}
 
 	if resp.StatusCode == http.StatusForbidden {
@@ -262,10 +312,7 @@ func (art *authedRoundTripper) RoundTrip(req *http.Request) (*http.Response, err
 		}
 
 		// Retry the request with the refreshed session cookie
-		newReq := req.Clone(req.Context())
-		if bodyBytes != nil {
-			newReq.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-		}
+		newReq := art.rebuild(req, bodyBytes)
 		newReq.Header.Del("Cookie")
 		if art.client.client.Jar != nil {
 			for _, cookie := range art.client.client.Jar.Cookies(newReq.URL) {
@@ -277,4 +324,20 @@ func (art *authedRoundTripper) RoundTrip(req *http.Request) (*http.Response, err
 	}
 
 	return resp, err
+}
+
+// rebuild returns a fresh copy of the request with a readable body, ready to be sent.
+//
+// GetBody is set alongside Body so the transport can replay the request by itself, which is what
+// makes an ordinary stale connection invisible instead of an error.
+func (art *authedRoundTripper) rebuild(req *http.Request, bodyBytes []byte) *http.Request {
+	clone := req.Clone(req.Context())
+	if bodyBytes != nil {
+		clone.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		clone.GetBody = func() (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(bodyBytes)), nil
+		}
+		clone.ContentLength = int64(len(bodyBytes))
+	}
+	return clone
 }

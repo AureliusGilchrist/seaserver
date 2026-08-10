@@ -495,12 +495,6 @@ func (a *App) initModulesOnce() {
 	// worker is alive. Nothing survived the restart, so neither should that claim.
 	a.EnqueueFutureRepository.ResetStaleItems()
 
-	// The queue screen orders itself by how well seeded an anime is, and items prepared before that
-	// figure was recorded have none — so it is read back out of the snapshots they already hold.
-	// Off the startup path because it reads every one of those blobs, and nothing waits on it: rows
-	// simply take their proper place in the ordering as they are filled in.
-	go a.EnqueueFutureRepository.BackfillSeederTotals()
-
 	// A run is meant to outlive the page that started it, which has to include the server going
 	// away — so one that was cut off mid-walk picks itself back up here, from its saved progress.
 	a.EnqueueFutureRepository.ResumeIfInterrupted()

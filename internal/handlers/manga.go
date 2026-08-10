@@ -562,10 +562,8 @@ func (h *Handler) HandleAnilistListManga(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	if p.Page == nil || p.PerPage == nil {
-		*p.Page = 1
-		*p.PerPage = 20
-	}
+	p.Page = paginationDefault(p.Page, 1)
+	p.PerPage = paginationDefault(p.PerPage, 20)
 
 	isAdult := false
 	if p.IsAdult != nil {

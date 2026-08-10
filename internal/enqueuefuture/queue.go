@@ -10,6 +10,10 @@ import (
 
 // ListItems returns the queue in walk order, without the snapshots.
 func (r *Repository) ListItems() ([]*Item, error) {
+	// The queue screen ranks by seeders, so this is the first moment anything needs the figure for
+	// items prepared before it was recorded. Runs in the background, once per process.
+	r.backfillSeedersOnce()
+
 	records, err := r.database.GetEnqueueFutureListItems()
 	if err != nil {
 		return nil, err
