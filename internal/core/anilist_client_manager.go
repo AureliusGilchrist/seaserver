@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"seanime/internal/api/anilist"
 	"seanime/internal/platforms/shared_platform"
+	"seanime/internal/util"
 	"seanime/internal/util/filecache"
 	"strconv"
 	"sync"
@@ -68,9 +69,9 @@ type AnilistClientManager struct {
 	cacheDir string
 
 	// Disk-backed cache for offline resilience.
-	fileCacher       *filecache.Cacher
-	animeColBucket   filecache.PermanentBucket
-	mangaColBucket   filecache.PermanentBucket
+	fileCacher     *filecache.Cacher
+	animeColBucket filecache.PermanentBucket
+	mangaColBucket filecache.PermanentBucket
 
 	// Per-profile pending-mutation queues. When a profile's progress update can't reach
 	// AniList (API down / network outage), the update is queued here and replayed once the
@@ -506,14 +507,57 @@ func init() {
 func (m *AnilistClientManager) GetAnimeCollection(profileID uint) (*anilist.AnimeCollection, error) {
 	// Fast path: return from cache if still fresh.
 	m.colMu.RLock()
-	if entry, ok := m.animeColCache[profileID]; ok && time.Since(entry.fetchedAt) < profileCollectionCacheTTL {
-		col := entry.data
-		m.colMu.RUnlock()
-		return col, nil
-	}
+	cached, hasCached := m.animeColCache[profileID]
 	m.colMu.RUnlock()
+	if hasCached && time.Since(cached.fetchedAt) < profileCollectionCacheTTL {
+		return cached.data, nil
+	}
 
-	// Slow path: fetch (deduplicated per profileID).
+	// Stale but present: hand back what we have and refresh behind it.
+	//
+	// This is what stops the anime details page hanging. Everything here is deduplicated per
+	// profile, so a fetch already running is one every later caller waits on — and an AniList
+	// request can take up to its 45-second timeout before it fails. Made to wait on that, an entry
+	// page loads forever, and backing out and coming in again either joins the same stuck call or,
+	// once it has finally landed, returns instantly from the cache. That is exactly the "sometimes
+	// instant, sometimes much longer" it used to be.
+	//
+	// A collection a few minutes past its refresh time is a far better answer than a spinner. The
+	// only caller that has to wait is the one with nothing cached at all.
+	if hasCached {
+		m.refreshAnimeCollectionInBackground(profileID)
+		return cached.data, nil
+	}
+
+	// Nothing in memory. The disk copy is local and immediate, and the same reasoning applies: a
+	// page that renders from last session's collection beats one that waits on the network.
+	if diskCol := m.loadAnimeCollectionFromDisk(profileID); diskCol != nil {
+		m.colMu.Lock()
+		m.animeColCache[profileID] = &profileAnimeCache{data: diskCol, fetchedAt: time.Now()}
+		m.colMu.Unlock()
+		m.refreshAnimeCollectionInBackground(profileID)
+		return diskCol, nil
+	}
+
+	// Genuinely nothing to serve, so this one waits.
+	return m.fetchAnimeCollection(profileID)
+}
+
+// refreshAnimeCollectionInBackground brings a stale collection up to date without anybody waiting
+// on it. Deduplicated by the same singleflight as the blocking path, so a refresh already under way
+// is never started twice.
+func (m *AnilistClientManager) refreshAnimeCollectionInBackground(profileID uint) {
+	go func() {
+		defer util.HandlePanicInModuleThen("core/refreshAnimeCollection", func() {})
+		if _, err := m.fetchAnimeCollection(profileID); err != nil {
+			m.logger.Debug().Err(err).Uint("profileID", profileID).
+				Msg("anilist_client_manager: Background refresh of the anime collection failed, the cached copy stands")
+		}
+	}()
+}
+
+// fetchAnimeCollection does the actual work, deduplicated per profile.
+func (m *AnilistClientManager) fetchAnimeCollection(profileID uint) (*anilist.AnimeCollection, error) {
 	key := fmt.Sprintf("anime-%d", profileID)
 	result, err, _ := m.animeSfg.Do(key, func() (interface{}, error) {
 		client := m.GetClient(profileID)

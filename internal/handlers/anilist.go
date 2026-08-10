@@ -562,7 +562,10 @@ func (h *Handler) HandleAnilistListAnime(c echo.Context) error {
 		isAdult = *p.IsAdult && h.App.Settings.GetAnilist().EnableAdultContent
 	}
 
-	cacheKey := anilist.ListAnimeCacheKey(
+	// Scoped to the account: these results are fetched with that account's token, and the adult
+	// filter above is decided per account too, so one profile's cached page must not be served to
+	// another's.
+	cacheKey := fmt.Sprintf("p%d-", h.GetProfileID(c)) + anilist.ListAnimeCacheKey(
 		p.Page,
 		p.Search,
 		p.PerPage,
@@ -636,7 +639,8 @@ func (h *Handler) HandleAnilistListRecentAiringAnime(c echo.Context) error {
 	p.Page = paginationDefault(p.Page, 1)
 	p.PerPage = paginationDefault(p.PerPage, 50)
 
-	cacheKey := fmt.Sprintf("%v-%v-%v-%v-%v-%v-%v", p.Page, p.Search, p.PerPage, p.AiringAtGreater, p.AiringAtLesser, p.NotYetAired, p.Sort)
+	cacheKey := fmt.Sprintf("p%d-%v-%v-%v-%v-%v-%v-%v", h.GetProfileID(c),
+		p.Page, p.Search, p.PerPage, p.AiringAtGreater, p.AiringAtLesser, p.NotYetAired, p.Sort)
 
 	cached, ok := anilistListRecentAnimeCache.Get(cacheKey)
 	if ok {
@@ -676,7 +680,13 @@ var anilistMissedSequelsCache = result.NewCache[int, []*anilist.BaseAnime]()
 //	@returns []anilist.BaseAnime
 func (h *Handler) HandleAnilistListMissedSequels(c echo.Context) error {
 
-	cached, ok := anilistMissedSequelsCache.Get(1)
+	// Keyed by account, because this list is derived from that account's own collection: it is
+	// "sequels to things *you* have watched that *you* do not have". Held under a single shared key,
+	// the first profile to open Discover decided what every other profile saw there for the next
+	// four hours — someone else's watch history, presented as your recommendations.
+	profileID := int(h.GetProfileID(c))
+
+	cached, ok := anilistMissedSequelsCache.Get(profileID)
 	if ok {
 		return h.RespondWithData(c, cached)
 	}
@@ -697,7 +707,7 @@ func (h *Handler) HandleAnilistListMissedSequels(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	anilistMissedSequelsCache.SetT(1, ret, time.Hour*4)
+	anilistMissedSequelsCache.SetT(profileID, ret, time.Hour*4)
 
 	return h.RespondWithData(c, ret)
 }
