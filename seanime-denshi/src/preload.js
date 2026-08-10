@@ -32,6 +32,13 @@ contextBridge.exposeInMainWorld(
             ready: () => ipcRenderer.send("startup:renderer-ready")
         },
 
+        // Identifies this run of the app. Read synchronously and exposed as a value rather than as a
+        // call, because the web app has to consult it at module load — before the stored profile
+        // session is read — to decide whether that session belongs to this launch or a previous one.
+        session: {
+            launchId: ipcRenderer.sendSync("session:getLaunchId"),
+        },
+
         // Server connection (local sidecar vs remote URL)
         serverConfig: {
             get: () => ipcRenderer.invoke("server-config:get"),
@@ -64,6 +71,9 @@ contextBridge.exposeInMainWorld(
                 "cast:error",
                 "show-setup",
                 "remote-ready",
+                // Sent when the client is closed to the tray, which never unloads the page and so
+                // is the one "close" the launch id alone cannot catch.
+                "session:end",
             ]
             if (validChannels.includes(channel)) {
                 // Remove the event listener to avoid memory leaks

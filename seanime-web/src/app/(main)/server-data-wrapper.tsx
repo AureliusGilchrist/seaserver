@@ -57,6 +57,20 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         }
     }, [_serverStatus?.bootId])
 
+    // Closing the desktop client to the tray ends the session too.
+    //
+    // Signing in is required on every launch, and closing to the tray is closing the client as far
+    // as anyone using it is concerned — but it is the one "close" that never unloads the page, so
+    // the launch id the session is stored against is never re-read. The desktop app says so
+    // directly instead. Nothing happens in a browser, where there is no tray to close to.
+    React.useEffect(() => {
+        const remove = window.electron?.on?.("session:end", () => {
+            logger("Data Wrapper").info("Client closed to the tray, ending the profile session")
+            setProfileToken(undefined)
+        })
+        return () => remove?.()
+    }, [])
+
     React.useEffect(() => {
         if (_serverStatus) {
             // logger("SERVER").info("Server status", _serverStatus)

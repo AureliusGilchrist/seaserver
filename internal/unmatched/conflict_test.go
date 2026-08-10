@@ -210,3 +210,47 @@ func TestDetectConflictsPrefersTheNewestRecord(t *testing.T) {
 		t.Errorf("SourceTorrent = %q, want %q (the most recent match)", got, "second torrent")
 	}
 }
+
+// Files nothing accounts for are not evidence of a competing release.
+//
+// A library that was scanned in rather than matched in has no match records at all, so every
+// conflict against it arrived here unattributed — and was reported as "already in the library from a
+// different torrent", which sent people looking for a duplicate download that never existed.
+func TestDetectConflictsMarksUnattributedFiles(t *testing.T) {
+	repo, base := stageBase(t)
+
+	dest := filepath.Join(t.TempDir(), "Library", "Some Show")
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		t.Fatalf("destination: %v", err)
+	}
+	occupied := filepath.Join(dest, "Some Show - Episode 001.mkv")
+	if err := os.WriteFile(occupied, []byte("already here, nobody knows why"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	src := filepath.Join(base, "Incoming Release")
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatalf("staging: %v", err)
+	}
+	incoming := filepath.Join(src, "ep01.mkv")
+	if err := os.WriteFile(incoming, []byte("incoming"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	conflict := repo.detectConflicts("Incoming Release", dest, []plannedMove{{
+		src: incoming, dest: occupied, newName: "Some Show - Episode 001.mkv", relPath: "ep01.mkv",
+	}})
+
+	if conflict == nil {
+		t.Fatal("an occupied destination was not reported")
+	}
+	if !conflict.Unattributed {
+		t.Error("a conflict no match record accounts for was not marked unattributed")
+	}
+	if conflict.SameTorrent {
+		t.Error("an unattributed conflict must not claim to be a re-run of this torrent")
+	}
+	if len(conflict.SourceTorrents) != 0 {
+		t.Errorf("unattributed files named a source torrent: %v", conflict.SourceTorrents)
+	}
+}

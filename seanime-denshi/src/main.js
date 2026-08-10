@@ -112,9 +112,35 @@ function saveMainWindowState() {
     saveDenshiSettings(denshiSettings)
 }
 
+// launchId identifies this run of the desktop app.
+//
+// It is what lets the web app tell "the app was just started" from "the page reloaded", which it
+// cannot otherwise do: the profile session is kept in sessionStorage, and sessionStorage survives a
+// reload by design — deliberately so, because linking an AniList account navigates the page away and
+// back, and a session that did not survive that would sign you out in the middle of it.
+//
+// Generated fresh on every start and never written to disk, so however the app last ended — closed,
+// crashed, killed, machine powered off — the next start has a different one and the session stored
+// under the old one is discarded. It is also regenerated when the window is hidden to the tray,
+// which is the one way of "closing" the app that never unloads the page.
+let launchId = require("crypto").randomUUID()
+
+function newLaunchId() {
+    launchId = require("crypto").randomUUID()
+    return launchId
+}
+
 function hideMainWindow() {
     if (!mainWindow || mainWindow.isDestroyed()) {
         return
+    }
+
+    // Closing to the tray is closing the client as far as anyone using it is concerned, so the
+    // session ends here too. The renderer is told directly, because it is not going to be reloaded
+    // and so will never re-read the launch id by itself.
+    newLaunchId()
+    if (mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send("session:end")
     }
 
     // save window state before hiding so we can restore it later
@@ -1769,6 +1795,12 @@ app.whenReady().then(async () => {
     })
 
     ipcMain.handle("get-local-server-port", () => localServerPort)
+
+    // Answered synchronously because the renderer needs it before anything else runs: the decision
+    // to discard a stored session has to be made before the app reads that session.
+    ipcMain.on("session:getLaunchId", (event) => {
+        event.returnValue = launchId
+    })
 
     // Denshi settings IPC handlers
     ipcMain.handle("denshi:getSettings", () => {

@@ -45,6 +45,15 @@ type MatchConflict struct {
 	// SameTorrent reports that every existing file came from this very torrent — a match being
 	// re-run, rather than a competing release. Worth saying differently in the dialog.
 	SameTorrent bool `json:"sameTorrent"`
+	// Unattributed reports that no match record accounts for any of the existing files, so nothing
+	// is known about where they came from.
+	//
+	// This is not the same as their coming from a different torrent, and saying so was misleading in
+	// the one case it happens most: a library that was scanned in rather than matched in. Files put
+	// there by a scan, by hand, or by a match made before match history existed have no record, and
+	// reporting them as a competing release sent people looking for a duplicate download that was
+	// never there.
+	Unattributed bool `json:"unattributed"`
 	// TotalPlanned is how many files the match intended to move, so the dialog can say "9 of 12".
 	TotalPlanned int `json:"totalPlanned"`
 }
@@ -117,9 +126,11 @@ func (r *Repository) detectConflicts(torrentName, destination string, planned []
 		conflict.Files = append(conflict.Files, cf)
 	}
 
-	// With no record covering any of them there is nothing to base "same torrent" on.
+	// With no record covering any of them there is nothing to base "same torrent" on, and nothing to
+	// base "different torrent" on either.
 	if !sawOwner {
 		conflict.SameTorrent = false
+		conflict.Unattributed = true
 	}
 
 	return conflict

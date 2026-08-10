@@ -842,9 +842,17 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		if conflict := r.detectConflicts(req.TorrentName, destination, planned); conflict != nil {
 			result.Success = false
 			result.Conflict = conflict
-			if conflict.SameTorrent {
+			switch {
+			case conflict.SameTorrent:
 				result.ErrorMessage = fmt.Sprintf("%d of %d files are already in the library from this same torrent", len(conflict.Files), conflict.TotalPlanned)
-			} else {
+			case conflict.Unattributed:
+				// Nothing records what put these there, which most often means they were scanned in
+				// rather than matched in — an episode you already had. Saying "from a different
+				// torrent" sent people hunting for a duplicate download that does not exist.
+				result.ErrorMessage = fmt.Sprintf(
+					"%d of %d episodes are already in the library — nothing records which download put them there, so they were left as they are",
+					len(conflict.Files), conflict.TotalPlanned)
+			default:
 				result.ErrorMessage = fmt.Sprintf("%d of %d files are already in the library from a different torrent", len(conflict.Files), conflict.TotalPlanned)
 			}
 			r.logger.Warn().
@@ -854,6 +862,7 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 				Int("planned", conflict.TotalPlanned).
 				Strs("sourceTorrents", conflict.SourceTorrents).
 				Bool("sameTorrent", conflict.SameTorrent).
+				Bool("unattributed", conflict.Unattributed).
 				Msg("unmatched: Destination files already exist, awaiting a decision before overwriting")
 			return result, nil
 		}
