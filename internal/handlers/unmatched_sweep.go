@@ -162,9 +162,17 @@ func (h *Handler) runUnmatchedSweep() {
 		// The torrent client is the authority on whether this is really finished. An "unknown"
 		// verdict is not a reason to skip — it is what a download the client has forgotten looks
 		// like, and those are exactly the ones stuck here.
-		if h.App.UnmatchedScanner != nil && h.App.UnmatchedScanner.CompletionStateFor(t.Name) == unmatched.CompletionDownloading {
-			skipped++
-			continue
+		//
+		// "Unreachable" is a reason to skip, and a different one: it means the authority could not
+		// be consulted at all. This moves files and deletes the staging directory, in bulk, across
+		// every torrent at once — doing that on a guess is how a download in progress becomes four
+		// episodes in the library and a client writing into files that are no longer there.
+		if h.App.UnmatchedScanner != nil {
+			switch h.App.UnmatchedScanner.CompletionStateFor(t.Name) {
+			case unmatched.CompletionDownloading, unmatched.CompletionUnreachable:
+				skipped++
+				continue
+			}
 		}
 		work = append(work, sweepItem{name: t.Name, animeID: metadata.AnimeID})
 	}

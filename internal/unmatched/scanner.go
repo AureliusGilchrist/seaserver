@@ -64,6 +64,36 @@ type Scanner struct {
 	// verifying holds the directories a verification goroutine is currently working on, so a second
 	// one is never started for the same directory. See beginVerifying.
 	verifying map[string]bool
+
+	// startedAt is when this scanner began running, and sawTorrents records whether the client has
+	// ever reported holding anything. Together they decide when an empty report from the client may
+	// be believed — see clientHasBeenSeenLoaded.
+	startedAt   time.Time
+	sawTorrents bool
+}
+
+// clientStartupGrace is how long after this process starts an empty report from the torrent client
+// is treated as "not loaded yet" rather than as "there are no torrents".
+//
+// Only long enough to cover a client coming up alongside the server after a reboot. Nothing is lost
+// by waiting: the only thing it delays is the settle fallback, and that path already requires a
+// directory to sit unchanged for settleWindow before it does anything.
+const clientStartupGrace = 5 * time.Minute
+
+// clientHasBeenSeenLoaded reports whether an empty answer from the torrent client can be believed.
+func (s *Scanner) clientHasBeenSeenLoaded() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.sawTorrents {
+		return true
+	}
+	// A scanner with no recorded start is one built directly rather than through Start; treat it as
+	// long-running rather than as freshly started, so this can never silently disable itself.
+	if s.startedAt.IsZero() {
+		return true
+	}
+	return time.Since(s.startedAt) > clientStartupGrace
 }
 
 // beginVerifying claims a directory for verification, reporting false when another goroutine
@@ -134,9 +164,26 @@ type TorrentState struct {
 type CompletionState string
 
 const (
-	// CompletionUnknown — no client reachable, or no torrent of the client's matches this
-	// directory (it was removed after finishing, or the files were put there by hand).
+	// CompletionUnknown — the client answered, and none of its torrents match this directory: it
+	// was removed after finishing, or the files were put here by hand. This is the only verdict
+	// that may fall through to the settle check.
 	CompletionUnknown CompletionState = "unknown"
+	// CompletionUnreachable — the client could not be asked at all. It is not "no record": the
+	// download may well be running, and nothing may be concluded from silence.
+	//
+	// Collapsing this into CompletionUnknown is what moved partial downloads into the library. The
+	// settle check treats a directory that has not changed for a while as finished, which is a
+	// reasonable thing to say about a download the client has forgotten and a completely wrong
+	// thing to say about one it is still running — and a download stalls for ninety seconds all the
+	// time, on a slow peer, on a piece being verified, on being queued behind another. So whenever
+	// the client was unreachable, any paused or briefly stalled download was declared finished, its
+	// half-written files were moved into the library, and its staging directory was deleted.
+	//
+	// The client is unreachable in exactly the situations where downloads are most likely to be in
+	// flight: while it is restarting, while the network is down, and — the case that made this
+	// routine — for the whole window after the backend restarts, before anything has told the
+	// scanner how to reach it.
+	CompletionUnreachable CompletionState = "unreachable"
 	// CompletionDownloading — the client is still writing this one.
 	CompletionDownloading CompletionState = "downloading"
 	// CompletionFinished — the client reports the download as complete.
@@ -199,6 +246,11 @@ func (s *Scanner) torrentStates() ([]TorrentState, bool) {
 
 	s.mu.Lock()
 	s.cachedStates, s.cachedStatesOK, s.cachedStatesAt = states, ok, time.Now()
+	// Once the client has been seen holding something, it has clearly finished loading, and an
+	// empty report from it later means what it says.
+	if ok && len(states) > 0 {
+		s.sawTorrents = true
+	}
 	s.mu.Unlock()
 
 	return states, ok
@@ -209,7 +261,20 @@ func (s *Scanner) torrentStates() ([]TorrentState, bool) {
 func (s *Scanner) completionState(dirName string) CompletionState {
 	states, ok := s.torrentStates()
 	if !ok {
-		return CompletionUnknown
+		return CompletionUnreachable
+	}
+
+	// A client that answers with nothing at all, early in this process's life, is almost certainly
+	// still starting up rather than genuinely empty — a torrent client and this server on the same
+	// machine come back together after a reboot, and the client serves an empty list for a while
+	// before it has finished loading its session. Taken at face value that reads as "no record" for
+	// every download in progress, which is the settle check's licence to move them.
+	//
+	// So an empty report only counts once this process has been up long enough for the client to
+	// have loaded, or once the client has been seen holding at least one torrent. After that an
+	// empty client is taken at its word, which is what a library of hand-copied files needs.
+	if len(states) == 0 && !s.clientHasBeenSeenLoaded() {
+		return CompletionUnreachable
 	}
 
 	for _, state := range states {
@@ -314,6 +379,10 @@ func (s *Scanner) Start() {
 		return
 	}
 	s.isRunning = true
+	// Restarting the backend restarts this clock, which is the point: a client that comes back up
+	// alongside us gets the same grace it would after a reboot. See clientStartupGrace.
+	s.startedAt = time.Now()
+	s.sawTorrents = false
 	s.mu.Unlock()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -520,6 +589,15 @@ func (s *Scanner) scanForCompletedDownloads() {
 				if s.noteVerdict(torrentRel, verdict) {
 					s.logger.Debug().Str("torrent", torrentRel).
 						Msg("unmatched scanner: Torrent client reports this download is still in progress")
+				}
+				return
+			case CompletionUnreachable:
+				// Nothing may be concluded while the client cannot be asked. Waiting costs a
+				// delayed match; guessing costs half an episode moved into the library and the rest
+				// of the download deleted out from under the client.
+				if s.noteVerdict(torrentRel, verdict) {
+					s.logger.Debug().Str("torrent", torrentRel).
+						Msg("unmatched scanner: Torrent client cannot be reached, leaving this download alone")
 				}
 				return
 			case CompletionFinished:

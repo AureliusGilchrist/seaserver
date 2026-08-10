@@ -87,23 +87,59 @@ func TestCompletionState(t *testing.T) {
 		}
 	})
 
-	// An unreachable client is not a client reporting nothing: falling through to "finished"
-	// here is what would match partial downloads whenever qBittorrent happened to be restarting.
-	t.Run("an unreachable client is unknown, not finished", func(t *testing.T) {
+	// An unreachable client is not a client reporting nothing, and the difference is the whole
+	// safety of this feature: "unknown" is allowed to fall through to the settle check and be
+	// matched, so reporting an unreachable client as unknown is what moved partial downloads into
+	// the library whenever qBittorrent was restarting or the network hiccuped.
+	t.Run("an unreachable client is unreachable, not unknown", func(t *testing.T) {
 		s, _ := stageScanner(t)
 
 		s.SetTorrentStateSource(func() ([]TorrentState, bool) { return nil, false })
 
-		if got := s.completionState("Anything"); got != CompletionUnknown {
-			t.Errorf("expected %q, got %q", CompletionUnknown, got)
+		if got := s.completionState("Anything"); got != CompletionUnreachable {
+			t.Errorf("expected %q, got %q", CompletionUnreachable, got)
 		}
 	})
 
-	t.Run("no source configured is unknown", func(t *testing.T) {
+	t.Run("no source configured is unreachable", func(t *testing.T) {
 		s, _ := stageScanner(t)
 
+		if got := s.completionState("Anything"); got != CompletionUnreachable {
+			t.Errorf("expected %q, got %q", CompletionUnreachable, got)
+		}
+	})
+
+	// A client that answers with an empty list moments after the backend started is far more likely
+	// to be still loading its session than to be genuinely empty — the two come back together after
+	// a reboot. Believing it would mark every download in progress as one the client has forgotten.
+	t.Run("an empty report during startup is not evidence", func(t *testing.T) {
+		s, _ := stageScanner(t)
+		s.startedAt = time.Now()
+		s.SetTorrentStateSource(func() ([]TorrentState, bool) { return nil, true })
+
+		if got := s.completionState("Anything"); got != CompletionUnreachable {
+			t.Errorf("expected %q during the startup grace, got %q", CompletionUnreachable, got)
+		}
+	})
+
+	t.Run("an empty report is believed once the client has been seen loaded", func(t *testing.T) {
+		s, _ := stageScanner(t)
+		s.startedAt = time.Now()
+		s.sawTorrents = true
+		s.SetTorrentStateSource(func() ([]TorrentState, bool) { return nil, true })
+
 		if got := s.completionState("Anything"); got != CompletionUnknown {
-			t.Errorf("expected %q, got %q", CompletionUnknown, got)
+			t.Errorf("expected %q once the client is known to be up, got %q", CompletionUnknown, got)
+		}
+	})
+
+	t.Run("an empty report is believed after the startup grace has passed", func(t *testing.T) {
+		s, _ := stageScanner(t)
+		s.startedAt = time.Now().Add(-2 * clientStartupGrace)
+		s.SetTorrentStateSource(func() ([]TorrentState, bool) { return nil, true })
+
+		if got := s.completionState("Anything"); got != CompletionUnknown {
+			t.Errorf("expected %q after the grace period, got %q", CompletionUnknown, got)
 		}
 	})
 }
