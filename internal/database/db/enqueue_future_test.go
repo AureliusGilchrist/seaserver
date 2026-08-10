@@ -246,7 +246,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 
 		insertItem(t, db, 9)
 		blob := []byte(`{"providerId":"nyaa"}`)
-		if err := db.SaveEnqueueFutureItemSnapshot(9, EnqueueFutureStatusReady, "Some Anime", "cover.jpg", blob); err != nil {
+		if err := db.SaveEnqueueFutureItemSnapshot(9, EnqueueFutureStatusReady, "Some Anime", "cover.jpg", 412, blob); err != nil {
 			t.Fatalf("save snapshot: %v", err)
 		}
 
@@ -260,6 +260,9 @@ func TestEnqueueFutureQueue(t *testing.T) {
 		if full.Title != "Some Anime" || full.CoverImage != "cover.jpg" {
 			t.Errorf("display fields not stored: %q / %q", full.Title, full.CoverImage)
 		}
+		if full.TotalSeeders != 412 {
+			t.Errorf("total seeders = %d, want 412", full.TotalSeeders)
+		}
 
 		list, err := db.GetEnqueueFutureListItems()
 		if err != nil || len(list) != 1 {
@@ -271,6 +274,10 @@ func TestEnqueueFutureQueue(t *testing.T) {
 		}
 		if list[0].Title != "Some Anime" {
 			t.Errorf("the list view lost the title: %q", list[0].Title)
+		}
+		// The list view is what orders the queue by popularity, so this one has to come with it.
+		if list[0].TotalSeeders != 412 {
+			t.Errorf("the list view lost the seeder total: %d", list[0].TotalSeeders)
 		}
 	})
 

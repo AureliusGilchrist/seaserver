@@ -58,6 +58,7 @@ func (db *Database) GetEnqueueFutureItems() ([]*models.EnqueueFutureItem, error)
 var enqueueFutureListColumns = []string{
 	"id", "created_at", "updated_at", "profile_id", "media_id", "root_media_id",
 	"family_id", "position", "depth", "status", "attempts", "last_error", "title", "cover_image",
+	"total_seeders",
 }
 
 // enqueueFutureUnresolvedStatuses are the rows the queue screen has any use for: the ones still being
@@ -412,17 +413,58 @@ func (db *Database) SetEnqueueFutureItemStatus(mediaID int, status string, lastE
 // SaveEnqueueFutureItemSnapshot stores a prepared item: its snapshot blob, the display fields read
 // out of it, and the status the preparation ended in.
 func (db *Database) SaveEnqueueFutureItemSnapshot(
-	mediaID int, status string, title string, coverImage string, value []byte,
+	mediaID int, status string, title string, coverImage string, totalSeeders int, value []byte,
 ) error {
 	return retryOnBusy(func() error {
 		return db.gormdb.Model(&models.EnqueueFutureItem{}).
 			Where("media_id = ?", mediaID).
 			Updates(map[string]interface{}{
-				"status":      status,
-				"title":       title,
-				"cover_image": coverImage,
-				"value":       value,
-				"last_error":  "",
+				"status":        status,
+				"title":         title,
+				"cover_image":   coverImage,
+				"total_seeders": totalSeeders,
+				"value":         value,
+				"last_error":    "",
+			}).Error
+	})
+}
+
+// SetEnqueueFutureItemSeeders records a seeder total worked out after the fact, for a row prepared
+// before the column existed. See ForEachEnqueueFutureItemMissingSeeders.
+func (db *Database) SetEnqueueFutureItemSeeders(mediaID int, totalSeeders int) error {
+	return retryOnBusy(func() error {
+		return db.gormdb.Model(&models.EnqueueFutureItem{}).
+			Where("media_id = ?", mediaID).
+			Update("total_seeders", totalSeeders).Error
+	})
+}
+
+// ForEachEnqueueFutureItemMissingSeeders hands every prepared row with no seeder total its snapshot
+// blob, so the caller can decode it and fill the column in.
+//
+// Rows prepared before the column existed have nothing in it, and a queue screen ordered by
+// popularity would sink every one of them to the bottom — which, for anyone with a queue already
+// built, is the whole queue. Reading the blobs back is the only place the number can be recovered
+// from.
+//
+// In batches, and never selecting the blob for more rows than one batch, because these are hundreds
+// of kilobytes each and a queue runs to hundreds of rows: loading them all at once to read one
+// number out of each is exactly the cost the denormalized columns exist to avoid.
+func (db *Database) ForEachEnqueueFutureItemMissingSeeders(fn func(mediaID int, value []byte)) error {
+	var batch []*models.EnqueueFutureItem
+	return retryOnBusy(func() error {
+		return db.gormdb.
+			Model(&models.EnqueueFutureItem{}).
+			// The primary key comes along so the batching walks by it rather than by offset: the
+			// caller fills the column in as it goes, which changes what the condition below matches,
+			// and offset paging over a shrinking result set skips rows.
+			Select([]string{"id", "media_id", "value"}).
+			Where("total_seeders = 0 AND value IS NOT NULL AND status = ?", EnqueueFutureStatusReady).
+			FindInBatches(&batch, 25, func(tx *gorm.DB, _ int) error {
+				for _, record := range batch {
+					fn(record.MediaID, record.Value)
+				}
+				return nil
 			}).Error
 	})
 }

@@ -75,17 +75,18 @@ func (r *Repository) Clear() error {
 
 func toItem(record *models.EnqueueFutureItem, snapshot *Snapshot) *Item {
 	return &Item{
-		MediaID:     record.MediaID,
-		RootMediaID: record.RootMediaID,
-		FamilyID:    record.FamilyID,
-		Position:    record.Position,
-		Depth:       record.Depth,
-		Status:      record.Status,
-		Attempts:    record.Attempts,
-		LastError:   record.LastError,
-		Title:       record.Title,
-		CoverImage:  record.CoverImage,
-		CreatedAt:   record.CreatedAt,
-		Snapshot:    snapshot,
+		MediaID:      record.MediaID,
+		RootMediaID:  record.RootMediaID,
+		FamilyID:     record.FamilyID,
+		Position:     record.Position,
+		Depth:        record.Depth,
+		Status:       record.Status,
+		Attempts:     record.Attempts,
+		LastError:    record.LastError,
+		Title:        record.Title,
+		CoverImage:   record.CoverImage,
+		TotalSeeders: record.TotalSeeders,
+		CreatedAt:    record.CreatedAt,
+		Snapshot:     snapshot,
 	}
 }

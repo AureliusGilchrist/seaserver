@@ -2751,6 +2751,7 @@ export type EnqueueFuture_Item = {
     lastError: string
     title: string
     coverImage: string
+    totalSeeders: number
     createdAt?: string
     snapshot?: EnqueueFuture_Snapshot
 }

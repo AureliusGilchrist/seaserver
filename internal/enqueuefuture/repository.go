@@ -734,6 +734,68 @@ func bestSeeders(data *torrent.SearchData) (best int, count int) {
 	return best, count
 }
 
+// totalSeeders adds up every seeder across every torrent the search found.
+//
+// This is the popularity the queue screen sorts on, and it is deliberately a different number from
+// bestSeeders above, which is the availability gate. The healthiest torrent says whether a download
+// will actually run; the sum says how much of the world is currently sharing this show at all, over
+// however many releases and groups it has. A well-known series has both a busy torrent and thirty
+// others behind it, and only the sum can tell that apart from one lucky release.
+func totalSeeders(data *torrent.SearchData) int {
+	if data == nil {
+		return 0
+	}
+	total := 0
+	for _, t := range data.Torrents {
+		if t == nil {
+			continue
+		}
+		// Providers do return negatives for "unknown", and one of those must not quietly subtract
+		// from a franchise's total when the members are added together.
+		if t.Seeders > 0 {
+			total += t.Seeders
+		}
+	}
+	return total
+}
+
+// BackfillSeederTotals fills in the popularity figure for items prepared before it was recorded.
+// Call once at startup.
+//
+// Without this, an existing queue opens sorted entirely by a column of zeroes — every row already in
+// it ranked below every row prepared after the upgrade. The numbers are all recoverable from the
+// snapshots that are already stored, so nothing has to be searched for again.
+func (r *Repository) BackfillSeederTotals() {
+	// Runs on its own goroutine at startup, where a panic would take the server down with it.
+	defer util.HandlePanicInModuleThen("enqueuefuture/BackfillSeederTotals", func() {})
+
+	filled := 0
+	err := r.database.ForEachEnqueueFutureItemMissingSeeders(func(mediaID int, value []byte) {
+		var snapshot Snapshot
+		if err := json.Unmarshal(value, &snapshot); err != nil {
+			// Nothing to recover, and nothing to do about it — the row still works, it simply sorts
+			// as unknown. GetItem logs the same failure when the screen actually asks for it.
+			return
+		}
+		total := totalSeeders(snapshot.SearchData)
+		if total <= 0 {
+			return
+		}
+		if err := r.database.SetEnqueueFutureItemSeeders(mediaID, total); err != nil {
+			r.logger.Warn().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Failed to backfill seeders")
+			return
+		}
+		filled++
+	})
+	if err != nil {
+		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to backfill seeder totals")
+		return
+	}
+	if filled > 0 {
+		r.logger.Info().Int("items", filled).Msg("enqueuefuture: Filled in seeder totals for items prepared earlier")
+	}
+}
+
 // storeSnapshot writes a prepared item and marks it ready — or drops it from the queue entirely when
 // the search found nothing downloadable.
 func (r *Repository) storeSnapshot(mediaID int, result *prepared) {
@@ -775,7 +837,7 @@ func (r *Repository) storeSnapshot(mediaID int, result *prepared) {
 	}
 
 	if err := r.database.SaveEnqueueFutureItemSnapshot(
-		mediaID, db.EnqueueFutureStatusReady, result.title, result.coverImage, value,
+		mediaID, db.EnqueueFutureStatusReady, result.title, result.coverImage, totalSeeders(searchData), value,
 	); err != nil {
 		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Failed to store snapshot")
 		return

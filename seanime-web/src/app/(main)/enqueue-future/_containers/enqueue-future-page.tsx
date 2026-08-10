@@ -54,8 +54,9 @@ export function EnqueueFuturePage() {
     // anything new goes on the end, where it cannot disturb what is above it; anything gone is dropped
     // and the rows below close up. Those are the only two movements this list makes.
     //
-    // Grouping below then lifts a late-discovered season up beside its siblings, which is the one
-    // exception to "new goes on the end" — see groupIntoFamilies.
+    // This is the sequence, not the final order: grouping below gathers franchises out of it and
+    // ranks them by seeders, and what survives from here is the tie-break between franchises of
+    // equal standing — which, before anything has been prepared, is all of them.
     const orderRef = React.useRef<number[]>([])
     const items = React.useMemo(() => {
         const visible = (queue ?? []).filter(isEnqueueFuturePending)
@@ -86,10 +87,11 @@ export function EnqueueFuturePage() {
     // The list draws it and Next/Previous walk it, which has to be the same order, hence orderedItems
     // rather than items everywhere below.
     //
-    // The family order is frozen exactly as the item order above is, and for a stronger reason: a
-    // group's place must not depend on which of its members is still in it, or dealing with the top
-    // entry of a group throws the rest of the group down the list. groupIntoFamilies holds that
-    // invariant; this ref is the memory it needs to hold it across polls.
+    // This is also where the queue is put in the order you actually want to work it: most widely
+    // seeded franchise first, counting every torrent found for every member of it. A group's place
+    // comes from its own total and never from which of its members is still in it — otherwise
+    // dealing with the top entry of a group throws the rest of the group down the list. The ref is
+    // the memory groupIntoFamilies uses to settle ties, which is what an unprepared queue is made of.
     //
     // Grouping is presentation only. Every action — skip, ignore, add torrents — applies to the one
     // entry it was pressed on and never to its siblings.

@@ -5,34 +5,62 @@ import { AnimeDownloadingIcon, useIsAnimeDownloading } from "@/app/(main)/_featu
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/components/ui/core/styling"
 import React from "react"
-import { LuBan, LuCheck, LuCircleAlert, LuLink2, LuLoader, LuSkipForward } from "react-icons/lu"
+import { LuBan, LuCheck, LuCircleAlert, LuLink2, LuLoader, LuSkipForward, LuUsers } from "react-icons/lu"
+
+/**
+ * Seeder counts run from single figures into the tens of thousands and sit in a 320px column next to
+ * everything else a row has to say, so past a thousand they are shortened rather than allowed to
+ * push the title out of the way. The exact figure is never the point — the ranking is.
+ */
+function formatSeeders(count: number): string {
+    if (count < 1000) return String(count)
+    const thousands = count / 1000
+    return `${thousands < 10 ? thousands.toFixed(1).replace(/\.0$/, "") : Math.round(thousands)}k`
+}
 
 export type EnqueueFutureFamily = EnqueueFuture_Item[]
 
 /**
- * Gathers a franchise into one bundle wherever its members turn up, and draws a spine around it.
+ * How widely shared a franchise is: every seeder on every torrent found for every one of its members,
+ * added together.
  *
- * **The slot belongs to the family, not to a member of it.** Once a franchise has been given a place
- * in the list it keeps that place until it is gone entirely, and `order` is what carries that from
- * one poll to the next — the caller holds it and hands it back.
+ * A franchise is one thing to decide about, so it is ranked as one thing. Ranking a group by its best
+ * member instead would put a franchise on the strength of its one famous season and say nothing about
+ * the rest; the sum is the size of the whole story's audience, which is what the bundle represents.
  *
- * That distinction is the whole point of this function. Placing a family at whichever member happens
- * to be its earliest survivor looks identical while nothing is happening, and then throws the group
- * across the screen the moment you deal with its top entry: the anchor becomes the next member, and
- * if that one arrived from a run three hundred rows later, the entire bundle lands there. Working the
- * top of a group meant watching the rest of it vanish down the list.
+ * An item still being prepared has no figure yet and contributes nothing, so an unprepared queue
+ * ranks as it always did until the numbers arrive — see the ordering note below.
+ */
+export function familySeeders(family: EnqueueFutureFamily): number {
+    return family.reduce((total, item) => total + (item.totalSeeders || 0), 0)
+}
+
+/**
+ * Gathers a franchise into one bundle wherever its members turn up, draws a spine around it, and puts
+ * the most widely shared franchises first.
  *
- * So the movements this list can make are exactly two, and they are the only two:
+ * **The slot belongs to the family, not to a member of it.** A franchise is placed by its own total,
+ * never by whichever member happens to be its earliest survivor. That distinction is what keeps the
+ * list still while you work down it: anchoring a group on a member throws the whole bundle across the
+ * screen the moment you deal with its top entry, because the anchor becomes the next member and the
+ * group lands wherever that one came from.
  *
- *  - an entry is dealt with and leaves; whatever was below it inside its group closes up by one, and
- *    if that emptied the group, whatever was below the group closes up by one.
- *  - a franchise nobody has seen yet appears, and goes on the end. A new *member* of a franchise
- *    already listed joins that group where it already is — it had no slot to lose, and nothing that
- *    was already placed gives one up.
+ * The order is popularity, highest total first, and it holds still because the number it sorts on
+ * does not move: a seeder total is recorded once when the item is prepared and never recomputed, so
+ * re-sorting on every poll returns the same list rather than reshuffling under you. The two things
+ * that do change it are the two that should:
  *
- * Nothing is ever re-sorted, re-anchored or re-gathered. The order will not be alphabetical, or by
- * position, or by anything else describable; it is the order things were first shown in, and that is
- * the property worth having.
+ *  - an entry is dealt with and leaves; its group's total drops by that entry's share, and the group
+ *    settles wherever its remaining members put it.
+ *  - an anime finishes preparing, or a new franchise appears, and takes the rank its seeders earn.
+ *
+ * Items with no total yet — anything still pending or preparing — sort last, which is where something
+ * you cannot act on belongs.
+ *
+ * `order` is the tie-break, carried from one poll to the next by the caller. Two franchises of equal
+ * popularity (and a queue full of unprepared zeroes is nothing but ties) keep the order they were
+ * first shown in rather than swapping places on every poll, because the sort below is stable and this
+ * is the sequence it stabilises against.
  *
  * Each entry appears exactly once in the result, so flattening it is a reordering of the input and
  * never a duplication — which is what lets the list and Next/Previous agree on the same order.
@@ -57,19 +85,26 @@ export function groupIntoFamilies(
         else byKey.set(key, [item])
     }
 
-    // Everything still here, exactly where it already was. A family whose every member has been dealt
-    // with drops out, and the groups below it close up — the one time a group changes place.
+    // Within a bundle, the best-shared season first, for the same reason the bundles themselves are
+    // ordered that way. Stable, so seasons of equal standing stay in the order they came in.
+    for (const family of byKey.values()) {
+        family.sort((a, b) => (b.totalSeeders || 0) - (a.totalSeeders || 0))
+    }
+
+    // The sequence ties fall back on: whatever was already on screen, in the order it was in, then
+    // franchises seen for the first time behind it.
     const placed = new Set<number>()
     const held = order.filter(key => {
         if (!byKey.has(key) || placed.has(key)) return false
         placed.add(key)
         return true
     })
-
-    // Franchises seen for the first time, on the end where they cannot disturb anything above them.
     const appended = [...byKey.keys()].filter(key => !placed.has(key))
 
+    // Then popularity decides, over a stable sort, so the line above only settles ties.
     const nextOrder = held.concat(appended)
+        .sort((a, b) => familySeeders(byKey.get(b)!) - familySeeders(byKey.get(a)!))
+
     return { families: nextOrder.map(key => byKey.get(key)!), order: nextOrder }
 }
 
@@ -131,6 +166,7 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
 
     const isGroup = family.length > 1
     const containsActive = family.some(n => n.mediaId === activeMediaId)
+    const seeders = familySeeders(family)
 
     return (
         <div
@@ -147,6 +183,15 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                     <span className="truncate">
                         {family.length} related — sequels &amp; side stories
                     </span>
+                    {/* The number the group is ranked on. A bundle sits above one of its own members
+                        further down the page, which only reads as sensible once you can see that it
+                        is the franchise being counted and not the season. */}
+                    {seeders > 0 && (
+                        <span className="flex-none ml-auto flex items-center gap-1 normal-case tracking-normal">
+                            <LuUsers className="flex-none" />
+                            {formatSeeders(seeders)}
+                        </span>
+                    )}
                 </div>
             )}
 
@@ -195,6 +240,9 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                             </span>
                             <span className="block text-xs text-[--muted]">
                                 <ItemStatusLabel item={item} />
+                                {/* Its own share of the total, so a row's place in the list is
+                                    something you can read rather than infer. */}
+                                {item.totalSeeders > 0 && <> · {formatSeeders(item.totalSeeders)} seeders</>}
                             </span>
                         </span>
 

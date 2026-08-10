@@ -423,6 +423,15 @@ type EnqueueFutureItem struct {
 	LastError  string `gorm:"column:last_error" json:"lastError"`
 	Title      string `gorm:"column:title" json:"title"`
 	CoverImage string `gorm:"column:cover_image" json:"coverImage"`
+	// TotalSeeders is every seeder across every torrent the prepared search found, added together.
+	// Denormalized out of the blob for the same reason Title and CoverImage are: the queue screen
+	// orders itself by it, and it cannot unmarshal a few hundred snapshots to sort a list.
+	//
+	// A sum rather than the healthiest single torrent, because it is standing in for how widely
+	// wanted a show is rather than for how fast one release will download: a series with twenty
+	// well-seeded releases is more popular than one with a single busy torrent, and the sum is what
+	// says so. Zero until the item has been prepared.
+	TotalSeeders int `gorm:"column:total_seeders" json:"totalSeeders"`
 	// Value is the prepared snapshot as JSON — the anime entry, the torrent search results, and the
 	// exact search variables that produced them. Nil until the item has been prepared.
 	Value []byte `gorm:"column:value" json:"-"`

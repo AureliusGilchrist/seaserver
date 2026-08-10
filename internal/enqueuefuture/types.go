@@ -72,16 +72,19 @@ type Item struct {
 	RootMediaID int `json:"rootMediaId"`
 	// FamilyID groups a show with its own sequels and prequels. The queue screen bundles items
 	// sharing one rather than listing three seasons of the same show as three unrelated entries.
-	FamilyID    int       `json:"familyId"`
-	Position    int       `json:"position"`
-	Depth       int       `json:"depth"`
-	Status      string    `json:"status"`
-	Attempts    int       `json:"attempts"`
-	LastError   string    `json:"lastError"`
-	Title       string    `json:"title"`
-	CoverImage  string    `json:"coverImage"`
-	CreatedAt   time.Time `json:"createdAt"`
-	Snapshot    *Snapshot `json:"snapshot,omitempty"`
+	FamilyID   int    `json:"familyId"`
+	Position   int    `json:"position"`
+	Depth      int    `json:"depth"`
+	Status     string `json:"status"`
+	Attempts   int    `json:"attempts"`
+	LastError  string `json:"lastError"`
+	Title      string `json:"title"`
+	CoverImage string `json:"coverImage"`
+	// TotalSeeders is every seeder across every torrent found for this anime, added together — the
+	// popularity the queue screen orders itself by. Zero until the item has been prepared.
+	TotalSeeders int       `json:"totalSeeders"`
+	CreatedAt    time.Time `json:"createdAt"`
+	Snapshot     *Snapshot `json:"snapshot,omitempty"`
 }
 
 // Status is the progress of a running (or the last) Enqueue Future run.
