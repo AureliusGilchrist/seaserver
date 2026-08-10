@@ -431,7 +431,10 @@ type EnqueueFutureItem struct {
 	// wanted a show is rather than for how fast one release will download: a series with twenty
 	// well-seeded releases is more popular than one with a single busy torrent, and the sum is what
 	// says so. Zero until the item has been prepared.
-	TotalSeeders int `gorm:"column:total_seeders" json:"totalSeeders"`
+	// The default is what keeps rows added from here on out readable as a number rather than as
+	// NULL; rows that predate the column are repaired by the backfill instead, since a default
+	// applies to new rows only.
+	TotalSeeders int `gorm:"column:total_seeders;default:0" json:"totalSeeders"`
 	// Value is the prepared snapshot as JSON — the anime entry, the torrent search results, and the
 	// exact search variables that produced them. Nil until the item has been prepared.
 	Value []byte `gorm:"column:value" json:"-"`

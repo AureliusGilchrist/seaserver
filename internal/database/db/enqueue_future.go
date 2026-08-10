@@ -459,7 +459,16 @@ func (db *Database) ForEachEnqueueFutureItemMissingSeeders(fn func(mediaID int, 
 			// caller fills the column in as it goes, which changes what the condition below matches,
 			// and offset paging over a shrinking result set skips rows.
 			Select([]string{"id", "media_id", "value"}).
-			Where("total_seeders = 0 AND value IS NOT NULL AND status = ?", EnqueueFutureStatusReady).
+			// NULL as well as zero, and the NULL is the case that matters.
+			//
+			// Adding a column to a table that already has rows leaves every one of those rows with
+			// NULL in it, not with the zero value the Go field claims — and `total_seeders = 0` is
+			// false against NULL, so a condition written only that way matched nothing at all. Every
+			// item queued before the upgrade stayed unmeasured, read back as zero, tied with all the
+			// others, and the queue came out in exactly the order it had before. The ranking looked
+			// like it had simply not been implemented.
+			Where("(total_seeders IS NULL OR total_seeders = 0) AND value IS NOT NULL AND status = ?",
+				EnqueueFutureStatusReady).
 			FindInBatches(&batch, 25, func(tx *gorm.DB, _ int) error {
 				for _, record := range batch {
 					fn(record.MediaID, record.Value)
