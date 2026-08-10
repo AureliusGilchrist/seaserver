@@ -35,6 +35,12 @@ export interface UnmatchedTorrent {
     animeFormat?: string
     animeStartYear?: number
     animeExpectedEpisodes?: number
+    /**
+     * Set when an automatic match for this download stopped because episodes were already in the
+     * library. An automatic match has nobody to ask, so the question is kept and shipped here —
+     * without it the download sits in the list looking exactly like one nobody has got to yet.
+     */
+    pendingConflict?: MatchConflict
 }
 
 export interface MatchRequest {
@@ -72,6 +78,12 @@ export interface MatchConflict {
     sourceTorrents?: string[]
     /** Every existing file came from this same torrent — a match being re-run, not a rival release. */
     sameTorrent: boolean
+    /**
+     * No match record accounts for any of the existing files, so nothing is known about where they
+     * came from — most often a library that was scanned in rather than matched in. Not the same as
+     * their coming from a different torrent, which is what this used to be reported as.
+     */
+    unattributed?: boolean
     totalPlanned: number
 }
 

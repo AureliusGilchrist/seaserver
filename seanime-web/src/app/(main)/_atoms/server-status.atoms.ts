@@ -78,6 +78,16 @@ export const profileSessionTokenAtom = atomWithStorage<string | undefined>(
 )
 export const currentProfileAtom = atomWithImmer<ProfileSummary | undefined>(undefined)
 
+/**
+ * Set when the server refuses the session, to send the app back to profile selection at once.
+ *
+ * Clearing the token alone is not enough to *show* the login screen: which screen is drawn comes
+ * from the server status, and that is only re-read on its own schedule. Until it was, the app went
+ * on rendering the signed-in UI over a session the server had already rejected — every request
+ * answering "profile session required" while nothing offered a way to sign in again.
+ */
+export const profileSessionEndedAtom = atom(false)
+
 // Desktop "Connect to" atoms
 export const serverConnectionModeAtom = atomWithStorage<"local" | "remote">("sea-server-connection-mode", "local", undefined, { getOnInit: true })
 export const remoteServerUrlAtom = atomWithStorage<string | undefined>("sea-remote-server-url", undefined, undefined, { getOnInit: true })

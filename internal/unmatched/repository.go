@@ -49,6 +49,9 @@ type Repository struct {
 	// metadataByTorrent memoises the stored records, misses included. Keyed by metadataKey.
 	metadataMu        sync.Mutex
 	metadataByTorrent map[string]*TorrentMetadata
+
+	// pending holds conflicts an automatic match stopped on, waiting for a decision.
+	pending *pendingConflicts
 }
 
 func NewRepository(logger *zerolog.Logger, database *db.Database) *Repository {
@@ -58,6 +61,7 @@ func NewRepository(logger *zerolog.Logger, database *db.Database) *Repository {
 		metadataCache:     &animap.Cache{Cache: result.NewCache[string, *animap.Anime]()},
 		contentCache:      make(map[string]*UnmatchedTorrent),
 		metadataByTorrent: make(map[string]*TorrentMetadata),
+		pending:           newPendingConflicts(),
 	}
 }
 
@@ -98,6 +102,9 @@ type UnmatchedTorrent struct {
 	// AutoMatch marks the torrent to be matched automatically as soon as it finishes
 	// downloading, without waiting for the user to match it by hand.
 	AutoMatch bool `json:"autoMatch,omitempty"`
+	// PendingConflict is set when an automatic match for this download stopped because files were
+	// already in the library, and is what lets the screen ask which copy to keep. Nil otherwise.
+	PendingConflict *MatchConflict `json:"pendingConflict,omitempty"`
 }
 
 // TorrentMetadata is everything known about a download: which anime it is for, and what naming
@@ -176,7 +183,7 @@ type MatchResult struct {
 // GetUnmatchedTorrents returns all torrents in the unmatched directory that are fully downloaded
 func (r *Repository) GetUnmatchedTorrents() ([]*UnmatchedTorrent, error) {
 	if torrents := r.getCachedTorrents(); torrents != nil {
-		return torrents, nil
+		return r.withPendingConflicts(torrents), nil
 	}
 
 	if _, err := os.Stat(UnmatchedBasePath); os.IsNotExist(err) {
@@ -236,7 +243,23 @@ func (r *Repository) GetUnmatchedTorrents() ([]*UnmatchedTorrent, error) {
 	}
 
 	r.setCachedTorrents(torrents)
-	return torrents, nil
+	return r.withPendingConflicts(torrents), nil
+}
+
+// withPendingConflicts stamps each listed download with the unanswered conflict for it, if any.
+//
+// Applied on the way out rather than when the listing is built, because the listing is cached for a
+// few seconds and a conflict can be raised — or answered — inside that window. Set every time,
+// including back to nil, so a decision that has been made stops being asked for immediately rather
+// than lingering until the cache turns over.
+func (r *Repository) withPendingConflicts(torrents []*UnmatchedTorrent) []*UnmatchedTorrent {
+	for _, t := range torrents {
+		if t == nil {
+			continue
+		}
+		t.PendingConflict = r.PendingConflict(t.Name)
+	}
+	return torrents
 }
 
 func (r *Repository) getCachedTorrents() []*UnmatchedTorrent {
@@ -912,6 +935,9 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	// screen replays backwards.
 	r.recordMatch(req, result, planned, moveErrs, preMatchMetadata)
 
+	// The way was clear enough to move files, so whatever was being asked about is settled.
+	r.ClearPendingConflict(req.TorrentName)
+
 	// Record which anime the user actually matched to, so a partial torrent's remaining files —
 	// and anything that looks this download up later — reflect the choice rather than whatever the
 	// download was queued for. Writing a row costs nothing and cannot recreate a staging directory,
@@ -1284,6 +1310,8 @@ func (r *Repository) purgeDiscardableContent(path string) int {
 //   - filepath.Walk is top-down, so a parent directory was always inspected before its
 //     children were removed and therefore never looked empty.
 func (r *Repository) CleanupTorrentDirectory(torrentName string) {
+	// The download is going; any question about it goes with it.
+	r.ClearPendingConflict(torrentName)
 	if torrentName == "" {
 		return
 	}
@@ -1542,6 +1570,7 @@ func isInsideUnmatchedBase(path string) bool {
 // name the download directory is actually created from are tried, since a caller holding the
 // torrent's own name rather than the on-disk one used to delete nothing at all.
 func (r *Repository) DeleteTorrent(torrentName string) error {
+	r.ClearPendingConflict(torrentName)
 	if strings.TrimSpace(torrentName) == "" {
 		return errors.New("torrent name is required")
 	}

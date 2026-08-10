@@ -2,7 +2,7 @@ import { useGetStatus } from "@/api/hooks/status.hooks"
 import { useSavePlanningSlutToken } from "@/api/hooks/admin.hooks"
 import { useLogin } from "@/api/hooks/auth.hooks"
 import { useCreateProfile } from "@/api/hooks/profiles.hooks"
-import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { profileSessionEndedAtom, profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { MigrationWizard } from "@/app/(main)/_features/profile/migration-wizard"
 import { ProfileSelector } from "@/app/(main)/_features/profile/profile-selector"
 import { GettingStartedPage } from "@/app/(main)/_features/getting-started/getting-started-page"
@@ -18,7 +18,7 @@ import { AnilistLogo, AnilistTokenButton } from "@/components/shared/anilist-tok
 import { ANILIST_OAUTH_URL } from "@/lib/server/config"
 import { WSEvents } from "@/lib/server/ws-events"
 import { __isDesktop__ } from "@/types/constants"
-import { useAtomValue, useSetAtom } from "jotai"
+import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { SeaLink as Link } from "@/components/shared/sea-link"
 import { usePathname, useRouter } from "@/lib/navigation"
 import React from "react"
@@ -43,6 +43,7 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
     const setServerStatus = useSetServerStatus()
     const password = useAtomValue(serverAuthTokenAtom)
     const setProfileToken = useSetAtom(profileSessionTokenAtom)
+    const [sessionEnded, setSessionEnded] = useAtom(profileSessionEndedAtom)
     const { data: _serverStatus, isLoading, refetch } = useGetStatus()
 
     // Clear session token when server reboots (boot UUID changes)
@@ -56,6 +57,20 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
             localStorage.setItem("sea-boot-id", _serverStatus.bootId)
         }
     }, [_serverStatus?.bootId])
+
+    // Any refusal of the session puts the app at the login screen, immediately.
+    //
+    // Which screen is drawn comes from the server status — profile selection appears when the
+    // status carries no current profile — and that is re-read on its own schedule. So dropping the
+    // token was not enough on its own: the app carried on rendering the signed-in UI over a session
+    // the server had already rejected, showing "profile session required" wherever it looked, with
+    // nothing offering a way to sign in again. Re-reading the status is what turns the refusal into
+    // the login screen.
+    React.useEffect(() => {
+        if (!sessionEnded) return
+        setSessionEnded(false)
+        refetch()
+    }, [sessionEnded])
 
     // Closing the desktop client to the tray ends the session too.
     //

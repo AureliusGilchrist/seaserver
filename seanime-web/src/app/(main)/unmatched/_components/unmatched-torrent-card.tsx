@@ -100,7 +100,23 @@ export function UnmatchedTorrentCard({ torrent, onSelect }: UnmatchedTorrentCard
                                     {torrent.seasons!.length} seasons
                                 </Badge>
                             )}
+                            {/* An automatic match stopped on this one and had nobody to ask. Said on
+                                the card because there is otherwise nothing to distinguish it from a
+                                download nobody has got to yet — which is exactly how it looked, and
+                                why these sat here waiting on a decision nobody knew to make. */}
+                            {!!torrent.pendingConflict && (
+                                <Badge intent="warning" size="sm">
+                                    Needs your decision
+                                </Badge>
+                            )}
                         </div>
+                        {!!torrent.pendingConflict && (
+                            <p className="text-xs text-[--muted] mt-2">
+                                {torrent.pendingConflict.files.length} of {torrent.pendingConflict.totalPlanned} episode
+                                {torrent.pendingConflict.totalPlanned === 1 ? "" : "s"} are already in the library.
+                                Match this download to choose which copy to keep.
+                            </p>
+                        )}
                     </div>
                     <IconButton
                         icon={<BiTrash />}

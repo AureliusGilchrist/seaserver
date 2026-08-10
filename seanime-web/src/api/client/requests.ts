@@ -1,6 +1,6 @@
 "use client"
 import { getServerBaseUrl } from "@/api/client/server-url"
-import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { profileSessionEndedAtom, profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { formatErrorForToast } from "@/lib/helpers/error-details"
 import { store } from "@/app/jotai-store"
 import { useMutation, UseMutationOptions, useQuery, UseQueryOptions } from "@tanstack/react-query"
@@ -77,12 +77,24 @@ axios.interceptors.response.use(undefined, (error: AxiosError) => {
     // holding a token it would go on presenting forever, signed in to nothing.
     //
     // Dropping it here puts the app back at profile selection, where signing in is one click.
+    // Two shapes, because the server refuses a session in two different ways. Handlers answer with
+    // `{ error }` through RespondWithError, but the middleware that guards every route returns an
+    // echo.HTTPError directly and echo serialises that as `{ message }`. Reading only `error` meant
+    // the one refusal that matters most — "profile session required", the guard on every request the
+    // app makes — was never recognised: the app browsed on, showing that message everywhere, holding
+    // a token the server had already rejected, and never once offered to sign in again.
     if (error.response?.status === 401) {
-        const message = (error.response?.data as { error?: string } | undefined)?.error ?? ""
-        if (message.toLowerCase().includes("profile session")) {
+        const data = error.response?.data as { error?: string, message?: string } | undefined
+        const message = `${data?.error ?? ""} ${data?.message ?? ""}`.toLowerCase()
+
+        // Any 401 from our own server while a session is held is that session being refused —
+        // whatever wording it arrives in. There is nothing to be gained by holding onto a token the
+        // server will not accept, and the cost of guessing wrong is one sign-in.
+        if (message.includes("profile session") || (!isAnilistUrl(url) && store.get(profileSessionTokenAtom))) {
             if (store.get(profileSessionTokenAtom)) {
                 store.set(profileSessionTokenAtom, undefined)
             }
+            store.set(profileSessionEndedAtom, true)
         }
     }
 

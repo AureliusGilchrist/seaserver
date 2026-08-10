@@ -690,6 +690,18 @@ func (s *Scanner) autoMatchIfRequested(torrentName string) {
 			Str("error", result.ErrorMessage).
 			Msg("unmatched scanner: Auto-match completed with errors")
 
+		// A conflict is a question, and there was nobody here to answer it — this ran because a
+		// download finished, not because anyone pressed anything. Kept against the torrent so the
+		// Unmatched screen can put it to the user, instead of the download sitting there looking
+		// untouched with the reason it stopped only in the log.
+		if result.Conflict != nil {
+			s.repository.SetPendingConflict(torrentName, result.Conflict)
+			s.logger.Info().
+				Str("torrent", torrentName).
+				Int("conflicts", len(result.Conflict.Files)).
+				Msg("unmatched scanner: Waiting for a decision on files already in the library")
+		}
+
 		// Whatever did move is in the library now and still has to reach the library database,
 		// or those episodes are invisible until the next full rescan. The staging directory is
 		// deliberately left alone below: the files that failed are still in it.
