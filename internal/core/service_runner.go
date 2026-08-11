@@ -110,10 +110,15 @@ func (sr *ServiceRunner) start() {
 		}
 	}()
 
-	// Daily full metadata refresh.
-	// Runs once 15 minutes after start, then every 24h. Drops every cached anime/episode
-	// metadata entry and re-pulls each account's AniList collections, so long-running
-	// installs never accumulate stale metadata.
+	// Weekly full metadata refresh.
+	// Runs once 15 minutes after start, then every FullRefreshInterval. Drops every cached
+	// anime/episode metadata entry and re-pulls each account's AniList collections, so
+	// long-running installs never accumulate stale metadata.
+	//
+	// Weekly rather than daily because this is the expensive pass — it throws away every cached
+	// media object and pulls a whole collection per profile — and almost nothing it re-reads has
+	// changed in a day. What genuinely does change often is handled by the two passes below, which
+	// ask about a list of ids rather than a collection and so can afford to run every hour.
 	//
 	// The initial delay is deliberately well clear of startup and of the auto-pause pass at
 	// +60s: this forcibly re-fetches a collection per profile, and stacking that burst on top
@@ -132,7 +137,7 @@ func (sr *ServiceRunner) start() {
 		if !sr.app.IsOffline() {
 			sr.RunRefreshAllMetadata()
 		}
-		ticker := time.NewTicker(24 * time.Hour)
+		ticker := time.NewTicker(FullRefreshInterval)
 		defer ticker.Stop()
 		for {
 			select {
@@ -143,6 +148,74 @@ func (sr *ServiceRunner) start() {
 					continue
 				}
 				sr.RunRefreshAllMetadata()
+			}
+		}
+	}()
+
+	// Airing refresh — hourly.
+	//
+	// This is what makes the countdown right and the new episode appear on time. It re-reads the
+	// airing schedule for what is being watched and still airing, which is a handful of ids and a
+	// single query, so an hour between checks costs almost nothing — and an episode is never more
+	// than an hour late to appear, however stale the rest of the cache is.
+	sr.wg.Add(1)
+	go func() {
+		defer sr.wg.Done()
+		// Offset from the full pass so the two never start together.
+		initial := time.NewTimer(5 * time.Minute)
+		select {
+		case <-sr.stopCh:
+			initial.Stop()
+			return
+		case <-initial.C:
+		}
+		if !sr.app.IsOffline() {
+			sr.RunRefreshAiringSchedules(TierAiring)
+		}
+		ticker := time.NewTicker(AiringRefreshInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-sr.stopCh:
+				return
+			case <-ticker.C:
+				if sr.app.IsOffline() {
+					continue
+				}
+				sr.RunRefreshAiringSchedules(TierAiring)
+			}
+		}
+	}()
+
+	// Unaired refresh — every six hours.
+	//
+	// Announced series have a start date that moves: delays, schedule changes, a date that was a
+	// season and becomes a day. Nobody is watching a countdown on these, so six hours is often
+	// enough to notice, and they are the entries that leave Planning once they start.
+	sr.wg.Add(1)
+	go func() {
+		defer sr.wg.Done()
+		initial := time.NewTimer(10 * time.Minute)
+		select {
+		case <-sr.stopCh:
+			initial.Stop()
+			return
+		case <-initial.C:
+		}
+		if !sr.app.IsOffline() {
+			sr.RunRefreshAiringSchedules(TierUnaired)
+		}
+		ticker := time.NewTicker(UnairedRefreshInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-sr.stopCh:
+				return
+			case <-ticker.C:
+				if sr.app.IsOffline() {
+					continue
+				}
+				sr.RunRefreshAiringSchedules(TierUnaired)
 			}
 		}
 	}()
@@ -517,4 +590,67 @@ func (sr *ServiceRunner) RunRuntimeCleanup() {
 		Uint64("sysMB", after.Sys/1024/1024).
 		Uint32("numGoroutines", uint32(runtime.NumGoroutine())).
 		Msg("services: runtime cleanup completed")
+}
+
+// RunRefreshAiringSchedules brings the airing data up to date for one tier of entries.
+//
+// This is the pass that makes a countdown right and a new episode appear on time. It is separate
+// from the weekly full refresh, and much cheaper: it works out which entries are in the tier from
+// the collection already in hand, and only does anything when that tier has entries in it — a
+// library with nothing currently airing costs one map lookup an hour.
+//
+// The refresh itself goes through the ordinary collection invalidation rather than a bespoke query.
+// That is deliberate: the collection is what carries nextAiringEpisode and what every screen reads,
+// so refreshing it is what actually updates the countdown people see. A narrower query would fetch
+// the airing times into something nothing reads.
+func (sr *ServiceRunner) RunRefreshAiringSchedules(tier RefreshTier) {
+	if sr.app.AnilistClientManager == nil || sr.app.ProfileManager == nil {
+		return
+	}
+
+	profiles, err := sr.app.ProfileManager.GetAllProfiles()
+	if err != nil {
+		sr.logger.Warn().Err(err).Msg("services: airing refresh: failed to list profiles")
+		return
+	}
+
+	refreshed := 0
+	for _, profile := range profiles {
+		if profile == nil {
+			continue
+		}
+
+		// Read what is cached rather than fetching: the point is to decide whether a fetch is
+		// warranted at all.
+		collection, err := sr.app.AnilistClientManager.GetAnimeCollection(profile.ID)
+		if err != nil || collection == nil {
+			continue
+		}
+
+		ids := mediaIDsByTier(collection)[tier]
+		if len(ids) == 0 {
+			continue // nothing in this tier for this account
+		}
+
+		sr.app.AnilistClientManager.InvalidateAnimeCollection(profile.ID)
+		if _, err := sr.app.AnilistClientManager.GetAnimeCollection(profile.ID); err != nil {
+			sr.logger.Warn().Err(err).Uint("profileID", profile.ID).Str("tier", string(tier)).
+				Msg("services: airing refresh: failed to refresh collection")
+			continue
+		}
+
+		refreshed++
+		sr.logger.Debug().
+			Uint("profileID", profile.ID).
+			Str("tier", string(tier)).
+			Int("entries", len(ids)).
+			Msg("services: airing refresh: collection refreshed")
+	}
+
+	if refreshed > 0 {
+		sr.logger.Info().
+			Str("tier", string(tier)).
+			Int("profiles", refreshed).
+			Msg("services: airing refresh: done")
+	}
 }
