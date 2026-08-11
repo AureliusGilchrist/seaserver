@@ -35,8 +35,21 @@ contextBridge.exposeInMainWorld(
         // Identifies this run of the app. Read synchronously and exposed as a value rather than as a
         // call, because the web app has to consult it at module load — before the stored profile
         // session is read — to decide whether that session belongs to this launch or a previous one.
+        //
+        // Guarded, because a synchronous channel is the one kind that can take the whole app down:
+        // sendSync blocks the renderer until the main process answers, so anything that stops it
+        // answering — a handler registered too late, an older build of main.js, a window created
+        // before setup — leaves the preload unfinished and the window blank, with nothing logged.
+        // Failing to a null id costs one extra sign-in; hanging costs the entire app.
         session: {
-            launchId: ipcRenderer.sendSync("session:getLaunchId"),
+            launchId: (() => {
+                try {
+                    return ipcRenderer.sendSync("session:getLaunchId") ?? null
+                }
+                catch {
+                    return null
+                }
+            })(),
         },
 
         // Server connection (local sidecar vs remote URL)

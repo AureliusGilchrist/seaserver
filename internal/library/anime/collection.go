@@ -385,8 +385,18 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 								CompletedAt: anilist.ToEntryCompletionDate(entry.CompletedAt),
 							},
 						}
-					} else {
-						// Every list is shown in full, not only the entries with files behind them.
+					} else if *list.Status == anilist.MediaListStatusPlanning {
+						// Only Planning is admitted without files behind it.
+						//
+						// Showing every list in full — which is what this did briefly — turns this
+						// collection into the entire AniList account: every completed and dropped
+						// entry, with a full media object each. That is the payload the home screen
+						// and the Library page both build themselves from, and on an account of any
+						// size it is enough to leave the app rendering nothing after login.
+						//
+						// So the rule is back: the library is what you have. The missing statuses on
+						// the home screen are a presentation problem and belong in the home item that
+						// draws them, not in the collection every screen depends on.
 						//
 						// This used to admit Planning alone, on the reasoning that the library is
 						// what you have downloaded. The effect was that the home screen showed
@@ -412,6 +422,8 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 								CompletedAt: anilist.ToEntryCompletionDate(entry.CompletedAt),
 							},
 						}
+					} else {
+						return nil
 					}
 				})
 			}

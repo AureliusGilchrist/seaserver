@@ -130,6 +130,20 @@ function newLaunchId() {
     return launchId
 }
 
+// Registered here, at module scope, rather than inside app.whenReady().
+//
+// The renderer asks for this synchronously, and ipcRenderer.sendSync blocks the renderer until the
+// main process replies — with no listener registered there is nothing to reply, so it does not fail,
+// it hangs. Registering it inside whenReady left every window created before that line waiting
+// forever on a message nobody was listening for: the preload never finished, the page never
+// rendered, and the app came up as a blank window with nothing in the log to say why.
+//
+// Module scope runs before any window exists, which is the only ordering that is safe for a
+// synchronous channel.
+ipcMain.on("session:getLaunchId", (event) => {
+    event.returnValue = launchId
+})
+
 function hideMainWindow() {
     if (!mainWindow || mainWindow.isDestroyed()) {
         return
@@ -1812,12 +1826,6 @@ app.whenReady().then(async () => {
     })
 
     ipcMain.handle("get-local-server-port", () => localServerPort)
-
-    // Answered synchronously because the renderer needs it before anything else runs: the decision
-    // to discard a stored session has to be made before the app reads that session.
-    ipcMain.on("session:getLaunchId", (event) => {
-        event.returnValue = launchId
-    })
 
     // Denshi settings IPC handlers
     ipcMain.handle("denshi:getSettings", () => {

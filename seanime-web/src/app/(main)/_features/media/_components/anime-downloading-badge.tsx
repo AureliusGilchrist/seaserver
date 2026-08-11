@@ -121,7 +121,10 @@ export function AnimeDownloadingBadge(props: AnimeDownloadingBadgeProps) {
     if (!isDownloading && !awaiting) return null
 
     const icon = awaiting ? <AnimeAwaitingMatchIcon /> : <AnimeDownloadingIcon />
-    const label = awaiting ? "Ready to match" : "Downloading"
+    // The three states a card can be in read as one progression: Downloading → Downloaded →
+    // (matched). The third is the library badge, drawn by the component next door in the same
+    // corner — the two are mutually exclusive by design, so a card says exactly one of them.
+    const label = awaiting ? "Downloaded" : "Downloading"
 
     if (variant === "overlay") {
         return (

@@ -1,11 +1,5 @@
 ﻿{
-<<<<<<< HEAD
-    "last_duration_secs":  127,
-    "successes":  219,
-    "total_runs":  227
-=======
-    "last_duration_secs":  125,
-    "successes":  216,
-    "total_runs":  224
->>>>>>> parent of aaf8eb68c (Make downloading badges sticky)
+    "last_duration_secs":  113,
+    "successes":  1,
+    "total_runs":  3
 }
