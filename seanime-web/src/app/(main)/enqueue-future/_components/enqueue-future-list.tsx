@@ -36,6 +36,17 @@ export function familySeeders(family: EnqueueFutureFamily): number {
 }
 
 /**
+ * The ordering memory the caller holds between polls: the sequence families are in, and what each
+ * one is worth. Both have to survive from one poll to the next, or the list is rebuilt from whatever
+ * happens to be left and moves under the person reading it.
+ */
+export type FamilyOrdering = {
+    order: number[]
+    /** Family key → the highest total that family has ever been worth. */
+    values: Record<number, number>
+}
+
+/**
  * Gathers a franchise into one bundle wherever its members turn up, draws a spine around it, and puts
  * the most widely shared franchises first.
  *
@@ -45,14 +56,24 @@ export function familySeeders(family: EnqueueFutureFamily): number {
  * screen the moment you deal with its top entry, because the anchor becomes the next member and the
  * group lands wherever that one came from.
  *
- * The order is popularity, highest total first, and it holds still because the number it sorts on
- * does not move: a seeder total is recorded once when the item is prepared and never recomputed, so
- * re-sorting on every poll returns the same list rather than reshuffling under you. The two things
- * that do change it are the two that should:
+ * The order is popularity, highest total first, and — this is the part that keeps the list usable —
+ * **a franchise's rank never falls because you dealt with one of its entries.**
  *
- *  - an entry is dealt with and leaves; its group's total drops by that entry's share, and the group
- *    settles wherever its remaining members put it.
- *  - an anime finishes preparing, or a new franchise appears, and takes the rank its seeders earn.
+ * The rank is the highest total the family has ever been worth, remembered across polls, not the sum
+ * of whoever is left in it. Recomputing from the survivors meant every download re-ranked the family
+ * that entry belonged to and threw it down the page, taking its remaining seasons with it — so
+ * working through a franchise moved the very rows you were working through, and the last entry of a
+ * group, which stops being drawn as a group at all, moved twice.
+ *
+ * Held at its high-water mark, a family stays exactly where it is as you empty it, and the entry left
+ * at the end sits where the bundle always sat. So the movements this list makes are these:
+ *
+ *  - an entry is dealt with and leaves; its family keeps its place and its value, and the rows below
+ *    close up by one. Nothing is re-ranked.
+ *  - a new season joins a franchise already listed, or an anime finishes preparing: the family's
+ *    total can only rise, so it moves up and the ones it passes move down. This is the one movement
+ *    that is worth having — a franchise that just became more popular should say so.
+ *  - a franchise nobody has seen appears and takes the rank its seeders earn.
  *
  * Items with no total yet — anything still pending or preparing — sort last, which is where something
  * you cannot act on belongs.
@@ -67,8 +88,9 @@ export function familySeeders(family: EnqueueFutureFamily): number {
  */
 export function groupIntoFamilies(
     items: EnqueueFuture_Item[],
-    order: number[] = [],
-): { families: EnqueueFutureFamily[], order: number[] } {
+    previous: FamilyOrdering = { order: [], values: {} },
+): { families: EnqueueFutureFamily[], ordering: FamilyOrdering } {
+    const { order, values: previousValues } = previous
     // Bucket first. Map keeps insertion order, so families not yet placed come out below in the order
     // their first member arrived.
     const byKey = new Map<number, EnqueueFutureFamily>()
@@ -101,11 +123,30 @@ export function groupIntoFamilies(
     })
     const appended = [...byKey.keys()].filter(key => !placed.has(key))
 
+    // What each family is worth: the most it has ever been worth, never less.
+    //
+    // Taking the higher of "what it is worth now" and "what it was worth last time" is the whole
+    // mechanism. Members leaving cannot lower it — which is what stops a download re-ranking the
+    // franchise it came from — while a new season joining, or an entry finishing preparation, raises
+    // it, because those genuinely make the franchise a bigger thing than it was.
+    //
+    // Only families still present are carried forward, so the memory cannot grow without limit as
+    // franchises are finished and leave the queue.
+    const values: Record<number, number> = {}
+    for (const key of byKey.keys()) {
+        const current = familySeeders(byKey.get(key)!)
+        const remembered = previousValues[key] ?? 0
+        values[key] = Math.max(current, remembered)
+    }
+
     // Then popularity decides, over a stable sort, so the line above only settles ties.
     const nextOrder = held.concat(appended)
-        .sort((a, b) => familySeeders(byKey.get(b)!) - familySeeders(byKey.get(a)!))
+        .sort((a, b) => (values[b] ?? 0) - (values[a] ?? 0))
 
-    return { families: nextOrder.map(key => byKey.get(key)!), order: nextOrder }
+    return {
+        families: nextOrder.map(key => byKey.get(key)!),
+        ordering: { order: nextOrder, values },
+    }
 }
 
 /**

@@ -13,7 +13,7 @@ import {
 import { EnqueueFutureAddTorrents } from "@/app/(main)/enqueue-future/_components/enqueue-future-add-torrents"
 import { EnqueueFutureCurrentShow } from "@/app/(main)/enqueue-future/_components/enqueue-future-current-show"
 import { EnqueueFutureHeader } from "@/app/(main)/enqueue-future/_components/enqueue-future-header"
-import { EnqueueFutureList, groupIntoFamilies } from "@/app/(main)/enqueue-future/_components/enqueue-future-list"
+import { EnqueueFutureList, FamilyOrdering, groupIntoFamilies } from "@/app/(main)/enqueue-future/_components/enqueue-future-list"
 import { EnqueueFutureProgress } from "@/app/(main)/enqueue-future/_components/enqueue-future-progress"
 import { TorrentSearchSnapshot } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-search"
 import { __torrentDownload_autoMatchAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
@@ -90,15 +90,18 @@ export function EnqueueFuturePage() {
     // This is also where the queue is put in the order you actually want to work it: most widely
     // seeded franchise first, counting every torrent found for every member of it. A group's place
     // comes from its own total and never from which of its members is still in it — otherwise
-    // dealing with the top entry of a group throws the rest of the group down the list. The ref is
-    // the memory groupIntoFamilies uses to settle ties, which is what an unprepared queue is made of.
+    // dealing with the top entry of a group throws the rest of the group down the list.
     //
     // Grouping is presentation only. Every action — skip, ignore, add torrents — applies to the one
     // entry it was pressed on and never to its siblings.
-    const familyOrderRef = React.useRef<number[]>([])
+    //
+    // The ref carries both halves of the ordering across polls: the sequence families are in, and
+    // what each one is worth. The values are what stop a franchise dropping down the page when you
+    // download one of its entries — see groupIntoFamilies.
+    const familyOrderingRef = React.useRef<FamilyOrdering>({ order: [], values: {} })
     const families = React.useMemo(() => {
-        const grouped = groupIntoFamilies(items, familyOrderRef.current)
-        familyOrderRef.current = grouped.order
+        const grouped = groupIntoFamilies(items, familyOrderingRef.current)
+        familyOrderingRef.current = grouped.ordering
         return grouped.families
     }, [items])
     const orderedItems = React.useMemo(() => families.flat(), [families])
