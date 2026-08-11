@@ -216,12 +216,46 @@ func (w *WeebCentral) Search(opts hibikemanga.SearchOptions) ([]*hibikemanga.Sea
 	return results, nil
 }
 
+// normalizeID reduces whatever form of identifier arrives to the bare ULID the site's fragment
+// endpoints expect.
+//
+// IDs reach this provider from more than one place — a fresh search, a record stored when a manga
+// was added, an id copied out of a URL — and they do not all look alike: "01J76…", "01J76…/Some-
+// Title", or a full https://weebcentral.com/series/… link. The site tolerates the slug on its
+// ordinary pages, which is what makes the difference easy to miss, but the fragment endpoints do
+// not: /series/{id}/{slug}/full-chapter-list answers 307 and redirects to the series page, whose
+// markup holds no chapter list at all. The provider then reported, accurately and uselessly, that
+// the manga had no chapters — and the en masse downloader skipped every title it was given.
+func normalizeID(id string) string {
+	if match := seriesIDFromURL.FindStringSubmatch(id); match != nil {
+		return match[1]
+	}
+	// Not a URL: take the first path segment, which is where the ULID sits in "ULID/slug".
+	if idx := strings.IndexRune(id, '/'); idx > 0 {
+		return id[:idx]
+	}
+	return id
+}
+
+// normalizeChapterID does the same for chapter identifiers, which arrive in the same variety.
+func normalizeChapterID(id string) string {
+	if match := chapterIDFromURL.FindStringSubmatch(id); match != nil {
+		return match[1]
+	}
+	if idx := strings.IndexRune(id, '/'); idx > 0 {
+		return id[:idx]
+	}
+	return id
+}
+
 func (w *WeebCentral) FindChapters(id string) ([]*hibikemanga.ChapterDetails, error) {
 	ret := make([]*hibikemanga.ChapterDetails, 0)
 
 	w.logger.Debug().Str("mangaId", id).Msg("weebcentral: Finding chapters")
 
-	doc, err := w.request(fmt.Sprintf("%s/series/%s/full-chapter-list", w.Url, id))
+	seriesID := normalizeID(id)
+
+	doc, err := w.request(fmt.Sprintf("%s/series/%s/full-chapter-list", w.Url, seriesID))
 	if err != nil {
 		w.logger.Error().Err(err).Str("mangaId", id).Msg("weebcentral: Chapter list request failed")
 		return nil, err
@@ -335,7 +369,8 @@ func (w *WeebCentral) FindChapterPages(id string) ([]*hibikemanga.ChapterPage, e
 
 	// long_strip returns every page of the chapter in one fragment. The paged reading style returns
 	// one image at a time, which would be a request per page.
-	endpoint := fmt.Sprintf("%s/chapters/%s/images?is_prev=False&current_page=1&reading_style=long_strip", w.Url, id)
+	endpoint := fmt.Sprintf("%s/chapters/%s/images?is_prev=False&current_page=1&reading_style=long_strip",
+		w.Url, normalizeChapterID(id))
 
 	doc, err := w.request(endpoint)
 	if err != nil {
