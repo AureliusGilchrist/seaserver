@@ -1613,11 +1613,28 @@ app.whenReady().then(async () => {
         } catch (error) {
             logStartupEvent("Server launch failed", error.message)
             console.error("[Main] Failed to start server:", error)
+
+            // A server that will not start is not a reason to quit — it is a reason to ask where the
+            // server is.
+            //
+            // Quitting here is a trap with no way out of it. The mode is read from
+            // server-connection.json, so an app once pointed at a local server keeps trying that
+            // same server on every launch, fails, counts down and exits — never staying up long
+            // enough to be told about the one that is actually running. That is the whole of "it
+            // says it cannot connect, then exits": the only screen that can change the answer is
+            // the setup screen, and the failure path went out of its way not to show it.
+            //
+            // So the setup screen is shown instead, with the failure named on it. The window stays
+            // open, and pointing it at another server is one field away.
             if (splashScreen && !splashScreen.isDestroyed()) {
-                splashScreen.close()
-                splashScreen = null
+                sendToSplash("show-setup", {
+                    error: `Could not start the local server: ${error}. Choose where the server is, or try again.`,
+                })
+                autoUpdater.checkForUpdatesAndNotify()
+                return
             }
 
+            // No splash to show it on — the last resort, and only then.
             if (crashScreen && !crashScreen.isDestroyed()) {
                 crashScreen.show()
                 crashScreen.webContents.send("crash", `The server failed to start: ${error}. Closing in 10 seconds.`)

@@ -58,6 +58,21 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         }
     }, [_serverStatus?.bootId])
 
+    // A server with no profiles has no session to hold, so anything this side is still holding is
+    // from a server that no longer exists — a deleted data directory, a fresh install, a different
+    // machine. Cleared here rather than left to expire, because a stale token against a server with
+    // no accounts is what turns "there is nobody to log in as" into being locked out.
+    React.useEffect(() => {
+        const noAccounts = _serverStatus && (!_serverStatus.profilesEnabled || !_serverStatus.profiles?.length)
+        if (!noAccounts) return
+        logger("Data Wrapper").info("Server reports no profiles, clearing any stored profile session")
+        setProfileToken(undefined)
+        try {
+            localStorage.removeItem("sea-boot-id")
+        }
+        catch {}
+    }, [_serverStatus?.profilesEnabled, _serverStatus?.profiles?.length])
+
     // Any refusal of the session puts the app at the login screen, immediately.
     //
     // Which screen is drawn comes from the server status — profile selection appears when the
@@ -203,7 +218,13 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
     /**
      * Profile gate: if profiles are enabled and no current profile session, show selector
      */
-    if (serverStatus?.profilesEnabled && !serverStatus?.currentProfile) {
+    // Settings are reachable without a session, always.
+    //
+    // Which server the app talks to is set in there, and gating it behind signing in makes that
+    // unreachable exactly when it is needed: pointed at a server with no accounts on it, there is
+    // nobody to sign in as, and no way to point it somewhere else either. The server does not
+    // require a session while it has no profiles, so nothing here is being worked around.
+    if (serverStatus?.profilesEnabled && !serverStatus?.currentProfile && !pathname.startsWith("/settings")) {
         const profiles = serverStatus?.profiles || []
         if (profiles.length > 0) {
             return <ProfileSelector profiles={profiles} />
