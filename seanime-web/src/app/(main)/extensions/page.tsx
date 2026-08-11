@@ -7,7 +7,6 @@ import { MarketplaceExtensions } from "@/app/(main)/extensions/_containers/marke
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { StaticTabs } from "@/components/ui/tabs"
 import { useAtom } from "jotai"
-import { AnimatePresence } from "motion/react"
 import { useSearchParams } from "@/lib/navigation"
 import React from "react"
 import { FaExclamation } from "react-icons/fa"
@@ -58,55 +57,31 @@ export default function Page() {
                 />
                 {/*</div>*/}
 
-                {/* Not mode="wait".
+                {/* No AnimatePresence and no motion props of our own — PageWrapper is the page
+                  * transition, and this was fighting it.
                   *
-                  * With it, the pane being switched to is not mounted until the pane being switched
-                  * away from reports its exit animation finished — and here that report never
-                  * arrived, so nothing took its place and the page went blank. Leaving the screen
-                  * and coming back tore the whole thing down and rebuilt it, which is why the tab
-                  * was correct on the way back in and blank on every switch: the second tab was
-                  * never being mounted at all, only waiting on a signal that was not coming.
+                  * PageWrapper animates by *variant label*: it sets initial="initial"
+                  * animate="animate" exit="exit" on its motion.div, and the PageLayer inside it
+                  * declares variants under those same names, so the labels propagate from parent to
+                  * child and the content fades in. Crucially it spreads the caller's props after
+                  * its own, so the object-valued initial/animate/exit that used to be passed here
+                  * replaced those labels. A motion parent animating to an object has no label to
+                  * hand down, so propagation stopped at the parent: the outer div mounted and laid
+                  * out — which is why the page became scrollable — while the layer holding the
+                  * actual content stayed on its own `initial` variant, at opacity 0, forever.
                   *
-                  * Without it the incoming pane mounts straight away and the outgoing one fades out
-                  * over the top of it. The fade is short and both panes are the same width, so the
-                  * overlap is not visible — and a moment of overlap is worth a great deal more than
-                  * a blank screen that needs three navigations to clear. */}
-                <AnimatePresence initial={false}>
-                    {page === "installed" && (
-                        <PageWrapper
-                            {...{
-                                initial: { opacity: 0, y: 0 },
-                                animate: { opacity: 1, y: 0 },
-                                exit: { opacity: 0, transition: { duration: 0.12 } },
-                                transition: {
-                                    type: "spring",
-                                    damping: 15,
-                                    stiffness: 135,
-                                },
-                            }}
-                            key="installed" className="pt-0 space-y-8 relative z-[4]"
-                        >
-                            <ExtensionList />
-                        </PageWrapper>
-                    )}
-                    {page === "marketplace" && (
-                        <PageWrapper
-                            {...{
-                                initial: { opacity: 0, y: 0 },
-                                animate: { opacity: 1, y: 0 },
-                                exit: { opacity: 0, transition: { duration: 0.12 } },
-                                transition: {
-                                    type: "spring",
-                                    damping: 15,
-                                    stiffness: 135,
-                                },
-                            }}
-                            key="marketplace" className="pt-0 space-y-8 relative z-[4]"
-                        >
-                            <MarketplaceExtensions />
-                        </PageWrapper>
-                    )}
-                </AnimatePresence>
+                  * Nothing here needs to animate the panes itself. Switching tabs swaps the
+                  * PageWrapper, and PageWrapper knows how to appear. */}
+                {page === "installed" && (
+                    <PageWrapper key="installed" className="pt-0 space-y-8 relative z-[4]">
+                        <ExtensionList />
+                    </PageWrapper>
+                )}
+                {page === "marketplace" && (
+                    <PageWrapper key="marketplace" className="pt-0 space-y-8 relative z-[4]">
+                        <MarketplaceExtensions />
+                    </PageWrapper>
+                )}
             </PageWrapper>
         </>
     )
