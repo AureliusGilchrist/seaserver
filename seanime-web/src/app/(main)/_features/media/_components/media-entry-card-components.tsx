@@ -1,7 +1,7 @@
 import { AL_BaseAnime_NextAiringEpisode, AL_MediaListStatus, AL_MediaStatus } from "@/api/generated/types"
 import { ElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
 import { MediaCardBodyBottomGradient } from "@/app/(main)/_features/custom-ui/item-bottom-gradients"
-import { AnimeDownloadingBadge, useIsAnimeDownloading } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
+import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
 import { MediaEntryProgressBadge } from "@/app/(main)/_features/media/_components/media-entry-progress-badge"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -317,11 +317,10 @@ type MediaEntryCardBodyProps = {
     startDate?: { year?: number, month?: number, day?: number }
     bannerImage?: string
     isAdult?: boolean
+    /** Manga only — the anime badges are decided from the download state under `mediaId`. */
     showLibraryBadge?: boolean
-    /** Drives the downloading badge pinned to the cover art. */
+    /** Drives all three download badges pinned to the cover art. Undefined means none of them. */
     mediaId?: number
-    /** Whether that anime is downloading — also suppresses the library badge. */
-    isDownloading?: boolean
     blurAdultContent?: boolean
     onClick?: () => void
     hideReleasingBadge?: boolean
@@ -344,7 +343,6 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
         isAdult,
         showLibraryBadge,
         mediaId,
-        isDownloading,
         blurAdultContent,
         onClick,
         hideReleasingBadge,
@@ -352,19 +350,18 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
         ...rest
     } = props
 
-    // One download-state badge per card, never two, and never the wrong one.
+    // One download badge per card, never two, and never the wrong one.
     //
-    // The rule is downloading, then downloaded, then nothing — a series that is partly on disk and
-    // still pulling reads as "still coming", because that is the fact that decides what you do next.
+    // Which one is decided in a single place — `AnimeDownloadingBadge`, from the server's record —
+    // rather than partly here and partly there. It used to be split, and the two halves could
+    // disagree: a card that asked for the library badge and said nothing about downloads claimed you
+    // had a series that was in fact still coming down.
     //
-    // Read here rather than taken on trust from the caller. The `isDownloading` prop is honoured when
-    // it is given (it is also how a caller says "no download badges at all", by passing false), but a
-    // card that simply asked for the library badge and said nothing about downloads used to claim you
-    // had a series that was in fact still coming down. The two states cannot be decided in different
-    // places and stay consistent.
-    const downloadingFromState = useIsAnimeDownloading(mediaId)
-    const isDownloadingNow = isDownloading ?? downloadingFromState
-    const showDownloadedBadge = !!showLibraryBadge && !isDownloadingNow
+    // `showLibraryBadge` is manga's alone now. An anime's orange badge means its download was matched
+    // into the library, which is a fact about the download and so is the same on every account;
+    // library data is a fact about whoever is signed in, and was why the orange badge came and went
+    // depending on the profile.
+    const showMangaDownloadedBadge = type === "manga" && !!showLibraryBadge
 
     return (
         <>
@@ -405,9 +402,9 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
                         </div>
                     )}
 
-                    {/* Downloaded. Same corner and same shape as the downloading badge below, which
-                     is what makes the pair readable at a glance: one orange, one purple, never both. */}
-                    {showDownloadedBadge &&
+                    {/* Manga: chapters downloaded. The same corner and shape as the anime badge, so
+                     the two kinds of card read alike. */}
+                    {showMangaDownloadedBadge &&
                         <div data-media-entry-card-body-library-badge className="absolute z-[1] left-0 top-0">
                             <Badge
                                 size="xl" intent="warning-solid"
@@ -417,11 +414,11 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
                             ><IoLibrarySharp /></Badge>
                         </div>}
 
-                    {/* Downloading. Pinned to the cover art itself, above the gradient, the
-                     adult-content blur and any trailer playing on hover — at z-1 it was being
-                     painted over. Renders nothing when the anime is not downloading, and the badge
-                     above is suppressed whenever this one appears. */}
-                    {isDownloadingNow && <AnimeDownloadingBadge mediaId={mediaId} variant="overlay" />}
+                    {/* Anime: downloading, downloaded or matched — whichever it is, drawn once.
+                     Pinned to the cover art itself, above the gradient, the adult-content blur and
+                     any trailer playing on hover; at z-1 it was being painted over. Renders nothing
+                     when there is no download to speak of. */}
+                    <AnimeDownloadingBadge mediaId={mediaId} variant="overlay" />
 
                     {/*RELEASING BADGE*/}
                     {(status === "RELEASING" || status === "NOT_YET_RELEASED") && !hideReleasingBadge &&

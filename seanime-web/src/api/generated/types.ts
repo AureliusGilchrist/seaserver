@@ -3397,12 +3397,14 @@ export type DownloadReleaseResponse = {
  * - Filename: torrent_client.go
  * - Package: handlers
  * @description
- *  DownloadingMediaStatus is what the client needs in order to decide, for each anime, whether to
- *  show the "downloading" badge or the "in your library" one — never both.
+ *  DownloadingMediaStatus is what the client needs in order to decide which of the three download
+ *  badges an anime gets — downloading, downloaded, or matched — and it is the only thing that
+ *  decides. A media ID appears in at most one of these lists, so a card can never show two.
  */
 export type DownloadingMediaStatus = {
     downloading?: Array<number>
     finished?: Array<number>
+    matched?: Array<number>
 }
 
 /**

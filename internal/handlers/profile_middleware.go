@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"seanime/internal/core"
 	"strings"
 	"time"
@@ -8,12 +9,22 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// ProfileSessionMiddleware extracts and validates the profile session token
-// from the X-Seanime-Profile-Token header and sets it in the echo context.
+// profileSessionRenewAfter is how old a token has to be before a request renews it.
+//
+// A session runs for its full day and is rolled over near the end of it, rather than being reissued
+// on every request that happens to be a little old. So a client in use is signed in indefinitely,
+// picking up a fresh token about once a day, and the signing work happens once a day rather than on
+// the great many requests this app makes while a page is merely sitting there.
+const profileSessionRenewAfter = core.ProfileSessionDuration - time.Hour
+
+// ProfileSessionMiddleware extracts and validates the profile session token from the
+// X-Seanime-Profile-Token header and sets it in the echo context.
 // This runs after OptionalAuthMiddleware and FeaturesMiddleware.
-// It also implements a sliding window: if the token was issued more than 15 minutes ago,
-// it emits a fresh token in the X-Seanime-Profile-Token response header so the client
-// can store it and stay logged in.
+//
+// It also renews: a session near the end of its day, or one issued by an earlier run of the server,
+// comes back with a fresh token in the X-Seanime-Profile-Token response header, which the client
+// stores. So a session lasts a day, rolls over into another day whenever the app is being used, and
+// a restart of the server renews it rather than ending it.
 func (h *Handler) ProfileSessionMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		if h.App.ProfileManager == nil {
@@ -30,22 +41,21 @@ func (h *Handler) ProfileSessionMiddleware(next echo.HandlerFunc) echo.HandlerFu
 			h.App.ProfileManager.GetSessionEpoch(),
 			token,
 		)
-		if err != nil {
-			// Token invalid/expired — signal expiry to the frontend so it can clear the stale token.
-			//
-			// A session from a previous run lands here too, which is the point: after the server has
-			// been restarted for any reason, the first request a returning client makes is told the
-			// session is over, and it establishes a new one instead of drawing a profile against a
-			// server that has no session behind it.
+
+		// A session from an earlier run of the server is honoured and reissued, not refused. The
+		// server restarting is not the user signing out, and treating it as one is what had this
+		// app asking for a PIN several times a day.
+		fromPreviousRun := errors.Is(err, core.ErrSessionFromPreviousRun)
+		if payload == nil || (err != nil && !fromPreviousRun) {
+			// Token invalid or expired — signal expiry to the frontend so it can clear the stale
+			// token and offer a way to sign in again.
 			c.Response().Header().Set("X-Seanime-Profile-Expired", "true")
 			return next(c)
 		}
 
 		c.Set("profileSession", payload)
 
-		// Sliding window renewal: if more than 24 hours have passed since issue,
-		// emit a fresh 1-year token so the client stays logged in on regular access.
-		if time.Now().Unix()-payload.IssuedAt > int64((24 * time.Hour).Seconds()) {
+		if fromPreviousRun || time.Now().Unix()-payload.IssuedAt > int64(profileSessionRenewAfter.Seconds()) {
 			if newToken, err := core.CreateProfileSessionToken(
 				h.App.ProfileManager.GetJWTSecret(),
 				h.App.ProfileManager.GetSessionEpoch(),

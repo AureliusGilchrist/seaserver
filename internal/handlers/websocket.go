@@ -52,12 +52,15 @@ func (h *Handler) webSocketEventHandler(c echo.Context) error {
 	var profileID uint
 	profileToken := c.QueryParam("profileToken")
 	if profileToken != "" && h.App.ProfileManager != nil {
-		payload, err := core.ValidateProfileSessionToken(
+		// A payload is returned for a session from an earlier run of the server as well as for a
+		// current one — both are the same profile, and the socket has no token to hand back, so it
+		// simply honours it. The HTTP middleware renews it on the next ordinary request.
+		payload, _ := core.ValidateProfileSessionToken(
 			h.App.ProfileManager.GetJWTSecret(),
 			h.App.ProfileManager.GetSessionEpoch(),
 			profileToken,
 		)
-		if err == nil {
+		if payload != nil {
 			profileID = payload.ProfileID
 		}
 	}

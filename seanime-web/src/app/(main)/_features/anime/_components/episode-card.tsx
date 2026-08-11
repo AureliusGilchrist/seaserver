@@ -261,6 +261,10 @@ export function EpisodeCard(props: EpisodeCardProps) {
                         <AnimeDownloadingBadge
                             mediaId={anime?.id ?? episode?.baseAnime?.id}
                             variant="compact"
+                            // You are looking at the episodes; that the series was matched is why
+                            // they are here. Still coming down, or waiting to be matched, are worth
+                            // saying — that one is not.
+                            hideMatched
                             className="absolute top-2 right-2 z-[4]"
                         />
 

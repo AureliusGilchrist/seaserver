@@ -70,8 +70,19 @@ export function useAnimeLibraryCollectionLoader() {
     React.useEffect(() => {
         if (status !== "success" || !data?.lists) return
 
+        // Only the entries you actually have files for.
+        //
+        // Four requests per id, so this has to be bounded by something — and the collection stopped
+        // being a bound when every list started arriving in full, files or no files. Left as it was,
+        // logging in fired four requests for every entry on the whole AniList account, which is
+        // thousands of requests at the server and AniList within a minute of the app opening.
+        //
+        // Having the files is the right bound in any case: this exists so that opening a series you
+        // own is instant, and a series with nothing downloaded is not one you are about to open. The
+        // rest still load on demand, exactly as they would have.
         const ids = data.lists
             .flatMap(l => l.entries ?? [])
+            .filter(e => !!e.libraryData)
             .map(e => e.mediaId)
             .filter((id): id is number => !!id)
 

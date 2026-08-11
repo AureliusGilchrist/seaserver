@@ -73,17 +73,29 @@ func (h *Handler) HandleGetActiveTorrentList(c echo.Context) error {
 
 }
 
-// DownloadingMediaStatus is what the client needs in order to decide, for each anime, whether to
-// show the "downloading" badge or the "in your library" one — never both.
+// DownloadingMediaStatus is what the client needs in order to decide which of the three download
+// badges an anime gets — downloading, downloaded, or matched — and it is the only thing that
+// decides. A media ID appears in at most one of these lists, so a card can never show two.
+//
+// All three are read from the same durable records, so all three survive a server restart, a
+// torrent client that has forgotten the torrent, and a staging folder a match has already deleted.
+// They are also read from the shared database rather than a profile's own, which is what makes the
+// badges the same on every account: what is downloading is a fact about the machine, not about who
+// happens to be signed in.
 type DownloadingMediaStatus struct {
 	// Downloading holds AniList media IDs with a download still in flight.
 	Downloading []int `json:"downloading"`
-	// Finished holds media IDs whose download is over.
+	// Finished holds media IDs whose download is over and whose files are still sitting in the
+	// staging area, waiting to be matched into the library.
 	//
 	// The client deliberately keeps a downloading badge on screen once it has appeared, so this
 	// is the only thing that takes one down promptly. Silence is not an answer: a media ID
-	// missing from both lists means "nothing known", which must not be read as "finished".
+	// missing from every list means "nothing known", which must not be read as "finished".
 	Finished []int `json:"finished"`
+	// Matched holds media IDs whose download was filed into the library, by the auto-matcher or by
+	// hand. This one is permanent: nothing later retracts it, and it is what the orange badge is
+	// drawn from on every account.
+	Matched []int `json:"matched"`
 }
 
 // HandleGetDownloadingMediaIds
@@ -100,6 +112,9 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 
 	downloading := make(map[int]struct{})
 	finished := make(map[int]struct{})
+	// Anime whose download has been filed into the library. Never retracted below — once a download
+	// has been matched that is the end of its story, and the orange badge it draws is permanent.
+	matched := make(map[int]struct{})
 
 	// Anime the torrent client is, right now, actively pulling. Kept apart from `downloading` because
 	// it is the only first-hand evidence in this handler — everything else is inferred from what is
@@ -119,8 +134,16 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 	// Every download the client can account for, by the name its record is keyed under. Used below to
 	// tell a download the client has merely forgotten from one that never existed.
 	clientKnows := make(map[string]struct{})
+	// Whether the torrent client answered at all this time round.
+	//
+	// Everything that *retires* a badge below reasons from the client's silence — no torrent under
+	// this name, so the download must be over — and silence from a client that is not running says
+	// nothing of the kind. Without this, stopping the torrent client for a minute was enough to have
+	// a download in full flight written off, and its badge gone for good.
+	clientAnswered := false
 	if repo := h.App.TorrentClientRepository; repo != nil {
 		if torrents, err := repo.GetActiveTorrents(&torrent_client.GetListOptions{}); err == nil {
+			clientAnswered = true
 			for _, t := range torrents {
 				if t == nil {
 					continue
@@ -223,10 +246,23 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 			}
 		case unmatched.DownloadStateFinished:
 			onRecord[state.AnimeID] = struct{}{}
-			finished[state.AnimeID] = struct{}{}
+			// "Downloaded" means the files are here and waiting on you, so it is the one state that
+			// is checked against something still existing. A finished download whose staging folder
+			// has been emptied out from underneath the app — moved by hand, deleted, tidied away —
+			// is not something you can go and match, and a badge inviting you to would be pointing
+			// at nothing.
+			//
+			// Either the folder or a torrent the client still knows is enough, and a client that
+			// never answered is not evidence of anything: its silence leaves the badge exactly
+			// where it is.
+			_, onDisk := stagingDirs[state.TorrentName]
+			_, known := clientKnows[state.TorrentName]
+			if onDisk || known || !clientAnswered {
+				finished[state.AnimeID] = struct{}{}
+			}
 		case unmatched.DownloadStateMatched:
 			onRecord[state.AnimeID] = struct{}{}
-			// Nothing to say. The library badge speaks for this one.
+			matched[state.AnimeID] = struct{}{}
 		default:
 			// Written before the state column existed. Nothing was recorded for these, so they are
 			// answered the old way — from what is left in the staging area — which is exactly as
@@ -289,6 +325,7 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 		}
 		delete(downloading, animeID)
 		delete(finished, animeID)
+		matched[animeID] = struct{}{}
 	}
 
 	// The reaper, for downloads that ended without anybody recording it.
@@ -299,8 +336,11 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 	// app entirely. Left alone it would hold a purple badge up forever, which is the failure mode
 	// this whole mechanism exists to avoid, only pointing the other way.
 	//
-	// Stamped rather than merely ignored, so the row stops being reconsidered on every poll.
-	if len(orphaned) > 0 {
+	// Stamped rather than merely ignored, so the row stops being reconsidered on every poll — which
+	// is also why it is only run when the client has answered. Stamping is irreversible, and "the
+	// client has never heard of this torrent" is indistinguishable from "the client is not running"
+	// unless you know which one you are looking at.
+	if len(orphaned) > 0 && clientAnswered {
 		inLibrary := h.animeWithLocalFiles()
 		for _, state := range orphaned {
 			if _, pulling := clientIsPulling[state.AnimeID]; pulling {
@@ -311,13 +351,17 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 			}
 			h.App.UnmatchedRepository.MarkDownloadState(state.TorrentName, unmatched.DownloadStateMatched)
 			delete(downloading, state.AnimeID)
+			matched[state.AnimeID] = struct{}{}
 		}
 	}
 
-	// Legacy rows keep the old rule: an anime whose episodes are already in the library is not one
-	// you are waiting for, whatever was left behind in staging months ago. Applied only where nothing
-	// was recorded, because that is the only place there is nothing better to go on.
-	if len(legacy) > 0 {
+	// Legacy rows keep the old rule: an anime whose episodes are already in the library is a download
+	// that ended in the library, whatever was left behind in staging months ago. Applied only where
+	// nothing was recorded, because that is the only place there is nothing better to go on.
+	//
+	// Stamped as matched rather than merely set aside, so the row stops being reasoned about on every
+	// poll and starts carrying the state it has plainly been in all along.
+	if len(legacy) > 0 && clientAnswered {
 		inLibrary := h.animeWithLocalFiles()
 		for _, state := range legacy {
 			if _, ok := onRecord[state.AnimeID]; ok {
@@ -329,15 +373,21 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 			if _, have := inLibrary[state.AnimeID]; !have {
 				continue
 			}
+			h.App.UnmatchedRepository.MarkDownloadState(state.TorrentName, unmatched.DownloadStateMatched)
 			delete(downloading, state.AnimeID)
 			delete(finished, state.AnimeID)
+			matched[state.AnimeID] = struct{}{}
 		}
 	}
 
 	res := DownloadingMediaStatus{
 		Downloading: make([]int, 0, len(downloading)),
 		Finished:    make([]int, 0, len(finished)),
+		Matched:     make([]int, 0, len(matched)),
 	}
+	// One anime, one badge. The order is the order the states happen in, and the earliest one still
+	// true wins: a show with one season coming down and another already filed away is a show that is
+	// still coming down, because that is the fact that decides what you do next.
 	for id := range downloading {
 		res.Downloading = append(res.Downloading, id)
 	}
@@ -348,9 +398,19 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 		}
 		res.Finished = append(res.Finished, id)
 	}
+	for id := range matched {
+		if _, ok := downloading[id]; ok {
+			continue
+		}
+		if _, ok := finished[id]; ok {
+			continue
+		}
+		res.Matched = append(res.Matched, id)
+	}
 	// Sorted so a poll that changed nothing looks like it changed nothing.
 	sort.Ints(res.Downloading)
 	sort.Ints(res.Finished)
+	sort.Ints(res.Matched)
 
 	return h.RespondWithData(c, res)
 }

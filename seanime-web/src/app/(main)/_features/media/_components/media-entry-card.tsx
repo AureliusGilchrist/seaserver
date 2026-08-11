@@ -128,8 +128,6 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
     const { mutate: addToPlanning, isPending: isAddingToPlanning } = useAddAnimeToPlanning(media.id)
     const isFav = type === "anime" && isFavorite(media.id)
 
-    const isCurrentlyDownloading = type === "anime" && !hideDownloadBadges && isDownloading(media.id)
-
     const prevListDataRef = React.useRef(_listData)
     const prevLibraryDataRef = React.useRef(_libraryData)
 
@@ -146,12 +144,12 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
     const mediaChapters = (media as AL_BaseManga)?.chapters
     const mediaIsAdult = media?.isAdult
 
-    // Opt-out rather than opt-in: whether you already have an anime is worth knowing on every card
-    // that shows it, not only on the handful of screens that remembered to ask for the badge.
-    const showAnimeLibraryBadge = type === "anime" && !!libraryData && props.showLibraryBadge !== false
+    // Manga only. An anime's corner badge is decided entirely by its download state now — see
+    // `AnimeDownloadingBadge` — because "matched" is a fact about the download and is the same on
+    // every account, where library data is a fact about whoever is signed in.
     const showMangaDownloadedBadge = type === "manga" && !!mediaChapters
         && ((props.downloadedChapterCount ?? 0) / mediaChapters) >= 0.96
-    const showLibraryBadge = !hideDownloadBadges && (showAnimeLibraryBadge || showMangaDownloadedBadge)
+    const showLibraryBadge = !hideDownloadBadges && showMangaDownloadedBadge
 
     const showProgressBar = React.useMemo(() => {
         return !!listData?.progress
@@ -457,7 +455,6 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                 isAdult={media.isAdult}
                 showLibraryBadge={showLibraryBadge}
                 mediaId={(type === "anime" && !hideDownloadBadges) ? media.id : undefined}
-                isDownloading={isCurrentlyDownloading}
                 blurAdultContent={serverStatus?.settings?.anilist?.blurAdultContent}
                 onClick={onClick}
                 hideReleasingBadge={hideReleasingBadge}

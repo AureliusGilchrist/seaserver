@@ -46,14 +46,20 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
     const [sessionEnded, setSessionEnded] = useAtom(profileSessionEndedAtom)
     const { data: _serverStatus, isLoading, refetch } = useGetStatus()
 
-    // Clear session token when server reboots (boot UUID changes)
+    // The server rebooting is not the user signing out.
+    //
+    // This used to drop the session whenever the boot id changed, which — together with the server
+    // refusing tokens from an earlier run — meant a PIN prompt after every restart: an update, a
+    // crash, a settings change that rebuilt the process. On a server that restarts a few times an
+    // hour that is a PIN prompt a few times an hour, which is exactly what it felt like.
+    //
+    // A session outliving a restart is safe because nothing behind it is per-run: everything a
+    // session names is looked up by profile ID from disk, on demand. The server now reissues a
+    // session from a previous run instead of refusing it, so the token is quietly replaced on the
+    // first request and the sign-in stands. The boot id is still recorded, since other things read
+    // it, but it no longer ends anything.
     React.useEffect(() => {
         if (_serverStatus?.bootId) {
-            const storedBootId = localStorage.getItem("sea-boot-id")
-            if (storedBootId && storedBootId !== _serverStatus.bootId) {
-                logger("Data Wrapper").info("Server rebooted (boot ID changed), clearing session token")
-                setProfileToken(undefined)
-            }
             localStorage.setItem("sea-boot-id", _serverStatus.bootId)
         }
     }, [_serverStatus?.bootId])

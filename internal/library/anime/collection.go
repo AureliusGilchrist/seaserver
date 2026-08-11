@@ -323,6 +323,35 @@ func NewLibraryCollection(ctx context.Context, opts *NewLibraryCollectionOptions
 
 //----------------------------------------------------------------------------------------------------------------------
 
+// slimListingMedia returns a copy of the media carrying only what a listing reads.
+//
+// Every list is shown in full now, files or no files, and a full AniList account is a lot of
+// entries — this is what makes that affordable. The three fields dropped here are the ones that do
+// not fit in a card and are the bulk of the payload: the synopsis is a paragraph of HTML, the tags
+// are a couple of dozen objects each, and the trailer is never played from a list. Between them
+// they are most of the weight of a media object, and none of it survives to the screen.
+//
+// Everything a listing does read is kept, deliberately and by name: titles and synonyms (the search
+// box matches on both), cover and banner art, episode count, format, season, year, status, next
+// airing episode, adult flag, mean score, genres, start and end dates.
+//
+// Nothing that needs the full object reads it from here. The entry page and the preview modal fetch
+// their own media, so the synopsis on both is unaffected.
+//
+// The copy is a shallow one taken before anything is cleared, so the collection this media came
+// from — which is cached and shared — is never touched.
+func slimListingMedia(media *anilist.BaseAnime) *anilist.BaseAnime {
+	if media == nil {
+		return nil
+	}
+
+	slim := *media
+	slim.Description = nil
+	slim.Tags = nil
+	slim.Trailer = nil
+	return &slim
+}
+
 func (lc *LibraryCollection) hydrateCollectionLists(
 	ctx context.Context,
 	localFiles []*LocalFile,
@@ -385,33 +414,30 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 								CompletedAt: anilist.ToEntryCompletionDate(entry.CompletedAt),
 							},
 						}
-					} else if *list.Status == anilist.MediaListStatusPlanning {
-						// Only Planning is admitted without files behind it.
+					} else {
+						// Every list is shown in full, files or no files.
 						//
-						// Showing every list in full — which is what this did briefly — turns this
-						// collection into the entire AniList account: every completed and dropped
-						// entry, with a full media object each. That is the payload the home screen
-						// and the Library page both build themselves from, and on an account of any
-						// size it is enough to leave the app rendering nothing after login.
+						// Admitting only the entries with files behind them is what left Paused,
+						// Rewatching and Dropped looking empty: for most accounts most of those
+						// entries have nothing downloaded, so the headings appeared with a handful
+						// of cards under them, or none at all, and nothing on screen said anything
+						// had been left out. Planning was the one exception, which is why that list
+						// alone looked right.
 						//
-						// So the rule is back: the library is what you have. The missing statuses on
-						// the home screen are a presentation problem and belong in the home item that
-						// draws them, not in the collection every screen depends on.
+						// The reason it was ever restricted is real and is dealt with below rather
+						// than by dropping entries: a full media object per entry, across a whole
+						// AniList account, is a payload big enough to leave the app rendering
+						// nothing after login. An entry with no files carries the slimmed media
+						// from `slimListingMedia` — everything a card, a search box and a sort
+						// order read, and none of the prose — which is what keeps this affordable.
 						//
-						// This used to admit Planning alone, on the reasoning that the library is
-						// what you have downloaded. The effect was that the home screen showed
-						// three headings — Currently Watching, Planning, Completed — and silently
-						// omitted Paused, Dropped and Rewatching whenever those entries had no
-						// files, which for most accounts is most of them. Nothing on screen said a
-						// list had been left out, so it read as the lists being empty.
-						//
-						// The cost is that these screens now list the whole account rather than
-						// the downloaded part of it, and an entry with no files carries no library
-						// data — EntryLibraryData stays nil, exactly as it always has for Planning,
-						// so anything reading it must already cope with its absence.
+						// An entry with no files carries no library data either: EntryLibraryData
+						// stays nil, exactly as it always has for Planning, so anything reading it
+						// must already cope with its absence. `LocalAnimeLibrary` on the home
+						// screen leans on precisely that to stay "the library folder only".
 						return &LibraryCollectionEntry{
 							MediaId:          entry.Media.ID,
-							Media:            entry.Media,
+							Media:            slimListingMedia(entry.Media),
 							EntryLibraryData: nil,
 							EntryListData: &EntryListData{
 								Progress:    entry.GetProgressSafe(),
@@ -422,8 +448,6 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 								CompletedAt: anilist.ToEntryCompletionDate(entry.CompletedAt),
 							},
 						}
-					} else {
-						return nil
 					}
 				})
 			}

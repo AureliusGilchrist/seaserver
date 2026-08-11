@@ -21,12 +21,17 @@ const (
 // UpsertUnmatchedTorrentMetadata stores what a download is for, replacing any earlier record for
 // the same torrent. Keyed by torrent name, which is also the name of the folder it downloads into.
 //
-// A row appearing for the first time is a download that has just been queued, so it starts in the
-// downloading state — that is the moment the badge is meant to come up, and it is recorded here
-// rather than left to be inferred later from a torrent client that may already have forgotten.
-// Later writes leave the state alone: re-saving the metadata (the user picking a different anime on
-// the match screen, say) says nothing about how far the download has got, and the transitions that
-// do are stamped explicitly by SetUnmatchedTorrentDownloadState.
+// Writing this record is what queueing a download looks like from here, so the row starts — and
+// restarts — in the downloading state. That is the moment the badge is meant to come up, and it is
+// recorded rather than left to be inferred from a torrent client that may already have forgotten.
+//
+// The state is rewritten on conflict as well as on insert, which matters for the one case that used
+// to go wrong: downloading the same release again after it had been matched. The row survives the
+// first download, so the second one found it already stamped "matched", left it there, and ran to
+// completion without ever showing a downloading badge. A write here is always a download being
+// queued; the later transitions are stamped explicitly by SetUnmatchedTorrentDownloadState, and the
+// two callers that write metadata for some other reason — a match filing files away, an undo
+// putting them back — stamp the state they mean immediately afterwards.
 func (db *Database) UpsertUnmatchedTorrentMetadata(torrentName string, animeID int, value []byte) error {
 	record := models.UnmatchedTorrentMetadata{
 		TorrentName:   torrentName,
@@ -39,7 +44,7 @@ func (db *Database) UpsertUnmatchedTorrentMetadata(torrentName string, animeID i
 	// match screen, so the name is the identity and the rest is overwritten.
 	return db.gormdb.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "torrent_name"}},
-		DoUpdates: clause.AssignmentColumns([]string{"anime_id", "value", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"anime_id", "value", "download_state", "updated_at"}),
 	}).Create(&record).Error
 }
 
