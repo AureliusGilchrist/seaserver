@@ -24,7 +24,7 @@ func (r *Repository) GetMarketplaceExtensions(url string) (extensions []*extensi
 
 	urls := parseMarketplaceUrls(url)
 	if len(urls) == 0 {
-		urls = []string{constants.DefaultExtensionMarketplaceURL}
+		urls = defaultMarketplaceURLs
 	}
 
 	seen := make(map[string]struct{})
@@ -58,11 +58,26 @@ func (r *Repository) GetMarketplaceExtensions(url string) (extensions []*extensi
 	return merged, nil
 }
 
+// defaultMarketplaceURLs are the sources consulted when the user has not named one of their own.
+//
+// Two of them, because one is no longer enough. Upstream's marketplace carries only plugins and
+// custom sources now — every streaming, torrent and manga provider was taken out of it — so an
+// install that consults it alone finds no online sources for anime at all, which is not an empty
+// result so much as a whole category of extension quietly disappearing. The second source is a
+// community marketplace that still lists them.
+//
+// Merged rather than replaced, and de-duplicated by extension ID by the caller, so upstream stays
+// authoritative for anything it does publish and the community list only fills the gap it left.
+var defaultMarketplaceURLs = []string{
+	constants.DefaultExtensionMarketplaceURL,
+	constants.CommunityExtensionMarketplaceURL,
+}
+
 // parseMarketplaceUrls splits a user-provided marketplace string into individual URLs.
 // Supports newline, comma and semicolon separators. Empty entries are dropped and the
-// default marketplace is always included so the built-in sources never disappear.
+// default marketplaces are always included so the built-in sources never disappear.
 func parseMarketplaceUrls(url string) []string {
-	urls := []string{constants.DefaultExtensionMarketplaceURL}
+	urls := append([]string{}, defaultMarketplaceURLs...)
 
 	fields := strings.FieldsFunc(url, func(r rune) bool {
 		return r == '\n' || r == '\r' || r == ',' || r == ';'
@@ -76,7 +91,6 @@ func parseMarketplaceUrls(url string) []string {
 
 	return lo.Uniq(urls)
 }
-
 
 func (r *Repository) getMarketplaceExtensions(url string) (extensions []*extension.Extension, err error) {
 	resp, err := r.client.Get(url)

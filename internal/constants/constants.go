@@ -66,5 +66,13 @@ func SetVersionsFromJSON(data []byte) error {
 }
 
 var DefaultExtensionMarketplaceURL = util.Decode("aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tLzVyYWhpbS9zZWFuaW1lLWV4dGVuc2lvbnMvcmVmcy9oZWFkcy9tYWluL21hcmtldHBsYWNlLmpzb24=")
+
+// CommunityExtensionMarketplaceURL is a second marketplace consulted alongside the default one.
+//
+// The default marketplace no longer lists streaming, torrent or manga providers — only plugins and
+// custom sources — so on its own it leaves the app with no online sources for anime to install at
+// all. This one still publishes them. See extension_repo.defaultMarketplaceURLs.
+var CommunityExtensionMarketplaceURL = util.Decode("aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JhczE4NzQvc2VhbmltZS1leHRlbnNpb25zL21haW4vbWFya2V0cGxhY2UuanNvbg==")
+
 var AnnouncementURL = util.Decode("aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tLzVyYWhpbS9oaWJpa2UvcmVmcy9oZWFkcy9tYWluL3B1YmxpYy9hbm5vdW5jZW1lbnRzLmpzb24=")
 var InternalMetadataURL = util.Decode("aHR0cHM6Ly9hbmltZS5jbGFwLmluZw==")
