@@ -159,15 +159,6 @@ export type AnimeDownloadingBadgeProps = {
      */
     variant?: "badge" | "compact" | "overlay"
     size?: "sm" | "lg"
-    /**
-     * Drops the matched badge, keeping the other two.
-     *
-     * For the places already inside a series you have opened — its episode cards above all, where
-     * "matched" would repeat itself down the whole page and say nothing you did not know from being
-     * there. The states that are about something happening, or something waiting on you, are still
-     * worth saying in those places, which is why this is not simply "no badges".
-     */
-    hideMatched?: boolean
     className?: string
 }
 
@@ -176,11 +167,10 @@ export type AnimeDownloadingBadgeProps = {
  * of, so it can be dropped anywhere an anime is shown without the caller checking first.
  */
 export function AnimeDownloadingBadge(props: AnimeDownloadingBadgeProps) {
-    const { mediaId, variant = "badge", size = "sm", hideMatched, className } = props
+    const { mediaId, variant = "badge", size = "sm", className } = props
 
     const state = useAnimeDownloadState(mediaId)
     if (!state) return null
-    if (state === "matched" && hideMatched) return null
 
     const { label, overlayClass, pillClass, compactClass, icon: Icon } = STATE_PRESENTATION[state]
 
