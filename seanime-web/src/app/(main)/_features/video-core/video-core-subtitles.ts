@@ -180,6 +180,10 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     private fonts: string[] = []
     private hmacToken: string = ""
 
+    // Holds the in-flight initialisation so concurrent callers await it rather than starting a
+    // second one. Cleared on destroy, and on failure, so a manager can always initialise again.
+    private initPromise: Promise<void> | null = null
+
     private _onSelectedTrackChanged?: (track: number | null) => void
     private _onTracksLoaded?: (tracks: NormalizedTrackInfo[]) => void
 
@@ -276,7 +280,39 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         subtitleLog.info("File tracks", this.fileTracks)
     }
 
-    private async _init() {
+    /**
+     * Initialisation, run once however many callers ask for it.
+     *
+     * Ported from upstream v3.9.x (`fix(videocore): subtitle renderer race`), which memoised this
+     * behind a promise. The race it fixes is present here too, and costs more: two callers reaching
+     * the guard below before either has finished both build a renderer, and the second overwrites
+     * the first. Upstream leaks an orphaned renderer still attached to the video element; we also
+     * overwrite the module-level `sharedRenderer`, so the orphan becomes the one nothing can ever
+     * reach to destroy — it keeps drawing over the canvas of the episode that replaced it.
+     *
+     * Everything our version does differently is kept: the renderer shared across episodes, the
+     * isDestroyed guards, the font-query and resize workarounds. Only the concurrency rule is
+     * taken from upstream — awaiting one initialisation rather than starting a second.
+     */
+    private async _init(): Promise<void> {
+        if (this.initPromise) {
+            return this.initPromise
+        }
+
+        this.initPromise = this._initOnce()
+
+        try {
+            await this.initPromise
+        }
+        catch (e) {
+            // A failed initialisation must not be cached as though it had succeeded, or the
+            // renderer can never recover for the life of this manager.
+            this.initPromise = null
+            throw e
+        }
+    }
+
+    private async _initOnce() {
         if (!this.libassRenderer && !this.isDestroyed) {
             try {
                 const defaultFontUrl = "/fonts/Roboto-Medium.ttf"
@@ -624,6 +660,9 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     destroy() {
         subtitleLog.info("Destroying subtitle manager")
         this.isDestroyed = true
+        // Any memoised initialisation belongs to the manager being torn down; leaving it set
+        // would hand a destroyed manager's promise to whatever asks next.
+        this.initPromise = null
         this._disableNativeTextTracks()
         if (this.libassFullscreenListener) {
             document.removeEventListener("fullscreenchange", this.libassFullscreenListener)

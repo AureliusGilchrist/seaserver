@@ -346,13 +346,15 @@ func (ac *AnilistClientImpl) AnimeAiringScheduleRaw(ctx context.Context, ids []*
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// customDoFunc is a custom request interceptor that handles rate limiting and retries
-// with exponential back-off.  It retries on:
-//   - HTTP 429 (AniList rate limit) — honours the Retry-After header, broadcasts a WS event
-//   - HTTP 500/502/503/504 (transient server errors)
-//   - Network / connection errors
+// customDoFunc is a custom request interceptor that handles rate limiting and retries.
 //
-// Maximum 5 attempts total; back-off caps at 60 s.
+// It retries on HTTP 429 alone — honouring the Retry-After header and broadcasting a WS event —
+// because a rate limit is the one failure whose answer changes simply for having waited. Transport
+// errors and 5xx are reported after a single attempt: the caller has gone, or the service is
+// struggling, and in both cases retrying multiplies the load that caused the failure. Ported from
+// upstream v3.10.2, "AniList: Restrict retries to 429 errors only".
+//
+// Maximum 5 attempts, all of them rate-limit waits; back-off caps at 60 s.
 func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request, gqlInfo *clientv2.GQLRequestInfo, res interface{}) (err error) {
 	// The user goes first. Every AniList request in the server arrives here, which makes this the
 	// one place the ordering can be decided — see priority.go for why it needs deciding at all.
@@ -413,16 +415,25 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 		resp, err = httpClient.Do(req)
 
 		// ── Network / transport error ─────────────────────────────────────
+		//
+		// Not retried. Ported from upstream v3.10.2, "AniList: Restrict retries to 429 errors
+		// only", and the reason is visible in this server's own logs: a request whose context had
+		// already been cancelled was logged as a network error, waited two seconds, tried again,
+		// failed again for the same reason, and did it five times — a burst of
+		// "network error, retrying in 2s ... context canceled" per request, several requests at
+		// once, all of it work that could not possibly succeed.
+		//
+		// A rate limit is worth retrying because the answer changes after the wait. A transport
+		// failure is not: the caller has gone, or the network is down, and retrying multiplies load
+		// during exactly the outage that caused it. 429 keeps its retry below; everything else is
+		// reported once and left to the caller.
 		if err != nil {
-			backoff := backoffDuration(attempt, 2*time.Second, 60*time.Second)
-			ac.logger.Warn().Err(err).Int("attempt", attempt+1).
-				Msgf("anilist: network error, retrying in %s", backoff)
-			select {
-			case <-reqCtx.Done():
-				return fmt.Errorf("anilist: request failed: %w", err)
-			case <-time.After(backoff):
+			if reqCtx.Err() != nil {
+				// The caller gave up. Not a network failure worth reporting as one.
+				return fmt.Errorf("anilist: request cancelled: %w", reqCtx.Err())
 			}
-			continue
+			ac.logger.Warn().Err(err).Msg("anilist: network error")
+			return fmt.Errorf("anilist: request failed: %w", err)
 		}
 
 		rlRemainingStr = resp.Header.Get("X-Ratelimit-Remaining")
@@ -465,18 +476,16 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 		}
 
 		// ── Transient server errors (5xx) ────────────────────────────────
+		//
+		// Also no longer retried, for the same reason as the transport errors above: when AniList
+		// is having trouble, every client retrying five times each is a fair part of the trouble.
+		// One attempt, reported honestly, and the cache layer serves what it has — which is the
+		// point of having a cache that never expires.
 		if resp.StatusCode == 500 || resp.StatusCode == 502 ||
 			resp.StatusCode == 503 || resp.StatusCode == 504 {
 			resp.Body.Close()
-			backoff := backoffDuration(attempt, 3*time.Second, 60*time.Second)
-			ac.logger.Warn().Int("status", resp.StatusCode).Int("attempt", attempt+1).
-				Msgf("anilist: server error, retrying in %s", backoff)
-			select {
-			case <-reqCtx.Done():
-				return reqCtx.Err()
-			case <-time.After(backoff):
-			}
-			continue
+			ac.logger.Warn().Int("status", resp.StatusCode).Msg("anilist: server error")
+			return fmt.Errorf("anilist: server error: status %d", resp.StatusCode)
 		}
 
 		// Success or a non-retryable HTTP error — exit the loop.
