@@ -135,3 +135,52 @@ func TestNilsAreSurvivable(t *testing.T) {
 		t.Error("a nil collection produced work to do")
 	}
 }
+
+func airingEntry(id int, secondsUntilAiring int) *anilist.AnimeListEntry {
+	e := entry(id, anilist.MediaListStatusCurrent, anilist.MediaStatusReleasing, false)
+	e.Media.NextAiringEpisode = &anilist.BaseAnime_NextAiringEpisode{
+		Episode:         3,
+		TimeUntilAiring: secondsUntilAiring,
+	}
+	return e
+}
+
+func collectionOf(entries ...*anilist.AnimeListEntry) *anilist.AnimeCollection {
+	return &anilist.AnimeCollection{
+		MediaListCollection: &anilist.AnimeCollection_MediaListCollection{
+			Lists: []*anilist.AnimeCollection_MediaListCollection_Lists{{Entries: entries}},
+		},
+	}
+}
+
+// A countdown running down from days away needs no network at all — the airing time is cached and
+// the clock is local. Re-reading it hourly is what was spending the rate budget.
+func TestNoRefreshWhileEverythingIsStillDaysAway(t *testing.T) {
+	col := collectionOf(airingEntry(1, int((6 * 24 * time.Hour).Seconds())))
+	if anEpisodeWasDueSince(col, time.Now().Add(-time.Hour)) {
+		t.Error("asked for a refresh for an episode six days out")
+	}
+}
+
+// The moment it reaches zero is exactly what has to be noticed.
+func TestRefreshOnceAnEpisodeWasDue(t *testing.T) {
+	// Fetched two hours ago, with one hour left on the clock at that point.
+	col := collectionOf(airingEntry(1, int(time.Hour.Seconds())))
+	if !anEpisodeWasDueSince(col, time.Now().Add(-2*time.Hour)) {
+		t.Error("missed an episode that aired since the data was fetched")
+	}
+}
+
+func TestUnknownAgeForcesARefresh(t *testing.T) {
+	col := collectionOf(airingEntry(1, int((6 * 24 * time.Hour).Seconds())))
+	if !anEpisodeWasDueSince(col, time.Time{}) {
+		t.Error("trusted countdowns whose age is unknown")
+	}
+}
+
+func TestNothingAiringNeedsNoRefresh(t *testing.T) {
+	col := collectionOf(entry(9, anilist.MediaListStatusCompleted, anilist.MediaStatusFinished, false))
+	if anEpisodeWasDueSince(col, time.Now().Add(-time.Hour)) {
+		t.Error("asked for a refresh with nothing airing")
+	}
+}
