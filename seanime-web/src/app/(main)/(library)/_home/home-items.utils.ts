@@ -18,9 +18,13 @@ export const DEFAULT_HOME_ITEMS: Models_HomeItem[] = [
     {
         id: "anime-library",
         type: "anime-library",
-        schemaVersion: 1,
+        schemaVersion: 3,
         options: {
-            statuses: ["CURRENT", "PAUSED", "PLANNING", "COMPLETED", "DROPPED"],
+            // Every list AniList keeps, so the home page shows the whole account rather than the
+            // handful of statuses that happened to be listed here. Rewatching was missing outright
+            // — it was not even offered in the settings above — so an account with anything on it
+            // had no way to see those entries at all.
+            statuses: ["CURRENT", "REPEATING", "PAUSED", "PLANNING", "COMPLETED", "DROPPED"],
             layout: "grid",
         },
     },
@@ -243,7 +247,11 @@ export const HOME_ITEMS = {
     "anime-library": {
         name: "Anime Library",
         kind: ["row"],
-        schemaVersion: 2,
+        // Bumped to 3 so a saved selection from before every status was offered is dropped rather
+        // than kept: an item configured when the list was shorter goes on hiding the statuses it
+        // never had the chance to include, and there is nothing on screen to say why. Clearing the
+        // options falls back to showing all of them, which is what this is for.
+        schemaVersion: 3,
         description: "Display anime you have downloaded / you are currently watching by status.",
         options: [
             {
@@ -254,6 +262,10 @@ export const HOME_ITEMS = {
                     {
                         value: "CURRENT",
                         label: "Currently Watching",
+                    },
+                    {
+                        value: "REPEATING",
+                        label: "Rewatching",
                     },
                     {
                         value: "PAUSED",

@@ -1,7 +1,7 @@
 "use client"
 
-import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
-import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
+import { serverFinishedAnimeIdsAtom, useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
+import { useAtomValue } from "jotai"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/components/ui/core/styling"
 import React from "react"
@@ -24,18 +24,14 @@ export function useIsAnimeDownloading(mediaId: number | null | undefined): boole
  * nothing is in flight, and yet the series is not in the library either — it is waiting on you.
  * Shown neutral white rather than purple, because nothing is in progress any more.
  *
- * The listing this reads is fetched under one query key, so every badge on a page shares a single
- * request no matter how many of them there are.
+ * Read from the same poll that drives the downloading badge, so a page full of cards costs no extra
+ * requests at all — and, like that one, it is the server's live answer rather than anything kept on
+ * this side that could go stale.
  */
 export function useIsAnimeAwaitingMatch(mediaId: number | null | undefined): boolean {
-    const { data: unmatched } = useGetUnmatchedTorrents({
-        // Cards render in bulk and this is background information, so it is left to go stale for a
-        // while rather than polled. The Unmatched screen keeps its own, livelier copy.
-        staleTime: 60_000,
-        refetchOnWindowFocus: false,
-    })
+    const finished = useAtomValue(serverFinishedAnimeIdsAtom)
     if (!mediaId) return false
-    return !!unmatched?.some(t => t?.animeId === mediaId)
+    return finished.has(mediaId)
 }
 
 /**

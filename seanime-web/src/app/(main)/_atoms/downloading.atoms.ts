@@ -1,56 +1,71 @@
 import { useServerQuery } from "@/api/client/requests"
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
-import { atomWithStorage } from "jotai/utils"
 import React from "react"
 
 /**
- * One anime the downloading badge is being kept up for.
+ * The server is the only thing that knows what is downloading, and now it is the only thing asked.
  *
- * The badge is sticky by design: once it has shown for an anime, even once, it stays until
- * something positively says the download is over. It is not taken down by a reload, by a torrent
- * client that went quiet for a poll, or by the server briefly failing to tie a torrent back to its
- * anime — all of which used to make it blink out mid-download.
+ * It answers from live evidence — what the torrent client is currently pulling, and what is actually
+ * sitting in the staging area on disk — so it is correct by construction: delete the downloads and
+ * the answer is empty on the very next poll. There is nothing to keep in step with it and nothing
+ * that can drift out of step.
+ *
+ * What used to be here was a second copy, kept in localStorage, that decayed on its own schedule: an
+ * entry needed three consecutive polls of the server denying it before it came down, or sixty for
+ * one this session had queued optimistically. Both counts assumed the polls were arriving, and the
+ * query is deliberately quiet about failure, so any stretch where the server could not be reached
+ * simply froze the list. Persisted, it then survived reloads and restarts. That is how a library
+ * with every download deleted still showed downloading badges: the badges were not describing the
+ * server's answer, they were describing a file written weeks ago that nothing was left to retract.
+ *
+ * Nothing is persisted now. The only thing held besides the server's answer is a short-lived
+ * optimistic entry, in memory, so that pressing Download marks the anime immediately instead of
+ * waiting for the next poll — and it is expired by the clock, not by a count of polls, so it cannot
+ * outlive its usefulness just because the server went quiet.
  */
-export type StickyDownload = {
+
+/** How long an optimistic entry stands before the server has to be backing it up. */
+const OPTIMISTIC_GRACE_MS = 2 * 60 * 1000
+
+/** An anime this session queued, waiting for the server to confirm it has started. */
+type OptimisticDownload = {
     mediaId: number
-    /** Whether the server has ever reported this download itself, as opposed to us queueing it. */
-    confirmed: boolean
-    /** Consecutive successful polls in which the server said nothing at all about this anime. */
-    missStreak: number
+    /** When it was queued, so it can expire by the clock rather than by counting polls. */
+    at: number
 }
 
-/**
- * Anime the downloading badge is up for, persisted so a refresh doesn't wipe it.
- *
- * Written to by two places: optimistically when this session queues a download, and by the sync
- * below from what the server reports.
- */
-export const downloadingAnimeIdsAtom = atomWithStorage<StickyDownload[]>(
-    "sea-downloading-anime",
-    [],
-    undefined,
-    { getOnInit: true },
-)
+/** In memory only. A reload has no business remembering that a button was pressed. */
+export const optimisticDownloadsAtom = atom<OptimisticDownload[]>([])
 
 /** Anime IDs the server reports as having an unfinished download right now. */
 export const serverDownloadingAnimeIdsAtom = atom<Set<number>>(new Set<number>())
 
 /**
- * How many polls of the server saying nothing about a download it had previously reported count as
- * "it's over". The server reads staging directories off disk, so a download in progress is visible
- * on every single poll; a few consecutive silences mean the download really is gone, not that a
- * request went wrong. Only used as a backstop — a download that finishes normally is reported as
- * finished and the badge comes down at once.
+ * Anime whose download the torrent client has finished, but which is still sitting in the staging
+ * area waiting to be matched into the library.
+ *
+ * The same poll already answers this, so it costs nothing beyond reading a field that was being
+ * thrown away — and it is the exact state the neutral badge stands for. Deriving it here rather
+ * than from the Unmatched listing also keeps every card off that endpoint.
  */
-const CONFIRMED_MISS_LIMIT = 3
+export const serverFinishedAnimeIdsAtom = atom<Set<number>>(new Set<number>())
 
 /**
- * The same backstop for a download this session queued that the server has never confirmed. Far
- * more forgiving, because there is nothing to fall back on: if this is wrong the badge is lost for
- * a download that is genuinely running. Long enough (~10 min at the poll interval below) that it
- * only ever collects entries for downloads that never actually started.
+ * The stale localStorage key from the previous design, cleared once on load.
+ *
+ * Without this the phantom badges it holds would stay until each entry happened to decay, which for
+ * an unconfirmed one meant ten minutes of uninterrupted successful polling — and the whole reason
+ * for this change is that those entries were never coming down on their own.
  */
-const UNCONFIRMED_MISS_LIMIT = 60
+const LEGACY_STICKY_KEY = "sea-downloading-anime"
+if (typeof window !== "undefined") {
+    try {
+        window.localStorage.removeItem(LEGACY_STICKY_KEY)
+    }
+    catch {
+        // Storage unavailable. Nothing was read from it either, so there is nothing to undo.
+    }
+}
 
 type DownloadingMediaStatus = {
     downloading?: Array<number> | null
@@ -73,12 +88,13 @@ function useGetDownloadingMediaStatus() {
 }
 
 /**
- * Keeps the atoms above in sync with the server. Mount once, app-wide.
+ * Keeps the server's answer in the atom above. Mount once, app-wide.
  */
 export function useSyncDownloadingAnime() {
     const { data } = useGetDownloadingMediaStatus()
     const setServerIds = useSetAtom(serverDownloadingAnimeIdsAtom)
-    const setSticky = useSetAtom(downloadingAnimeIdsAtom)
+    const setServerFinishedIds = useSetAtom(serverFinishedAnimeIdsAtom)
+    const setOptimistic = useSetAtom(optimisticDownloadsAtom)
 
     React.useEffect(() => {
         if (!data) return
@@ -87,35 +103,19 @@ export function useSyncDownloadingAnime() {
         const finished = new Set(data.finished ?? [])
 
         setServerIds(prev => setsAreEqual(prev, downloading) ? prev : downloading)
+        setServerFinishedIds(prev => setsAreEqual(prev, finished) ? prev : finished)
 
-        setSticky(prev => {
-            const next: StickyDownload[] = []
-
-            for (const entry of prev) {
-                // Done. This is the one thing that takes the badge down promptly, and it is what
-                // hands the card over to the "in your library" badge.
-                if (finished.has(entry.mediaId)) continue
-
-                if (downloading.has(entry.mediaId)) {
-                    next.push({ mediaId: entry.mediaId, confirmed: true, missStreak: 0 })
-                    continue
-                }
-
-                const missStreak = entry.missStreak + 1
-                const limit = entry.confirmed ? CONFIRMED_MISS_LIMIT : UNCONFIRMED_MISS_LIMIT
-                if (missStreak >= limit) continue
-
-                next.push({ ...entry, missStreak })
-            }
-
-            // Downloads started elsewhere — another device, the auto-downloader, a previous run.
-            const known = new Set(next.map(e => e.mediaId))
-            for (const mediaId of downloading) {
-                if (known.has(mediaId)) continue
-                next.push({ mediaId, confirmed: true, missStreak: 0 })
-            }
-
-            return stickyListsAreEqual(prev, next) ? prev : next
+        // An optimistic entry has done its job once the server is speaking for the download, and is
+        // wrong once the server calls it finished. Anything else it outlives by the grace period
+        // above and no longer — a download that never started must not leave a badge behind.
+        const cutoff = Date.now() - OPTIMISTIC_GRACE_MS
+        setOptimistic(prev => {
+            const next = prev.filter(entry =>
+                !downloading.has(entry.mediaId)
+                && !finished.has(entry.mediaId)
+                && entry.at > cutoff,
+            )
+            return next.length === prev.length ? prev : next
         })
     }, [data])
 }
@@ -128,38 +128,39 @@ function setsAreEqual(a: Set<number>, b: Set<number>) {
     return true
 }
 
-/** Compared field by field so an unchanged poll doesn't re-render every card, or touch storage. */
-function stickyListsAreEqual(a: StickyDownload[], b: StickyDownload[]) {
-    if (a.length !== b.length) return false
-    return a.every((entry, i) =>
-        entry.mediaId === b[i].mediaId
-        && entry.confirmed === b[i].confirmed
-        && entry.missStreak === b[i].missStreak,
-    )
-}
-
 /**
- * Hook to manage downloading anime state
+ * Whether an anime has a download in flight, and how to mark one optimistically.
  */
 export function useDownloadingAnime() {
-    const [sticky, setSticky] = useAtom(downloadingAnimeIdsAtom)
+    const [optimistic, setOptimistic] = useAtom(optimisticDownloadsAtom)
     const serverDownloadingIds = useAtomValue(serverDownloadingAnimeIdsAtom)
 
-    const downloadingIds = React.useMemo(() => new Set(sticky.map(e => e.mediaId)), [sticky])
-
     const addDownloadingAnime = React.useCallback((mediaId: number) => {
-        setSticky(prev => prev.some(e => e.mediaId === mediaId)
+        setOptimistic(prev => prev.some(e => e.mediaId === mediaId)
             ? prev
-            : [...prev, { mediaId, confirmed: false, missStreak: 0 }])
-    }, [setSticky])
+            : [...prev, { mediaId, at: Date.now() }])
+    }, [setOptimistic])
 
     const removeDownloadingAnime = React.useCallback((mediaId: number) => {
-        setSticky(prev => prev.some(e => e.mediaId === mediaId) ? prev.filter(e => e.mediaId !== mediaId) : prev)
-    }, [setSticky])
+        setOptimistic(prev => prev.some(e => e.mediaId === mediaId) ? prev.filter(e => e.mediaId !== mediaId) : prev)
+    }, [setOptimistic])
 
     const isDownloading = React.useCallback((mediaId: number) => {
-        return downloadingIds.has(mediaId) || serverDownloadingIds.has(mediaId)
-    }, [downloadingIds, serverDownloadingIds])
+        if (serverDownloadingIds.has(mediaId)) return true
+        // Checked against the clock here as well as in the sync, so an entry expires even if the
+        // server has stopped answering entirely.
+        const cutoff = Date.now() - OPTIMISTIC_GRACE_MS
+        return optimistic.some(e => e.mediaId === mediaId && e.at > cutoff)
+    }, [optimistic, serverDownloadingIds])
+
+    const downloadingIds = React.useMemo(() => {
+        const cutoff = Date.now() - OPTIMISTIC_GRACE_MS
+        const ids = new Set(serverDownloadingIds)
+        for (const entry of optimistic) {
+            if (entry.at > cutoff) ids.add(entry.mediaId)
+        }
+        return ids
+    }, [optimistic, serverDownloadingIds])
 
     return {
         downloadingIds,
