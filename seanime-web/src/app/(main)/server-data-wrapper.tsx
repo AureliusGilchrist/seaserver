@@ -62,16 +62,29 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
     // from a server that no longer exists — a deleted data directory, a fresh install, a different
     // machine. Cleared here rather than left to expire, because a stale token against a server with
     // no accounts is what turns "there is nobody to log in as" into being locked out.
+    // Only when the server *positively* says there are no accounts.
+    //
+    // The first version of this asked `!profiles?.length`, which is also true when the field is
+    // simply absent — and the status payload does not always carry the profile list once you are
+    // signed in, since it exists for the selector. So a perfectly good session was wiped the moment
+    // one of those payloads arrived, every guarded route began answering "profile session required",
+    // and the app fell back to the simulated user and hammered AniList unauthenticated until it was
+    // rate limited. An omitted field is not an answer; only an explicit one is.
     React.useEffect(() => {
-        const noAccounts = _serverStatus && (!_serverStatus.profilesEnabled || !_serverStatus.profiles?.length)
-        if (!noAccounts) return
+        if (!_serverStatus) return
+        // Signed in right now — there is plainly a session, whatever else the payload says.
+        if (_serverStatus.currentProfile) return
+
+        const profilesDisabled = _serverStatus.profilesEnabled === false
+        const explicitlyEmpty = Array.isArray(_serverStatus.profiles) && _serverStatus.profiles.length === 0
+        if (!profilesDisabled && !explicitlyEmpty) return
         logger("Data Wrapper").info("Server reports no profiles, clearing any stored profile session")
         setProfileToken(undefined)
         try {
             localStorage.removeItem("sea-boot-id")
         }
         catch {}
-    }, [_serverStatus?.profilesEnabled, _serverStatus?.profiles?.length])
+    }, [_serverStatus?.profilesEnabled, _serverStatus?.profiles, _serverStatus?.currentProfile])
 
     // Any refusal of the session puts the app at the login screen, immediately.
     //
