@@ -39,6 +39,19 @@ func LoadExtensions(extensionRepository *extension_repo.Repository, logger *zero
 		Icon:        "https://raw.githubusercontent.com/5rahim/hibike/main/icons/local-manga.png",
 	}, manga_providers.NewLocal(config.Manga.LocalDir, logger))
 
+	extensionRepository.ReloadBuiltInExtension(extension.Extension{
+		ID:          manga_providers.WeebCentralProvider,
+		Name:        "WeebCentral",
+		Version:     "1.0.0",
+		ManifestURI: "builtin",
+		Language:    extension.LanguageGo,
+		Type:        extension.TypeMangaProvider,
+		Author:      "Seanime",
+		Description: "Manga provider for weebcentral.com",
+		Lang:        "en",
+		Icon:        "https://weebcentral.com/favicon.ico",
+	}, manga_providers.NewWeebCentral(logger))
+
 	// Load built-in anime torrent providers
 	extensionRepository.ReloadBuiltInExtension(extension.Extension{
 		ID:          torrent_providers.NyaaProviderID,

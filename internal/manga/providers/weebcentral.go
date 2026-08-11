@@ -1,0 +1,379 @@
+package manga_providers
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/PuerkitoBio/goquery"
+	"github.com/rs/zerolog"
+
+	hibikemanga "seanime/internal/extension/hibike/manga"
+	"seanime/internal/util"
+)
+
+// WeebCentral is a manga provider for weebcentral.com.
+//
+// The site is server-rendered and driven by HTMX, which is convenient here: the three things a
+// provider needs are each available as their own fragment endpoint, returning just the markup for
+// that piece rather than a whole page to dig through.
+//
+//	search       /search/data?query=…&display_mode=Full%20Display
+//	chapters     /series/{id}/full-chapter-list
+//	pages        /chapters/{id}/images?reading_style=long_strip
+//
+// Series and chapter IDs are ULIDs, stable and opaque, which is what both IDs here are. The slug in
+// a series URL is decoration — /series/{id}/anything resolves — so it is not stored or relied on.
+type WeebCentral struct {
+	Url       string
+	Client    *http.Client
+	UserAgent string
+	logger    *zerolog.Logger
+}
+
+const WeebCentralProvider string = "weebcentral"
+
+func NewWeebCentral(logger *zerolog.Logger) hibikemanga.Provider {
+	c := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+	c.Transport = util.AddCloudFlareByPass(c.Transport)
+	return &WeebCentral{
+		Url:       "https://weebcentral.com",
+		Client:    c,
+		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+		logger:    logger,
+	}
+}
+
+func (w *WeebCentral) GetSettings() hibikemanga.Settings {
+	return hibikemanga.Settings{
+		// Every chapter on the site is one official or scanlated release; there is no picking
+		// between groups or languages, so the IDs stay plain.
+		SupportsMultiScanlator: false,
+		SupportsMultiLanguage:  false,
+	}
+}
+
+// seriesIDFromURL pulls the ULID out of a series link.
+var seriesIDFromURL = regexp.MustCompile(`/series/([0-9A-Za-z]{26})`)
+
+// chapterIDFromURL pulls the ULID out of a chapter link. The href is relative on the chapter list
+// and absolute in search results, so the pattern deliberately does not anchor on the host.
+var chapterIDFromURL = regexp.MustCompile(`/chapters/([0-9A-Za-z]{26})`)
+
+// chapterNumberFromTitle reads the number out of "Chapter 12", "Volume 6", "Chapter 12.5".
+var chapterNumberFromTitle = regexp.MustCompile(`(?i)(?:chapter|volume|episode|ch\.?|vol\.?)\s*([0-9]+(?:\.[0-9]+)?)`)
+
+func (w *WeebCentral) request(url string) (*goquery.Document, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", w.UserAgent)
+	// The fragment endpoints are meant to be called from a page on the site; without a referer some
+	// of them answer with an empty shell rather than the content.
+	req.Header.Set("Referer", w.Url+"/")
+
+	resp, err := w.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("weebcentral: unexpected status %s", resp.Status)
+	}
+
+	// These endpoints answer with a bare fragment — a run of <article> elements, no <html> or
+	// <body> around them. Handed straight to the parser that is a malformed document, and it
+	// recovers by dropping most of it: parsing the search fragment directly yielded zero articles
+	// out of the twenty-four that were plainly in the bytes. Wrapping it first gives the parser the
+	// document structure it expects, and everything is then where it looks for it.
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return goquery.NewDocumentFromReader(strings.NewReader("<html><body>" + string(body) + "</body></html>"))
+}
+
+func (w *WeebCentral) Search(opts hibikemanga.SearchOptions) ([]*hibikemanga.SearchResult, error) {
+	results := make([]*hibikemanga.SearchResult, 0)
+
+	w.logger.Debug().Str("query", opts.Query).Msg("weebcentral: Searching manga")
+
+	// Full Display carries the cover and the year; the Minimal mode the site also offers does not,
+	// and both are wanted here.
+	endpoint := fmt.Sprintf("%s/search/data?limit=24&query=%s&series_status=&order=Relevance&display_mode=Full%%20Display",
+		w.Url, url.QueryEscape(opts.Query))
+
+	doc, err := w.request(endpoint)
+	if err != nil {
+		w.logger.Error().Err(err).Str("query", opts.Query).Msg("weebcentral: Search request failed")
+		return nil, err
+	}
+
+	doc.Find("article").Each(func(_ int, article *goquery.Selection) {
+		links := article.Find(`a[href*="/series/"]`)
+		link := links.First()
+		// Prefer the link that carries the title as its text over the one wrapping the cover, which
+		// has none. Same series either way; this only decides what there is to read.
+		links.EachWithBreak(func(_ int, candidate *goquery.Selection) bool {
+			if strings.TrimSpace(candidate.Text()) != "" {
+				link = candidate
+				return false
+			}
+			return true
+		})
+		href, ok := link.Attr("href")
+		if !ok {
+			return
+		}
+		match := seriesIDFromURL.FindStringSubmatch(href)
+		if match == nil {
+			return
+		}
+
+		// The two display modes mark the title up differently, and neither is a superset of the
+		// other: the compact card uses a heading with the title in the link's tooltip, while the
+		// full card has no heading at all and puts the title in the text of the series link, inside
+		// a tooltip span. Reading only one of them found nothing in the other.
+		title := strings.TrimSpace(article.Find("h2").First().Text())
+		if title == "" {
+			title = strings.TrimSpace(link.Text())
+		}
+		if title == "" {
+			title = strings.TrimSpace(link.AttrOr("data-tip", ""))
+		}
+		if title == "" {
+			title = strings.TrimSpace(link.Parent().AttrOr("data-tip", ""))
+		}
+		if title == "" {
+			return
+		}
+
+		// The cover is served as a <picture>; the <img> inside it is the fallback every browser can
+		// read, which is also the one worth handing on.
+		image := article.Find("picture img").First().AttrOr("src", "")
+		if image == "" {
+			image = article.Find("img").First().AttrOr("src", "")
+		}
+
+		// Minimal display lists the year as a bare cell; full display labels it "Year: 2005". Both
+		// reduce to "the first four-digit number in this card that could be a year".
+		year := 0
+		article.Find("div, span").EachWithBreak(func(_ int, cell *goquery.Selection) bool {
+			text := strings.TrimSpace(cell.Text())
+			text = strings.TrimSpace(strings.TrimPrefix(text, "Year:"))
+			if len(text) != 4 {
+				return true
+			}
+			if parsed, err := strconv.Atoi(text); err == nil && parsed > 1900 && parsed < 2200 {
+				year = parsed
+				return false
+			}
+			return true
+		})
+
+		results = append(results, &hibikemanga.SearchResult{
+			Provider: WeebCentralProvider,
+			ID:       match[1],
+			Title:    title,
+			Year:     year,
+			Image:    image,
+			// Left to Seanime to rate, so this ranks the same way every other provider does.
+			SearchRating: 0,
+		})
+	})
+
+	if len(results) == 0 {
+		w.logger.Error().Str("query", opts.Query).Msg("weebcentral: No results found")
+		return nil, ErrNoResults
+	}
+
+	// The site returns its own relevance order, which is good, but the year filter the caller may
+	// have asked for is not something the endpoint accepts — so it is applied here.
+	if opts.Year > 0 {
+		filtered := make([]*hibikemanga.SearchResult, 0, len(results))
+		for _, r := range results {
+			if r.Year == 0 || r.Year == opts.Year {
+				filtered = append(filtered, r)
+			}
+		}
+		// Only when it leaves something behind: a wrong year on the entry must not empty the list.
+		if len(filtered) > 0 {
+			results = filtered
+		}
+	}
+
+	w.logger.Info().Int("count", len(results)).Msg("weebcentral: Found results")
+
+	return results, nil
+}
+
+func (w *WeebCentral) FindChapters(id string) ([]*hibikemanga.ChapterDetails, error) {
+	ret := make([]*hibikemanga.ChapterDetails, 0)
+
+	w.logger.Debug().Str("mangaId", id).Msg("weebcentral: Finding chapters")
+
+	doc, err := w.request(fmt.Sprintf("%s/series/%s/full-chapter-list", w.Url, id))
+	if err != nil {
+		w.logger.Error().Err(err).Str("mangaId", id).Msg("weebcentral: Chapter list request failed")
+		return nil, err
+	}
+
+	// Newest first on the page, which is the opposite of the reading order the index is meant to
+	// express — collected here, reversed below.
+	type parsedChapter struct {
+		id        string
+		title     string
+		number    string
+		updatedAt string
+	}
+	parsed := make([]parsedChapter, 0)
+	seen := make(map[string]bool)
+
+	doc.Find(`a[href*="/chapters/"]`).Each(func(_ int, link *goquery.Selection) {
+		href, ok := link.Attr("href")
+		if !ok {
+			return
+		}
+		match := chapterIDFromURL.FindStringSubmatch(href)
+		if match == nil || seen[match[1]] {
+			return
+		}
+
+		// The first span inside the label is the chapter's name; the ones after it are the
+		// "last read" marker and other decoration, which must not end up in the title.
+		title := strings.TrimSpace(link.Find("span.grow span").First().Text())
+		if title == "" {
+			title = strings.TrimSpace(link.Find("span").First().Text())
+		}
+		if title == "" {
+			return
+		}
+
+		seen[match[1]] = true
+		parsed = append(parsed, parsedChapter{
+			id:        match[1],
+			title:     title,
+			number:    chapterNumber(title, len(parsed)),
+			updatedAt: chapterDate(link),
+		})
+	})
+
+	if len(parsed) == 0 {
+		w.logger.Error().Str("mangaId", id).Msg("weebcentral: No chapters found")
+		return nil, ErrNoChapters
+	}
+
+	// Oldest first, so Index counts up the way it is read.
+	for i := len(parsed) - 1; i >= 0; i-- {
+		c := parsed[i]
+		ret = append(ret, &hibikemanga.ChapterDetails{
+			Provider:  WeebCentralProvider,
+			ID:        c.id,
+			URL:       fmt.Sprintf("%s/chapters/%s", w.Url, c.id),
+			Title:     c.title,
+			Chapter:   c.number,
+			Index:     uint(len(ret)),
+			UpdatedAt: c.updatedAt,
+		})
+	}
+
+	w.logger.Info().Int("count", len(ret)).Str("mangaId", id).Msg("weebcentral: Found chapters")
+
+	return ret, nil
+}
+
+// chapterNumber reads the number out of a chapter's label, falling back to its position.
+//
+// The fallback matters for series whose chapters are labelled by volume or by name: without a
+// number the caller cannot order them or tell which one follows which, and position is at least
+// monotonic.
+func chapterNumber(title string, position int) string {
+	if match := chapterNumberFromTitle.FindStringSubmatch(title); match != nil {
+		return strings.TrimLeft(match[1], "0")
+	}
+	// Anything left that is simply a bare number.
+	trimmed := strings.TrimSpace(title)
+	if _, err := strconv.ParseFloat(trimmed, 64); err == nil {
+		return trimmed
+	}
+	return strconv.Itoa(position + 1)
+}
+
+// chapterDate reads the release date the list carries in a <time datetime="…"> and reduces it to
+// the YYYY-MM-DD the interface asks for.
+func chapterDate(link *goquery.Selection) string {
+	value := link.Find("time").First().AttrOr("datetime", "")
+	if value == "" {
+		// The <time> is sometimes the chapter link's sibling rather than its child.
+		value = link.Parent().Find("time").First().AttrOr("datetime", "")
+	}
+	if value == "" {
+		return ""
+	}
+	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
+		return parsed.Format("2006-01-02")
+	}
+	if len(value) >= 10 {
+		return value[:10]
+	}
+	return ""
+}
+
+func (w *WeebCentral) FindChapterPages(id string) ([]*hibikemanga.ChapterPage, error) {
+	ret := make([]*hibikemanga.ChapterPage, 0)
+
+	w.logger.Debug().Str("chapterId", id).Msg("weebcentral: Finding chapter pages")
+
+	// long_strip returns every page of the chapter in one fragment. The paged reading style returns
+	// one image at a time, which would be a request per page.
+	endpoint := fmt.Sprintf("%s/chapters/%s/images?is_prev=False&current_page=1&reading_style=long_strip", w.Url, id)
+
+	doc, err := w.request(endpoint)
+	if err != nil {
+		w.logger.Error().Err(err).Str("chapterId", id).Msg("weebcentral: Chapter pages request failed")
+		return nil, err
+	}
+
+	doc.Find("img").Each(func(_ int, img *goquery.Selection) {
+		src := strings.TrimSpace(img.AttrOr("src", ""))
+		if src == "" || !strings.HasPrefix(src, "http") {
+			return
+		}
+		// The fragment carries only page images, but a UI glyph slipping in would be filed as a
+		// page and read as a blank one.
+		if strings.Contains(src, "/static/") {
+			return
+		}
+
+		ret = append(ret, &hibikemanga.ChapterPage{
+			Provider: WeebCentralProvider,
+			URL:      src,
+			Index:    len(ret),
+			// The image host serves pages only to requests that look like they came from the
+			// reader. Without these the pages 403 — which is why they travel with each page rather
+			// than being applied once by the client.
+			Headers: map[string]string{
+				"Referer":    w.Url + "/",
+				"User-Agent": w.UserAgent,
+			},
+		})
+	})
+
+	if len(ret) == 0 {
+		w.logger.Error().Str("chapterId", id).Msg("weebcentral: No pages found")
+		return nil, ErrNoPages
+	}
+
+	w.logger.Info().Int("count", len(ret)).Str("chapterId", id).Msg("weebcentral: Found chapter pages")
+
+	return ret, nil
+}

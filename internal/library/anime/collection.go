@@ -385,8 +385,20 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 								CompletedAt: anilist.ToEntryCompletionDate(entry.CompletedAt),
 							},
 						}
-					} else if *list.Status == anilist.MediaListStatusPlanning {
-						// Include all user's planning entries even without local files
+					} else {
+						// Every list is shown in full, not only the entries with files behind them.
+						//
+						// This used to admit Planning alone, on the reasoning that the library is
+						// what you have downloaded. The effect was that the home screen showed
+						// three headings — Currently Watching, Planning, Completed — and silently
+						// omitted Paused, Dropped and Rewatching whenever those entries had no
+						// files, which for most accounts is most of them. Nothing on screen said a
+						// list had been left out, so it read as the lists being empty.
+						//
+						// The cost is that these screens now list the whole account rather than
+						// the downloaded part of it, and an entry with no files carries no library
+						// data — EntryLibraryData stays nil, exactly as it always has for Planning,
+						// so anything reading it must already cope with its absence.
 						return &LibraryCollectionEntry{
 							MediaId:          entry.Media.ID,
 							Media:            entry.Media,
@@ -400,8 +412,6 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 								CompletedAt: anilist.ToEntryCompletionDate(entry.CompletedAt),
 							},
 						}
-					} else {
-						return nil
 					}
 				})
 			}
@@ -453,7 +463,6 @@ func (lc *LibraryCollection) hydrateCollectionLists(
 			return item.Status != anilist.MediaListStatusRepeating
 		})
 	}
-
 
 	// Build a Local list containing every local file group, including unmatched files (MediaId == 0)
 	existingIds := make(map[int]struct{})
@@ -786,7 +795,7 @@ func (lc *LibraryCollection) hydrateUnmatchedGroups() {
 // hydrateUnknownGroups identifies local files with valid MediaId that aren't in the user's AniList collection
 // or the Local list and groups them by MediaId to create UnknownGroup entries for resolution.
 func (lc *LibraryCollection) hydrateUnknownGroups(localFiles []*LocalFile, animeCollection *anilist.AnimeCollection) {
-	
+
 	// Get all media IDs that are in the user's AniList collection
 	collectionMediaIds := make(map[int]struct{})
 	for _, list := range animeCollection.GetMediaListCollection().GetLists() {

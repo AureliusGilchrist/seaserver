@@ -57,6 +57,10 @@ axios.interceptors.response.use(response => {
         const currentToken = store.get(profileSessionTokenAtom)
         if (currentToken) {
             store.set(profileSessionTokenAtom, undefined)
+            // Take the app to the login screen by itself. On the desktop client there is no address
+            // bar and no F5, so a message telling you to sign in again with nothing acting on it
+            // leaves you looking at a dead session with no way to act on the advice.
+            store.set(profileSessionEndedAtom, true)
             // Notify user — use setTimeout to avoid issues during axios interceptor chain
             setTimeout(() => {
                 toast.error("Your profile session has expired. Please sign in again from Profile Selection.")
