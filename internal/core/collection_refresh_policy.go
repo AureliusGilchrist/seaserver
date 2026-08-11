@@ -155,3 +155,50 @@ func removeID(ids []int, id int) []int {
 	}
 	return ids
 }
+
+// anEpisodeWasDueSince reports whether any entry in the collection was expected to air between the
+// given time and now.
+//
+// This is what turns the hourly pass from "refetch every account with anything airing" — which is
+// most active accounts, every hour, and a large part of what was spending the rate budget — into
+// "refetch when something has actually happened". A countdown running down from six days does not
+// need the collection re-read to keep counting; the number it counts from is already cached, and
+// the clock is local. What needs a re-read is the moment it reaches zero, because that is when the
+// episode count changes and the next airing time is replaced.
+//
+// TimeUntilAiring is relative to when the collection was fetched, so it is compared against the age
+// of the data rather than against the wall clock.
+func anEpisodeWasDueSince(collection *anilist.AnimeCollection, fetchedAt time.Time) bool {
+	if collection == nil || collection.MediaListCollection == nil {
+		return true // nothing to reason about; let the caller refresh
+	}
+	if fetchedAt.IsZero() {
+		return true // unknown age, so the countdowns cannot be trusted
+	}
+
+	elapsed := time.Since(fetchedAt)
+
+	for _, list := range collection.MediaListCollection.GetLists() {
+		if list == nil {
+			continue
+		}
+		for _, entry := range list.GetEntries() {
+			if entry == nil || entry.GetMedia() == nil {
+				continue
+			}
+			if tierForEntry(entry) != TierAiring {
+				continue
+			}
+			next := entry.GetMedia().GetNextAiringEpisode()
+			if next == nil {
+				continue
+			}
+			// The episode was due if less time remained than has passed since this was fetched.
+			if time.Duration(next.TimeUntilAiring)*time.Second <= elapsed {
+				return true
+			}
+		}
+	}
+
+	return false
+}

@@ -123,16 +123,129 @@ func yieldToUserRequests(ctx context.Context) {
 	}
 }
 
-// gateRequest applies the priority rule to one request and returns the function that releases it.
+// gateRequest applies the priority rule and the rate budget to one request, and returns the
+// function that releases it.
 //
 // Every AniList request in the server passes through here — see customDoFunc — so this is the one
-// place the ordering has to be right.
+// place both the ordering and the pacing can be got right.
 func gateRequest(ctx context.Context) func() {
 	if IsUserInitiated(ctx) {
-		return beginUserRequest()
+		release := beginUserRequest()
+		// A user request still takes a slot from the budget; it simply never queues behind
+		// background work for one. Spending without counting is how the budget gets exceeded by
+		// exactly the requests that matter most.
+		budget.take(ctx, true)
+		return release
 	}
+
 	yieldToUserRequests(ctx)
+	budget.take(ctx, false)
 	return func() {}
+}
+
+// AniList allows a fixed number of requests a minute and answers 429 for the rest — and a 429 is
+// not free: it costs a slot, a minute of waiting, and, if enough of them land at once, a stretch
+// where nothing works at all.
+//
+// The client used to discover the limit by hitting it. Retrying with backoff makes that survivable
+// but not painless: the log fills with "rate limited (429), waiting 62s", requests time out at 45
+// seconds, and the cache layer eventually gives up and goes cache-only. All of it is avoidable by
+// simply not sending the request that would have been refused.
+//
+// So requests are paced to stay inside the budget, and the budget is read from AniList's own
+// answers rather than assumed: every response carries how many slots are left in the current
+// window, and when that runs low the pacer slows down to match. The reserve below is what keeps a
+// user's request answerable when background work has spent nearly everything.
+const (
+	// requestsPerMinute is the ceiling this client paces itself to. Deliberately under AniList's
+	// own limit, which is 30 a minute when degraded: the gap absorbs requests already in flight
+	// and anything else using the same token.
+	requestsPerMinute = 24
+
+	// userReserve is how many slots a minute are kept for requests somebody is waiting on.
+	// Background work stops at this line; user requests may spend it.
+	userReserve = 6
+)
+
+// rateBudget paces requests over a sliding minute.
+type rateBudget struct {
+	mu     sync.Mutex
+	recent []time.Time
+}
+
+var budget = &rateBudget{}
+
+// take waits until sending a request would stay inside the budget.
+//
+// Background work is held back once the remaining slots reach the reserve, so a burst of
+// prefetching cannot leave the next thing the user does with nothing to spend. Neither caller ever
+// waits longer than the window itself: this paces requests, it does not cancel them.
+func (b *rateBudget) take(ctx context.Context, userInitiated bool) {
+	limit := requestsPerMinute
+	if !userInitiated {
+		limit = requestsPerMinute - userReserve
+	}
+
+	for {
+		b.mu.Lock()
+		cutoff := time.Now().Add(-time.Minute)
+		kept := b.recent[:0]
+		for _, at := range b.recent {
+			if at.After(cutoff) {
+				kept = append(kept, at)
+			}
+		}
+		b.recent = kept
+
+		if len(b.recent) < limit {
+			b.recent = append(b.recent, time.Now())
+			b.mu.Unlock()
+			return
+		}
+
+		// Wait for the oldest request in the window to age out.
+		waitFor := time.Until(b.recent[0].Add(time.Minute))
+		b.mu.Unlock()
+
+		if waitFor <= 0 {
+			continue
+		}
+
+		timer := time.NewTimer(waitFor)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return // the caller is giving up anyway; the request below will fail on its own context
+		case <-timer.C:
+		}
+	}
+}
+
+// observeRemaining lets the client tell the pacer what AniList actually reports, so the budget
+// tracks the real window rather than this side's idea of it.
+//
+// When the reported remaining count is lower than what has been counted here — another client on
+// the same token, a window that reset differently — the shortfall is booked as spent. Believing
+// our own count over AniList's is how the ceiling is silently exceeded.
+func (b *rateBudget) observeRemaining(remaining int) {
+	if remaining < 0 {
+		return
+	}
+	spent := requestsPerMinute - remaining
+	if spent <= 0 {
+		return
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for len(b.recent) < spent {
+		b.recent = append(b.recent, time.Now())
+	}
+}
+
+// ObserveRateLimitRemaining reports AniList's own count of the slots left in this window.
+func ObserveRateLimitRemaining(remaining int) {
+	budget.observeRemaining(remaining)
 }
 
 // UserRequestsInFlight reports how many user requests are outstanding. For diagnostics.

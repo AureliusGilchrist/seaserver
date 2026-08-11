@@ -632,6 +632,21 @@ func (sr *ServiceRunner) RunRefreshAiringSchedules(tier RefreshTier) {
 			continue // nothing in this tier for this account
 		}
 
+		// Only when something has actually happened.
+		//
+		// A countdown ticking down from six days does not need the collection re-read to keep
+		// counting — the airing time is already cached and the clock is local. Re-reading every
+		// account with anything airing, every hour, is a collection fetch per account per hour
+		// spent on data that has not changed, and it is most of what put this server into 429s.
+		// What needs a re-read is the moment a countdown reaches zero, because that is when the
+		// episode appears and the next airing time replaces it.
+		if tier == TierAiring {
+			_, fetchedAt := sr.app.AnilistClientManager.loadAnimeCollectionFromDiskDated(profile.ID)
+			if !anEpisodeWasDueSince(collection, fetchedAt) {
+				continue
+			}
+		}
+
 		sr.app.AnilistClientManager.InvalidateAnimeCollection(profile.ID)
 		if _, err := sr.app.AnilistClientManager.GetAnimeCollection(profile.ID); err != nil {
 			sr.logger.Warn().Err(err).Uint("profileID", profile.ID).Str("tier", string(tier)).

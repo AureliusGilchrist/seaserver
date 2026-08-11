@@ -427,8 +427,19 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 
 		rlRemainingStr = resp.Header.Get("X-Ratelimit-Remaining")
 
+		// Pace against what AniList actually reports rather than against this side's own count.
+		// Another client on the same token, or a window that reset differently, shows up here
+		// first — and believing our own tally over theirs is how the ceiling gets exceeded.
+		if remaining, convErr := strconv.Atoi(rlRemainingStr); convErr == nil {
+			ObserveRateLimitRemaining(remaining)
+		}
+
 		// ── HTTP 429 – Rate limited ───────────────────────────────────────
 		if resp.StatusCode == 429 {
+			// Already over the line: treat the window as fully spent so nothing else is sent
+			// into it. Without this the pacer keeps letting requests through on its own
+			// optimistic count, and each one comes back 429 and waits its own minute.
+			ObserveRateLimitRemaining(0)
 			resp.Body.Close()
 			waitSec := 65 // safe default: AniList resets after 60 s
 			if ra, e := strconv.Atoi(resp.Header.Get("Retry-After")); e == nil && ra > 0 {
