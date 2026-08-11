@@ -193,6 +193,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.Use(h.OptionalAuthMiddleware)
 	v1.Use(h.FeaturesMiddleware)
 	v1.Use(h.ProfileSessionMiddleware)
+	v1.Use(UserInitiatedMiddleware)
 
 	// Auth
 	v1.POST("/auth/login", h.HandleLogin)
