@@ -1038,6 +1038,12 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		if err := r.SaveTorrentMetadataRecord(req.TorrentName, selection); err != nil {
 			r.logger.Warn().Err(err).Str("torrent", req.TorrentName).Msg("unmatched: Failed to save user's selection metadata")
 		}
+
+		// The end of the progression: the files are in the library, so this download is no longer
+		// something to wait for. Recorded rather than inferred, because every other trace of it is
+		// about to be deleted — the staging folder goes below, and the torrent client stopped
+		// mentioning the torrent whenever it felt like it.
+		r.MarkDownloadState(req.TorrentName, DownloadStateMatched)
 	}
 
 	// Leave a sidecar in the anime folder the episodes went to, so the files carry their own

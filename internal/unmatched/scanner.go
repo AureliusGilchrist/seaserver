@@ -631,6 +631,13 @@ func (s *Scanner) scanForCompletedDownloads() {
 			delete(s.loggedVerdicts, torrentRel)
 			s.logger.Info().Str("torrent", torrentRel).Str("verdict", string(verdict)).Msg("unmatched scanner: Download completed!")
 
+			// Written down, not just noted here. The list above is in memory and goes with the
+			// process; the badge for this anime has to survive a restart, and "the files are all
+			// here, waiting to be matched" is a thing only this moment knows.
+			if s.repository != nil {
+				s.repository.MarkDownloadState(torrentRel, DownloadStateFinished)
+			}
+
 			// If the torrent was queued with auto-match enabled, match it now — the same
 			// match the user would perform by hand in the Unmatched screen. Runs outside the
 			// lock so a slow file move can't stall the scanner.

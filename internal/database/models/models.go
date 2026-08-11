@@ -363,6 +363,18 @@ type UnmatchedTorrentMetadata struct {
 	TorrentName string `gorm:"column:torrent_name;uniqueIndex" json:"torrentName"`
 	AnimeID     int    `gorm:"column:anime_id;index" json:"animeId"`
 	Value       []byte `gorm:"column:value" json:"value"`
+	// DownloadState is how far this download has got: "downloading" from the moment it is queued,
+	// "finished" once it is fully downloaded and sitting in staging, "matched" once its files are in
+	// the library. Written at each of those moments and read back without asking anything else.
+	//
+	// This is the column that makes the download badge outlive its evidence. Everything else that
+	// could answer the question is transient — the torrent client forgets a torrent as soon as it
+	// stops seeding it, and matching deletes the staging folder — so a badge derived from those went
+	// out whenever they did, mid-download and on nothing more than a client restart.
+	//
+	// Empty on rows written before this existed. That means "nothing was recorded", which is read as
+	// exactly that: those rows fall back to the live evidence, as they always did.
+	DownloadState string `gorm:"column:download_state;index" json:"downloadState"`
 }
 
 // +---------------------+

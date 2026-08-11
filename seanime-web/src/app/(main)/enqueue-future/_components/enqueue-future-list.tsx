@@ -44,6 +44,22 @@ export type FamilyOrdering = {
     order: number[]
     /** Family key → the highest total that family has ever been worth. */
     values: Record<number, number>
+    /**
+     * Family key → the array handed out last time.
+     *
+     * Kept so a poll that changed nothing about a family can hand back the *same* array rather than
+     * an equal one. `FamilyBundle` is memoised on its props, and rebuilding every family array on
+     * every poll gave every bundle a new `family` prop — which defeated the memo entirely and
+     * re-rendered several hundred rows ten seconds apart. Reused only when the members are the same
+     * objects in the same order, so a family that genuinely changed still gets a fresh array.
+     */
+    families?: Record<number, EnqueueFutureFamily>
+}
+
+/** Whether two families hold the same item objects, in the same order. */
+function sameMembers(a: EnqueueFutureFamily | undefined, b: EnqueueFutureFamily): boolean {
+    if (!a || a.length !== b.length) return false
+    return a.every((item, i) => item === b[i])
 }
 
 /**
@@ -90,7 +106,7 @@ export function groupIntoFamilies(
     items: EnqueueFuture_Item[],
     previous: FamilyOrdering = { order: [], values: {} },
 ): { families: EnqueueFutureFamily[], ordering: FamilyOrdering } {
-    const { order, values: previousValues } = previous
+    const { order, values: previousValues, families: previousFamilies = {} } = previous
     // Bucket first. Map keeps insertion order, so families not yet placed come out below in the order
     // their first member arrived.
     const byKey = new Map<number, EnqueueFutureFamily>()
@@ -111,6 +127,16 @@ export function groupIntoFamilies(
     // ordered that way. Stable, so seasons of equal standing stay in the order they came in.
     for (const family of byKey.values()) {
         family.sort((a, b) => (b.totalSeeders || 0) - (a.totalSeeders || 0))
+    }
+
+    // Hand back the previous array for any family that came out identical, so a poll only changes
+    // the identity of the families it actually changed. Everything below reads through byKey, so
+    // swapping the arrays here is enough for the result and the memory to agree.
+    const nextFamilies: Record<number, EnqueueFutureFamily> = {}
+    for (const [key, family] of byKey) {
+        const reused = sameMembers(previousFamilies[key], family) ? previousFamilies[key]! : family
+        byKey.set(key, reused)
+        nextFamilies[key] = reused
     }
 
     // The sequence ties fall back on: whatever was already on screen, in the order it was in, then
@@ -145,7 +171,7 @@ export function groupIntoFamilies(
 
     return {
         families: nextOrder.map(key => byKey.get(key)!),
-        ordering: { order: nextOrder, values },
+        ordering: { order: nextOrder, values, families: nextFamilies },
     }
 }
 
@@ -177,7 +203,12 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
                     // where the old one was. One bundle per key, so this is unique.
                     key={family[0].familyId || family[0].mediaId}
                     family={family}
-                    activeMediaId={activeMediaId}
+                    // Narrowed here rather than passed straight down. Handing the selected id to
+                    // every bundle made selection a prop change on all of them, so a single click
+                    // re-rendered the whole queue past the memo. Only the bundle that holds the
+                    // selection is told about it, which is the only one whose drawing depends on
+                    // it — so a click changes two bundles instead of several hundred.
+                    activeMediaId={family.some(n => n.mediaId === activeMediaId) ? activeMediaId : undefined}
                     onSelect={onSelect}
                     activeRef={activeRef}
                 />
