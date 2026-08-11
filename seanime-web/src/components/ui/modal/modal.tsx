@@ -23,7 +23,12 @@ export const ModalAnatomy = defineStyleAnatomy({
     ]),
     content: cva([
         "UI-Modal__content",
-        "z-50 grid relative w-full w-full shadow-xl border border-white/10 max-w-lg gap-4 bg-gray-950/20 backdrop-blur-xl p-6 shadow-xl duration-200",
+        // A column rather than a grid, and never taller than the space it is centred in. A modal
+        // that outgrew the screen used to run off the bottom of it, taking its buttons with it —
+        // the confirmation you were being asked for was the part you could not see. Capped here,
+        // the body scrolls inside the modal instead and the header, the footer and the close button
+        // stay where they are.
+        "z-50 flex flex-col relative w-full shadow-xl border border-white/10 max-w-lg max-h-full gap-4 bg-gray-950/20 backdrop-blur-xl p-6 shadow-xl duration-200",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         // "data-[state=open]:slide-in-from-top-[40%] data-[state=closed]:slide-out-to-bottom-[40%]",
@@ -40,15 +45,28 @@ export const ModalAnatomy = defineStyleAnatomy({
     ]),
     header: cva([
         "UI-Modal__header",
-        "flex flex-col space-y-1.5 text-center sm:text-left",
+        // flex-none so a long title cannot eat the body's share of the height, min-w-0 so the title
+        // below is allowed to shorten rather than widen the modal, and pr-10 to keep it clear of the
+        // close button sitting in the corner.
+        "flex flex-col space-y-1.5 text-center sm:text-left flex-none min-w-0 pr-10",
+    ]),
+    body: cva([
+        "UI-Modal__body",
+        // The one part that scrolls. min-h-0 is what lets it shrink inside the column above instead
+        // of pushing the footer off the screen.
+        "min-h-0 overflow-y-auto",
     ]),
     footer: cva([
         "UI-Modal__footer",
-        "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+        "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 flex-none",
     ]),
     title: cva([
         "UI-Modal__title",
-        "text-xl font-semibold leading-none tracking-tight",
+        // Two lines and then an ellipsis. Titles here carry anime and release names, which run long
+        // enough to wrap to three or four lines and make the modal taller than anything in it
+        // warranted — but cutting at one line would clip the ordinary question a dialog asks, so the
+        // limit is where a title stops being readable rather than at the first line break.
+        "text-xl font-semibold leading-tight tracking-tight line-clamp-2 break-words",
     ]),
     description: cva([
         "UI-Modal__description",
@@ -110,6 +128,7 @@ export function Modal(props: ModalProps) {
         closeButton,
         overlayClass,
         contentClass,
+        bodyClass,
         closeClass,
         headerClass,
         footerClass,
@@ -163,7 +182,9 @@ export function Modal(props: ModalProps) {
                             </div>
                         )}
 
-                        {children}
+                        <div className={cn(ModalAnatomy.body(), bodyClass)}>
+                            {children}
+                        </div>
 
                         {footer && <div className={cn(ModalAnatomy.footer(), footerClass)}>
                             {footer}
