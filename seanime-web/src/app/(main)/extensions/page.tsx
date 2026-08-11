@@ -58,13 +58,26 @@ export default function Page() {
                 />
                 {/*</div>*/}
 
-                <AnimatePresence mode="wait">
+                {/* Not mode="wait".
+                  *
+                  * With it, the pane being switched to is not mounted until the pane being switched
+                  * away from reports its exit animation finished — and here that report never
+                  * arrived, so nothing took its place and the page went blank. Leaving the screen
+                  * and coming back tore the whole thing down and rebuilt it, which is why the tab
+                  * was correct on the way back in and blank on every switch: the second tab was
+                  * never being mounted at all, only waiting on a signal that was not coming.
+                  *
+                  * Without it the incoming pane mounts straight away and the outgoing one fades out
+                  * over the top of it. The fade is short and both panes are the same width, so the
+                  * overlap is not visible — and a moment of overlap is worth a great deal more than
+                  * a blank screen that needs three navigations to clear. */}
+                <AnimatePresence initial={false}>
                     {page === "installed" && (
                         <PageWrapper
                             {...{
                                 initial: { opacity: 0, y: 0 },
                                 animate: { opacity: 1, y: 0 },
-                                exit: { opacity: 0 },
+                                exit: { opacity: 0, transition: { duration: 0.12 } },
                                 transition: {
                                     type: "spring",
                                     damping: 15,
@@ -81,7 +94,7 @@ export default function Page() {
                             {...{
                                 initial: { opacity: 0, y: 0 },
                                 animate: { opacity: 1, y: 0 },
-                                exit: { opacity: 0 },
+                                exit: { opacity: 0, transition: { duration: 0.12 } },
                                 transition: {
                                     type: "spring",
                                     damping: 15,
