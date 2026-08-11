@@ -1,4 +1,5 @@
 import { useServerQuery } from "@/api/client/requests"
+import { logger } from "@/lib/helpers/debug"
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai"
 import React from "react"
 
@@ -101,6 +102,14 @@ export function useSyncDownloadingAnime() {
 
         const downloading = new Set(data.downloading ?? [])
         const finished = new Set(data.finished ?? [])
+
+        // One line per change, so a badge that does not appear can be told apart from data that
+        // never arrived. The server reporting ids while this stays empty means the fault is on this
+        // side; nothing logged at all means the query is not reaching the server.
+        logger("Downloading").info(
+            `Server reports ${downloading.size} downloading, ${finished.size} finished`,
+            { downloading: [...downloading], finished: [...finished] },
+        )
 
         setServerIds(prev => setsAreEqual(prev, downloading) ? prev : downloading)
         setServerFinishedIds(prev => setsAreEqual(prev, finished) ? prev : finished)
