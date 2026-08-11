@@ -1,7 +1,6 @@
 "use client"
 
-import { serverFinishedAnimeIdsAtom, useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
-import { useAtomValue } from "jotai"
+import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/components/ui/core/styling"
 import React from "react"
@@ -14,52 +13,6 @@ export function useIsAnimeDownloading(mediaId: number | null | undefined): boole
     const { isDownloading } = useDownloadingAnime()
     if (!mediaId) return false
     return isDownloading(mediaId)
-}
-
-/**
- * Whether this anime has a download that has finished on the torrent client and is sitting in
- * Unmatched, waiting to be filed into the library.
- *
- * A distinct state from downloading, and the one that used to be invisible: the download is done,
- * nothing is in flight, and yet the series is not in the library either — it is waiting on you.
- * Shown neutral white rather than purple, because nothing is in progress any more.
- *
- * Read from the same poll that drives the downloading badge, so a page full of cards costs no extra
- * requests at all — and, like that one, it is the server's live answer rather than anything kept on
- * this side that could go stale.
- */
-export function useIsAnimeAwaitingMatch(mediaId: number | null | undefined): boolean {
-    const finished = useAtomValue(serverFinishedAnimeIdsAtom)
-    if (!mediaId) return false
-    return finished.has(mediaId)
-}
-
-/**
- * The waiting-to-be-matched mark: the same shelf the downloading chevrons fall onto, with the thing
- * that fell now resting on it.
- *
- * Deliberately the sibling of the icon below rather than a different object — it is the next state
- * of the same one — and deliberately still: nothing is happening, which is the whole point of it.
- */
-export function AnimeAwaitingMatchIcon(props: { className?: string }) {
-    return (
-        <svg
-            data-anime-awaiting-match-icon
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.4}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            className={cn("h-[1.05em] w-[1.05em]", props.className)}
-        >
-            {/* The box, landed. */}
-            <rect x="6.5" y="8" width="11" height="8" rx="1.4" />
-            {/* The shelf it landed on, same line as the downloading icon's. */}
-            <path d="M5 19.5h14" strokeWidth={2.6} />
-        </svg>
-    )
 }
 
 /**
@@ -114,14 +67,7 @@ export function AnimeDownloadingBadge(props: AnimeDownloadingBadgeProps) {
     const { mediaId, variant = "badge", size = "sm", className } = props
 
     const isDownloading = useIsAnimeDownloading(mediaId)
-    const isAwaitingMatch = useIsAnimeAwaitingMatch(mediaId)
-
-    // Downloading wins: while anything is still coming, that is the more useful thing to say.
-    const awaiting = !isDownloading && isAwaitingMatch
-    if (!isDownloading && !awaiting) return null
-
-    const icon = awaiting ? <AnimeAwaitingMatchIcon /> : <AnimeDownloadingIcon />
-    const label = awaiting ? "Ready to match" : "Downloading"
+    if (!isDownloading) return null
 
     if (variant === "overlay") {
         return (
@@ -136,15 +82,11 @@ export function AnimeDownloadingBadge(props: AnimeDownloadingBadgeProps) {
                 <Badge
                     size="xl"
                     intent="primary-solid"
-                    title={label}
-                    aria-label={label}
-                    className={cn(
-                        "rounded-[--radius] rounded-bl-none rounded-tr-none text-white",
-                        // Neutral white for "done, waiting on you"; purple only while it is moving.
-                        awaiting ? "bg-white text-gray-900" : "bg-purple-500",
-                    )}
+                    title="Downloading"
+                    aria-label="Downloading"
+                    className="rounded-[--radius] rounded-bl-none rounded-tr-none bg-purple-500 text-white"
                 >
-                    {awaiting ? <AnimeAwaitingMatchIcon className="h-5 w-5" /> : <AnimeDownloadingIcon className="h-5 w-5" />}
+                    <AnimeDownloadingIcon className="h-5 w-5" />
                 </Badge>
             </div>
         )
@@ -154,18 +96,15 @@ export function AnimeDownloadingBadge(props: AnimeDownloadingBadgeProps) {
         return (
             <span
                 data-anime-downloading-indicator
-                title={label}
-                aria-label={label}
+                title="Downloading"
+                aria-label="Downloading"
                 className={cn(
                     "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-wider font-medium",
-                    "bg-black/40 backdrop-blur-sm border",
-                    awaiting
-                        ? "text-white border-white/40"
-                        : "text-purple-300 border-purple-400/30",
+                    "bg-black/40 text-purple-300 backdrop-blur-sm border border-purple-400/30",
                     className,
                 )}
             >
-                {awaiting ? <AnimeAwaitingMatchIcon className="h-3 w-3" /> : <AnimeDownloadingIcon className="h-3 w-3" />} {label}
+                <AnimeDownloadingIcon className="h-3 w-3" /> Downloading
             </span>
         )
     }
@@ -175,16 +114,11 @@ export function AnimeDownloadingBadge(props: AnimeDownloadingBadgeProps) {
             data-anime-downloading-badge
             size={size === "lg" ? "lg" : "md"}
             intent="unstyled"
-            leftIcon={icon}
+            leftIcon={<AnimeDownloadingIcon />}
             iconSpacing="0.35rem"
-            className={cn(
-                awaiting
-                    ? "text-white bg-white bg-opacity-10 border-white border-opacity-40"
-                    : "text-purple-300 bg-purple-500 bg-opacity-10 border-purple-500 border-opacity-40",
-                className,
-            )}
+            className={cn("text-purple-300 bg-purple-500 bg-opacity-10 border-purple-500 border-opacity-40", className)}
         >
-            {label}
+            Downloading
         </Badge>
     )
 }
