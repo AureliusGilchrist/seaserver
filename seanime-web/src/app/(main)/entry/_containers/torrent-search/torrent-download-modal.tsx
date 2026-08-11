@@ -7,6 +7,7 @@ import { useLibraryPathSelection } from "@/app/(main)/_hooks/use-library-path-se
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import {
     __torrentDownload_autoMatchAtom as autoMatchAtom,
+    __torrentDownload_autoMatchByTorrentAtom as autoMatchByTorrentAtom,
     __torrentDownload_autoMatchConfirmedAtom as autoMatchConfirmedAtom,
     AutoMatchConfirmationModal,
 } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
@@ -90,6 +91,17 @@ export function TorrentDownloadModal({
     const setAutoMatch = onAutoMatchChange ?? setGlobalAutoMatch
 
     const [autoMatchConfirmed, setAutoMatchConfirmed] = useAtom(autoMatchConfirmedAtom)
+
+    // Per-torrent answers. A torrent with no entry here follows the switch above, so the batch
+    // setting stays the default and only the ones you single out differ from it.
+    const [autoMatchByTorrent, setAutoMatchByTorrent] = useAtom(autoMatchByTorrentAtom)
+    const autoMatchFor = React.useCallback(
+        (link: string) => autoMatchByTorrent[link] ?? autoMatch,
+        [autoMatchByTorrent, autoMatch],
+    )
+    const setAutoMatchFor = React.useCallback((link: string, value: boolean) => {
+        setAutoMatchByTorrent(prev => ({ ...prev, [link]: value }))
+    }, [setAutoMatchByTorrent])
     // Download waiting on the auto-match confirmation, or null when nothing is pending.
     const [pendingAutoMatchDownload, setPendingAutoMatchDownload] = useState<"default" | "smart-select" | null>(null)
 
@@ -179,6 +191,13 @@ export function TorrentDownloadModal({
             },
             media,
             autoMatch,
+            // Only the torrents actually being sent, so a decision about a release that was
+            // deselected does not travel with the request.
+            autoMatchByTorrent: Object.fromEntries(
+                selectedTorrents
+                    .filter(t => t.link in autoMatchByTorrent)
+                    .map(t => [t.link, autoMatchByTorrent[t.link]]),
+            ),
         })
     }
 
@@ -193,7 +212,8 @@ export function TorrentDownloadModal({
         // Auto-match moves the finished download straight into the library with no review step,
         // so confirm it explicitly rather than letting a toggle left on from last time decide.
         // Once per session is enough where downloads are queued one after another.
-        if (autoMatch && !(confirmAutoMatchOnce && autoMatchConfirmed)) {
+        const anyAutoMatch = selectedTorrents.some(t => autoMatchFor(t.link))
+        if (anyAutoMatch && !(confirmAutoMatchOnce && autoMatchConfirmed)) {
             setPendingAutoMatchDownload(type)
             return
         }
@@ -302,6 +322,25 @@ export function TorrentDownloadModal({
                                     <p className="line-clamp-1" data-torrent-confirmation-modal-torrent-item-name>
                                         {torrent.name}
                                     </p>
+                                </div>
+
+                                {/* This release's own answer. Starts as whatever the switch above
+                                    says, so the batch setting remains the default and only the
+                                    ones you single out differ from it. Stops the click from
+                                    reaching the row, which opens the torrent page. */}
+                                <div
+                                    className="mt-1 w-fit"
+                                    onClick={e => e.stopPropagation()}
+                                    data-torrent-confirmation-modal-torrent-item-auto-match
+                                >
+                                    <Switch
+                                        label="Auto-match this one"
+                                        value={autoMatchFor(torrent.link)}
+                                        onValueChange={v => setAutoMatchFor(torrent.link, v)}
+                                        size="sm"
+                                        containerClass="flex-row-reverse gap-1"
+                                        fieldLabelClass="text-xs text-[--muted]"
+                                    />
                                 </div>
                                 <IconButton
                                     icon={<BiX />}

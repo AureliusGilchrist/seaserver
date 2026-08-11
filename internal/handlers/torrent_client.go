@@ -420,6 +420,13 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 		// AutoMatch matches the torrent to Media automatically once it finishes downloading,
 		// instead of leaving it in the Unmatched screen for manual matching.
 		AutoMatch bool `json:"autoMatch,omitempty"`
+		// AutoMatchByTorrent overrides AutoMatch for individual torrents, keyed by the torrent's
+		// link. A request may mix the two: whatever is not named here takes AutoMatch.
+		//
+		// Per torrent because the choice is per torrent. One batch may hold a release you trust
+		// enough to file itself and another you want to look at first, and forcing one answer for
+		// the whole selection meant either reviewing what needed no review or auto-filing what did.
+		AutoMatchByTorrent map[string]bool `json:"autoMatchByTorrent,omitempty"`
 	}
 
 	var b body
@@ -501,8 +508,16 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 		// anyway, the download lands with nothing attached and has to be matched by hand. That
 		// failure used to be logged as a warning and swallowed, which let it go unnoticed across
 		// many downloads.
+		// This torrent's own answer, falling back to the one given for the batch.
+		autoMatch := b.AutoMatch
+		if override, ok := b.AutoMatchByTorrent[t.Link]; ok {
+			autoMatch = override
+		}
+
 		if b.Media != nil {
-			if err := h.App.UnmatchedRepository.SaveTorrentMetadataRecord(t.Name, queuedMetadata); err != nil {
+			metadata := queuedMetadata
+			metadata.AutoMatch = autoMatch
+			if err := h.App.UnmatchedRepository.SaveTorrentMetadataRecord(t.Name, metadata); err != nil {
 				h.App.Logger.Error().Err(err).Str("torrent", t.Name).Msg("torrent client: Failed to save torrent metadata")
 				return h.RespondWithError(c, fmt.Errorf("could not save anime metadata for %q, torrent not added: %w", t.Name, err))
 			}
@@ -514,7 +529,7 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 			return h.RespondWithError(c, err)
 		}
 
-		h.App.Logger.Info().Str("torrent", t.Name).Str("destination", destination).Bool("autoMatch", b.AutoMatch && b.Media != nil).Msg("torrent client: Added torrent to unmatched directory")
+		h.App.Logger.Info().Str("torrent", t.Name).Str("destination", destination).Bool("autoMatch", autoMatch && b.Media != nil).Msg("torrent client: Added torrent to unmatched directory")
 	}
 
 	// NOTE: We do NOT add the media to the collection automatically anymore

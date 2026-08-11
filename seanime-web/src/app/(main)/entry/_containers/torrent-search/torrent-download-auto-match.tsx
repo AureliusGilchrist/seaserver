@@ -15,6 +15,19 @@ import React from "react"
 export const __torrentDownload_autoMatchAtom = atomWithStorage("sea-torrent-download-auto-match", false)
 
 /**
+ * Per-torrent answers, keyed by torrent link, overriding the preference above for those torrents.
+ *
+ * The choice belongs to the torrent, not to the search: one selection can hold a release from a
+ * group you trust enough to let it file itself and another you want to look at first. A single
+ * answer for the whole batch meant reviewing what needed no review, or auto-filing what did.
+ *
+ * Deliberately not persisted, and cleared when the selection is. These are answers about the
+ * specific releases in front of you right now — a link remembered from last week would be applying
+ * a decision to a torrent nobody is looking at.
+ */
+export const __torrentDownload_autoMatchByTorrentAtom = atom<Record<string, boolean>>({})
+
+/**
  * Whether auto-match has already been confirmed once in this session.
  *
  * Only consulted where downloads are queued back-to-back — the Enqueue Future queue, where you may

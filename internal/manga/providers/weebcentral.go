@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -70,7 +71,65 @@ var chapterIDFromURL = regexp.MustCompile(`/chapters/([0-9A-Za-z]{26})`)
 // chapterNumberFromTitle reads the number out of "Chapter 12", "Volume 6", "Chapter 12.5".
 var chapterNumberFromTitle = regexp.MustCompile(`(?i)(?:chapter|volume|episode|ch\.?|vol\.?)\s*([0-9]+(?:\.[0-9]+)?)`)
 
+// WeebCentral is one site with one operator, not an API with a published budget, and the en masse
+// manga downloader walks a whole library through it — a search, a chapter list and a page fetch per
+// title, hundreds of titles, as fast as the loop can go. That is a scrape, and it earns a 429 quickly
+// and a ban eventually.
+//
+// So requests are spaced, process-wide. One at a time, with a gap between them: this is a courtesy
+// to the site rather than a limit anybody imposed, and it is deliberately conservative because the
+// cost of being wrong is not a slow queue, it is losing access to the source entirely.
+const (
+	// weebCentralMinInterval is the least time between two requests to the site.
+	weebCentralMinInterval = 900 * time.Millisecond
+
+	// weebCentralBackoff is how long everything waits after the site says 429. Long enough to be an
+	// apology rather than a retry, and applied to the whole provider, not just the caller that
+	// happened to receive it — the next request is what would confirm we did not listen.
+	weebCentralBackoff = 20 * time.Second
+)
+
+var (
+	weebCentralPace     sync.Mutex
+	weebCentralLastReq  time.Time
+	weebCentralPausedTo time.Time
+)
+
+// paceRequest blocks until it is polite to send the next request.
+//
+// Serialised deliberately: the point is a steady, single-file trickle. Concurrency here would be
+// several requests landing at once between the gaps, which is exactly the pattern that got the 429.
+func paceRequest() {
+	weebCentralPace.Lock()
+	defer weebCentralPace.Unlock()
+
+	now := time.Now()
+
+	// Still inside a penalty from a 429 — everything waits, not just whoever was refused.
+	if now.Before(weebCentralPausedTo) {
+		time.Sleep(time.Until(weebCentralPausedTo))
+		now = time.Now()
+	}
+
+	if gap := weebCentralMinInterval - now.Sub(weebCentralLastReq); gap > 0 {
+		time.Sleep(gap)
+	}
+	weebCentralLastReq = time.Now()
+}
+
+// noteRateLimited puts the whole provider in a penalty box after the site refuses a request.
+func noteRateLimited() {
+	weebCentralPace.Lock()
+	defer weebCentralPace.Unlock()
+	until := time.Now().Add(weebCentralBackoff)
+	if until.After(weebCentralPausedTo) {
+		weebCentralPausedTo = until
+	}
+}
+
 func (w *WeebCentral) request(url string) (*goquery.Document, error) {
+	paceRequest()
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -85,6 +144,15 @@ func (w *WeebCentral) request(url string) (*goquery.Document, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		// Back off for everything, not just this caller. The site has asked us to stop; the next
+		// request from any other goroutine is what would tell it we were not listening.
+		noteRateLimited()
+		w.logger.Warn().Dur("pausing", weebCentralBackoff).
+			Msg("weebcentral: Rate limited, pausing all requests to the site")
+		return nil, fmt.Errorf("weebcentral: rate limited (429)")
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("weebcentral: unexpected status %s", resp.Status)

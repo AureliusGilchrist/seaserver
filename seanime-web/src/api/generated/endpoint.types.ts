@@ -2718,6 +2718,11 @@ export type TorrentClientDownload_Variables = {
      *  instead of leaving it in the Unmatched screen for manual matching.
      */
     autoMatch?: boolean
+    /**
+     *  AutoMatchByTorrent overrides autoMatch for individual torrents, keyed by torrent link.
+     *  Anything not named here takes autoMatch.
+     */
+    autoMatchByTorrent?: Record<string, boolean>
 }
 
 /**
