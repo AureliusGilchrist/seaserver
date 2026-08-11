@@ -533,21 +533,39 @@ func (m *AnilistClientManager) GetAnimeCollection(profileID uint) (*anilist.Anim
 		return cached.data, nil
 	}
 
-	// Nothing in memory at all, so this one waits for a real answer.
+	// Nothing in memory, so fall to the disk copy — which never expires.
 	//
-	// The disk copy is deliberately *not* served here, even though it is sitting right there and
-	// would return instantly. It carries no timestamp — it is a permanent bucket, written over on
-	// every successful fetch and never dated — so its age is unbounded: it could be from minutes
-	// ago or from a week ago. Handing it back as though it were current is how the home page came
-	// to show a fraction of what was in it, with lists like Paused down to a single entry, because
-	// the collection being rendered was simply from before those entries existed.
+	// This is safe now in a way it was not before, and the difference is the date. The stored copy
+	// used to carry no timestamp at all, so serving it meant serving something of unbounded age as
+	// though it were current; that is how the home page once showed a fraction of a library, with
+	// lists like Paused down to a single entry, because the collection being rendered predated those
+	// entries. Now its age is known, so it can be served *and* said to be old, and refreshed.
 	//
-	// It remains the fallback inside the fetch below, which is the one place it belongs: when the
-	// network has actually failed, an old collection genuinely is better than none. The difference
-	// is that there it is a last resort, not a shortcut.
-	//
-	// This costs one blocking fetch per profile after a restart or a cache eviction, and no more —
-	// the stale path above covers every load after it, which is where the waiting used to happen.
+	// A copy older than the refresh interval is still served — being out of date is a reason to
+	// refresh, never a reason to show nothing. The refresh follows immediately behind it, and the
+	// daily pass keeps it from getting there in the first place.
+	if diskCol, fetchedAt := m.loadAnimeCollectionFromDiskDated(profileID); diskCol != nil {
+		age := time.Since(fetchedAt)
+		if fetchedAt.IsZero() {
+			// Written before copies were dated: usable, but assume it is due a refresh.
+			m.logger.Debug().Uint("profileID", profileID).
+				Msg("anilist_client_manager: Serving an undated stored collection, refreshing behind it")
+		} else if age > AnimeCollectionRefreshInterval {
+			m.logger.Info().Uint("profileID", profileID).Dur("age", age).
+				Msg("anilist_client_manager: Serving a stored collection that is due a refresh")
+		}
+
+		m.colMu.Lock()
+		// Held in memory under its real age, so the staleness rules above apply to it unchanged
+		// rather than it being mistaken for something just fetched.
+		m.animeColCache[profileID] = &profileAnimeCache{data: diskCol, fetchedAt: fetchedAt}
+		m.colMu.Unlock()
+
+		m.refreshAnimeCollectionInBackground(profileID)
+		return diskCol, nil
+	}
+
+	// Nothing anywhere. This one waits for a real answer.
 	return m.fetchAnimeCollection(profileID)
 }
 
@@ -651,29 +669,64 @@ func (m *AnilistClientManager) InvalidateAnimeCollection(profileID uint) {
 	m.colMu.Unlock()
 }
 
-// saveAnimeCollectionToDisk persists the collection to the file cache.
+// datedAnimeCollection is a collection stored with the time it was fetched.
+//
+// The date is the whole difference between a cache that can be relied on and one that can only be
+// guessed at. Without it the stored copy had no age: it might have been written a minute ago or a
+// month ago, and nothing could tell which — so it could only ever be a last resort for when the
+// network had already failed, never something to serve from. Dated, it can be served immediately
+// and refreshed on a schedule, which is what a cache that never expires has to be able to do.
+type datedAnimeCollection struct {
+	Data      *anilist.AnimeCollection `json:"data"`
+	FetchedAt time.Time                `json:"fetchedAt"`
+}
+
+// AnimeCollectionRefreshInterval is how old a stored collection may get before the daily pass
+// brings it up to date. Nothing is ever discarded for being older than this — being out of date is
+// a reason to refresh, never a reason to have nothing.
+const AnimeCollectionRefreshInterval = 24 * time.Hour
+
+// saveAnimeCollectionToDisk persists the collection to the file cache, with the time it was taken.
 func (m *AnilistClientManager) saveAnimeCollectionToDisk(profileID uint, col *anilist.AnimeCollection) {
 	if m.fileCacher == nil || col == nil {
 		return
 	}
 	diskKey := "profile-" + strconv.FormatUint(uint64(profileID), 10)
-	if err := m.fileCacher.SetPerm(m.animeColBucket, diskKey, col); err != nil {
+	record := datedAnimeCollection{Data: col, FetchedAt: time.Now()}
+	if err := m.fileCacher.SetPerm(m.animeColBucket, diskKey, record); err != nil {
 		m.logger.Warn().Err(err).Uint("profileID", profileID).Msg("anilist_client_manager: Failed to persist anime collection to disk")
 	}
 }
 
-// loadAnimeCollectionFromDisk loads a previously cached collection from disk.
-func (m *AnilistClientManager) loadAnimeCollectionFromDisk(profileID uint) *anilist.AnimeCollection {
+// loadAnimeCollectionFromDisk loads a previously cached collection from disk, with the time it was
+// fetched. A zero time means the age is unknown, which is how copies written before they were dated
+// come back — they are still perfectly good data, they simply have to be treated as due a refresh.
+func (m *AnilistClientManager) loadAnimeCollectionFromDiskDated(profileID uint) (*anilist.AnimeCollection, time.Time) {
 	if m.fileCacher == nil {
-		return nil
+		return nil, time.Time{}
 	}
 	diskKey := "profile-" + strconv.FormatUint(uint64(profileID), 10)
+
+	var record datedAnimeCollection
+	if found, err := m.fileCacher.GetPerm(m.animeColBucket, diskKey, &record); err == nil && found && record.Data != nil {
+		return record.Data, record.FetchedAt
+	}
+
+	// A copy from before the date was stored: the same bytes, one level less nesting. Read rather
+	// than discarded — throwing away a working collection because its envelope changed shape is how
+	// an upgrade empties somebody's library.
 	var col anilist.AnimeCollection
 	found, err := m.fileCacher.GetPerm(m.animeColBucket, diskKey, &col)
 	if err != nil || !found {
-		return nil
+		return nil, time.Time{}
 	}
-	return &col
+	return &col, time.Time{}
+}
+
+// loadAnimeCollectionFromDisk loads a previously cached collection from disk.
+func (m *AnilistClientManager) loadAnimeCollectionFromDisk(profileID uint) *anilist.AnimeCollection {
+	col, _ := m.loadAnimeCollectionFromDiskDated(profileID)
+	return col
 }
 
 // GetMangaCollection returns the cached manga collection for a profile, or fetches
