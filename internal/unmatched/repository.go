@@ -21,6 +21,7 @@ import (
 
 	"github.com/5rahim/habari"
 	"github.com/samber/lo"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/rs/zerolog"
 )
@@ -43,6 +44,8 @@ type Repository struct {
 	cacheMu        sync.Mutex
 	cachedTorrents []*UnmatchedTorrent
 	cacheExpiry    time.Time
+	// listGroup collapses concurrent listing scans into one. See GetUnmatchedTorrents.
+	listGroup singleflight.Group
 	// contentCache stores full torrent contents (files + seasons) for instant retrieval
 	contentCache map[string]*UnmatchedTorrent
 
@@ -201,12 +204,49 @@ type MatchResult struct {
 	SkippedFiles []string `json:"skippedFiles,omitempty"`
 }
 
-// GetUnmatchedTorrents returns all torrents in the unmatched directory that are fully downloaded
+// GetUnmatchedTorrents returns all torrents in the unmatched directory that are fully downloaded.
+//
+// Concurrent callers that find the cache empty share one scan rather than each starting their own.
+// That is what stops this collapsing after a match, and the collapse is worth describing because
+// nothing about it is obvious from any one part:
+//
+// A match invalidates the cache. The Unmatched screen polls every few seconds. The cache is only
+// written when a scan *finishes*, so every poll that arrives while one is running used to find it
+// empty and start another — and a scan here walks every file of every download in the staging area,
+// on a NAS, immediately after a match has just finished moving files around. Each new scan made the
+// disk slower, which made every scan take longer, which let more polls in. Two clients, or one
+// client and the auto-match scanner, and it never recovered on its own: requests timed out, the
+// screen said to retry, and the retry made it worse. Ten minutes of that is exactly what it looks
+// like from outside.
+//
+// With this, the second and subsequent callers wait on the first one's result. The disk sees one
+// scan however many people are asking, and the pile-up cannot form.
 func (r *Repository) GetUnmatchedTorrents() ([]*UnmatchedTorrent, error) {
 	if torrents := r.getCachedTorrents(); torrents != nil {
 		return r.withPendingConflicts(torrents), nil
 	}
 
+	scanned, err, _ := r.listGroup.Do("unmatched-listing", func() (interface{}, error) {
+		// Checked again inside the group: the caller that waited for a scan to finish is the
+		// caller that should now be reading its result, not starting a second one.
+		if torrents := r.getCachedTorrents(); torrents != nil {
+			return torrents, nil
+		}
+		return r.scanUnmatchedTorrents()
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	torrents, _ := scanned.([]*UnmatchedTorrent)
+	// Stamped per caller rather than inside the shared scan, because a conflict can be raised or
+	// answered while somebody is waiting on it.
+	return r.withPendingConflicts(torrents), nil
+}
+
+// scanUnmatchedTorrents walks the staging area and builds the listing. Callers come through
+// GetUnmatchedTorrents, which is what keeps this to one walk at a time.
+func (r *Repository) scanUnmatchedTorrents() ([]*UnmatchedTorrent, error) {
 	if _, err := os.Stat(UnmatchedBasePath); os.IsNotExist(err) {
 		// Create the directory if it doesn't exist
 		if err := os.MkdirAll(UnmatchedBasePath, 0755); err != nil {
@@ -245,11 +285,15 @@ func (r *Repository) GetUnmatchedTorrents() ([]*UnmatchedTorrent, error) {
 			continue
 		}
 
-		// Directories: treat each top-level folder as a torrent root
-		if hasTempFiles(fullPath) {
-			continue
-		}
-		if !hasVideoFiles(fullPath) {
+		// Directories: treat each top-level folder as a torrent root.
+		//
+		// One walk to answer both questions, rather than one walk apiece. They were asked
+		// separately — "is anything still downloading in here", then "is there anything worth
+		// listing in here" — and each answer meant walking the whole download again over the
+		// network. Same two answers, a third of the disk work, and it is the disk that this
+		// listing is entirely made of.
+		hasTemp, hasVideo := scanDirFlags(fullPath)
+		if hasTemp || !hasVideo {
 			continue
 		}
 
@@ -264,7 +308,7 @@ func (r *Repository) GetUnmatchedTorrents() ([]*UnmatchedTorrent, error) {
 	}
 
 	r.setCachedTorrents(torrents)
-	return r.withPendingConflicts(torrents), nil
+	return torrents, nil
 }
 
 // withPendingConflicts stamps each listed download with the unanswered conflict for it, if any.
@@ -322,38 +366,33 @@ func (r *Repository) InvalidateCache() {
 	r.invalidateCache()
 }
 
-// hasTempFiles checks if a directory contains any qBittorrent temp files (still downloading)
-func hasTempFiles(path string) bool {
-	hasTemp := false
-
-	filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
+// scanDirFlags reports, in a single walk, whether a download is still being written to and whether
+// it holds anything worth listing.
+//
+// Both are decided from the same file names, so asking them together costs exactly what asking
+// either one used to. It stops early once a temp file is found, since that alone is enough to skip
+// the download — but not once it has merely seen a video, because a video says nothing about
+// whether a temp file is waiting further down.
+func scanDirFlags(path string) (hasTemp bool, hasVideo bool) {
+	_ = filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
-
 		if info.IsDir() {
 			return nil
 		}
 
 		name := info.Name()
-
-		// Check for qBittorrent temp file extensions
-		if strings.HasSuffix(name, ".!qB") || strings.HasSuffix(name, ".qBt") {
+		if isTempFileName(name) {
 			hasTemp = true
 			return filepath.SkipAll
 		}
-
-		// Check for other common temp file patterns
-		if strings.HasSuffix(name, ".part") || strings.HasSuffix(name, ".temp") ||
-			strings.HasSuffix(name, ".downloading") || strings.HasSuffix(name, ".incomplete") {
-			hasTemp = true
-			return filepath.SkipAll
+		if isVideoFile(name) {
+			hasVideo = true
 		}
-
 		return nil
 	})
-
-	return hasTemp
+	return hasTemp, hasVideo
 }
 
 func hasVideoFiles(path string) bool {

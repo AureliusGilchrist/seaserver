@@ -24,10 +24,18 @@ export const selectedUnmatchedTorrentAtom = atom<UnmatchedTorrent | null>(null)
 
 export function UnmatchedTorrentsPage() {
     const { data: torrents, isLoading, refetch, error, isError, isFetching } = useGetUnmatchedTorrents({
-        // Poll often so new unmatched downloads appear quickly
-        refetchInterval: 5_000,
-        staleTime: 2_000,
-        refetchOnWindowFocus: "always",
+        // Answering this means walking every file of every download in the staging area, over the
+        // network. The server caches that for ten seconds, so a five-second poll spent every other
+        // request forcing a fresh walk — and after a match, when the cache has just been dropped and
+        // the disk is busiest, that is the worst possible moment to be asking again.
+        //
+        // Fifteen seconds sits outside the server's cache window, so a poll either finds a fresh
+        // answer waiting or asks for one that is genuinely due. A new download still appears without
+        // touching anything, which is what the frequent polling was for; matching a download
+        // refreshes this list directly and does not wait for a poll at all.
+        refetchInterval: 15_000,
+        staleTime: 10_000,
+        refetchOnWindowFocus: true,
     })
     const { data: libraryCollection } = useGetLibraryCollection({ staleTime: 30_000 })
     const [selectedTorrent, setSelectedTorrent] = useAtom(selectedUnmatchedTorrentAtom)
