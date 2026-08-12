@@ -2,6 +2,7 @@ package unmatched
 
 import (
 	"strings"
+	"time"
 
 	"seanime/internal/database/db"
 )
@@ -14,11 +15,13 @@ const (
 	DownloadStateMatched     = db.DownloadStateMatched
 )
 
-// DownloadState is one download's recorded progress: which anime it is for, and how far it has got.
+// DownloadState is one download's recorded progress: which anime it is for, how far it has got, and
+// when that was last written. See db.UnmatchedDownloadState for why the time is carried.
 type DownloadState struct {
 	TorrentName string
 	AnimeID     int
 	State       string
+	UpdatedAt   time.Time
 }
 
 // MarkDownloadState records that a download has moved on.
@@ -64,6 +67,7 @@ func (r *Repository) DownloadStates() []DownloadState {
 			TorrentName: row.TorrentName,
 			AnimeID:     row.AnimeID,
 			State:       row.DownloadState,
+			UpdatedAt:   row.UpdatedAt,
 		})
 	}
 	return states

@@ -1,6 +1,8 @@
 package db
 
 import (
+	"time"
+
 	"seanime/internal/database/models"
 
 	"gorm.io/gorm/clause"
@@ -59,11 +61,18 @@ func (db *Database) SetUnmatchedTorrentDownloadState(torrentName, state string) 
 		Update("download_state", state).Error
 }
 
-// UnmatchedDownloadState is one row's answer: which anime, and how far its download has got.
+// UnmatchedDownloadState is one row's answer: which anime, how far its download has got, and when
+// that was last written.
+//
+// The timestamp matters for exactly one decision: whether a row with no evidence behind it is a
+// download that has quietly ended or one that has only just been queued. Those look identical —
+// no staging folder, no torrent the client has heard of — and they are seconds apart, because a
+// download is recorded here before the magnet is handed to the torrent client.
 type UnmatchedDownloadState struct {
 	TorrentName   string
 	AnimeID       int
 	DownloadState string
+	UpdatedAt     time.Time
 }
 
 // GetUnmatchedTorrentDownloadStates returns the recorded state of every download.
@@ -73,7 +82,7 @@ type UnmatchedDownloadState struct {
 func (db *Database) GetUnmatchedTorrentDownloadStates() ([]UnmatchedDownloadState, error) {
 	var rows []UnmatchedDownloadState
 	if err := db.gormdb.Model(&models.UnmatchedTorrentMetadata{}).
-		Select("torrent_name", "anime_id", "download_state").
+		Select("torrent_name", "anime_id", "download_state", "updated_at").
 		Where("anime_id > 0").
 		Find(&rows).Error; err != nil {
 		return nil, err

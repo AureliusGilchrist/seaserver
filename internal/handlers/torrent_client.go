@@ -252,7 +252,13 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 			downloading[state.AnimeID] = struct{}{}
 			_, onDisk := stagingDirs[state.TorrentName]
 			_, known := clientKnows[state.TorrentName]
-			if !onDisk && !known {
+			// The grace is what separates a download that has ended from one that has only just
+			// started. Both have no folder and no torrent the client admits to — a download is
+			// recorded here *before* the magnet is handed over, and the folder does not exist
+			// until the first byte lands — so without it, a poll arriving in those few seconds
+			// declares a brand new download dead on arrival and takes its badge with it. That is
+			// precisely the "badge appeared, then vanished" this route kept producing.
+			if !onDisk && !known && time.Since(state.UpdatedAt) > orphanGrace {
 				orphaned = append(orphaned, state)
 			}
 		case unmatched.DownloadStateFinished:
@@ -375,18 +381,25 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 	// is also why it is only run when the client has answered. Stamping is irreversible, and "the
 	// client has never heard of this torrent" is indistinguishable from "the client is not running"
 	// unless you know which one you are looking at.
+	//
+	// The library check decides how the row is *recorded*, not whether it is still called a
+	// download. It used to decide both, and that was the second half of the hundred-and-thirty-one
+	// problem: a row with no folder, no torrent and no files in the library was left saying
+	// "downloading" indefinitely, because the only exit from that state was through a library the
+	// download had never reached. A download with nothing left of it anywhere is over, however it
+	// ended. If the files are in the library it ended in a match, and that is worth recording; if
+	// they are not, there is nothing to record and nothing to show either.
 	if len(orphaned) > 0 && clientAnswered {
-		inLibrary := h.animeWithLocalFiles()
+		inLibrary := h.animeWithLocalFiles(c)
 		for _, state := range orphaned {
 			if _, pulling := clientIsPulling[state.AnimeID]; pulling {
 				continue
 			}
-			if _, have := inLibrary[state.AnimeID]; !have {
-				continue
+			if _, have := inLibrary[state.AnimeID]; have {
+				h.App.UnmatchedRepository.MarkDownloadState(state.TorrentName, unmatched.DownloadStateMatched)
+				matched[state.AnimeID] = struct{}{}
 			}
-			h.App.UnmatchedRepository.MarkDownloadState(state.TorrentName, unmatched.DownloadStateMatched)
 			delete(downloading, state.AnimeID)
-			matched[state.AnimeID] = struct{}{}
 		}
 	}
 
@@ -397,7 +410,7 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 	// Stamped as matched rather than merely set aside, so the row stops being reasoned about on every
 	// poll and starts carrying the state it has plainly been in all along.
 	if len(legacy) > 0 && clientAnswered {
-		inLibrary := h.animeWithLocalFiles()
+		inLibrary := h.animeWithLocalFiles(c)
 		for _, state := range legacy {
 			if _, ok := onRecord[state.AnimeID]; ok {
 				continue
@@ -517,18 +530,41 @@ var animeWithLocalFilesCache = result.NewCache[int, map[int]struct{}]()
 
 const animeWithLocalFilesTTL = 30 * time.Second
 
+// orphanGrace is how long a download with no trace of it anywhere is given before it is treated as
+// one that has ended rather than one that has just begun.
+//
+// Generous on purpose. Being early here is expensive — it retires a live download's badge, and the
+// retirement is written down — while being late costs nothing but a badge that lingers for a few
+// minutes on something that finished without anyone recording it. A torrent that has not managed
+// to create its folder or register with the client within ten minutes is not a torrent that is
+// about to.
+const orphanGrace = 10 * time.Minute
+
 // animeWithLocalFiles returns every anime with at least one non-ignored file in the library.
 //
 // Ignored files do not count: an anime you have deliberately pushed out of the library is not one
 // you have. An error reading the library returns nothing, which leaves the download state to the
 // staging area alone — the same answer as before this existed.
-func (h *Handler) animeWithLocalFiles() map[int]struct{} {
-	if cached, ok := animeWithLocalFilesCache.Get(1); ok {
+func (h *Handler) animeWithLocalFiles(c echo.Context) map[int]struct{} {
+	// The signed-in profile's library, not the global database's.
+	//
+	// This read the global one, which with profiles enabled holds no local files at all — every
+	// library is in profiles/<id>/seanime.db. So it answered "you have nothing", every time, and
+	// the one check standing between a stale row and a permanent phantom badge could never pass.
+	// That is how a server came to report a hundred and thirty-one anime as downloading: the rows
+	// were real, they were simply never retired, because retiring them required knowing the files
+	// had arrived and this was looking in a database where they never do.
+	//
+	// Cached per profile for the same reason it is cached at all: two profiles have two libraries,
+	// and one key for both would hand whichever asked second the other's answer.
+	profileID := h.GetProfileID(c)
+	cacheKey := int(profileID)
+	if cached, ok := animeWithLocalFilesCache.Get(cacheKey); ok {
 		return cached
 	}
 
 	ids := make(map[int]struct{})
-	lfs, _, err := db_bridge.GetLocalFiles(h.App.Database)
+	lfs, _, err := db_bridge.GetLocalFiles(h.GetProfileDatabase(c))
 	if err != nil {
 		h.App.Logger.Debug().Err(err).Msg("torrent client: Could not read local files for download state")
 		return ids
@@ -540,7 +576,7 @@ func (h *Handler) animeWithLocalFiles() map[int]struct{} {
 		ids[lf.MediaId] = struct{}{}
 	}
 
-	animeWithLocalFilesCache.SetT(1, ids, animeWithLocalFilesTTL)
+	animeWithLocalFilesCache.SetT(cacheKey, ids, animeWithLocalFilesTTL)
 	return ids
 }
 
