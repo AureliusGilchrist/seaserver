@@ -16,6 +16,12 @@ import {
 } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-search"
 import { useTorrentSearchSelectedStreamEpisode } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-selection"
 import { TorrentDownloadFileSelection } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-file-selection"
+import {
+    __torrentDownload_matchSeasonOneAtom,
+    MATCH_SEASON_ONE_DISABLED_HELP,
+    MATCH_SEASON_ONE_HELP,
+    MATCH_SEASON_ONE_LABEL,
+} from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 import { __torrentDownload_autoMatchAtom, TorrentDownloadModal } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-modal"
 import { __torrentSearch_selectionAtom, TorrentSelectionType } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-drawer"
 import { useHandleStartTorrentStream } from "@/app/(main)/entry/_containers/torrent-stream/_lib/handle-torrent-stream"
@@ -82,6 +88,10 @@ export function TorrentSearchContainer({
     const [globalAutoMatch, setGlobalAutoMatch] = useAtom(__torrentDownload_autoMatchAtom)
     const autoMatch = autoMatchValue ?? globalAutoMatch
     const setAutoMatch = onAutoMatchChange ?? setGlobalAutoMatch
+
+    // Same atom the sheet and the confirmation modal read, so the switch says the same thing
+    // wherever you meet it.
+    const [matchSeasonOne, setMatchSeasonOne] = useAtom(__torrentDownload_matchSeasonOneAtom)
 
     const hasEpisodesToDownload = React.useMemo(() => !!downloadInfo?.episodesToDownload?.length, [downloadInfo?.episodesToDownload?.length])
     const [isAdult, setIsAdult] = React.useState(entry.media?.isAdult === true)
@@ -263,9 +273,23 @@ export function TorrentSearchContainer({
                         >
                             <Switch
                                 label="Auto-match"
-                                moreHelp="When the download finishes, the files are matched to this anime and moved into your library automatically — exactly as if you matched them by hand. Leave off to review it in the Unmatched screen first."
+                                moreHelp="When the download finishes, the files are matched to this anime and moved into your library automatically — exactly as if you matched them by hand. Films, OVAs and specials in the download are left behind for you to match on their own. Leave off to review it in the Unmatched screen first."
                                 value={autoMatch}
                                 onValueChange={setAutoMatch}
+                                containerClass="flex-row-reverse gap-1"
+                            />
+                        </div>
+
+                        <div
+                            className="h-10 rounded-[--radius] px-2 flex items-center"
+                            data-torrent-search-container-param-container-season-one-switch-container
+                        >
+                            <Switch
+                                label={MATCH_SEASON_ONE_LABEL}
+                                moreHelp={autoMatch ? MATCH_SEASON_ONE_HELP : MATCH_SEASON_ONE_DISABLED_HELP}
+                                value={matchSeasonOne}
+                                onValueChange={setMatchSeasonOne}
+                                disabled={!autoMatch}
                                 containerClass="flex-row-reverse gap-1"
                             />
                         </div>

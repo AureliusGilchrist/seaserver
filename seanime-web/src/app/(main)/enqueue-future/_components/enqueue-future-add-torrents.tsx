@@ -50,11 +50,6 @@ export function EnqueueFutureAddTorrents({ entry, autoMatch, onAutoMatchChange, 
 
     const [matchSeasonOne, setMatchSeasonOne] = useAtom(matchSeasonOneAtom)
 
-    // Movies are never matched automatically — the server refuses them, so the switch must not offer
-    // it. See the same rule on the anime page's destination sheet.
-    const isMovie = entry.media?.format === "MOVIE"
-    const effectiveAutoMatch = autoMatch && !isMovie
-
     if (!selectedTorrents.length) return null
 
     const count = selectedTorrents.length
@@ -65,8 +60,8 @@ export function EnqueueFutureAddTorrents({ entry, autoMatch, onAutoMatchChange, 
             destination,
             smartSelect: { enabled: false, missingEpisodeNumbers: [] },
             media: entry.media!,
-            autoMatch: effectiveAutoMatch,
-            matchSeasonOneOnly: effectiveAutoMatch && matchSeasonOne,
+            autoMatch,
+            matchSeasonOneOnly: autoMatch && matchSeasonOne,
         })
     }
 
@@ -99,32 +94,25 @@ export function EnqueueFutureAddTorrents({ entry, autoMatch, onAutoMatchChange, 
             >
                 <div className="space-y-4 py-2">
                     <p className="text-center text-sm text-[--muted]">
-                        {isMovie ? <>
-                            {entry.media?.title?.userPreferred || entry.media?.title?.romaji || "This film"} is a movie,
-                            and movies are always matched by hand — there is no episode numbering to derive and no
-                            episode count to check the result against. It waits in the Unmatched screen, where matching
-                            it is one click.
-                        </> : <>
-                            With this on, {entry.media?.title?.userPreferred || entry.media?.title?.romaji || "this show"} is
-                            moved into your library as soon as the download completes, named and sorted as if you had
-                            matched it by hand. With it off, it waits in the Unmatched screen for you to review first.
-                        </>}
+                        With this on, {entry.media?.title?.userPreferred || entry.media?.title?.romaji || "this show"} is
+                        moved into your library as soon as the download completes, named and sorted as if you had
+                        matched it by hand. Films, OVAs and specials in the download are left behind for you to match on
+                        their own. With it off, it waits in the Unmatched screen for you to review first.
                     </p>
 
                     <Switch
                         label="Match automatically when finished"
-                        value={effectiveAutoMatch}
+                        value={autoMatch}
                         onValueChange={onAutoMatchChange}
-                        disabled={isMovie}
                         data-enqueue-future-add-torrents-auto-match-switch
                     />
 
                     <Switch
                         label={MATCH_SEASON_ONE_LABEL}
-                        help={effectiveAutoMatch ? MATCH_SEASON_ONE_HELP : MATCH_SEASON_ONE_DISABLED_HELP}
+                        help={autoMatch ? MATCH_SEASON_ONE_HELP : MATCH_SEASON_ONE_DISABLED_HELP}
                         value={matchSeasonOne}
                         onValueChange={setMatchSeasonOne}
-                        disabled={!effectiveAutoMatch}
+                        disabled={!autoMatch}
                         data-enqueue-future-add-torrents-season-one-switch
                     />
 

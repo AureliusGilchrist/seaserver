@@ -202,7 +202,7 @@ export function TorrentDownloadModal({
             matchSeasonOneOnly: autoMatch && matchSeasonOne,
             // Only the torrents actually being sent, so a decision about a release that was
             // deselected does not travel with the request.
-            autoMatchByTorrent: isMovie ? {} : Object.fromEntries(
+            autoMatchByTorrent: Object.fromEntries(
                 selectedTorrents
                     .filter(t => t.link in autoMatchByTorrent)
                     .map(t => [t.link, autoMatchByTorrent[t.link]]),
@@ -355,9 +355,8 @@ export function TorrentDownloadModal({
                                 >
                                     <Switch
                                         label="Auto-match this one"
-                                        value={!isMovie && autoMatchFor(torrent.link)}
+                                        value={autoMatchFor(torrent.link)}
                                         onValueChange={v => setAutoMatchFor(torrent.link, v)}
-                                        disabled={isMovie}
                                         size="sm"
                                         containerClass="flex-row-reverse gap-1"
                                         fieldLabelClass="text-xs text-[--muted]"
