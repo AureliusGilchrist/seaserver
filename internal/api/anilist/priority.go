@@ -203,6 +203,19 @@ const (
 	userReserve = 6
 )
 
+// BackgroundRequestsPerMinute is everything background work may spend in a minute, all of it put
+// together: the graph walk, the web client's prefetching, the collection refresher, the
+// auto-downloader.
+//
+// Exported because a background worker that paces itself to a number of its own is not pacing itself
+// at all. Sizing against a figure someone remembered — "AniList allows about 90 a minute" — is how a
+// worker ends up asking for two or three times what it can have, and what that looks like from the
+// outside is this file's own refusal repeated forever: the lane is permanently full, every request in
+// it waits maxBudgetWait and is then turned away, and the worker makes no progress while filling the
+// log. Pace against this, and leave room in it for the other background work that is also entitled to
+// a share.
+const BackgroundRequestsPerMinute = requestsPerMinute - userReserve
+
 // rateBudget paces requests over a sliding minute.
 type rateBudget struct {
 	mu     sync.Mutex

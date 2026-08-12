@@ -12,6 +12,7 @@ import (
 	"seanime/internal/events"
 	"seanime/internal/util"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -346,6 +347,58 @@ func (ac *AnilistClientImpl) AnimeAiringScheduleRaw(ctx context.Context, ids []*
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// refusalLogInterval is how often a refused request is worth a line in the log.
+//
+// One line per refusal is one line per *request*, and a refusal is exactly the situation where there
+// are hundreds of them: the budget is spent, so everything asking is turned away, so everything
+// asking logs. What that produced was a wall of identical warnings scrolling past while the app was
+// being used — which buries the one line that would say what was actually wrong, and makes a
+// condition the server is handling look like a server that is broken.
+//
+// So the line is written at most this often, and carries how many refusals it stands for. The count
+// is the useful part: "1 refused" is a hiccup, "400 refused" is something asking for far more than it
+// can have.
+const refusalLogInterval = 30 * time.Second
+
+var refusalLog struct {
+	mu         sync.Mutex
+	lastAt     time.Time
+	refused    int
+	userFacing int
+}
+
+// logRefusal records a refused request and writes a summary line no more than once per interval.
+func (ac *AnilistClientImpl) logRefusal(err error, userInitiated bool) {
+	refusalLog.mu.Lock()
+	refusalLog.refused++
+	if userInitiated {
+		refusalLog.userFacing++
+	}
+
+	now := time.Now()
+	if !refusalLog.lastAt.IsZero() && now.Sub(refusalLog.lastAt) < refusalLogInterval {
+		refusalLog.mu.Unlock()
+		return
+	}
+	refused, userFacing := refusalLog.refused, refusalLog.userFacing
+	refusalLog.refused, refusalLog.userFacing = 0, 0
+	refusalLog.lastAt = now
+	refusalLog.mu.Unlock()
+
+	event := ac.logger.Info()
+	if userFacing > 0 {
+		// Background work being turned away is the budget working as intended. A request somebody is
+		// waiting on being turned away is the thing this was all built to prevent, and it is worth a
+		// warning even when it arrives alongside a hundred background ones.
+		event = ac.logger.Warn()
+	}
+	event.Err(err).
+		Int("refused", refused).
+		Int("userFacing", userFacing).
+		Dur("over", refusalLogInterval).
+		Msg("anilist: Requests not sent, rate budget queue is full")
+}
+
 // customDoFunc is a custom request interceptor that handles rate limiting and retries.
 //
 // It retries on HTTP 429 alone — honouring the Retry-After header and broadcasting a WS event —
@@ -363,7 +416,7 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 		// Refused rather than queued. Reported here because it is not a failure of AniList's and
 		// reads like one otherwise: the budget is spent and the queue for it is deeper than this
 		// request could be held for. See maxBudgetWait.
-		ac.logger.Warn().Err(gateErr).Msg("anilist: Request not sent, rate budget queue is full")
+		ac.logRefusal(gateErr, IsUserInitiated(ctx))
 		return gateErr
 	}
 	defer release()
