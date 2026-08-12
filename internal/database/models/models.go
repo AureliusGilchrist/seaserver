@@ -363,18 +363,36 @@ type UnmatchedTorrentMetadata struct {
 	TorrentName string `gorm:"column:torrent_name;uniqueIndex" json:"torrentName"`
 	AnimeID     int    `gorm:"column:anime_id;index" json:"animeId"`
 	Value       []byte `gorm:"column:value" json:"value"`
-	// DownloadState is how far this download has got: "downloading" from the moment it is queued,
-	// "finished" once it is fully downloaded and sitting in staging, "matched" once its files are in
-	// the library. Written at each of those moments and read back without asking anything else.
-	//
-	// This is the column that makes the download badge outlive its evidence. Everything else that
-	// could answer the question is transient — the torrent client forgets a torrent as soon as it
-	// stops seeding it, and matching deletes the staging folder — so a badge derived from those went
-	// out whenever they did, mid-download and on nothing more than a client restart.
-	//
-	// Empty on rows written before this existed. That means "nothing was recorded", which is read as
-	// exactly that: those rows fall back to the live evidence, as they always did.
-	DownloadState string `gorm:"column:download_state;index" json:"downloadState"`
+}
+
+// +------------------------+
+// |  Anime download state  |
+// +------------------------+
+
+// AnimeDownloadState is the badge an anime shows, stored as the plain fact it is.
+//
+// One row per anime, holding one of three states, written at the three moments they become true —
+// a download queued, a download finished, a download filed into the library — and read back exactly
+// as written. Nothing else contributes, and nothing infers.
+//
+// That is the whole point of it, and it replaces a design that inferred all three from the evidence
+// lying around: rows keyed per torrent, cross-referenced against what the torrent client happened to
+// be reporting, what was left in the staging folder, and which files were in the library. Every one
+// of those is transient — a client forgets a torrent when it stops seeding, a match deletes the
+// staging folder — so the answer changed depending on when you asked, and a badge would appear,
+// then vanish, then never come back. Worse, the reconciliation wrote its conclusions down: one
+// unreachable torrent client was enough to permanently record a download in full flight as finished
+// with, and a library of finished downloads as still downloading. There is no reconciliation here
+// to get wrong.
+//
+// Stored in the shared database rather than a profile's own, because what is downloading is a fact
+// about the machine, not about who is signed in. Every account sees the same badge.
+type AnimeDownloadState struct {
+	BaseModel
+	// MediaID is the AniList ID. One row per anime — a series with three downloads has one badge.
+	MediaID int `gorm:"column:media_id;uniqueIndex" json:"mediaId"`
+	// State is "downloading", "downloaded" or "matched". See the constants in the db package.
+	State string `gorm:"column:state;index" json:"state"`
 }
 
 // +---------------------+

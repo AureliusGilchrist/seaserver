@@ -1078,11 +1078,15 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 			r.logger.Warn().Err(err).Str("torrent", req.TorrentName).Msg("unmatched: Failed to save user's selection metadata")
 		}
 
-		// The end of the progression: the files are in the library, so this download is no longer
-		// something to wait for. Recorded rather than inferred, because every other trace of it is
-		// about to be deleted — the staging folder goes below, and the torrent client stopped
-		// mentioning the torrent whenever it felt like it.
-		r.MarkDownloadState(req.TorrentName, DownloadStateMatched)
+		// The end of the progression: the files are in the library. Recorded here, against the
+		// anime, because every other trace of this download is about to be deleted — the staging
+		// folder goes below, and the torrent client stops mentioning the torrent whenever it feels
+		// like it. This is the only moment the fact exists anywhere, so it is the moment to write
+		// it down.
+		//
+		// Covers both kinds of match: this function is what the Unmatched screen calls and what the
+		// auto-matcher calls, so an anime matched by hand and one matched for you arrive here alike.
+		r.MarkAnimeMatchedState(req.AnimeID)
 	}
 
 	// Leave a sidecar in the anime folder the episodes went to, so the files carry their own
@@ -1772,9 +1776,25 @@ func (r *Repository) DeleteTorrent(torrentName string) error {
 	// empty now so the delete leaves nothing in the staging directory.
 	r.pruneEmptyDirs(UnmatchedBasePath)
 
-	// The record of what this download was for goes with it. Keeping it would have a later
-	// re-download of the same release silently inherit the anime it used to be matched to.
-	r.DeleteTorrentMetadata(torrentName)
+	// The badge goes with the download.
+	//
+	// Deleting a download is the one action that says "this was never going to happen", and it is
+	// the only thing that takes a badge down without moving it on. Read before the record is
+	// dropped, since the record is what says which anime this was for.
+	//
+	// Only when nothing else for that anime is still staged: deleting one of three downloads of a
+	// series does not mean the series has stopped downloading.
+	if metadata := r.GetTorrentMetadata(torrentName); metadata != nil && metadata.AnimeID > 0 {
+		animeID := metadata.AnimeID
+		r.DeleteTorrentMetadata(torrentName)
+		if remaining, err := r.database.CountUnmatchedTorrentMetadataByAnimeID(animeID); err == nil && remaining == 0 {
+			r.ClearAnimeDownloadState(animeID)
+		}
+	} else {
+		// The record of what this download was for goes with it. Keeping it would have a later
+		// re-download of the same release silently inherit the anime it used to be matched to.
+		r.DeleteTorrentMetadata(torrentName)
+	}
 
 	r.invalidateCache()
 	return nil

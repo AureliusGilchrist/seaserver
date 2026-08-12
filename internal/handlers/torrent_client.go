@@ -11,10 +11,8 @@ import (
 	"seanime/internal/torrent_clients/torrent_client"
 	"seanime/internal/unmatched"
 	"seanime/internal/util"
-	"seanime/internal/util/result"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -75,386 +73,60 @@ func (h *Handler) HandleGetActiveTorrentList(c echo.Context) error {
 }
 
 // DownloadingMediaStatus is what the client needs in order to decide which of the three download
-// badges an anime gets — downloading, downloaded, or matched — and it is the only thing that
-// decides. A media ID appears in at most one of these lists, so a card can never show two.
-//
-// All three are read from the same durable records, so all three survive a server restart, a
-// torrent client that has forgotten the torrent, and a staging folder a match has already deleted.
-// They are also read from the shared database rather than a profile's own, which is what makes the
-// badges the same on every account: what is downloading is a fact about the machine, not about who
-// happens to be signed in.
+// badges an anime gets — downloading, downloaded, or matched. A media ID appears in at most one of
+// these lists, so a card can never show two.
 type DownloadingMediaStatus struct {
-	// Downloading holds AniList media IDs with a download still in flight.
+	// Downloading holds AniList media IDs with a download in flight.
 	Downloading []int `json:"downloading"`
-	// Finished holds media IDs whose download is over and whose files are still sitting in the
-	// staging area, waiting to be matched into the library.
-	//
-	// The client deliberately keeps a downloading badge on screen once it has appeared, so this
-	// is the only thing that takes one down promptly. Silence is not an answer: a media ID
-	// missing from every list means "nothing known", which must not be read as "finished".
+	// Finished holds media IDs whose download is done and is waiting to be matched into the
+	// library. Named for the field the client has always read; the badge calls it "Downloaded".
 	Finished []int `json:"finished"`
-	// Matched holds media IDs whose download was filed into the library, by the auto-matcher or by
-	// hand. This one is permanent: nothing later retracts it, and it is what the orange badge is
-	// drawn from on every account.
+	// Matched holds media IDs whose download was filed into the library, by hand or automatically.
 	Matched []int `json:"matched"`
 }
 
 // HandleGetDownloadingMediaIds
 //
-//	@summary returns which AniList media have a download in flight, and which have just finished.
-//	@desc Read from the state recorded against each download in the database — written when it was
-//	@desc queued and stamped again as it finished and as it was matched — so the answer is the same
-//	@desc across page reloads, server restarts, a torrent client that has forgotten the torrent, and
-//	@desc a staging folder a match has already deleted. That is what lets the "Downloading" badge
-//	@desc stay up for the whole download instead of blinking in and out.
+//	@summary returns the download badge state of every anime that has one.
+//	@desc Read straight from the state recorded against each anime — written when a download was
+//	@desc queued, when it finished, and when it was matched — with nothing inferred and nothing
+//	@desc reconciled. The answer is identical across page reloads, server restarts, a torrent client
+//	@desc that has forgotten the torrent, and a staging folder a match has already deleted.
 //	@route /api/v1/torrent-client/downloading-media [GET]
 //	@returns handlers.DownloadingMediaStatus
 func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 
-	downloading := make(map[int]struct{})
-	finished := make(map[int]struct{})
-	// Anime whose download has been filed into the library. Never retracted below — once a download
-	// has been matched that is the end of its story, and the orange badge it draws is permanent.
-	matched := make(map[int]struct{})
-
-	// Anime the torrent client is, right now, actively pulling. Kept apart from `downloading` because
-	// it is the only first-hand evidence in this handler — everything else is inferred from what is
-	// lying in the staging area, and leftovers there outlive the download they came from.
-	clientIsPulling := make(map[int]struct{})
-
-	// Staging directories the client has just reported as fully downloaded, collected here and
-	// reconciled against what is on record once the records have been read.
-	clientFinishedDirs := make([]string, 0)
-	// The anime behind those torrents, likewise held until the records can be consulted.
-	clientFinishedAnime := make([]unmatched.DownloadState, 0)
-
-	// What the torrent client says, keyed by the staging directory each torrent is writing into.
-	// Asked once for the whole request — this route is polled, and it must never start the client
-	// or fail: no reachable client simply means the disk has to answer on its own below.
-	clientSaysFinished := make(map[string]bool)
-	// Every download the client can account for, by the name its record is keyed under. Used below to
-	// tell a download the client has merely forgotten from one that never existed.
-	clientKnows := make(map[string]struct{})
-	// The records of downloads the client is pulling *right now*, by the key each one is stored
-	// under. Used to correct a record that says the download is over while the client is visibly
-	// still doing it — see the repair below.
-	clientPullingKeys := make(map[string]struct{})
-	// Whether the torrent client answered at all this time round.
+	// One read, and it is the entire answer.
 	//
-	// Everything that *retires* a badge below reasons from the client's silence — no torrent under
-	// this name, so the download must be over — and silence from a client that is not running says
-	// nothing of the kind. Without this, stopping the torrent client for a minute was enough to have
-	// a download in full flight written off, and its badge gone for good.
-	clientAnswered := false
-	if repo := h.App.TorrentClientRepository; repo != nil {
-		if torrents, err := repo.GetActiveTorrents(&torrent_client.GetListOptions{}); err == nil {
-			clientAnswered = true
-			for _, t := range torrents {
-				if t == nil {
-					continue
-				}
-				// Finished: seeding, or fully downloaded but paused/stopped in the client.
-				isFinished := t.Status == torrent_client.TorrentStatusSeeding || t.Progress >= 1
-
-				clientKnows[unmatched.MetadataKey(t.Name)] = struct{}{}
-				if !isFinished {
-					clientPullingKeys[unmatched.MetadataKey(t.Name)] = struct{}{}
-				}
-				if dir, ok := unmatched.StagingDirForTorrent(t.Name, t.ContentPath); ok {
-					clientKnows[dir] = struct{}{}
-					if !isFinished {
-						clientPullingKeys[dir] = struct{}{}
-					}
-					// A directory fed by two torrents is downloading until both are done.
-					if wasFinished, seen := clientSaysFinished[dir]; !seen || wasFinished {
-						clientSaysFinished[dir] = isFinished
-					}
-					if isFinished {
-						// Recorded, not merely noted: this is the moment "the files are all here"
-						// becomes true, and the client will stop saying so the moment it drops the
-						// torrent. Written only on the transition — see below.
-						clientFinishedDirs = append(clientFinishedDirs, dir)
-					}
-				}
-
-				// Covers downloads writing somewhere other than the staging area. Resolved by
-				// where the client is writing, falling back to the torrent's name — name alone
-				// only works while the client's name matches the release title the download was
-				// started from, and the two disagree often enough.
-				metadata := h.App.UnmatchedRepository.MetadataForTorrent(t.Name, t.ContentPath)
-				if metadata == nil || metadata.AnimeID == 0 {
-					continue
-				}
-				if isFinished {
-					// Held back rather than answered here, because a torrent left seeding after its
-					// files were filed into the library is still "finished" to the client and is not
-					// something the user is waiting on. What the record says decides — see below.
-					clientFinishedAnime = append(clientFinishedAnime, unmatched.DownloadState{
-						TorrentName: unmatched.MetadataKey(t.Name),
-						AnimeID:     metadata.AnimeID,
-					})
-				} else {
-					downloading[metadata.AnimeID] = struct{}{}
-					clientIsPulling[metadata.AnimeID] = struct{}{}
-				}
-			}
-		}
-	}
-
-	// Which staging directories are still on disk. Only legacy rows need this — see below — but it
-	// is one read either way, so it is done once here rather than per row.
-	stagingDirs := make(map[string]struct{})
-	if entries, err := os.ReadDir(unmatched.UnmatchedBasePath); err == nil {
-		for _, entry := range entries {
-			if entry.IsDir() {
-				stagingDirs[entry.Name()] = struct{}{}
-			}
-		}
-	}
-
-	// The durable source, and the answer this route is really built on.
+	// What used to be here reconstructed all three states on every poll, from the torrent client's
+	// current list, the contents of the staging directory, per-torrent database rows, and the
+	// library's file list — then wrote its conclusions back. Every input was transient and every
+	// conclusion was permanent, which is a combination that cannot be made to work: a torrent
+	// client that was briefly unreachable had downloads in full flight recorded as finished with,
+	// and downloads whose folders had been tidied away stayed "downloading" forever. It reported a
+	// hundred and thirty-one anime as downloading on a library that was downloading none.
 	//
-	// Every download writes a row when it is queued, and that row is stamped again when the scanner
-	// accepts the files as complete and when a match files them into the library. So each of the
-	// three things the badge has to say is *recorded at the moment it becomes true*, by the code
-	// that knows it, rather than reconstructed afterwards from evidence that does not last:
-	// qBittorrent forgets a torrent as soon as it stops seeding it, and matching deletes the staging
-	// folder outright. Both of those are why every earlier version of this badge went out on its own
-	// while the download was still very much a thing the user was waiting for.
-	//
-	// A row in the matched state contributes to neither list on purpose. That anime is in the
-	// library now, and the library badge — orange, drawn in the same corner of the same card — is
-	// what says so. The three states read as one progression, and a card shows exactly one of them.
-	records := h.App.UnmatchedRepository.DownloadStates()
-
-	// Anime whose state is on record. The inference at the bottom leaves these alone: a recorded
-	// state is first-hand, written by the code that watched it happen, and guessing over the top of
-	// it is what the record exists to stop.
-	onRecord := make(map[int]struct{})
-	// The furthest-back state recorded for an anime across all of its downloads, so that one season
-	// still coming down is not overruled by another that has already been filed away.
-	recordedForAnime := make(map[int]string)
-	legacy := make([]unmatched.DownloadState, 0)
-	// Rows that claim to be downloading with nothing whatsoever left to back them up, kept for the
-	// reaper below.
-	orphaned := make([]unmatched.DownloadState, 0)
-
-	for _, state := range records {
-		if state.AnimeID <= 0 {
-			continue
-		}
-		if downloadStateRank(state.State) > downloadStateRank(recordedForAnime[state.AnimeID]) {
-			recordedForAnime[state.AnimeID] = state.State
-		}
-		switch state.State {
-		case unmatched.DownloadStateDownloading:
-			onRecord[state.AnimeID] = struct{}{}
-			downloading[state.AnimeID] = struct{}{}
-			_, onDisk := stagingDirs[state.TorrentName]
-			_, known := clientKnows[state.TorrentName]
-			// The grace is what separates a download that has ended from one that has only just
-			// started. Both have no folder and no torrent the client admits to — a download is
-			// recorded here *before* the magnet is handed over, and the folder does not exist
-			// until the first byte lands — so without it, a poll arriving in those few seconds
-			// declares a brand new download dead on arrival and takes its badge with it. That is
-			// precisely the "badge appeared, then vanished" this route kept producing.
-			if !onDisk && !known && time.Since(state.UpdatedAt) > orphanGrace {
-				orphaned = append(orphaned, state)
-			}
-		case unmatched.DownloadStateFinished:
-			onRecord[state.AnimeID] = struct{}{}
-			// "Downloaded" means the files are here and waiting on you, so it is the one state that
-			// is checked against something still existing. A finished download whose staging folder
-			// has been emptied out from underneath the app — moved by hand, deleted, tidied away —
-			// is not something you can go and match, and a badge inviting you to would be pointing
-			// at nothing.
-			//
-			// Either the folder or a torrent the client still knows is enough, and a client that
-			// never answered is not evidence of anything: its silence leaves the badge exactly
-			// where it is.
-			_, onDisk := stagingDirs[state.TorrentName]
-			_, known := clientKnows[state.TorrentName]
-			if onDisk || known || !clientAnswered {
-				finished[state.AnimeID] = struct{}{}
-			}
-		case unmatched.DownloadStateMatched:
-			onRecord[state.AnimeID] = struct{}{}
-			// A download the client is still pulling is not matched, whatever the row says, and the
-			// client is first-hand evidence where the row is a record of somebody's conclusion.
-			//
-			// This exists because a conclusion was reached wrongly and written down. An earlier
-			// version of the reaper below ran even when the torrent client had not answered, so a
-			// client that was briefly unreachable — or a torrent whose name did not line up with
-			// the key its record is filed under — looked exactly like a download that had ended:
-			// no staging folder yet, no torrent the client admits to, and the anime already in the
-			// library. It stamped those rows "matched" while the download was in full flight, and
-			// stamping is permanent, so the badge went out and never came back.
-			//
-			// The guard on the reaper stops new rows being ruined. This repairs the ones that
-			// already were, on the first poll where the client is seen pulling them, without
-			// anybody having to know it happened.
-			_, pullingByKey := clientPullingKeys[state.TorrentName]
-			if pullingByKey {
-				h.App.UnmatchedRepository.MarkDownloadState(state.TorrentName, unmatched.DownloadStateDownloading)
-				h.App.Logger.Info().
-					Str("torrent", state.TorrentName).
-					Int("animeId", state.AnimeID).
-					Msg("torrent client: Download was recorded as matched while still downloading, corrected")
-				downloading[state.AnimeID] = struct{}{}
-				continue
-			}
-			matched[state.AnimeID] = struct{}{}
-		default:
-			// Written before the state column existed. Nothing was recorded for these, so they are
-			// answered the old way — from what is left in the staging area — which is exactly as
-			// good as it ever was, and no worse.
-			legacy = append(legacy, state)
-		}
-	}
-
-	for _, state := range legacy {
-		if _, onDisk := stagingDirs[state.TorrentName]; !onDisk {
-			// No record and no files: there is nothing left to call this a download at all.
-			continue
-		}
-		if h.stagingDownloadFinished(state.TorrentName, clientSaysFinished) {
-			finished[state.AnimeID] = struct{}{}
-		} else {
-			downloading[state.AnimeID] = struct{}{}
-		}
-	}
-
-	// The client has just reported a download complete that is still on record as downloading. Write
-	// it down while there is something to write down: this is the last moment the fact exists
-	// anywhere, and the scanner — which normally records it — only sees downloads that land in the
-	// staging area with files it can watch settle.
-	//
-	// Only on the transition, so a poll every ten seconds from every open client is still no writes
-	// at all once a download has been accounted for.
-	recordedState := make(map[string]string, len(records))
-	for _, state := range records {
-		recordedState[state.TorrentName] = state.State
-	}
-	for _, dir := range clientFinishedDirs {
-		if recordedState[dir] != unmatched.DownloadStateDownloading {
-			continue
-		}
-		h.App.UnmatchedRepository.MarkDownloadState(dir, unmatched.DownloadStateFinished)
-	}
-
-	// And now the client's finished torrents can be answered for. One that is on record as matched is
-	// left out: a torrent goes on seeding long after its files were filed into the library, and
-	// saying "Downloaded, waiting on you" about an anime already on your shelf is exactly the lie
-	// this route is meant to stop telling.
-	for _, state := range clientFinishedAnime {
-		if recordedForAnime[state.AnimeID] == unmatched.DownloadStateMatched {
-			continue
-		}
-		finished[state.AnimeID] = struct{}{}
-	}
-
-	// Anything just matched is done, whatever else still says otherwise.
-	//
-	// A match records its own state, so this is only for the gap: the moment between a match
-	// finishing and this route being polled with a stale cached view of the library, and any match
-	// path that does not go through the repository. The exception is the torrent client actively
-	// pulling for that anime right now — a second season coming down while the first is on disk is a
-	// real download, and first-hand evidence from the client beats anything inferred.
-	for animeID := range unmatched.RecentlyMatchedAnime() {
-		if _, pulling := clientIsPulling[animeID]; pulling {
-			continue
-		}
-		delete(downloading, animeID)
-		delete(finished, animeID)
-		matched[animeID] = struct{}{}
-	}
-
-	// The reaper, for downloads that ended without anybody recording it.
-	//
-	// A row saying "downloading" with no staging directory, no torrent the client has heard of, and
-	// the anime's episodes sitting in the library is not a download — it is the residue of one that
-	// was matched by a version of the server that predates this column, or dealt with outside the
-	// app entirely. Left alone it would hold a purple badge up forever, which is the failure mode
-	// this whole mechanism exists to avoid, only pointing the other way.
-	//
-	// Stamped rather than merely ignored, so the row stops being reconsidered on every poll — which
-	// is also why it is only run when the client has answered. Stamping is irreversible, and "the
-	// client has never heard of this torrent" is indistinguishable from "the client is not running"
-	// unless you know which one you are looking at.
-	//
-	// The library check decides how the row is *recorded*, not whether it is still called a
-	// download. It used to decide both, and that was the second half of the hundred-and-thirty-one
-	// problem: a row with no folder, no torrent and no files in the library was left saying
-	// "downloading" indefinitely, because the only exit from that state was through a library the
-	// download had never reached. A download with nothing left of it anywhere is over, however it
-	// ended. If the files are in the library it ended in a match, and that is worth recording; if
-	// they are not, there is nothing to record and nothing to show either.
-	if len(orphaned) > 0 && clientAnswered {
-		inLibrary := h.animeWithLocalFiles(c)
-		for _, state := range orphaned {
-			if _, pulling := clientIsPulling[state.AnimeID]; pulling {
-				continue
-			}
-			if _, have := inLibrary[state.AnimeID]; have {
-				h.App.UnmatchedRepository.MarkDownloadState(state.TorrentName, unmatched.DownloadStateMatched)
-				matched[state.AnimeID] = struct{}{}
-			}
-			delete(downloading, state.AnimeID)
-		}
-	}
-
-	// Legacy rows keep the old rule: an anime whose episodes are already in the library is a download
-	// that ended in the library, whatever was left behind in staging months ago. Applied only where
-	// nothing was recorded, because that is the only place there is nothing better to go on.
-	//
-	// Stamped as matched rather than merely set aside, so the row stops being reasoned about on every
-	// poll and starts carrying the state it has plainly been in all along.
-	if len(legacy) > 0 && clientAnswered {
-		inLibrary := h.animeWithLocalFiles(c)
-		for _, state := range legacy {
-			if _, ok := onRecord[state.AnimeID]; ok {
-				continue
-			}
-			if _, pulling := clientIsPulling[state.AnimeID]; pulling {
-				continue
-			}
-			if _, have := inLibrary[state.AnimeID]; !have {
-				continue
-			}
-			h.App.UnmatchedRepository.MarkDownloadState(state.TorrentName, unmatched.DownloadStateMatched)
-			delete(downloading, state.AnimeID)
-			delete(finished, state.AnimeID)
-			matched[state.AnimeID] = struct{}{}
-		}
-	}
+	// Now the states are recorded where they happen and read back as they were written. There is
+	// no reconciliation left to get wrong.
+	states := h.App.UnmatchedRepository.AnimeDownloadStates()
 
 	res := DownloadingMediaStatus{
-		Downloading: make([]int, 0, len(downloading)),
-		Finished:    make([]int, 0, len(finished)),
-		Matched:     make([]int, 0, len(matched)),
+		Downloading: make([]int, 0),
+		Finished:    make([]int, 0),
+		Matched:     make([]int, 0),
 	}
-	// One anime, one badge. The order is the order the states happen in, and the earliest one still
-	// true wins: a show with one season coming down and another already filed away is a show that is
-	// still coming down, because that is the fact that decides what you do next.
-	for id := range downloading {
-		res.Downloading = append(res.Downloading, id)
-	}
-	for id := range finished {
-		// One torrent finishing says nothing while another for the same anime is still going.
-		if _, ok := downloading[id]; ok {
-			continue
+
+	for _, state := range states {
+		switch state.State {
+		case unmatched.DownloadStateDownloading:
+			res.Downloading = append(res.Downloading, state.MediaID)
+		case unmatched.DownloadStateDownloaded:
+			res.Finished = append(res.Finished, state.MediaID)
+		case unmatched.DownloadStateMatched:
+			res.Matched = append(res.Matched, state.MediaID)
 		}
-		res.Finished = append(res.Finished, id)
 	}
-	for id := range matched {
-		if _, ok := downloading[id]; ok {
-			continue
-		}
-		if _, ok := finished[id]; ok {
-			continue
-		}
-		res.Matched = append(res.Matched, id)
-	}
+
 	// Sorted so a poll that changed nothing looks like it changed nothing.
 	sort.Ints(res.Downloading)
 	sort.Ints(res.Finished)
@@ -462,14 +134,9 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 
 	// Logged when the answer changes, and only then.
 	//
-	// A missing badge has two completely different causes that look identical from the outside —
-	// the client never asked, or the server answered "nothing" — and no way to tell them apart
-	// from a log where this route says nothing either way. With this, silence in the log while
-	// badges are missing means the client is not asking; a line showing empty lists means the
-	// server is, and the record count next to it says whether there was anything to answer from.
-	//
-	// On change only, because this is polled every ten seconds by every open client and a line
-	// each would bury everything else. A steady state prints once.
+	// A missing badge has two causes that look identical from outside — the client never asked, or
+	// the server answered nothing — and no way to tell them apart from a log where this route says
+	// nothing either way. Silence here while badges are missing means the client is not asking.
 	answer := fmt.Sprintf("%v|%v|%v", res.Downloading, res.Finished, res.Matched)
 	lastDownloadingAnswerMu.Lock()
 	changed := lastDownloadingAnswer != answer
@@ -480,8 +147,6 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 			Ints("downloading", res.Downloading).
 			Ints("finished", res.Finished).
 			Ints("matched", res.Matched).
-			Int("records", len(records)).
-			Bool("clientAnswered", clientAnswered).
 			Msg("torrent client: Download badge state changed")
 	}
 
@@ -493,102 +158,6 @@ var (
 	lastDownloadingAnswerMu sync.Mutex
 	lastDownloadingAnswer   string
 )
-
-// downloadStateRank orders the states by how much of the user's attention they still deserve, so
-// that an anime with several downloads is described by the least finished of them. Two seasons of
-// one show, one filed away and one still coming down, is a show that is still coming down.
-func downloadStateRank(state string) int {
-	switch state {
-	case unmatched.DownloadStateDownloading:
-		return 3
-	case unmatched.DownloadStateFinished:
-		return 2
-	case unmatched.DownloadStateMatched:
-		return 1
-	default:
-		return 0
-	}
-}
-
-// stagingDownloadFinished reports whether the download writing into a staging directory is over.
-//
-// The torrent client is the authority whenever it can account for the directory. When it cannot —
-// unreachable, or the torrent removed the moment it completed — the answer is whatever the
-// auto-match scanner has already concluded from watching the directory itself, which is the same
-// evidence it acts on when it decides a download is ready to be matched.
-//
-// Failing both, the download counts as still running. The badge is meant to stay up until
-// something says otherwise, and "nobody has anything to say about this one" is not that.
-// animeWithLocalFilesCache holds the answer for a few polls at a time.
-//
-// This route is polled every ten seconds by every open client, and the local file list is one row
-// holding the whole library as JSON — a thousand-odd files' worth of parsing to answer a question
-// whose answer changes only when a scan or a match runs. Short enough that a match shows up almost
-// at once, and matches mark themselves anyway (see unmatched.MarkAnimeMatched), so the cache is
-// never what a freshly finished download is waiting on.
-var animeWithLocalFilesCache = result.NewCache[int, map[int]struct{}]()
-
-const animeWithLocalFilesTTL = 30 * time.Second
-
-// orphanGrace is how long a download with no trace of it anywhere is given before it is treated as
-// one that has ended rather than one that has just begun.
-//
-// Generous on purpose. Being early here is expensive — it retires a live download's badge, and the
-// retirement is written down — while being late costs nothing but a badge that lingers for a few
-// minutes on something that finished without anyone recording it. A torrent that has not managed
-// to create its folder or register with the client within ten minutes is not a torrent that is
-// about to.
-const orphanGrace = 10 * time.Minute
-
-// animeWithLocalFiles returns every anime with at least one non-ignored file in the library.
-//
-// Ignored files do not count: an anime you have deliberately pushed out of the library is not one
-// you have. An error reading the library returns nothing, which leaves the download state to the
-// staging area alone — the same answer as before this existed.
-func (h *Handler) animeWithLocalFiles(c echo.Context) map[int]struct{} {
-	// The signed-in profile's library, not the global database's.
-	//
-	// This read the global one, which with profiles enabled holds no local files at all — every
-	// library is in profiles/<id>/seanime.db. So it answered "you have nothing", every time, and
-	// the one check standing between a stale row and a permanent phantom badge could never pass.
-	// That is how a server came to report a hundred and thirty-one anime as downloading: the rows
-	// were real, they were simply never retired, because retiring them required knowing the files
-	// had arrived and this was looking in a database where they never do.
-	//
-	// Cached per profile for the same reason it is cached at all: two profiles have two libraries,
-	// and one key for both would hand whichever asked second the other's answer.
-	profileID := h.GetProfileID(c)
-	cacheKey := int(profileID)
-	if cached, ok := animeWithLocalFilesCache.Get(cacheKey); ok {
-		return cached
-	}
-
-	ids := make(map[int]struct{})
-	lfs, _, err := db_bridge.GetLocalFiles(h.GetProfileDatabase(c))
-	if err != nil {
-		h.App.Logger.Debug().Err(err).Msg("torrent client: Could not read local files for download state")
-		return ids
-	}
-	for _, lf := range lfs {
-		if lf == nil || lf.MediaId <= 0 || lf.Ignored {
-			continue
-		}
-		ids[lf.MediaId] = struct{}{}
-	}
-
-	animeWithLocalFilesCache.SetT(cacheKey, ids, animeWithLocalFilesTTL)
-	return ids
-}
-
-func (h *Handler) stagingDownloadFinished(dirName string, clientSaysFinished map[string]bool) bool {
-	if isFinished, ok := clientSaysFinished[dirName]; ok {
-		return isFinished
-	}
-	if h.App.UnmatchedScanner == nil {
-		return false
-	}
-	return h.App.UnmatchedScanner.IsMarkedCompleted(dirName)
-}
 
 // HandleTorrentClientAction
 //
@@ -845,6 +414,14 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 		err = repo.AddMagnets([]string{magnet}, destination)
 		if err != nil {
 			return h.RespondWithError(c, err)
+		}
+
+		// The badge goes up here, at the moment the download exists, and stays up until something
+		// says it has moved on. Written after the torrent is accepted so a failed add leaves no
+		// badge behind, and written unconditionally so downloading another season of something
+		// already in the library says "downloading" again — which is what the card is being asked.
+		if b.Media != nil {
+			h.App.UnmatchedRepository.MarkAnimeDownloading(b.Media.ID)
 		}
 
 		h.App.Logger.Info().Str("torrent", t.Name).Str("destination", destination).Bool("autoMatch", autoMatch && b.Media != nil).Msg("torrent client: Added torrent to unmatched directory")

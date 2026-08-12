@@ -1,74 +1,100 @@
 package unmatched
 
 import (
-	"strings"
-	"time"
-
 	"seanime/internal/database/db"
 )
 
-// The three states a download passes through, re-exported from the database package so callers in
-// here and in the handlers never have to spell them as strings.
+// The three states an anime's download badge can be in, re-exported so callers in here and in the
+// handlers never have to spell them as strings.
 const (
-	DownloadStateDownloading = db.DownloadStateDownloading
-	DownloadStateFinished    = db.DownloadStateFinished
-	DownloadStateMatched     = db.DownloadStateMatched
+	DownloadStateDownloading = db.AnimeDownloadStateDownloading
+	DownloadStateDownloaded  = db.AnimeDownloadStateDownloaded
+	DownloadStateMatched     = db.AnimeDownloadStateMatched
 )
 
-// DownloadState is one download's recorded progress: which anime it is for, how far it has got, and
-// when that was last written. See db.UnmatchedDownloadState for why the time is carried.
-type DownloadState struct {
-	TorrentName string
-	AnimeID     int
-	State       string
-	UpdatedAt   time.Time
+// AnimeDownloadState is one anime's badge.
+type AnimeDownloadState struct {
+	MediaID int
+	State   string
 }
 
-// MarkDownloadState records that a download has moved on.
+// MarkAnimeDownloading records that a download has been queued for an anime.
 //
-// Best-effort by design: the states are what the download badge is drawn from, and failing to write
-// one costs a badge that lags rather than anything a caller can usefully do about it. Callers are in
-// the middle of moving files or finishing a scan, and none of them should stop over this.
-func (r *Repository) MarkDownloadState(torrentName, state string) {
-	if r.database == nil || strings.TrimSpace(torrentName) == "" {
+// Unconditional: queueing is something the user did, and it outranks whatever the badge said before.
+// A new season of a series already in the library goes back to downloading, which is what somebody
+// watching the card wants to know.
+//
+// Best-effort, like everything here: the callers are in the middle of adding a torrent, and failing
+// to write a badge is not a reason to stop. It costs a badge that appears late, not a lost download.
+func (r *Repository) MarkAnimeDownloading(mediaID int) {
+	r.setAnimeDownloadState(mediaID, DownloadStateDownloading)
+}
+
+// MarkAnimeDownloaded records that an anime's download has finished and is waiting to be matched.
+//
+// Only moves an anime that is currently downloading, so the second of two downloads finishing
+// cannot announce that a series is done while the first is still running, and an observation
+// arriving late cannot walk a matched anime backwards.
+func (r *Repository) MarkAnimeDownloaded(mediaID int) {
+	if r.database == nil || mediaID <= 0 {
 		return
 	}
+	if err := r.database.AdvanceAnimeDownloadState(mediaID, DownloadStateDownloading, DownloadStateDownloaded); err != nil {
+		r.logger.Debug().Err(err).Int("mediaId", mediaID).Msg("unmatched: Could not record download as downloaded")
+		return
+	}
+	r.logger.Debug().Int("mediaId", mediaID).Msg("unmatched: Download recorded as downloaded")
+}
 
-	key := metadataKey(torrentName)
-	if err := r.database.SetUnmatchedTorrentDownloadState(key, state); err != nil {
-		r.logger.Debug().Err(err).Str("torrent", torrentName).Str("state", state).
+// MarkAnimeMatchedState records that an anime's download has been filed into the library.
+//
+// Unconditional, and the end of the progression: a match is something that definitely happened, and
+// nothing after it takes the badge back off. Only queueing another download changes it again.
+func (r *Repository) MarkAnimeMatchedState(mediaID int) {
+	r.setAnimeDownloadState(mediaID, DownloadStateMatched)
+}
+
+// ClearAnimeDownloadState removes an anime's badge, for a download that has been deleted.
+func (r *Repository) ClearAnimeDownloadState(mediaID int) {
+	if r.database == nil || mediaID <= 0 {
+		return
+	}
+	if err := r.database.ClearAnimeDownloadState(mediaID); err != nil {
+		r.logger.Debug().Err(err).Int("mediaId", mediaID).Msg("unmatched: Could not clear download state")
+	}
+}
+
+func (r *Repository) setAnimeDownloadState(mediaID int, state string) {
+	if r.database == nil || mediaID <= 0 {
+		return
+	}
+	if err := r.database.SetAnimeDownloadState(mediaID, state); err != nil {
+		r.logger.Debug().Err(err).Int("mediaId", mediaID).Str("state", state).
 			Msg("unmatched: Could not record download state")
 		return
 	}
-
-	r.logger.Debug().Str("torrent", torrentName).Str("state", state).Msg("unmatched: Download state recorded")
+	r.logger.Debug().Int("mediaId", mediaID).Str("state", state).Msg("unmatched: Download state recorded")
 }
 
-// DownloadStates returns what has been recorded about every download the server knows of.
+// AnimeDownloadStates returns every anime's badge.
 //
-// This is the durable half of the download badge: rows written when each download was queued and
-// stamped as it progressed, so the answer survives a server restart, a torrent client that has
-// forgotten the torrent, and a staging folder that a match has already deleted. Nothing here touches
-// the disk or the torrent client.
-func (r *Repository) DownloadStates() []DownloadState {
+// One read, no disk, no torrent client. Survives a server restart, a torrent client that has
+// forgotten the torrent, and a staging folder a match has already deleted, because none of those
+// were ever consulted.
+func (r *Repository) AnimeDownloadStates() []AnimeDownloadState {
 	if r.database == nil {
 		return nil
 	}
 
-	rows, err := r.database.GetUnmatchedTorrentDownloadStates()
+	rows, err := r.database.AnimeDownloadStates()
 	if err != nil {
 		r.logger.Debug().Err(err).Msg("unmatched: Could not read download states")
 		return nil
 	}
 
-	states := make([]DownloadState, 0, len(rows))
+	states := make([]AnimeDownloadState, 0, len(rows))
 	for _, row := range rows {
-		states = append(states, DownloadState{
-			TorrentName: row.TorrentName,
-			AnimeID:     row.AnimeID,
-			State:       row.DownloadState,
-			UpdatedAt:   row.UpdatedAt,
-		})
+		states = append(states, AnimeDownloadState{MediaID: row.MediaID, State: row.State})
 	}
 	return states
 }

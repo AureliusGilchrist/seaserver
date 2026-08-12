@@ -634,8 +634,15 @@ func (s *Scanner) scanForCompletedDownloads() {
 			// Written down, not just noted here. The list above is in memory and goes with the
 			// process; the badge for this anime has to survive a restart, and "the files are all
 			// here, waiting to be matched" is a thing only this moment knows.
+			//
+			// Recorded against the anime the download was queued for, which is what the record
+			// written at queue time is for. A download nothing knows the anime of has no badge to
+			// move on — it is in the Unmatched screen waiting to be identified, which is where it
+			// belongs.
 			if s.repository != nil {
-				s.repository.MarkDownloadState(torrentRel, DownloadStateFinished)
+				if metadata := s.repository.GetTorrentMetadata(torrentRel); metadata != nil {
+					s.repository.MarkAnimeDownloaded(metadata.AnimeID)
+				}
 			}
 
 			// If the torrent was queued with auto-match enabled, match it now — the same

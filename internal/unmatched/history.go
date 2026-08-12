@@ -516,13 +516,13 @@ func (r *Repository) restoreStagingMetadata(details *MatchHistoryDetails) {
 			Msg("unmatched: Failed to restore the torrent's metadata after a revert")
 	}
 
-	// Undoing a match puts the files back in the staging area, which is precisely the finished
-	// state: fully downloaded, not in the library, waiting on you. Stamped explicitly because
-	// writing the metadata above resets the row to downloading — that write is what queueing a
-	// download looks like, and this is the one place it means something else. Without this the
-	// undone download would sit behind a downloading badge that no torrent was ever going to
-	// finish.
-	r.MarkDownloadState(details.TorrentName, DownloadStateFinished)
+	// Undoing a match puts the files back in the staging area, which is precisely the downloaded
+	// state: fully downloaded, not in the library, waiting on you. Set directly rather than
+	// advanced, because the anime is on record as matched right now and the whole point of an undo
+	// is to take that back.
+	if details.Metadata.AnimeID > 0 {
+		r.setAnimeDownloadState(details.Metadata.AnimeID, DownloadStateDownloaded)
+	}
 }
 
 // removeEmptiedDestination removes the anime folder a match wrote into, but only once it holds

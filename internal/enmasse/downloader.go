@@ -1251,6 +1251,9 @@ func (d *Downloader) processAnime(ctx context.Context, animeItem *AnimeOfflineIt
 		return fmt.Errorf("failed to save anime metadata for %q, torrent not added: %w", selectedTorrent.Name, err)
 	}
 
+	// An en-masse download is still a download, and gets the same badge as one queued by hand.
+	d.unmatchedRepository.MarkAnimeDownloading(metadata.AnimeID)
+
 	torrentClientRepo := d.torrentClientRepositoryRef.Get()
 	if err := d.waitForTorrentClient(ctx, "adding torrent"); err != nil {
 		return err

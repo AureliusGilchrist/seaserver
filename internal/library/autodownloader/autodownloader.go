@@ -161,6 +161,12 @@ func (ad *AutoDownloader) saveUnmatchedMetadata(t *NormalizedTorrent, rule *anim
 	if err := ad.database.UpsertUnmatchedTorrentMetadata(unmatched.MetadataKey(t.Name), meta.AnimeID, data); err != nil {
 		ad.logger.Warn().Err(err).Str("torrent", t.Name).Msg("autodownloader: failed to save metadata")
 	}
+
+	// A download the auto-downloader started is one you did not ask for and so is the one you are
+	// most likely to want told about. Same badge as any other.
+	if err := ad.database.SetAnimeDownloadState(meta.AnimeID, db.AnimeDownloadStateDownloading); err != nil {
+		ad.logger.Warn().Err(err).Str("torrent", t.Name).Msg("autodownloader: failed to record download state")
+	}
 }
 
 func New(opts *NewAutoDownloaderOptions) *AutoDownloader {
