@@ -8,13 +8,21 @@ import (
 	"github.com/samber/lo"
 )
 
+// The format follows the media type, the way AniList's own payload does: discovery demands both an
+// ANIME type and an anime format before it will queue anything, so a node with only one of the two is
+// not a realistic stand-in for a real one.
 func recEdge(id int, title string, status anilist.MediaStatus, mediaType anilist.MediaType, episodes int) *anilist.AnimeDetailsById_Media_Recommendations_Edges {
+	format := anilist.MediaFormatTv
+	if mediaType != anilist.MediaTypeAnime {
+		format = anilist.MediaFormatManga
+	}
 	return &anilist.AnimeDetailsById_Media_Recommendations_Edges{
 		Node: &anilist.AnimeDetailsById_Media_Recommendations_Edges_Node{
 			MediaRecommendation: &anilist.AnimeDetailsById_Media_Recommendations_Edges_Node_MediaRecommendation{
 				ID:       id,
 				Status:   lo.ToPtr(status),
 				Type:     lo.ToPtr(mediaType),
+				Format:   lo.ToPtr(format),
 				Episodes: lo.ToPtr(episodes),
 				Title: &anilist.AnimeDetailsById_Media_Recommendations_Edges_Node_MediaRecommendation_Title{
 					UserPreferred: lo.ToPtr(title),
@@ -119,12 +127,13 @@ func TestRelationsFrom(t *testing.T) {
 				relationEdgeID(10, anilist.MediaRelationSequel, anilist.MediaFormatTv),
 				relationEdgeID(11, anilist.MediaRelationPrequel, anilist.MediaFormatTv),
 				relationEdgeID(12, anilist.MediaRelationSideStory, anilist.MediaFormatOva),
-				// The manga it came from is not a season of it.
+				// The manga it came from is not something to download as anime.
 				relationEdgeID(13, anilist.MediaRelationSource, anilist.MediaFormatManga),
 				relationEdgeID(14, anilist.MediaRelationAdaptation, anilist.MediaFormatManga),
-				// A shared cast member is not a continuation.
+				// A shared cast member is a loose tie, but it is still an anime and still worth
+				// walking — the relation type is not what decides this.
 				relationEdgeID(15, anilist.MediaRelationCharacter, anilist.MediaFormatTv),
-				// Familial, but still a manga — nothing to download as anime.
+				// Familial, but still a novel — nothing to download as anime.
 				relationEdgeID(16, anilist.MediaRelationSequel, anilist.MediaFormatNovel),
 				nil,
 			},
@@ -138,7 +147,7 @@ func TestRelationsFrom(t *testing.T) {
 		ids = append(ids, rel.mediaID)
 	}
 
-	want := []int{10, 11, 12}
+	want := []int{10, 11, 12, 15}
 	if len(ids) != len(want) {
 		t.Fatalf("got %v, want %v", ids, want)
 	}
@@ -154,6 +163,54 @@ func TestRelationsFrom(t *testing.T) {
 		if !rel.isFamily {
 			t.Errorf("media %d came from a relation edge but is not marked as family", rel.mediaID)
 		}
+	}
+}
+
+// Every relation type is walked now, so the only thing keeping the source manga and the light novel
+// under it out of the queue is the media check — and a node that says nothing about what it is has to
+// be turned away too, not waved through.
+func TestRelationsFromQueuesNothingButAnime(t *testing.T) {
+	edge := func(id int, mediaType *anilist.MediaType, format *anilist.MediaFormat) *anilist.AnimeDetailsById_Media_Relations_Edges {
+		return &anilist.AnimeDetailsById_Media_Relations_Edges{
+			RelationType: lo.ToPtr(anilist.MediaRelationOther),
+			Node: &anilist.BaseAnime{
+				ID:       id,
+				Type:     mediaType,
+				Format:   format,
+				Episodes: lo.ToPtr(12),
+				Status:   lo.ToPtr(anilist.MediaStatusFinished),
+			},
+		}
+	}
+	anime := lo.ToPtr(anilist.MediaTypeAnime)
+	manga := lo.ToPtr(anilist.MediaTypeManga)
+
+	details := &anilist.AnimeDetailsById_Media{
+		Relations: &anilist.AnimeDetailsById_Media_Relations{
+			Edges: []*anilist.AnimeDetailsById_Media_Relations_Edges{
+				edge(1, anime, lo.ToPtr(anilist.MediaFormatTv)),
+				edge(2, manga, lo.ToPtr(anilist.MediaFormatManga)),
+				edge(3, manga, lo.ToPtr(anilist.MediaFormatNovel)),
+				edge(4, manga, lo.ToPtr(anilist.MediaFormatOneShot)),
+				// A manga filed with a TV format, or an anime filed with a manga one: either field
+				// disagreeing is enough to leave it out.
+				edge(5, manga, lo.ToPtr(anilist.MediaFormatTv)),
+				edge(6, anime, lo.ToPtr(anilist.MediaFormatNovel)),
+				// Nothing known about it is not the same as known to be an anime.
+				edge(7, nil, lo.ToPtr(anilist.MediaFormatTv)),
+				edge(8, anime, nil),
+				edge(9, nil, nil),
+			},
+		},
+	}
+
+	got := relationsFrom(details)
+	if len(got) != 1 || got[0].mediaID != 1 {
+		ids := make([]int, 0, len(got))
+		for _, r := range got {
+			ids = append(ids, r.mediaID)
+		}
+		t.Fatalf("got %v, want just [1] — only the anime belongs in the queue", ids)
 	}
 }
 

@@ -67,6 +67,37 @@ func rejectReason(title string, format *anilist.MediaFormat, episodes int, statu
 	return ""
 }
 
+// animeFormats are the formats an anime can actually have. Everything AniList files under any other
+// format is a different medium.
+var animeFormats = map[anilist.MediaFormat]bool{
+	anilist.MediaFormatTv:      true,
+	anilist.MediaFormatTvShort: true,
+	anilist.MediaFormatMovie:   true,
+	anilist.MediaFormatSpecial: true,
+	anilist.MediaFormatOva:     true,
+	anilist.MediaFormatOna:     true,
+	// MUSIC is an anime format, but it is an opening/ending video rather than a thing to watch, so
+	// rejectReason turns it away a step later. It belongs here so that the two checks stay honest
+	// about what they each decide.
+	anilist.MediaFormatMusic: true,
+}
+
+// isAnime reports whether a graph node is an anime and not a manga, a novel or a one-shot.
+//
+// Deliberately fail-closed on both fields. The walk follows every relation type now, including the
+// ADAPTATION and SOURCE edges that point straight at the source manga, so this is the check standing
+// between the queue and a light novel — and a node that arrives with no type or no format is a node
+// nothing is known about, which is not the same as a node known to be anime.
+func isAnime(mediaType *anilist.MediaType, format *anilist.MediaFormat) bool {
+	if mediaType == nil || *mediaType != anilist.MediaTypeAnime {
+		return false
+	}
+	if format == nil || !animeFormats[*format] {
+		return false
+	}
+	return true
+}
+
 // isJunkTitle reports whether a queued row's title alone marks it as promotional material.
 //
 // Used to clear out rows queued before the filter above existed. Titles are all a queued row carries

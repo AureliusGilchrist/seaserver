@@ -226,29 +226,18 @@ func (r *Repository) prepare(ctx context.Context, mediaID int) (*prepared, error
 	}, nil
 }
 
-// familialRelations are the edges that make two anime the same story rather than merely similar
-// ones — the seasons, the continuations, the side stories told alongside them.
-//
-// ADAPTATION and SOURCE are excluded because they point at the manga, CHARACTER because a shared
-// cast member is not a continuation, and OTHER because AniList uses it for everything it cannot
-// name.
-var familialRelations = map[anilist.MediaRelation]bool{
-	anilist.MediaRelationSequel:      true,
-	anilist.MediaRelationPrequel:     true,
-	anilist.MediaRelationParent:      true,
-	anilist.MediaRelationSideStory:   true,
-	anilist.MediaRelationAlternative: true,
-	anilist.MediaRelationSpinOff:     true,
-	anilist.MediaRelationSummary:     true,
-	anilist.MediaRelationCompilation: true,
-	anilist.MediaRelationContains:    true,
-}
-
-// relationsFrom flattens the relation edges that belong to the same franchise.
+// relationsFrom flattens every relation edge that points at an anime.
 //
 // This is what makes enqueueing a show also queue its later seasons: recommendations are what other
 // people also watched, which is a different question from what continues the story, and a sequel
 // frequently does not show up among them at all.
+//
+// The relation *type* is not filtered. AniList's labelling is loose enough that the debatable ones
+// still turn out to be worth watching — CHARACTER is how a lot of crossovers and shared-universe
+// entries are filed, OTHER is the bucket for everything AniList cannot name, and ADAPTATION/SOURCE
+// point at a different medium only most of the time. What matters is that the thing on the other end
+// is an anime, so that is the only test: isAnime below, which demands both an ANIME media type and a
+// real anime format, plus the junk filter that drops the PVs and the music videos.
 func relationsFrom(details *anilist.AnimeDetailsById_Media) []recommendation {
 	if details == nil || details.Relations == nil {
 		return nil
@@ -259,12 +248,12 @@ func relationsFrom(details *anilist.AnimeDetailsById_Media) []recommendation {
 		if edge == nil || edge.RelationType == nil || edge.Node == nil || edge.Node.ID == 0 {
 			continue
 		}
-		if !familialRelations[*edge.RelationType] {
-			continue
-		}
 
 		node := edge.Node
-		if node.Type != nil && *node.Type != anilist.MediaTypeAnime {
+		// The one thing that is still filtered. Every relation type is walked, so the ADAPTATION and
+		// SOURCE edges hanging off a series point straight at its manga — this is what keeps those,
+		// and anything else that is not an anime, out of the queue.
+		if !isAnime(node.Type, node.Format) {
 			continue
 		}
 
@@ -410,7 +399,7 @@ func recommendationsFrom(details *anilist.AnimeDetailsById_Media) []recommendati
 		}
 		// Anything that is not anime cannot be downloaded as one — the graph does cross over into
 		// manga adaptations.
-		if rec.Type != nil && *rec.Type != anilist.MediaTypeAnime {
+		if !isAnime(rec.Type, rec.Format) {
 			continue
 		}
 
