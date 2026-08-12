@@ -135,6 +135,10 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 	// Every download the client can account for, by the name its record is keyed under. Used below to
 	// tell a download the client has merely forgotten from one that never existed.
 	clientKnows := make(map[string]struct{})
+	// The records of downloads the client is pulling *right now*, by the key each one is stored
+	// under. Used to correct a record that says the download is over while the client is visibly
+	// still doing it — see the repair below.
+	clientPullingKeys := make(map[string]struct{})
 	// Whether the torrent client answered at all this time round.
 	//
 	// Everything that *retires* a badge below reasons from the client's silence — no torrent under
@@ -153,8 +157,14 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 				isFinished := t.Status == torrent_client.TorrentStatusSeeding || t.Progress >= 1
 
 				clientKnows[unmatched.MetadataKey(t.Name)] = struct{}{}
+				if !isFinished {
+					clientPullingKeys[unmatched.MetadataKey(t.Name)] = struct{}{}
+				}
 				if dir, ok := unmatched.StagingDirForTorrent(t.Name, t.ContentPath); ok {
 					clientKnows[dir] = struct{}{}
+					if !isFinished {
+						clientPullingKeys[dir] = struct{}{}
+					}
 					// A directory fed by two torrents is downloading until both are done.
 					if wasFinished, seen := clientSaysFinished[dir]; !seen || wasFinished {
 						clientSaysFinished[dir] = isFinished
@@ -263,6 +273,30 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 			}
 		case unmatched.DownloadStateMatched:
 			onRecord[state.AnimeID] = struct{}{}
+			// A download the client is still pulling is not matched, whatever the row says, and the
+			// client is first-hand evidence where the row is a record of somebody's conclusion.
+			//
+			// This exists because a conclusion was reached wrongly and written down. An earlier
+			// version of the reaper below ran even when the torrent client had not answered, so a
+			// client that was briefly unreachable — or a torrent whose name did not line up with
+			// the key its record is filed under — looked exactly like a download that had ended:
+			// no staging folder yet, no torrent the client admits to, and the anime already in the
+			// library. It stamped those rows "matched" while the download was in full flight, and
+			// stamping is permanent, so the badge went out and never came back.
+			//
+			// The guard on the reaper stops new rows being ruined. This repairs the ones that
+			// already were, on the first poll where the client is seen pulling them, without
+			// anybody having to know it happened.
+			_, pullingByKey := clientPullingKeys[state.TorrentName]
+			if pullingByKey {
+				h.App.UnmatchedRepository.MarkDownloadState(state.TorrentName, unmatched.DownloadStateDownloading)
+				h.App.Logger.Info().
+					Str("torrent", state.TorrentName).
+					Int("animeId", state.AnimeID).
+					Msg("torrent client: Download was recorded as matched while still downloading, corrected")
+				downloading[state.AnimeID] = struct{}{}
+				continue
+			}
 			matched[state.AnimeID] = struct{}{}
 		default:
 			// Written before the state column existed. Nothing was recorded for these, so they are
