@@ -14,6 +14,12 @@ func (r *Repository) ListItems() ([]*Item, error) {
 	// items prepared before it was recorded. Runs in the background, once per process.
 	r.backfillSeedersOnce()
 
+	// Drop anything downloaded or matched since it was queued, before the screen is built rather
+	// than after. Doing it here as well as at the start of a run is what makes the queue correct
+	// without one: you download an anime from the queue, come back to the screen, and it is gone —
+	// rather than still sitting there until the next walk happens to notice.
+	r.purgeSettledItems()
+
 	records, err := r.database.GetEnqueueFutureListItems()
 	if err != nil {
 		return nil, err

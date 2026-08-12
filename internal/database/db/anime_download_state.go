@@ -80,6 +80,27 @@ func (db *Database) AnimeDownloadStates() ([]AnimeDownloadStateRow, error) {
 	return rows, nil
 }
 
+// GetAnimeDownloadState returns one anime's badge, or "" when it has none.
+//
+// The single-anime read, for the callers that are asking about one thing rather than rendering all
+// of them: the Enqueue Future walk asks this of every anime it is about to queue.
+func (db *Database) GetAnimeDownloadState(mediaID int) (string, error) {
+	if mediaID <= 0 {
+		return "", nil
+	}
+
+	var row AnimeDownloadStateRow
+	err := db.gormdb.Model(&models.AnimeDownloadState{}).
+		Select("media_id", "state").
+		Where("media_id = ?", mediaID).
+		Limit(1).
+		Find(&row).Error
+	if err != nil {
+		return "", err
+	}
+	return row.State, nil
+}
+
 // ClearAnimeDownloadState removes an anime's badge entirely.
 //
 // Only for when the download itself is deleted — the one action that says "this was never going to
