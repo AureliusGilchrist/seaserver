@@ -117,13 +117,17 @@ func ScanMangaDirectories(
 		for _, m := range mappings {
 			existingMappings[m.MangaID] = true
 		}
-		// Also check synthetic manga with local provider
-		synthetics, _ := database.GetAllSyntheticManga()
-		for _, s := range synthetics {
-			if s.Provider == "local" {
-				existingMappings[s.ProviderID] = true
-			}
-		}
+		// Synthetic folders are deliberately *not* skipped.
+		//
+		// A synthetic entry is an unresolved folder, not a resolved one: it means "nothing was
+		// found for this name", which is a statement about one moment and one search. Treating it
+		// as settled is what made the state permanent — a scan during a rate-limited minute wrote
+		// synthetics for half a library, and every scan afterwards skipped exactly those folders,
+		// so the only way out was a full force-rematch of everything.
+		//
+		// Retried instead, and a retry costs one search for a folder that has no answer yet, which
+		// is the cheapest thing a scan can spend a request on. Folders with a real mapping are
+		// still skipped; those are answered.
 	}
 
 	anilistClient := anilist.NewAnilistClient("", "")
@@ -154,20 +158,36 @@ func ScanMangaDirectories(
 			continue
 		}
 
-		// Clean folder name for search
+		// The folder's own name, exactly as it is on disk.
+		//
+		// Searching with the stripped version was losing the very characters that identify a
+		// series: the colon in a subtitle, the exclamation mark that is part of the title, the
+		// comma in a list of names. AniList indexes those, so removing them made the query a
+		// slightly wrong version of the right name — and a slightly wrong name is what a fuzzy
+		// match at 0.85 is least able to forgive.
+		//
+		// The stripped version is still built, and still used, but only as a second thing to
+		// compare against once the results are in. That costs nothing: no extra request, one more
+		// candidate string.
+		rawName := strings.TrimSpace(folder.name)
 		cleanedName := cleanMangaTitle(folder.name)
-		if cleanedName == "" {
+		if rawName == "" && cleanedName == "" {
 			scanFolder.Status = "unmatched"
 			result.ScannedFolders = append(result.ScannedFolders, scanFolder)
 			result.UnmatchedCount++
 			continue
 		}
 
+		searchName := rawName
+		if searchName == "" {
+			searchName = cleanedName
+		}
+
 		// Search AniList
 		matched := false
 		page := 1
 		perPage := 10
-		searchResult, err := anilistClient.SearchBaseManga(ctx, &page, &perPage, nil, &cleanedName, nil)
+		searchResult, err := anilistClient.SearchBaseManga(ctx, &page, &perPage, nil, &searchName, nil)
 
 		if err == nil && searchResult != nil && searchResult.Page != nil && len(searchResult.Page.Media) > 0 {
 			// Collect all titles from results for comparison
@@ -180,32 +200,65 @@ func ScanMangaDirectories(
 			var candidates []titleEntry
 
 			for _, media := range searchResult.Page.Media {
+				// Every name AniList knows this series by, not only the three main ones.
+				//
+				// Synonyms are where the alternative spellings, the abbreviations and the
+				// alternate romanisations live — and they are exactly what a folder tends to be
+				// named after, because whoever made the folder named it after the release, not
+				// after AniList's preferred title. Leaving them out meant a series whose folder
+				// used any name but the main three could not be matched at all, however obviously
+				// right it was.
+				//
+				// The native title is included for the same reason: a folder named in Japanese
+				// matched nothing before.
+				var names []string
 				if media.Title != nil {
-					titles := []**string{&media.Title.Romaji, &media.Title.English, &media.Title.UserPreferred}
-					for _, tp := range titles {
-						if *tp != nil && **tp != "" {
-							t := **tp
-							candidateTitles = append(candidateTitles, &t)
-							cover := ""
-							if media.CoverImage != nil && media.CoverImage.Large != nil {
-								cover = *media.CoverImage.Large
-							}
-							preferred := ""
-							if media.Title.UserPreferred != nil {
-								preferred = *media.Title.UserPreferred
-							}
-							candidates = append(candidates, titleEntry{
-								mediaID:    media.ID,
-								title:      preferred,
-								coverImage: cover,
-							})
+					for _, tp := range []*string{media.Title.Romaji, media.Title.English, media.Title.UserPreferred, media.Title.Native} {
+						if tp != nil && *tp != "" {
+							names = append(names, *tp)
 						}
 					}
+				}
+				for _, syn := range media.Synonyms {
+					if syn != nil && *syn != "" {
+						names = append(names, *syn)
+					}
+				}
+
+				cover := ""
+				if media.CoverImage != nil && media.CoverImage.Large != nil {
+					cover = *media.CoverImage.Large
+				}
+				preferred := ""
+				if media.Title != nil && media.Title.UserPreferred != nil {
+					preferred = *media.Title.UserPreferred
+				}
+
+				for _, name := range names {
+					t := name
+					candidateTitles = append(candidateTitles, &t)
+					candidates = append(candidates, titleEntry{
+						mediaID:    media.ID,
+						title:      preferred,
+						coverImage: cover,
+					})
 				}
 			}
 
 			if len(candidateTitles) > 0 {
-				bestMatch, found := comparison.FindBestMatchWithSorensenDice(&cleanedName, candidateTitles)
+				// Scored against the folder's real name and against the stripped one, keeping
+				// whichever does better. Neither is reliably the closer of the two: a title whose
+				// punctuation AniList also carries matches the raw name best, while a folder that
+				// merely borrowed some punctuation matches the stripped one. Trying both is free —
+				// the results are already in hand — and the better score is the better answer.
+				bestMatch, found := comparison.FindBestMatchWithSorensenDice(&rawName, candidateTitles)
+				if cleanedName != "" && cleanedName != rawName {
+					if alt, altFound := comparison.FindBestMatchWithSorensenDice(&cleanedName, candidateTitles); altFound {
+						if !found || alt.Rating > bestMatch.Rating {
+							bestMatch, found = alt, true
+						}
+					}
+				}
 				if found && bestMatch.Rating >= ScanMatchThreshold {
 					// Find the candidate that owns this title
 					matchIdx := -1
@@ -230,12 +283,36 @@ func ScanMangaDirectories(
 						}
 						_ = database.InsertMangaMapping("local", c.mediaID, folder.name)
 
+						// A folder that has found its series is no longer a series of its own.
+						// Without this the synthetic entry written by an earlier failed scan
+						// survives the match and the manga goes on being listed as synthetic
+						// beside the real one it has just been matched to.
+						if synthetic, foundSynthetic := database.GetSyntheticMangaByProviderID("local", folder.name); foundSynthetic && synthetic != nil {
+							_ = database.DeleteSyntheticManga(synthetic.SyntheticID)
+						}
+
 						result.MatchedCount++
 					}
 				}
 			}
 		} else if err != nil {
-			logger.Warn().Err(err).Str("folder", folder.name).Msg("manga-scan: AniList search failed")
+			// A search that failed is not a manga that does not exist.
+			//
+			// Everything below treats "not matched" as "AniList has never heard of this" and
+			// writes a synthetic entry for it — a permanent record, created from a folder name,
+			// that the manga is not a real series. A rate limit, a timeout or a moment of network
+			// trouble produced exactly the same outcome, and once written it stands: the folder is
+			// mapped to the synthetic id and later scans skip it. One contended minute during a
+			// scan is enough to turn most of a library synthetic, permanently.
+			//
+			// So a failure is reported and the folder left alone. It stays unmatched, nothing is
+			// recorded, and the next scan asks again — which is what a scan is for.
+			logger.Warn().Err(err).Str("folder", folder.name).Msg("manga-scan: AniList search failed, leaving the folder for the next scan")
+			scanFolder.Status = "search-failed"
+			result.ScannedFolders = append(result.ScannedFolders, scanFolder)
+			result.UnmatchedCount++
+			time.Sleep(700 * time.Millisecond)
+			continue
 		}
 
 		if !matched {
