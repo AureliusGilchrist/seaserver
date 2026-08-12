@@ -24,6 +24,34 @@ type Handler struct {
 	App *core.App
 }
 
+// uncompressiblePrefixes are the routes response compression is kept away from: bytes that are
+// already compressed (video, images, proxied content) and responses that have to reach the client
+// as they are produced rather than when they are finished (the event socket, media streaming).
+var uncompressiblePrefixes = []string{
+	"/events",
+	"/api/v1/image-proxy",
+	"/api/v1/proxy",
+	"/api/v1/mediastream/transcode/",
+	"/api/v1/mediastream/direct/",
+	"/api/v1/mediastream/file",
+	"/api/v1/mediastream/subs/",
+	"/api/v1/mediastream/att/",
+	"/api/v1/directstream/stream",
+	"/api/v1/directstream/audio",
+	"/api/v1/torrentstream/stream",
+	"/api/v1/nakama/host/torrentstream/stream",
+	"/api/v1/nakama/host/anime/library/stream",
+	// Static files, served by their own middleware in core/echo.go: artwork, downloaded manga
+	// pages, theme backgrounds and music. Images and audio, all of them already compressed.
+	"/assets",
+	"/offline-assets",
+	"/manga-downloads",
+	"/theme-bg",
+	"/theme-music",
+	"/shared-themes",
+	"/cursor-packs",
+}
+
 // loadExpBarProgression initializes the exp bar progression data from JSON
 func loadExpBarProgression(app *core.App) error {
 	_, err := achievement.LoadExpBarProgression(app.Config.Data.AppDataDir)
@@ -85,6 +113,38 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	// Recovery middleware
 	e.Use(middleware.Recover())
+
+	// Response compression.
+	//
+	// This server answers in JSON, and its largest answers are very compressible: the library
+	// collection is thousands of media objects made of repeated field names and repeated title
+	// strings, and it goes over the wire around ten times a minute. On a LAN that is free, which is
+	// why it was never noticed. Reached over the internet it is the whole problem — the link spends
+	// its time carrying the same collection over and over, every other request queues behind it
+	// (a browser opens six connections to a host and no more), and the app feels as though nothing
+	// it asks for ever arrives.
+	//
+	// gzip rather than anything cleverer because every client already accepts it, and level 5
+	// because the CPU cost above that buys very little on JSON.
+	//
+	// The skipper is the important half. Compressing bytes that are already compressed — video,
+	// images, anything being proxied through — spends CPU to make the response slightly bigger, and
+	// compressing a stream that must arrive as it is produced (the event socket, media streaming)
+	// buffers it, which breaks the thing it is streaming for. Those routes are named here and left
+	// exactly as they are.
+	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{
+		Level:     5,
+		MinLength: 1024,
+		Skipper: func(c echo.Context) bool {
+			path := c.Request().URL.Path
+			for _, prefix := range uncompressiblePrefixes {
+				if strings.HasPrefix(path, prefix) {
+					return true
+				}
+			}
+			return false
+		},
+	}))
 
 	// Client ID middleware
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {

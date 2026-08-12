@@ -10,8 +10,18 @@ import { useQueryClient } from "@tanstack/react-query"
 import React from "react"
 
 const PREFETCH_STALE = 30 * 60 * 1000
-const BATCH_SIZE = 5
-const BATCH_GAP_MS = 120
+
+// How hard the prefetch is allowed to push.
+//
+// It is speculative work, so it must never be the reason something you actually asked for is slow —
+// and over the internet it very much was. A browser holds six connections to a host: five requests
+// in flight with a 120ms gap between rounds means the prefetch owns nearly all of them, nearly all
+// of the time, and every interactive request waits its turn behind work nobody asked for. Two at a
+// time with a real pause between rounds leaves the connection mostly free and still walks a library
+// of a few hundred in a couple of minutes, which is soon enough for something whose only job is to
+// make a later click feel instant.
+const BATCH_SIZE = 2
+const BATCH_GAP_MS = 600
 
 type QueryDef = { key: string; endpoint: string; method: string }
 
@@ -36,6 +46,9 @@ async function prefetchIds(
                             method: q.method as "GET",
                             password,
                             profileToken,
+                            // Nobody is waiting on these. Saying so is what stops them spending the
+                            // AniList budget the server keeps for requests somebody is.
+                            background: true,
                         }),
                         staleTime: PREFETCH_STALE,
                     }))

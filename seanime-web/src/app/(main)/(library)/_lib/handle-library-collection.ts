@@ -41,10 +41,25 @@ export function useHandleLibraryCollection() {
      */
     const { data: lightData } = useGetLightLibraryCollection()
     const { data: fullData, isLoading: fullIsLoading } = useGetLibraryCollection({
-        // Poll frequently so unmatched/ignored groups update without manual refresh
-        refetchInterval: 5_000,
-        staleTime: 2_000,
-        refetchOnWindowFocus: "always",
+        // The library collection is the largest response this app asks for — every list, every
+        // entry, a media object each — and this used to re-fetch the whole of it every five
+        // seconds, all day, whether anything had changed or not.
+        //
+        // On a LAN that is invisible, which is why it stood. Over the internet it is the reason
+        // nothing else arrives: the link spends its time carrying the same collection over and
+        // over, and a browser will only hold six connections to a host, so every other request in
+        // the app queues behind a transfer that starts again as soon as it finishes.
+        //
+        // A minute instead, which is still well inside "without manual refresh" for the unmatched
+        // and ignored groups this cadence existed for — and the things that actually change it say
+        // so directly: a scan, a match and a metadata refresh all invalidate this query when they
+        // finish, and coming back to the window re-reads it.
+        refetchInterval: 60_000,
+        staleTime: 30_000,
+        // `true` rather than `"always"`, which is the setting that ignores staleTime entirely.
+        // Coming back to the window still re-reads the collection; alt-tabbing away and back three
+        // times in ten seconds no longer pulls the whole thing down three times.
+        refetchOnWindowFocus: true,
     })
 
     // Use full data when available, fall back to light data for instant rendering

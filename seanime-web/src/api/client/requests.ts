@@ -124,6 +124,11 @@ type SeaQuery<D> = {
     params?: D
     password?: string
     profileToken?: string
+    /**
+     * Marks a request nobody is waiting on, so the server's AniList pacer lets anything the user
+     * *is* waiting on go first. See `background` in buildSeaQuery.
+     */
+    background?: boolean
 }
 
 export function useSeaQuery() {
@@ -155,6 +160,7 @@ export async function buildSeaQuery<T, D extends any = any>(
         method,
         data,
         params,
+        background,
     }: SeaQuery<D>): Promise<T | undefined> {
 
     // Resolve auth credentials from the Jotai store at request time rather than trusting the
@@ -180,6 +186,12 @@ export async function buildSeaQuery<T, D extends any = any>(
             ...(effectivePassword ? { "X-Seanime-Token": effectivePassword } : {}),
             ...(effectiveProfileToken ? { "X-Seanime-Profile-Token": effectiveProfileToken } : {}),
             ...(_csrfToken && method !== "GET" ? { "X-CSRF-Token": _csrfToken } : {}),
+            // The server treats every inbound request as one the user is waiting on, and pays for
+            // it out of the AniList budget reserved for exactly that. Prefetching is not that: it
+            // is work done on the chance it turns out to be useful, and hundreds of requests of it
+            // will empty the budget and leave the thing you actually asked for waiting a minute
+            // for a slot. This header is how a caller says so.
+            ...(background ? { "X-Seanime-Background": "true" } : {}),
         },
     })
     const response = _handleSeaResponse<T>(res.data)
