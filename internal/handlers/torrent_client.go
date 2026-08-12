@@ -11,8 +11,10 @@ import (
 	"seanime/internal/torrent_clients/torrent_client"
 	"seanime/internal/unmatched"
 	"seanime/internal/util"
+	"seanime/internal/util/result"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -81,7 +83,8 @@ type DownloadingMediaStatus struct {
 	// Finished holds media IDs whose download is done and is waiting to be matched into the
 	// library. Named for the field the client has always read; the badge calls it "Downloaded".
 	Finished []int `json:"finished"`
-	// Matched holds media IDs whose download was filed into the library, by hand or automatically.
+	// Matched holds media IDs that are in the library: downloads filed there by hand or
+	// automatically, and everything else that has files there however it arrived.
 	Matched []int `json:"matched"`
 }
 
@@ -89,9 +92,11 @@ type DownloadingMediaStatus struct {
 //
 //	@summary returns the download badge state of every anime that has one.
 //	@desc Read straight from the state recorded against each anime — written when a download was
-//	@desc queued, when it finished, and when it was matched — with nothing inferred and nothing
-//	@desc reconciled. The answer is identical across page reloads, server restarts, a torrent client
-//	@desc that has forgotten the torrent, and a staging folder a match has already deleted.
+//	@desc queued, when it finished, and when it was matched — plus every anime with files in the
+//	@desc library, which is matched by definition. Nothing is reconciled between them: the recorded
+//	@desc state wins wherever there is one. The answer is identical across page reloads, server
+//	@desc restarts, a torrent client that has forgotten the torrent, and a staging folder a match
+//	@desc has already deleted.
 //	@route /api/v1/torrent-client/downloading-media [GET]
 //	@returns handlers.DownloadingMediaStatus
 func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
@@ -116,15 +121,59 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 		Matched:     make([]int, 0),
 	}
 
+	inLibrary := h.animeWithLocalFiles()
+
+	recorded := make(map[int]struct{}, len(states))
 	for _, state := range states {
+		recorded[state.MediaID] = struct{}{}
+		_, hasFiles := inLibrary[state.MediaID]
+
 		switch state.State {
 		case unmatched.DownloadStateDownloading:
+			// Downloading always wins, files or no files. A series you already have with another
+			// season coming down is a series that is coming down, and that is the fact that
+			// decides what you do next.
 			res.Downloading = append(res.Downloading, state.MediaID)
+
 		case unmatched.DownloadStateDownloaded:
-			res.Finished = append(res.Finished, state.MediaID)
+			// "Downloaded, waiting on you" and "already in your library" cannot both be true, and
+			// when they disagree the library is the one to believe: the episodes are there, so the
+			// matching plainly happened — by an auto-match, a library scan, or a match made through
+			// a path that did not record itself. A grey badge asking you to go and match something
+			// you already have is the record being behind, not the library being wrong.
+			//
+			// So the files decide, and only the files: without them, this stays grey and keeps
+			// pointing at the download still sitting in staging.
+			if hasFiles {
+				res.Matched = append(res.Matched, state.MediaID)
+			} else {
+				res.Finished = append(res.Finished, state.MediaID)
+			}
+
 		case unmatched.DownloadStateMatched:
 			res.Matched = append(res.Matched, state.MediaID)
 		}
+	}
+
+	// Anything in the library is matched, whether this server was the one that put it there.
+	//
+	// Files in the library are the thing "matched" describes, so an anime that has them has earned
+	// the badge — including everything that predates any of this, everything imported by hand, and
+	// everything downloaded before the states were recorded. Without this the badge would only ever
+	// appear on downloads made from here after today, which is a small and arbitrary slice of a
+	// library.
+	//
+	// Computed on read rather than written down, and that is deliberate: it is true exactly while
+	// the files are there. Delete them and the badge goes on its own, with nothing to retract and
+	// no record left claiming otherwise.
+	//
+	// Read from the shared database, like every other local-file read in this server, so the badge
+	// is the same on every account.
+	for mediaID := range inLibrary {
+		if _, alreadyKnown := recorded[mediaID]; alreadyKnown {
+			continue
+		}
+		res.Matched = append(res.Matched, mediaID)
 	}
 
 	// Sorted so a poll that changed nothing looks like it changed nothing.
@@ -158,6 +207,46 @@ var (
 	lastDownloadingAnswerMu sync.Mutex
 	lastDownloadingAnswer   string
 )
+
+// animeWithLocalFilesCache holds the library's media ids for a few polls at a time.
+//
+// This route is polled every ten seconds by every open client, and the local file list is one row
+// holding the whole library as JSON — a thousand-odd files' worth of parsing to answer a question
+// whose answer only changes when a scan or a match runs. Short enough that a new match shows up
+// almost at once, and matches record themselves anyway, so nothing is ever waiting on this.
+var animeWithLocalFilesCache = result.NewCache[int, map[int]struct{}]()
+
+const animeWithLocalFilesTTL = 30 * time.Second
+
+// animeWithLocalFiles returns every anime with at least one non-ignored file in the library.
+//
+// The shared database, not a profile's — every local-file read in this server uses that one, so the
+// library is a fact about the machine and the badge drawn from it is the same on every account.
+//
+// Ignored files do not count: an anime deliberately pushed out of the library is not one you have.
+// An error reading it returns nothing, which costs the library-derived badges for a few seconds and
+// leaves the recorded states — the ones about downloads in progress — completely untouched.
+func (h *Handler) animeWithLocalFiles() map[int]struct{} {
+	if cached, ok := animeWithLocalFilesCache.Get(0); ok {
+		return cached
+	}
+
+	ids := make(map[int]struct{})
+	lfs, _, err := db_bridge.GetLocalFiles(h.App.Database)
+	if err != nil {
+		h.App.Logger.Debug().Err(err).Msg("torrent client: Could not read local files for download state")
+		return ids
+	}
+	for _, lf := range lfs {
+		if lf == nil || lf.MediaId <= 0 || lf.Ignored {
+			continue
+		}
+		ids[lf.MediaId] = struct{}{}
+	}
+
+	animeWithLocalFilesCache.SetT(0, ids, animeWithLocalFilesTTL)
+	return ids
+}
 
 // HandleTorrentClientAction
 //

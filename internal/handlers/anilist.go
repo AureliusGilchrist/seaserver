@@ -232,8 +232,26 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 	switch p.Type {
 	case "anime":
 		if profileID > 0 {
-			h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
-			go func() { _, _ = h.App.RefreshAnimeCollection() }()
+			// Write the edit into the cached collection rather than dropping it.
+			//
+			// The client refetches the entry the moment this returns, so whatever is cached at that
+			// instant is what the user sees. Dropping the cache meant the refetch fell through to
+			// the copy on disk — which still held the old status — and the edit looked as though it
+			// had been refused; when the fall-through reached a live fetch that failed, the entry
+			// came back with no list data and the status went blank. Both are what "it updates it,
+			// then goes blank and doesn't do it" looks like from the outside.
+			//
+			// A first-time addition has nothing cached to patch, and that is the one case worth
+			// waiting on: refreshed before answering, so the entry exists by the time the client
+			// asks for it, instead of arriving empty and correcting itself later.
+			if h.App.AnilistClientManager.ApplyAnimeListEntryUpdate(profileID, *p.MediaId, p.Status, p.Score, p.Progress, p.StartDate, p.EndDate) {
+				// The profile's own collection, not the app-level one — that is the copy this
+				// profile reads from, and the only one refreshing it puts back in step.
+				h.App.AnilistClientManager.RefreshAnimeCollectionInBackground(profileID)
+			} else {
+				h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
+				_, _ = h.App.RefreshAnimeCollection()
+			}
 		} else {
 			_, _ = h.App.RefreshAnimeCollection()
 		}
