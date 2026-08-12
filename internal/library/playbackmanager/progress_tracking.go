@@ -816,6 +816,29 @@ func (pm *PlaybackManager) SyncCurrentProgress() error {
 	return nil
 }
 
+// listEntryFor finds the list entry for a media as it stands before this update, which is what the
+// start/completion date rule reads: whether a date is already recorded, and whether this is a
+// rewatch.
+//
+// The entry being played is checked first — it is already loaded and is the same record — and the
+// cached collection second, which covers the stream and manual-tracking paths where there is no
+// current entry. Returns nil when neither knows the media, which FirstWatchDates reads as "nothing
+// recorded yet"; the alternative is never recording a first watch for anything the collection has
+// not caught up with.
+func (pm *PlaybackManager) listEntryFor(mediaId int) *anilist.AnimeListEntry {
+	if pm.currentMediaListEntry.IsPresent() {
+		if entry := pm.currentMediaListEntry.MustGet(); entry != nil && entry.GetMedia().GetID() == mediaId {
+			return entry
+		}
+	}
+	if pm.animeCollection.IsPresent() {
+		if entry, ok := pm.animeCollection.MustGet().GetListEntryFromAnimeId(mediaId); ok {
+			return entry
+		}
+	}
+	return nil
+}
+
 // updateProgress updates the progress of the current video playback on AniList and MyAnimeList.
 // This only returns an error if the progress update fails on AniList
 //   - /!\ When this is called, the PlaybackState should have been pushed to the history
@@ -905,15 +928,9 @@ func (pm *PlaybackManager) updateProgress() (err error) {
 		if isCompleted {
 			status = anilist.MediaListStatusCompleted
 		}
-		now := time.Now()
-		year, monthVal, day := now.Year(), int(now.Month()), now.Day()
-		var startedAt, completedAt *anilist.FuzzyDateInput
-		if epNum == 1 {
-			startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-		}
-		if isCompleted {
-			completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-		}
+		// Dates for a first watch only: filled in when empty, never changed, nothing at all for a
+		// rewatch. See anilist.FirstWatchDates.
+		startedAt, completedAt := anilist.FirstWatchDates(pm.listEntryFor(mediaId), isCompleted, time.Now())
 		_, err = resolvedClient.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
 		// If AniList is unreachable, queue the update so the user's true progress is never
 		// lost; it is replayed automatically when the API is available again. We then treat

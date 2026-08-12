@@ -75,13 +75,19 @@ export function TorrentSearchContainer({
     const downloadInfo = React.useMemo(() => entry.downloadInfo, [entry.downloadInfo])
     const serverStatus = useServerStatus()
 
-    // Always search for batches by default, for every entry and both search types.
+    // Search for batches by default for everything that is not still airing.
     //
     // This used to be gated on downloadInfo.canBatch plus a recency heuristic (no batches if
     // the series ended within the last 6 days / 1 month), which meant plenty of finished shows
-    // silently opened in single-episode mode. Batch is what's wanted essentially always, so it
-    // is now the default everywhere; the "Batches" switch still turns it off per search.
-    const shouldLookForBatches = true
+    // silently opened in single-episode mode. The only entry that genuinely has no complete
+    // release to find is one still airing, so that is the only exception left: airing shows open
+    // in episode mode, everything else opens on batches. The "Batches" switch still overrides
+    // either way per search.
+    //
+    // Worth knowing alongside this: with the switch on, the server now returns batches *only*.
+    // A finished series with no batch release shows an empty list rather than quietly falling
+    // back to single episodes under a switch that says "Batches".
+    const shouldLookForBatches = entry.media?.status !== "RELEASING"
 
     // Shared with the download confirmation modal, so the choice made here carries through. A
     // caller deciding auto-match per anime rather than app-wide supplies its own value and setter.

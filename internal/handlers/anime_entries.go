@@ -821,6 +821,32 @@ func (h *Handler) HandleToggleAnimeEntrySilenceStatus(c echo.Context) error {
 
 //-----------------------------------------------------------------------------------------------------------------------------
 
+// profileListEntry finds a profile's list entry for a media as it stands before a progress update,
+// which is what the start/completion date rule reads: whether a date is already recorded, and
+// whether this is a rewatch. See anilist.FirstWatchDates.
+//
+// Cached collection only — this sits in the middle of a progress update, and a round trip to AniList
+// to read a date would cost the update its responsiveness and the budget a request. Nil when the
+// collection cannot be read or does not hold the media, which the rule reads as "nothing recorded
+// yet": it fills a date in rather than losing one.
+func (h *Handler) profileListEntry(profileID uint, mediaID int) *anilist.AnimeListEntry {
+	var collection *anilist.AnimeCollection
+	var err error
+	if profileID > 0 && h.App.AnilistClientManager != nil {
+		collection, err = h.App.AnilistClientManager.GetAnimeCollection(profileID)
+	} else {
+		collection, err = h.App.GetAnimeCollection(false)
+	}
+	if err != nil || collection == nil {
+		return nil
+	}
+	entry, ok := collection.GetListEntryFromAnimeId(mediaID)
+	if !ok {
+		return nil
+	}
+	return entry
+}
+
 // HandleUpdateAnimeEntryProgress
 //
 //	@summary update the progress of the given anime media entry.
@@ -859,16 +885,9 @@ func (h *Handler) HandleUpdateAnimeEntryProgress(c echo.Context) error {
 			status = anilist.MediaListStatusCompleted
 		}
 
-		// Auto-set startedAt on first progress, completedAt on completion
-		now := time.Now()
-		year, monthVal, day := now.Year(), int(now.Month()), now.Day()
-		var startedAt, completedAt *anilist.FuzzyDateInput
-		if b.EpisodeNumber == 1 {
-			startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-		}
-		if isCompleted {
-			completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-		}
+		// Dates for a first watch only: filled in when empty, never changed, nothing at all for a
+		// rewatch. See anilist.FirstWatchDates.
+		startedAt, completedAt := anilist.FirstWatchDates(h.profileListEntry(profileID, b.MediaId), isCompleted, time.Now())
 
 		_, err := profileClient.UpdateMediaListEntryProgress(
 			c.Request().Context(),

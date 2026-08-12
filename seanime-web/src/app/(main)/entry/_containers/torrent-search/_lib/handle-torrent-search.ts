@@ -111,6 +111,21 @@ export function useHandleTorrentSearch(props: TorrentSearchHookProps) {
     const [searchAcrossProviders, setSearchAcrossProviders] = useAtom(__torrentSearch_searchAcrossProvidersAtom)
     const [extraProviderIds, setExtraProviderIds] = useAtom(__torrentSearch_extraProviderIdsAtom)
     const [smartSearchBatch, setSmartSearchBatch] = React.useState<boolean>(shouldLookForBatches || false)
+
+    // Follow the entry, not just the first render.
+    //
+    // The state above is seeded once, which is right for a drawer opened over one anime and wrong
+    // for the Enqueue Future queue, where the same component walks a hundred of them without
+    // unmounting: the second anime would inherit whatever the first one's status implied, and an
+    // airing show followed by a finished one opened in episode mode with no way to tell why. Keyed
+    // on the media id so this only fires when the anime actually changes — flipping the switch by
+    // hand within one anime is left alone.
+    const lastSeededMediaId = React.useRef(entry?.media?.id)
+    React.useLayoutEffect(() => {
+        if (lastSeededMediaId.current === entry?.media?.id) return
+        lastSeededMediaId.current = entry?.media?.id
+        setSmartSearchBatch(shouldLookForBatches || false)
+    }, [entry?.media?.id, shouldLookForBatches])
     // const [smartSearchEpisode, setSmartSearchEpisode] = React.useState<number>(downloadInfo?.episodesToDownload?.[0]?.episode?.episodeNumber || 1)
     const [smartSearchResolution, setSmartSearchResolution] = React.useState("")
     const [smartSearchBest, setSmartSearchBest] = React.useState(false)

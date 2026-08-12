@@ -410,16 +410,34 @@ func (r *Repository) SearchAnime(ctx context.Context, opts AnimeSearchOptions) (
 				batches = append(batches, t)
 			}
 		}
-		// Only apply when something survives: if a series genuinely has no batch release,
-		// showing the episodes is more useful than an empty screen.
-		if len(batches) > 0 {
+
+		// Empty is an answer. A batch search that finds no batches used to fall through to the
+		// episode results on the reasoning that something beats nothing — but what that produced
+		// was a screen full of single episodes under a switch that says "Batches", for a series
+		// that finished airing years ago and certainly has a batch somewhere. Silently answering a
+		// different question than the one asked is worse than answering "none": one sends you
+		// looking for a better provider, the other has you scrolling through episodes wondering why
+		// the switch does nothing.
+		//
+		// The exception is a series still airing, where there is genuinely no complete release to
+		// find yet and the episodes are the useful answer. Those open in episode mode anyway; this
+		// only covers someone turning the switch on for one.
+		stillAiring := opts.Media.GetStatus() != nil && *opts.Media.GetStatus() == anilist.MediaStatusReleasing
+
+		switch {
+		case len(batches) > 0:
 			r.logger.Debug().
 				Int("before", len(torrents)).
 				Int("after", len(batches)).
 				Msg("torrent search: Filtered results to batches")
 			torrents = batches
-		} else {
-			r.logger.Debug().Msg("torrent search: Batch search found no batch releases, returning all results")
+		case stillAiring:
+			r.logger.Debug().Msg("torrent search: No batch releases for a series still airing, returning the episodes")
+		default:
+			r.logger.Debug().
+				Int("discarded", len(torrents)).
+				Msg("torrent search: No batch releases found, returning nothing rather than single episodes")
+			torrents = batches
 		}
 	}
 

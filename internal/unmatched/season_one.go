@@ -117,7 +117,7 @@ func topLevelFolders(files []*UnmatchedFile, depth int) []folderAtDepth {
 		name := segments[depth]
 		folder, ok := byName[name]
 		if !ok {
-			season := extractSeasonNumber(name)
+			season := seasonNumberFromFolderName(name)
 			folder = &folderAtDepth{name: name, season: season, isSeason: season > 0}
 			byName[name] = folder
 			order = append(order, name)

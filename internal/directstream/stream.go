@@ -325,15 +325,10 @@ func (m *Manager) handlePlayerEvent(event videocore.VideoEvent) {
 					if isCompleted {
 						status = anilist.MediaListStatusCompleted
 					}
-					now := time.Now()
-					year, monthVal, day := now.Year(), int(now.Month()), now.Day()
-					var startedAt, completedAt *anilist.FuzzyDateInput
-					if epNum == 1 {
-						startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-					}
-					if isCompleted {
-						completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
-					}
+					// Dates for a first watch only: filled in when empty, never changed, nothing at
+					// all for a rewatch. See anilist.FirstWatchDates.
+					startedAt, completedAt := anilist.FirstWatchDates(
+						baseStream.manager.listEntryFor(mediaId), isCompleted, time.Now())
 					_, updateErr = client.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
 				} else {
 					// No linked AniList account anywhere — fall back to the platform layer,

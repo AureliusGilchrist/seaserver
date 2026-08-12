@@ -42,11 +42,31 @@ func (cw *CollectionWrapper) UpdateEntry(mediaId int, status *anilist.MediaListS
 // UpdateEntryProgress updates the progress of an entry
 func (cw *CollectionWrapper) UpdateEntryProgress(mediaId int, progress int, totalCount *int) error {
 	status := anilist.MediaListStatusCurrent
-	if totalCount != nil && progress >= *totalCount {
+	isCompleted := totalCount != nil && progress >= *totalCount
+	if isCompleted {
 		status = anilist.MediaListStatusCompleted
 	}
 
-	return cw.UpdateEntry(mediaId, &status, nil, &progress, nil, nil)
+	// The offline account gets the same first-watch dates a linked AniList account does: filled in
+	// when empty, never changed, nothing at all for a rewatch. It used to record none at all — this
+	// call passed nil for both — which meant an offline library remembered what you had watched but
+	// not when, and the gap only showed up later, once the dates could no longer be recovered.
+	//
+	// Anime only. The manga wrapper shares this method but not the rule, which was written for the
+	// anime paths; passing an anime helper a manga entry would need a second lookup and a second set
+	// of types for a question nobody has asked yet.
+	var startedAt, completedAt *anilist.FuzzyDateInput
+	if cw.isAnime {
+		entry, err := cw.findAnimeEntry(mediaId)
+		if err != nil {
+			// Not found is not a failure here: UpdateEntry below reports it, and a date rule with
+			// nothing to read simply contributes nothing.
+			entry = nil
+		}
+		startedAt, completedAt = anilist.FirstWatchDates(entry, isCompleted, time.Now())
+	}
+
+	return cw.UpdateEntry(mediaId, &status, nil, &progress, startedAt, completedAt)
 }
 
 // DeleteEntry removes an entry from the collection

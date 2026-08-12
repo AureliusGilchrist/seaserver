@@ -166,6 +166,26 @@ func (m *Manager) GetHMACTokenQueryParam(endpoint string, symbol string) string 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// listEntryFor finds the list entry for a media as it stands before a progress update, which is what
+// the start/completion date rule reads: whether a date is already recorded, and whether this is a
+// rewatch. See anilist.FirstWatchDates.
+//
+// Read from the cached collection only. This runs in the middle of a progress update, where a
+// network round trip would hold the update up, and a collection stale enough to be missing the entry
+// means the rule falls back to "nothing recorded yet" — which fills a date in rather than losing
+// one, the harmless direction.
+func (m *Manager) listEntryFor(mediaId int) *anilist.AnimeListEntry {
+	animeCollection, ok := m.animeCollection.Get()
+	if !ok || animeCollection == nil {
+		return nil
+	}
+	entry, found := animeCollection.GetListEntryFromAnimeId(mediaId)
+	if !found {
+		return nil
+	}
+	return entry
+}
+
 func (m *Manager) getAnime(ctx context.Context, mediaId int) (*anilist.BaseAnime, error) {
 	media, ok := m.animeCache.Get(mediaId)
 	if ok {
