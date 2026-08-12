@@ -206,3 +206,102 @@ func TestApplyAnimeListEntryUpdateWontInventAnEntry(t *testing.T) {
 		t.Fatal("inserted an entry with no media behind it")
 	}
 }
+
+// The refresh that follows an edit arrives holding AniList's pre-edit answer, because AniList's
+// collection query lags its own mutations. Replaying the edit over it is what stops the change the
+// user just made being overwritten by the request that was sent to confirm it.
+func TestRecentEditSurvivesAStaleRefresh(t *testing.T) {
+	m := managerWithCollection(1, listWith(anilist.MediaListStatusPlanning, 42))
+
+	status := anilist.MediaListStatusCurrent
+	m.ApplyAnimeListEntryUpdate(1, 42, nil, &status, nil, nil, nil, nil)
+
+	// What AniList hands back a second later: the old status, as though nothing had happened.
+	stale := &anilist.AnimeCollection{
+		MediaListCollection: &anilist.AnimeCollection_MediaListCollection{
+			Lists: []*anilist.AnimeCollection_MediaListCollection_Lists{
+				listWith(anilist.MediaListStatusPlanning, 42),
+			},
+		},
+	}
+
+	m.colMu.Lock()
+	m.replayRecentEditsLocked(1, stale)
+	m.animeColCache[1] = &profileAnimeCache{data: stale, fetchedAt: time.Now()}
+	m.colMu.Unlock()
+
+	entry, inList, count := locate(m, 1, 42)
+	if count != 1 {
+		t.Fatalf("copies = %d, want 1", count)
+	}
+	if inList != anilist.MediaListStatusCurrent || entry.Status == nil || *entry.Status != anilist.MediaListStatusCurrent {
+		t.Errorf("status reverted to %q — the stale refresh overwrote the edit", inList)
+	}
+}
+
+// Once AniList agrees, the edit is forgotten — it must not go on overriding a collection that has
+// caught up, or a change made later on AniList's own site would be fought over.
+func TestRecentEditIsDroppedOnceAniListAgrees(t *testing.T) {
+	m := managerWithCollection(1, listWith(anilist.MediaListStatusPlanning, 42))
+
+	status := anilist.MediaListStatusCurrent
+	m.ApplyAnimeListEntryUpdate(1, 42, nil, &status, nil, nil, nil, nil)
+
+	agreed := &anilist.AnimeCollection{
+		MediaListCollection: &anilist.AnimeCollection_MediaListCollection{
+			Lists: []*anilist.AnimeCollection_MediaListCollection_Lists{
+				listWith(anilist.MediaListStatusCurrent, 42),
+			},
+		},
+	}
+
+	m.colMu.Lock()
+	m.replayRecentEditsLocked(1, agreed)
+	remaining := len(m.recentEdits[1])
+	m.colMu.Unlock()
+
+	if remaining != 0 {
+		t.Errorf("edits still held = %d, want 0 once AniList reports the same value", remaining)
+	}
+}
+
+// An edit older than its window stops being defended, so nothing is overridden indefinitely.
+func TestRecentEditExpires(t *testing.T) {
+	m := managerWithCollection(1, listWith(anilist.MediaListStatusPlanning, 42))
+
+	status := anilist.MediaListStatusCurrent
+	m.ApplyAnimeListEntryUpdate(1, 42, nil, &status, nil, nil, nil, nil)
+
+	m.colMu.Lock()
+	m.recentEdits[1][42].appliedAt = time.Now().Add(-recentEditTTL - time.Minute)
+	m.colMu.Unlock()
+
+	stale := &anilist.AnimeCollection{
+		MediaListCollection: &anilist.AnimeCollection_MediaListCollection{
+			Lists: []*anilist.AnimeCollection_MediaListCollection_Lists{
+				listWith(anilist.MediaListStatusPlanning, 42),
+			},
+		},
+	}
+
+	m.colMu.Lock()
+	m.replayRecentEditsLocked(1, stale)
+	remaining := len(m.recentEdits[1])
+	m.colMu.Unlock()
+
+	if remaining != 0 {
+		t.Errorf("expired edits still held = %d, want 0", remaining)
+	}
+	if _, inList, _ := func() (*anilist.AnimeCollection_MediaListCollection_Lists_Entries, anilist.MediaListStatus, int) {
+		for _, l := range stale.MediaListCollection.Lists {
+			for _, e := range l.Entries {
+				if e.Media != nil && e.Media.ID == 42 {
+					return e, *l.Status, 1
+				}
+			}
+		}
+		return nil, "", 0
+	}(); inList != anilist.MediaListStatusPlanning {
+		t.Errorf("an expired edit was still applied: entry is in %q", inList)
+	}
+}

@@ -60,7 +60,10 @@ type AnilistClientManager struct {
 	// lastAnimeRefresh is when a background refresh was last started for a profile, so a refresh
 	// that keeps failing is retried at a steady interval rather than on every request.
 	lastAnimeRefresh map[uint]time.Time
-	colMu            sync.RWMutex
+	// recentEdits holds the list changes made here in the last couple of minutes, so a collection
+	// fetched before AniList has caught up cannot put the old values back. See recentEditTTL.
+	recentEdits map[uint]map[int]*animeListEdit
+	colMu       sync.RWMutex
 
 	// Singleflight groups collapse concurrent fetches for the same profile
 	// into one in-flight request so we never send duplicates to AniList.
@@ -658,6 +661,16 @@ func (m *AnilistClientManager) fetchAnimeCollection(profileID uint) (*anilist.An
 			col.MediaListCollection.Lists = filtered
 		}
 		m.colMu.Lock()
+		// Put back anything the user changed here in the last couple of minutes.
+		//
+		// AniList accepts a mutation and then, asked for the collection a moment later, still
+		// answers with the old one. Without this, the refresh that follows an edit overwrites the
+		// edit that caused it — and writes the stale copy through to disk below, so it survives.
+		// The user sees their change take, hold for a second, and revert.
+		//
+		// Each replayed edit is dropped as soon as AniList's own answer agrees with it, so this
+		// stops mattering the moment it stops being needed.
+		m.replayRecentEditsLocked(profileID, col)
 		m.animeColCache[profileID] = &profileAnimeCache{data: col, fetchedAt: time.Now()}
 		m.colMu.Unlock()
 		// Write-through to disk for offline resilience.
@@ -700,6 +713,52 @@ func (m *AnilistClientManager) InvalidateAnimeCollection(profileID uint) {
 // entry page shows an "add to list" button precisely while it has no list data, so an addition that
 // does not come back with any leaves the button spinning as though the add never finished. Pass a
 // nil media to patch only, and read the return value to find out whether anything happened.
+// animeListEdit is one edit the user made here, kept just long enough to defend it.
+type animeListEdit struct {
+	mediaID     int
+	media       *anilist.BaseAnime
+	status      *anilist.MediaListStatus
+	score       *int
+	progress    *int
+	startedAt   *anilist.FuzzyDateInput
+	completedAt *anilist.FuzzyDateInput
+	appliedAt   time.Time
+}
+
+// recentEditTTL is how long an edit made here outranks what AniList reports back.
+//
+// AniList's collection query lags a mutation by a few seconds: it will accept a status change and
+// then, asked for the collection immediately afterwards, answer with the old one. The refresh that
+// follows an edit therefore arrives holding pre-edit data, and without this it overwrites the very
+// change that triggered it and writes the stale copy through to disk. That is an edit that appears
+// to work, holds for a second, and then reverts.
+//
+// Long enough to cover that lag with room to spare, short enough that a change made on AniList's
+// own website a minute later is not fought over.
+const recentEditTTL = 2 * time.Minute
+
+// ApplyAnimeListEntryUpdate writes an edit the user has just made into the cached collection, and
+// returns whether it found or created an entry to write it into.
+//
+// This is what makes an edit *appear* to have worked, and it exists because throwing the cache away
+// does not. Editing a status used to call InvalidateAnimeCollection, and the client refetches the
+// entry the instant the edit returns — so the very next read had nothing in memory and fell through
+// to the copy on disk, which still held the value the user had just changed. The edit had gone to
+// AniList perfectly and the screen showed the old status back, as though it had been rejected. When
+// the fall-through went further still and the live fetch failed — a rate-limit slot, a timeout —
+// the entry came back with no list data at all, and the status went blank.
+//
+// Patching is possible because an edit is one of the few things this server knows exactly: the user
+// said what the new values are, and AniList accepted them. There is nothing to infer.
+//
+// The edit is also remembered for a couple of minutes and replayed over any collection fetched in
+// that window, which is what stops the refresh behind it putting the old values straight back.
+//
+// An anime not in the collection at all — a first-time addition — is inserted rather than skipped,
+// provided the caller supplies the media to insert. That case matters more than it sounds: the
+// entry page shows an "add to list" button precisely while it has no list data, so an addition that
+// does not come back with any leaves the button spinning as though the add never finished. Pass a
+// nil media to patch only, and read the return value to find out whether anything happened.
 func (m *AnilistClientManager) ApplyAnimeListEntryUpdate(
 	profileID uint,
 	mediaID int,
@@ -714,15 +773,114 @@ func (m *AnilistClientManager) ApplyAnimeListEntryUpdate(
 		return false
 	}
 
+	edit := &animeListEdit{
+		mediaID:     mediaID,
+		media:       media,
+		status:      status,
+		score:       scoreRaw,
+		progress:    progress,
+		startedAt:   startedAt,
+		completedAt: completedAt,
+		appliedAt:   time.Now(),
+	}
+
 	m.colMu.Lock()
-	defer m.colMu.Unlock()
+	m.rememberEditLocked(profileID, edit)
 
 	cached, ok := m.animeColCache[profileID]
-	if !ok || cached == nil || cached.data == nil || cached.data.MediaListCollection == nil {
+	if !ok || cached == nil || cached.data == nil {
+		m.colMu.Unlock()
 		return false
 	}
 
-	lists := cached.data.MediaListCollection.Lists
+	applied := applyEditToCollection(cached.data, edit)
+	col := cached.data
+	m.colMu.Unlock()
+
+	// Written through, so the change survives the in-memory copy being evicted or the server being
+	// restarted. Without this the patch lived only in memory while the disk copy went on holding
+	// the value the user had just changed.
+	if applied {
+		m.saveAnimeCollectionToDisk(profileID, col)
+	}
+	return applied
+}
+
+// rememberEditLocked files an edit for replay. Callers hold colMu.
+func (m *AnilistClientManager) rememberEditLocked(profileID uint, edit *animeListEdit) {
+	if m.recentEdits == nil {
+		m.recentEdits = make(map[uint]map[int]*animeListEdit)
+	}
+	if m.recentEdits[profileID] == nil {
+		m.recentEdits[profileID] = make(map[int]*animeListEdit)
+	}
+	m.recentEdits[profileID][edit.mediaID] = edit
+}
+
+// replayRecentEditsLocked puts recent edits back on top of a collection that has just been fetched.
+//
+// An edit is dropped as soon as the fetched collection agrees with it — AniList has caught up, so
+// there is nothing left to defend — and otherwise once it is older than recentEditTTL. So this
+// holds only for the few seconds AniList needs, and never masks a genuine change made elsewhere.
+//
+// Callers hold colMu.
+func (m *AnilistClientManager) replayRecentEditsLocked(profileID uint, col *anilist.AnimeCollection) {
+	edits := m.recentEdits[profileID]
+	if len(edits) == 0 || col == nil {
+		return
+	}
+
+	for mediaID, edit := range edits {
+		if time.Since(edit.appliedAt) > recentEditTTL || collectionAgreesWith(col, edit) {
+			delete(edits, mediaID)
+			continue
+		}
+		applyEditToCollection(col, edit)
+	}
+
+	if len(edits) == 0 {
+		delete(m.recentEdits, profileID)
+	}
+}
+
+// collectionAgreesWith reports whether a collection already says what an edit said, for every field
+// the edit specified.
+func collectionAgreesWith(col *anilist.AnimeCollection, edit *animeListEdit) bool {
+	if col.MediaListCollection == nil {
+		return false
+	}
+	for _, list := range col.MediaListCollection.Lists {
+		if list == nil {
+			continue
+		}
+		for _, e := range list.Entries {
+			if e == nil || e.Media == nil || e.Media.ID != edit.mediaID {
+				continue
+			}
+			if edit.status != nil && (e.Status == nil || *e.Status != *edit.status) {
+				return false
+			}
+			if edit.progress != nil && (e.Progress == nil || *e.Progress != *edit.progress) {
+				return false
+			}
+			if edit.score != nil && (e.Score == nil || int(*e.Score) != *edit.score) {
+				return false
+			}
+			return true
+		}
+	}
+	// Not present at all, so it certainly does not agree with an edit that put it somewhere.
+	return false
+}
+
+// applyEditToCollection writes an edit into a collection, moving the entry to the list its status
+// now belongs to and creating that list if it does not exist. Reports whether anything was written.
+func applyEditToCollection(col *anilist.AnimeCollection, edit *animeListEdit) bool {
+	if col == nil || col.MediaListCollection == nil {
+		return false
+	}
+
+	lists := col.MediaListCollection.Lists
 
 	// Find the entry wherever it currently sits, and lift it out of the list it is in. An entry
 	// whose status has changed belongs under a different heading, and leaving a copy behind is how
@@ -733,7 +891,7 @@ func (m *AnilistClientManager) ApplyAnimeListEntryUpdate(
 			continue
 		}
 		for i, e := range list.Entries {
-			if e == nil || e.Media == nil || e.Media.ID != mediaID {
+			if e == nil || e.Media == nil || e.Media.ID != edit.mediaID {
 				continue
 			}
 			entry = e
@@ -748,30 +906,30 @@ func (m *AnilistClientManager) ApplyAnimeListEntryUpdate(
 	// Not on any list yet: build the entry from what the caller has, so the addition is visible on
 	// the very next read instead of waiting on AniList to agree.
 	if entry == nil {
-		if media == nil {
+		if edit.media == nil {
 			return false
 		}
-		entry = &anilist.AnimeCollection_MediaListCollection_Lists_Entries{Media: media}
+		entry = &anilist.AnimeCollection_MediaListCollection_Lists_Entries{Media: edit.media}
 	}
 
-	if status != nil {
-		entry.Status = status
+	if edit.status != nil {
+		entry.Status = edit.status
 	}
-	if progress != nil {
-		entry.Progress = progress
+	if edit.progress != nil {
+		entry.Progress = edit.progress
 	}
-	if scoreRaw != nil {
-		score := float64(*scoreRaw)
+	if edit.score != nil {
+		score := float64(*edit.score)
 		entry.Score = &score
 	}
-	if startedAt != nil {
+	if edit.startedAt != nil {
 		entry.StartedAt = &anilist.AnimeCollection_MediaListCollection_Lists_Entries_StartedAt{
-			Year: startedAt.Year, Month: startedAt.Month, Day: startedAt.Day,
+			Year: edit.startedAt.Year, Month: edit.startedAt.Month, Day: edit.startedAt.Day,
 		}
 	}
-	if completedAt != nil {
+	if edit.completedAt != nil {
 		entry.CompletedAt = &anilist.AnimeCollection_MediaListCollection_Lists_Entries_CompletedAt{
-			Year: completedAt.Year, Month: completedAt.Month, Day: completedAt.Day,
+			Year: edit.completedAt.Year, Month: edit.completedAt.Month, Day: edit.completedAt.Day,
 		}
 	}
 
@@ -779,12 +937,14 @@ func (m *AnilistClientManager) ApplyAnimeListEntryUpdate(
 	// anything in it before.
 	target := entry.Status
 	if target == nil {
-		target = status
+		target = edit.status
 	}
 	if target == nil {
-		// Nothing said where it goes, so it goes back where it came from — which cannot be found
-		// any more, so the collection is rebuilt from AniList instead of left with the entry lost.
-		delete(m.animeColCache, profileID)
+		// Nothing says where it goes. Put it back rather than lose it; the next fetch sorts it out.
+		if len(lists) > 0 && lists[0] != nil {
+			lists[0].Entries = append(lists[0].Entries, entry)
+			return true
+		}
 		return false
 	}
 
@@ -796,7 +956,7 @@ func (m *AnilistClientManager) ApplyAnimeListEntryUpdate(
 	}
 
 	name := string(*target)
-	cached.data.MediaListCollection.Lists = append(lists, &anilist.AnimeCollection_MediaListCollection_Lists{
+	col.MediaListCollection.Lists = append(lists, &anilist.AnimeCollection_MediaListCollection_Lists{
 		Status:  target,
 		Name:    &name,
 		Entries: []*anilist.AnimeCollection_MediaListCollection_Lists_Entries{entry},

@@ -294,6 +294,18 @@ var (
 	detailsCache = result.NewCache[int, *anilist.AnimeDetailsById_Media]()
 )
 
+// detailsCacheTTL bounds how long a cached copy of an anime's details may be served.
+//
+// This cache had no expiry at all. Once an anime's details had been fetched, that copy was the
+// answer for the rest of the process's life: an episode count corrected on AniList, a format
+// changed, a genre added, a series moving from "not yet released" to airing — none of it ever
+// arrived, and the only way to see it was to restart the server. That is what "the metadata is
+// stale" was.
+//
+// Short, because this is reference data about a show and the cost of being a minute behind is
+// nothing, while the cost of being permanently behind is what brought us here.
+const detailsCacheTTL = time.Minute
+
 // HandleGetAnilistAnimeDetails
 //
 //	@summary returns more details about an AniList anime entry.
@@ -308,14 +320,31 @@ func (h *Handler) HandleGetAnilistAnimeDetails(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	if details, ok := detailsCache.Get(mId); ok {
-		return h.RespondWithData(c, details)
+	// Opening an entry page fetches the details live; prefetching reads the cache.
+	//
+	// "On the fly" is what the details of the page in front of you should be, and there is exactly
+	// one request per page open, so it costs one AniList call at the moment somebody is looking.
+	// Speculative prefetching is the opposite case — hundreds of requests for pages nobody has
+	// asked for — and serving those from cache is what keeps this off the rate budget. The client
+	// marks them; see BackgroundRequestHeader.
+	background := c.Request().Header.Get(BackgroundRequestHeader) == "true"
+
+	if background {
+		if details, ok := detailsCache.Get(mId); ok {
+			return h.RespondWithData(c, details)
+		}
 	}
+
 	details, err := h.App.AnilistPlatformRef.Get().GetAnimeDetails(c.Request().Context(), mId)
 	if err != nil {
+		// A live fetch that fails — a rate-limit slot, a timeout — falls back to the last copy
+		// rather than failing the page. Stale details beat no details.
+		if cached, ok := detailsCache.Get(mId); ok {
+			return h.RespondWithData(c, cached)
+		}
 		return h.RespondWithError(c, err)
 	}
-	detailsCache.Set(mId, details)
+	detailsCache.SetT(mId, details, detailsCacheTTL)
 
 	return h.RespondWithData(c, details)
 }

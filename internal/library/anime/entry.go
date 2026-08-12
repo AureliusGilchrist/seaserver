@@ -53,7 +53,10 @@ type (
 		AnimeCollection     *anilist.AnimeCollection
 		PlatformRef         *util.Ref[platform.Platform]
 		MetadataProviderRef *util.Ref[metadata_provider.Provider]
-		IsSimulated         bool // If the account is simulated
+		// IsSimulated marks a simulated account. No longer consulted here: it used to be the one
+		// case that fetched fresh media instead of reading the collection's copy, and now every
+		// case does.
+		IsSimulated bool
 	}
 )
 
@@ -118,17 +121,9 @@ func NewEntry(ctx context.Context, opts *NewEntryOptions) (*Entry, error) {
 	anilistEntry, found := opts.AnimeCollection.GetListEntryFromAnimeId(opts.MediaId)
 
 	// Set the media
-	// If the Anilist List entry does not exist, fetch the media from AniList
 	if !found {
 		// If the Anilist entry does not exist, instantiate one with zero values
 		anilistEntry = &anilist.AnimeListEntry{}
-
-		// Fetch the media
-		fetchedMedia, err := opts.PlatformRef.Get().GetAnime(ctx, opts.MediaId) // DEVNOTE: Maybe cache it?
-		if err != nil {
-			return nil, err
-		}
-		entry.Media = fetchedMedia
 	} else {
 		animeEvent := new(platform.GetAnimeEvent)
 		animeEvent.Anime = anilistEntry.Media
@@ -139,14 +134,29 @@ func NewEntry(ctx context.Context, opts *NewEntryOptions) (*Entry, error) {
 		entry.Media = animeEvent.Anime
 	}
 
-	// If the account is simulated and the media was in the library, we will still fetch
-	// the media from AniList to ensure we have the latest data
-	if opts.IsSimulated && found {
-		// Fetch the media
-		fetchedMedia, err := opts.PlatformRef.Get().GetAnime(ctx, opts.MediaId) // DEVNOTE: Maybe cache it?
-		if err != nil {
+	// The media is fetched, not taken from the collection — for every entry, not only the ones
+	// missing from it.
+	//
+	// The collection's copy of a media object is as old as the collection, which is cached for half
+	// an hour in memory and indefinitely on disk. Everything the entry page states about the show
+	// comes from it: the episode count beside the progress, the format, the season, whether it is
+	// still airing. So an episode count corrected on AniList, or a series that has just started
+	// airing, kept showing the old value on the page whose whole job is to describe that show — and
+	// nothing the user did made it any newer, because their edits do not touch these fields and the
+	// collection was not due a refresh.
+	//
+	// This was already the behaviour for two of the three cases here: an anime missing from the
+	// collection was fetched, and so was every anime on a simulated account. Only a real account
+	// with the anime on a list read from the cache, which is the common case and the one that
+	// looked broken. The platform keeps its own cache, so this is not an AniList request per page
+	// open; it is the freshest copy this server has rather than the oldest.
+	fetchedMedia, err := opts.PlatformRef.Get().GetAnime(ctx, opts.MediaId)
+	if err != nil {
+		// Nothing in the collection to fall back on means there is no entry to show at all.
+		if !found {
 			return nil, err
 		}
+	} else {
 		entry.Media = fetchedMedia
 	}
 
