@@ -1,3 +1,4 @@
+import { useSyncDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { AchievementUnlockPanel } from "@/app/(main)/_features/achievement/achievement-unlock-panel"
 import { MainLayout } from "@/app/(main)/_features/layout/main-layout"
 import { OfflineLayout } from "@/app/(main)/_features/layout/offline-layout"
@@ -18,6 +19,18 @@ export const Route = createFileRoute("/_main")({
 function Layout() {
     const serverStatus = useServerStatus()
     const [host, setHost] = React.useState<string>("")
+
+    // The single app-wide poll that every download badge is drawn from. Mounted here because this
+    // is the layout the app actually renders.
+    //
+    // It used to be called from `app/(main)/layout.tsx`, which is a Next.js-style layout left over
+    // from before this app moved to a router with its own route files — nothing imports it, so
+    // nothing ever ran it. The badges therefore had no data on any build, on any client, however
+    // freshly installed: the only badge that ever appeared was the optimistic one the Download
+    // button sets by hand, which expires after two minutes, which is why a badge would show up and
+    // then vanish for good. The request never left the browser, which is why this endpoint left no
+    // trace in the server log while everything else did.
+    useSyncDownloadingAnime()
 
     React.useEffect(() => {
         setHost(window?.location?.host || "")

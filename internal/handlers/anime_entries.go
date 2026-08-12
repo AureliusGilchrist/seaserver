@@ -643,6 +643,14 @@ func (h *Handler) HandleAnimeEntryManualMatch(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	// Matching files to an anime is matching, wherever it was done from.
+	//
+	// This is the library's own match screen rather than the Unmatched Downloads one, and it is a
+	// separate code path that ends in the same place: files that were not part of an anime now are.
+	// Only the other path recorded the badge, so a match made here produced no "Matched" mark at all
+	// and looked, reasonably, like the badges were broken.
+	h.App.UnmatchedRepository.MarkAnimeMatchedState(b.MediaId)
+
 	// Refresh anime collection in background so unmatched lists are rebuilt
 	pdbMatch := h.GetProfileDatabase(c)
 	go func() {

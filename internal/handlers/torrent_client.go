@@ -143,7 +143,7 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 	lastDownloadingAnswer = answer
 	lastDownloadingAnswerMu.Unlock()
 	if changed {
-		h.App.Logger.Debug().
+		h.App.Logger.Info().
 			Ints("downloading", res.Downloading).
 			Ints("finished", res.Finished).
 			Ints("matched", res.Matched).

@@ -40,10 +40,13 @@ func (r *Repository) MarkAnimeDownloaded(mediaID int) {
 		return
 	}
 	if err := r.database.AdvanceAnimeDownloadState(mediaID, DownloadStateDownloading, DownloadStateDownloaded); err != nil {
-		r.logger.Debug().Err(err).Int("mediaId", mediaID).Msg("unmatched: Could not record download as downloaded")
+		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("unmatched: Could not record download as downloaded")
 		return
 	}
-	r.logger.Debug().Int("mediaId", mediaID).Msg("unmatched: Download recorded as downloaded")
+	// Logged at info, like the other two. These fire once per state change per anime — a handful of
+	// lines a day — and when a badge does not appear, the first thing worth knowing is whether the
+	// server ever wrote it down. That question cost several rounds of guessing to answer.
+	r.logger.Info().Int("mediaId", mediaID).Msg("unmatched: Download badge set to downloaded")
 }
 
 // MarkAnimeMatchedState records that an anime's download has been filed into the library.
@@ -69,11 +72,13 @@ func (r *Repository) setAnimeDownloadState(mediaID int, state string) {
 		return
 	}
 	if err := r.database.SetAnimeDownloadState(mediaID, state); err != nil {
-		r.logger.Debug().Err(err).Int("mediaId", mediaID).Str("state", state).
+		// Loud, because a failure here is invisible everywhere else: the badge simply never
+		// appears, and nothing else in the system notices that it should have.
+		r.logger.Error().Err(err).Int("mediaId", mediaID).Str("state", state).
 			Msg("unmatched: Could not record download state")
 		return
 	}
-	r.logger.Debug().Int("mediaId", mediaID).Str("state", state).Msg("unmatched: Download state recorded")
+	r.logger.Info().Int("mediaId", mediaID).Str("state", state).Msg("unmatched: Download badge set")
 }
 
 // AnimeDownloadStates returns every anime's badge.
