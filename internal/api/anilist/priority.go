@@ -167,10 +167,17 @@ var ErrRateBudgetWait = errors.New("anilist: too many requests queued, try again
 // left no trace whatsoever in the server log.
 //
 // So the queue is bounded, and past the bound the answer is "ask again shortly", which the caller
-// can act on: show what it has, retry later, fall back to cache. A minute is well past any honest
-// wait and still leaves room for the ordinary case of a short burst draining.
+// can act on: show what it has, retry later, fall back to cache.
+//
+// Ten seconds, not the minute this started at. The minute was picked against the eleven-minute
+// waits it replaced and looked restrained next to them — but a request held for a minute is still
+// a connection held for a minute, and a browser has six to a host. Six parked here and the app
+// cannot reach the server at all: the next thing the user does never leaves the browser, and the
+// server log shows no trace of a request that was never sent. Ten seconds outlasts any ordinary
+// burst and turns a stuck request into a hiccup rather than a stall.
+//
 // A variable rather than a constant only so tests can shorten it; nothing else assigns to it.
-var maxBudgetWait = time.Minute
+var maxBudgetWait = 10 * time.Second
 
 // AniList allows a fixed number of requests a minute and answers 429 for the rest — and a 429 is
 // not free: it costs a slot, a minute of waiting, and, if enough of them land at once, a stretch

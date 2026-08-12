@@ -10,6 +10,7 @@ import (
 	"seanime/internal/platforms/platform"
 	"seanime/internal/util"
 	"sort"
+	"time"
 
 	"github.com/samber/lo"
 	"github.com/sourcegraph/conc/pool"
@@ -117,6 +118,10 @@ func NewEntry(ctx context.Context, opts *NewEntryOptions) (*Entry, error) {
 	// |   AniList entry     |
 	// +---------------------+
 
+	// mediaFreshnessTimeout bounds the fetch that keeps an entry's episode count, format and airing
+	// status current. Past it, the collection's copy is used — old by minutes, not by nothing.
+	const mediaFreshnessTimeout = 4 * time.Second
+
 	// Get the Anilist List entry
 	anilistEntry, found := opts.AnimeCollection.GetListEntryFromAnimeId(opts.MediaId)
 
@@ -150,7 +155,25 @@ func NewEntry(ctx context.Context, opts *NewEntryOptions) (*Entry, error) {
 	// with the anime on a list read from the cache, which is the common case and the one that
 	// looked broken. The platform keeps its own cache, so this is not an AniList request per page
 	// open; it is the freshest copy this server has rather than the oldest.
-	fetchedMedia, err := opts.PlatformRef.Get().GetAnime(ctx, opts.MediaId)
+	// Bounded, because "fresher" must never mean "slower to appear".
+	//
+	// A platform lookup that misses its own cache becomes an AniList request, and AniList requests
+	// queue for a rate-limit slot — up to a minute of it when the budget is contended. Unbounded,
+	// that is a page that hangs to avoid showing a slightly old episode count, which is a bad
+	// trade in both directions. So it is given a few seconds, and the collection's copy stands if
+	// it takes longer. The next visit gets the fresh one, by which time the fetch has landed in the
+	// platform's cache anyway.
+	//
+	// An anime with nothing in the collection has no fallback, so that one waits: there is no entry
+	// to render at all without it.
+	fetchCtx := ctx
+	if found {
+		var cancel context.CancelFunc
+		fetchCtx, cancel = context.WithTimeout(ctx, mediaFreshnessTimeout)
+		defer cancel()
+	}
+
+	fetchedMedia, err := opts.PlatformRef.Get().GetAnime(fetchCtx, opts.MediaId)
 	if err != nil {
 		// Nothing in the collection to fall back on means there is no entry to show at all.
 		if !found {

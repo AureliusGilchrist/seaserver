@@ -463,6 +463,22 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 			if ra, e := strconv.Atoi(resp.Header.Get("Retry-After")); e == nil && ra > 0 {
 				waitSec = ra + 2
 			}
+			// Somebody is waiting on this one, so it is not waited out.
+			//
+			// A rate-limit wait is a minute, and up to five of them is five minutes of a request
+			// that has not finished — which also means five minutes with no trace of it in the
+			// server log, because a request is logged when it completes. From the outside that is
+			// a Save button spinning on a change nothing anywhere admits to having received.
+			//
+			// Background work can afford to sit through the window; a person cannot. Reported
+			// instead, so the client can say what happened and the user can try again in a moment.
+			if IsUserInitiated(ctx) {
+				ac.logger.Warn().Int("attempt", attempt+1).
+					Msgf("anilist: rate limited (429) on a request somebody is waiting on, not retrying")
+				ac.broadcastRateLimited(waitSec)
+				return fmt.Errorf("anilist: rate limited, try again in %ds", waitSec)
+			}
+
 			ac.logger.Warn().Int("attempt", attempt+1).
 				Msgf("anilist: rate limited (429), waiting %ds", waitSec)
 			ac.broadcastRateLimited(waitSec)

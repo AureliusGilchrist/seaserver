@@ -1,14 +1,15 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/models"
+	"seanime/internal/enmasse"
 	"seanime/internal/platforms/shared_platform"
 	"seanime/internal/util/result"
-	"seanime/internal/enmasse"
 	"strconv"
 	"time"
 
@@ -247,15 +248,22 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 			// there spinning as though the addition never completed, on an addition that in fact
 			// succeeded and said so.
 			//
-			// The media lookup is cached and costs nothing in the ordinary case. If it fails there
-			// is still no reason to make anybody wait: drop the cache and refresh behind the
-			// response, which is a slower correction rather than a hung page.
-			var media *anilist.BaseAnime
-			if m, err := h.App.AnilistPlatformRef.Get().GetAnime(c.Request().Context(), *p.MediaId); err == nil {
-				media = m
+			// The media is looked up only when the patch reports it needs one — that is, only for a
+			// genuine first-time addition.
+			//
+			// Fetching it up front cost every single save an AniList lookup on the way through, and
+			// AniList lookups queue for a rate-limit slot: editing the status of a show already on
+			// your list, which needs no media at all, sat there for up to a minute with the Save
+			// button spinning. Editing an entry that exists is the overwhelmingly common case and
+			// now costs nothing beyond the mutation itself.
+			applied := h.App.AnilistClientManager.ApplyAnimeListEntryUpdate(profileID, *p.MediaId, nil, p.Status, p.Score, p.Progress, p.StartDate, p.EndDate)
+			if !applied {
+				if media, mediaErr := h.App.AnilistPlatformRef.Get().GetAnime(c.Request().Context(), *p.MediaId); mediaErr == nil {
+					applied = h.App.AnilistClientManager.ApplyAnimeListEntryUpdate(profileID, *p.MediaId, media, p.Status, p.Score, p.Progress, p.StartDate, p.EndDate)
+				}
 			}
 
-			if h.App.AnilistClientManager.ApplyAnimeListEntryUpdate(profileID, *p.MediaId, media, p.Status, p.Score, p.Progress, p.StartDate, p.EndDate) {
+			if applied {
 				// The profile's own collection, not the app-level one — that is the copy this
 				// profile reads from, and the only one refreshing it puts back in step.
 				h.App.AnilistClientManager.RefreshAnimeCollectionInBackground(profileID)
@@ -306,6 +314,9 @@ var (
 // nothing, while the cost of being permanently behind is what brought us here.
 const detailsCacheTTL = time.Minute
 
+// detailsFetchTimeout bounds the live fetch, so freshness can never cost a held connection.
+const detailsFetchTimeout = 5 * time.Second
+
 // HandleGetAnilistAnimeDetails
 //
 //	@summary returns more details about an AniList anime entry.
@@ -335,7 +346,20 @@ func (h *Handler) HandleGetAnilistAnimeDetails(c echo.Context) error {
 		}
 	}
 
-	details, err := h.App.AnilistPlatformRef.Get().GetAnimeDetails(c.Request().Context(), mId)
+	// Bounded, because a page open must not be able to hold a connection open indefinitely.
+	//
+	// A browser opens six connections to a host and no more. An unbounded live fetch here — which
+	// queues for an AniList rate-limit slot — parks one of those six for as long as the queue is
+	// deep, and a few entry pages is all it takes to park all of them. Everything else the app does
+	// then waits in the browser without ever reaching the server: the symptom is a Save button
+	// spinning on a request the server log never shows, because it never arrived.
+	//
+	// So freshness gets a few seconds, and past that the last copy is served. The fetch is not
+	// wasted either — it lands in the cache and the next open gets it.
+	fetchCtx, cancel := context.WithTimeout(c.Request().Context(), detailsFetchTimeout)
+	defer cancel()
+
+	details, err := h.App.AnilistPlatformRef.Get().GetAnimeDetails(fetchCtx, mId)
 	if err != nil {
 		// A live fetch that fails — a rate-limit slot, a timeout — falls back to the last copy
 		// rather than failing the page. Stale details beat no details.
