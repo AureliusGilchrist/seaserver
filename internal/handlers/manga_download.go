@@ -247,10 +247,25 @@ func (h *Handler) HandleGetMangaDownloadsList(c echo.Context) error {
 		MangaCollection: mangaCollection,
 		PlatformRef:     h.App.AnilistPlatformRef,
 		Ctx:             c.Request().Context(),
+		// Still false, and deliberately: this endpoint is called every time the Local Library screen
+		// is opened, and a library of two hundred downloads whose series are not on your lists would
+		// be two hundred AniList requests before the screen could paint. The ones with nothing are
+		// handed to the background backfill below instead — the screen stays instant, and the entries
+		// it could not describe describe themselves on the next open.
 		EnableRemoteMetadataFetch: false,
 	})
 	if err != nil {
 		return h.RespondWithError(c, err)
+	}
+
+	missing := make([]int, 0)
+	for _, item := range res {
+		if item != nil && item.Media == nil && item.MediaId > 0 {
+			missing = append(missing, item.MediaId)
+		}
+	}
+	if len(missing) > 0 {
+		h.App.MangaDownloader.BackfillMissingMetadata(h.App.AnilistPlatformRef, missing)
 	}
 
 	return h.RespondWithData(c, res)

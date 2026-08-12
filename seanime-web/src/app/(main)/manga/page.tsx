@@ -19,6 +19,8 @@ import { MangaMissedSequels } from "@/app/(main)/manga/_containers/manga-missed-
 import { useGetMangaHomeItems } from "@/api/hooks/status.hooks"
 import { mangaCardSizeAtom, getCardSizeClasses } from "@/app/(main)/_atoms/card-size.atoms"
 import { PageWrapper } from "@/components/shared/page-wrapper"
+import { SeaLink } from "@/components/shared/sea-link"
+import { LuBookMarked } from "react-icons/lu"
 import { cn } from "@/components/ui/core/styling"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
@@ -103,12 +105,19 @@ export default function Page() {
         const list = downloadedList || []
         const q = downloadSearch.trim().toLowerCase()
         const filtered = !q ? list : list.filter(item => displayTitle(item.media?.title).toLowerCase().includes(q))
-        
-        // Sort alphabetically with natural number ordering
-        return filtered.sort((a, b) => {
+
+        // Sort a copy, never the array itself.
+        //
+        // With an empty search box `filtered` IS the query's cached array, and Array.sort sorts in
+        // place — so this was reordering React Query's cache during render. The cache is compared
+        // against the next response to decide what changed, so a mutated one made every refetch look
+        // like a different list: new array identity, new object identities, every memo below
+        // invalidated and every card unmounted and remounted. That is the library reshuffling itself
+        // every few seconds.
+        return [...filtered].sort((a, b) => {
             const titleA = displayTitle(a.media?.title) || `Unknown ${a.mediaId}`
             const titleB = displayTitle(b.media?.title) || `Unknown ${b.mediaId}`
-            return titleA.localeCompare(titleB, undefined, { numeric: true, sensitivity: 'base' })
+            return titleA.localeCompare(titleB, undefined, { numeric: true, sensitivity: "base" })
         })
     }, [downloadSearch, downloadedList])
     const downloadedChaptersTotal = React.useMemo(() => downloadedList?.reduce((acc, d) => acc + Object.values(d.downloadData).flatMap(n => n).length, 0) || 0, [downloadedList])
@@ -597,22 +606,50 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                             </div>
                                         )
                                     }
+                                    // No metadata for this one yet — the list endpoint never reaches
+                                    // AniList, so a download whose series is not on your lists and
+                                    // has nothing stored locally arrives with media: null. The
+                                    // server backfills those in the background; until it has, the
+                                    // card still has to be a way in rather than a dead tile. It has
+                                    // the media ID, which is all the entry page needs.
                                     const provider = Object.keys(dlItem.downloadData || {})[0]
                                     return (
-                                        <div
+                                        <SeaLink
                                             key={`download-${dlItem.mediaId}-${provider}`}
-                                            className="relative h-full rounded-xl border border-gray-800 bg-gray-900/70 p-3 flex flex-col gap-2"
+                                            href={`/manga/entry?id=${dlItem.mediaId}`}
+                                            className="block h-full group/dl-card"
                                             onMouseEnter={() => onHoverImage(null)}
                                             onMouseLeave={() => onHoverImage(null)}
                                         >
-                                            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-[--muted]">
-                                                <span>Local download</span>
-                                                {isSynthetic && <span className="px-2 py-0.5 rounded bg-amber-600/80 text-white text-[10px]">Synthetic</span>}
+                                            {/* Same poster shape as a real card, so a library with
+                                             some metadata missing still reads as one grid rather
+                                             than as cards with text tiles wedged between them. */}
+                                            <div
+                                                className={cn(
+                                                    "relative aspect-[6/7] w-full overflow-hidden rounded-[--radius-md]",
+                                                    "border border-gray-800 bg-gray-900/70",
+                                                    "flex flex-col items-center justify-center gap-2",
+                                                    "transition group-hover/dl-card:border-gray-600 group-hover/dl-card:bg-gray-900",
+                                                )}
+                                            >
+                                                <LuBookMarked className="text-4xl text-gray-700" />
+                                                <p className="px-3 text-center text-xs text-[--muted]">No cover art</p>
+
+                                                <div className="absolute inset-x-0 top-0 flex justify-between">
+                                                    {isSynthetic && (
+                                                        <span className="ml-0.5 mt-0.5 px-2 py-1 text-[10px] font-semibold rounded-br bg-amber-600/90 text-white">Synthetic</span>
+                                                    )}
+                                                    <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">
+                                                        {chapters} chapter{chapters === 1 ? "" : "s"}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="text-sm font-semibold text-white line-clamp-2">Manga ID: {dlItem.mediaId}</div>
-                                            {provider && <div className="text-xs text-[--muted]">Provider: {provider}</div>}
-                                            <div className="mt-auto text-xs text-[--muted]">{chapters} chapter{chapters === 1 ? "" : "s"}</div>
-                                        </div>
+
+                                            <div className="pt-2 space-y-0.5">
+                                                <p className="text-sm font-semibold text-white line-clamp-2">Manga ID: {dlItem.mediaId}</p>
+                                                {provider && <p className="text-xs text-[--muted]">Provider: {provider}</p>}
+                                            </div>
+                                        </SeaLink>
                                     )
                                 })}
                             </MediaCardLazyGrid>

@@ -168,6 +168,10 @@ type (
 		chapterDownloadedCh chan chapter_downloader.DownloadID
 		readingDownloadDir  bool
 		isOfflineRef        *util.Ref[bool]
+
+		// backfill fills in the title and cover of downloads that arrived without either. See
+		// metadata_backfill.go.
+		backfill backfillState
 	}
 
 	// MediaMap is created after reading the download directory.
