@@ -911,7 +911,6 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                                 withAudienceScore={false}
                                 type="anime"
                                 containerClassName="basis-[200px] md:basis-[250px] mx-2 mt-8 mb-0"
-                                hideDownloadBadges
                             />
                         ))}
                     </CarouselContent>
@@ -939,10 +938,13 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                 // the counts and the search box that belong to this grid stay on screen with it.
                 scrollTargetSelector="[data-detailed-library-view-stats-container]"
                 renderItem={entry => (
-                    // Every card here is in the library by construction, so neither badge says
-                    // anything: "downloaded" is the entry requirement, and "downloading" would be
-                    // about some other download of the same series. Both are noise here and are
-                    // shown everywhere else — see hideDownloadBadges.
+                    // Badges show here too.
+                    //
+                    // They used to be suppressed on the reasoning that every card in this grid is
+                    // in the library already, so the badges said nothing. That reasoning does not
+                    // survive the three states: a series you have is exactly where "another season
+                    // is coming down" and "a download of this is sitting unmatched" are worth
+                    // knowing, and this grid is the one most people look at most.
                     <MediaEntryCard
                         key={localEntryKey(entry)}
                         media={entry.media!}
@@ -952,7 +954,6 @@ function LocalAnimeLibrary(props: { libraryCollectionProps: HandleLibraryCollect
                         showListDataButton
                         withAudienceScore={false}
                         type="anime"
-                        hideDownloadBadges
                     />
                 )}
             />
