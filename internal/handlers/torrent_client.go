@@ -113,15 +113,47 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 	//
 	// Now the states are recorded where they happen and read back as they were written. There is
 	// no reconciliation left to get wrong.
-	states := h.App.UnmatchedRepository.AnimeDownloadStates()
+	res := buildDownloadingMediaStatus(
+		h.App.UnmatchedRepository.AnimeDownloadStates(),
+		h.animeWithLocalFiles(),
+	)
 
+	// Sorted so a poll that changed nothing looks like it changed nothing.
+	sort.Ints(res.Downloading)
+	sort.Ints(res.Finished)
+	sort.Ints(res.Matched)
+
+	// Logged when the answer changes, and only then.
+	//
+	// A missing badge has two causes that look identical from outside — the client never asked, or
+	// the server answered nothing — and no way to tell them apart from a log where this route says
+	// nothing either way. Silence here while badges are missing means the client is not asking.
+	answer := fmt.Sprintf("%v|%v|%v", res.Downloading, res.Finished, res.Matched)
+	lastDownloadingAnswerMu.Lock()
+	changed := lastDownloadingAnswer != answer
+	lastDownloadingAnswer = answer
+	lastDownloadingAnswerMu.Unlock()
+	if changed {
+		h.App.Logger.Info().
+			Ints("downloading", res.Downloading).
+			Ints("finished", res.Finished).
+			Ints("matched", res.Matched).
+			Msg("torrent client: Download badge state changed")
+	}
+
+	return h.RespondWithData(c, res)
+}
+
+// buildDownloadingMediaStatus decides each anime's badge from the two things that say anything
+// about it: the states recorded against downloads, and what is actually in the library.
+//
+// Kept apart from the handler so the rule can be read, and tested, on its own.
+func buildDownloadingMediaStatus(states []unmatched.AnimeDownloadState, inLibrary map[int]struct{}) DownloadingMediaStatus {
 	res := DownloadingMediaStatus{
 		Downloading: make([]int, 0),
 		Finished:    make([]int, 0),
 		Matched:     make([]int, 0),
 	}
-
-	inLibrary := h.animeWithLocalFiles()
 
 	recorded := make(map[int]struct{}, len(states))
 	for _, state := range states {
@@ -176,30 +208,7 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 		res.Matched = append(res.Matched, mediaID)
 	}
 
-	// Sorted so a poll that changed nothing looks like it changed nothing.
-	sort.Ints(res.Downloading)
-	sort.Ints(res.Finished)
-	sort.Ints(res.Matched)
-
-	// Logged when the answer changes, and only then.
-	//
-	// A missing badge has two causes that look identical from outside — the client never asked, or
-	// the server answered nothing — and no way to tell them apart from a log where this route says
-	// nothing either way. Silence here while badges are missing means the client is not asking.
-	answer := fmt.Sprintf("%v|%v|%v", res.Downloading, res.Finished, res.Matched)
-	lastDownloadingAnswerMu.Lock()
-	changed := lastDownloadingAnswer != answer
-	lastDownloadingAnswer = answer
-	lastDownloadingAnswerMu.Unlock()
-	if changed {
-		h.App.Logger.Info().
-			Ints("downloading", res.Downloading).
-			Ints("finished", res.Finished).
-			Ints("matched", res.Matched).
-			Msg("torrent client: Download badge state changed")
-	}
-
-	return h.RespondWithData(c, res)
+	return res
 }
 
 // The last answer this route gave, so it can log when that changes rather than on every poll.
