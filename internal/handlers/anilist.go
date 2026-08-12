@@ -241,16 +241,27 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 			// came back with no list data and the status went blank. Both are what "it updates it,
 			// then goes blank and doesn't do it" looks like from the outside.
 			//
-			// A first-time addition has nothing cached to patch, and that is the one case worth
-			// waiting on: refreshed before answering, so the entry exists by the time the client
-			// asks for it, instead of arriving empty and correcting itself later.
-			if h.App.AnilistClientManager.ApplyAnimeListEntryUpdate(profileID, *p.MediaId, p.Status, p.Score, p.Progress, p.StartDate, p.EndDate) {
+			// A first-time addition has no cached entry to patch, so the media is fetched and one is
+			// built. Without it the entry page comes back with no list data at all — and that page
+			// shows its "add to list" button exactly while list data is missing, so the button sits
+			// there spinning as though the addition never completed, on an addition that in fact
+			// succeeded and said so.
+			//
+			// The media lookup is cached and costs nothing in the ordinary case. If it fails there
+			// is still no reason to make anybody wait: drop the cache and refresh behind the
+			// response, which is a slower correction rather than a hung page.
+			var media *anilist.BaseAnime
+			if m, err := h.App.AnilistPlatformRef.Get().GetAnime(c.Request().Context(), *p.MediaId); err == nil {
+				media = m
+			}
+
+			if h.App.AnilistClientManager.ApplyAnimeListEntryUpdate(profileID, *p.MediaId, media, p.Status, p.Score, p.Progress, p.StartDate, p.EndDate) {
 				// The profile's own collection, not the app-level one — that is the copy this
 				// profile reads from, and the only one refreshing it puts back in step.
 				h.App.AnilistClientManager.RefreshAnimeCollectionInBackground(profileID)
 			} else {
 				h.App.AnilistClientManager.InvalidateAnimeCollection(profileID)
-				_, _ = h.App.RefreshAnimeCollection()
+				h.App.AnilistClientManager.RefreshAnimeCollectionInBackground(profileID)
 			}
 		} else {
 			_, _ = h.App.RefreshAnimeCollection()

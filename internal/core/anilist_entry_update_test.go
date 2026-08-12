@@ -69,7 +69,7 @@ func TestApplyAnimeListEntryUpdateWritesTheNewStatus(t *testing.T) {
 	m := managerWithCollection(1, listWith(anilist.MediaListStatusPlanning, 42))
 
 	status := anilist.MediaListStatusCurrent
-	if !m.ApplyAnimeListEntryUpdate(1, 42, &status, nil, nil, nil, nil) {
+	if !m.ApplyAnimeListEntryUpdate(1, 42, nil, &status, nil, nil, nil, nil) {
 		t.Fatal("the entry was not found in the cache")
 	}
 
@@ -93,7 +93,7 @@ func TestApplyAnimeListEntryUpdateCreatesAMissingList(t *testing.T) {
 	m := managerWithCollection(1, listWith(anilist.MediaListStatusPlanning, 42))
 
 	status := anilist.MediaListStatusCompleted
-	if !m.ApplyAnimeListEntryUpdate(1, 42, &status, nil, nil, nil, nil) {
+	if !m.ApplyAnimeListEntryUpdate(1, 42, nil, &status, nil, nil, nil, nil) {
 		t.Fatal("the entry was not found in the cache")
 	}
 
@@ -112,7 +112,7 @@ func TestApplyAnimeListEntryUpdateWritesScoreAndProgress(t *testing.T) {
 
 	score := 85
 	progress := 7
-	if !m.ApplyAnimeListEntryUpdate(1, 42, nil, &score, &progress, nil, nil) {
+	if !m.ApplyAnimeListEntryUpdate(1, 42, nil, nil, &score, &progress, nil, nil) {
 		t.Fatal("the entry was not found in the cache")
 	}
 
@@ -131,7 +131,7 @@ func TestApplyAnimeListEntryUpdateReportsAnUnknownAnime(t *testing.T) {
 	m := managerWithCollection(1, listWith(anilist.MediaListStatusPlanning, 42))
 
 	status := anilist.MediaListStatusCurrent
-	if m.ApplyAnimeListEntryUpdate(1, 999, &status, nil, nil, nil, nil) {
+	if m.ApplyAnimeListEntryUpdate(1, 999, nil, &status, nil, nil, nil, nil) {
 		t.Fatal("reported success for an anime that is not in the collection")
 	}
 }
@@ -146,7 +146,7 @@ func TestApplyAnimeListEntryUpdateWithNoCache(t *testing.T) {
 	}
 
 	status := anilist.MediaListStatusCurrent
-	if m.ApplyAnimeListEntryUpdate(1, 42, &status, nil, nil, nil, nil) {
+	if m.ApplyAnimeListEntryUpdate(1, 42, nil, &status, nil, nil, nil, nil) {
 		t.Fatal("reported success with nothing cached")
 	}
 }
@@ -159,12 +159,50 @@ func TestApplyAnimeListEntryUpdateLeavesOtherEntriesAlone(t *testing.T) {
 	)
 
 	status := anilist.MediaListStatusCurrent
-	m.ApplyAnimeListEntryUpdate(1, 42, &status, nil, nil, nil, nil)
+	m.ApplyAnimeListEntryUpdate(1, 42, nil, &status, nil, nil, nil, nil)
 
 	if _, inList, count := locate(m, 1, 43); count != 1 || inList != anilist.MediaListStatusPlanning {
 		t.Errorf("43 is in %q with %d copies, want PLANNING with 1", inList, count)
 	}
 	if _, inList, count := locate(m, 1, 50); count != 1 || inList != anilist.MediaListStatusCurrent {
 		t.Errorf("50 is in %q with %d copies, want CURRENT with 1", inList, count)
+	}
+}
+
+// Adding an anime that is on no list yet has to leave list data behind, because the entry page
+// shows its "add to list" button exactly while list data is missing — so an addition that returns
+// nothing leaves that button spinning on a change that actually succeeded.
+func TestApplyAnimeListEntryUpdateInsertsAFirstTimeAddition(t *testing.T) {
+	m := managerWithCollection(1, listWith(anilist.MediaListStatusCurrent, 50))
+
+	status := anilist.MediaListStatusPlanning
+	media := &anilist.BaseAnime{ID: 777}
+	if !m.ApplyAnimeListEntryUpdate(1, 777, media, &status, nil, nil, nil, nil) {
+		t.Fatal("the addition was not inserted")
+	}
+
+	entry, inList, count := locate(m, 1, 777)
+	if entry == nil {
+		t.Fatal("the new entry is not in the collection")
+	}
+	if count != 1 {
+		t.Fatalf("copies = %d, want 1", count)
+	}
+	if inList != anilist.MediaListStatusPlanning {
+		t.Errorf("filed under %q, want %q", inList, anilist.MediaListStatusPlanning)
+	}
+	if entry.Media == nil || entry.Media.ID != 777 {
+		t.Error("the entry carries no media, so nothing can render it")
+	}
+}
+
+// Without the media there is nothing to build an entry from, and saying so sends the caller off to
+// refresh rather than inserting something unrenderable.
+func TestApplyAnimeListEntryUpdateWontInventAnEntry(t *testing.T) {
+	m := managerWithCollection(1, listWith(anilist.MediaListStatusCurrent, 50))
+
+	status := anilist.MediaListStatusPlanning
+	if m.ApplyAnimeListEntryUpdate(1, 777, nil, &status, nil, nil, nil, nil) {
+		t.Fatal("inserted an entry with no media behind it")
 	}
 }

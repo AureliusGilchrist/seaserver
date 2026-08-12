@@ -695,12 +695,15 @@ func (m *AnilistClientManager) InvalidateAnimeCollection(profileID uint) {
 // refresh still follows, so anything computed on AniList's side (an entry id for a new addition,
 // completion dates it fills in itself) arrives shortly after.
 //
-// Returns false when the anime is not in the collection at all — a first-time addition — which the
-// caller answers with an ordinary refresh, since there is no cached entry to patch and fabricating
-// one would mean inventing a media object.
+// An anime not in the collection at all — a first-time addition — is inserted rather than skipped,
+// provided the caller supplies the media to insert. That case matters more than it sounds: the
+// entry page shows an "add to list" button precisely while it has no list data, so an addition that
+// does not come back with any leaves the button spinning as though the add never finished. Pass a
+// nil media to patch only, and read the return value to find out whether anything happened.
 func (m *AnilistClientManager) ApplyAnimeListEntryUpdate(
 	profileID uint,
 	mediaID int,
+	media *anilist.BaseAnime,
 	status *anilist.MediaListStatus,
 	scoreRaw *int,
 	progress *int,
@@ -742,8 +745,13 @@ func (m *AnilistClientManager) ApplyAnimeListEntryUpdate(
 		}
 	}
 
+	// Not on any list yet: build the entry from what the caller has, so the addition is visible on
+	// the very next read instead of waiting on AniList to agree.
 	if entry == nil {
-		return false
+		if media == nil {
+			return false
+		}
+		entry = &anilist.AnimeCollection_MediaListCollection_Lists_Entries{Media: media}
 	}
 
 	if status != nil {
