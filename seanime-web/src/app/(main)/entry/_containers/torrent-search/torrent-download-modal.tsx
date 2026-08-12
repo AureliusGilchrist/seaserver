@@ -9,7 +9,11 @@ import {
     __torrentDownload_autoMatchAtom as autoMatchAtom,
     __torrentDownload_autoMatchByTorrentAtom as autoMatchByTorrentAtom,
     __torrentDownload_autoMatchConfirmedAtom as autoMatchConfirmedAtom,
+    __torrentDownload_matchSeasonOneAtom as matchSeasonOneAtom,
     AutoMatchConfirmationModal,
+    MATCH_SEASON_ONE_DISABLED_HELP,
+    MATCH_SEASON_ONE_HELP,
+    MATCH_SEASON_ONE_LABEL,
 } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 import {
     __torrentDownload_fileSelectionAtom,
@@ -89,6 +93,8 @@ export function TorrentDownloadModal({
     const [globalAutoMatch, setGlobalAutoMatch] = useAtom(autoMatchAtom)
     const autoMatch = autoMatchValue ?? globalAutoMatch
     const setAutoMatch = onAutoMatchChange ?? setGlobalAutoMatch
+
+    const [matchSeasonOne, setMatchSeasonOne] = useAtom(matchSeasonOneAtom)
 
     const [autoMatchConfirmed, setAutoMatchConfirmed] = useAtom(autoMatchConfirmedAtom)
 
@@ -191,9 +197,12 @@ export function TorrentDownloadModal({
             },
             media,
             autoMatch,
+            // Only meaningful alongside auto-match; the server drops it for anything not being
+            // matched automatically anyway.
+            matchSeasonOneOnly: autoMatch && matchSeasonOne,
             // Only the torrents actually being sent, so a decision about a release that was
             // deselected does not travel with the request.
-            autoMatchByTorrent: Object.fromEntries(
+            autoMatchByTorrent: isMovie ? {} : Object.fromEntries(
                 selectedTorrents
                     .filter(t => t.link in autoMatchByTorrent)
                     .map(t => [t.link, autoMatchByTorrent[t.link]]),
@@ -248,6 +257,8 @@ export function TorrentDownloadModal({
             open={pendingAutoMatchDownload !== null}
             onOpenChange={open => !open && setPendingAutoMatchDownload(null)}
             animeTitle={media.title?.userPreferred || media.title?.romaji || media.title?.english || undefined}
+            matchSeasonOne={matchSeasonOne}
+            onMatchSeasonOneChange={setMatchSeasonOne}
             onConfirm={() => {
                 const type = pendingAutoMatchDownload
                 setPendingAutoMatchDownload(null)
@@ -283,9 +294,18 @@ export function TorrentDownloadModal({
                     <Switch
                         data-torrent-confirmation-modal-auto-match-switch
                         label="Match automatically when finished"
-                        help="Once the download completes, the files are matched to this anime and moved into your library — exactly as if you matched them by hand. Leave off to review it in the Unmatched screen first."
+                        help="Once the download completes, the files are matched to this anime and moved into your library — exactly as if you matched them by hand. Films, OVAs and specials in the download are left behind for you to match on their own. Leave off to review it in the Unmatched screen first."
                         value={autoMatch}
                         onValueChange={setAutoMatch}
+                    />
+
+                    <Switch
+                        data-torrent-confirmation-modal-season-one-switch
+                        label={MATCH_SEASON_ONE_LABEL}
+                        help={autoMatch ? MATCH_SEASON_ONE_HELP : MATCH_SEASON_ONE_DISABLED_HELP}
+                        value={matchSeasonOne}
+                        onValueChange={setMatchSeasonOne}
+                        disabled={!autoMatch}
                     />
 
                     <DirectorySelector
@@ -335,8 +355,9 @@ export function TorrentDownloadModal({
                                 >
                                     <Switch
                                         label="Auto-match this one"
-                                        value={autoMatchFor(torrent.link)}
+                                        value={!isMovie && autoMatchFor(torrent.link)}
                                         onValueChange={v => setAutoMatchFor(torrent.link, v)}
+                                        disabled={isMovie}
                                         size="sm"
                                         containerClass="flex-row-reverse gap-1"
                                         fieldLabelClass="text-xs text-[--muted]"

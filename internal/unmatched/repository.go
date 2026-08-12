@@ -129,6 +129,10 @@ type TorrentMetadata struct {
 	// AutoMatch marks the torrent to be matched automatically as soon as it finishes
 	// downloading, without waiting for the user to match it by hand.
 	AutoMatch bool `json:"autoMatch,omitempty"`
+	// MatchSeasonOneOnly narrows an automatic match to the download's first season. Only
+	// consulted when AutoMatch is set — there is nothing to narrow otherwise. See
+	// selectSeasonOneFiles for what "first season" is taken to mean.
+	MatchSeasonOneOnly bool `json:"matchSeasonOneOnly,omitempty"`
 	// EpisodeTitles maps episode number to title, keyed the way Animap keys them ("1", "2", …).
 	// Present when the metadata was fetched at queue time; absent records simply fall back to
 	// fetching at match time.
@@ -653,11 +657,36 @@ func (r *Repository) matchFromMetadata(torrentName string, metadata *TorrentMeta
 	}
 
 	// Select every video file, which is what a user matching the whole torrent would do.
-	selected := make([]string, 0, len(torrent.Files))
+	files := make([]*UnmatchedFile, 0, len(torrent.Files))
 	for _, f := range torrent.Files {
 		if f != nil && f.IsVideo {
-			selected = append(selected, f.RelativePath)
+			files = append(files, f)
 		}
+	}
+
+	// …unless the download was queued as season 1 only, in which case "the whole torrent" is the
+	// wrong unit: a franchise pack matched end to end numbers season 2 as episodes 13 onwards.
+	if metadata.MatchSeasonOneOnly {
+		selection := selectSeasonOneFiles(files)
+		if !selection.found {
+			r.logger.Info().
+				Str("torrent", torrentName).
+				Str("reason", selection.reason).
+				Msg("unmatched: Leaving this download for manual matching — season 1 could not be identified")
+			return nil, nil
+		}
+		r.logger.Info().
+			Str("torrent", torrentName).
+			Str("reason", selection.reason).
+			Int("files", len(selection.files)).
+			Int("of", len(files)).
+			Msg("unmatched: Matching season 1 only")
+		files = selection.files
+	}
+
+	selected := make([]string, 0, len(files))
+	for _, f := range files {
+		selected = append(selected, f.RelativePath)
 	}
 	if len(selected) == 0 {
 		return nil, errors.New("no video files to match")
@@ -751,21 +780,28 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	// that after having already destroyed files would leave nothing to decide about.
 	kept := make([]fileWithSeason, 0, len(videoFiles))
 	discardable := make([]fileWithSeason, 0)
-	// OVAs and specials are set aside rather than discarded. Numbering them as episodes is what put
-	// a release's extras into the library as episodes past the end of the season; deleting them
-	// would be worse still, because unlike a creditless opening an OVA is something somebody
-	// actually wanted. They stay in the download, to be matched on their own terms.
+	// OVAs, specials and films are set aside rather than discarded. Numbering them as episodes is
+	// what put a release's extras into the library as episodes past the end of the season; deleting
+	// them would be worse still, because unlike a creditless opening an OVA or a movie is something
+	// somebody actually wanted. They stay in the download, to be matched on their own terms — a film
+	// has its own AniList entry, which is where matching it by hand puts it.
 	skipped := make([]fileWithSeason, 0)
+	skippedMovies := 0
 	for _, fw := range videoFiles {
 		if isNCName(fw.file.Name) || pathHasExtraSegment(fw.file.RelativePath) {
 			discardable = append(discardable, fw)
 			continue
 		}
-		// Only when nobody picked these files. A hand-made match that selected an OVA meant to
-		// select it.
-		if req.Automatic && isSpecialContent(fw.file.Name, fw.file.RelativePath) {
-			skipped = append(skipped, fw)
-			continue
+		// Only when nobody picked these files. A hand-made match that selected an OVA or a movie
+		// meant to select it.
+		if req.Automatic {
+			if reason := automaticExclusionReason(fw.file.Name, fw.file.RelativePath); reason != "" {
+				if reason == "movie" {
+					skippedMovies++
+				}
+				skipped = append(skipped, fw)
+				continue
+			}
 		}
 		kept = append(kept, fw)
 	}
@@ -778,7 +814,8 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		r.logger.Info().
 			Str("torrent", req.TorrentName).
 			Int("skipped", len(skipped)).
-			Msg("unmatched: Left OVAs/specials out of the episode numbering")
+			Int("movies", skippedMovies).
+			Msg("unmatched: Left OVAs, specials and films out of the episode numbering")
 	}
 
 	// Sort video files by season, then by name (to maintain episode order)

@@ -2723,6 +2723,11 @@ export type TorrentClientDownload_Variables = {
      *  Anything not named here takes autoMatch.
      */
     autoMatchByTorrent?: Record<string, boolean>
+    /**
+     *  MatchSeasonOneOnly narrows the automatic match to the download's first season, for the
+     *  batches that carry more than one. Meaningless without autoMatch, and ignored when it is off.
+     */
+    matchSeasonOneOnly?: boolean
 }
 
 /**

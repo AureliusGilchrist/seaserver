@@ -3,6 +3,7 @@ package unmatched
 import (
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/5rahim/habari"
@@ -25,9 +26,56 @@ import (
 // specialTokenRegex matches the standalone markers that name non-episode content.
 //
 // OVA and OAD are unambiguous. ONA is included because a release that labels a file ONA is
-// distinguishing it from the TV episodes it sits beside. SP is only matched with a number attached
-// ("SP01"), because bare "sp" turns up inside too much else.
-var specialTokenRegex = regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9])(OVA|OAD|ONA|SPECIALS?|SP\d{1,2}|OVA\d{1,2})(?:[^A-Za-z0-9]|$)`)
+// distinguishing it from the TV episodes it sits beside. The numbered SP forms are handled by
+// specialEpisodeMarkerRegex below rather than here, because they need their number checked.
+var specialTokenRegex = regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9])(OVA|OAD|ONA|SPECIALS?|OVA\d{1,2})(?:[^A-Za-z0-9]|$)`)
+
+// specialEpisodeMarkerRegex matches the two numbered ways a release says "special episode":
+//
+//	SP01, SP1, SP001      — a special standing on its own
+//	S01SP01, S1SP1, S01SP2 — a special belonging to a stated season
+//
+// Both numbers may be padded or not, which is why the pattern counts digits loosely and the value is
+// checked afterwards: \d{1,3} admits 999, and a file called "SP999" is far more likely to be a
+// release quirk than a 999th special. maxSpecialNumber is where that line is drawn.
+//
+// SP is only ever matched with a number attached. Bare "sp" turns up inside too much else — in
+// "Sponsor", in "Spirited", in half the group names — and an episode wrongly called a special is
+// left out of its own season, which is the expensive direction to be wrong in.
+var specialEpisodeMarkerRegex = regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9])(?:S(\d{1,3}))?SP(\d{1,3})(?:[^A-Za-z0-9]|$)`)
+
+// maxSpecialNumber is the largest number either half of a marker may carry. Above it, the digits are
+// not a special's number — they are a resolution, a year, a checksum, or a group's counter.
+const maxSpecialNumber = 100
+
+// hasSpecialEpisodeMarker reports whether a name carries an SPxxx or SxxxSPzzz marker with numbers
+// that are plausibly a season and a special rather than something else that happens to be numeric.
+func hasSpecialEpisodeMarker(name string) bool {
+	for _, match := range specialEpisodeMarkerRegex.FindAllStringSubmatch(name, -1) {
+		// match[1] is the season, present only in the SxxxSPzzz form; match[2] is the special.
+		if !numberWithinSpecialRange(match[1], true) {
+			continue
+		}
+		if !numberWithinSpecialRange(match[2], false) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// numberWithinSpecialRange reports whether a captured number is between 0 and maxSpecialNumber.
+// An absent capture is only allowed where the form makes it optional — the season half.
+func numberWithinSpecialRange(digits string, optional bool) bool {
+	if digits == "" {
+		return optional
+	}
+	value, err := strconv.Atoi(digits)
+	if err != nil {
+		return false
+	}
+	return value >= 0 && value <= maxSpecialNumber
+}
 
 // seasonZeroRegex matches the S00Exx form, which is the established way of saying "this is a
 // special, not part of any season".
@@ -72,7 +120,9 @@ func normalizedForTagMatching(name string) string {
 // trigger it. What is left is the structural part of the name, which is where a real marker lives.
 func isSpecialName(name string) bool {
 	normalized := normalizedForTagMatching(name)
-	return specialTokenRegex.MatchString(normalized) || seasonZeroRegex.MatchString(normalized)
+	return specialTokenRegex.MatchString(normalized) ||
+		seasonZeroRegex.MatchString(normalized) ||
+		hasSpecialEpisodeMarker(normalized)
 }
 
 // pathHasSpecialsSegment reports whether any folder in the file's path marks its contents as

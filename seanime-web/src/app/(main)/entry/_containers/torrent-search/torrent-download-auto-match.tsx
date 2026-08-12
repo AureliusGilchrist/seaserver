@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/ui/modal"
+import { Switch } from "@/components/ui/switch"
 import { atom } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 import React from "react"
@@ -13,6 +14,30 @@ import React from "react"
  * each other) can both reach it without an import cycle.
  */
 export const __torrentDownload_autoMatchAtom = atomWithStorage("sea-torrent-download-auto-match", false)
+
+/**
+ * When enabled alongside auto-match, only the download's first season is matched.
+ *
+ * Batches are very often not one season — franchise packs and "complete series" releases arrive as a
+ * folder per season — and an automatic match walks all of it, numbering season 2 episode 1 as
+ * episode 13. With this on, a download with season folders matches season 1 and nothing else, and
+ * one with no folders at all matches whole (a Specials or Extra folder is not season structure).
+ * A download whose folders name no season 1 is left for manual matching rather than guessed at.
+ *
+ * Meaningless without auto-match, which is why every switch that offers it is disabled while
+ * auto-match is off, and why the server drops it for any torrent not being auto-matched.
+ */
+export const __torrentDownload_matchSeasonOneAtom = atomWithStorage("sea-torrent-download-match-season-one", false)
+
+/**
+ * Copy for the season-1 switch. In one place because it appears on three screens — the destination
+ * sheet, the auto-match confirmation, and the Enqueue Future queue — and three drifting explanations
+ * of the same rule is worse than none.
+ */
+export const MATCH_SEASON_ONE_LABEL = "Match Season 1 automatically"
+export const MATCH_SEASON_ONE_HELP =
+    "For batches that carry more than one season. If the download has season folders, only Season 1 is matched — if it has none, all of it is (a Specials or Extra folder doesn't count). If it has folders but no Season 1, it waits in the Unmatched screen instead."
+export const MATCH_SEASON_ONE_DISABLED_HELP = "Turn on automatic matching to use this."
 
 /**
  * Per-torrent answers, keyed by torrent link, overriding the preference above for those torrents.
@@ -43,11 +68,18 @@ export const __torrentDownload_autoMatchConfirmedAtom = atom(false)
  * Auto-match is a sticky preference, so without this a toggle left on weeks ago silently moves a
  * download into the library with no chance to review what it matched to.
  */
-export function AutoMatchConfirmationModal({ open, onOpenChange, onConfirm, animeTitle }: {
+export function AutoMatchConfirmationModal({ open, onOpenChange, onConfirm, animeTitle, matchSeasonOne, onMatchSeasonOneChange }: {
     open: boolean
     onOpenChange: (open: boolean) => void
     onConfirm: () => void
     animeTitle?: string
+    /**
+     * The season-1 switch, offered here as well as on the sheet behind it: this modal is the last
+     * thing between the decision and the download, and scoping the match is part of the same
+     * decision. Omit both to leave it out.
+     */
+    matchSeasonOne?: boolean
+    onMatchSeasonOneChange?: (value: boolean) => void
 }) {
     return (
         <Modal
@@ -67,6 +99,15 @@ export function AutoMatchConfirmationModal({ open, onOpenChange, onConfirm, anim
                     {animeTitle ? <> as <span className="text-[--foreground] font-medium">{animeTitle}</span></> : ""} —
                     it won't stop in the Unmatched screen for you to review first.
                 </p>
+                {onMatchSeasonOneChange && (
+                    <Switch
+                        label={MATCH_SEASON_ONE_LABEL}
+                        help={MATCH_SEASON_ONE_HELP}
+                        value={!!matchSeasonOne}
+                        onValueChange={onMatchSeasonOneChange}
+                        data-torrent-auto-match-confirmation-modal-season-one-switch
+                    />
+                )}
                 <div className="flex justify-center gap-2 pt-2">
                     <Button intent="gray-outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button intent="white" onClick={onConfirm}>Yes, auto-match</Button>

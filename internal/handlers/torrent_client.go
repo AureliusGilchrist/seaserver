@@ -412,6 +412,10 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 		// enough to file itself and another you want to look at first, and forcing one answer for
 		// the whole selection meant either reviewing what needed no review or auto-filing what did.
 		AutoMatchByTorrent map[string]bool `json:"autoMatchByTorrent,omitempty"`
+		// MatchSeasonOneOnly narrows the automatic match to the download's first season, for the
+		// batches that carry more than one. Meaningless without AutoMatch, and ignored when it is
+		// off — the UI greys the toggle out for the same reason.
+		MatchSeasonOneOnly bool `json:"matchSeasonOneOnly,omitempty"`
 	}
 
 	var b body
@@ -441,8 +445,9 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 	var queuedMetadata unmatched.TorrentMetadata
 	if b.Media != nil {
 		queuedMetadata = unmatched.TorrentMetadata{
-			AnimeID:   b.Media.ID,
-			AutoMatch: b.AutoMatch,
+			AnimeID:            b.Media.ID,
+			AutoMatch:          b.AutoMatch,
+			MatchSeasonOneOnly: b.MatchSeasonOneOnly,
 		}
 		if b.Media.Title != nil {
 			if b.Media.Title.Romaji != nil {
@@ -502,6 +507,10 @@ func (h *Handler) HandleTorrentClientDownload(c echo.Context) error {
 		if b.Media != nil {
 			metadata := queuedMetadata
 			metadata.AutoMatch = autoMatch
+			// Season 1 only is a narrowing of the automatic match, so it travels with it: a torrent
+			// singled out to be reviewed by hand carries no scoping rule for a match that will not
+			// happen.
+			metadata.MatchSeasonOneOnly = autoMatch && b.MatchSeasonOneOnly
 			if err := h.App.UnmatchedRepository.SaveTorrentMetadataRecord(t.Name, metadata); err != nil {
 				h.App.Logger.Error().Err(err).Str("torrent", t.Name).Msg("torrent client: Failed to save torrent metadata")
 				return h.RespondWithError(c, fmt.Errorf("could not save anime metadata for %q, torrent not added: %w", t.Name, err))
