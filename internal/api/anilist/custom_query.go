@@ -70,7 +70,10 @@ func customQueryWithContext(ctx context.Context, body []byte, logger *zerolog.Lo
 
 	// Takes its turn and its slot like everything else. See CustomQueryCtx above for what went
 	// wrong while this path was exempt.
-	release := gateRequest(ctx)
+	release, gateErr := gateRequest(ctx)
+	if gateErr != nil {
+		return nil, gateErr
+	}
 	defer release()
 
 	client := newAnilistHTTPClient()

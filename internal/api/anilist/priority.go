@@ -2,6 +2,7 @@ package anilist
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -128,20 +129,48 @@ func yieldToUserRequests(ctx context.Context) {
 //
 // Every AniList request in the server passes through here — see customDoFunc — so this is the one
 // place both the ordering and the pacing can be got right.
-func gateRequest(ctx context.Context) func() {
+func gateRequest(ctx context.Context) (func(), error) {
 	if IsUserInitiated(ctx) {
 		release := beginUserRequest()
 		// A user request still takes a slot from the budget; it simply never queues behind
 		// background work for one. Spending without counting is how the budget gets exceeded by
 		// exactly the requests that matter most.
-		budget.take(ctx, true)
-		return release
+		if !budget.take(ctx, true) {
+			release()
+			return nil, ErrRateBudgetWait
+		}
+		return release, nil
 	}
 
 	yieldToUserRequests(ctx)
-	budget.take(ctx, false)
-	return func() {}
+	if !budget.take(ctx, false) {
+		return nil, ErrRateBudgetWait
+	}
+	return func() {}, nil
 }
+
+// ErrRateBudgetWait is returned instead of waiting when the queue for a slot is longer than anyone
+// could reasonably be kept waiting. See maxBudgetWait.
+var ErrRateBudgetWait = errors.New("anilist: too many requests queued, try again shortly")
+
+// maxBudgetWait bounds how long a request will sit waiting for a rate-limit slot.
+//
+// The pacer used to wait however long it took, and "however long" is not a figure of speech: at 24
+// requests a minute, a few hundred queued requests is a queue several minutes deep. Requests were
+// observed completing eleven minutes after they were made — long after the client had given up,
+// and in one case a manual match sat behind that queue for the same eleven minutes.
+//
+// Holding a request that long is worse than refusing it, and not only for the person waiting. Each
+// one holds a connection open at both ends, and a browser opens six connections to a host and no
+// more: six requests stuck in this queue and *nothing else in the app can reach the server at all*
+// — which is what "everything times out" turned out to be, and why a badge poll every ten seconds
+// left no trace whatsoever in the server log.
+//
+// So the queue is bounded, and past the bound the answer is "ask again shortly", which the caller
+// can act on: show what it has, retry later, fall back to cache. A minute is well past any honest
+// wait and still leaves room for the ordinary case of a short burst draining.
+// A variable rather than a constant only so tests can shorten it; nothing else assigns to it.
+var maxBudgetWait = time.Minute
 
 // AniList allows a fixed number of requests a minute and answers 429 for the rest — and a 429 is
 // not free: it costs a slot, a minute of waiting, and, if enough of them land at once, a stretch
@@ -175,16 +204,22 @@ type rateBudget struct {
 
 var budget = &rateBudget{}
 
-// take waits until sending a request would stay inside the budget.
+// take waits until sending a request would stay inside the budget, and reports whether it got a
+// slot.
 //
 // Background work is held back once the remaining slots reach the reserve, so a burst of
-// prefetching cannot leave the next thing the user does with nothing to spend. Neither caller ever
-// waits longer than the window itself: this paces requests, it does not cancel them.
-func (b *rateBudget) take(ctx context.Context, userInitiated bool) {
+// prefetching cannot leave the next thing the user does with nothing to spend.
+//
+// False means the caller should give up rather than send: either its own context ended, or the
+// queue was deeper than maxBudgetWait. It is not an error the caller can fix by waiting longer —
+// that is precisely what it was doing.
+func (b *rateBudget) take(ctx context.Context, userInitiated bool) bool {
 	limit := requestsPerMinute
 	if !userInitiated {
 		limit = requestsPerMinute - userReserve
 	}
+
+	giveUp := time.After(maxBudgetWait)
 
 	for {
 		b.mu.Lock()
@@ -200,7 +235,7 @@ func (b *rateBudget) take(ctx context.Context, userInitiated bool) {
 		if len(b.recent) < limit {
 			b.recent = append(b.recent, time.Now())
 			b.mu.Unlock()
-			return
+			return true
 		}
 
 		// Wait for the oldest request in the window to age out.
@@ -215,7 +250,10 @@ func (b *rateBudget) take(ctx context.Context, userInitiated bool) {
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return // the caller is giving up anyway; the request below will fail on its own context
+			return false // the caller is giving up anyway
+		case <-giveUp:
+			timer.Stop()
+			return false // the queue is deeper than anyone should be held for
 		case <-timer.C:
 		}
 	}

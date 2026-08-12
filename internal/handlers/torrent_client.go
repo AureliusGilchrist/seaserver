@@ -13,6 +13,7 @@ import (
 	"seanime/internal/util"
 	"seanime/internal/util/result"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -412,8 +413,39 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 	sort.Ints(res.Finished)
 	sort.Ints(res.Matched)
 
+	// Logged when the answer changes, and only then.
+	//
+	// A missing badge has two completely different causes that look identical from the outside —
+	// the client never asked, or the server answered "nothing" — and no way to tell them apart
+	// from a log where this route says nothing either way. With this, silence in the log while
+	// badges are missing means the client is not asking; a line showing empty lists means the
+	// server is, and the record count next to it says whether there was anything to answer from.
+	//
+	// On change only, because this is polled every ten seconds by every open client and a line
+	// each would bury everything else. A steady state prints once.
+	answer := fmt.Sprintf("%v|%v|%v", res.Downloading, res.Finished, res.Matched)
+	lastDownloadingAnswerMu.Lock()
+	changed := lastDownloadingAnswer != answer
+	lastDownloadingAnswer = answer
+	lastDownloadingAnswerMu.Unlock()
+	if changed {
+		h.App.Logger.Debug().
+			Ints("downloading", res.Downloading).
+			Ints("finished", res.Finished).
+			Ints("matched", res.Matched).
+			Int("records", len(records)).
+			Bool("clientAnswered", clientAnswered).
+			Msg("torrent client: Download badge state changed")
+	}
+
 	return h.RespondWithData(c, res)
 }
+
+// The last answer this route gave, so it can log when that changes rather than on every poll.
+var (
+	lastDownloadingAnswerMu sync.Mutex
+	lastDownloadingAnswer   string
+)
 
 // downloadStateRank orders the states by how much of the user's attention they still deserve, so
 // that an anime with several downloads is described by the least finished of them. Two seasons of

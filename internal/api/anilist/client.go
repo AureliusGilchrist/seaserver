@@ -358,7 +358,14 @@ func (ac *AnilistClientImpl) AnimeAiringScheduleRaw(ctx context.Context, ids []*
 func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request, gqlInfo *clientv2.GQLRequestInfo, res interface{}) (err error) {
 	// The user goes first. Every AniList request in the server arrives here, which makes this the
 	// one place the ordering can be decided — see priority.go for why it needs deciding at all.
-	release := gateRequest(ctx)
+	release, gateErr := gateRequest(ctx)
+	if gateErr != nil {
+		// Refused rather than queued. Reported here because it is not a failure of AniList's and
+		// reads like one otherwise: the budget is spent and the queue for it is deeper than this
+		// request could be held for. See maxBudgetWait.
+		ac.logger.Warn().Err(gateErr).Msg("anilist: Request not sent, rate budget queue is full")
+		return gateErr
+	}
 	defer release()
 
 	var rlRemainingStr string
