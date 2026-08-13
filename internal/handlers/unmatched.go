@@ -294,6 +294,15 @@ func (h *Handler) scheduleAnimeCollectionRefresh() {
 func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 	type body struct {
 		AnimeID int `json:"animeId"`
+		// Shallow walks one node and stops: the anime asked for, plus its direct relations as
+		// entries that are not themselves walked.
+		//
+		// This is what lets the picker fill in as it goes. The whole-franchise walk is one request
+		// per node made back to back, so a large family is minutes of a modal showing a spinner and
+		// nothing else. Asked for one node at a time, the client draws the root immediately, then
+		// each branch as it arrives, and can say which parts it is still waiting on. Same endpoint,
+		// same shape of answer — the client is simply doing the walking.
+		Shallow bool `json:"shallow,omitempty"`
 	}
 	var b body
 	if err := c.Bind(&b); err != nil {
@@ -332,6 +341,21 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 	platform := h.App.AnilistPlatformRef.Get()
 	ctx := context.Background()
 
+	// The walk is bounded by the clock, and returns whatever it reached.
+	//
+	// Every node costs one AniList request, made one after another, and the client paces itself to
+	// around twenty-four a minute. Following every relation to unlimited depth therefore has no
+	// natural end for a large franchise: forty entries is a minute and a half, a sprawling one is
+	// several minutes, and all of it happens inside a single HTTP request that the modal is sitting
+	// and waiting on. A browser allows six connections to a host, so a few of those in flight can
+	// stall the rest of the app as well.
+	//
+	// So the walk stops when it runs out of time rather than when it runs out of franchise, and
+	// hands back the part of the tree it managed to build. A partial family is worth far more than
+	// a spinner: the entry somebody is looking for is usually within a step or two of the one they
+	// searched, which is exactly the part that gets walked first.
+	deadline := time.Now().Add(familyWalkBudget)
+
 	visited := make(map[int]bool)
 	entries := make([]familyEntry, 0)
 
@@ -344,6 +368,15 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 	var root familyEntry
 
 	for len(queue) > 0 {
+		if time.Now().After(deadline) {
+			h.App.Logger.Debug().
+				Int("animeId", b.AnimeID).
+				Int("found", len(entries)).
+				Int("unwalked", len(queue)).
+				Msg("unmatched: Family walk ran out of time, returning what it found")
+			break
+		}
+
 		cur := queue[0]
 		queue = queue[1:]
 		if visited[cur.id] {
@@ -463,8 +496,13 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 			//
 			// The walk stays bounded by `visited` and by the fact that anything that is not an anime
 			// is dropped above, so it cannot wander off into a manga's own relations.
-			queue = append(queue, node{id: n.ID, parentID: media.ID})
-			visited[n.ID] = false // Allow re-visit to discover its relations
+			//
+			// A shallow request stops here: the child is reported, but walking it is the client's
+			// next request rather than this one's next iteration.
+			if !b.Shallow {
+				queue = append(queue, node{id: n.ID, parentID: media.ID})
+				visited[n.ID] = false // Allow re-visit to discover its relations
+			}
 		}
 	}
 
@@ -616,3 +654,11 @@ func englishTitleOf(english *string, mainTitle string) string {
 	}
 	return *english
 }
+
+// familyWalkBudget is how long the relation walk may spend before handing back what it has.
+//
+// Twelve seconds is about what somebody will wait staring at a modal, and at the client's pacing it
+// buys the first several nodes — which is where the answer nearly always is, since a download is
+// usually a season or a side story of the thing it was matched against, not something six removes
+// away.
+const familyWalkBudget = 12 * time.Second

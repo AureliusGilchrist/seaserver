@@ -580,7 +580,7 @@ export interface FamilyResult {
 }
 
 export function useUnmatchedFamilySearch() {
-    return useServerMutation<FamilyResult, { animeId: number }>({
+    return useServerMutation<FamilyResult, { animeId: number, shallow?: boolean }>({
         endpoint: UNMATCHED_ENDPOINTS.FamilySearch.endpoint,
         method: UNMATCHED_ENDPOINTS.FamilySearch.methods[0],
         mutationKey: [UNMATCHED_ENDPOINTS.FamilySearch.key],

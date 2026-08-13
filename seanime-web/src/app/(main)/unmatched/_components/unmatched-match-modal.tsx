@@ -29,7 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { TextInput } from "@/components/ui/text-input"
 import { Alert } from "@/components/ui/alert/alert"
-import React, { useState, useMemo, useCallback, useEffect } from "react"
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useAtom } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
@@ -170,23 +170,91 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     // Fetch anime details if we have stored animeId
     const storedAnimeId = torrentContents?.animeId || torrent?.animeId
 
-    // Loaded automatically, for the anime this download is already believed to be or the one just
-    // picked from the search. Keyed on the target so picking a different entry re-walks from there,
-    // and guarded by familySearchDone so a walk runs once per target rather than once per render.
+    // The family is walked here, one node at a time, and drawn as it arrives.
+    //
+    // Asking the server for a whole franchise is one AniList request per entry made back to back,
+    // which for a large family is minutes of a modal showing a spinner and nothing else — and the
+    // answer somebody wants is nearly always in the first handful. So the client does the walking:
+    // the root and its direct relations land immediately, every discovered entry joins a queue, and
+    // each one fills in its own branch as its turn comes. Nothing waits for the whole thing.
     const familySearchTarget = familySearchTargetId || storedAnimeId
+    const walkQueueRef = useRef<{ id: number, parentId: number }[]>([])
+    const walkedRef = useRef<Set<number>>(new Set())
+    // The entries whose own relations have not been fetched yet, so the tree can say which branches
+    // are still coming rather than looking finished when it is not.
+    const [pendingFamilyIds, setPendingFamilyIds] = useState<Set<number>>(new Set())
+
+    // Kick the walk off, and restart it whenever the target changes.
     useEffect(() => {
-        if (step !== "select-anime" || familySearchDone || isFamilySearchLoading || !familySearchTarget) return
+        if (step !== "select-anime" || !familySearchTarget || familySearchDone) return
 
         setFamilySearchDone(true)
-        runFamilySearch({ animeId: familySearchTarget }, {
-            onSuccess: (data) => setFamilyResults(data || null),
-            onError: (err) => {
-                // Not a toast: the search box below still works, and a failed relation walk is a
-                // missing convenience rather than a broken screen.
-                console.warn("unmatched: could not load the anime family", (err as Error)?.message)
+        walkQueueRef.current = [{ id: familySearchTarget, parentId: 0 }]
+        walkedRef.current = new Set()
+        setPendingFamilyIds(new Set([familySearchTarget]))
+    }, [step, familySearchTarget, familySearchDone])
+
+    // One node per pass. Runs again after each result lands, until the queue empties.
+    useEffect(() => {
+        if (step !== "select-anime" || isFamilySearchLoading) return
+
+        const next = walkQueueRef.current.shift()
+        if (!next) return
+        if (walkedRef.current.has(next.id)) {
+            // Nudge the effect to look at the next one rather than stopping on a duplicate.
+            setPendingFamilyIds(prev => {
+                const updated = new Set(prev)
+                updated.delete(next.id)
+                return updated
+            })
+            return
+        }
+        walkedRef.current.add(next.id)
+
+        runFamilySearch({ animeId: next.id, shallow: true }, {
+            onSuccess: (data) => {
+                if (!data) return
+                setFamilyResults(prev => {
+                    // The first answer establishes the root; everything after it merges in under
+                    // the parent it was discovered from.
+                    const root = prev?.root && prev.root.id ? prev.root : data.root
+                    const merged = new Map<number, FamilyEntry>()
+                    for (const entry of prev?.entries || []) merged.set(entry.id, entry)
+                    for (const entry of data.entries || []) {
+                        const existing = merged.get(entry.id)
+                        // Keep the first parent an entry was found under, so the tree does not
+                        // reshuffle itself as deeper answers arrive.
+                        merged.set(entry.id, existing ? { ...entry, parentId: existing.parentId } : {
+                            ...entry,
+                            parentId: entry.id === next.id ? next.parentId : (entry.parentId || next.id),
+                        })
+                    }
+                    return { root, entries: Array.from(merged.values()) }
+                })
+
+                const discovered = (data.entries || [])
+                    .filter(entry => entry.id !== next.id && !walkedRef.current.has(entry.id))
+                for (const entry of discovered) {
+                    walkQueueRef.current.push({ id: entry.id, parentId: next.id })
+                }
+
+                setPendingFamilyIds(prev => {
+                    const updated = new Set(prev)
+                    updated.delete(next.id)
+                    for (const entry of discovered) updated.add(entry.id)
+                    return updated
+                })
+            },
+            onError: () => {
+                // One node failing costs its branch, not the tree.
+                setPendingFamilyIds(prev => {
+                    const updated = new Set(prev)
+                    updated.delete(next.id)
+                    return updated
+                })
             },
         })
-    }, [step, familySearchDone, isFamilySearchLoading, familySearchTarget, runFamilySearch])
+    }, [step, isFamilySearchLoading, pendingFamilyIds, runFamilySearch])
     const storedAnimeTitleRomaji = torrentContents?.animeTitleRomaji || torrent?.animeTitleRomaji
     const storedAnimeTitleNative = torrentContents?.animeTitleNative || torrent?.animeTitleNative
     const storedAnimeExpectedEpisodes = torrentContents?.animeExpectedEpisodes || torrent?.animeExpectedEpisodes
@@ -909,15 +977,11 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                      * the family is the whole point of the screen, and it is one request. So it runs
                      * as soon as there is something to run it on, and the tree it produces IS the
                      * list. */}
-                    {isFamilySearchLoading && (
+                    {(isFamilySearchLoading || pendingFamilyIds.size > 0) && !familyResults && (
                         <div className="p-3 border rounded-md bg-[--subtle] space-y-2" data-family-loading>
                             <div className="flex items-center justify-between">
                                 <p className="text-sm font-medium">Loading the anime family…</p>
-                                <p className="text-xs text-[--muted]">
-                                    {familyResults?.entries?.length
-                                        ? `${familyResults.entries.length} found so far`
-                                        : "walking every relation"}
-                                </p>
+                                <p className="text-xs text-[--muted]">walking every relation</p>
                             </div>
                             {/* The walk is one request and the server reports no milestones, so this
                                 is an activity bar rather than a percentage. A made-up percentage
@@ -932,9 +996,30 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                     {/* Family search results — indented tree */}
                     {familyResults && familyResults.entries.length > 0 && (
                         <div className="p-3 border rounded-md bg-[--subtle] space-y-2">
-                            <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
-                                Related entries — pick one to match ({familyResults.entries.length})
-                            </p>
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
+                                    Related entries — pick one to match ({familyResults.entries.length})
+                                </p>
+                                {pendingFamilyIds.size > 0 && (
+                                    <p className="text-[10px] text-[--muted] shrink-0">
+                                        still branching out — {pendingFamilyIds.size} to go
+                                    </p>
+                                )}
+                            </div>
+                            {/* Progress against everything discovered so far. It grows as the walk
+                                finds more, which is honest about what it is: a walk that does not
+                                know its own size until it is done. */}
+                            {pendingFamilyIds.size > 0 && (
+                                <div className="h-1 w-full overflow-hidden rounded-full bg-gray-800">
+                                    <div
+                                        className="h-full rounded-full bg-[--brand] transition-all duration-300"
+                                        style={{
+                                            width: `${Math.round(100 * (familyResults.entries.length - pendingFamilyIds.size)
+                                                / Math.max(familyResults.entries.length, 1))}%`,
+                                        }}
+                                    />
+                                </div>
+                            )}
                             {/* Grows with the modal rather than staying at a fixed height, so the
                                 extra room actually shows more of the franchise. */}
                             <div className="max-h-[38vh] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
