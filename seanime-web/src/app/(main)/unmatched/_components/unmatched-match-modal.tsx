@@ -154,6 +154,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     const [familyResults, setFamilyResults] = useState<FamilyResult | null>(null)
     const [familySearchTargetId, setFamilySearchTargetId] = useState<number | null>(null)
     const { mutate: runFamilySearch, isPending: isFamilySearchLoading } = useUnmatchedFamilySearch()
+
     // Family detail fetch — when a family entry is clicked, fetch full details progressively
     const [familyDetailId, setFamilyDetailId] = useState<number | null>(null)
     const { data: familyAnimeDetails } = useGetAnilistAnimeDetails(familyDetailId)
@@ -168,6 +169,24 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
 
     // Fetch anime details if we have stored animeId
     const storedAnimeId = torrentContents?.animeId || torrent?.animeId
+
+    // Loaded automatically, for the anime this download is already believed to be or the one just
+    // picked from the search. Keyed on the target so picking a different entry re-walks from there,
+    // and guarded by familySearchDone so a walk runs once per target rather than once per render.
+    const familySearchTarget = familySearchTargetId || storedAnimeId
+    useEffect(() => {
+        if (step !== "select-anime" || familySearchDone || isFamilySearchLoading || !familySearchTarget) return
+
+        setFamilySearchDone(true)
+        runFamilySearch({ animeId: familySearchTarget }, {
+            onSuccess: (data) => setFamilyResults(data || null),
+            onError: (err) => {
+                // Not a toast: the search box below still works, and a failed relation walk is a
+                // missing convenience rather than a broken screen.
+                console.warn("unmatched: could not load the anime family", (err as Error)?.message)
+            },
+        })
+    }, [step, familySearchDone, isFamilySearchLoading, familySearchTarget, runFamilySearch])
     const storedAnimeTitleRomaji = torrentContents?.animeTitleRomaji || torrent?.animeTitleRomaji
     const storedAnimeTitleNative = torrentContents?.animeTitleNative || torrent?.animeTitleNative
     const storedAnimeExpectedEpisodes = torrentContents?.animeExpectedEpisodes || torrent?.animeExpectedEpisodes
@@ -875,53 +894,42 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                 </AppLayoutStack>
             ) : (
                 <AppLayoutStack className="space-y-4">
-                    {/* Feature 2: Family / relation search prompt - works with stored anime or selected from search */}
-                    {!familySearchDone && (familySearchTargetId || storedAnimeId) && (
-                        <div className="flex items-center justify-between p-3 border rounded-md bg-[--subtle] gap-3">
-                            <div>
-                                <p className="text-sm font-medium">Load full anime family?</p>
+                    {/* The family is loaded, not offered.
+                     *
+                     * It used to be a question — "Load full anime family?", Yes / No — sitting above
+                     * a separate results box, so picking the right season of a franchise meant
+                     * answering a prompt about a thing you could not see yet, then reading two lists
+                     * that did not know about each other. There is no case where the answer is No:
+                     * the family is the whole point of the screen, and it is one request. So it runs
+                     * as soon as there is something to run it on, and the tree it produces IS the
+                     * list. */}
+                    {isFamilySearchLoading && (
+                        <div className="p-3 border rounded-md bg-[--subtle] space-y-2" data-family-loading>
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium">Loading the anime family…</p>
                                 <p className="text-xs text-[--muted]">
-                                    Fetch all sequels &amp; prequels from AniList so you can pick the right season or part.
+                                    {familyResults?.entries?.length
+                                        ? `${familyResults.entries.length} found so far`
+                                        : "walking every relation"}
                                 </p>
                             </div>
-                            <div className="flex gap-2 shrink-0">
-                                <Button
-                                    size="sm"
-                                    intent="primary"
-                                    loading={isFamilySearchLoading}
-                                    onClick={() => {
-                                        const targetId = familySearchTargetId || storedAnimeId
-                                        if (!targetId) return
-                                        runFamilySearch({ animeId: targetId }, {
-                                            onSuccess: (data) => {
-                                                setFamilyResults(data || null)
-                                                setFamilySearchDone(true)
-                                                if (!data || !data.entries || data.entries.length === 0) {
-                                                    toast.info("No related entries found for this anime.")
-                                                }
-                                            },
-                                            onError: (err) => {
-                                                setFamilySearchDone(true)
-                                                const msg = (err as Error)?.message || "Could not load anime family"
-                                                toast.error(msg)
-                                            },
-                                        })
-                                    }}
-                                >
-                                    Yes, load family
-                                </Button>
-                                <Button size="sm" intent="gray-outline" onClick={() => setFamilySearchDone(true)}>
-                                    No
-                                </Button>
+                            {/* The walk is one request and the server reports no milestones, so this
+                                is an activity bar rather than a percentage. A made-up percentage
+                                that jumps to 90% and waits is worse than an honest one. */}
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-800">
+                                <div className="h-full w-1/3 animate-[indeterminate_1.4s_ease-in-out_infinite] rounded-full bg-[--brand]" />
                             </div>
+                            <style>{`@keyframes indeterminate{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}`}</style>
                         </div>
                     )}
 
                     {/* Family search results — indented tree */}
                     {familyResults && familyResults.entries.length > 0 && (
                         <div className="p-3 border rounded-md bg-[--subtle] space-y-2">
-                            <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">Related entries — pick one to match</p>
-                            <div className="max-h-[220px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                            <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
+                                Related entries — pick one to match ({familyResults.entries.length})
+                            </p>
+                            <div className="max-h-[320px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                                 <FamilyTreeView
                                     result={familyResults}
                                     selectedAnimeId={selectedAnime?.id ?? null}
@@ -1647,9 +1655,11 @@ function FamilyTreeNodeItem({ node, depth, selectedAnimeId, collapsed, toggleCol
                 role="button"
                 tabIndex={0}
                 className={cn(
-                    "flex items-center gap-1.5 py-1 px-1.5 rounded cursor-pointer text-xs transition-colors",
+                    "flex items-center gap-2 py-1.5 px-1.5 rounded cursor-pointer text-xs transition-colors",
                     isSelected ? "bg-brand-900/30 border border-brand-500" : "hover:bg-gray-800/50",
                 )}
+                // Indented by depth, so a franchise reads as the tree it is: the entry you searched
+                // for at the root, and every relative stepped in under the entry it hangs off.
                 style={{ paddingLeft: `${4 + depth * 18}px` }}
                 onClick={() => onSelect(e)}
                 onKeyDown={(ev) => {
@@ -1673,23 +1683,36 @@ function FamilyTreeNodeItem({ node, depth, selectedAnimeId, collapsed, toggleCol
                     <span className="w-4 flex-shrink-0" />
                 )}
 
-                <span className="flex-1 min-w-0 truncate">
-                    {e.title}
+                {/* The cover is what makes six near-identical subtitles tell themselves apart —
+                    you recognise the artwork of the thing you downloaded without reading a word. */}
+                {e.coverImage
+                    ? <img
+                        src={e.coverImage}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="h-11 w-8 flex-shrink-0 rounded-[--radius] object-cover"
+                    />
+                    : <span className="h-11 w-8 flex-shrink-0 rounded-[--radius] bg-gray-800" />}
+
+                <span className="flex-1 min-w-0">
+                    <span className="block truncate">{e.title}</span>
+                    {e.englishTitle && (
+                        <span className="block truncate text-[10px] text-[--muted]">{e.englishTitle}</span>
+                    )}
+                    <span className="flex items-center gap-1.5 text-[10px] text-[--muted]">
+                        {e.format && <span className="px-1 py-0.5 rounded bg-gray-800/70 text-gray-300">{e.format}</span>}
+                        {e.seasonYear ? <span>{e.season ? `${e.season[0]}${e.season.slice(1).toLowerCase()} ` : ""}{e.seasonYear}</span> : null}
+                        {e.status && <span className={cn(e.status === "FINISHED" && "text-green-500")}>{e.status.replace(/_/g, " ")}</span>}
+                        {e.episodes > 0 && <span>{e.episodes} eps</span>}
+                        {e.meanScore ? <span>★ {e.meanScore}%</span> : null}
+                    </span>
                 </span>
 
                 {e.relationType && (
                     <span className={cn("text-[10px] font-medium flex-shrink-0", RELATION_COLORS[e.relationType] || "text-gray-400")}>
                         {e.relationType.replace(/_/g, " ")}
                     </span>
-                )}
-
-                {e.format && (
-                    <span className="text-[10px] px-1 py-0.5 rounded bg-gray-800/70 text-gray-300 flex-shrink-0">
-                        {e.format}
-                    </span>
-                )}
-                {e.episodes && e.episodes > 0 && (
-                    <span className="text-[10px] text-[--muted] flex-shrink-0">{e.episodes} eps</span>
                 )}
             </div>
 

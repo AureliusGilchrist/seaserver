@@ -10,6 +10,7 @@ import (
 	"seanime/internal/unmatched"
 	"seanime/internal/util"
 	"seanime/internal/util/limiter"
+	"strings"
 	"sync"
 	"time"
 
@@ -115,136 +116,136 @@ func (h *Handler) HandleMatchUnmatchedTorrent(c echo.Context) error {
 func (h *Handler) FinalizeUnmatchedMatch(reqCopy unmatched.MatchRequest, resultCopy unmatched.MatchResult) {
 	defer util.HandlePanicInModuleThen("handlers/FinalizeUnmatchedMatch", func() {})
 
-		// Files that moved but were never injected are the worst possible outcome: they are in the
-		// library on disk, absent from the library database, and nothing says so. The auto-match
-		// path derives its anime ID from the stored metadata record after the match has already
-		// run, so a lookup that comes back empty silently skips the injection for the whole
-		// torrent — which reads as "it downloaded and matched but my library is empty".
-		if len(resultCopy.MovedFiles) > 0 && reqCopy.AnimeID <= 0 {
-			h.App.Logger.Error().
-				Str("torrent", reqCopy.TorrentName).
-				Int("movedFiles", len(resultCopy.MovedFiles)).
-				Str("destination", resultCopy.Destination).
-				Msg("unmatched: Files were moved into the library but no anime ID is known for them, so they cannot be recorded in the library database — they will only appear after a library scan")
+	// Files that moved but were never injected are the worst possible outcome: they are in the
+	// library on disk, absent from the library database, and nothing says so. The auto-match
+	// path derives its anime ID from the stored metadata record after the match has already
+	// run, so a lookup that comes back empty silently skips the injection for the whole
+	// torrent — which reads as "it downloaded and matched but my library is empty".
+	if len(resultCopy.MovedFiles) > 0 && reqCopy.AnimeID <= 0 {
+		h.App.Logger.Error().
+			Str("torrent", reqCopy.TorrentName).
+			Int("movedFiles", len(resultCopy.MovedFiles)).
+			Str("destination", resultCopy.Destination).
+			Msg("unmatched: Files were moved into the library but no anime ID is known for them, so they cannot be recorded in the library database — they will only appear after a library scan")
+	}
+
+	// DB injection: inject moved files as locked local-file entries so the
+	// "Resolve unmatched" step on the home page is never needed.
+	if reqCopy.AnimeID > 0 && len(resultCopy.MovedFiles) > 0 {
+		libraryPath := h.App.UnmatchedRepository.GetAnimeBasePath()
+		newLFs := make([]*anime.LocalFile, 0, len(resultCopy.MovedFiles))
+		for _, name := range resultCopy.MovedFiles {
+			fullPath := resultCopy.Destination + "/" + name
+			lf := anime.NewLocalFile(fullPath, libraryPath)
+			lf.MediaId = reqCopy.AnimeID
+			lf.Locked = false // Temporarily unlocked so hydrator processes it
+			lf.Ignored = false
+			lf.Metadata = &anime.LocalFileMetadata{
+				Episode:      0,
+				AniDBEpisode: "",
+				Type:         anime.LocalFileTypeMain,
+			}
+			newLFs = append(newLFs, lf)
 		}
 
-		// DB injection: inject moved files as locked local-file entries so the
-		// "Resolve unmatched" step on the home page is never needed.
-		if reqCopy.AnimeID > 0 && len(resultCopy.MovedFiles) > 0 {
-			libraryPath := h.App.UnmatchedRepository.GetAnimeBasePath()
-			newLFs := make([]*anime.LocalFile, 0, len(resultCopy.MovedFiles))
-			for _, name := range resultCopy.MovedFiles {
-				fullPath := resultCopy.Destination + "/" + name
-				lf := anime.NewLocalFile(fullPath, libraryPath)
-				lf.MediaId = reqCopy.AnimeID
-				lf.Locked = false // Temporarily unlocked so hydrator processes it
-				lf.Ignored = false
-				lf.Metadata = &anime.LocalFileMetadata{
-					Episode:      0,
-					AniDBEpisode: "",
-					Type:         anime.LocalFileTypeMain,
-				}
-				newLFs = append(newLFs, lf)
+		// Hydrate episode metadata — use a fresh context with a hard timeout
+		// so a slow AniList response never stalls the goroutine indefinitely.
+		hydrateCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		media, fetchErr := h.App.AnilistPlatformRef.Get().GetAnime(hydrateCtx, reqCopy.AnimeID)
+		if fetchErr == nil && media != nil {
+			normalizedMedia := anime.NewNormalizedMedia(media)
+			fh := &scanner.FileHydrator{
+				AllMedia:            []*anime.NormalizedMedia{normalizedMedia},
+				LocalFiles:          newLFs,
+				MetadataProviderRef: h.App.MetadataProviderRef,
+				PlatformRef:         h.App.AnilistPlatformRef,
+				CompleteAnimeCache:  anilist.NewCompleteAnimeCache(),
+				AnilistRateLimiter:  limiter.NewAnilistLimiter(),
+				Logger:              h.App.Logger,
 			}
+			fh.HydrateMetadata()
+		} else {
+			h.App.Logger.Warn().Err(fetchErr).Int("mediaId", reqCopy.AnimeID).
+				Msg("unmatched: failed to fetch media for episode hydration, episodes will be 0")
+		}
 
-			// Hydrate episode metadata — use a fresh context with a hard timeout
-			// so a slow AniList response never stalls the goroutine indefinitely.
-			hydrateCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			media, fetchErr := h.App.AnilistPlatformRef.Get().GetAnime(hydrateCtx, reqCopy.AnimeID)
-			if fetchErr == nil && media != nil {
-				normalizedMedia := anime.NewNormalizedMedia(media)
-				fh := &scanner.FileHydrator{
-					AllMedia:            []*anime.NormalizedMedia{normalizedMedia},
-					LocalFiles:          newLFs,
-					MetadataProviderRef: h.App.MetadataProviderRef,
-					PlatformRef:         h.App.AnilistPlatformRef,
-					CompleteAnimeCache:  anilist.NewCompleteAnimeCache(),
-					AnilistRateLimiter:  limiter.NewAnilistLimiter(),
-					Logger:              h.App.Logger,
-				}
-				fh.HydrateMetadata()
-			} else {
-				h.App.Logger.Warn().Err(fetchErr).Int("mediaId", reqCopy.AnimeID).
-					Msg("unmatched: failed to fetch media for episode hydration, episodes will be 0")
-			}
+		// Lock all files after hydration
+		for _, lf := range newLFs {
+			lf.Locked = true
+		}
 
-			// Lock all files after hydration
+		func() {
+			injectMu.Lock()
+			defer injectMu.Unlock()
+
+			// Hydration runs for up to 30 seconds, and the match can be undone in that window.
+			// Injecting a file the revert has already moved back would leave the library
+			// pointing at a path that no longer exists, so anything gone by now is dropped.
+			stillThere := make([]*anime.LocalFile, 0, len(newLFs))
 			for _, lf := range newLFs {
-				lf.Locked = true
+				if _, statErr := os.Stat(lf.Path); statErr != nil {
+					h.App.Logger.Debug().Str("path", lf.Path).
+						Msg("unmatched: skipping DB injection for a file that is no longer there")
+					continue
+				}
+				stillThere = append(stillThere, lf)
 			}
-
-			func() {
-				injectMu.Lock()
-				defer injectMu.Unlock()
-
-				// Hydration runs for up to 30 seconds, and the match can be undone in that window.
-				// Injecting a file the revert has already moved back would leave the library
-				// pointing at a path that no longer exists, so anything gone by now is dropped.
-				stillThere := make([]*anime.LocalFile, 0, len(newLFs))
-				for _, lf := range newLFs {
-					if _, statErr := os.Stat(lf.Path); statErr != nil {
-						h.App.Logger.Debug().Str("path", lf.Path).
-							Msg("unmatched: skipping DB injection for a file that is no longer there")
-						continue
-					}
-					stillThere = append(stillThere, lf)
-				}
-				if len(stillThere) == 0 {
-					return
-				}
-				newLFs = stillThere
-
-				existingLFs, lfsId, lfsErr := db_bridge.GetLocalFiles(h.App.Database)
-				if lfsErr != nil {
-					h.App.Logger.Warn().Err(lfsErr).Msg("unmatched: failed to load local files for DB injection")
-					return
-				}
-				merged := append(existingLFs, newLFs...)
-				if _, saveErr := db_bridge.SaveLocalFiles(h.App.Database, lfsId, merged); saveErr != nil {
-					h.App.Logger.Warn().Err(saveErr).Msg("unmatched: failed to save injected local files")
-					return
-				}
-				h.App.Logger.Info().
-					Int("count", len(newLFs)).
-					Int("mediaId", reqCopy.AnimeID).
-					Msg("unmatched: injected moved files into library DB")
-			}()
-		}
-
-		// The files are in the library now, so say so.
-		//
-		// MatchAndMoveFiles records this itself, which covers every match that goes through it.
-		// Repeated here because this handler is also reached by paths that assemble the result
-		// themselves, and recording the same state twice is free — it is the same write.
-		if reqCopy.AnimeID > 0 && len(resultCopy.MovedFiles) > 0 {
-			h.App.UnmatchedRepository.MarkAnimeMatchedState(reqCopy.AnimeID)
-		}
-
-		// Auto-add to Planning list — but only when the anime isn't already on a list. Writing
-		// over an existing entry would reset it to PLANNING and discard its progress.
-		if reqCopy.AnimeID > 0 {
-			added, addErr := h.addAnimeToPlanningIfAbsent(context.Background(), reqCopy.AnimeID)
-			switch {
-			case addErr != nil:
-				h.App.Logger.Warn().Err(addErr).Int("mediaId", reqCopy.AnimeID).
-					Msg("unmatched: failed to add anime to planning slut's PLANNING list")
-			case added:
-				h.App.Logger.Info().Int("mediaId", reqCopy.AnimeID).
-					Msg("unmatched: added anime to planning slut's PLANNING list")
-			default:
-				h.App.Logger.Debug().Int("mediaId", reqCopy.AnimeID).
-					Msg("unmatched: anime already tracked, left its list entry alone")
+			if len(stillThere) == 0 {
+				return
 			}
-		}
+			newLFs = stillThere
 
-		// Trigger scan AFTER injection so the scanner doesn't overwrite fresh entries
-		if reqCopy.TorrentName != "" {
-			h.App.UnmatchedScanner.ClearCompletedTorrent(reqCopy.TorrentName)
-		}
-		h.App.UnmatchedRepository.InvalidateCache()
+			existingLFs, lfsId, lfsErr := db_bridge.GetLocalFiles(h.App.Database)
+			if lfsErr != nil {
+				h.App.Logger.Warn().Err(lfsErr).Msg("unmatched: failed to load local files for DB injection")
+				return
+			}
+			merged := append(existingLFs, newLFs...)
+			if _, saveErr := db_bridge.SaveLocalFiles(h.App.Database, lfsId, merged); saveErr != nil {
+				h.App.Logger.Warn().Err(saveErr).Msg("unmatched: failed to save injected local files")
+				return
+			}
+			h.App.Logger.Info().
+				Int("count", len(newLFs)).
+				Int("mediaId", reqCopy.AnimeID).
+				Msg("unmatched: injected moved files into library DB")
+		}()
+	}
 
-		h.scheduleAnimeCollectionRefresh()
+	// The files are in the library now, so say so.
+	//
+	// MatchAndMoveFiles records this itself, which covers every match that goes through it.
+	// Repeated here because this handler is also reached by paths that assemble the result
+	// themselves, and recording the same state twice is free — it is the same write.
+	if reqCopy.AnimeID > 0 && len(resultCopy.MovedFiles) > 0 {
+		h.App.UnmatchedRepository.MarkAnimeMatchedState(reqCopy.AnimeID)
+	}
+
+	// Auto-add to Planning list — but only when the anime isn't already on a list. Writing
+	// over an existing entry would reset it to PLANNING and discard its progress.
+	if reqCopy.AnimeID > 0 {
+		added, addErr := h.addAnimeToPlanningIfAbsent(context.Background(), reqCopy.AnimeID)
+		switch {
+		case addErr != nil:
+			h.App.Logger.Warn().Err(addErr).Int("mediaId", reqCopy.AnimeID).
+				Msg("unmatched: failed to add anime to planning slut's PLANNING list")
+		case added:
+			h.App.Logger.Info().Int("mediaId", reqCopy.AnimeID).
+				Msg("unmatched: added anime to planning slut's PLANNING list")
+		default:
+			h.App.Logger.Debug().Int("mediaId", reqCopy.AnimeID).
+				Msg("unmatched: anime already tracked, left its list entry alone")
+		}
+	}
+
+	// Trigger scan AFTER injection so the scanner doesn't overwrite fresh entries
+	if reqCopy.TorrentName != "" {
+		h.App.UnmatchedScanner.ClearCompletedTorrent(reqCopy.TorrentName)
+	}
+	h.App.UnmatchedRepository.InvalidateCache()
+
+	h.scheduleAnimeCollectionRefresh()
 }
 
 // postMatchRefreshDelay is how long the coalesced post-match refresh waits for more matches before
@@ -302,13 +303,25 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 		return h.RespondWithError(c, echo.NewHTTPError(400, "animeId is required"))
 	}
 
+	// Everything the picker needs to tell one entry from another at a glance.
+	//
+	// A franchise's tree is a list of near-identical titles — six Fate/Grand Order entries differing
+	// by a subtitle — and picking the right one from titles alone means reading each of them
+	// carefully. The cover, the year and the status are what make them distinguishable without
+	// reading: you recognise the artwork of the one you downloaded.
 	type familyEntry struct {
 		ID           int    `json:"id"`
 		Title        string `json:"title"`
 		RelationType string `json:"relationType"` // "SEQUEL", "PREQUEL", "SIDE_STORY", "PARENT", "ALTERNATIVE", "SPIN_OFF", "SUMMARY", "CHARACTER", "OTHER", ""
-		Format       string `json:"format"`        // "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC"
-		ParentID     int    `json:"parentId"`       // ID of the parent entry in the tree (0 for root)
-		Episodes     int    `json:"episodes"`       // 0 if unknown
+		Format       string `json:"format"`       // "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC"
+		ParentID     int    `json:"parentId"`     // ID of the parent entry in the tree (0 for root)
+		Episodes     int    `json:"episodes"`     // 0 if unknown
+		CoverImage   string `json:"coverImage,omitempty"`
+		Status       string `json:"status,omitempty"`       // "FINISHED", "RELEASING", "NOT_YET_RELEASED", …
+		Season       string `json:"season,omitempty"`       // "WINTER", "SPRING", "SUMMER", "FALL"
+		SeasonYear   int    `json:"seasonYear,omitempty"`   // 0 if unknown
+		MeanScore    int    `json:"meanScore,omitempty"`    // percentage, 0 if unknown
+		EnglishTitle string `json:"englishTitle,omitempty"` // shown under the main title when it differs
 	}
 
 	type unmatchedFamilyResult struct {
@@ -363,11 +376,17 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 		}
 
 		entry := familyEntry{
-			ID:       media.ID,
-			Title:    title,
-			Format:   format,
-			ParentID: cur.parentID,
-			Episodes: episodes,
+			ID:           media.ID,
+			Title:        title,
+			Format:       format,
+			ParentID:     cur.parentID,
+			Episodes:     episodes,
+			CoverImage:   coverImageOf(media.GetCoverImage()),
+			Status:       stringOfStatus(media.GetStatus()),
+			Season:       stringOfSeason(media.GetSeason()),
+			SeasonYear:   intOf(media.GetSeasonYear()),
+			MeanScore:    intOf(media.GetMeanScore()),
+			EnglishTitle: englishTitleOf(media.GetTitle().GetEnglish(), title),
 		}
 
 		if media.ID == b.AnimeID {
@@ -384,6 +403,12 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 			}
 			n := edge.GetNode()
 			if n == nil || visited[n.ID] {
+				continue
+			}
+			// Anime only. A franchise's relations cross media freely — the manga it was adapted
+			// from, the light novel under that — and none of those can be matched to a download of
+			// episodes. They would only be rows you cannot pick.
+			if n.Type == nil || *n.Type != anilist.MediaTypeAnime {
 				continue
 			}
 			relType := ""
@@ -418,15 +443,28 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 				Format:       childFormat,
 				ParentID:     media.ID,
 				Episodes:     childEpisodes,
+				CoverImage:   coverImageOf(n.GetCoverImage()),
+				Status:       stringOfStatus(n.GetStatus()),
+				Season:       stringOfSeason(n.GetSeason()),
+				SeasonYear:   intOf(n.GetSeasonYear()),
+				MeanScore:    intOf(n.GetMeanScore()),
+				EnglishTitle: englishTitleOf(n.GetTitle().GetEnglish(), childTitle),
 			}
 			entries = append(entries, childEntry)
 			visited[n.ID] = true
 
-			// Continue BFS for sequel/prequel chains to build deeper tree
-			if relType == "SEQUEL" || relType == "PREQUEL" {
-				queue = append(queue, node{id: n.ID, parentID: media.ID})
-				visited[n.ID] = false // Allow re-visit to discover its relations
-			}
+			// Every edge is followed, not just the sequel/prequel spine.
+			//
+			// A franchise is not a line. The side stories, the specials, the alternative retellings
+			// and the spin-offs all hang off it, and a download is as likely to be one of those as
+			// a numbered season — more likely, when the numbered seasons are the ones you already
+			// have. Walking only sequels and prequels left exactly the entries somebody is trying to
+			// match out of the tree they are looking at.
+			//
+			// The walk stays bounded by `visited` and by the fact that anything that is not an anime
+			// is dropped above, so it cannot wander off into a manga's own relations.
+			queue = append(queue, node{id: n.ID, parentID: media.ID})
+			visited[n.ID] = false // Allow re-visit to discover its relations
 		}
 	}
 
@@ -520,4 +558,61 @@ func (h *Handler) HandleClearCompletedTorrent(c echo.Context) error {
 
 	h.App.UnmatchedScanner.ClearCompletedTorrent(b.TorrentName)
 	return h.RespondWithData(c, true)
+}
+
+// The family picker's little accessors.
+//
+// AniList sends almost everything as a pointer, and a tree row that has to guard six of them inline
+// stops being readable. These turn "maybe there" into "a value or the zero one", which is what the
+// row wants: an empty string renders as nothing, and nothing is the right answer for a field AniList
+// does not know.
+
+func coverImageOf(cover interface {
+	GetExtraLarge() *string
+	GetLarge() *string
+	GetMedium() *string
+}) string {
+	if cover == nil {
+		return ""
+	}
+	if v := cover.GetExtraLarge(); v != nil && *v != "" {
+		return *v
+	}
+	if v := cover.GetLarge(); v != nil && *v != "" {
+		return *v
+	}
+	if v := cover.GetMedium(); v != nil {
+		return *v
+	}
+	return ""
+}
+
+func stringOfStatus(status *anilist.MediaStatus) string {
+	if status == nil {
+		return ""
+	}
+	return string(*status)
+}
+
+func stringOfSeason(season *anilist.MediaSeason) string {
+	if season == nil {
+		return ""
+	}
+	return string(*season)
+}
+
+func intOf(v *int) int {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
+
+// englishTitleOf returns the English title only when it says something the main title does not.
+// Printing "Fate/Grand Order" under "Fate/Grand Order" is a line of noise on every row.
+func englishTitleOf(english *string, mainTitle string) string {
+	if english == nil || *english == "" || strings.EqualFold(*english, mainTitle) {
+		return ""
+	}
+	return *english
 }

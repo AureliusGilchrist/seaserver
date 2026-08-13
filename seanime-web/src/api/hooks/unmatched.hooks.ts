@@ -565,6 +565,13 @@ export interface FamilyEntry {
     format: string       // "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC"
     parentId: number     // ID of the parent entry in the tree (0 for root)
     episodes: number     // 0 if unknown
+    /** Everything below is what makes one entry in a franchise tell itself apart from the next. */
+    coverImage?: string
+    status?: string      // "FINISHED", "RELEASING", "NOT_YET_RELEASED", …
+    season?: string      // "WINTER", "SPRING", "SUMMER", "FALL"
+    seasonYear?: number
+    meanScore?: number   // percentage
+    englishTitle?: string // only present when it differs from the main title
 }
 
 export interface FamilyResult {
