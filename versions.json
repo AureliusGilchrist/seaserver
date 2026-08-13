@@ -14,7 +14,7 @@
         "source": "seanime-web/package.json"
     },
     "seanime-denshi": {
-        "version": "5.0.0-1",
+        "version": "5.0.0-2",
         "source": "seanime-denshi/package.json"
     },
     "updater": {

@@ -732,7 +732,13 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         <Modal
             open={!!torrent}
             onOpenChange={(open) => !open && handleClose()}
-            contentClass="max-w-4xl"
+            // As big as the screen allows and no bigger.
+            //
+            // The tree, the search results and the selected target are three columns of real
+            // content, and 4xl gave them about a third of a modern screen — which is what forced
+            // every title to be cut short. The viewport units are the guard: it grows to fill the
+            // space that exists and stops there, so nothing ends up off the edge on a laptop.
+            contentClass="max-w-[min(96rem,95vw)] w-[95vw] max-h-[92vh] overflow-y-auto"
             title={step === "select-files" ? "Select Episodes" : "Select Anime"}
         >
             {(isLoadingContents || isLoadingAnimeInfo) ? (
@@ -929,7 +935,9 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                             <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
                                 Related entries — pick one to match ({familyResults.entries.length})
                             </p>
-                            <div className="max-h-[320px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                            {/* Grows with the modal rather than staying at a fixed height, so the
+                                extra room actually shows more of the franchise. */}
+                            <div className="max-h-[38vh] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
                                 <FamilyTreeView
                                     result={familyResults}
                                     selectedAnimeId={selectedAnime?.id ?? null}
@@ -1585,8 +1593,24 @@ function buildFamilyTree(result: FamilyResult): FamilyTreeNode {
     function build(entry: FamilyEntry): FamilyTreeNode {
         if (builtIds.has(entry.id)) return { entry, children: [] }
         builtIds.add(entry.id)
+        // Siblings run in the order the series does.
+        //
+        // Relation type alone put every prequel above every sequel regardless of when either came
+        // out, so a franchise read backwards from whichever entry you happened to search for. Airing
+        // order first — an entry further along the series sits further down the list, which is how
+        // anybody thinks about a franchise — and the relation ordering only decides between entries
+        // AniList gives the same year, or none at all.
+        const seasonOrder: Record<string, number> = { WINTER: 0, SPRING: 1, SUMMER: 2, FALL: 3 }
+        const airedAt = (e: FamilyEntry) => (e.seasonYear || 0) * 10 + (seasonOrder[e.season || ""] ?? 0)
         const kids = (byParent.get(entry.id) || [])
-            .sort((a, b) => (relationOrder[a.relationType] ?? 9) - (relationOrder[b.relationType] ?? 9))
+            .sort((a, b) => {
+                // Entries with no year at all go last rather than to the front of the franchise.
+                const aYear = a.seasonYear || 0
+                const bYear = b.seasonYear || 0
+                if ((aYear === 0) !== (bYear === 0)) return aYear === 0 ? 1 : -1
+                if (aYear !== 0 && airedAt(a) !== airedAt(b)) return airedAt(a) - airedAt(b)
+                return (relationOrder[a.relationType] ?? 9) - (relationOrder[b.relationType] ?? 9)
+            })
         return { entry, children: kids.map(build) }
     }
 
@@ -1696,7 +1720,12 @@ function FamilyTreeNodeItem({ node, depth, selectedAnimeId, collapsed, toggleCol
                     : <span className="h-11 w-8 flex-shrink-0 rounded-[--radius] bg-gray-800" />}
 
                 <span className="flex-1 min-w-0">
-                    <span className="block truncate">{e.title}</span>
+                    {/* Room for a real title. These names run long — "Fate/Grand Order: Shinsei
+                        Entaku Ryouiki Camelot - Wandering; Agateram" is the entry, not a
+                        description of it — and cutting them at the width of a narrow column left
+                        several rows reading identically. Wraps to two lines, which fits about
+                        fifty characters before anything is lost. */}
+                    <span className="block leading-tight line-clamp-2 break-words">{e.title}</span>
                     {e.englishTitle && (
                         <span className="block truncate text-[10px] text-[--muted]">{e.englishTitle}</span>
                     )}
