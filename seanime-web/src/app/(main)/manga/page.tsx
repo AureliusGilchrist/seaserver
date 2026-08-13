@@ -6,6 +6,7 @@ import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_comp
 import { MangaLibraryHeader } from "@/app/(main)/manga/_components/library-header"
 import { MangaHomeToolbar } from "@/app/(main)/manga/_components/manga-home-toolbar"
 import { useHandleMangaCollection } from "@/app/(main)/manga/_lib/handle-manga-collection"
+import { useMangaCoverProxy } from "@/app/(main)/manga/_lib/use-manga-cover-proxy"
 import { useMangaFavorites } from "@/app/(main)/manga/_lib/use-manga-favorites"
 import { useGetMangaDownloadsList } from "@/api/hooks/manga_download.hooks"
 import { MangaLibraryView } from "@/app/(main)/manga/_screens/manga-library-view"
@@ -101,8 +102,24 @@ export default function Page() {
     const [downloadSearch, setDownloadSearch] = React.useState("")
 
     const downloadedWithMedia = React.useMemo(() => (downloadedList || []).filter(d => !!d.media), [downloadedList])
-    const filteredDownloads = React.useMemo(() => {
+
+    // Provider cover art is routed through the server's image proxy — see useMangaCoverProxy. Done
+    // once here rather than per card so the objects the cards receive keep a stable identity.
+    const { withProxiedCover } = useMangaCoverProxy()
+    const proxiedDownloads = React.useMemo(() => {
         const list = downloadedList || []
+        let changed = false
+        const mapped = list.map(item => {
+            const media = withProxiedCover(item.media)
+            if (media === item.media) return item
+            changed = true
+            return { ...item, media }
+        })
+        return changed ? mapped : list
+    }, [downloadedList, withProxiedCover])
+
+    const filteredDownloads = React.useMemo(() => {
+        const list = proxiedDownloads
         const q = downloadSearch.trim().toLowerCase()
         const filtered = !q ? list : list.filter(item => displayTitle(item.media?.title).toLowerCase().includes(q))
 
@@ -119,7 +136,7 @@ export default function Page() {
             const titleB = displayTitle(b.media?.title) || `Unknown ${b.mediaId}`
             return titleA.localeCompare(titleB, undefined, { numeric: true, sensitivity: "base" })
         })
-    }, [downloadSearch, downloadedList])
+    }, [downloadSearch, proxiedDownloads])
     const downloadedChaptersTotal = React.useMemo(() => downloadedList?.reduce((acc, d) => acc + Object.values(d.downloadData).flatMap(n => n).length, 0) || 0, [downloadedList])
 
     // Pre-compute filtered downloads for all possible source filters
@@ -579,7 +596,18 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                 {sourceFilteredDownloads.map(dlItem => {
                                     const chapters = Object.values(dlItem.downloadData).flatMap(n => n).length
                                     const isSynthetic = (dlItem.media?.id !== undefined && dlItem.media.id < 0) && !dlItem.isMapped
-                                    if (dlItem.media) {
+                                    // A media record with no cover art in it renders as a grey
+                                    // rectangle — the card is there, the image simply never arrives,
+                                    // and nothing on screen says which. Locally scanned series are
+                                    // stored with no cover at all, so this is common rather than
+                                    // exotic. Those take the placeholder below, which at least says
+                                    // what it is and keeps its title.
+                                    const coverUrl = dlItem.media?.coverImage?.extraLarge
+                                        || dlItem.media?.coverImage?.large
+                                        || dlItem.media?.coverImage?.medium
+                                        || dlItem.media?.bannerImage
+                                        || ""
+                                    if (dlItem.media && !!coverUrl) {
                                         const hoverImg = dlItem.media?.bannerImage || dlItem.media?.coverImage?.extraLarge || dlItem.media?.coverImage?.large || null
                                         return (
                                             <div
@@ -606,13 +634,15 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                             </div>
                                         )
                                     }
-                                    // No metadata for this one yet — the list endpoint never reaches
-                                    // AniList, so a download whose series is not on your lists and
-                                    // has nothing stored locally arrives with media: null. The
-                                    // server backfills those in the background; until it has, the
-                                    // card still has to be a way in rather than a dead tile. It has
-                                    // the media ID, which is all the entry page needs.
+                                    // Either no metadata at all — the list endpoint never reaches
+                                    // AniList, so a download whose series is on none of your lists
+                                    // and has nothing stored locally arrives with media: null — or
+                                    // metadata with no cover in it. The server fetches what is
+                                    // missing in the background; until it lands, the card still has
+                                    // to be a way in rather than a dead tile. The media ID is all
+                                    // the entry page needs.
                                     const provider = Object.keys(dlItem.downloadData || {})[0]
+                                    const placeholderTitle = displayTitle(dlItem.media?.title) || `Manga ID: ${dlItem.mediaId}`
                                     return (
                                         <SeaLink
                                             key={`download-${dlItem.mediaId}-${provider}`}
@@ -646,7 +676,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                             </div>
 
                                             <div className="pt-2 space-y-0.5">
-                                                <p className="text-sm font-semibold text-white line-clamp-2">Manga ID: {dlItem.mediaId}</p>
+                                                <p className="text-sm font-semibold text-white line-clamp-2">{placeholderTitle}</p>
                                                 {provider && <p className="text-xs text-[--muted]">Provider: {provider}</p>}
                                             </div>
                                         </SeaLink>

@@ -91,6 +91,15 @@ type Item struct {
 	TotalSeeders int       `json:"totalSeeders"`
 	CreatedAt    time.Time `json:"createdAt"`
 	Snapshot     *Snapshot `json:"snapshot,omitempty"`
+	// DownloadState is what has already happened to this anime outside the queue: "downloading",
+	// "downloaded", "matched", or empty for one nothing has been done with yet.
+	//
+	// These used to be removed from the queue outright, which loses something worth keeping: the
+	// queue is a record of a walk, and an entry vanishing because you dealt with it is indistinguish-
+	// able from one that was never found. So they stay, and the screen greys them out — visible,
+	// still countable as part of their franchise, but not something you can pick a torrent for. The
+	// only actions left on one are skip and ignore, which are ways of saying "I am done with this".
+	DownloadState string `json:"downloadState,omitempty"`
 }
 
 // Status is the progress of a running (or the last) Enqueue Future run.

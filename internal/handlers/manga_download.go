@@ -258,9 +258,15 @@ func (h *Handler) HandleGetMangaDownloadsList(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	// Anything with no metadata at all, and anything whose metadata carries no cover — a locally
+	// scanned series is stored with neither, and both render as a blank card.
 	missing := make([]int, 0)
 	for _, item := range res {
-		if item != nil && item.Media == nil && item.MediaId > 0 {
+		if item == nil || item.MediaId == 0 {
+			continue
+		}
+		if item.Media == nil || item.Media.GetCoverImage() == nil || item.Media.GetCoverImage().GetLarge() == nil ||
+			*item.Media.GetCoverImage().GetLarge() == "" {
 			missing = append(missing, item.MediaId)
 		}
 	}

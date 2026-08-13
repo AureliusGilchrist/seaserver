@@ -120,7 +120,19 @@ export function EnqueueFuturePage() {
         const found = orderedItems.findIndex(n => n.mediaId === activeMediaId)
         // Hold the position rather than the anime — that is what "next" means when the current one
         // has just been dealt with.
-        return found >= 0 ? found : Math.min(lastIndexRef.current, orderedItems.length - 1)
+        const at = found >= 0 ? found : Math.min(lastIndexRef.current, orderedItems.length - 1)
+
+        // Never land on an anime that is already downloading, downloaded or matched. Those rows stay
+        // in the list so their franchise reads whole, but there is nothing to decide about one, so
+        // the position walks past them — forwards first, then backwards if the tail is all settled.
+        if (!orderedItems[at]?.downloadState) return at
+        for (let i = at + 1; i < orderedItems.length; i++) {
+            if (!orderedItems[i]?.downloadState) return i
+        }
+        for (let i = at - 1; i >= 0; i--) {
+            if (!orderedItems[i]?.downloadState) return i
+        }
+        return -1
     }, [orderedItems, activeMediaId])
 
     const activeItem = index >= 0 ? orderedItems[index] : undefined

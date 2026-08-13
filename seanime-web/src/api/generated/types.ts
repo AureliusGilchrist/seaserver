@@ -2754,6 +2754,11 @@ export type EnqueueFuture_Item = {
     totalSeeders: number
     createdAt?: string
     snapshot?: EnqueueFuture_Snapshot
+    /**
+     * What has already happened to this anime outside the queue: "downloading", "downloaded",
+     * "matched", or absent for one nothing has been done with yet. The queue greys these out.
+     */
+    downloadState?: string
 }
 
 /**

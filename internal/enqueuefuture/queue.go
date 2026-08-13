@@ -14,20 +14,21 @@ func (r *Repository) ListItems() ([]*Item, error) {
 	// items prepared before it was recorded. Runs in the background, once per process.
 	r.backfillSeedersOnce()
 
-	// Drop anything downloaded or matched since it was queued, before the screen is built rather
-	// than after. Doing it here as well as at the start of a run is what makes the queue correct
-	// without one: you download an anime from the queue, come back to the screen, and it is gone —
-	// rather than still sitting there until the next walk happens to notice.
-	r.purgeSettledItems()
-
 	records, err := r.database.GetEnqueueFutureListItems()
 	if err != nil {
 		return nil, err
 	}
 
+	// What has already happened to each of these outside the queue, in one read. The screen greys
+	// out anything downloading, downloaded or matched rather than offering it as a decision — see
+	// settled.go.
+	states := r.downloadStatesByMediaID()
+
 	items := make([]*Item, 0, len(records))
 	for _, record := range records {
-		items = append(items, toItem(record, nil))
+		item := toItem(record, nil)
+		item.DownloadState = states[record.MediaID]
+		items = append(items, item)
 	}
 	return items, nil
 }
@@ -53,7 +54,13 @@ func (r *Repository) GetItem(mediaID int) (*Item, error) {
 		}
 	}
 
-	return toItem(record, snapshot), nil
+	item := toItem(record, snapshot)
+	if r.database != nil {
+		if state, err := r.database.GetAnimeDownloadState(mediaID); err == nil {
+			item.DownloadState = state
+		}
+	}
+	return item, nil
 }
 
 // SetItemStatus records what you did with an item from the queue screen.

@@ -619,6 +619,18 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 					Media:        media,
 					DownloadData: data,
 				})
+			} else if synthetic, found := d.syntheticFor(mId); found {
+				// A download filed under an AniList ID that was matched from a synthetic entry: the
+				// series was found on a provider, matched to AniList, and the folder renamed to the
+				// AniList ID. The synthetic record it was matched *from* is still here, with the
+				// title and cover the provider gave it — which is a complete answer, held locally,
+				// for a card that was otherwise rendering as "Manga ID: 38456".
+				ret = append(ret, &DownloadListItem{
+					MediaId:      mId,
+					Media:        createBaseMangaFromSynthetic(synthetic, mId),
+					DownloadData: data,
+					IsMapped:     true,
+				})
 			} else if opts.EnableRemoteMetadataFetch {
 				// No stored metadata, try to fetch from AniList API and store it
 				media := d.fetchAndStoreMetadataFromAniList(opts, mId)
@@ -676,6 +688,23 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 	}
 
 	return
+}
+
+// syntheticFor finds the synthetic record a download's AniList ID was matched from, if there is one.
+//
+// Purely local: a reverse lookup through the ID mapping table and then the synthetic manga table.
+// This is what lets a matched download describe itself without a single request — the provider
+// already told us the title and the cover when the series was first found, and that answer was never
+// thrown away, only filed under a different ID.
+func (d *Downloader) syntheticFor(anilistID int) (*models.SyntheticManga, bool) {
+	if d.database == nil || anilistID <= 0 {
+		return nil, false
+	}
+	syntheticID, found := d.database.GetReverseMangaIDMapping(anilistID)
+	if !found {
+		return nil, false
+	}
+	return d.database.GetSyntheticManga(syntheticID)
 }
 
 // fetchAndStoreMetadataFromAniList fetches manga metadata from AniList API and stores it in the database

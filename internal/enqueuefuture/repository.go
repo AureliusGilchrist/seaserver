@@ -286,9 +286,6 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 	// Clear out the PVs, CMs and other promotional entries queued before they were filtered at
 	// discovery, so a run does not hand back a queue of things nobody wants to work through.
 	r.purgeJunkItems()
-	// And anything you have downloaded or matched since it was queued — the queue is worth working
-	// through only while everything in it still needs a decision.
-	r.purgeSettledItems()
 
 	// frontier holds anime discovered but not yet inserted; seen guards against walking in circles,
 	// which a recommendation graph does constantly. Both are restored from the progress record on a
@@ -714,41 +711,11 @@ func (r *Repository) shouldSkip(rec recommendation) (bool, string) {
 	if count, err := r.database.CountUnmatchedTorrentMetadataByAnimeID(rec.mediaID); err == nil && count > 0 {
 		return true, "already downloading"
 	}
-	if reason := r.downloadStateReason(rec.mediaID); reason != "" {
-		return true, reason
-	}
+	// Deliberately no check on the download badge here. An anime you have downloaded or matched is
+	// still walked and still queued — it just arrives greyed out, carrying its state, because a
+	// franchise is easier to read with all of its seasons in it than with the ones you have already
+	// dealt with silently missing. See Item.DownloadState.
 	return false, ""
-}
-
-// downloadStateReason names why an anime's download badge disqualifies it, or "" when it does not.
-//
-// The badge is the durable record of what has already been done with an anime: queued, arrived,
-// filed. The staged-metadata check above sees only the middle of that — the record is written when a
-// torrent is queued and deleted the moment its files are matched — so an anime you downloaded and
-// matched last week looks, to that check alone, exactly like one you have never touched. Which is
-// how a series already sitting in the library came back round in the queue.
-//
-// A partial library copy is deliberately still queueable (see hasFullLibraryCopy), but "you already
-// dealt with this download" is a different statement from "you have some of the episodes", and this
-// is the one that answers it.
-func (r *Repository) downloadStateReason(mediaID int) string {
-	state, err := r.database.GetAnimeDownloadState(mediaID)
-	if err != nil {
-		// A badge that cannot be read is not a reason to stop queueing — the worst case is an item
-		// you skip by hand, against a run that refuses to queue anything at all.
-		r.logger.Debug().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Could not read the download badge")
-		return ""
-	}
-
-	switch state {
-	case db.AnimeDownloadStateDownloading:
-		return "already downloading"
-	case db.AnimeDownloadStateDownloaded:
-		return "already downloaded"
-	case db.AnimeDownloadStateMatched:
-		return "already matched into the library"
-	}
-	return ""
 }
 
 // MinSeeders is the seeder count the best torrent for an anime has to beat for the entry to be worth

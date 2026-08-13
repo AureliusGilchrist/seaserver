@@ -270,6 +270,12 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
             <div className={cn(isGroup && "pl-2 border-l-2 border-[--brand] ml-2 mb-1")}>
                 {family.map(item => {
                     const isActive = item.mediaId === activeMediaId
+                    // Already downloading, downloaded or matched. The row stays — it is part of its
+                    // franchise and removing it would make the group look incomplete — but there is
+                    // nothing left to decide about it, so it cannot be opened or have a torrent
+                    // picked for it. Skip and Ignore stay live: those are how you say you are done
+                    // with a row, which is exactly what this is.
+                    const settled = !!item.downloadState
                     return (
                     // A div rather than a button: the row carries its own Skip and Ignore buttons,
                     // and a button inside a button is invalid markup that browsers resolve however
@@ -278,20 +284,25 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                         key={item.mediaId}
                         ref={isActive ? activeRef : undefined}
                         role="button"
-                        tabIndex={0}
-                        onClick={() => onSelect(item)}
+                        tabIndex={settled ? -1 : 0}
+                        aria-disabled={settled}
+                        onClick={() => !settled && onSelect(item)}
                         onKeyDown={e => {
+                            if (settled) return
                             if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault()
                                 onSelect(item)
                             }
                         }}
                         className={cn(
-                            "group/enqueue-future-row w-full flex items-center gap-3 p-2 text-left transition cursor-pointer",
-                            "hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[--brand]",
-                            isActive && "bg-gray-800",
+                            "group/enqueue-future-row w-full flex items-center gap-3 p-2 text-left transition",
+                            settled
+                                ? "opacity-40 cursor-default"
+                                : "cursor-pointer hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[--brand]",
+                            isActive && !settled && "bg-gray-800",
                         )}
                         data-enqueue-future-list-item
+                        data-enqueue-future-list-item-settled={settled || undefined}
                     >
                         <span className="relative flex-none">
                             {item.coverImage
@@ -311,7 +322,9 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                                 {item.title || `#${item.mediaId}`}
                             </span>
                             <span className="block text-xs text-[--muted]">
-                                <ItemStatusLabel item={item} />
+                                {settled
+                                    ? <span className="capitalize">{item.downloadState}</span>
+                                    : <ItemStatusLabel item={item} />}
                                 {/* Its own share of the total, so a row's place in the list is
                                     something you can read rather than infer. */}
                                 {item.totalSeeders > 0 && <> · {formatSeeders(item.totalSeeders)} seeders</>}
