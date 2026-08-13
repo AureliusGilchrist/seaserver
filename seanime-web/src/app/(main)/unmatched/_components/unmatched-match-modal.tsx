@@ -292,12 +292,23 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         }
     }, [storedAnimeDetails, storedAnimeId, storedAnimeTitleRomaji, storedAnimeTitleNative, isLoadingStoredAnime, hasAutoSelectedAnime, selectedAnime])
 
-    // Enrich selected anime with full details when family detail fetch completes
+    // Enrich selected anime with full details when family detail fetch completes.
+    //
+    // The identity of the details is checked, not just the identity of the request. While the query
+    // for a newly clicked entry is still in flight it can hand back the *previous* entry's details,
+    // and every guard here was about which entry was asked for rather than which one arrived — so
+    // clicking a second entry in the tree replaced the selection with the first one's anime, ID and
+    // all. What that produced was a confirmation dialog naming a series nobody picked, and a match
+    // that would have moved the files into it.
     useEffect(() => {
-        if (familyAnimeDetails && familyDetailId && selectedAnime?.id === familyDetailId) {
-            setSelectedAnime(familyAnimeDetails as AL_BaseAnime)
-            setFamilyDetailId(null)
-        }
+        if (!familyAnimeDetails || !familyDetailId) return
+        if (selectedAnime?.id !== familyDetailId) return
+        // The details are for a different anime than the one being enriched: stale, wait for the
+        // real answer rather than overwriting a correct selection with it.
+        if ((familyAnimeDetails as AL_BaseAnime).id !== familyDetailId) return
+
+        setSelectedAnime(familyAnimeDetails as AL_BaseAnime)
+        setFamilyDetailId(null)
     }, [familyAnimeDetails, familyDetailId, selectedAnime?.id])
 
     // Fetch torrent contents when modal opens
@@ -1044,9 +1055,13 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                         }
                                         setSelectedAnime(syntheticAnime)
                                         setFamilyDetailId(entry.id)
-                                        // Keep the family search target in sync with the user's pick so
-                                        // re-opening the prompt re-fetches relative to the new root.
-                                        setFamilySearchTargetId(entry.id)
+                                        // The tree is not re-rooted on the pick.
+                                        //
+                                        // Re-pointing the walk at whatever was just clicked threw
+                                        // away the tree the user was reading and started another
+                                        // one, mid-decision. The family already holds this entry —
+                                        // that is where it was clicked — so there is nothing to
+                                        // fetch and nothing to move.
                                     }}
                                 />
                             </div>
