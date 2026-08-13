@@ -102,7 +102,14 @@ export function EnqueueFuturePage() {
     const families = React.useMemo(() => {
         const grouped = groupIntoFamilies(items, familyOrderingRef.current)
         familyOrderingRef.current = grouped.ordering
-        return grouped.families
+        // A franchise where every season is already downloading, downloaded or matched is a
+        // franchise you are finished with. One greyed row inside a group is context — it says which
+        // season you already have — but a group that is nothing but greyed rows is a heading and a
+        // list of things you cannot act on, taking up the space of one you can.
+        //
+        // Dropped from the view rather than from the queue: the rows are still there, still counted,
+        // and reappear the moment anything in the family is not settled.
+        return grouped.families.filter(family => family.some(item => !item.downloadState))
     }, [items])
     const orderedItems = React.useMemo(() => families.flat(), [families])
 

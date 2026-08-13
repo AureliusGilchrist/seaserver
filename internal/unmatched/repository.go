@@ -173,6 +173,12 @@ type MatchRequest struct {
 	// match that finds any destination already occupied moves nothing and reports the conflict
 	// instead — see MatchResult.Conflict.
 	OverwriteExisting bool `json:"overwriteExisting,omitempty"`
+	// ForceMovie names this match a film regardless of what the anime's recorded format says.
+	//
+	// Set when an automatic match finds the download holds exactly one video file and that file
+	// names itself a movie. There is no episode numbering to derive from one file, and the movie
+	// naming — "<Title> (<Year>)" — is the right shape for it. See matchFromMetadata.
+	ForceMovie bool `json:"-"`
 	// Automatic marks a match nobody chose the files for: the scanner matching a finished download,
 	// or the bulk sweep working through everything at once. Both select every video file in the
 	// download themselves.
@@ -684,6 +690,25 @@ func (r *Repository) matchFromMetadata(torrentName string, metadata *TorrentMeta
 		files = selection.files
 	}
 
+	// One video file, and it calls itself a movie.
+	//
+	// The film heuristic exists to keep a movie out of a season's episode numbering, and with a whole
+	// season around it that is exactly right. A download that is *only* the film is the case where it
+	// is wrong: skipping it leaves the match with nothing at all, which is how asking for a movie
+	// produced a download that sat in the Unmatched screen forever. Alone in its folder there is no
+	// numbering for it to corrupt, so it is matched — as a film, under the film's name.
+	//
+	// Strictly one file: two videos in a folder is a release with something else in it, and "which of
+	// these is the feature" is not a question worth guessing at.
+	forceMovie := false
+	if len(files) == 1 && isMovieContent(files[0].Name, files[0].RelativePath) {
+		forceMovie = true
+		r.logger.Info().
+			Str("torrent", torrentName).
+			Str("file", files[0].Name).
+			Msg("unmatched: The download is a single film, matching it as a movie")
+	}
+
 	selected := make([]string, 0, len(files))
 	for _, f := range files {
 		selected = append(selected, f.RelativePath)
@@ -703,6 +728,7 @@ func (r *Repository) matchFromMetadata(torrentName string, metadata *TorrentMeta
 
 	return r.MatchAndMoveFiles(&MatchRequest{
 		Automatic:       true,
+		ForceMovie:      forceMovie,
 		TorrentName:     torrentName,
 		SelectedFiles:   selected,
 		AnimeID:         metadata.AnimeID,
@@ -794,7 +820,9 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		}
 		// Only when nobody picked these files. A hand-made match that selected an OVA or a movie
 		// meant to select it.
-		if req.Automatic {
+		// ForceMovie is the match saying "this one file is the film I came for", so the filter that
+		// would set it aside has nothing left to protect.
+		if req.Automatic && !req.ForceMovie {
 			if reason := automaticExclusionReason(fw.file.Name, fw.file.RelativePath); reason != "" {
 				if reason == "movie" {
 					skippedMovies++
@@ -891,6 +919,13 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	}
 	// Normalize to uppercase to match existing checks
 	formatUpper := strings.ToUpper(format)
+	// A download that is one film is named as a film, whatever the entry's recorded format says. The
+	// entry is often the TV series the film belongs to — that is why the film was in its downloads
+	// in the first place — and numbering it as "Episode 001" of that series is precisely the mistake
+	// the film heuristic exists to prevent.
+	if req.ForceMovie {
+		formatUpper = "MOVIE"
+	}
 
 	// Movie naming: <AnimeTitle> (<Year>)
 	var startYear int

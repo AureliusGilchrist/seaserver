@@ -161,6 +161,9 @@ func (a *App) initModulesOnce() {
 		DownloadDir:    a.Config.Manga.DownloadDir,
 		Repository:     a.MangaRepository,
 		IsOfflineRef:   a.IsOfflineRef(),
+		// Lets the downloader match a local series to AniList by name — the platform can fetch a
+		// manga by ID but cannot search for one, and searching is the whole job. See auto_link.go.
+		AnilistClientRef: a.AnilistClientRef,
 	})
 
 	a.MangaDownloader.Start()

@@ -29,14 +29,15 @@ func NewDownloader(opts *NewDownloaderOptions) *Downloader {
 	filecacher, _ := filecache.NewCacher(opts.DownloadDir)
 
 	d := &Downloader{
-		logger:         opts.Logger,
-		wsEventManager: opts.WSEventManager,
-		database:       opts.Database,
-		downloadDir:    opts.DownloadDir,
-		repository:     opts.Repository,
-		mediaMap:       new(MediaMap),
-		filecacher:     filecacher,
-		isOfflineRef:   opts.IsOfflineRef,
+		logger:           opts.Logger,
+		wsEventManager:   opts.WSEventManager,
+		database:         opts.Database,
+		downloadDir:      opts.DownloadDir,
+		repository:       opts.Repository,
+		mediaMap:         new(MediaMap),
+		filecacher:       filecacher,
+		isOfflineRef:     opts.IsOfflineRef,
+		anilistClientRef: opts.AnilistClientRef,
 	}
 
 	d.chapterDownloader = chapter_downloader.NewDownloader(&chapter_downloader.NewDownloaderOptions{
@@ -168,6 +169,7 @@ type (
 		chapterDownloadedCh chan chapter_downloader.DownloadID
 		readingDownloadDir  bool
 		isOfflineRef        *util.Ref[bool]
+		anilistClientRef    *util.Ref[anilist.AnilistClient]
 
 		// backfill fills in the title and cover of downloads that arrived without either. See
 		// metadata_backfill.go.
@@ -206,6 +208,9 @@ type (
 		DownloadDir    string
 		Repository     *Repository
 		IsOfflineRef   *util.Ref[bool]
+		// AnilistClientRef is used to search AniList by title. Optional — without it, local series
+		// are simply never linked automatically.
+		AnilistClientRef *util.Ref[anilist.AnilistClient]
 	}
 
 	DownloadChapterOptions struct {

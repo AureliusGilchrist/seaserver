@@ -132,6 +132,18 @@ func (d *Downloader) runBackfill(platformRef *util.Ref[platform.Platform]) {
 // to fall back to, and it costs a provider search rather than anything from the AniList budget.
 func (d *Downloader) fetchAndStoreMetadata(platformRef *util.Ref[platform.Platform], mediaID int) bool {
 	if mediaID < 0 {
+		// A local series gets two things attempted, in this order: an AniList link, which brings the
+		// real metadata with it and is what the user would otherwise do by hand in the Link dialog,
+		// and then cover art from the provider for the ones nothing was confident enough to link.
+		linkCtx, cancel := context.WithTimeout(context.Background(), autoLinkTimeout)
+		linked := d.AutoLinkSyntheticManga(linkCtx, mediaID)
+		cancel()
+
+		if linked > 0 {
+			// Linked: the AniList entry has the cover, the description and everything else, and the
+			// downloads list reads it through the mapping from here on.
+			return true
+		}
 		return d.fillSyntheticCover(mediaID)
 	}
 
