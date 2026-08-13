@@ -397,11 +397,25 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     })
 
     // Search only triggers when user hits Enter or clicks Search button
+    // A hundred results, fetched as two pages.
+    //
+    // Fifty is AniList's own ceiling for a single page, so a hundred is two requests rather than a
+    // bigger one. It used to ask for twenty with no paging and no "load more", which for a franchise
+    // search is the case where the twenty-first result is the one being looked for and there was no
+    // way to reach it at all.
+    const searchEnabled = hasSearched && !!searchQuery && searchQuery.length >= 2
     const { data: searchResults, isLoading: isSearching, refetch: refetchSearch } = useAnilistListAnime({
         search: searchQuery,
         page: 1,
-        perPage: 20,
-    }, hasSearched && !!searchQuery && searchQuery.length >= 2)
+        perPage: 50,
+    }, searchEnabled)
+    // The second page is its own request and its own loading state on purpose: the first fifty are
+    // shown the moment they land rather than waiting for both.
+    const { data: searchResultsPage2 } = useAnilistListAnime({
+        search: searchQuery,
+        page: 2,
+        perPage: 50,
+    }, searchEnabled)
 
     const resetState = useCallback(() => {
         setStep("select-files")
@@ -731,10 +745,22 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
 
     // Float the seeded series to the top of the results — that's the one the search was run for.
     const rankedSearchResults = useMemo(() => {
-        const media = (searchResults?.Page?.media ?? []).filter(Boolean) as AL_BaseAnime[]
+        // Both pages, in AniList's order, with anything that appears in both dropped — the second
+        // page can overlap the first when results shift between the two requests.
+        const seen = new Set<number>()
+        const media = [
+            ...(searchResults?.Page?.media ?? []),
+            ...(searchResultsPage2?.Page?.media ?? []),
+        ].filter(Boolean).filter(m => {
+            const id = (m as AL_BaseAnime).id
+            if (seen.has(id)) return false
+            seen.add(id)
+            return true
+        }) as AL_BaseAnime[]
+
         if (!priorityTitle) return media
         return [...media].sort((a, b) => priorityRank(a, priorityTitle) - priorityRank(b, priorityTitle))
-    }, [searchResults, priorityTitle])
+    }, [searchResults, searchResultsPage2, priorityTitle])
 
     if (!torrent) return null
 
