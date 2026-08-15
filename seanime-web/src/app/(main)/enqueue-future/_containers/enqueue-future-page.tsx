@@ -3,7 +3,6 @@
 import { EnqueueFuture_Item } from "@/api/generated/types"
 import {
     ENQUEUE_FUTURE_STATUS,
-    isEnqueueFuturePending,
     useClearEnqueueFuture,
     useGetEnqueueFutureItem,
     useGetEnqueueFutureQueue,
@@ -59,7 +58,13 @@ export function EnqueueFuturePage() {
     // equal standing — which, before anything has been prepared, is all of them.
     const orderRef = React.useRef<number[]>([])
     const items = React.useMemo(() => {
-        const visible = (queue ?? []).filter(isEnqueueFuturePending)
+        // Everything, not just what still needs a decision.
+        //
+        // Filtering to pending rows meant an anime disappeared the moment anything happened to it,
+        // and a queue you are working down should show its own history: what is left, and what is
+        // already downloading, downloaded or matched. Those arrive greyed out with their badge —
+        // see the list — so "done" is visible rather than inferred from an absence.
+        const visible = (queue ?? [])
         // Keyed by media id, so an anime the queue happens to return twice — a run writing to it
         // while it is read can do that — collapses to one row here rather than being drawn twice.
         const byId = new Map(visible.map(item => [item.mediaId, item]))
@@ -102,14 +107,13 @@ export function EnqueueFuturePage() {
     const families = React.useMemo(() => {
         const grouped = groupIntoFamilies(items, familyOrderingRef.current)
         familyOrderingRef.current = grouped.ordering
-        // A franchise where every season is already downloading, downloaded or matched is a
-        // franchise you are finished with. One greyed row inside a group is context — it says which
-        // season you already have — but a group that is nothing but greyed rows is a heading and a
-        // list of things you cannot act on, taking up the space of one you can.
+        // Every franchise stays, including the ones you have finished with entirely.
         //
-        // Dropped from the view rather than from the queue: the rows are still there, still counted,
-        // and reappear the moment anything in the family is not settled.
-        return grouped.families.filter(family => family.some(item => !item.downloadState))
+        // They were hidden once a franchise was fully dealt with, on the reasoning that a group of
+        // rows you cannot act on is wasted space. But it also removed the only record that you had
+        // dealt with it: a franchise you downloaded in full and one the walk never found looked
+        // exactly alike. Greyed out and badged, it says "done" — which is the point of seeing it.
+        return grouped.families
     }, [items])
     const orderedItems = React.useMemo(() => families.flat(), [families])
 
@@ -156,7 +160,6 @@ export function EnqueueFuturePage() {
     }, [index, activeItem, activeMediaId])
 
     const { data: detail, isLoading: isLoadingDetail } = useGetEnqueueFutureItem(activeItem?.mediaId)
-    const { mutate: setItemStatus } = useSetEnqueueFutureItemStatus(activeItem?.mediaId)
 
     const setSelectedTorrents = useSetAtom(__torrentSearch_selectedTorrentsAtom)
 
@@ -214,11 +217,19 @@ export function EnqueueFuturePage() {
 
     function handleDownloadStarted() {
         if (!activeItem) return
-        setItemStatus({ status: ENQUEUE_FUTURE_STATUS.DOWNLOADED }, {
-            onSuccess: () => {
-                toast.success(`${activeItem.title || "Download"} queued — on to the next`)
-            },
-        })
+
+        // The row stays. It is not marked downloaded here any more.
+        //
+        // Setting the queue status to "downloaded" makes the row terminal, and terminal rows are
+        // filtered out of the list entirely — so starting a download made the anime vanish, which
+        // reads as "did that work?" rather than as progress. The server already records what
+        // actually happened to it the moment the torrent is queued, and the row follows that badge
+        // instead: greyed out and downloading, then downloaded, then matched, in place.
+        //
+        // Nothing needs to be written from here for that to happen. The next poll carries the badge,
+        // the row greys itself out, and the position walks past it to the next thing that still
+        // needs a decision.
+        toast.success(`${activeItem.title || "Download"} queued — on to the next`)
     }
 
     if (isLoading) {

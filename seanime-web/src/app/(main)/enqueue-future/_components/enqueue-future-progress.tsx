@@ -102,6 +102,9 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                                 {status.currentTitle ? ` · ${status.currentTitle}` : ""}
                                 {status.skipped ? ` · ${status.skipped} skipped` : ""}
                                 {status.failed ? ` · ${status.failed} failed` : ""}
+                                {/* Queued behind this one. Without it the screen looks idle while
+                                    several anime sit waiting on a list nobody can see. */}
+                                {status.pendingRoots ? ` · ${status.pendingRoots} waiting after this` : ""}
                             </>
                         )}
                     </p>

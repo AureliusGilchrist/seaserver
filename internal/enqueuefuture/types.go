@@ -120,6 +120,8 @@ type Status struct {
 	// all of its seasons count as one between them.
 	Families int `json:"families"`
 	Cap      int `json:"cap"`
+	// PendingRoots is how many anime are queued behind this run, each waiting to be walked in turn.
+	PendingRoots int `json:"pendingRoots,omitempty"`
 	// CurrentTitle is the anime being prepared right now, for the progress readout.
 	CurrentTitle string `json:"currentTitle"`
 	// RateLimited and the fields below describe a run that is parked on the backoff ladder.

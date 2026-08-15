@@ -2820,6 +2820,8 @@ export type EnqueueFuture_Status = {
     skipped: number
     families: number
     cap: number
+    /** How many anime are queued behind this run, each walked in turn once it finishes. */
+    pendingRoots?: number
     currentTitle: string
     rateLimited: boolean
     retryAt?: string

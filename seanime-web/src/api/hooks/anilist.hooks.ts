@@ -114,6 +114,17 @@ export function useGetAnilistAnimeDetails(id: Nullish<number | string>) {
         method: API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.methods[0],
         queryKey: [API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.key, String(id)],
         enabled: !!id,
+        // This is where the relations and recommendations on a details page come from, and the one
+        // request most likely to be turned away: while a graph walk is running, AniList's budget is
+        // spent and the server answers "ask again shortly" rather than queueing forever. Without a
+        // retry that refusal is permanent — the section renders its error state and stays there
+        // until the whole library is refreshed by hand, which is a hard way to find out the answer
+        // was available two seconds later.
+        //
+        // Three tries, backing off to a few seconds, which comfortably outlasts the burst that
+        // caused it. A genuine failure still surfaces, just a little later.
+        retry: 3,
+        retryDelay: attempt => Math.min(1000 * 2 ** attempt, 8000),
     })
 }
 

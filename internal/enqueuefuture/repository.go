@@ -49,6 +49,9 @@ type (
 		// workerDone is closed when the goroutine behind the current run exits, so Stop can tell a
 		// worker that is winding down from one that is not there at all.
 		workerDone chan struct{}
+
+		// pendingRootsMu guards the on-disk list of anime waiting for their turn. See pending_roots.go.
+		pendingRootsMu sync.Mutex
 	}
 
 	NewRepositoryOptions struct {
@@ -122,6 +125,9 @@ func (r *Repository) Status() Status {
 	if !status.Running {
 		status.Resumable = r.loadProgress() != nil
 	}
+	// What is queued behind this run, so the screen can say "3 waiting" rather than looking idle
+	// while three anime sit on a list nobody can see.
+	status.PendingRoots = r.PendingRootCount()
 	return status
 }
 
@@ -131,6 +137,33 @@ func (r *Repository) Status() Status {
 // Returns immediately — the run is the point of the feature, and it has to outlive the page you
 // started it from.
 func (r *Repository) Enqueue(rootMediaID int, rootTitle string, profileID uint) (Status, error) {
+	// Busy? Then this one waits its turn rather than being refused.
+	//
+	// Only one run happens at a time on purpose — the pacing is what keeps it inside AniList's
+	// budget, and two runs would halve each other's rate while doubling the refusals. But "come back
+	// in half an hour and start the next one by hand" is not a workflow, so the ask is remembered
+	// and started automatically when the current run ends. See pending_roots.go.
+	r.mu.Lock()
+	running := r.running
+	r.mu.Unlock()
+	if running {
+		waiting := r.queueRoot(pendingRoot{
+			MediaID:   rootMediaID,
+			Title:     rootTitle,
+			ProfileID: profileID,
+			QueuedAt:  time.Now(),
+		})
+		r.logger.Info().
+			Int("rootMediaId", rootMediaID).
+			Str("title", rootTitle).
+			Int("waiting", waiting).
+			Msg("enqueuefuture: A run is already going, queued this one behind it")
+
+		status := r.Status()
+		status.PendingRoots = waiting
+		return status, nil
+	}
+
 	// A fresh run starts from nothing walked and nothing seen but the root itself, which is never
 	// queued — you are already on its page.
 	return r.start(&RunProgress{
@@ -956,4 +989,9 @@ func (r *Repository) finish(lastError string) {
 	}
 	r.mu.Unlock()
 	r.broadcast()
+
+	// Straight on to the next anime somebody queued behind this one. In its own goroutine because
+	// this is called from the worker that is finishing, and starting a run from inside it would have
+	// the run own the goroutine that is meant to be ending.
+	go r.startNextPendingRoot()
 }
