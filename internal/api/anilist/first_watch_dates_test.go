@@ -59,15 +59,25 @@ func TestFirstWatchDates(t *testing.T) {
 			wantCompleted: true,
 		},
 		{
-			// The case this rule exists for: a rewatch used to move both dates to the rewatch.
-			name:        "a rewatch records nothing",
+			// The case this rule exists for: a rewatch must not move dates that are already recorded.
+			name:        "a rewatch never moves dates that exist",
 			entry:       entryWith(ptr(2019), ptr(2019), ptr(1)),
 			isCompleted: true,
 		},
 		{
-			name:        "a rewatch with no dates recorded still records nothing",
-			entry:       entryWith(nil, nil, ptr(2)),
-			isCompleted: true,
+			// ...but it does fill in ones that were never recorded. A series watched years ago,
+			// before any of this existed, has no first watch to protect.
+			name:          "a rewatch fills in dates that were never recorded",
+			entry:         entryWith(nil, nil, ptr(2)),
+			isCompleted:   true,
+			wantStarted:   true,
+			wantCompleted: true,
+		},
+		{
+			name:          "a rewatch fills only the half that is missing",
+			entry:         entryWith(ptr(2019), nil, ptr(1)),
+			isCompleted:   true,
+			wantCompleted: true,
 		},
 		{
 			name:        "finishing again is not a completion date",

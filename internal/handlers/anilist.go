@@ -870,3 +870,14 @@ func (h *Handler) HandleToggleAnilistCacheLayerStatus(c echo.Context) error {
 	shared_platform.IsWorking.Store(!shared_platform.IsWorking.Load())
 	return h.RespondWithData(c, shared_platform.IsWorking.Load())
 }
+
+// HandleGetAnilistAvailability
+//
+//	@summary reports whether AniList is answering requests.
+//	@desc Used by the client to show one banner when AniList itself is down, instead of every screen
+//	@desc failing separately with no explanation.
+//	@route /api/v1/anilist/availability [GET]
+//	@returns anilist.Availability
+func (h *Handler) HandleGetAnilistAvailability(c echo.Context) error {
+	return h.RespondWithData(c, anilist.GetAvailability())
+}

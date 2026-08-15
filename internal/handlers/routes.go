@@ -262,6 +262,10 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	imageProxy := &util.ImageProxy{}
 	v1.GET("/image-proxy", imageProxy.ProxyImage)
 
+	// Unauthenticated on purpose: it says nothing about the user, and the banner it drives has to
+	// work on every screen including the ones shown before anything else has loaded.
+	v1.GET("/anilist/availability", h.HandleGetAnilistAvailability)
+
 	v1.GET("/internal/docs", h.HandleGetDocs)
 
 	v1.GET("/proxy", h.VideoProxy)

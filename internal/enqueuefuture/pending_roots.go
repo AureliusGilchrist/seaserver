@@ -77,13 +77,25 @@ func (r *Repository) queueRoot(root pendingRoot) int {
 		}
 	}
 
-	roots = append(roots, root)
+	// Onto the front, not the end.
+	//
+	// Pressing the button on a details page is you saying "this one next" — you are looking at it,
+	// you decided about it just now, and the queue behind it is whatever you decided about earlier.
+	// Appending meant the anime you most recently chose was the last one walked, sometimes hours
+	// later. It still does not interrupt the run in progress: that one keeps going, and this is the
+	// one that starts when it ends.
+	roots = append([]pendingRoot{root}, roots...)
 	r.savePendingRoots(roots)
 	return len(roots)
 }
 
-// takeNextRoot removes and returns the anime at the front of the waiting list.
-func (r *Repository) takeNextRoot() (pendingRoot, bool) {
+// peekNextRoot returns the anime at the front of the waiting list without removing it.
+//
+// Deliberately a peek rather than a take: a root is only dropped from the list once its run has
+// actually started and written its own progress record. Removing it first opened a window where the
+// process dying — a crash, a power cut, a kill — lost that anime entirely: gone from the waiting
+// list, never started, with nothing anywhere to say it had been asked for.
+func (r *Repository) peekNextRoot() (pendingRoot, bool) {
 	r.pendingRootsMu.Lock()
 	defer r.pendingRootsMu.Unlock()
 
@@ -91,10 +103,22 @@ func (r *Repository) takeNextRoot() (pendingRoot, bool) {
 	if len(roots) == 0 {
 		return pendingRoot{}, false
 	}
+	return roots[0], true
+}
 
-	next := roots[0]
-	r.savePendingRoots(roots[1:])
-	return next, true
+// dropRoot removes one anime from the waiting list, by media ID.
+func (r *Repository) dropRoot(mediaID int) {
+	r.pendingRootsMu.Lock()
+	defer r.pendingRootsMu.Unlock()
+
+	roots := r.loadPendingRoots()
+	kept := make([]pendingRoot, 0, len(roots))
+	for _, root := range roots {
+		if root.MediaID != mediaID {
+			kept = append(kept, root)
+		}
+	}
+	r.savePendingRoots(kept)
 }
 
 // PendingRootCount is how many anime are waiting their turn, for the status readout.
@@ -123,7 +147,7 @@ func (r *Repository) startNextPendingRoot() {
 		return
 	}
 
-	next, ok := r.takeNextRoot()
+	next, ok := r.peekNextRoot()
 	if !ok {
 		return
 	}
@@ -133,11 +157,13 @@ func (r *Repository) startNextPendingRoot() {
 		Str("title", next.Title).
 		Msg("enqueuefuture: Starting the next queued run")
 
-	if _, err := r.Enqueue(next.MediaID, next.Title, next.ProfileID); err != nil {
+	if _, err := r.startRoot(next); err != nil {
 		r.logger.Warn().Err(err).Int("rootMediaId", next.MediaID).
-			Msg("enqueuefuture: Could not start the next queued run, putting it back on the list")
-		r.pendingRootsMu.Lock()
-		r.savePendingRoots(append([]pendingRoot{next}, r.loadPendingRoots()...))
-		r.pendingRootsMu.Unlock()
+			Msg("enqueuefuture: Could not start the next queued run, leaving it on the list")
+		return
 	}
+
+	// Started, and its progress record is written — the run itself is now what survives a crash, so
+	// the waiting list no longer needs to hold it.
+	r.dropRoot(next.MediaID)
 }

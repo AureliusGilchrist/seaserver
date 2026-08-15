@@ -1,5 +1,6 @@
 import { useSyncDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { AchievementUnlockPanel } from "@/app/(main)/_features/achievement/achievement-unlock-panel"
+import { AnilistAvailabilityBanner } from "@/app/(main)/_features/anilist/anilist-availability-banner"
 import { MainLayout } from "@/app/(main)/_features/layout/main-layout"
 import { OfflineLayout } from "@/app/(main)/_features/layout/offline-layout"
 import { TopNavbar } from "@/app/(main)/_features/layout/top-navbar"
@@ -55,6 +56,9 @@ function Layout() {
         <ServerDataWrapper host={host}>
             <MainLayout>
                 <div data-main-layout-container className="h-auto">
+                    {/* Above everything, because when AniList is down every screen below fails and
+                        none of them can explain why. */}
+                    <AnilistAvailabilityBanner />
                     <TopNavbar />
                     <div data-main-layout-content>
                         <ErrorBoundary FallbackComponent={AppErrorBoundary}>

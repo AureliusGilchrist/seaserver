@@ -18,13 +18,17 @@ import (
 //
 // That is what makes the number smaller than it looks. A franchise is one slot whether it is a
 // single film or a fifteen-entry saga with every OVA and side story, so the item count a run
-// produces is a multiple of this and not a bound on it. 225 rather than 350 for exactly that
-// reason: with whole families now followed to their ends, each slot brings in more than it used to,
-// and the same number of franchises would make for a considerably longer queue than before.
+// produces is a multiple of this and not a bound on it.
+//
+// To say the important half plainly: this caps how far a run branches *outward* into franchises it
+// has not seen. It is not a cap on anime, and it is emphatically not a cap on a family. Once a
+// franchise is taken on it is followed to its ends — every sequel, prequel, side story, OVA and
+// spin-off — however many entries that turns out to be, and a family edge is never refused for
+// being over the count. See the cap check in drainFrontier.
 //
 // The queue survives restarts and resumes on its own, so this is about how much is worth having
 // waiting for you rather than about what a run can finish in one go.
-const MaxFamiliesPerRun = 225
+const MaxFamiliesPerRun = 750
 
 // RecommendationSpread is how many recommendations are queued between one franchise and the next.
 //

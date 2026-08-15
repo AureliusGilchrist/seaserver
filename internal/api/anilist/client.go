@@ -425,6 +425,10 @@ func (ac *AnilistClientImpl) customDoFunc(ctx context.Context, req *http.Request
 
 	reqTime := time.Now()
 	defer func() {
+		// Every request reports whether AniList is answering, so one banner can say so rather than a
+		// dozen screens each failing on their own. See availability.go.
+		noteRequestOutcome(err)
+
 		timeSince := time.Since(reqTime)
 		dur := timeSince.Truncate(time.Millisecond).String()
 		if err != nil {

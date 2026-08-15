@@ -164,14 +164,20 @@ func (r *Repository) Enqueue(rootMediaID int, rootTitle string, profileID uint) 
 		return status, nil
 	}
 
+	return r.startRoot(pendingRoot{MediaID: rootMediaID, Title: rootTitle, ProfileID: profileID})
+}
+
+// startRoot launches a run for one anime. Shared by Enqueue and by the hand-off from the waiting
+// list, so a queued run is started exactly the same way as one you pressed the button for.
+func (r *Repository) startRoot(root pendingRoot) (Status, error) {
 	// A fresh run starts from nothing walked and nothing seen but the root itself, which is never
 	// queued — you are already on its page.
 	return r.start(&RunProgress{
-		RootMediaID: rootMediaID,
-		RootTitle:   rootTitle,
-		ProfileID:   profileID,
-		Seen:        []int{rootMediaID},
-		Depths:      map[int]int{rootMediaID: 0},
+		RootMediaID: root.MediaID,
+		RootTitle:   root.Title,
+		ProfileID:   root.ProfileID,
+		Seen:        []int{root.MediaID},
+		Depths:      map[int]int{root.MediaID: 0},
 		StartedAt:   time.Now(),
 	})
 }
@@ -194,6 +200,10 @@ func (r *Repository) Resume() (Status, error) {
 func (r *Repository) ResumeIfInterrupted() {
 	progress := r.loadProgress()
 	if progress == nil {
+		// Nothing was mid-run, but something may have been waiting behind one that finished just
+		// before the process went away. The waiting list is on disk for exactly this: a crash
+		// between one run ending and the next starting must not quietly drop the rest of the queue.
+		go r.startNextPendingRoot()
 		return
 	}
 
