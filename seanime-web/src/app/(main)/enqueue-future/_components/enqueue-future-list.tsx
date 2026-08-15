@@ -195,7 +195,15 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
     if (!families.length) return null
 
     return (
-        <div className="rounded-[--radius-md] border bg-gray-950 max-h-[70vh] overflow-y-auto" data-enqueue-future-list>
+        // Tall as the screen allows, not a fixed 70% of it.
+        //
+        // The list is the thing you work down, so on a tall monitor it should show more rows rather
+        // than leaving a third of the column empty. Sticky so it stays with you as the right-hand
+        // pane scrolls, and it scrolls inside itself instead of pushing the page taller.
+        <div
+            className="rounded-[--radius-md] border bg-gray-950 overflow-y-auto xl:sticky xl:top-4 max-h-[calc(100vh-8rem)]"
+            data-enqueue-future-list
+        >
             {families.map(family => (
                 <FamilyBundle
                     // Keyed on the family, not on its first entry: dealing with the entry a bundle

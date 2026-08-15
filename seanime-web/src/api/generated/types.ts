@@ -2822,6 +2822,8 @@ export type EnqueueFuture_Status = {
     cap: number
     /** How many anime are queued behind this run, each walked in turn once it finishes. */
     pendingRoots?: number
+    /** That queue itself, in the order it will be walked. */
+    pendingRootList?: Array<{ mediaId: number, title: string, queuedAt?: string }>
     currentTitle: string
     rateLimited: boolean
     retryAt?: string

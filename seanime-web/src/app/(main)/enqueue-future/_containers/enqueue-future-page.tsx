@@ -18,6 +18,7 @@ import { TorrentSearchSnapshot } from "@/app/(main)/entry/_containers/torrent-se
 import { __torrentDownload_autoMatchAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 import { __torrentSearch_selectedTorrentsAtom, TorrentSearchContainer } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
 import { PageWrapper } from "@/components/shared/page-wrapper"
+import { cn } from "@/components/ui/core/styling"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -290,7 +291,17 @@ export function EnqueueFuturePage() {
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-4 items-start">
+                // Sized to the screen rather than to a fixed column width.
+                //
+                // The queue was a 320px column beside the download UI whatever the monitor was, so a
+                // wide screen spent its extra width on the right-hand pane while the list — the part
+                // you scroll through a hundred entries of — stayed as narrow as it was on a laptop.
+                // It now grows with the viewport and stops at a width where a title still reads as a
+                // title rather than a line of text.
+                <div className={cn(
+                    "grid grid-cols-1 gap-4 items-start",
+                    "xl:grid-cols-[clamp(320px,24vw,520px)_1fr]",
+                )}>
 
                     <EnqueueFutureList
                         families={families}

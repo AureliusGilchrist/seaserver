@@ -123,6 +123,37 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
 
             <ProgressBar value={percent} size="sm" />
 
+            {/* What is queued behind this run, in the order it will be walked.
+              *
+              * A count alone ("3 waiting") tells you something is coming but not what, which for
+              * work measured in hours is the wrong half of the information: the question is whether
+              * the thing you queued an hour ago is still in there and how far down it is. */}
+            {!!status.pendingRootList?.length && (
+                <div className="space-y-1 pt-1" data-enqueue-future-pending-roots>
+                    <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
+                        Waiting to be walked ({status.pendingRootList.length})
+                    </p>
+                    <ol className="space-y-1">
+                        {status.pendingRootList.map((root, i) => (
+                            <li
+                                key={root.mediaId}
+                                className="flex items-center gap-2 rounded-[--radius] border border-gray-800/80 bg-gray-950/40 px-2.5 py-1.5"
+                            >
+                                <span className="text-[10px] font-semibold text-[--muted] w-5 flex-none tabular-nums">
+                                    {i + 1}.
+                                </span>
+                                <span className="text-sm truncate flex-1 min-w-0">
+                                    {root.title || `#${root.mediaId}`}
+                                </span>
+                                <span className="text-[10px] text-[--muted] flex-none">
+                                    {i === 0 ? "next" : "queued"}
+                                </span>
+                            </li>
+                        ))}
+                    </ol>
+                </div>
+            )}
+
             <p className="text-xs text-[--muted]">
                 This runs on the server — you can close this page, or go and do something else, and it keeps going.
                 It stops taking on new series at {status.cap}; a show and all of its seasons count as one, and once a

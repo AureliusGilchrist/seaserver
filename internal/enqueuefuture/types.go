@@ -126,6 +126,9 @@ type Status struct {
 	Cap      int `json:"cap"`
 	// PendingRoots is how many anime are queued behind this run, each waiting to be walked in turn.
 	PendingRoots int `json:"pendingRoots,omitempty"`
+	// PendingRootList is that queue itself, in the order it will be walked — so the screen can show
+	// what is coming rather than only how much of it there is.
+	PendingRootList []PendingRootInfo `json:"pendingRootList,omitempty"`
 	// CurrentTitle is the anime being prepared right now, for the progress readout.
 	CurrentTitle string `json:"currentTitle"`
 	// RateLimited and the fields below describe a run that is parked on the backoff ladder.

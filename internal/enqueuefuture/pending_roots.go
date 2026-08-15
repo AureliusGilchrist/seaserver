@@ -22,6 +22,15 @@ import (
 
 const pendingRootsFileName = "enqueue-future-pending-roots.json"
 
+// MaxPendingRoots is how many anime may wait their turn behind the running one.
+//
+// Each root is a full walk of its own — every franchise it leads to, every family walked to its ends
+// — so twenty of them is a very long stretch of unattended work, measured in hours rather than
+// minutes. The cap is not about memory or disk; it is about the list still meaning something. A
+// waiting list you can no longer remember the far end of is a way to queue things you have forgotten
+// wanting, and to be told "already queued" about an anime whose turn is a day away.
+const MaxPendingRoots = 20
+
 // pendingRoot is one anime waiting for its turn.
 type pendingRoot struct {
 	MediaID   int       `json:"mediaId"`
@@ -66,15 +75,22 @@ func (r *Repository) savePendingRoots(roots []pendingRoot) {
 }
 
 // queueRoot adds an anime to the waiting list, ignoring one that is already on it.
-func (r *Repository) queueRoot(root pendingRoot) int {
+//
+// Reports the length of the list and whether this anime is on it — false means the list is full, so
+// the caller can say that rather than silently doing nothing.
+func (r *Repository) queueRoot(root pendingRoot) (int, bool) {
 	r.pendingRootsMu.Lock()
 	defer r.pendingRootsMu.Unlock()
 
 	roots := r.loadPendingRoots()
 	for _, existing := range roots {
 		if existing.MediaID == root.MediaID {
-			return len(roots)
+			return len(roots), true
 		}
+	}
+
+	if len(roots) >= MaxPendingRoots {
+		return len(roots), false
 	}
 
 	// Onto the front, not the end.
@@ -86,7 +102,7 @@ func (r *Repository) queueRoot(root pendingRoot) int {
 	// one that starts when it ends.
 	roots = append([]pendingRoot{root}, roots...)
 	r.savePendingRoots(roots)
-	return len(roots)
+	return len(roots), true
 }
 
 // peekNextRoot returns the anime at the front of the waiting list without removing it.
@@ -119,6 +135,26 @@ func (r *Repository) dropRoot(mediaID int) {
 		}
 	}
 	r.savePendingRoots(kept)
+}
+
+// PendingRootInfo is one waiting anime as the screen sees it.
+type PendingRootInfo struct {
+	MediaID  int       `json:"mediaId"`
+	Title    string    `json:"title"`
+	QueuedAt time.Time `json:"queuedAt"`
+}
+
+// PendingRoots is the waiting list in the order it will be walked.
+func (r *Repository) PendingRoots() []PendingRootInfo {
+	r.pendingRootsMu.Lock()
+	defer r.pendingRootsMu.Unlock()
+
+	roots := r.loadPendingRoots()
+	out := make([]PendingRootInfo, 0, len(roots))
+	for _, root := range roots {
+		out = append(out, PendingRootInfo{MediaID: root.MediaID, Title: root.Title, QueuedAt: root.QueuedAt})
+	}
+	return out
 }
 
 // PendingRootCount is how many anime are waiting their turn, for the status readout.

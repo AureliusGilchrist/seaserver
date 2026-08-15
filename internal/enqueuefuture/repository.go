@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
@@ -127,7 +128,8 @@ func (r *Repository) Status() Status {
 	}
 	// What is queued behind this run, so the screen can say "3 waiting" rather than looking idle
 	// while three anime sit on a list nobody can see.
-	status.PendingRoots = r.PendingRootCount()
+	status.PendingRootList = r.PendingRoots()
+	status.PendingRoots = len(status.PendingRootList)
 	return status
 }
 
@@ -147,12 +149,18 @@ func (r *Repository) Enqueue(rootMediaID int, rootTitle string, profileID uint) 
 	running := r.running
 	r.mu.Unlock()
 	if running {
-		waiting := r.queueRoot(pendingRoot{
+		waiting, added := r.queueRoot(pendingRoot{
 			MediaID:   rootMediaID,
 			Title:     rootTitle,
 			ProfileID: profileID,
 			QueuedAt:  time.Now(),
 		})
+		if !added {
+			status := r.Status()
+			status.PendingRoots = waiting
+			return status, fmt.Errorf(
+				"there are already %d anime waiting to be walked — let some of them through before queueing more", MaxPendingRoots)
+		}
 		r.logger.Info().
 			Int("rootMediaId", rootMediaID).
 			Str("title", rootTitle).
