@@ -31,19 +31,28 @@ export function EnqueueFutureButton({ entry, details }: {
     const isThisRun = isRunning && status?.rootMediaId === entry.mediaId
 
     function handleEnqueue() {
-        if (isRunning) {
-            toast.info(
-                status?.rootTitle ? `Already preparing from ${status.rootTitle}` : "Already preparing a queue",
-                { description: "Wait for it to finish, or stop it from the Enqueue Future screen." },
-            )
-            return
-        }
+        // A run already going is no longer a refusal.
+        //
+        // This used to stop here and tell you to come back later — for something that runs for
+        // hours. The server queues it instead: the anime goes to the front of the waiting list and
+        // is walked the moment the current run ends, so asking for five franchises in a row is five
+        // clicks rather than five visits over an evening. The request has to actually be sent for
+        // any of that to happen, which is what this was preventing.
+        const queueingBehind = isRunning
 
         enqueue({
             mediaId: entry.mediaId,
             title: displayTitle(entry.media?.title) || entry.media?.title?.romaji || "",
         }, {
             onSuccess: () => {
+                if (queueingBehind) {
+                    toast.success("Queued behind the current run", {
+                        description: status?.rootTitle
+                            ? `${status.rootTitle} is still going. This one starts next.`
+                            : "It starts as soon as the current one finishes.",
+                    })
+                    return
+                }
                 toast.success("Enqueuing the future", {
                     description: "Preparing recommendations in the background. Open Enqueue Future whenever you like — you don't have to stay here.",
                 })
@@ -79,14 +88,16 @@ export function EnqueueFutureButton({ entry, details }: {
                 : `${status?.prepared ?? 0} of ${status?.discovered ?? 0} prepared. You can leave this page.`
         }
         if (isRunning) {
+            const waiting = status?.pendingRoots ?? 0
+            const behind = waiting > 0 ? ` ${waiting} already waiting.` : ""
             return status?.rootTitle
-                ? `Already preparing a queue from ${status.rootTitle}. Wait for it, or stop it from the Enqueue Future screen.`
-                : "Already preparing a queue. Wait for it, or stop it from the Enqueue Future screen."
+                ? `Preparing ${status.rootTitle} right now — this one goes next in line.${behind}`
+                : `A run is going — this one goes next in line.${behind}`
         }
         if (recommendationCount === 0) return "No recommendations to walk from this anime"
         return "Queue up what this anime leads to — metadata and torrents prepared in the background, ready to download one after another"
     }, [isRateLimited, isThisRun, isRunning, status?.currentTitle, status?.prepared, status?.discovered,
-        status?.rootTitle, status?.backoffAttempt, status?.backoffAttempts, recommendationCount])
+        status?.rootTitle, status?.pendingRoots, status?.backoffAttempt, status?.backoffAttempts, recommendationCount])
 
     return (
         <div className="contents" data-enqueue-future-button-container>
