@@ -3,15 +3,13 @@
 import {
     UnmatchedTorrent,
     UnmatchedFile,
-    FamilyEntry,
-    FamilyResult,
     CountMismatch,
     MatchConflict,
     useMatchUnmatchedTorrent,
     useDeleteUnmatchedTorrent,
     useGetUnmatchedTorrentContents,
-    useUnmatchedFamilySearch,
 } from "@/api/hooks/unmatched.hooks"
+import { UnmatchedFamilyResult } from "./unmatched-family-result"
 import { UnmatchedConflictModal } from "./unmatched-conflict-modal"
 import { UnmatchedCountMismatchModal } from "./unmatched-count-mismatch-modal"
 import { useAnilistListAnime, useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
@@ -134,7 +132,27 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     const { data: localFiles } = useGetLocalFiles()
     const [step, setStep] = useState<"select-files" | "select-anime">("select-files")
     const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
-    const [selectedAnime, setSelectedAnime] = useState<AL_BaseAnime | null>(null)
+    // The one thing this modal is deciding: which anime the selected files are being matched to.
+    //
+    // Held as a target with the reason it was set, and written through exactly one function. It used
+    // to be a bare piece of state with five setters and two async fetches racing to fill it, and the
+    // bug that produced was not cosmetic: a details response arriving late for an entry you had
+    // already moved on from replaced your pick wholesale, so the confirmation named a series nobody
+    // chose and the match would have moved files into it.
+    //
+    // "picked" means a person clicked it. "stored" means it was inferred from what the download was
+    // queued as. A guess never overwrites a choice — that rule is the whole model, and it lives in
+    // selectTarget rather than being re-derived at each call site.
+    const [target, setTarget] = useState<{ anime: AL_BaseAnime, source: "picked" | "stored" } | null>(null)
+    const selectedAnime = target?.anime ?? null
+
+    const selectTarget = useCallback((anime: AL_BaseAnime | null, source: "picked" | "stored" = "picked") => {
+        setTarget(prev => {
+            if (!anime) return null
+            if (source === "stored" && prev?.source === "picked") return prev
+            return { anime, source }
+        })
+    }, [])
     const [searchQuery, setSearchQuery] = useState("")
     const [searchInputValue, setSearchInputValue] = useState("")
     const [hasSearched, setHasSearched] = useState(false)
@@ -143,21 +161,12 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     const [isLoadingContents, setIsLoadingContents] = useState(false)
     const [loadError, setLoadError] = useState<string | null>(null)
     const [fetchedName, setFetchedName] = useState<string | null>(null)
-    const [hasAutoSelectedAnime, setHasAutoSelectedAnime] = useState(false)
     // Index-based numbering is the default: release filenames lie about episode numbers far more
     // often than the sorted order does. The confirmation prompt spells out what it will do before
     // anything is moved, so defaulting it on doesn't renumber a library behind the user's back.
     const [dependOnIndex, setDependOnIndex] = useState(true)
     const [episodeOffset, setEpisodeOffset] = useState(1)
-    // Family search (Feature 2) - now works for any selected anime
-    const [familySearchDone, setFamilySearchDone] = useState(false)
-    const [familyResults, setFamilyResults] = useState<FamilyResult | null>(null)
-    const [familySearchTargetId, setFamilySearchTargetId] = useState<number | null>(null)
-    const { mutate: runFamilySearch, isPending: isFamilySearchLoading } = useUnmatchedFamilySearch()
 
-    // Family detail fetch — when a family entry is clicked, fetch full details progressively
-    const [familyDetailId, setFamilyDetailId] = useState<number | null>(null)
-    const { data: familyAnimeDetails } = useGetAnilistAnimeDetails(familyDetailId)
     // Title carried over from the previous match, used to pre-fill (and pre-run) the search.
     const [lastMatchedTitle, setLastMatchedTitle] = useAtom(__unmatched_lastMatchedTitleAtom)
     // The title the search box was seeded with — its results are floated to the top.
@@ -170,115 +179,36 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
     // Fetch anime details if we have stored animeId
     const storedAnimeId = torrentContents?.animeId || torrent?.animeId
 
-    // The family is walked here, one node at a time, and drawn as it arrives.
+    // No family walk runs from the modal any more.
     //
-    // Asking the server for a whole franchise is one AniList request per entry made back to back,
-    // which for a large family is minutes of a modal showing a spinner and nothing else — and the
-    // answer somebody wants is nearly always in the first handful. So the client does the walking:
-    // the root and its direct relations land immediately, every discovered entry joins a queue, and
-    // each one fills in its own branch as its turn comes. Nothing waits for the whole thing.
-    const familySearchTarget = familySearchTargetId || storedAnimeId
-    const walkQueueRef = useRef<{ id: number, parentId: number }[]>([])
-    const walkedRef = useRef<Set<number>>(new Set())
-    // The entries whose own relations have not been fetched yet, so the tree can say which branches
-    // are still coming rather than looking finished when it is not.
-    const [pendingFamilyIds, setPendingFamilyIds] = useState<Set<number>>(new Set())
-
-    // Kick the walk off, and restart it whenever the target changes.
-    useEffect(() => {
-        if (step !== "select-anime" || !familySearchTarget || familySearchDone) return
-
-        setFamilySearchDone(true)
-        walkQueueRef.current = [{ id: familySearchTarget, parentId: 0 }]
-        walkedRef.current = new Set()
-        setPendingFamilyIds(new Set([familySearchTarget]))
-    }, [step, familySearchTarget, familySearchDone])
-
-    // One node per pass. Runs again after each result lands, until the queue empties.
-    useEffect(() => {
-        if (step !== "select-anime" || isFamilySearchLoading) return
-
-        const next = walkQueueRef.current.shift()
-        if (!next) return
-        if (walkedRef.current.has(next.id)) {
-            // Nudge the effect to look at the next one rather than stopping on a duplicate.
-            setPendingFamilyIds(prev => {
-                const updated = new Set(prev)
-                updated.delete(next.id)
-                return updated
-            })
-            return
-        }
-        walkedRef.current.add(next.id)
-
-        runFamilySearch({ animeId: next.id, shallow: true }, {
-            onSuccess: (data) => {
-                if (!data) return
-                setFamilyResults(prev => {
-                    // The first answer establishes the root; everything after it merges in under
-                    // the parent it was discovered from.
-                    const root = prev?.root && prev.root.id ? prev.root : data.root
-                    const merged = new Map<number, FamilyEntry>()
-                    for (const entry of prev?.entries || []) merged.set(entry.id, entry)
-                    for (const entry of data.entries || []) {
-                        const existing = merged.get(entry.id)
-                        // Keep the first parent an entry was found under, so the tree does not
-                        // reshuffle itself as deeper answers arrive.
-                        merged.set(entry.id, existing ? { ...entry, parentId: existing.parentId } : {
-                            ...entry,
-                            parentId: entry.id === next.id ? next.parentId : (entry.parentId || next.id),
-                        })
-                    }
-                    return { root, entries: Array.from(merged.values()) }
-                })
-
-                const discovered = (data.entries || [])
-                    .filter(entry => entry.id !== next.id && !walkedRef.current.has(entry.id))
-                for (const entry of discovered) {
-                    walkQueueRef.current.push({ id: entry.id, parentId: next.id })
-                }
-
-                setPendingFamilyIds(prev => {
-                    const updated = new Set(prev)
-                    updated.delete(next.id)
-                    for (const entry of discovered) updated.add(entry.id)
-                    return updated
-                })
-            },
-            onError: () => {
-                // One node failing costs its branch, not the tree.
-                setPendingFamilyIds(prev => {
-                    const updated = new Set(prev)
-                    updated.delete(next.id)
-                    return updated
-                })
-            },
-        })
-    }, [step, isFamilySearchLoading, pendingFamilyIds, runFamilySearch])
+    // It used to start one the moment this step opened — every entry of the franchise, one AniList
+    // request each, before anybody had asked for a franchise. Each search result now owns its own
+    // walk and starts it only when that result is expanded, so opening the picker costs nothing.
+    // See UnmatchedFamilyResult and useFamilyWalk.
     const storedAnimeTitleRomaji = torrentContents?.animeTitleRomaji || torrent?.animeTitleRomaji
     const storedAnimeTitleNative = torrentContents?.animeTitleNative || torrent?.animeTitleNative
     const storedAnimeExpectedEpisodes = torrentContents?.animeExpectedEpisodes || torrent?.animeExpectedEpisodes
     const storedAnimeStartYear = torrentContents?.animeStartYear || torrent?.animeStartYear
     
     const { data: storedAnimeDetails, isLoading: isLoadingStoredAnime } = useGetAnilistAnimeDetails(
-        storedAnimeId && !hasAutoSelectedAnime ? storedAnimeId : null
+        storedAnimeId && target?.source !== "picked" ? storedAnimeId : null
     )
 
-    // Auto-select anime from stored metadata - prioritize fetched details, fall back to synthetic object
+    // What the download was already believed to be, offered as a starting point.
+    //
+    // Only ever "stored": if you have picked something, this cannot displace it, however late it
+    // arrives. That is the guarantee the old version could not make.
     useEffect(() => {
-        if (hasAutoSelectedAnime || selectedAnime) return
-        
-        // If we have fetched anime details, use them
+        if (target?.source === "picked") return
+
         if (storedAnimeDetails) {
-            setSelectedAnime(storedAnimeDetails as AL_BaseAnime)
-            setHasAutoSelectedAnime(true)
+            selectTarget(storedAnimeDetails as AL_BaseAnime, "stored")
             return
         }
-        
-        // If we have stored animeId and title but fetch hasn't completed yet (or failed),
-        // create a synthetic anime object so the user doesn't have to re-select
+        // The details fetch has not landed (or failed) but the record names the anime — enough to
+        // show a target rather than an empty panel.
         if (storedAnimeId && storedAnimeTitleRomaji && !isLoadingStoredAnime) {
-            const syntheticAnime: AL_BaseAnime = {
+            selectTarget({
                 id: storedAnimeId,
                 title: {
                     romaji: storedAnimeTitleRomaji,
@@ -286,30 +216,9 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                     english: undefined,
                     userPreferred: storedAnimeTitleRomaji,
                 },
-            }
-            setSelectedAnime(syntheticAnime)
-            setHasAutoSelectedAnime(true)
+            } as AL_BaseAnime, "stored")
         }
-    }, [storedAnimeDetails, storedAnimeId, storedAnimeTitleRomaji, storedAnimeTitleNative, isLoadingStoredAnime, hasAutoSelectedAnime, selectedAnime])
-
-    // Enrich selected anime with full details when family detail fetch completes.
-    //
-    // The identity of the details is checked, not just the identity of the request. While the query
-    // for a newly clicked entry is still in flight it can hand back the *previous* entry's details,
-    // and every guard here was about which entry was asked for rather than which one arrived — so
-    // clicking a second entry in the tree replaced the selection with the first one's anime, ID and
-    // all. What that produced was a confirmation dialog naming a series nobody picked, and a match
-    // that would have moved the files into it.
-    useEffect(() => {
-        if (!familyAnimeDetails || !familyDetailId) return
-        if (selectedAnime?.id !== familyDetailId) return
-        // The details are for a different anime than the one being enriched: stale, wait for the
-        // real answer rather than overwriting a correct selection with it.
-        if ((familyAnimeDetails as AL_BaseAnime).id !== familyDetailId) return
-
-        setSelectedAnime(familyAnimeDetails as AL_BaseAnime)
-        setFamilyDetailId(null)
-    }, [familyAnimeDetails, familyDetailId, selectedAnime?.id])
+    }, [storedAnimeDetails, storedAnimeId, storedAnimeTitleRomaji, storedAnimeTitleNative, isLoadingStoredAnime, target?.source, selectTarget])
 
     // Fetch torrent contents when modal opens
     useEffect(() => {
@@ -318,8 +227,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             setLoadError(null)
             setFetchedName(torrent.name)
             // Reset selection when switching to a different torrent
-            setSelectedAnime(null)
-            setHasAutoSelectedAnime(false)
+            selectTarget(null)
             setSearchQuery("")
             setSearchInputValue("")
             setHasSearched(false)
@@ -367,16 +275,14 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setTorrentContents(null)
         setLoadError(null)
         // Also reset selection to avoid stale auto-selected anime
-        setSelectedAnime(null)
-        setHasAutoSelectedAnime(false)
+        selectTarget(null)
     }, [torrent?.name])
 
     const { mutate: matchTorrent, isPending: isMatching } = useMatchUnmatchedTorrent(() => {
         setConflict(null)
         onSuccess()
         // Reset selection to avoid carrying the previous anime into subsequent matches in the same modal session
-        setSelectedAnime(null)
-        setHasAutoSelectedAnime(false)
+        selectTarget(null)
         setSearchQuery("")
         setSearchInputValue("")
         setHasSearched(false)
@@ -384,7 +290,6 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setPriorityTitle("")
         setDependOnIndex(true)
         setEpisodeOffset(1)
-        setFamilyDetailId(null)
         // Keep the files list but drop selections after a match
         setSelectedFiles(new Set())
     }, (c) => setConflict(c), (m) => setCountMismatch(m))
@@ -421,18 +326,13 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setStep("select-files")
         setConflict(null)
         setSelectedFiles(new Set())
-        setSelectedAnime(null)
+        selectTarget(null)
         setSearchQuery("")
         setSearchInputValue("")
         setHasSearched(false)
         setExpandedSeasons(new Set())
         setTorrentContents(null)
         setFetchedName(null)
-        setHasAutoSelectedAnime(false)
-        setFamilySearchDone(false)
-        setFamilyResults(null)
-        setFamilySearchTargetId(null)
-        setFamilyDetailId(null)
         setPriorityTitle("")
         setSeededForTorrent(null)
         setDependOnIndex(true)
@@ -446,9 +346,6 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setSearchQuery(q)
         setHasSearched(true)
         // Reset family search when doing new search
-        setFamilySearchDone(false)
-        setFamilyResults(null)
-        setFamilySearchTargetId(null)
         // Trigger refetch
         setTimeout(() => refetchSearch(), 0)
     }, [refetchSearch])
@@ -485,14 +382,11 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         onClose()
     }, [onClose, resetState])
 
-    // Handle selecting anime from search - also sets up family search target
+    // Selecting from search is the same act as selecting from a family row, so it is the same call.
+    // There is nothing else to keep in step: each result walks its own family on demand.
     const handleSelectSearchAnime = useCallback((anime: AL_BaseAnime) => {
-        setSelectedAnime(anime)
-        // Reset family search for new selection
-        setFamilySearchDone(false)
-        setFamilyResults(null)
-        setFamilySearchTargetId(anime.id)
-    }, [])
+        selectTarget(anime, "picked")
+    }, [selectTarget])
 
     const toggleFile = useCallback((relativePath: string) => {
         setSelectedFiles(prev => {
@@ -784,7 +678,6 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
 
     // True while the selected family member's full details are still loading —
     // used to suppress "Unknown eps" / partial metadata flicker.
-    const isEnrichingFamily = familyDetailId !== null && familyDetailId === selectedAnime?.id
 
     const isLoadingAnimeInfo = isLoadingStoredAnime && storedAnimeId && !selectedAnime
 
@@ -908,8 +801,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                 size="sm"
                                 intent="gray-outline"
                                 onClick={() => {
-                                    setSelectedAnime(null)
-                                    setHasAutoSelectedAnime(true)
+                                    selectTarget(null)
                                     setStep("select-anime")
                                 }}
                             >
@@ -1005,94 +897,13 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                 </AppLayoutStack>
             ) : (
                 <AppLayoutStack className="space-y-4">
-                    {/* The family is loaded, not offered.
+                    {/* The family tree lives in the results below now.
                      *
-                     * It used to be a question — "Load full anime family?", Yes / No — sitting above
-                     * a separate results box, so picking the right season of a franchise meant
-                     * answering a prompt about a thing you could not see yet, then reading two lists
-                     * that did not know about each other. There is no case where the answer is No:
-                     * the family is the whole point of the screen, and it is one request. So it runs
-                     * as soon as there is something to run it on, and the tree it produces IS the
-                     * list. */}
-                    {(isFamilySearchLoading || pendingFamilyIds.size > 0) && !familyResults && (
-                        <div className="p-3 border rounded-md bg-[--subtle] space-y-2" data-family-loading>
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm font-medium">Loading the anime family…</p>
-                                <p className="text-xs text-[--muted]">walking every relation</p>
-                            </div>
-                            {/* The walk is one request and the server reports no milestones, so this
-                                is an activity bar rather than a percentage. A made-up percentage
-                                that jumps to 90% and waits is worse than an honest one. */}
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-800">
-                                <div className="h-full w-1/3 animate-[indeterminate_1.4s_ease-in-out_infinite] rounded-full bg-[--brand]" />
-                            </div>
-                            <style>{`@keyframes indeterminate{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}`}</style>
-                        </div>
-                    )}
-
-                    {/* Family search results — indented tree */}
-                    {familyResults && familyResults.entries.length > 0 && (
-                        <div className="p-3 border rounded-md bg-[--subtle] space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                                <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
-                                    Related entries — pick one to match ({familyResults.entries.length})
-                                </p>
-                                {pendingFamilyIds.size > 0 && (
-                                    <p className="text-[10px] text-[--muted] shrink-0">
-                                        still branching out — {pendingFamilyIds.size} to go
-                                    </p>
-                                )}
-                            </div>
-                            {/* Progress against everything discovered so far. It grows as the walk
-                                finds more, which is honest about what it is: a walk that does not
-                                know its own size until it is done. */}
-                            {pendingFamilyIds.size > 0 && (
-                                <div className="h-1 w-full overflow-hidden rounded-full bg-gray-800">
-                                    <div
-                                        className="h-full rounded-full bg-[--brand] transition-all duration-300"
-                                        style={{
-                                            width: `${Math.round(100 * (familyResults.entries.length - pendingFamilyIds.size)
-                                                / Math.max(familyResults.entries.length, 1))}%`,
-                                        }}
-                                    />
-                                </div>
-                            )}
-                            {/* Grows with the modal rather than staying at a fixed height, so the
-                                extra room actually shows more of the franchise. */}
-                            <div className="max-h-[38vh] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-                                <FamilyTreeView
-                                    result={familyResults}
-                                    selectedAnimeId={selectedAnime?.id ?? null}
-                                    onSelect={(entry) => {
-                                        // Build a synthetic anime carrying every field the family entry
-                                        // already gives us — this is HIGHER-PRIORITY metadata than the
-                                        // initial torrent guess and persists until the full AniList
-                                        // details fetch lands.
-                                        const syntheticAnime: AL_BaseAnime = {
-                                            id: entry.id,
-                                            title: {
-                                                romaji: entry.title,
-                                                english: undefined,
-                                                native: undefined,
-                                                userPreferred: entry.title,
-                                            },
-                                            episodes: entry.episodes && entry.episodes > 0 ? entry.episodes : undefined,
-                                            format: entry.format as AL_BaseAnime["format"] || undefined,
-                                        }
-                                        setSelectedAnime(syntheticAnime)
-                                        setFamilyDetailId(entry.id)
-                                        // The tree is not re-rooted on the pick.
-                                        //
-                                        // Re-pointing the walk at whatever was just clicked threw
-                                        // away the tree the user was reading and started another
-                                        // one, mid-decision. The family already holds this entry —
-                                        // that is where it was clicked — so there is nothing to
-                                        // fetch and nothing to move.
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    )}
+                     * There used to be a second tree here, above the search, walked automatically
+                     * for whatever the download was already believed to be. Two lists meant two
+                     * ways to select, and the one up here kept winning silently — which is how a
+                     * confirmation dialog ended up naming a series nobody had clicked. Every
+                     * result below is now its own franchise, expandable in place. */}
 
                     <div className="flex gap-2">
                         <TextInput
@@ -1123,13 +934,38 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                 </div>
                             ) : rankedSearchResults.length > 0 ? (
                                 <div className="p-2 space-y-2">
+                                    {/* Every result is the root of its own franchise: expand one and
+                                        its relations nest underneath, indented by how many relations
+                                        deep they are. Root and relative select through the same
+                                        callback, which is the whole point of the rewrite — the old
+                                        picker had two selection paths and the wrong one kept
+                                        winning. */}
                                     {rankedSearchResults.map((anime) => (
-                                        <AnimeSearchItem
+                                        <UnmatchedFamilyResult
                                             key={anime?.id}
                                             anime={anime as AL_BaseAnime}
-                                            selected={selectedAnime?.id === anime?.id}
-                                            onSelect={() => handleSelectSearchAnime(anime as AL_BaseAnime)}
-                                            localFiles={localFiles}
+                                            selectedId={selectedAnime?.id ?? null}
+                                            isInLibrary={isAnimeInLibrary((anime as AL_BaseAnime).id, localFiles)}
+                                            onSelect={(selection) => {
+                                                // One path in, and it carries everything the row was
+                                                // already showing. No second fetch races it, so the
+                                                // target cannot be replaced by a late answer for
+                                                // something else.
+                                                selectTarget({
+                                                    id: selection.id,
+                                                    title: {
+                                                        romaji: selection.title,
+                                                        english: selection.englishTitle,
+                                                        native: undefined,
+                                                        userPreferred: selection.title,
+                                                    },
+                                                    episodes: selection.episodes || undefined,
+                                                    format: selection.format as AL_BaseAnime["format"] || undefined,
+                                                    coverImage: selection.coverImage
+                                                        ? { large: selection.coverImage, extraLarge: selection.coverImage, medium: selection.coverImage }
+                                                        : undefined,
+                                                } as AL_BaseAnime, "picked")
+                                            }}
                                         />
                                     ))}
                                 </div>
@@ -1150,7 +986,6 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                 <SelectedAnimeDetails
                                     anime={selectedAnime}
                                     fallbackEpisodes={storedAnimeExpectedEpisodes || undefined}
-                                    isEnriching={isEnrichingFamily}
                                 />
                             ) : (
                                 <div className="flex-1 flex items-center justify-center text-[--muted] text-sm">
@@ -1162,7 +997,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                                     <Button intent="primary" onClick={handleMatch} disabled={isMatching || selectedFiles.size === 0} loading={isMatching} leftIcon={<BiCheck />}>
                                         Match {selectedFiles.size} Files
                                     </Button>
-                                    <Button intent="gray-outline" onClick={() => setSelectedAnime(null)}>
+                                    <Button intent="gray-outline" onClick={() => selectTarget(null)}>
                                         Clear
                                     </Button>
                                 </div>
@@ -1555,333 +1390,9 @@ function TreeNodeItem({
     )
 }
 
-function AnimeSearchItem({ anime, selected, onSelect, localFiles }: {
-    anime: AL_BaseAnime & { studios?: { nodes?: { name: string }[] }, synonyms?: string[] };
-    selected: boolean;
-    onSelect: () => void;
-    localFiles?: any[]
-}) {
-    const season = anime.season ? capitalize(anime.season.toLowerCase()) : null
-    const year = anime.seasonYear
-    const seasonYear = season && year ? `${season} ${year}` : year ? `${year}` : null
-    const format = anime.format
-
-    const isInLibrary = anime?.id ? isAnimeInLibrary(anime.id, localFiles) : false
-    
-    // Get studios
-    const studios = anime.studios?.nodes?.map(s => s.name).slice(0, 2) || []
-    
-    // Get synonyms (alternative titles)
-    const synonyms = (anime.synonyms || []).slice(0, 2)
-    
-    const getStatusColor = (status?: string) => {
-        switch (status) {
-            case "FINISHED":
-                return "text-green-400"
-            case "RELEASING":
-                return "text-blue-400"
-            case "NOT_YET_RELEASED":
-                return "text-yellow-400"
-            case "CANCELLED":
-                return "text-red-400"
-            default:
-                return "text-gray-400"
-        }
-    }
-    
-    return (
-        <div
-            className={cn(
-                "flex items-center gap-3 p-2 rounded hover:bg-gray-800/50 transition-colors",
-                selected && "bg-brand-900/30 border border-brand-500"
-            )}
-        >
-            {anime.coverImage?.medium && (
-                <Image
-                    src={anime.coverImage.medium}
-                    alt={anime.title?.romaji || ""}
-                    width={50}
-                    height={70}
-                    className="rounded object-cover flex-shrink-0"
-                />
-            )}
-            <div className="flex-1 min-w-0 space-y-1">
-                <p className="font-medium text-sm line-clamp-1">
-                    {anime.title?.native || anime.title?.romaji}
-                </p>
-                <p className="text-xs text-[--muted] line-clamp-1">
-                    {anime.title?.romaji}
-                </p>
-                
-                {/* Alternative titles / Synonyms */}
-                {synonyms.length > 0 && (
-                    <p className="text-[10px] text-[--muted] line-clamp-1 italic">
-                        aka: {synonyms.join(", ")}
-                    </p>
-                )}
-
-                {/* Season/Year and Status */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    {format && (
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-gray-800/70 text-gray-200 font-semibold uppercase tracking-wide">
-                            {format}
-                        </span>
-                    )}
-                    {seasonYear && (
-                        <span className="text-xs text-[--muted]">{seasonYear}</span>
-                    )}
-                    {anime.status && (
-                        <span className={cn("text-xs font-medium", getStatusColor(anime.status))}>
-                            {anime.status.replace(/_/g, " ")}
-                        </span>
-                    )}
-                </div>
-                
-                {/* Format, Episodes, Score, Studios */}
-                <div className="flex items-center gap-2 flex-wrap text-xs text-[--muted]">
-                    <span>{anime.episodes ? `${anime.episodes} eps` : "Unknown eps"}</span>
-                    {anime.meanScore && (
-                        <>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
-                                <BiSolidStar className="text-yellow-500" />
-                                {anime.meanScore}%
-                            </span>
-                        </>
-                    )}
-                    {studios.length > 0 && (
-                        <>
-                            <span>•</span>
-                            <span className="text-[--muted]">{studios.join(", ")}</span>
-                        </>
-                    )}
-                </div>
-                
-                {/* Genres */}
-                {anime.genres && anime.genres.length > 0 && (
-                    <div className="flex items-center gap-1 flex-wrap">
-                        {anime.genres.slice(0, 3).map((genre, idx) => (
-                            <span
-                                key={idx}
-                                className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800/50 text-gray-300"
-                            >
-                                {genre}
-                            </span>
-                        ))}
-                    </div>
-                )}
-            </div>
-            <div className="flex flex-col items-end gap-2">
-                <Button 
-                    size="xs" 
-                    intent={isInLibrary ? "gray-outline" : (selected ? "primary" : "gray")} 
-                    onClick={onSelect} 
-                    leftIcon={selected ? <BiCheck /> : undefined}
-                    disabled={isInLibrary}
-                    className={isInLibrary ? "opacity-50 cursor-not-allowed" : ""}
-                >
-                    {isInLibrary ? "In Library" : (selected ? "Using" : "Use")}
-                </Button>
-            </div>
-        </div>
-    )
-}
-
-// ─── Family Tree View ────────────────────────────────────────────────
-
-interface FamilyTreeNode {
-    entry: FamilyEntry
-    children: FamilyTreeNode[]
-}
-
-function buildFamilyTree(result: FamilyResult): FamilyTreeNode {
-    const rootEntry = result.root
-    // Deduplicate: an entry can appear via multiple relation paths
-    const seenIds = new Set<number>([rootEntry.id])
-    const uniqueEntries = result.entries.filter(e => {
-        if (seenIds.has(e.id)) return false
-        seenIds.add(e.id)
-        return true
-    })
-    const byParent = new Map<number, FamilyEntry[]>()
-    for (const e of uniqueEntries) {
-        const pid = e.parentId || rootEntry.id
-        if (!byParent.has(pid)) byParent.set(pid, [])
-        byParent.get(pid)!.push(e)
-    }
-
-    const relationOrder: Record<string, number> = {
-        PREQUEL: 0, SEQUEL: 1, SIDE_STORY: 2, ALTERNATIVE: 3,
-        SPIN_OFF: 4, PARENT: 5, SUMMARY: 6, CHARACTER: 7, OTHER: 8,
-    }
-
-    const builtIds = new Set<number>()
-    function build(entry: FamilyEntry): FamilyTreeNode {
-        if (builtIds.has(entry.id)) return { entry, children: [] }
-        builtIds.add(entry.id)
-        // Siblings run in the order the series does.
-        //
-        // Relation type alone put every prequel above every sequel regardless of when either came
-        // out, so a franchise read backwards from whichever entry you happened to search for. Airing
-        // order first — an entry further along the series sits further down the list, which is how
-        // anybody thinks about a franchise — and the relation ordering only decides between entries
-        // AniList gives the same year, or none at all.
-        const seasonOrder: Record<string, number> = { WINTER: 0, SPRING: 1, SUMMER: 2, FALL: 3 }
-        const airedAt = (e: FamilyEntry) => (e.seasonYear || 0) * 10 + (seasonOrder[e.season || ""] ?? 0)
-        const kids = (byParent.get(entry.id) || [])
-            .sort((a, b) => {
-                // Entries with no year at all go last rather than to the front of the franchise.
-                const aYear = a.seasonYear || 0
-                const bYear = b.seasonYear || 0
-                if ((aYear === 0) !== (bYear === 0)) return aYear === 0 ? 1 : -1
-                if (aYear !== 0 && airedAt(a) !== airedAt(b)) return airedAt(a) - airedAt(b)
-                return (relationOrder[a.relationType] ?? 9) - (relationOrder[b.relationType] ?? 9)
-            })
-        return { entry, children: kids.map(build) }
-    }
-
-    return build(rootEntry)
-}
-
-const RELATION_COLORS: Record<string, string> = {
-    SEQUEL: "text-blue-400",
-    PREQUEL: "text-cyan-400",
-    SIDE_STORY: "text-amber-400",
-    ALTERNATIVE: "text-purple-400",
-    SPIN_OFF: "text-pink-400",
-    PARENT: "text-green-400",
-    SUMMARY: "text-gray-400",
-    CHARACTER: "text-gray-400",
-    OTHER: "text-gray-400",
-}
-
-function FamilyTreeView({ result, selectedAnimeId, onSelect }: {
-    result: FamilyResult
-    selectedAnimeId: number | null
-    onSelect: (entry: FamilyEntry) => void
-}) {
-    const tree = useMemo(() => buildFamilyTree(result), [result])
-    const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
-
-    const toggle = useCallback((id: number) => {
-        setCollapsed(prev => {
-            const next = new Set(prev)
-            if (next.has(id)) next.delete(id)
-            else next.add(id)
-            return next
-        })
-    }, [])
-
-    return (
-        <div className="space-y-0.5">
-            <FamilyTreeNodeItem
-                node={tree}
-                depth={0}
-                selectedAnimeId={selectedAnimeId}
-                collapsed={collapsed}
-                toggleCollapse={toggle}
-                onSelect={onSelect}
-            />
-        </div>
-    )
-}
-
-function FamilyTreeNodeItem({ node, depth, selectedAnimeId, collapsed, toggleCollapse, onSelect }: {
-    node: FamilyTreeNode
-    depth: number
-    selectedAnimeId: number | null
-    collapsed: Set<number>
-    toggleCollapse: (id: number) => void
-    onSelect: (entry: FamilyEntry) => void
-}) {
-    const e = node.entry
-    const hasChildren = node.children.length > 0
-    const isCollapsed = collapsed.has(e.id)
-    const isSelected = selectedAnimeId === e.id
-
-    return (
-        <>
-            <div
-                role="button"
-                tabIndex={0}
-                className={cn(
-                    "flex items-center gap-2 py-1.5 px-1.5 rounded cursor-pointer text-xs transition-colors",
-                    isSelected ? "bg-brand-900/30 border border-brand-500" : "hover:bg-gray-800/50",
-                )}
-                // Indented by depth, so a franchise reads as the tree it is: the entry you searched
-                // for at the root, and every relative stepped in under the entry it hangs off.
-                style={{ paddingLeft: `${4 + depth * 18}px` }}
-                onClick={() => onSelect(e)}
-                onKeyDown={(ev) => {
-                    if (ev.key === "Enter" || ev.key === " ") {
-                        ev.preventDefault()
-                        onSelect(e)
-                    }
-                }}
-            >
-                {hasChildren ? (
-                    <button
-                        onClick={(ev) => {
-                            ev.stopPropagation()
-                            toggleCollapse(e.id)
-                        }}
-                        className="p-0.5 flex-shrink-0"
-                    >
-                        {isCollapsed ? <LuChevronRight className="w-3.5 h-3.5" /> : <LuChevronDown className="w-3.5 h-3.5" />}
-                    </button>
-                ) : (
-                    <span className="w-4 flex-shrink-0" />
-                )}
-
-                {/* The cover is what makes six near-identical subtitles tell themselves apart —
-                    you recognise the artwork of the thing you downloaded without reading a word. */}
-                {e.coverImage
-                    ? <img
-                        src={e.coverImage}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        className="h-11 w-8 flex-shrink-0 rounded-[--radius] object-cover"
-                    />
-                    : <span className="h-11 w-8 flex-shrink-0 rounded-[--radius] bg-gray-800" />}
-
-                <span className="flex-1 min-w-0">
-                    {/* Room for a real title. These names run long — "Fate/Grand Order: Shinsei
-                        Entaku Ryouiki Camelot - Wandering; Agateram" is the entry, not a
-                        description of it — and cutting them at the width of a narrow column left
-                        several rows reading identically. Wraps to two lines, which fits about
-                        fifty characters before anything is lost. */}
-                    <span className="block leading-tight line-clamp-2 break-words">{e.title}</span>
-                    {e.englishTitle && (
-                        <span className="block truncate text-[10px] text-[--muted]">{e.englishTitle}</span>
-                    )}
-                    <span className="flex items-center gap-1.5 text-[10px] text-[--muted]">
-                        {e.format && <span className="px-1 py-0.5 rounded bg-gray-800/70 text-gray-300">{e.format}</span>}
-                        {e.seasonYear ? <span>{e.season ? `${e.season[0]}${e.season.slice(1).toLowerCase()} ` : ""}{e.seasonYear}</span> : null}
-                        {e.status && <span className={cn(e.status === "FINISHED" && "text-green-500")}>{e.status.replace(/_/g, " ")}</span>}
-                        {e.episodes > 0 && <span>{e.episodes} eps</span>}
-                        {e.meanScore ? <span>★ {e.meanScore}%</span> : null}
-                    </span>
-                </span>
-
-                {e.relationType && (
-                    <span className={cn("text-[10px] font-medium flex-shrink-0", RELATION_COLORS[e.relationType] || "text-gray-400")}>
-                        {e.relationType.replace(/_/g, " ")}
-                    </span>
-                )}
-            </div>
-
-            {hasChildren && !isCollapsed && node.children.map(child => (
-                <FamilyTreeNodeItem
-                    key={child.entry.id}
-                    node={child}
-                    depth={depth + 1}
-                    selectedAnimeId={selectedAnimeId}
-                    collapsed={collapsed}
-                    toggleCollapse={toggleCollapse}
-                    onSelect={onSelect}
-                />
-            ))}
-        </>
-    )
-}
+// The old flat search row and the first-generation family tree used to live below this line.
+//
+// They are gone rather than left for reference: between them they were the second way to select a
+// target, and a second way to select is what let a stale answer win over somebody's actual choice.
+// Their replacement is UnmatchedFamilyResult — one row type, one selection path, families nested
+// under the result they belong to.
