@@ -149,13 +149,16 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 			return resp, nil
 		}
 
-		// A redirect the shared client could not follow — a Location header carrying a bare path,
-		// which resolves to a URL with no host. Retried on a client that resolves the redirect
-		// against the URL it came from, and carries the headers across, since dropping the Referer
-		// on the redirect is the other way these fetches fail.
-		if !strings.Contains(doErr.Error(), "no Host in request URL") {
-			return nil, doErr
-		}
+		// The shared client could not complete it at all. Every reason that happens here is worth one
+		// retry on a plain client:
+		//
+		//   - a redirect whose Location is a bare path, which resolves to a URL with no host
+		//   - the proxy transport itself failing to reach a host it has never seen
+		//   - a redirect that dropped the Referer and landed on a hotlink check
+		//
+		// It used to retry only on the first of those, matched by error text, which meant every other
+		// transport failure ended the attempt with a 500 while a plain request would have worked.
+		// One extra request against a subtitle file is not worth being precious about.
 
 		redirectClient := &http.Client{
 			Timeout: 30 * time.Second,
@@ -229,7 +232,9 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 		if lastStatus != 0 {
 			return h.RespondWithError(c, fmt.Errorf("subtitle URL returned HTTP %d (hotlink protection, all referers blocked)", lastStatus))
 		}
-		return h.RespondWithError(c, fmt.Errorf("failed to fetch subtitle URL: %w", lastErr))
+		return h.RespondWithError(c, fmt.Errorf(
+			"could not fetch the subtitle file from %s: %w — the provider's subtitle host refused or could not be reached",
+			subtitleURL, lastErr))
 	}
 	defer resp.Body.Close()
 
