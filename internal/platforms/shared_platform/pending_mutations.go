@@ -38,6 +38,12 @@ func IsOutageError(err error) bool {
 		"timed out", "eof", "connection reset", "tls handshake", "dial tcp",
 		"temporary failure", "503", "502", "504", "500", "server error",
 		"service unavailable", "too many requests", "429",
+		// AniList taking its own API down. It answers 403 with this wording, which none of the
+		// signatures above match — so a progress update made while it was off was treated as a
+		// permanent failure and thrown away, rather than queued and replayed when it came back.
+		// Watching an episode during an outage silently did nothing at all.
+		"api has been temporarily disabled", "temporarily disabled due to",
+		"api is temporarily unavailable",
 	} {
 		if strings.Contains(msg, sig) {
 			return true
