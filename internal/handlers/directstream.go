@@ -10,6 +10,7 @@ import (
 	"seanime/internal/mkvparser"
 	"seanime/internal/util"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -105,8 +106,24 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 		}
 	}
 
+	// The URL is normalised before anything is asked to fetch it.
+	//
+	// "http: no Host in request URL" is what Go says when it is handed a URL with no host, and the
+	// two ways that happens here are a protocol-relative address ("//cdn.example/x.srt", which some
+	// providers hand out) and a redirect whose Location is a bare path. The first is fixed here; the
+	// second in the redirect hook below. Both used to surface as a 500 naming a URL that looked
+	// perfectly valid in the message, which is a hard thing to read.
+	subtitleURL := strings.TrimSpace(b.Url)
+	if strings.HasPrefix(subtitleURL, "//") {
+		subtitleURL = "https:" + subtitleURL
+	}
+	if parsed, parseErr := url.Parse(subtitleURL); parseErr != nil || parsed.Host == "" || parsed.Scheme == "" {
+		return h.RespondWithError(c, fmt.Errorf(
+			"subtitle URL is not a complete address (%q) — the provider gave a link this server cannot fetch on its own", b.Url))
+	}
+
 	fetchSubtitle := func(referer string) (*http.Response, error) {
-		r, reqErr := http.NewRequest(http.MethodGet, b.Url, nil)
+		r, reqErr := http.NewRequest(http.MethodGet, subtitleURL, nil)
 		if reqErr != nil {
 			return nil, reqErr
 		}
@@ -127,7 +144,43 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 				r.Header.Set("Origin", origin.Scheme+"://"+origin.Host)
 			}
 		}
-		return h.getVideoProxyClient().Do(r)
+		resp, doErr := h.getVideoProxyClient().Do(r)
+		if doErr == nil {
+			return resp, nil
+		}
+
+		// A redirect the shared client could not follow — a Location header carrying a bare path,
+		// which resolves to a URL with no host. Retried on a client that resolves the redirect
+		// against the URL it came from, and carries the headers across, since dropping the Referer
+		// on the redirect is the other way these fetches fail.
+		if !strings.Contains(doErr.Error(), "no Host in request URL") {
+			return nil, doErr
+		}
+
+		redirectClient := &http.Client{
+			Timeout: 30 * time.Second,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				if len(via) >= 10 {
+					return fmt.Errorf("too many redirects")
+				}
+				if req.URL.Host == "" && len(via) > 0 {
+					req.URL = via[len(via)-1].URL.ResolveReference(req.URL)
+				}
+				for k, v := range via[0].Header {
+					if len(v) > 0 && req.Header.Get(k) == "" {
+						req.Header.Set(k, v[0])
+					}
+				}
+				return nil
+			},
+		}
+
+		retryReq, retryErr := http.NewRequest(http.MethodGet, subtitleURL, nil)
+		if retryErr != nil {
+			return nil, doErr
+		}
+		retryReq.Header = r.Header.Clone()
+		return redirectClient.Do(retryReq)
 	}
 
 	// Referer candidates, most specific first: whatever the extension supplied, then the
@@ -138,7 +191,7 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 			refererCandidates = append([]string{v}, refererCandidates...)
 		}
 	}
-	if parsedURL, parseErr := url.Parse(b.Url); parseErr == nil && parsedURL.Host != "" {
+	if parsedURL, parseErr := url.Parse(subtitleURL); parseErr == nil && parsedURL.Host != "" {
 		refererCandidates = append(refererCandidates,
 			parsedURL.Scheme+"://"+parsedURL.Host+"/",
 		)
