@@ -56,3 +56,24 @@ func (db *Database) CountUnmatchedTorrentMetadataByAnimeID(animeID int) (int, er
 func (db *Database) DeleteUnmatchedTorrentMetadata(torrentName string) error {
 	return db.gormdb.Where("torrent_name = ?", torrentName).Delete(&models.UnmatchedTorrentMetadata{}).Error
 }
+
+// UnmatchedTorrentMetadataAnimeIDs is every anime that has a download staged and not yet matched.
+//
+// The record exists from the moment a torrent is queued until its files are moved into the library,
+// so this set is precisely "downloaded, or downloading, and still sitting in staging". Read in one
+// query rather than one per anime, because the queue asks about every row it draws.
+func (db *Database) UnmatchedTorrentMetadataAnimeIDs() (map[int]struct{}, error) {
+	var ids []int
+	if err := db.gormdb.Model(&models.UnmatchedTorrentMetadata{}).
+		Where("anime_id > 0").
+		Distinct().
+		Pluck("anime_id", &ids).Error; err != nil {
+		return nil, err
+	}
+
+	out := make(map[int]struct{}, len(ids))
+	for _, id := range ids {
+		out[id] = struct{}{}
+	}
+	return out, nil
+}

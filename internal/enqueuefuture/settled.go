@@ -62,6 +62,24 @@ func (r *Repository) downloadStatesByMediaID() map[int]string {
 		states[mediaID] = db.AnimeDownloadStateMatched
 	}
 
+	// And a download sitting in staging is "downloaded", from the files themselves rather than from
+	// anything written down about them.
+	//
+	// A staged record exists from the moment a torrent is queued until its files are matched into the
+	// library, so its presence is the fact: something for this anime is on disk and not yet filed.
+	// Only where nothing better is known — an anime already in the library is matched, and one still
+	// coming down is downloading, both of which are later stages of the same story.
+	staged, err := r.database.UnmatchedTorrentMetadataAnimeIDs()
+	if err != nil {
+		r.logger.Debug().Err(err).Msg("enqueuefuture: Could not read staged downloads for badges")
+		return states
+	}
+	for mediaID := range staged {
+		if states[mediaID] == "" {
+			states[mediaID] = db.AnimeDownloadStateDownloaded
+		}
+	}
+
 	return states
 }
 

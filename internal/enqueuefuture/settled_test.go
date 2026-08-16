@@ -229,3 +229,33 @@ func TestDownloadStatesIncludeTheLibrary(t *testing.T) {
 		t.Errorf("media 71 = %q, want no badge", states[71])
 	}
 }
+
+// The three states come from three different facts, and they have an order.
+//
+// Deliberately not from the badge table alone: that only knows about downloads this server watched
+// happen. Files in the library mean matched, a record in staging means downloaded, and a recorded
+// "downloading" outranks both — it is the one that says something is still on its way.
+func TestDownloadStatesDeriveDownloadedFromStaging(t *testing.T) {
+	r := repositoryWithDB(t)
+
+	// Staged, nothing else known: downloaded.
+	if err := r.database.UpsertUnmatchedTorrentMetadata("Some.Release", 80, []byte("{}")); err != nil {
+		t.Fatalf("stage: %v", err)
+	}
+
+	// Staged *and* recorded as downloading: still downloading.
+	if err := r.database.UpsertUnmatchedTorrentMetadata("Other.Release", 81, []byte("{}")); err != nil {
+		t.Fatalf("stage: %v", err)
+	}
+	if err := r.database.SetAnimeDownloadState(81, db.AnimeDownloadStateDownloading); err != nil {
+		t.Fatalf("set downloading: %v", err)
+	}
+
+	states := r.downloadStatesByMediaID()
+	if states[80] != db.AnimeDownloadStateDownloaded {
+		t.Errorf("media 80 = %q, want %q", states[80], db.AnimeDownloadStateDownloaded)
+	}
+	if states[81] != db.AnimeDownloadStateDownloading {
+		t.Errorf("media 81 = %q, want %q — downloading outranks a staged file", states[81], db.AnimeDownloadStateDownloading)
+	}
+}
