@@ -753,14 +753,30 @@ func (r *Repository) shouldSkip(rec recommendation) (bool, string) {
 	if r.database.HasEnqueueFutureItem(rec.mediaID) {
 		return true, "already in the queue"
 	}
-	if r.hasFullLibraryCopy(rec) {
+	// A season you already own does not end its franchise.
+	//
+	// This is what was cutting families short. The walk only extends through anime it queues: an
+	// entry that is skipped is never prepared, its details are never fetched, and its own sequels and
+	// prequels are therefore never discovered. So one season sitting in your library — or one you had
+	// already downloaded — terminated the chain, and everything behind it went missing. A franchise
+	// you are halfway through is exactly the one where that happens, and exactly the one you wanted
+	// the rest of.
+	//
+	// Family edges are therefore queued regardless of whether you already have them. They arrive
+	// greyed out with their badge, which is what the queue now does with anything already dealt with,
+	// and their relations get walked like anything else. Recommendations — merely similar shows — are
+	// still skipped when you own them: those are suggestions, and a suggestion you have already acted
+	// on is not one worth making again.
+	if !rec.isFamily && r.hasFullLibraryCopy(rec) {
 		return true, "already in the library"
 	}
 	// A staged download record exists from the moment a torrent is queued until its files are
 	// matched into the library, so this covers "downloading right now" and "downloaded but not
 	// filed yet" in one check.
-	if count, err := r.database.CountUnmatchedTorrentMetadataByAnimeID(rec.mediaID); err == nil && count > 0 {
-		return true, "already downloading"
+	if !rec.isFamily {
+		if count, err := r.database.CountUnmatchedTorrentMetadataByAnimeID(rec.mediaID); err == nil && count > 0 {
+			return true, "already downloading"
+		}
 	}
 	// Deliberately no check on the download badge here. An anime you have downloaded or matched is
 	// still walked and still queued — it just arrives greyed out, carrying its state, because a

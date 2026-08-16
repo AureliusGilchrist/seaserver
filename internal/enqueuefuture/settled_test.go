@@ -156,3 +156,31 @@ func TestShouldSkipDoesNotRejectDownloadedAnime(t *testing.T) {
 		t.Errorf("a matched anime was skipped at discovery (%q) — it should be queued and greyed out", reason)
 	}
 }
+
+// The missing-seasons bug: the walk only extends through anime it queues, so an entry skipped for
+// being in your library never had its own relations walked — and everything behind it in the
+// franchise was never found. Family edges are therefore queued whatever you already have.
+func TestShouldSkipKeepsFamilyEdgesYouAlreadyHave(t *testing.T) {
+	r := repositoryWithDB(t)
+
+	// Downloading, which for a recommendation is a reason to skip.
+	if err := r.database.SetAnimeDownloadState(60, db.AnimeDownloadStateDownloading); err != nil {
+		t.Fatalf("set downloading: %v", err)
+	}
+
+	family := recommendation{mediaID: 60, title: "Season 2", episodes: 12, isFamily: true}
+	if skip, reason := r.shouldSkip(family); skip {
+		t.Errorf("a family edge was skipped (%q) — the franchise would stop here", reason)
+	}
+
+	// Still queued a second time? No: something already in the queue stays out of it.
+	queueItem(t, r, 61, "Already queued")
+	if skip, _ := r.shouldSkip(recommendation{mediaID: 61, isFamily: true}); !skip {
+		t.Error("an anime already in the queue was queued again")
+	}
+
+	// And an unreleased one is still refused, family or not — there is nothing to download.
+	if skip, _ := r.shouldSkip(recommendation{mediaID: 62, isFamily: true, notYetReleased: true}); !skip {
+		t.Error("an unreleased family edge was queued")
+	}
+}
