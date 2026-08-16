@@ -82,6 +82,10 @@ type DownloadingMediaStatus = {
     downloading?: Array<number> | null
     finished?: Array<number> | null
     matched?: Array<number> | null
+    /** Identifies this exact answer; sent back on the next poll. See useGetDownloadingMediaStatus. */
+    fingerprint?: string
+    /** The lists are the ones already held, and were not re-sent. */
+    unchanged?: boolean
 }
 
 /**
@@ -89,14 +93,32 @@ type DownloadingMediaStatus = {
  * avoid an import cycle with `useTorrentClientDownload`, which writes to the atom above.
  */
 function useGetDownloadingMediaStatus() {
-    return useServerQuery<DownloadingMediaStatus>({
-        endpoint: "/api/v1/torrent-client/downloading-media",
+    // The answer is three lists of media IDs, polled by every screen that draws a badge. On a large
+    // library that is a lot of bytes to re-send every ten seconds in order to discover that nothing
+    // moved — so the fingerprint of the answer we already hold rides along, and an unchanged answer
+    // comes back as a few bytes. The held lists below are then reused *by identity*, which matters
+    // as much as the bytes: a new array poll would re-run every badge selector in the app.
+    const heldRef = React.useRef<DownloadingMediaStatus | null>(null)
+
+    const query = useServerQuery<DownloadingMediaStatus>({
+        endpoint: "/api/v1/torrent-client/downloading-media"
+            + (heldRef.current?.fingerprint ? `?known=${encodeURIComponent(heldRef.current.fingerprint)}` : ""),
         method: "GET",
         queryKey: ["get-downloading-media-ids"],
         refetchInterval: 10_000,
         refetchOnWindowFocus: "always",
         muteError: true,
     })
+
+    if (query.data) {
+        if (query.data.unchanged) {
+            if (heldRef.current) heldRef.current.fingerprint = query.data.fingerprint
+        } else {
+            heldRef.current = query.data
+        }
+    }
+
+    return { ...query, data: heldRef.current ?? undefined }
 }
 
 /**

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/db_bridge"
@@ -13,6 +14,7 @@ import (
 	"seanime/internal/util"
 	"seanime/internal/util/result"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -85,6 +87,11 @@ type DownloadingMediaStatus struct {
 	// Matched holds media IDs that are in the library: downloads filed there by hand or
 	// automatically, and everything else that has files there however it arrived.
 	Matched []int `json:"matched"`
+	// Fingerprint identifies this exact answer. The client sends it back on the next poll so an
+	// unchanged answer can be a few bytes instead of every ID again.
+	Fingerprint string `json:"fingerprint,omitempty"`
+	// Unchanged means the three lists are the same ones the client already holds, and are omitted.
+	Unchanged bool `json:"unchanged,omitempty"`
 }
 
 // HandleGetDownloadingMediaIds
@@ -130,7 +137,36 @@ func (h *Handler) HandleGetDownloadingMediaIds(c echo.Context) error {
 	// badges are visible in the UI, and the individual state changes are already logged one line at a
 	// time where they actually happen (see unmatched.MarkAnimeDownloading and friends).
 
+	// An unchanged answer costs a fingerprint, not the answer.
+	//
+	// This is polled continuously by every screen that draws a badge, and the answer is three lists
+	// of media IDs — on a library heading towards ten thousand entries that is a large payload,
+	// serialised, sent and compared on every poll, almost always to conclude that nothing moved.
+	//
+	// So the client sends back the fingerprint it holds and an unchanged answer says so. Responsive-
+	// ness is untouched: the moment any badge really changes the fingerprint differs and the full
+	// answer goes out on that same poll.
+	fingerprint := downloadingMediaFingerprint(res)
+	if c.QueryParam("known") == fingerprint {
+		return h.RespondWithData(c, DownloadingMediaStatus{Unchanged: true, Fingerprint: fingerprint})
+	}
+	res.Fingerprint = fingerprint
+
 	return h.RespondWithData(c, res)
+}
+
+// downloadingMediaFingerprint summarises the three badge lists.
+//
+// They are already sorted, so equal contents always produce an equal fingerprint.
+func downloadingMediaFingerprint(res DownloadingMediaStatus) string {
+	hash := fnv.New64a()
+	for _, group := range [][]int{res.Downloading, res.Finished, res.Matched} {
+		for _, id := range group {
+			_, _ = fmt.Fprintf(hash, "%d,", id)
+		}
+		_, _ = hash.Write([]byte(";"))
+	}
+	return strconv.FormatUint(hash.Sum64(), 36)
 }
 
 // buildDownloadingMediaStatus decides each anime's badge from the two things that say anything
