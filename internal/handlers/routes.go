@@ -926,6 +926,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1EnqueueFuture.POST("/item/:mediaId/status", h.HandleSetEnqueueFutureItemStatus)
 	v1EnqueueFuture.DELETE("/item/:mediaId", h.HandleDeleteEnqueueFutureItem)
 	v1EnqueueFuture.POST("/clear", h.HandleClearEnqueueFuture)
+	v1EnqueueFuture.POST("/rewalk", h.HandleRewalkEnqueueFutureFamilies)
 
 	//
 	// En Masse Downloader

@@ -14,18 +14,18 @@ import (
 
 // TimelineEvent is a single resolved activity event for the timeline UI.
 type TimelineEvent struct {
-	ID        uint       `json:"id"`
-	EventType string     `json:"eventType"`
-	MediaID   int        `json:"mediaId"`
-	Metadata  string     `json:"metadata"`
-	CreatedAt time.Time  `json:"createdAt"`
+	ID        uint      `json:"id"`
+	EventType string    `json:"eventType"`
+	MediaID   int       `json:"mediaId"`
+	Metadata  string    `json:"metadata"`
+	CreatedAt time.Time `json:"createdAt"`
 	// Resolved media info (nil if media not found in collection)
-	MediaTitle    *string `json:"mediaTitle,omitempty"`
-	MediaImage    *string `json:"mediaImage,omitempty"`
-	MediaType     string  `json:"mediaType"` // "anime" or "manga" or ""
+	MediaTitle *string `json:"mediaTitle,omitempty"`
+	MediaImage *string `json:"mediaImage,omitempty"`
+	MediaType  string  `json:"mediaType"` // "anime" or "manga" or ""
 	// Resolved achievement info (only set for achievement_unlocked events)
-	AchievementIconSVG  *string `json:"achievementIconSvg,omitempty"`
-	AchievementDesc     *string `json:"achievementDesc,omitempty"`
+	AchievementIconSVG *string `json:"achievementIconSvg,omitempty"`
+	AchievementDesc    *string `json:"achievementDesc,omitempty"`
 }
 
 // TimelineResponse is the paginated response for the timeline endpoint.

@@ -123,6 +123,25 @@ type EnqueueFutureQueueResponse = {
  * of the array does not change either — which matters as much as the bytes do: a new array every
  * four seconds invalidates every memo downstream and re-renders the whole list.
  */
+/**
+ * Queues every franchise in the queue to be walked again.
+ *
+ * The way relations get filled in for families walked before they were recorded. Expensive by
+ * nature — one full AniList walk per franchise, at background pacing — so the button that calls it
+ * says so.
+ */
+export function useRewalkEnqueueFutureFamilies() {
+    const queryClient = useQueryClient()
+    return useServerMutation<number, void>({
+        endpoint: "/api/v1/enqueue-future/rewalk",
+        method: "POST",
+        mutationKey: ["enqueue-future-rewalk"],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureStatus.key] })
+        },
+    })
+}
+
 export function useGetEnqueueFutureQueue({ isRunning }: { isRunning?: boolean } = {}) {
     const heldRef = React.useRef<{ fingerprint?: string, items: EnqueueFuture_Item[] }>({ items: [] })
 

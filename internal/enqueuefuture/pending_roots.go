@@ -203,3 +203,41 @@ func (r *Repository) startNextPendingRoot() {
 	// the waiting list no longer needs to hold it.
 	r.dropRoot(next.MediaID)
 }
+
+// queueRootsBulk appends many anime to the waiting list at once, past the manual cap.
+//
+// MaxPendingRoots exists so the list you build by hand stays something you can remember the far end
+// of. A bulk re-walk is not that: it is one deliberate instruction about the whole queue, and
+// refusing it at twenty would make the feature useless on a library of any size. Appended rather
+// than prepended, so anything you pick by hand afterwards still goes first.
+//
+// Returns how many were added.
+func (r *Repository) queueRootsBulk(roots []pendingRoot) int {
+	if len(roots) == 0 {
+		return 0
+	}
+
+	r.pendingRootsMu.Lock()
+	defer r.pendingRootsMu.Unlock()
+
+	existing := r.loadPendingRoots()
+	known := make(map[int]struct{}, len(existing))
+	for _, root := range existing {
+		known[root.MediaID] = struct{}{}
+	}
+
+	added := 0
+	for _, root := range roots {
+		if _, seen := known[root.MediaID]; seen {
+			continue
+		}
+		known[root.MediaID] = struct{}{}
+		existing = append(existing, root)
+		added++
+	}
+
+	if added > 0 {
+		r.savePendingRoots(existing)
+	}
+	return added
+}

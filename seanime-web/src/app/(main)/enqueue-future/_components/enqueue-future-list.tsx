@@ -21,6 +21,60 @@ function formatSeeders(count: number): string {
 export type EnqueueFutureFamily = EnqueueFuture_Item[]
 
 /**
+ * Relations that continue the same story rather than branching off it.
+ *
+ * A run of seasons is one line, however long it gets, so these do not indent — a fifteen-season
+ * franchise indented fifteen times is a staircase running off the side of the column, and the depth
+ * would be saying "this is the fifteenth season", which the order already says.
+ */
+const CONTINUATION_RELATIONS = new Set(["SEQUEL", "PREQUEL"])
+
+/**
+ * How far each member of a family is indented, keyed by media id.
+ *
+ * The indent is the shape of the franchise, not a position in a list:
+ *
+ *  - a continuation — the next season of the same story — sits at the depth of what it continues.
+ *  - a branch — a side story, spin-off, alternative, summary — steps in one level under the entry it
+ *    hangs off, because it is a thing off to the side of that entry rather than more of it.
+ *  - an OTHER edge sits at exactly the depth of what it relates to. AniList uses OTHER for everything
+ *    it cannot name, so it says "connected to that" and nothing about how; drawing it as a child of
+ *    that entry would be inventing a hierarchy out of an admission of ignorance.
+ *  - anything whose relation target is not in the family — filtered out, skipped, never queued — takes
+ *    the depth of the row above it, so the shape stays continuous where the links do not.
+ *
+ * Entries walked before relations were recorded have neither, and sit flat at the base.
+ */
+export function familyDepths(family: EnqueueFutureFamily): Map<number, number> {
+    const depths = new Map<number, number>()
+    const present = new Set(family.map(item => item.mediaId))
+
+    let previousDepth = 0
+    for (const item of family) {
+        const parent = item.parentMediaId
+        const relation = (item.relationType || "").toUpperCase()
+
+        let depth: number
+        if (!parent || !present.has(parent) || !relation) {
+            // Nothing to anchor to: keep the shape continuous rather than snapping to the edge.
+            depth = previousDepth
+        } else {
+            const parentDepth = depths.get(parent) ?? 0
+            if (relation === "OTHER" || CONTINUATION_RELATIONS.has(relation)) {
+                depth = parentDepth
+            } else {
+                depth = parentDepth + 1
+            }
+        }
+
+        depths.set(item.mediaId, depth)
+        previousDepth = depth
+    }
+
+    return depths
+}
+
+/**
  * How widely shared a franchise is: every seeder on every torrent found for every one of its members,
  * added together.
  *
@@ -316,6 +370,8 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
 }) {
 
     const isGroup = family.length > 1
+    // Worked out once per bundle rather than per row: every row's depth depends on the ones before it.
+    const depths = React.useMemo(() => familyDepths(family), [family])
     const containsActive = family.some(n => n.mediaId === activeMediaId)
     const seeders = familySeeders(family)
 
@@ -347,7 +403,7 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
             )}
 
             <div className={cn(isGroup && "pl-2 border-l-2 border-[--brand] ml-2 mb-1")}>
-                {family.map((item, position) => {
+                {family.map((item) => {
                     const isActive = item.mediaId === activeMediaId
                     // Already downloading, downloaded or matched. The row stays — it is part of its
                     // franchise and removing it would make the group look incomplete — but there is
@@ -386,7 +442,7 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                         // Capped, because a fifteen-entry saga indented fifteen times is a staircase
                         // running off the side of a 320px column. Past the cap the rows stack at the
                         // same depth, which still says "deep into it".
-                        style={isGroup ? { paddingLeft: `${14 + Math.min(position, 6) * 12}px` } : undefined}
+                        style={isGroup ? { paddingLeft: `${14 + Math.min(depths.get(item.mediaId) ?? 0, 6) * 14}px` } : undefined}
                         className={cn(
                             "group/enqueue-future-row w-full flex items-center gap-3 p-2 text-left transition",
                             settled

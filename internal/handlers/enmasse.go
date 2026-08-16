@@ -34,7 +34,7 @@ func (h *Handler) HandleEnMasseStart(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		body.Resume = false
 	}
-	
+
 	err := h.App.EnMasseDownloader.Start(body.Resume)
 	if err != nil {
 		return h.RespondWithError(c, err)
@@ -57,7 +57,7 @@ func (h *Handler) HandleEnMasseStop(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		body.SaveProgress = true // Default to saving progress
 	}
-	
+
 	h.App.EnMasseDownloader.Stop(body.SaveProgress)
 	return h.RespondWithData(c, true)
 }
@@ -119,4 +119,3 @@ func (h *Handler) HandleMangaEnMasseStop(c echo.Context) error {
 	h.App.MangaEnMasseDownloader.Stop(body.SaveProgress)
 	return h.RespondWithData(c, true)
 }
-

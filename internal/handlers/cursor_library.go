@@ -234,5 +234,3 @@ func titleize(slug string) string {
 	}
 	return strings.Join(words, " ")
 }
-
-

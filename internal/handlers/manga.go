@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"time"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/models"
@@ -22,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -86,19 +86,19 @@ type MangaHydrationDetail struct {
 }
 
 type MangaHydrationStatus struct {
-	IsRunning         bool                  `json:"isRunning"`
-	CancelRequested   bool                  `json:"cancelRequested"`
-	WasCancelled      bool                  `json:"wasCancelled"`
-	Total             int                   `json:"total"`
-	Processed         int                   `json:"processed"`
-	AniListHydrated   int                   `json:"aniListHydrated"`
-	SyntheticHydrated int                   `json:"syntheticHydrated"`
-	Skipped           int                   `json:"skipped"`
-	Failed            int                   `json:"failed"`
-	Progress          float64               `json:"progress"`
-	StartedAt         *time.Time            `json:"startedAt,omitempty"`
-	FinishedAt        *time.Time            `json:"finishedAt,omitempty"`
-	LastUpdatedAt     *time.Time            `json:"lastUpdatedAt,omitempty"`
+	IsRunning         bool                   `json:"isRunning"`
+	CancelRequested   bool                   `json:"cancelRequested"`
+	WasCancelled      bool                   `json:"wasCancelled"`
+	Total             int                    `json:"total"`
+	Processed         int                    `json:"processed"`
+	AniListHydrated   int                    `json:"aniListHydrated"`
+	SyntheticHydrated int                    `json:"syntheticHydrated"`
+	Skipped           int                    `json:"skipped"`
+	Failed            int                    `json:"failed"`
+	Progress          float64                `json:"progress"`
+	StartedAt         *time.Time             `json:"startedAt,omitempty"`
+	FinishedAt        *time.Time             `json:"finishedAt,omitempty"`
+	LastUpdatedAt     *time.Time             `json:"lastUpdatedAt,omitempty"`
 	Details           []MangaHydrationDetail `json:"details"`
 }
 
@@ -725,14 +725,14 @@ func (h *Handler) HandleUpdateMangaProgress(c echo.Context) error {
 		MediaID:   b.MediaId,
 		Timestamp: now,
 		Metadata: map[string]interface{}{
-			"chapter":         b.ChapterNumber,
-			"total_chapters":  b.TotalChapters,
-			"reading_minutes": b.ReadingMinutes,
+			"chapter":          b.ChapterNumber,
+			"total_chapters":   b.TotalChapters,
+			"reading_minutes":  b.ReadingMinutes,
 			"session_chapters": float64(sessionChapters),
-			"session_hours":   sessionHours,
-			"hour":            now.Hour(),
-			"day_of_week":     int(now.Weekday()),
-			"count":           float64(1),
+			"session_hours":    sessionHours,
+			"hour":             now.Hour(),
+			"day_of_week":      int(now.Weekday()),
+			"count":            float64(1),
 		},
 	})
 
@@ -1014,21 +1014,21 @@ func (h *Handler) HandleGetRecentlyReadSyntheticManga(c echo.Context) error {
 //	@returns []*anilist.BaseManga
 func (h *Handler) HandleGetTrendingManga(c echo.Context) error {
 	anilistClient := anilist.NewAnilistClient("", h.App.Config.Anilist.ClientID)
-	
+
 	// Search for trending manga
 	page := 1
 	perPage := 20
-	
+
 	result, err := anilistClient.SearchBaseManga(c.Request().Context(), &page, &perPage, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	
+
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
-	
+
 	if result == nil || result.Page == nil {
 		return h.RespondWithData(c, []*anilist.BaseManga{})
 	}
-	
+
 	return h.RespondWithData(c, result.Page.Media)
 }
 
@@ -1044,9 +1044,9 @@ func (h *Handler) HandleGetRecentlyReleasedManga(c echo.Context) error {
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
-	
+
 	var recentManga []*anilist.BaseManga
-	
+
 	// Get manga from current reading list
 	if mangaCollection.MediaListCollection != nil {
 		for _, list := range mangaCollection.MediaListCollection.Lists {
@@ -1059,12 +1059,12 @@ func (h *Handler) HandleGetRecentlyReleasedManga(c echo.Context) error {
 			}
 		}
 	}
-	
+
 	// Limit to 20 most recent
 	if len(recentManga) > 20 {
 		recentManga = recentManga[:20]
 	}
-	
+
 	return h.RespondWithData(c, recentManga)
 }
 
@@ -1080,9 +1080,9 @@ func (h *Handler) HandleGetUpcomingMangaChapters(c echo.Context) error {
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
-	
+
 	var upcomingManga []*anilist.BaseManga
-	
+
 	// Get manga that are currently releasing
 	if mangaCollection.MediaListCollection != nil {
 		for _, list := range mangaCollection.MediaListCollection.Lists {
@@ -1093,12 +1093,12 @@ func (h *Handler) HandleGetUpcomingMangaChapters(c echo.Context) error {
 			}
 		}
 	}
-	
+
 	// Limit to 20
 	if len(upcomingManga) > 20 {
 		upcomingManga = upcomingManga[:20]
 	}
-	
+
 	return h.RespondWithData(c, upcomingManga)
 }
 

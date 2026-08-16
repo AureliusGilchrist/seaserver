@@ -11,24 +11,24 @@ import (
 
 // Theme represents a theme in the index
 type ThemeEntry struct {
-	ID                  string                 `json:"id"`
-	Name                string                 `json:"name"`
-	Title               string                 `json:"title"`
-	Description         string                 `json:"description"`
-	Author              string                 `json:"author"`
-	Tags                []string               `json:"tags"`
-	PreviewColors       map[string]string      `json:"previewColors"`
-	ThemeRef            string                 `json:"themeRef"`
-	BackgroundImageUrl  string                 `json:"backgroundImageUrl"`
-	CreatedAt           string                 `json:"createdAt"`
-	Level               int                    `json:"level,omitempty"`
+	ID                 string            `json:"id"`
+	Name               string            `json:"name"`
+	Title              string            `json:"title"`
+	Description        string            `json:"description"`
+	Author             string            `json:"author"`
+	Tags               []string          `json:"tags"`
+	PreviewColors      map[string]string `json:"previewColors"`
+	ThemeRef           string            `json:"themeRef"`
+	BackgroundImageUrl string            `json:"backgroundImageUrl"`
+	CreatedAt          string            `json:"createdAt"`
+	Level              int               `json:"level,omitempty"`
 }
 
 // ThemeIndex represents the theme index.json structure
 type ThemeIndex struct {
-	Version     string        `json:"version"`
-	GeneratedAt string        `json:"generatedAt"`
-	Themes      []ThemeEntry  `json:"themes"`
+	Version     string       `json:"version"`
+	GeneratedAt string       `json:"generatedAt"`
+	Themes      []ThemeEntry `json:"themes"`
 }
 
 // HandleGetMarketplaceThemes returns themes from the marketplace index.json
@@ -139,10 +139,10 @@ func (h *Handler) HandlePopulateThemeImages(c echo.Context) error {
 func convertFolderNameToTitle(folderName string) string {
 	// Remove special characters and trim
 	folderName = strings.TrimSpace(folderName)
-	
+
 	// Split by hyphen
 	parts := strings.Split(folderName, "-")
-	
+
 	// Capitalize first letter of each word (except certain small words)
 	for i, part := range parts {
 		part = strings.TrimSpace(part)
@@ -158,6 +158,6 @@ func convertFolderNameToTitle(folderName string) string {
 			parts[i] = strings.ToUpper(string(part[0])) + strings.ToLower(part[1:])
 		}
 	}
-	
+
 	return strings.Join(parts, " ")
 }

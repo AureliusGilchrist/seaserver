@@ -7,6 +7,7 @@ import {
     useGetEnqueueFutureItem,
     useGetEnqueueFutureQueue,
     useGetEnqueueFutureStatus,
+    useRewalkEnqueueFutureFamilies,
     useSetEnqueueFutureItemStatus,
 } from "@/api/hooks/enqueue_future.hooks"
 import { EnqueueFutureAddTorrents } from "@/app/(main)/enqueue-future/_components/enqueue-future-add-torrents"
@@ -24,7 +25,7 @@ import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useAtomValue, useSetAtom } from "jotai/react"
 import React from "react"
-import { LuArrowDownUp, LuLayers } from "react-icons/lu"
+import { LuArrowDownUp, LuEye, LuEyeOff, LuGitBranch, LuLayers } from "react-icons/lu"
 import { toast } from "sonner"
 
 /**
@@ -35,11 +36,29 @@ import { toast } from "sonner"
  * provider or any filter searches live, exactly as it would anywhere else, so an anime whose
  * prepared search came back empty is a provider switch away from being useful rather than a dead end.
  */
+/**
+ * Whether a row is something you can still decide about.
+ *
+ * A download state means it is already downloading, downloaded or in your library; skipped means you
+ * passed on it. Both stay in the list — the queue is a record as well as a worklist — but neither is
+ * work, so neither is somewhere the selection should ever land.
+ */
+function isActionable(item: EnqueueFuture_Item | undefined): boolean {
+    if (!item) return false
+    return !item.downloadState && item.status !== ENQUEUE_FUTURE_STATUS.SKIPPED
+}
+
+/** Prepared, with torrents found — actionable this second rather than once a run reaches it. */
+function isReady(item: EnqueueFuture_Item | undefined): boolean {
+    return item?.status === ENQUEUE_FUTURE_STATUS.READY
+}
+
 export function EnqueueFuturePage() {
 
     const { data: status } = useGetEnqueueFutureStatus()
     const { data: queue, isLoading } = useGetEnqueueFutureQueue({ isRunning: !!status?.running })
     const { mutate: clearQueue, isPending: isClearing } = useClearEnqueueFuture()
+    const { mutate: rewalk, isPending: isRewalking } = useRewalkEnqueueFutureFamilies()
 
     // Only what you have not dealt with. Downloaded and skipped items stay in the database — that
     // record is what stops them being rediscovered — but walking back through them is not the job.
@@ -114,6 +133,9 @@ export function EnqueueFuturePage() {
     // current seeder totals decide, once, when you ask.
     const [resortSignal, setResortSignal] = React.useState(0)
 
+    // Whether the rows you have already dealt with are drawn at all.
+    const [hideSettled, setHideSettled] = React.useState(false)
+
     const families = React.useMemo(() => {
         const grouped = groupIntoFamilies(items, familyOrderingRef.current)
         familyOrderingRef.current = grouped.ordering
@@ -123,9 +145,19 @@ export function EnqueueFuturePage() {
         // rows you cannot act on is wasted space. But it also removed the only record that you had
         // dealt with it: a franchise you downloaded in full and one the walk never found looked
         // exactly alike. Greyed out and badged, it says "done" — which is the point of seeing it.
+        // Everything you have dealt with can be hidden, and it updates as you deal with things: the
+        // row greys out and, with the toggle off, leaves on the same poll. Shown by default, because
+        // a queue that silently drops what you did is the thing this was changed away from — but a
+        // library with thousands of finished entries is a lot of grey to scroll past when you only
+        // want the work.
+        if (hideSettled) {
+            return grouped.families
+                .map(family => family.filter(item => isActionable(item)))
+                .filter(family => family.length > 0)
+        }
         return grouped.families
         // resortSignal is a dependency and nothing else: it exists to re-run this memo.
-    }, [items, resortSignal])
+    }, [items, resortSignal, hideSettled])
     const orderedItems = React.useMemo(() => families.flat(), [families])
 
     const [activeMediaId, setActiveMediaId] = React.useState<number | undefined>(undefined)
@@ -144,15 +176,30 @@ export function EnqueueFuturePage() {
         // has just been dealt with.
         const at = found >= 0 ? found : Math.min(lastIndexRef.current, orderedItems.length - 1)
 
-        // Never land on an anime that is already downloading, downloaded or matched. Those rows stay
-        // in the list so their franchise reads whole, but there is nothing to decide about one, so
-        // the position walks past them — forwards first, then backwards if the tail is all settled.
-        if (!orderedItems[at]?.downloadState) return at
+        // Never land on a row there is nothing to decide about: already downloading, downloaded,
+        // matched, or skipped. Those stay in the list so their franchise reads whole, but the
+        // position walks past them.
+        //
+        // Two passes, and the order matters. The first looks for the next entry that is actually
+        // *ready* — prepared, with torrents found, something you can act on this second. Only if
+        // there is none does the second accept anything unsettled, which will be an entry still
+        // being prepared. Skipping used to land on whatever came next in the list, which during a run
+        // is usually a row that says "Preparing…" and can do nothing for you.
+        if (isActionable(orderedItems[at]) && isReady(orderedItems[at])) return at
+
         for (let i = at + 1; i < orderedItems.length; i++) {
-            if (!orderedItems[i]?.downloadState) return i
+            if (isActionable(orderedItems[i]) && isReady(orderedItems[i])) return i
         }
         for (let i = at - 1; i >= 0; i--) {
-            if (!orderedItems[i]?.downloadState) return i
+            if (isActionable(orderedItems[i]) && isReady(orderedItems[i])) return i
+        }
+
+        if (isActionable(orderedItems[at])) return at
+        for (let i = at + 1; i < orderedItems.length; i++) {
+            if (isActionable(orderedItems[i])) return i
+        }
+        for (let i = at - 1; i >= 0; i--) {
+            if (isActionable(orderedItems[i])) return i
         }
         return -1
     }, [orderedItems, activeMediaId])
@@ -318,6 +365,36 @@ export function EnqueueFuturePage() {
                             <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
                                 Queue
                             </p>
+                            <Button
+                                size="xs"
+                                intent={hideSettled ? "primary-subtle" : "gray-subtle"}
+                                leftIcon={hideSettled ? <LuEyeOff /> : <LuEye />}
+                                onClick={() => setHideSettled(v => !v)}
+                                data-enqueue-future-toggle-settled
+                            >
+                                {hideSettled ? "Showing only what's left" : "Show all"}
+                            </Button>
+                            <Button
+                                size="xs"
+                                intent="gray-subtle"
+                                leftIcon={<LuGitBranch />}
+                                loading={isRewalking}
+                                onClick={() => rewalk(undefined, {
+                                    onSuccess: (queued) => {
+                                        toast.success(
+                                            queued ? `Queued ${queued} franchise${queued === 1 ? "" : "s"} to be walked again` : "Nothing to re-walk",
+                                            {
+                                                description: queued
+                                                    ? "They fill in their relations one after another in the background. This takes a long time — it is a full walk per franchise."
+                                                    : undefined,
+                                            },
+                                        )
+                                    },
+                                })}
+                                data-enqueue-future-rewalk
+                            >
+                                Re-walk families
+                            </Button>
                             <Button
                                 size="xs"
                                 intent="gray-subtle"

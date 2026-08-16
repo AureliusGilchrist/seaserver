@@ -104,7 +104,7 @@ func (h *Handler) RequireProfileSession(next echo.HandlerFunc) echo.HandlerFunc 
 			return next(c)
 		}
 
-	if !h.App.ProfileManager.HasProfiles() {
+		if !h.App.ProfileManager.HasProfiles() {
 			return next(c)
 		}
 

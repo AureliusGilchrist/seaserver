@@ -263,8 +263,6 @@ func (h *Handler) HandleGetLibraryCollection(c echo.Context) error {
 		relocatePlanningSlutEntriesToLocal(libraryCollection, sharedOnlyAnimeIDs)
 	}
 
-
-
 	if !fromNakama {
 		if (h.App.SecondarySettings.Torrentstream != nil && h.App.SecondarySettings.Torrentstream.Enabled && h.App.SecondarySettings.Torrentstream.IncludeInLibrary) ||
 			(h.App.Settings.GetLibrary() != nil && h.App.Settings.GetLibrary().EnableOnlinestream && h.App.Settings.GetLibrary().IncludeOnlineStreamingInLibrary) ||

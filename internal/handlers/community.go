@@ -103,11 +103,16 @@ func (h *Handler) HandleGetCommunityProfiles(c echo.Context) error {
 			CurrentLevel:      1,
 			DisplayTitle:      p.DisplayTitle,
 			DisplayTitleColor: p.DisplayTitleColor,
-			ThemeID:           func() string { if p.ThemeID == "" { return "seanime" }; return p.ThemeID }(),
-			XPBarFillCss:      p.XPBarFillCss,
-			XPBarAnimClass:    p.XPBarAnimClass,
-			NameColorCss:      p.NameColorCss,
-			NameGradientCss:   p.NameGradientCss,
+			ThemeID: func() string {
+				if p.ThemeID == "" {
+					return "seanime"
+				}
+				return p.ThemeID
+			}(),
+			XPBarFillCss:    p.XPBarFillCss,
+			XPBarAnimClass:  p.XPBarAnimClass,
+			NameColorCss:    p.NameColorCss,
+			NameGradientCss: p.NameGradientCss,
 		}
 
 		if database, dbErr := h.App.ProfileDatabaseManager.GetDatabase(p.ID); dbErr == nil {

@@ -95,9 +95,13 @@ type Item struct {
 	TotalSeeders int `json:"totalSeeders"`
 	// AiredAt is the entry's place in its franchise's running order — year*10 + season index, or 0
 	// when unknown. The queue sorts a family by it so a franchise reads as the story ran.
-	AiredAt   int       `json:"airedAt"`
-	CreatedAt time.Time `json:"createdAt"`
-	Snapshot  *Snapshot `json:"snapshot,omitempty"`
+	AiredAt int `json:"airedAt"`
+	// RelationType and ParentMediaID are how this entry relates to the one it was discovered from.
+	// The queue screen indents by them. Empty for anything walked before they were recorded.
+	RelationType  string    `json:"relationType,omitempty"`
+	ParentMediaID int       `json:"parentMediaId,omitempty"`
+	CreatedAt     time.Time `json:"createdAt"`
+	Snapshot      *Snapshot `json:"snapshot,omitempty"`
 	// DownloadState is what has already happened to this anime outside the queue: "downloading",
 	// "downloaded", "matched", or empty for one nothing has been done with yet.
 	//

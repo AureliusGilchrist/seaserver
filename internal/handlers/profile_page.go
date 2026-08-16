@@ -14,14 +14,14 @@ import (
 
 // ProfilePageResponse is the aggregated response for the profile page.
 type ProfilePageResponse struct {
-	Profile            *core.ProfileSummary        `json:"profile"`
-	Level              *LevelResponse              `json:"level"`
-	Showcase           []ShowcaseEntry             `json:"showcase"`
-	AchievementSummary achievement.SummaryResponse  `json:"achievementSummary"`
-	ActivityHeatmap    []*profilestats.ActivityDay  `json:"activityHeatmap"`
-	AnimeStreak        *profilestats.StreakInfo     `json:"animeStreak"`
-	MangaStreak        *profilestats.StreakInfo     `json:"mangaStreak"`
-	RecentAchievements []RecentAchievementEntry     `json:"recentAchievements"`
+	Profile            *core.ProfileSummary                `json:"profile"`
+	Level              *LevelResponse                      `json:"level"`
+	Showcase           []ShowcaseEntry                     `json:"showcase"`
+	AchievementSummary achievement.SummaryResponse         `json:"achievementSummary"`
+	ActivityHeatmap    []*profilestats.ActivityDay         `json:"activityHeatmap"`
+	AnimeStreak        *profilestats.StreakInfo            `json:"animeStreak"`
+	MangaStreak        *profilestats.StreakInfo            `json:"mangaStreak"`
+	RecentAchievements []RecentAchievementEntry            `json:"recentAchievements"`
 	CurrentExpBar      *achievement.ExpBarProgressionEntry `json:"currentExpBar"`
 }
 
@@ -38,18 +38,18 @@ type LevelResponse struct {
 
 // ShowcaseEntry is a showcase slot with its definition resolved.
 type ShowcaseEntry struct {
-	Slot       int                  `json:"slot"`
-	Key        string               `json:"key"`
-	Tier       int                  `json:"tier"`
+	Slot       int                     `json:"slot"`
+	Key        string                  `json:"key"`
+	Tier       int                     `json:"tier"`
 	Definition *achievement.Definition `json:"definition,omitempty"`
 }
 
 // RecentAchievementEntry represents a recently unlocked achievement.
 type RecentAchievementEntry struct {
-	Key        string                     `json:"key"`
-	Tier       int                        `json:"tier"`
-	UnlockedAt *time.Time                 `json:"unlockedAt"`
-	Definition *achievement.Definition    `json:"definition,omitempty"`
+	Key        string                  `json:"key"`
+	Tier       int                     `json:"tier"`
+	UnlockedAt *time.Time              `json:"unlockedAt"`
+	Definition *achievement.Definition `json:"definition,omitempty"`
 }
 
 // HandleGetMyProfile
@@ -195,9 +195,9 @@ func (h *Handler) HandleSetDisplayCosmetics(c echo.Context) error {
 	}
 
 	updates := map[string]interface{}{
-		"xpbar_fill_css":   b.XPBarFillCss,
-		"xpbar_anim_class": b.XPBarAnimClass,
-		"name_color_css":   b.NameColorCss,
+		"xpbar_fill_css":    b.XPBarFillCss,
+		"xpbar_anim_class":  b.XPBarAnimClass,
+		"name_color_css":    b.NameColorCss,
 		"name_gradient_css": b.NameGradientCss,
 	}
 

@@ -254,3 +254,23 @@ func (h *Handler) HandleClearEnqueueFuture(c echo.Context) error {
 
 	return h.RespondWithData(c, true)
 }
+
+// HandleRewalkEnqueueFutureFamilies
+//
+//	@summary queues every franchise in the queue to be walked again.
+//	@desc Relations are recorded as a walk discovers them, so families queued before that was
+//	@desc recorded draw flat. This fills them in: one root per franchise, walked one after another.
+//	@desc Deliberately expensive — a full AniList walk per franchise, at background pacing.
+//	@route /api/v1/enqueue-future/rewalk [POST]
+//	@returns int
+func (h *Handler) HandleRewalkEnqueueFutureFamilies(c echo.Context) error {
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithData(c, 0)
+	}
+
+	queued, err := h.App.EnqueueFutureRepository.RewalkAllFamilies()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	return h.RespondWithData(c, queued)
+}

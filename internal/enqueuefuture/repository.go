@@ -592,6 +592,9 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			depths[rel.mediaID] = depth
 			rel.familyID = familyID
 			rel.isFamily = true
+			// The entry it was found from. With the relation type above, this is what lets the queue
+			// draw a franchise's shape rather than a flat list of its members.
+			rel.parentMediaID = mediaID
 			familyFrontier = append(familyFrontier, rel)
 		}
 
@@ -728,13 +731,15 @@ func (r *Repository) drainFrontier(
 		}
 
 		inserted, err := r.database.InsertEnqueueFutureItem(&models.EnqueueFutureItem{
-			ProfileID:   profileID,
-			MediaID:     rec.mediaID,
-			RootMediaID: rootMediaID,
-			FamilyID:    familyID,
-			Depth:       depths[rec.mediaID],
-			Status:      db.EnqueueFutureStatusPending,
-			Title:       rec.title,
+			ProfileID:     profileID,
+			MediaID:       rec.mediaID,
+			RootMediaID:   rootMediaID,
+			FamilyID:      familyID,
+			Depth:         depths[rec.mediaID],
+			Status:        db.EnqueueFutureStatusPending,
+			Title:         rec.title,
+			RelationType:  rec.relationType,
+			ParentMediaID: rec.parentMediaID,
 		})
 		if err != nil || !inserted {
 			continue

@@ -48,10 +48,10 @@ type Status struct {
 	ServerReady           bool                          `json:"serverReady"`
 	ServerHasPassword     bool                          `json:"serverHasPassword"`
 	// Multi-profile fields
-	ProfilesEnabled      bool                    `json:"profilesEnabled"`
-	NeedsMigration       bool                    `json:"needsMigration"`
-	CurrentProfile       *core.ProfileSummary    `json:"currentProfile"`
-	Profiles             []*core.ProfileSummary  `json:"profiles"`
+	ProfilesEnabled bool                   `json:"profilesEnabled"`
+	NeedsMigration  bool                   `json:"needsMigration"`
+	CurrentProfile  *core.ProfileSummary   `json:"currentProfile"`
+	Profiles        []*core.ProfileSummary `json:"profiles"`
 	// Planning Slut shared library
 	PlanningSlutConfigured bool `json:"planningSlutConfigured"`
 	// Boot ID — changes every server restart so frontend can invalidate stale sessions

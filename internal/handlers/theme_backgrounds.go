@@ -95,7 +95,7 @@ func (h *Handler) HandleDownloadThemeBackground(c echo.Context) error {
 	// local files back to their source wallpaper (e.g. "wallhaven-abc123" → "abc123").
 	// URL form: https://w.wallhaven.cc/full/ab/wallhaven-abc123.jpg
 	base := strings.TrimSuffix(filepath.Base(b.URL), filepath.Ext(b.URL)) // "wallhaven-abc123"
-	wallhavenID := strings.TrimPrefix(base, "wallhaven-")                  // "abc123"
+	wallhavenID := strings.TrimPrefix(base, "wallhaven-")                 // "abc123"
 	var filename string
 	if wallhavenID != "" && wallhavenID != base {
 		if themeID != "" {
@@ -242,7 +242,7 @@ func (h *Handler) HandleListSharedThemes(c echo.Context) error {
 		if _, statErr := os.Stat(themeJsonPath); statErr != nil {
 			continue // Skip directories without theme.json
 		}
-		
+
 		// Try to read theme.json to get display name
 		displayName := entry.Name()
 		if data, readErr := os.ReadFile(themeJsonPath); readErr == nil {
@@ -253,7 +253,7 @@ func (h *Handler) HandleListSharedThemes(c echo.Context) error {
 				displayName = theme.DisplayName
 			}
 		}
-		
+
 		themes = append(themes, ThemeInfo{
 			ID:          entry.Name(),
 			DisplayName: displayName,
@@ -295,7 +295,7 @@ func (h *Handler) HandleDownloadSharedTheme(c echo.Context) error {
 	// Source: marketplace themes directory
 	sourceDir := filepath.Join(h.App.Config.Marketplace.Dir, "themes", themeID)
 	sourceJson := filepath.Join(sourceDir, "theme.json")
-	
+
 	// Verify source exists
 	if _, statErr := os.Stat(sourceJson); statErr != nil {
 		return h.RespondWithError(c, fmt.Errorf("theme not found in marketplace: %s", themeID))
@@ -562,8 +562,8 @@ func (h *Handler) HandleSetProfileThemePreference(c echo.Context) error {
 	// Upsert the preference
 	pref := models.ProfileThemePreference{ThemeID: b.ThemeID}
 	if err := profileDB.Gorm().Where("1=1"). // There's only ever one row
-					Assign(pref).
-					FirstOrCreate(&pref).Error; err != nil {
+							Assign(pref).
+							FirstOrCreate(&pref).Error; err != nil {
 		return h.RespondWithError(c, err)
 	}
 
@@ -578,7 +578,7 @@ func (h *Handler) HandleSetProfileThemePreference(c echo.Context) error {
 	}
 
 	return h.RespondWithData(c, map[string]string{
-		"themeId":           b.ThemeID,
+		"themeId":              b.ThemeID,
 		"currentMilestoneName": milestoneName,
 	})
 }

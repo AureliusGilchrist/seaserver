@@ -472,6 +472,14 @@ type EnqueueFutureItem struct {
 	// popularity order is a list of things you have to reassemble in your head before you can decide
 	// anything. Zero until the entry has been prepared, since it comes from the fetched details.
 	AiredAt int `gorm:"column:aired_at;default:0" json:"airedAt"`
+	// RelationType is how AniList relates this entry to ParentMediaID — SEQUEL, PREQUEL, SIDE_STORY,
+	// OTHER and the rest — and ParentMediaID is the entry it was discovered from.
+	//
+	// Together they are the shape of a franchise, which is otherwise nowhere: a family id says these
+	// entries belong together and nothing about how. The queue screen indents a side branch under
+	// what it hangs off and keeps a straight run of seasons level, which needs both.
+	RelationType  string `gorm:"column:relation_type" json:"relationType"`
+	ParentMediaID int    `gorm:"column:parent_media_id;default:0" json:"parentMediaId"`
 	// Value is the prepared snapshot as JSON — the anime entry, the torrent search results, and the
 	// exact search variables that produced them. Nil until the item has been prepared.
 	Value []byte `gorm:"column:value" json:"-"`

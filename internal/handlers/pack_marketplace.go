@@ -61,19 +61,19 @@ type SoundPackIndex struct {
 
 // DownloadedCursorPack is stored in AppDataDir/cursor-packs/{id}/pack.json
 type DownloadedCursorPack struct {
-	ID              string            `json:"id"`
-	Name            string            `json:"name"`
-	Description     string            `json:"description"`
-	Author          string            `json:"author"`
-	Type            string            `json:"type"` // "png" | "recolor"
-	PreviewImageUrl string            `json:"previewImageUrl"`
-	RequiredLevel   int               `json:"requiredLevel"`
-	Tags            []string          `json:"tags"`
-	Version         string            `json:"version"`
-	BaseTheme       string            `json:"baseTheme,omitempty"`
-	HueRotate       float64           `json:"hueRotate,omitempty"`
-	Saturate        float64           `json:"saturate,omitempty"`
-	Brightness      float64           `json:"brightness,omitempty"`
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Description     string   `json:"description"`
+	Author          string   `json:"author"`
+	Type            string   `json:"type"` // "png" | "recolor"
+	PreviewImageUrl string   `json:"previewImageUrl"`
+	RequiredLevel   int      `json:"requiredLevel"`
+	Tags            []string `json:"tags"`
+	Version         string   `json:"version"`
+	BaseTheme       string   `json:"baseTheme,omitempty"`
+	HueRotate       float64  `json:"hueRotate,omitempty"`
+	Saturate        float64  `json:"saturate,omitempty"`
+	Brightness      float64  `json:"brightness,omitempty"`
 }
 
 // DownloadedSoundPack is stored in AppDataDir/sound-packs/{id}/pack.json

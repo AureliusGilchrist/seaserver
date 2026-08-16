@@ -58,7 +58,7 @@ func (db *Database) GetEnqueueFutureItems() ([]*models.EnqueueFutureItem, error)
 var enqueueFutureListColumns = []string{
 	"id", "created_at", "updated_at", "profile_id", "media_id", "root_media_id",
 	"family_id", "position", "depth", "status", "attempts", "last_error", "title", "cover_image",
-	"total_seeders", "aired_at",
+	"total_seeders", "aired_at", "relation_type", "parent_media_id",
 }
 
 // enqueueFutureUnresolvedStatuses are the rows the queue screen has any use for: the ones still being

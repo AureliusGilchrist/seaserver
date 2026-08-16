@@ -43,6 +43,13 @@ type recommendation struct {
 	// isFamily marks an edge that continues the same story rather than merely resembling it. Family
 	// edges are queued ahead of every recommendation and never cost a franchise slot.
 	isFamily bool
+	// relationType is how AniList relates this entry to the one it was found from — SEQUEL, PREQUEL,
+	// SIDE_STORY, OTHER and the rest. Kept because it is the only place the shape of a franchise is
+	// ever known: the queue screen indents a side branch under the entry it hangs off, and a
+	// straight run of seasons stays level.
+	relationType string
+	// parentMediaID is the anime this was discovered from. Empty for a root.
+	parentMediaID int
 }
 
 // hasFullLibraryCopy reports whether every episode of an anime is already on disk.
@@ -276,6 +283,7 @@ func relationsFrom(details *anilist.AnimeDetailsById_Media) []recommendation {
 			episodes:       episodes,
 			notYetReleased: notYetReleased,
 			isFamily:       true,
+			relationType:   string(*edge.RelationType),
 		})
 	}
 	return out

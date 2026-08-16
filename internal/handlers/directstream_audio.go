@@ -69,16 +69,16 @@ func (h *Handler) HandleDirectstreamGetAudio(c echo.Context) error {
 		audioExtractJobsMu.Unlock()
 		// Wait for the existing job to finish
 		select {
-			case <-ch:
-				// Done — serve the file
-				if info, sErr := os.Stat(outputPath); sErr == nil && info.Size() > 0 {
-					c.Response().Header().Set("Cache-Control", "private, max-age=86400")
-					http.ServeFile(c.Response(), c.Request(), outputPath)
-					return nil
-				}
-				return h.RespondWithError(c, fmt.Errorf("audio extraction failed"))
-			case <-c.Request().Context().Done():
+		case <-ch:
+			// Done — serve the file
+			if info, sErr := os.Stat(outputPath); sErr == nil && info.Size() > 0 {
+				c.Response().Header().Set("Cache-Control", "private, max-age=86400")
+				http.ServeFile(c.Response(), c.Request(), outputPath)
 				return nil
+			}
+			return h.RespondWithError(c, fmt.Errorf("audio extraction failed"))
+		case <-c.Request().Context().Done():
+			return nil
 		}
 	}
 
@@ -181,15 +181,15 @@ func (h *Handler) HandleMediastreamGetAudio(c echo.Context) error {
 	if ch, ok := audioExtractJobs[cacheKey]; ok {
 		audioExtractJobsMu.Unlock()
 		select {
-			case <-ch:
-				if info, sErr := os.Stat(outputPath); sErr == nil && info.Size() > 0 {
-					c.Response().Header().Set("Cache-Control", "private, max-age=86400")
-					http.ServeFile(c.Response(), c.Request(), outputPath)
-					return nil
-				}
-				return h.RespondWithError(c, fmt.Errorf("audio extraction failed"))
-			case <-c.Request().Context().Done():
+		case <-ch:
+			if info, sErr := os.Stat(outputPath); sErr == nil && info.Size() > 0 {
+				c.Response().Header().Set("Cache-Control", "private, max-age=86400")
+				http.ServeFile(c.Response(), c.Request(), outputPath)
 				return nil
+			}
+			return h.RespondWithError(c, fmt.Errorf("audio extraction failed"))
+		case <-c.Request().Context().Done():
+			return nil
 		}
 	}
 
@@ -208,7 +208,7 @@ func (h *Handler) HandleMediastreamGetAudio(c echo.Context) error {
 		return h.RespondWithError(c, fmt.Errorf("could not create audio cache dir: %w", err))
 	}
 
-ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	tmpPath := outputPath + ".tmp"

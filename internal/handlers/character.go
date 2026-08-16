@@ -10,15 +10,15 @@ import (
 )
 
 type CharacterDetailsResponse struct {
-	ID          int                         `json:"id"`
-	Name        *CharacterName              `json:"name"`
-	Image       *CharacterImage             `json:"image"`
-	Description string                      `json:"description"`
-	Gender      string                      `json:"gender"`
-	Age         string                      `json:"age"`
-	DateOfBirth *CharacterDate              `json:"dateOfBirth"`
-	Favourites  int                         `json:"favourites"`
-	Media       *CharacterMediaConnection   `json:"media"`
+	ID          int                       `json:"id"`
+	Name        *CharacterName            `json:"name"`
+	Image       *CharacterImage           `json:"image"`
+	Description string                    `json:"description"`
+	Gender      string                    `json:"gender"`
+	Age         string                    `json:"age"`
+	DateOfBirth *CharacterDate            `json:"dateOfBirth"`
+	Favourites  int                       `json:"favourites"`
+	Media       *CharacterMediaConnection `json:"media"`
 }
 
 type CharacterName struct {
@@ -42,16 +42,16 @@ type CharacterMediaConnection struct {
 }
 
 type CharacterMediaEdge struct {
-	CharacterRole string                  `json:"characterRole"`
-	VoiceActors   []*CharacterVoiceActor  `json:"voiceActors"`
-	Node          *CharacterMediaNode     `json:"node"`
+	CharacterRole string                 `json:"characterRole"`
+	VoiceActors   []*CharacterVoiceActor `json:"voiceActors"`
+	Node          *CharacterMediaNode    `json:"node"`
 }
 
 type CharacterVoiceActor struct {
-	ID         int                 `json:"id"`
-	Name       *CharacterVAName    `json:"name"`
-	Image      *CharacterImage     `json:"image"`
-	LanguageV2 string              `json:"languageV2"`
+	ID         int              `json:"id"`
+	Name       *CharacterVAName `json:"name"`
+	Image      *CharacterImage  `json:"image"`
+	LanguageV2 string           `json:"languageV2"`
 }
 
 type CharacterVAName struct {
@@ -60,27 +60,27 @@ type CharacterVAName struct {
 }
 
 type CharacterMediaNode struct {
-	ID             int              `json:"id"`
-	IDMal          *int             `json:"idMal"`
-	SiteUrl        string           `json:"siteUrl"`
-	Status         string           `json:"status"`
-	Season         string           `json:"season"`
-	Type           string           `json:"type"`
-	Format         string           `json:"format"`
-	BannerImage    string           `json:"bannerImage"`
-	Episodes       *int             `json:"episodes"`
-	Chapters       *int             `json:"chapters"`
-	Volumes        *int             `json:"volumes"`
-	Synonyms       []string         `json:"synonyms"`
-	IsAdult        bool             `json:"isAdult"`
+	ID              int             `json:"id"`
+	IDMal           *int            `json:"idMal"`
+	SiteUrl         string          `json:"siteUrl"`
+	Status          string          `json:"status"`
+	Season          string          `json:"season"`
+	Type            string          `json:"type"`
+	Format          string          `json:"format"`
+	BannerImage     string          `json:"bannerImage"`
+	Episodes        *int            `json:"episodes"`
+	Chapters        *int            `json:"chapters"`
+	Volumes         *int            `json:"volumes"`
+	Synonyms        []string        `json:"synonyms"`
+	IsAdult         bool            `json:"isAdult"`
 	CountryOfOrigin string          `json:"countryOfOrigin"`
-	MeanScore      *int             `json:"meanScore"`
-	Description    string           `json:"description"`
-	Genres         []string         `json:"genres"`
-	Title          *CharacterTitle  `json:"title"`
-	CoverImage     *CharacterCover  `json:"coverImage"`
-	StartDate      *CharacterDate   `json:"startDate"`
-	EndDate        *CharacterDate   `json:"endDate"`
+	MeanScore       *int            `json:"meanScore"`
+	Description     string          `json:"description"`
+	Genres          []string        `json:"genres"`
+	Title           *CharacterTitle `json:"title"`
+	CoverImage      *CharacterCover `json:"coverImage"`
+	StartDate       *CharacterDate  `json:"startDate"`
+	EndDate         *CharacterDate  `json:"endDate"`
 }
 
 type CharacterTitle struct {

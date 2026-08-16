@@ -7,11 +7,11 @@ import (
 	"seanime/internal/core"
 	"seanime/internal/database/db"
 	"seanime/internal/database/db_bridge"
+	libanime "seanime/internal/library/anime"
+	libmanga "seanime/internal/manga"
 	"seanime/internal/util"
 	"seanime/internal/util/limiter"
 	"seanime/internal/util/result"
-	libanime "seanime/internal/library/anime"
-	libmanga "seanime/internal/manga"
 	"strings"
 	"sync"
 	"time"
@@ -167,7 +167,7 @@ func (h *Handler) HandleGetPlanningSlutInfo(c echo.Context) error {
 	}
 
 	info := map[string]interface{}{
-		"name":     "Global Library",
+		"name": "Global Library",
 	}
 	if viewer.Viewer.Avatar != nil {
 		info["avatar"] = viewer.Viewer.Avatar.Large

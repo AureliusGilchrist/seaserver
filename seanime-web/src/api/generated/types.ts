@@ -2754,6 +2754,10 @@ export type EnqueueFuture_Item = {
     totalSeeders: number
     /** Place in the franchise's running order: year*10 + season index, or 0 when unknown. */
     airedAt?: number
+    /** How this entry relates to the one it was discovered from: SEQUEL, PREQUEL, SIDE_STORY, OTHER… */
+    relationType?: string
+    /** The entry it was discovered from. */
+    parentMediaId?: number
     createdAt?: string
     snapshot?: EnqueueFuture_Snapshot
     /**

@@ -1,6 +1,8 @@
 package enqueuefuture
 
 import (
+	"time"
+
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/db"
 	"seanime/internal/database/models"
@@ -133,4 +135,73 @@ func titleOf(media *anilist.BaseAnime) string {
 		}
 	}
 	return ""
+}
+
+// RewalkAllFamilies queues every franchise in the queue to be walked again.
+//
+// Relations — which entry a season hangs off, and how — are recorded as a walk discovers them, so
+// anything queued before that was recorded has none, and the queue screen draws those families flat.
+// This is the way to fill them in: one root per franchise, appended to the waiting list, walked one
+// after another.
+//
+// It is deliberately expensive and deliberately explicit. Each root is a full AniList walk at the
+// background pacing, so a queue of several hundred franchises is days of unattended work — which is
+// fine, because it survives restarts and picks up where it left off, but is not something to trigger
+// by accident. Returns how many franchises were queued.
+func (r *Repository) RewalkAllFamilies() (int, error) {
+	if r.database == nil {
+		return 0, nil
+	}
+
+	items, err := r.database.GetAllEnqueueFutureListItems()
+	if err != nil {
+		return 0, err
+	}
+
+	// One root per franchise: the earliest entry of it, which is where a walk of that story should
+	// start. Falls back to whichever member was seen first when nothing carries a date.
+	type candidate struct {
+		mediaID int
+		title   string
+		airedAt int
+	}
+	roots := make(map[int]candidate)
+	for _, item := range items {
+		if item == nil || item.MediaID <= 0 {
+			continue
+		}
+		key := item.FamilyID
+		if key == 0 {
+			key = item.MediaID
+		}
+
+		current, seen := roots[key]
+		switch {
+		case !seen:
+		case current.airedAt == 0 && item.AiredAt > 0:
+		case item.AiredAt > 0 && item.AiredAt < current.airedAt:
+		default:
+			continue
+		}
+		roots[key] = candidate{mediaID: item.MediaID, title: item.Title, airedAt: item.AiredAt}
+	}
+
+	pending := make([]pendingRoot, 0, len(roots))
+	for _, root := range roots {
+		pending = append(pending, pendingRoot{
+			MediaID:  root.mediaID,
+			Title:    root.title,
+			QueuedAt: time.Now(),
+		})
+	}
+
+	added := r.queueRootsBulk(pending)
+	if added > 0 {
+		r.logger.Info().Int("queued", added).Int("franchises", len(roots)).
+			Msg("enqueuefuture: Queued every franchise to be walked again")
+		// Nothing may be running, in which case the first of them starts now rather than waiting for
+		// a run that will never finish because there isn't one.
+		go r.startNextPendingRoot()
+	}
+	return added, nil
 }
