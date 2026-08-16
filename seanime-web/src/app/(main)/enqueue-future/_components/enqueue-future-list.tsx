@@ -125,8 +125,26 @@ export function groupIntoFamilies(
 
     // Within a bundle, the best-shared season first, for the same reason the bundles themselves are
     // ordered that way. Stable, so seasons of equal standing stay in the order they came in.
+    // Within a bundle, the franchise's own order — the order it ran in.
+    //
+    // Seeders decide which *franchise* comes first, and that is right: it is a stand-in for how
+    // widely watched the whole story is. Inside one, it is the wrong question entirely. A bundle
+    // listing season 3, then the OVA, then season 1 because that is how popular they are is a list
+    // you have to reassemble in your head before you can decide anything — and deciding is the only
+    // thing this screen is for. Sorted by when each entry aired, a franchise reads top to bottom the
+    // way you would watch it.
+    //
+    // Anything with no date yet (still preparing, or an entry AniList gives no start date) sorts to
+    // the end rather than the front: an unknown belongs after the part of the story that is known.
     for (const family of byKey.values()) {
-        family.sort((a, b) => (b.totalSeeders || 0) - (a.totalSeeders || 0))
+        family.sort((a, b) => {
+            const aAired = a.airedAt || 0
+            const bAired = b.airedAt || 0
+            if ((aAired === 0) !== (bAired === 0)) return aAired === 0 ? 1 : -1
+            if (aAired !== bAired) return aAired - bAired
+            // Same season, or both unknown: the more widely shared one first, as before.
+            return (b.totalSeeders || 0) - (a.totalSeeders || 0)
+        })
     }
 
     // Hand back the previous array for any family that came out identical, so a poll only changes

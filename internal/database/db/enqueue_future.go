@@ -58,7 +58,7 @@ func (db *Database) GetEnqueueFutureItems() ([]*models.EnqueueFutureItem, error)
 var enqueueFutureListColumns = []string{
 	"id", "created_at", "updated_at", "profile_id", "media_id", "root_media_id",
 	"family_id", "position", "depth", "status", "attempts", "last_error", "title", "cover_image",
-	"total_seeders",
+	"total_seeders", "aired_at",
 }
 
 // enqueueFutureUnresolvedStatuses are the rows the queue screen has any use for: the ones still being
@@ -418,7 +418,7 @@ func (db *Database) SetEnqueueFutureItemStatus(mediaID int, status string, lastE
 // SaveEnqueueFutureItemSnapshot stores a prepared item: its snapshot blob, the display fields read
 // out of it, and the status the preparation ended in.
 func (db *Database) SaveEnqueueFutureItemSnapshot(
-	mediaID int, status string, title string, coverImage string, totalSeeders int, value []byte,
+	mediaID int, status string, title string, coverImage string, totalSeeders int, airedAt int, value []byte,
 ) error {
 	return retryOnBusy(func() error {
 		return db.gormdb.Model(&models.EnqueueFutureItem{}).
@@ -428,6 +428,7 @@ func (db *Database) SaveEnqueueFutureItemSnapshot(
 				"title":         title,
 				"cover_image":   coverImage,
 				"total_seeders": totalSeeders,
+				"aired_at":      airedAt,
 				"value":         value,
 				"last_error":    "",
 			}).Error

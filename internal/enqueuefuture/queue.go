@@ -103,6 +103,7 @@ func toItem(record *models.EnqueueFutureItem, snapshot *Snapshot) *Item {
 		Title:        record.Title,
 		CoverImage:   record.CoverImage,
 		TotalSeeders: record.TotalSeeders,
+		AiredAt:      record.AiredAt,
 		CreatedAt:    record.CreatedAt,
 		Snapshot:     snapshot,
 	}

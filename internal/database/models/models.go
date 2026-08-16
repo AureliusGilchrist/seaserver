@@ -404,11 +404,11 @@ type AnimeDownloadState struct {
 // Value holds the full record (every file's original and new path) as JSON.
 type UnmatchedMatchRecord struct {
 	BaseModel
-	TorrentName string     `gorm:"column:torrent_name" json:"torrentName"`
-	AnimeID     int        `gorm:"column:anime_id" json:"animeId"`
-	AnimeTitle  string     `gorm:"column:anime_title" json:"animeTitle"`
-	Destination string     `gorm:"column:destination" json:"destination"`
-	FileCount   int        `gorm:"column:file_count" json:"fileCount"`
+	TorrentName string `gorm:"column:torrent_name" json:"torrentName"`
+	AnimeID     int    `gorm:"column:anime_id" json:"animeId"`
+	AnimeTitle  string `gorm:"column:anime_title" json:"animeTitle"`
+	Destination string `gorm:"column:destination" json:"destination"`
+	FileCount   int    `gorm:"column:file_count" json:"fileCount"`
 	// RevertedAt is nil while the match still stands, and set once it has been undone. Reverted
 	// records are kept rather than deleted so the screen can show what was undone and when.
 	RevertedAt *time.Time `gorm:"column:reverted_at" json:"revertedAt"`
@@ -465,6 +465,13 @@ type EnqueueFutureItem struct {
 	// NULL; rows that predate the column are repaired by the backfill instead, since a default
 	// applies to new rows only.
 	TotalSeeders int `gorm:"column:total_seeders;default:0" json:"totalSeeders"`
+	// AiredAt places this entry in its own franchise's running order: the release year and season
+	// folded into one sortable number (year*10 + season index).
+	//
+	// A franchise is a story with an order, and a bundle listing season 3, the OVA and season 1 in
+	// popularity order is a list of things you have to reassemble in your head before you can decide
+	// anything. Zero until the entry has been prepared, since it comes from the fetched details.
+	AiredAt int `gorm:"column:aired_at;default:0" json:"airedAt"`
 	// Value is the prepared snapshot as JSON — the anime entry, the torrent search results, and the
 	// exact search variables that produced them. Nil until the item has been prepared.
 	Value []byte `gorm:"column:value" json:"-"`
@@ -528,9 +535,9 @@ type Theme struct {
 	UnpinnedMenuItems StringSlice `gorm:"column:unpinned_menu_items;type:text" json:"unpinnedMenuItems"`
 
 	// v3+
-	HomeItems              []byte `gorm:"column:home_items;type:text" json:"homeItems"`
-	MangaHomeItems         []byte `gorm:"column:manga_home_items;type:text" json:"mangaHomeItems"`
-	EnableBlurringEffects  bool   `gorm:"column:enable_blurring_effects" json:"enableBlurringEffects"`
+	HomeItems             []byte `gorm:"column:home_items;type:text" json:"homeItems"`
+	MangaHomeItems        []byte `gorm:"column:manga_home_items;type:text" json:"mangaHomeItems"`
+	EnableBlurringEffects bool   `gorm:"column:enable_blurring_effects" json:"enableBlurringEffects"`
 
 	// v3.7+ (spoiler controls)
 	HideAnimeSpoilers               bool `gorm:"column:hide_anime_spoilers" json:"hideAnimeSpoilers"`
@@ -576,9 +583,9 @@ type ChapterDownloadQueueItem struct {
 	MediaID         int    `gorm:"column:media_id" json:"mediaId"`
 	ChapterID       string `gorm:"column:chapter_id" json:"chapterId"`
 	ChapterNumber   string `gorm:"column:chapter_number" json:"chapterNumber"`
-	ChapterTitle    string `gorm:"column:chapter_title" json:"chapterTitle"`       // Chapter title from provider
-	MediaTitle      string `gorm:"column:media_title" json:"mediaTitle"`           // Title for folder naming
-	PageData        []byte `gorm:"column:page_data" json:"pageData"`               // Contains map of page index to page details
+	ChapterTitle    string `gorm:"column:chapter_title" json:"chapterTitle"` // Chapter title from provider
+	MediaTitle      string `gorm:"column:media_title" json:"mediaTitle"`     // Title for folder naming
+	PageData        []byte `gorm:"column:page_data" json:"pageData"`         // Contains map of page index to page details
 	Status          string `gorm:"column:status" json:"status"`
 	DownloadedPages int    `gorm:"column:downloaded_pages;default:0" json:"downloadedPages"` // Number of pages downloaded
 	TotalPages      int    `gorm:"column:total_pages;default:0" json:"totalPages"`           // Total number of pages
@@ -675,11 +682,11 @@ type SyntheticManga struct {
 	SyntheticID int    `gorm:"column:synthetic_id;uniqueIndex" json:"syntheticId"` // Negative ID to avoid collision with AniList
 	Title       string `gorm:"column:title" json:"title"`
 	CoverImage  string `gorm:"column:cover_image" json:"coverImage"`
-	Provider    string `gorm:"column:provider" json:"provider"`           // e.g., "weebcentral"
-	ProviderID  string `gorm:"column:provider_id" json:"providerId"`      // ID on the provider (e.g., WeebCentral manga ID)
+	Provider    string `gorm:"column:provider" json:"provider"`      // e.g., "weebcentral"
+	ProviderID  string `gorm:"column:provider_id" json:"providerId"` // ID on the provider (e.g., WeebCentral manga ID)
 	Description string `gorm:"column:description;type:text" json:"description"`
-	Status      string `gorm:"column:status" json:"status"`               // e.g., "RELEASING", "FINISHED"
-	Chapters    int    `gorm:"column:chapters" json:"chapters"`           // Total chapter count if known
+	Status      string `gorm:"column:status" json:"status"`     // e.g., "RELEASING", "FINISHED"
+	Chapters    int    `gorm:"column:chapters" json:"chapters"` // Total chapter count if known
 }
 
 type MangaChapterContainer struct {
@@ -696,8 +703,8 @@ type MangaChapterContainer struct {
 type MangaIDMapping struct {
 	BaseModel
 	SyntheticID int    `gorm:"column:synthetic_id;uniqueIndex" json:"syntheticId"` // Original synthetic ID (negative)
-	AnilistID   int    `gorm:"column:anilist_id" json:"anilistId"`                  // Mapped AniList ID (positive)
-	ProviderID  string `gorm:"column:provider_id" json:"providerId"`                // Provider ID for reference
+	AnilistID   int    `gorm:"column:anilist_id" json:"anilistId"`                 // Mapped AniList ID (positive)
+	ProviderID  string `gorm:"column:provider_id" json:"providerId"`               // Provider ID for reference
 }
 
 // MangaReadingHistory tracks when manga (including synthetic) was last read
@@ -729,10 +736,10 @@ type SyntheticAnime struct {
 	TitleEnglish string `gorm:"column:title_english" json:"titleEnglish"`
 	CoverImage   string `gorm:"column:cover_image" json:"coverImage"`
 	Thumbnail    string `gorm:"column:thumbnail" json:"thumbnail"`
-	Type         string `gorm:"column:type" json:"type"`           // TV, MOVIE, OVA, ONA, SPECIAL
+	Type         string `gorm:"column:type" json:"type"` // TV, MOVIE, OVA, ONA, SPECIAL
 	Episodes     int    `gorm:"column:episodes" json:"episodes"`
-	Status       string `gorm:"column:status" json:"status"`       // FINISHED, ONGOING, UPCOMING
-	Season       string `gorm:"column:season" json:"season"`       // SPRING, SUMMER, FALL, WINTER
+	Status       string `gorm:"column:status" json:"status"` // FINISHED, ONGOING, UPCOMING
+	Season       string `gorm:"column:season" json:"season"` // SPRING, SUMMER, FALL, WINTER
 	SeasonYear   int    `gorm:"column:season_year" json:"seasonYear"`
 	Description  string `gorm:"column:description;type:text" json:"description"`
 	Synonyms     string `gorm:"column:synonyms;type:text" json:"synonyms"` // JSON array of synonyms
@@ -898,7 +905,7 @@ type StudioFavorite struct {
 // Notification stores a notification per profile (stored in per-profile DB).
 type Notification struct {
 	BaseModel
-	Type     string `gorm:"column:type" json:"type"`         // new_episode, sequel_announced, related_airing, character_birthday, achievement_unlocked, manga_chapter
+	Type     string `gorm:"column:type" json:"type"` // new_episode, sequel_announced, related_airing, character_birthday, achievement_unlocked, manga_chapter
 	Title    string `gorm:"column:title" json:"title"`
 	Body     string `gorm:"column:body" json:"body"`
 	ImageURL string `gorm:"column:image_url" json:"imageUrl"`
@@ -914,16 +921,16 @@ type Achievement struct {
 	Tier         int        `gorm:"column:tier;uniqueIndex:idx_achievement_key_tier;default:0" json:"tier"` // 0 for untiered, 1-5 for tiered
 	IsUnlocked   bool       `gorm:"column:is_unlocked;default:false" json:"isUnlocked"`
 	UnlockedAt   *time.Time `gorm:"column:unlocked_at" json:"unlockedAt"`
-	Progress     float64    `gorm:"column:progress;default:0" json:"progress"`         // 0.0 - 1.0
+	Progress     float64    `gorm:"column:progress;default:0" json:"progress"`          // 0.0 - 1.0
 	ProgressData string     `gorm:"column:progress_data;type:text" json:"progressData"` // JSON blob for tracking state
 }
 
 // AchievementShowcase stores the user's selected achievement badges for profile display (stored in per-profile DB).
 type AchievementShowcase struct {
 	BaseModel
-	Slot           int    `gorm:"column:slot;uniqueIndex" json:"slot"` // 0-4 (5 slots)
-	AchievementKey string `gorm:"column:achievement_key" json:"achievementKey"`
-	AchievementTier int   `gorm:"column:achievement_tier;default:0" json:"achievementTier"`
+	Slot            int    `gorm:"column:slot;uniqueIndex" json:"slot"` // 0-4 (5 slots)
+	AchievementKey  string `gorm:"column:achievement_key" json:"achievementKey"`
+	AchievementTier int    `gorm:"column:achievement_tier;default:0" json:"achievementTier"`
 }
 
 // ActivityLog tracks daily anime/manga activity for heatmap and streak data (stored in per-profile DB).
@@ -959,9 +966,9 @@ const (
 // LevelProgress tracks the user's XP and level for the leveling system (stored in per-profile DB).
 type LevelProgress struct {
 	BaseModel
-	TotalXP            int    `gorm:"column:total_xp;default:0" json:"totalXP"`
-	CurrentLevel       int    `gorm:"column:current_level;default:1" json:"currentLevel"`
-	XPVersion          int    `gorm:"column:xp_version;default:0" json:"xpVersion"`
+	TotalXP              int    `gorm:"column:total_xp;default:0" json:"totalXP"`
+	CurrentLevel         int    `gorm:"column:current_level;default:1" json:"currentLevel"`
+	XPVersion            int    `gorm:"column:xp_version;default:0" json:"xpVersion"`
 	CurrentMilestoneName string `gorm:"column:current_milestone_name" json:"currentMilestoneName"` // Publicly visible milestone title
 	// WatchTimeXP is XP earned passively by spending time actively watching/reading.
 	// It is accumulated outside of achievement unlocks and preserved across achievement XP
@@ -1005,13 +1012,13 @@ type EasterEggDiscovery struct {
 // First-to-achieve milestones: one row per key, first profile to reach it wins.
 type GlobalMilestone struct {
 	BaseModel
-	Key             string     `gorm:"column:key;index" json:"key"`                                         // e.g. "hours_watched_5000"
-	Category        string     `gorm:"column:category;index" json:"category"`                               // e.g. "hours_watched"
-	Tier            int        `gorm:"column:tier" json:"tier"`                                             // tier threshold value (10, 50, 100, 500, 1000, 5000)
-	IsFirstToAchieve bool      `gorm:"column:is_first_to_achieve;default:false" json:"isFirstToAchieve"`   // true for race milestones
-	ProfileID       uint       `gorm:"column:profile_id;index" json:"profileId"`                            // who achieved it
-	ProfileName     string     `gorm:"column:profile_name" json:"profileName"`                              // cached name for display
-	AchievedAt      *time.Time `gorm:"column:achieved_at" json:"achievedAt,omitempty"`                      // when achieved
+	Key              string     `gorm:"column:key;index" json:"key"`                                      // e.g. "hours_watched_5000"
+	Category         string     `gorm:"column:category;index" json:"category"`                            // e.g. "hours_watched"
+	Tier             int        `gorm:"column:tier" json:"tier"`                                          // tier threshold value (10, 50, 100, 500, 1000, 5000)
+	IsFirstToAchieve bool       `gorm:"column:is_first_to_achieve;default:false" json:"isFirstToAchieve"` // true for race milestones
+	ProfileID        uint       `gorm:"column:profile_id;index" json:"profileId"`                         // who achieved it
+	ProfileName      string     `gorm:"column:profile_name" json:"profileName"`                           // cached name for display
+	AchievedAt       *time.Time `gorm:"column:achieved_at" json:"achievedAt,omitempty"`                   // when achieved
 }
 
 ///////////////////////////////////////////////////////////////////////////

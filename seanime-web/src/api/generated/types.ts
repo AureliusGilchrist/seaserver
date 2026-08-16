@@ -2752,6 +2752,8 @@ export type EnqueueFuture_Item = {
     title: string
     coverImage: string
     totalSeeders: number
+    /** Place in the franchise's running order: year*10 + season index, or 0 when unknown. */
+    airedAt?: number
     createdAt?: string
     snapshot?: EnqueueFuture_Snapshot
     /**

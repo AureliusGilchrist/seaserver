@@ -927,11 +927,41 @@ func (r *Repository) storeSnapshot(mediaID int, result *prepared) {
 	}
 
 	if err := r.database.SaveEnqueueFutureItemSnapshot(
-		mediaID, db.EnqueueFutureStatusReady, result.title, result.coverImage, totalSeeders(searchData), value,
+		mediaID, db.EnqueueFutureStatusReady, result.title, result.coverImage, totalSeeders(searchData),
+		airedAtOf(result), value,
 	); err != nil {
 		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Failed to store snapshot")
 		return
 	}
+}
+
+// seasonOrder places the four seasons within a year, so a year and a season fold into one number
+// that sorts the way a franchise actually ran.
+var seasonOrder = map[string]int{"WINTER": 0, "SPRING": 1, "SUMMER": 2, "FALL": 3}
+
+// airedAtOf reads the release year and season out of a prepared entry.
+//
+// Zero when the details carry no start date — an entry with nothing to place sorts to the end of its
+// franchise rather than to the front of it, which is the safe end for something unknown to sit.
+func airedAtOf(result *prepared) int {
+	if result == nil || result.snapshot == nil || result.snapshot.Entry == nil || result.snapshot.Entry.Media == nil {
+		return 0
+	}
+	media := result.snapshot.Entry.Media
+
+	year := 0
+	if media.GetStartDate() != nil && media.GetStartDate().GetYear() != nil {
+		year = *media.GetStartDate().GetYear()
+	}
+	if year == 0 {
+		return 0
+	}
+
+	season := 0
+	if media.GetSeason() != nil {
+		season = seasonOrder[string(*media.GetSeason())]
+	}
+	return year*10 + season
 }
 
 // +---------------------+

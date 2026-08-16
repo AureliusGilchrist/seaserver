@@ -92,9 +92,12 @@ type Item struct {
 	CoverImage string `json:"coverImage"`
 	// TotalSeeders is every seeder across every torrent found for this anime, added together — the
 	// popularity the queue screen orders itself by. Zero until the item has been prepared.
-	TotalSeeders int       `json:"totalSeeders"`
-	CreatedAt    time.Time `json:"createdAt"`
-	Snapshot     *Snapshot `json:"snapshot,omitempty"`
+	TotalSeeders int `json:"totalSeeders"`
+	// AiredAt is the entry's place in its franchise's running order — year*10 + season index, or 0
+	// when unknown. The queue sorts a family by it so a franchise reads as the story ran.
+	AiredAt   int       `json:"airedAt"`
+	CreatedAt time.Time `json:"createdAt"`
+	Snapshot  *Snapshot `json:"snapshot,omitempty"`
 	// DownloadState is what has already happened to this anime outside the queue: "downloading",
 	// "downloaded", "matched", or empty for one nothing has been done with yet.
 	//
