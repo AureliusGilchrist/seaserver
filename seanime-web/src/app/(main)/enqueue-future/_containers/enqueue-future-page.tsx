@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useAtomValue, useSetAtom } from "jotai/react"
 import React from "react"
-import { LuLayers } from "react-icons/lu"
+import { LuArrowDownUp, LuLayers } from "react-icons/lu"
 import { toast } from "sonner"
 
 /**
@@ -105,6 +105,15 @@ export function EnqueueFuturePage() {
     // what each one is worth. The values are what stop a franchise dropping down the page when you
     // download one of its entries — see groupIntoFamilies.
     const familyOrderingRef = React.useRef<FamilyOrdering>({ order: [], values: {} })
+
+    // Bumped by the Re-sort button. The ordering above is deliberately frozen — a franchise keeps its
+    // place and its high-water value so the list does not move under you while you work down it —
+    // and that is right until it isn't: after an hour of a run filling the queue, the ranking you are
+    // looking at is the one from when you opened the page, and franchises discovered since are all
+    // sitting at the bottom in the order they arrived. This throws that memory away and lets the
+    // current seeder totals decide, once, when you ask.
+    const [resortSignal, setResortSignal] = React.useState(0)
+
     const families = React.useMemo(() => {
         const grouped = groupIntoFamilies(items, familyOrderingRef.current)
         familyOrderingRef.current = grouped.ordering
@@ -115,7 +124,8 @@ export function EnqueueFuturePage() {
         // dealt with it: a franchise you downloaded in full and one the walk never found looked
         // exactly alike. Greyed out and badged, it says "done" — which is the point of seeing it.
         return grouped.families
-    }, [items])
+        // resortSignal is a dependency and nothing else: it exists to re-run this memo.
+    }, [items, resortSignal])
     const orderedItems = React.useMemo(() => families.flat(), [families])
 
     const [activeMediaId, setActiveMediaId] = React.useState<number | undefined>(undefined)
@@ -303,11 +313,33 @@ export function EnqueueFuturePage() {
                     "xl:grid-cols-[clamp(320px,24vw,520px)_1fr]",
                 )}>
 
-                    <EnqueueFutureList
-                        families={families}
-                        activeMediaId={activeMediaId}
-                        onSelect={handleSelect}
-                    />
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
+                                Queue
+                            </p>
+                            <Button
+                                size="xs"
+                                intent="gray-subtle"
+                                leftIcon={<LuArrowDownUp />}
+                                onClick={() => {
+                                    // Forget the frozen ranking, then recompute from what the queue is
+                                    // worth right now.
+                                    familyOrderingRef.current = { order: [], values: {} }
+                                    setResortSignal(n => n + 1)
+                                }}
+                                data-enqueue-future-resort
+                            >
+                                Re-sort
+                            </Button>
+                        </div>
+
+                        <EnqueueFutureList
+                            families={families}
+                            activeMediaId={activeMediaId}
+                            onSelect={handleSelect}
+                        />
+                    </div>
 
                     <AppLayoutStack>
                         <EnqueueFutureHeader

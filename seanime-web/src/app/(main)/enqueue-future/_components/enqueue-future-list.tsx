@@ -212,6 +212,48 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
 
     if (!families.length) return null
 
+    // Drawn a chunk at a time.
+    //
+    // A queue of several thousand entries is several thousand rows, each with a cover, badges and
+    // status — and React builds all of it before the browser paints anything. That is the lag: not
+    // the data, which arrives in one small response, but the DOM built from it. Everything below the
+    // fold is work nobody has looked at yet.
+    //
+    // So a window of families is rendered and extended as you approach the end of it. The window only
+    // ever grows, and it is never reset by a poll — shrinking it under somebody mid-scroll would
+    // throw them back up the list, which is worse than the lag.
+    const [visibleFamilies, setVisibleFamilies] = React.useState(FAMILY_PAGE_SIZE)
+    const sentinelRef = React.useRef<HTMLDivElement | null>(null)
+
+    // The selection has to be drawn wherever it is, or Next walks past the end of the window and the
+    // screen goes blank while the list insists everything is fine.
+    const activeFamilyIndex = React.useMemo(
+        () => families.findIndex(family => family.some(item => item.mediaId === activeMediaId)),
+        [families, activeMediaId])
+
+    React.useEffect(() => {
+        if (activeFamilyIndex < 0) return
+        setVisibleFamilies(current => Math.max(current, activeFamilyIndex + FAMILY_PAGE_SIZE))
+    }, [activeFamilyIndex])
+
+    React.useEffect(() => {
+        const sentinel = sentinelRef.current
+        if (!sentinel) return
+
+        const observer = new IntersectionObserver(entries => {
+            if (entries.some(entry => entry.isIntersecting)) {
+                setVisibleFamilies(current => Math.min(current + FAMILY_PAGE_SIZE, families.length))
+            }
+        }, { rootMargin: "400px" })
+
+        observer.observe(sentinel)
+        return () => observer.disconnect()
+    }, [families.length])
+
+    const shown = React.useMemo(
+        () => families.slice(0, Math.min(visibleFamilies, families.length)),
+        [families, visibleFamilies])
+
     return (
         // Tall as the screen allows, not a fixed 70% of it.
         //
@@ -222,7 +264,7 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
             className="rounded-[--radius-md] border bg-gray-950 overflow-y-auto xl:sticky xl:top-4 max-h-[calc(100vh-8rem)]"
             data-enqueue-future-list
         >
-            {families.map(family => (
+            {shown.map(family => (
                 <FamilyBundle
                     // Keyed on the family, not on its first entry: dealing with the entry a bundle
                     // happens to start with must not look to React like a different bundle appearing
@@ -239,9 +281,20 @@ export function EnqueueFutureList({ families, activeMediaId, onSelect }: {
                     activeRef={activeRef}
                 />
             ))}
+
+            {/* Crossing this asks for the next chunk. Sized generously by rootMargin above, so the
+                next rows exist before they are scrolled to rather than after. */}
+            {shown.length < families.length && (
+                <div ref={sentinelRef} className="px-3 py-4 text-center text-xs text-[--muted]">
+                    {families.length - shown.length} more franchise{families.length - shown.length === 1 ? "" : "s"}…
+                </div>
+            )}
         </div>
     )
 }
+
+/** How many franchises are drawn at a time. Enough to fill a tall screen and scroll a little. */
+const FAMILY_PAGE_SIZE = 25
 
 /**
  * One franchise: a single anime drawn plainly, or a group drawn with a spine tying its seasons
@@ -294,7 +347,7 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
             )}
 
             <div className={cn(isGroup && "pl-2 border-l-2 border-[--brand] ml-2 mb-1")}>
-                {family.map(item => {
+                {family.map((item, position) => {
                     const isActive = item.mediaId === activeMediaId
                     // Already downloading, downloaded or matched. The row stays — it is part of its
                     // franchise and removing it would make the group look incomplete — but there is
@@ -323,11 +376,17 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                                 onSelect(item)
                             }
                         }}
-                        // Members of a franchise sit one step in from the group, so a bundle reads
-                        // as a franchise with its seasons under it rather than as a flat run of rows
-                        // that happen to be adjacent. Indented once, not per season — the order
-                        // inside is chronological, not a hierarchy.
-                        style={isGroup ? { paddingLeft: "18px" } : undefined}
+                        // Each member sits one step further in than the one before it.
+                        //
+                        // The order inside a bundle is chronological, so the indent is a picture of
+                        // how far along the story a row is: the first season at the left edge, its
+                        // sequel a step in, the sequel's sequel another. You can see where you are in
+                        // a franchise without reading a single title.
+                        //
+                        // Capped, because a fifteen-entry saga indented fifteen times is a staircase
+                        // running off the side of a 320px column. Past the cap the rows stack at the
+                        // same depth, which still says "deep into it".
+                        style={isGroup ? { paddingLeft: `${14 + Math.min(position, 6) * 12}px` } : undefined}
                         className={cn(
                             "group/enqueue-future-row w-full flex items-center gap-3 p-2 text-left transition",
                             settled

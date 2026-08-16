@@ -205,3 +205,27 @@ func TestShouldSkipKeepsFamilyEdgesYouAlreadyHave(t *testing.T) {
 		t.Error("an unreleased family edge was queued")
 	}
 }
+
+// Everything in the library counts as matched, whether or not this server watched it happen.
+//
+// The recorded states only cover downloads this server saw. Anything imported by hand or scanned in
+// has no row at all — which is why the queue was showing series as actionable that every other
+// screen in the app already badged as matched.
+func TestDownloadStatesIncludeTheLibrary(t *testing.T) {
+	r := repositoryWithDB(t)
+
+	// Recorded as downloading, and also has files: downloading wins, because another season coming
+	// down is the fact that decides what you do next.
+	if err := r.database.SetAnimeDownloadState(70, db.AnimeDownloadStateDownloading); err != nil {
+		t.Fatalf("set downloading: %v", err)
+	}
+
+	states := r.downloadStatesByMediaID()
+	if states[70] != db.AnimeDownloadStateDownloading {
+		t.Errorf("media 70 = %q, want %q", states[70], db.AnimeDownloadStateDownloading)
+	}
+	// An anime with neither a record nor files has no badge at all.
+	if states[71] != "" {
+		t.Errorf("media 71 = %q, want no badge", states[71])
+	}
+}

@@ -1,5 +1,10 @@
 package enqueuefuture
 
+import (
+	"seanime/internal/database/db"
+	"seanime/internal/database/db_bridge"
+)
+
 // An anime in the queue can be dealt with while it sits there: you download it from the queue, or
 // grab it from the anime page instead, or match a download you already had. The row does not know
 // any of that — it was written by a walk that happened once, days ago.
@@ -37,5 +42,43 @@ func (r *Repository) downloadStatesByMediaID() map[int]string {
 			states[row.MediaID] = row.State
 		}
 	}
+
+	// Files in the library are what "matched" describes, so anything with them has earned the badge —
+	// whether or not this server was the one that put them there.
+	//
+	// The recorded states only cover downloads this server watched happen. Everything imported by
+	// hand, scanned in, or downloaded before any of it was recorded has no row at all, which is why
+	// the queue was leaving series greyed-out-looking everywhere else in the app but plain here: the
+	// badge UI has always consulted both sources and this consulted one. Same rule as
+	// buildDownloadingMediaStatus, for the same reason — and computed on read, so deleting the files
+	// takes the badge with them and leaves no record claiming otherwise.
+	//
+	// Downloading wins over it: a series you already have with another season coming down is a series
+	// that is coming down, and that is the fact that decides what you do next.
+	for mediaID := range r.animeWithLocalFiles() {
+		if existing := states[mediaID]; existing == db.AnimeDownloadStateDownloading {
+			continue
+		}
+		states[mediaID] = db.AnimeDownloadStateMatched
+	}
+
 	return states
+}
+
+// animeWithLocalFiles is every anime with at least one non-ignored file in the library.
+func (r *Repository) animeWithLocalFiles() map[int]struct{} {
+	out := make(map[int]struct{})
+
+	localFiles, _, err := db_bridge.GetLocalFiles(r.database)
+	if err != nil {
+		r.logger.Debug().Err(err).Msg("enqueuefuture: Could not read local files for badges")
+		return out
+	}
+	for _, lf := range localFiles {
+		if lf == nil || lf.Ignored || lf.MediaId == 0 {
+			continue
+		}
+		out[lf.MediaId] = struct{}{}
+	}
+	return out
 }
