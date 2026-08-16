@@ -283,7 +283,10 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                     // nothing left to decide about it, so it cannot be opened or have a torrent
                     // picked for it. Skip and Ignore stay live: those are how you say you are done
                     // with a row, which is exactly what this is.
-                    const settled = !!item.downloadState
+                    // Skipped counts as settled too: you already decided about it. The row stays,
+                    // greyed, in its franchise — passing on one season should still show the series,
+                    // and should show that you passed rather than quietly erasing the row.
+                    const settled = !!item.downloadState || item.status === ENQUEUE_FUTURE_STATUS.SKIPPED
                     return (
                     // A div rather than a button: the row carries its own Skip and Ignore buttons,
                     // and a button inside a button is invalid markup that browsers resolve however
@@ -331,7 +334,7 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                             </span>
                             <span className="block text-xs text-[--muted]">
                                 {settled
-                                    ? <span className="capitalize">{item.downloadState}</span>
+                                    ? <span className="capitalize">{item.downloadState || "skipped"}</span>
                                     : <ItemStatusLabel item={item} />}
                                 {/* Its own share of the total, so a row's place in the list is
                                     something you can read rather than infer. */}

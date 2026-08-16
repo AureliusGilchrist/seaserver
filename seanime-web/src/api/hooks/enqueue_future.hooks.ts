@@ -1,3 +1,4 @@
+import React from "react"
 import { useServerMutation, useServerQuery } from "@/api/client/requests"
 import { EnqueueFuture_Variables, SetEnqueueFutureItemStatus_Variables } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
@@ -104,15 +105,50 @@ export function useStopEnqueueFuture() {
 /**
  * The queue itself. Refetched while a run is filling it so new anime appear as they are prepared.
  */
+type EnqueueFutureQueueResponse = {
+    items?: EnqueueFuture_Item[]
+    fingerprint?: string
+    unchanged?: boolean
+}
+
+/**
+ * The queue, polled while a run is going, without re-sending it when nothing changed.
+ *
+ * The server answers with a fingerprint of what it would return. The next poll sends that back, and
+ * a queue that has not changed comes back as "unchanged" — a few bytes instead of every row, which
+ * for a library heading towards ten thousand entries is the difference between a poll that costs
+ * nothing and one that serialises megabytes every few seconds to discover that nothing happened.
+ *
+ * The rows themselves are held here and handed back untouched on an unchanged poll, so the identity
+ * of the array does not change either — which matters as much as the bytes do: a new array every
+ * four seconds invalidates every memo downstream and re-renders the whole list.
+ */
 export function useGetEnqueueFutureQueue({ isRunning }: { isRunning?: boolean } = {}) {
-    return useServerQuery<EnqueueFuture_Item[]>({
-        endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.endpoint,
+    const heldRef = React.useRef<{ fingerprint?: string, items: EnqueueFuture_Item[] }>({ items: [] })
+
+    const query = useServerQuery<EnqueueFutureQueueResponse>({
+        // The fingerprint we already hold rides along, so the server can answer "unchanged" instead
+        // of re-sending rows we have. The query key stays fixed — this is the same query, asking
+        // more precisely.
+        endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.endpoint
+            + (heldRef.current.fingerprint ? `?known=${encodeURIComponent(heldRef.current.fingerprint)}` : ""),
         method: API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.methods[0],
         queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key],
         enabled: true,
         gcTime: 0,
         refetchInterval: isRunning ? 4_000 : false,
     })
+
+    const response = query.data
+    if (response) {
+        if (!response.unchanged && Array.isArray(response.items)) {
+            heldRef.current = { fingerprint: response.fingerprint, items: response.items }
+        } else if (response.fingerprint) {
+            heldRef.current.fingerprint = response.fingerprint
+        }
+    }
+
+    return { ...query, data: heldRef.current.items }
 }
 
 /**

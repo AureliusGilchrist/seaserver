@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+	"hash/fnv"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
@@ -113,7 +115,40 @@ func (h *Handler) HandleGetEnqueueFutureQueue(c echo.Context) error {
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
-	return h.RespondWithData(c, items)
+
+	// An unchanged queue costs a fingerprint, not the queue.
+	//
+	// This is polled every few seconds while a run is going, and the answer is every row in the
+	// queue — which for a library heading towards ten thousand entries is a payload measured in
+	// megabytes, serialised, sent, parsed and diffed against the last one, over and over, to
+	// discover that one row's status changed. Most polls change nothing at all.
+	//
+	// So the client sends back the fingerprint it already holds, and a poll that would return the
+	// same rows returns "unchanged" instead. Nothing is delayed by it: the moment anything really
+	// changes, the fingerprint differs and the full list goes out on that same poll.
+	fingerprint := enqueueFutureQueueFingerprint(items)
+	if c.QueryParam("known") == fingerprint {
+		return h.RespondWithData(c, map[string]any{"unchanged": true, "fingerprint": fingerprint})
+	}
+
+	return h.RespondWithData(c, map[string]any{"items": items, "fingerprint": fingerprint})
+}
+
+// enqueueFutureQueueFingerprint summarises the queue as it is drawn.
+//
+// Every field the screen renders takes part, so a change the user would see always changes the
+// fingerprint, and a change they would not see — a column nothing displays — costs nothing.
+func enqueueFutureQueueFingerprint(items []*enqueuefuture.Item) string {
+	hash := fnv.New64a()
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		_, _ = fmt.Fprintf(hash, "%d|%d|%s|%s|%d|%s|%d;",
+			item.MediaID, item.FamilyID, item.Status, item.DownloadState,
+			item.TotalSeeders, item.Title, item.Attempts)
+	}
+	return strconv.FormatUint(hash.Sum64(), 36)
 }
 
 // HandleGetEnqueueFutureItem

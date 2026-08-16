@@ -68,10 +68,15 @@ var enqueueFutureListColumns = []string{
 // downloadable is dropped from the queue outright — so the only rows carrying it were written before
 // that changed, and shipping them on every poll would be work in aid of something the screen filters
 // out anyway.
+// Skipped is included: skipping is a decision about a row, not a reason to erase it. The screen greys
+// those out and keeps them in their franchise, so passing on one season of a series still shows the
+// series — and shows that you passed. Ignored and Downloaded stay out; those are rows you have
+// finished with entirely.
 var enqueueFutureUnresolvedStatuses = []string{
 	EnqueueFutureStatusPending,
 	EnqueueFutureStatusPreparing,
 	EnqueueFutureStatusReady,
+	EnqueueFutureStatusSkipped,
 }
 
 // GetEnqueueFutureListItems returns everything the queue screen needs, without the snapshot blobs.
