@@ -106,8 +106,13 @@ func TestListItemsWithNoDownloadStates(t *testing.T) {
 	}
 }
 
-// A badge for an anime that was never queued must not invent a row.
-func TestListItemsIgnoresStatesForAnimeNotInTheQueue(t *testing.T) {
+// A badge for an anime that was never queued now registers it.
+//
+// The queue is meant to be a record of what you have dealt with, and an anime you downloaded through
+// the anime page — or before any of this existed — was invisible here, which made a franchise show
+// the season the walk reached and not the two you already own. The badge table is the cheap source
+// for that: one read, no walking, no AniList.
+func TestListItemsRegistersBadgedAnime(t *testing.T) {
 	r := repositoryWithDB(t)
 
 	queueItem(t, r, 30, "Queued")
@@ -119,8 +124,24 @@ func TestListItemsIgnoresStatesForAnimeNotInTheQueue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
-	if len(items) != 1 || items[0].MediaID != 30 {
-		t.Fatalf("got %+v, want just the queued anime", items)
+
+	byID := make(map[int]*Item, len(items))
+	for _, item := range items {
+		byID[item.MediaID] = item
+	}
+	if byID[30] == nil {
+		t.Error("the queued anime went missing")
+	}
+	registered := byID[999]
+	if registered == nil {
+		t.Fatal("a matched anime was not registered into the queue")
+	}
+	if registered.DownloadState != db.AnimeDownloadStateMatched {
+		t.Errorf("registered row carries state %q, want %q", registered.DownloadState, db.AnimeDownloadStateMatched)
+	}
+	if registered.Status != db.EnqueueFutureStatusReady {
+		t.Errorf("registered row has status %q, want %q — it must never be picked up for preparation",
+			registered.Status, db.EnqueueFutureStatusReady)
 	}
 }
 

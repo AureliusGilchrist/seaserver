@@ -323,6 +323,11 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                                 onSelect(item)
                             }
                         }}
+                        // Members of a franchise sit one step in from the group, so a bundle reads
+                        // as a franchise with its seasons under it rather than as a flat run of rows
+                        // that happen to be adjacent. Indented once, not per season — the order
+                        // inside is chronological, not a hierarchy.
+                        style={isGroup ? { paddingLeft: "18px" } : undefined}
                         className={cn(
                             "group/enqueue-future-row w-full flex items-center gap-3 p-2 text-left transition",
                             settled

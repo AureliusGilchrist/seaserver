@@ -43,6 +43,10 @@ type (
 		// figure was recorded. See backfillSeedersOnce.
 		backfillOnce sync.Once
 
+		// registerBadgedOnce guards the one-time sweep that puts already-downloaded anime into the
+		// queue. See RegisterBadgedAnime.
+		registerBadgedOnce sync.Once
+
 		mu      sync.Mutex
 		status  Status
 		running bool

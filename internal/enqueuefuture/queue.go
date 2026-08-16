@@ -14,6 +14,16 @@ func (r *Repository) ListItems() ([]*Item, error) {
 	// items prepared before it was recorded. Runs in the background, once per process.
 	r.backfillSeedersOnce()
 
+	// Anything you have downloaded or matched joins the queue the first time this screen is opened,
+	// so it is a record of your library rather than only of what a walk happened to find. Once per
+	// process: the badge table does not change often enough to be worth re-reading on every poll,
+	// and anything badged after this point is registered on the next start. See RegisterBadgedAnime.
+	r.registerBadgedOnce.Do(func() {
+		if _, err := r.RegisterBadgedAnime(); err != nil {
+			r.logger.Warn().Err(err).Msg("enqueuefuture: Could not register already-downloaded anime")
+		}
+	})
+
 	records, err := r.database.GetEnqueueFutureListItems()
 	if err != nil {
 		return nil, err

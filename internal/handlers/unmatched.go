@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/db_bridge"
@@ -10,12 +11,45 @@ import (
 	"seanime/internal/unmatched"
 	"seanime/internal/util"
 	"seanime/internal/util/limiter"
+	"seanime/internal/util/result"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
 )
+
+// unmatchedFamilyCacheTTL is how long a walked relation tree is kept.
+//
+// A day, because relations do not change: a series' sequels and prequels are the same tomorrow. The
+// picker walks the same franchises over and over — every download of a long-running series asks
+// about the same tree, and the incremental walk asks about every node in it — and each of those is
+// an AniList request against a budget of twenty-four a minute.
+const unmatchedFamilyCacheTTL = 24 * time.Hour
+
+// UnmatchedFamilyEntry is one anime in a relation tree, as the picker draws it.
+type UnmatchedFamilyEntry struct {
+	ID           int    `json:"id"`
+	Title        string `json:"title"`
+	RelationType string `json:"relationType"`
+	Format       string `json:"format"`
+	ParentID     int    `json:"parentId"`
+	Episodes     int    `json:"episodes"`
+	CoverImage   string `json:"coverImage,omitempty"`
+	Status       string `json:"status,omitempty"`
+	Season       string `json:"season,omitempty"`
+	SeasonYear   int    `json:"seasonYear,omitempty"`
+	MeanScore    int    `json:"meanScore,omitempty"`
+	EnglishTitle string `json:"englishTitle,omitempty"`
+}
+
+// UnmatchedFamilyResult is a walked relation tree.
+type UnmatchedFamilyResult struct {
+	Root    UnmatchedFamilyEntry   `json:"root"`
+	Entries []UnmatchedFamilyEntry `json:"entries"`
+}
+
+var unmatchedFamilyCache = result.NewCache[string, *UnmatchedFamilyResult]()
 
 // matchMu serializes unmatched-match operations so concurrent matches
 // don't race on the DB read-modify-write of local files.
@@ -318,24 +352,19 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 	// by a subtitle — and picking the right one from titles alone means reading each of them
 	// carefully. The cover, the year and the status are what make them distinguishable without
 	// reading: you recognise the artwork of the one you downloaded.
-	type familyEntry struct {
-		ID           int    `json:"id"`
-		Title        string `json:"title"`
-		RelationType string `json:"relationType"` // "SEQUEL", "PREQUEL", "SIDE_STORY", "PARENT", "ALTERNATIVE", "SPIN_OFF", "SUMMARY", "CHARACTER", "OTHER", ""
-		Format       string `json:"format"`       // "TV", "MOVIE", "OVA", "ONA", "SPECIAL", "MUSIC"
-		ParentID     int    `json:"parentId"`     // ID of the parent entry in the tree (0 for root)
-		Episodes     int    `json:"episodes"`     // 0 if unknown
-		CoverImage   string `json:"coverImage,omitempty"`
-		Status       string `json:"status,omitempty"`       // "FINISHED", "RELEASING", "NOT_YET_RELEASED", …
-		Season       string `json:"season,omitempty"`       // "WINTER", "SPRING", "SUMMER", "FALL"
-		SeasonYear   int    `json:"seasonYear,omitempty"`   // 0 if unknown
-		MeanScore    int    `json:"meanScore,omitempty"`    // percentage, 0 if unknown
-		EnglishTitle string `json:"englishTitle,omitempty"` // shown under the main title when it differs
-	}
+	type familyEntry = UnmatchedFamilyEntry
+	type unmatchedFamilyResult = UnmatchedFamilyResult
 
-	type unmatchedFamilyResult struct {
-		Root    familyEntry   `json:"root"`
-		Entries []familyEntry `json:"entries"`
+	// A day's cache, keyed by the anime asked about and whether the walk was shallow.
+	//
+	// Relations do not change — a series' sequels and prequels are the same today as yesterday — and
+	// the picker walks the same franchises constantly: every download of a long-running series asks
+	// about the same tree, and the incremental walk asks about every node in it. Each of those is an
+	// AniList request against a budget of twenty-four a minute. Cached, opening the picker for a
+	// franchise you have matched before costs nothing at all.
+	cacheKey := fmt.Sprintf("%d-%t", b.AnimeID, b.Shallow)
+	if cached, ok := unmatchedFamilyCache.Get(cacheKey); ok && cached != nil {
+		return h.RespondWithData(c, *cached)
 	}
 
 	platform := h.App.AnilistPlatformRef.Get()
@@ -506,10 +535,18 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 		}
 	}
 
-	return h.RespondWithData(c, unmatchedFamilyResult{
+	result := unmatchedFamilyResult{
 		Root:    root,
 		Entries: entries,
-	})
+	}
+
+	// Only a walk that actually found something is worth keeping. Caching an empty answer would
+	// hold a failed or rate-limited walk for a day.
+	if len(entries) > 0 {
+		unmatchedFamilyCache.SetT(cacheKey, &result, unmatchedFamilyCacheTTL)
+	}
+
+	return h.RespondWithData(c, result)
 }
 
 // HandleDeleteUnmatchedTorrent
