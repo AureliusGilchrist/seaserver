@@ -407,7 +407,7 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                                     className="h-12 w-9 rounded-[--radius] object-cover block"
                                 />
                                 : <div className="h-12 w-9 rounded-[--radius] bg-gray-800" />}
-                            <RowDownloadingMark mediaId={item.mediaId} />
+                            <RowStateMark item={item} />
                         </span>
 
                         <span className="flex-1 min-w-0">
@@ -416,7 +416,7 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
                             </span>
                             <span className="block text-xs text-[--muted]">
                                 {settled
-                                    ? <span className="capitalize">{item.downloadState || "skipped"}</span>
+                                    ? <RowStateLabel item={item} />
                                     : <ItemStatusLabel item={item} />}
                                 {/* Its own share of the total, so a row's place in the list is
                                     something you can read rather than infer. */}
@@ -458,25 +458,81 @@ const FamilyBundle = React.memo(function FamilyBundle({ family, activeMediaId, o
  * bundle: FamilyBundle is memoised, and reading the atom in it would re-render every row it holds
  * on every poll.
  */
-function RowDownloadingMark({ mediaId }: { mediaId: number }) {
-    const isDownloading = useIsAnimeDownloading(mediaId)
-    if (!isDownloading) return null
+/**
+ * What has already happened to this anime, pinned to the corner of its cover art.
+ *
+ * A greyed row says "you have dealt with this" but not *how* — and the three answers lead to
+ * different next steps: still coming down, sitting in staging waiting to be matched, or already in
+ * the library. The mark says which at a glance, in the same colours the rest of the app uses for the
+ * same three states, so it reads as the same fact here as it does on a card.
+ *
+ * The row's own state is preferred over the live downloading atom. The state on the item is derived
+ * from the files themselves — library files, staged records — and covers everything imported by hand
+ * or downloaded before any of it was recorded; the atom only knows about downloads this server
+ * watched happen. Falling back to it keeps a download queued seconds ago marked before the next poll
+ * has told the queue about it.
+ */
+function RowStateMark({ item }: { item: EnqueueFuture_Item }) {
+    const isDownloadingNow = useIsAnimeDownloading(item.mediaId)
+    const state = item.downloadState || (isDownloadingNow ? "downloading" : "")
+    if (!state) return null
+
+    const mark = {
+        downloading: {
+            label: "Downloading",
+            className: "bg-purple-500",
+            icon: <AnimeDownloadingIcon className="h-2.5 w-2.5" />,
+        },
+        downloaded: {
+            label: "Downloaded — waiting to be matched",
+            className: "bg-amber-500",
+            icon: <LuCheck className="h-2.5 w-2.5" />,
+        },
+        matched: {
+            label: "In your library",
+            className: "bg-emerald-500",
+            icon: <LuCheck className="h-2.5 w-2.5" />,
+        },
+    }[state]
+
+    if (!mark) return null
 
     return (
         <span
-            data-enqueue-future-downloading-mark
-            title="Downloading"
-            aria-label="Downloading"
+            data-enqueue-future-state-mark={state}
+            title={mark.label}
+            aria-label={mark.label}
             className={cn(
                 "absolute -bottom-1 -right-1 flex items-center justify-center h-4 w-4 rounded-full",
-                // Purple and the same glyph as everywhere else downloads are marked, so it reads as
-                // the same state here as it does on a card. The ring keeps it legible over artwork.
-                "bg-purple-500 text-white ring-2 ring-gray-950",
+                // The ring keeps it legible over artwork.
+                "text-white ring-2 ring-gray-950",
+                mark.className,
             )}
         >
-            <AnimeDownloadingIcon className="h-2.5 w-2.5" />
+            {mark.icon}
         </span>
     )
+}
+
+/**
+ * The state in words, coloured to match the mark on the cover.
+ *
+ * "Downloaded" and "matched" are easy to read as the same thing, and they are not: one is a folder
+ * full of episodes waiting for you to file it, the other is a series that is already in your library
+ * and needs nothing. Saying which, in the words the rest of the app uses, is the difference between a
+ * greyed row you understand and one you have to go and investigate.
+ */
+function RowStateLabel({ item }: { item: EnqueueFuture_Item }) {
+    switch (item.downloadState) {
+        case "downloading":
+            return <span className="text-purple-400">Downloading</span>
+        case "downloaded":
+            return <span className="text-amber-400">Downloaded — waiting to be matched</span>
+        case "matched":
+            return <span className="text-emerald-400">In your library</span>
+    }
+    // No download state and still settled: you passed on it.
+    return <span className="text-[--muted]">Skipped</span>
 }
 
 function ItemStatusLabel({ item }: { item: EnqueueFuture_Item }) {
