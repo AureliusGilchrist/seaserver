@@ -1,6 +1,7 @@
 "use client"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { MediaCardLazyGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
+import { PaginatedMediaGrid } from "@/app/(main)/_features/media/_components/paginated-media-grid"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_components/media-entry-page-loading-display"
 import { MangaLibraryHeader } from "@/app/(main)/manga/_components/library-header"
@@ -524,7 +525,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         const sourceFilteredDownloads = sourceFilteredDownloadsMap[sourceFilter] || filteredDownloads
         
         return (
-            <div className="px-4 py-6 space-y-4">
+            <div className="px-4 py-6 space-y-4" data-local-manga-library>
                 <div className="flex items-center justify-between">
                     <h2 className="text-xl font-semibold text-white">
                         Local Library
@@ -592,8 +593,10 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                 </CarouselContent>
                             </Carousel>
                         ) : (
-                            <MediaCardLazyGrid itemCount={sourceFilteredDownloads.length}>
-                                {sourceFilteredDownloads.map(dlItem => {
+                            <PaginatedMediaGrid
+                                items={sourceFilteredDownloads}
+                                scrollTargetSelector="[data-local-manga-library]"
+                                renderItem={dlItem => {
                                     const chapters = Object.values(dlItem.downloadData).flatMap(n => n).length
                                     const isSynthetic = (dlItem.media?.id !== undefined && dlItem.media.id < 0) && !dlItem.isMapped
                                     // A media record with no cover art in it renders as a grey
@@ -681,8 +684,8 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                             </div>
                                         </SeaLink>
                                     )
-                                })}
-                            </MediaCardLazyGrid>
+                                }}
+                            />
                         )}
                     </div>
                 )}
