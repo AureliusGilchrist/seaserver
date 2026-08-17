@@ -357,7 +357,7 @@ func (d *Downloader) fillSyntheticMetadata(syntheticID int) bool {
 	set(&synthetic.Synonyms, strings.Join(details.Synonyms, ", "))
 	set(&synthetic.Authors, strings.Join(details.Authors, ", "))
 
-	if status := mediaStatusFromProvider(details.Status); status != "" && synthetic.Status != status {
+	if status := MediaStatusFromProvider(details.Status); status != "" && synthetic.Status != status {
 		synthetic.Status = status
 		changed = true
 	}
@@ -445,11 +445,11 @@ func (d *Downloader) detailsProvider() (manga_providers.MangaDetailsProvider, bo
 	return details, ok
 }
 
-// mediaStatusFromProvider turns the provider's wording into the status the rest of the app speaks.
+// MediaStatusFromProvider turns the provider's wording into the status the rest of the app speaks.
 //
 // An unrecognised word returns empty rather than a guess: leaving the existing status alone is
 // better than telling the user a running series has finished.
-func mediaStatusFromProvider(status string) string {
+func MediaStatusFromProvider(status string) string {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "ongoing":
 		return "RELEASING"

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"seanime/internal/events"
 	"seanime/internal/manga"
 	"sync"
 
@@ -83,9 +84,26 @@ func (h *Handler) HandleScanMangaDirectories(c echo.Context) error {
 			return
 		}
 
+		// The folders are only half the library. Everything downloaded through the app is filed
+		// under an ID rather than a name, so it never appears in a folder scan at all — those are
+		// the cards reading "Manga ID: 47353". This looks each of them up and writes what it finds.
+		downloads := manga.ScanDownloadedSeries(
+			context.Background(),
+			h.App.MangaDownloader,
+			b.ReviewMatches,
+			h.App.WSEventManager,
+			h.App.Logger,
+		)
+		result.DescribedCount = downloads.Described
+		result.LinkedCount = downloads.Linked
+
 		mangaScanResultMu.Lock()
 		mangaScanResultCache = result
 		mangaScanResultMu.Unlock()
+
+		// The library reads its metadata from the database, so tell the open screens to re-read it.
+		h.App.WSEventManager.SendEvent(events.RefreshedMangaDownloadData, nil)
+		h.App.WSEventManager.SendEvent(events.MangaScanCompleted, nil)
 	}()
 
 	return h.RespondWithData(c, true)
@@ -162,6 +180,29 @@ func (h *Handler) HandleResolveMangaScanReview(c echo.Context) error {
 	if len(b.Decisions) == 0 {
 		return h.RespondWithError(c, echo.NewHTTPError(400, "decisions are required"))
 	}
+
+	// The candidate the scan offered is what the card will show, so it travels with the decision and
+	// is taken from the server's own result rather than from the request — a title and a cover the
+	// caller made up would be stored as if the series had said them itself.
+	mangaScanResultMu.RLock()
+	if mangaScanResultCache != nil {
+		byFolder := make(map[string]manga.MangaScanFolder, len(mangaScanResultCache.ScannedFolders))
+		for _, folder := range mangaScanResultCache.ScannedFolders {
+			byFolder[folder.FolderName] = folder
+		}
+		for i, decision := range b.Decisions {
+			b.Decisions[i].Title = ""
+			b.Decisions[i].CoverImage = ""
+			for _, candidate := range byFolder[decision.FolderName].Candidates {
+				if candidate.MediaID == decision.MediaID {
+					b.Decisions[i].Title = candidate.Title
+					b.Decisions[i].CoverImage = candidate.CoverImage
+					break
+				}
+			}
+		}
+	}
+	mangaScanResultMu.RUnlock()
 
 	result := manga.ApplyMangaScanReview(h.App.MangaRepository.GetDatabase(), b.Decisions)
 

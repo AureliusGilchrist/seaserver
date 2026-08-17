@@ -4229,6 +4229,8 @@ export type Manga_MangaScanResult = {
     startedAt: string
     completedAt: string
     reviewMatches: boolean
+    describedCount: number
+    linkedCount: number
 }
 
 /**
@@ -4242,6 +4244,8 @@ export type Manga_MangaScanReviewDecision = {
     folderName: string
     mediaId: number
     accept: boolean
+    title?: string
+    coverImage?: string
 }
 
 /**

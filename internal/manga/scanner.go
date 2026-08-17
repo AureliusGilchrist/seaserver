@@ -58,6 +58,11 @@ type MangaScanResult struct {
 	CompletedAt        string `json:"completedAt"`
 	// ReviewMatches is whether this scan proposed its matches rather than applying them.
 	ReviewMatches bool `json:"reviewMatches"`
+	// DescribedCount is how many downloaded series were given metadata they were missing, and
+	// LinkedCount how many were matched to AniList — see ScanDownloadedSeries. Neither is a folder
+	// on disk, so neither appears in ScannedFolders.
+	DescribedCount int `json:"describedCount"`
+	LinkedCount    int `json:"linkedCount"`
 }
 
 // MangaScanFolder represents one scanned folder and its match status.
@@ -259,7 +264,7 @@ func ScanMangaDirectories(
 				scanFolder.Confidence = best.Confidence
 				matched = true
 
-				applyScanMatch(database, folder.name, best.MediaID, forceRematch)
+				applyScanMatch(database, folder.name, best, forceRematch)
 				result.MatchedCount++
 			} else if candidates[0].Confidence >= ScanSuggestionThreshold {
 				// Proposed, not applied. Nothing is written against the folder here beyond the
@@ -314,10 +319,10 @@ func ScanMangaDirectories(
 
 	result.CompletedAt = time.Now().Format(time.RFC3339)
 
-	// Send completion event
-	if wsEventManager != nil {
-		wsEventManager.SendEvent(events.MangaScanCompleted, nil)
-	}
+	// Deliberately no completion event here. The folder pass is only the first half of a scan — the
+	// downloads sweep runs after it — and announcing the end from here told the client the scan had
+	// finished while it was still describing series, which put the screen back to a stale result.
+	// The caller sends it once everything is done.
 
 	return result, nil
 }
@@ -330,6 +335,11 @@ type MangaScanReviewDecision struct {
 	MediaID int `json:"mediaId"`
 	// Accept is false to dismiss the proposal and leave the folder as a local series.
 	Accept bool `json:"accept"`
+	// Title and CoverImage describe the entry being accepted, so the match can be stored complete.
+	// Filled in by the server from the candidate the scan offered — anything a client sends here is
+	// replaced, because this ends up on the card as if the series had said it itself.
+	Title      string `json:"title,omitempty"`
+	CoverImage string `json:"coverImage,omitempty"`
 }
 
 // MangaScanReviewResult reports what a review did.
@@ -363,19 +373,35 @@ func ApplyMangaScanReview(database *db.Database, decisions []MangaScanReviewDeci
 			continue
 		}
 
-		applyScanMatch(database, folderName, decision.MediaID, true)
+		applyScanMatch(database, folderName, MangaScanCandidate{
+			MediaID:    decision.MediaID,
+			Title:      decision.Title,
+			CoverImage: decision.CoverImage,
+		}, true)
 		result.Applied++
 	}
 
 	return result
 }
 
-// applyScanMatch records a folder as being a given AniList series.
-func applyScanMatch(database *db.Database, folderName string, mediaID int, forceRematch bool) {
+// applyScanMatch records a folder as being a given AniList series, and stores what the match already
+// told us about it.
+//
+// The metadata is written here rather than left to the background fill because the answer is already
+// in hand: the search that produced this match returned the title and the cover with it, and the
+// list endpoint reads stored metadata before it reaches for anything else. Writing it now is the
+// difference between a card that is right on the next refresh and one that is right in half an hour.
+func applyScanMatch(database *db.Database, folderName string, candidate MangaScanCandidate, forceRematch bool) {
+	mediaID := candidate.MediaID
+
 	if forceRematch {
 		_ = database.DeleteMangaMapping("local", mediaID)
 	}
 	_ = database.InsertMangaMapping("local", mediaID, folderName)
+
+	if candidate.Title != "" || candidate.CoverImage != "" {
+		_ = database.SaveDownloadedMangaMetadata(mediaID, candidate.Title, candidate.CoverImage, "")
+	}
 
 	// A folder that has found its series is no longer a series of its own. Without this the
 	// synthetic entry written by an earlier failed scan survives the match and the manga goes on

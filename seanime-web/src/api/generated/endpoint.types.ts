@@ -2812,10 +2812,15 @@ export type TorrentClientAddMagnetFromRule_Variables = {
  * @description
  * Route returns how many files and folders each torrent holds.
  */
+// Declared here because the generator only emits type definitions for structs that a route
+// *returns*, and this one is only ever sent. Mirrors handlers.TorrentContentsRequestItem.
+export type TorrentContentsRequestItem = {
+    infoHash: string
+    downloadUrl: string
+}
+
 export type GetTorrentContents_Variables = {
-    // The handler declares this item type inside the function, which the generator cannot name, so
-    // it is written out structurally here. Keep in step with internal/handlers/torrent_contents.go.
-    torrents: Array<{ infoHash: string, downloadUrl: string }>
+    torrents: Array<TorrentContentsRequestItem>
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

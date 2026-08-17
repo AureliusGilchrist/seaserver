@@ -18080,9 +18080,9 @@
         {
           "name": "Torrents",
           "jsonName": "torrents",
-          "goType": "[]item",
-          "usedStructType": "item",
-          "typescriptType": "Array\u003citem\u003e",
+          "goType": "[]TorrentContentsRequestItem",
+          "usedStructType": "TorrentContentsRequestItem",
+          "typescriptType": "Array\u003cTorrentContentsRequestItem\u003e",
           "required": true,
           "descriptions": []
         }

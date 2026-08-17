@@ -17,6 +17,7 @@ import (
 	"seanime/internal/platforms/platform"
 	"seanime/internal/util"
 	"seanime/internal/util/filecache"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -533,166 +534,199 @@ type (
 	}
 )
 
+// A download folder is filed under whichever ID the series had when its chapters were fetched, and
+// that is not always the ID the series is shown under now. A series found on a provider is filed
+// under a synthetic negative ID; matching it to AniList later gives it a positive one, and chapters
+// downloaded after the match land under *that*. Both folders are real, both hold chapters of the
+// same series, and both turn up in the download map as separate keys.
+//
+// This used to be resolved by ranging over the map and keeping whichever key was seen first — and Go
+// randomises map iteration order on every single range. So each call to this endpoint picked a
+// different winner: one refresh showed the series with the synthetic folder's chapters, the next
+// with the AniList folder's, and a card could change its title, its cover and its chapter count
+// between two refreshes of the same screen without anything having changed on disk. Under the source
+// filter, where "is this synthetic?" is decided by the download data that survived, the same series
+// would be in the list on one refresh and gone on the next.
+//
+// So nothing is decided by iteration order any more. Every key is resolved to the one ID its series
+// is displayed under, the chapters from every folder that resolves to it are merged rather than
+// discarded, and the result is sorted — the same library produces the same list every time.
+
 // NewDownloadList returns a list of DownloadListItem for the client to display.
 func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*DownloadListItem, err error) {
 	defer util.HandlePanicInModuleWithError("manga/NewDownloadList", &err)
 
-	mm := d.mediaMap
+	sources := d.mediaMapSnapshot()
 
-	ret = make([]*DownloadListItem, 0)
-	seen := make(map[int]bool) // Track seen media IDs to avoid duplicates
+	// series is everything known about one series, gathered from every folder that belongs to it.
+	type series struct {
+		displayID int
+		data      ProviderDownloadMap
+		// syntheticIDs are the local records this series was filed under before it was matched.
+		syntheticIDs []int
+		// isMapped is whether the display ID was reached through a synthetic match.
+		isMapped bool
+	}
 
-	for mId, data := range *mm {
-		// Check if this is a synthetic manga (negative ID)
-		if mId < 0 {
-			syntheticManga, found := d.database.GetSyntheticManga(mId)
-			if found {
-				// Check if there's a mapping to an AniList ID
-				if anilistID, found := d.database.GetMangaIDMapping(mId); found {
-					// Skip if we've already seen this AniList ID
-					if seen[anilistID] {
-						continue
-					}
-					seen[anilistID] = true
+	grouped := make(map[int]*series)
+	order := make([]int, 0, len(sources))
 
-					// Only add the AniList entry (hide the synthetic entry)
-					listEntry, ok := opts.MangaCollection.GetListEntryFromMangaId(anilistID)
-					if ok && listEntry.GetMedia() != nil {
-						ret = append(ret, &DownloadListItem{
-							MediaId:      anilistID,
-							Media:        listEntry.GetMedia(),
-							DownloadData: data,
-							IsMapped:     true,
-						})
-					} else {
-						// AniList entry not in collection, create from synthetic data with AniList ID
-						anilistMedia := createBaseMangaFromSynthetic(syntheticManga, anilistID)
-						ret = append(ret, &DownloadListItem{
-							MediaId:      anilistID,
-							Media:        anilistMedia,
-							DownloadData: data,
-							IsMapped:     true,
-						})
-					}
-				} else {
-					// Skip if we've already seen this synthetic ID
-					if seen[mId] {
-						continue
-					}
-					seen[mId] = true
+	// Sorted, so two folders resolving to the same series are always merged in the same order and
+	// the "first" of them is a fact about the library rather than about this particular call.
+	sourceIDs := make([]int, 0, len(sources))
+	for mediaID := range sources {
+		sourceIDs = append(sourceIDs, mediaID)
+	}
+	slices.Sort(sourceIDs)
 
-					// No mapping exists, show the synthetic entry
-					syntheticMedia := createBaseMangaFromSynthetic(syntheticManga, mId)
-					ret = append(ret, &DownloadListItem{
-						MediaId:      mId,
-						Media:        syntheticMedia,
-						DownloadData: data,
-						IsMapped:     false,
-					})
-				}
-			} else {
-				// Skip if we've already seen this ID
-				if seen[mId] {
-					continue
-				}
-				seen[mId] = true
+	for _, sourceID := range sourceIDs {
+		displayID := sourceID
+		isMapped := false
+		syntheticID := 0
 
-				// Synthetic manga not found in database
-				ret = append(ret, &DownloadListItem{
-					MediaId:      mId,
-					Media:        nil,
-					DownloadData: data,
-					IsMapped:     false,
-				})
+		if sourceID < 0 {
+			// A local series that has since been matched is shown as what it was matched to,
+			// whether or not its synthetic record still exists. Reading the mapping even when the
+			// record is gone is what stops a series the user has just linked by hand — which
+			// deletes that record — from coming back as a card called "Manga ID: -1830423".
+			if anilistID, found := d.database.GetMangaIDMapping(sourceID); found && anilistID > 0 {
+				displayID = anilistID
+				isMapped = true
 			}
-			continue
+			syntheticID = sourceID
 		}
 
-		// Skip if we've already seen this media ID
-		if seen[mId] {
-			continue
-		}
-		seen[mId] = true
-
-		listEntry, ok := opts.MangaCollection.GetListEntryFromMangaId(mId)
-		if !ok {
-			// Not in AniList collection, try to get stored metadata
-			if storedMetadata, found := d.database.GetDownloadedMangaMetadata(mId); found {
-				media := createBaseMangaFromStoredMetadata(storedMetadata)
-				ret = append(ret, &DownloadListItem{
-					MediaId:      mId,
-					Media:        media,
-					DownloadData: data,
-				})
-			} else if synthetic, found := d.syntheticFor(mId); found {
-				// A download filed under an AniList ID that was matched from a synthetic entry: the
-				// series was found on a provider, matched to AniList, and the folder renamed to the
-				// AniList ID. The synthetic record it was matched *from* is still here, with the
-				// title and cover the provider gave it — which is a complete answer, held locally,
-				// for a card that was otherwise rendering as "Manga ID: 38456".
-				ret = append(ret, &DownloadListItem{
-					MediaId:      mId,
-					Media:        createBaseMangaFromSynthetic(synthetic, mId),
-					DownloadData: data,
-					IsMapped:     true,
-				})
-			} else if opts.EnableRemoteMetadataFetch {
-				// No stored metadata, try to fetch from AniList API and store it
-				media := d.fetchAndStoreMetadataFromAniList(opts, mId)
-				ret = append(ret, &DownloadListItem{
-					MediaId:      mId,
-					Media:        media,
-					DownloadData: data,
-				})
-			} else {
-				// Keep endpoint fast and deterministic: no remote calls when disabled.
-				ret = append(ret, &DownloadListItem{
-					MediaId:      mId,
-					Media:        nil,
-					DownloadData: data,
-				})
-			}
-			continue
+		entry, exists := grouped[displayID]
+		if !exists {
+			entry = &series{displayID: displayID, data: make(ProviderDownloadMap)}
+			grouped[displayID] = entry
+			order = append(order, displayID)
 		}
 
-		media := listEntry.GetMedia()
-		if media == nil {
-			// In collection but media is nil, try stored metadata
-			if storedMetadata, found := d.database.GetDownloadedMangaMetadata(mId); found {
-				media = createBaseMangaFromStoredMetadata(storedMetadata)
-				ret = append(ret, &DownloadListItem{
-					MediaId:      mId,
-					Media:        media,
-					DownloadData: data,
-				})
-			} else if opts.EnableRemoteMetadataFetch {
-				// No stored metadata, try to fetch from AniList API and store it
-				media := d.fetchAndStoreMetadataFromAniList(opts, mId)
-				ret = append(ret, &DownloadListItem{
-					MediaId:      mId,
-					Media:        media,
-					DownloadData: data,
-				})
-			} else {
-				ret = append(ret, &DownloadListItem{
-					MediaId:      mId,
-					Media:        nil,
-					DownloadData: data,
-				})
-			}
-			continue
+		mergeDownloadData(entry.data, sources[sourceID])
+		if isMapped {
+			entry.isMapped = true
 		}
+		if syntheticID != 0 {
+			entry.syntheticIDs = append(entry.syntheticIDs, syntheticID)
+		}
+	}
 
-		item := &DownloadListItem{
-			MediaId:      mId,
+	ret = make([]*DownloadListItem, 0, len(order))
+	slices.Sort(order)
+
+	for _, displayID := range order {
+		entry := grouped[displayID]
+
+		media, fromSynthetic := d.resolveDownloadMedia(opts, displayID, entry.syntheticIDs)
+
+		ret = append(ret, &DownloadListItem{
+			MediaId:      displayID,
 			Media:        media,
-			DownloadData: data,
-		}
-
-		ret = append(ret, item)
+			DownloadData: entry.data,
+			IsMapped:     entry.isMapped || fromSynthetic,
+		})
 	}
 
 	return
+}
+
+// mediaMapSnapshot copies the download map for reading.
+//
+// hydrateMediaMap replaces the whole map when a download finishes or the folder is re-read, and this
+// was previously read with no synchronisation at all — a data race against every refresh, and on a
+// large library a plain concurrent map read and write, which is a hard crash rather than a wrong
+// answer. The copy is shallow: the per-series maps are rebuilt by each hydration and never mutated
+// in place, so only the top level has to be copied.
+func (d *Downloader) mediaMapSnapshot() MediaMap {
+	d.mediaMapMu.RLock()
+	defer d.mediaMapMu.RUnlock()
+
+	if d.mediaMap == nil {
+		return MediaMap{}
+	}
+
+	snapshot := make(MediaMap, len(*d.mediaMap))
+	for mediaID, data := range *d.mediaMap {
+		snapshot[mediaID] = data
+	}
+	return snapshot
+}
+
+// mergeDownloadData folds one folder's chapters into a series' totals, without counting a chapter
+// twice when the same one was downloaded under both of the series' IDs.
+func mergeDownloadData(into ProviderDownloadMap, from ProviderDownloadMap) {
+	for provider, chapters := range from {
+		existing := into[provider]
+
+		seen := make(map[string]bool, len(existing))
+		for _, chapter := range existing {
+			seen[chapter.ChapterID] = true
+		}
+
+		for _, chapter := range chapters {
+			if seen[chapter.ChapterID] {
+				continue
+			}
+			seen[chapter.ChapterID] = true
+			existing = append(existing, chapter)
+		}
+
+		into[provider] = existing
+	}
+}
+
+// resolveDownloadMedia finds the best description of a series, in a fixed order of preference.
+//
+// The order is the point: the same series must resolve the same way on every call. AniList first
+// when the series is on one of your lists, then whatever was stored locally for it, then the record
+// the provider gave us when the series was first found, and only then nothing at all.
+//
+// Reports whether the answer came from a synthetic record, which is what marks the item as mapped.
+func (d *Downloader) resolveDownloadMedia(opts *NewDownloadListOptions, displayID int, syntheticIDs []int) (*anilist.BaseManga, bool) {
+	syntheticRecord := func() (*models.SyntheticManga, bool) {
+		// Sorted above, so a series with more than one old local record always uses the same one.
+		for _, syntheticID := range syntheticIDs {
+			if synthetic, found := d.database.GetSyntheticManga(syntheticID); found && synthetic != nil {
+				return synthetic, true
+			}
+		}
+		// A download filed under an AniList ID that was matched from a synthetic entry: the series
+		// was found on a provider, matched, and the folder renamed to the AniList ID. The record it
+		// was matched *from* still holds the title and the cover the provider gave it.
+		if synthetic, found := d.syntheticFor(displayID); found && synthetic != nil {
+			return synthetic, true
+		}
+		return nil, false
+	}
+
+	if displayID < 0 {
+		if synthetic, found := syntheticRecord(); found {
+			return createBaseMangaFromSynthetic(synthetic, displayID), false
+		}
+		return nil, false
+	}
+
+	if opts.MangaCollection != nil {
+		if listEntry, ok := opts.MangaCollection.GetListEntryFromMangaId(displayID); ok && listEntry.GetMedia() != nil {
+			return listEntry.GetMedia(), false
+		}
+	}
+
+	if storedMetadata, found := d.database.GetDownloadedMangaMetadata(displayID); found {
+		return createBaseMangaFromStoredMetadata(storedMetadata), false
+	}
+
+	if synthetic, found := syntheticRecord(); found {
+		return createBaseMangaFromSynthetic(synthetic, displayID), true
+	}
+
+	if opts.EnableRemoteMetadataFetch {
+		return d.fetchAndStoreMetadataFromAniList(opts, displayID), false
+	}
+
+	// Nothing local to say. The background fill describes it without the screen having to wait.
+	return nil, false
 }
 
 // syntheticFor finds the synthetic record a download's AniList ID was matched from, if there is one.

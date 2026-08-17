@@ -1605,27 +1605,14 @@ func (d *MangaDownloader) getOrCreateSyntheticManga(ctx context.Context, mangaPr
 			existing.Chapters = chapterCount
 			_ = db.UpdateSyntheticManga(existing)
 		}
+		// A record created before the series page was being read carries a cover and nothing else.
+		// Filling it here means a re-run of the en masse downloader repairs the entries an earlier
+		// run left half-described, rather than skipping them forever because they already exist.
+		if d.describeSyntheticManga(existing, mangaProvider, providerId) {
+			_ = db.UpdateSyntheticManga(existing)
+		}
+		d.queueMetadataLookup(existing.SyntheticID)
 		return existing, nil
-	}
-
-	// Search WeebCentral to get cover image
-	var coverImage string
-	time.Sleep(DelayBetweenAPIRequests)
-	searchResults, err := mangaProvider.GetProvider().Search(hibikemanga.SearchOptions{
-		Query: mangaItem.Title,
-	})
-	if err == nil && len(searchResults) > 0 {
-		// Find best match
-		for _, result := range searchResults {
-			if strings.EqualFold(result.Title, mangaItem.Title) {
-				coverImage = result.Image
-				break
-			}
-		}
-		// If no exact match, use first result's image
-		if coverImage == "" && len(searchResults) > 0 {
-			coverImage = searchResults[0].Image
-		}
 	}
 
 	// Generate a synthetic ID (negative to avoid collision with AniList IDs)
@@ -1635,14 +1622,17 @@ func (d *MangaDownloader) getOrCreateSyntheticManga(ctx context.Context, mangaPr
 	syntheticManga := &models.SyntheticManga{
 		SyntheticID: syntheticId,
 		Title:       mangaItem.Title,
-		CoverImage:  coverImage,
 		Provider:    DefaultMangaProvider,
 		ProviderID:  providerId,
 		Status:      "RELEASING",
 		Chapters:    chapterCount,
 	}
 
-	err = db.InsertSyntheticManga(syntheticManga)
+	// Described from the provider before it is ever stored, so the card is complete the first time
+	// it is drawn rather than blank until a background pass reaches it.
+	d.describeSyntheticManga(syntheticManga, mangaProvider, providerId)
+
+	err := db.InsertSyntheticManga(syntheticManga)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert synthetic manga: %w", err)
 	}
@@ -1650,11 +1640,82 @@ func (d *MangaDownloader) getOrCreateSyntheticManga(ctx context.Context, mangaPr
 	d.logger.Debug().
 		Str("title", mangaItem.Title).
 		Int("syntheticId", syntheticId).
-		Str("coverImage", coverImage).
+		Str("coverImage", syntheticManga.CoverImage).
+		Bool("described", syntheticManga.Description != "").
 		Msg("enmasse-manga: Created synthetic manga entry")
+
+	// Whether this is really a series of its own is AniList's answer to give, and asking costs a
+	// request against a budget this loop is in no position to spend — hundreds of titles, back to
+	// back. So it is handed to the background fill, which paces itself and never asks twice.
+	d.queueMetadataLookup(syntheticId)
 
 	return syntheticManga, nil
 }
+
+// describeSyntheticManga fills in everything the provider knows about a series it is about to file.
+//
+// The series page is one request and carries the cover, the synopsis, the status, the year, the
+// genres and the alternative titles — where the search this used to do carried a cover and nothing
+// else, for the same cost. Existing values are never overwritten: a title the user corrected, or a
+// cover they chose, is a decision.
+// Reports whether anything was filled in, so the caller knows whether a stored record needs saving.
+func (d *MangaDownloader) describeSyntheticManga(synthetic *models.SyntheticManga, mangaProvider extension.MangaProviderExtension, providerId string) bool {
+	if synthetic == nil || mangaProvider == nil {
+		return false
+	}
+	if strings.TrimSpace(synthetic.CoverImage) != "" && strings.TrimSpace(synthetic.Description) != "" {
+		return false
+	}
+
+	details, ok := mangaProvider.GetProvider().(manga_providers.MangaDetailsProvider)
+	if !ok {
+		return false
+	}
+
+	time.Sleep(DelayBetweenAPIRequests)
+	page, err := details.GetSeriesDetails(providerId)
+	if err != nil || page == nil {
+		d.logger.Debug().Err(err).Str("providerId", providerId).
+			Msg("enmasse-manga: Could not read the provider's page for a series")
+		return false
+	}
+
+	changed := false
+	set := func(field *string, value string) {
+		value = strings.TrimSpace(value)
+		if value != "" && strings.TrimSpace(*field) == "" {
+			*field = value
+			changed = true
+		}
+	}
+
+	set(&synthetic.CoverImage, page.Image)
+	set(&synthetic.Description, page.Description)
+	set(&synthetic.Genres, strings.Join(page.Tags, ", "))
+	set(&synthetic.Synonyms, strings.Join(page.Synonyms, ", "))
+	set(&synthetic.Authors, strings.Join(page.Authors, ", "))
+
+	if status := manga.MediaStatusFromProvider(page.Status); status != "" && synthetic.Status != status {
+		synthetic.Status = status
+		changed = true
+	}
+	if page.Year > 0 && synthetic.Year == 0 {
+		synthetic.Year = page.Year
+		changed = true
+	}
+
+	return changed
+}
+
+// queueMetadataLookup asks the background fill to look this series up on AniList and, if nothing
+// there matches it, to finish describing it from the provider.
+func (d *MangaDownloader) queueMetadataLookup(syntheticID int) {
+	if d.mangaDownloader == nil || d.platformRef == nil || syntheticID == 0 {
+		return
+	}
+	d.mangaDownloader.BackfillMissingMetadata(d.platformRef, []int{syntheticID})
+}
+
 
 // generateSyntheticId generates a negative ID from the provider ID to avoid collision with AniList IDs
 func (d *MangaDownloader) generateSyntheticId(providerId string) int {

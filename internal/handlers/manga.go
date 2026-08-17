@@ -1457,6 +1457,13 @@ func (h *Handler) ensureSyntheticEntriesFromDownloads(mediaMap map[int]manga.Pro
 		if _, found := h.App.Database.GetSyntheticManga(mediaID); found {
 			continue
 		}
+		// A folder that has been matched to an AniList entry must not be handed a new local record.
+		// Deleting that record is precisely what matching it does, and re-creating it here undid
+		// the match on the next hydration — the series the user had just linked reappeared as a
+		// local series of its own, then resolved again, then reappeared.
+		if anilistID, found := h.App.Database.GetMangaIDMapping(mediaID); found && anilistID > 0 {
+			continue
+		}
 
 		provider := syntheticMangaLocalProvider
 		for providerName := range downloadData {

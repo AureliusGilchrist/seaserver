@@ -42,6 +42,15 @@ const (
 	torrentContentsConcurrency = 5
 )
 
+// TorrentContentsRequestItem identifies one torrent to look inside.
+//
+// Named rather than declared inside the handler so the generated client has a type to refer to: an
+// anonymous struct there produced a TypeScript definition citing a name that does not exist.
+type TorrentContentsRequestItem struct {
+	InfoHash    string `json:"infoHash"`
+	DownloadUrl string `json:"downloadUrl"`
+}
+
 // HandleGetTorrentContents
 //
 //	@summary returns how many files and folders each torrent holds.
@@ -52,12 +61,8 @@ const (
 //	@returns map[string]handlers.TorrentContents
 func (h *Handler) HandleGetTorrentContents(c echo.Context) error {
 
-	type item struct {
-		InfoHash    string `json:"infoHash"`
-		DownloadUrl string `json:"downloadUrl"`
-	}
 	type body struct {
-		Torrents []item `json:"torrents"`
+		Torrents []TorrentContentsRequestItem `json:"torrents"`
 	}
 
 	var b body

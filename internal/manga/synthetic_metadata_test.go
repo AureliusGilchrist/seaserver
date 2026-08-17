@@ -61,8 +61,8 @@ func TestMediaStatusFromProvider(t *testing.T) {
 	}
 
 	for input, want := range cases {
-		if got := mediaStatusFromProvider(input); got != want {
-			t.Errorf("mediaStatusFromProvider(%q) = %q, want %q", input, got, want)
+		if got := MediaStatusFromProvider(input); got != want {
+			t.Errorf("MediaStatusFromProvider(%q) = %q, want %q", input, got, want)
 		}
 	}
 }

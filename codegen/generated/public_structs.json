@@ -56680,6 +56680,39 @@
     ]
   },
   {
+    "filepath": "../internal/handlers/torrent_contents.go",
+    "filename": "torrent_contents.go",
+    "name": "TorrentContentsRequestItem",
+    "formattedName": "TorrentContentsRequestItem",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "InfoHash",
+        "jsonName": "infoHash",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "DownloadUrl",
+        "jsonName": "downloadUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TorrentContentsRequestItem identifies one torrent to look inside.",
+      "",
+      " Named rather than declared inside the handler so the generated client has a type to refer to: an",
+      " anonymous struct there produced a TypeScript definition citing a name that does not exist."
+    ]
+  },
+  {
     "filepath": "../internal/handlers/unmatched.go",
     "filename": "unmatched.go",
     "name": "UnmatchedFamilyEntry",
@@ -72255,6 +72288,24 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "DescribedCount",
+        "jsonName": "describedCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LinkedCount",
+        "jsonName": "linkedCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -72514,6 +72565,24 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "Title",
+        "jsonName": "title",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": [
@@ -72548,6 +72617,45 @@
     ],
     "comments": [
       " MangaScanReviewResult reports what a review did."
+    ]
+  },
+  {
+    "filepath": "../internal/manga/scanner_downloads.go",
+    "filename": "scanner_downloads.go",
+    "name": "DownloadScanResult",
+    "formattedName": "Manga_DownloadScanResult",
+    "package": "manga",
+    "fields": [
+      {
+        "name": "Described",
+        "jsonName": "described",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Linked",
+        "jsonName": "linked",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Failed",
+        "jsonName": "failed",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " DownloadScanResult reports what the download sweep managed to describe."
     ]
   },
   {
