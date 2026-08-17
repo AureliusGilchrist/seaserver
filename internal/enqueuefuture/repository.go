@@ -134,6 +134,7 @@ func (r *Repository) Status() Status {
 	// while three anime sit on a list nobody can see.
 	status.PendingRootList = r.PendingRoots()
 	status.PendingRoots = len(status.PendingRootList)
+	status.RewalkBacklog = r.RewalkBacklogCount()
 	return status
 }
 

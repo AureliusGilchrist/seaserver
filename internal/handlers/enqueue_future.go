@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"strconv"
@@ -273,4 +274,40 @@ func (h *Handler) HandleRewalkEnqueueFutureFamilies(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 	return h.RespondWithData(c, queued)
+}
+
+// HandleRemoveEnqueueFuturePendingRoot
+//
+//	@summary takes one anime off the waiting list.
+//	@route /api/v1/enqueue-future/pending-root/{mediaId} [DELETE]
+//	@returns bool
+func (h *Handler) HandleRemoveEnqueueFuturePendingRoot(c echo.Context) error {
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithData(c, false)
+	}
+
+	mediaID, err := strconv.Atoi(c.Param("mediaId"))
+	if err != nil || mediaID <= 0 {
+		return h.RespondWithError(c, errors.New("invalid media id"))
+	}
+
+	h.App.EnqueueFutureRepository.RemovePendingRoot(mediaID)
+	return h.RespondWithData(c, true)
+}
+
+// HandleClearEnqueueFuturePendingRoots
+//
+//	@summary empties the waiting list, and the re-walk backlog with it.
+//	@desc The run in progress is left alone — this is about what happens after it, not about
+//	@desc interrupting it.
+//	@route /api/v1/enqueue-future/pending-roots/clear [POST]
+//	@returns bool
+func (h *Handler) HandleClearEnqueueFuturePendingRoots(c echo.Context) error {
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithData(c, false)
+	}
+
+	h.App.EnqueueFutureRepository.ClearPendingRoots()
+	h.App.EnqueueFutureRepository.ClearRewalkBacklog()
+	return h.RespondWithData(c, true)
 }

@@ -194,7 +194,7 @@ func (r *Repository) RewalkAllFamilies() (int, error) {
 		})
 	}
 
-	added := r.queueRootsBulk(pending)
+	added := r.queueRewalkBacklog(pending)
 	if added > 0 {
 		r.logger.Info().Int("queued", added).Int("franchises", len(roots)).
 			Msg("enqueuefuture: Queued every franchise to be walked again")

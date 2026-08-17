@@ -136,6 +136,10 @@ type Status struct {
 	// PendingRootList is that queue itself, in the order it will be walked — so the screen can show
 	// what is coming rather than only how much of it there is.
 	PendingRootList []PendingRootInfo `json:"pendingRootList,omitempty"`
+	// RewalkBacklog is how many franchises are queued to be walked again. Kept apart from the list
+	// above because it is a different kind of instruction: hundreds of automatic entries would bury
+	// the handful you chose by hand. It is only drawn from when that list is empty.
+	RewalkBacklog int `json:"rewalkBacklog,omitempty"`
 	// CurrentTitle is the anime being prepared right now, for the progress readout.
 	CurrentTitle string `json:"currentTitle"`
 	// RateLimited and the fields below describe a run that is parked on the backoff ladder.

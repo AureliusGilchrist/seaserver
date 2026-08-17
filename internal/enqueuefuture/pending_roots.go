@@ -183,7 +183,14 @@ func (r *Repository) startNextPendingRoot() {
 		return
 	}
 
+	// What you asked for first, always. The re-walk backlog only runs when your own list is empty,
+	// so a bulk re-walk fills the gaps between your choices instead of delaying them.
 	next, ok := r.peekNextRoot()
+	fromBacklog := false
+	if !ok {
+		next, ok = r.peekBacklogRoot()
+		fromBacklog = true
+	}
 	if !ok {
 		return
 	}
@@ -201,6 +208,10 @@ func (r *Repository) startNextPendingRoot() {
 
 	// Started, and its progress record is written — the run itself is now what survives a crash, so
 	// the waiting list no longer needs to hold it.
+	if fromBacklog {
+		r.dropBacklogRoot(next.MediaID)
+		return
+	}
 	r.dropRoot(next.MediaID)
 }
 
@@ -240,4 +251,124 @@ func (r *Repository) queueRootsBulk(roots []pendingRoot) int {
 		r.savePendingRoots(existing)
 	}
 	return added
+}
+
+// The re-walk backlog is a second, separate waiting list.
+//
+// Re-walking every franchise queues hundreds of roots at once, and putting those on the list you
+// build by hand would bury it: the three anime you actually chose would sit somewhere inside a wall
+// of automatic entries, the count would read "347 waiting", and removing one of yours would mean
+// finding it first. They are different kinds of instruction and they get different lists.
+//
+// The hand-built list always wins. The backlog is only drawn from when nothing you asked for is
+// waiting, so a re-walk fills the gaps between your own choices rather than delaying them.
+
+const rewalkBacklogFileName = "enqueue-future-rewalk-backlog.json"
+
+func (r *Repository) rewalkBacklogPath() string {
+	return filepath.Join(r.dataDir, rewalkBacklogFileName)
+}
+
+func (r *Repository) loadRewalkBacklog() []pendingRoot {
+	data, err := os.ReadFile(r.rewalkBacklogPath())
+	if err != nil {
+		return nil
+	}
+	var roots []pendingRoot
+	if err := json.Unmarshal(data, &roots); err != nil {
+		r.logger.Warn().Err(err).Msg("enqueuefuture: Could not read the re-walk backlog, starting it empty")
+		return nil
+	}
+	return roots
+}
+
+func (r *Repository) saveRewalkBacklog(roots []pendingRoot) {
+	if len(roots) == 0 {
+		_ = os.Remove(r.rewalkBacklogPath())
+		return
+	}
+	data, err := json.Marshal(roots)
+	if err != nil {
+		return
+	}
+	if err := os.WriteFile(r.rewalkBacklogPath(), data, 0o644); err != nil {
+		r.logger.Warn().Err(err).Msg("enqueuefuture: Could not save the re-walk backlog")
+	}
+}
+
+// queueRewalkBacklog appends franchises to the backlog, skipping ones already on either list.
+func (r *Repository) queueRewalkBacklog(roots []pendingRoot) int {
+	r.pendingRootsMu.Lock()
+	defer r.pendingRootsMu.Unlock()
+
+	known := make(map[int]struct{})
+	for _, root := range r.loadPendingRoots() {
+		known[root.MediaID] = struct{}{}
+	}
+	backlog := r.loadRewalkBacklog()
+	for _, root := range backlog {
+		known[root.MediaID] = struct{}{}
+	}
+
+	added := 0
+	for _, root := range roots {
+		if _, seen := known[root.MediaID]; seen {
+			continue
+		}
+		known[root.MediaID] = struct{}{}
+		backlog = append(backlog, root)
+		added++
+	}
+
+	if added > 0 {
+		r.saveRewalkBacklog(backlog)
+	}
+	return added
+}
+
+// RewalkBacklogCount is how many franchises are waiting to be walked again.
+func (r *Repository) RewalkBacklogCount() int {
+	r.pendingRootsMu.Lock()
+	defer r.pendingRootsMu.Unlock()
+	return len(r.loadRewalkBacklog())
+}
+
+// ClearRewalkBacklog abandons the re-walk without touching anything you queued by hand.
+func (r *Repository) ClearRewalkBacklog() {
+	r.pendingRootsMu.Lock()
+	defer r.pendingRootsMu.Unlock()
+	r.saveRewalkBacklog(nil)
+}
+
+// RemovePendingRoot takes one anime off the hand-built waiting list.
+func (r *Repository) RemovePendingRoot(mediaID int) {
+	r.dropRoot(mediaID)
+	r.logger.Info().Int("mediaId", mediaID).Msg("enqueuefuture: Removed an anime from the waiting list")
+}
+
+// peekBacklogRoot returns the next franchise waiting to be re-walked, without removing it.
+func (r *Repository) peekBacklogRoot() (pendingRoot, bool) {
+	r.pendingRootsMu.Lock()
+	defer r.pendingRootsMu.Unlock()
+
+	backlog := r.loadRewalkBacklog()
+	if len(backlog) == 0 {
+		return pendingRoot{}, false
+	}
+	return backlog[0], true
+}
+
+// dropBacklogRoot removes one franchise from the backlog.
+func (r *Repository) dropBacklogRoot(mediaID int) {
+	r.pendingRootsMu.Lock()
+	defer r.pendingRootsMu.Unlock()
+
+	backlog := r.loadRewalkBacklog()
+	kept := make([]pendingRoot, 0, len(backlog))
+	for _, root := range backlog {
+		if root.MediaID != mediaID {
+			kept = append(kept, root)
+		}
+	}
+	r.saveRewalkBacklog(kept)
 }

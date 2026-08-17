@@ -142,6 +142,32 @@ export function useRewalkEnqueueFutureFamilies() {
     })
 }
 
+/** Takes one anime off the waiting list. */
+export function useRemoveEnqueueFuturePendingRoot() {
+    const queryClient = useQueryClient()
+    return useServerMutation<boolean, { mediaId: number }>({
+        endpoint: "/api/v1/enqueue-future/pending-root/{mediaId}",
+        method: "DELETE",
+        mutationKey: ["enqueue-future-remove-pending-root"],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureStatus.key] })
+        },
+    })
+}
+
+/** Empties the waiting list and the re-walk backlog. The run in progress is left alone. */
+export function useClearEnqueueFuturePendingRoots() {
+    const queryClient = useQueryClient()
+    return useServerMutation<boolean, void>({
+        endpoint: "/api/v1/enqueue-future/pending-roots/clear",
+        method: "POST",
+        mutationKey: ["enqueue-future-clear-pending-roots"],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureStatus.key] })
+        },
+    })
+}
+
 export function useGetEnqueueFutureQueue({ isRunning }: { isRunning?: boolean } = {}) {
     const heldRef = React.useRef<{ fingerprint?: string, items: EnqueueFuture_Item[] }>({ items: [] })
 

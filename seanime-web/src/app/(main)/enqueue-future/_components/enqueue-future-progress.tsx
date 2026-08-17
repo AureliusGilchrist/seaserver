@@ -1,10 +1,15 @@
 import { EnqueueFuture_Status } from "@/api/generated/types"
-import { useResumeEnqueueFuture, useStopEnqueueFuture } from "@/api/hooks/enqueue_future.hooks"
+import {
+    useClearEnqueueFuturePendingRoots,
+    useRemoveEnqueueFuturePendingRoot,
+    useResumeEnqueueFuture,
+    useStopEnqueueFuture,
+} from "@/api/hooks/enqueue_future.hooks"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import React from "react"
-import { LuCircleStop, LuPlay, LuTimer } from "react-icons/lu"
+import { LuCircleStop, LuPlay, LuTimer, LuX } from "react-icons/lu"
 
 /**
  * What the background run is doing, if anything.
@@ -17,6 +22,8 @@ import { LuCircleStop, LuPlay, LuTimer } from "react-icons/lu"
 export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status | undefined }) {
     const { mutate: stop, isPending: isStopping } = useStopEnqueueFuture()
     const { mutate: resume, isPending: isResuming } = useResumeEnqueueFuture()
+    const { mutate: removeRoot, isPending: isRemovingRoot } = useRemoveEnqueueFuturePendingRoot()
+    const { mutate: clearRoots, isPending: isClearingRoots } = useClearEnqueueFuturePendingRoots()
 
     const [now, setNow] = React.useState(() => Date.now())
     React.useEffect(() => {
@@ -137,7 +144,7 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                         {status.pendingRootList.map((root, i) => (
                             <li
                                 key={root.mediaId}
-                                className="flex items-center gap-2 rounded-[--radius] border border-gray-800/80 bg-gray-950/40 px-2.5 py-1.5"
+                                className="group/root flex items-center gap-2 rounded-[--radius] border border-gray-800/80 bg-gray-950/40 px-2.5 py-1.5"
                             >
                                 <span className="text-[10px] font-semibold text-[--muted] w-5 flex-none tabular-nums">
                                     {i + 1}.
@@ -148,9 +155,44 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                                 <span className="text-[10px] text-[--muted] flex-none">
                                     {i === 0 ? "next" : "queued"}
                                 </span>
+                                {/* Queueing something is one click, so unqueueing it should be too.
+                                    Hidden until the row is touched, so a list of twenty is a list
+                                    rather than a column of buttons. */}
+                                <button
+                                    onClick={() => removeRoot({ mediaId: root.mediaId })}
+                                    disabled={isRemovingRoot}
+                                    title="Remove from the waiting list"
+                                    aria-label={`Remove ${root.title || root.mediaId} from the waiting list`}
+                                    className={cn(
+                                        "flex-none p-0.5 rounded text-[--muted] transition",
+                                        "opacity-0 group-hover/root:opacity-100 focus-visible:opacity-100",
+                                        "hover:text-white hover:bg-white/10",
+                                    )}
+                                    data-enqueue-future-remove-root
+                                >
+                                    <LuX className="w-3.5 h-3.5" />
+                                </button>
                             </li>
                         ))}
                     </ol>
+
+                    {/* The re-walk backlog, counted rather than listed. It is hundreds of entries by
+                        nature, and it only runs when the list above is empty — so what matters about
+                        it is that it exists and how much is left, not which franchise is 148th. */}
+                    {!!status.rewalkBacklog && (
+                        <div className="flex items-center justify-between gap-2 pt-1 text-[10px] text-[--muted]">
+                            <span>{status.rewalkBacklog} franchise{status.rewalkBacklog === 1 ? "" : "s"} queued to be walked again — after the list above</span>
+                            <Button
+                                size="xs"
+                                intent="gray-basic"
+                                onClick={() => clearRoots()}
+                                loading={isClearingRoots}
+                                data-enqueue-future-clear-roots
+                            >
+                                Cancel re-walk
+                            </Button>
+                        </div>
+                    )}
                 </div>
             )}
 

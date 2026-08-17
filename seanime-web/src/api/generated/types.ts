@@ -2830,6 +2830,8 @@ export type EnqueueFuture_Status = {
     pendingRoots?: number
     /** That queue itself, in the order it will be walked. */
     pendingRootList?: Array<{ mediaId: number, title: string, queuedAt?: string }>
+    /** How many franchises are queued to be walked again, on their own separate backlog. */
+    rewalkBacklog?: number
     currentTitle: string
     rateLimited: boolean
     retryAt?: string
