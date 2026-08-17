@@ -1301,6 +1301,38 @@
     }
   },
   {
+    "name": "HandleGetAnilistAvailability",
+    "trimmedName": "GetAnilistAvailability",
+    "comments": [
+      "HandleGetAnilistAvailability",
+      "",
+      "\t@summary reports whether AniList is answering requests.",
+      "\t@desc Used by the client to show one banner when AniList itself is down, instead of every screen",
+      "\t@desc failing separately with no explanation.",
+      "\t@route /api/v1/anilist/availability [GET]",
+      "\t@returns anilist.Availability",
+      ""
+    ],
+    "filepath": "internal/handlers/anilist.go",
+    "filename": "anilist.go",
+    "api": {
+      "summary": "reports whether AniList is answering requests.",
+      "descriptions": [
+        "Used by the client to show one banner when AniList itself is down, instead of every screen",
+        "failing separately with no explanation."
+      ],
+      "endpoint": "/api/v1/anilist/availability",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "anilist.Availability",
+      "returnGoType": "anilist.Availability",
+      "returnTypescriptType": "AL_Availability"
+    }
+  },
+  {
     "name": "HandleAddAnimeToPlanning",
     "trimmedName": "AddAnimeToPlanning",
     "comments": [
@@ -2045,6 +2077,34 @@
           "descriptions": []
         }
       ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "profileListEntry",
+    "trimmedName": "profileListEntry",
+    "comments": [
+      "profileListEntry finds a profile's list entry for a media as it stands before a progress update,",
+      "which is what the start/completion date rule reads: whether a date is already recorded, and",
+      "whether this is a rewatch. See anilist.FirstWatchDates.",
+      "",
+      "Cached collection only — this sits in the middle of a progress update, and a round trip to AniList",
+      "to read a date would cost the update its responsiveness and the budget a request. Nil when the",
+      "collection cannot be read or does not hold the media, which the rule reads as \"nothing recorded",
+      "yet\": it fills a date in rather than losing one.",
+      ""
+    ],
+    "filepath": "internal/handlers/anime_entries.go",
+    "filename": "anime_entries.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
@@ -5114,6 +5174,115 @@
     }
   },
   {
+    "name": "TestLibraryEntriesAreMatched",
+    "trimmedName": "TestLibraryEntriesAreMatched",
+    "comments": [
+      "Every anime with files in the library is matched, however those files got there — downloaded",
+      "here, imported by hand, or present long before any of this existed.",
+      ""
+    ],
+    "filepath": "internal/handlers/download_badge_test.go",
+    "filename": "download_badge_test.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "TestLocalFilesTurnDownloadedIntoMatched",
+    "trimmedName": "TestLocalFilesTurnDownloadedIntoMatched",
+    "comments": [
+      "The sanity check: a download recorded as waiting to be matched, whose episodes are in fact",
+      "already in the library, is matched. The record has fallen behind; the files are the truth.",
+      ""
+    ],
+    "filepath": "internal/handlers/download_badge_test.go",
+    "filename": "download_badge_test.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "TestDownloadedWithoutLocalFilesStaysDownloaded",
+    "trimmedName": "TestDownloadedWithoutLocalFilesStaysDownloaded",
+    "comments": [
+      "And only when the files are there. A finished download still sitting in staging keeps its grey",
+      "badge, because that one is asking you to go and match it.",
+      ""
+    ],
+    "filepath": "internal/handlers/download_badge_test.go",
+    "filename": "download_badge_test.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "TestDownloadingWinsOverLocalFiles",
+    "trimmedName": "TestDownloadingWinsOverLocalFiles",
+    "comments": [
+      "Downloading outranks everything, files included: another season coming down is the fact that",
+      "decides what you do next.",
+      ""
+    ],
+    "filepath": "internal/handlers/download_badge_test.go",
+    "filename": "download_badge_test.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "TestAnAnimeAppearsInExactlyOneList",
+    "trimmedName": "TestAnAnimeAppearsInExactlyOneList",
+    "comments": [
+      "One anime, one badge, in every combination.",
+      ""
+    ],
+    "filepath": "internal/handlers/download_badge_test.go",
+    "filename": "download_badge_test.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleDiscoverEasterEgg",
     "trimmedName": "DiscoverEasterEgg",
     "comments": [
@@ -5530,6 +5699,30 @@
     }
   },
   {
+    "name": "enqueueFutureQueueFingerprint",
+    "trimmedName": "enqueueFutureQueueFingerprint",
+    "comments": [
+      "enqueueFutureQueueFingerprint summarises the queue as it is drawn.",
+      "",
+      "Every field the screen renders takes part, so a change the user would see always changes the",
+      "fingerprint, and a change they would not see — a column nothing displays — costs nothing.",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetEnqueueFutureItem",
     "trimmedName": "GetEnqueueFutureItem",
     "comments": [
@@ -5691,6 +5884,126 @@
         "Stops any run first, so the worker does not immediately refill what was just cleared."
       ],
       "endpoint": "/api/v1/enqueue-future/clear",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleRewalkEnqueueFutureFamilies",
+    "trimmedName": "RewalkEnqueueFutureFamilies",
+    "comments": [
+      "HandleRewalkEnqueueFutureFamilies",
+      "",
+      "\t@summary queues every franchise in the queue to be walked again.",
+      "\t@desc Relations are recorded as a walk discovers them, so families queued before that was",
+      "\t@desc recorded draw flat. This fills them in: one root per franchise, walked one after another.",
+      "\t@desc Deliberately expensive — a full AniList walk per franchise, at background pacing.",
+      "\t@route /api/v1/enqueue-future/rewalk [POST]",
+      "\t@returns int",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "queues every franchise in the queue to be walked again.",
+      "descriptions": [
+        "Relations are recorded as a walk discovers them, so families queued before that was",
+        "recorded draw flat. This fills them in: one root per franchise, walked one after another.",
+        "Deliberately expensive — a full AniList walk per franchise, at background pacing."
+      ],
+      "endpoint": "/api/v1/enqueue-future/rewalk",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "int",
+      "returnGoType": "int",
+      "returnTypescriptType": "number"
+    }
+  },
+  {
+    "name": "HandleRemoveEnqueueFuturePendingRoot",
+    "trimmedName": "RemoveEnqueueFuturePendingRoot",
+    "comments": [
+      "HandleRemoveEnqueueFuturePendingRoot",
+      "",
+      "\t@summary takes one anime off the waiting list.",
+      "\t@route /api/v1/enqueue-future/pending-root/{mediaId} [DELETE]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "takes one anime off the waiting list.",
+      "descriptions": [],
+      "endpoint": "/api/v1/enqueue-future/pending-root/{mediaId}",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleClearEnqueueFuturePendingRoots",
+    "trimmedName": "ClearEnqueueFuturePendingRoots",
+    "comments": [
+      "HandleClearEnqueueFuturePendingRoots",
+      "",
+      "\t@summary empties the waiting list of anime you queued by hand.",
+      "\t@desc Leaves the re-walk backlog alone, and leaves the run in progress alone — this is about what",
+      "\t@desc happens after the current walk, not about interrupting it.",
+      "\t@route /api/v1/enqueue-future/pending-roots/clear [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "empties the waiting list of anime you queued by hand.",
+      "descriptions": [
+        "Leaves the re-walk backlog alone, and leaves the run in progress alone — this is about what",
+        "happens after the current walk, not about interrupting it."
+      ],
+      "endpoint": "/api/v1/enqueue-future/pending-roots/clear",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleClearEnqueueFutureRewalkBacklog",
+    "trimmedName": "ClearEnqueueFutureRewalkBacklog",
+    "comments": [
+      "HandleClearEnqueueFutureRewalkBacklog",
+      "",
+      "\t@summary abandons the re-walk, leaving anything you queued by hand exactly as it is.",
+      "\t@route /api/v1/enqueue-future/rewalk/clear [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/enqueue_future.go",
+    "filename": "enqueue_future.go",
+    "api": {
+      "summary": "abandons the re-walk, leaving anything you queued by hand exactly as it is.",
+      "descriptions": [],
+      "endpoint": "/api/v1/enqueue-future/rewalk/clear",
       "methods": [
         "POST"
       ],
@@ -9665,6 +9978,21 @@
           "typescriptType": "boolean",
           "required": true,
           "descriptions": []
+        },
+        {
+          "name": "ReviewMatches",
+          "jsonName": "reviewMatches",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": true,
+          "descriptions": [
+            "ReviewMatches proposes the matches instead of applying them, for the user to accept or",
+            "dismiss through /api/v1/manga/scan/review.",
+            "",
+            "ReviewMatches proposes the matches instead of applying them, for the user to accept or",
+            "dismiss through /api/v1/manga/scan/review."
+          ]
         }
       ],
       "returns": "bool",
@@ -9697,6 +10025,98 @@
       "returns": "manga.MangaScanResult",
       "returnGoType": "manga.MangaScanResult",
       "returnTypescriptType": "Manga_MangaScanResult"
+    }
+  },
+  {
+    "name": "HandleSuggestMangaScanMatches",
+    "trimmedName": "SuggestMangaScanMatches",
+    "comments": [
+      "HandleSuggestMangaScanMatches",
+      "",
+      "\t@summary returns the AniList entries a folder name might refer to, best first.",
+      "\t@desc Searches AniList the same way the scan does — the whole name first, then the name with the",
+      "\t@desc release furniture removed, then each side of its separators, then its opening words, and",
+      "\t@desc finally the alternative titles the manga provider lists for it.",
+      "\t@desc Used by the Link dialog so a folder opens with candidates already found.",
+      "\t@route /api/v1/manga/scan/suggest [POST]",
+      "\t@returns []manga.MangaScanCandidate",
+      ""
+    ],
+    "filepath": "internal/handlers/manga_scan.go",
+    "filename": "manga_scan.go",
+    "api": {
+      "summary": "returns the AniList entries a folder name might refer to, best first.",
+      "descriptions": [
+        "Searches AniList the same way the scan does — the whole name first, then the name with the",
+        "release furniture removed, then each side of its separators, then its opening words, and",
+        "finally the alternative titles the manga provider lists for it.",
+        "Used by the Link dialog so a folder opens with candidates already found."
+      ],
+      "endpoint": "/api/v1/manga/scan/suggest",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Title",
+          "jsonName": "title",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "[]manga.MangaScanCandidate",
+      "returnGoType": "manga.MangaScanCandidate",
+      "returnTypescriptType": "Array\u003cManga_MangaScanCandidate\u003e"
+    }
+  },
+  {
+    "name": "HandleResolveMangaScanReview",
+    "trimmedName": "ResolveMangaScanReview",
+    "comments": [
+      "HandleResolveMangaScanReview",
+      "",
+      "\t@summary applies the decisions made about a scan's proposed matches.",
+      "\t@desc Accepting a proposal links the folder to the AniList entry and removes the local series it",
+      "\t@desc was standing in as. Dismissing one leaves the folder exactly as it is.",
+      "\t@desc The media ID may be any of the candidates the scan offered for that folder, not only the",
+      "\t@desc one it proposed.",
+      "\t@route /api/v1/manga/scan/review [POST]",
+      "\t@returns manga.MangaScanReviewResult",
+      ""
+    ],
+    "filepath": "internal/handlers/manga_scan.go",
+    "filename": "manga_scan.go",
+    "api": {
+      "summary": "applies the decisions made about a scan's proposed matches.",
+      "descriptions": [
+        "Accepting a proposal links the folder to the AniList entry and removes the local series it",
+        "was standing in as. Dismissing one leaves the folder exactly as it is.",
+        "The media ID may be any of the candidates the scan offered for that folder, not only the",
+        "one it proposed."
+      ],
+      "endpoint": "/api/v1/manga/scan/review",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Decisions",
+          "jsonName": "decisions",
+          "goType": "[]manga.MangaScanReviewDecision",
+          "usedStructType": "manga.MangaScanReviewDecision",
+          "typescriptType": "Array\u003cManga_MangaScanReviewDecision\u003e",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "manga.MangaScanReviewResult",
+      "returnGoType": "manga.MangaScanReviewResult",
+      "returnTypescriptType": "Manga_MangaScanReviewResult"
     }
   },
   {
@@ -11780,6 +12200,43 @@
     }
   },
   {
+    "name": "paginationDefault",
+    "trimmedName": "paginationDefault",
+    "comments": [
+      "paginationDefault fills in a page or per-page value the caller left out.",
+      "",
+      "It exists because the obvious inline form is a nil dereference waiting to happen, and was one:",
+      "",
+      "\tif p.Page == nil || p.PerPage == nil {",
+      "\t\t*p.Page = 1      // p.Page is nil on exactly the branch that runs",
+      "\t\t*p.PerPage = 20",
+      "\t}",
+      "",
+      "That wrote through the very pointer it had just found to be nil, so any search request that",
+      "omitted either field — and both are tagged `omitempty`, so callers are entitled to omit them —",
+      "panicked in the handler instead of searching. From the outside it looked like search was simply",
+      "broken.",
+      "",
+      "Returning a new pointer rather than assigning through the old one is what makes the nil case",
+      "impossible to get wrong, and taking one field at a time is what stops a missing page from",
+      "deciding anything about per-page.",
+      ""
+    ],
+    "filepath": "internal/handlers/pagination.go",
+    "filename": "pagination.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleSavePlanningSlutToken",
     "trimmedName": "SavePlanningSlutToken",
     "comments": [
@@ -11874,6 +12331,36 @@
     }
   },
   {
+    "name": "HandlePlanningSlutBackfillLibrary",
+    "trimmedName": "PlanningSlutBackfillLibrary",
+    "comments": [
+      "HandlePlanningSlutBackfillLibrary",
+      "",
+      "\t@summary adds every anime in the local library to the shared PLANNING list. Admin only.",
+      "\t@desc Runs in the background — anything already on a list is left alone. Returns immediately.",
+      "\t@route /api/v1/planning-slut/backfill-library [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "adds every anime in the local library to the shared PLANNING list. Admin only.",
+      "descriptions": [
+        "Runs in the background — anything already on a list is left alone. Returns immediately."
+      ],
+      "endpoint": "/api/v1/planning-slut/backfill-library",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "animeIsAlreadyTracked",
     "trimmedName": "animeIsAlreadyTracked",
     "comments": [
@@ -11909,6 +12396,38 @@
       "UpdateMediaListEntry is a blind write: running it for an entry the account already tracks moves",
       "that entry back to PLANNING and discards the status and progress it carried. Checking first also",
       "keeps repeat matches of one series from burning a rate-limited AniList write each time.",
+      ""
+    ],
+    "filepath": "internal/handlers/planning_slut.go",
+    "filename": "planning_slut.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "BackfillLocalLibraryToPlanning",
+    "trimmedName": "BackfillLocalLibraryToPlanning",
+    "comments": [
+      "BackfillLocalLibraryToPlanning puts everything already in the local library onto the shared",
+      "(planning slut) PLANNING list.",
+      "",
+      "Matching adds an anime as it happens, so in principle this has nothing to do — but \"in principle\"",
+      "covers only the matches made since that was true. Anything matched before it existed, matched while",
+      "the token was unset, or matched during an AniList outage is on disk and on no list at all, and",
+      "nothing goes back for it. That is what this is: the catch-up pass, so the shared account describes",
+      "the whole library rather than the part of it that happened to be matched on a good day.",
+      "",
+      "Returns how many anime it actually wrote. Safe to run repeatedly — anything already on a list, on",
+      "the user's own account or on the shared one, is left exactly as it is, because a blind write would",
+      "reset a watched series to PLANNING and discard its progress.",
       ""
     ],
     "filepath": "internal/handlers/planning_slut.go",
@@ -13539,12 +14058,14 @@
     "name": "ProfileSessionMiddleware",
     "trimmedName": "ProfileSessionMiddleware",
     "comments": [
-      "ProfileSessionMiddleware extracts and validates the profile session token",
-      "from the X-Seanime-Profile-Token header and sets it in the echo context.",
+      "ProfileSessionMiddleware extracts and validates the profile session token from the",
+      "X-Seanime-Profile-Token header and sets it in the echo context.",
       "This runs after OptionalAuthMiddleware and FeaturesMiddleware.",
-      "It also implements a sliding window: if the token was issued more than 15 minutes ago,",
-      "it emits a fresh token in the X-Seanime-Profile-Token response header so the client",
-      "can store it and stay logged in.",
+      "",
+      "It also renews: a session near the end of its day, or one issued by an earlier run of the server,",
+      "comes back with a fresh token in the X-Seanime-Profile-Token response header, which the client",
+      "stores. So a session lasts a day, rolls over into another day whenever the app is being used, and",
+      "a restart of the server renews it rather than ending it.",
       ""
     ],
     "filepath": "internal/handlers/profile_middleware.go",
@@ -14082,6 +14603,109 @@
     }
   },
   {
+    "name": "isTransferHeader",
+    "trimmedName": "isTransferHeader",
+    "comments": [
+      "isTransferHeader reports whether a header describes how a body is carried rather than what is",
+      "being asked for. These belong to the hop, not to the request, so they are neither forwarded",
+      "upstream nor passed back to the client — this proxy decides its own.",
+      ""
+    ],
+    "filepath": "internal/handlers/proxy.go",
+    "filename": "proxy.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "decodeBody",
+    "trimmedName": "decodeBody",
+    "comments": [
+      "decodeBody returns the response body with any content encoding undone.",
+      "",
+      "Go's transport already handles the gzip it asked for itself, and deletes the header when it does,",
+      "so in the ordinary case this hands back the body untouched. It exists for the case where the",
+      "server answered in an encoding nobody asked for: without it those bytes are read as if they were",
+      "text, which is how a perfectly good playlist arrives looking like it has no #EXTM3U line.",
+      ""
+    ],
+    "filepath": "internal/handlers/proxy.go",
+    "filename": "proxy.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "decodePlaylist",
+    "trimmedName": "decodePlaylist",
+    "comments": [
+      "decodePlaylist parses a playlist, forgiving the things a playlist is routinely served with that",
+      "the parser will not accept.",
+      "",
+      "Two of them. A byte order mark, or any blank space, in front of the opening line: the parser",
+      "compares that line for exact equality, so a single invisible byte in front of it means the",
+      "playlist \"has no #EXTM3U\" and the whole thing is rejected. And a tag somewhere further down that",
+      "the parser does not like — in strict mode the first such tag fails the entire playlist, even",
+      "though everything this proxy needs from it, the URIs, parsed perfectly well.",
+      "",
+      "So: trim, parse strictly, and if that fails on a body that visibly is a playlist, parse it again",
+      "leniently rather than giving up on it. Only a body with no opening line anywhere in it is refused",
+      "outright — that is not a lenient-parsing problem, that is not a playlist.",
+      ""
+    ],
+    "filepath": "internal/handlers/proxy.go",
+    "filename": "proxy.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "bodyPreview",
+    "trimmedName": "bodyPreview",
+    "comments": [
+      "bodyPreview renders the start of a body for a log line: printable text as text, anything else as",
+      "hex, so a compressed or binary body is recognisable as such rather than as mojibake.",
+      ""
+    ],
+    "filepath": "internal/handlers/proxy.go",
+    "filename": "proxy.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "rewriteURI",
     "trimmedName": "rewriteURI",
     "comments": [
@@ -14090,6 +14714,117 @@
     ],
     "filepath": "internal/handlers/proxy.go",
     "filename": "proxy.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "TestDecodePlaylistAcceptsByteOrderMarkAndLeadingSpace",
+    "trimmedName": "TestDecodePlaylistAcceptsByteOrderMarkAndLeadingSpace",
+    "comments": [
+      "A byte order mark in front of the opening line used to be read as \"#EXTM3U absent\", because the",
+      "parser compares that line for exact equality.",
+      ""
+    ],
+    "filepath": "internal/handlers/proxy_test.go",
+    "filename": "proxy_test.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "TestDecodePlaylistRejectsNonPlaylist",
+    "trimmedName": "TestDecodePlaylistRejectsNonPlaylist",
+    "comments": [
+      "A body that is not a playlist at all — an error page, a challenge — is still refused, so the",
+      "leniency above cannot turn one into an empty playlist.",
+      ""
+    ],
+    "filepath": "internal/handlers/proxy_test.go",
+    "filename": "proxy_test.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "TestDecodeBodyUndoesContentEncoding",
+    "trimmedName": "TestDecodeBodyUndoesContentEncoding",
+    "comments": [
+      "The regression this was reported for: a provider that asks for brotli or gzip turns off the",
+      "transport's transparent decompression, and the compressed bytes were parsed as if they were the",
+      "playlist — which is exactly what \"#EXTM3U absent\" was.",
+      ""
+    ],
+    "filepath": "internal/handlers/proxy_test.go",
+    "filename": "proxy_test.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "TestIsTransferHeader",
+    "trimmedName": "TestIsTransferHeader",
+    "comments": [
+      "Accept-Encoding from a provider is what disabled transparent decompression in the first place, so",
+      "it must not reach the upstream request. Referer and the like still must.",
+      ""
+    ],
+    "filepath": "internal/handlers/proxy_test.go",
+    "filename": "proxy_test.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "TestBodyPreview",
+    "trimmedName": "TestBodyPreview",
+    "comments": [
+      "The log line is the only thing that can tell the causes apart, so a binary body has to be",
+      "recognisable as binary in it.",
+      ""
+    ],
+    "filepath": "internal/handlers/proxy_test.go",
+    "filename": "proxy_test.go",
     "api": {
       "summary": "",
       "descriptions": [],
@@ -16876,11 +17611,13 @@
     "comments": [
       "HandleGetDownloadingMediaIds",
       "",
-      "\t@summary returns which AniList media have a download in flight, and which have just finished.",
-      "\t@desc Read from the staging directories on disk — each holds the metadata sidecar naming the",
-      "\t@desc anime its download is for — so the answer is the same across page reloads, server",
-      "\t@desc restarts and a torrent client that is momentarily unreachable. That is what lets the",
-      "\t@desc \"Downloading\" badge stay up for the whole download instead of blinking in and out.",
+      "\t@summary returns the download badge state of every anime that has one.",
+      "\t@desc Read straight from the state recorded against each anime — written when a download was",
+      "\t@desc queued, when it finished, and when it was matched — plus every anime with files in the",
+      "\t@desc library, which is matched by definition. Nothing is reconciled between them: the recorded",
+      "\t@desc state wins wherever there is one. The answer is identical across page reloads, server",
+      "\t@desc restarts, a torrent client that has forgotten the torrent, and a staging folder a match",
+      "\t@desc has already deleted.",
       "\t@route /api/v1/torrent-client/downloading-media [GET]",
       "\t@returns handlers.DownloadingMediaStatus",
       ""
@@ -16888,12 +17625,14 @@
     "filepath": "internal/handlers/torrent_client.go",
     "filename": "torrent_client.go",
     "api": {
-      "summary": "returns which AniList media have a download in flight, and which have just finished.",
+      "summary": "returns the download badge state of every anime that has one.",
       "descriptions": [
-        "Read from the staging directories on disk — each holds the metadata sidecar naming the",
-        "anime its download is for — so the answer is the same across page reloads, server",
-        "restarts and a torrent client that is momentarily unreachable. That is what lets the",
-        "\"Downloading\" badge stay up for the whole download instead of blinking in and out."
+        "Read straight from the state recorded against each anime — written when a download was",
+        "queued, when it finished, and when it was matched — plus every anime with files in the",
+        "library, which is matched by definition. Nothing is reconciled between them: the recorded",
+        "state wins wherever there is one. The answer is identical across page reloads, server",
+        "restarts, a torrent client that has forgotten the torrent, and a staging folder a match",
+        "has already deleted."
       ],
       "endpoint": "/api/v1/torrent-client/downloading-media",
       "methods": [
@@ -16907,18 +17646,64 @@
     }
   },
   {
-    "name": "stagingDownloadFinished",
-    "trimmedName": "stagingDownloadFinished",
+    "name": "downloadingMediaFingerprint",
+    "trimmedName": "downloadingMediaFingerprint",
     "comments": [
-      "stagingDownloadFinished reports whether the download writing into a staging directory is over.",
+      "downloadingMediaFingerprint summarises the three badge lists.",
       "",
-      "The torrent client is the authority whenever it can account for the directory. When it cannot —",
-      "unreachable, or the torrent removed the moment it completed — the answer is whatever the",
-      "auto-match scanner has already concluded from watching the directory itself, which is the same",
-      "evidence it acts on when it decides a download is ready to be matched.",
+      "They are already sorted, so equal contents always produce an equal fingerprint.",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "buildDownloadingMediaStatus",
+    "trimmedName": "buildDownloadingMediaStatus",
+    "comments": [
+      "buildDownloadingMediaStatus decides each anime's badge from the two things that say anything",
+      "about it: the states recorded against downloads, and what is actually in the library.",
       "",
-      "Failing both, the download counts as still running. The badge is meant to stay up until",
-      "something says otherwise, and \"nobody has anything to say about this one\" is not that.",
+      "Kept apart from the handler so the rule can be read, and tested, on its own.",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "animeWithLocalFiles",
+    "trimmedName": "animeWithLocalFiles",
+    "comments": [
+      "animeWithLocalFiles returns every anime with at least one non-ignored file in the library.",
+      "",
+      "The shared database, not a profile's — every local-file read in this server uses that one, so the",
+      "library is a fact about the machine and the badge drawn from it is the same on every account.",
+      "",
+      "Ignored files do not count: an anime deliberately pushed out of the library is not one you have.",
+      "An error reading it returns nothing, which costs the library-derived badges for a few seconds and",
+      "leaves the recorded states — the ones about downloads in progress — completely untouched.",
       ""
     ],
     "filepath": "internal/handlers/torrent_client.go",
@@ -17130,6 +17915,45 @@
             "AutoMatch matches the torrent to Media automatically once it finishes downloading,",
             "instead of leaving it in the Unmatched screen for manual matching."
           ]
+        },
+        {
+          "name": "AutoMatchByTorrent",
+          "jsonName": "autoMatchByTorrent",
+          "goType": "map[string]bool",
+          "usedStructType": "",
+          "typescriptType": "Record\u003cstring, boolean\u003e",
+          "required": false,
+          "descriptions": [
+            "AutoMatchByTorrent overrides AutoMatch for individual torrents, keyed by the torrent's",
+            "link. A request may mix the two: whatever is not named here takes AutoMatch.",
+            "",
+            "Per torrent because the choice is per torrent. One batch may hold a release you trust",
+            "enough to file itself and another you want to look at first, and forcing one answer for",
+            "the whole selection meant either reviewing what needed no review or auto-filing what did.",
+            "",
+            "AutoMatchByTorrent overrides AutoMatch for individual torrents, keyed by the torrent's",
+            "link. A request may mix the two: whatever is not named here takes AutoMatch.",
+            "Per torrent because the choice is per torrent. One batch may hold a release you trust",
+            "enough to file itself and another you want to look at first, and forcing one answer for",
+            "the whole selection meant either reviewing what needed no review or auto-filing what did."
+          ]
+        },
+        {
+          "name": "MatchSeasonOneOnly",
+          "jsonName": "matchSeasonOneOnly",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": false,
+          "descriptions": [
+            "MatchSeasonOneOnly narrows the automatic match to the download's first season, for the",
+            "batches that carry more than one. Meaningless without AutoMatch, and ignored when it is",
+            "off — the UI greys the toggle out for the same reason.",
+            "",
+            "MatchSeasonOneOnly narrows the automatic match to the download's first season, for the",
+            "batches that carry more than one. Meaningless without AutoMatch, and ignored when it is",
+            "off — the UI greys the toggle out for the same reason."
+          ]
         }
       ],
       "returns": "bool",
@@ -17219,6 +18043,145 @@
           "descriptions": []
         }
       ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetTorrentContents",
+    "trimmedName": "GetTorrentContents",
+    "comments": [
+      "HandleGetTorrentContents",
+      "",
+      "\t@summary returns how many files and folders each torrent holds.",
+      "\t@desc Reads the .torrent file itself over HTTP and parses it — no torrent client involved, so",
+      "\t@desc nothing is added to a download queue to answer this. Torrents with no download URL (magnet",
+      "\t@desc only) are absent from the result rather than reported as zero.",
+      "\t@route /api/v1/torrent/contents [POST]",
+      "\t@returns map[string]handlers.TorrentContents",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_contents.go",
+    "filename": "torrent_contents.go",
+    "api": {
+      "summary": "returns how many files and folders each torrent holds.",
+      "descriptions": [
+        "Reads the .torrent file itself over HTTP and parses it — no torrent client involved, so",
+        "nothing is added to a download queue to answer this. Torrents with no download URL (magnet",
+        "only) are absent from the result rather than reported as zero."
+      ],
+      "endpoint": "/api/v1/torrent/contents",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Torrents",
+          "jsonName": "torrents",
+          "goType": "[]item",
+          "usedStructType": "item",
+          "typescriptType": "Array\u003citem\u003e",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "map[string]handlers.TorrentContents",
+      "returnGoType": "handlers.TorrentContents",
+      "returnTypescriptType": "Record\u003cstring, TorrentContents\u003e"
+    }
+  },
+  {
+    "name": "torrentContentsHTTPClient",
+    "trimmedName": "torrentContentsHTTPClient",
+    "comments": [
+      "torrentContentsHTTPClient returns a client routed through the configured privacy layers.",
+      "",
+      "A .torrent fetch is a request to a tracker's web server, indistinguishable from browsing it. Going",
+      "out on a bare http.Client would put that request outside the SOCKS5 proxy every other outbound",
+      "request in this application goes through — which is the whole point of having one.",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_contents.go",
+    "filename": "torrent_contents.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "torrentContentsKey",
+    "trimmedName": "torrentContentsKey",
+    "comments": [
+      "torrentContentsKey is the identity a result is cached and returned under. The info hash names the",
+      "contents exactly; a download URL is the fallback for providers that do not give one up front, and",
+      "is what the client keys its own lookup by in that case.",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_contents.go",
+    "filename": "torrent_contents.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "fetchTorrentContents",
+    "trimmedName": "fetchTorrentContents",
+    "comments": [
+      "fetchTorrentContents downloads a .torrent and counts what is inside it.",
+      "",
+      "Reports ok=false for anything that did not parse — an unreachable tracker, an HTML error page",
+      "served with a 200, a login wall. The caller leaves those out of the response entirely rather than",
+      "reporting zero, because \"no files\" and \"could not tell\" are different answers and only one of them",
+      "should be shown to somebody choosing a release.",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_contents.go",
+    "filename": "torrent_contents.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "countTorrentContents",
+    "trimmedName": "countTorrentContents",
+    "comments": [
+      "countTorrentContents counts what a parsed torrent holds.",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_contents.go",
+    "filename": "torrent_contents.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
@@ -18123,6 +19086,32 @@
           "typescriptType": "number",
           "required": true,
           "descriptions": []
+        },
+        {
+          "name": "Shallow",
+          "jsonName": "shallow",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": false,
+          "descriptions": [
+            "Shallow walks one node and stops: the anime asked for, plus its direct relations as",
+            "entries that are not themselves walked.",
+            "",
+            "This is what lets the picker fill in as it goes. The whole-franchise walk is one request",
+            "per node made back to back, so a large family is minutes of a modal showing a spinner and",
+            "nothing else. Asked for one node at a time, the client draws the root immediately, then",
+            "each branch as it arrives, and can say which parts it is still waiting on. Same endpoint,",
+            "same shape of answer — the client is simply doing the walking.",
+            "",
+            "Shallow walks one node and stops: the anime asked for, plus its direct relations as",
+            "entries that are not themselves walked.",
+            "This is what lets the picker fill in as it goes. The whole-franchise walk is one request",
+            "per node made back to back, so a large family is minutes of a modal showing a spinner and",
+            "nothing else. Asked for one node at a time, the client draws the root immediately, then",
+            "each branch as it arrives, and can say which parts it is still waiting on. Same endpoint,",
+            "same shape of answer — the client is simply doing the walking."
+          ]
         }
       ],
       "returns": "unmatchedFamilyResult",
@@ -18275,6 +19264,28 @@
           "descriptions": []
         }
       ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "englishTitleOf",
+    "trimmedName": "englishTitleOf",
+    "comments": [
+      "englishTitleOf returns the English title only when it says something the main title does not.",
+      "Printing \"Fate/Grand Order\" under \"Fate/Grand Order\" is a line of noise on every row.",
+      ""
+    ],
+    "filepath": "internal/handlers/unmatched.go",
+    "filename": "unmatched.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"

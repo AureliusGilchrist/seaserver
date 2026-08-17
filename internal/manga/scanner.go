@@ -1,6 +1,7 @@
 package manga
 
 import (
+	"cmp"
 	"context"
 	"hash/fnv"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"seanime/internal/database/models"
 	"seanime/internal/events"
 	"seanime/internal/util/comparison"
+	"slices"
 	"strings"
 	"time"
 
@@ -18,6 +20,30 @@ import (
 
 const (
 	ScanMatchThreshold = 0.85
+
+	// ScanSuggestionThreshold is how close a folder name has to be to an AniList title before the
+	// scan is willing to put the two in front of the user as a possibility.
+	//
+	// Far below the threshold that would link them without asking, and deliberately: the cost of a
+	// weak suggestion is a row somebody glances at and rejects, while the cost of not making it is a
+	// series filed as "not a real manga" forever because its folder was named after the release
+	// rather than the title. A suggestion is not a claim.
+	ScanSuggestionThreshold = 0.5
+
+	// maxScanCandidates is how many possibilities one folder is offered in review. Enough to hold
+	// the right answer when the first is wrong, few enough to read at a glance.
+	maxScanCandidates = 5
+)
+
+// Scan statuses. A folder ends in exactly one of these.
+const (
+	ScanStatusMatched = "matched"
+	// ScanStatusPendingReview is a match the scan found but has not acted on, waiting for the user
+	// to accept or dismiss it.
+	ScanStatusPendingReview = "pending-review"
+	ScanStatusUnmatched     = "unmatched"
+	ScanStatusSkipped       = "skipped"
+	ScanStatusSearchFailed  = "search-failed"
 )
 
 // MangaScanResult is the top-level response for a manga directory scan.
@@ -26,8 +52,12 @@ type MangaScanResult struct {
 	MatchedCount   int               `json:"matchedCount"`
 	UnmatchedCount int               `json:"unmatchedCount"`
 	SkippedCount   int               `json:"skippedCount"`
-	StartedAt      string            `json:"startedAt"`
-	CompletedAt    string            `json:"completedAt"`
+	// PendingReviewCount is how many folders are waiting on a decision.
+	PendingReviewCount int    `json:"pendingReviewCount"`
+	StartedAt          string `json:"startedAt"`
+	CompletedAt        string `json:"completedAt"`
+	// ReviewMatches is whether this scan proposed its matches rather than applying them.
+	ReviewMatches bool `json:"reviewMatches"`
 }
 
 // MangaScanFolder represents one scanned folder and its match status.
@@ -35,12 +65,26 @@ type MangaScanFolder struct {
 	FolderPath     string  `json:"folderPath"`
 	FolderName     string  `json:"folderName"`
 	ChapterCount   int     `json:"chapterCount"`
-	Status         string  `json:"status"` // "matched", "unmatched", "skipped"
+	Status         string  `json:"status"` // "matched", "pending-review", "unmatched", "skipped"
 	MatchedMediaID int     `json:"matchedMediaId"`
 	MatchedTitle   string  `json:"matchedTitle"`
 	MatchedImage   string  `json:"matchedImage"`
 	Confidence     float64 `json:"confidence"`
 	IsSynthetic    bool    `json:"isSynthetic"`
+	// Candidates are the other entries the search turned up, best first, so a folder whose proposed
+	// match is wrong can be corrected in review without searching AniList again.
+	Candidates []MangaScanCandidate `json:"candidates,omitempty"`
+}
+
+// MangaScanCandidate is one AniList entry a folder might be.
+type MangaScanCandidate struct {
+	MediaID    int     `json:"mediaId"`
+	Title      string  `json:"title"`
+	CoverImage string  `json:"coverImage"`
+	Confidence float64 `json:"confidence"`
+	Format     string  `json:"format"`
+	Status     string  `json:"status"`
+	Chapters   int     `json:"chapters"`
 }
 
 // MangaScanProgressEvent is sent via WebSocket during scanning.
@@ -51,11 +95,22 @@ type MangaScanProgressEvent struct {
 }
 
 // ScanMangaDirectories scans local + download directories and auto-matches folders to AniList manga.
+//
+// With reviewMatches set, the scan decides nothing on its own: every match it finds — including the
+// confident ones it would otherwise have written — is reported as pending, along with the runners-up,
+// and only becomes a link when the user accepts it. See ApplyMangaScanReview.
+//
+// The point is not that the matching is untrustworthy. It is that a wrong link is close to invisible
+// once made — a folder of downloaded chapters filed under a series the user has never read, their
+// progress written to it — and reviewing a list of proposals takes a minute where finding that by
+// accident takes months. Suggestions are also made further down than an automatic link would ever
+// reach (ScanSuggestionThreshold), because a suggestion somebody looks at can afford to be wrong.
 func ScanMangaDirectories(
 	ctx context.Context,
 	localDir string,
 	downloadDir string,
 	forceRematch bool,
+	reviewMatches bool,
 	database *db.Database,
 	wsEventManager events.WSEventManagerInterface,
 	logger *zerolog.Logger,
@@ -106,6 +161,7 @@ func ScanMangaDirectories(
 	result := &MangaScanResult{
 		ScannedFolders: make([]MangaScanFolder, 0, total),
 		StartedAt:      startedAt.Format(time.RFC3339),
+		ReviewMatches:  reviewMatches,
 	}
 
 	// Check existing mappings (provider="local") to know what to skip
@@ -131,6 +187,10 @@ func ScanMangaDirectories(
 	}
 
 	anilistClient := anilist.NewAnilistClient("", "")
+
+	// Consulted only for folders AniList had nothing at all for, to learn what else the series is
+	// called before giving up on it. See searchAniListForTitle.
+	synonymLookup := providerSynonymSource(logger)
 
 	for i, folder := range folders {
 		// Send progress event
@@ -183,117 +243,39 @@ func ScanMangaDirectories(
 			searchName = cleanedName
 		}
 
-		// Search AniList
+		// Asked several ways rather than once — see titleSearchVariants and searchAniListForTitle.
+		// Every candidate is still scored against the folder's own name, whichever query found it,
+		// so a short query cannot talk a weak match into looking like a strong one.
 		matched := false
-		page := 1
-		perPage := 10
-		searchResult, err := anilistClient.SearchBaseManga(ctx, &page, &perPage, nil, &searchName, nil)
+		candidates, err := searchAniListForTitle(ctx, anilistClient, searchName, rawName, cleanedName, synonymLookup, logger)
 
-		if err == nil && searchResult != nil && searchResult.Page != nil && len(searchResult.Page.Media) > 0 {
-			// Collect all titles from results for comparison
-			var candidateTitles []*string
-			type titleEntry struct {
-				mediaID    int
-				title      string
-				coverImage string
-			}
-			var candidates []titleEntry
+		if err == nil && len(candidates) > 0 {
+			if candidates[0].Confidence >= ScanMatchThreshold && !reviewMatches {
+				best := candidates[0]
+				scanFolder.Status = ScanStatusMatched
+				scanFolder.MatchedMediaID = best.MediaID
+				scanFolder.MatchedTitle = best.Title
+				scanFolder.MatchedImage = best.CoverImage
+				scanFolder.Confidence = best.Confidence
+				matched = true
 
-			for _, media := range searchResult.Page.Media {
-				// Every name AniList knows this series by, not only the three main ones.
-				//
-				// Synonyms are where the alternative spellings, the abbreviations and the
-				// alternate romanisations live — and they are exactly what a folder tends to be
-				// named after, because whoever made the folder named it after the release, not
-				// after AniList's preferred title. Leaving them out meant a series whose folder
-				// used any name but the main three could not be matched at all, however obviously
-				// right it was.
-				//
-				// The native title is included for the same reason: a folder named in Japanese
-				// matched nothing before.
-				var names []string
-				if media.Title != nil {
-					for _, tp := range []*string{media.Title.Romaji, media.Title.English, media.Title.UserPreferred, media.Title.Native} {
-						if tp != nil && *tp != "" {
-							names = append(names, *tp)
-						}
-					}
-				}
-				for _, syn := range media.Synonyms {
-					if syn != nil && *syn != "" {
-						names = append(names, *syn)
-					}
-				}
+				applyScanMatch(database, folder.name, best.MediaID, forceRematch)
+				result.MatchedCount++
+			} else if candidates[0].Confidence >= ScanSuggestionThreshold {
+				// Proposed, not applied. Nothing is written against the folder here beyond the
+				// synthetic entry it would have had anyway, so a scan left unreviewed leaves the
+				// library exactly as a scan without review would have.
+				best := candidates[0]
+				scanFolder.Status = ScanStatusPendingReview
+				scanFolder.MatchedMediaID = best.MediaID
+				scanFolder.MatchedTitle = best.Title
+				scanFolder.MatchedImage = best.CoverImage
+				scanFolder.Confidence = best.Confidence
+				scanFolder.Candidates = candidates
+				matched = true
 
-				cover := ""
-				if media.CoverImage != nil && media.CoverImage.Large != nil {
-					cover = *media.CoverImage.Large
-				}
-				preferred := ""
-				if media.Title != nil && media.Title.UserPreferred != nil {
-					preferred = *media.Title.UserPreferred
-				}
-
-				for _, name := range names {
-					t := name
-					candidateTitles = append(candidateTitles, &t)
-					candidates = append(candidates, titleEntry{
-						mediaID:    media.ID,
-						title:      preferred,
-						coverImage: cover,
-					})
-				}
-			}
-
-			if len(candidateTitles) > 0 {
-				// Scored against the folder's real name and against the stripped one, keeping
-				// whichever does better. Neither is reliably the closer of the two: a title whose
-				// punctuation AniList also carries matches the raw name best, while a folder that
-				// merely borrowed some punctuation matches the stripped one. Trying both is free —
-				// the results are already in hand — and the better score is the better answer.
-				bestMatch, found := comparison.FindBestMatchWithSorensenDice(&rawName, candidateTitles)
-				if cleanedName != "" && cleanedName != rawName {
-					if alt, altFound := comparison.FindBestMatchWithSorensenDice(&cleanedName, candidateTitles); altFound {
-						if !found || alt.Rating > bestMatch.Rating {
-							bestMatch, found = alt, true
-						}
-					}
-				}
-				if found && bestMatch.Rating >= ScanMatchThreshold {
-					// Find the candidate that owns this title
-					matchIdx := -1
-					for j, ct := range candidateTitles {
-						if ct == bestMatch.Value {
-							matchIdx = j
-							break
-						}
-					}
-					if matchIdx >= 0 && matchIdx < len(candidates) {
-						c := candidates[matchIdx]
-						scanFolder.Status = "matched"
-						scanFolder.MatchedMediaID = c.mediaID
-						scanFolder.MatchedTitle = c.title
-						scanFolder.MatchedImage = c.coverImage
-						scanFolder.Confidence = bestMatch.Rating
-						matched = true
-
-						// Create or update MangaMapping
-						if forceRematch {
-							_ = database.DeleteMangaMapping("local", c.mediaID)
-						}
-						_ = database.InsertMangaMapping("local", c.mediaID, folder.name)
-
-						// A folder that has found its series is no longer a series of its own.
-						// Without this the synthetic entry written by an earlier failed scan
-						// survives the match and the manga goes on being listed as synthetic
-						// beside the real one it has just been matched to.
-						if synthetic, foundSynthetic := database.GetSyntheticMangaByProviderID("local", folder.name); foundSynthetic && synthetic != nil {
-							_ = database.DeleteSyntheticManga(synthetic.SyntheticID)
-						}
-
-						result.MatchedCount++
-					}
-				}
+				ensureSyntheticEntry(database, folder.name, scanFolder.ChapterCount)
+				result.PendingReviewCount++
 			}
 		} else if err != nil {
 			// A search that failed is not a manga that does not exist.
@@ -308,7 +290,7 @@ func ScanMangaDirectories(
 			// So a failure is reported and the folder left alone. It stays unmatched, nothing is
 			// recorded, and the next scan asks again — which is what a scan is for.
 			logger.Warn().Err(err).Str("folder", folder.name).Msg("manga-scan: AniList search failed, leaving the folder for the next scan")
-			scanFolder.Status = "search-failed"
+			scanFolder.Status = ScanStatusSearchFailed
 			result.ScannedFolders = append(result.ScannedFolders, scanFolder)
 			result.UnmatchedCount++
 			time.Sleep(700 * time.Millisecond)
@@ -316,27 +298,11 @@ func ScanMangaDirectories(
 		}
 
 		if !matched {
-			scanFolder.Status = "unmatched"
-
-			// Create SyntheticManga if one doesn't already exist for this folder
-			existing, found := database.GetSyntheticMangaByProviderID("local", folder.name)
-			if !found || existing == nil {
-				syntheticID := generateSyntheticID(folder.name)
-				_ = database.InsertSyntheticManga(&models.SyntheticManga{
-					SyntheticID: syntheticID,
-					Title:       folder.name,
-					Provider:    "local",
-					ProviderID:  folder.name,
-					Status:      "RELEASING",
-					Chapters:    scanFolder.ChapterCount,
-				})
+			scanFolder.Status = ScanStatusUnmatched
+			if syntheticID := ensureSyntheticEntry(database, folder.name, scanFolder.ChapterCount); syntheticID != 0 {
 				scanFolder.MatchedMediaID = syntheticID
 				scanFolder.IsSynthetic = true
-			} else {
-				scanFolder.MatchedMediaID = existing.SyntheticID
-				scanFolder.IsSynthetic = true
 			}
-
 			result.UnmatchedCount++
 		}
 
@@ -354,6 +320,184 @@ func ScanMangaDirectories(
 	}
 
 	return result, nil
+}
+
+// MangaScanReviewDecision is what the user decided about one proposed match.
+type MangaScanReviewDecision struct {
+	FolderName string `json:"folderName"`
+	// MediaID is the entry to link the folder to — the one the scan proposed, or another of the
+	// candidates it offered.
+	MediaID int `json:"mediaId"`
+	// Accept is false to dismiss the proposal and leave the folder as a local series.
+	Accept bool `json:"accept"`
+}
+
+// MangaScanReviewResult reports what a review did.
+type MangaScanReviewResult struct {
+	Applied   int `json:"applied"`
+	Dismissed int `json:"dismissed"`
+}
+
+// ApplyMangaScanReview carries out the decisions made about a scan's proposed matches.
+//
+// Accepting is the same act the Link dialog performs — the folder is mapped to the AniList entry and
+// the local series it had been standing in as is removed. Dismissing writes nothing: the folder
+// keeps the local series it already has, which the metadata backfill describes from the provider.
+func ApplyMangaScanReview(database *db.Database, decisions []MangaScanReviewDecision) *MangaScanReviewResult {
+	result := &MangaScanReviewResult{}
+	if database == nil {
+		return result
+	}
+
+	for _, decision := range decisions {
+		folderName := strings.TrimSpace(decision.FolderName)
+		if folderName == "" {
+			continue
+		}
+
+		if !decision.Accept {
+			result.Dismissed++
+			continue
+		}
+		if decision.MediaID <= 0 {
+			continue
+		}
+
+		applyScanMatch(database, folderName, decision.MediaID, true)
+		result.Applied++
+	}
+
+	return result
+}
+
+// applyScanMatch records a folder as being a given AniList series.
+func applyScanMatch(database *db.Database, folderName string, mediaID int, forceRematch bool) {
+	if forceRematch {
+		_ = database.DeleteMangaMapping("local", mediaID)
+	}
+	_ = database.InsertMangaMapping("local", mediaID, folderName)
+
+	// A folder that has found its series is no longer a series of its own. Without this the
+	// synthetic entry written by an earlier failed scan survives the match and the manga goes on
+	// being listed as synthetic beside the real one it has just been matched to.
+	if synthetic, found := database.GetSyntheticMangaByProviderID("local", folderName); found && synthetic != nil {
+		_ = database.DeleteSyntheticManga(synthetic.SyntheticID)
+	}
+}
+
+// ensureSyntheticEntry gives a folder a local series record if it does not have one, and reports its
+// ID. Zero when one could not be written.
+func ensureSyntheticEntry(database *db.Database, folderName string, chapterCount int) int {
+	if existing, found := database.GetSyntheticMangaByProviderID("local", folderName); found && existing != nil {
+		return existing.SyntheticID
+	}
+
+	syntheticID := generateSyntheticID(folderName)
+	if err := database.InsertSyntheticManga(&models.SyntheticManga{
+		SyntheticID: syntheticID,
+		Title:       folderName,
+		Provider:    "local",
+		ProviderID:  folderName,
+		Status:      "RELEASING",
+		Chapters:    chapterCount,
+	}); err != nil {
+		return 0
+	}
+	return syntheticID
+}
+
+// rankScanCandidates scores every entry the search returned against the folder's name, best first.
+//
+// Each entry is scored against the folder's real name and against the stripped one, keeping
+// whichever does better. Neither is reliably the closer of the two: a title whose punctuation
+// AniList also carries matches the raw name best, while a folder that merely borrowed some
+// punctuation matches the stripped one. Trying both is free — the results are already in hand — and
+// the better score is the better answer.
+func rankScanCandidates(media []*anilist.BaseManga, rawName string, cleanedName string) []MangaScanCandidate {
+	candidates := make([]MangaScanCandidate, 0, len(media))
+
+	for _, m := range media {
+		if m == nil {
+			continue
+		}
+		// Every name AniList knows this series by, not only the three main ones.
+		//
+		// Synonyms are where the alternative spellings, the abbreviations and the alternate
+		// romanisations live — and they are exactly what a folder tends to be named after, because
+		// whoever made the folder named it after the release, not after AniList's preferred title.
+		// Leaving them out meant a series whose folder used any name but the main three could not be
+		// matched at all, however obviously right it was.
+		//
+		// The native title is included for the same reason: a folder named in Japanese matched nothing
+		// before.
+		var names []*string
+		if m.Title != nil {
+			for _, tp := range []*string{m.Title.Romaji, m.Title.English, m.Title.UserPreferred, m.Title.Native} {
+				if tp != nil && *tp != "" {
+					name := *tp
+					names = append(names, &name)
+				}
+			}
+		}
+		for _, syn := range m.Synonyms {
+			if syn != nil && *syn != "" {
+				name := *syn
+				names = append(names, &name)
+			}
+		}
+		if len(names) == 0 {
+			continue
+		}
+
+		confidence := 0.0
+		if best, found := comparison.FindBestMatchWithSorensenDice(&rawName, names); found {
+			confidence = best.Rating
+		}
+		if cleanedName != "" && cleanedName != rawName {
+			if best, found := comparison.FindBestMatchWithSorensenDice(&cleanedName, names); found && best.Rating > confidence {
+				confidence = best.Rating
+			}
+		}
+
+		candidate := MangaScanCandidate{
+			MediaID:    m.ID,
+			Confidence: confidence,
+		}
+		if m.Title != nil && m.Title.UserPreferred != nil {
+			candidate.Title = *m.Title.UserPreferred
+		}
+		if candidate.Title == "" {
+			candidate.Title = *names[0]
+		}
+		if m.CoverImage != nil {
+			switch {
+			case m.CoverImage.Large != nil && *m.CoverImage.Large != "":
+				candidate.CoverImage = *m.CoverImage.Large
+			case m.CoverImage.Medium != nil:
+				candidate.CoverImage = *m.CoverImage.Medium
+			}
+		}
+		if m.Format != nil {
+			candidate.Format = string(*m.Format)
+		}
+		if m.Status != nil {
+			candidate.Status = string(*m.Status)
+		}
+		if m.Chapters != nil {
+			candidate.Chapters = *m.Chapters
+		}
+
+		candidates = append(candidates, candidate)
+	}
+
+	// Left uncapped and merely ordered: the caller pools the results of several searches before
+	// deciding what to keep, and trimming here would throw away a candidate that a later query is
+	// about to confirm.
+	slices.SortStableFunc(candidates, func(a, b MangaScanCandidate) int {
+		return cmp.Compare(b.Confidence, a.Confidence)
+	})
+
+	return candidates
 }
 
 func cleanMangaTitle(title string) string {

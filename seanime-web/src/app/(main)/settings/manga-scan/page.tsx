@@ -1,8 +1,14 @@
 "use client"
 
-import { useGetMangaScanResult, useMangaScanManualLink, useScanMangaDirectories } from "@/api/hooks/manga-scan.hooks"
+import {
+    useGetMangaScanResult,
+    useMangaScanManualLink,
+    useResolveMangaScanReview,
+    useScanMangaDirectories,
+    useSuggestMangaScanMatches,
+} from "@/api/hooks/manga-scan.hooks"
 import { useAnilistListManga } from "@/api/hooks/manga.hooks"
-import { AL_BaseManga } from "@/api/generated/types"
+import { AL_BaseManga, Manga_MangaScanCandidate, Manga_MangaScanFolder } from "@/api/generated/types"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { PageWrapper } from "@/components/shared/page-wrapper"
@@ -15,7 +21,7 @@ import { WSEvents } from "@/lib/server/ws-events"
 import { useQueryClient } from "@tanstack/react-query"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import React from "react"
-import { LuCheck, LuFolderSearch, LuLink, LuSearch, LuX } from "react-icons/lu"
+import { LuCheck, LuEye, LuFolderSearch, LuLink, LuSearch, LuX } from "react-icons/lu"
 import { toast } from "sonner"
 
 type ScanProgress = {
@@ -32,6 +38,9 @@ export default function Page() {
     const [progress, setProgress] = React.useState<ScanProgress | null>(null)
     const [isRunning, setIsRunning] = React.useState(false)
     const [forceRematch, setForceRematch] = React.useState(false)
+    // On by default: a wrong link is close to invisible once made, and looking down a list of
+    // proposals costs a minute where finding one by accident costs months.
+    const [reviewMatches, setReviewMatches] = React.useState(true)
 
     useWebsocketMessageListener<ScanProgress>({
         type: WSEvents.MANGA_SCAN_PROGRESS,
@@ -53,10 +62,11 @@ export default function Page() {
 
     const handleScan = () => {
         setIsRunning(true)
-        triggerScan({ forceRematch })
+        triggerScan({ forceRematch, reviewMatches })
     }
 
     const matched = scanResult?.scannedFolders?.filter(f => f.status === "matched") ?? []
+    const pendingReview = scanResult?.scannedFolders?.filter(f => f.status === "pending-review") ?? []
     const unmatched = scanResult?.scannedFolders?.filter(f => f.status === "unmatched") ?? []
     const skipped = scanResult?.scannedFolders?.filter(f => f.status === "skipped") ?? []
 
@@ -82,6 +92,15 @@ export default function Page() {
                                 className="rounded"
                             />
                             Force rematch all
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-[--muted] cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={reviewMatches}
+                                onChange={(e) => setReviewMatches(e.target.checked)}
+                                className="rounded"
+                            />
+                            Review matches before applying
                         </label>
                         <Button
                             onClick={handleScan}
@@ -117,6 +136,11 @@ export default function Page() {
                         <Badge intent="success" size="lg">
                             <LuCheck className="mr-1" /> {scanResult.matchedCount ?? 0} Matched
                         </Badge>
+                        {!!scanResult.pendingReviewCount && (
+                            <Badge intent="primary" size="lg">
+                                <LuEye className="mr-1" /> {scanResult.pendingReviewCount} Awaiting review
+                            </Badge>
+                        )}
                         <Badge intent="warning" size="lg">
                             <LuX className="mr-1" /> {scanResult.unmatchedCount ?? 0} Unmatched
                         </Badge>
@@ -124,6 +148,11 @@ export default function Page() {
                             {scanResult.skippedCount ?? 0} Skipped
                         </Badge>
                     </div>
+                )}
+
+                {/* Awaiting review — proposed matches that have not been applied to anything yet */}
+                {pendingReview.length > 0 && (
+                    <ReviewSection folders={pendingReview} onResolved={() => refetch()} />
                 )}
 
                 {/* Matched */}
@@ -215,6 +244,175 @@ export default function Page() {
 
 // -------------------------------------------------------------------------------------
 
+/**
+ * The proposals a scan made and did not act on.
+ *
+ * Nothing here has been written: each folder still has the local series it always had, and accepting
+ * a row is what turns it into a link. Rejecting one writes nothing either — it just leaves the
+ * folder as its own series, which the server describes from the manga provider in the background.
+ */
+function ReviewSection({ folders, onResolved }: { folders: Manga_MangaScanFolder[], onResolved: () => void }) {
+    const queryClient = useQueryClient()
+    const { mutate: resolve, isPending } = useResolveMangaScanReview()
+
+    // The candidate chosen for each folder — the proposal unless the user picked another.
+    const [chosen, setChosen] = React.useState<Record<string, number>>({})
+
+    const chosenFor = (folder: Manga_MangaScanFolder) => chosen[folder.folderName!] ?? folder.matchedMediaId!
+
+    const submit = (decisions: { folderName: string, mediaId: number, accept: boolean }[]) => {
+        if (!decisions.length) return
+        resolve({ decisions }, {
+            onSuccess: (res) => {
+                const applied = res?.applied ?? 0
+                const dismissed = res?.dismissed ?? 0
+                toast.success(
+                    [applied ? `Linked ${applied}` : null, dismissed ? `dismissed ${dismissed}` : null]
+                        .filter(Boolean).join(", "),
+                )
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA_SCAN.GetMangaScanResult.key] })
+                onResolved()
+            },
+        })
+    }
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                    <h2 className="text-lg font-semibold text-brand-300">Awaiting review</h2>
+                    <p className="text-sm text-[--muted]">
+                        Nothing below has been linked yet. Accept a match to file the folder under it, or dismiss it to
+                        leave the folder as its own series.
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        size="sm"
+                        intent="success"
+                        leftIcon={<LuCheck />}
+                        loading={isPending}
+                        onClick={() => submit(folders.map(f => ({
+                            folderName: f.folderName!,
+                            mediaId: chosenFor(f),
+                            accept: true,
+                        })))}
+                    >
+                        Accept all
+                    </Button>
+                    <Button
+                        size="sm"
+                        intent="alert-subtle"
+                        leftIcon={<LuX />}
+                        loading={isPending}
+                        onClick={() => submit(folders.map(f => ({ folderName: f.folderName!, mediaId: 0, accept: false })))}
+                    >
+                        Dismiss all
+                    </Button>
+                </div>
+            </div>
+
+            <div className="grid gap-2">
+                {folders.map((folder) => (
+                    <ReviewRow
+                        key={folder.folderName}
+                        folder={folder}
+                        chosenMediaId={chosenFor(folder)}
+                        onChoose={(mediaId) => setChosen(prev => ({ ...prev, [folder.folderName!]: mediaId }))}
+                        isPending={isPending}
+                        onAccept={() => submit([{ folderName: folder.folderName!, mediaId: chosenFor(folder), accept: true }])}
+                        onDismiss={() => submit([{ folderName: folder.folderName!, mediaId: 0, accept: false }])}
+                    />
+                ))}
+            </div>
+        </div>
+    )
+}
+
+type ReviewRowProps = {
+    folder: Manga_MangaScanFolder
+    chosenMediaId: number
+    onChoose: (mediaId: number) => void
+    isPending: boolean
+    onAccept: () => void
+    onDismiss: () => void
+}
+
+function ReviewRow({ folder, chosenMediaId, onChoose, isPending, onAccept, onDismiss }: ReviewRowProps) {
+    // The runners-up are already in hand from the scan, so correcting a wrong proposal costs nothing
+    // and needs no second search.
+    const [showOthers, setShowOthers] = React.useState(false)
+
+    const candidates = folder.candidates ?? []
+    const chosen: Manga_MangaScanCandidate | undefined =
+        candidates.find(c => c.mediaId === chosenMediaId) ?? candidates[0]
+    const others = candidates.filter(c => c.mediaId !== chosen?.mediaId)
+    const confidence = Math.round((chosen?.confidence ?? folder.confidence ?? 0) * 100)
+
+    return (
+        <div className="rounded-lg border border-brand-900/40 bg-gray-900 p-3 space-y-3">
+            <div className="flex items-center gap-4">
+                {!!chosen?.coverImage && (
+                    <img src={chosen.coverImage} alt="" className="size-12 rounded object-cover flex-shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{folder.folderName}</p>
+                    <p className="text-sm text-[--muted] truncate">
+                        → {chosen?.title ?? folder.matchedTitle}
+                        {!!chosen?.format && <span className="opacity-70"> · {chosen.format}</span>}
+                        {!!chosen?.chapters && <span className="opacity-70"> · {chosen.chapters} ch</span>}
+                    </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    <Badge intent={confidence >= 85 ? "success" : confidence >= 65 ? "warning" : "gray"} size="sm">
+                        {confidence}%
+                    </Badge>
+                    {folder.chapterCount > 0 && <span className="text-xs text-[--muted]">{folder.chapterCount} ch</span>}
+                    <Button size="sm" intent="success" leftIcon={<LuCheck />} loading={isPending} onClick={onAccept}>
+                        Accept
+                    </Button>
+                    <Button size="sm" intent="alert-subtle" leftIcon={<LuX />} loading={isPending} onClick={onDismiss}>
+                        Dismiss
+                    </Button>
+                </div>
+            </div>
+
+            {others.length > 0 && (
+                <div className="space-y-2">
+                    <button
+                        type="button"
+                        className="text-xs text-[--muted] hover:text-white transition-colors"
+                        onClick={() => setShowOthers(v => !v)}
+                    >
+                        {showOthers ? "Hide" : `Not right? ${others.length} other ${others.length === 1 ? "match" : "matches"}`}
+                    </button>
+
+                    {showOthers && (
+                        <div className="grid gap-1 pl-2 border-l border-gray-800">
+                            {others.map((candidate) => (
+                                <button
+                                    key={candidate.mediaId}
+                                    type="button"
+                                    className="flex items-center gap-3 rounded p-1.5 text-left hover:bg-gray-800 transition-colors"
+                                    onClick={() => onChoose(candidate.mediaId!)}
+                                >
+                                    {!!candidate.coverImage && (
+                                        <img src={candidate.coverImage} alt="" className="size-8 rounded object-cover flex-shrink-0" />
+                                    )}
+                                    <span className="flex-1 min-w-0 truncate text-sm">{candidate.title}</span>
+                                    <span className="text-xs text-[--muted]">{Math.round((candidate.confidence ?? 0) * 100)}%</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    )
+}
+
+// -------------------------------------------------------------------------------------
+
 type UnmatchedRowProps = {
     folder: { folderName: string; chapterCount: number; matchedMediaId: number; isSynthetic: boolean }
     onLinked: () => void
@@ -275,6 +473,21 @@ function AniListSearchModal({ isOpen, onClose, folderName, onLinked }: AniListSe
 
     const { mutate: manualLink, isPending } = useMangaScanManualLink()
 
+    // The same search the scan makes: the whole folder name, then the name without the release
+    // furniture, then each side of its separators, then the alternative titles the manga provider
+    // lists for it. A folder named after anything but the AniList title used to open this dialog to
+    // an empty list and leave the user guessing at shorter names by hand.
+    const { mutate: suggest, data, isPending: isSuggesting, reset: resetSuggestions } = useSuggestMangaScanMatches()
+    const suggestions: Manga_MangaScanCandidate[] = data ?? []
+
+    React.useEffect(() => {
+        if (!isOpen) {
+            resetSuggestions()
+            return
+        }
+        suggest({ title: folderName })
+    }, [isOpen, folderName])
+
     const handleSearch = () => {
         setSearchQuery(query)
     }
@@ -290,9 +503,59 @@ function AniListSearchModal({ isOpen, onClose, folderName, onLinked }: AniListSe
         })
     }
 
+    const handleLinkCandidate = (candidate: Manga_MangaScanCandidate) => {
+        manualLink({ folderName, mediaId: candidate.mediaId! }, {
+            onSuccess: () => {
+                toast.success(`Linked "${folderName}" to "${candidate.title}"`)
+                queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA_SCAN.GetMangaScanResult.key] })
+                onLinked()
+                onClose()
+            },
+        })
+    }
+
     return (
         <Modal open={isOpen} onOpenChange={(open) => !open && onClose()} title={`Link: ${folderName}`} contentClass="max-w-2xl">
             <div className="space-y-4">
+                {/* Suggestions, found before anybody typed anything */}
+                {(isSuggesting || suggestions.length > 0) && (
+                    <div className="space-y-2">
+                        <p className="text-sm font-medium text-[--muted]">
+                            Suggestions {isSuggesting && <span className="opacity-70">· searching…</span>}
+                        </p>
+                        {isSuggesting && suggestions.length === 0 && <LoadingSpinner containerClass="py-2" />}
+                        {suggestions.map((candidate) => (
+                            <div
+                                key={candidate.mediaId}
+                                className="flex items-center gap-3 rounded-lg border border-brand-900/40 bg-gray-900 p-2"
+                            >
+                                {!!candidate.coverImage && (
+                                    <img src={candidate.coverImage} alt="" className="size-12 rounded object-cover flex-shrink-0" />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate text-sm">{candidate.title}</p>
+                                    <p className="text-xs text-[--muted]">
+                                        {candidate.format} · {candidate.status}
+                                        {candidate.chapters ? ` · ${candidate.chapters} ch` : ""}
+                                    </p>
+                                </div>
+                                <Badge intent={(candidate.confidence ?? 0) >= 0.85 ? "success" : "gray"} size="sm">
+                                    {Math.round((candidate.confidence ?? 0) * 100)}%
+                                </Badge>
+                                <Button
+                                    size="sm"
+                                    intent="success"
+                                    leftIcon={<LuLink />}
+                                    onClick={() => handleLinkCandidate(candidate)}
+                                    loading={isPending}
+                                >
+                                    Link
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 <div className="flex gap-2">
                     <TextInput
                         value={query}

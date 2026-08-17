@@ -318,6 +318,15 @@
 //     })
 // }
 
+// export function useGetAnilistAvailability() {
+//     return useServerQuery<AL_Availability>({
+//         endpoint: API_ENDPOINTS.ANILIST.GetAnilistAvailability.endpoint,
+//         method: API_ENDPOINTS.ANILIST.GetAnilistAvailability.methods[0],
+//         queryKey: [API_ENDPOINTS.ANILIST.GetAnilistAvailability.key],
+//         enabled: true,
+//     })
+// }
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // anilist_planning
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1461,6 +1470,50 @@
 //     })
 // }
 
+// export function useRewalkEnqueueFutureFamilies() {
+//     return useServerMutation<number>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.RewalkEnqueueFutureFamilies.endpoint,
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.RewalkEnqueueFutureFamilies.methods[0],
+//         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.RewalkEnqueueFutureFamilies.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useRemoveEnqueueFuturePendingRoot() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.RemoveEnqueueFuturePendingRoot.endpoint,
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.RemoveEnqueueFuturePendingRoot.methods[0],
+//         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.RemoveEnqueueFuturePendingRoot.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useClearEnqueueFuturePendingRoots() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFuturePendingRoots.endpoint,
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFuturePendingRoots.methods[0],
+//         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFuturePendingRoots.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useClearEnqueueFutureRewalkBacklog() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFutureRewalkBacklog.endpoint,
+//         method: API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFutureRewalkBacklog.methods[0],
+//         mutationKey: [API_ENDPOINTS.ENQUEUE_FUTURE.ClearEnqueueFutureRewalkBacklog.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // entity_favorite
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2558,6 +2611,28 @@
 //     })
 // }
 
+// export function useSuggestMangaScanMatches() {
+//     return useServerMutation<Array<Manga_MangaScanCandidate>, SuggestMangaScanMatches_Variables>({
+//         endpoint: API_ENDPOINTS.MANGA_SCAN.SuggestMangaScanMatches.endpoint,
+//         method: API_ENDPOINTS.MANGA_SCAN.SuggestMangaScanMatches.methods[0],
+//         mutationKey: [API_ENDPOINTS.MANGA_SCAN.SuggestMangaScanMatches.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useResolveMangaScanReview() {
+//     return useServerMutation<Manga_MangaScanReviewResult, ResolveMangaScanReview_Variables>({
+//         endpoint: API_ENDPOINTS.MANGA_SCAN.ResolveMangaScanReview.endpoint,
+//         method: API_ENDPOINTS.MANGA_SCAN.ResolveMangaScanReview.methods[0],
+//         mutationKey: [API_ENDPOINTS.MANGA_SCAN.ResolveMangaScanReview.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
 // export function useMangaScanManualLink() {
 //     return useServerMutation<boolean, MangaScanManualLink_Variables>({
 //         endpoint: API_ENDPOINTS.MANGA_SCAN.MangaScanManualLink.endpoint,
@@ -3066,6 +3141,17 @@
 //         method: API_ENDPOINTS.PLANNING_SLUT.GetPlanningSlutInfo.methods[0],
 //         queryKey: [API_ENDPOINTS.PLANNING_SLUT.GetPlanningSlutInfo.key],
 //         enabled: true,
+//     })
+// }
+
+// export function usePlanningSlutBackfillLibrary() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.PLANNING_SLUT.PlanningSlutBackfillLibrary.endpoint,
+//         method: API_ENDPOINTS.PLANNING_SLUT.PlanningSlutBackfillLibrary.methods[0],
+//         mutationKey: [API_ENDPOINTS.PLANNING_SLUT.PlanningSlutBackfillLibrary.key],
+//         onSuccess: async () => {
+// 
+//         },
 //     })
 // }
 
@@ -4176,6 +4262,21 @@
 //         endpoint: API_ENDPOINTS.TORRENT_CLIENT.TorrentClientAddMagnetFromRule.endpoint,
 //         method: API_ENDPOINTS.TORRENT_CLIENT.TorrentClientAddMagnetFromRule.methods[0],
 //         mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.TorrentClientAddMagnetFromRule.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// torrent_contents
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetTorrentContents() {
+//     return useServerMutation<Record<string, TorrentContents>, GetTorrentContents_Variables>({
+//         endpoint: API_ENDPOINTS.TORRENT_CONTENTS.GetTorrentContents.endpoint,
+//         method: API_ENDPOINTS.TORRENT_CONTENTS.GetTorrentContents.methods[0],
+//         mutationKey: [API_ENDPOINTS.TORRENT_CONTENTS.GetTorrentContents.key],
 //         onSuccess: async () => {
 // 
 //         },

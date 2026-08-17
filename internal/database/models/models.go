@@ -695,6 +695,13 @@ type SyntheticManga struct {
 	Description string `gorm:"column:description;type:text" json:"description"`
 	Status      string `gorm:"column:status" json:"status"`     // e.g., "RELEASING", "FINISHED"
 	Chapters    int    `gorm:"column:chapters" json:"chapters"` // Total chapter count if known
+	// The rest is what the provider's series page says about the manga beyond a title and a cover.
+	// A synthetic entry is a series AniList has no record of, so this is the only description of it
+	// the app will ever have — see internal/manga/metadata_backfill.go.
+	Year     int    `gorm:"column:year" json:"year"`                   // Release year, 0 if unknown
+	Genres   string `gorm:"column:genres" json:"genres"`               // Comma-separated
+	Synonyms string `gorm:"column:synonyms;type:text" json:"synonyms"` // Comma-separated alternative titles
+	Authors  string `gorm:"column:authors" json:"authors"`             // Comma-separated
 }
 
 type MangaChapterContainer struct {

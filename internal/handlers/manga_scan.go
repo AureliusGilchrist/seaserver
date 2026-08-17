@@ -25,6 +25,9 @@ var (
 func (h *Handler) HandleScanMangaDirectories(c echo.Context) error {
 	type body struct {
 		ForceRematch bool `json:"forceRematch"`
+		// ReviewMatches proposes the matches instead of applying them, for the user to accept or
+		// dismiss through /api/v1/manga/scan/review.
+		ReviewMatches bool `json:"reviewMatches"`
 	}
 
 	b := new(body)
@@ -70,6 +73,7 @@ func (h *Handler) HandleScanMangaDirectories(c echo.Context) error {
 			localDir,
 			downloadDir,
 			b.ForceRematch,
+			b.ReviewMatches,
 			h.App.MangaRepository.GetDatabase(),
 			h.App.WSEventManager,
 			h.App.Logger,
@@ -103,6 +107,117 @@ func (h *Handler) HandleGetMangaScanResult(c echo.Context) error {
 	}
 
 	return h.RespondWithData(c, mangaScanResultCache)
+}
+
+// HandleSuggestMangaScanMatches
+//
+//	@summary returns the AniList entries a folder name might refer to, best first.
+//	@desc Searches AniList the same way the scan does — the whole name first, then the name with the
+//	@desc release furniture removed, then each side of its separators, then its opening words, and
+//	@desc finally the alternative titles the manga provider lists for it.
+//	@desc Used by the Link dialog so a folder opens with candidates already found.
+//	@route /api/v1/manga/scan/suggest [POST]
+//	@returns []manga.MangaScanCandidate
+func (h *Handler) HandleSuggestMangaScanMatches(c echo.Context) error {
+	type body struct {
+		Title string `json:"title"`
+	}
+
+	b := new(body)
+	if err := c.Bind(b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	if b.Title == "" {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "title is required"))
+	}
+
+	candidates, err := manga.SuggestMangaMatches(c.Request().Context(), b.Title, h.App.Logger)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	return h.RespondWithData(c, candidates)
+}
+
+// HandleResolveMangaScanReview
+//
+//	@summary applies the decisions made about a scan's proposed matches.
+//	@desc Accepting a proposal links the folder to the AniList entry and removes the local series it
+//	@desc was standing in as. Dismissing one leaves the folder exactly as it is.
+//	@desc The media ID may be any of the candidates the scan offered for that folder, not only the
+//	@desc one it proposed.
+//	@route /api/v1/manga/scan/review [POST]
+//	@returns manga.MangaScanReviewResult
+func (h *Handler) HandleResolveMangaScanReview(c echo.Context) error {
+	type body struct {
+		Decisions []manga.MangaScanReviewDecision `json:"decisions"`
+	}
+
+	b := new(body)
+	if err := c.Bind(b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	if len(b.Decisions) == 0 {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "decisions are required"))
+	}
+
+	result := manga.ApplyMangaScanReview(h.App.MangaRepository.GetDatabase(), b.Decisions)
+
+	// Fold the decisions into the cached scan result, so the review page reflects them without
+	// having to scan again — which would be a fresh run of AniList searches to learn what the user
+	// just told us.
+	decided := make(map[string]manga.MangaScanReviewDecision, len(b.Decisions))
+	for _, decision := range b.Decisions {
+		decided[decision.FolderName] = decision
+	}
+
+	mangaScanResultMu.Lock()
+	if mangaScanResultCache != nil {
+		for i, folder := range mangaScanResultCache.ScannedFolders {
+			decision, ok := decided[folder.FolderName]
+			if !ok || folder.Status != manga.ScanStatusPendingReview {
+				continue
+			}
+
+			mangaScanResultCache.PendingReviewCount--
+			mangaScanResultCache.ScannedFolders[i].Candidates = nil
+
+			if decision.Accept && decision.MediaID > 0 {
+				mangaScanResultCache.ScannedFolders[i].Status = manga.ScanStatusMatched
+				mangaScanResultCache.ScannedFolders[i].MatchedMediaID = decision.MediaID
+				mangaScanResultCache.ScannedFolders[i].IsSynthetic = false
+				// The title and cover already on the row belong to whichever candidate was chosen.
+				for _, candidate := range folder.Candidates {
+					if candidate.MediaID == decision.MediaID {
+						mangaScanResultCache.ScannedFolders[i].MatchedTitle = candidate.Title
+						mangaScanResultCache.ScannedFolders[i].MatchedImage = candidate.CoverImage
+						mangaScanResultCache.ScannedFolders[i].Confidence = candidate.Confidence
+						break
+					}
+				}
+				mangaScanResultCache.MatchedCount++
+			} else {
+				mangaScanResultCache.ScannedFolders[i].Status = manga.ScanStatusUnmatched
+				mangaScanResultCache.ScannedFolders[i].MatchedTitle = ""
+				mangaScanResultCache.ScannedFolders[i].MatchedImage = ""
+				mangaScanResultCache.ScannedFolders[i].Confidence = 0
+				mangaScanResultCache.ScannedFolders[i].IsSynthetic = true
+				// Back to being its own series — the row points at the local entry again, not at
+				// the AniList one that was proposed and turned down.
+				mangaScanResultCache.ScannedFolders[i].MatchedMediaID = 0
+				if synthetic, found := h.App.MangaRepository.GetDatabase().
+					GetSyntheticMangaByProviderID("local", folder.FolderName); found && synthetic != nil {
+					mangaScanResultCache.ScannedFolders[i].MatchedMediaID = synthetic.SyntheticID
+				}
+				mangaScanResultCache.UnmatchedCount++
+			}
+		}
+	}
+	mangaScanResultMu.Unlock()
+
+	return h.RespondWithData(c, result)
 }
 
 // HandleMangaScanManualLink

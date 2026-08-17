@@ -21,6 +21,7 @@ import type {
     HibikeTorrent_AnimeTorrent,
     HibikeTorrent_BatchEpisodeFiles,
     LibraryExplorer_SuperUpdateFileOptions,
+    Manga_MangaScanReviewDecision,
     Mediastream_StreamType,
     Models_AnilistSettings,
     Models_DebridSettings,
@@ -1048,6 +1049,10 @@ export type DownloadMacDenshiUpdate_Variables = {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// download_badge_test
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // easter_egg
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1782,6 +1787,36 @@ export type BulkAddMangaFavorites_Variables = {
  */
 export type ScanMangaDirectories_Variables = {
     forceRematch: boolean
+    /**
+     *  ReviewMatches proposes the matches instead of applying them, for the user to accept or
+     *  dismiss through /api/v1/manga/scan/review.
+     *  
+     *  ReviewMatches proposes the matches instead of applying them, for the user to accept or
+     *  dismiss through /api/v1/manga/scan/review.
+     */
+    reviewMatches: boolean
+}
+
+/**
+ * - Filepath: internal/handlers/manga_scan.go
+ * - Filename: manga_scan.go
+ * - Endpoint: /api/v1/manga/scan/suggest
+ * @description
+ * Route returns the AniList entries a folder name might refer to, best first.
+ */
+export type SuggestMangaScanMatches_Variables = {
+    title: string
+}
+
+/**
+ * - Filepath: internal/handlers/manga_scan.go
+ * - Filename: manga_scan.go
+ * - Endpoint: /api/v1/manga/scan/review
+ * @description
+ * Route applies the decisions made about a scan's proposed matches.
+ */
+export type ResolveMangaScanReview_Variables = {
+    decisions: Array<Manga_MangaScanReviewDecision>
 }
 
 /**
@@ -2105,6 +2140,10 @@ export type RemoveOnlinestreamMapping_Variables = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// pagination
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // planning_slut
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2366,6 +2405,10 @@ export type SetDisplayCosmetics_Variables = {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // proxy
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// proxy_test
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2719,13 +2762,28 @@ export type TorrentClientDownload_Variables = {
      */
     autoMatch?: boolean
     /**
-     *  AutoMatchByTorrent overrides autoMatch for individual torrents, keyed by torrent link.
-     *  Anything not named here takes autoMatch.
+     *  AutoMatchByTorrent overrides AutoMatch for individual torrents, keyed by the torrent's
+     *  link. A request may mix the two: whatever is not named here takes AutoMatch.
+     *  
+     *  Per torrent because the choice is per torrent. One batch may hold a release you trust
+     *  enough to file itself and another you want to look at first, and forcing one answer for
+     *  the whole selection meant either reviewing what needed no review or auto-filing what did.
+     *  
+     *  AutoMatchByTorrent overrides AutoMatch for individual torrents, keyed by the torrent's
+     *  link. A request may mix the two: whatever is not named here takes AutoMatch.
+     *  Per torrent because the choice is per torrent. One batch may hold a release you trust
+     *  enough to file itself and another you want to look at first, and forcing one answer for
+     *  the whole selection meant either reviewing what needed no review or auto-filing what did.
      */
     autoMatchByTorrent?: Record<string, boolean>
     /**
      *  MatchSeasonOneOnly narrows the automatic match to the download's first season, for the
-     *  batches that carry more than one. Meaningless without autoMatch, and ignored when it is off.
+     *  batches that carry more than one. Meaningless without AutoMatch, and ignored when it is
+     *  off — the UI greys the toggle out for the same reason.
+     *  
+     *  MatchSeasonOneOnly narrows the automatic match to the download's first season, for the
+     *  batches that carry more than one. Meaningless without AutoMatch, and ignored when it is
+     *  off — the UI greys the toggle out for the same reason.
      */
     matchSeasonOneOnly?: boolean
 }
@@ -2741,6 +2799,23 @@ export type TorrentClientAddMagnetFromRule_Variables = {
     magnetUrl: string
     ruleId: number
     queuedItemId: number
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// torrent_contents
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * - Filepath: internal/handlers/torrent_contents.go
+ * - Filename: torrent_contents.go
+ * - Endpoint: /api/v1/torrent/contents
+ * @description
+ * Route returns how many files and folders each torrent holds.
+ */
+export type GetTorrentContents_Variables = {
+    // The handler declares this item type inside the function, which the generator cannot name, so
+    // it is written out structurally here. Keep in step with internal/handlers/torrent_contents.go.
+    torrents: Array<{ infoHash: string, downloadUrl: string }>
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2891,6 +2966,25 @@ export type GetUnmatchedTorrentContents_Variables = {
  */
 export type UnmatchedFamilySearch_Variables = {
     animeId: number
+    /**
+     *  Shallow walks one node and stops: the anime asked for, plus its direct relations as
+     *  entries that are not themselves walked.
+     *  
+     *  This is what lets the picker fill in as it goes. The whole-franchise walk is one request
+     *  per node made back to back, so a large family is minutes of a modal showing a spinner and
+     *  nothing else. Asked for one node at a time, the client draws the root immediately, then
+     *  each branch as it arrives, and can say which parts it is still waiting on. Same endpoint,
+     *  same shape of answer — the client is simply doing the walking.
+     *  
+     *  Shallow walks one node and stops: the anime asked for, plus its direct relations as
+     *  entries that are not themselves walked.
+     *  This is what lets the picker fill in as it goes. The whole-franchise walk is one request
+     *  per node made back to back, so a large family is minutes of a modal showing a spinner and
+     *  nothing else. Asked for one node at a time, the client draws the root immediately, then
+     *  each branch as it arrives, and can say which parts it is still waiting on. Same endpoint,
+     *  same shape of answer — the client is simply doing the walking.
+     */
+    shallow?: boolean
 }
 
 /**

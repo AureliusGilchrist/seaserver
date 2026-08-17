@@ -143,29 +143,5 @@ func NewEntry(ctx context.Context, opts *NewEntryOptions) (entry *Entry, err err
 
 // createBaseMangaFromSyntheticEntry creates a BaseManga object from a SyntheticManga entry
 func createBaseMangaFromSyntheticEntry(sm *models.SyntheticManga) *anilist.BaseManga {
-	status := anilist.MediaStatusReleasing
-	if sm.Status == "FINISHED" {
-		status = anilist.MediaStatusFinished
-	}
-
-	format := anilist.MediaFormatManga
-
-	return &anilist.BaseManga{
-		ID: sm.SyntheticID,
-		Title: &anilist.BaseManga_Title{
-			Romaji:        &sm.Title,
-			English:       &sm.Title,
-			UserPreferred: &sm.Title,
-		},
-		CoverImage: &anilist.BaseManga_CoverImage{
-			Large:      &sm.CoverImage,
-			ExtraLarge: &sm.CoverImage,
-			Medium:     &sm.CoverImage,
-		},
-		BannerImage: &sm.CoverImage,
-		Description: &sm.Description,
-		Status:      &status,
-		Format:      &format,
-		Chapters:    &sm.Chapters,
-	}
+	return SyntheticBaseManga(sm)
 }

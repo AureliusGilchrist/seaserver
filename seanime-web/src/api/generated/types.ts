@@ -580,6 +580,19 @@ export type AL_AnimeStats = {
 }
 
 /**
+ * - Filepath: internal/api/anilist/availability.go
+ * - Filename: availability.go
+ * - Package: anilist
+ * @description
+ *  Availability is what the app shows the user about AniList's state.
+ */
+export type AL_Availability = {
+    available: boolean
+    message?: string
+    since?: string
+}
+
+/**
  * - Filepath: internal/api/anilist/client_gen.go
  * - Filename: client_gen.go
  * - Package: anilist
@@ -2752,19 +2765,25 @@ export type EnqueueFuture_Item = {
     title: string
     coverImage: string
     totalSeeders: number
-    /** Place in the franchise's running order: year*10 + season index, or 0 when unknown. */
-    airedAt?: number
-    /** How this entry relates to the one it was discovered from: SEQUEL, PREQUEL, SIDE_STORY, OTHER… */
+    airedAt: number
     relationType?: string
-    /** The entry it was discovered from. */
     parentMediaId?: number
     createdAt?: string
     snapshot?: EnqueueFuture_Snapshot
-    /**
-     * What has already happened to this anime outside the queue: "downloading", "downloaded",
-     * "matched", or absent for one nothing has been done with yet. The queue greys these out.
-     */
     downloadState?: string
+}
+
+/**
+ * - Filepath: internal/enqueuefuture/pending_roots.go
+ * - Filename: pending_roots.go
+ * - Package: enqueuefuture
+ * @description
+ *  PendingRootInfo is one waiting anime as the screen sees it.
+ */
+export type EnqueueFuture_PendingRootInfo = {
+    mediaId: number
+    title: string
+    queuedAt?: string
 }
 
 /**
@@ -2826,11 +2845,8 @@ export type EnqueueFuture_Status = {
     skipped: number
     families: number
     cap: number
-    /** How many anime are queued behind this run, each walked in turn once it finishes. */
     pendingRoots?: number
-    /** That queue itself, in the order it will be walked. */
-    pendingRootList?: Array<{ mediaId: number, title: string, queuedAt?: string }>
-    /** How many franchises are queued to be walked again, on their own separate backlog. */
+    pendingRootList?: Array<EnqueueFuture_PendingRootInfo>
     rewalkBacklog?: number
     currentTitle: string
     rateLimited: boolean
@@ -3415,13 +3431,15 @@ export type DownloadReleaseResponse = {
  * - Package: handlers
  * @description
  *  DownloadingMediaStatus is what the client needs in order to decide which of the three download
- *  badges an anime gets — downloading, downloaded, or matched — and it is the only thing that
- *  decides. A media ID appears in at most one of these lists, so a card can never show two.
+ *  badges an anime gets — downloading, downloaded, or matched. A media ID appears in at most one of
+ *  these lists, so a card can never show two.
  */
 export type DownloadingMediaStatus = {
     downloading?: Array<number>
     finished?: Array<number>
     matched?: Array<number>
+    fingerprint?: string
+    unchanged?: boolean
 }
 
 /**
@@ -3723,6 +3741,18 @@ export type Status = {
     profiles?: Array<INTERNAL_ProfileSummary>
     planningSlutConfigured: boolean
     bootId: string
+}
+
+/**
+ * - Filepath: internal/handlers/torrent_contents.go
+ * - Filename: torrent_contents.go
+ * - Package: handlers
+ * @description
+ *  TorrentContents is how much a torrent actually holds.
+ */
+export type TorrentContents = {
+    files: number
+    folders: number
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4148,6 +4178,23 @@ export type Manga_MangaLatestChapterNumberItem = {
  * - Filename: scanner.go
  * - Package: manga
  * @description
+ *  MangaScanCandidate is one AniList entry a folder might be.
+ */
+export type Manga_MangaScanCandidate = {
+    mediaId: number
+    title: string
+    coverImage: string
+    confidence: number
+    format: string
+    status: string
+    chapters: number
+}
+
+/**
+ * - Filepath: internal/manga/scanner.go
+ * - Filename: scanner.go
+ * - Package: manga
+ * @description
  *  MangaScanFolder represents one scanned folder and its match status.
  */
 export type Manga_MangaScanFolder = {
@@ -4155,7 +4202,7 @@ export type Manga_MangaScanFolder = {
     folderName: string
     chapterCount: number
     /**
-     * "matched", "unmatched", "skipped"
+     * "matched", "pending-review", "unmatched", "skipped"
      */
     status: string
     matchedMediaId: number
@@ -4163,6 +4210,7 @@ export type Manga_MangaScanFolder = {
     matchedImage: string
     confidence: number
     isSynthetic: boolean
+    candidates?: Array<Manga_MangaScanCandidate>
 }
 
 /**
@@ -4177,8 +4225,35 @@ export type Manga_MangaScanResult = {
     matchedCount: number
     unmatchedCount: number
     skippedCount: number
+    pendingReviewCount: number
     startedAt: string
     completedAt: string
+    reviewMatches: boolean
+}
+
+/**
+ * - Filepath: internal/manga/scanner.go
+ * - Filename: scanner.go
+ * - Package: manga
+ * @description
+ *  MangaScanReviewDecision is what the user decided about one proposed match.
+ */
+export type Manga_MangaScanReviewDecision = {
+    folderName: string
+    mediaId: number
+    accept: boolean
+}
+
+/**
+ * - Filepath: internal/manga/scanner.go
+ * - Filename: scanner.go
+ * - Package: manga
+ * @description
+ *  MangaScanReviewResult reports what a review did.
+ */
+export type Manga_MangaScanReviewResult = {
+    applied: number
+    dismissed: number
 }
 
 /**
@@ -5215,6 +5290,22 @@ export type Models_SyntheticManga = {
      * Total chapter count if known
      */
     chapters: number
+    /**
+     * Release year, 0 if unknown
+     */
+    year: number
+    /**
+     * Comma-separated
+     */
+    genres: string
+    /**
+     * Comma-separated alternative titles
+     */
+    synonyms: string
+    /**
+     * Comma-separated
+     */
+    authors: string
     id: number
     createdAt?: string
     updatedAt?: string
@@ -6350,6 +6441,54 @@ export type Torrentstream_TorrentStatus = {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * - Filepath: internal/unmatched/conflict.go
+ * - Filename: conflict.go
+ * - Package: unmatched
+ * @description
+ *  ConflictingFile is one destination a match would have overwritten.
+ */
+export type ConflictingFile = {
+    newName: string
+    newPath: string
+    relPath: string
+    existingSize: number
+    incomingSize: number
+    sourceTorrent?: string
+    matchRecordId?: number
+}
+
+/**
+ * - Filepath: internal/unmatched/count_mismatch.go
+ * - Filename: count_mismatch.go
+ * - Package: unmatched
+ * @description
+ *  CountMismatch is a match held back because the number of files does not match the number of
+ *  episodes the anime is expected to have.
+ */
+export type CountMismatch = {
+    expected: number
+    found: number
+    destination: string
+    planned?: Array<PlannedEpisode>
+}
+
+/**
+ * - Filepath: internal/unmatched/conflict.go
+ * - Filename: conflict.go
+ * - Package: unmatched
+ * @description
+ *  MatchConflict is what a match found already in place, reported instead of overwriting it.
+ */
+export type MatchConflict = {
+    destination: string
+    files?: Array<ConflictingFile>
+    sourceTorrents?: Array<string>
+    sameTorrent: boolean
+    unattributed: boolean
+    totalPlanned: number
+}
+
+/**
  * - Filepath: internal/unmatched/history.go
  * - Filename: history.go
  * - Package: unmatched
@@ -6405,6 +6544,24 @@ export type MatchResult = {
     removedFiles?: Array<string>
     destination: string
     errorMessage?: string
+    conflict?: MatchConflict
+    countMismatch?: CountMismatch
+    skippedFiles?: Array<string>
+}
+
+/**
+ * - Filepath: internal/unmatched/count_mismatch.go
+ * - Filename: count_mismatch.go
+ * - Package: unmatched
+ * @description
+ *  PlannedEpisode is one file and the name it would be given, for the preview shown before a
+ *  mismatched match is allowed to proceed.
+ */
+export type PlannedEpisode = {
+    relPath: string
+    newName: string
+    episode: number
+    season?: number
 }
 
 /**
@@ -6545,7 +6702,8 @@ export type UnmatchedTorrent = {
     animeStartYear?: number
     animeExpectedEpisodes?: number
     autoMatch?: boolean
-    matchSeasonOneOnly?: boolean
+    pendingConflict?: MatchConflict
+    pendingCountMismatch?: CountMismatch
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

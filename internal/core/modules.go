@@ -168,6 +168,10 @@ func (a *App) initModulesOnce() {
 
 	a.MangaDownloader.Start()
 
+	// Describe whatever the manga library is still missing — covers, synopses, AniList links — in
+	// the background, rather than only while somebody has the Local Library screen open.
+	a.MangaDownloader.BackfillLibraryMetadata(a.AnilistPlatformRef)
+
 	// +---------------------+
 	// |    Media Stream     |
 	// +---------------------+

@@ -127,7 +127,8 @@ func noteRateLimited() {
 	}
 }
 
-func (w *WeebCentral) request(url string) (*goquery.Document, error) {
+// fetch performs one paced GET and returns the body.
+func (w *WeebCentral) fetch(url string) ([]byte, error) {
 	paceRequest()
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -158,16 +159,34 @@ func (w *WeebCentral) request(url string) (*goquery.Document, error) {
 		return nil, fmt.Errorf("weebcentral: unexpected status %s", resp.Status)
 	}
 
+	return io.ReadAll(resp.Body)
+}
+
+func (w *WeebCentral) request(url string) (*goquery.Document, error) {
+	body, err := w.fetch(url)
+	if err != nil {
+		return nil, err
+	}
+
 	// These endpoints answer with a bare fragment — a run of <article> elements, no <html> or
 	// <body> around them. Handed straight to the parser that is a malformed document, and it
 	// recovers by dropping most of it: parsing the search fragment directly yielded zero articles
 	// out of the twenty-four that were plainly in the bytes. Wrapping it first gives the parser the
 	// document structure it expects, and everything is then where it looks for it.
-	body, err := io.ReadAll(resp.Body)
+	return goquery.NewDocumentFromReader(strings.NewReader("<html><body>" + string(body) + "</body></html>"))
+}
+
+// requestPage fetches a whole page and parses it as it arrived.
+//
+// The series page is a complete document rather than a fragment, and wrapping one in another
+// <html><body> is what the parser is least able to make sense of: the nested <head> is discarded
+// along with the metadata in it.
+func (w *WeebCentral) requestPage(url string) (*goquery.Document, error) {
+	body, err := w.fetch(url)
 	if err != nil {
 		return nil, err
 	}
-	return goquery.NewDocumentFromReader(strings.NewReader("<html><body>" + string(body) + "</body></html>"))
+	return goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 }
 
 func (w *WeebCentral) Search(opts hibikemanga.SearchOptions) ([]*hibikemanga.SearchResult, error) {
@@ -177,7 +196,14 @@ func (w *WeebCentral) Search(opts hibikemanga.SearchOptions) ([]*hibikemanga.Sea
 
 	// Full Display carries the cover and the year; the Minimal mode the site also offers does not,
 	// and both are wanted here.
-	endpoint := fmt.Sprintf("%s/search/data?limit=24&query=%s&series_status=&order=Relevance&display_mode=Full%%20Display",
+	//
+	// The parameter names are the site's current ones and are not interchangeable with the older
+	// set: query=/order=Relevance now answers 400 — a whole error page, served with the fragment
+	// the caller asked for nowhere in it. Parsed, that yielded no articles and so no results, which
+	// is indistinguishable from a series the site does not carry. Every cover search and every
+	// en masse match had been failing that way, silently, which is the shelf of blank cards in the
+	// manga library.
+	endpoint := fmt.Sprintf("%s/search/data?limit=24&offset=0&text=%s&sort=Best%%20Match&order=Descending&official=Any&display_mode=Full%%20Display",
 		w.Url, url.QueryEscape(opts.Query))
 
 	doc, err := w.request(endpoint)
@@ -208,18 +234,33 @@ func (w *WeebCentral) Search(opts hibikemanga.SearchOptions) ([]*hibikemanga.Sea
 		}
 
 		// The two display modes mark the title up differently, and neither is a superset of the
-		// other: the compact card uses a heading with the title in the link's tooltip, while the
-		// full card has no heading at all and puts the title in the text of the series link, inside
-		// a tooltip span. Reading only one of them found nothing in the other.
+		// other: the compact card uses a heading, while the full card has no heading at all and
+		// puts the title in a link wrapped by a tooltip span that repeats it as data-tip.
+		//
+		// The tooltip is read before any link's text because the full card's *first* series link is
+		// the one wrapping the cover, and its text is everything painted over the artwork — the
+		// "Official" ribbon included. Taking that gave series titled "Official #Killstagram".
 		title := strings.TrimSpace(article.Find("h2").First().Text())
 		if title == "" {
+			article.Find(`a[href*="/series/"]`).EachWithBreak(func(_ int, candidate *goquery.Selection) bool {
+				if tip := strings.TrimSpace(candidate.Parent().AttrOr("data-tip", "")); tip != "" {
+					title = tip
+					return false
+				}
+				if tip := strings.TrimSpace(candidate.AttrOr("data-tip", "")); tip != "" {
+					title = tip
+					return false
+				}
+				return true
+			})
+		}
+		if title == "" {
+			// The cover's alt text is "{title} cover", which is the title with a known suffix.
+			title = strings.TrimSpace(strings.TrimSuffix(
+				strings.TrimSpace(article.Find("img[alt]").First().AttrOr("alt", "")), "cover"))
+		}
+		if title == "" {
 			title = strings.TrimSpace(link.Text())
-		}
-		if title == "" {
-			title = strings.TrimSpace(link.AttrOr("data-tip", ""))
-		}
-		if title == "" {
-			title = strings.TrimSpace(link.Parent().AttrOr("data-tip", ""))
 		}
 		if title == "" {
 			return

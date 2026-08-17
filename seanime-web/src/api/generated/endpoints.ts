@@ -280,6 +280,17 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/anilist/cache-layer/status",
         },
+        /**
+         *  @description
+         *  Route reports whether AniList is answering requests.
+         *  Used by the client to show one banner when AniList itself is down, instead of every screen
+         *  failing separately with no explanation.
+         */
+        GetAnilistAvailability: {
+            key: "ANILIST-get-anilist-availability",
+            methods: ["GET"],
+            endpoint: "/api/v1/anilist/availability",
+        },
     },
     ANILIST_PLANNING: {
         /**
@@ -1249,6 +1260,39 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/enqueue-future/clear",
         },
+        /**
+         *  @description
+         *  Route queues every franchise in the queue to be walked again.
+         *  Relations are recorded as a walk discovers them, so families queued before that was
+         *  recorded draw flat. This fills them in: one root per franchise, walked one after another.
+         *  Deliberately expensive — a full AniList walk per franchise, at background pacing.
+         */
+        RewalkEnqueueFutureFamilies: {
+            key: "ENQUEUE-FUTURE-rewalk-enqueue-future-families",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/rewalk",
+        },
+        RemoveEnqueueFuturePendingRoot: {
+            key: "ENQUEUE-FUTURE-remove-enqueue-future-pending-root",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/enqueue-future/pending-root/{mediaId}",
+        },
+        /**
+         *  @description
+         *  Route empties the waiting list of anime you queued by hand.
+         *  Leaves the re-walk backlog alone, and leaves the run in progress alone — this is about what
+         *  happens after the current walk, not about interrupting it.
+         */
+        ClearEnqueueFuturePendingRoots: {
+            key: "ENQUEUE-FUTURE-clear-enqueue-future-pending-roots",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/pending-roots/clear",
+        },
+        ClearEnqueueFutureRewalkBacklog: {
+            key: "ENQUEUE-FUTURE-clear-enqueue-future-rewalk-backlog",
+            methods: ["POST"],
+            endpoint: "/api/v1/enqueue-future/rewalk/clear",
+        },
     },
     ENTITY_FAVORITE: {
         /**
@@ -2107,6 +2151,32 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route returns the AniList entries a folder name might refer to, best first.
+         *  Searches AniList the same way the scan does — the whole name first, then the name with the
+         *  release furniture removed, then each side of its separators, then its opening words, and
+         *  finally the alternative titles the manga provider lists for it.
+         *  Used by the Link dialog so a folder opens with candidates already found.
+         */
+        SuggestMangaScanMatches: {
+            key: "MANGA-SCAN-suggest-manga-scan-matches",
+            methods: ["POST"],
+            endpoint: "/api/v1/manga/scan/suggest",
+        },
+        /**
+         *  @description
+         *  Route applies the decisions made about a scan's proposed matches.
+         *  Accepting a proposal links the folder to the AniList entry and removes the local series it
+         *  was standing in as. Dismissing one leaves the folder exactly as it is.
+         *  The media ID may be any of the candidates the scan offered for that folder, not only the
+         *  one it proposed.
+         */
+        ResolveMangaScanReview: {
+            key: "MANGA-SCAN-resolve-manga-scan-review",
+            methods: ["POST"],
+            endpoint: "/api/v1/manga/scan/review",
+        },
+        /**
+         *  @description
          *  Route manually links an unmatched manga folder to an AniList manga ID.
          *  Creates a MangaMapping for the folder and removes any existing SyntheticManga entry.
          */
@@ -2536,6 +2606,16 @@ export const API_ENDPOINTS = {
             key: "PLANNING-SLUT-get-planning-slut-info",
             methods: ["GET"],
             endpoint: "/api/v1/planning-slut/info",
+        },
+        /**
+         *  @description
+         *  Route adds every anime in the local library to the shared PLANNING list. Admin only.
+         *  Runs in the background — anything already on a list is left alone. Returns immediately.
+         */
+        PlanningSlutBackfillLibrary: {
+            key: "PLANNING-SLUT-planning-slut-backfill-library",
+            methods: ["POST"],
+            endpoint: "/api/v1/planning-slut/backfill-library",
         },
     },
     PLAYBACK_MANAGER: {
@@ -3345,11 +3425,13 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
-         *  Route returns which AniList media have a download in flight, and which have just finished.
-         *  Read from the staging directories on disk — each holds the metadata sidecar naming the
-         *  anime its download is for — so the answer is the same across page reloads, server
-         *  restarts and a torrent client that is momentarily unreachable. That is what lets the
-         *  "Downloading" badge stay up for the whole download instead of blinking in and out.
+         *  Route returns the download badge state of every anime that has one.
+         *  Read straight from the state recorded against each anime — written when a download was
+         *  queued, when it finished, and when it was matched — plus every anime with files in the
+         *  library, which is matched by definition. Nothing is reconciled between them: the recorded
+         *  state wins wherever there is one. The answer is identical across page reloads, server
+         *  restarts, a torrent client that has forgotten the torrent, and a staging folder a match
+         *  has already deleted.
          */
         GetDownloadingMediaIds: {
             key: "TORRENT-CLIENT-get-downloading-media-ids",
@@ -3398,6 +3480,20 @@ export const API_ENDPOINTS = {
             key: "TORRENT-CLIENT-torrent-client-add-magnet-from-rule",
             methods: ["POST"],
             endpoint: "/api/v1/torrent-client/rule-magnet",
+        },
+    },
+    TORRENT_CONTENTS: {
+        /**
+         *  @description
+         *  Route returns how many files and folders each torrent holds.
+         *  Reads the .torrent file itself over HTTP and parses it — no torrent client involved, so
+         *  nothing is added to a download queue to answer this. Torrents with no download URL (magnet
+         *  only) are absent from the result rather than reported as zero.
+         */
+        GetTorrentContents: {
+            key: "TORRENT-CONTENTS-get-torrent-contents",
+            methods: ["POST"],
+            endpoint: "/api/v1/torrent/contents",
         },
     },
     TORRENT_SEARCH: {

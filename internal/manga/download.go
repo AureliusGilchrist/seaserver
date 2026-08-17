@@ -751,15 +751,23 @@ func (d *Downloader) fetchAndStoreMetadataFromAniList(opts *NewDownloadListOptio
 // createBaseMangaFromSynthetic creates a BaseManga object from a SyntheticManga entry
 // displayId is the ID to use in the media object (can be AniList ID if mapped, or synthetic ID if not)
 func createBaseMangaFromSynthetic(sm *models.SyntheticManga, displayId int) *anilist.BaseManga {
-	status := anilist.MediaStatusReleasing
-	if sm.Status == "FINISHED" {
-		status = anilist.MediaStatusFinished
-	}
+	media := SyntheticBaseManga(sm)
+	media.ID = displayId
+	return media
+}
 
+// SyntheticBaseManga presents a local series as the media the rest of the app knows how to render.
+//
+// Everything the provider's series page gave us travels with it — the synopsis, the genres, the
+// alternative titles, the year — because a synthetic entry is the only description of that series
+// there is, and dropping half of it here is what made a fully described series still open onto an
+// empty entry page. See internal/manga/metadata_backfill.go.
+func SyntheticBaseManga(sm *models.SyntheticManga) *anilist.BaseManga {
+	status := syntheticMediaStatus(sm.Status)
 	format := anilist.MediaFormatManga
 
-	return &anilist.BaseManga{
-		ID: displayId,
+	media := &anilist.BaseManga{
+		ID: sm.SyntheticID,
 		Title: &anilist.BaseManga_Title{
 			Romaji:        &sm.Title,
 			English:       &sm.Title,
@@ -771,10 +779,56 @@ func createBaseMangaFromSynthetic(sm *models.SyntheticManga, displayId int) *ani
 			Medium:     &sm.CoverImage,
 		},
 		BannerImage: &sm.CoverImage,
+		Description: &sm.Description,
 		Status:      &status,
 		Format:      &format,
 		Chapters:    &sm.Chapters,
+		Synonyms:    splitStoredList(sm.Synonyms),
+		Genres:      splitStoredList(sm.Genres),
 	}
+
+	if sm.Year > 0 {
+		year := sm.Year
+		media.StartDate = &anilist.BaseManga_StartDate{Year: &year}
+	}
+
+	return media
+}
+
+// syntheticMediaStatus reads the status stored on a local series.
+//
+// Unknown wording reads as releasing, which is what an undescribed series has always shown as.
+func syntheticMediaStatus(status string) anilist.MediaStatus {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case "FINISHED":
+		return anilist.MediaStatusFinished
+	case "HIATUS":
+		return anilist.MediaStatusHiatus
+	case "CANCELLED":
+		return anilist.MediaStatusCancelled
+	default:
+		return anilist.MediaStatusReleasing
+	}
+}
+
+// splitStoredList turns one of the comma-separated columns back into a list.
+func splitStoredList(value string) []*string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+
+	parts := strings.Split(value, ",")
+	out := make([]*string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		item := part
+		out = append(out, &item)
+	}
+	return out
 }
 
 // createBaseMangaFromStoredMetadata creates a BaseManga object from stored DownloadedMangaMetadata
