@@ -1,6 +1,7 @@
 import { EnqueueFuture_Status } from "@/api/generated/types"
 import {
     useClearEnqueueFuturePendingRoots,
+    useClearEnqueueFutureRewalkBacklog,
     useRemoveEnqueueFuturePendingRoot,
     useResumeEnqueueFuture,
     useStopEnqueueFuture,
@@ -10,6 +11,9 @@ import { cn } from "@/components/ui/core/styling"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import React from "react"
 import { LuCircleStop, LuPlay, LuTimer, LuX } from "react-icons/lu"
+
+/** Mirrors MaxPendingRoots on the server, so the header can say how much room is left. */
+const MAX_PENDING_ROOTS = 20
 
 /**
  * What the background run is doing, if anything.
@@ -24,6 +28,7 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
     const { mutate: resume, isPending: isResuming } = useResumeEnqueueFuture()
     const { mutate: removeRoot, isPending: isRemovingRoot } = useRemoveEnqueueFuturePendingRoot()
     const { mutate: clearRoots, isPending: isClearingRoots } = useClearEnqueueFuturePendingRoots()
+    const { mutate: clearRewalk, isPending: isClearingRewalk } = useClearEnqueueFutureRewalkBacklog()
 
     const [now, setNow] = React.useState(() => Date.now())
     React.useEffect(() => {
@@ -137,9 +142,24 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
               * the thing you queued an hour ago is still in there and how far down it is. */}
             {!!status.pendingRootList?.length && (
                 <div className="space-y-1 pt-1" data-enqueue-future-pending-roots>
-                    <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
-                        Waiting to be walked ({status.pendingRootList.length})
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-[--muted] uppercase tracking-wider">
+                            Waiting to be walked ({status.pendingRootList.length}/{MAX_PENDING_ROOTS})
+                        </p>
+                        {/* Empties this list and only this list. The re-walk backlog underneath it
+                            has its own button, and the walk in progress is not interrupted by
+                            either — clearing what comes next is not the same as stopping what is
+                            happening now. */}
+                        <Button
+                            size="xs"
+                            intent="alert-subtle"
+                            onClick={() => clearRoots()}
+                            loading={isClearingRoots}
+                            data-enqueue-future-clear-roots
+                        >
+                            Clear branching queue
+                        </Button>
+                    </div>
                     <ol className="space-y-1">
                         {status.pendingRootList.map((root, i) => (
                             <li
@@ -185,9 +205,9 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                             <Button
                                 size="xs"
                                 intent="gray-basic"
-                                onClick={() => clearRoots()}
-                                loading={isClearingRoots}
-                                data-enqueue-future-clear-roots
+                                onClick={() => clearRewalk()}
+                                loading={isClearingRewalk}
+                                data-enqueue-future-clear-rewalk
                             >
                                 Cancel re-walk
                             </Button>

@@ -155,13 +155,26 @@ export function useRemoveEnqueueFuturePendingRoot() {
     })
 }
 
-/** Empties the waiting list and the re-walk backlog. The run in progress is left alone. */
+/** Empties the hand-built waiting list. The re-walk backlog and the running walk are untouched. */
 export function useClearEnqueueFuturePendingRoots() {
     const queryClient = useQueryClient()
     return useServerMutation<boolean, void>({
         endpoint: "/api/v1/enqueue-future/pending-roots/clear",
         method: "POST",
         mutationKey: ["enqueue-future-clear-pending-roots"],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureStatus.key] })
+        },
+    })
+}
+
+/** Abandons the re-walk backlog, leaving anything queued by hand exactly as it is. */
+export function useClearEnqueueFutureRewalkBacklog() {
+    const queryClient = useQueryClient()
+    return useServerMutation<boolean, void>({
+        endpoint: "/api/v1/enqueue-future/rewalk/clear",
+        method: "POST",
+        mutationKey: ["enqueue-future-clear-rewalk"],
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureStatus.key] })
         },

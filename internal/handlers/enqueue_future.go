@@ -297,9 +297,9 @@ func (h *Handler) HandleRemoveEnqueueFuturePendingRoot(c echo.Context) error {
 
 // HandleClearEnqueueFuturePendingRoots
 //
-//	@summary empties the waiting list, and the re-walk backlog with it.
-//	@desc The run in progress is left alone — this is about what happens after it, not about
-//	@desc interrupting it.
+//	@summary empties the waiting list of anime you queued by hand.
+//	@desc Leaves the re-walk backlog alone, and leaves the run in progress alone — this is about what
+//	@desc happens after the current walk, not about interrupting it.
 //	@route /api/v1/enqueue-future/pending-roots/clear [POST]
 //	@returns bool
 func (h *Handler) HandleClearEnqueueFuturePendingRoots(c echo.Context) error {
@@ -308,6 +308,19 @@ func (h *Handler) HandleClearEnqueueFuturePendingRoots(c echo.Context) error {
 	}
 
 	h.App.EnqueueFutureRepository.ClearPendingRoots()
+	return h.RespondWithData(c, true)
+}
+
+// HandleClearEnqueueFutureRewalkBacklog
+//
+//	@summary abandons the re-walk, leaving anything you queued by hand exactly as it is.
+//	@route /api/v1/enqueue-future/rewalk/clear [POST]
+//	@returns bool
+func (h *Handler) HandleClearEnqueueFutureRewalkBacklog(c echo.Context) error {
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithData(c, false)
+	}
+
 	h.App.EnqueueFutureRepository.ClearRewalkBacklog()
 	return h.RespondWithData(c, true)
 }
