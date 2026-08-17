@@ -35,10 +35,14 @@ func (r *Repository) RegisterBadgedAnime() (int, error) {
 		return 0, nil
 	}
 
-	states, err := r.database.AnimeDownloadStates()
-	if err != nil {
-		return 0, err
-	}
+	// Every source, not just the badge table.
+	//
+	// The badge table only holds downloads this server watched happen. A download sitting in the
+	// unmatched folder from before that, or a series scanned into the library, has no row there — and
+	// those were exactly the entries missing from the queue: "downloaded" content the screen could not
+	// show because nothing had ever registered it. This is the same derivation the rows themselves use
+	// (badge, staged files, library files), so what gets registered and what gets greyed agree.
+	states := r.downloadStatesByMediaID()
 	if len(states) == 0 {
 		return 0, nil
 	}
@@ -46,34 +50,29 @@ func (r *Repository) RegisterBadgedAnime() (int, error) {
 	titles, covers := r.knownTitlesAndCovers()
 
 	added := 0
-	for _, state := range states {
-		if state.MediaID <= 0 || state.State == "" {
+	for mediaID, state := range states {
+		if mediaID <= 0 || state == "" {
 			continue
 		}
 		// Already in the queue: the row is there and the badge is attached to it by ListItems. There
 		// is nothing to add and nothing to overwrite.
-		if r.database.HasEnqueueFutureItem(state.MediaID) {
+		if r.database.HasEnqueueFutureItem(mediaID) {
 			continue
 		}
 
-		title := titles[state.MediaID]
-		if title == "" {
-			title = ""
-		}
-
 		inserted, err := r.database.InsertEnqueueFutureItem(&models.EnqueueFutureItem{
-			MediaID:     state.MediaID,
-			RootMediaID: state.MediaID,
+			MediaID:     mediaID,
+			RootMediaID: mediaID,
 			// Its own family until a walk says otherwise. A later run that reaches this anime through
 			// a franchise folds the two families together — see LinkEnqueueFutureFamilies — so
 			// registering it alone now does not strand it outside its franchise later.
-			FamilyID: state.MediaID,
+			FamilyID: mediaID,
 			// Ready, not pending: pending is what the worker picks up to prepare, and there is
 			// nothing to prepare here. A torrent search for a series already in your library is work
 			// in aid of a row you cannot act on anyway.
 			Status:     db.EnqueueFutureStatusReady,
-			Title:      title,
-			CoverImage: covers[state.MediaID],
+			Title:      titles[mediaID],
+			CoverImage: covers[mediaID],
 		})
 		if err != nil || !inserted {
 			continue

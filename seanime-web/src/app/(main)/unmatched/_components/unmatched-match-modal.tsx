@@ -6,7 +6,6 @@ import {
     CountMismatch,
     MatchConflict,
     useMatchUnmatchedTorrent,
-    useDeleteUnmatchedTorrent,
     useGetUnmatchedTorrentContents,
 } from "@/api/hooks/unmatched.hooks"
 import { UnmatchedFamilyResult } from "./unmatched-family-result"
@@ -294,12 +293,6 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         setSelectedFiles(new Set())
     }, (c) => setConflict(c), (m) => setCountMismatch(m))
 
-    // Declining a conflict throws the incoming copy away: this staged torrent and its episodes are
-    // deleted, and the library keeps what it already had. Only this one torrent is touched.
-    const { mutate: deleteTorrent, isPending: isDeletingTorrent } = useDeleteUnmatchedTorrent(() => {
-        setConflict(null)
-        onSuccess()
-    })
 
     // Search only triggers when user hits Enter or clicks Search button
     // A hundred results, fetched as two pages.
@@ -721,9 +714,15 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                 torrentName={torrent.name}
                 animeTitle={displayAnimeTitle || torrent.name}
                 isReplacing={isMatching}
-                isDeleting={isDeletingTorrent}
                 onAccept={() => doMatch(true)}
-                onDecline={() => deleteTorrent({ name: torrent.name })}
+                // Declining a conflict closes the conflict, and nothing else.
+                //
+                // It used to delete the whole staged torrent — every episode of it — so "I do not
+                // want to overwrite what is already in my library" and "destroy this download" were
+                // the same button. Those are not the same decision, and only one of them is
+                // recoverable. The download stays exactly where it is, unmatched, and deleting it
+                // remains its own deliberate action on the torrent card.
+                onDecline={() => setConflict(null)}
                 onCancel={() => setConflict(null)}
             />
         )}

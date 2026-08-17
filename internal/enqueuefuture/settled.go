@@ -27,16 +27,19 @@ func (r *Repository) downloadStatesByMediaID() map[int]string {
 		return nil
 	}
 
+	// No early return on an empty badge table.
+	//
+	// It used to give up here, which quietly made the other two sources unreachable for anybody whose
+	// badges were sparse — and the badge table is *only* downloads this server watched happen. A
+	// library full of scanned-in series and a staging folder full of finished downloads both read as
+	// "nothing is downloaded", because the one source that had no rows decided the answer for the two
+	// that did.
+	states := make(map[int]string)
+
 	rows, err := r.database.AnimeDownloadStates()
 	if err != nil {
 		r.logger.Debug().Err(err).Msg("enqueuefuture: Could not read download badges for the queue")
-		return nil
 	}
-	if len(rows) == 0 {
-		return nil
-	}
-
-	states := make(map[int]string, len(rows))
 	for _, row := range rows {
 		if row.State != "" {
 			states[row.MediaID] = row.State

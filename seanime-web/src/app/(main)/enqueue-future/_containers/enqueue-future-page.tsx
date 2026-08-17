@@ -368,11 +368,14 @@ export function EnqueueFuturePage() {
                             <Button
                                 size="xs"
                                 intent={hideSettled ? "primary-subtle" : "gray-subtle"}
-                                leftIcon={hideSettled ? <LuEyeOff /> : <LuEye />}
+                                leftIcon={hideSettled ? <LuEye /> : <LuEyeOff />}
                                 onClick={() => setHideSettled(v => !v)}
                                 data-enqueue-future-toggle-settled
                             >
-                                {hideSettled ? "Showing only what's left" : "Show all"}
+                                {/* The label is what pressing it does, not what is on screen now.
+                                    Reading "Show all" while everything was already shown, and hiding
+                                    things when pressed, is exactly backwards. */}
+                                {hideSettled ? "Show all" : "Hide done"}
                             </Button>
                             <Button
                                 size="xs"

@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { Modal } from "@/components/ui/modal"
 import React from "react"
-import { BiTrash } from "react-icons/bi"
 import { LuTriangleAlert } from "react-icons/lu"
 
 /**
@@ -16,7 +15,7 @@ import { LuTriangleAlert } from "react-icons/lu"
  * decides which copy survives.
  *
  * Accept replaces the files in the library with the incoming ones. Decline throws the incoming copy
- * away: the staged torrent and its episodes are deleted, and the library is left untouched.
+ * away: nothing is moved and nothing is deleted, and the library is left untouched.
  */
 
 function formatBytes(bytes: number): string {
@@ -29,14 +28,13 @@ function formatBytes(bytes: number): string {
 
 interface UnmatchedConflictModalProps {
     conflict: MatchConflict | null
-    /** The torrent being matched — the one Decline deletes. */
+    /** The torrent being matched. */
     torrentName: string
     animeTitle: string
     isReplacing: boolean
-    isDeleting: boolean
     /** Re-run the match with overwriteExisting set. */
     onAccept: () => void
-    /** Delete this staged torrent and its episodes, leaving the library alone. */
+    /** Close the conflict and leave the download exactly as it is. Deletes nothing. */
     onDecline: () => void
     onCancel: () => void
 }
@@ -46,7 +44,6 @@ export function UnmatchedConflictModal({
     torrentName,
     animeTitle,
     isReplacing,
-    isDeleting,
     onAccept,
     onDecline,
     onCancel,
@@ -55,7 +52,7 @@ export function UnmatchedConflictModal({
 
     if (!conflict) return null
 
-    const busy = isReplacing || isDeleting
+    const busy = isReplacing
     const count = conflict.files.length
     const sources = conflict.sourceTorrents ?? []
     const allConflict = count >= conflict.totalPlanned
@@ -150,7 +147,7 @@ export function UnmatchedConflictModal({
                 {!allConflict && (
                     <Alert
                         intent="info"
-                        description={`The other ${conflict.totalPlanned - count} file${conflict.totalPlanned - count === 1 ? "" : "s"} in this match have nowhere to collide. Replacing moves all ${conflict.totalPlanned}; declining deletes all of them along with the rest of the torrent.`}
+                        description={`The other ${conflict.totalPlanned - count} file${conflict.totalPlanned - count === 1 ? "" : "s"} in this match have nowhere to collide. Replacing moves all ${conflict.totalPlanned}; declining moves none of them and leaves the download where it is.`}
                         className="border border-blue-500/30 bg-blue-900/10 text-xs"
                     />
                 )}
@@ -165,8 +162,8 @@ export function UnmatchedConflictModal({
                             </p>
                             <p>
                                 <span className="text-gray-300 font-medium">Decline</span> keeps your library exactly as it
-                                is and deletes this staged torrent along with all of its episodes. Only this one torrent is
-                                touched.
+                                is and leaves this download exactly as it is. Nothing is moved and nothing is deleted —
+                                you can match it to something else, or delete it deliberately from its card.
                             </p>
                         </div>
 
@@ -175,8 +172,7 @@ export function UnmatchedConflictModal({
                                 Cancel
                             </Button>
                             <Button
-                                intent="alert-subtle"
-                                leftIcon={<BiTrash />}
+                                intent="gray-subtle"
                                 onClick={() => setConfirmDecline(true)}
                                 disabled={busy}
                             >
@@ -190,17 +186,17 @@ export function UnmatchedConflictModal({
                 ) : (
                     <>
                         <Alert
-                            intent="alert"
-                            title="Delete this torrent and all of its episodes?"
-                            description={`"${torrentName}" and every file in it are deleted from the Unmatched folder. Your library is not touched. This cannot be undone.`}
-                            className="border border-red-500/30 bg-red-900/20 text-xs"
+                            intent="info"
+                            title="Leave this download alone?"
+                            description={`Nothing is moved and nothing is deleted. "${torrentName}" stays in the Unmatched folder exactly as it is, and your library is untouched. You can match it somewhere else, or delete it deliberately from its card.`}
+                            className="border border-gray-700 bg-gray-900/40 text-xs"
                         />
                         <div className="flex justify-end gap-2 pt-1">
                             <Button intent="gray-outline" onClick={() => setConfirmDecline(false)} disabled={busy}>
                                 Back
                             </Button>
-                            <Button intent="alert" leftIcon={<BiTrash />} onClick={onDecline} loading={isDeleting} disabled={busy}>
-                                Delete the torrent
+                            <Button intent="white" onClick={onDecline} disabled={busy}>
+                                Leave it unmatched
                             </Button>
                         </div>
                     </>

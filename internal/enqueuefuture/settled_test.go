@@ -259,3 +259,41 @@ func TestDownloadStatesDeriveDownloadedFromStaging(t *testing.T) {
 		t.Errorf("media 81 = %q, want %q — downloading outranks a staged file", states[81], db.AnimeDownloadStateDownloading)
 	}
 }
+
+// Registration draws on every source the rows do, not just the badge table.
+//
+// A download sitting in the unmatched folder from before badges were recorded has no badge row, and
+// was therefore never registered — which is why "downloaded" content was missing from the queue
+// entirely rather than merely ungreyed.
+func TestRegisterIncludesStagedDownloads(t *testing.T) {
+	r := repositoryWithDB(t)
+
+	if err := r.database.UpsertUnmatchedTorrentMetadata("Staged.Release", 90, []byte("{}")); err != nil {
+		t.Fatalf("stage: %v", err)
+	}
+
+	added, err := r.RegisterBadgedAnime()
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	if added != 1 {
+		t.Fatalf("registered %d, want 1", added)
+	}
+
+	items, err := r.ListItems()
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	var found *Item
+	for _, item := range items {
+		if item.MediaID == 90 {
+			found = item
+		}
+	}
+	if found == nil {
+		t.Fatal("a staged download was not registered into the queue")
+	}
+	if found.DownloadState != db.AnimeDownloadStateDownloaded {
+		t.Errorf("state = %q, want %q", found.DownloadState, db.AnimeDownloadStateDownloaded)
+	}
+}
