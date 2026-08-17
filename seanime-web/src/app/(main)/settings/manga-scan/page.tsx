@@ -147,6 +147,19 @@ export default function Page() {
                         <Badge intent="gray" size="lg">
                             {scanResult.skippedCount ?? 0} Skipped
                         </Badge>
+                        {/* Downloaded series are filed under an ID rather than a folder name, so they
+                         are described by the sweep that runs after the folders and never appear as
+                         rows above. */}
+                        {!!scanResult.describedCount && (
+                            <Badge intent="info" size="lg">
+                                {scanResult.describedCount} Metadata filled
+                            </Badge>
+                        )}
+                        {!!scanResult.linkedCount && (
+                            <Badge intent="success" size="lg">
+                                {scanResult.linkedCount} Auto-matched
+                            </Badge>
+                        )}
                     </div>
                 )}
 

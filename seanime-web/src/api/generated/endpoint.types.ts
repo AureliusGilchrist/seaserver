@@ -2812,8 +2812,8 @@ export type TorrentClientAddMagnetFromRule_Variables = {
  * @description
  * Route returns how many files and folders each torrent holds.
  */
-// Declared here because the generator only emits type definitions for structs that a route
-// *returns*, and this one is only ever sent. Mirrors handlers.TorrentContentsRequestItem.
+// Declared here because the generator only emits type definitions for structs a route *returns*,
+// and this one is only ever sent. Mirrors handlers.TorrentContentsRequestItem.
 export type TorrentContentsRequestItem = {
     infoHash: string
     downloadUrl: string

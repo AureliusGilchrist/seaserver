@@ -159,9 +159,11 @@ func SuggestMangaMatches(ctx context.Context, title string, logger *zerolog.Logg
 		return []MangaScanCandidate{}, nil
 	}
 
+	// Somebody has the Link dialog open and is waiting on this, so it says so — it goes ahead of
+	// the background work rather than behind it. See internal/api/anilist/priority.go.
 	client := anilist.NewAnilistClient("", "")
 	candidates, err := searchAniListForTitle(
-		ctx, client, title, title, cleanMangaTitle(title), providerSynonymSource(logger), logger)
+		anilist.WithUserInitiated(ctx), client, title, title, cleanMangaTitle(title), providerSynonymSource(logger), logger)
 	if err != nil {
 		return nil, err
 	}

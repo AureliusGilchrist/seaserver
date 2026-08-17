@@ -35,12 +35,13 @@ import (
 
 // backfillSpacing is the gap between two metadata fetches.
 //
-// Background AniList work shares eighteen requests a minute with the graph walk, the prefetcher and
-// the collection refreshes (see anilist.BackgroundRequestsPerMinute). Four a minute is a share this
-// can take without pushing anything else into the queue, and a hundred missing covers fill in over
-// about half an hour of the server simply being on — which is the right trade for something nobody
-// is watching happen.
-const backfillSpacing = 15 * time.Second
+// This work is now marked user-initiated (see anilist.WithUserInitiated), which is a deliberate
+// choice rather than an oversight: a library that cannot describe itself is the thing the user is
+// actually looking at, so filling it in goes in front of the prefetcher and the graph walk rather
+// than behind them. The gap is what keeps that from becoming a burst — AniList's own limit is
+// ninety requests a minute, the client waits out a 429 rather than dropping the work, and this
+// paces well inside it.
+const backfillSpacing = 3 * time.Second
 
 // backfillState guards the one backfill loop, so many opens of the screen cannot start many of them.
 type backfillState struct {
@@ -48,46 +49,70 @@ type backfillState struct {
 	running bool
 	// queue is what is left to fetch, in the order it was asked for.
 	queue []int
-	// attempted holds every media ID already tried this run, successfully or not. A series AniList
-	// has no record of must not be asked about again every time the screen is opened.
-	attempted map[int]bool
+	// queued is what is in the queue right now, so the same series is not lined up twice by two
+	// screens opening at once.
+	//
+	// Note what this is *not*: a record of everything ever tried. It used to be exactly that, and a
+	// series that failed once — a timeout, a rate-limited minute, a provider having a bad day — was
+	// then never asked about again for the lifetime of the process. The library kept its blank cards
+	// until the server was restarted, which is the opposite of what a background fill is for. A
+	// series leaves this set the moment its turn ends, so anything that asks again gets it queued
+	// again.
+	queued map[int]bool
+	// retryAt is when a series that could not be described may be tried again. Nothing is abandoned;
+	// it simply goes to the back and waits.
+	retryAt map[int]time.Time
 }
+
+// backfillRetryDelay is how long a series that could not be described waits before being tried
+// again. Long enough that a title genuinely nobody has is not a busy-loop, short enough that a
+// series that failed because the site was briefly down is fixed within the hour.
+const backfillRetryDelay = 20 * time.Minute
 
 // BackfillMissingMetadata fills in the metadata for downloads that have none, in the background.
 //
-// Returns immediately. Safe to call on every request: a loop already running takes the new IDs into
-// account when it reaches them, and IDs already tried are ignored.
+// Returns immediately. Safe to call on every request and from anywhere: a series already in the
+// queue is not queued twice, and one that has been tried and failed is queued again rather than
+// written off — see backfillState.queued.
 func (d *Downloader) BackfillMissingMetadata(platformRef *util.Ref[platform.Platform], mediaIDs []int) {
 	if d == nil || platformRef == nil || len(mediaIDs) == 0 {
 		return
 	}
 
 	d.backfill.mu.Lock()
-	if d.backfill.attempted == nil {
-		d.backfill.attempted = make(map[int]bool)
+	if d.backfill.queued == nil {
+		d.backfill.queued = make(map[int]bool)
+	}
+	if d.backfill.retryAt == nil {
+		d.backfill.retryAt = make(map[int]time.Time)
 	}
 
+	now := time.Now()
 	pending := make([]int, 0, len(mediaIDs))
 	for _, mediaID := range mediaIDs {
 		// Negative IDs are synthetic series — local folders and unmatched provider downloads. They
 		// are not skipped: AniList has never heard of them, but the provider they came from has
-		// cover art for them, which is the whole point of fillSyntheticCover.
-		if mediaID == 0 || d.backfill.attempted[mediaID] {
+		// cover art and a synopsis for them, which is the whole point of fillSyntheticMetadata.
+		if mediaID == 0 || d.backfill.queued[mediaID] {
 			continue
 		}
-		d.backfill.attempted[mediaID] = true
+		if retryAt, waiting := d.backfill.retryAt[mediaID]; waiting && now.Before(retryAt) {
+			// Tried recently and could not be described. It keeps its place in the world; it just
+			// does not get asked again this minute.
+			continue
+		}
+		d.backfill.queued[mediaID] = true
 		pending = append(pending, mediaID)
 	}
 
+	d.backfill.queue = append(d.backfill.queue, pending...)
+
 	if len(pending) == 0 || d.backfill.running {
-		// Nothing new, or a loop is already working through a list that now includes these — the
-		// IDs are marked attempted either way, and the running loop re-reads them below.
-		d.backfill.queue = append(d.backfill.queue, pending...)
+		// Nothing new, or a loop is already working through a list that now includes these.
 		d.backfill.mu.Unlock()
 		return
 	}
 
-	d.backfill.queue = append(d.backfill.queue, pending...)
 	d.backfill.running = true
 	d.backfill.mu.Unlock()
 
@@ -188,6 +213,18 @@ func (d *Downloader) runBackfill(platformRef *util.Ref[platform.Platform]) {
 		d.backfill.mu.Unlock()
 
 		outcome := d.fetchAndStoreMetadata(platformRef, mediaID)
+
+		d.backfill.mu.Lock()
+		delete(d.backfill.queued, mediaID)
+		if outcome.stored {
+			delete(d.backfill.retryAt, mediaID)
+		} else {
+			// Not described this time. Nothing is given up on — it is simply not asked about again
+			// straight away, and the next thing that notices it is missing will queue it afresh.
+			d.backfill.retryAt[mediaID] = time.Now().Add(backfillRetryDelay)
+		}
+		d.backfill.mu.Unlock()
+
 		if outcome.stored {
 			d.logger.Debug().Int("mediaId", mediaID).Int("remaining", remaining).
 				Msg("manga downloader: Filled in metadata for a downloaded series")
@@ -205,8 +242,10 @@ func (d *Downloader) runBackfill(platformRef *util.Ref[platform.Platform]) {
 	}
 }
 
-// providerBackfillSpacing is the gap after a series that only needed the provider.
-const providerBackfillSpacing = 2 * time.Second
+// providerBackfillSpacing is the gap after a series that only needed the provider. Shorter than the
+// AniList gap because the provider does its own pacing — see weebCentralMinInterval — so this is
+// about not hammering one site in a tight loop rather than about a budget.
+const providerBackfillSpacing = 1 * time.Second
 
 // backfillOutcome says what one series' turn did, so the loop can pace itself by it.
 type backfillOutcome struct {
@@ -238,9 +277,11 @@ func (d *Downloader) fetchAndStoreMetadata(platformRef *util.Ref[platform.Platfo
 		}
 
 		if !alreadyLinked {
-			linkCtx, cancel := context.WithTimeout(context.Background(), autoLinkTimeout)
-			linked := d.AutoLinkSyntheticManga(linkCtx, mediaID)
-			cancel()
+			// No deadline. A timeout here does not make the answer arrive sooner — it throws away a
+			// request that was already made and paid for, usually one that was queued behind a rate
+			// limit and about to be served, and files the series as undescribable for its trouble.
+			// Nobody is waiting on this, so there is nothing for a deadline to protect.
+			linked := d.AutoLinkSyntheticManga(anilist.WithUserInitiated(context.Background()), mediaID)
 
 			if linked > 0 {
 				// Linked: the AniList entry has the cover, the description and everything else, and
@@ -262,10 +303,11 @@ func (d *Downloader) fetchAndStoreMetadata(platformRef *util.Ref[platform.Platfo
 		return backfillOutcome{}
 	}
 
-	// Not user-initiated: nobody is waiting on this, and marking it so would put it in front of the
-	// requests somebody is waiting on. See internal/api/anilist/priority.go.
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	// Marked user-initiated and given no deadline, both deliberately. The library being able to
+	// describe itself is what the user is looking at, so this goes ahead of the prefetcher rather
+	// than behind it, and a request that has queued behind a rate limit is worth waiting out rather
+	// than cancelling and re-making later. See internal/api/anilist/priority.go.
+	ctx := anilist.WithUserInitiated(context.Background())
 
 	var title, coverImage string
 	media, err := p.GetManga(ctx, mediaID)

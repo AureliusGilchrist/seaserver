@@ -194,10 +194,9 @@ func canBeLinked(synthetic *models.SyntheticManga) bool {
 // No searching and no matching: the download is already filed under the AniList ID, so the entry is
 // simply fetched. This is what turns a card reading "Manga ID: 47353" into the series it always was.
 func (d *Downloader) describeAniListDownload(ctx context.Context, client anilist.AnilistClient, mediaID int) bool {
-	fetchCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	res, err := client.BaseMangaByID(fetchCtx, &mediaID)
+	// No deadline: the user is watching this scan, and a request that has queued behind a rate limit
+	// is worth waiting out rather than cancelling and leaving the series undescribed.
+	res, err := client.BaseMangaByID(anilist.WithUserInitiated(ctx), &mediaID)
 	if err != nil || res == nil || res.GetMedia() == nil {
 		d.logger.Debug().Err(err).Int("mediaId", mediaID).
 			Msg("manga-scan: AniList had nothing for a downloaded series")
@@ -240,10 +239,7 @@ func (d *Downloader) linkSyntheticFromScan(
 		return false
 	}
 
-	searchCtx, cancel := context.WithTimeout(ctx, autoLinkTimeout)
-	defer cancel()
-
-	candidates, err := searchAniListForTitle(searchCtx, client, title, title, cleanMangaTitle(title), synonyms, logger)
+	candidates, err := searchAniListForTitle(ctx, client, title, title, cleanMangaTitle(title), synonyms, logger)
 	if err != nil || len(candidates) == 0 {
 		return false
 	}

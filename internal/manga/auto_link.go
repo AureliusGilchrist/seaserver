@@ -3,7 +3,6 @@ package manga
 import (
 	"context"
 	"strings"
-	"time"
 
 	"seanime/internal/api/anilist"
 	"seanime/internal/util/comparison"
@@ -233,5 +232,7 @@ func normalizeForLinking(title string) string {
 // AniList search each, and neither is anything anybody is waiting on.
 const autoLinkSpacing = backfillSpacing
 
-// autoLinkTimeout bounds one search.
-const autoLinkTimeout = 30 * time.Second
+// No deadline is imposed on a link attempt any more. One used to bound the search, and all it did
+// was throw away requests that were queued behind a rate limit and about to be answered — the
+// series was then recorded as unmatchable for its trouble. Nobody is waiting on this, so there is
+// nothing a deadline protects.

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"seanime/internal/api/anilist"
 	"seanime/internal/events"
 	"seanime/internal/manga"
 	"sync"
@@ -61,6 +62,11 @@ func (h *Handler) HandleScanMangaDirectories(c echo.Context) error {
 		return h.RespondWithError(c, echo.NewHTTPError(400, "No manga directories configured"))
 	}
 
+	// The scan is something the user pressed a button for and is watching a progress bar for, so its
+	// AniList requests are marked as theirs: they go ahead of the prefetcher and the collection
+	// walks rather than queueing behind them. See internal/api/anilist/priority.go.
+	scanCtx := anilist.WithUserInitiated(context.Background())
+
 	// Run scan asynchronously
 	go func() {
 		defer func() {
@@ -70,7 +76,7 @@ func (h *Handler) HandleScanMangaDirectories(c echo.Context) error {
 		}()
 
 		result, err := manga.ScanMangaDirectories(
-			context.Background(),
+			scanCtx,
 			localDir,
 			downloadDir,
 			b.ForceRematch,
@@ -88,7 +94,7 @@ func (h *Handler) HandleScanMangaDirectories(c echo.Context) error {
 		// under an ID rather than a name, so it never appears in a folder scan at all — those are
 		// the cards reading "Manga ID: 47353". This looks each of them up and writes what it finds.
 		downloads := manga.ScanDownloadedSeries(
-			context.Background(),
+			scanCtx,
 			h.App.MangaDownloader,
 			b.ReviewMatches,
 			h.App.WSEventManager,
