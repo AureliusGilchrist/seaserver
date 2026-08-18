@@ -177,12 +177,11 @@ func (m *Manager) GetHMACTokenQueryParam(endpoint string, symbol string) string 
 // network round trip would hold the update up, and a collection stale enough to be missing the entry
 // means the rule falls back to "nothing recorded yet" — which fills a date in rather than losing
 // one, the harmless direction.
-// listEntryFor finds the list entry a progress update is about to change, as it stands before the
-// update — which is what the start/completion date rule reads.
 //
-// profileID names the account being written to. The shared collection belongs to whoever the server
-// is signed in as, and on a multi-profile install that is the admin, whose dates say nothing about
-// whether a profile user has started something. See the same reasoning in the playback manager.
+// profileID names the account being written to, and it decides which list is asked. The shared
+// collection belongs to whoever the server is signed in as, and on a multi-profile install that is
+// the admin, whose dates say nothing about whether a profile user has started something. See the same
+// reasoning in the playback manager.
 func (m *Manager) listEntryFor(mediaId int, profileID uint) *anilist.AnimeListEntry {
 	if profileID > 0 && m.getProfileAnimeCollectionFunc != nil {
 		if collection := m.getProfileAnimeCollectionFunc(profileID); collection != nil {
