@@ -46,6 +46,7 @@ type (
 		// invalidateProfileAnimeCollectionFunc invalidates the profile's cached anime collection
 		// after a successful progress update so the next fetch returns fresh data.
 		invalidateProfileAnimeCollectionFunc func(profileID uint)
+		getProfileAnimeCollectionFunc        func(profileID uint) *anilist.AnimeCollection
 
 		// recordPlaybackActivityFunc is called after a successful AniList progress update.
 		// It mirrors PlaybackManager's activity tracker so that direct-stream playback
@@ -104,6 +105,7 @@ type (
 		RefreshAnimeCollectionFunc  func()
 		GetProfileAnilistClientFunc func(profileID uint) (anilist.AnilistClient, uint)
 		InvalidateProfileAnimeCollectionFunc func(profileID uint)
+		GetProfileAnimeCollectionFunc        func(profileID uint) *anilist.AnimeCollection
 		RecordPlaybackActivityFunc func(profileID uint, mediaID int, episodeNumber int, totalEpisodes int, durationSeconds int)
 		IsOfflineRef               *util.Ref[bool]
 		NativePlayer               *nativeplayer.NativePlayer
@@ -124,6 +126,7 @@ func NewManager(options NewManagerOptions) *Manager {
 		hmacTokenFunc:               options.HMACTokenFunc,
 		getProfileAnilistClientFunc: options.GetProfileAnilistClientFunc,
 		invalidateProfileAnimeCollectionFunc: options.InvalidateProfileAnimeCollectionFunc,
+		getProfileAnimeCollectionFunc:        options.GetProfileAnimeCollectionFunc,
 		recordPlaybackActivityFunc: options.RecordPlaybackActivityFunc,
 		isOfflineRef:               options.IsOfflineRef,
 		sessions:                   result.NewMap[string, *ProfileStreamSession](),
@@ -174,7 +177,25 @@ func (m *Manager) GetHMACTokenQueryParam(endpoint string, symbol string) string 
 // network round trip would hold the update up, and a collection stale enough to be missing the entry
 // means the rule falls back to "nothing recorded yet" — which fills a date in rather than losing
 // one, the harmless direction.
-func (m *Manager) listEntryFor(mediaId int) *anilist.AnimeListEntry {
+// listEntryFor finds the list entry a progress update is about to change, as it stands before the
+// update — which is what the start/completion date rule reads.
+//
+// profileID names the account being written to. The shared collection belongs to whoever the server
+// is signed in as, and on a multi-profile install that is the admin, whose dates say nothing about
+// whether a profile user has started something. See the same reasoning in the playback manager.
+func (m *Manager) listEntryFor(mediaId int, profileID uint) *anilist.AnimeListEntry {
+	if profileID > 0 && m.getProfileAnimeCollectionFunc != nil {
+		if collection := m.getProfileAnimeCollectionFunc(profileID); collection != nil {
+			entry, found := collection.GetListEntryFromAnimeId(mediaId)
+			if !found {
+				// Readable, and it does not hold this anime: nothing is recorded for it on that
+				// account, which is exactly the case a start date is for.
+				return nil
+			}
+			return entry
+		}
+	}
+
 	animeCollection, ok := m.animeCollection.Get()
 	if !ok || animeCollection == nil {
 		return nil

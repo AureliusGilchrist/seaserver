@@ -66,6 +66,11 @@ type (
 		// invalidateProfileAnimeCollectionFunc invalidates the profile's cached anime collection
 		// after a successful progress update so the next fetch returns fresh data.
 		invalidateProfileAnimeCollectionFunc func(profileID uint)
+		// getProfileAnimeCollectionFunc returns the collection of the account a progress update is
+		// being written to. The start/completion date rule reads whether a date is already recorded,
+		// and that question is only meaningful about the account being written to — the global
+		// collection belongs to the admin, whose dates say nothing about a profile user.
+		getProfileAnimeCollectionFunc func(profileID uint) *anilist.AnimeCollection
 		// enqueueProfilePendingProgressFunc queues a profile's progress update when AniList is
 		// unreachable, so it is replayed automatically once the API is available again.
 		enqueueProfilePendingProgressFunc func(profileID uint, mediaID int, progress int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput)
@@ -240,6 +245,7 @@ type (
 		ContinuityManager           *continuity.Manager
 		GetProfileAnilistClientFunc func(profileID uint) (anilist.AnilistClient, uint)
 		InvalidateProfileAnimeCollectionFunc func(profileID uint)
+		GetProfileAnimeCollectionFunc        func(profileID uint) *anilist.AnimeCollection
 		EnqueueProfilePendingProgressFunc    func(profileID uint, mediaID int, progress int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput)
 	}
 
@@ -288,6 +294,7 @@ func New(opts *NewPlaybackManagerOptions) *PlaybackManager {
 		refreshAnimeCollectionFunc:   opts.RefreshAnimeCollectionFunc,
 		getProfileAnilistClientFunc:  opts.GetProfileAnilistClientFunc,
 		invalidateProfileAnimeCollectionFunc: opts.InvalidateProfileAnimeCollectionFunc,
+		getProfileAnimeCollectionFunc:        opts.GetProfileAnimeCollectionFunc,
 		enqueueProfilePendingProgressFunc:    opts.EnqueueProfilePendingProgressFunc,
 		mu:                           sync.Mutex{},
 		autoPlayMu:                   sync.Mutex{},

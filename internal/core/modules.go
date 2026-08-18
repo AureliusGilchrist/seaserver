@@ -134,6 +134,18 @@ func (a *App) initModulesOnce() {
 				a.AnilistClientManager.InvalidateAnimeCollection(profileID)
 			}
 		},
+		GetProfileAnimeCollectionFunc: func(profileID uint) *anilist.AnimeCollection {
+			// The account being written to is the one whose dates decide whether a start date is
+			// missing. Cached read only: this sits in the middle of a progress update.
+			if a.AnilistClientManager == nil || profileID == 0 {
+				return nil
+			}
+			collection, err := a.AnilistClientManager.GetAnimeCollection(profileID)
+			if err != nil {
+				return nil
+			}
+			return collection
+		},
 		EnqueueProfilePendingProgressFunc: func(profileID uint, mediaID int, progress int, status *anilist.MediaListStatus, startedAt *anilist.FuzzyDateInput, completedAt *anilist.FuzzyDateInput) {
 			if a.AnilistClientManager != nil {
 				a.AnilistClientManager.EnqueueProgressUpdate(profileID, mediaID, progress, status, startedAt, completedAt)
@@ -238,6 +250,18 @@ func (a *App) initModulesOnce() {
 			if a.AnilistClientManager != nil {
 				a.AnilistClientManager.InvalidateAnimeCollection(profileID)
 			}
+		},
+		GetProfileAnimeCollectionFunc: func(profileID uint) *anilist.AnimeCollection {
+			// The account being written to is the one whose dates decide whether a start date is
+			// missing. Cached read only: this sits in the middle of a progress update.
+			if a.AnilistClientManager == nil || profileID == 0 {
+				return nil
+			}
+			collection, err := a.AnilistClientManager.GetAnimeCollection(profileID)
+			if err != nil {
+				return nil
+			}
+			return collection
 		},
 		// Mirror the PlaybackManager activity tracker so that direct-stream playback
 		// also feeds the profile XP / level / achievements / community feed.

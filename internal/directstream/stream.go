@@ -328,7 +328,7 @@ func (m *Manager) handlePlayerEvent(event videocore.VideoEvent) {
 					// Dates for a first watch only: filled in when empty, never changed, nothing at
 					// all for a rewatch. See anilist.FirstWatchDates.
 					startedAt, completedAt := anilist.FirstWatchDates(
-						baseStream.manager.listEntryFor(mediaId), isCompleted, time.Now())
+						baseStream.manager.listEntryFor(mediaId, resolvedProfileID), isCompleted, time.Now())
 					_, updateErr = client.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
 				} else {
 					// No linked AniList account anywhere — fall back to the platform layer,

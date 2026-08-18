@@ -108,6 +108,18 @@ func (ap *AnilistPlatform) UpdateEntry(ctx context.Context, mediaID int, status 
 			return err
 		}
 
+		// Saving an edit with progress on it and the start date left blank fills the date in, the
+		// same way watching an episode does. The edit screen sends nothing for an empty date field,
+		// which AniList reads as "leave it alone" — correct for a date that exists, and a hole for
+		// one that never got set: an entry could be moved to Watching with progress on it and still
+		// have no record of when it was started. Only a date that is genuinely absent is filled,
+		// so an existing one is never touched.
+		if event.StartedAt == nil && event.Progress != nil && *event.Progress >= 1 {
+			if hasStartedAt, _ := ap.entryHasDates(mediaID); !hasStartedAt {
+				event.StartedAt = todayFuzzyDate()
+			}
+		}
+
 		_, err := ap.anilistClient.UpdateMediaListEntry(ctx, event.MediaID, event.Status, event.ScoreRaw, event.Progress, event.StartedAt, event.CompletedAt)
 		return err
 	})
@@ -165,14 +177,12 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 		// entries never got a start date at all. Any progress at all means you have started it.
 		hasStartedAt, hasCompletedAt := ap.entryHasDates(mediaID)
 
-		now := time.Now()
-		year, monthVal, day := now.Year(), int(now.Month()), now.Day()
 		var startedAt, completedAt *anilist.FuzzyDateInput
 		if *event.Progress >= 1 && !hasStartedAt {
-			startedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+			startedAt = todayFuzzyDate()
 		}
 		if realTotalCount > 0 && *event.Progress >= realTotalCount && !hasCompletedAt {
-			completedAt = &anilist.FuzzyDateInput{Year: &year, Month: &monthVal, Day: &day}
+			completedAt = todayFuzzyDate()
 		}
 
 		// Use UpdateMediaListEntryProgress (no scoreRaw field) to avoid AniList
@@ -187,6 +197,13 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 		)
 		return err
 	})
+}
+
+// todayFuzzyDate is today, in the shape AniList takes a date in.
+func todayFuzzyDate() *anilist.FuzzyDateInput {
+	now := time.Now()
+	year, month, day := now.Year(), int(now.Month()), now.Day()
+	return &anilist.FuzzyDateInput{Year: &year, Month: &month, Day: &day}
 }
 
 // entryHasDates reports whether the entry already carries a start date and a completion date.
