@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"seanime/internal/util"
 	"seanime/internal/util/comparison"
 	"sort"
 	"strconv"
@@ -1094,18 +1094,17 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	// present; if the server stops halfway through the moves below, that decision is what gets
 	// resumed. Recomputing it later from whatever is left in the staging directory would number the
 	// remainder from one. See ResumePendingMatches.
-	r.writePendingMatch(req.TorrentName, req.AnimeID, destination, planned)
+	//
+	// It carries the request and the pre-match metadata as well as the moves, so an interruption
+	// after the files have moved but before the match has been written down is finished too, rather
+	// than leaving episodes in the library that nothing records as matched.
+	journal := r.writePendingMatch(req, destination, planned, preMatchMetadata, result.RemovedFiles)
 
 	// Move the files. A same-filesystem match renames, which costs nothing, but a cross-filesystem
 	// one copies every episode end to end — and doing that one file at a time leaves most of the
 	// available throughput idle. Outcomes are collected by index, so the result is the same list,
 	// in the same order, as when the moves ran one after another.
 	moveErrs := r.runMoves(planned)
-
-	// Seen through, whatever the individual outcomes were: the files that failed are reported to the
-	// caller and recorded below, and resuming them behind its back would move files it has been told
-	// were left behind.
-	r.clearPendingMatch(req.TorrentName)
 
 	for i, p := range planned {
 		if err := moveErrs[i]; err != nil {
@@ -1118,19 +1117,55 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		r.logger.Info().Str("src", p.src).Str("dest", p.dest).Msg("unmatched: Moved file")
 	}
 
+	// Everything a match does once its files are in place. Driven off the journal, so a server that
+	// stops between any two steps of it resumes at the step it stopped on.
+	r.finalizeMatch(req, result, planned, moveErrs, preMatchMetadata, journal)
+
+	if len(result.FailedFiles) > 0 {
+		result.ErrorMessage = fmt.Sprintf("Failed to move %d files", len(result.FailedFiles))
+	}
+
+	return result, nil
+}
+
+// finalizeMatch is the second half of a match: the undo record, the pending question, the metadata,
+// the sidecar, and the staging cleanup.
+//
+// It is separate from the moves because it is replayed on its own. A match interrupted after its
+// episodes had moved used to leave them in the library with nothing recording that they had been
+// matched — no undo record, no sidecar, the staging directory still full, the anime still showing as
+// unmatched. Now the plan on disk says which of these steps have happened, this skips those, and the
+// plan is only removed once there is nothing left to do.
+//
+// Each step is therefore written to be repeatable: they either overwrite what they wrote before or
+// check the journal first, so running this twice leaves the same state as running it once.
+func (r *Repository) finalizeMatch(
+	req *MatchRequest,
+	result *MatchResult,
+	planned []plannedMove,
+	moveErrs []error,
+	preMatchMetadata *TorrentMetadata,
+	journal *matchJournal,
+) {
 	// Write down what just happened while the plan and its outcomes are still to hand. This is the
 	// only record of where each file came from and what it was called, and it is what the undo
 	// screen replays backwards.
-	r.recordMatch(req, result, planned, moveErrs, preMatchMetadata)
+	if !journal.isDone(stageRecord) {
+		r.recordMatch(req, result, planned, moveErrs, preMatchMetadata, journal.matchID())
+		journal.mark(stageRecord)
+	}
 
 	// The way was clear enough to move files, so whatever was being asked about is settled.
-	r.ClearPendingConflict(req.TorrentName)
+	if !journal.isDone(stageConflict) {
+		r.ClearPendingConflict(req.TorrentName)
+		journal.mark(stageConflict)
+	}
 
 	// Record which anime the user actually matched to, so a partial torrent's remaining files —
 	// and anything that looks this download up later — reflect the choice rather than whatever the
 	// download was queued for. Writing a row costs nothing and cannot recreate a staging directory,
 	// which is why this no longer has to check whether one still exists.
-	if req.AnimeID > 0 && len(result.MovedFiles) > 0 {
+	if req.AnimeID > 0 && len(result.MovedFiles) > 0 && !journal.isDone(stageSelection) {
 		selection := TorrentMetadata{
 			AnimeID:          req.AnimeID,
 			AnimeTitleRomaji: req.AnimeTitleClean,
@@ -1159,6 +1194,7 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		// Covers both kinds of match: this function is what the Unmatched screen calls and what the
 		// auto-matcher calls, so an anime matched by hand and one matched for you arrive here alike.
 		r.MarkAnimeMatchedState(req.AnimeID)
+		journal.mark(stageSelection)
 	}
 
 	// Leave a sidecar in the anime folder the episodes went to, so the files carry their own
@@ -1166,17 +1202,18 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 	// one place a metadata file is still written, and it is the library — never the Unmatched
 	// folder, where nothing can be relied on to exist. The library scanner reads it to place
 	// files it could not match by title.
-	if result.Destination != "" && len(result.MovedFiles) > 0 {
+	if result.Destination != "" && len(result.MovedFiles) > 0 && !journal.isDone(stageSidecar) {
 		if err := r.writeMetadataToDestination(req.TorrentName, result.Destination); err != nil {
 			r.logger.Warn().Err(err).
 				Str("torrent", req.TorrentName).
 				Str("destination", result.Destination).
 				Msg("unmatched: Failed to write metadata to destination")
 		}
+		journal.mark(stageSidecar)
 	}
 
 	// Clean up the staging directory last, so nothing recreates it afterwards.
-	if len(result.FailedFiles) == 0 {
+	if len(result.FailedFiles) == 0 && !journal.isDone(stageCleanup) {
 		r.CleanupTorrentDirectory(req.TorrentName)
 		// The files are out; take the opportunity to drop any other staging
 		// directories left holding nothing at all. Directories still carrying a
@@ -1184,13 +1221,15 @@ func (r *Repository) MatchAndMoveFiles(req *MatchRequest) (*MatchResult, error) 
 		// finished downloading yet.
 		r.SweepEmptyDirectories()
 		r.invalidateCache()
+		journal.mark(stageCleanup)
 	}
 
-	if len(result.FailedFiles) > 0 {
-		result.ErrorMessage = fmt.Sprintf("Failed to move %d files", len(result.FailedFiles))
+	// The plan is only torn up once the match is genuinely over. Files that failed to move keep it
+	// alive, so the next start tries them again rather than abandoning them halfway between the
+	// download and the library.
+	if len(result.FailedFiles) == 0 {
+		journal.clear()
 	}
-
-	return result, nil
 }
 
 // fileWithSeason pairs a file with its season number
@@ -1304,38 +1343,17 @@ func (r *Repository) moveFileSafely(src, dest string) (err error) {
 	return r.moveFile(src, dest)
 }
 
-// moveFile moves a file from src to dest, handling cross-device moves
+// moveFile moves a file from src to dest, handling cross-device moves.
+//
+// The cross-device case used to write straight to dest, which meant a stop partway through — the
+// server shutting down, the machine losing power, the drive being unplugged — left a fraction of an
+// episode sitting at the final path under the final name. Nothing downstream could tell that apart
+// from a whole file: it was scanned, matched, and only found to be broken when someone tried to
+// play it. util.MoveFileCrashSafe copies to a ".part" sibling and renames it into place instead, so
+// dest holds either nothing or the entire file, and an interruption leaves the source where it is
+// for the move to be retried.
 func (r *Repository) moveFile(src, dest string) error {
-	// Try rename first (fastest if on same filesystem)
-	if err := os.Rename(src, dest); err == nil {
-		return nil
-	}
-
-	// Fall back to copy + delete for cross-device moves
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
-
-	destFile, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	defer destFile.Close()
-
-	if _, err := io.Copy(destFile, srcFile); err != nil {
-		os.Remove(dest) // Clean up partial file
-		return err
-	}
-
-	// Sync to ensure data is written
-	if err := destFile.Sync(); err != nil {
-		return err
-	}
-
-	// Remove source file
-	return os.Remove(src)
+	return util.MoveFileCrashSafe(src, dest)
 }
 
 // extraDirName is the exact name of the junk folder releases ship alongside the episodes.

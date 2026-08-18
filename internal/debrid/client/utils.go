@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"seanime/internal/util"
 
 	"github.com/nwaples/rardecode/v2"
 )
@@ -141,8 +142,17 @@ func moveFolderOrFileTo(src, dest string) error {
 
 	// Move the folder by renaming it
 	err := os.Rename(src, destFolder)
-	if err != nil {
-		return fmt.Errorf("failed to move folder: %v", err)
+	if err == nil {
+		return nil
+	}
+
+	// Rename only works within one filesystem, so a download directory on a different drive to the
+	// library failed here outright and left the finished download sitting in the temporary folder.
+	// Falling back to a copy makes that work — and it is a crash-safe copy, so a shutdown partway
+	// through a season pack leaves whole episodes and ".part" files, never a half file wearing a
+	// finished file's name.
+	if moveErr := util.MoveTreeCrashSafe(src, destFolder); moveErr != nil {
+		return fmt.Errorf("failed to move folder: %v", moveErr)
 	}
 
 	return nil

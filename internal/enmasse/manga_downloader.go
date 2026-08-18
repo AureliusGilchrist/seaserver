@@ -393,7 +393,7 @@ func (d *MangaDownloader) saveProgressFromState() {
 		return
 	}
 
-	if err := os.WriteFile(MangaProgressFilePath, data, 0644); err != nil {
+	if err := util.WriteFileCrashSafe(MangaProgressFilePath, data, 0644); err != nil {
 		d.logger.Warn().Err(err).Msg("enmasse-manga: Failed to save progress in Stop")
 	}
 }
@@ -643,7 +643,7 @@ func (d *MangaDownloader) saveCurrentProgress(processedTitles map[string]bool) {
 		return
 	}
 
-	if err := os.WriteFile(MangaProgressFilePath, data, 0644); err != nil {
+	if err := util.WriteFileCrashSafe(MangaProgressFilePath, data, 0644); err != nil {
 		d.logger.Warn().Err(err).Msg("enmasse-manga: Failed to save progress")
 	} else {
 		d.logger.Debug().Int("processed", len(processedTitles)).Msg("enmasse-manga: Progress saved")

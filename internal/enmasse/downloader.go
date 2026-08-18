@@ -70,7 +70,7 @@ func (d *Downloader) saveCurrentProgress(lastIndex int) {
 		return
 	}
 
-	if err := os.WriteFile(AnimeProgressFilePath, data, 0644); err != nil {
+	if err := util.WriteFileCrashSafe(AnimeProgressFilePath, data, 0644); err != nil {
 		d.logger.Error().Err(err).Msg("enmasse-anime: Failed to save progress")
 	}
 }

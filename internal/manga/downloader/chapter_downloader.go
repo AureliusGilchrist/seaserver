@@ -601,7 +601,7 @@ func (r *Registry) save(queueInfo *QueueInfo, destination string, logger *zerolo
 	}
 
 	registryFilePath := filepath.Join(destination, "registry.json")
-	err = os.WriteFile(registryFilePath, data, 0644)
+	err = util.WriteFileCrashSafe(registryFilePath, data, 0644)
 	if err != nil {
 		return err
 	}

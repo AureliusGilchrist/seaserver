@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"seanime/internal/util"
 	"strings"
 	"sync"
 	"time"
@@ -374,14 +375,16 @@ func (cs *CacheStore) loadFromFile() error {
 }
 
 func (cs *CacheStore) saveToFile() error {
-	file, err := os.Create(cs.filePath)
+	// Encoded whole, then written through a temp file and renamed over the target. Writing into the
+	// cache file directly meant a server stopped mid-encode left a truncated file, and loadFromFile
+	// silently starts from empty when it cannot decode one — so an unlucky shutdown quietly threw
+	// the whole bucket away. This way the previous contents survive any interruption.
+	data, err := json.Marshal(cs.data)
 	if err != nil {
-		return fmt.Errorf("filecache: failed to create cache file: %w", err)
-	}
-	defer file.Close()
-
-	if err := json.NewEncoder(file).Encode(cs.data); err != nil {
 		return fmt.Errorf("filecache: failed to encode cache data: %w", err)
+	}
+	if err := util.WriteFileCrashSafe(cs.filePath, data, 0644); err != nil {
+		return fmt.Errorf("filecache: failed to write cache file: %w", err)
 	}
 	return nil
 }

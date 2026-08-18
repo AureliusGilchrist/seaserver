@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"seanime/internal/util"
 	"strings"
 	"sync"
 
@@ -155,7 +156,7 @@ func (sr *SeriesRegistry) Save(seriesDir string) error {
 		return fmt.Errorf("failed to marshal series registry: %w", err)
 	}
 	
-	if err := os.WriteFile(registryPath, data, 0644); err != nil {
+	if err := util.WriteFileCrashSafe(registryPath, data, 0644); err != nil {
 		return fmt.Errorf("failed to write series registry: %w", err)
 	}
 	

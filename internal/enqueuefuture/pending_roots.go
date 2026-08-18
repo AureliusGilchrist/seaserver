@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"seanime/internal/util"
 	"time"
 )
 
@@ -69,7 +70,7 @@ func (r *Repository) savePendingRoots(roots []pendingRoot) {
 	if err != nil {
 		return
 	}
-	if err := os.WriteFile(r.pendingRootsPath(), data, 0o644); err != nil {
+	if err := util.WriteFileCrashSafe(r.pendingRootsPath(), data, 0o644); err != nil {
 		r.logger.Warn().Err(err).Msg("enqueuefuture: Could not save the waiting roots")
 	}
 }
@@ -291,7 +292,7 @@ func (r *Repository) saveRewalkBacklog(roots []pendingRoot) {
 	if err != nil {
 		return
 	}
-	if err := os.WriteFile(r.rewalkBacklogPath(), data, 0o644); err != nil {
+	if err := util.WriteFileCrashSafe(r.rewalkBacklogPath(), data, 0o644); err != nil {
 		r.logger.Warn().Err(err).Msg("enqueuefuture: Could not save the re-walk backlog")
 	}
 }
