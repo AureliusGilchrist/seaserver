@@ -2,6 +2,7 @@
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { MediaCardLazyGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
 import { PaginatedMediaGrid } from "@/app/(main)/_features/media/_components/paginated-media-grid"
+import { MangaBadge } from "@/app/(main)/_features/media/_components/manga-badge"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
 import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_components/media-entry-page-loading-display"
 import { MangaLibraryHeader } from "@/app/(main)/manga/_components/library-header"
@@ -553,7 +554,6 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                 <CarouselContent>
                                     {sourceFilteredDownloads.map(dlItem => {
                                         const chapters = Object.values(dlItem.downloadData).flatMap(n => n).length
-                                        const isSynthetic = (dlItem.media?.id !== undefined && dlItem.media.id < 0) && !dlItem.isMapped
                                         if (dlItem.media) {
                                             const hoverImg = dlItem.media?.bannerImage || dlItem.media?.coverImage?.extraLarge || dlItem.media?.coverImage?.large || null
                                             return (
@@ -571,14 +571,13 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                                         <MediaEntryCard
                                                             media={dlItem.media}
                                                             type="manga"
+                                                            listData={dlItem.listData}
+                                                            showListDataButton
                                                             hideUnseenCountBadge
-                                                            hideAnilistEntryEditButton
                                                             containerClassName="h-full"
                                                             overlay={
-                                                                <div className="absolute inset-x-0 top-0 flex justify-between pointer-events-none">
-                                                                    {isSynthetic && (
-                                                                        <span className="ml-0.5 mt-0.5 px-2 py-1 text-[10px] font-semibold rounded-br bg-amber-600/90 text-white">Synthetic</span>
-                                                                    )}
+                                                                <div className="absolute inset-x-0 top-0 flex justify-end pointer-events-none">
+                                                                    {/* Badge and synthetic tag come from the card itself. */}
                                                                     <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">{chapters} chapter{chapters === 1 ? "" : "s"}</p>
                                                                 </div>
                                                             }
@@ -598,7 +597,6 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                 scrollTargetSelector="[data-local-manga-library]"
                                 renderItem={dlItem => {
                                     const chapters = Object.values(dlItem.downloadData).flatMap(n => n).length
-                                    const isSynthetic = (dlItem.media?.id !== undefined && dlItem.media.id < 0) && !dlItem.isMapped
                                     // A media record with no cover art in it renders as a grey
                                     // rectangle — the card is there, the image simply never arrives,
                                     // and nothing on screen says which. Locally scanned series are
@@ -621,14 +619,15 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                                 <MediaEntryCard
                                                     media={dlItem.media}
                                                     type="manga"
+                                                    listData={dlItem.listData}
+                                                    showListDataButton
                                                     hideUnseenCountBadge
-                                                    hideAnilistEntryEditButton
                                                     containerClassName="h-full"
                                                     overlay={
-                                                        <div className="absolute inset-x-0 top-0 flex justify-between pointer-events-none">
-                                                            {isSynthetic && (
-                                                                <span className="ml-0.5 mt-0.5 px-2 py-1 text-[10px] font-semibold rounded-br bg-amber-600/90 text-white">Synthetic</span>
-                                                            )}
+                                                        <div className="absolute inset-x-0 top-0 flex justify-end pointer-events-none">
+                                                            {/* The state badge and the synthetic tag are drawn by the card
+                                                             itself now — see MangaBadge — so every screen marks a series
+                                                             the same way. Only the chapter count is local to this shelf. */}
                                                             <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">{chapters} chapter{chapters === 1 ? "" : "s"}</p>
                                                         </div>
                                                     }
@@ -669,9 +668,10 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                                                 <p className="px-3 text-center text-xs text-[--muted]">No cover art</p>
 
                                                 <div className="absolute inset-x-0 top-0 flex justify-between">
-                                                    {isSynthetic && (
-                                                        <span className="ml-0.5 mt-0.5 px-2 py-1 text-[10px] font-semibold rounded-br bg-amber-600/90 text-white">Synthetic</span>
-                                                    )}
+                                                    {/* Drawn here rather than by the card, because a
+                                                     tile with no cover art is not one. Same badge,
+                                                     same source. */}
+                                                    <MangaBadge mediaId={dlItem.mediaId} variant="overlay" className="!relative" />
                                                     <p className="ml-auto font-semibold text-white bg-gray-950 bg-opacity-90 px-3 py-1 text-xs rounded-bl-lg">
                                                         {chapters} chapter{chapters === 1 ? "" : "s"}
                                                     </p>

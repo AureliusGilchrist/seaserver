@@ -454,7 +454,7 @@ export function MediaEntryCard<T extends "anime" | "manga">(props: MediaEntryCar
                 bannerImage={media.coverImage?.extraLarge || ""}
                 isAdult={media.isAdult}
                 showLibraryBadge={showLibraryBadge}
-                mediaId={(type === "anime" && !hideDownloadBadges) ? media.id : undefined}
+                mediaId={!hideDownloadBadges ? media.id : undefined}
                 blurAdultContent={serverStatus?.settings?.anilist?.blurAdultContent}
                 onClick={onClick}
                 hideReleasingBadge={hideReleasingBadge}

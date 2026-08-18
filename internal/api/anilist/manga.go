@@ -126,3 +126,27 @@ func (m *MangaListEntry) GetRepeatSafe() int {
 	}
 	return *m.Repeat
 }
+
+// AniList sends progress and score as null, not zero, for a list entry that has neither set — which
+// is every entry the moment it is added to a list and until something is recorded against it.
+//
+// The manga code read both by dereferencing the pointer. A single such entry anywhere in the
+// collection panicked the request that was building it, so the whole collection or the whole entry
+// page came back as an error, and the screen fell back to showing the media with no list data at
+// all: no status, no dates, no rating, and an "add to list" button on a series that was already on
+// the list. The anime side has had GetProgressSafe and GetScoreSafe for exactly this reason and the
+// manga side was simply never given them.
+
+func (m *MangaListEntry) GetProgressSafe() int {
+	if m == nil || m.Progress == nil {
+		return 0
+	}
+	return *m.Progress
+}
+
+func (m *MangaListEntry) GetScoreSafe() float64 {
+	if m == nil || m.Score == nil {
+		return 0
+	}
+	return *m.Score
+}

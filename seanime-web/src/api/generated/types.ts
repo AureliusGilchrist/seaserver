@@ -3455,6 +3455,27 @@ export type MalAuthResponse = {
 }
 
 /**
+ * - Filepath: internal/handlers/manga_badges.go
+ * - Filename: manga_badges.go
+ * - Package: handlers
+ * @description
+ *  MangaBadgeStatus is the badge state of every manga that has one.
+ *  
+ *  Four lists, and a series may be in more than one: the first three are the states of its files and
+ *  the fourth says what kind of record it is. That is the difference the "synthetic" tag draws — it
+ *  is not a fourth state competing with the others, it is a note attached to whichever of them
+ *  applies, which is why it is its own list rather than folded into them.
+ */
+export type MangaBadgeStatus = {
+    downloading?: Array<number>
+    downloaded?: Array<number>
+    matched?: Array<number>
+    synthetic?: Array<number>
+    fingerprint?: string
+    unchanged?: boolean
+}
+
+/**
  * - Filepath: internal/handlers/manga.go
  * - Filename: manga.go
  * - Package: handlers
@@ -4134,6 +4155,7 @@ export type Manga_DownloadListItem = {
      * True if this was a synthetic manga mapped to AniList
      */
     isMapped: boolean
+    listData?: Manga_EntryListData
 }
 
 /**

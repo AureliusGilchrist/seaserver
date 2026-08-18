@@ -63,6 +63,9 @@ type AnilistClientManager struct {
 	// recentEdits holds the list changes made here in the last couple of minutes, so a collection
 	// fetched before AniList has caught up cannot put the old values back. See recentEditTTL.
 	recentEdits map[uint]map[int]*animeListEdit
+
+	// recentMangaEdits is the same defence for manga list edits. See anilist_manga_edits.go.
+	recentMangaEdits map[uint]map[int]*mangaListEdit
 	colMu       sync.RWMutex
 
 	// Singleflight groups collapse concurrent fetches for the same profile
@@ -1073,6 +1076,10 @@ func (m *AnilistClientManager) GetMangaCollection(profileID uint) (*anilist.Mang
 			col.MediaListCollection.Lists = filtered
 		}
 		m.colMu.Lock()
+		// AniList answers a collection query with pre-edit data for a few seconds after accepting a
+		// mutation, so a fetch triggered by an edit arrives holding the values that edit changed.
+		// Replaying puts the user's own change back on top of it. See anilist_manga_edits.go.
+		m.replayRecentMangaEditsLocked(profileID, col)
 		m.mangaColCache[profileID] = &profileMangaCache{data: col, fetchedAt: time.Now()}
 		m.colMu.Unlock()
 		// Write-through to disk for offline resilience.

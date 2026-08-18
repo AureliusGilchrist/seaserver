@@ -185,6 +185,10 @@ func (h *Handler) HandleGetMangaCollection(c echo.Context) error {
 		}
 	}
 
+	// A status the user just changed has to be on the grid as well as on the entry page, or the two
+	// disagree for as long as AniList takes to catch up.
+	mangaCollection = h.App.AnilistClientManager.ReplayRecentMangaEdits(profileID, mangaCollection)
+
 	// Get media map from manga downloader (downloaded chapters)
 	mediaMap := h.App.MangaDownloader.GetMediaMap()
 
@@ -227,6 +231,31 @@ func (h *Handler) HandleGetMangaCollection(c echo.Context) error {
 	return h.RespondWithData(c, collection)
 }
 
+// mangaCollectionForProfile returns the manga collection belonging to whoever is signed in.
+//
+// A profile with its own AniList reads its own list; the admin, and a profile with no AniList
+// linked, read the app-level one. Whatever comes back has any edit made in the last couple of
+// minutes replayed over it, because AniList answers a collection query with pre-edit data for a few
+// seconds after accepting a mutation — see AnilistClientManager.ReplayRecentMangaEdits.
+func (h *Handler) mangaCollectionForProfile(c echo.Context) (*anilist.MangaCollection, error) {
+	profileID := h.GetProfileID(c)
+
+	if profileID > 0 {
+		if col, err := h.App.AnilistClientManager.GetMangaCollection(profileID); err == nil && col != nil {
+			return h.App.AnilistClientManager.ReplayRecentMangaEdits(profileID, col), nil
+		} else if err != nil {
+			h.App.Logger.Warn().Err(err).Uint("profileID", profileID).
+				Msg("handlers: Failed to get profile manga collection, falling back to the app collection")
+		}
+	}
+
+	col, err := h.App.GetMangaCollection(false)
+	if err != nil {
+		return nil, err
+	}
+	return h.App.AnilistClientManager.ReplayRecentMangaEdits(profileID, col), nil
+}
+
 // HandleGetMangaEntry
 //
 //	@summary returns a manga entry for the given AniList manga id.
@@ -241,7 +270,15 @@ func (h *Handler) HandleGetMangaEntry(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	animeCollection, err := h.App.GetMangaCollection(false)
+	// The signed-in user's own collection, not the admin's.
+	//
+	// This read h.App.GetMangaCollection unconditionally, which is the app-level collection — the
+	// admin account's. On a profile that is somebody else's list entirely: the entry page showed
+	// their status, their progress and their score, or more often none at all, because the manga
+	// was on the user's list and not on the admin's. "It's not based on my account" was exactly
+	// right. The anime entry page has always looked its collection up per profile; this is the same
+	// rule, and the same fallback for the admin and for profiles with no AniList linked.
+	mangaCollection, err := h.mangaCollectionForProfile(c)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
@@ -251,7 +288,7 @@ func (h *Handler) HandleGetMangaEntry(c echo.Context) error {
 		Logger:          h.App.Logger,
 		FileCacher:      h.App.FileCacher,
 		PlatformRef:     h.App.AnilistPlatformRef,
-		MangaCollection: animeCollection,
+		MangaCollection: mangaCollection,
 		Database:        h.App.Database,
 	})
 	if err != nil {

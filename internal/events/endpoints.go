@@ -154,6 +154,7 @@ const (
 	GetLocalFilesEndpoint                              = "LOCALFILES-get-local-files"
 	GetLocalMangaPageEndpoint                          = "MANGA-get-local-manga-page"
 	GetLogFilenamesEndpoint                            = "STATUS-get-log-filenames"
+	GetMangaBadgeStatusEndpoint                        = "MANGA-BADGES-get-manga-badge-status"
 	GetMangaCollectionEndpoint                         = "MANGA-get-manga-collection"
 	GetMangaDownloadDataEndpoint                       = "MANGA-DOWNLOAD-get-manga-download-data"
 	GetMangaDownloadQueueEndpoint                      = "MANGA-DOWNLOAD-get-manga-download-queue"

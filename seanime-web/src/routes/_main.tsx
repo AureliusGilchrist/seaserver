@@ -1,4 +1,5 @@
 import { useSyncDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
+import { useSyncMangaBadges } from "@/app/(main)/_atoms/manga-badges.atoms"
 import { AchievementUnlockPanel } from "@/app/(main)/_features/achievement/achievement-unlock-panel"
 import { AnilistAvailabilityBanner } from "@/app/(main)/_features/anilist/anilist-availability-banner"
 import { MainLayout } from "@/app/(main)/_features/layout/main-layout"
@@ -32,6 +33,8 @@ function Layout() {
     // then vanish for good. The request never left the browser, which is why this endpoint left no
     // trace in the server log while everything else did.
     useSyncDownloadingAnime()
+    // The manga counterpart, polled the same way. See manga-badges.atoms.
+    useSyncMangaBadges()
 
     React.useEffect(() => {
         setHost(window?.location?.host || "")

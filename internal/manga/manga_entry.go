@@ -122,8 +122,12 @@ func NewEntry(ctx context.Context, opts *NewEntryOptions) (entry *Entry, err err
 		}
 		entry.Media = mangaEvent.Manga
 		entry.EntryListData = &EntryListData{
-			Progress:    *anilistEntry.Progress,
-			Score:       *anilistEntry.Score,
+			// See the note in collection.go: null progress and null score are ordinary, and
+			// dereferencing them failed the entry page for exactly the series that had just been
+			// added to a list — which is what showed an "add to list" button on something already
+			// on the list.
+			Progress:    anilistEntry.GetProgressSafe(),
+			Score:       anilistEntry.GetScoreSafe(),
 			Status:      anilistEntry.Status,
 			Repeat:      anilistEntry.GetRepeatSafe(),
 			StartedAt:   anilist.FuzzyDateToString(anilistEntry.StartedAt),

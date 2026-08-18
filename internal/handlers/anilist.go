@@ -275,8 +275,31 @@ func (h *Handler) HandleEditAnilistListEntry(c echo.Context) error {
 			_, _ = h.App.RefreshAnimeCollection()
 		}
 	case "manga":
+		// Patched into the cached collection rather than thrown away — the same treatment the anime
+		// branch above has had for a while, and for the same reason.
+		//
+		// This used to invalidate and refresh in the background. The client refetches the entry the
+		// instant this returns, so it read a collection that either had nothing in it yet or still
+		// held the pre-edit values. Pressing "+" on a manga added it to the planning list on AniList,
+		// correctly, and the card came back with no status and 0 chapters read — which is exactly
+		// what "it's added but visibly I don't see it" is. Changing the status afterwards failed the
+		// same way in reverse.
+		//
+		// The media is fetched only when the patch reports it needs one, which is only ever a
+		// first-time addition. An edit to something already on the list costs nothing extra.
+		applied := h.App.AnilistClientManager.ApplyMangaListEntryUpdate(profileID, *p.MediaId, nil, p.Status, p.Score, p.Progress, p.StartDate, p.EndDate)
+		if !applied {
+			if media, mediaErr := h.App.AnilistPlatformRef.Get().GetManga(c.Request().Context(), *p.MediaId); mediaErr == nil {
+				applied = h.App.AnilistClientManager.ApplyMangaListEntryUpdate(profileID, *p.MediaId, media, p.Status, p.Score, p.Progress, p.StartDate, p.EndDate)
+			}
+		}
+
 		if profileID > 0 {
-			h.App.AnilistClientManager.InvalidateMangaCollection(profileID)
+			if !applied {
+				h.App.AnilistClientManager.InvalidateMangaCollection(profileID)
+			}
+			// Whatever AniList works out for itself — the entry id, dates it fills in — arrives
+			// shortly after, and the replay above keeps the user's own values on top until it agrees.
 			go func() { _, _ = h.App.RefreshMangaCollection() }()
 		} else {
 			_, _ = h.App.RefreshMangaCollection()

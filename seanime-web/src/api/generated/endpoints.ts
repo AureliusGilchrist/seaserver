@@ -2007,6 +2007,21 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/manga/local-page/{path}",
         },
     },
+    MANGA_BADGES: {
+        /**
+         *  @description
+         *  Route returns the badge state of every manga that has one.
+         *  Four sets of media IDs — downloading, downloaded, matched and synthetic — for the cards to
+         *  draw from. Synthetic IDs are negative and are included on the same terms as any other.
+         *  A series may be in several: "synthetic" is a note on whichever state applies rather than a
+         *  state of its own. Polled, so an unchanged answer costs only its fingerprint.
+         */
+        GetMangaBadgeStatus: {
+            key: "MANGA-BADGES-get-manga-badge-status",
+            methods: ["GET"],
+            endpoint: "/api/v1/manga/badges",
+        },
+    },
     MANGA_DOWNLOAD: {
         DownloadMangaChapters: {
             key: "MANGA-DOWNLOAD-download-manga-chapters",

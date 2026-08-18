@@ -66,7 +66,7 @@ func (d *Downloader) CountChaptersByTitles(titles []string) (string, int) {
 		}
 
 		mediaDir := filepath.Join(d.downloadDir, chapter_downloader.SanitizeFolderName(title))
-		
+
 		// Try new format: series-level registry.json
 		seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(mediaDir, d.logger)
 		if err == nil && len(seriesRegistry.Chapters) > 0 {
@@ -77,7 +77,7 @@ func (d *Downloader) CountChaptersByTitles(titles []string) (string, int) {
 			}
 			continue
 		}
-		
+
 		// Fallback: old format with per-chapter registry.json
 		entries, err := os.ReadDir(mediaDir)
 		if err != nil {
@@ -162,7 +162,7 @@ type (
 		repository        *Repository
 
 		OnMangaQueued func(mediaId int) // Called when a manga chapter is queued for download
-		filecacher        *filecache.Cacher
+		filecacher    *filecache.Cacher
 
 		mediaMap   *MediaMap // Refreshed on start and after each download
 		mediaMapMu sync.RWMutex
@@ -414,9 +414,9 @@ func (d *Downloader) IsChapterAlreadyDownloaded(opts DownloadChapterDirectOption
 	if opts.MediaTitle == "" {
 		return false
 	}
-	
+
 	seriesDir := filepath.Join(d.downloadDir, chapter_downloader.SanitizeFolderName(opts.MediaTitle))
-	
+
 	// Try new format: check series-level registry
 	seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(seriesDir, d.logger)
 	if err == nil && len(seriesRegistry.Chapters) > 0 {
@@ -425,7 +425,7 @@ func (d *Downloader) IsChapterAlreadyDownloaded(opts DownloadChapterDirectOption
 			return true
 		}
 	}
-	
+
 	// Fallback: check old format (per-chapter registry.json)
 	chapterDir := chapter_downloader.FormatChapterDirName(opts.Provider, opts.MediaId, opts.ChapterId, opts.ChapterNumber)
 	registryPath := filepath.Join(seriesDir, chapterDir, "registry.json")
@@ -492,11 +492,11 @@ func (d *Downloader) GetMediaDownloads(mediaId int, cached bool) (ret MediaDownl
 func (d *Downloader) GetMediaMap() map[int]ProviderDownloadMap {
 	d.mediaMapMu.RLock()
 	defer d.mediaMapMu.RUnlock()
-	
+
 	if d.mediaMap == nil {
 		return make(map[int]ProviderDownloadMap)
 	}
-	
+
 	// Return a copy to avoid concurrent access issues
 	result := make(map[int]ProviderDownloadMap)
 	for k, v := range *d.mediaMap {
@@ -518,9 +518,9 @@ func (d *Downloader) StopChapterDownloadQueue() {
 
 type (
 	NewDownloadListOptions struct {
-		MangaCollection *anilist.MangaCollection
-		PlatformRef     *util.Ref[platform.Platform] // Optional: used to fetch metadata for manga not in collection
-		Ctx             context.Context
+		MangaCollection           *anilist.MangaCollection
+		PlatformRef               *util.Ref[platform.Platform] // Optional: used to fetch metadata for manga not in collection
+		Ctx                       context.Context
 		EnableRemoteMetadataFetch bool // If false, never call AniList during list generation
 	}
 
@@ -528,9 +528,15 @@ type (
 		MediaId int `json:"mediaId"`
 		// Media will be nil if the manga is no longer in the user's collection.
 		// The client should handle this case by displaying the download data without the media data.
-		Media        *anilist.BaseManga   `json:"media"`
+		Media        *anilist.BaseManga  `json:"media"`
 		DownloadData ProviderDownloadMap `json:"downloadData"`
-		IsMapped     bool                 `json:"isMapped"` // True if this was a synthetic manga mapped to AniList
+		IsMapped     bool                `json:"isMapped"` // True if this was a synthetic manga mapped to AniList
+		// ListData is the user's own AniList list entry for this series, when they have one.
+		//
+		// The Local Library used to send none, so every card there showed "0 / n chapters" and no
+		// status whatever the user's list actually said — including immediately after adding the
+		// series to a list from that very screen, which looked like the addition had not worked.
+		ListData *EntryListData `json:"listData,omitempty"`
 	}
 )
 
@@ -625,10 +631,40 @@ func (d *Downloader) NewDownloadList(opts *NewDownloadListOptions) (ret []*Downl
 			Media:        media,
 			DownloadData: entry.data,
 			IsMapped:     entry.isMapped || fromSynthetic,
+			ListData:     listDataFor(opts.MangaCollection, displayID),
 		})
 	}
 
 	return
+}
+
+// listDataFor reads the user's own list entry for a series out of their collection.
+//
+// Nil when the series is on none of their lists, which is what the card needs to know to offer to
+// add it.
+func listDataFor(collection *anilist.MangaCollection, mediaID int) *EntryListData {
+	if collection == nil || mediaID <= 0 {
+		return nil
+	}
+
+	entry, ok := collection.GetListEntryFromMangaId(mediaID)
+	if !ok || entry == nil {
+		return nil
+	}
+
+	listData := &EntryListData{
+		Status:      entry.Status,
+		Repeat:      entry.GetRepeatSafe(),
+		StartedAt:   anilist.FuzzyDateToString(entry.StartedAt),
+		CompletedAt: anilist.FuzzyDateToString(entry.CompletedAt),
+	}
+	if entry.Progress != nil {
+		listData.Progress = *entry.Progress
+	}
+	if entry.Score != nil {
+		listData.Score = *entry.Score
+	}
+	return listData
 }
 
 // mediaMapSnapshot copies the download map for reading.
@@ -963,14 +999,14 @@ func (d *Downloader) hydrateMediaMap() {
 
 	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
-	
+
 	for _, mediaDir := range mediaDirs {
 		if !mediaDir.IsDir() {
 			continue
 		}
 
 		mediaDirPath := filepath.Join(d.downloadDir, mediaDir.Name())
-		
+
 		// Try new format: series-level registry.json
 		seriesRegistry, err := chapter_downloader.LoadSeriesRegistry(mediaDirPath, d.logger)
 		if err == nil && len(seriesRegistry.Chapters) > 0 && seriesRegistry.MediaId != 0 {
@@ -978,18 +1014,18 @@ func (d *Downloader) hydrateMediaMap() {
 			if _, ok := ret[seriesRegistry.MediaId]; !ok {
 				ret[seriesRegistry.MediaId] = make(map[string][]ProviderDownloadMapChapterInfo)
 			}
-			
+
 			for _, entry := range seriesRegistry.Chapters {
 				newMapInfo := ProviderDownloadMapChapterInfo{
 					ChapterID:     entry.ChapterId,
 					ChapterNumber: entry.ChapterNumber,
 				}
-				
+
 				provider := entry.Provider
 				if provider == "" {
 					provider = seriesRegistry.Provider
 				}
-				
+
 				if _, ok := ret[seriesRegistry.MediaId][provider]; !ok {
 					ret[seriesRegistry.MediaId][provider] = []ProviderDownloadMapChapterInfo{newMapInfo}
 				} else {
@@ -999,7 +1035,7 @@ func (d *Downloader) hydrateMediaMap() {
 			mu.Unlock()
 			continue
 		}
-		
+
 		// Fallback: old format with per-chapter directories
 		chapterDirs, err := os.ReadDir(mediaDirPath)
 		if err != nil {
@@ -1066,7 +1102,7 @@ func (d *Downloader) migrateToNewFormat() {
 		Percentage: 0,
 		Status:     "starting",
 	})
-	
+
 	results, err := chapter_downloader.MigrateDownloadDirectoryWithProgress(
 		d.downloadDir,
 		d.logger,
@@ -1097,7 +1133,7 @@ func (d *Downloader) migrateToNewFormat() {
 		})
 		return
 	}
-	
+
 	totalMigrated := 0
 	totalFailed := 0
 	totalSeriesErrors := 0

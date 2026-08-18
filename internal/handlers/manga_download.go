@@ -238,7 +238,9 @@ func (h *Handler) HandleDeleteMangaDownloadedChapters(c echo.Context) error {
 //	@returns []manga.DownloadListItem
 func (h *Handler) HandleGetMangaDownloadsList(c echo.Context) error {
 
-	mangaCollection, err := h.App.GetMangaCollection(false)
+	// The signed-in user's own collection, so the cards on this screen carry their status and their
+	// progress rather than the admin's — and so a series just added to a list shows as added.
+	mangaCollection, err := h.mangaCollectionForProfile(c)
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}

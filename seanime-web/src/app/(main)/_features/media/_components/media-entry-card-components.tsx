@@ -2,6 +2,7 @@ import { AL_BaseAnime_NextAiringEpisode, AL_MediaListStatus, AL_MediaStatus } fr
 import { ElectronYoutubeEmbed } from "@/app/(main)/_electron/electron-embed"
 import { MediaCardBodyBottomGradient } from "@/app/(main)/_features/custom-ui/item-bottom-gradients"
 import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
+import { MangaBadge } from "@/app/(main)/_features/media/_components/manga-badge"
 import { MediaEntryProgressBadge } from "@/app/(main)/_features/media/_components/media-entry-progress-badge"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -357,11 +358,9 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
     // disagree: a card that asked for the library badge and said nothing about downloads claimed you
     // had a series that was in fact still coming down.
     //
-    // `showLibraryBadge` is manga's alone now. An anime's orange badge means its download was matched
-    // into the library, which is a fact about the download and so is the same on every account;
-    // library data is a fact about whoever is signed in, and was why the orange badge came and went
-    // depending on the profile.
-    const showMangaDownloadedBadge = type === "manga" && !!showLibraryBadge
+    // Both kinds of card now read their badge from the server's record of it — anime from the
+    // download states, manga from the four sets in `manga-badges.atoms` — so neither is computed
+    // here any more, and the two cannot disagree with the screens that show the same series.
 
     return (
         <>
@@ -402,23 +401,21 @@ export function MediaEntryCardBody(props: MediaEntryCardBodyProps) {
                         </div>
                     )}
 
-                    {/* Manga: chapters downloaded. The same corner and shape as the anime badge, so
-                     the two kinds of card read alike. */}
-                    {showMangaDownloadedBadge &&
-                        <div data-media-entry-card-body-library-badge className="absolute z-[1] left-0 top-0">
-                            <Badge
-                                size="xl" intent="warning-solid"
-                                title="Downloaded"
-                                aria-label="Downloaded"
-                                className="rounded-[--radius] rounded-bl-none rounded-tr-none text-orange-900"
-                            ><IoLibrarySharp /></Badge>
-                        </div>}
+                    {/* Manga: downloading, matched or downloaded — whichever it is, drawn once, with
+                     the synthetic tag beside it when the series is described from a local record.
+                     Same corner and shapes as the anime badge, so the two kinds of card read alike.
+                     Renders nothing when there is nothing to say.
+
+                     `showMangaDownloadedBadge` used to decide this from a chapter-count ratio the
+                     card computed itself, which meant a card could only ever say "downloaded" and
+                     only when the count happened to be to hand. */}
+                    {type === "manga" && <MangaBadge mediaId={mediaId} variant="overlay" />}
 
                     {/* Anime: downloading, downloaded or matched — whichever it is, drawn once.
                      Pinned to the cover art itself, above the gradient, the adult-content blur and
                      any trailer playing on hover; at z-1 it was being painted over. Renders nothing
                      when there is no download to speak of. */}
-                    <AnimeDownloadingBadge mediaId={mediaId} variant="overlay" />
+                    {type === "anime" && <AnimeDownloadingBadge mediaId={mediaId} variant="overlay" />}
 
                     {/*RELEASING BADGE*/}
                     {(status === "RELEASING" || status === "NOT_YET_RELEASED") && !hideReleasingBadge &&

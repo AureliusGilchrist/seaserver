@@ -30162,6 +30162,17 @@
         "comments": []
       },
       {
+        "name": "recentMangaEdits",
+        "jsonName": "recentMangaEdits",
+        "goType": "map[uint]map[int]mangaListEdit",
+        "typescriptType": "Record\u003cnumber, Record\u003cnumber, INTERNAL_mangaListEdit\u003e\u003e",
+        "usedTypescriptType": "INTERNAL_mangaListEdit",
+        "usedStructName": "core.mangaListEdit",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "colMu",
         "jsonName": "colMu",
         "goType": "sync.RWMutex",
@@ -54632,6 +54643,77 @@
     ]
   },
   {
+    "filepath": "../internal/handlers/manga_badges.go",
+    "filename": "manga_badges.go",
+    "name": "MangaBadgeStatus",
+    "formattedName": "MangaBadgeStatus",
+    "package": "handlers",
+    "fields": [
+      {
+        "name": "Downloading",
+        "jsonName": "downloading",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Downloaded",
+        "jsonName": "downloaded",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Matched",
+        "jsonName": "matched",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Synthetic",
+        "jsonName": "synthetic",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Fingerprint",
+        "jsonName": "fingerprint",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Unchanged",
+        "jsonName": "unchanged",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MangaBadgeStatus is the badge state of every manga that has one.",
+      "",
+      " Four lists, and a series may be in more than one: the first three are the states of its files and",
+      " the fourth says what kind of record it is. That is the difference the \"synthetic\" tag draws — it",
+      " is not a fourth state competing with the others, it is a note attached to whichever of them",
+      " applies, which is why it is its own list rather than folded into them."
+    ]
+  },
+  {
     "filepath": "../internal/handlers/manual_dump.go",
     "filename": "manual_dump.go",
     "name": "RequestBody",
@@ -70085,6 +70167,17 @@
         "comments": [
           " True if this was a synthetic manga mapped to AniList"
         ]
+      },
+      {
+        "name": "ListData",
+        "jsonName": "listData",
+        "goType": "EntryListData",
+        "typescriptType": "Manga_EntryListData",
+        "usedTypescriptType": "Manga_EntryListData",
+        "usedStructName": "manga.EntryListData",
+        "required": false,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []

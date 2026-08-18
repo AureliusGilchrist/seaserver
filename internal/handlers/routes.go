@@ -715,6 +715,9 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Manga.POST("/scan/review", h.HandleResolveMangaScanReview)
 	v1Manga.POST("/scan/suggest", h.HandleSuggestMangaScanMatches)
 
+	// Card badges: downloading / downloaded / matched, plus the synthetic tag.
+	v1Manga.GET("/badges", h.HandleGetMangaBadgeStatus)
+
 	//
 	// File Cache
 	//

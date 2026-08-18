@@ -8286,6 +8286,32 @@
     }
   },
   {
+    "name": "mangaCollectionForProfile",
+    "trimmedName": "mangaCollectionForProfile",
+    "comments": [
+      "mangaCollectionForProfile returns the manga collection belonging to whoever is signed in.",
+      "",
+      "A profile with its own AniList reads its own list; the admin, and a profile with no AniList",
+      "linked, read the app-level one. Whatever comes back has any edit made in the last couple of",
+      "minutes replayed over it, because AniList answers a collection query with pre-edit data for a few",
+      "seconds after accepting a mutation — see AnilistClientManager.ReplayRecentMangaEdits.",
+      ""
+    ],
+    "filepath": "internal/handlers/manga.go",
+    "filename": "manga.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetMangaEntry",
     "trimmedName": "GetMangaEntry",
     "comments": [
@@ -9417,6 +9443,90 @@
       "returns": "manga.PageContainer",
       "returnGoType": "manga.PageContainer",
       "returnTypescriptType": "Manga_PageContainer"
+    }
+  },
+  {
+    "name": "HandleGetMangaBadgeStatus",
+    "trimmedName": "GetMangaBadgeStatus",
+    "comments": [
+      "HandleGetMangaBadgeStatus",
+      "",
+      "\t@summary returns the badge state of every manga that has one.",
+      "\t@desc Four sets of media IDs — downloading, downloaded, matched and synthetic — for the cards to",
+      "\t@desc draw from. Synthetic IDs are negative and are included on the same terms as any other.",
+      "\t@desc A series may be in several: \"synthetic\" is a note on whichever state applies rather than a",
+      "\t@desc state of its own. Polled, so an unchanged answer costs only its fingerprint.",
+      "\t@route /api/v1/manga/badges [GET]",
+      "\t@returns handlers.MangaBadgeStatus",
+      ""
+    ],
+    "filepath": "internal/handlers/manga_badges.go",
+    "filename": "manga_badges.go",
+    "api": {
+      "summary": "returns the badge state of every manga that has one.",
+      "descriptions": [
+        "Four sets of media IDs — downloading, downloaded, matched and synthetic — for the cards to",
+        "draw from. Synthetic IDs are negative and are included on the same terms as any other.",
+        "A series may be in several: \"synthetic\" is a note on whichever state applies rather than a",
+        "state of its own. Polled, so an unchanged answer costs only its fingerprint."
+      ],
+      "endpoint": "/api/v1/manga/badges",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.MangaBadgeStatus",
+      "returnGoType": "handlers.MangaBadgeStatus",
+      "returnTypescriptType": "MangaBadgeStatus"
+    }
+  },
+  {
+    "name": "buildMangaBadgeStatus",
+    "trimmedName": "buildMangaBadgeStatus",
+    "comments": [
+      "buildMangaBadgeStatus reads each state from the one place that actually knows it.",
+      "",
+      "Nothing here is inferred from anything else and nothing is written back. Every fact has a single",
+      "owner — the queue owns \"downloading\", the download folder owns \"downloaded\", the mapping table and",
+      "the local records own \"matched\" and \"synthetic\" — so the states cannot drift out of agreement with",
+      "what they describe, which is the failure the anime badges were rebuilt to escape.",
+      ""
+    ],
+    "filepath": "internal/handlers/manga_badges.go",
+    "filename": "manga_badges.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "mangaBadgeFingerprint",
+    "trimmedName": "mangaBadgeFingerprint",
+    "comments": [
+      "mangaBadgeFingerprint summarises the four lists. They are sorted, so equal contents always produce",
+      "an equal fingerprint.",
+      ""
+    ],
+    "filepath": "internal/handlers/manga_badges.go",
+    "filename": "manga_badges.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
     }
   },
   {

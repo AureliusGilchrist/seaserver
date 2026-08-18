@@ -98,8 +98,11 @@ func NewCollection(opts *NewCollectionOptions) (collection *Collection, err erro
 						Media:   entry.GetMedia(),
 						MediaId: entry.GetMedia().GetID(),
 						EntryListData: &EntryListData{
-							Progress:    *entry.Progress,
-							Score:       *entry.Score,
+							// Read safely: AniList sends both as null for an entry with neither
+							// set, and dereferencing that panicked the whole collection build — so
+							// one freshly added series took every other series' list data with it.
+							Progress:    entry.GetProgressSafe(),
+							Score:       entry.GetScoreSafe(),
 							Status:      entry.Status,
 							Repeat:      entry.GetRepeatSafe(),
 							StartedAt:   anilist.FuzzyDateToString(entry.StartedAt),
