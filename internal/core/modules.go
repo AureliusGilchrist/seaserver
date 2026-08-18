@@ -44,6 +44,7 @@ import (
 	"seanime/internal/torrentstream"
 	"seanime/internal/unmatched"
 	"seanime/internal/user"
+	"seanime/internal/util"
 	"seanime/internal/videocore"
 
 	"github.com/cli/browser"
@@ -462,7 +463,28 @@ func (a *App) initModulesOnce() {
 	// under the names it had already decided on, before the scanner starts looking for new work —
 	// so a download half-moved into the library is finished rather than found again as a partial
 	// staging directory and matched a second time from what is left of it.
-	go a.UnmatchedRepository.ResumePendingMatches()
+	//
+	// The individual file copies come first, because they are what the rest of it stands on: a
+	// destination left unfinished is copied again from its source before anything is allowed to
+	// conclude that the file arrived. Only then is the match itself resumed — the remaining moves,
+	// and the bookkeeping it had not reached: the undo record, the metadata, the sidecar, the
+	// cleanup. None of this needs the previous run to have shut down cleanly.
+	go func() {
+		for _, outcome := range util.RecoverInterruptedMoves() {
+			switch outcome.Status {
+			case "resumed":
+				a.Logger.Info().Str("dest", outcome.Dest).
+					Msg("app: Finished a file copy that was interrupted when the server last stopped")
+			case "lost":
+				a.Logger.Warn().Str("dest", outcome.Dest).Str("src", outcome.Src).
+					Msg("app: An interrupted copy could not be finished — its source is gone, so the incomplete file was removed")
+			case "failed":
+				a.Logger.Error().Err(outcome.Err).Str("dest", outcome.Dest).
+					Msg("app: Could not finish an interrupted file copy, it will be tried again on the next start")
+			}
+		}
+		a.UnmatchedRepository.ResumePendingMatches()
+	}()
 
 	a.UnmatchedScanner.Start()
 

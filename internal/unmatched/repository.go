@@ -1343,17 +1343,20 @@ func (r *Repository) moveFileSafely(src, dest string) (err error) {
 	return r.moveFile(src, dest)
 }
 
-// moveFile moves a file from src to dest, handling cross-device moves.
+// moveFile moves one episode into the library: copy it, check the copy is the size the original was,
+// delete the original.
 //
-// The cross-device case used to write straight to dest, which meant a stop partway through — the
-// server shutting down, the machine losing power, the drive being unplugged — left a fraction of an
-// episode sitting at the final path under the final name. Nothing downstream could tell that apart
-// from a whole file: it was scanned, matched, and only found to be broken when someone tried to
-// play it. util.MoveFileCrashSafe copies to a ".part" sibling and renames it into place instead, so
-// dest holds either nothing or the entire file, and an interruption leaves the source where it is
-// for the move to be retried.
+// It used to rename where it could and copy straight to the destination where it could not, and a
+// stop partway through the copy — the server shutting down, the machine losing power, the drive
+// being unplugged — left a fraction of an episode at the final path under the final name. Nothing
+// downstream could tell that apart from a whole file: it was scanned, matched, and only found to be
+// broken when someone tried to play it.
+//
+// util.MoveFileJournaled still writes at the destination path, but it declares the copy first and
+// only deletes the source once the destination measures up, so an interruption leaves the source
+// where it is and the next start finishes the copy from it.
 func (r *Repository) moveFile(src, dest string) error {
-	return util.MoveFileCrashSafe(src, dest)
+	return util.MoveFileJournaled(src, dest)
 }
 
 // extraDirName is the exact name of the junk folder releases ship alongside the episodes.

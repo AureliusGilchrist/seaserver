@@ -266,6 +266,12 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	logger.Info().Msgf("app: Data directory: %s", cfg.Data.AppDataDir)
 	logger.Info().Msgf("app: Working directory: %s", cfg.Data.WorkingDir)
 
+	// Where a file copy in progress declares itself, so one interrupted by the server stopping can be
+	// finished on the next start rather than left half-written. In the data directory rather than
+	// beside the files, because it has to be found again without knowing which library, drive or
+	// share the copy was going to. See util.RecoverInterruptedMoves, run in modules.go.
+	util.SetMoveJournalDir(filepath.Join(cfg.Data.AppDataDir, "pending-moves"))
+
 	// Log if running in desktop sidecar mode
 	if configOpts.Flags.IsDesktopSidecar {
 		logger.Info().Msg("app: Desktop sidecar mode enabled")

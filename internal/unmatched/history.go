@@ -40,6 +40,9 @@ type MatchHistoryFile struct {
 
 // MatchHistoryDetails is the full record of a match, stored as JSON alongside the row.
 type MatchHistoryDetails struct {
+	// MatchID identifies the attempt that wrote this record, so a match resumed after an interrupted
+	// start can tell that it has already been recorded. Empty on records written before it existed.
+	MatchID     string             `json:"matchId,omitempty"`
 	TorrentName string             `json:"torrentName"`
 	StagingPath string             `json:"stagingPath"`
 	AnimeID     int                `json:"animeId"`
@@ -144,14 +147,49 @@ type RevertResult struct {
 	ErrorMessage       string   `json:"errorMessage,omitempty"`
 }
 
+// matchRecordExists reports whether an attempt has already written its record.
+//
+// Only the recent records are looked at, and that is enough: the only caller is a match being
+// resumed at startup, and the record it might be about to duplicate was written by the attempt that
+// was interrupted — the newest one there is.
+func (r *Repository) matchRecordExists(matchID string) bool {
+	if r.database == nil || matchID == "" {
+		return false
+	}
+	records, err := r.database.GetUnmatchedMatchRecords(50)
+	if err != nil {
+		return false
+	}
+	for _, record := range records {
+		if record == nil || len(record.Value) == 0 {
+			continue
+		}
+		var details MatchHistoryDetails
+		if err := json.Unmarshal(record.Value, &details); err != nil {
+			continue
+		}
+		if details.MatchID == matchID {
+			return true
+		}
+	}
+	return false
+}
+
 // recordMatch writes down what a match did, so it can be reviewed and undone later.
 //
 // planned and moveErrs are the match's own plan and its per-file outcome, indexed together: only
 // the files that actually moved are recorded, since those are the only ones a revert has anything
 // to put back. Best-effort — a match that cannot be recorded is still a completed match, so this
 // logs and returns rather than failing it.
-func (r *Repository) recordMatch(req *MatchRequest, result *MatchResult, planned []plannedMove, moveErrs []error, metadata *TorrentMetadata) {
+func (r *Repository) recordMatch(req *MatchRequest, result *MatchResult, planned []plannedMove, moveErrs []error, metadata *TorrentMetadata, matchID string) {
 	if r.database == nil || req == nil || result == nil {
+		return
+	}
+
+	// A match that was interrupted after writing its record and before crossing that step off its
+	// plan would otherwise write a second one on the next start, and the undo screen would offer the
+	// same match twice. The attempt carries an id for exactly this, so the duplicate is recognised.
+	if matchID != "" && r.matchRecordExists(matchID) {
 		return
 	}
 
@@ -179,6 +217,7 @@ func (r *Repository) recordMatch(req *MatchRequest, result *MatchResult, planned
 	}
 
 	details := &MatchHistoryDetails{
+		MatchID:      matchID,
 		TorrentName:  req.TorrentName,
 		StagingPath:  DestinationFor(req.TorrentName),
 		AnimeID:      req.AnimeID,

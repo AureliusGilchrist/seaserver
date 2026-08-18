@@ -13,21 +13,26 @@ import (
 	"time"
 )
 
-// A move that crosses filesystems is a copy, and a copy takes as long as the file is big — minutes,
-// for an episode. The file is written at its final path the whole time, which is what makes it
-// visible and predictable, and which is also what made an interruption dangerous: stop the server,
-// lose power, or unplug the drive halfway through, and a fraction of an episode was left sitting
-// under the finished file's name. Nothing downstream could tell the two apart, so it was scanned,
-// matched, and only found to be broken when someone tried to play it.
+// Moving a file into the library used to mean renaming it where possible and copying it where not,
+// and in both cases the file's fate rested on a single copy of it. A copy takes as long as the file
+// is big — minutes, for an episode — and it was written straight at the final path under the final
+// name, so a server stopped halfway through left a fraction of an episode that nothing downstream
+// could tell from a whole one. It was scanned, matched, and only found to be broken when someone
+// tried to play it.
 //
-// The file still goes straight to its destination. What changed is that a copy in flight now says
-// so: a small record is written before the first byte and removed after the last one, naming the
-// source, the destination, and the size the destination has to reach. While that record exists the
-// destination is known to be unfinished — the scanners skip it — and on the next start the copy is
-// simply done again from the source, which is still there because the source is only deleted once
-// the destination has been verified.
+// Two things fix that, and both are deliberate.
 //
-// So an abrupt shutdown no longer costs an episode. It costs the time to copy that one file again.
+// A move is always a copy. Even when source and destination share a filesystem and a rename would be
+// instant, the file is copied, the copy is measured against the original, and only then is the
+// original deleted. Until that check succeeds there are two copies of every file and at least one of
+// them is known to be good, which is the property renaming cannot offer.
+//
+// And a copy in flight says so. A small record is written before the first byte and removed after the
+// last, naming the source, the destination, and the size the destination has to reach. While that
+// record exists the destination is understood to be unfinished: the scanners skip it, and on the next
+// start the copy is done again from the source, which is still there precisely because the source
+// outlives the copy. An abrupt shutdown therefore costs the time to copy one file again, and nothing
+// else.
 
 // moveRecord is one copy in flight.
 type moveRecord struct {
@@ -114,12 +119,18 @@ func IsMoveInFlight(path string) bool {
 	return ok
 }
 
-// MoveFileJournaled moves src to dest, writing the file at its destination path.
+// MoveFileJournaled moves src to dest by copying it, checking that the copy is the size the original
+// was, and only then deleting the source.
 //
-// Same-filesystem moves are a rename, which is instantaneous and atomic and needs no record. A
-// cross-filesystem move copies — declaring itself first, verifying the size afterwards, and only
-// then deleting the source. An interruption leaves the destination unfinished and the source
-// untouched, and RecoverInterruptedMoves finishes the job on the next start.
+// Deliberately a copy even when a rename would do. A rename is instantaneous and atomic and would be
+// the cheaper move by far, but it also means the file exists in exactly one place at every instant:
+// if anything is wrong with it afterwards there is nothing left to compare against and nothing left
+// to redo it from. Copying keeps the original until the copy has been measured, so the source is only
+// given up once its replacement is known to be complete.
+//
+// The cost is real — a same-filesystem match now copies every episode instead of renaming it — and
+// it buys the property that a match can never leave you with one damaged copy of a file and no way
+// back.
 func MoveFileJournaled(src, dest string) error {
 	return transfer(src, dest, true)
 }
@@ -130,15 +141,6 @@ func CopyFileJournaled(src, dest string) error {
 }
 
 func transfer(src, dest string, isMove bool) error {
-	if isMove {
-		// Fast path: same filesystem. Rename is atomic — dest is either absent or the whole file —
-		// and it cannot be interrupted partway, so there is nothing to journal.
-		if err := os.Rename(src, dest); err == nil {
-			clearInFlight(dest)
-			return nil
-		}
-	}
-
 	srcInfo, err := os.Stat(src)
 	if err != nil {
 		return err
@@ -151,9 +153,9 @@ func transfer(src, dest string, isMove bool) error {
 	markInFlight(dest, rec)
 
 	if err := copyContents(src, dest, srcInfo.Size()); err != nil {
-		// The record is deliberately left in place: the destination is a partial file, the source is
-		// still there, and the next start is expected to redo this. Callers that treat the error as
-		// final are still safe, because recovery checks the source before doing anything.
+		// The record is deliberately left in place: the destination is unfinished or unverified, the
+		// source is untouched, and the next start is expected to redo this. Callers that treat the
+		// error as final are still safe, because recovery checks the source before doing anything.
 		return err
 	}
 
@@ -171,7 +173,13 @@ func transfer(src, dest string, isMove bool) error {
 }
 
 // copyContents writes the source bytes to dest, replacing whatever is there, and does not return
-// until they are on the device and the size is right.
+// until they are on the device and the destination is the size it should be.
+//
+// The size is taken from the destination as the filesystem reports it, not from the number of bytes
+// handed to the write calls: the question being answered is what is on the disk, and a count held in
+// memory cannot answer it. A truncated write, a disk that filled up, a network share that dropped
+// halfway — each leaves a destination shorter than the original, and each is caught here, before the
+// original is deleted.
 func copyContents(src, dest string, wantSize int64) error {
 	srcFile, err := os.Open(src)
 	if err != nil {
@@ -186,9 +194,9 @@ func copyContents(src, dest string, wantSize int64) error {
 
 	written, copyErr := io.Copy(destFile, srcFile)
 	if copyErr == nil {
-		// Force the bytes out of the OS page cache and onto the device before the record is cleared.
-		// Without this a power loss just after the copy "finished" leaves a file of the right length
-		// full of zeroes, with nothing left to say it is suspect.
+		// Force the bytes out of the OS page cache and onto the device before anything is measured or
+		// deleted. Without this a power loss just after the copy "finished" leaves a file of the right
+		// length full of zeroes.
 		copyErr = destFile.Sync()
 	}
 	if closeErr := destFile.Close(); copyErr == nil {
@@ -198,10 +206,15 @@ func copyContents(src, dest string, wantSize int64) error {
 		return copyErr
 	}
 
-	// Cheap next to the copy, and it catches the quiet failures — a disk that filled up, a network
-	// share that dropped — that do not always surface as a write error.
 	if written != wantSize {
 		return fmt.Errorf("short copy: wrote %d of %d bytes to %s", written, wantSize, dest)
+	}
+	info, err := os.Stat(dest)
+	if err != nil {
+		return fmt.Errorf("could not verify %s: %w", dest, err)
+	}
+	if info.Size() != wantSize {
+		return fmt.Errorf("the copy of %s is %d bytes, the original is %d", src, info.Size(), wantSize)
 	}
 
 	syncDir(filepath.Dir(dest))
@@ -267,7 +280,9 @@ func recoverOne(rec moveRecord, journal string) MoveOutcome {
 	out := MoveOutcome{Src: rec.Src, Dest: rec.Dest}
 
 	if info, err := os.Stat(rec.Src); err == nil && !info.IsDir() {
-		// Redo it from the source, which is the only thing known to be whole.
+		// Redo it from the source, which is the only thing known to be whole. The copy verifies
+		// itself the same way it would have the first time, so a resumed move is no less checked
+		// than an uninterrupted one.
 		markInFlight(rec.Dest, rec)
 		if err := copyContents(rec.Src, rec.Dest, info.Size()); err != nil {
 			out.Status, out.Err = "failed", err
@@ -281,6 +296,9 @@ func recoverOne(rec moveRecord, journal string) MoveOutcome {
 		return out
 	}
 
+	// No source left. The destination is trusted only if it is the size the record says the finished
+	// file has to be — which is the case where the server stopped between the last byte and clearing
+	// the record. Anything else is an interrupted copy that nothing can now complete.
 	if info, err := os.Stat(rec.Dest); err == nil && info.Size() == rec.Size {
 		clearInFlight(rec.Dest)
 		out.Status = "completed"
@@ -295,17 +313,11 @@ func recoverOne(rec moveRecord, journal string) MoveOutcome {
 	return out
 }
 
-// MoveTreeCrashSafe moves a file or a whole directory tree to dest, one journaled file at a time.
+// MoveTreeCrashSafe moves a file or a whole directory tree to dest, one verified file at a time.
 //
-// The fast path is a rename of the whole tree, which is what happens whenever source and destination
-// share a filesystem. The fallback exists for the case rename cannot serve — a download directory on
-// a different drive to the library — where the alternative was failing the move outright and leaving
-// the files where nobody would look for them.
+// Every file goes through MoveFileJournaled, so the tree is copied and checked rather than renamed,
+// and an interruption anywhere in it leaves both sides intact for recovery to finish.
 func MoveTreeCrashSafe(src, dest string) error {
-	if err := os.Rename(src, dest); err == nil {
-		return nil
-	}
-
 	info, err := os.Stat(src)
 	if err != nil {
 		return err

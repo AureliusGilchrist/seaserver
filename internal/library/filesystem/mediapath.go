@@ -95,7 +95,10 @@ func GetMediaFilePathsFromDir(dirPath string) ([]string, error) {
 
 		ext := strings.ToLower(filepath.Ext(path))
 
-		if !d.IsDir() && util.IsValidVideoExtension(ext) {
+		// A file still being copied into the library is not a file yet: it is at its final path
+		// under its final name, but only part of it has arrived. Picking it up here is how a match
+		// interrupted halfway used to end up scanned and matched as a whole episode.
+		if !d.IsDir() && util.IsValidVideoExtension(ext) && !util.IsMoveInFlight(path) {
 			filePaths = append(filePaths, path)
 		}
 		return nil
@@ -171,7 +174,7 @@ func GetMediaFilePathsFromDirS(oDirPath string) ([]string, error) {
 			}
 
 			ext := strings.ToLower(filepath.Ext(path))
-			if util.IsValidMediaFile(path) && util.IsValidVideoExtension(ext) {
+			if util.IsValidMediaFile(path) && util.IsValidVideoExtension(ext) && !util.IsMoveInFlight(path) {
 				filePaths = append(filePaths, path)
 			}
 			return nil

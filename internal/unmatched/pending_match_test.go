@@ -45,7 +45,7 @@ func TestInterruptedMatchResumesUnderTheOriginalNames(t *testing.T) {
 	repo, base := stageBase(t)
 	dest, planned := buildPlan(t, base, "Some Show S01", 12)
 
-	repo.writePendingMatch("Some Show S01", 123, dest, planned)
+	repo.writePendingMatch(&MatchRequest{TorrentName: "Some Show S01", AnimeID: 123, AnimeTitleClean: "Some Show"}, dest, planned, nil, nil)
 
 	// The server got four episodes in before it stopped.
 	for i := 0; i < 4; i++ {
@@ -91,7 +91,7 @@ func TestResumingIsIdempotent(t *testing.T) {
 	repo, base := stageBase(t)
 	dest, planned := buildPlan(t, base, "Repeatable", 5)
 
-	repo.writePendingMatch("Repeatable", 7, dest, planned)
+	repo.writePendingMatch(&MatchRequest{TorrentName: "Repeatable", AnimeID: 7, AnimeTitleClean: "Some Show"}, dest, planned, nil, nil)
 
 	repo.ResumePendingMatches()
 	repo.ResumePendingMatches()
@@ -111,8 +111,8 @@ func TestClearedJournalIsNotResumed(t *testing.T) {
 	repo, base := stageBase(t)
 	dest, planned := buildPlan(t, base, "Finished Cleanly", 3)
 
-	repo.writePendingMatch("Finished Cleanly", 9, dest, planned)
-	repo.clearPendingMatch("Finished Cleanly")
+	journal := repo.writePendingMatch(&MatchRequest{TorrentName: "Finished Cleanly", AnimeID: 9, AnimeTitleClean: "Some Show"}, dest, planned, nil, nil)
+	journal.clear()
 
 	repo.ResumePendingMatches()
 
@@ -128,7 +128,7 @@ func TestClearedJournalIsNotResumed(t *testing.T) {
 func TestJournalDirectoryIsNotTreatedAsADownload(t *testing.T) {
 	repo, base := stageBase(t)
 	_, planned := buildPlan(t, base, "Real Download", 2)
-	repo.writePendingMatch("Real Download", 1, filepath.Join(base, "dest"), planned)
+	repo.writePendingMatch(&MatchRequest{TorrentName: "Real Download", AnimeID: 1, AnimeTitleClean: "Some Show"}, filepath.Join(base, "dest"), planned, nil, nil)
 
 	if _, err := os.Stat(pendingMatchDir()); err != nil {
 		t.Fatalf("the journal directory was not created: %v", err)
@@ -136,5 +136,98 @@ func TestJournalDirectoryIsNotTreatedAsADownload(t *testing.T) {
 
 	if pendingMatchDirName == "" {
 		t.Fatal("the journal directory has no name to skip on")
+	}
+}
+
+// A destination that exists but is shorter than the plan says it should be is an interrupted copy,
+// not a delivered episode. Resuming has to copy it again rather than take its existence as proof.
+func TestResumeRecopiesAnUnfinishedDestination(t *testing.T) {
+	repo, base := stageBase(t)
+	dest, planned := buildPlan(t, base, "Half Written", 3)
+
+	repo.writePendingMatch(&MatchRequest{TorrentName: "Half Written", AnimeID: 4, AnimeTitleClean: "Some Show"}, dest, planned, nil, nil)
+
+	// The first episode was being copied when the server stopped: part of it is at the destination,
+	// under its final name, and the source is still in the staging directory.
+	want, err := os.ReadFile(planned[0].src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(planned[0].dest, want[:3], 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	repo.ResumePendingMatches()
+
+	got, err := os.ReadFile(planned[0].dest)
+	if err != nil {
+		t.Fatalf("episode 1 is missing: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("episode 1 was left as %q, want the whole file %q", got, want)
+	}
+}
+
+// The other half of an interrupted match: the files arrived, and the server stopped before anything
+// recorded that they had been matched. Resuming has to finish the bookkeeping, not just the moves.
+func TestInterruptedMatchFinishesItsBookkeeping(t *testing.T) {
+	repo, base := stageBaseWithDB(t)
+	dest, planned := buildPlan(t, base, "Recorded Late", 2)
+
+	req := &MatchRequest{TorrentName: "Recorded Late", AnimeID: 55, AnimeTitleClean: "Some Show"}
+	repo.writePendingMatch(req, dest, planned, nil, nil)
+
+	// Every file made it across before the stop, so there are no moves left — only the record, the
+	// metadata, the sidecar and the cleanup, none of which had run.
+	for _, move := range planned {
+		if err := os.Rename(move.src, move.dest); err != nil {
+			t.Fatalf("simulate completed moves: %v", err)
+		}
+	}
+
+	repo.ResumePendingMatches()
+
+	history, err := repo.GetMatchHistory(10)
+	if err != nil {
+		t.Fatalf("read history: %v", err)
+	}
+	if len(history) != 1 {
+		t.Fatalf("history holds %d matches, want the one that was interrupted", len(history))
+	}
+	if history[0].TorrentName != "Recorded Late" || history[0].AnimeID != 55 {
+		t.Errorf("recorded match = %q/%d, want Recorded Late/55", history[0].TorrentName, history[0].AnimeID)
+	}
+	if _, err := os.Stat(pendingMatchPath("Recorded Late")); !os.IsNotExist(err) {
+		t.Error("the journal survived a match that was finished")
+	}
+}
+
+// Resuming twice must not record the match twice.
+func TestResumeDoesNotDuplicateTheUndoRecord(t *testing.T) {
+	repo, base := stageBaseWithDB(t)
+	dest, planned := buildPlan(t, base, "Once Only", 2)
+
+	req := &MatchRequest{TorrentName: "Once Only", AnimeID: 77, AnimeTitleClean: "Some Show"}
+	journal := repo.writePendingMatch(req, dest, planned, nil, nil)
+	for _, move := range planned {
+		if err := os.Rename(move.src, move.dest); err != nil {
+			t.Fatalf("simulate completed moves: %v", err)
+		}
+	}
+
+	repo.ResumePendingMatches()
+
+	// The journal is gone, so put it back exactly as an interrupted run would have left it: the
+	// record written, but the plan not yet torn up.
+	journal.record.Stages = nil
+	journal.flush()
+	repo.ResumePendingMatches()
+
+	history, err := repo.GetMatchHistory(10)
+	if err != nil {
+		t.Fatalf("read history: %v", err)
+	}
+	if len(history) != 1 {
+		t.Errorf("history holds %d matches after two resumes, want 1", len(history))
 	}
 }
