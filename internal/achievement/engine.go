@@ -37,6 +37,20 @@ type UnlockPayload struct {
 	XPAwarded   int    `json:"xpAwarded"`
 }
 
+// BatchUnlockPayload is everything one evaluation pass unlocked, announced as one message.
+//
+// A pass that unlocks nothing sends nothing at all, so a client can treat every one of these as an
+// award worth showing.
+type BatchUnlockPayload struct {
+	Achievements []*UnlockPayload `json:"achievements"`
+	// TotalXP is the XP awarded across all of them, so the client does not have to add it up.
+	TotalXP int `json:"totalXp"`
+	// NewLevel is the level reached by the end of the pass — not each level passed through on the
+	// way, which the user was only briefly at.
+	NewLevel  int  `json:"newLevel,omitempty"`
+	LeveledUp bool `json:"leveledUp,omitempty"`
+}
+
 // Engine evaluates achievement events and unlocks achievements in the profile DB.
 type Engine struct {
 	logger             *zerolog.Logger
@@ -146,14 +160,19 @@ func (e *Engine) ProcessEvent(event *AchievementEvent) {
 	// Lazily initialize achievement rows on first event
 	e.ensureInitialized(database)
 
+	// Everything this pass unlocks is announced together when it finishes. See unlockBatch.
+	batch := &unlockBatch{}
+
 	// Evaluate each definition that matches the trigger
 	for i := range AllDefinitions {
 		def := &AllDefinitions[i]
 		if !e.triggerMatches(def, event.Trigger) {
 			continue
 		}
-		e.evaluateDefinition(database, def, event)
+		e.evaluateDefinition(database, def, event, batch)
 	}
+
+	e.flushUnlocks(event.ProfileID, batch)
 }
 
 // EvaluateCollectionStats is called on collection refresh to evaluate stat-based achievements.
@@ -179,13 +198,17 @@ func (e *Engine) EvaluateCollectionStats(profileID uint, stats *CollectionStats)
 		Metadata:  stats.toMetadata(),
 	}
 
+	batch := &unlockBatch{}
+
 	for i := range AllDefinitions {
 		def := &AllDefinitions[i]
 		if !e.triggerMatches(def, TriggerCollectionRefresh) {
 			continue
 		}
-		e.evaluateDefinition(database, def, event)
+		e.evaluateDefinition(database, def, event, batch)
 	}
+
+	e.flushUnlocks(profileID, batch)
 }
 
 // triggerMatches returns true if the definition should be evaluated for the given trigger.
@@ -199,7 +222,7 @@ func (e *Engine) triggerMatches(def *Definition, trigger EvalTrigger) bool {
 }
 
 // evaluateDefinition evaluates a single definition against the event and updates the DB.
-func (e *Engine) evaluateDefinition(database *db.Database, def *Definition, event *AchievementEvent) {
+func (e *Engine) evaluateDefinition(database *db.Database, def *Definition, event *AchievementEvent, batch *unlockBatch) {
 	if def.MaxTier == 0 {
 		// One-time achievement
 		existing, _ := database.GetAchievement(def.Key, 0)
@@ -208,7 +231,7 @@ func (e *Engine) evaluateDefinition(database *db.Database, def *Definition, even
 		}
 		progress, shouldUnlock := e.computeProgress(def, 0, event, existing)
 		if shouldUnlock {
-			e.unlock(database, def, 0, event.ProfileID)
+			e.unlock(database, def, 0, event.ProfileID, batch)
 		} else if progress > 0 {
 			_ = database.UpdateAchievementProgress(def.Key, 0, progress, "")
 		}
@@ -221,7 +244,7 @@ func (e *Engine) evaluateDefinition(database *db.Database, def *Definition, even
 			}
 			progress, shouldUnlock := e.computeProgress(def, tier, event, existing)
 			if shouldUnlock {
-				e.unlock(database, def, tier, event.ProfileID)
+				e.unlock(database, def, tier, event.ProfileID, batch)
 			} else if progress > 0 {
 				_ = database.UpdateAchievementProgress(def.Key, tier, progress, "")
 			}
@@ -306,8 +329,71 @@ func (e *Engine) computeProgress(def *Definition, tier int, event *AchievementEv
 	return 0, false
 }
 
+// Awards used to be announced one at a time, as each one happened.
+//
+// One event can unlock a dozen achievements — a collection refresh crosses several thresholds at
+// once, and every unlock re-evaluates the meta achievements, which unlock more. Each of those sent
+// its own message the moment it was written, and the writes in between are not free: a row update,
+// an XP award, an activity-buff computation and an activity-log entry, all against SQLite. So the
+// messages went out spread over seconds, and the client — which batches anything arriving inside a
+// short window — had nothing to batch. What should have been one award became a popup, then a gap,
+// then another popup, for as long as the run took.
+//
+// Now a whole evaluation pass collects what it unlocked and announces it once, at the end, in a
+// single message. Nothing is delayed to achieve that: the pass takes exactly as long as it did, and
+// the announcement goes out the moment the last one is written.
+
+// unlockBatch collects everything one evaluation pass unlocks, so it can be announced together.
+type unlockBatch struct {
+	payloads  []*UnlockPayload
+	totalXP   int
+	newLevel  int
+	leveledUp bool
+}
+
+// add files one unlock. Cascaded meta unlocks land here too — they happen inside the same pass.
+func (b *unlockBatch) add(payload *UnlockPayload) {
+	if b == nil || payload == nil {
+		return
+	}
+	b.payloads = append(b.payloads, payload)
+	b.totalXP += payload.XPAwarded
+}
+
+// noteLevel keeps the highest level reached during the pass. Several unlocks can each cross a level
+// boundary, and the user has one level at the end of it — announcing each step would be announcing
+// levels they were only briefly at.
+func (b *unlockBatch) noteLevel(newLevel int) {
+	if b == nil || newLevel <= b.newLevel {
+		return
+	}
+	b.newLevel = newLevel
+	b.leveledUp = true
+}
+
+// flush announces everything the pass unlocked, as one message.
+func (e *Engine) flushUnlocks(profileID uint, batch *unlockBatch) {
+	if batch == nil || len(batch.payloads) == 0 {
+		return
+	}
+
+	e.wsEventManager.SendEventToProfile(profileID, events.AchievementsUnlocked, &BatchUnlockPayload{
+		Achievements: batch.payloads,
+		TotalXP:      batch.totalXP,
+		NewLevel:     batch.newLevel,
+		LeveledUp:    batch.leveledUp,
+	})
+
+	if batch.leveledUp {
+		e.wsEventManager.SendEventToProfile(profileID, "level-up", map[string]interface{}{
+			"newLevel": batch.newLevel,
+		})
+		e.logger.Info().Int("level", batch.newLevel).Uint("profileID", profileID).Msg("achievement: level up!")
+	}
+}
+
 // unlock marks an achievement as unlocked, awards XP, and sends a WS event.
-func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profileID uint) {
+func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profileID uint, batch *unlockBatch) {
 	err := database.UnlockAchievement(def.Key, tier)
 	if err != nil {
 		e.logger.Error().Err(err).Str("key", def.Key).Int("tier", tier).Msg("achievement: failed to unlock")
@@ -356,7 +442,13 @@ func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profil
 		XPAwarded:   xp,
 	}
 
-	e.wsEventManager.SendEventToProfile(profileID, "achievement-unlocked", payload)
+	// Collected rather than announced. The pass that is running announces the lot when it finishes;
+	// a caller that passed no batch is announcing on its own behalf and gets the old behaviour.
+	if batch != nil {
+		batch.add(payload)
+	} else {
+		e.wsEventManager.SendEventToProfile(profileID, events.AchievementUnlocked, payload)
+	}
 
 	// Record an activity event so this unlock appears in the user's profile activity feed.
 	_ = database.RecordActivityEvent("achievement_unlocked", 0, map[string]interface{}{
@@ -368,12 +460,17 @@ func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profil
 		"xp":       xp,
 	})
 
-	// Send level-up event if applicable
+	// Level-ups are held for the same reason, and reduced to the one level the user ends the pass
+	// at rather than every level they passed through on the way.
 	if leveledUp && xpErr == nil {
-		e.wsEventManager.SendEventToProfile(profileID, "level-up", map[string]interface{}{
-			"newLevel": newLevel,
-		})
-		e.logger.Info().Int("level", newLevel).Uint("profileID", profileID).Msg("achievement: level up!")
+		if batch != nil {
+			batch.noteLevel(newLevel)
+		} else {
+			e.wsEventManager.SendEventToProfile(profileID, "level-up", map[string]interface{}{
+				"newLevel": newLevel,
+			})
+			e.logger.Info().Int("level", newLevel).Uint("profileID", profileID).Msg("achievement: level up!")
+		}
 	}
 
 	e.logger.Info().Str("key", def.Key).Int("tier", tier).Int("xp", xp).Uint("profileID", profileID).Msg("achievement: unlocked")
@@ -394,7 +491,7 @@ func (e *Engine) unlock(database *db.Database, def *Definition, tier int, profil
 			if !e.triggerMatches(metaDef, TriggerAchievementUnlock) {
 				continue
 			}
-			e.evaluateDefinition(database, metaDef, metaEvent)
+			e.evaluateDefinition(database, metaDef, metaEvent, batch)
 		}
 	}
 }

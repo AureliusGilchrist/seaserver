@@ -15,6 +15,9 @@ import { LuCircleStop, LuPlay, LuTimer, LuX } from "react-icons/lu"
 /** Mirrors MaxPendingRoots on the server, so the header can say how much room is left. */
 const MAX_PENDING_ROOTS = 20
 
+/** How many waiting rows are rendered at a time; the rest come in on request. */
+const PENDING_ROOTS_PAGE = 6
+
 /**
  * What the background run is doing, if anything.
  *
@@ -29,6 +32,10 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
     const { mutate: removeRoot, isPending: isRemovingRoot } = useRemoveEnqueueFuturePendingRoot()
     const { mutate: clearRoots, isPending: isClearingRoots } = useClearEnqueueFuturePendingRoots()
     const { mutate: clearRewalk, isPending: isClearingRewalk } = useClearEnqueueFutureRewalkBacklog()
+
+    // The waiting list is rendered a page at a time rather than all twenty at once — the rows
+    // below the sixth are only worth their space once someone asks for them.
+    const [visibleRoots, setVisibleRoots] = React.useState(PENDING_ROOTS_PAGE)
 
     const [now, setNow] = React.useState(() => Date.now())
     React.useEffect(() => {
@@ -161,7 +168,7 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                         </Button>
                     </div>
                     <ol className="space-y-1">
-                        {status.pendingRootList.map((root, i) => (
+                        {status.pendingRootList.slice(0, visibleRoots).map((root, i) => (
                             <li
                                 key={root.mediaId}
                                 className="group/root flex items-center gap-2 rounded-[--radius] border border-gray-800/80 bg-gray-950/40 px-2.5 py-1.5"
@@ -195,6 +202,31 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                             </li>
                         ))}
                     </ol>
+
+                    {/* Everything past the first page stays unrendered until it is asked for, and
+                        folds back up afterwards so the list returns to a glanceable size. */}
+                    {status.pendingRootList.length > PENDING_ROOTS_PAGE && (
+                        <div className="flex items-center gap-2 pt-0.5">
+                            {visibleRoots < status.pendingRootList.length && (
+                                <button
+                                    onClick={() => setVisibleRoots(n => n + PENDING_ROOTS_PAGE)}
+                                    className="text-[10px] font-semibold text-[--muted] hover:text-white transition"
+                                    data-enqueue-future-show-more-roots
+                                >
+                                    Show {Math.min(PENDING_ROOTS_PAGE, status.pendingRootList.length - visibleRoots)} more
+                                </button>
+                            )}
+                            {visibleRoots > PENDING_ROOTS_PAGE && (
+                                <button
+                                    onClick={() => setVisibleRoots(PENDING_ROOTS_PAGE)}
+                                    className="text-[10px] font-semibold text-[--muted] hover:text-white transition"
+                                    data-enqueue-future-show-fewer-roots
+                                >
+                                    Show fewer
+                                </button>
+                            )}
+                        </div>
+                    )}
 
                     {/* The re-walk backlog, counted rather than listed. It is hundreds of entries by
                         nature, and it only runs when the list above is empty — so what matters about

@@ -118,6 +118,12 @@ const (
 
 	// Achievement events
 	AchievementUnlocked = "achievement-unlocked"
+	// AchievementsUnlocked carries everything one evaluation pass unlocked, in a single message.
+	//
+	// One event routinely unlocks several achievements at once, and announcing them one at a time
+	// meant they arrived seconds apart — the writes between them are not free — so what was a single
+	// award read as a stream of popups. See achievement.unlockBatch.
+	AchievementsUnlocked = "achievements-unlocked"
 
 	// Milestone events
 	MilestoneAchieved = "milestone-achieved"

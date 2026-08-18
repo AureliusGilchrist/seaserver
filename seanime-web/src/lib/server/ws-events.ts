@@ -75,6 +75,8 @@ export const enum WSEvents {
     PLAYLIST = "playlist",
     NOTIFICATION_CREATED = "notification-created",
     ACHIEVEMENT_UNLOCKED = "achievement-unlocked",
+    /** Everything one evaluation pass unlocked, in a single message. */
+    ACHIEVEMENTS_UNLOCKED = "achievements-unlocked",
     ANILIST_RATE_LIMITED = "anilist-rate-limited",
     ANILIST_API_ONLINE = "anilist-api-online",
     ANILIST_TOKEN_EXPIRED = "anilist-token-expired",

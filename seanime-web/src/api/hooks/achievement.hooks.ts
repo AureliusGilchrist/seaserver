@@ -158,6 +158,21 @@ export type AchievementUnlockPayload = {
     tierName: string
     category: string
     iconSVG: string
+    xpAwarded?: number
+}
+
+/**
+ * Everything one evaluation pass unlocked, announced in a single message.
+ *
+ * Mirrors achievement.BatchUnlockPayload. One event routinely unlocks several achievements at once —
+ * a collection refresh crossing thresholds, and the meta achievements each unlock re-evaluates — and
+ * sending them one at a time made a single award read as a stream of popups.
+ */
+export type AchievementBatchUnlockPayload = {
+    achievements: AchievementUnlockPayload[]
+    totalXp?: number
+    newLevel?: number
+    leveledUp?: boolean
 }
 
 export function useImportAchievements() {
