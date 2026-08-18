@@ -2,7 +2,9 @@
 
 import React from "react"
 import { useAtomValue } from "jotai"
-import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { currentProfileAtom, serverStatusAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { THEME_DEFAULT_VALUES } from "@/lib/theme/hooks"
+import { accentSkin } from "@/lib/rewards/accent-recolor"
 import { useServerMutation } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import {
@@ -211,6 +213,19 @@ function lookupParticleSet(id: string): ParticleSetReward | null {
 
 export function RewardProvider({ children }: { children: React.ReactNode }) {
     const currentProfile = useAtomValue(currentProfileAtom)
+    // Read straight from the atom rather than through useThemeSettings: this provider sits above the
+    // screens that hook is written for, and the accent color is the only value needed here.
+    const themeSettings = useAtomValue(serverStatusAtom)?.themeSettings
+    const accent = themeSettings?.accentColor || THEME_DEFAULT_VALUES.accentColor
+
+    // Every bar wears the accent, whichever skin is on: the skin keeps its gradient shape and its
+    // animation, and every color in it is turned to the accent's hue. Change the accent in Settings
+    // and the bar — and everything downstream that takes its color from the bar, the level ring, the
+    // heatmap, the name — moves with it on the same render. See accent-recolor.ts.
+    const toAccent = React.useCallback(
+        (skin: XPBarSkinReward | null | undefined) => (skin ? accentSkin(skin, accent) : null),
+        [accent],
+    )
     const profileKey = currentProfile?.id ? String(currentProfile.id) : "default"
     const storageKey    = `sea-rewards-${profileKey}`
     const eggStorageKey = `sea-egg-rewards-${profileKey}`
@@ -270,12 +285,18 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
 
         // Push current cosmetics so the backend is up-to-date even if
         // previous saves were lost due to the 404 bug.
-        const skin = lookupXPBarSkin(loaded.xpBarSkinId)
+        //
+        // The fill goes up recolored, not as the palette the skin is defined with — this is what
+        // other people see on the community page and on your profile, and a bar that matches your
+        // accent everywhere except where anyone else looks at it is not the accent following the
+        // bar. Re-sent whenever the accent changes, for the same reason.
+        const skin = toAccent(lookupXPBarSkin(loaded.xpBarSkinId))
         if (skin) {
             const nameColor = lookupNameColor(loaded.nameColorId)
             saveDisplayCosmetics({
                 xpBarFillCss:    skin.fillCss,
                 xpBarAnimClass:  skin.animClass ?? "",
+                xpBarSkinId:     skin.id,
                 nameColorCss:    nameColor?.color ?? "#ffffff",
                 nameGradientCss: nameColor?.gradientCss ?? "",
             })
@@ -286,7 +307,7 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         if (title) {
             saveDisplayTitle({ title: title.text, color: title.color ?? "#ffffff" })
         }
-    }, [storageKey])
+    }, [storageKey, toAccent])
 
     function persist(next: ActiveRewards) {
         setActive(next)
@@ -302,7 +323,11 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
     } as any)
 
     const { mutate: saveDisplayCosmetics } = useServerMutation<unknown, {
-        xpBarFillCss: string; xpBarAnimClass: string; nameColorCss: string; nameGradientCss: string
+        // The skin id travels with the CSS: two people wearing the same skin now publish different
+        // colors, so the CSS on its own no longer says which skin it is — and the decorative overlay
+        // the top-tier skins carry is chosen by skin.
+        xpBarFillCss: string; xpBarAnimClass: string; xpBarSkinId: string
+        nameColorCss: string; nameGradientCss: string
     }>({
         endpoint: API_ENDPOINTS.PROFILE_PAGE.SetDisplayCosmetics.endpoint,
         method: "PATCH",
@@ -317,18 +342,26 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         }
     }, [active, storageKey, saveDisplayTitle])
 
+    // What a skin's fill actually is once the accent has had its say. Everything that publishes a
+    // fill to the backend goes through this, so the color other people see is the color on screen.
+    const publishedFill = React.useCallback(
+        (skin: XPBarSkinReward | null | undefined) => toAccent(skin)?.fillCss ?? "",
+        [toAccent],
+    )
+
     const setActiveNameColor = React.useCallback((id: string) => {
         persist({ ...active, nameColorId: id })
         const resolved = lookupNameColor(id)
         if (resolved) {
             saveDisplayCosmetics({
-                xpBarFillCss: lookupXPBarSkin(active.xpBarSkinId)?.fillCss ?? "",
+                xpBarFillCss: publishedFill(lookupXPBarSkin(active.xpBarSkinId)),
                 xpBarAnimClass: lookupXPBarSkin(active.xpBarSkinId)?.animClass ?? "",
+                xpBarSkinId: active.xpBarSkinId,
                 nameColorCss: resolved.color,
                 nameGradientCss: resolved.gradientCss ?? "",
             })
         }
-    }, [active, storageKey, saveDisplayCosmetics])
+    }, [active, storageKey, saveDisplayCosmetics, publishedFill])
 
     const setActiveXPBarSkin = React.useCallback((id: string) => {
         persist({ ...active, xpBarSkinId: id })
@@ -336,13 +369,14 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
         if (resolved) {
             const nameColor = lookupNameColor(active.nameColorId)
             saveDisplayCosmetics({
-                xpBarFillCss: resolved.fillCss,
+                xpBarFillCss: publishedFill(resolved),
                 xpBarAnimClass: resolved.animClass ?? "",
+                xpBarSkinId: resolved.id,
                 nameColorCss: nameColor?.color ?? "#ffffff",
                 nameGradientCss: nameColor?.gradientCss ?? "",
             })
         }
-    }, [active, storageKey, saveDisplayCosmetics])
+    }, [active, storageKey, saveDisplayCosmetics, publishedFill])
 
     const setActiveBorder     = React.useCallback((id: string) => persist({ ...active, borderId: id }), [active, storageKey])
     const setActiveBackground = React.useCallback((id: string) => persist({ ...active, backgroundId: id }), [active, storageKey])
@@ -383,7 +417,11 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
     const nameColorDef = lookupNameColor(active.nameColorId)
     const borderDef    = lookupBorder(active.borderId)
     const bgDef        = lookupBackground(active.backgroundId)
-    const xpBarDef     = lookupXPBarSkin(active.xpBarSkinId)
+
+    const xpBarDef = React.useMemo(
+        () => toAccent(lookupXPBarSkin(active.xpBarSkinId)),
+        [active.xpBarSkinId, toAccent],
+    )
 
     React.useEffect(() => {
         const root = document.documentElement

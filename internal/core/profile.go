@@ -40,6 +40,11 @@ type Profile struct {
 	// XP bar cosmetic — stored so all users see your chosen bar on your profile.
 	XPBarFillCss   string `gorm:"column:xpbar_fill_css" json:"xpBarFillCss"`
 	XPBarAnimClass string `gorm:"column:xpbar_anim_class" json:"xpBarAnimClass"`
+	// XPBarSkinID names which skin the CSS above came from. The CSS alone stopped being enough to
+	// identify it once bars started being recolored to each user's accent: two people wearing the
+	// same skin now publish different colors, and the decorative overlay the top-tier skins carry
+	// was resolved by matching that CSS against the catalogue. The id says it outright.
+	XPBarSkinID string `gorm:"column:xpbar_skin_id" json:"xpBarSkinId"`
 	// Name color cosmetic — stored globally so other users see your chosen name color.
 	NameColorCss    string `gorm:"column:name_color_css" json:"nameColorCss"`
 	NameGradientCss string `gorm:"column:name_gradient_css" json:"nameGradientCss"`
@@ -63,6 +68,7 @@ type ProfileSummary struct {
 	DisplayTitleColor string    `json:"displayTitleColor"`
 	XPBarFillCss      string    `json:"xpBarFillCss"`
 	XPBarAnimClass    string    `json:"xpBarAnimClass"`
+	XPBarSkinID       string    `json:"xpBarSkinId"`
 	NameColorCss      string    `json:"nameColorCss"`
 	NameGradientCss   string    `json:"nameGradientCss"`
 	ThemeID           string    `json:"themeId"`
@@ -85,6 +91,7 @@ func (p *Profile) ToSummary() *ProfileSummary {
 		DisplayTitleColor: p.DisplayTitleColor,
 		XPBarFillCss:      p.XPBarFillCss,
 		XPBarAnimClass:    p.XPBarAnimClass,
+		XPBarSkinID:       p.XPBarSkinID,
 		NameColorCss:      p.NameColorCss,
 		NameGradientCss:   p.NameGradientCss,
 		ThemeID:           func() string { if p.ThemeID == "" { return "seanime" }; return p.ThemeID }(),

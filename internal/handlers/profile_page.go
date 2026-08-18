@@ -186,6 +186,7 @@ func (h *Handler) HandleSetDisplayCosmetics(c echo.Context) error {
 	type body struct {
 		XPBarFillCss    string `json:"xpBarFillCss"`
 		XPBarAnimClass  string `json:"xpBarAnimClass"`
+		XPBarSkinID     string `json:"xpBarSkinId"`
 		NameColorCss    string `json:"nameColorCss"`
 		NameGradientCss string `json:"nameGradientCss"`
 	}
@@ -197,6 +198,7 @@ func (h *Handler) HandleSetDisplayCosmetics(c echo.Context) error {
 	updates := map[string]interface{}{
 		"xpbar_fill_css":    b.XPBarFillCss,
 		"xpbar_anim_class":  b.XPBarAnimClass,
+		"xpbar_skin_id":     b.XPBarSkinID,
 		"name_color_css":    b.NameColorCss,
 		"name_gradient_css": b.NameGradientCss,
 	}

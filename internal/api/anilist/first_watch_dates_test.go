@@ -128,3 +128,23 @@ func TestFirstWatchDatesTreatsZeroYearAsEmpty(t *testing.T) {
 		t.Fatalf("a zero year should read as no date; got startedAt=%v completedAt=%v", startedAt, completedAt)
 	}
 }
+
+// The rule says nothing about which episode was watched, and it must not start to. Picking a show
+// up from the middle, or rewatching one episode of something you are already deep into, still
+// records a start date on an entry that has none — the episode number is not evidence about whether
+// you have started watching.
+func TestFirstWatchDatesIgnoresWhichEpisodeWasWatched(t *testing.T) {
+	now := time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC)
+
+	// Deep into a series, no start date recorded, and not finishing it now.
+	entry := entryWith(nil, nil, ptr(0))
+	entry.Progress = ptr(11)
+
+	startedAt, completedAt := FirstWatchDates(entry, false, now)
+	if startedAt == nil {
+		t.Error("an entry with no start date must get one, whatever episode was watched")
+	}
+	if completedAt != nil {
+		t.Error("an episode that does not finish the series is not a completion")
+	}
+}

@@ -380,7 +380,11 @@ function CommunityProfileCard({ profile }: { profile: Handlers_CommunityProfile 
                                 className={cn("h-full rounded-full", xpBarAnimClass)}
                                 style={{ width: "100%", background: xpBarFillCss, backgroundSize: xpBarAnimClass ? "300% 100%" : undefined }}
                             />
-                            <XPBarFxOverlay skin={isSelf ? activeXPBarSkin : undefined} fillCss={xpBarFillCss} />
+                            <XPBarFxOverlay
+                                skin={isSelf ? activeXPBarSkin : undefined}
+                                skinId={!isSelf ? profile.xpBarSkinId || undefined : undefined}
+                                fillCss={xpBarFillCss}
+                            />
                         </div>
                     )}
                     <div className="flex items-center gap-3 text-xs text-[--muted]">

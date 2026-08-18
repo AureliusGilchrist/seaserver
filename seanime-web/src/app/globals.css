@@ -1591,6 +1591,11 @@ body.vc-fullscreen .appLayout {
 }
 @media (prefers-reduced-motion: reduce) {
     .sea-name-shine { animation: none !important; }
+    /* A bar that pulses and drifts is decoration; a bar that shows progress is not. Only the
+       motion goes. */
+    .sea-xpbar-shimmer, .sea-xpbar-shimmer-fast, .sea-xpbar-pulse, .sea-xpbar-flow,
+    .sea-xpbar-wave, .sea-xpbar-plasma, .sea-xpbar-aurora, .sea-xpbar-lightning,
+    .sea-xpbar-fire, .sea-xpbar-void, .sea-xpbar-pulse-glow { animation: none !important; }
 }
 
 /* Flow: smooth left-to-right gradient drift (background-position based) */
@@ -1611,10 +1616,13 @@ body.vc-fullscreen .appLayout {
     50%       { opacity: 1; }
 }
 .sea-xpbar-pulse-glow {
-    will-change: opacity;
-    box-shadow: 0 0 8px 2px rgba(139,92,246,0.35) !important;
-    animation: sea-xpbar-pulse-glow-kf 2.2s ease-in-out infinite !important;
-    contain: layout;
+    will-change: background-position, opacity;
+    background-size: 200% 100% !important;
+    box-shadow: 0 0 10px 2px rgba(255,255,255,0.25) !important;
+    animation:
+        sea-xpbar-flow-kf 3.4s linear infinite,
+        sea-xpbar-pulse-glow-kf 2.2s ease-in-out infinite !important;
+    contain: layout style;
 }
 
 /* Wave: radial-gradient ripple via background-position (waves through bar) */
@@ -1624,7 +1632,9 @@ body.vc-fullscreen .appLayout {
 }
 .sea-xpbar-wave {
     will-change: background-position;
-    background-image: radial-gradient(ellipse 60px 100% at 50% 50%, rgba(255,255,255,0.35) 0%, transparent 70%) !important;
+    /* No background-image of its own: it used to force a white ripple here, which replaced the
+       skin gradient outright and left the bar colourless. The wave is the easing instead — the
+       gradient drifts and slows like water rather than scrolling at a constant rate. */
     background-size: 200% 100% !important;
     animation: sea-xpbar-wave-kf 2.6s ease-in-out infinite !important;
     contain: layout style;
@@ -1636,9 +1646,12 @@ body.vc-fullscreen .appLayout {
     50%       { opacity: 1; }
 }
 .sea-xpbar-plasma {
-    will-change: opacity;
-    animation: sea-xpbar-plasma-kf 2s linear infinite !important;
-    contain: layout;
+    will-change: background-position, opacity;
+    background-size: 200% 100% !important;
+    animation:
+        sea-xpbar-flow-kf 2.4s linear infinite,
+        sea-xpbar-plasma-kf 2s linear infinite !important;
+    contain: layout style;
 }
 
 /* Aurora: gradient-position drift + opacity breathing (waves of colour) */
@@ -1660,9 +1673,12 @@ body.vc-fullscreen .appLayout {
     5%, 15%, 25%, 35%             { opacity: 0.4; }
 }
 .sea-xpbar-lightning {
-    will-change: opacity;
-    animation: sea-xpbar-lightning-kf 1.2s steps(1) infinite !important;
-    contain: layout;
+    will-change: background-position, opacity;
+    background-size: 200% 100% !important;
+    animation:
+        sea-xpbar-flow-kf 1.8s linear infinite,
+        sea-xpbar-lightning-kf 1.2s steps(1) infinite !important;
+    contain: layout style;
 }
 
 /* Fire: opacity pulse (no complex transforms) */
@@ -1672,10 +1688,12 @@ body.vc-fullscreen .appLayout {
     50%        { opacity: 0.95; }
 }
 .sea-xpbar-fire {
-    will-change: opacity;
-    background-size: 300% 200% !important;
-    animation: sea-xpbar-fire-kf 1.6s ease-in-out infinite !important;
-    contain: layout;
+    will-change: background-position, opacity;
+    background-size: 200% 100% !important;
+    animation:
+        sea-xpbar-flow-kf 2s linear infinite,
+        sea-xpbar-fire-kf 1.6s ease-in-out infinite !important;
+    contain: layout style;
 }
 
 /* Void: simple opacity pulse */
@@ -1684,10 +1702,13 @@ body.vc-fullscreen .appLayout {
     50%       { opacity: 1; }
 }
 .sea-xpbar-void {
-    will-change: opacity;
+    will-change: background-position, opacity;
+    background-size: 200% 100% !important;
     box-shadow: 0 0 8px 2px rgba(88,28,135,0.4) !important;
-    animation: sea-xpbar-void-kf 2.8s ease-in-out infinite !important;
-    contain: layout;
+    animation:
+        sea-xpbar-flow-kf 5s linear infinite,
+        sea-xpbar-void-kf 2.8s ease-in-out infinite !important;
+    contain: layout style;
 }
 
 /* ─── XP Bar — "effects" tier decorative overlays ─────────────────────────── */

@@ -21,6 +21,7 @@ import { packFilter } from "@/lib/cursors/cursor-packs"
 import { useCursor } from "@/lib/cursors/cursor-provider"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { XPBarFxOverlay } from "@/lib/rewards/xpbar-fx-overlay"
+import { useAccentSkin } from "@/lib/rewards/accent-recolor"
 import {
     TITLE_REWARDS,
     NAME_COLOR_REWARDS,
@@ -481,8 +482,15 @@ const XP_BAR_CATEGORY_META: { id: XPBarCategory; label: string; description: str
 
 function XPBarSkinCard({ reward, currentLevel }: { reward: XPBarSkinReward; currentLevel: number }) {
     const { activeXPBarSkin, setActiveXPBarSkin } = useRewards()
+    const toAccentSkin = useAccentSkin()
     const isUnlocked = reward.requiredLevel <= currentLevel
     const isActive = activeXPBarSkin?.id === reward.id
+
+    // Every skin is worn in the accent color, so every card previews it that way — a shop that shows
+    // a palette the bar will not actually have is a shop lying about what it sells. What the card
+    // still shows honestly is the difference between skins: the shape of the gradient and the way it
+    // moves, which is what is actually being chosen here.
+    const shown: XPBarSkinReward = React.useMemo(() => toAccentSkin(reward) ?? reward, [toAccentSkin, reward])
     return (
         <CardBase isActive={isActive} isUnlocked={isUnlocked} onClick={() => setActiveXPBarSkin(reward.id)} className="items-start">
             <div className="w-full space-y-2">
@@ -491,29 +499,29 @@ function XPBarSkinCard({ reward, currentLevel }: { reward: XPBarSkinReward; curr
                     <LevelRingAvatar
                         profile={{ currentLevel, name: "?" }}
                         size={44}
-                        xpBarFillOverride={reward.fillCss}
+                        xpBarFillOverride={shown.fillCss}
                     />
                     <div className="flex-1">
                         <div
                             className="relative w-full h-3 rounded-full overflow-hidden"
-                            style={{ background: reward.trackCss ?? "rgba(255,255,255,0.1)" }}
+                            style={{ background: shown.trackCss ?? "rgba(255,255,255,0.1)" }}
                         >
                             <div
-                                className={cn("h-full rounded-full", reward.animClass)}
+                                className={cn("h-full rounded-full", shown.animClass)}
                                 style={{
                                     width: "65%",
-                                    background: reward.fillCss,
+                                    background: shown.fillCss,
                                     // Required for gradient-based anim classes (shimmer/flow/wave/etc.)
                                     // to actually scroll — matches the community + profile bar.
-                                    backgroundSize: reward.animClass ? "300% 100%" : undefined,
+                                    backgroundSize: shown.animClass ? "300% 100%" : undefined,
                                 }}
                             />
-                            <XPBarFxOverlay skin={reward} fillCss={reward.fillCss} />
+                            <XPBarFxOverlay skin={shown} fillCss={shown.fillCss} />
                         </div>
                     </div>
                 </div>
                 <p className="text-xs font-medium leading-tight">{reward.icon && <span className="mr-1">{reward.icon}</span>}{reward.name}</p>
-                <p className="text-xs text-[--muted] leading-tight">{reward.description}</p>
+                <p className="text-xs text-[--muted] leading-tight">{shown.description}</p>
                 {!isUnlocked && <LevelTag level={reward.requiredLevel} />}
             </div>
         </CardBase>
@@ -535,6 +543,14 @@ function XPBarsTab({ currentLevel }: { currentLevel: number }) {
                     <span>{unlocked}/{XP_BAR_SKIN_REWARDS.length} unlocked</span>
                 </div>
             </div>
+
+            {/* Said plainly, because the names below still say "Crimson" and "Ocean Wave" while every
+                one of them is drawn in the accent color. What a skin decides is its shape and its
+                motion; the color comes from Settings. */}
+            <p className="text-xs text-[--muted]">
+                Every bar is drawn in your accent color — set it in Settings › Color scheme. What you
+                pick here is the shape of the gradient and the way it moves.
+            </p>
 
             {/* Category tabs */}
             <div className="flex flex-wrap gap-1 p-1 bg-[--background] border border-[--border] rounded-lg">

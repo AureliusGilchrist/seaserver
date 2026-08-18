@@ -27,8 +27,12 @@ function resolveSkin(args: { skin?: XPBarSkinReward | null; skinId?: string; fil
     if (args.skin) return args.skin
     if (args.skinId) return XP_BAR_SKIN_REWARDS.find(r => r.id === args.skinId) ?? null
     if (args.fillCss) {
-        // Fallback: match by exact fillCss against effects-category skins only.
-        // (Effects skins have unique fillCss values, so this is safe.)
+        // Last resort: match by exact fillCss against effects-category skins.
+        //
+        // This only works for a bar published before bars were recolored to each viewer's accent —
+        // a recolored fill matches no definition, by design. Anything rendered from stored profile
+        // data should pass skinId, which is stored alongside the CSS for exactly this reason; this
+        // branch is what keeps older rows, saved before that column existed, looking right.
         return XP_BAR_SKIN_REWARDS.find(r => r.category === "effects" && r.fillCss === args.fillCss) ?? null
     }
     return null

@@ -30,6 +30,7 @@ type CommunityProfile struct {
 	// Cosmetics — copied from profile so all viewers see the chosen look
 	XPBarFillCss    string `json:"xpBarFillCss"`
 	XPBarAnimClass  string `json:"xpBarAnimClass"`
+	XPBarSkinID     string `json:"xpBarSkinId"`
 	NameColorCss    string `json:"nameColorCss"`
 	NameGradientCss string `json:"nameGradientCss"`
 }
@@ -110,6 +111,7 @@ func (h *Handler) HandleGetCommunityProfiles(c echo.Context) error {
 				return p.ThemeID
 			}(),
 			XPBarFillCss:    p.XPBarFillCss,
+			XPBarSkinID:     p.XPBarSkinID,
 			XPBarAnimClass:  p.XPBarAnimClass,
 			NameColorCss:    p.NameColorCss,
 			NameGradientCss: p.NameGradientCss,

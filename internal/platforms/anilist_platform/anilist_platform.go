@@ -172,13 +172,16 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 		// silently replaced the day you first completed a series with today, and starting one
 		// replaced the day you first began it.
 		//
-		// Started is also no longer keyed to progress being exactly 1. Jumping straight to episode 3,
-		// or having the first file you watch be episode 2, is ordinary — the old check meant those
-		// entries never got a start date at all. Any progress at all means you have started it.
+		// Started is not keyed to the episode at all. Jumping straight to episode 3, picking up a
+		// show from the middle, rewatching episode 5 of something you are twelve episodes into, or
+		// watching a special that leaves the count at zero — every one of those is you watching the
+		// show, and an entry with no start date has no answer to protect. So: an episode was
+		// watched and no start date is recorded, therefore the start date is today. Which episode
+		// it was decides nothing.
 		hasStartedAt, hasCompletedAt := ap.entryHasDates(mediaID)
 
 		var startedAt, completedAt *anilist.FuzzyDateInput
-		if *event.Progress >= 1 && !hasStartedAt {
+		if !hasStartedAt {
 			startedAt = todayFuzzyDate()
 		}
 		if realTotalCount > 0 && *event.Progress >= realTotalCount && !hasCompletedAt {
