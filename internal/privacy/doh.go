@@ -3,6 +3,7 @@ package privacy
 import (
 	"context"
 	"net"
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,13 +14,40 @@ import (
 
 // DoHManager manages DNS-over-HTTPS with multiple providers and automatic failover.
 type DoHManager struct {
-	providers    []string
-	logger       *zerolog.Logger
-	activeIndex  atomic.Int32
-	resolvers    []*net.Resolver
-	stopCh       chan struct{}
-	stopped      atomic.Bool
-	mu           sync.RWMutex
+	providers      []string
+	logger         *zerolog.Logger
+	activeIndex    atomic.Int32
+	resolvers      []*net.Resolver
+	systemResolver *net.Resolver
+	stopCh         chan struct{}
+	stopped        atomic.Bool
+	mu             sync.RWMutex
+}
+
+// systemResolver is the OS resolver captured before any DoH resolver replaces
+// net.DefaultResolver, so failover can always fall back to it.
+var systemResolver = net.DefaultResolver
+
+// bootstrapAddrs pins the IPs of well-known DoH endpoints so the resolver never
+// has to resolve its own hostname through the resolver it is replacing.
+var bootstrapAddrs = map[string][]string{
+	"dns.mullvad.net":     {"194.242.2.2"},
+	"dns.quad9.net":       {"9.9.9.9", "149.112.112.112"},
+	"cloudflare-dns.com":  {"1.1.1.1", "1.0.0.1"},
+	"dns.google":          {"8.8.8.8", "8.8.4.4"},
+	"doh.opendns.com":     {"208.67.222.222", "208.67.220.220"},
+	"dns.nextdns.io":      {"45.90.28.0", "45.90.30.0"},
+	"dns.adguard-dns.com": {"94.140.14.14", "94.140.15.15"},
+}
+
+func resolverOptions(providerURL string) []dns.DoHOption {
+	opts := []dns.DoHOption{dns.DoHCache()}
+	if u, err := url.Parse(providerURL); err == nil {
+		if addrs, ok := bootstrapAddrs[u.Hostname()]; ok {
+			opts = append(opts, dns.DoHAddresses(addrs...))
+		}
+	}
+	return opts
 }
 
 // NewDoHManager creates a DoH manager with the given provider URLs.
@@ -38,9 +66,11 @@ func NewDoHManager(providers []string, logger *zerolog.Logger) *DoHManager {
 func (m *DoHManager) Start() {
 	m.mu.Lock()
 
+	m.systemResolver = systemResolver
+
 	m.resolvers = make([]*net.Resolver, 0, len(m.providers))
 	for i, providerURL := range m.providers {
-		resolver, err := dns.NewDoHResolver(providerURL, dns.DoHCache())
+		resolver, err := dns.NewDoHResolver(providerURL, resolverOptions(providerURL)...)
 		if err != nil {
 			m.logger.Warn().Err(err).Str("provider", providerURL).Msg("privacy/doh: Failed to create resolver")
 			continue
@@ -75,6 +105,11 @@ func (m *DoHManager) Start() {
 func (m *DoHManager) Stop() {
 	if m.stopped.CompareAndSwap(false, true) {
 		close(m.stopCh)
+		m.mu.RLock()
+		if m.systemResolver != nil {
+			net.DefaultResolver = m.systemResolver
+		}
+		m.mu.RUnlock()
 	}
 }
 
@@ -124,7 +159,9 @@ func (m *DoHManager) promote() {
 
 	currentIdx := int(m.activeIndex.Load())
 
-	for i := 1; i < resolverCount; i++ {
+	// <= so the current index is retried last: after a fallback to the system
+	// resolver it is otherwise never re-adopted.
+	for i := 1; i <= resolverCount; i++ {
 		nextIdx := (currentIdx + i) % resolverCount
 		if m.testResolver(nextIdx) {
 			m.mu.RLock()
@@ -139,7 +176,10 @@ func (m *DoHManager) promote() {
 		}
 	}
 
-	m.logger.Error().Msg("privacy/doh: All resolvers failed, DNS resolution may be degraded")
+	m.mu.RLock()
+	net.DefaultResolver = m.systemResolver
+	m.mu.RUnlock()
+	m.logger.Error().Msg("privacy/doh: All DoH resolvers failed, falling back to the system resolver")
 }
 
 // ActiveProvider returns the URL of the currently active DoH provider.
