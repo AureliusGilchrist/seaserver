@@ -17,7 +17,9 @@ import (
 func (h *Handler) HandleGetPrivacySettings(c echo.Context) error {
 	dbSettings, _ := h.App.Database.GetPrivacySettings()
 
-	status := privacy.PrivacyStatus{}
+	status := privacy.PrivacyStatus{
+		KnownProviders: privacy.KnownProviders(),
+	}
 
 	if dbSettings != nil && dbSettings.ID != 0 {
 		providers := []string{}

@@ -53,11 +53,10 @@ type Settings struct {
 func DefaultSettings() *Settings {
 	return &Settings{
 		DoHEnabled: false,
-		DoHProviders: []string{
-			"https://dns.mullvad.net/dns-query",
-			"https://dns.quad9.net/dns-query",
-			"https://cloudflare-dns.com/dns-query",
-		},
+		// One resolver by default. The user picks from KnownProviders() in the
+		// settings UI; if it goes down the manager falls back to the system
+		// resolver rather than silently using a different operator.
+		DoHProviders: []string{knownProviders[0].URL},
 		Socks5Enabled: false,
 		Socks5Address: "127.0.0.1",
 		Socks5Port:    1080,

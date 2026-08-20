@@ -9,9 +9,12 @@ import { Separator } from "@/components/ui/separator"
 import React from "react"
 import { LuShieldCheck } from "react-icons/lu"
 
+const CUSTOM_PROVIDER = "custom"
+
 const privacySchema = defineSchema(({ z }) => z.object({
     dohEnabled: z.boolean(),
-    dohProviders: z.string().min(0),
+    dohProvider: z.string().min(0),
+    dohCustomProvider: z.string().min(0),
     socks5Enabled: z.boolean(),
     socks5Address: z.string().min(0),
     socks5Port: z.coerce.number().min(1).max(65535),
@@ -27,6 +30,10 @@ export function PrivacySettings() {
 
     if (isLoading || !status) return <LoadingSpinner />
 
+    const knownProviders = status.knownProviders ?? []
+    const currentProvider = status.settings.dohProviders?.[0] ?? ""
+    const isCustom = !!currentProvider && !knownProviders.some(p => p.url === currentProvider)
+
     return (
         <>
             <SettingsPageHeader
@@ -41,7 +48,11 @@ export function PrivacySettings() {
                     save({
                         settings: {
                             dohEnabled: data.dohEnabled,
-                            dohProviders: data.dohProviders.split(",").map((s: string) => s.trim()).filter(Boolean),
+                            dohProviders: [
+                                data.dohProvider === CUSTOM_PROVIDER
+                                    ? data.dohCustomProvider.trim()
+                                    : data.dohProvider,
+                            ].filter(Boolean),
                             socks5Enabled: data.socks5Enabled,
                             socks5Address: data.socks5Address,
                             socks5Port: data.socks5Port,
@@ -52,7 +63,8 @@ export function PrivacySettings() {
                 }}
                 defaultValues={{
                     dohEnabled: status.settings.dohEnabled,
-                    dohProviders: status.settings.dohProviders?.join(", ") ?? "",
+                    dohProvider: isCustom ? CUSTOM_PROVIDER : currentProvider,
+                    dohCustomProvider: isCustom ? currentProvider : "",
                     socks5Enabled: status.settings.socks5Enabled,
                     socks5Address: status.settings.socks5Address || "127.0.0.1",
                     socks5Port: status.settings.socks5Port || 1080,
@@ -65,13 +77,30 @@ export function PrivacySettings() {
                 {(f) => (
                     <>
                         {/* DNS-over-HTTPS */}
-                        <SettingsCard title="DNS-over-HTTPS (DoH)" description="Encrypts DNS queries so your ISP cannot see which domains you resolve. Multiple providers are used with automatic failover.">
+                        <SettingsCard title="DNS-over-HTTPS (DoH)" description="Encrypts DNS queries so your ISP cannot see which domains you resolve. If the resolver goes down, DNS falls back to your system resolver.">
                             <Field.Switch name="dohEnabled" label="Enable DoH" />
-                            <Field.Textarea
-                                name="dohProviders"
-                                label="DoH Providers (comma-separated)"
-                                help="Ordered by priority. First working provider is used."
+                            <Field.Select
+                                name="dohProvider"
+                                label="Resolver"
+                                help={
+                                    knownProviders.find(p => p.url === f.watch("dohProvider"))?.description
+                                    ?? "Enter any DoH endpoint URL."
+                                }
+                                options={[
+                                    ...knownProviders.map(p => ({
+                                        label: p.filtering === "none" ? p.name : `${p.name} — blocks ${p.filtering.replace("+", " + ")}`,
+                                        value: p.url,
+                                    })),
+                                    { label: "Custom…", value: CUSTOM_PROVIDER },
+                                ]}
                             />
+                            {f.watch("dohProvider") === CUSTOM_PROVIDER && (
+                                <Field.Text
+                                    name="dohCustomProvider"
+                                    label="Custom DoH endpoint"
+                                    placeholder="https://example.com/dns-query"
+                                />
+                            )}
                             {status.activeDoHProvider && (
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm text-[--muted]">Active:</span>

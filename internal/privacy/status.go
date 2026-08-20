@@ -9,9 +9,10 @@ import (
 
 // PrivacyStatus is the API response for the current state of all privacy layers.
 type PrivacyStatus struct {
-	Settings          Settings         `json:"settings"`
-	DNSCrypt          DNSCryptStatus   `json:"dnsCrypt"`
-	ActiveDoHProvider string           `json:"activeDoHProvider"`
+	Settings          Settings        `json:"settings"`
+	DNSCrypt          DNSCryptStatus  `json:"dnsCrypt"`
+	ActiveDoHProvider string          `json:"activeDoHProvider"`
+	KnownProviders    []KnownProvider `json:"knownProviders"`
 }
 
 // ConnectionTestResult reports whether each privacy layer is functioning.

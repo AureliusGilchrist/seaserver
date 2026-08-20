@@ -24,20 +24,30 @@ type DoHManager struct {
 	mu             sync.RWMutex
 }
 
+// probeTimeout bounds each resolver health check.
+const probeTimeout = 3 * time.Second
+
 // systemResolver is the OS resolver captured before any DoH resolver replaces
 // net.DefaultResolver, so failover can always fall back to it.
 var systemResolver = net.DefaultResolver
 
 // bootstrapAddrs pins the IPs of well-known DoH endpoints so the resolver never
 // has to resolve its own hostname through the resolver it is replacing.
+// Hostnames absent from this map still work: the resolver falls back to
+// resolving its own endpoint through the system resolver at construction.
 var bootstrapAddrs = map[string][]string{
-	"dns.mullvad.net":     {"194.242.2.2"},
-	"dns.quad9.net":       {"9.9.9.9", "149.112.112.112"},
-	"cloudflare-dns.com":  {"1.1.1.1", "1.0.0.1"},
-	"dns.google":          {"8.8.8.8", "8.8.4.4"},
-	"doh.opendns.com":     {"208.67.222.222", "208.67.220.220"},
-	"dns.nextdns.io":      {"45.90.28.0", "45.90.30.0"},
-	"dns.adguard-dns.com": {"94.140.14.14", "94.140.15.15"},
+	// Security-filtering
+	"dns.quad9.net":               {"9.9.9.9", "149.112.112.112"},
+	"security.cloudflare-dns.com": {"1.1.1.2", "1.0.0.2"},
+	"dns.adguard-dns.com":         {"94.140.14.14", "94.140.15.15"},
+	"doh.cleanbrowsing.org":       {"185.228.168.9", "185.228.169.9"},
+	"doh.opendns.com":             {"208.67.222.222", "208.67.220.220"},
+	"family.cloudflare-dns.com":   {"1.1.1.3", "1.0.0.3"},
+	// Unfiltered
+	"dns.mullvad.net":    {"194.242.2.2"},
+	"cloudflare-dns.com": {"1.1.1.1", "1.0.0.1"},
+	"dns.google":         {"8.8.8.8", "8.8.4.4"},
+	"dns.nextdns.io":     {"45.90.28.0", "45.90.30.0"},
 }
 
 func resolverOptions(providerURL string) []dns.DoHOption {
@@ -144,7 +154,7 @@ func (m *DoHManager) testResolver(index int) bool {
 	resolver := m.resolvers[index]
 	m.mu.RUnlock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
 
 	_, err := resolver.LookupIPAddr(ctx, "dns.google")
@@ -158,6 +168,13 @@ func (m *DoHManager) promote() {
 	m.mu.RUnlock()
 
 	currentIdx := int(m.activeIndex.Load())
+
+	// Hand DNS back to the system resolver up front. Probing every provider can
+	// take resolverCount*probeTimeout, and leaving a known-dead resolver
+	// installed for that long would stall every outgoing request in the app.
+	m.mu.RLock()
+	net.DefaultResolver = m.systemResolver
+	m.mu.RUnlock()
 
 	// <= so the current index is retried last: after a fallback to the system
 	// resolver it is otherwise never re-adopted.
@@ -176,10 +193,7 @@ func (m *DoHManager) promote() {
 		}
 	}
 
-	m.mu.RLock()
-	net.DefaultResolver = m.systemResolver
-	m.mu.RUnlock()
-	m.logger.Error().Msg("privacy/doh: All DoH resolvers failed, falling back to the system resolver")
+	m.logger.Error().Msg("privacy/doh: All DoH resolvers failed, using the system resolver until one recovers")
 }
 
 // ActiveProvider returns the URL of the currently active DoH provider.

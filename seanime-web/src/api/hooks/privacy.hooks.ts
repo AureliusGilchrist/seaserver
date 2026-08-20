@@ -19,10 +19,19 @@ export type DNSCryptStatus = {
     running: boolean
 }
 
+export type KnownProvider = {
+    name: string
+    url: string
+    description: string
+    filtering: string // "none" | "malware" | "malware+ads"
+    noLog: boolean
+}
+
 export type PrivacyStatus = {
     settings: PrivacySettings
     dnsCrypt: DNSCryptStatus
     activeDoHProvider: string
+    knownProviders: KnownProvider[]
 }
 
 export type ConnectionTestResult = {

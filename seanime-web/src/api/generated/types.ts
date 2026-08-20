@@ -5937,6 +5937,28 @@ export type PrivacyStatus = {
     settings: Settings
     dnsCrypt: DNSCryptStatus
     activeDoHProvider: string
+    knownProviders: Array<KnownProvider>
+}
+
+/**
+ * - Filepath: internal/privacy/catalogue.go
+ * - Filename: catalogue.go
+ * - Package: privacy
+ * @description
+ *  KnownProvider describes a selectable DoH resolver shown in the settings UI.
+ */
+export type KnownProvider = {
+    name: string
+    url: string
+    description: string
+    /**
+     * Filtering is what the resolver blocks: "none", "malware", or "malware+ads".
+     */
+    filtering: string
+    /**
+     * NoLog reports whether the operator states they keep no query logs.
+     */
+    noLog: boolean
 }
 
 /**
