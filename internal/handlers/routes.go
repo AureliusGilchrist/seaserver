@@ -358,6 +358,30 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.DELETE("/planning-slut/token", h.HandleDeletePlanningSlutToken, h.RequireProfileAdmin)
 	v1.POST("/planning-slut/backfill-library", h.HandlePlanningSlutBackfillLibrary, h.RequireProfileAdmin)
 
+	// Shared Kitsu library account — runs in parallel with the AniList planning-slut.
+	v1.GET("/kitsu/planning-slut/info", h.HandleGetKitsuPlanningSlutInfo, h.RequireProfileAdmin)
+	v1.POST("/kitsu/planning-slut/token", h.HandleSaveKitsuPlanningSlutToken)
+	v1.DELETE("/kitsu/planning-slut/token", h.HandleDeleteKitsuPlanningSlutToken, h.RequireProfileAdmin)
+	v1.POST("/kitsu/planning-slut/backfill-library", h.HandleKitsuPlanningSlutBackfillLibrary, h.RequireProfileAdmin)
+
+	// Kitsu OAuth — admin-only endpoints that drive the per-profile OAuth flow.
+	v1.POST("/kitsu/oauth/start", h.HandleStartKitsuOAuth, h.RequireProfileSession)
+	v1.POST("/kitsu/oauth/callback", h.HandleKitsuOAuthCallback, h.RequireProfileSession)
+	v1.DELETE("/kitsu/oauth/account", h.HandleDeleteKitsuAccount, h.RequireProfileSession)
+
+	// Kitsu read endpoints — collection, viewer, stats, library CRUD.
+	v1.GET("/kitsu/anime-collection", h.HandleGetKitsuAnimeCollection, h.RequireProfileSession)
+	v1.GET("/kitsu/manga-collection", h.HandleGetKitsuMangaCollection, h.RequireProfileSession)
+	v1.GET("/kitsu/anime/:id", h.HandleGetKitsuAnime)
+	v1.GET("/kitsu/manga/:id", h.HandleGetKitsuManga)
+	v1.GET("/kitsu/anime/search", h.HandleSearchKitsuAnime)
+	v1.GET("/kitsu/viewer", h.HandleGetKitsuViewer, h.RequireProfileSession)
+	v1.GET("/kitsu/viewer/stats", h.HandleGetKitsuViewerStats, h.RequireProfileSession)
+	v1.POST("/kitsu/entry", h.HandleUpdateKitsuEntry, h.RequireProfileSession)
+	v1.DELETE("/kitsu/entry/:id", h.HandleDeleteKitsuEntry, h.RequireProfileSession)
+	v1.POST("/kitsu/collection", h.HandleAddKitsuMediaToCollection, h.RequireProfileSession)
+	v1.GET("/kitsu/users/:id/library", h.HandleGetKitsuUserLibrary)
+
 	// Admin announcements
 	v1.GET("/admin/announcements", h.HandleGetActiveAdminAnnouncements)
 	v1.POST("/admin/announcements", h.HandleCreateAdminAnnouncement, h.RequireProfileAdmin)

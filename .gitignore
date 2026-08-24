@@ -110,3 +110,4 @@ build-all-desktop-stats.json
 .resync/
 build-all-desktop-stats.json
 /.claude
+web/.gitkeep

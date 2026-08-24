@@ -54,6 +54,14 @@ const (
 	AnilistTokenExpired         = "anilist-token-expired"            // Sent when the profile's AniList token is rejected (401)
 	AnilistPlanningSlutTokenExpired = "anilist-planning-slut-token-expired" // Sent when the planning slut AniList token is rejected (401)
 
+	// Kitsu API status events
+	KitsuRateLimited          = "kitsu-rate-limited"             // Payload: { retryAfter: number (seconds) }
+	KitsuAPIOnline            = "kitsu-api-online"               // Sent once the client successfully recovers
+	KitsuTokenExpired         = "kitsu-token-expired"            // Sent when the profile's Kitsu token is rejected (401)
+	KitsuPlanningSlutTokenExpired = "kitsu-planning-slut-token-expired" // Sent when the planning slut Kitsu token is rejected (401)
+	KitsuPlanningSlutTokenUpdated  = "kitsu-planning-slut-token-updated"  // Sent when the admin saves the shared Kitsu token
+	KitsuPlanningSlutTokenDeleted  = "kitsu-planning-slut-token-deleted"  // Sent when the admin unlinks the shared Kitsu token
+
 	CheckForUpdates       = "check-for-updates"
 	CheckForAnnouncements = "check-for-announcements"
 

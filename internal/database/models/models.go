@@ -766,6 +766,112 @@ type SyntheticAnime struct {
 }
 
 // +---------------------+
+// |        Kitsu        |
+// +---------------------+
+//
+// Kitsu is the preferred platform for user-facing flows (profile pages, lists, planning rendering),
+// but the AniList planning-slut remains the "data grabber": matching and library backfill still
+// write to its PLANNING list because that is where downstream consumers (auto-downloader, scanner,
+// en-masse) already read from. A user can also be on AniList only — KitsuAccount is optional and
+// the rest of the app falls back to AniList transparently when there is no Kitsu row.
+
+type (
+	// MediaTypeAnime/Manga are the values used in MediaType fields across Kitsu tables. The
+	// strings match the values Kitsu uses in its JSONAPI media-type field for type safety.
+	MediaType = string
+)
+
+const (
+	MediaTypeAnime MediaType = "anime"
+	MediaTypeManga MediaType = "manga"
+)
+
+// KitsuIDMapping maps a Kitsu slug/ID to its canonical counterpart on other platforms so a request
+// that arrives with one id can be served from anyone else's storage without an upstream call.
+//
+// Kitsu exposes most things by slug ("naruto", "cowboy-bebop"), so this field is a raw slug string
+// rather than an integer — there is no numeric id surface on Kitsu that we have to align with.
+type KitsuIDMapping struct {
+	BaseModel
+	KitsuID   string `gorm:"column:kitsu_id;uniqueIndex" json:"kitsuId"`
+	AnilistID int    `gorm:"column:anilist_id;index" json:"anilistId"`
+	KitsuSlug string `gorm:"column:kitsu_slug;index" json:"kitsuSlug"`
+	MalID     int    `gorm:"column:mal_id" json:"malId"`
+	MediaType string `gorm:"column:media_type;index" json:"mediaType"`
+	// CanonicalTitle stores the title at the moment of first lookup. Empty until populated.
+	CanonicalTitle string `gorm:"column:canonical_title" json:"canonicalTitle"`
+	LastResolvedAt time.Time `gorm:"column:last_resolved_at" json:"lastResolvedAt"`
+}
+
+// KitsuPlanningSlut is the server-shared Kitsu account. It is the parallel of the AniList
+// planning-slut: matching writes to its PLANNING list, the library screen merges it in, and
+// downstream consumers read from it the same way they read from the AniList one.
+//
+// Exactly one row is kept (the lowest ID wins on a conflict). The handler that saves a token
+// clears existing rows first, which keeps lookup trivial and avoids the coordinated-flush dance
+// a per-user pattern would need.
+type KitsuPlanningSlut struct {
+	BaseModel
+	Token        string    `gorm:"column:token" json:"token"`
+	RefreshToken string    `gorm:"column:refresh_token" json:"refreshToken"`
+	Username     string    `gorm:"column:username" json:"username"`
+	UserID       string    `gorm:"column:user_id" json:"userId"`
+	ExpiresAt    time.Time `gorm:"column:expires_at" json:"expiresAt"`
+}
+
+// KitsuAccount is the per-profile Kitsu credentials used to read user libraries and to write the
+// profile's own planning list on Kitsu. Distinct from KitsuPlanningSlut (the shared one) and from
+// the per-profile AniList token stored in token.go.
+type KitsuAccount struct {
+	BaseModel
+	ProfileID    uint      `gorm:"column:profile_id;uniqueIndex" json:"profileId"`
+	Token        string    `gorm:"column:token" json:"token"`
+	RefreshToken string    `gorm:"column:refresh_token" json:"refreshToken"`
+	Username     string    `gorm:"column:username" json:"username"`
+	UserID       string    `gorm:"column:user_id" json:"userId"`
+	ExpiresAt    time.Time `gorm:"column:expires_at" json:"expiresAt"`
+}
+
+// SyntheticIDIndex is the lightweight DB the user asked for. Negative synthetic IDs are stored
+// alongside the cross-platform ids they resolved from, so a UI render can resolve one id string
+// (whether it is Kitsu, AniList, or synthetic) to a cached name + cover without an upstream call.
+//
+// Created lazily by Resolve() whenever a media id cannot be found locally — the upstream answer is
+// captured here so the next lookup is instant. Lives in the same seanime.db file as the rest of
+// the app's state.
+type SyntheticIDIndex struct {
+	BaseModel
+	// SyntheticID is allocated negative, starting at syntheticIDStart and decrementing on every
+	// Register() so the synthetic range and the AniList positive-int range never collide.
+	SyntheticID int `gorm:"column:synthetic_id;uniqueIndex" json:"syntheticId"`
+	// Name is the canonical English-or-romaji title the UI shows for this entry, denormalized out
+	// of the index so a list view never has to fetch a blob or hit the network.
+	Name string `gorm:"column:name;index" json:"name"`
+	// MediaType keeps the synthetic range partitioned: the same negative id can in principle refer
+	// to an anime or a manga, but never both.
+	MediaType string `gorm:"column:media_type;index" json:"mediaType"`
+	KitsuID   string `gorm:"column:kitsu_id;index" json:"kitsuId"`
+	KitsuSlug string `gorm:"column:kitsu_slug;index" json:"kitsuSlug"`
+	AnilistID int    `gorm:"column:anilist_id;index" json:"anilistId"`
+	MalID     int    `gorm:"column:mal_id" json:"malId"`
+	CoverImage string `gorm:"column:cover_image" json:"coverImage"`
+	// Source records which upstream surfaced this entry. Used to pick the right refresh path when
+	// a cached name goes stale.
+	Source     string    `gorm:"column:source" json:"source"`
+	LastSeenAt time.Time `gorm:"column:last_seen_at" json:"lastSeenAt"`
+}
+
+// SyntheticIDCounter holds a single row that drives the allocator in NextSyntheticID. Stored as a
+// row rather than a SQLite sequence because the driver we use does not honour CREATE SEQUENCE,
+// and a counter row reads/writes under a single transaction without surprises. The id column is
+// kept at a constant 1 so the row is always findable.
+type SyntheticIDCounter struct {
+	ID    uint `gorm:"primaryKey" json:"id"`
+	Value int  `gorm:"column:value" json:"value"`
+}
+
+
+// +---------------------+
 // |  Online streaming   |
 // +---------------------+
 

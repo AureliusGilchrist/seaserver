@@ -45,6 +45,7 @@ import (
 	"seanime/internal/nativeplayer"
 	"seanime/internal/onlinestream"
 	"seanime/internal/platforms/anilist_platform"
+	kitsuplatform "seanime/internal/platforms/kitsu_platform"
 	"seanime/internal/platforms/offline_platform"
 	"seanime/internal/platforms/platform"
 	"seanime/internal/platforms/simulated_platform"
@@ -203,6 +204,7 @@ type (
 		ProfilePathResolver    *ProfilePathResolver
 		ProfileDatabaseManager *ProfileDatabaseManager
 		AnilistClientManager   *AnilistClientManager
+		KitsuClientManager     *kitsuplatform.KitsuClientManager
 
 		// Boot UUID — regenerated every server start to invalidate frontend sessions
 		BootID string
@@ -561,6 +563,34 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	// Start the background flusher that replays per-profile progress updates queued while
 	// AniList was unreachable. Picks up queues persisted from previous runs on startup.
 	app.AnilistClientManager.StartPendingFlusher(context.Background())
+
+	// Initialize KitsuClientManager alongside AniList. Hydrates the shared planning-slut account
+	// from the database if one is on file.
+	app.KitsuClientManager = kitsuplatform.NewKitsuClientManager()
+	if app.Database != nil {
+		app.KitsuClientManager.SetDatabase(app.Database)
+		// Wire the kitsu-id → (anilist-id, slug) translator onto the package-level lookup. The
+		// converter is concurrency-safe — gorm is too — and installed once at startup.
+		kitsuplatform.InstallMappingLookup(func(kitsuID string) kitsuplatform.MappingSnapshot {
+			m, err := app.Database.GetKitsuMappingByKitsuID(kitsuID)
+			if err != nil || m == nil {
+				return kitsuplatform.MappingSnapshot{}
+			}
+			return kitsuplatform.MappingSnapshot{
+				AnilistID:      m.AnilistID,
+				KitsuSlug:      m.KitsuSlug,
+				CanonicalTitle: m.CanonicalTitle,
+			}
+		})
+		// And arm the resolver that populates KitsuIDMapping on demand. It's lazy in the sense
+		// that the first library fetch finds nothing in the table; subsequent fetches hit the
+		// sqlite cache and skip the upstream API.
+		resolver := kitsuplatform.NewMappingResolver()
+		app.KitsuClientManager.SetMappingResolver(resolver)
+	}
+	if _, err := app.KitsuClientManager.LoadPlanningSlut(); err != nil {
+		logger.Warn().Err(err).Msg("app: Kitsu planning-slut load failed")
+	}
 
 	app.AddCleanupFunctionOnce("ws-event-manager.stop", func() {
 		if app.WSEventManager != nil {
