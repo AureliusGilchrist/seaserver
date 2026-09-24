@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"seanime/internal/api/anilist"
+	"seanime/internal/customsource"
 	"seanime/internal/database/db"
 	"seanime/internal/extension"
 	"seanime/internal/hook"
@@ -70,6 +71,10 @@ func (sp *SimulatedPlatform) Close() {
 
 func (sp *SimulatedPlatform) ClearCache() {
 	sp.helper.ClearCache()
+}
+
+func (sp *SimulatedPlatform) GetCustomSourceManager() *customsource.Manager {
+	return sp.helper.GetCustomSourceManager()
 }
 
 // UpdateEntry updates the entry for the given media ID.

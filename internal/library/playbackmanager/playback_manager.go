@@ -354,6 +354,19 @@ func (pm *PlaybackManager) GetCurrentClientID() string {
 	return pm.currentClientID
 }
 
+// GetCurrentMedia returns the media currently being played, if any.
+func (pm *PlaybackManager) GetCurrentMedia() (*anilist.BaseAnime, bool) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	if media, ok := pm.currentStreamMedia.Get(); ok {
+		return media, true
+	}
+	if entry, ok := pm.currentMediaListEntry.Get(); ok {
+		return entry.GetMedia(), true
+	}
+	return nil, false
+}
+
 // sendEventToCurrentClient sends an event only to the client that initiated the playback.
 // If no client ID is set, it falls back to broadcasting to all clients.
 func (pm *PlaybackManager) sendEventToCurrentClient(eventType string, payload interface{}) {

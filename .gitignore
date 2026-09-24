@@ -111,3 +111,4 @@ build-all-desktop-stats.json
 build-all-desktop-stats.json
 /.claude
 web/.gitkeep
+.gocache/

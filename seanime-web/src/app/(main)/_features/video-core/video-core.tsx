@@ -291,6 +291,7 @@ interface PlayerContentProps {
     handleStalled: (e: React.SyntheticEvent<HTMLVideoElement>) => void
     onTerminateStream: () => void
     onVideoSourceChange: ((source: VideoCore_VideoSource) => void) | undefined
+    onHlsQualityChange: ((quality: string) => void) | undefined
 }
 
 const PlayerContent = React.memo<PlayerContentProps>(({
@@ -321,6 +322,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
     handleStalled,
     onTerminateStream,
     onVideoSourceChange,
+    onHlsQualityChange,
 }) => {
     const isMobile = useAtomValue(vc_isMobile)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
@@ -571,7 +573,11 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                             {!inline && <TorrentStreamOverlay isNativePlayerComponent="control-bar" show={!isMiniPlayer} />}
                             <VideoCoreWatchPartyChat />
                             <VideoCoreSettingsMenu />
-                            <VideoCoreResolutionMenu state={state} onVideoSourceChange={onVideoSourceChange} />
+                            <VideoCoreResolutionMenu
+                                state={state}
+                                onVideoSourceChange={onVideoSourceChange}
+                                onHlsQualityChange={onHlsQualityChange}
+                            />
                             <VideoCoreSubtitleMenu inline={inline} />
                             <VideoCoreAudioMenu />
                             <VideoCoreCastButton />
@@ -584,7 +590,11 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                             </>}
                             topRightSection={<>
                                 <VideoCoreSettingsMenu />
-                                <VideoCoreResolutionMenu state={state} onVideoSourceChange={onVideoSourceChange} />
+                                <VideoCoreResolutionMenu
+                                    state={state}
+                                    onVideoSourceChange={onVideoSourceChange}
+                                    onHlsQualityChange={onHlsQualityChange}
+                                />
                                 <VideoCoreSubtitleMenu inline={inline} />
                                 <VideoCoreAudioMenu />
                                 <VideoCoreCastButton />
@@ -649,6 +659,8 @@ export interface VideoCoreProps {
     onPlaybackRateChange?: () => void
     // onFileUploaded: (data: { name: string, content: string }) => void
     onVideoSourceChange?: ((source: VideoCore_VideoSource) => void) | undefined
+    hlsPreferredQuality?: string
+    onHlsQualityChange?: (quality: string) => void
     onPlayEpisode?: (which: "previous" | "next") => void
     inlineClassName?: string
     onHlsMediaDetached?: () => void
@@ -681,6 +693,8 @@ export function VideoCore(props: VideoCoreProps) {
         inline = false,
         inlineClassName,
         onVideoSourceChange,
+        hlsPreferredQuality,
+        onHlsQualityChange,
         onHlsMediaDetached,
         onHlsFatalError,
         onPlayEpisode,
@@ -1055,6 +1069,7 @@ export function VideoCore(props: VideoCoreProps) {
         videoElement: videoRef.current,
         streamUrl: streamUrl,
         streamType: streamType,
+        preferredQuality: hlsPreferredQuality,
         onMediaDetached: onHlsMediaDetached,
         onFatalError: onHlsFatalError,
         onStalled: err => onStalled?.(`HLS stalled: ${err.error?.message || err.details}`),
@@ -1831,6 +1846,7 @@ export function VideoCore(props: VideoCoreProps) {
                         handleStalled={handleStalled}
                         onTerminateStream={onTerminateStream}
                         onVideoSourceChange={onVideoSourceChange}
+                        onHlsQualityChange={onHlsQualityChange}
                     />
                 </div>
             </ScopeProvider>
@@ -1925,6 +1941,7 @@ export function VideoCore(props: VideoCoreProps) {
                         handleStalled={handleStalled}
                         onTerminateStream={onTerminateStream}
                         onVideoSourceChange={onVideoSourceChange}
+                        onHlsQualityChange={onHlsQualityChange}
                     />
                 </VideoCoreDrawer>
 

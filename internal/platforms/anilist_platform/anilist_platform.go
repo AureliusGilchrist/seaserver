@@ -66,6 +66,10 @@ func (ap *AnilistPlatform) ClearCache() {
 	ap.helper.ClearCache()
 }
 
+func (ap *AnilistPlatform) GetCustomSourceManager() *customsource.Manager {
+	return ap.helper.GetCustomSourceManager()
+}
+
 // ClearMediaCache drops every cached copy of one media: the in-memory base/complete anime
 // caches and the on-disk (and SQLite) caches behind them. Used by the per-entry deep refresh,
 // where clearing only the in-memory layer would just repopulate it from disk.

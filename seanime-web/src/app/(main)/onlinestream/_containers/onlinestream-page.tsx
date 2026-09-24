@@ -928,6 +928,8 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                                     onStalled={v => autoProviderCycler.onPlaybackStalled(v)}
                                     onPlayEpisode={handlePlayEpisode}
                                     onVideoSourceChange={changeQuality}
+                                    hlsPreferredQuality={quality}
+                                    onHlsQualityChange={setQuality}
                                     onHlsFatalError={(err) => onFatalError(`HLS error: ${err.error.message}`)}
                                     onTerminateStream={() => {
                                         setUrl(null)

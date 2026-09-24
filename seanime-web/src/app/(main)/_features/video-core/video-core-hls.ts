@@ -1,3 +1,4 @@
+import { getPreferredHlsQualityLevel } from "@/app/(main)/_features/video-core/_lib/hls-quality"
 import { vc_audioManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_autoPlayVideoAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { logger } from "@/lib/helpers/debug"
@@ -63,6 +64,7 @@ export function useVideoCoreHls({
     videoElement,
     streamUrl,
     streamType,
+    preferredQuality,
     onFatalError,
     onStalled,
     onMediaDetached,
@@ -70,11 +72,17 @@ export function useVideoCoreHls({
     videoElement: HTMLVideoElement | null
     streamUrl: string | undefined
     streamType?: string
+    preferredQuality?: string
     onMediaDetached?: () => void
     onFatalError?: (error: ErrorData) => void
     onStalled?: (error: ErrorData) => void
 }) {
     const hlsRef = useRef<Hls | null>(null)
+    const preferredQualityRef = useRef(preferredQuality)
+
+    useEffect(() => {
+        preferredQualityRef.current = preferredQuality
+    }, [preferredQuality])
 
     const audioManager = useAtomValue(vc_audioManager)
     const autoPlay = useAtomValue(vc_autoPlayVideoAtom)
@@ -295,6 +303,12 @@ export function useVideoCoreHls({
                 }))
 
                 setQualityLevels(levels)
+
+                const preferredLevel = getPreferredHlsQualityLevel(levels, preferredQualityRef.current)
+                if (preferredLevel !== null) {
+                    hlsLog.info("Applying preferred quality level", preferredLevel)
+                    hls.currentLevel = preferredLevel
+                }
                 setCurrentQuality(hls.currentLevel)
 
                 // Extract audio tracks

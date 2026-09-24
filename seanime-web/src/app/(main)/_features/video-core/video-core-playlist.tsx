@@ -213,7 +213,7 @@ export function useVideoCorePlaylist() {
         }
 
         // If a torrent was selected for auto play (i.e. user manually select torrent with auto select file)
-        if (autoPlayTorrent?.torrent?.isBatch) {
+        if (autoPlayTorrent?.torrent?.isBatch && autoPlayTorrent.entry?.mediaId === playlistState.animeEntry.mediaId) {
             log.info("Previous torrent selected for auto play", autoPlayTorrent)
             let fileIndex: number | undefined = undefined
             if (autoPlayTorrent?.batchFiles) {

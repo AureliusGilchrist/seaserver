@@ -301,7 +301,7 @@ func (s *BaseStream) StartSubtitleStreamP(stream Stream, playbackCtx context.Con
 					s.logger.Warn().Err(err).Int64("offset", offset).Msg("directstream: Error streaming subtitles")
 				} else {
 					s.logger.Info().Int64("offset", offset).Msg("directstream: Subtitle streaming completed by parser.")
-					subtitleStream.Stop(true)
+					subtitleStream.completed = true
 				}
 				flushBatch(false)
 				return // Terminate goroutine

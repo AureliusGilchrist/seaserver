@@ -55,7 +55,7 @@ func TestOnlineStream_GetEpisodes(t *testing.T) {
 			}
 			media := mediaF.GetMedia()
 
-			ec, err := os.getEpisodeContainer(tt.provider, media, tt.from, tt.to, tt.dubbed, 0)
+			ec, err := os.getEpisodeContainer(tt.provider, media, tt.from, tt.to, tt.dubbed, 0, false)
 			if err != nil {
 				t.Fatalf("couldn't find episodes, %s", err)
 			}

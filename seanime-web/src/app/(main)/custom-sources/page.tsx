@@ -4,7 +4,7 @@ import { useListCustomSourceExtensions } from "@/api/hooks/extensions.hooks"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { MediaCardLazyGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
 import { MediaEntryCard } from "@/app/(main)/_features/media/_components/media-entry-card"
-import { __customSources_paramsAtom } from "@/app/(main)/custom-sources/custom-sources.atom"
+import { __customSources_paramsAtom, __customSources_providerAtom } from "@/app/(main)/custom-sources/custom-sources.atom"
 import { LuffyError } from "@/components/shared/luffy-error"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
@@ -16,7 +16,7 @@ import { Pagination, PaginationEllipsis, PaginationItem, PaginationTrigger } fro
 import { Select } from "@/components/ui/select"
 import { TextInput } from "@/components/ui/text-input"
 import { useAtom } from "jotai/react"
-import { useSearchParams } from "@/lib/navigation"
+import { useRouter, useSearchParams } from "@/lib/navigation"
 import React from "react"
 import { AiOutlineArrowLeft } from "react-icons/ai"
 import { FiSearch } from "react-icons/fi"
@@ -24,14 +24,15 @@ import { MdDataSaverOn } from "react-icons/md"
 
 export default function Page() {
 
+    const router = useRouter()
     const urlParams = useSearchParams()
     const providerUrlParam = urlParams.get("provider")
 
     const { data: customSources } = useListCustomSourceExtensions()
 
     const [params, setParams] = useAtom(__customSources_paramsAtom)
+    const [provider, setProvider] = useAtom(__customSources_providerAtom)
     const [searchValue, setSearchValue] = React.useState(params.search)
-    const [provider, setProvider] = React.useState<string | null>(null)
 
     const shouldFetch = !!provider
 
@@ -62,10 +63,14 @@ export default function Page() {
 
 
     React.useEffect(() => {
-        if (customSources) {
-            setProvider(providerUrlParam ? (customSources.find(s => s.id === providerUrlParam)?.id ?? customSources[0].id) : customSources[0].id)
-        }
-    }, [customSources, providerUrlParam])
+        if (!customSources?.length) return
+
+        setProvider(current => {
+            const urlProvider = customSources.find(s => s.id === providerUrlParam)?.id
+            const savedProvider = customSources.find(s => s.id === current)?.id
+            return urlProvider ?? savedProvider ?? customSources[0].id
+        })
+    }, [customSources, providerUrlParam, setProvider])
 
     // Handle search input changes
     const handleSearch = React.useCallback(() => {
@@ -131,6 +136,7 @@ export default function Page() {
                             value={provider ?? ""}
                             onValueChange={v => {
                                 setProvider(v)
+                                router.replace(`?provider=${encodeURIComponent(v)}`, { scroll: false })
                                 setParams(draft => {
                                     draft.page = 1 // Reset page when changing provider
                                     return

@@ -211,7 +211,7 @@ export function useDebridstreamAutoplay() {
             }
         }
 
-        if (autoPlayTorrent?.torrent?.isBatch) {
+        if (autoPlayTorrent?.torrent?.isBatch && autoPlayTorrent.entry?.mediaId === entry.mediaId) {
 
             let fileIndex: number | undefined = undefined
             if (autoPlayTorrent?.batchFiles) {
