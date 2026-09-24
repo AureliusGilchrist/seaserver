@@ -2722,6 +2722,20 @@ export type GetTimeline_Variables = {
 /**
  * - Filepath: internal/handlers/torrent_client.go
  * - Filename: torrent_client.go
+ * - Endpoint: /api/v1/torrent-client/downloading-media/{mediaId}
+ * @description
+ * Route clears one anime's "downloading" badge by hand.
+ */
+export type ClearDownloadingMediaState_Variables = {
+    /**
+     *  AniList ID of the anime to clear
+     */
+    mediaId: number
+}
+
+/**
+ * - Filepath: internal/handlers/torrent_client.go
+ * - Filename: torrent_client.go
  * - Endpoint: /api/v1/torrent-client/action
  * @description
  * Route performs an action on a torrent.

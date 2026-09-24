@@ -7,7 +7,7 @@ import {
 } from "@/api/generated/endpoint.types"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { HibikeTorrent_AnimeTorrent, Nullish, TorrentClient_Torrent } from "@/api/generated/types"
-import { useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
+import { DOWNLOADING_MEDIA_QUERY_KEY, useDownloadingAnime } from "@/app/(main)/_atoms/downloading.atoms"
 import { useQueryClient } from "@tanstack/react-query"
 import React from "react"
 import { toast } from "sonner"
@@ -85,6 +85,31 @@ export function useTorrentClientGetFiles({ torrent, provider }: { torrent: Nulli
         data: {
             torrent: torrent!,
             provider: provider!,
+        },
+    })
+}
+
+/**
+ * Takes down one anime's "downloading" badge by hand, for when it is stuck on-screen with nothing
+ * behind it in the torrent client — the torrent was removed elsewhere, or a queue attempt failed
+ * after the badge was already written. The server only acts while the badge still reads
+ * "downloading"; a finished or matched badge is left alone no matter what this is called with.
+ *
+ * Invalidates both surfaces that read this state: the library-wide badge poll, and the Enqueue
+ * Future queue, whose `settled`/actionable check keys off the same recorded state.
+ */
+export function useClearDownloadingMediaState(mediaId: number | undefined) {
+    const queryClient = useQueryClient()
+    const { removeDownloadingAnime } = useDownloadingAnime()
+
+    return useServerMutation<boolean>({
+        endpoint: API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadingMediaState.endpoint.replace("{mediaId}", String(mediaId ?? 0)),
+        method: API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadingMediaState.methods[0],
+        mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadingMediaState.key, String(mediaId)],
+        onSuccess: async cleared => {
+            if (cleared && mediaId) removeDownloadingAnime(mediaId)
+            await queryClient.invalidateQueries({ queryKey: DOWNLOADING_MEDIA_QUERY_KEY })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key] })
         },
     })
 }

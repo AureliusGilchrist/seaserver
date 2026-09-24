@@ -125,3 +125,74 @@ func TestStatesAreIndependentPerAnime(t *testing.T) {
 		t.Errorf("808 = %q, want %q", got, DownloadStateMatched)
 	}
 }
+
+// The escape hatch is only for a badge stuck on "downloading" — a "downloaded" badge means the
+// files are already sitting there waiting to be matched, and this must never make that disappear.
+func TestGuardedClearLeavesADownloadedBadgeAlone(t *testing.T) {
+	r, _ := stageBaseWithDB(t)
+
+	r.MarkAnimeDownloading(909)
+	r.MarkAnimeDownloaded(909)
+
+	cleared, err := r.ClearAnimeDownloadStateIfDownloading(909)
+	if err != nil {
+		t.Fatalf("err = %v, want nil", err)
+	}
+	if cleared {
+		t.Fatalf("cleared = true, want false")
+	}
+	if got := stateOf(t, r, 909); got != DownloadStateDownloaded {
+		t.Fatalf("state = %q after guarded clear, want it to stay %q", got, DownloadStateDownloaded)
+	}
+}
+
+// Nor may it touch a "matched" badge — that means the anime is already filed into the library.
+func TestGuardedClearLeavesAMatchedBadgeAlone(t *testing.T) {
+	r, _ := stageBaseWithDB(t)
+
+	r.MarkAnimeDownloading(910)
+	r.MarkAnimeMatchedState(910)
+
+	cleared, err := r.ClearAnimeDownloadStateIfDownloading(910)
+	if err != nil {
+		t.Fatalf("err = %v, want nil", err)
+	}
+	if cleared {
+		t.Fatalf("cleared = true, want false")
+	}
+	if got := stateOf(t, r, 910); got != DownloadStateMatched {
+		t.Fatalf("state = %q after guarded clear, want it to stay %q", got, DownloadStateMatched)
+	}
+}
+
+// The one case the escape hatch exists for: a badge that is genuinely stuck on "downloading" with
+// nothing left behind it, cleared by hand.
+func TestGuardedClearRemovesAStuckDownloadingBadge(t *testing.T) {
+	r, _ := stageBaseWithDB(t)
+
+	r.MarkAnimeDownloading(911)
+
+	cleared, err := r.ClearAnimeDownloadStateIfDownloading(911)
+	if err != nil {
+		t.Fatalf("err = %v, want nil", err)
+	}
+	if !cleared {
+		t.Fatalf("cleared = false, want true")
+	}
+	if got := stateOf(t, r, 911); got != "" {
+		t.Fatalf("state = %q after guarded clear, want no record", got)
+	}
+}
+
+// An anime with no badge at all has nothing to clear, and that is not an error.
+func TestGuardedClearOnAnUnknownAnimeReportsFalse(t *testing.T) {
+	r, _ := stageBaseWithDB(t)
+
+	cleared, err := r.ClearAnimeDownloadStateIfDownloading(912)
+	if err != nil {
+		t.Fatalf("err = %v, want nil", err)
+	}
+	if cleared {
+		t.Fatalf("cleared = true, want false")
+	}
+}

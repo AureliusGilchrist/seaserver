@@ -111,3 +111,24 @@ func (db *Database) ClearAnimeDownloadState(mediaID int) error {
 	}
 	return db.gormdb.Where("media_id = ?", mediaID).Delete(&models.AnimeDownloadState{}).Error
 }
+
+// ClearAnimeDownloadStateIfDownloading removes an anime's badge, but only while it still reads
+// "downloading" — never a "downloaded" or "matched" badge, which mean real files or a real library
+// entry exist. Reports whether it actually cleared anything.
+//
+// For the user-facing escape hatch: unlike ClearAnimeDownloadState above, this checks state before
+// it deletes anything, so it can never be the thing that makes a real download or library entry
+// disappear from view.
+func (db *Database) ClearAnimeDownloadStateIfDownloading(mediaID int) (bool, error) {
+	if mediaID <= 0 {
+		return false, nil
+	}
+
+	res := db.gormdb.
+		Where("media_id = ? AND state = ?", mediaID, AnimeDownloadStateDownloading).
+		Delete(&models.AnimeDownloadState{})
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
+}

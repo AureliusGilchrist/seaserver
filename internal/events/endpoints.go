@@ -21,6 +21,7 @@ const (
 	CheckForUpdatesEndpoint                            = "RELEASES-check-for-updates"
 	ClearAllChapterDownloadQueueEndpoint               = "MANGA-DOWNLOAD-clear-all-chapter-download-queue"
 	ClearCompletedTorrentEndpoint                      = "UNMATCHED-clear-completed-torrent"
+	ClearDownloadingMediaStateEndpoint                 = "TORRENT-CLIENT-clear-downloading-media-state"
 	ClearEnqueueFutureEndpoint                         = "ENQUEUE-FUTURE-clear-enqueue-future"
 	ClearEnqueueFuturePendingRootsEndpoint             = "ENQUEUE-FUTURE-clear-enqueue-future-pending-roots"
 	ClearEnqueueFutureRewalkBacklogEndpoint            = "ENQUEUE-FUTURE-clear-enqueue-future-rewalk-backlog"

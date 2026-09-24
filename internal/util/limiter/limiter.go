@@ -1,6 +1,7 @@
 package limiter
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -37,11 +38,47 @@ func NewLimiter(tick time.Duration, count uint) *Limiter {
 }
 
 func (l *Limiter) Wait() {
+	next, now := l.reserve()
+	if now.Before(next) {
+		time.Sleep(next.Sub(now))
+	}
+}
+
+// WaitContext behaves like Wait, but returns ctx.Err() as soon as ctx is cancelled or its
+// deadline elapses instead of sleeping until the reserved slot arrives. The slot is still
+// reserved up front (as in Wait), so giving up early does not let anyone else's request jump
+// the queue — it only stops this caller from waiting for its own turn.
+//
+// Use this instead of Wait wherever the caller has a deadline of its own (e.g. a request that
+// must fall back to cached data rather than hang): a plain Wait ignores ctx entirely, so a
+// contended limiter can block a request far longer than any timeout the caller thought it had.
+func (l *Limiter) WaitContext(ctx context.Context) error {
+	next, now := l.reserve()
+	if !now.Before(next) {
+		return nil
+	}
+
+	timer := time.NewTimer(next.Sub(now))
+	defer timer.Stop()
+
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// reserve claims the next available slot and reports the time it becomes usable, alongside the
+// time it was claimed at.
+func (l *Limiter) reserve() (next time.Time, now time.Time) {
 	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	idx := l.index
 	last := l.entries[idx]
-	next := last.Add(l.tick)
-	now := time.Now()
+	next = last.Add(l.tick)
+	now = time.Now()
 
 	reservedAt := now
 	if now.Before(next) {
@@ -53,9 +90,5 @@ func (l *Limiter) Wait() {
 	if l.index == l.count {
 		l.index = 0
 	}
-	l.mu.Unlock()
-
-	if now.Before(next) {
-		time.Sleep(next.Sub(now))
-	}
+	return next, now
 }

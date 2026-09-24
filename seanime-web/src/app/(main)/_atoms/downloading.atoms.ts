@@ -89,6 +89,12 @@ type DownloadingMediaStatus = {
 }
 
 /**
+ * The query key the badge poll above uses, exported so a mutation that changes what it reports
+ * (see useClearDownloadingMediaState) can invalidate it without duplicating the literal.
+ */
+export const DOWNLOADING_MEDIA_QUERY_KEY = ["get-downloading-media-ids"]
+
+/**
  * What the server knows about downloads. Defined here rather than in the generated API hooks to
  * avoid an import cycle with `useTorrentClientDownload`, which writes to the atom above.
  */
@@ -104,7 +110,7 @@ function useGetDownloadingMediaStatus() {
         endpoint: "/api/v1/torrent-client/downloading-media"
             + (heldRef.current?.fingerprint ? `?known=${encodeURIComponent(heldRef.current.fingerprint)}` : ""),
         method: "GET",
-        queryKey: ["get-downloading-media-ids"],
+        queryKey: DOWNLOADING_MEDIA_QUERY_KEY,
         refetchInterval: 10_000,
         refetchOnWindowFocus: "always",
         muteError: true,

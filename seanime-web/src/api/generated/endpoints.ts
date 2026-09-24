@@ -3455,6 +3455,21 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route clears one anime's "downloading" badge by hand.
+         *  For a badge stuck on "downloading" with nothing behind it in the torrent client — the
+         *  torrent was removed by hand, or a queue attempt failed after the badge was written. Only
+         *  takes effect while the anime still reads "downloading"; a "downloaded" or "matched" badge
+         *  means real files or a library entry exist and this leaves those alone. Never called by
+         *  anything but a person choosing to, on one anime at a time — see HandleGetDownloadingMediaIds
+         *  for why nothing here is allowed to happen on its own.
+         */
+        ClearDownloadingMediaState: {
+            key: "TORRENT-CLIENT-clear-downloading-media-state",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/torrent-client/downloading-media/{mediaId}",
+        },
+        /**
+         *  @description
          *  Route performs an action on a torrent.
          *  This handler is used to pause, resume or remove a torrent.
          */

@@ -279,6 +279,36 @@ func (h *Handler) animeWithLocalFiles() map[int]struct{} {
 	return ids
 }
 
+// HandleClearDownloadingMediaState
+//
+//	@summary clears one anime's "downloading" badge by hand.
+//	@desc For a badge stuck on "downloading" with nothing behind it in the torrent client — the
+//	@desc torrent was removed by hand, or a queue attempt failed after the badge was written. Only
+//	@desc takes effect while the anime still reads "downloading"; a "downloaded" or "matched" badge
+//	@desc means real files or a library entry exist and this leaves those alone. Never called by
+//	@desc anything but a person choosing to, on one anime at a time — see HandleGetDownloadingMediaIds
+//	@desc for why nothing here is allowed to happen on its own.
+//	@param mediaId - int - true - "AniList ID of the anime to clear"
+//	@route /api/v1/torrent-client/downloading-media/{mediaId} [DELETE]
+//	@returns bool
+func (h *Handler) HandleClearDownloadingMediaState(c echo.Context) error {
+	mediaID, err := strconv.Atoi(c.Param("mediaId"))
+	if err != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "invalid media id"))
+	}
+
+	if h.App.UnmatchedRepository == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "not available"))
+	}
+
+	cleared, err := h.App.UnmatchedRepository.ClearAnimeDownloadStateIfDownloading(mediaID)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	return h.RespondWithData(c, cleared)
+}
+
 // HandleTorrentClientAction
 //
 //	@summary performs an action on a torrent.
@@ -319,9 +349,36 @@ func (h *Handler) HandleTorrentClientAction(c echo.Context) error {
 			return h.RespondWithError(c, err)
 		}
 	case "remove":
+		// Resolved by hash to a name before removing, so the anime this was downloading can be
+		// found afterwards: GetTorrentMetadata is keyed by the torrent's display name, and this
+		// action is only ever given a hash. GetList rather than GetActiveTorrents, deliberately —
+		// GetActiveTorrents excludes anything that isn't downloading, seeding or paused, which is
+		// exactly the errored or stalled torrent someone is most likely to be removing by hand.
+		var torrentName string
+		if list, listErr := repo.GetList(&torrent_client.GetListOptions{}); listErr == nil {
+			for _, t := range list {
+				if t.Hash == b.Hash {
+					torrentName = t.Name
+					break
+				}
+			}
+		}
+
 		err := repo.RemoveTorrents([]string{b.Hash})
 		if err != nil {
 			return h.RespondWithError(c, err)
+		}
+
+		// The badge goes with the download, exactly as it does when the same torrent is removed
+		// from the Unmatched screen. Only when nothing else for that anime is still staged or
+		// downloading — removing one of several torrents for the same series does not mean the
+		// series has stopped downloading.
+		if torrentName != "" {
+			if metadata := h.App.UnmatchedRepository.GetTorrentMetadata(torrentName); metadata != nil && metadata.AnimeID > 0 {
+				if remaining, countErr := h.App.Database.CountUnmatchedTorrentMetadataByAnimeID(metadata.AnimeID); countErr == nil && remaining == 0 {
+					h.App.UnmatchedRepository.ClearAnimeDownloadState(metadata.AnimeID)
+				}
+			}
 		}
 	case "open":
 		if b.Dir == "" {

@@ -67,6 +67,32 @@ func (r *Repository) ClearAnimeDownloadState(mediaID int) {
 	}
 }
 
+// ClearAnimeDownloadStateIfDownloading takes down an anime's badge, but only while it still reads
+// "downloading" — never a "downloaded" or "matched" badge, which mean real files or a real library
+// entry exist.
+//
+// For the one case HandleGetDownloadingMediaIds' design deliberately does not solve on its own: a
+// badge that is wrong with nothing left in the torrent client behind it, after a torrent was removed
+// by hand or a queue attempt failed partway through. Never called automatically — always by a
+// person saying, about one anime, that the badge is wrong.
+//
+// Unlike the best-effort methods above, this reports its error: it backs a direct user action that
+// needs a real answer, not a write happening as a side effect of something else.
+func (r *Repository) ClearAnimeDownloadStateIfDownloading(mediaID int) (bool, error) {
+	if r.database == nil || mediaID <= 0 {
+		return false, nil
+	}
+	cleared, err := r.database.ClearAnimeDownloadStateIfDownloading(mediaID)
+	if err != nil {
+		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("unmatched: Could not clear downloading badge")
+		return false, err
+	}
+	if cleared {
+		r.logger.Info().Int("mediaId", mediaID).Msg("unmatched: Downloading badge cleared by hand")
+	}
+	return cleared, nil
+}
+
 func (r *Repository) setAnimeDownloadState(mediaID int, state string) {
 	if r.database == nil || mediaID <= 0 {
 		return

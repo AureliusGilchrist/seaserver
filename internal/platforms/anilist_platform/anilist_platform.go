@@ -293,8 +293,13 @@ func (ap *AnilistPlatform) GetAnime(ctx context.Context, mediaID int) (*anilist.
 		return triggeredMedia, nil
 	}
 
-	// Rate-limit before hitting AniList to prevent 429 thundering herd
-	ap.anilistRateLimit.Wait()
+	// Rate-limit before hitting AniList to prevent 429 thundering herd.
+	// Context-bound: a caller with its own deadline (e.g. the entry page's bounded freshness
+	// fetch) must get control back when that deadline passes rather than sleep through it —
+	// a plain Wait() ignores ctx and can block far longer than the caller intended.
+	if err := ap.anilistRateLimit.WaitContext(ctx); err != nil {
+		return nil, err
+	}
 
 	// Get from AniList
 	ret, err := ap.anilistClient.BaseAnimeByID(ctx, &mediaID)

@@ -27,8 +27,13 @@ export const ENQUEUE_FUTURE_STATUS = {
  * for it — no torrents at all, or nothing seeded well enough to actually finish. There is no decision
  * to make about an entry like that, so it stays as a row (which is what stops it being rediscovered)
  * without taking up a slot in the queue you work through.
+ *
+ * Already-matched is excluded too: `downloadState` tracks what happened to the anime outside the
+ * queue, and "matched" means it is already in the library. The item stays a row for context, but it
+ * is done, not pending — without this the badge counts entries you have nothing left to do on.
  */
 export function isEnqueueFuturePending(item: EnqueueFuture_Item): boolean {
+    if (item.downloadState === "matched") return false
     return item.status === ENQUEUE_FUTURE_STATUS.READY
         || item.status === ENQUEUE_FUTURE_STATUS.PENDING
         || item.status === ENQUEUE_FUTURE_STATUS.PREPARING

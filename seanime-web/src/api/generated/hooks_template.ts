@@ -4237,6 +4237,17 @@
 //     })
 // }
 
+// export function useClearDownloadingMediaState(mediaId: number) {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadingMediaState.endpoint.replace("{mediaId}", String(mediaId)),
+//         method: API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadingMediaState.methods[0],
+//         mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadingMediaState.key],
+//         onSuccess: async () => {
+//
+//         },
+//     })
+// }
+
 // export function useTorrentClientAction() {
 //     return useServerMutation<boolean, TorrentClientAction_Variables>({
 //         endpoint: API_ENDPOINTS.TORRENT_CLIENT.TorrentClientAction.endpoint,
