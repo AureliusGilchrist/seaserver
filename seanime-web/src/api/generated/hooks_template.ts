@@ -1873,6 +1873,120 @@
 // }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// kitsu_collection
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useGetKitsuAnimeCollection() {
+//     return useServerQuery<Array<KitsuPlatform>>({
+//         endpoint: API_ENDPOINTS.KITSU_COLLECTION.GetKitsuAnimeCollection.endpoint,
+//         method: API_ENDPOINTS.KITSU_COLLECTION.GetKitsuAnimeCollection.methods[0],
+//         queryKey: [API_ENDPOINTS.KITSU_COLLECTION.GetKitsuAnimeCollection.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useGetKitsuAnime() {
+//     return useServerQuery<KitsuPlatform>({
+//         endpoint: API_ENDPOINTS.KITSU_COLLECTION.GetKitsuAnime.endpoint,
+//         method: API_ENDPOINTS.KITSU_COLLECTION.GetKitsuAnime.methods[0],
+//         queryKey: [API_ENDPOINTS.KITSU_COLLECTION.GetKitsuAnime.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useSearchKitsuAnime() {
+//     return useServerQuery<Array<KitsuPlatform>>({
+//         endpoint: API_ENDPOINTS.KITSU_COLLECTION.SearchKitsuAnime.endpoint,
+//         method: API_ENDPOINTS.KITSU_COLLECTION.SearchKitsuAnime.methods[0],
+//         queryKey: [API_ENDPOINTS.KITSU_COLLECTION.SearchKitsuAnime.key],
+//         enabled: true,
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// kitsu_oauth
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useStartKitsuOAuth() {
+//     return useServerMutation<Record<string, interface{}>>({
+//         endpoint: API_ENDPOINTS.KITSU_OAUTH.StartKitsuOAuth.endpoint,
+//         method: API_ENDPOINTS.KITSU_OAUTH.StartKitsuOAuth.methods[0],
+//         mutationKey: [API_ENDPOINTS.KITSU_OAUTH.StartKitsuOAuth.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useKitsuOAuthCallback() {
+//     return useServerMutation<Record<string, interface{}>, KitsuOAuthCallback_Variables>({
+//         endpoint: API_ENDPOINTS.KITSU_OAUTH.KitsuOAuthCallback.endpoint,
+//         method: API_ENDPOINTS.KITSU_OAUTH.KitsuOAuthCallback.methods[0],
+//         mutationKey: [API_ENDPOINTS.KITSU_OAUTH.KitsuOAuthCallback.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useDeleteKitsuAccount() {
+//     return useServerMutation<Status>({
+//         endpoint: API_ENDPOINTS.KITSU_OAUTH.DeleteKitsuAccount.endpoint,
+//         method: API_ENDPOINTS.KITSU_OAUTH.DeleteKitsuAccount.methods[0],
+//         mutationKey: [API_ENDPOINTS.KITSU_OAUTH.DeleteKitsuAccount.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// kitsu_planning_slut
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// export function useSaveKitsuPlanningSlutToken() {
+//     return useServerMutation<Status, SaveKitsuPlanningSlutToken_Variables>({
+//         endpoint: API_ENDPOINTS.KITSU_PLANNING_SLUT.SaveKitsuPlanningSlutToken.endpoint,
+//         method: API_ENDPOINTS.KITSU_PLANNING_SLUT.SaveKitsuPlanningSlutToken.methods[0],
+//         mutationKey: [API_ENDPOINTS.KITSU_PLANNING_SLUT.SaveKitsuPlanningSlutToken.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useDeleteKitsuPlanningSlutToken() {
+//     return useServerMutation<Status>({
+//         endpoint: API_ENDPOINTS.KITSU_PLANNING_SLUT.DeleteKitsuPlanningSlutToken.endpoint,
+//         method: API_ENDPOINTS.KITSU_PLANNING_SLUT.DeleteKitsuPlanningSlutToken.methods[0],
+//         mutationKey: [API_ENDPOINTS.KITSU_PLANNING_SLUT.DeleteKitsuPlanningSlutToken.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useGetKitsuPlanningSlutInfo() {
+//     return useServerQuery<Record<string, interface{}>>({
+//         endpoint: API_ENDPOINTS.KITSU_PLANNING_SLUT.GetKitsuPlanningSlutInfo.endpoint,
+//         method: API_ENDPOINTS.KITSU_PLANNING_SLUT.GetKitsuPlanningSlutInfo.methods[0],
+//         queryKey: [API_ENDPOINTS.KITSU_PLANNING_SLUT.GetKitsuPlanningSlutInfo.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useKitsuPlanningSlutBackfillLibrary() {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.KITSU_PLANNING_SLUT.KitsuPlanningSlutBackfillLibrary.endpoint,
+//         method: API_ENDPOINTS.KITSU_PLANNING_SLUT.KitsuPlanningSlutBackfillLibrary.methods[0],
+//         mutationKey: [API_ENDPOINTS.KITSU_PLANNING_SLUT.KitsuPlanningSlutBackfillLibrary.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // library_explorer
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -4243,7 +4357,27 @@
 //         method: API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadingMediaState.methods[0],
 //         mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadingMediaState.key],
 //         onSuccess: async () => {
-//
+// 
+//         },
+//     })
+// }
+
+// export function useGetStuckDownloadingMediaIds() {
+//     return useServerQuery<Array<number>>({
+//         endpoint: API_ENDPOINTS.TORRENT_CLIENT.GetStuckDownloadingMediaIds.endpoint,
+//         method: API_ENDPOINTS.TORRENT_CLIENT.GetStuckDownloadingMediaIds.methods[0],
+//         queryKey: [API_ENDPOINTS.TORRENT_CLIENT.GetStuckDownloadingMediaIds.key],
+//         enabled: true,
+//     })
+// }
+
+// export function useClearAllStuckDownloadingMediaState() {
+//     return useServerMutation<number>({
+//         endpoint: API_ENDPOINTS.TORRENT_CLIENT.ClearAllStuckDownloadingMediaState.endpoint,
+//         method: API_ENDPOINTS.TORRENT_CLIENT.ClearAllStuckDownloadingMediaState.methods[0],
+//         mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.ClearAllStuckDownloadingMediaState.key],
+//         onSuccess: async () => {
+// 
 //         },
 //     })
 // }

@@ -21,7 +21,7 @@ func testDatabase(t *testing.T) *Database {
 	}
 	closeWhenDone(t, g)
 
-	if err := g.AutoMigrate(&models.UnmatchedMatchRecord{}); err != nil {
+	if err := g.AutoMigrate(&models.UnmatchedMatchRecord{}, &models.UnmatchedTorrentMetadata{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 

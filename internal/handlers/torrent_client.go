@@ -309,6 +309,52 @@ func (h *Handler) HandleClearDownloadingMediaState(c echo.Context) error {
 	return h.RespondWithData(c, cleared)
 }
 
+// HandleGetStuckDownloadingMediaIds
+//
+//	@summary returns media IDs whose "downloading" badge has nothing live behind it.
+//	@desc Advisory only — a periodic background check flags a "downloading" badge whose staged
+//	@desc torrent names are all absent from the torrent client's current list, which is what happens
+//	@desc when a torrent is removed outside Seanime entirely, directly in the client's own UI. Pure
+//	@desc read of the last computed set, same principle as HandleGetDownloadingMediaIds: no live
+//	@desc torrent-client check happens on this request.
+//	@route /api/v1/torrent-client/stuck-downloading-media [GET]
+//	@returns []int
+func (h *Handler) HandleGetStuckDownloadingMediaIds(c echo.Context) error {
+	if h.App.StuckDownloadMonitor == nil {
+		return h.RespondWithData(c, []int{})
+	}
+	return h.RespondWithData(c, h.App.StuckDownloadMonitor.StuckMediaIDs())
+}
+
+// HandleClearAllStuckDownloadingMediaState
+//
+//	@summary clears every "downloading" badge currently flagged as stuck.
+//	@desc Bulk form of HandleClearDownloadingMediaState, for the Enqueue Future page's "clear all"
+//	@desc action. Loops the monitor's last computed set and clears each one through the same guarded
+//	@desc op the single-item button uses, which re-checks "is this still downloading right now" for
+//	@desc every id — a stale or wrong advisory verdict can at worst skip or clear a badge a little
+//	@desc early, never touch a "downloaded" or "matched" one.
+//	@route /api/v1/torrent-client/stuck-downloading-media [DELETE]
+//	@returns int
+func (h *Handler) HandleClearAllStuckDownloadingMediaState(c echo.Context) error {
+	if h.App.StuckDownloadMonitor == nil || h.App.UnmatchedRepository == nil {
+		return h.RespondWithData(c, 0)
+	}
+
+	cleared := 0
+	for _, mediaID := range h.App.StuckDownloadMonitor.StuckMediaIDs() {
+		ok, err := h.App.UnmatchedRepository.ClearAnimeDownloadStateIfDownloading(mediaID)
+		if err != nil {
+			continue
+		}
+		if ok {
+			cleared++
+		}
+	}
+
+	return h.RespondWithData(c, cleared)
+}
+
 // HandleTorrentClientAction
 //
 //	@summary performs an action on a torrent.

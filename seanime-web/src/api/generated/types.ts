@@ -2460,6 +2460,7 @@ export type INTERNAL_ProfileSummary = {
     displayTitleColor: string
     xpBarFillCss: string
     xpBarAnimClass: string
+    xpBarSkinId: string
     nameColorCss: string
     nameGradientCss: string
     themeId: string
@@ -3774,6 +3775,21 @@ export type Status = {
 export type TorrentContents = {
     files: number
     folders: number
+}
+
+/**
+ * - Filepath: internal/handlers/torrent_contents.go
+ * - Filename: torrent_contents.go
+ * - Package: handlers
+ * @description
+ *  TorrentContentsRequestItem identifies one torrent to look inside.
+ *  
+ *  Named rather than declared inside the handler so the generated client has a type to refer to: an
+ *  anonymous struct there produced a TypeScript definition citing a name that does not exist.
+ */
+export type TorrentContentsRequestItem = {
+    infoHash: string
+    downloadUrl: string
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -5623,6 +5639,7 @@ export type Nakama_WatchPartySessionMediaInfo = {
      * Path to local file if StreamType is file
      */
     localFilePath: string
+    media?: AL_BaseAnime
     onlinestreamParams?: VideoCore_OnlinestreamParams
     torrentStreamParams?: Torrentstream_StartStreamOptions
 }
@@ -5810,6 +5827,7 @@ export type Onlinestream_MappingResponse = {
 export type Onlinestream_Subtitle = {
     url: string
     language: string
+    isDefault: boolean
 }
 
 /**
@@ -5927,20 +5945,6 @@ export type DNSCryptStatus = {
 }
 
 /**
- * - Filepath: internal/privacy/status.go
- * - Filename: status.go
- * - Package: privacy
- * @description
- *  PrivacyStatus is the API response for the current state of all privacy layers.
- */
-export type PrivacyStatus = {
-    settings: Settings
-    dnsCrypt: DNSCryptStatus
-    activeDoHProvider: string
-    knownProviders: Array<KnownProvider>
-}
-
-/**
  * - Filepath: internal/privacy/catalogue.go
  * - Filename: catalogue.go
  * - Package: privacy
@@ -5951,14 +5955,22 @@ export type KnownProvider = {
     name: string
     url: string
     description: string
-    /**
-     * Filtering is what the resolver blocks: "none", "malware", or "malware+ads".
-     */
     filtering: string
-    /**
-     * NoLog reports whether the operator states they keep no query logs.
-     */
     noLog: boolean
+}
+
+/**
+ * - Filepath: internal/privacy/status.go
+ * - Filename: status.go
+ * - Package: privacy
+ * @description
+ *  PrivacyStatus is the API response for the current state of all privacy layers.
+ */
+export type PrivacyStatus = {
+    settings: Settings
+    dnsCrypt: DNSCryptStatus
+    activeDoHProvider: string
+    knownProviders?: Array<KnownProvider>
 }
 
 /**

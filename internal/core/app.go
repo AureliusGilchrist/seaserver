@@ -182,8 +182,9 @@ type (
 		NakamaManager   *nakama.Manager
 
 		// Unmatched torrent management
-		UnmatchedRepository *unmatched.Repository
-		UnmatchedScanner    *unmatched.Scanner
+		UnmatchedRepository  *unmatched.Repository
+		UnmatchedScanner     *unmatched.Scanner
+		StuckDownloadMonitor *unmatched.StuckDownloadMonitor
 
 		// Enqueue Future
 		EnqueueFutureRepository *enqueuefuture.Repository

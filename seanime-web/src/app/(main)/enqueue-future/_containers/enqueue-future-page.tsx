@@ -18,6 +18,7 @@ import { EnqueueFutureProgress } from "@/app/(main)/enqueue-future/_components/e
 import { TorrentSearchSnapshot } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-search"
 import { __torrentDownload_autoMatchAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 import { __torrentSearch_selectedTorrentsAtom, TorrentSearchContainer } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
+import { useClearAllStuckDownloadingMediaState, useGetStuckDownloadingMediaIds } from "@/api/hooks/torrent_client.hooks"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
 import { AppLayoutStack } from "@/components/ui/app-layout"
@@ -25,7 +26,7 @@ import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useAtomValue, useSetAtom } from "jotai/react"
 import React from "react"
-import { LuArrowDownUp, LuEye, LuEyeOff, LuGitBranch, LuLayers } from "react-icons/lu"
+import { LuArrowDownUp, LuEye, LuEyeOff, LuGitBranch, LuLayers, LuRotateCcw } from "react-icons/lu"
 import { toast } from "sonner"
 
 /**
@@ -59,6 +60,12 @@ export function EnqueueFuturePage() {
     const { data: queue, isLoading } = useGetEnqueueFutureQueue({ isRunning: !!status?.running })
     const { mutate: clearQueue, isPending: isClearing } = useClearEnqueueFuture()
     const { mutate: rewalk, isPending: isRewalking } = useRewalkEnqueueFutureFamilies()
+
+    // Advisory: which of the anime shown above have a "downloading" badge with nothing live behind
+    // it in the torrent client, because the torrent was removed outside Seanime entirely. Polled
+    // slowly since the server itself only recomputes this every few minutes.
+    const { data: stuckIds } = useGetStuckDownloadingMediaIds()
+    const { mutate: clearAllStuck, isPending: isClearingStuck } = useClearAllStuckDownloadingMediaState(stuckIds ?? [])
 
     // Only what you have not dealt with. Downloaded and skipped items stay in the database — that
     // record is what stops them being rediscovered — but walking back through them is not the job.
@@ -325,15 +332,29 @@ export function EnqueueFuturePage() {
                 </div>
 
                 {!!queue?.length && (
-                    <Button
-                        intent="alert-subtle"
-                        size="sm"
-                        onClick={() => clearQueue()}
-                        loading={isClearing}
-                        data-enqueue-future-clear-button
-                    >
-                        Clear queue
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        {!!stuckIds?.length && (
+                            <Button
+                                intent="gray-outline"
+                                size="sm"
+                                leftIcon={<LuRotateCcw />}
+                                onClick={() => clearAllStuck()}
+                                loading={isClearingStuck}
+                                data-enqueue-future-clear-stuck-button
+                            >
+                                {`Clear ${stuckIds.length} stuck download${stuckIds.length > 1 ? "s" : ""}`}
+                            </Button>
+                        )}
+                        <Button
+                            intent="alert-subtle"
+                            size="sm"
+                            onClick={() => clearQueue()}
+                            loading={isClearing}
+                            data-enqueue-future-clear-button
+                        >
+                            Clear queue
+                        </Button>
+                    </div>
                 )}
             </div>
 

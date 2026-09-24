@@ -77,3 +77,26 @@ func (db *Database) UnmatchedTorrentMetadataAnimeIDs() (map[int]struct{}, error)
 	}
 	return out, nil
 }
+
+// UnmatchedTorrentMetadataAnimeIDByName is every staged download's anime, keyed by the torrent's
+// name — the same identity the torrent client's own list uses. Read in one query so the stuck-
+// download check can ask "is anything in the client still this anime's download" for every
+// downloading anime at once, not one query per anime.
+func (db *Database) UnmatchedTorrentMetadataAnimeIDByName() (map[string]int, error) {
+	var rows []struct {
+		TorrentName string
+		AnimeID     int
+	}
+	if err := db.gormdb.Model(&models.UnmatchedTorrentMetadata{}).
+		Select("torrent_name", "anime_id").
+		Where("anime_id > 0").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	out := make(map[string]int, len(rows))
+	for _, row := range rows {
+		out[row.TorrentName] = row.AnimeID
+	}
+	return out, nil
+}

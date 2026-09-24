@@ -2,6 +2,7 @@ package unmatched
 
 import (
 	"seanime/internal/database/db"
+	"sort"
 )
 
 // The three states an anime's download badge can be in, re-exported so callers in here and in the
@@ -128,4 +129,49 @@ func (r *Repository) AnimeDownloadStates() []AnimeDownloadState {
 		states = append(states, AnimeDownloadState{MediaID: row.MediaID, State: row.State})
 	}
 	return states
+}
+
+// ComputeStuckDownloadingMediaIDs reports which "downloading" badges have nothing behind them in
+// the given live torrent list. Pure function of its inputs — no I/O, no locking — so the monitor
+// that calls it stays a thin scheduler and this stays independently testable.
+//
+// An anime is stuck iff its badge reads "downloading" and none of the torrent names staged for it
+// appear in liveNames. That single check already covers "no metadata rows at all" — zero rows
+// trivially means zero live matches — so there is nothing further to special-case.
+func (r *Repository) ComputeStuckDownloadingMediaIDs(liveNames map[string]struct{}) []int {
+	if r.database == nil {
+		return nil
+	}
+
+	downloading := make(map[int]struct{})
+	for _, s := range r.AnimeDownloadStates() {
+		if s.State == DownloadStateDownloading {
+			downloading[s.MediaID] = struct{}{}
+		}
+	}
+	if len(downloading) == 0 {
+		return nil
+	}
+
+	byName, err := r.database.UnmatchedTorrentMetadataAnimeIDByName()
+	if err != nil {
+		r.logger.Debug().Err(err).Msg("unmatched: Could not read staged torrent names for the stuck-download check")
+		return nil
+	}
+
+	live := make(map[int]struct{}, len(downloading))
+	for name, animeID := range byName {
+		if _, ok := liveNames[name]; ok {
+			live[animeID] = struct{}{}
+		}
+	}
+
+	stuck := make([]int, 0, len(downloading))
+	for mediaID := range downloading {
+		if _, ok := live[mediaID]; !ok {
+			stuck = append(stuck, mediaID)
+		}
+	}
+	sort.Ints(stuck)
+	return stuck
 }

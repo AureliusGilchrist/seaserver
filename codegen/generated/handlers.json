@@ -7176,6 +7176,743 @@
     }
   },
   {
+    "name": "buildCollectionStatsFromKitsu",
+    "trimmedName": "buildCollectionStatsFromKitsu",
+    "comments": [
+      "buildCollectionStatsFromKitsu builds an achievement.CollectionStats from the Kitsu",
+      "planning-slut-library, mirroring the AniList-side builder as closely as Kitsu's data shape",
+      "allows.",
+      "",
+      "On any error or empty library, returns (nil, false) so the caller falls back to the AniList",
+      "builder — exactly the user's stated preference: Kitsu-first, AniList if Kitsu fails.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_achievement_stats.go",
+    "filename": "kitsu_achievement_stats.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "BuildCollectionStatsKitsuFirst",
+    "trimmedName": "BuildCollectionStatsKitsuFirst",
+    "comments": [
+      "BuildCollectionStatsKitsuFirst is the entry point the achievement refresh handler uses: it",
+      "tries the Kitsu planning-slut first, and if that fails (or returns empty) it builds from",
+      "AniList instead. Mirrors the user-facing instruction: \"try Kitsu, fall back to AniList\".",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_achievement_stats.go",
+    "filename": "kitsu_achievement_stats.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "parseIntSafe",
+    "trimmedName": "parseIntSafe",
+    "comments": [
+      "parseIntSafe parses an int without exposing strconv everywhere.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_achievement_stats.go",
+    "filename": "kitsu_achievement_stats.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "resolveProfilePlatform",
+    "trimmedName": "resolveProfilePlatform",
+    "comments": [
+      "resolveProfilePlatform picks the right Kitsu platform for a handler call. It prefers the",
+      "profile-specific platform when a profile id is supplied; otherwise it returns the planning-slut",
+      "(\"server\") one. When neither is bound, the call returns nil and the caller surfaces 401.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_collection.go",
+    "filename": "kitsu_collection.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetKitsuAnimeCollection",
+    "trimmedName": "GetKitsuAnimeCollection",
+    "comments": [
+      "HandleGetKitsuAnimeCollection",
+      "",
+      "\t@summary returns the Kitsu anime library for the calling profile (or shared).",
+      "\t@route /api/v1/kitsu/anime-collection [GET]",
+      "\t@returns []platforms.KitsuPlatform.LibraryEntry",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_collection.go",
+    "filename": "kitsu_collection.go",
+    "api": {
+      "summary": "returns the Kitsu anime library for the calling profile (or shared).",
+      "descriptions": [],
+      "endpoint": "/api/v1/kitsu/anime-collection",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]platforms.KitsuPlatform.LibraryEntry",
+      "returnGoType": "platforms.KitsuPlatform.LibraryEntry",
+      "returnTypescriptType": "Array\u003cKitsuPlatform\u003e"
+    }
+  },
+  {
+    "name": "HandleGetKitsuMangaCollection",
+    "trimmedName": "GetKitsuMangaCollection",
+    "comments": [
+      "HandleGetKitsuMangaCollection is the manga variant of HandleGetKitsuAnimeCollection.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_collection.go",
+    "filename": "kitsu_collection.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetKitsuAnime",
+    "trimmedName": "GetKitsuAnime",
+    "comments": [
+      "HandleGetKitsuAnime",
+      "",
+      "\t@summary returns one Kitsu anime's full details by id.",
+      "\t@route /api/v1/kitsu/anime/{id} [GET]",
+      "\t@returns platforms.KitsuPlatform.AnimeDetails",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_collection.go",
+    "filename": "kitsu_collection.go",
+    "api": {
+      "summary": "returns one Kitsu anime's full details by id.",
+      "descriptions": [],
+      "endpoint": "/api/v1/kitsu/anime/{id}",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "platforms.KitsuPlatform.AnimeDetails",
+      "returnGoType": "platforms.KitsuPlatform.AnimeDetails",
+      "returnTypescriptType": "KitsuPlatform"
+    }
+  },
+  {
+    "name": "HandleGetKitsuManga",
+    "trimmedName": "GetKitsuManga",
+    "comments": [
+      "HandleGetKitsuManga is the manga counterpart of HandleGetKitsuAnime.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_collection.go",
+    "filename": "kitsu_collection.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleSearchKitsuAnime",
+    "trimmedName": "SearchKitsuAnime",
+    "comments": [
+      "HandleSearchKitsuAnime",
+      "",
+      "\t@summary full-text search over Kitsu anime catalog.",
+      "\t@route /api/v1/kitsu/anime/search?q=\u0026page= [GET]",
+      "\t@returns []platforms.KitsuPlatform.AnimeDetails",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_collection.go",
+    "filename": "kitsu_collection.go",
+    "api": {
+      "summary": "full-text search over Kitsu anime catalog.",
+      "descriptions": [],
+      "endpoint": "/api/v1/kitsu/anime/search?q=\u0026page=",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]platforms.KitsuPlatform.AnimeDetails",
+      "returnGoType": "platforms.KitsuPlatform.AnimeDetails",
+      "returnTypescriptType": "Array\u003cKitsuPlatform\u003e"
+    }
+  },
+  {
+    "name": "HandleGetKitsuViewer",
+    "trimmedName": "GetKitsuViewer",
+    "comments": [
+      "HandleGetKitsuViewer returns the OAuth viewer's profile record.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_collection.go",
+    "filename": "kitsu_collection.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetKitsuViewerStats",
+    "trimmedName": "GetKitsuViewerStats",
+    "comments": [
+      "HandleGetKitsuViewerStats derives a basic stat block from the user's libraries.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_collection.go",
+    "filename": "kitsu_collection.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleUpdateKitsuEntry",
+    "trimmedName": "UpdateKitsuEntry",
+    "comments": [
+      "HandleUpdateKitsuEntry mutates a single library entry's status, progress or rating.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_collection.go",
+    "filename": "kitsu_collection.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaID",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Status",
+          "jsonName": "status",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "Score",
+          "jsonName": "score",
+          "goType": "float64",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "Progress",
+          "jsonName": "progress",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "StartedAt",
+          "jsonName": "startedAt",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        },
+        {
+          "name": "FinishedAt",
+          "jsonName": "finishedAt",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleDeleteKitsuEntry",
+    "trimmedName": "DeleteKitsuEntry",
+    "comments": [
+      "HandleDeleteKitsuEntry deletes a single library entry tied to the supplied media id.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_collection.go",
+    "filename": "kitsu_collection.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleAddKitsuMediaToCollection",
+    "trimmedName": "AddKitsuMediaToCollection",
+    "comments": [
+      "HandleAddKitsuMediaToCollection bulk-adds a list of media to PLANNING.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_collection.go",
+    "filename": "kitsu_collection.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaIDs",
+          "jsonName": "mediaIds",
+          "goType": "[]int",
+          "usedStructType": "",
+          "typescriptType": "Array\u003cnumber\u003e",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetKitsuUserLibrary",
+    "trimmedName": "GetKitsuUserLibrary",
+    "comments": [
+      "HandleGetKitsuUserLibrary returns one Kitsu user's library. Useful for the public profile page.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_collection.go",
+    "filename": "kitsu_collection.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "atoiDefault",
+    "trimmedName": "atoiDefault",
+    "comments": [
+      "atoiDefault parses a query params string with a fallback. Empty strings or invalid numbers",
+      "return the supplied default.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_helpers.go",
+    "filename": "kitsu_helpers.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "getProfileID",
+    "trimmedName": "getProfileID",
+    "comments": [
+      "getProfileID returns the requesting profile id from the session payload, or 0 for an",
+      "unauthenticated request.",
+      "",
+      "Many Kitsu endpoints can run with either a profile or the shared planning-slut; this function",
+      "merely surfaces the payload and lets callers decide whether they need an authenticated platform",
+      "or are willing to fall back to the server-wide account.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_helpers.go",
+    "filename": "kitsu_helpers.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleStartKitsuOAuth",
+    "trimmedName": "StartKitsuOAuth",
+    "comments": [
+      "HandleStartKitsuOAuth",
+      "",
+      "\t@summary returns the Kitsu OAuth URL plus PKCE verifier. Admin only.",
+      "\t@desc The client should follow the URL in a browser window, complete the flow, and POST the",
+      "\t@desc callback code to /api/v1/kitsu/oauth/callback.",
+      "\t@route /api/v1/kitsu/oauth/start [POST]",
+      "\t@returns map[string]interface{}",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_oauth.go",
+    "filename": "kitsu_oauth.go",
+    "api": {
+      "summary": "returns the Kitsu OAuth URL plus PKCE verifier. Admin only.",
+      "descriptions": [
+        "The client should follow the URL in a browser window, complete the flow, and POST the",
+        "callback code to /api/v1/kitsu/oauth/callback."
+      ],
+      "endpoint": "/api/v1/kitsu/oauth/start",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "map[string]interface{}",
+      "returnGoType": "interface{}",
+      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+    }
+  },
+  {
+    "name": "HandleKitsuOAuthCallback",
+    "trimmedName": "KitsuOAuthCallback",
+    "comments": [
+      "HandleKitsuOAuthCallback",
+      "",
+      "\t@summary exchanges an OAuth callback code for an access token. Admin only.",
+      "\t@desc Persists the resulting token into a KitsuAccount row keyed by the requesting profile.",
+      "\t@route /api/v1/kitsu/oauth/callback [POST]",
+      "\t@returns map[string]interface{}",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_oauth.go",
+    "filename": "kitsu_oauth.go",
+    "api": {
+      "summary": "exchanges an OAuth callback code for an access token. Admin only.",
+      "descriptions": [
+        "Persists the resulting token into a KitsuAccount row keyed by the requesting profile."
+      ],
+      "endpoint": "/api/v1/kitsu/oauth/callback",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Code",
+          "jsonName": "code",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "Verifier",
+          "jsonName": "verifier",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "ProfileID",
+          "jsonName": "profileId",
+          "goType": "uint",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "BoundToServer",
+          "jsonName": "boundToServer",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": true,
+          "descriptions": []
+        },
+        {
+          "name": "RedirectURI",
+          "jsonName": "redirectUri",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": false,
+          "descriptions": []
+        }
+      ],
+      "returns": "map[string]interface{}",
+      "returnGoType": "interface{}",
+      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+    }
+  },
+  {
+    "name": "HandleDeleteKitsuAccount",
+    "trimmedName": "DeleteKitsuAccount",
+    "comments": [
+      "HandleDeleteKitsuAccount",
+      "",
+      "\t@summary unlinks the requesting profile's Kitsu account.",
+      "\t@route /api/v1/kitsu/oauth/account [DELETE]",
+      "\t@returns handlers.Status",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_oauth.go",
+    "filename": "kitsu_oauth.go",
+    "api": {
+      "summary": "unlinks the requesting profile's Kitsu account.",
+      "descriptions": [],
+      "endpoint": "/api/v1/kitsu/oauth/account",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.Status",
+      "returnGoType": "handlers.Status",
+      "returnTypescriptType": "Status"
+    }
+  },
+  {
+    "name": "HandleSaveKitsuPlanningSlutToken",
+    "trimmedName": "SaveKitsuPlanningSlutToken",
+    "comments": [
+      "HandleSaveKitsuPlanningSlutToken",
+      "",
+      "\t@summary saves the Planning Slut Kitsu token. Admin only.",
+      "\t@desc Validates the Kitsu token by calling /users/-/self, then saves it to KitsuPlanningSlut.",
+      "\t@route /api/v1/kitsu/planning-slut/token [POST]",
+      "\t@returns handlers.Status",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_planning_slut.go",
+    "filename": "kitsu_planning_slut.go",
+    "api": {
+      "summary": "saves the Planning Slut Kitsu token. Admin only.",
+      "descriptions": [
+        "Validates the Kitsu token by calling /users/-/self, then saves it to KitsuPlanningSlut."
+      ],
+      "endpoint": "/api/v1/kitsu/planning-slut/token",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "Token",
+          "jsonName": "token",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "handlers.Status",
+      "returnGoType": "handlers.Status",
+      "returnTypescriptType": "Status"
+    }
+  },
+  {
+    "name": "HandleDeleteKitsuPlanningSlutToken",
+    "trimmedName": "DeleteKitsuPlanningSlutToken",
+    "comments": [
+      "HandleDeleteKitsuPlanningSlutToken",
+      "",
+      "\t@summary removes the Planning Slut Kitsu token. Admin only.",
+      "\t@route /api/v1/kitsu/planning-slut/token [DELETE]",
+      "\t@returns handlers.Status",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_planning_slut.go",
+    "filename": "kitsu_planning_slut.go",
+    "api": {
+      "summary": "removes the Planning Slut Kitsu token. Admin only.",
+      "descriptions": [],
+      "endpoint": "/api/v1/kitsu/planning-slut/token",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "handlers.Status",
+      "returnGoType": "handlers.Status",
+      "returnTypescriptType": "Status"
+    }
+  },
+  {
+    "name": "HandleGetKitsuPlanningSlutInfo",
+    "trimmedName": "GetKitsuPlanningSlutInfo",
+    "comments": [
+      "HandleGetKitsuPlanningSlutInfo",
+      "",
+      "\t@summary returns the Planning Slut Kitsu viewer info (username, avatar). Admin only.",
+      "\t@route /api/v1/kitsu/planning-slut/info [GET]",
+      "\t@returns map[string]interface{}",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_planning_slut.go",
+    "filename": "kitsu_planning_slut.go",
+    "api": {
+      "summary": "returns the Planning Slut Kitsu viewer info (username, avatar). Admin only.",
+      "descriptions": [],
+      "endpoint": "/api/v1/kitsu/planning-slut/info",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "map[string]interface{}",
+      "returnGoType": "interface{}",
+      "returnTypescriptType": "Record\u003cstring, interface{}\u003e"
+    }
+  },
+  {
+    "name": "HandleKitsuPlanningSlutBackfillLibrary",
+    "trimmedName": "KitsuPlanningSlutBackfillLibrary",
+    "comments": [
+      "HandleKitsuPlanningSlutBackfillLibrary",
+      "",
+      "\t@summary adds every anime in the local library to the shared Kitsu planning-slut PLANNING",
+      "\t@desc list. Detached — runs in the background.",
+      "\t@route /api/v1/kitsu/planning-slut/backfill-library [POST]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_planning_slut.go",
+    "filename": "kitsu_planning_slut.go",
+    "api": {
+      "summary": "adds every anime in the local library to the shared Kitsu planning-slut PLANNING",
+      "descriptions": [
+        "list. Detached — runs in the background."
+      ],
+      "endpoint": "/api/v1/kitsu/planning-slut/backfill-library",
+      "methods": [
+        "POST"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "BackfillLocalLibraryToKitsuPlanning",
+    "trimmedName": "BackfillLocalLibraryToKitsuPlanning",
+    "comments": [
+      "BackfillLocalLibraryToKitsuPlanning puts every anime currently in the local library onto the",
+      "shared Kitsu PLANNING list, skipping anything already there. The AniList sister implementer",
+      "uses a similar pattern; this one relies on Kitsu's PLANNED status synonym.",
+      ""
+    ],
+    "filepath": "internal/handlers/kitsu_planning_slut.go",
+    "filename": "kitsu_planning_slut.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
     "name": "HandleGetLibraryExplorerFileTree",
     "trimmedName": "GetLibraryExplorerFileTree",
     "comments": [
@@ -11836,6 +12573,15 @@
           "typescriptType": "boolean",
           "required": true,
           "descriptions": []
+        },
+        {
+          "name": "Refresh",
+          "jsonName": "refresh",
+          "goType": "bool",
+          "usedStructType": "",
+          "typescriptType": "boolean",
+          "required": false,
+          "descriptions": []
         }
       ],
       "returns": "onlinestream.EpisodeSource",
@@ -14429,6 +15175,15 @@
           "descriptions": []
         },
         {
+          "name": "XPBarSkinID",
+          "jsonName": "xpBarSkinId",
+          "goType": "string",
+          "usedStructType": "",
+          "typescriptType": "string",
+          "required": true,
+          "descriptions": []
+        },
+        {
           "name": "NameColorCss",
           "jsonName": "nameColorCss",
           "goType": "string",
@@ -16033,6 +16788,27 @@
           "descriptions": []
         }
       ],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "sha256Sum",
+    "trimmedName": "sha256Sum",
+    "comments": [
+      "sha256Sum hashes a PKCE verifier so the OAuth2 client can send the S256 challenge.",
+      ""
+    ],
+    "filepath": "internal/handlers/sha256.go",
+    "filename": "sha256.go",
+    "api": {
+      "summary": "",
+      "descriptions": [],
+      "endpoint": "",
+      "methods": null,
+      "params": [],
+      "bodyFields": [],
       "returns": "bool",
       "returnGoType": "bool",
       "returnTypescriptType": "boolean"
@@ -17831,6 +18607,135 @@
     }
   },
   {
+    "name": "HandleClearDownloadingMediaState",
+    "trimmedName": "ClearDownloadingMediaState",
+    "comments": [
+      "HandleClearDownloadingMediaState",
+      "",
+      "\t@summary clears one anime's \"downloading\" badge by hand.",
+      "\t@desc For a badge stuck on \"downloading\" with nothing behind it in the torrent client — the",
+      "\t@desc torrent was removed by hand, or a queue attempt failed after the badge was written. Only",
+      "\t@desc takes effect while the anime still reads \"downloading\"; a \"downloaded\" or \"matched\" badge",
+      "\t@desc means real files or a library entry exist and this leaves those alone. Never called by",
+      "\t@desc anything but a person choosing to, on one anime at a time — see HandleGetDownloadingMediaIds",
+      "\t@desc for why nothing here is allowed to happen on its own.",
+      "\t@param mediaId - int - true - \"AniList ID of the anime to clear\"",
+      "\t@route /api/v1/torrent-client/downloading-media/{mediaId} [DELETE]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "api": {
+      "summary": "clears one anime's \"downloading\" badge by hand.",
+      "descriptions": [
+        "For a badge stuck on \"downloading\" with nothing behind it in the torrent client — the",
+        "torrent was removed by hand, or a queue attempt failed after the badge was written. Only",
+        "takes effect while the anime still reads \"downloading\"; a \"downloaded\" or \"matched\" badge",
+        "means real files or a library entry exist and this leaves those alone. Never called by",
+        "anything but a person choosing to, on one anime at a time — see HandleGetDownloadingMediaIds",
+        "for why nothing here is allowed to happen on its own."
+      ],
+      "endpoint": "/api/v1/torrent-client/downloading-media/{mediaId}",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "AniList ID of the anime to clear"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleGetStuckDownloadingMediaIds",
+    "trimmedName": "GetStuckDownloadingMediaIds",
+    "comments": [
+      "HandleGetStuckDownloadingMediaIds",
+      "",
+      "\t@summary returns media IDs whose \"downloading\" badge has nothing live behind it.",
+      "\t@desc Advisory only — a periodic background check flags a \"downloading\" badge whose staged",
+      "\t@desc torrent names are all absent from the torrent client's current list, which is what happens",
+      "\t@desc when a torrent is removed outside Seanime entirely, directly in the client's own UI. Pure",
+      "\t@desc read of the last computed set, same principle as HandleGetDownloadingMediaIds: no live",
+      "\t@desc torrent-client check happens on this request.",
+      "\t@route /api/v1/torrent-client/stuck-downloading-media [GET]",
+      "\t@returns []int",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "api": {
+      "summary": "returns media IDs whose \"downloading\" badge has nothing live behind it.",
+      "descriptions": [
+        "Advisory only — a periodic background check flags a \"downloading\" badge whose staged",
+        "torrent names are all absent from the torrent client's current list, which is what happens",
+        "when a torrent is removed outside Seanime entirely, directly in the client's own UI. Pure",
+        "read of the last computed set, same principle as HandleGetDownloadingMediaIds: no live",
+        "torrent-client check happens on this request."
+      ],
+      "endpoint": "/api/v1/torrent-client/stuck-downloading-media",
+      "methods": [
+        "GET"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "[]int",
+      "returnGoType": "int",
+      "returnTypescriptType": "Array\u003cnumber\u003e"
+    }
+  },
+  {
+    "name": "HandleClearAllStuckDownloadingMediaState",
+    "trimmedName": "ClearAllStuckDownloadingMediaState",
+    "comments": [
+      "HandleClearAllStuckDownloadingMediaState",
+      "",
+      "\t@summary clears every \"downloading\" badge currently flagged as stuck.",
+      "\t@desc Bulk form of HandleClearDownloadingMediaState, for the Enqueue Future page's \"clear all\"",
+      "\t@desc action. Loops the monitor's last computed set and clears each one through the same guarded",
+      "\t@desc op the single-item button uses, which re-checks \"is this still downloading right now\" for",
+      "\t@desc every id — a stale or wrong advisory verdict can at worst skip or clear a badge a little",
+      "\t@desc early, never touch a \"downloaded\" or \"matched\" one.",
+      "\t@route /api/v1/torrent-client/stuck-downloading-media [DELETE]",
+      "\t@returns int",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "api": {
+      "summary": "clears every \"downloading\" badge currently flagged as stuck.",
+      "descriptions": [
+        "Bulk form of HandleClearDownloadingMediaState, for the Enqueue Future page's \"clear all\"",
+        "action. Loops the monitor's last computed set and clears each one through the same guarded",
+        "op the single-item button uses, which re-checks \"is this still downloading right now\" for",
+        "every id — a stale or wrong advisory verdict can at worst skip or clear a badge a little",
+        "early, never touch a \"downloaded\" or \"matched\" one."
+      ],
+      "endpoint": "/api/v1/torrent-client/stuck-downloading-media",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [],
+      "bodyFields": [],
+      "returns": "int",
+      "returnGoType": "int",
+      "returnTypescriptType": "number"
+    }
+  },
+  {
     "name": "HandleTorrentClientAction",
     "trimmedName": "TorrentClientAction",
     "comments": [
@@ -18191,7 +19096,7 @@
           "name": "Torrents",
           "jsonName": "torrents",
           "goType": "[]TorrentContentsRequestItem",
-          "usedStructType": "TorrentContentsRequestItem",
+          "usedStructType": "handlers.TorrentContentsRequestItem",
           "typescriptType": "Array\u003cTorrentContentsRequestItem\u003e",
           "required": true,
           "descriptions": []

@@ -1533,6 +1533,83 @@ export const API_ENDPOINTS = {
             endpoint: "/api/v1/filecache/mediastream/videofiles",
         },
     },
+    KITSU_COLLECTION: {
+        GetKitsuAnimeCollection: {
+            key: "KITSU-COLLECTION-get-kitsu-anime-collection",
+            methods: ["GET"],
+            endpoint: "/api/v1/kitsu/anime-collection",
+        },
+        GetKitsuAnime: {
+            key: "KITSU-COLLECTION-get-kitsu-anime",
+            methods: ["GET"],
+            endpoint: "/api/v1/kitsu/anime/{id}",
+        },
+        SearchKitsuAnime: {
+            key: "KITSU-COLLECTION-search-kitsu-anime",
+            methods: ["GET"],
+            endpoint: "/api/v1/kitsu/anime/search?q=&page=",
+        },
+    },
+    KITSU_OAUTH: {
+        /**
+         *  @description
+         *  Route returns the Kitsu OAuth URL plus PKCE verifier. Admin only.
+         *  The client should follow the URL in a browser window, complete the flow, and POST the
+         *  callback code to /api/v1/kitsu/oauth/callback.
+         */
+        StartKitsuOAuth: {
+            key: "KITSU-OAUTH-start-kitsu-o-auth",
+            methods: ["POST"],
+            endpoint: "/api/v1/kitsu/oauth/start",
+        },
+        /**
+         *  @description
+         *  Route exchanges an OAuth callback code for an access token. Admin only.
+         *  Persists the resulting token into a KitsuAccount row keyed by the requesting profile.
+         */
+        KitsuOAuthCallback: {
+            key: "KITSU-OAUTH-kitsu-o-auth-callback",
+            methods: ["POST"],
+            endpoint: "/api/v1/kitsu/oauth/callback",
+        },
+        DeleteKitsuAccount: {
+            key: "KITSU-OAUTH-delete-kitsu-account",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/kitsu/oauth/account",
+        },
+    },
+    KITSU_PLANNING_SLUT: {
+        /**
+         *  @description
+         *  Route saves the Planning Slut Kitsu token. Admin only.
+         *  Validates the Kitsu token by calling /users/-/self, then saves it to KitsuPlanningSlut.
+         */
+        SaveKitsuPlanningSlutToken: {
+            key: "KITSU-PLANNING-SLUT-save-kitsu-planning-slut-token",
+            methods: ["POST"],
+            endpoint: "/api/v1/kitsu/planning-slut/token",
+        },
+        DeleteKitsuPlanningSlutToken: {
+            key: "KITSU-PLANNING-SLUT-delete-kitsu-planning-slut-token",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/kitsu/planning-slut/token",
+        },
+        GetKitsuPlanningSlutInfo: {
+            key: "KITSU-PLANNING-SLUT-get-kitsu-planning-slut-info",
+            methods: ["GET"],
+            endpoint: "/api/v1/kitsu/planning-slut/info",
+        },
+        /**
+         *  @description
+         *  Route adds every anime in the local library to the shared Kitsu planning-slut PLANNING
+         *  list. Detached — runs in the background.
+         */
+        KitsuPlanningSlutBackfillLibrary: {
+            key: "KITSU-PLANNING-SLUT-kitsu-planning-slut-backfill-library",
+            methods: ["POST"],
+            endpoint: "/api/v1/kitsu/planning-slut/backfill-library",
+        },
+    },
     LIBRARY_EXPLORER: {
         /**
          *  @description
@@ -3467,6 +3544,34 @@ export const API_ENDPOINTS = {
             key: "TORRENT-CLIENT-clear-downloading-media-state",
             methods: ["DELETE"],
             endpoint: "/api/v1/torrent-client/downloading-media/{mediaId}",
+        },
+        /**
+         *  @description
+         *  Route returns media IDs whose "downloading" badge has nothing live behind it.
+         *  Advisory only — a periodic background check flags a "downloading" badge whose staged
+         *  torrent names are all absent from the torrent client's current list, which is what happens
+         *  when a torrent is removed outside Seanime entirely, directly in the client's own UI. Pure
+         *  read of the last computed set, same principle as HandleGetDownloadingMediaIds: no live
+         *  torrent-client check happens on this request.
+         */
+        GetStuckDownloadingMediaIds: {
+            key: "TORRENT-CLIENT-get-stuck-downloading-media-ids",
+            methods: ["GET"],
+            endpoint: "/api/v1/torrent-client/stuck-downloading-media",
+        },
+        /**
+         *  @description
+         *  Route clears every "downloading" badge currently flagged as stuck.
+         *  Bulk form of HandleClearDownloadingMediaState, for the Enqueue Future page's "clear all"
+         *  action. Loops the monitor's last computed set and clears each one through the same guarded
+         *  op the single-item button uses, which re-checks "is this still downloading right now" for
+         *  every id — a stale or wrong advisory verdict can at worst skip or clear a badge a little
+         *  early, never touch a "downloaded" or "matched" one.
+         */
+        ClearAllStuckDownloadingMediaState: {
+            key: "TORRENT-CLIENT-clear-all-stuck-downloading-media-state",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/torrent-client/stuck-downloading-media",
         },
         /**
          *  @description

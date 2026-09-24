@@ -476,6 +476,59 @@
   {
     "filepath": "../internal/achievement/engine.go",
     "filename": "engine.go",
+    "name": "BatchUnlockPayload",
+    "formattedName": "Achievement_BatchUnlockPayload",
+    "package": "achievement",
+    "fields": [
+      {
+        "name": "Achievements",
+        "jsonName": "achievements",
+        "goType": "[]UnlockPayload",
+        "typescriptType": "Array\u003cAchievement_UnlockPayload\u003e",
+        "usedTypescriptType": "Achievement_UnlockPayload",
+        "usedStructName": "achievement.UnlockPayload",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TotalXP",
+        "jsonName": "totalXp",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NewLevel",
+        "jsonName": "newLevel",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LeveledUp",
+        "jsonName": "leveledUp",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " BatchUnlockPayload is everything one evaluation pass unlocked, announced as one message.",
+      "",
+      " A pass that unlocks nothing sends nothing at all, so a client can treat every one of these as an",
+      " award worth showing."
+    ]
+  },
+  {
+    "filepath": "../internal/achievement/engine.go",
+    "filename": "engine.go",
     "name": "Engine",
     "formattedName": "Achievement_Engine",
     "package": "achievement",
@@ -27392,6 +27445,1800 @@
     "comments": []
   },
   {
+    "filepath": "../internal/api/kitsu/client.go",
+    "filename": "client.go",
+    "name": "Client",
+    "formattedName": "Client",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "baseURL",
+        "jsonName": "baseURL",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "httpClient",
+        "jsonName": "httpClient",
+        "goType": "http.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "http.Client",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "token",
+        "jsonName": "token",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cache",
+        "jsonName": "cache",
+        "goType": "",
+        "typescriptType": "any",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Client is the primary type — a single instance is shared across all callers. It is safe for",
+      " concurrent use because the underlying http.Client is."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/client.go",
+    "filename": "client.go",
+    "name": "ClientOptions",
+    "formattedName": "ClientOptions",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "Logger",
+        "jsonName": "Logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BaseURL",
+        "jsonName": "BaseURL",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Token",
+        "jsonName": "Token",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ClientOptions configures a Client. Only Logger and BaseURL are required to be set; the others",
+      " fall back to safe defaults."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/mappings.go",
+    "filename": "mappings.go",
+    "name": "Mapping",
+    "formattedName": "Mapping",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Attributes",
+        "jsonName": "attributes",
+        "goType": "MappingAttributes",
+        "typescriptType": "MappingAttributes",
+        "usedTypescriptType": "MappingAttributes",
+        "usedStructName": "kitsu.MappingAttributes",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Relationships",
+        "jsonName": "relationships",
+        "goType": "json.RawMessage",
+        "typescriptType": "any",
+        "usedStructName": "json.RawMessage",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Mapping resource. Kitsu returns external-site pointers as `mappings` resources linked from",
+      " `anime.relationships.mappings` and `manga.relationships.mappings`.",
+      "",
+      " The pointer we care about is `relationships.item` — populated only when the embedded pointer",
+      " asks to resolve to a Kitsu media item. Most mappings do not have it; the consumable fields are",
+      " `Attributes.ExternalSite` and `Attributes.ExternalID`."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/mappings.go",
+    "filename": "mappings.go",
+    "name": "MappingAttributes",
+    "formattedName": "MappingAttributes",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpdatedAt",
+        "jsonName": "updatedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ExternalSite",
+        "jsonName": "externalSite",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ExternalID",
+        "jsonName": "externalId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Person",
+        "jsonName": "person",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Thumbnail",
+        "jsonName": "thumbnail",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MappingAttributes carries the cross-platform identifier pair."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "Response",
+    "formattedName": "Response",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "Data",
+        "jsonName": "data",
+        "goType": "json.RawMessage",
+        "typescriptType": "any",
+        "usedStructName": "json.RawMessage",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Included",
+        "jsonName": "included",
+        "goType": "json.RawMessage",
+        "typescriptType": "any",
+        "usedStructName": "json.RawMessage",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Meta",
+        "jsonName": "meta",
+        "goType": "Meta",
+        "typescriptType": "Meta",
+        "usedTypescriptType": "Meta",
+        "usedStructName": "kitsu.Meta",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Links",
+        "jsonName": "links",
+        "goType": "Links",
+        "typescriptType": "Links",
+        "usedTypescriptType": "Links",
+        "usedStructName": "kitsu.Links",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " JSON:API envelope. Most Kitsu list endpoints return bodies that fit this shape; we keep it",
+      " generic because resource types vary per endpoint (`anime`, `manga`, `users`,",
+      " `library-entries`, ...).",
+      "",
+      " `Data` is the resource(s). `Included` is the optional secondary resources the server decided to",
+      " inline (cover images, genres, etc.). `Meta` and `Links` are paging/bookkeeping."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "Meta",
+    "formattedName": "Meta",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "Count",
+        "jsonName": "count",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Meta holds pagination + count info; Kitsu consolidates two slightly different shapes here",
+      " (`count` for unauthenticated `users/-/library` and the standard `next/prev` for everything else)."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "Links",
+    "formattedName": "Links",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "First",
+        "jsonName": "first",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Next",
+        "jsonName": "next",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Prev",
+        "jsonName": "prev",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Last",
+        "jsonName": "last",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Links carries the next/prev pagination URLs."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "Resource",
+    "formattedName": "Resource",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Attributes",
+        "jsonName": "attributes",
+        "goType": "json.RawMessage",
+        "typescriptType": "any",
+        "usedStructName": "json.RawMessage",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Relationships",
+        "jsonName": "relationships",
+        "goType": "json.RawMessage",
+        "typescriptType": "any",
+        "usedStructName": "json.RawMessage",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Resource is the JSON:API resource envelope every individual record is wrapped in.",
+      "",
+      " Fields directly mirror the JSON:API spec. The Kitsu-specific fields (`attributes`) live inside",
+      " `attributes` and vary by type — what we store there is a `json.RawMessage` so a single struct",
+      " serves anime, manga, user, library-entry, and cover-image resources without an explosion of",
+      " fields-per-type."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "Anime",
+    "formattedName": "Anime",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Attributes",
+        "jsonName": "attributes",
+        "goType": "AnimeAttributes",
+        "typescriptType": "AnimeAttributes",
+        "usedTypescriptType": "AnimeAttributes",
+        "usedStructName": "kitsu.AnimeAttributes",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Relationships",
+        "jsonName": "relationships",
+        "goType": "Relationships",
+        "typescriptType": "Relationships",
+        "usedTypescriptType": "Relationships",
+        "usedStructName": "kitsu.Relationships",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Anime mirrors a single Kitsu `anime` resource at its broadest — it is not exhaustive (cover",
+      " images, genres, characters, etc. live in `relationships` as separate resources). We surface",
+      " only what a UI render needs."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "AnimeAttributes",
+    "formattedName": "AnimeAttributes",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "Slug",
+        "jsonName": "slug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpdatedAt",
+        "jsonName": "updatedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Synopsis",
+        "jsonName": "synopsis",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CanonicalTitle",
+        "jsonName": "canonicalTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EnglishTitle",
+        "jsonName": "englishTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RomajiTitle",
+        "jsonName": "romajiTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserCount",
+        "jsonName": "userCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FavoritesCount",
+        "jsonName": "favoritesCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PopularityRank",
+        "jsonName": "popularityRank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RatingRank",
+        "jsonName": "ratingRank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AgeRating",
+        "jsonName": "ageRating",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AgeRatingGuide",
+        "jsonName": "ageRatingGuide",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Subtype",
+        "jsonName": "subtype",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tba",
+        "jsonName": "tba",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartDate",
+        "jsonName": "startDate",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EndDate",
+        "jsonName": "endDate",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeCount",
+        "jsonName": "episodeCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeLength",
+        "jsonName": "episodeLength",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "YoutubeVideoID",
+        "jsonName": "youtubeVideoId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Nsfw",
+        "jsonName": "nsfw",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AnimeAttributes is the typed `attributes` object for an anime. Kitsu uses kebab-case keys, and",
+      " Go's default JSON decoding would map those verbatim — we reproduce them as struct fields the",
+      " UI consumes directly."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "Relationships",
+    "formattedName": "Relationships",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "Genres",
+        "jsonName": "genres",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Categories",
+        "jsonName": "categories",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Casting",
+        "jsonName": "casting",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Installments",
+        "jsonName": "installments",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Mappings",
+        "jsonName": "mappings",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Reviews",
+        "jsonName": "reviews",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaRelationships",
+        "jsonName": "mediaRelationships",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Characters",
+        "jsonName": "characters",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Productions",
+        "jsonName": "productions",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Staff",
+        "jsonName": "staff",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Episodes",
+        "jsonName": "episodes",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeProductions",
+        "jsonName": "animeProductions",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeCastings",
+        "jsonName": "animeCastings",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnimeStaff",
+        "jsonName": "animeStaff",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Chapters",
+        "jsonName": "chapters",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaCharacters",
+        "jsonName": "mangaCharacters",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MangaStaff",
+        "jsonName": "mangaStaff",
+        "goType": "RefList",
+        "typescriptType": "RefList",
+        "usedTypescriptType": "RefList",
+        "usedStructName": "kitsu.RefList",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Relationships is the immediate `relationships` payload for any media-type resource. The",
+      " underlying Resource maps save the resolver from running a second round-trip when all it needs",
+      " is a small pointer to the cover image.",
+      "",
+      " Each field is a JSON:API relationship structure of the form `{data: {id, type}, links: {...}}`."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "Ref",
+    "formattedName": "Ref",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "Data",
+        "jsonName": "data",
+        "goType": "__STRUCT__",
+        "typescriptType": "{ id: string; type: string; }",
+        "usedTypescriptType": "{ id: string; type: string; }",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Links",
+        "jsonName": "links",
+        "goType": "map[string]string",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Ref is a single resource pointer — used where a relationship resolves to one target."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "RefList",
+    "formattedName": "RefList",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "Data",
+        "jsonName": "data",
+        "goType": "[]__STRUCT__",
+        "inlineStructType": "[]struct{\nID string `json:\"id\"`\nType string `json:\"type\"`}",
+        "typescriptType": "Array\u003c{ id: string; type: string; }\u003e",
+        "usedTypescriptType": "{ id: string; type: string; }",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Links",
+        "jsonName": "links",
+        "goType": "map[string]string",
+        "typescriptType": "Record\u003cstring, string\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " RefList is a collection of resource pointers — used where a relationship resolves to many."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "Manga",
+    "formattedName": "Manga",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Attributes",
+        "jsonName": "attributes",
+        "goType": "MangaAttributes",
+        "typescriptType": "MangaAttributes",
+        "usedTypescriptType": "MangaAttributes",
+        "usedStructName": "kitsu.MangaAttributes",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Manga mirrors an `manga` resource. Title/IDs/episode count have the same shape as Anime."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "MangaAttributes",
+    "formattedName": "MangaAttributes",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "Slug",
+        "jsonName": "slug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Synopsis",
+        "jsonName": "synopsis",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CanonicalTitle",
+        "jsonName": "canonicalTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EnglishTitle",
+        "jsonName": "englishTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RomajiTitle",
+        "jsonName": "romajiTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserCount",
+        "jsonName": "userCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FavoritesCount",
+        "jsonName": "favoritesCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PopularityRank",
+        "jsonName": "popularityRank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RatingRank",
+        "jsonName": "ratingRank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AgeRating",
+        "jsonName": "ageRating",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AgeRatingGuide",
+        "jsonName": "ageRatingGuide",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Subtype",
+        "jsonName": "subtype",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Tba",
+        "jsonName": "tba",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartDate",
+        "jsonName": "startDate",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EndDate",
+        "jsonName": "endDate",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ChapterCount",
+        "jsonName": "chapterCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "VolumeCount",
+        "jsonName": "volumeCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Nsfw",
+        "jsonName": "nsfw",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MangaAttributes mirrors AnimeAttributes minus anime-only fields (episodeCount -\u003e chapterCount)."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "User",
+    "formattedName": "User",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Attributes",
+        "jsonName": "attributes",
+        "goType": "UserAttributes",
+        "typescriptType": "UserAttributes",
+        "usedTypescriptType": "UserAttributes",
+        "usedStructName": "kitsu.UserAttributes",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " User mirrors a single `users` resource."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "UserAttributes",
+    "formattedName": "UserAttributes",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpdatedAt",
+        "jsonName": "updatedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Slug",
+        "jsonName": "slug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "About",
+        "jsonName": "about",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Location",
+        "jsonName": "location",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "WaifuOrHusbando",
+        "jsonName": "waifuOrHusbando",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FollowersCount",
+        "jsonName": "followersCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FollowingCount",
+        "jsonName": "followingCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LifeSpentOnAnime",
+        "jsonName": "lifeSpentOnAnime",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Birthday",
+        "jsonName": "birthday",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Gender",
+        "jsonName": "gender",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Image",
+        "jsonName": "image",
+        "goType": "__STRUCT__",
+        "typescriptType": "{ url: string; }",
+        "usedTypescriptType": "{ url: string; }",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Avatars",
+        "jsonName": "avatars",
+        "goType": "__STRUCT__",
+        "typescriptType": "{ original: string; large: string; medium: string; small: string; tiny: string; }",
+        "usedTypescriptType": "{ original: string; large: string; medium: string; small: string; tiny: string; }",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " UserAttributes holds the Kitsu-public user fields."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "LibraryEntry",
+    "formattedName": "LibraryEntry",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Type",
+        "jsonName": "type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Attributes",
+        "jsonName": "attributes",
+        "goType": "LibraryEntryAttributes",
+        "typescriptType": "LibraryEntryAttributes",
+        "usedTypescriptType": "LibraryEntryAttributes",
+        "usedStructName": "kitsu.LibraryEntryAttributes",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Relationships",
+        "jsonName": "relationships",
+        "goType": "json.RawMessage",
+        "typescriptType": "any",
+        "usedStructName": "json.RawMessage",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " LibraryEntry mirrors a Kitsu `libraryEntries` resource."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "LibraryEntryAttributes",
+    "formattedName": "LibraryEntryAttributes",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "CreatedAt",
+        "jsonName": "createdAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpdatedAt",
+        "jsonName": "updatedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"current\", \"planned\", \"completed\", \"on_hold\", \"dropped\""
+        ]
+      },
+      {
+        "name": "Progress",
+        "jsonName": "progress",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " episodes watched or chapters read"
+        ]
+      },
+      {
+        "name": "VolumesOwned",
+        "jsonName": "volumesOwned",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RewatchedCount",
+        "jsonName": "rewatchedCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Notes",
+        "jsonName": "notes",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Private",
+        "jsonName": "private",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Rating",
+        "jsonName": "rating",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " 2-20; Kitsu stores rating ×2 to allow half-points"
+        ]
+      },
+      {
+        "name": "RatingTwenty",
+        "jsonName": "ratingTwenty",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": [
+          " alias kept around for serialized compat"
+        ]
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FinishedAt",
+        "jsonName": "finishedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " LibraryEntryAttributes holds the editable status, progress, score, and notes that live on a",
+      " single library-entry row. Status is `current`, `planned`, `completed`, `on_hold`, `dropped` —",
+      " Kitsu uses underscores whereas AniList uses camelCase PLANNING/CURRENT/etc."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/models.go",
+    "filename": "models.go",
+    "name": "CoverImageMeta",
+    "formattedName": "CoverImageMeta",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "Tiny",
+        "jsonName": "tiny",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Small",
+        "jsonName": "small",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Medium",
+        "jsonName": "medium",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Large",
+        "jsonName": "large",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Original",
+        "jsonName": "original",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " CoverImage is a small helper that extracts the best Kitsu-supplied image URL out of an included",
+      " resource or an attribute dictionary.",
+      "",
+      " Returns an empty string when no image resource is present."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/oauth.go",
+    "filename": "oauth.go",
+    "name": "OAuthConfig",
+    "formattedName": "OAuthConfig",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "AuthURL",
+        "jsonName": "AuthURL",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TokenURL",
+        "jsonName": "TokenURL",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ClientID",
+        "jsonName": "ClientID",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ClientSecret",
+        "jsonName": "ClientSecret",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RedirectURI",
+        "jsonName": "RedirectURI",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " OAuthConfig collects the OAuth endpoints."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/oauth.go",
+    "filename": "oauth.go",
+    "name": "TokenResponse",
+    "formattedName": "TokenResponse",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "AccessToken",
+        "jsonName": "access_token",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "TokenType",
+        "jsonName": "token_type",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ExpiresIn",
+        "jsonName": "expires_in",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RefreshToken",
+        "jsonName": "refresh_token",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Scope",
+        "jsonName": "scope",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CreatedAt",
+        "jsonName": "created_at",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " TokenResponse is the body Kitsu returns from /api/oauth/token."
+    ]
+  },
+  {
+    "filepath": "../internal/api/kitsu/rate_limiter.go",
+    "filename": "rate_limiter.go",
+    "name": "RateLimiter",
+    "formattedName": "RateLimiter",
+    "package": "kitsu",
+    "fields": [
+      {
+        "name": "delay",
+        "jsonName": "delay",
+        "goType": "time.Duration",
+        "typescriptType": "Duration",
+        "usedTypescriptType": "Duration",
+        "usedStructName": "time.Duration",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "last",
+        "jsonName": "last",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " RateLimiter is a small token-bucket limiter used by callers that fan out many requests in",
+      " parallel and want to stay under Kitsu's documented budget.",
+      "",
+      " Authenticated reads at Kitsu allow around 300/minute — far above what a UI render needs — but",
+      " unauthenticated reads are throttled to 60/minute and the abuse-detection trips if a single",
+      " session ever sends more than ~20 in 5 seconds. This limiter hands out at most one token every",
+      " delay, regardless of how bursty the caller is."
+    ]
+  },
+  {
     "filepath": "../internal/api/mal/anime.go",
     "filename": "anime.go",
     "name": "BasicAnime",
@@ -29363,6 +31210,189 @@
     "comments": []
   },
   {
+    "filepath": "../internal/api/synthetic_id/resolver.go",
+    "filename": "resolver.go",
+    "name": "Platform",
+    "formattedName": "Platform",
+    "package": "synthetic_id",
+    "fields": [],
+    "aliasOf": {
+      "goType": "string",
+      "typescriptType": "string",
+      "declaredValues": [
+        "\"anilist\"",
+        "\"kitsu\"",
+        "\"mal\"",
+        "\"auto\""
+      ]
+    },
+    "comments": [
+      " Platform identifies which external naming the caller is using. \"Auto\" accepts any of them and",
+      " tries to detect from the raw id's shape."
+    ]
+  },
+  {
+    "filepath": "../internal/api/synthetic_id/resolver.go",
+    "filename": "resolver.go",
+    "name": "MediaKind",
+    "formattedName": "MediaKind",
+    "package": "synthetic_id",
+    "fields": [],
+    "aliasOf": {
+      "goType": "string",
+      "typescriptType": "string",
+      "declaredValues": [
+        "\"anime\"",
+        "\"manga\""
+      ]
+    },
+    "comments": [
+      " MediaKind is just \"anime\" or \"manga\" — duplicates the constant in models to avoid a cycle."
+    ]
+  },
+  {
+    "filepath": "../internal/api/synthetic_id/resolver.go",
+    "filename": "resolver.go",
+    "name": "Resolved",
+    "formattedName": "Resolved",
+    "package": "synthetic_id",
+    "fields": [
+      {
+        "name": "SyntheticID",
+        "jsonName": "syntheticId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaType",
+        "jsonName": "mediaType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "KitsuID",
+        "jsonName": "kitsuId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "KitsuSlug",
+        "jsonName": "kitsuSlug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnilistID",
+        "jsonName": "anilistId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MalID",
+        "jsonName": "malId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Source",
+        "jsonName": "source",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Resolved is the answer a handler cares about: synthetic id, name, and the cross-platform ids we",
+      " already know about."
+    ]
+  },
+  {
+    "filepath": "../internal/api/synthetic_id/resolver.go",
+    "filename": "resolver.go",
+    "name": "Resolver",
+    "formattedName": "Resolver",
+    "package": "synthetic_id",
+    "fields": [
+      {
+        "name": "DB",
+        "jsonName": "DB",
+        "goType": "db.Database",
+        "typescriptType": "DB_Database",
+        "usedTypescriptType": "DB_Database",
+        "usedStructName": "db.Database",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.RWMutex",
+        "typescriptType": "RWMutex",
+        "usedTypescriptType": "RWMutex",
+        "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cache",
+        "jsonName": "cache",
+        "goType": "map[string]Resolved",
+        "typescriptType": "Record\u003cstring, Resolved\u003e",
+        "usedTypescriptType": "Resolved",
+        "usedStructName": "synthetic_id.Resolved",
+        "required": false,
+        "public": false,
+        "comments": [
+          " keyed by `${platform}:${raw}`"
+        ]
+      }
+    ],
+    "comments": [
+      " Resolver is the front door. One instance per process — it carries an in-memory LRU on top of",
+      " the SQLite-backed SyntheticIDIndex table so repeat lookups never touch the database."
+    ]
+  },
+  {
     "filepath": "../internal/constants/constants.go",
     "filename": "constants.go",
     "name": "VersionsManifest",
@@ -30978,6 +33008,17 @@
         "comments": []
       },
       {
+        "name": "StuckDownloadMonitor",
+        "jsonName": "StuckDownloadMonitor",
+        "goType": "unmatched.StuckDownloadMonitor",
+        "typescriptType": "StuckDownloadMonitor",
+        "usedTypescriptType": "StuckDownloadMonitor",
+        "usedStructName": "unmatched.StuckDownloadMonitor",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "EnqueueFutureRepository",
         "jsonName": "EnqueueFutureRepository",
         "goType": "enqueuefuture.Repository",
@@ -31083,6 +33124,17 @@
         "typescriptType": "INTERNAL_AnilistClientManager",
         "usedTypescriptType": "INTERNAL_AnilistClientManager",
         "usedStructName": "core.AnilistClientManager",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "KitsuClientManager",
+        "jsonName": "KitsuClientManager",
+        "goType": "kitsuplatform.KitsuClientManager",
+        "typescriptType": "KitsuClientManager",
+        "usedTypescriptType": "KitsuClientManager",
+        "usedStructName": "kitsuplatform.KitsuClientManager",
         "required": false,
         "public": true,
         "comments": []
@@ -32227,6 +34279,15 @@
         "comments": []
       },
       {
+        "name": "XPBarSkinID",
+        "jsonName": "xpBarSkinId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "NameColorCss",
         "jsonName": "nameColorCss",
         "goType": "string",
@@ -32387,6 +34448,15 @@
       {
         "name": "XPBarAnimClass",
         "jsonName": "xpBarAnimClass",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "XPBarSkinID",
+        "jsonName": "xpBarSkinId",
         "goType": "string",
         "typescriptType": "string",
         "required": true,
@@ -36880,6 +38950,390 @@
     ],
     "embeddedStructNames": [
       "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "MediaType",
+    "formattedName": "Models_MediaType",
+    "package": "models",
+    "fields": [],
+    "aliasOf": {
+      "goType": "string",
+      "typescriptType": "string",
+      "declaredValues": [
+        "\"anime\"",
+        "\"manga\""
+      ]
+    },
+    "comments": []
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "KitsuIDMapping",
+    "formattedName": "Models_KitsuIDMapping",
+    "package": "models",
+    "fields": [
+      {
+        "name": "KitsuID",
+        "jsonName": "kitsuId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnilistID",
+        "jsonName": "anilistId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "KitsuSlug",
+        "jsonName": "kitsuSlug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MalID",
+        "jsonName": "malId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaType",
+        "jsonName": "mediaType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CanonicalTitle",
+        "jsonName": "canonicalTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastResolvedAt",
+        "jsonName": "lastResolvedAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " KitsuIDMapping maps a Kitsu slug/ID to its canonical counterpart on other platforms so a request",
+      " that arrives with one id can be served from anyone else's storage without an upstream call.",
+      "",
+      " Kitsu exposes most things by slug (\"naruto\", \"cowboy-bebop\"), so this field is a raw slug string",
+      " rather than an integer — there is no numeric id surface on Kitsu that we have to align with."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "KitsuPlanningSlut",
+    "formattedName": "Models_KitsuPlanningSlut",
+    "package": "models",
+    "fields": [
+      {
+        "name": "Token",
+        "jsonName": "token",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RefreshToken",
+        "jsonName": "refreshToken",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Username",
+        "jsonName": "username",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserID",
+        "jsonName": "userId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ExpiresAt",
+        "jsonName": "expiresAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " KitsuPlanningSlut is the server-shared Kitsu account. It is the parallel of the AniList",
+      " planning-slut: matching writes to its PLANNING list, the library screen merges it in, and",
+      " downstream consumers read from it the same way they read from the AniList one.",
+      "",
+      " Exactly one row is kept (the lowest ID wins on a conflict). The handler that saves a token",
+      " clears existing rows first, which keeps lookup trivial and avoids the coordinated-flush dance",
+      " a per-user pattern would need."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "KitsuAccount",
+    "formattedName": "Models_KitsuAccount",
+    "package": "models",
+    "fields": [
+      {
+        "name": "ProfileID",
+        "jsonName": "profileId",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Token",
+        "jsonName": "token",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RefreshToken",
+        "jsonName": "refreshToken",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Username",
+        "jsonName": "username",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserID",
+        "jsonName": "userId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ExpiresAt",
+        "jsonName": "expiresAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " KitsuAccount is the per-profile Kitsu credentials used to read user libraries and to write the",
+      " profile's own planning list on Kitsu. Distinct from KitsuPlanningSlut (the shared one) and from",
+      " the per-profile AniList token stored in token.go."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "SyntheticIDIndex",
+    "formattedName": "Models_SyntheticIDIndex",
+    "package": "models",
+    "fields": [
+      {
+        "name": "SyntheticID",
+        "jsonName": "syntheticId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaType",
+        "jsonName": "mediaType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "KitsuID",
+        "jsonName": "kitsuId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "KitsuSlug",
+        "jsonName": "kitsuSlug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnilistID",
+        "jsonName": "anilistId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MalID",
+        "jsonName": "malId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Source",
+        "jsonName": "source",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "LastSeenAt",
+        "jsonName": "lastSeenAt",
+        "goType": "time.Time",
+        "typescriptType": "string",
+        "usedStructName": "time.Time",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " SyntheticIDIndex is the lightweight DB the user asked for. Negative synthetic IDs are stored",
+      " alongside the cross-platform ids they resolved from, so a UI render can resolve one id string",
+      " (whether it is Kitsu, AniList, or synthetic) to a cached name + cover without an upstream call.",
+      "",
+      " Created lazily by Resolve() whenever a media id cannot be found locally — the upstream answer is",
+      " captured here so the next lookup is instant. Lives in the same seanime.db file as the rest of",
+      " the app's state."
+    ],
+    "embeddedStructNames": [
+      "models.BaseModel"
+    ]
+  },
+  {
+    "filepath": "../internal/database/models/models.go",
+    "filename": "models.go",
+    "name": "SyntheticIDCounter",
+    "formattedName": "Models_SyntheticIDCounter",
+    "package": "models",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "uint",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Value",
+        "jsonName": "value",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " SyntheticIDCounter holds a single row that drives the allocator in NextSyntheticID. Stored as a",
+      " row rather than a SQLite sequence because the driver we use does not honour CREATE SEQUENCE,",
+      " and a counter row reads/writes under a single transaction without surprises. The id column is",
+      " kept at a constant 1 so the row is always findable."
     ]
   },
   {
@@ -41581,6 +44035,15 @@
         "comments": []
       },
       {
+        "name": "getProfileAnimeCollectionFunc",
+        "jsonName": "getProfileAnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "recordPlaybackActivityFunc",
         "jsonName": "recordPlaybackActivityFunc",
         "goType": "",
@@ -41880,6 +44343,15 @@
       {
         "name": "InvalidateProfileAnimeCollectionFunc",
         "jsonName": "InvalidateProfileAnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "GetProfileAnimeCollectionFunc",
+        "jsonName": "GetProfileAnimeCollectionFunc",
         "goType": "",
         "typescriptType": "any",
         "required": true,
@@ -53381,6 +55853,15 @@
         "comments": []
       },
       {
+        "name": "XPBarSkinID",
+        "jsonName": "xpBarSkinId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "NameColorCss",
         "jsonName": "nameColorCss",
         "goType": "string",
@@ -64019,6 +66500,15 @@
         "comments": []
       },
       {
+        "name": "getProfileAnimeCollectionFunc",
+        "jsonName": "getProfileAnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "enqueueProfilePendingProgressFunc",
         "jsonName": "enqueueProfilePendingProgressFunc",
         "goType": "",
@@ -64980,6 +67470,15 @@
       {
         "name": "InvalidateProfileAnimeCollectionFunc",
         "jsonName": "InvalidateProfileAnimeCollectionFunc",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "GetProfileAnimeCollectionFunc",
+        "jsonName": "GetProfileAnimeCollectionFunc",
         "goType": "",
         "typescriptType": "any",
         "required": true,
@@ -82999,6 +85498,17 @@
         ]
       },
       {
+        "name": "Media",
+        "jsonName": "media",
+        "goType": "anilist.BaseAnime",
+        "typescriptType": "AL_BaseAnime",
+        "usedTypescriptType": "AL_BaseAnime",
+        "usedStructName": "anilist.BaseAnime",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "OnlinestreamParams",
         "jsonName": "onlinestreamParams",
         "goType": "videocore.OnlinestreamParams",
@@ -83483,6 +85993,17 @@
         "jsonName": "localFilePath",
         "goType": "string",
         "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Media",
+        "jsonName": "media",
+        "goType": "anilist.BaseAnime",
+        "typescriptType": "AL_BaseAnime",
+        "usedTypescriptType": "AL_BaseAnime",
+        "usedStructName": "anilist.BaseAnime",
         "required": false,
         "public": true,
         "comments": []
@@ -84664,6 +87185,15 @@
         "required": true,
         "public": true,
         "comments": []
+      },
+      {
+        "name": "IsDefault",
+        "jsonName": "isDefault",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
       }
     ],
     "comments": []
@@ -85281,6 +87811,1166 @@
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/client_manager.go",
+    "filename": "client_manager.go",
+    "name": "KitsuClientManager",
+    "formattedName": "KitsuClientManager",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "DB",
+        "jsonName": "DB",
+        "goType": "dber",
+        "typescriptType": "dber",
+        "usedTypescriptType": "dber",
+        "usedStructName": "kitsu_platform.dber",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.RWMutex",
+        "typescriptType": "RWMutex",
+        "usedTypescriptType": "RWMutex",
+        "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "sharedPlanningSlut",
+        "jsonName": "sharedPlanningSlut",
+        "goType": "KitsuPlatform",
+        "typescriptType": "KitsuPlatform",
+        "usedTypescriptType": "KitsuPlatform",
+        "usedStructName": "kitsu_platform.KitsuPlatform",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "profilePlatforms",
+        "jsonName": "profilePlatforms",
+        "goType": "map[uint]KitsuPlatform",
+        "typescriptType": "Record\u003cnumber, KitsuPlatform\u003e",
+        "usedTypescriptType": "KitsuPlatform",
+        "usedStructName": "kitsu_platform.KitsuPlatform",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mappingResolver",
+        "jsonName": "mappingResolver",
+        "goType": "MappingResolver",
+        "typescriptType": "MappingResolver",
+        "usedTypescriptType": "MappingResolver",
+        "usedStructName": "kitsu_platform.MappingResolver",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " KitsuClientManager is the top-level wiring that the rest of the app talks to when it wants",
+      " Kitsu data. One instance lives on the App struct for the server lifecycle.",
+      "",
+      " It owns:",
+      "   - the shared \"planning-slut\" Kitsu account (a.k.a. the data grabber's Kitsu sibling);",
+      "   - the per-profile authenticated Kitsu clients, looked up by `profileID`.",
+      "",
+      " Locking strategy: a single RWMutex guarding both maps. We expect a tiny constant number of",
+      " profiles and a single shared account, so write traffic is rare. Keeping one lock avoids the",
+      " foot-gun of two locks that might consistently be taken in the wrong order."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/kitsu_platform.go",
+    "filename": "kitsu_platform.go",
+    "name": "ImageSet",
+    "formattedName": "ImageSet",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "Small",
+        "jsonName": "small",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Medium",
+        "jsonName": "medium",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Large",
+        "jsonName": "large",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Original",
+        "jsonName": "original",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ImageSet mirrors the cover-image shape already in use by the seanime UI for AniList anime",
+      " (small/medium/large/original). Kitsu poster/cover are nested objects with the same fields,",
+      " so we surface them under a single name."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/kitsu_platform.go",
+    "filename": "kitsu_platform.go",
+    "name": "KitsuPlatform",
+    "formattedName": "KitsuPlatform",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "Client",
+        "jsonName": "Client",
+        "goType": "kitsu.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "kitsu.Client",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "mappingSrc",
+        "jsonName": "mappingSrc",
+        "goType": "MappingSource",
+        "typescriptType": "MappingSource",
+        "usedTypescriptType": "MappingSource",
+        "usedStructName": "kitsu_platform.MappingSource",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "Username",
+        "jsonName": "Username",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserID",
+        "jsonName": "UserID",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Token",
+        "jsonName": "Token",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RefreshToken",
+        "jsonName": "RefreshToken",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " KitsuPlatform is the user-facing Kitsu layer. Unlike AniListPlatform, it does not implement the",
+      " shared platform.Platform interface — that interface is AniList-shaped (returns anilist.* types),",
+      " and the goal here is parallel, not identical, behavior.",
+      "",
+      " KitsuPlatform wraps a single kitsu.Client instance and exposes the user-facing surface that",
+      " the Kitsu handlers and the Kitsu planning slut need: anime/manga lookup, library CRUD, viewer",
+      " info, stats. Lightweight AniList-fallback methods are also exposed so handlers can degrade",
+      " gracefully when Kitsu is missing data for an obscure title."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/kitsu_platform.go",
+    "filename": "kitsu_platform.go",
+    "name": "KitsuPlatformOptions",
+    "formattedName": "KitsuPlatformOptions",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "Token",
+        "jsonName": "Token",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RefreshToken",
+        "jsonName": "RefreshToken",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Username",
+        "jsonName": "Username",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserID",
+        "jsonName": "UserID",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Client",
+        "jsonName": "Client",
+        "goType": "kitsu.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "kitsu.Client",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " KitsuPlatformOptions is the constructor argument list. Builder style — every field is optional",
+      " except the client — so callers can construct from a token pair, from a stored KitsuAccount",
+      " row, or from an existing *kitsu.Client."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/kitsu_platform.go",
+    "filename": "kitsu_platform.go",
+    "name": "LibraryEntry",
+    "formattedName": "LibraryEntry",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaID",
+        "jsonName": "mediaId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MediaType",
+        "jsonName": "mediaType",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"anime\" or \"manga\""
+        ]
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Progress",
+        "jsonName": "progress",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Score",
+        "jsonName": "score",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartedAt",
+        "jsonName": "startedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "FinishedAt",
+        "jsonName": "finishedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Notes",
+        "jsonName": "notes",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Repeat",
+        "jsonName": "repeat",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UpdatedAt",
+        "jsonName": "updatedAt",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " LibraryEntry describes one row of a user's Kitsu library. It is the \"view model\" that handlers",
+      " in the Kitsu pipeline use — shaped slightly differently from the raw kitsu.LibraryEntry so it",
+      " lines up with what the frontend already renders for AniList rows. The Status field uses our",
+      " shared status string (\"CURRENT\", \"PLANNING\", ...) so the same UI badge logic works for both."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/kitsu_platform.go",
+    "filename": "kitsu_platform.go",
+    "name": "AnimeDetails",
+    "formattedName": "AnimeDetails",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "KitsuID",
+        "jsonName": "kitsuId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Slug",
+        "jsonName": "slug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CanonicalTitle",
+        "jsonName": "canonicalTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EnglishTitle",
+        "jsonName": "englishTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "JPTitle",
+        "jsonName": "jpTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Synopsis",
+        "jsonName": "synopsis",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "ImageSet",
+        "typescriptType": "ImageSet",
+        "usedTypescriptType": "ImageSet",
+        "usedStructName": "kitsu_platform.ImageSet",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "BannerImage",
+        "jsonName": "bannerImage",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartDate",
+        "jsonName": "startDate",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EndDate",
+        "jsonName": "endDate",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeCount",
+        "jsonName": "episodeCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodeLength",
+        "jsonName": "episodeLength",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"finished\", \"current\", \"upcoming\""
+        ]
+      },
+      {
+        "name": "Subtype",
+        "jsonName": "subtype",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " \"TV\", \"movie\", \"OVA\", ..."
+        ]
+      },
+      {
+        "name": "AgeRating",
+        "jsonName": "ageRating",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Genres",
+        "jsonName": "genres",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AverageRating",
+        "jsonName": "averageRating",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": [
+          " Kitsu's \"x.xx\" string"
+        ]
+      },
+      {
+        "name": "PopularityRank",
+        "jsonName": "popularityRank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RatingRank",
+        "jsonName": "ratingRank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NSFW",
+        "jsonName": "nsfw",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnilistID",
+        "jsonName": "anilistId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MalID",
+        "jsonName": "malId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "YoutubeTrailer",
+        "jsonName": "youtubeTrailerId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " AnimeDetails is a flat Kitsu anime surface that flows up to the UI. It intentionally does not",
+      " match AniList's BaseAnime / AnimeDetailsById_Media shape — Kitsu data is sparser, and forcing it",
+      " into AniList's shape would erase real fields rather than preserve them."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/kitsu_platform.go",
+    "filename": "kitsu_platform.go",
+    "name": "MangaDetails",
+    "formattedName": "MangaDetails",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "KitsuID",
+        "jsonName": "kitsuId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Slug",
+        "jsonName": "slug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CanonicalTitle",
+        "jsonName": "canonicalTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EnglishTitle",
+        "jsonName": "englishTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "JPTitle",
+        "jsonName": "jpTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Synopsis",
+        "jsonName": "synopsis",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PosterImage",
+        "jsonName": "posterImage",
+        "goType": "ImageSet",
+        "typescriptType": "ImageSet",
+        "usedTypescriptType": "ImageSet",
+        "usedStructName": "kitsu_platform.ImageSet",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CoverImage",
+        "jsonName": "coverImage",
+        "goType": "ImageSet",
+        "typescriptType": "ImageSet",
+        "usedTypescriptType": "ImageSet",
+        "usedStructName": "kitsu_platform.ImageSet",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StartDate",
+        "jsonName": "startDate",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EndDate",
+        "jsonName": "endDate",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ChapterCount",
+        "jsonName": "chapterCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "VolumeCount",
+        "jsonName": "volumeCount",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Subtype",
+        "jsonName": "subtype",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Genres",
+        "jsonName": "genres",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AverageRating",
+        "jsonName": "averageRating",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "PopularityRank",
+        "jsonName": "popularityRank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "RatingRank",
+        "jsonName": "ratingRank",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Authors",
+        "jsonName": "authors",
+        "goType": "[]string",
+        "typescriptType": "Array\u003cstring\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Serialization",
+        "jsonName": "serialization",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AnilistID",
+        "jsonName": "anilistId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MalID",
+        "jsonName": "malId",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MangaDetails is the manga analogue."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/kitsu_platform.go",
+    "filename": "kitsu_platform.go",
+    "name": "Viewer",
+    "formattedName": "Viewer",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "ID",
+        "jsonName": "id",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Username",
+        "jsonName": "username",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "AvatarURL",
+        "jsonName": "avatarUrl",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Bio",
+        "jsonName": "bio",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " Viewer is the OAuth viewer's profile record."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/kitsu_platform.go",
+    "filename": "kitsu_platform.go",
+    "name": "ViewerStats",
+    "formattedName": "ViewerStats",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "Anime",
+        "jsonName": "anime",
+        "goType": "ViewerTypeStats",
+        "typescriptType": "ViewerTypeStats",
+        "usedTypescriptType": "ViewerTypeStats",
+        "usedStructName": "kitsu_platform.ViewerTypeStats",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Manga",
+        "jsonName": "manga",
+        "goType": "ViewerTypeStats",
+        "typescriptType": "ViewerTypeStats",
+        "usedTypescriptType": "ViewerTypeStats",
+        "usedStructName": "kitsu_platform.ViewerTypeStats",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Username",
+        "jsonName": "username",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "UserID",
+        "jsonName": "userId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ViewerStats is a synthesized count of how the user has actually used their library. Kitsu's",
+      " \"stats\" endpoint is private, so we derive this from a library pagination scan."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/kitsu_platform.go",
+    "filename": "kitsu_platform.go",
+    "name": "ViewerTypeStats",
+    "formattedName": "ViewerTypeStats",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "Count",
+        "jsonName": "count",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "StatusBreakdown",
+        "jsonName": "statusBreakdown",
+        "goType": "map[string]int",
+        "typescriptType": "Record\u003cstring, number\u003e",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "MeanScore",
+        "jsonName": "meanScore",
+        "goType": "float64",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "EpisodesWatched",
+        "jsonName": "episodesWatched",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "ChaptersRead",
+        "jsonName": "chaptersRead",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " ViewerTypeStats breaks down a single media kind."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/kitsu_to_anilist.go",
+    "filename": "kitsu_to_anilist.go",
+    "name": "MappingSnapshot",
+    "formattedName": "MappingSnapshot",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "AnilistID",
+        "jsonName": "AnilistID",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "KitsuSlug",
+        "jsonName": "KitsuSlug",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "CanonicalTitle",
+        "jsonName": "CanonicalTitle",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MappingSnapshot is the minimal view of KitsuIDMapping this package needs. Decoupled from the",
+      " gorm model so it can be produced cheaply from a function variable installed at startup."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/mapping_resolver.go",
+    "filename": "mapping_resolver.go",
+    "name": "MappingResolver",
+    "formattedName": "MappingResolver",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "once",
+        "jsonName": "once",
+        "goType": "sync.Once",
+        "typescriptType": "Once",
+        "usedTypescriptType": "Once",
+        "usedStructName": "sync.Once",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.RWMutex",
+        "typescriptType": "RWMutex",
+        "usedTypescriptType": "RWMutex",
+        "usedStructName": "sync.RWMutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "hit",
+        "jsonName": "hit",
+        "goType": "map[string]mappingCacheRow",
+        "typescriptType": "Record\u003cstring, mappingCacheRow\u003e",
+        "usedTypescriptType": "mappingCacheRow",
+        "usedStructName": "kitsu_platform.mappingCacheRow",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "clock",
+        "jsonName": "clock",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MappingResolver populates the KitsuIDMapping table on demand. The model is cache-first: every",
+      " lookup hits SQLite, and on miss we fall back to the upstream Kitsu /mappings endpoint, persist",
+      " the result, and re-read. Repeat hits within a single session go through an in-memory map so",
+      " second-pass conversions don't re-hit the database.",
+      "",
+      " The resolver is concurrency-safe — multiple Goroutines can call Resolve at once. We rely on",
+      " SQLite for the cross-process safety: a duplicate upsert is a no-op (the existing-row branch",
+      " only overwrites fields that arrived non-empty)."
+    ]
+  },
+  {
+    "filepath": "../internal/platforms/kitsu_platform/resolve_mappings.go",
+    "filename": "resolve_mappings.go",
+    "name": "MappingSource",
+    "formattedName": "MappingSource",
+    "package": "kitsu_platform",
+    "fields": [
+      {
+        "name": "DB",
+        "jsonName": "DB",
+        "goType": "SourceDB",
+        "typescriptType": "SourceDB",
+        "usedTypescriptType": "SourceDB",
+        "usedStructName": "kitsu_platform.SourceDB",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Client",
+        "jsonName": "Client",
+        "goType": "kitsu.Client",
+        "typescriptType": "Client",
+        "usedTypescriptType": "Client",
+        "usedStructName": "kitsu.Client",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Resolver",
+        "jsonName": "Resolver",
+        "goType": "MappingResolver",
+        "typescriptType": "MappingResolver",
+        "usedTypescriptType": "MappingResolver",
+        "usedStructName": "kitsu_platform.MappingResolver",
+        "required": false,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MappingSource ties a *kitsu.Client to a SourceDB and a MappingResolver helper. The host app",
+      " constructs this once at App init and passes it to the KitsuPlatform via SetMappingSource.",
+      "",
+      " Constructing the MappingResolver inline keeps the platform package self-contained; the host",
+      " does not need to know about it."
+    ]
   },
   {
     "filepath": "../internal/platforms/offline_platform/offline_platform.go",
@@ -93651,6 +97341,63 @@
     "comments": []
   },
   {
+    "filepath": "../internal/privacy/catalogue.go",
+    "filename": "catalogue.go",
+    "name": "KnownProvider",
+    "formattedName": "KnownProvider",
+    "package": "privacy",
+    "fields": [
+      {
+        "name": "Name",
+        "jsonName": "name",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "URL",
+        "jsonName": "url",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Description",
+        "jsonName": "description",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Filtering",
+        "jsonName": "filtering",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "NoLog",
+        "jsonName": "noLog",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " KnownProvider describes a selectable DoH resolver shown in the settings UI."
+    ]
+  },
+  {
     "filepath": "../internal/privacy/dnscrypt.go",
     "filename": "dnscrypt.go",
     "name": "DNSCryptManager",
@@ -93764,6 +97511,17 @@
         "comments": []
       },
       {
+        "name": "systemResolver",
+        "jsonName": "systemResolver",
+        "goType": "net.Resolver",
+        "typescriptType": "Resolver",
+        "usedTypescriptType": "Resolver",
+        "usedStructName": "net.Resolver",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
         "name": "stopCh",
         "jsonName": "stopCh",
         "goType": "",
@@ -93834,6 +97592,17 @@
         "goType": "string",
         "typescriptType": "string",
         "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "KnownProviders",
+        "jsonName": "knownProviders",
+        "goType": "[]KnownProvider",
+        "typescriptType": "Array\u003cKnownProvider\u003e",
+        "usedTypescriptType": "KnownProvider",
+        "usedStructName": "privacy.KnownProvider",
+        "required": false,
         "public": true,
         "comments": []
       }
@@ -103781,6 +107550,15 @@
     "package": "unmatched",
     "fields": [
       {
+        "name": "MatchID",
+        "jsonName": "matchId",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": false,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "TorrentName",
         "jsonName": "torrentName",
         "goType": "string",
@@ -105356,6 +109134,109 @@
       }
     ],
     "comments": []
+  },
+  {
+    "filepath": "../internal/unmatched/stuck_downloads.go",
+    "filename": "stuck_downloads.go",
+    "name": "StuckDownloadMonitor",
+    "formattedName": "StuckDownloadMonitor",
+    "package": "unmatched",
+    "fields": [
+      {
+        "name": "logger",
+        "jsonName": "logger",
+        "goType": "zerolog.Logger",
+        "typescriptType": "Logger",
+        "usedTypescriptType": "Logger",
+        "usedStructName": "zerolog.Logger",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "repository",
+        "jsonName": "repository",
+        "goType": "Repository",
+        "typescriptType": "Repository",
+        "usedTypescriptType": "Repository",
+        "usedStructName": "unmatched.Repository",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "mu",
+        "jsonName": "mu",
+        "goType": "sync.Mutex",
+        "typescriptType": "Mutex",
+        "usedTypescriptType": "Mutex",
+        "usedStructName": "sync.Mutex",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "isRunning",
+        "jsonName": "isRunning",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "cancelFunc",
+        "jsonName": "cancelFunc",
+        "goType": "context.CancelFunc",
+        "typescriptType": "CancelFunc",
+        "usedTypescriptType": "CancelFunc",
+        "usedStructName": "context.CancelFunc",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "checkInterval",
+        "jsonName": "checkInterval",
+        "goType": "time.Duration",
+        "typescriptType": "Duration",
+        "usedTypescriptType": "Duration",
+        "usedStructName": "time.Duration",
+        "required": false,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "torrentStateSource",
+        "jsonName": "torrentStateSource",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "stuck",
+        "jsonName": "stuck",
+        "goType": "[]int",
+        "typescriptType": "Array\u003cnumber\u003e",
+        "required": false,
+        "public": false,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " StuckDownloadMonitor periodically flags \"downloading\" badges that have nothing behind them in the",
+      " torrent client — the torrent was removed outside Seanime entirely, directly in the client's own",
+      " UI, which is the one way a stuck badge happens that nothing else here ever notices.",
+      "",
+      " Purely advisory: it writes nothing to AnimeDownloadState and only ever answers \"which media IDs",
+      " currently look stuck\". Clearing a badge — one at a time or in bulk — always goes through the",
+      " existing ClearAnimeDownloadStateIfDownloading, which re-checks the badge at write time regardless",
+      " of what this reports. A wrong or stale verdict here can at worst clear a badge a little early,",
+      " never corrupt state the way live reconciliation once did — see HandleGetDownloadingMediaIds' doc",
+      " comment for the incident this is careful not to repeat."
+    ]
   },
   {
     "filepath": "../internal/updater/announcement.go",
@@ -107509,6 +111390,56 @@
     ],
     "comments": [
       " RWMutexMap is an implementation of mapInterface using a sync.RWMutex."
+    ]
+  },
+  {
+    "filepath": "../internal/util/move_file.go",
+    "filename": "move_file.go",
+    "name": "MoveOutcome",
+    "formattedName": "Util_MoveOutcome",
+    "package": "util",
+    "fields": [
+      {
+        "name": "Src",
+        "jsonName": "Src",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Dest",
+        "jsonName": "Dest",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Status",
+        "jsonName": "Status",
+        "goType": "string",
+        "typescriptType": "string",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
+        "name": "Err",
+        "jsonName": "Err",
+        "goType": "error",
+        "typescriptType": "Util_error",
+        "usedTypescriptType": "Util_error",
+        "usedStructName": "util.error",
+        "required": true,
+        "public": true,
+        "comments": []
+      }
+    ],
+    "comments": [
+      " MoveOutcome is what recovery did with one interrupted transfer."
     ]
   },
   {

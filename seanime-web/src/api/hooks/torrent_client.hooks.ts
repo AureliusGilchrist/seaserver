@@ -113,3 +113,43 @@ export function useClearDownloadingMediaState(mediaId: number | undefined) {
         },
     })
 }
+
+/**
+ * The advisory "stuck downloading" list Enqueue Future's bulk-clear button reads: media IDs whose
+ * badge has nothing live behind it in the torrent client, recomputed by a background check every few
+ * minutes. Polled far more slowly than the badge poll above — nothing here needs to be as fresh as
+ * HandleGetDownloadingMediaIds' 10s poll, since the server itself only recomputes this every 3 minutes.
+ */
+export function useGetStuckDownloadingMediaIds() {
+    return useServerQuery<Array<number>>({
+        endpoint: API_ENDPOINTS.TORRENT_CLIENT.GetStuckDownloadingMediaIds.endpoint,
+        method: API_ENDPOINTS.TORRENT_CLIENT.GetStuckDownloadingMediaIds.methods[0],
+        queryKey: [API_ENDPOINTS.TORRENT_CLIENT.GetStuckDownloadingMediaIds.key],
+        refetchInterval: 60_000,
+    })
+}
+
+/**
+ * Bulk form of useClearDownloadingMediaState, for Enqueue Future's "clear all stuck" button. Takes the
+ * ids currently shown as stuck so it can drop their optimistic entries the same way the single-item
+ * clear does; the server re-validates every one of them at write time regardless, so a stale list here
+ * costs at most a skipped id, never a wrongly cleared one.
+ */
+export function useClearAllStuckDownloadingMediaState(mediaIds: number[]) {
+    const queryClient = useQueryClient()
+    const { removeDownloadingAnime } = useDownloadingAnime()
+
+    return useServerMutation<number>({
+        endpoint: API_ENDPOINTS.TORRENT_CLIENT.ClearAllStuckDownloadingMediaState.endpoint,
+        method: API_ENDPOINTS.TORRENT_CLIENT.ClearAllStuckDownloadingMediaState.methods[0],
+        mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.ClearAllStuckDownloadingMediaState.key],
+        onSuccess: async cleared => {
+            const n = cleared ?? 0
+            for (const mediaId of mediaIds) removeDownloadingAnime(mediaId)
+            toast.success(n > 0 ? `Cleared ${n} stuck download${n > 1 ? "s" : ""}` : "No stuck downloads to clear")
+            await queryClient.invalidateQueries({ queryKey: DOWNLOADING_MEDIA_QUERY_KEY })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key] })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.TORRENT_CLIENT.GetStuckDownloadingMediaIds.key] })
+        },
+    })
+}

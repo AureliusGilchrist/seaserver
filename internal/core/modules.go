@@ -455,33 +455,8 @@ func (a *App) initModulesOnce() {
 	// this keeps working after the client is re-created on a settings change, and never call
 	// Start() on the client: this runs on a timer, and a scan must not be what brings a torrent
 	// client up.
-	a.UnmatchedScanner.SetTorrentStateSource(func() ([]unmatched.TorrentState, bool) {
-		repo := a.TorrentClientRepositoryRef.Get()
-		if repo == nil {
-			return nil, false
-		}
-		torrents, err := repo.GetList(&torrent_client.GetListOptions{})
-		if err != nil {
-			return nil, false
-		}
-
-		states := make([]unmatched.TorrentState, 0, len(torrents))
-		for _, t := range torrents {
-			if t == nil {
-				continue
-			}
-			states = append(states, unmatched.TorrentState{
-				Name:     t.Name,
-				SavePath: t.ContentPath,
-				// Seeding means the data is all there. Progress covers a finished torrent that has
-				// been paused or stopped, which no longer reports as seeding.
-				Finished: t.Status == torrent_client.TorrentStatusSeeding ||
-					t.Status == torrent_client.TorrentStatusStopped ||
-					t.Progress >= 1,
-			})
-		}
-		return states, true
-	})
+	torrentStateSource := a.buildTorrentStateSource()
+	a.UnmatchedScanner.SetTorrentStateSource(torrentStateSource)
 
 	// A match that was moving files when the server last stopped is carried the rest of the way,
 	// under the names it had already decided on, before the scanner starts looking for new work —
@@ -511,6 +486,15 @@ func (a *App) initModulesOnce() {
 	}()
 
 	a.UnmatchedScanner.Start()
+
+	// Advisory-only: flags a "downloading" badge left behind when a torrent is removed outside
+	// Seanime entirely, directly in the torrent client's own UI — the one way a stuck badge happens
+	// that nothing else here ever notices. Shares the scanner's own torrent-state source above, and
+	// never writes to AnimeDownloadState itself — see StuckDownloadMonitor's doc comment.
+	a.StuckDownloadMonitor = unmatched.NewStuckDownloadMonitor(a.Logger, a.UnmatchedRepository)
+	a.StuckDownloadMonitor.SetTorrentStateSource(torrentStateSource)
+	a.StuckDownloadMonitor.Start()
+	a.AddCleanupFunction(a.StuckDownloadMonitor.Stop)
 
 	// +---------------------+
 	// |   Enqueue Future    |
@@ -739,6 +723,40 @@ func (a *App) initModulesOnce() {
 		a.ServiceRunner.Stop()
 	})
 
+}
+
+// buildTorrentStateSource builds the closure both the unmatched scanner and the stuck-download
+// monitor use to ask the torrent client for its current list. Read through the ref so this keeps
+// working after the client is re-created on a settings change, and never call Start() on the client:
+// both callers run on a timer, and a background pass must not be what brings a torrent client up.
+func (a *App) buildTorrentStateSource() func() ([]unmatched.TorrentState, bool) {
+	return func() ([]unmatched.TorrentState, bool) {
+		repo := a.TorrentClientRepositoryRef.Get()
+		if repo == nil {
+			return nil, false
+		}
+		torrents, err := repo.GetList(&torrent_client.GetListOptions{})
+		if err != nil {
+			return nil, false
+		}
+
+		states := make([]unmatched.TorrentState, 0, len(torrents))
+		for _, t := range torrents {
+			if t == nil {
+				continue
+			}
+			states = append(states, unmatched.TorrentState{
+				Name:     t.Name,
+				SavePath: t.ContentPath,
+				// Seeding means the data is all there. Progress covers a finished torrent that has
+				// been paused or stopped, which no longer reports as seeding.
+				Finished: t.Status == torrent_client.TorrentStatusSeeding ||
+					t.Status == torrent_client.TorrentStatusStopped ||
+					t.Progress >= 1,
+			})
+		}
+		return states, true
+	}
 }
 
 // HandleNewDatabaseEntries initializes essential database collections.

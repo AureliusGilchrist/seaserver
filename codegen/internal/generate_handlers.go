@@ -225,6 +225,12 @@ func GenerateHandlers(dir string, outDir string) {
 						case "string", "int", "int64", "float64", "float32", "bool", "nil", "uint", "uint64", "uint32", "uint16", "uint8", "byte", "rune", "[]byte", "interface{}", "error":
 							usedStructType = ""
 						}
+						// A same-package reference (e.g. []TorrentContentsRequestItem) has no dot, but
+						// generate_ts_endpoints.go's import resolver requires "package.Name" — mirror
+						// generate_structs.go's getUsedStructType so body-only structs still get imported.
+						if usedStructType != "" && !strings.Contains(usedStructType, ".") {
+							usedStructType = packageName + "." + usedStructType
+						}
 
 						// Add the request body field
 						bodyFields = append(bodyFields, &RouteHandlerParam{
