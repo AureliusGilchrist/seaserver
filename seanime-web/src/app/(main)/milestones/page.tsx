@@ -10,6 +10,7 @@ import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-l
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import React from "react"
 import { LuFlag, LuCrown, LuUser, LuCheck } from "react-icons/lu"
 import { Link } from "@tanstack/react-router"
@@ -197,6 +198,8 @@ function MilestoneCard({ definition, achievers }: {
     achievers: Milestone_AchievedMilestone[]
 }) {
     const isAchieved = achievers.length > 0
+    const animeTheme = useAnimeThemeOrNull()
+    const name = animeTheme?.config.milestoneCategoryNames?.[definition.key] ?? definition.name
 
     return (
         <div className={cn(
@@ -225,7 +228,7 @@ function MilestoneCard({ definition, achievers }: {
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-[--foreground] truncate">
-                            {definition.name}
+                            {name}
                         </p>
                         {isAchieved && <LuCheck className="text-brand-400 flex-shrink-0" />}
                     </div>
@@ -269,6 +272,8 @@ function FirstToAchieveCard({ definition, achieved, categoryInfo }: {
     categoryInfo?: Milestone_CategoryInfo
 }) {
     const isClaimed = !!achieved
+    const animeTheme = useAnimeThemeOrNull()
+    const name = animeTheme?.config.milestoneCategoryNames?.[definition.key] ?? definition.name
 
     return (
         <div className={cn(
@@ -289,7 +294,7 @@ function FirstToAchieveCard({ definition, achieved, categoryInfo }: {
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-[--foreground] truncate">
-                        {definition.name}
+                        {name}
                     </p>
                     <p className="text-xs text-[--muted] mt-0.5">
                         First to reach {definition.threshold.toLocaleString()} {(categoryInfo?.name || definition.category).toLowerCase()}

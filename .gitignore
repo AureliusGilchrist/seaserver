@@ -7,6 +7,8 @@ testdata/
 .vscode
 .cursor
 .DS_Store
+seanime-themes/*
+seanime-themes
 */.DS_Store
 node_modules/*
 
@@ -112,3 +114,4 @@ build-all-desktop-stats.json
 /.claude
 web/.gitkeep
 .gocache/
+seanime-themes

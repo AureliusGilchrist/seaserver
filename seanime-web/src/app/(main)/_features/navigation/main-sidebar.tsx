@@ -392,7 +392,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     const applyAnimeOverride = React.useCallback((item: any) => {
         const ov = animeConfig.sidebarOverrides[item.id]
         if (!ov) return item
-        return { ...item, iconType: ov.icon, name: ov.label }
+        return { ...item, iconType: ov.icon ?? item.iconType, name: ov.label ?? item.name }
     }, [animeConfig.sidebarOverrides])
 
     const allPinnedItems = React.useMemo(() => {

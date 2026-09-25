@@ -13,8 +13,10 @@ export interface MarketplaceThemeMeta {
     displayName: string
     description?: string
     milestoneNames: Record<number, string>
+    milestoneCategoryNames: Record<string, string>
     achievementNames: Record<string, string>
-    sidebarLabels: Record<string, string>
+    sidebarOverrides: Record<string, { icon?: string; label?: string }>
+    playerIconOverrides: Record<string, string>
     previewColors?: { bg: string; primary: string; secondary: string; accent: string }
     backgroundImageUrl?: string
     cssVars?: Record<string, string>
@@ -60,8 +62,10 @@ export async function fetchMarketplaceThemeMeta(themeId: string): Promise<Market
                 displayName?: string
                 description?: string
                 milestoneNames?: Record<string | number, string>
+                milestoneCategoryNames?: Record<string, string>
                 achievementNames?: Record<string, string>
-                sidebarOverrides?: Record<string, { label?: string }>
+                sidebarOverrides?: Record<string, { icon?: string; label?: string }>
+                playerIconOverrides?: Record<string, string>
                 previewColors?: { bg: string; primary: string; secondary: string; accent: string }
                 backgroundImageUrl?: string
                 cssVars?: Record<string, string>
@@ -75,19 +79,15 @@ export async function fetchMarketplaceThemeMeta(themeId: string): Promise<Market
                 milestoneNames[parseInt(k, 10)] = v
             }
 
-            // Extract just labels from sidebarOverrides
-            const sidebarLabels: Record<string, string> = {}
-            for (const [k, v] of Object.entries(raw.sidebarOverrides ?? {})) {
-                if (v?.label) sidebarLabels[k] = v.label
-            }
-
             const meta: MarketplaceThemeMeta = {
                 id: raw.id ?? themeId,
                 displayName: raw.displayName ?? themeId,
                 description: raw.description,
                 milestoneNames,
+                milestoneCategoryNames: raw.milestoneCategoryNames ?? {},
                 achievementNames: raw.achievementNames ?? {},
-                sidebarLabels,
+                sidebarOverrides: raw.sidebarOverrides ?? {},
+                playerIconOverrides: raw.playerIconOverrides ?? {},
                 previewColors: raw.previewColors,
                 backgroundImageUrl: raw.backgroundImageUrl,
                 cssVars: raw.cssVars,

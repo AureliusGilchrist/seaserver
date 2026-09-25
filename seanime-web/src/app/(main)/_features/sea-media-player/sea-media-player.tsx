@@ -29,8 +29,9 @@ import {
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { clientIdAtom } from "@/app/websocket-provider"
 import { LuffyError } from "@/components/shared/luffy-error"
-import { vidstackLayoutIcons } from "@/components/shared/vidstack"
+import { mergePlayerIcons } from "@/components/shared/vidstack"
 import { Button, IconButton } from "@/components/ui/button"
+import { useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 // import { Skeleton } from "@/components/ui/skeleton" // Temporarily removed for TypeScript compatibility
@@ -446,6 +447,12 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
         seekTo(aniSkipData?.ed?.interval?.endTime || 0)
     }
 
+    const animeTheme = useAnimeThemeOrNull()
+    const playerIcons = React.useMemo(
+        () => mergePlayerIcons(animeTheme?.config.playerIconOverrides),
+        [animeTheme?.config.playerIconOverrides],
+    )
+
     const cues = React.useMemo(() => {
         const introStart = aniSkipData?.op?.interval?.startTime ?? 0
         const introEnd = aniSkipData?.op?.interval?.endTime ?? 0
@@ -700,7 +707,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
                             </div>
                         </div>
                         <DefaultVideoLayout
-                            icons={vidstackLayoutIcons}
+                            icons={playerIcons}
                             slots={{
                                 ...videoLayoutSlots,
                                 beforeMuteButton: (

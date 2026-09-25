@@ -415,24 +415,27 @@ export type AnimeThemeId =
     | "cyberpunk-mom"
     | "custom"
 
+/** A themeable icon — matches react-icons' `IconType` and vidstack's `DefaultLayoutIcon` shape (function components only, no classes). */
+export type ThemeIconComponent = React.FC<{ className?: string }>
+
 export type SidebarItemOverride = {
-    icon: React.ComponentType<{ className?: string }>
-    label: string
+    icon?: ThemeIconComponent
+    label?: string
 }
 
 export type PlayerIconOverrides = {
-    play?: React.ComponentType<{ className?: string }>
-    pause?: React.ComponentType<{ className?: string }>
-    volumeHigh?: React.ComponentType<{ className?: string }>
-    volumeMid?: React.ComponentType<{ className?: string }>
-    volumeLow?: React.ComponentType<{ className?: string }>
-    volumeMuted?: React.ComponentType<{ className?: string }>
-    fullscreenEnter?: React.ComponentType<{ className?: string }>
-    fullscreenExit?: React.ComponentType<{ className?: string }>
-    skipForward?: React.ComponentType<{ className?: string }>
-    skipBack?: React.ComponentType<{ className?: string }>
-    pip?: React.ComponentType<{ className?: string }>
-    pipOff?: React.ComponentType<{ className?: string }>
+    play?: ThemeIconComponent
+    pause?: ThemeIconComponent
+    volumeHigh?: ThemeIconComponent
+    volumeMid?: ThemeIconComponent
+    volumeLow?: ThemeIconComponent
+    volumeMuted?: ThemeIconComponent
+    fullscreenEnter?: ThemeIconComponent
+    fullscreenExit?: ThemeIconComponent
+    skipForward?: ThemeIconComponent
+    skipBack?: ThemeIconComponent
+    pip?: ThemeIconComponent
+    pipOff?: ThemeIconComponent
 }
 
 export type ParticleTypeConfig = {
@@ -498,6 +501,8 @@ export type AnimeThemeConfig = {
      * Example: { 1: "Genin", 15: "Chunin", 30: "Jonin" }
      */
     milestoneNames?: Record<number, string>
+    /** Milestone-category definition key (e.g. "hours_watched_100", "episodes_watched_first") → themed display name */
+    milestoneCategoryNames?: Record<string, string>
 }
 
 export type HiddenThemeCondition = {

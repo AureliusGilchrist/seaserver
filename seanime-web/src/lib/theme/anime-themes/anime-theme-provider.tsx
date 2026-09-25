@@ -18,9 +18,10 @@ import {
 export const wallpaperPreviewModeAtom = atom(false)
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ANIME_THEMES, ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
-import type { AnimeThemeId, AnimeThemeConfig, ParticleTypeConfig } from "@/lib/theme/anime-themes"
+import type { AnimeThemeId, AnimeThemeConfig, ParticleTypeConfig, SidebarItemOverride, PlayerIconOverrides } from "@/lib/theme/anime-themes"
 import { ThemeAnimatedOverlay } from "@/lib/theme/anime-themes/animated-elements"
 import { buildThemeCursorCSS } from "@/lib/theme/anime-themes/cursor-svgs"
+import { resolveIcon } from "@/lib/theme/anime-themes/icon-registry"
 import { recordActivatedTheme } from "@/lib/theme/anime-themes/theme-prerequisites"
 import { fetchMarketplaceThemeMeta, getCachedMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 import { applyRootCssVars } from "@/lib/helpers/css"
@@ -187,6 +188,17 @@ const AnimeThemeContext = React.createContext<AnimeThemeContextValue | null>(nul
 
 /** Build a full AnimeThemeConfig from marketplace meta so the provider uses it like any bundled theme. */
 function buildConfigFromMeta(meta: import("@/lib/theme/marketplace-theme-loader").MarketplaceThemeMeta): AnimeThemeConfig {
+    const sidebarOverrides: Record<string, SidebarItemOverride> = {}
+    for (const [id, ov] of Object.entries(meta.sidebarOverrides ?? {})) {
+        sidebarOverrides[id] = { icon: resolveIcon(ov.icon), label: ov.label }
+    }
+
+    const playerIconOverrides: PlayerIconOverrides = {}
+    for (const [key, slug] of Object.entries(meta.playerIconOverrides ?? {})) {
+        const icon = resolveIcon(slug)
+        if (icon) (playerIconOverrides as Record<string, import("@/lib/theme/anime-themes/types").ThemeIconComponent>)[key] = icon
+    }
+
     return {
         id: meta.id as AnimeThemeId,
         displayName: meta.displayName,
@@ -194,11 +206,13 @@ function buildConfigFromMeta(meta: import("@/lib/theme/marketplace-theme-loader"
         cssVars: meta.cssVars ?? {},
         fontFamily: meta.fontFamily,
         fontHref: meta.fontHref,
-        sidebarOverrides: {},
+        sidebarOverrides,
         achievementNames: meta.achievementNames ?? {},
         musicUrl: `/theme-music/${meta.id}/opening.mp3`,
         previewColors: meta.previewColors ?? { primary: "#333", secondary: "#444", accent: "#555", bg: "#0a0a0a" },
         milestoneNames: meta.milestoneNames,
+        milestoneCategoryNames: meta.milestoneCategoryNames,
+        playerIconOverrides,
     }
 }
 
