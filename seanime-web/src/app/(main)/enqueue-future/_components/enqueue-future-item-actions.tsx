@@ -15,13 +15,6 @@ import { toast } from "sonner"
  * having: skipping is "not this time" and ignoring is "never suggest this again". Neither deletes
  * the row — that record is what keeps the entry from turning up again the next time a
  * recommendation chain passes through it.
- *
- * Strictly one entry at a time. Seasons of the same show are drawn together in the list, but that
- * is presentation: skipping season 1 says nothing about season 2, and acting on a whole franchise
- * at once is never what a button here does.
- *
- * The same component serves the list rows and the header so the two can never drift apart, and so
- * that acting on an entry never requires navigating to it first.
  */
 export function EnqueueFutureItemActions({ item, compact, onDone }: {
     item: EnqueueFuture_Item | undefined
@@ -38,6 +31,7 @@ export function EnqueueFutureItemActions({ item, compact, onDone }: {
     // Only for a badge that is stuck on "downloading" with nothing behind it — a "downloaded" or
     // "matched" badge means real files or a library entry exist, and this action never touches those.
     const isStuckDownloading = item?.downloadState === "downloading"
+    const isStuckDownloaded = item?.downloadState === "downloaded"
 
     function resetDownloadingState() {
         clearDownloadingState(undefined, {
@@ -57,9 +51,6 @@ export function EnqueueFutureItemActions({ item, compact, onDone }: {
         })
     }
 
-    // Ignoring is the one decision here that is meant to stick, so it asks first — and names the
-    // entry, because on a list of a hundred covers the wrong row is easy to hit, and seasons of the
-    // same show sit right next to each other.
     const ignoreConfirmation = useConfirmationDialog({
         title: "Ignore this entry?",
         description: `${title} will be removed from the queue and won't be suggested again, even if other anime keep recommending it. Only this entry — any other seasons stay in the queue, and nothing already downloaded is affected.`,
@@ -114,6 +105,18 @@ export function EnqueueFutureItemActions({ item, compact, onDone }: {
                                 Not actually downloading — clear this badge
                             </Tooltip>
                         )}
+                        {isStuckDownloaded && (
+                            <Tooltip trigger={<IconButton
+                                icon={<LuRotateCcw />}
+                                intent="gray-basic"
+                                size="sm"
+                                disabled={isClearing}
+                                onClick={resetDownloadingState}
+                                data-enqueue-future-reset-downloading-button
+                            />}>
+                                Not downloaded — clear this badge
+                            </Tooltip>
+                        )}
                     </>
                 ) : (
                     <>
@@ -149,6 +152,18 @@ export function EnqueueFutureItemActions({ item, compact, onDone }: {
                                 data-enqueue-future-reset-downloading-button
                             >
                                 Not downloading
+                            </Button>
+                        )}
+                        {isStuckDownloaded && (
+                            <Button
+                                intent="gray-outline"
+                                size="md"
+                                leftIcon={<LuRotateCcw />}
+                                disabled={isClearing}
+                                onClick={resetDownloadingState}
+                                data-enqueue-future-reset-downloading-button
+                            >
+                                Not downloaded
                             </Button>
                         )}
                     </>

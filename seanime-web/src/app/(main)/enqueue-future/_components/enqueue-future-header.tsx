@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { IconButton } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import React from "react"
-import { LuChevronLeft, LuChevronRight, LuExternalLink } from "react-icons/lu"
+import { LuChevronLeft, LuChevronRight, LuExternalLink, LuXCircle } from "react-icons/lu"
 
 /**
  * The bar you actually drive the queue from: where you are, what this one is, and Next.
@@ -17,6 +17,7 @@ import { LuChevronLeft, LuChevronRight, LuExternalLink } from "react-icons/lu"
  */
 export function EnqueueFutureHeader({
     item, index, total, onPrevious, onNext, isBusy, autoMatch, onAutoMatchChange,
+    clearStale, isClearing,
 }: {
     item: EnqueueFuture_Item | undefined
     index: number
@@ -27,6 +28,10 @@ export function EnqueueFutureHeader({
     /** This anime's own auto-match choice — see the note in the queue container. */
     autoMatch: boolean
     onAutoMatchChange: (value: boolean) => void
+    /** Callback to clear stale queue entries */
+    clearStale?: () => void
+    /** Whether the clear operation is in progress */
+    isClearing?: boolean
 }) {
 
     return (
@@ -78,7 +83,17 @@ export function EnqueueFutureHeader({
 
                 <div className="flex items-center gap-2 flex-none">
                     <EnqueueFutureItemActions item={item} />
-
+                    {/* NEW: Clear Stale button */}
+                    <IconButton
+                        icon={<LuXCircle />}
+                        intent="red-outline"
+                        size="md"
+                        onClick={clearStale}
+                        disabled={isClearing}
+                        data-enqueue-future-clear-stale-button
+                    >
+                        Clear Stale
+                    </IconButton>
                     <IconButton
                         icon={<LuChevronRight />}
                         intent="white"
