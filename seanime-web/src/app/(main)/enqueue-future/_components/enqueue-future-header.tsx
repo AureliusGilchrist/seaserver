@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { IconButton } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import React from "react"
-import { LuChevronLeft, LuChevronRight, LuExternalLink, LuXCircle } from "react-icons/lu"
+import { LuChevronLeft, LuChevronRight, LuExternalLink } from "react-icons/lu"
+import { BiXCircle } from "react-icons/bi"
 
 /**
  * The bar you actually drive the queue from: where you are, what this one is, and Next.
@@ -85,15 +86,14 @@ export function EnqueueFutureHeader({
                     <EnqueueFutureItemActions item={item} />
                     {/* NEW: Clear Stale button */}
                     <IconButton
-                        icon={<LuXCircle />}
-                        intent="red-outline"
+                        icon={<BiXCircle />}
+                        intent="alert-outline"
                         size="md"
                         onClick={clearStale}
                         disabled={isClearing}
-                        data-enqueue-future-clear-stale-button
+                        data-enqueue-future-clear-stale-button aria-label="Clear Stale"
                     >
-                        Clear Stale
-                    </IconButton>
+                                        </IconButton>
                     <IconButton
                         icon={<LuChevronRight />}
                         intent="white"
