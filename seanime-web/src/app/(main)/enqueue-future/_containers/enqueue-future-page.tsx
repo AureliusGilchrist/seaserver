@@ -31,7 +31,7 @@ export function EnqueueFuturePage() {
             return;
         }
         clearStuck(undefined, {
-            onSuccess: (cleared) => {
+            onSuccess: (cleared) => {          // accepts number | undefined
                 const count = cleared ?? 0;
                 toast.success(`Cleared ${count} stuck download${count === 1 ? "" : "s"}`);
                 refetchStuck();
