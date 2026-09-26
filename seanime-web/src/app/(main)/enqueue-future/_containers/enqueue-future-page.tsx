@@ -11,40 +11,33 @@ import { toast } from "sonner";
 import { EnqueueFuture_Item } from "@/api/generated/types";
 
 export function EnqueueFuturePage() {
-    /* 1️⃣ Queue data (array of items) */
     const { data: queue, isLoading, isError, error } = useGetEnqueueFutureQueue();
 
-    /* 2️⃣ Stuck‑download ids */
     const { data: stuckIds = [], refetch: refetchStuck } = useGetStuckDownloadingMediaIds();
     const { mutate: clearStuck, isPending: isClearingStuck } = useClearAllStuckDownloadingMediaState(stuckIds);
 
     const queryClient = useQueryClient();
 
-    /* 3️⃣ Selection state */
     const [activeMediaId, setActiveMediaId] = React.useState<number | undefined>(undefined);
     const handleSelect = (item: EnqueueFuture_Item) => setActiveMediaId(item.mediaId);
 
-    /* 4️⃣ Clear‑stale button logic */
     const clearStale = () => {
         if (!stuckIds.length) {
             toast.warning("No stuck downloads to clear");
             return;
         }
         clearStuck(undefined, {
-            onSuccess: (cleared) => {          // accepts number | undefined
-                const count = cleared ?? 0;
+            onSuccess: (cleared) => {          // <-- accept any type
+                const count = cleared ?? 0;   // handle possible undefined
                 toast.success(`Cleared ${count} stuck download${count === 1 ? "" : "s"}`);
                 refetchStuck();
-                // Re‑fetch the fresh queue
                 queryClient.invalidateQueries({ queryKey: ["/api/v1/enqueue-future/get-queue"] });
             },
         });
     };
 
-    /* 5️⃣ Build families for the list component */
     const families: EnqueueFutureFamily[] = queue ? queue.map(item => [item]) : [];
 
-    /* ---- UI ---- */
     if (isLoading) {
         return (
             <div className="p-4 sm:p-8 space-y-4">
