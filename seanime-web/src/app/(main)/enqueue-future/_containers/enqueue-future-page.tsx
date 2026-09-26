@@ -1,6 +1,6 @@
 "use client";
 
-import { useEnqueueFutureQueue } from "@/api/hooks/enqueue_future.hooks";
+import { useGetEnqueueFutureQueue } from "@/api/hooks/enqueue_future.hooks";
 import { EnqueueFutureList, familyDepths } from "@/app/(main)/enqueue-future/_components/enqueue-future-list";
 import { EnqueueFutureHeader } from "@/app/(main)/enqueue-future/_components/enqueue-future-header";
 import { useClearDownloadingMediaState, useGetStuckDownloadingMediaIds } from "@/api/hooks/torrent_client.hooks";
