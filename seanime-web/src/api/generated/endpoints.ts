@@ -3610,6 +3610,25 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route clears the stale "downloaded" state of every anime in the queue that has one.
+         *  The global form of HandleClearDownloadedMediaState: one press instead of one per anime,
+         *  and the form that reaches what the queue screen cannot show. Which ids are stale is not
+         *  judged from a list the caller sends — the server takes the whole population itself: every
+         *  anime that currently derives a "downloaded" badge, and every queue row still marked
+         *  "downloaded" by an older build, which the list view leaves out entirely (invisible, with no
+         *  row left to press anything on). Per anime, the same three places the single clear takes
+         *  down: the badge row, any staged-download records left behind, and the queue row moved back
+         *  to ready. A "downloading" badge and its staged record are never touched — a real download
+         *  running behind one keeps both — and a "matched" badge is never touched. Nothing here
+         *  removes a queue entry: a reinstated row keeps its snapshot and its place.
+         */
+        PurgeDownloadedMediaState: {
+            key: "TORRENT-CLIENT-purge-downloaded-media-state",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/torrent-client/purge-downloaded-media",
+        },
+        /**
+         *  @description
          *  Route performs an action on a torrent.
          *  This handler is used to pause, resume or remove a torrent.
          */

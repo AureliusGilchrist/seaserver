@@ -18,7 +18,7 @@ import { EnqueueFutureProgress } from "@/app/(main)/enqueue-future/_components/e
 import { TorrentSearchSnapshot } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-search"
 import { __torrentDownload_autoMatchAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 import { __torrentSearch_selectedTorrentsAtom, TorrentSearchContainer } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
-import { useClearAllDownloadedMediaState, useClearAllStuckDownloadingMediaState, useGetStuckDownloadingMediaIds } from "@/api/hooks/torrent_client.hooks"
+import { useClearAllDownloadedMediaState, useClearAllStuckDownloadingMediaState, useGetStuckDownloadingMediaIds, usePurgeDownloadedMediaState } from "@/api/hooks/torrent_client.hooks"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
 import { AppLayoutStack } from "@/components/ui/app-layout"
@@ -77,6 +77,13 @@ export function EnqueueFuturePage() {
         [queue],
     )
     const { mutate: clearAllDownloaded, isPending: isClearingDownloaded } = useClearAllDownloadedMediaState(downloadedIds)
+
+    // The global clear — one press instead of one per anime, and the form that reaches what the
+    // list cannot show: the server takes the whole population itself, including queue rows still
+    // marked "downloaded" by an older build, which the list view leaves out entirely. Those rows
+    // come back to ready, so they reappear here and are actionable again. No entry is ever removed,
+    // and a "downloading" badge and its staged record are never touched.
+    const { mutate: purgeDownloaded, isPending: isPurging } = usePurgeDownloadedMediaState()
 
     // The stale count and the button behind it cover both kinds: "downloading" badges the monitor
     // flagged, and "downloaded" badges the queue is showing. Each clear re-validates at write time,
@@ -352,31 +359,48 @@ export function EnqueueFuturePage() {
                     </div>
                 </div>
 
-                {!!queue?.length && (
-                    <div className="flex items-center gap-2">
-                        {staleCount > 0 && (
+                <div className="flex items-center gap-2">
+                    {/* The global clear is reachable whatever the queue shows: the stale rows it takes
+                        down include ones the list leaves out entirely — a queue row still marked
+                        "downloaded" by an older build is invisible to the screen — so a button that
+                        only rendered with a queue on display could never reach them. Nothing here
+                        removes an entry: hidden rows come back to ready and reappear. */}
+                    <Button
+                        intent="gray-outline"
+                        size="sm"
+                        leftIcon={<LuRotateCcw />}
+                        onClick={() => purgeDownloaded()}
+                        loading={isPurging}
+                        data-enqueue-future-purge-downloaded-button
+                    >
+                        Clear all downloaded
+                    </Button>
+                    {!!queue?.length && (
+                        <>
+                            {staleCount > 0 && (
+                                <Button
+                                    intent="gray-outline"
+                                    size="sm"
+                                    leftIcon={<LuRotateCcw />}
+                                    onClick={clearStaleAll}
+                                    loading={isClearingStale}
+                                    data-enqueue-future-clear-stuck-button
+                                >
+                                    {`Clear ${staleCount} stale download badge${staleCount > 1 ? "s" : ""}`}
+                                </Button>
+                            )}
                             <Button
-                                intent="gray-outline"
+                                intent="alert-subtle"
                                 size="sm"
-                                leftIcon={<LuRotateCcw />}
-                                onClick={clearStaleAll}
-                                loading={isClearingStale}
-                                data-enqueue-future-clear-stuck-button
+                                onClick={() => clearQueue()}
+                                loading={isClearing}
+                                data-enqueue-future-clear-button
                             >
-                                {`Clear ${staleCount} stale download badge${staleCount > 1 ? "s" : ""}`}
+                                Clear queue
                             </Button>
-                        )}
-                        <Button
-                            intent="alert-subtle"
-                            size="sm"
-                            onClick={() => clearQueue()}
-                            loading={isClearing}
-                            data-enqueue-future-clear-button
-                        >
-                            Clear queue
-                        </Button>
-                    </div>
-                )}
+                        </>
+                    )}
+                </div>
             </div>
 
             <EnqueueFutureProgress status={status} />

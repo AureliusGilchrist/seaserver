@@ -449,6 +449,34 @@ func (h *Handler) HandleClearAllDownloadedMediaState(c echo.Context) error {
 	return h.RespondWithData(c, cleared)
 }
 
+// HandlePurgeDownloadedMediaState
+//
+//	@summary clears the stale "downloaded" state of every anime in the queue that has one.
+//	@desc The global form of HandleClearDownloadedMediaState: one press instead of one per anime,
+//	@desc and the form that reaches what the queue screen cannot show. Which ids are stale is not
+//	@desc judged from a list the caller sends — the server takes the whole population itself: every
+//	@desc anime that currently derives a "downloaded" badge, and every queue row still marked
+//	@desc "downloaded" by an older build, which the list view leaves out entirely (invisible, with no
+//	@desc row left to press anything on). Per anime, the same three places the single clear takes
+//	@desc down: the badge row, any staged-download records left behind, and the queue row moved back
+//	@desc to ready. A "downloading" badge and its staged record are never touched — a real download
+//	@desc running behind one keeps both — and a "matched" badge is never touched. Nothing here
+//	@desc removes a queue entry: a reinstated row keeps its snapshot and its place.
+//	@route /api/v1/torrent-client/purge-downloaded-media [DELETE]
+//	@returns int
+func (h *Handler) HandlePurgeDownloadedMediaState(c echo.Context) error {
+	if h.App.EnqueueFutureRepository == nil {
+		return h.RespondWithData(c, 0)
+	}
+
+	changed, err := h.App.EnqueueFutureRepository.PurgeDownloadedStates()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	return h.RespondWithData(c, changed)
+}
+
 // HandleTorrentClientAction
 //
 //	@summary performs an action on a torrent.

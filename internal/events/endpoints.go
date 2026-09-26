@@ -319,6 +319,7 @@ const (
 	PreloadMediastreamMediaContainerEndpoint           = "MEDIASTREAM-preload-mediastream-media-container"
 	ProfileLoginEndpoint                               = "PROFILE-profile-login"
 	ProfileLogoutEndpoint                              = "PROFILE-profile-logout"
+	PurgeDownloadedMediaStateEndpoint                  = "TORRENT-CLIENT-purge-downloaded-media-state"
 	RefetchMangaChapterContainersEndpoint              = "MANGA-refetch-manga-chapter-containers"
 	RefreshAnimeEntryStatsEndpoint                     = "ANIME-ENTRY-REFRESH-refresh-anime-entry-stats"
 	RefreshLibraryExplorerFileTreeEndpoint             = "LIBRARY-EXPLORER-refresh-library-explorer-file-tree"

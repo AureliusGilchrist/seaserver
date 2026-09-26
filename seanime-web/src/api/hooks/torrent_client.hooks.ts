@@ -208,3 +208,34 @@ export function useClearAllDownloadedMediaState(mediaIds: number[]) {
         },
     })
 }
+
+/**
+ * The global form of the stale-"downloaded" clear: one press instead of one per anime, and the form
+ * that reaches what the queue screen cannot show — the server takes the whole population itself,
+ * including queue rows still marked "downloaded" by an older build, which the list view leaves out
+ * entirely. Those rows are moved back to ready, so they reappear in the queue and are actionable
+ * again; no queue entry is ever removed, and a "downloading" badge and its staged record are never
+ * touched. Which anime are stale is judged by the server, so this works even when the queue shows
+ * nothing at all.
+ *
+ * Invalidates the same surfaces the other clears do: the badge poll, the Enqueue Future queue, and
+ * the stuck list.
+ */
+export function usePurgeDownloadedMediaState() {
+    const queryClient = useQueryClient()
+
+    return useServerMutation<number>({
+        endpoint: API_ENDPOINTS.TORRENT_CLIENT.PurgeDownloadedMediaState.endpoint,
+        method: API_ENDPOINTS.TORRENT_CLIENT.PurgeDownloadedMediaState.methods[0],
+        mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.PurgeDownloadedMediaState.key],
+        onSuccess: async cleared => {
+            const n = cleared ?? 0
+            toast.success(
+                n > 0 ? `Cleared ${n} stale download state${n > 1 ? "s" : ""}` : "No stale downloads to clear",
+            )
+            await queryClient.invalidateQueries({ queryKey: DOWNLOADING_MEDIA_QUERY_KEY })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key] })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.TORRENT_CLIENT.GetStuckDownloadingMediaIds.key] })
+        },
+    })
+}

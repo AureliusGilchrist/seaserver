@@ -123,6 +123,77 @@ func (r *Repository) ReinstateItemFromDownloaded(mediaID int) (bool, error) {
 	return true, nil
 }
 
+// PurgeDownloadedStates takes down the stale "downloaded" state of every anime in the queue that has
+// one, and reports how many were changed.
+//
+// The global form of the stale-download hand-clear: one press instead of one press per anime. Per
+// anime, the same three places the single clear takes down — the badge row (only while it still
+// reads "downloaded"), the staged-download records left behind (they re-derive the badge on every
+// queue read, so leaving them would undo the clear), and a queue row still marked "downloaded" by an
+// older build, which the list view leaves out entirely and which is moved back to ready.
+//
+// A "downloading" badge is never touched and its staged record is never deleted — a real download
+// running behind it keeps both — and a "matched" badge is never touched. No queue entry is ever
+// removed: a reinstated row keeps its snapshot and its place.
+func (r *Repository) PurgeDownloadedStates() (int, error) {
+	if r.database == nil {
+		return 0, nil
+	}
+
+	// Every row, terminal ones included: the hidden "downloaded" rows are exactly the ones this has
+	// to reach, and they are left out of the list view the screen draws.
+	items, err := r.database.GetAllEnqueueFutureListItems()
+	if err != nil {
+		return 0, err
+	}
+
+	states := r.downloadStatesByMediaID()
+
+	changed := 0
+	for _, item := range items {
+		if item == nil || item.MediaID <= 0 {
+			continue
+		}
+		mediaID := item.MediaID
+		if states[mediaID] != db.AnimeDownloadStateDownloaded && item.Status != db.EnqueueFutureStatusDownloaded {
+			continue
+		}
+
+		// The badge row, guarded like the single clear: only while it still reads "downloaded".
+		if _, err := r.database.ClearAnimeDownloadStateIfDownloaded(mediaID); err != nil {
+			return changed, err
+		}
+
+		// The staged records — unless a real download is running behind a badge right now. Read at
+		// write time, since the badge could have moved since the states above were read: a download
+		// queued in between keeps its record.
+		state, err := r.database.GetAnimeDownloadState(mediaID)
+		if err != nil {
+			return changed, err
+		}
+		if state != db.AnimeDownloadStateDownloading {
+			if _, err := r.database.DeleteUnmatchedTorrentMetadataByAnimeID(mediaID); err != nil {
+				return changed, err
+			}
+		}
+
+		// And the queue row, back to ready so the entry can be acted on again.
+		if item.Status == db.EnqueueFutureStatusDownloaded {
+			if _, err := r.ReinstateItemFromDownloaded(mediaID); err != nil {
+				return changed, err
+			}
+		}
+
+		changed++
+	}
+
+	if changed > 0 {
+		r.logger.Info().Int("changed", changed).
+			Msg("enqueuefuture: Purged stale downloaded state across the whole queue")
+	}
+	return changed, nil
+}
+
 // DeleteItem removes one item from the queue.
 func (r *Repository) DeleteItem(mediaID int) error {
 	return r.database.DeleteEnqueueFutureItem(mediaID)
