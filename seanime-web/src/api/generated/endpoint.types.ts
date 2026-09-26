@@ -2789,6 +2789,31 @@ export type ClearDownloadingMediaState_Variables = {
 /**
  * - Filepath: internal/handlers/torrent_client.go
  * - Filename: torrent_client.go
+ * - Endpoint: /api/v1/torrent-client/downloaded-media/{mediaId}
+ * @description
+ * Route clears one anime's "downloaded" badge by hand.
+ */
+export type ClearDownloadedMediaState_Variables = {
+    /**
+     *  AniList ID of the anime to clear
+     */
+    mediaId: number
+}
+
+/**
+ * - Filepath: internal/handlers/torrent_client.go
+ * - Filename: torrent_client.go
+ * - Endpoint: /api/v1/torrent-client/downloaded-media
+ * @description
+ * Route clears every "downloaded" badge in the given list of media IDs.
+ */
+export type ClearAllDownloadedMediaState_Variables = {
+    mediaIds: Array<number>
+}
+
+/**
+ * - Filepath: internal/handlers/torrent_client.go
+ * - Filename: torrent_client.go
  * - Endpoint: /api/v1/torrent-client/action
  * @description
  * Route performs an action on a torrent.

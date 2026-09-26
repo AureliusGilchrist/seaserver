@@ -4382,6 +4382,28 @@
 //     })
 // }
 
+// export function useClearDownloadedMediaState(mediaId: number) {
+//     return useServerMutation<boolean>({
+//         endpoint: API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadedMediaState.endpoint.replace("{mediaId}", String(mediaId)),
+//         method: API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadedMediaState.methods[0],
+//         mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadedMediaState.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
+// export function useClearAllDownloadedMediaState() {
+//     return useServerMutation<number, ClearAllDownloadedMediaState_Variables>({
+//         endpoint: API_ENDPOINTS.TORRENT_CLIENT.ClearAllDownloadedMediaState.endpoint,
+//         method: API_ENDPOINTS.TORRENT_CLIENT.ClearAllDownloadedMediaState.methods[0],
+//         mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.ClearAllDownloadedMediaState.key],
+//         onSuccess: async () => {
+// 
+//         },
+//     })
+// }
+
 // export function useTorrentClientAction() {
 //     return useServerMutation<boolean, TorrentClientAction_Variables>({
 //         endpoint: API_ENDPOINTS.TORRENT_CLIENT.TorrentClientAction.endpoint,

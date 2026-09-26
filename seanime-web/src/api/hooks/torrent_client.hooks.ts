@@ -153,3 +153,54 @@ export function useClearAllStuckDownloadingMediaState(mediaIds: number[]) {
         },
     })
 }
+
+/**
+ * Takes down one anime's "downloaded" badge by hand — the mirror of useClearDownloadingMediaState,
+ * for a badge that is wrong the other way: stuck on "downloaded" with no files behind it. The
+ * server only acts while the badge still reads "downloaded"; a "downloading" or "matched" badge is
+ * left alone no matter what this is called with, and the Enqueue Future entry is never removed.
+ *
+ * Invalidates the same two surfaces the downloading-clear does: the library-wide badge poll, and
+ * the Enqueue Future queue, whose actionable check keys off the same recorded state.
+ */
+export function useClearDownloadedMediaState(mediaId: number | undefined) {
+    const queryClient = useQueryClient()
+    const { removeDownloadingAnime } = useDownloadingAnime()
+
+    return useServerMutation<boolean>({
+        endpoint: API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadedMediaState.endpoint.replace("{mediaId}", String(mediaId ?? 0)),
+        method: API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadedMediaState.methods[0],
+        mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.ClearDownloadedMediaState.key, String(mediaId)],
+        onSuccess: async cleared => {
+            if (cleared && mediaId) removeDownloadingAnime(mediaId)
+            await queryClient.invalidateQueries({ queryKey: DOWNLOADING_MEDIA_QUERY_KEY })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key] })
+        },
+    })
+}
+
+/**
+ * Bulk form of useClearDownloadedMediaState, for Enqueue Future's bulk clear of stale "downloaded"
+ * entries. Takes the ids the queue currently shows as downloaded — the server cannot tell a stale
+ * badge from a real one, so which ids are stale is judged by the person calling this — and the
+ * server re-validates every one of them at write time with the state check anyway, so a stale list
+ * here costs at most a skipped id, never a wrongly cleared one.
+ */
+export function useClearAllDownloadedMediaState(mediaIds: number[]) {
+    const queryClient = useQueryClient()
+    const { removeDownloadingAnime } = useDownloadingAnime()
+
+    return useServerMutation<number>({
+        endpoint: API_ENDPOINTS.TORRENT_CLIENT.ClearAllDownloadedMediaState.endpoint,
+        method: API_ENDPOINTS.TORRENT_CLIENT.ClearAllDownloadedMediaState.methods[0],
+        mutationKey: [API_ENDPOINTS.TORRENT_CLIENT.ClearAllDownloadedMediaState.key],
+        onSuccess: async cleared => {
+            const n = cleared ?? 0
+            for (const mediaId of mediaIds) removeDownloadingAnime(mediaId)
+            toast.success(n > 0 ? `Cleared ${n} stale download badge${n > 1 ? "s" : ""}` : "No stale download badges to clear")
+            await queryClient.invalidateQueries({ queryKey: DOWNLOADING_MEDIA_QUERY_KEY })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.ENQUEUE_FUTURE.GetEnqueueFutureQueue.key] })
+            await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.TORRENT_CLIENT.GetStuckDownloadingMediaIds.key] })
+        },
+    })
+}

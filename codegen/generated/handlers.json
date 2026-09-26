@@ -18736,6 +18736,111 @@
     }
   },
   {
+    "name": "HandleClearDownloadedMediaState",
+    "trimmedName": "ClearDownloadedMediaState",
+    "comments": [
+      "HandleClearDownloadedMediaState",
+      "",
+      "\t@summary clears one anime's \"downloaded\" badge by hand.",
+      "\t@desc For a badge stuck on \"downloaded\" that is wrong — files that never arrived, or a download",
+      "\t@desc that failed after the badge was written. The mirror of HandleClearDownloadingMediaState,",
+      "\t@desc which deliberately leaves \"downloaded\" badges alone because it cannot tell a real one from",
+      "\t@desc a stale one; only a person can, which is why this is a hand-clear with the same",
+      "\t@desc never-called-by-anything-but-a-person rule. Only takes effect while the badge still reads",
+      "\t@desc \"downloaded\"; a \"downloading\" or \"matched\" badge is left alone. Never removes an Enqueue",
+      "\t@desc Future entry — the queue row is untouched and the anime is simply usable again.",
+      "\t@param mediaId - int - true - \"AniList ID of the anime to clear\"",
+      "\t@route /api/v1/torrent-client/downloaded-media/{mediaId} [DELETE]",
+      "\t@returns bool",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "api": {
+      "summary": "clears one anime's \"downloaded\" badge by hand.",
+      "descriptions": [
+        "For a badge stuck on \"downloaded\" that is wrong — files that never arrived, or a download",
+        "that failed after the badge was written. The mirror of HandleClearDownloadingMediaState,",
+        "which deliberately leaves \"downloaded\" badges alone because it cannot tell a real one from",
+        "a stale one; only a person can, which is why this is a hand-clear with the same",
+        "never-called-by-anything-but-a-person rule. Only takes effect while the badge still reads",
+        "\"downloaded\"; a \"downloading\" or \"matched\" badge is left alone. Never removes an Enqueue",
+        "Future entry — the queue row is untouched and the anime is simply usable again."
+      ],
+      "endpoint": "/api/v1/torrent-client/downloaded-media/{mediaId}",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "jsonName": "mediaId",
+          "goType": "int",
+          "usedStructType": "",
+          "typescriptType": "number",
+          "required": true,
+          "descriptions": [
+            "AniList ID of the anime to clear"
+          ]
+        }
+      ],
+      "bodyFields": [],
+      "returns": "bool",
+      "returnGoType": "bool",
+      "returnTypescriptType": "boolean"
+    }
+  },
+  {
+    "name": "HandleClearAllDownloadedMediaState",
+    "trimmedName": "ClearAllDownloadedMediaState",
+    "comments": [
+      "HandleClearAllDownloadedMediaState",
+      "",
+      "\t@summary clears every \"downloaded\" badge in the given list of media IDs.",
+      "\t@desc Bulk form of HandleClearDownloadedMediaState, for the Enqueue Future page's bulk clear.",
+      "\t@desc Takes the list from the caller — the server cannot tell a stale \"downloaded\" badge from a",
+      "\t@desc real one (files staged and waiting to be matched is exactly what a real one looks like), so",
+      "\t@desc which ids are stale is judged by the person sending the list — and re-validates each id at",
+      "\t@desc write time with the same state check the single-item clear uses, so a stale or wrong list",
+      "\t@desc costs at most a skipped id, never a wrongly cleared one.",
+      "\t@route /api/v1/torrent-client/downloaded-media [DELETE]",
+      "\t@returns int",
+      ""
+    ],
+    "filepath": "internal/handlers/torrent_client.go",
+    "filename": "torrent_client.go",
+    "api": {
+      "summary": "clears every \"downloaded\" badge in the given list of media IDs.",
+      "descriptions": [
+        "Bulk form of HandleClearDownloadedMediaState, for the Enqueue Future page's bulk clear.",
+        "Takes the list from the caller — the server cannot tell a stale \"downloaded\" badge from a",
+        "real one (files staged and waiting to be matched is exactly what a real one looks like), so",
+        "which ids are stale is judged by the person sending the list — and re-validates each id at",
+        "write time with the same state check the single-item clear uses, so a stale or wrong list",
+        "costs at most a skipped id, never a wrongly cleared one."
+      ],
+      "endpoint": "/api/v1/torrent-client/downloaded-media",
+      "methods": [
+        "DELETE"
+      ],
+      "params": [],
+      "bodyFields": [
+        {
+          "name": "MediaIds",
+          "jsonName": "mediaIds",
+          "goType": "[]int",
+          "usedStructType": "",
+          "typescriptType": "Array\u003cnumber\u003e",
+          "required": true,
+          "descriptions": []
+        }
+      ],
+      "returns": "int",
+      "returnGoType": "int",
+      "returnTypescriptType": "number"
+    }
+  },
+  {
     "name": "HandleTorrentClientAction",
     "trimmedName": "TorrentClientAction",
     "comments": [

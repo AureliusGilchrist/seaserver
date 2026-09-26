@@ -3575,6 +3575,37 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
+         *  Route clears one anime's "downloaded" badge by hand.
+         *  For a badge stuck on "downloaded" that is wrong — files that never arrived, or a download
+         *  that failed after the badge was written. The mirror of HandleClearDownloadingMediaState,
+         *  which deliberately leaves "downloaded" badges alone because it cannot tell a real one from
+         *  a stale one; only a person can, which is why this is a hand-clear with the same
+         *  never-called-by-anything-but-a-person rule. Only takes effect while the badge still reads
+         *  "downloaded"; a "downloading" or "matched" badge is left alone. Never removes an Enqueue
+         *  Future entry — the queue row is untouched and the anime is simply usable again.
+         */
+        ClearDownloadedMediaState: {
+            key: "TORRENT-CLIENT-clear-downloaded-media-state",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/torrent-client/downloaded-media/{mediaId}",
+        },
+        /**
+         *  @description
+         *  Route clears every "downloaded" badge in the given list of media IDs.
+         *  Bulk form of HandleClearDownloadedMediaState, for the Enqueue Future page's bulk clear.
+         *  Takes the list from the caller — the server cannot tell a stale "downloaded" badge from a
+         *  real one (files staged and waiting to be matched is exactly what a real one looks like), so
+         *  which ids are stale is judged by the person sending the list — and re-validates each id at
+         *  write time with the same state check the single-item clear uses, so a stale or wrong list
+         *  costs at most a skipped id, never a wrongly cleared one.
+         */
+        ClearAllDownloadedMediaState: {
+            key: "TORRENT-CLIENT-clear-all-downloaded-media-state",
+            methods: ["DELETE"],
+            endpoint: "/api/v1/torrent-client/downloaded-media",
+        },
+        /**
+         *  @description
          *  Route performs an action on a torrent.
          *  This handler is used to pause, resume or remove a torrent.
          */

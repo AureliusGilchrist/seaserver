@@ -1,6 +1,6 @@
 import { EnqueueFuture_Item } from "@/api/generated/types"
 import { ENQUEUE_FUTURE_STATUS, useSetEnqueueFutureItemStatus } from "@/api/hooks/enqueue_future.hooks"
-import { useClearDownloadingMediaState } from "@/api/hooks/torrent_client.hooks"
+import { useClearDownloadedMediaState, useClearDownloadingMediaState } from "@/api/hooks/torrent_client.hooks"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { Button, IconButton } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
@@ -25,6 +25,7 @@ export function EnqueueFutureItemActions({ item, compact, onDone }: {
 
     const { mutate: setStatus, isPending } = useSetEnqueueFutureItemStatus(item?.mediaId)
     const { mutate: clearDownloadingState, isPending: isClearing } = useClearDownloadingMediaState(item?.mediaId)
+    const { mutate: clearDownloadedState, isPending: isClearingDownloaded } = useClearDownloadedMediaState(item?.mediaId)
 
     const title = item?.title || "This entry"
 
@@ -37,6 +38,17 @@ export function EnqueueFutureItemActions({ item, compact, onDone }: {
         clearDownloadingState(undefined, {
             onSuccess: cleared => {
                 if (cleared) toast.success(`${title} is no longer marked as downloading`)
+            },
+        })
+    }
+
+    // Mirror of resetDownloadingState, for a badge stuck on "downloaded" — calls the downloaded
+    // guard rather than the downloading one, so it only takes down a badge that still reads
+    // "downloaded" and leaves a real download or library entry alone.
+    function resetDownloadedState() {
+        clearDownloadedState(undefined, {
+            onSuccess: cleared => {
+                if (cleared) toast.success(`${title} is no longer marked as downloaded`)
             },
         })
     }
@@ -110,9 +122,9 @@ export function EnqueueFutureItemActions({ item, compact, onDone }: {
                                 icon={<LuRotateCcw />}
                                 intent="gray-basic"
                                 size="sm"
-                                disabled={isClearing}
-                                onClick={resetDownloadingState}
-                                data-enqueue-future-reset-downloading-button
+                                disabled={isClearingDownloaded}
+                                onClick={resetDownloadedState}
+                                data-enqueue-future-reset-downloaded-button
                             />}>
                                 Not downloaded — clear this badge
                             </Tooltip>
@@ -159,9 +171,9 @@ export function EnqueueFutureItemActions({ item, compact, onDone }: {
                                 intent="gray-outline"
                                 size="md"
                                 leftIcon={<LuRotateCcw />}
-                                disabled={isClearing}
-                                onClick={resetDownloadingState}
-                                data-enqueue-future-reset-downloading-button
+                                disabled={isClearingDownloaded}
+                                onClick={resetDownloadedState}
+                                data-enqueue-future-reset-downloaded-button
                             >
                                 Not downloaded
                             </Button>

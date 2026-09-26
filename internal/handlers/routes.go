@@ -598,6 +598,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.DELETE("/torrent-client/downloading-media/:mediaId", h.HandleClearDownloadingMediaState)
 	v1.GET("/torrent-client/stuck-downloading-media", h.HandleGetStuckDownloadingMediaIds)
 	v1.DELETE("/torrent-client/stuck-downloading-media", h.HandleClearAllStuckDownloadingMediaState)
+	v1.DELETE("/torrent-client/downloaded-media/:mediaId", h.HandleClearDownloadedMediaState)
+	v1.DELETE("/torrent-client/downloaded-media", h.HandleClearAllDownloadedMediaState)
 	v1.POST("/torrent-client/action", h.HandleTorrentClientAction)
 	v1.POST("/torrent-client/get-files", h.HandleTorrentClientGetFiles)
 	v1.POST("/torrent-client/rule-magnet", h.HandleTorrentClientAddMagnetFromRule)

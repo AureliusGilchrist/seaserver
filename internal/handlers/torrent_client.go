@@ -355,6 +355,76 @@ func (h *Handler) HandleClearAllStuckDownloadingMediaState(c echo.Context) error
 	return h.RespondWithData(c, cleared)
 }
 
+// HandleClearDownloadedMediaState
+//
+//	@summary clears one anime's "downloaded" badge by hand.
+//	@desc For a badge stuck on "downloaded" that is wrong — files that never arrived, or a download
+//	@desc that failed after the badge was written. The mirror of HandleClearDownloadingMediaState,
+//	@desc which deliberately leaves "downloaded" badges alone because it cannot tell a real one from
+//	@desc a stale one; only a person can, which is why this is a hand-clear with the same
+//	@desc never-called-by-anything-but-a-person rule. Only takes effect while the badge still reads
+//	@desc "downloaded"; a "downloading" or "matched" badge is left alone. Never removes an Enqueue
+//	@desc Future entry — the queue row is untouched and the anime is simply usable again.
+//	@param mediaId - int - true - "AniList ID of the anime to clear"
+//	@route /api/v1/torrent-client/downloaded-media/{mediaId} [DELETE]
+//	@returns bool
+func (h *Handler) HandleClearDownloadedMediaState(c echo.Context) error {
+	mediaID, err := strconv.Atoi(c.Param("mediaId"))
+	if err != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "invalid media id"))
+	}
+
+	if h.App.UnmatchedRepository == nil {
+		return h.RespondWithError(c, echo.NewHTTPError(500, "not available"))
+	}
+
+	cleared, err := h.App.UnmatchedRepository.ClearAnimeDownloadStateIfDownloaded(mediaID)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+
+	return h.RespondWithData(c, cleared)
+}
+
+// HandleClearAllDownloadedMediaState
+//
+//	@summary clears every "downloaded" badge in the given list of media IDs.
+//	@desc Bulk form of HandleClearDownloadedMediaState, for the Enqueue Future page's bulk clear.
+//	@desc Takes the list from the caller — the server cannot tell a stale "downloaded" badge from a
+//	@desc real one (files staged and waiting to be matched is exactly what a real one looks like), so
+//	@desc which ids are stale is judged by the person sending the list — and re-validates each id at
+//	@desc write time with the same state check the single-item clear uses, so a stale or wrong list
+//	@desc costs at most a skipped id, never a wrongly cleared one.
+//	@route /api/v1/torrent-client/downloaded-media [DELETE]
+//	@returns int
+func (h *Handler) HandleClearAllDownloadedMediaState(c echo.Context) error {
+	if h.App.UnmatchedRepository == nil {
+		return h.RespondWithData(c, 0)
+	}
+
+	type body struct {
+		MediaIds []int `json:"mediaIds"`
+	}
+
+	var b body
+	if err := c.Bind(&b); err != nil {
+		return h.RespondWithError(c, echo.NewHTTPError(400, "invalid body"))
+	}
+
+	cleared := 0
+	for _, mediaID := range b.MediaIds {
+		ok, err := h.App.UnmatchedRepository.ClearAnimeDownloadStateIfDownloaded(mediaID)
+		if err != nil {
+			continue
+		}
+		if ok {
+			cleared++
+		}
+	}
+
+	return h.RespondWithData(c, cleared)
+}
+
 // HandleTorrentClientAction
 //
 //	@summary performs an action on a torrent.

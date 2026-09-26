@@ -94,6 +94,28 @@ func (r *Repository) ClearAnimeDownloadStateIfDownloading(mediaID int) (bool, er
 	return cleared, nil
 }
 
+// ClearAnimeDownloadStateIfDownloaded takes down an anime's badge, but only while it reads
+// "downloaded" — the mirror of ClearAnimeDownloadStateIfDownloading, for a badge that is wrong the
+// other way: stuck on "downloaded" with no files behind it. Never called automatically — always by
+// a person saying, about one anime, that the badge is wrong.
+//
+// Reports its error, like ClearAnimeDownloadStateIfDownloading: it backs a direct user action that
+// needs a real answer, not a write happening as a side effect of something else.
+func (r *Repository) ClearAnimeDownloadStateIfDownloaded(mediaID int) (bool, error) {
+	if r.database == nil || mediaID <= 0 {
+		return false, nil
+	}
+	cleared, err := r.database.ClearAnimeDownloadStateIfDownloaded(mediaID)
+	if err != nil {
+		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("unmatched: Could not clear downloaded badge")
+		return false, err
+	}
+	if cleared {
+		r.logger.Info().Int("mediaId", mediaID).Msg("unmatched: Downloaded badge cleared by hand")
+	}
+	return cleared, nil
+}
+
 func (r *Repository) setAnimeDownloadState(mediaID int, state string) {
 	if r.database == nil || mediaID <= 0 {
 		return

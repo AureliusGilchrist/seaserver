@@ -132,3 +132,26 @@ func (db *Database) ClearAnimeDownloadStateIfDownloading(mediaID int) (bool, err
 	}
 	return res.RowsAffected > 0, nil
 }
+
+// ClearAnimeDownloadStateIfDownloaded removes an anime's badge, but only while it still reads
+// "downloaded" — the mirror of ClearAnimeDownloadStateIfDownloading above, for the stale case that
+// one deliberately does not solve: a badge stuck on "downloaded" that is wrong — files that never
+// arrived, or a download that failed after the badge was written.
+//
+// The guard is the same protection in mirror form: a "downloading" badge is never touched (a real
+// download may be running behind it, and removing its badge would lose its "downloaded" moment), and
+// a "matched" badge is never touched (the anime is in the library). Reports whether it actually
+// cleared anything.
+func (db *Database) ClearAnimeDownloadStateIfDownloaded(mediaID int) (bool, error) {
+	if mediaID <= 0 {
+		return false, nil
+	}
+
+	res := db.gormdb.
+		Where("media_id = ? AND state = ?", mediaID, AnimeDownloadStateDownloaded).
+		Delete(&models.AnimeDownloadState{})
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
+}

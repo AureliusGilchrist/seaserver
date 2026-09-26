@@ -18,7 +18,7 @@ import { EnqueueFutureProgress } from "@/app/(main)/enqueue-future/_components/e
 import { TorrentSearchSnapshot } from "@/app/(main)/entry/_containers/torrent-search/_lib/handle-torrent-search"
 import { __torrentDownload_autoMatchAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-download-auto-match"
 import { __torrentSearch_selectedTorrentsAtom, TorrentSearchContainer } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
-import { useClearAllStuckDownloadingMediaState, useGetStuckDownloadingMediaIds } from "@/api/hooks/torrent_client.hooks"
+import { useClearAllDownloadedMediaState, useClearAllStuckDownloadingMediaState, useGetStuckDownloadingMediaIds } from "@/api/hooks/torrent_client.hooks"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
 import { AppLayoutStack } from "@/components/ui/app-layout"
@@ -66,6 +66,27 @@ export function EnqueueFuturePage() {
     // slowly since the server itself only recomputes this every few minutes.
     const { data: stuckIds } = useGetStuckDownloadingMediaIds()
     const { mutate: clearAllStuck, isPending: isClearingStuck } = useClearAllStuckDownloadingMediaState(stuckIds ?? [])
+
+    // The queue-visible "downloaded" entries — the other kind of stale: a badge stuck on
+    // "downloaded" with no files behind it. The server cannot tell a real one from a stale one
+    // (files staged and waiting to be matched is exactly what a real one looks like), so which ids
+    // are stale is judged here, by the person looking at the queue, and the server re-validates
+    // every id at write time with the state check anyway.
+    const downloadedIds = React.useMemo(
+        () => (queue ?? []).filter(item => item.downloadState === "downloaded").map(item => item.mediaId),
+        [queue],
+    )
+    const { mutate: clearAllDownloaded, isPending: isClearingDownloaded } = useClearAllDownloadedMediaState(downloadedIds)
+
+    // The stale count and the button behind it cover both kinds: "downloading" badges the monitor
+    // flagged, and "downloaded" badges the queue is showing. Each clear re-validates at write time,
+    // so a badge that moved between poll and click is skipped rather than wrongly cleared.
+    const staleCount = (stuckIds?.length ?? 0) + downloadedIds.length
+    const isClearingStale = isClearingStuck || isClearingDownloaded
+    function clearStaleAll() {
+        if ((stuckIds?.length ?? 0) > 0) clearAllStuck()
+        if (downloadedIds.length > 0) clearAllDownloaded()
+    }
 
     // Only what you have not dealt with. Downloaded and skipped items stay in the database — that
     // record is what stops them being rediscovered — but walking back through them is not the job.
@@ -333,16 +354,16 @@ export function EnqueueFuturePage() {
 
                 {!!queue?.length && (
                     <div className="flex items-center gap-2">
-                        {!!stuckIds?.length && (
+                        {staleCount > 0 && (
                             <Button
                                 intent="gray-outline"
                                 size="sm"
                                 leftIcon={<LuRotateCcw />}
-                                onClick={() => clearAllStuck()}
-                                loading={isClearingStuck}
+                                onClick={clearStaleAll}
+                                loading={isClearingStale}
                                 data-enqueue-future-clear-stuck-button
                             >
-                                {`Clear ${stuckIds.length} stuck download${stuckIds.length > 1 ? "s" : ""}`}
+                                {`Clear ${staleCount} stale download badge${staleCount > 1 ? "s" : ""}`}
                             </Button>
                         )}
                         <Button
@@ -451,8 +472,8 @@ export function EnqueueFuturePage() {
                             onNext={() => goTo(index + 1)}
                             autoMatch={activeAutoMatch}
                             onAutoMatchChange={setActiveAutoMatch}
-                            clearStale={() => clearAllStuck()}
-                            isClearing={isClearingStuck}
+                            clearStale={clearStaleAll}
+                            isClearing={isClearingStale}
                         />
 
                         <ActiveItemBody
