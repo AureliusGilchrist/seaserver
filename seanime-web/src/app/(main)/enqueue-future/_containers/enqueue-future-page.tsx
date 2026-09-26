@@ -1,39 +1,50 @@
 "use client";
 
 import { useGetEnqueueFutureQueue } from "@/api/hooks/enqueue_future.hooks";
-import { EnqueueFutureList, familyDepths } from "@/app/(main)/enqueue-future/_components/enqueue-future-list";
+import { EnqueueFutureList, EnqueueFutureFamily } from "@/app/(main)/enqueue-future/_components/enqueue-future-list";
 import { EnqueueFutureHeader } from "@/app/(main)/enqueue-future/_components/enqueue-future-header";
-import { useClearDownloadingMediaState, useGetStuckDownloadingMediaIds } from "@/api/hooks/torrent_client.hooks";
+import { useClearAllStuckDownloadingMediaState, useGetStuckDownloadingMediaIds } from "@/api/hooks/torrent_client.hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import React from "react";
 import { LuRefreshCcw } from "react-icons/lu";
 import { toast } from "sonner";
+import { EnqueueFuture_Item } from "@/api/generated/types";
 
 export function EnqueueFuturePage() {
-    const { data: queue, isLoading, isError, error } = useEnqueueFutureQueue();
-    const { data: stuckIds = [] } = useGetStuckDownloadingMediaIds();
+    /* 1️⃣ Queue data (array of items) */
+    const { data: queue, isLoading, isError, error } = useGetEnqueueFutureQueue();
+
+    /* 2️⃣ Stuck‑download ids */
+    const { data: stuckIds = [], refetch: refetchStuck } = useGetStuckDownloadingMediaIds();
+    const { mutate: clearStuck, isPending: isClearingStuck } = useClearAllStuckDownloadingMediaState(stuckIds);
+
     const queryClient = useQueryClient();
 
+    /* 3️⃣ Selection state */
     const [activeMediaId, setActiveMediaId] = React.useState<number | undefined>(undefined);
+    const handleSelect = (item: EnqueueFuture_Item) => setActiveMediaId(item.mediaId);
 
-    const handleSelect = (mediaId: number) => {
-        setActiveMediaId(mediaId);
-    };
-
-    const [mediaId, setMediaId] = React.useState<number | undefined>(undefined);
-    const { mutate: clearDownloadingState } = useClearDownloadingMediaState(mediaId);
-
+    /* 4️⃣ Clear‑stale button logic */
     const clearStale = () => {
         if (!stuckIds.length) {
             toast.warning("No stuck downloads to clear");
             return;
         }
-        stuckIds.forEach(id => clearDownloadingState(id));
-        toast.success(`Cleared ${stuckIds.length} stuck download${stuckIds.length > 1 ? "s" : ""}`);
-        queryClient.invalidateQueries({ queryKey: ["enqueue-future"] });
-        queryClient.invalidateQueries({ queryKey: ["stuck-downloading-ids"] });
+        clearStuck(undefined, {
+            onSuccess: (cleared) => {
+                const count = cleared ?? 0;
+                toast.success(`Cleared ${count} stuck download${count === 1 ? "" : "s"}`);
+                refetchStuck();
+                // Re‑fetch the fresh queue
+                queryClient.invalidateQueries({ queryKey: ["/api/v1/enqueue-future/get-queue"] });
+            },
+        });
     };
 
+    /* 5️⃣ Build families for the list component */
+    const families: EnqueueFutureFamily[] = queue ? queue.map(item => [item]) : [];
+
+    /* ---- UI ---- */
     if (isLoading) {
         return (
             <div className="p-4 sm:p-8 space-y-4">
@@ -52,25 +63,23 @@ export function EnqueueFuturePage() {
                 <div className="flex items-center gap-3">
                     <h2 className="text-2xl font-bold">Enqueue Future</h2>
                 </div>
-                <p className="text-amber-400">{error?.message || "Failed to load queue"}</p>
+                <p className="text-amber-400">{error?.message ?? "Failed to load queue"}</p>
             </div>
         );
     }
 
-    const families = queue?.items ? [queue.items] : [];
-
     return (
         <>
             <EnqueueFutureHeader
-                item={queue?.items?.[0]}
+                item={queue?.[0]}
                 index={0}
-                total={queue?.items?.length ?? 0}
+                total={queue?.length ?? 0}
                 onPrevious={() => {}}
                 onNext={() => {}}
                 autoMatch={false}
                 onAutoMatchChange={() => {}}
                 clearStale={clearStale}
-                isClearing={false}
+                isClearing={isClearingStuck}
             />
             <EnqueueFutureList
                 families={families}
