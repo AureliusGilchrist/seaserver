@@ -155,10 +155,13 @@ export function useClearAllStuckDownloadingMediaState(mediaIds: number[]) {
 }
 
 /**
- * Takes down one anime's "downloaded" badge by hand — the mirror of useClearDownloadingMediaState,
- * for a badge that is wrong the other way: stuck on "downloaded" with no files behind it. The
- * server only acts while the badge still reads "downloaded"; a "downloading" or "matched" badge is
- * left alone no matter what this is called with, and the Enqueue Future entry is never removed.
+ * Takes down one anime's stale "downloaded" state — the mirror of useClearDownloadingMediaState,
+ * for an entry that is wrong the other way: stuck on "downloaded" with no files behind it. The
+ * server takes the state down in all three places it lives — the badge row, any staged-download
+ * records left behind (they re-derive the badge on every queue read, so leaving them would undo the
+ * clear), and a queue row still marked "downloaded" by an older build, which is invisible to the
+ * queue screen and is moved back to ready. A "downloading" or "matched" badge is left alone no
+ * matter what this is called with, and no queue entry is ever removed.
  *
  * Invalidates the same two surfaces the downloading-clear does: the library-wide badge poll, and
  * the Enqueue Future queue, whose actionable check keys off the same recorded state.
@@ -184,7 +187,8 @@ export function useClearDownloadedMediaState(mediaId: number | undefined) {
  * entries. Takes the ids the queue currently shows as downloaded — the server cannot tell a stale
  * badge from a real one, so which ids are stale is judged by the person calling this — and the
  * server re-validates every one of them at write time with the state check anyway, so a stale list
- * here costs at most a skipped id, never a wrongly cleared one.
+ * here costs at most a skipped id, never a wrongly cleared one. Per id the server also takes down
+ * the staged-download records and reinstates a queue row still marked "downloaded".
  */
 export function useClearAllDownloadedMediaState(mediaIds: number[]) {
     const queryClient = useQueryClient()

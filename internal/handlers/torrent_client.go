@@ -357,14 +357,16 @@ func (h *Handler) HandleClearAllStuckDownloadingMediaState(c echo.Context) error
 
 // HandleClearDownloadedMediaState
 //
-//	@summary clears one anime's "downloaded" badge by hand.
-//	@desc For a badge stuck on "downloaded" that is wrong — files that never arrived, or a download
-//	@desc that failed after the badge was written. The mirror of HandleClearDownloadingMediaState,
-//	@desc which deliberately leaves "downloaded" badges alone because it cannot tell a real one from
-//	@desc a stale one; only a person can, which is why this is a hand-clear with the same
-//	@desc never-called-by-anything-but-a-person rule. Only takes effect while the badge still reads
-//	@desc "downloaded"; a "downloading" or "matched" badge is left alone. Never removes an Enqueue
-//	@desc Future entry — the queue row is untouched and the anime is simply usable again.
+//	@summary clears one anime's stale "downloaded" state so it can be downloaded again.
+//	@desc For an entry stuck on "downloaded" that is wrong — files that never arrived, or a download
+//	@desc that failed after the badge was written. The stale state lives in three places and this
+//	@desc takes down all of them, each a no-op when it does not apply: the badge row (only while it
+//	@desc still reads "downloaded"), any staged-download records left behind (they are what re-derive
+//	@desc the badge on every queue read, so leaving them would undo the clear), and a queue row still
+//	@desc marked "downloaded" by an older build, which is invisible to the queue screen and is moved
+//	@desc back to ready. A "downloading" or "matched" badge is left alone, and nothing here removes a
+//	@desc queue entry — a reinstated row keeps its snapshot and its place. Never called by anything
+//	@desc but a person choosing to, on one anime at a time.
 //	@param mediaId - int - true - "AniList ID of the anime to clear"
 //	@route /api/v1/torrent-client/downloaded-media/{mediaId} [DELETE]
 //	@returns bool
@@ -383,18 +385,32 @@ func (h *Handler) HandleClearDownloadedMediaState(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	// The rest of the un-block, best-effort: the badge row is only one of the places the stale state
+	// lives. A failure in either of these is reported through the logs, not the response — the badge
+	// clear above is the answer the caller is owed, and it stands on its own.
+	if deleted, err := h.App.UnmatchedRepository.ClearStagedDownloadsForAnime(mediaID); err == nil && deleted > 0 {
+		cleared = true
+	}
+	if h.App.EnqueueFutureRepository != nil {
+		if reinstated, err := h.App.EnqueueFutureRepository.ReinstateItemFromDownloaded(mediaID); err == nil && reinstated {
+			cleared = true
+		}
+	}
+
 	return h.RespondWithData(c, cleared)
 }
 
 // HandleClearAllDownloadedMediaState
 //
-//	@summary clears every "downloaded" badge in the given list of media IDs.
+//	@summary clears the stale "downloaded" state of every anime in the given list of media IDs.
 //	@desc Bulk form of HandleClearDownloadedMediaState, for the Enqueue Future page's bulk clear.
 //	@desc Takes the list from the caller — the server cannot tell a stale "downloaded" badge from a
 //	@desc real one (files staged and waiting to be matched is exactly what a real one looks like), so
 //	@desc which ids are stale is judged by the person sending the list — and re-validates each id at
 //	@desc write time with the same state check the single-item clear uses, so a stale or wrong list
-//	@desc costs at most a skipped id, never a wrongly cleared one.
+//	@desc costs at most a skipped id, never a wrongly cleared one. Per id, the same three places the
+//	@desc single clear takes down: the badge row, any staged-download records left behind, and a
+//	@desc queue row still marked "downloaded" (moved back to ready). Nothing removes a queue entry.
 //	@route /api/v1/torrent-client/downloaded-media [DELETE]
 //	@returns int
 func (h *Handler) HandleClearAllDownloadedMediaState(c echo.Context) error {
@@ -413,11 +429,19 @@ func (h *Handler) HandleClearAllDownloadedMediaState(c echo.Context) error {
 
 	cleared := 0
 	for _, mediaID := range b.MediaIds {
-		ok, err := h.App.UnmatchedRepository.ClearAnimeDownloadStateIfDownloaded(mediaID)
+		changed, err := h.App.UnmatchedRepository.ClearAnimeDownloadStateIfDownloaded(mediaID)
 		if err != nil {
 			continue
 		}
-		if ok {
+		if deleted, err := h.App.UnmatchedRepository.ClearStagedDownloadsForAnime(mediaID); err == nil && deleted > 0 {
+			changed = true
+		}
+		if h.App.EnqueueFutureRepository != nil {
+			if reinstated, err := h.App.EnqueueFutureRepository.ReinstateItemFromDownloaded(mediaID); err == nil && reinstated {
+				changed = true
+			}
+		}
+		if changed {
 			cleared++
 		}
 	}

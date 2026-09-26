@@ -116,6 +116,30 @@ func (r *Repository) ClearAnimeDownloadStateIfDownloaded(mediaID int) (bool, err
 	return cleared, nil
 }
 
+// ClearStagedDownloadsForAnime drops every staged-download record for an anime, and reports how many
+// went.
+//
+// The mirror of the badge clear for the other half of a stale download: the staged record is what
+// keeps a "downloaded" badge standing — settled.go re-derives the badge from staged records on every
+// read, so clearing the badge row alone is undone the moment the queue is listed again. Never called
+// automatically: a record that a real, working download still needs costs that download its match,
+// so this is always a person saying the records for this anime are stale.
+func (r *Repository) ClearStagedDownloadsForAnime(mediaID int) (int, error) {
+	if r.database == nil || mediaID <= 0 {
+		return 0, nil
+	}
+	deleted, err := r.database.DeleteUnmatchedTorrentMetadataByAnimeID(mediaID)
+	if err != nil {
+		r.logger.Error().Err(err).Int("mediaId", mediaID).Msg("unmatched: Could not delete staged download records")
+		return 0, err
+	}
+	if deleted > 0 {
+		r.logger.Info().Int("mediaId", mediaID).Int("deleted", deleted).
+			Msg("unmatched: Staged download records deleted by hand")
+	}
+	return deleted, nil
+}
+
 func (r *Repository) setAnimeDownloadState(mediaID int, state string) {
 	if r.database == nil || mediaID <= 0 {
 		return

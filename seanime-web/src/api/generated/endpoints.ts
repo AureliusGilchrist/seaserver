@@ -3575,14 +3575,16 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
-         *  Route clears one anime's "downloaded" badge by hand.
-         *  For a badge stuck on "downloaded" that is wrong — files that never arrived, or a download
-         *  that failed after the badge was written. The mirror of HandleClearDownloadingMediaState,
-         *  which deliberately leaves "downloaded" badges alone because it cannot tell a real one from
-         *  a stale one; only a person can, which is why this is a hand-clear with the same
-         *  never-called-by-anything-but-a-person rule. Only takes effect while the badge still reads
-         *  "downloaded"; a "downloading" or "matched" badge is left alone. Never removes an Enqueue
-         *  Future entry — the queue row is untouched and the anime is simply usable again.
+         *  Route clears one anime's stale "downloaded" state so it can be downloaded again.
+         *  For an entry stuck on "downloaded" that is wrong — files that never arrived, or a download
+         *  that failed after the badge was written. The stale state lives in three places and this
+         *  takes down all of them, each a no-op when it does not apply: the badge row (only while it
+         *  still reads "downloaded"), any staged-download records left behind (they are what re-derive
+         *  the badge on every queue read, so leaving them would undo the clear), and a queue row still
+         *  marked "downloaded" by an older build, which is invisible to the queue screen and is moved
+         *  back to ready. A "downloading" or "matched" badge is left alone, and nothing here removes a
+         *  queue entry — a reinstated row keeps its snapshot and its place. Never called by anything
+         *  but a person choosing to, on one anime at a time.
          */
         ClearDownloadedMediaState: {
             key: "TORRENT-CLIENT-clear-downloaded-media-state",
@@ -3591,13 +3593,15 @@ export const API_ENDPOINTS = {
         },
         /**
          *  @description
-         *  Route clears every "downloaded" badge in the given list of media IDs.
+         *  Route clears the stale "downloaded" state of every anime in the given list of media IDs.
          *  Bulk form of HandleClearDownloadedMediaState, for the Enqueue Future page's bulk clear.
          *  Takes the list from the caller — the server cannot tell a stale "downloaded" badge from a
          *  real one (files staged and waiting to be matched is exactly what a real one looks like), so
          *  which ids are stale is judged by the person sending the list — and re-validates each id at
          *  write time with the same state check the single-item clear uses, so a stale or wrong list
-         *  costs at most a skipped id, never a wrongly cleared one.
+         *  costs at most a skipped id, never a wrongly cleared one. Per id, the same three places the
+         *  single clear takes down: the badge row, any staged-download records left behind, and a
+         *  queue row still marked "downloaded" (moved back to ready). Nothing removes a queue entry.
          */
         ClearAllDownloadedMediaState: {
             key: "TORRENT-CLIENT-clear-all-downloaded-media-state",

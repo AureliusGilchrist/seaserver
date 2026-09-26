@@ -86,6 +86,43 @@ func (r *Repository) SetItemStatus(mediaID int, status string) error {
 	return r.database.SetEnqueueFutureItemStatus(mediaID, status, "")
 }
 
+// ReinstateItemFromDownloaded moves a queue row marked "downloaded" back to ready, so it can be
+// acted on again, and reports whether it moved anything.
+//
+// For the stale-download hand-clear. A row marked downloaded by an older build reads as terminal to
+// the list query — it is left out of the queue screen entirely, since the list only sends rows the
+// screen can still decide about — which makes a stale download not just badged but invisible: there
+// is no row left to press anything on. Ready is the safe state to hand it back — the worker only
+// picks up pending rows, so this cannot fight it, and the snapshot a previous preparation stored is
+// left exactly where it was.
+//
+// Deliberately scoped to rows that read "downloaded" right now: a skipped or ignored row is a
+// decision you made, and nothing here un-decides it.
+func (r *Repository) ReinstateItemFromDownloaded(mediaID int) (bool, error) {
+	if r.database == nil || mediaID <= 0 {
+		return false, nil
+	}
+
+	record, err := r.database.GetEnqueueFutureItem(mediaID)
+	if err != nil {
+		return false, err
+	}
+	// Not in the queue at all — the badge clear is the whole story for this anime, and there is no
+	// row to reinstate. Not an error: the row may have been dropped by a run long ago.
+	if record == nil {
+		return false, nil
+	}
+	if record.Status != db.EnqueueFutureStatusDownloaded {
+		return false, nil
+	}
+
+	if err := r.database.SetEnqueueFutureItemStatus(mediaID, db.EnqueueFutureStatusReady, ""); err != nil {
+		return false, err
+	}
+	r.logger.Info().Int("mediaId", mediaID).Msg("enqueuefuture: Downloaded row reinstated to ready by hand")
+	return true, nil
+}
+
 // DeleteItem removes one item from the queue.
 func (r *Repository) DeleteItem(mediaID int) error {
 	return r.database.DeleteEnqueueFutureItem(mediaID)

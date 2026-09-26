@@ -57,6 +57,25 @@ func (db *Database) DeleteUnmatchedTorrentMetadata(torrentName string) error {
 	return db.gormdb.Where("torrent_name = ?", torrentName).Delete(&models.UnmatchedTorrentMetadata{}).Error
 }
 
+// DeleteUnmatchedTorrentMetadataByAnimeID drops every staged record for an anime, and reports how
+// many went.
+//
+// Only for the stale-download hand-clear: a record left behind by a download that failed is what
+// keeps the anime's badge reading "downloaded" — settled.go re-derives the badge from staged records
+// on every read, so clearing the badge row alone is undone the moment the queue is listed again.
+// Never called automatically: deleting a record that a real, working download still needs costs that
+// download its match, so this is always a person saying, about one anime, that the record is stale.
+func (db *Database) DeleteUnmatchedTorrentMetadataByAnimeID(animeID int) (int, error) {
+	if animeID <= 0 {
+		return 0, nil
+	}
+	res := db.gormdb.Where("anime_id = ?", animeID).Delete(&models.UnmatchedTorrentMetadata{})
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	return int(res.RowsAffected), nil
+}
+
 // UnmatchedTorrentMetadataAnimeIDs is every anime that has a download staged and not yet matched.
 //
 // The record exists from the moment a torrent is queued until its files are moved into the library,
