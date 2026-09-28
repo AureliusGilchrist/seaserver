@@ -1,6 +1,6 @@
 "use client"
 
-import { EnqueueFuture_Item } from "@/api/generated/types"
+import { EnqueueFuture_Item, EnqueueFuture_Snapshot } from "@/api/generated/types"
 import {
     ENQUEUE_FUTURE_STATUS,
     useClearEnqueueFuture,
@@ -11,6 +11,7 @@ import {
     useSetEnqueueFutureItemStatus,
 } from "@/api/hooks/enqueue_future.hooks"
 import { EnqueueFutureAddTorrents } from "@/app/(main)/enqueue-future/_components/enqueue-future-add-torrents"
+import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { EnqueueFutureCurrentShow } from "@/app/(main)/enqueue-future/_components/enqueue-future-current-show"
 import { EnqueueFutureHeader } from "@/app/(main)/enqueue-future/_components/enqueue-future-header"
 import { EnqueueFutureList, FamilyOrdering, groupIntoFamilies } from "@/app/(main)/enqueue-future/_components/enqueue-future-list"
@@ -149,9 +150,10 @@ export function EnqueueFuturePage() {
     //
     // This is also where the queue is put in the order you actually want to work it: most widely
     // seeded franchise first, adding up the figures of every member of it — where a member's figure
-    // is the seeders of the five healthiest torrents its search found, not of all of them. A group's
-    // place comes from its own total and never from which of its members is still in it — otherwise
-    // dealing with the top entry of a group throws the rest of the group down the list.
+    // is the seeders of the five healthiest torrents its search found, not of all of them — and the
+    // one-offs behind the groups as a block, however popular they are. A group's place comes from
+    // its own total and never from which of its members is still in it — otherwise dealing with the
+    // top entry of a group throws the rest of the group down the list.
     //
     // Grouping is presentation only. Every action — skip, ignore, add torrents — applies to the one
     // entry it was pressed on and never to its siblings.
@@ -534,6 +536,17 @@ function ActiveItemBody({
     editSearchSignal: number
     onEditSearch: () => void
 }) {
+
+    // Fetched live when the prepared snapshot carries no entry — a row whose snapshot will not
+    // decode, or was stored before snapshots carried one, used to dead-end into "open its page".
+    // The same endpoint the anime page uses is one request away, and the search UI below works with
+    // a live entry exactly as it does with a prepared one: it just searches instead of having
+    // results waiting. Gated to the one case that needs it, and never for a row still being
+    // prepared — that one opens on its own.
+    const needsLiveEntry = !!item && !!detail && !detail.snapshot?.entry
+        && item.status !== ENQUEUE_FUTURE_STATUS.PENDING && item.status !== ENQUEUE_FUTURE_STATUS.PREPARING
+    const { data: liveEntry, isLoading: isLoadingLiveEntry } = useGetAnimeEntry(item?.mediaId, needsLiveEntry)
+
     if (!item) return null
 
     if (item.status === ENQUEUE_FUTURE_STATUS.PENDING || item.status === ENQUEUE_FUTURE_STATUS.PREPARING) {
@@ -549,22 +562,37 @@ function ActiveItemBody({
         return <div className="py-16"><LoadingSpinner /></div>
     }
 
-    const entry = detail?.snapshot?.entry
+    const entry = detail?.snapshot?.entry ?? liveEntry
     if (!entry) {
+        if (needsLiveEntry && isLoadingLiveEntry) {
+            return <div className="py-16"><LoadingSpinner /></div>
+        }
         return (
             <div className="text-center py-16 space-y-2 border rounded-[--radius-md] bg-gray-950">
                 <p className="text-sm text-[--muted]">
-                    {item.lastError || "This one has no prepared data. Open its page to download it by hand."}
+                    {item.lastError || "This one has no prepared data and its page could not be fetched. Open its page to download it by hand."}
                 </p>
             </div>
         )
     }
 
+    // The prepared snapshot, or the live entry wrapped in one — the current-show block reads its
+    // media out of a snapshot, and a row being shown live has one with nothing in it but the entry.
+    // The search fields are left zeroed: there are no stored results for them to describe, and the
+    // search UI below searches live.
+    const shownSnapshot: EnqueueFuture_Snapshot | undefined = detail?.snapshot ?? (entry
+        ? {
+            entry,
+            searchParams: { type: "", provider: "", query: "", episodeNumber: 0, batch: false, absoluteOffset: 0, resolution: "", bestRelease: false },
+            providerId: "",
+        }
+        : undefined)
+
     return (
         <>
             <EnqueueFutureCurrentShow
                 item={item}
-                snapshot={detail?.snapshot}
+                snapshot={shownSnapshot}
                 onEditSearch={onEditSearch}
             />
 

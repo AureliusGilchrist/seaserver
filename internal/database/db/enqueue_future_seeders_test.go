@@ -116,7 +116,7 @@ func TestEnqueueFutureSeederBackfillReachesUpgradedRows(t *testing.T) {
 
 	// And the write goes through, stamps the method version, and reads back — which is what the
 	// sort consumes.
-	if err := database.SetEnqueueFutureItemSeeders(1, 1234); err != nil {
+	if err := database.SetEnqueueFutureItemSeeders(1, 1234, ""); err != nil {
 		t.Fatalf("set seeders: %v", err)
 	}
 	items, err := database.GetEnqueueFutureListItems()

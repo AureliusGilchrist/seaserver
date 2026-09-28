@@ -39,11 +39,12 @@ const (
 	EnqueueFutureStatusIgnored    = "ignored"
 )
 
-// EnqueueFutureSeedersMethodVersion is the version of the method that computes the seeder figure a
-// row is ranked by. It is stamped onto every row whose figure is written, and the backfill rewrites
-// rows stamped with anything older — a figure computed before the current method shipped is the sum
-// over every torrent the search found, which let a general one-word title outrank the whole queue.
-const EnqueueFutureSeedersMethodVersion = 1
+// EnqueueFutureSeedersMethodVersion is the version of the method that computes what the backfill
+// writes into a row. It is stamped onto every row that is written, and the backfill rewrites rows
+// stamped with anything older. Version 1 capped the seeder figure at the five healthiest torrents;
+// version 2 also retitles the row from its snapshot, English first — the titles stored before either
+// change are the user's AniList title preference, which for most accounts is the romaji.
+const EnqueueFutureSeedersMethodVersion = 2
 
 // GetEnqueueFutureItems returns the whole queue in walk order, blobs included.
 func (db *Database) GetEnqueueFutureItems() ([]*models.EnqueueFutureItem, error) {
@@ -446,15 +447,20 @@ func (db *Database) SaveEnqueueFutureItemSnapshot(
 
 // SetEnqueueFutureItemSeeders records a seeder total worked out after the fact, for a row whose
 // stored figure predates the current method. Stamps the method version, so the row is not revisited.
+// An empty title is left alone — a row with no snapshot to recover one from keeps the title it has.
 // See ForEachEnqueueFutureItemStaleSeeders.
-func (db *Database) SetEnqueueFutureItemSeeders(mediaID int, totalSeeders int) error {
+func (db *Database) SetEnqueueFutureItemSeeders(mediaID int, totalSeeders int, title string) error {
+	updates := map[string]interface{}{
+		"total_seeders":   totalSeeders,
+		"seeders_version": EnqueueFutureSeedersMethodVersion,
+	}
+	if title != "" {
+		updates["title"] = title
+	}
 	return retryOnBusy(func() error {
 		return db.gormdb.Model(&models.EnqueueFutureItem{}).
 			Where("media_id = ?", mediaID).
-			Updates(map[string]interface{}{
-				"total_seeders":   totalSeeders,
-				"seeders_version": EnqueueFutureSeedersMethodVersion,
-			}).Error
+			Updates(updates).Error
 	})
 }
 

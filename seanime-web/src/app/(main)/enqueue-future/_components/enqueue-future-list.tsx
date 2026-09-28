@@ -119,7 +119,7 @@ function sameMembers(a: EnqueueFutureFamily | undefined, b: EnqueueFutureFamily)
 
 /**
  * Gathers a franchise into one bundle wherever its members turn up, draws a spine around it, and puts
- * the most widely shared franchises first.
+ * the most widely shared franchises first — with every one-off behind them, as a block.
  *
  * **The slot belongs to the family, not to a member of it.** A franchise is placed by its own total,
  * never by whichever member happens to be its earliest survivor. That distinction is what keeps the
@@ -127,8 +127,8 @@ function sameMembers(a: EnqueueFutureFamily | undefined, b: EnqueueFutureFamily)
  * screen the moment you deal with its top entry, because the anchor becomes the next member and the
  * group lands wherever that one came from.
  *
- * The order is popularity, highest total first, and — this is the part that keeps the list usable —
- * **a franchise's rank never falls because you dealt with one of its entries.**
+ * The order is groups before one-offs, popularity, highest total first, and — this is the part that
+ * keeps the list usable — **a group's rank never falls because you dealt with one of its entries.**
  *
  * The rank is the highest total the family has ever been worth, remembered across polls, not the sum
  * of whoever is left in it. Recomputing from the survivors meant every download re-ranked the family
@@ -145,11 +145,18 @@ function sameMembers(a: EnqueueFutureFamily | undefined, b: EnqueueFutureFamily)
  *    total can only rise, so it moves up and the ones it passes move down. This is the one movement
  *    that is worth having — a franchise that just became more popular should say so.
  *  - a franchise nobody has seen appears and takes the rank its seeders earn.
+ *  - a franchise emptied down to its last entry stops being a group and joins the one-offs —
+ *    landing just below the groups, since its remembered value is still higher than theirs.
  *
- * Items with no total yet — anything still pending or preparing — sort last, which is where something
- * you cannot act on belongs.
+ * **A franchise of one — a one-off — sits behind every group**, however popular it is. A single
+ * anime is one decision and a franchise is several, so when the two compete for a slot the several
+ * wins; the one-offs then rank among themselves by the same popularity, so they keep the order they
+ * already had and only move down as a block.
  *
- * `order` is the tie-break, carried from one poll to the next by the caller. Two franchises of equal
+ * Items with no total yet — anything still pending or preparing — sort at the very bottom, which is
+ * where something you cannot act on belongs.
+ *
+ * `order` is the tie-break, carried from one poll to the next by the caller. Two families of equal
  * popularity (and a queue full of unprepared zeroes is nothing but ties) keep the order they were
  * first shown in rather than swapping places on every poll, because the sort below is stable and this
  * is the sequence it stabilises against.
@@ -238,9 +245,19 @@ export function groupIntoFamilies(
         values[key] = Math.max(current, remembered)
     }
 
-    // Then popularity decides, over a stable sort, so the line above only settles ties.
+    // Then popularity decides, over a stable sort, so the line above only settles ties — with one
+    // partition in front of the other. Franchises first: several entries of the same story is what
+    // this screen is for deciding about, and a single anime ranked by its own figure can only ever
+    // be one decision, so the one-offs go behind the groups as a block, however popular they are.
+    // A one-off that used to be a group keeps its remembered value, so it lands at the top of the
+    // one-offs — just below the last group, the smallest fall available.
     const nextOrder = held.concat(appended)
-        .sort((a, b) => (values[b] ?? 0) - (values[a] ?? 0))
+        .sort((a, b) => {
+            const aGroup = (byKey.get(a)?.length ?? 0) > 1
+            const bGroup = (byKey.get(b)?.length ?? 0) > 1
+            if (aGroup !== bGroup) return aGroup ? -1 : 1
+            return (values[b] ?? 0) - (values[a] ?? 0)
+        })
 
     return {
         families: nextOrder.map(key => byKey.get(key)!),

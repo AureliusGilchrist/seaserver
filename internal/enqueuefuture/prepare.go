@@ -268,7 +268,7 @@ func relationsFrom(details *anilist.AnimeDetailsById_Media) []recommendation {
 		if node.Episodes != nil {
 			episodes = *node.Episodes
 		}
-		title := node.GetPreferredTitle()
+		title := enqueueTitle(node.GetTitle())
 		notYetReleased := node.Status != nil && *node.Status == anilist.MediaStatusNotYetReleased
 
 		// A franchise's relations are where the PVs and CMs live: they hang off the series as
@@ -411,16 +411,7 @@ func recommendationsFrom(details *anilist.AnimeDetailsById_Media) []recommendati
 			continue
 		}
 
-		title := ""
-		if rec.Title != nil {
-			if rec.Title.UserPreferred != nil {
-				title = *rec.Title.UserPreferred
-			} else if rec.Title.Romaji != nil {
-				title = *rec.Title.Romaji
-			} else if rec.Title.English != nil {
-				title = *rec.Title.English
-			}
-		}
+		title := enqueueTitle(rec.Title)
 
 		episodes := 0
 		if rec.Episodes != nil {
@@ -446,10 +437,28 @@ func entryTitle(entry *anime.Entry) string {
 	if entry == nil || entry.Media == nil {
 		return ""
 	}
-	if title := entry.Media.GetPreferredTitle(); title != "" {
-		return title
+	return enqueueTitle(entry.Media.GetTitle())
+}
+
+// enqueueTitle is the title the queue stores and shows, from any of AniList's title objects:
+// English first, romaji behind it. The user's AniList title preference is deliberately not honoured
+// here — it is the library's setting, and a queue is a list of shows to recognise: the romaji title
+// of a first season is a name you have to sound out before it matches anything, while its English
+// title is usually the one the rest of the app already showed you.
+func enqueueTitle(title interface {
+	GetEnglish() *string
+	GetRomaji() *string
+}) string {
+	if title == nil {
+		return ""
 	}
-	return entry.Media.GetRomajiTitleSafe()
+	if english := title.GetEnglish(); english != nil && *english != "" {
+		return *english
+	}
+	if romaji := title.GetRomaji(); romaji != nil && *romaji != "" {
+		return *romaji
+	}
+	return ""
 }
 
 func entryCoverImage(entry *anime.Entry) string {

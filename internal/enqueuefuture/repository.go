@@ -880,14 +880,14 @@ func (r *Repository) backfillSeedersOnce() {
 	})
 }
 
-// BackfillSeederTotals recomputes the popularity figure for rows whose stored figure was not
-// computed the current way.
+// BackfillSeederTotals recomputes what rows ranked by an older method stored: the popularity figure
+// and the title.
 //
-// Two kinds of row need this: items prepared before the figure was recorded at all, and items
-// prepared before it was capped at the five healthiest torrents — the stored number is the sum over
-// every torrent the search found, which let a general title rank above the whole queue. The numbers
-// are all recoverable from the snapshots that are already stored, so nothing has to be searched for
-// again.
+// Three kinds of row need this: items prepared before the figure was recorded at all, items prepared
+// before it was capped at the five healthiest torrents — the stored number is the sum over every
+// torrent the search found, which let a general title rank above the whole queue — and items whose
+// stored title is the user's AniList title preference rather than the English one. Everything is
+// recoverable from the snapshots that are already stored, so nothing has to be searched for again.
 //
 // Exported so it can be triggered deliberately; the ordinary path is backfillSeedersOnce above.
 func (r *Repository) BackfillSeederTotals() {
@@ -906,7 +906,10 @@ func (r *Repository) BackfillSeederTotals() {
 		if total <= 0 {
 			return
 		}
-		if err := r.database.SetEnqueueFutureItemSeeders(mediaID, total); err != nil {
+		// The title rides along on the same decode: English first, where the stored one is whatever
+		// the user's AniList preference said at the time. Empty — no entry in the snapshot, or no
+		// title on it — leaves the stored title alone.
+		if err := r.database.SetEnqueueFutureItemSeeders(mediaID, total, entryTitle(snapshot.Entry)); err != nil {
 			r.logger.Warn().Err(err).Int("mediaId", mediaID).Msg("enqueuefuture: Failed to backfill seeders")
 			return
 		}
@@ -917,7 +920,7 @@ func (r *Repository) BackfillSeederTotals() {
 		return
 	}
 	if filled > 0 {
-		r.logger.Info().Int("items", filled).Msg("enqueuefuture: Recomputed seeder totals for rows ranked by the old figure")
+		r.logger.Info().Int("items", filled).Msg("enqueuefuture: Recomputed seeder totals and titles for rows ranked by the old figure")
 	}
 }
 

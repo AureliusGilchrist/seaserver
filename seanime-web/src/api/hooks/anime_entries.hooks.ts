@@ -14,12 +14,12 @@ import { AL_BaseAnime, Anime_Entry, Anime_LocalFile, Anime_MissingEpisodes, Null
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-export function useGetAnimeEntry(id: Nullish<string | number>) {
+export function useGetAnimeEntry(id: Nullish<string | number>, enabled?: boolean) {
     return useServerQuery<Anime_Entry>({
         endpoint: API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.endpoint.replace("{id}", String(id)),
         method: API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.methods[0],
         queryKey: [API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key, String(id)],
-        enabled: !!id,
+        enabled: !!id && (enabled ?? true),
     })
 }
 
