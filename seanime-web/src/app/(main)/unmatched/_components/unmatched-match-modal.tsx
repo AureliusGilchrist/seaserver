@@ -714,7 +714,13 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
                 torrentName={torrent.name}
                 animeTitle={displayAnimeTitle || torrent.name}
                 isReplacing={isMatching}
-                onAccept={() => doMatch(true)}
+                // Both answers ride along, not just this one. The server re-asks the episode-count
+                // question on every attempt sent without confirmCountMismatch, and that question was
+                // already answered on the way to this dialog — the numbering prompt is shown before
+                // the conflict one, and nothing reached the disk in between. Dropping the earlier
+                // answer here sends the match back to the numbering prompt instead of replacing
+                // anything, and the two dialogs ask forever.
+                onAccept={() => doMatch(true, true)}
                 // Declining a conflict closes the conflict, and nothing else.
                 //
                 // It used to delete the whole staged torrent — every episode of it — so "I do not
