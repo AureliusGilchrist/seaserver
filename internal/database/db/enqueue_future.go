@@ -39,6 +39,12 @@ const (
 	EnqueueFutureStatusIgnored    = "ignored"
 )
 
+// EnqueueFutureSeedersMethodVersion is the version of the method that computes the seeder figure a
+// row is ranked by. It is stamped onto every row whose figure is written, and the backfill rewrites
+// rows stamped with anything older — a figure computed before the current method shipped is the sum
+// over every torrent the search found, which let a general one-word title outrank the whole queue.
+const EnqueueFutureSeedersMethodVersion = 1
+
 // GetEnqueueFutureItems returns the whole queue in walk order, blobs included.
 func (db *Database) GetEnqueueFutureItems() ([]*models.EnqueueFutureItem, error) {
 	var res []*models.EnqueueFutureItem
@@ -416,7 +422,9 @@ func (db *Database) SetEnqueueFutureItemStatus(mediaID int, status string, lastE
 }
 
 // SaveEnqueueFutureItemSnapshot stores a prepared item: its snapshot blob, the display fields read
-// out of it, and the status the preparation ended in.
+// out of it, and the status the preparation ended in. The seeder figure is stamped with the current
+// method version, so a row prepared after the current method shipped is never revisited by the
+// backfill.
 func (db *Database) SaveEnqueueFutureItemSnapshot(
 	mediaID int, status string, title string, coverImage string, totalSeeders int, airedAt int, value []byte,
 ) error {
@@ -424,57 +432,67 @@ func (db *Database) SaveEnqueueFutureItemSnapshot(
 		return db.gormdb.Model(&models.EnqueueFutureItem{}).
 			Where("media_id = ?", mediaID).
 			Updates(map[string]interface{}{
-				"status":        status,
-				"title":         title,
-				"cover_image":   coverImage,
-				"total_seeders": totalSeeders,
-				"aired_at":      airedAt,
-				"value":         value,
-				"last_error":    "",
+				"status":          status,
+				"title":           title,
+				"cover_image":     coverImage,
+				"total_seeders":   totalSeeders,
+				"aired_at":        airedAt,
+				"seeders_version": EnqueueFutureSeedersMethodVersion,
+				"value":           value,
+				"last_error":      "",
 			}).Error
 	})
 }
 
-// SetEnqueueFutureItemSeeders records a seeder total worked out after the fact, for a row prepared
-// before the column existed. See ForEachEnqueueFutureItemMissingSeeders.
+// SetEnqueueFutureItemSeeders records a seeder total worked out after the fact, for a row whose
+// stored figure predates the current method. Stamps the method version, so the row is not revisited.
+// See ForEachEnqueueFutureItemStaleSeeders.
 func (db *Database) SetEnqueueFutureItemSeeders(mediaID int, totalSeeders int) error {
 	return retryOnBusy(func() error {
 		return db.gormdb.Model(&models.EnqueueFutureItem{}).
 			Where("media_id = ?", mediaID).
-			Update("total_seeders", totalSeeders).Error
+			Updates(map[string]interface{}{
+				"total_seeders":   totalSeeders,
+				"seeders_version": EnqueueFutureSeedersMethodVersion,
+			}).Error
 	})
 }
 
-// ForEachEnqueueFutureItemMissingSeeders hands every prepared row with no seeder total its snapshot
-// blob, so the caller can decode it and fill the column in.
+// ForEachEnqueueFutureItemStaleSeeders hands every settled row whose stored figure was not computed
+// the current way its snapshot blob, so the caller can decode it and recompute.
 //
-// Rows prepared before the column existed have nothing in it, and a queue screen ordered by
-// popularity would sink every one of them to the bottom — which, for anyone with a queue already
-// built, is the whole queue. Reading the blobs back is the only place the number can be recovered
-// from.
+// Two kinds of row match: rows prepared before the seeder figure was recorded at all (they carry
+// NULL in both columns), and rows whose figure was computed by an older version of the method — the
+// original sum over every torrent the search found, which let a general title rank by the size of
+// its name's shadow. Both are recoverable from the snapshot blobs, which is the only place the
+// number can be recomputed from.
+//
+// Adding the version column to a table that already has rows leaves every one of those rows with
+// NULL in it, not with the zero value the Go field claims — and `seeders_version = 0` is false
+// against NULL, so a condition written only that way matched nothing at all. Every item queued
+// before the upgrade stayed stale, read back with the figure the old method computed, and the queue
+// came out ranked by it with nothing to say why.
+//
+// Skipped rows are included: a row you passed on keeps its figure and still takes part in its
+// franchise's total, so a stale figure on one of those reads wrong on the screen and ranks its
+// family wrongly with it. Ignored and Downloaded are left out — those rows are never drawn, and
+// nothing the screen shows reads them.
 //
 // In batches, and never selecting the blob for more rows than one batch, because these are hundreds
 // of kilobytes each and a queue runs to hundreds of rows: loading them all at once to read one
 // number out of each is exactly the cost the denormalized columns exist to avoid.
-func (db *Database) ForEachEnqueueFutureItemMissingSeeders(fn func(mediaID int, value []byte)) error {
+func (db *Database) ForEachEnqueueFutureItemStaleSeeders(fn func(mediaID int, value []byte)) error {
 	var batch []*models.EnqueueFutureItem
 	return retryOnBusy(func() error {
 		return db.gormdb.
 			Model(&models.EnqueueFutureItem{}).
 			// The primary key comes along so the batching walks by it rather than by offset: the
-			// caller fills the column in as it goes, which changes what the condition below matches,
-			// and offset paging over a shrinking result set skips rows.
+			// caller stamps the version in as it goes, which changes what the condition below
+			// matches, and offset paging over a shrinking result set skips rows.
 			Select([]string{"id", "media_id", "value"}).
-			// NULL as well as zero, and the NULL is the case that matters.
-			//
-			// Adding a column to a table that already has rows leaves every one of those rows with
-			// NULL in it, not with the zero value the Go field claims — and `total_seeders = 0` is
-			// false against NULL, so a condition written only that way matched nothing at all. Every
-			// item queued before the upgrade stayed unmeasured, read back as zero, tied with all the
-			// others, and the queue came out in exactly the order it had before. The ranking looked
-			// like it had simply not been implemented.
-			Where("(total_seeders IS NULL OR total_seeders = 0) AND value IS NOT NULL AND status = ?",
-				EnqueueFutureStatusReady).
+			Where("(seeders_version IS NULL OR seeders_version < ?) AND value IS NOT NULL AND status IN ?",
+				EnqueueFutureSeedersMethodVersion,
+				[]string{EnqueueFutureStatusReady, EnqueueFutureStatusSkipped}).
 			FindInBatches(&batch, 25, func(tx *gorm.DB, _ int) error {
 				for _, record := range batch {
 					fn(record.MediaID, record.Value)

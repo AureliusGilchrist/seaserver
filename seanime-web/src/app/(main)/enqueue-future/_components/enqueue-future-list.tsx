@@ -75,8 +75,9 @@ export function familyDepths(family: EnqueueFutureFamily): Map<number, number> {
 }
 
 /**
- * How widely shared a franchise is: every seeder on every torrent found for every one of its members,
- * added together.
+ * How widely shared a franchise is: the figure of every one of its members, added together — where a
+ * member's figure is the seeders of the five healthiest torrents its search found, not of all of
+ * them. The backend computes the figure; this only adds the members up.
  *
  * A franchise is one thing to decide about, so it is ranked as one thing. Ranking a group by its best
  * member instead would put a franchise on the strength of its one famous season and say nothing about

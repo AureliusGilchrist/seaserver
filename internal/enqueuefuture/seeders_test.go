@@ -92,7 +92,7 @@ func TestTotalSeeders(t *testing.T) {
 	})
 
 	// The whole point of the sum: a show with one busy release is less widely shared than one with a
-	// dozen ordinary ones, and only the total says so.
+	// handful of well-seeded ones, and only a sum over its busiest releases says so.
 	t.Run("breadth beats a single lucky release", func(t *testing.T) {
 		one := totalSeeders(&torrent.SearchData{
 			Torrents: []*hibiketorrent.AnimeTorrent{{Seeders: 90}},
@@ -104,6 +104,21 @@ func TestTotalSeeders(t *testing.T) {
 		})
 		if !(many > one) {
 			t.Errorf("one release totalled %d, five totalled %d — the sum did not favour breadth", one, many)
+		}
+	})
+
+	// The cap: the search is deliberately broad, and a general title — one word, a character's name —
+	// matches everything containing it, each match bringing its seeders along. Past the five
+	// healthiest, the long tail of a name's shadow does not count.
+	t.Run("a general name's long tail does not count", func(t *testing.T) {
+		got := totalSeeders(&torrent.SearchData{
+			Torrents: []*hibiketorrent.AnimeTorrent{
+				{Seeders: 100}, {Seeders: 90}, {Seeders: 80}, {Seeders: 70}, {Seeders: 70},
+				{Seeders: 10}, {Seeders: 5}, {Seeders: 3},
+			},
+		})
+		if got != 410 {
+			t.Errorf("got %d, want 410 — only the five healthiest count", got)
 		}
 	})
 

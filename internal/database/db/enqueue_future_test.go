@@ -246,7 +246,7 @@ func TestEnqueueFutureQueue(t *testing.T) {
 
 		insertItem(t, db, 9)
 		blob := []byte(`{"providerId":"nyaa"}`)
-		if err := db.SaveEnqueueFutureItemSnapshot(9, EnqueueFutureStatusReady, "Some Anime", "cover.jpg", 412, blob); err != nil {
+		if err := db.SaveEnqueueFutureItemSnapshot(9, EnqueueFutureStatusReady, "Some Anime", "cover.jpg", 412, 0, blob); err != nil {
 			t.Fatalf("save snapshot: %v", err)
 		}
 

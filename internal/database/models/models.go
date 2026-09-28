@@ -453,18 +453,28 @@ type EnqueueFutureItem struct {
 	LastError  string `gorm:"column:last_error" json:"lastError"`
 	Title      string `gorm:"column:title" json:"title"`
 	CoverImage string `gorm:"column:cover_image" json:"coverImage"`
-	// TotalSeeders is every seeder across every torrent the prepared search found, added together.
-	// Denormalized out of the blob for the same reason Title and CoverImage are: the queue screen
-	// orders itself by it, and it cannot unmarshal a few hundred snapshots to sort a list.
+	// TotalSeeders is the sum of the seeders of the five healthiest torrents the prepared search
+	// found. Denormalized out of the blob for the same reason Title and CoverImage are: the queue
+	// screen orders itself by it, and it cannot unmarshal a few hundred snapshots to sort a list.
 	//
 	// A sum rather than the healthiest single torrent, because it is standing in for how widely
 	// wanted a show is rather than for how fast one release will download: a series with twenty
-	// well-seeded releases is more popular than one with a single busy torrent, and the sum is what
-	// says so. Zero until the item has been prepared.
+	// well-seeded releases is more popular than one with a single busy torrent, and a sum is what
+	// says so. Capped at five rather than taken over every torrent the search found, because the
+	// search is deliberately broad — a general one-word title matches everything containing it, and
+	// summing all of those let its figure be the size of its name's shadow rather than of its
+	// audience. Zero until the item has been prepared.
 	// The default is what keeps rows added from here on out readable as a number rather than as
 	// NULL; rows that predate the column are repaired by the backfill instead, since a default
 	// applies to new rows only.
 	TotalSeeders int `gorm:"column:total_seeders;default:0" json:"totalSeeders"`
+	// SeedersVersion records which version of the method computed TotalSeeders. Zero (or NULL — the
+	// upgrade leaves the column NULL in rows that predate it) means the stored figure was computed
+	// by the original sum over every torrent the search found, or never computed at all, and the
+	// backfill has to recompute it from the snapshot. Every write path stamps the current version,
+	// so a row written after this shipped is never revisited. See
+	// ForEachEnqueueFutureItemStaleSeeders.
+	SeedersVersion int `gorm:"column:seeders_version;default:0" json:"-"`
 	// AiredAt places this entry in its own franchise's running order: the release year and season
 	// folded into one sortable number (year*10 + season index).
 	//

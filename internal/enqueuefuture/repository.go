@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -39,8 +40,9 @@ type (
 
 		pacer *pacer
 
-		// backfillOnce guards the one-time repair of seeder totals for items prepared before that
-		// figure was recorded. See backfillSeedersOnce.
+		// backfillOnce guards the one-time repair of seeder totals for rows whose stored figure was
+		// computed before the current method shipped — or never recorded at all. See
+		// backfillSeedersOnce.
 		backfillOnce sync.Once
 
 		// registerBadgedOnce guards the one-time sweep that puts already-downloaded anime into the
@@ -819,18 +821,29 @@ func bestSeeders(data *torrent.SearchData) (best int, count int) {
 	return best, count
 }
 
-// totalSeeders adds up every seeder across every torrent the search found.
+// totalSeedersCap is how many of the healthiest torrents the popularity figure is willing to count.
+const totalSeedersCap = 5
+
+// totalSeeders adds up the seeders of the five healthiest torrents the search found.
 //
 // This is the popularity the queue screen sorts on, and it is deliberately a different number from
 // bestSeeders above, which is the availability gate. The healthiest torrent says whether a download
-// will actually run; the sum says how much of the world is currently sharing this show at all, over
-// however many releases and groups it has. A well-known series has both a busy torrent and thirty
-// others behind it, and only the sum can tell that apart from one lucky release.
+// will actually run; the sum says how much of the world is currently sharing this show at all. A
+// well-known series has both a busy torrent and thirty others behind it, and only a sum can tell
+// that apart from one lucky release.
+//
+// Capped at five rather than taken over every torrent the search found. The search itself is
+// deliberately broad — a general title, one word or a character's name, matches everything
+// containing it, and every one of those matches brings its seeders along. Summing all of them let a
+// general title rank above the whole queue on the strength of its name alone: its figure was the
+// size of its name's shadow, not of its audience. Five of the healthiest still tells a widely
+// shared show apart from one lucky release, and nothing the name happens to match can inflate it
+// past that.
 func totalSeeders(data *torrent.SearchData) int {
 	if data == nil {
 		return 0
 	}
-	total := 0
+	seeders := make([]int, 0, len(data.Torrents))
 	for _, t := range data.Torrents {
 		if t == nil {
 			continue
@@ -838,8 +851,17 @@ func totalSeeders(data *torrent.SearchData) int {
 		// Providers do return negatives for "unknown", and one of those must not quietly subtract
 		// from a franchise's total when the members are added together.
 		if t.Seeders > 0 {
-			total += t.Seeders
+			seeders = append(seeders, t.Seeders)
 		}
+	}
+	// Highest last, so what gets sliced off is the long tail below the cap.
+	sort.Ints(seeders)
+	if len(seeders) > totalSeedersCap {
+		seeders = seeders[len(seeders)-totalSeedersCap:]
+	}
+	total := 0
+	for _, s := range seeders {
+		total += s
 	}
 	return total
 }
@@ -858,11 +880,14 @@ func (r *Repository) backfillSeedersOnce() {
 	})
 }
 
-// BackfillSeederTotals fills in the popularity figure for items prepared before it was recorded.
+// BackfillSeederTotals recomputes the popularity figure for rows whose stored figure was not
+// computed the current way.
 //
-// Without this, an existing queue opens sorted entirely by a column of zeroes — every row already in
-// it ranked below every row prepared after the upgrade. The numbers are all recoverable from the
-// snapshots that are already stored, so nothing has to be searched for again.
+// Two kinds of row need this: items prepared before the figure was recorded at all, and items
+// prepared before it was capped at the five healthiest torrents — the stored number is the sum over
+// every torrent the search found, which let a general title rank above the whole queue. The numbers
+// are all recoverable from the snapshots that are already stored, so nothing has to be searched for
+// again.
 //
 // Exported so it can be triggered deliberately; the ordinary path is backfillSeedersOnce above.
 func (r *Repository) BackfillSeederTotals() {
@@ -870,7 +895,7 @@ func (r *Repository) BackfillSeederTotals() {
 	defer util.HandlePanicInModuleThen("enqueuefuture/BackfillSeederTotals", func() {})
 
 	filled := 0
-	err := r.database.ForEachEnqueueFutureItemMissingSeeders(func(mediaID int, value []byte) {
+	err := r.database.ForEachEnqueueFutureItemStaleSeeders(func(mediaID int, value []byte) {
 		var snapshot Snapshot
 		if err := json.Unmarshal(value, &snapshot); err != nil {
 			// Nothing to recover, and nothing to do about it — the row still works, it simply sorts
@@ -892,7 +917,7 @@ func (r *Repository) BackfillSeederTotals() {
 		return
 	}
 	if filled > 0 {
-		r.logger.Info().Int("items", filled).Msg("enqueuefuture: Filled in seeder totals for items prepared earlier")
+		r.logger.Info().Int("items", filled).Msg("enqueuefuture: Recomputed seeder totals for rows ranked by the old figure")
 	}
 }
 

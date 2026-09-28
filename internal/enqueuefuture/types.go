@@ -90,8 +90,8 @@ type Item struct {
 	LastError  string `json:"lastError"`
 	Title      string `json:"title"`
 	CoverImage string `json:"coverImage"`
-	// TotalSeeders is every seeder across every torrent found for this anime, added together — the
-	// popularity the queue screen orders itself by. Zero until the item has been prepared.
+	// TotalSeeders is the sum of the seeders of the five healthiest torrents found for this anime —
+	// the popularity the queue screen orders itself by. Zero until the item has been prepared.
 	TotalSeeders int `json:"totalSeeders"`
 	// AiredAt is the entry's place in its franchise's running order — year*10 + season index, or 0
 	// when unknown. The queue sorts a family by it so a franchise reads as the story ran.
