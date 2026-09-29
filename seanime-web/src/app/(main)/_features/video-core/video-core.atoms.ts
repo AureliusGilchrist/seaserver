@@ -207,6 +207,9 @@ export const vc_storedVolumeAtom = atomWithStorage("sea-video-core-volume", 1, u
 export const vc_storedMutedAtom = atomWithStorage("sea-video-core-muted", false, undefined, { getOnInit: true })
 export const vc_storedPlaybackRateAtom = atomWithStorage("sea-video-core-playback-rate", 1, undefined, { getOnInit: true })
 export const vc_showStatsForNerdsAtom = atomWithStorage("sea-video-core-show-stats-for-nerds", false, undefined, { getOnInit: true })
+// Fork: persisted popout (mini) player size. Null until the user resizes it once;
+// the drawer falls back to its responsive default (400px, or 300px on narrow windows).
+export const vc_miniPlayerSize = atomWithStorage<{ width: number, height: number } | null>("sea-video-core-miniplayer-size", null, undefined, { getOnInit: true })
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Fork: Per-media track overrides

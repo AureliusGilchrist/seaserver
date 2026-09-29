@@ -1302,7 +1302,7 @@ export function VideoCoreKeybindingController(props: {
     }, [fullscreenManager])
 
     const handleTogglePictureInPicture = useCallback(() => {
-        pipManager?.enterPip()
+        pipManager?.togglePip()
 
         React.startTransition(() => {
             setTimeout(() => {

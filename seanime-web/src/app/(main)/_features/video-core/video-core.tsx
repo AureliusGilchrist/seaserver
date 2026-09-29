@@ -146,6 +146,7 @@ import { BiExpand, BiX } from "react-icons/bi"
 import { FiMinimize2 } from "react-icons/fi"
 import { ImSpinner2 } from "react-icons/im"
 import { PiSpinnerDuotone } from "react-icons/pi"
+import { TbPictureInPicture } from "react-icons/tb"
 import { RemoveScrollBar } from "react-remove-scroll-bar"
 import { useUnmount, useUpdateEffect, useWindowSize } from "react-use"
 
@@ -539,17 +540,16 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                         {isPip && (
                             <div
                                 data-vc-element="pip-overlay"
-                                className="absolute top-0 left-0 w-full h-full z-[100] bg-black flex items-center justify-center"
+                                className="absolute top-0 left-0 w-full h-full z-[100] bg-black/95 flex flex-col gap-2 items-center justify-center cursor-pointer select-none"
+                                title="Return to player"
+                                onPointerMove={e => e.stopPropagation()}
+                                onClick={() => {
+                                    pipManager?.exitPip()
+                                }}
                             >
-                                <Button
-                                    intent="gray-outline"
-                                    size="xl"
-                                    onClick={() => {
-                                        pipManager?.togglePip()
-                                    }}
-                                >
-                                    Exit PiP
-                                </Button>
+                                <TbPictureInPicture className={cn("text-white/60", isMiniPlayer ? "text-2xl" : "text-6xl")} />
+                                <p className={cn("font-medium text-white/60", isMiniPlayer ? "text-xs" : "text-base")}>Playing in picture-in-picture</p>
+                                {!isMiniPlayer && <p className="text-sm text-white/30">Click anywhere to return</p>}
                             </div>
                         )}
 
@@ -861,6 +861,9 @@ export function VideoCore(props: VideoCoreProps) {
         if (!__isElectronDesktop__ || !window.electron?.on) return
 
         const pausePlayback = () => {
+            // When the video is popped out to the OS picture-in-picture window, keep it
+            // playing when the app window is minimized or hidden to the tray.
+            if (document.pictureInPictureElement) return
             if (videoRef.current && !videoRef.current.paused && !videoRef.current.ended) {
                 videoRef.current.pause()
             }
@@ -1979,6 +1982,7 @@ function FloatingButtons(props: { part: "video" | "loading", onTerminateStream: 
     const { part, onTerminateStream } = props
     const fullscreen = useAtomValue(vc_isFullscreen)
     const [isMiniPlayer, setIsMiniPlayer] = useAtom(vc_miniPlayer)
+    const pipManager = useAtomValue(vc_pipManager)
     if (fullscreen) return null
     const Content = () => (
         <>
@@ -1998,6 +2002,21 @@ function FloatingButtons(props: { part: "video" | "loading", onTerminateStream: 
             </>}
 
             {isMiniPlayer && <>
+                <IconButton
+                    data-vc-element="floating-button-pip"
+                    data-vc-for={part}
+                    type="button"
+                    intent="gray"
+                    size="sm"
+                    className={cn(
+                        "rounded-full text-2xl flex-none absolute z-[999] right-12 top-4 pointer-events-auto bg-black/30 hover:bg-black/40",
+                        "text-xl",
+                    )}
+                    icon={<TbPictureInPicture />}
+                    onClick={() => {
+                        pipManager?.togglePip()
+                    }}
+                />
                 <IconButton
                     data-vc-element="floating-button-expand"
                     data-vc-for={part}

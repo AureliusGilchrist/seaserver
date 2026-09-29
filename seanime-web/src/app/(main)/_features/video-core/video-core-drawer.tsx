@@ -1,9 +1,11 @@
+import { vc_miniPlayerSize } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { CloseButton } from "@/components/ui/button"
 import { cn, ComponentAnatomy, defineStyleAnatomy } from "@/components/ui/core/styling"
 import { __isDesktop__ } from "@/types/constants"
 import type * as DialogPrimitive from "@radix-ui/react-dialog"
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { cva, VariantProps } from "class-variance-authority"
+import { useAtom } from "jotai/react"
 import * as React from "react"
 import { RemoveScrollBar } from "react-remove-scroll-bar"
 import { Drawer as VaulPrimitive } from "vaul"
@@ -238,6 +240,17 @@ export function VideoCoreDrawer(props: DrawerProps) {
     const contentRef = React.useRef<HTMLDivElement>(null)
     const draggableAreaRef = React.useRef<HTMLDivElement>(null)
 
+    // Fork: user-resizable mini player. The stored size persists across sessions; liveSize
+    // holds the in-progress size while the corner grip is being dragged.
+    const [storedMiniPlayerSize, setStoredMiniPlayerSize] = useAtom(vc_miniPlayerSize)
+    const [liveMiniPlayerSize, setLiveMiniPlayerSize] = React.useState<{ width: number, height: number } | null>(null)
+    const effectiveMiniPlayerSize = liveMiniPlayerSize ?? storedMiniPlayerSize
+    const isResizingRef = React.useRef(false)
+    const resizeHandleRef = React.useRef<HTMLDivElement>(null)
+    const resizeStartPos = React.useRef({ x: 0, y: 0 })
+    const resizeStartSize = React.useRef({ width: 0, height: 0 })
+    const lastLiveSizeRef = React.useRef<{ width: number, height: number } | null>(null)
+
     // Calculate initial position immediately based on known dimensions
     const getInitialPosition = React.useCallback(() => {
         // Use the known CSS dimensions from the className
@@ -426,14 +439,65 @@ export function VideoCoreDrawer(props: DrawerProps) {
         return () => window.removeEventListener("resize", handleResize)
     }, [miniPlayer, calculateBoundaries, isHidden])
 
+    // Fork: handle resizing via the bottom-left corner grip, only when in mini player mode
+    React.useEffect(() => {
+        if (!miniPlayer || !resizeHandleRef.current || !contentRef.current) return
+
+        const el = contentRef.current
+
+        const handleMouseDown = (e: MouseEvent) => {
+            e.preventDefault()
+            e.stopPropagation()
+            isResizingRef.current = true
+            resizeStartPos.current = { x: e.clientX, y: e.clientY }
+            resizeStartSize.current = { width: el.offsetWidth, height: el.offsetHeight }
+        }
+
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isResizingRef.current) return
+
+            // Bottom-left grip: dragging left grows the width, dragging down grows the
+            // height. The panel stays aspect-locked to 16:9 so the picture never distorts.
+            const dx = resizeStartPos.current.x - e.clientX
+            const newWidth = Math.round(Math.max(280, Math.min(window.innerWidth * 0.85, resizeStartSize.current.width + dx)))
+            const newHeight = Math.round(newWidth * (9 / 16))
+
+            const size = { width: newWidth, height: newHeight }
+            lastLiveSizeRef.current = size
+            setLiveMiniPlayerSize(size)
+        }
+
+        const handleMouseUp = () => {
+            if (!isResizingRef.current) return
+            isResizingRef.current = false
+            // Commit the final size so it persists across sessions
+            setStoredMiniPlayerSize(prev => lastLiveSizeRef.current ?? prev)
+            lastLiveSizeRef.current = null
+            setLiveMiniPlayerSize(null)
+        }
+
+        resizeHandleRef.current.addEventListener("mousedown", handleMouseDown)
+        window.addEventListener("mousemove", handleMouseMove)
+        window.addEventListener("mouseup", handleMouseUp)
+
+        return () => {
+            resizeHandleRef.current?.removeEventListener("mousedown", handleMouseDown)
+            window.removeEventListener("mousemove", handleMouseMove)
+            window.removeEventListener("mouseup", handleMouseUp)
+        }
+    }, [miniPlayer, setLiveMiniPlayerSize, setStoredMiniPlayerSize])
+
 
     React.useLayoutEffect(() => {
         if (!contentRef.current) return
 
         const element = contentRef.current
         const currentPosition = (position.x === 0 && position.y === 0) ? getInitialPosition() : position
-        const miniWidth = window.innerWidth >= 1024 ? 400 : 300
-        const miniHeight = miniWidth * (9 / 16)
+        const defaultMiniWidth = window.innerWidth >= 1024 ? 400 : 300
+        const { width: miniWidth, height: miniHeight } = effectiveMiniPlayerSize ?? {
+            width: defaultMiniWidth,
+            height: defaultMiniWidth * (9 / 16),
+        }
         const didToggleMiniPlayer = prevMiniPlayerRef.current !== miniPlayer
 
         element.style.width = ""
@@ -477,7 +541,26 @@ export function VideoCoreDrawer(props: DrawerProps) {
             element.style.transition = "opacity 0.2s ease-out, transform 0.2s ease-out" // Keep opacity and scale transition during
             // drag
         }
-    }, [miniPlayer, position, isDragging, isHidden, getInitialPosition])
+    }, [miniPlayer, position, isDragging, isHidden, getInitialPosition, effectiveMiniPlayerSize])
+
+    // Fork: keep the mini player fully on-screen when its size is larger than what the
+    // initial position assumed (e.g. after resizing in a previous session, or while
+    // growing the panel past a screen edge). Runs after the sizing effect above so
+    // offsetWidth/offsetHeight already reflect the current size.
+    React.useLayoutEffect(() => {
+        if (!miniPlayer || !contentRef.current) return
+
+        const el = contentRef.current
+        const maxX = Math.max(80 + PADDING, window.innerWidth - el.offsetWidth - PADDING)
+        const maxY = Math.max(PADDING, window.innerHeight - el.offsetHeight - PADDING)
+
+        setPosition(prev => {
+            const x = Math.min(Math.max(80 + PADDING, prev.x), maxX)
+            const y = Math.min(Math.max(PADDING, prev.y), maxY)
+            if (x === prev.x && y === prev.y) return prev
+            return { x, y }
+        })
+    }, [miniPlayer, effectiveMiniPlayerSize])
 
     React.useLayoutEffect(() => {
         if (!contentRef.current) return
@@ -599,6 +682,20 @@ export function VideoCoreDrawer(props: DrawerProps) {
                         className="vc-drawer-draggable-area absolute inset-0 z-[6]"
                     >
 
+                    </div>}
+
+                    {miniPlayer && <div
+                        ref={resizeHandleRef}
+                        data-vc-element="drawer-miniplayer-resize-handle"
+                        className="absolute bottom-0 left-0 z-[60] size-6 cursor-nesw-resize group/vc-resize"
+                        title="Drag to resize"
+                    >
+                        <div
+                            className="absolute bottom-1.5 left-1.5 size-3 rounded-sm opacity-30 transition-opacity group-hover/vc-resize:opacity-90"
+                            style={{
+                                backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,0.9) 0 1px, transparent 1px 4px)",
+                            }}
+                        />
                     </div>}
 
 
