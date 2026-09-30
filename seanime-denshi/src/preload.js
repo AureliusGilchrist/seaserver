@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld(
             setTitleBarStyle: (style) => ipcRenderer.send("window:setTitleBarStyle", style),
             getCurrentWindow: () => ipcRenderer.invoke("window:getCurrentWindow"),
             isMainWindow: () => ipcRenderer.send("window:isMainWindow"),
+            // Fork: open (or reuse) the always-on-top popout player window with the given
+            // same-origin app URL; playback is handed off to that window.
+            openPlayerPopout: (url) => ipcRenderer.invoke("window:open-player-popout", url),
         },
 
         localServer: {

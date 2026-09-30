@@ -43,6 +43,8 @@ declare global {
                 setTitleBarStyle: (style: string) => void;
                 getCurrentWindow: () => Promise<string>;
                 isMainWindow: () => Promise<boolean>;
+                // Fork: open (or reuse) the always-on-top popout player window
+                openPlayerPopout: (url: string) => Promise<void>;
             };
             localServer: {
                 getPort: () => Promise<number>;

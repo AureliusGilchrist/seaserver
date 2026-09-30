@@ -702,6 +702,7 @@ function logEnvironmentInfo() {
 let mainWindow = null
 let splashScreen = null
 let crashScreen = null
+let popoutPlayerWindow = null
 let tray = null
 let serverProcess = null
 let isShutdown = false
@@ -1747,6 +1748,85 @@ app.whenReady().then(async () => {
 
     ipcMain.handle("window:isVisible", () => {
         return mainWindow && !mainWindow.isDestroyed() ? mainWindow.isVisible() : false
+    })
+
+    // ── Popout player window ────────────────────────────────────────────────────────
+    // A separate always-on-top window that takes over playback ("pop out of the app").
+    // The renderer hands playback off to it, so it plays the stream directly — native
+    // decoding and the app's own subtitle/controls rendering, with no canvas pipeline.
+    ipcMain.handle("window:open-player-popout", (event, url) => {
+        if (typeof url !== "string" || !mainWindow || mainWindow.isDestroyed()) {
+            throw new Error("Popout unavailable")
+        }
+
+        // Only allow URLs from the same origin as the main window's current page, so the
+        // renderer can never make the shell load arbitrary web content.
+        let targetOrigin
+        let mainOrigin
+        try {
+            targetOrigin = new URL(url).origin
+            mainOrigin = new URL(mainWindow.webContents.getURL()).origin
+        } catch {
+            throw new Error("Invalid popout URL")
+        }
+        if (!targetOrigin || targetOrigin !== mainOrigin) {
+            throw new Error("Blocked non-app popout URL")
+        }
+
+        if (popoutPlayerWindow && !popoutPlayerWindow.isDestroyed()) {
+            popoutPlayerWindow.loadURL(url)
+            popoutPlayerWindow.show()
+            popoutPlayerWindow.focus()
+            return
+        }
+
+        popoutPlayerWindow = new BrowserWindow({
+            width: 720,
+            height: 480,
+            minWidth: 320,
+            minHeight: 240,
+            resizable: true,
+            alwaysOnTop: true,
+            backgroundColor: "#111111",
+            title: "Seaserver",
+            autoHideMenuBar: true,
+            show: false,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+                sandbox: true,
+                preload: path.join(__dirname, "preload.js"),
+                webSecurity: true,
+                allowRunningInsecureContent: true,
+                enableBlinkFeatures: "FontAccess, AudioVideoTracks",
+                backgroundThrottling: false,
+            },
+        })
+
+        if (process.platform === "win32" || process.platform === "linux") {
+            popoutPlayerWindow.setMenuBarVisibility(false)
+        }
+
+        // Same policy as the main window: no renderer-spawned windows, external links go
+        // to the system browser.
+        popoutPlayerWindow.webContents.setWindowOpenHandler(({ url: openUrl }) => {
+            if (openUrl.startsWith("http://") || openUrl.startsWith("https://")) {
+                shell.openExternal(openUrl)
+            }
+            return { action: "deny" }
+        })
+
+        popoutPlayerWindow.once("ready-to-show", () => {
+            if (popoutPlayerWindow && !popoutPlayerWindow.isDestroyed()) {
+                popoutPlayerWindow.show()
+            }
+        })
+
+        popoutPlayerWindow.on("closed", () => {
+            popoutPlayerWindow = null
+        })
+
+        popoutPlayerWindow.loadURL(url)
     })
 
     // Clipboard handler

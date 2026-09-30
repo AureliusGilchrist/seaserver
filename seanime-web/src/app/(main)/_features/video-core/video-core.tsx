@@ -123,6 +123,7 @@ import {
     vc_logGeneralInfo,
 } from "@/app/(main)/_features/video-core/video-core.utils"
 import { useServerHMACAuth, useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { useMediastreamCurrentFile } from "@/app/(main)/mediastream/_lib/mediastream.atoms"
 import { __torrentSearch_selectedTorrentsAtom } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-container"
 import {
     __torrentSearch_selectionAtom,
@@ -750,6 +751,10 @@ export function VideoCore(props: VideoCoreProps) {
     const { onReachedThreshold: onReachedProgressThreshold } = useVideoCoreAutoProgress(state)
 
     const { isParticipant: isWatchPartyParticipant } = useNakamaWatchParty()
+
+    // Fork: current mediastream file path — the popout handoff URL needs it when the
+    // playback info doesn't carry the local file (mediastream inline flow).
+    const { filePath: mediastreamFilePath } = useMediastreamCurrentFile()
 
     const videoCompletedRef = useRef(false)
     const currentPlaybackRef = useRef<string | null>(null)
@@ -1659,8 +1664,37 @@ export function VideoCore(props: VideoCoreProps) {
             pipManager.setVideo(videoRef.current, state.playbackInfo)
             if (subtitleManager) pipManager.setSubtitleManager(subtitleManager)
             if (mediaCaptionsManager) pipManager.setMediaCaptionsManager(mediaCaptionsManager)
+
+            // Fork: in the desktop client, every pop-out action hands playback off to the
+            // always-on-top popout window (native decoding + the app's own subtitle and
+            // control rendering — no canvas pipeline). Browsers keep picture-in-picture.
+            if (__isElectronDesktop__ && typeof window !== "undefined" && window.electron?.window?.openPlayerPopout) {
+                const playbackInfoRef = state.playbackInfo
+                pipManager.setPopoutHandler(() => {
+                    const filePath = playbackInfoRef?.localFile?.path ?? mediastreamFilePath ?? null
+                    if (!filePath) {
+                        toast.error("Can't pop out this stream")
+                        return
+                    }
+
+                    const encoded = encodeURIComponent(Buffer.from(filePath).toString("base64"))
+                    const url = `${window.location.origin}/popout-player?path=${encoded}`
+
+                    window.electron!.window!.openPlayerPopout(url).then(() => {
+                        // Hand off: stop this client's stream; the popout resumes from
+                        // the server-tracked watch position.
+                        onTerminateStream()
+                    }).catch((err: unknown) => {
+                        log.error("Failed to open the popout player", err)
+                        toast.error("Failed to open the popout player")
+                    })
+                })
+            }
+            else {
+                pipManager.setPopoutHandler(null)
+            }
         }
-    }, [pipManager, subtitleManager, mediaCaptionsManager, videoRef.current, state.playbackInfo])
+    }, [pipManager, subtitleManager, mediaCaptionsManager, videoRef.current, state.playbackInfo, mediastreamFilePath])
 
     // Update fullscreen manager
     React.useEffect(() => {

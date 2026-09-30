@@ -48,6 +48,10 @@ export class VideoCorePipManager extends EventTarget {
     private video: HTMLVideoElement | null = null
     private subtitleManager: VideoCoreSubtitleManager | null = null
     private mediaCaptionsManager: MediaCaptionsManager | null = null
+    // Fork: when set, all pop-out actions hand playback off to the desktop popout window
+    // instead of entering picture-in-picture. Set in the Electron client, where the
+    // canvas PiP pipeline is too heavy and Document PiP is unsupported.
+    private popoutHandler: (() => void) | null = null
     private controller = new AbortController()
     private canvasController: AbortController | null = null
     private readonly onPipElementChange: (element: HTMLVideoElement | null) => void
@@ -142,6 +146,14 @@ export class VideoCorePipManager extends EventTarget {
         this.playbackInfo = playbackInfo
     }
 
+    /**
+     * Fork: wire the desktop popout (Electron). While set, togglePip/enterPip hand the
+     * stream off to the always-on-top popout window instead of using picture-in-picture.
+     */
+    setPopoutHandler(handler: (() => void) | null) {
+        this.popoutHandler = handler
+    }
+
     setSubtitleManager(subtitleManager: VideoCoreSubtitleManager) {
         this.subtitleManager = subtitleManager
     }
@@ -151,6 +163,14 @@ export class VideoCorePipManager extends EventTarget {
     }
 
     togglePip(enable?: boolean) {
+        // In the desktop client, "pop out" means handing playback off to the popout
+        // window — there is no PiP state to toggle here.
+        if (this.popoutHandler) {
+            if (enable === false) return
+            this.popoutHandler()
+            return
+        }
+
         const isCurrentlyInPip = document.pictureInPictureElement !== null || this.docPipWindow !== null
         const shouldEnable = enable !== undefined ? enable : !isCurrentlyInPip
 
@@ -180,6 +200,11 @@ export class VideoCorePipManager extends EventTarget {
     private isEnteringRef = false
 
     async enterPip() {
+        if (this.popoutHandler) {
+            this.popoutHandler()
+            return
+        }
+
         if (this.isEnteringRef || document.pictureInPictureElement || this.docPipWindow || !this.video) {
             log.warning("PiP already in use, entry already in progress, or video not set")
             return

@@ -672,9 +672,6 @@ export function VideoCoreTimestamp() {
 export function VideoCorePipButton() {
     const pipManager = useAtomValue(vc_pipManager)
     const isPip = useAtomValue(vc_pip)
-    const isMiniPlayer = useAtomValue(vc_miniPlayer)
-
-    if (isMiniPlayer) return null
 
     return (
         <VideoCoreControlButtonIcon
