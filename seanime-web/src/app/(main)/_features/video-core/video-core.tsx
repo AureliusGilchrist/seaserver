@@ -151,6 +151,7 @@ import { PiSpinnerDuotone } from "react-icons/pi"
 import { TbPictureInPicture } from "react-icons/tb"
 import { RemoveScrollBar } from "react-remove-scroll-bar"
 import { useUnmount, useUpdateEffect, useWindowSize } from "react-use"
+import { toast } from "sonner"
 
 const log = logger("VIDEO CORE")
 
@@ -1276,6 +1277,11 @@ export function VideoCore(props: VideoCoreProps) {
                 setPipElement(element)
             }, (win) => {
                 setDocPipWindow(win)
+            })
+            // Surface PiP failures — the manager has no other UI listener, and entry used
+            // to fail silently when a floating window couldn't be opened.
+            manager.addEventListener("error", ev => {
+                toast.error(ev.detail.error)
             })
             manager.setVideo(v!, state.playbackInfo!)
             return manager

@@ -1,6 +1,7 @@
 import { MediaCaptionsManager } from "@/app/(main)/_features/video-core/video-core-media-captions"
 import { VideoCoreSubtitleManager } from "@/app/(main)/_features/video-core/video-core-subtitles"
 import { VideoCore_VideoPlaybackInfo } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { __isElectronDesktop__ } from "@/types/constants"
 import { logger } from "@/lib/helpers/debug"
 import { atom } from "jotai"
 import { derive } from "jotai-derive"
@@ -176,12 +177,15 @@ export class VideoCorePipManager extends EventTarget {
         }
     }
 
+    private isEnteringRef = false
+
     async enterPip() {
-        if (document.pictureInPictureElement || this.docPipWindow || !this.video) {
-            log.warning("PiP already in use or video not set")
+        if (this.isEnteringRef || document.pictureInPictureElement || this.docPipWindow || !this.video) {
+            log.warning("PiP already in use, entry already in progress, or video not set")
             return
         }
 
+        this.isEnteringRef = true
         try {
             const hasLibassSubtitles = this.subtitleManager?.getSelectedTrackNumberOrNull?.() != null
             const hasMediaCaptions = this.mediaCaptionsManager?.getSelectedTrackIndexOrNull?.() != null
@@ -206,6 +210,9 @@ export class VideoCorePipManager extends EventTarget {
             const errorMessage = error instanceof Error ? error.message : "Unknown error during PiP entry"
             const errorEvent: PipManagerErrorEvent = new CustomEvent("error", { detail: { error: errorMessage } })
             this.dispatchEvent(errorEvent)
+        }
+        finally {
+            this.isEnteringRef = false
         }
     }
 
@@ -292,6 +299,21 @@ export class VideoCorePipManager extends EventTarget {
             this.video.focus()
         }
         this.pipProxy = null
+    }
+
+    private async enterNativePip(pipVideo: HTMLVideoElement, signal: AbortSignal) {
+        // Native video PiP: the PiP window shows only the picture, with the browser's own
+        // controls. Used in the desktop client (which has no Document PiP support) and as
+        // the fallback when the Document PiP window fails to open.
+        const pipWindow = await pipVideo.requestPictureInPicture()
+
+        pipWindow.addEventListener("resize", () => {
+            const { width, height } = pipWindow
+            if (isNaN(width) || isNaN(height) || !isFinite(width) || !isFinite(height)) {
+                return
+            }
+            this.subtitleManager?.pgsRenderer?.resize()
+        }, { signal })
     }
 
     private copyStylesToPipWindow(pipWindow: Window) {
@@ -529,41 +551,62 @@ export class VideoCorePipManager extends EventTarget {
                 }
             }
 
-            const docPip = getDocumentPictureInPicture()
+            // Electron does not support the Document PiP API — requestWindow() silently
+            // opens nothing there (electron/electron#39633) — so only attempt it outside
+            // the desktop client. A requestWindow that fails or hangs falls back to the
+            // native video PiP rather than leaving the button dead.
+            const docPip = __isElectronDesktop__ ? null : getDocumentPictureInPicture()
 
             if (docPip) {
-                // Document PiP: a separate always-on-top window holding the PiP video plus
-                // the app's own controls, portaled in by VideoCoreDocumentPipPortal. The
-                // window isn't tied to the main video's PiP state, so it survives episode
-                // transitions — the canvas loop just keeps drawing the new episode.
-                const pipWindow = await docPip.requestWindow({
+                let pipWindow: Window | null = null
+                let settled = false
+
+                const request = docPip.requestWindow({
                     width: 480,
                     height: 270,
+                }).then(win => {
+                    if (settled) {
+                        // We already fell back to native PiP; close the late window so it
+                        // doesn't linger unmanaged alongside it.
+                        win.close()
+                        return null
+                    }
+                    settled = true
+                    return win
+                }).catch(err => {
+                    log.warning("Document PiP requestWindow failed, falling back to native video PiP", err)
+                    settled = true
+                    return null
                 })
 
-                this.docPipWindow = pipWindow
-                this.onDocPipWindowChange?.(pipWindow)
-                this.copyStylesToPipWindow(pipWindow)
-                this.setupDocPipBody(pipWindow, pipVideo)
+                const timeout = new Promise<null>(resolve => setTimeout(() => {
+                    if (!settled) {
+                        settled = true
+                        log.warning("Document PiP window did not open in time — falling back to native video PiP")
+                    }
+                    resolve(null)
+                }, 2000))
 
-                pipWindow.addEventListener("pagehide", () => {
-                    this.handleDocPipClosed()
-                }, { signal: this.canvasController.signal })
+                pipWindow = await Promise.race([request, timeout])
 
-                this.handleDocPipEntered(pipVideo)
+                if (pipWindow) {
+                    this.docPipWindow = pipWindow
+                    this.onDocPipWindowChange?.(pipWindow)
+                    this.copyStylesToPipWindow(pipWindow)
+                    this.setupDocPipBody(pipWindow, pipVideo)
+
+                    pipWindow.addEventListener("pagehide", () => {
+                        this.handleDocPipClosed()
+                    }, { signal: this.canvasController.signal })
+
+                    this.handleDocPipEntered(pipVideo)
+                }
+                else {
+                    await this.enterNativePip(pipVideo, this.canvasController!.signal)
+                }
             }
             else {
-                // Native video PiP fallback (Safari, older browsers): the PiP window shows
-                // only the picture, with the browser's own controls.
-                const pipWindow = await pipVideo.requestPictureInPicture()
-
-                pipWindow.addEventListener("resize", () => {
-                    const { width, height } = pipWindow
-                    if (isNaN(width) || isNaN(height) || !isFinite(width) || !isFinite(height)) {
-                        return
-                    }
-                    this.subtitleManager?.pgsRenderer?.resize()
-                }, { signal: this.canvasController.signal })
+                await this.enterNativePip(pipVideo, this.canvasController!.signal)
             }
 
             log.info("Successfully entered PiP")
