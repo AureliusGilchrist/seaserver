@@ -24,6 +24,24 @@ interface VideoCorePipManagerEventMap {
 export const vc_pipElement = atom<HTMLVideoElement | null>(null)
 export const vc_pipManager = atom<VideoCorePipManager | null>(null)
 export const vc_pip = derive([vc_pipElement], (pipElement) => pipElement !== null)
+// Fork: the Document Picture-in-Picture window (Chromium 116+), when one is open. The
+// window holds the PiP video plus the app's own controls, portaled in from React.
+export const vc_docPipWindow = atom<Window | null>(null)
+
+// Minimal Document Picture-in-Picture API surface (Chromium 116+; not in lib.dom yet).
+type DocumentPictureInPicture = {
+    requestWindow: (options?: {
+        width?: number
+        height?: number
+        disallowReturnToOpener?: boolean
+    }) => Promise<Window>
+    window: Window | null
+}
+
+function getDocumentPictureInPicture(): DocumentPictureInPicture | null {
+    if (typeof window === "undefined") return null
+    return (window as Window & { documentPictureInPicture?: DocumentPictureInPicture }).documentPictureInPicture ?? null
+}
 
 export class VideoCorePipManager extends EventTarget {
     private video: HTMLVideoElement | null = null
@@ -32,14 +50,20 @@ export class VideoCorePipManager extends EventTarget {
     private controller = new AbortController()
     private canvasController: AbortController | null = null
     private readonly onPipElementChange: (element: HTMLVideoElement | null) => void
+    private readonly onDocPipWindowChange: ((win: Window | null) => void) | null
+    private docPipWindow: Window | null = null
     private pipProxy: HTMLVideoElement | null = null
     private isSyncingFromMain = false
     private isSyncingFromPip = false
     private playbackInfo: VideoCore_VideoPlaybackInfo | null = null
 
-    constructor(onPipElementChange: (element: HTMLVideoElement | null) => void) {
+    constructor(
+        onPipElementChange: (element: HTMLVideoElement | null) => void,
+        onDocPipWindowChange?: (win: Window | null) => void,
+    ) {
         super()
         this.onPipElementChange = onPipElementChange
+        this.onDocPipWindowChange = onDocPipWindowChange ?? null
         document.addEventListener("enterpictureinpicture", this.handleEnterPip, {
             signal: this.controller.signal,
         })
@@ -126,7 +150,7 @@ export class VideoCorePipManager extends EventTarget {
     }
 
     togglePip(enable?: boolean) {
-        const isCurrentlyInPip = document.pictureInPictureElement !== null
+        const isCurrentlyInPip = document.pictureInPictureElement !== null || this.docPipWindow !== null
         const shouldEnable = enable !== undefined ? enable : !isCurrentlyInPip
 
         if (shouldEnable) {
@@ -137,6 +161,12 @@ export class VideoCorePipManager extends EventTarget {
     }
 
     exitPip() {
+        if (this.docPipWindow) {
+            // Closing the Document PiP window fires "pagehide", which runs the cleanup.
+            this.docPipWindow.close()
+            return
+        }
+
         if (document.pictureInPictureElement) {
             document.exitPictureInPicture().catch((err: DOMException) => {
                 log.error("Failed to exit PiP", err)
@@ -147,7 +177,7 @@ export class VideoCorePipManager extends EventTarget {
     }
 
     async enterPip() {
-        if (document.pictureInPictureElement || !this.video) {
+        if (document.pictureInPictureElement || this.docPipWindow || !this.video) {
             log.warning("PiP already in use or video not set")
             return
         }
@@ -157,13 +187,18 @@ export class VideoCorePipManager extends EventTarget {
             const hasMediaCaptions = this.mediaCaptionsManager?.getSelectedTrackIndexOrNull?.() != null
             const hasActiveSubtitles = hasLibassSubtitles || hasMediaCaptions
 
-            if (!hasActiveSubtitles) {
-                log.info("Entering PiP without subtitles")
+            if (!hasActiveSubtitles && !getDocumentPictureInPicture()) {
+                // No subtitles and no Document PiP support: the browser's native video PiP
+                // is both the cheapest and the only floating window available.
+                log.info("Entering native PiP without subtitles")
                 await this.video.requestPictureInPicture()
                 return
             }
 
-            log.info("Entering PiP with subtitle burning", { hasLibassSubtitles, hasMediaCaptions })
+            // The canvas-stream path serves both remaining cases: with subtitles it burns
+            // them into the PiP picture; without subtitles it feeds the Document PiP
+            // window, which carries the app's own controls.
+            log.info("Entering PiP", { hasLibassSubtitles, hasMediaCaptions })
             await this.enterPipWithSubtitles()
         }
         catch (error) {
@@ -178,6 +213,8 @@ export class VideoCorePipManager extends EventTarget {
         this.exitPip()
         this.canvasController?.abort()
         this.controller.abort()
+        this.docPipWindow = null
+        this.onDocPipWindowChange?.(null)
         this.video = null
         this.subtitleManager = null
         this.mediaCaptionsManager = null
@@ -220,6 +257,81 @@ export class VideoCorePipManager extends EventTarget {
         this.pipProxy = null
     }
 
+    // ── Fork: Document Picture-in-Picture ────────────────────────────────────────────
+
+    private handleDocPipEntered(pipVideo: HTMLVideoElement) {
+        log.info("Entered Document PiP", pipVideo)
+
+        this._isPip = true
+
+        const event: PipManagerEnteredEvent = new CustomEvent("enteredpip", { detail: { pipElement: pipVideo } })
+        this.dispatchEvent(event)
+        const event2: PipManagerToggledEvent = new CustomEvent("toggledpip", { detail: { enabled: true } })
+        this.dispatchEvent(event2)
+
+        this.onPipElementChange(pipVideo)
+    }
+
+    private handleDocPipClosed() {
+        log.info("Exited Document PiP")
+
+        this.canvasController?.abort()
+        this.docPipWindow = null
+        this.onDocPipWindowChange?.(null)
+
+        this._isPip = false
+
+        const event: PipManagerExitedEvent = new CustomEvent("exitedpip")
+        this.dispatchEvent(event)
+        const event2: PipManagerToggledEvent = new CustomEvent("toggledpip", { detail: { enabled: false } })
+        this.dispatchEvent(event2)
+
+        this.onPipElementChange(null)
+
+        if (this.video) {
+            this.video.focus()
+        }
+        this.pipProxy = null
+    }
+
+    private copyStylesToPipWindow(pipWindow: Window) {
+        [...document.styleSheets].forEach((styleSheet) => {
+            try {
+                const cssRules = [...styleSheet.cssRules].map(rule => rule.cssText).join("")
+                const style = pipWindow.document.createElement("style")
+                style.textContent = cssRules
+                pipWindow.document.head.appendChild(style)
+            }
+            catch {
+                // Cross-origin stylesheet: fall back to linking it so the browser re-fetches it.
+                const link = pipWindow.document.createElement("link")
+                link.rel = "stylesheet"
+                link.type = styleSheet.type ?? "text/css"
+                link.media = styleSheet.media.mediaText
+                if (styleSheet.href) {
+                    link.href = styleSheet.href
+                    pipWindow.document.head.appendChild(link)
+                }
+            }
+        })
+    }
+
+    private setupDocPipBody(pipWindow: Window, pipVideo: HTMLVideoElement) {
+        const body = pipWindow.document.body
+        body.style.margin = "0"
+        body.style.background = "#000"
+        body.style.display = "flex"
+        body.style.flexDirection = "column"
+        body.style.overflow = "hidden"
+
+        pipVideo.style.width = "100%"
+        pipVideo.style.flex = "1 1 0%"
+        pipVideo.style.minHeight = "0"
+        pipVideo.style.objectFit = "contain"
+
+        body.appendChild(pipVideo)
+    }
+
     private newPipVideo() {
         const element = document.createElement("video")
         element.muted = true
@@ -253,7 +365,7 @@ export class VideoCorePipManager extends EventTarget {
             }
         }
 
-        context.drawImage(this.video, 0, 0)
+        context.drawImage(this.video, 0, 0, context.canvas.width, context.canvas.height)
 
         // Draw ASS/SSA subtitles
         const subtitleCanvas = this.subtitleManager?.libassRenderer?._canvas
@@ -308,11 +420,18 @@ export class VideoCorePipManager extends EventTarget {
         pipVideo.muted = true
         this.pipProxy = pipVideo
 
-        canvas.width = this.video.videoWidth
-        canvas.height = this.video.videoHeight
+        // Cap the canvas at a working resolution. Drawing the video frame (a GPU→CPU
+        // readback) and rendering libass subtitles at full source resolution for every
+        // frame is what makes the popout lag on heavy content; the floating window is
+        // small enough that 960px wide stays sharp.
+        const sourceWidth = this.video.videoWidth || 960
+        const sourceHeight = this.video.videoHeight || Math.round(960 * (9 / 16))
+        const sizeScale = Math.min(1, 960 / sourceWidth)
+        canvas.width = Math.round(sourceWidth * sizeScale)
+        canvas.height = Math.round(sourceHeight * sizeScale)
 
         if (this.subtitleManager?.libassRenderer) {
-            await this.subtitleManager.libassRenderer.resize(true, this.video.videoWidth, this.video.videoHeight)
+            await this.subtitleManager.libassRenderer.resize(true, canvas.width, canvas.height)
         }
 
         this.canvasController = new AbortController()
@@ -342,7 +461,7 @@ export class VideoCorePipManager extends EventTarget {
         const animationFrameRef = { current: 0 }
 
         // draw initial frame
-        context.drawImage(this.video, 0, 0)
+        context.drawImage(this.video, 0, 0, context.canvas.width, context.canvas.height)
         const subtitleCanvas = this.subtitleManager?.libassRenderer?._canvas
         if (subtitleCanvas && canvas.width && canvas.height) {
             context.drawImage(subtitleCanvas, 0, 0, canvas.width, canvas.height)
@@ -410,16 +529,42 @@ export class VideoCorePipManager extends EventTarget {
                 }
             }
 
-            const pipWindow = await pipVideo.requestPictureInPicture()
+            const docPip = getDocumentPictureInPicture()
 
-            pipWindow.addEventListener("resize", () => {
-                const { width, height } = pipWindow
-                if (isNaN(width) || isNaN(height) || !isFinite(width) || !isFinite(height)) {
-                    return
-                }
-                this.subtitleManager?.libassRenderer?.resize(true, width, height)
-                this.subtitleManager?.pgsRenderer?.resize()
-            }, { signal: this.canvasController.signal })
+            if (docPip) {
+                // Document PiP: a separate always-on-top window holding the PiP video plus
+                // the app's own controls, portaled in by VideoCoreDocumentPipPortal. The
+                // window isn't tied to the main video's PiP state, so it survives episode
+                // transitions — the canvas loop just keeps drawing the new episode.
+                const pipWindow = await docPip.requestWindow({
+                    width: 480,
+                    height: 270,
+                })
+
+                this.docPipWindow = pipWindow
+                this.onDocPipWindowChange?.(pipWindow)
+                this.copyStylesToPipWindow(pipWindow)
+                this.setupDocPipBody(pipWindow, pipVideo)
+
+                pipWindow.addEventListener("pagehide", () => {
+                    this.handleDocPipClosed()
+                }, { signal: this.canvasController.signal })
+
+                this.handleDocPipEntered(pipVideo)
+            }
+            else {
+                // Native video PiP fallback (Safari, older browsers): the PiP window shows
+                // only the picture, with the browser's own controls.
+                const pipWindow = await pipVideo.requestPictureInPicture()
+
+                pipWindow.addEventListener("resize", () => {
+                    const { width, height } = pipWindow
+                    if (isNaN(width) || isNaN(height) || !isFinite(width) || !isFinite(height)) {
+                        return
+                    }
+                    this.subtitleManager?.pgsRenderer?.resize()
+                }, { signal: this.canvasController.signal })
+            }
 
             log.info("Successfully entered PiP")
         }

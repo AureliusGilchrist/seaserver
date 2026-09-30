@@ -81,6 +81,8 @@ import { vc_showOverlayFeedback } from "@/app/(main)/_features/video-core/video-
 import { VideoCoreOverlayDisplay } from "@/app/(main)/_features/video-core/video-core-overlay-display"
 import { vc_pip } from "@/app/(main)/_features/video-core/video-core-pip"
 import { vc_pipElement, vc_pipManager, VideoCorePipManager } from "@/app/(main)/_features/video-core/video-core-pip"
+import { vc_docPipWindow } from "@/app/(main)/_features/video-core/video-core-pip"
+import { VideoCoreDocumentPipPortal } from "@/app/(main)/_features/video-core/video-core-document-pip"
 import {
     useVideoCorePlaylist,
     useVideoCorePlaylistSetup,
@@ -537,6 +539,8 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                             )}
                         </VideoCoreTopSection>}
 
+                        {isPip && <VideoCoreDocumentPipPortal chapterCues={chapterCues} />}
+
                         {isPip && (
                             <div
                                 data-vc-element="pip-overlay"
@@ -759,6 +763,7 @@ export function VideoCore(props: VideoCoreProps) {
     const [anime4kManager, setAnime4kManager] = useAtom(vc_anime4kManager)
     const [pipManager, setPipManager] = useAtom(vc_pipManager)
     const setPipElement = useSetAtom(vc_pipElement)
+    const setDocPipWindow = useSetAtom(vc_docPipWindow)
     const [fullscreenManager, setFullscreenManager] = useAtom(vc_fullscreenManager)
     const setIsFullscreen = useSetAtom(vc_isFullscreen)
     const [mediaSessionManager, setMediaSessionManager] = useAtom(vc_mediaSessionManager)
@@ -861,9 +866,10 @@ export function VideoCore(props: VideoCoreProps) {
         if (!__isElectronDesktop__ || !window.electron?.on) return
 
         const pausePlayback = () => {
-            // When the video is popped out to the OS picture-in-picture window, keep it
-            // playing when the app window is minimized or hidden to the tray.
-            if (document.pictureInPictureElement) return
+            // When the video is popped out to a PiP window (native or Document PiP), keep
+            // it playing when the app window is minimized or hidden to the tray.
+            const docPipWindow = (window as Window & { documentPictureInPicture?: { window: Window | null } }).documentPictureInPicture
+            if (document.pictureInPictureElement || docPipWindow?.window) return
             if (videoRef.current && !videoRef.current.paused && !videoRef.current.ended) {
                 videoRef.current.pause()
             }
@@ -1260,11 +1266,16 @@ export function VideoCore(props: VideoCoreProps) {
             })
         })
 
-        // Initialize PIP manager
+        // Initialize PIP manager. An existing manager is kept (not destroyed) so PiP
+        // survives episode transitions — the same PiP window and canvas loop keep running
+        // across the src change; the new episode's subtitle/caption managers are wired via
+        // the update effect below.
         setPipManager(p => {
-            if (p) p.destroy()
+            if (p) return p
             const manager = new VideoCorePipManager((element) => {
                 setPipElement(element)
+            }, (win) => {
+                setDocPipWindow(win)
             })
             manager.setVideo(v!, state.playbackInfo!)
             return manager
