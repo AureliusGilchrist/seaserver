@@ -60,8 +60,18 @@ func loadExpBarProgression(app *core.App) error {
 
 func InitRoutes(app *core.App, e *echo.Echo) {
 	// CORS middleware
+	//
+	// AllowOrigins "*" together with AllowCredentials is a combination the browser refuses
+	// outright ("the wildcard must not be used when the request's credentials mode is
+	// 'include'"), which killed every credentialed fetch. Echo's middleware handles it by
+	// echoing the request's origin back when AllowCredentials is set — as long as the origin
+	// list allows it, which it does.
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*"},
+		AllowOriginFunc: func(origin string) bool {
+			// Echo any origin: the client is served from app://-, the LAN IP, or localhost,
+			// and credentials mode is always "include" because the API relies on tokens.
+			return true
+		},
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Cookie", "Authorization",
 			"X-Seanime-Token", "X-Seanime-Profile-Token", "X-Seanime-Background", "X-Seanime-Nakama-Token", "X-Seanime-Nakama-Username", "X-Seanime-Nakama-Server-Version", "X-Seanime-Nakama-Peer-Id", "X-CSRF-Token"},
 		ExposeHeaders:    []string{"X-Seanime-Profile-Token", "X-Seanime-Profile-Expired", "X-CSRF-Token"},
