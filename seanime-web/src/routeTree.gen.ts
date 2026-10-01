@@ -22,6 +22,7 @@ import { Route as MainStudioIndexRouteImport } from './routes/_main/studio/index
 import { Route as MainStaffIndexRouteImport } from './routes/_main/staff/index'
 import { Route as MainSettingsIndexRouteImport } from './routes/_main/settings/index'
 import { Route as MainSearchIndexRouteImport } from './routes/_main/search/index'
+import { Route as MainPopoutPlayerIndexRouteImport } from './routes/_main/popout-player/index'
 import { Route as MainOfflineIndexRouteImport } from './routes/_main/offline/index'
 import { Route as MainMilestonesIndexRouteImport } from './routes/_main/milestones/index'
 import { Route as MainMediastreamIndexRouteImport } from './routes/_main/mediastream/index'
@@ -268,6 +269,13 @@ const MainSearchIndexRoute = MainSearchIndexRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_main/search/index.lazy').then((d) => d.Route),
 )
+const MainPopoutPlayerIndexRoute = MainPopoutPlayerIndexRouteImport.update({
+  id: '/popout-player/',
+  path: '/popout-player/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/popout-player/index.lazy').then((d) => d.Route),
+)
 const MainOfflineIndexRoute = MainOfflineIndexRouteImport.update({
   id: '/offline/',
   path: '/offline/',
@@ -443,6 +451,7 @@ export interface FileRoutesByFullPath {
   '/mediastream/': typeof MainMediastreamIndexRoute
   '/milestones/': typeof MainMilestonesIndexRoute
   '/offline/': typeof MainOfflineIndexRoute
+  '/popout-player/': typeof MainPopoutPlayerIndexRoute
   '/search/': typeof MainSearchIndexRoute
   '/settings/': typeof MainSettingsIndexRoute
   '/staff/': typeof MainStaffIndexRoute
@@ -493,6 +502,7 @@ export interface FileRoutesByTo {
   '/mediastream': typeof MainMediastreamIndexRoute
   '/milestones': typeof MainMilestonesIndexRoute
   '/offline': typeof MainOfflineIndexRoute
+  '/popout-player': typeof MainPopoutPlayerIndexRoute
   '/search': typeof MainSearchIndexRoute
   '/settings': typeof MainSettingsIndexRoute
   '/staff': typeof MainStaffIndexRoute
@@ -545,6 +555,7 @@ export interface FileRoutesById {
   '/_main/mediastream/': typeof MainMediastreamIndexRoute
   '/_main/milestones/': typeof MainMilestonesIndexRoute
   '/_main/offline/': typeof MainOfflineIndexRoute
+  '/_main/popout-player/': typeof MainPopoutPlayerIndexRoute
   '/_main/search/': typeof MainSearchIndexRoute
   '/_main/settings/': typeof MainSettingsIndexRoute
   '/_main/staff/': typeof MainStaffIndexRoute
@@ -597,6 +608,7 @@ export interface FileRouteTypes {
     | '/mediastream/'
     | '/milestones/'
     | '/offline/'
+    | '/popout-player/'
     | '/search/'
     | '/settings/'
     | '/staff/'
@@ -647,6 +659,7 @@ export interface FileRouteTypes {
     | '/mediastream'
     | '/milestones'
     | '/offline'
+    | '/popout-player'
     | '/search'
     | '/settings'
     | '/staff'
@@ -698,6 +711,7 @@ export interface FileRouteTypes {
     | '/_main/mediastream/'
     | '/_main/milestones/'
     | '/_main/offline/'
+    | '/_main/popout-player/'
     | '/_main/search/'
     | '/_main/settings/'
     | '/_main/staff/'
@@ -939,6 +953,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainSearchIndexRouteImport
       parentRoute: typeof MainRoute
     }
+    '/_main/popout-player/': {
+      id: '/_main/popout-player/'
+      path: '/popout-player'
+      fullPath: '/popout-player/'
+      preLoaderRoute: typeof MainPopoutPlayerIndexRouteImport
+      parentRoute: typeof MainRoute
+    }
     '/_main/offline/': {
       id: '/_main/offline/'
       path: '/offline'
@@ -1103,6 +1124,7 @@ interface MainRouteChildren {
   MainMediastreamIndexRoute: typeof MainMediastreamIndexRoute
   MainMilestonesIndexRoute: typeof MainMilestonesIndexRoute
   MainOfflineIndexRoute: typeof MainOfflineIndexRoute
+  MainPopoutPlayerIndexRoute: typeof MainPopoutPlayerIndexRoute
   MainSearchIndexRoute: typeof MainSearchIndexRoute
   MainSettingsIndexRoute: typeof MainSettingsIndexRoute
   MainStaffIndexRoute: typeof MainStaffIndexRoute
@@ -1148,6 +1170,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainMediastreamIndexRoute: MainMediastreamIndexRoute,
   MainMilestonesIndexRoute: MainMilestonesIndexRoute,
   MainOfflineIndexRoute: MainOfflineIndexRoute,
+  MainPopoutPlayerIndexRoute: MainPopoutPlayerIndexRoute,
   MainSearchIndexRoute: MainSearchIndexRoute,
   MainSettingsIndexRoute: MainSettingsIndexRoute,
   MainStaffIndexRoute: MainStaffIndexRoute,

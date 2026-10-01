@@ -1759,17 +1759,18 @@ app.whenReady().then(async () => {
             throw new Error("Popout unavailable")
         }
 
-        // Only allow URLs from the same origin as the main window's current page, so the
-        // renderer can never make the shell load arbitrary web content.
-        let targetOrigin
-        let mainOrigin
+        // Only allow URLs on the same scheme+host as the main window's current page, so the
+        // renderer can never make the shell load arbitrary web content. (Origin comparison
+        // would not work here: Node parses the app:// scheme as an opaque origin.)
+        let target
+        let mainUrl
         try {
-            targetOrigin = new URL(url).origin
-            mainOrigin = new URL(mainWindow.webContents.getURL()).origin
+            target = new URL(url)
+            mainUrl = new URL(mainWindow.webContents.getURL())
         } catch {
             throw new Error("Invalid popout URL")
         }
-        if (!targetOrigin || targetOrigin !== mainOrigin) {
+        if (target.protocol !== mainUrl.protocol || target.host !== mainUrl.host) {
             throw new Error("Blocked non-app popout URL")
         }
 
