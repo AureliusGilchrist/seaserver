@@ -67,10 +67,10 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// echoing the request's origin back when AllowCredentials is set — as long as the origin
 	// list allows it, which it does.
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOriginFunc: func(origin string) bool {
+		AllowOriginFunc: func(origin string) (bool, error) {
 			// Echo any origin: the client is served from app://-, the LAN IP, or localhost,
 			// and credentials mode is always "include" because the API relies on tokens.
-			return true
+			return true, nil
 		},
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Cookie", "Authorization",
 			"X-Seanime-Token", "X-Seanime-Profile-Token", "X-Seanime-Background", "X-Seanime-Nakama-Token", "X-Seanime-Nakama-Username", "X-Seanime-Nakama-Server-Version", "X-Seanime-Nakama-Peer-Id", "X-CSRF-Token"},
