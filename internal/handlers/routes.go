@@ -63,7 +63,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Cookie", "Authorization",
-			"X-Seanime-Token", "X-Seanime-Profile-Token", "X-Seanime-Nakama-Token", "X-Seanime-Nakama-Username", "X-Seanime-Nakama-Server-Version", "X-Seanime-Nakama-Peer-Id", "X-CSRF-Token"},
+			"X-Seanime-Token", "X-Seanime-Profile-Token", "X-Seanime-Background", "X-Seanime-Nakama-Token", "X-Seanime-Nakama-Username", "X-Seanime-Nakama-Server-Version", "X-Seanime-Nakama-Peer-Id", "X-CSRF-Token"},
 		ExposeHeaders:    []string{"X-Seanime-Profile-Token", "X-Seanime-Profile-Expired", "X-CSRF-Token"},
 		AllowCredentials: true,
 	}))

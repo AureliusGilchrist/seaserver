@@ -46,6 +46,15 @@ function discardSessionFromPreviousLaunch() {
 
     try {
         if (window.sessionStorage.getItem(LAUNCH_ID_KEY) === launchId) return
+        // A window the current launch's shell opened itself (the popout player) belongs to this
+        // run just as much as a reload does — its sessionStorage is empty because it is new, not
+        // because its session ended. It proves membership by carrying the launch id in its URL;
+        // without this, opening the popout wiped the token it should have inherited and forced a
+        // fresh sign-in there.
+        if (new URLSearchParams(window.location.search).get("launch") === launchId) {
+            window.sessionStorage.setItem(LAUNCH_ID_KEY, launchId)
+            return
+        }
         window.localStorage.removeItem(PROFILE_TOKEN_KEY)
         window.sessionStorage.setItem(LAUNCH_ID_KEY, launchId)
     }

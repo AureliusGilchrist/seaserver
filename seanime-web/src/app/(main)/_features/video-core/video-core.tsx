@@ -1678,7 +1678,10 @@ export function VideoCore(props: VideoCoreProps) {
                     }
 
                     const encoded = encodeURIComponent(Buffer.from(filePath).toString("base64"))
-                    const url = `${window.location.origin}/popout-player?path=${encoded}`
+                    // The launch id rides along so the popout's session guard recognizes the
+                    // window as part of this run and keeps the signed-in profile session.
+                    const launchId = (window as any)?.electron?.session?.launchId ?? ""
+                    const url = `${window.location.origin}/popout-player?path=${encoded}&launch=${encodeURIComponent(launchId)}`
 
                     window.electron!.window!.openPlayerPopout(url).then(() => {
                         // Hand off: stop this client's stream; the popout resumes from
