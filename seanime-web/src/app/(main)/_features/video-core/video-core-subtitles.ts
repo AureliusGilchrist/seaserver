@@ -549,6 +549,26 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.libassRenderer.maxRenderHeight = Math.min(1080, Math.max(720, videoHeight))
     }
 
+    /**
+     * Frees the current subtitle track inside the shared libass instance.
+     *
+     * The renderer is deliberately shared across episodes so tracks appear instantly, but
+     * JASSUB's setTrack is purely additive (createTrackMem never frees the previous track
+     * — its own freeTrack exists and nothing calls it). Without this, every episode and
+     * every track switch left the previous track's events resident inside libass forever,
+     * and libass scans the entire event list on every rendered frame — so a session grew
+     * slower the longer it ran and the more events it had seen.
+     */
+    private _freeLibassTrack() {
+        if (!this.libassRenderer) return
+        try {
+            ;(this.libassRenderer.renderer as any)?.freeTrack?.()
+        }
+        catch (e) {
+            subtitleLog.warn("Failed to free previous libass track", e)
+        }
+    }
+
     async selectTrack(trackNumber: number) {
         subtitleLog.info("Track selection requested", trackNumber)
         if (this.isDestroyed) return
@@ -636,7 +656,14 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             // Handle regular ASS/text subtitles
             this.pgsRenderer?.clear()
 
-            // Set the track
+            // Set the track. JASSUB's setTrack → createTrackMem ADDS the track's events to
+            // libass without freeing the previous track (the WASM bindings expose removeTrack
+            // for exactly this and the worker never calls it), and this renderer is shared
+            // across episodes/track switches — so every selection used to pile another full
+            // track's events onto an ever-growing list. Libass scans the whole list on every
+            // frame (rawRender), which is why playback degraded the longer it ran and the
+            // more words a caption had. Free the old track before adding the new one.
+            this._freeLibassTrack()
             this.libassRenderer?.renderer?.setTrack(codecPrivate)
             // Apply customization to Default styles
             await this._applySubtitleCustomization()
@@ -1211,6 +1238,9 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         if (this.libassRenderer) {
             await this.libassRenderer.ready
             if (this.isDestroyed) return
+            // Free the old track first — see the note in selectTrack: setTrack is additive
+            // and this renderer outlives the track being replaced.
+            this._freeLibassTrack()
             this.libassRenderer?.renderer?.setTrack(this.eventTracks[track]?.info.codecPrivate?.slice(0, -1) || this.defaultSubtitleHeader)
             await this._applySubtitleCustomization()
             if (this.isDestroyed) return

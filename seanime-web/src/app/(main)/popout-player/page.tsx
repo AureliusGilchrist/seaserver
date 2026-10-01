@@ -1,18 +1,30 @@
 "use client"
 /**
- * Fork: the popout player window's entry page (Electron). The desktop shell opens this
- * route in a separate always-on-top BrowserWindow when the user pops the player out of
- * the main window; playback is handed off to this client.
+ * Fork: the popout player window's page (Electron) — a YouTube-PiP-like floating player.
  *
- * It plays the file through the native-player flow (directstream into the globally
- * mounted player), so subtitles and the full control bar render natively here — no
- * canvas pipeline. The page closes itself once the stream terminates.
+ * The desktop shell opens this route in a separate frameless always-on-top BrowserWindow
+ * when the user pops the player out of the main window. The route deliberately lives
+ * OUTSIDE the _main layout: this window's only job is playing video, so it renders no
+ * sidebar, no navbar, no library loaders, no reward/cursor/Discord layers — just the
+ * player with the app's own subtitle and control rendering (native decoding, no canvas
+ * pipeline).
+ *
+ * Playback is handed off here: the page fires the native-player play request for the
+ * file, the globally-scoped player drawer takes over, and the window closes itself once
+ * the stream terminates.
  */
 import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
+import { ElectronWindowTitleBar } from "@/app/(main)/_electron/electron-window-title-bar"
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
+import { NativePlayer } from "@/app/(main)/_features/native-player/native-player"
+import { VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { clientIdAtom } from "@/app/websocket-provider"
+import { AppLayoutStack } from "@/components/ui/app-layout"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { ClientPrefsHydrator } from "@/lib/sea-storage/client-prefs-hydrator"
+import { AnimeThemeProvider } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { UICustomizeProvider } from "@/lib/ui-customize/ui-customize-provider"
 import { useSearchParams } from "@/lib/navigation"
 import { logger } from "@/lib/helpers/debug"
 import { useAtomValue } from "jotai"
@@ -22,6 +34,31 @@ import { ImSpinner2 } from "react-icons/im"
 const log = logger("POPOUT PLAYER")
 
 export default function Page() {
+    return (
+        <ClientPrefsHydrator>
+            <AnimeThemeProvider>
+                <UICustomizeProvider>
+                    <ElectronWindowTitleBar />
+                    <div className="h-dvh w-full bg-black relative z-[1]">
+                        <VideoCoreProvider key="native-player" id="native-player">
+                            <PopoutPlaybackHandoff />
+                            <AppLayoutStack className="z-[5]">
+                                <NativePlayer />
+                            </AppLayoutStack>
+                        </VideoCoreProvider>
+                    </div>
+                </UICustomizeProvider>
+            </AnimeThemeProvider>
+        </ClientPrefsHydrator>
+    )
+}
+
+/**
+ * Waits for the app to connect, then starts the handed-off stream, and closes the window
+ * when it terminates. Rendered inside VideoCoreProvider so its atoms resolve to the
+ * player's scope.
+ */
+function PopoutPlaybackHandoff() {
     const searchParams = useSearchParams()
     const encodedPath = searchParams.get("path")
 
@@ -83,7 +120,7 @@ export default function Page() {
     }
 
     return (
-        <div className="h-dvh w-full flex items-center justify-center bg-black">
+        <div className="absolute inset-0 flex items-center justify-center">
             <LoadingSpinner
                 title="Starting popout player..."
                 spinner={<ImSpinner2 className="size-16 text-white animate-spin" />}

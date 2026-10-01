@@ -8,6 +8,6 @@ const searchSchema = z.object({
     launch: z.string().optional(),
 })
 
-export const Route = createFileRoute("/_main/popout-player/")({
+export const Route = createFileRoute("/popout-player/")({
     validateSearch: searchSchema,
 })

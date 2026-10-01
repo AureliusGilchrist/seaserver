@@ -13,6 +13,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as MainRouteImport } from './routes/_main'
 import { Route as SplashscreenIndexRouteImport } from './routes/splashscreen/index'
+import { Route as PopoutPlayerIndexRouteImport } from './routes/popout-player/index'
 import { Route as MainIndexRouteImport } from './routes/_main/index'
 import { Route as MainErrorTestRouteImport } from './routes/_main/error-test'
 import { Route as SplashscreenCrashIndexRouteImport } from './routes/splashscreen/crash/index'
@@ -22,7 +23,6 @@ import { Route as MainStudioIndexRouteImport } from './routes/_main/studio/index
 import { Route as MainStaffIndexRouteImport } from './routes/_main/staff/index'
 import { Route as MainSettingsIndexRouteImport } from './routes/_main/settings/index'
 import { Route as MainSearchIndexRouteImport } from './routes/_main/search/index'
-import { Route as MainPopoutPlayerIndexRouteImport } from './routes/_main/popout-player/index'
 import { Route as MainOfflineIndexRouteImport } from './routes/_main/offline/index'
 import { Route as MainMilestonesIndexRouteImport } from './routes/_main/milestones/index'
 import { Route as MainMediastreamIndexRouteImport } from './routes/_main/mediastream/index'
@@ -109,6 +109,13 @@ const SplashscreenIndexRoute = SplashscreenIndexRouteImport.update({
   path: '/splashscreen/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PopoutPlayerIndexRoute = PopoutPlayerIndexRouteImport.update({
+  id: '/popout-player/',
+  path: '/popout-player/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/popout-player/index.lazy').then((d) => d.Route),
+)
 const MainIndexRoute = MainIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -268,13 +275,6 @@ const MainSearchIndexRoute = MainSearchIndexRouteImport.update({
   getParentRoute: () => MainRoute,
 } as any).lazy(() =>
   import('./routes/_main/search/index.lazy').then((d) => d.Route),
-)
-const MainPopoutPlayerIndexRoute = MainPopoutPlayerIndexRouteImport.update({
-  id: '/popout-player/',
-  path: '/popout-player/',
-  getParentRoute: () => MainRoute,
-} as any).lazy(() =>
-  import('./routes/_main/popout-player/index.lazy').then((d) => d.Route),
 )
 const MainOfflineIndexRoute = MainOfflineIndexRouteImport.update({
   id: '/offline/',
@@ -436,6 +436,7 @@ const MainOfflineEntryAnimeIndexRoute =
 export interface FileRoutesByFullPath {
   '/': typeof MainIndexRoute
   '/error-test': typeof MainErrorTestRoute
+  '/popout-player/': typeof PopoutPlayerIndexRoute
   '/splashscreen/': typeof SplashscreenIndexRoute
   '/docs/': typeof DocsIndexLazyRoute
   '/issue-report/': typeof IssueReportIndexLazyRoute
@@ -451,7 +452,6 @@ export interface FileRoutesByFullPath {
   '/mediastream/': typeof MainMediastreamIndexRoute
   '/milestones/': typeof MainMilestonesIndexRoute
   '/offline/': typeof MainOfflineIndexRoute
-  '/popout-player/': typeof MainPopoutPlayerIndexRoute
   '/search/': typeof MainSearchIndexRoute
   '/settings/': typeof MainSettingsIndexRoute
   '/staff/': typeof MainStaffIndexRoute
@@ -487,6 +487,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/error-test': typeof MainErrorTestRoute
   '/': typeof MainIndexRoute
+  '/popout-player': typeof PopoutPlayerIndexRoute
   '/splashscreen': typeof SplashscreenIndexRoute
   '/docs': typeof DocsIndexLazyRoute
   '/issue-report': typeof IssueReportIndexLazyRoute
@@ -502,7 +503,6 @@ export interface FileRoutesByTo {
   '/mediastream': typeof MainMediastreamIndexRoute
   '/milestones': typeof MainMilestonesIndexRoute
   '/offline': typeof MainOfflineIndexRoute
-  '/popout-player': typeof MainPopoutPlayerIndexRoute
   '/search': typeof MainSearchIndexRoute
   '/settings': typeof MainSettingsIndexRoute
   '/staff': typeof MainStaffIndexRoute
@@ -540,6 +540,7 @@ export interface FileRoutesById {
   '/_main': typeof MainRouteWithChildren
   '/_main/error-test': typeof MainErrorTestRoute
   '/_main/': typeof MainIndexRoute
+  '/popout-player/': typeof PopoutPlayerIndexRoute
   '/splashscreen/': typeof SplashscreenIndexRoute
   '/docs/': typeof DocsIndexLazyRoute
   '/issue-report/': typeof IssueReportIndexLazyRoute
@@ -555,7 +556,6 @@ export interface FileRoutesById {
   '/_main/mediastream/': typeof MainMediastreamIndexRoute
   '/_main/milestones/': typeof MainMilestonesIndexRoute
   '/_main/offline/': typeof MainOfflineIndexRoute
-  '/_main/popout-player/': typeof MainPopoutPlayerIndexRoute
   '/_main/search/': typeof MainSearchIndexRoute
   '/_main/settings/': typeof MainSettingsIndexRoute
   '/_main/staff/': typeof MainStaffIndexRoute
@@ -593,6 +593,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/error-test'
+    | '/popout-player/'
     | '/splashscreen/'
     | '/docs/'
     | '/issue-report/'
@@ -608,7 +609,6 @@ export interface FileRouteTypes {
     | '/mediastream/'
     | '/milestones/'
     | '/offline/'
-    | '/popout-player/'
     | '/search/'
     | '/settings/'
     | '/staff/'
@@ -644,6 +644,7 @@ export interface FileRouteTypes {
   to:
     | '/error-test'
     | '/'
+    | '/popout-player'
     | '/splashscreen'
     | '/docs'
     | '/issue-report'
@@ -659,7 +660,6 @@ export interface FileRouteTypes {
     | '/mediastream'
     | '/milestones'
     | '/offline'
-    | '/popout-player'
     | '/search'
     | '/settings'
     | '/staff'
@@ -696,6 +696,7 @@ export interface FileRouteTypes {
     | '/_main'
     | '/_main/error-test'
     | '/_main/'
+    | '/popout-player/'
     | '/splashscreen/'
     | '/docs/'
     | '/issue-report/'
@@ -711,7 +712,6 @@ export interface FileRouteTypes {
     | '/_main/mediastream/'
     | '/_main/milestones/'
     | '/_main/offline/'
-    | '/_main/popout-player/'
     | '/_main/search/'
     | '/_main/settings/'
     | '/_main/staff/'
@@ -747,6 +747,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   MainRoute: typeof MainRouteWithChildren
+  PopoutPlayerIndexRoute: typeof PopoutPlayerIndexRoute
   SplashscreenIndexRoute: typeof SplashscreenIndexRoute
   DocsIndexLazyRoute: typeof DocsIndexLazyRoute
   IssueReportIndexLazyRoute: typeof IssueReportIndexLazyRoute
@@ -790,6 +791,13 @@ declare module '@tanstack/react-router' {
       path: '/splashscreen'
       fullPath: '/splashscreen/'
       preLoaderRoute: typeof SplashscreenIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/popout-player/': {
+      id: '/popout-player/'
+      path: '/popout-player'
+      fullPath: '/popout-player/'
+      preLoaderRoute: typeof PopoutPlayerIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_main/': {
@@ -951,13 +959,6 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/search/'
       preLoaderRoute: typeof MainSearchIndexRouteImport
-      parentRoute: typeof MainRoute
-    }
-    '/_main/popout-player/': {
-      id: '/_main/popout-player/'
-      path: '/popout-player'
-      fullPath: '/popout-player/'
-      preLoaderRoute: typeof MainPopoutPlayerIndexRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/offline/': {
@@ -1124,7 +1125,6 @@ interface MainRouteChildren {
   MainMediastreamIndexRoute: typeof MainMediastreamIndexRoute
   MainMilestonesIndexRoute: typeof MainMilestonesIndexRoute
   MainOfflineIndexRoute: typeof MainOfflineIndexRoute
-  MainPopoutPlayerIndexRoute: typeof MainPopoutPlayerIndexRoute
   MainSearchIndexRoute: typeof MainSearchIndexRoute
   MainSettingsIndexRoute: typeof MainSettingsIndexRoute
   MainStaffIndexRoute: typeof MainStaffIndexRoute
@@ -1170,7 +1170,6 @@ const MainRouteChildren: MainRouteChildren = {
   MainMediastreamIndexRoute: MainMediastreamIndexRoute,
   MainMilestonesIndexRoute: MainMilestonesIndexRoute,
   MainOfflineIndexRoute: MainOfflineIndexRoute,
-  MainPopoutPlayerIndexRoute: MainPopoutPlayerIndexRoute,
   MainSearchIndexRoute: MainSearchIndexRoute,
   MainSettingsIndexRoute: MainSettingsIndexRoute,
   MainStaffIndexRoute: MainStaffIndexRoute,
@@ -1207,6 +1206,7 @@ const MainRouteWithChildren = MainRoute._addFileChildren(MainRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   MainRoute: MainRouteWithChildren,
+  PopoutPlayerIndexRoute: PopoutPlayerIndexRoute,
   SplashscreenIndexRoute: SplashscreenIndexRoute,
   DocsIndexLazyRoute: DocsIndexLazyRoute,
   IssueReportIndexLazyRoute: IssueReportIndexLazyRoute,

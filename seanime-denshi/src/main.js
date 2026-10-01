@@ -1788,9 +1788,9 @@ app.whenReady().then(async () => {
             minHeight: 240,
             resizable: true,
             alwaysOnTop: true,
+            frame: false,
             backgroundColor: "#111111",
             title: "Seaserver",
-            autoHideMenuBar: true,
             show: false,
             webPreferences: {
                 nodeIntegration: false,
