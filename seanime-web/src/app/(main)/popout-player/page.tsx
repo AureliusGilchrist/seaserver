@@ -18,8 +18,7 @@ import { ElectronWindowTitleBar } from "@/app/(main)/_electron/electron-window-t
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { NativePlayer } from "@/app/(main)/_features/native-player/native-player"
 import { VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
-import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
-import { clientIdAtom } from "@/app/websocket-provider"
+import { clientIdAtom, websocketConnectedAtom } from "@/app/websocket-provider"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { ClientPrefsHydrator } from "@/lib/sea-storage/client-prefs-hydrator"
@@ -62,8 +61,8 @@ function PopoutPlaybackHandoff() {
     const searchParams = useSearchParams()
     const encodedPath = searchParams.get("path")
 
-    const serverStatus = useServerStatus()
     const clientId = useAtomValue(clientIdAtom)
+    const isConnected = useAtomValue(websocketConnectedAtom)
     const nativePlayerState = useAtomValue(nativePlayer_stateAtom)
     const [handoffError, setHandoffError] = React.useState<string | null>(null)
     const { mutate: playLocalFile } = useDirectstreamPlayLocalFile()
@@ -73,10 +72,16 @@ function PopoutPlaybackHandoff() {
         return () => document.body.removeAttribute("data-player-page")
     }, [])
 
-    // Fire the play request once the app is connected to the server
+    // Fire the play request once this window's websocket is connected.
+    //
+    // It must be the websocket, not the server status: the status atom is populated by the
+    // app's main layout, which this window deliberately does not render — waiting on it meant
+    // the handoff never fired and the window sat on its spinner forever. Waiting for the
+    // socket also matters for correctness: the server pushes the stream's events to this
+    // client id, and events sent before the socket is up would simply be missed.
     const startedFor = React.useRef<string | null>(null)
     React.useEffect(() => {
-        if (!encodedPath || !serverStatus || !clientId || !playLocalFile) return
+        if (!encodedPath || !clientId || !isConnected || !playLocalFile) return
 
         const key = encodedPath
         if (startedFor.current === key) return
@@ -104,7 +109,7 @@ function PopoutPlaybackHandoff() {
                 setHandoffError(message)
             },
         })
-    }, [encodedPath, serverStatus, clientId, playLocalFile])
+    }, [encodedPath, clientId, isConnected, playLocalFile])
 
     // Close the window once the handed-off stream is terminated (or fails to start)
     const wasActiveRef = React.useRef(false)

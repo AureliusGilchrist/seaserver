@@ -1669,48 +1669,66 @@ app.whenReady().then(async () => {
     }
 
     // Register Window Control IPC handlers
-    ipcMain.on("window:minimize", () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.minimize()
+    //
+    // These act on the window that sent the request, not unconditionally on the main window.
+    // The main window and the popout player window both draw the app's own title bar, and
+    // hardcoding `mainWindow` here meant the popout's buttons minimized, maximized and
+    // closed the main window sitting behind it.
+    function senderWindow(event) {
+        try {
+            const win = event?.sender ? BrowserWindow.fromWebContents(event.sender) : null
+            if (win && !win.isDestroyed()) return win
+        } catch {
+        }
+        return mainWindow && !mainWindow.isDestroyed() ? mainWindow : null
+    }
+
+    ipcMain.on("window:minimize", (event) => {
+        senderWindow(event)?.minimize()
+    })
+
+    ipcMain.on("window:maximize", (event) => {
+        senderWindow(event)?.maximize()
+    })
+
+    ipcMain.on("window:close", (event) => {
+        senderWindow(event)?.close()
+    })
+
+    ipcMain.on("window:toggleMaximize", (event) => {
+        const win = senderWindow(event)
+        if (!win) return
+        if (win.isMaximized()) {
+            win.unmaximize()
+        } else {
+            win.maximize()
         }
     })
 
-    ipcMain.on("window:maximize", () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.maximize()
-        }
-    })
-
-    ipcMain.on("window:close", () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.close()
-        }
-    })
-
-    ipcMain.on("window:toggleMaximize", () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            if (mainWindow.isMaximized()) {
-                mainWindow.unmaximize()
-            } else {
-                mainWindow.maximize()
-            }
-        }
-    })
-
-    ipcMain.on("window:hide", () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
+    ipcMain.on("window:hide", (event) => {
+        const win = senderWindow(event)
+        if (!win) return
+        // The main window's hide goes through the tray helper, which also tells the renderer
+        // and ends the profile session; any other window just hides itself.
+        if (win === mainWindow) {
             hideMainWindow()
+        } else {
+            win.hide()
         }
     })
 
-    ipcMain.on("window:show", () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
+    ipcMain.on("window:show", (event) => {
+        const win = senderWindow(event)
+        if (!win) return
+        if (win === mainWindow) {
             showMainWindow()
+        } else {
+            win.show()
         }
     })
 
-    ipcMain.handle("window:getCurrentWindow", () => {
-        const win = BrowserWindow.fromWebContents(mainWindow.webContents)
+    ipcMain.handle("window:getCurrentWindow", (event) => {
+        const win = senderWindow(event)
         return win?.id
     })
 
@@ -1720,34 +1738,32 @@ app.whenReady().then(async () => {
     })
 
     // Window state query handlers
-    ipcMain.handle("window:isMaximized", () => {
-        return mainWindow && !mainWindow.isDestroyed() ? mainWindow.isMaximized() : false
+    ipcMain.handle("window:isMaximized", (event) => {
+        return senderWindow(event)?.isMaximized() ?? false
     })
 
-    ipcMain.handle("window:isMinimizable", () => {
-        return mainWindow && !mainWindow.isDestroyed() ? mainWindow.minimizable : false
+    ipcMain.handle("window:isMinimizable", (event) => {
+        return senderWindow(event)?.minimizable ?? false
     })
 
-    ipcMain.handle("window:isMaximizable", () => {
-        return mainWindow && !mainWindow.isDestroyed() ? mainWindow.maximizable : false
+    ipcMain.handle("window:isMaximizable", (event) => {
+        return senderWindow(event)?.maximizable ?? false
     })
 
-    ipcMain.handle("window:isClosable", () => {
-        return mainWindow && !mainWindow.isDestroyed() ? mainWindow.closable : false
+    ipcMain.handle("window:isClosable", (event) => {
+        return senderWindow(event)?.closable ?? false
     })
 
-    ipcMain.handle("window:isFullscreen", () => {
-        return mainWindow && !mainWindow.isDestroyed() ? mainWindow.isFullScreen() : false
+    ipcMain.handle("window:isFullscreen", (event) => {
+        return senderWindow(event)?.isFullScreen() ?? false
     })
 
-    ipcMain.on("window:setFullscreen", (_event, fullscreen) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.setFullScreen(!!fullscreen)
-        }
+    ipcMain.on("window:setFullscreen", (event, fullscreen) => {
+        senderWindow(event)?.setFullScreen(!!fullscreen)
     })
 
-    ipcMain.handle("window:isVisible", () => {
-        return mainWindow && !mainWindow.isDestroyed() ? mainWindow.isVisible() : false
+    ipcMain.handle("window:isVisible", (event) => {
+        return senderWindow(event)?.isVisible() ?? false
     })
 
     // ── Popout player window ────────────────────────────────────────────────────────
@@ -1834,6 +1850,19 @@ app.whenReady().then(async () => {
                 shell.openExternal(openUrl)
             }
             return { action: "deny" }
+        })
+
+        // Keep this window's own title bar in step with its own maximize state (the main
+        // window's listeners only report the main window's).
+        popoutPlayerWindow.on("maximize", () => {
+            if (popoutPlayerWindow && !popoutPlayerWindow.isDestroyed()) {
+                popoutPlayerWindow.webContents.send("window:maximized")
+            }
+        })
+        popoutPlayerWindow.on("unmaximize", () => {
+            if (popoutPlayerWindow && !popoutPlayerWindow.isDestroyed()) {
+                popoutPlayerWindow.webContents.send("window:unmaximized")
+            }
         })
 
         popoutPlayerWindow.once("ready-to-show", () => {
