@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"seanime/internal/api/anilist"
 	"seanime/internal/util"
 	"seanime/internal/util/filecache"
@@ -138,6 +140,10 @@ const (
 	maxNonCollectionCacheEntries = 10
 	// Collection update interval (refresh collection tracking every 30 minutes)
 	collectionUpdateInterval = 30 * time.Minute
+
+	// legacyMediaBucketFileLimit is how large one of the media buckets' old file-cache copies may
+	// be before it is removed at startup. See the cleanup in NewCacheLayer.
+	legacyMediaBucketFileLimit = 64 << 20
 )
 
 // addFailureRecord adds a new failure record to the tracking
@@ -207,6 +213,28 @@ func NewCacheLayer(anilistClientRef *util.Ref[anilist.AnilistClient], mediaDB ..
 	fileCacher, err := filecache.NewCacher(anilistClientRef.Get().GetCacheDir())
 	if err != nil {
 		return anilistClientRef.Get()
+	}
+
+	// The media buckets used to be mirrored into the file cache alongside their SQLite rows, and a
+	// bucket file holds every entry ever written to it. One of those files — the anime-details
+	// bucket, one entry per anime whose details were ever fetched — grew into the gigabytes, and a
+	// bucket file is decoded whole the first time it is touched in a process: the enqueue walk's
+	// first request sat inside that decode for about an hour at every start. The mirroring is gone
+	// (see networkFirstGetSQLite), and any oversized file left behind by it is removed here rather
+	// than paid for one more time. The SQLite media cache holds the same entries, and a miss simply
+	// refetches — a cold cache is a far better trade than a stalled start.
+	startupLogger := util.NewLogger()
+	for _, bucketName := range []string{BaseAnimeBucket, CompleteAnimeBucket, AnimeDetailsBucket, BaseMangaBucket, MangaDetailsBucket} {
+		path := filepath.Join(anilistClientRef.Get().GetCacheDir(), bucketName+".cache")
+		if info, statErr := os.Stat(path); statErr == nil && info.Size() > legacyMediaBucketFileLimit {
+			if removeErr := os.Remove(path); removeErr != nil {
+				startupLogger.Warn().Err(removeErr).Str("file", path).
+					Msg("anilist cache: Failed to remove an oversized legacy cache file")
+			} else {
+				startupLogger.Info().Str("file", path).Int64("bytes", info.Size()).
+					Msg("anilist cache: Removed an oversized legacy cache file; the SQLite media cache supersedes it")
+			}
+		}
 	}
 
 	buckets := make(map[string]filecache.PermanentBucket)
@@ -531,6 +559,12 @@ func networkFirstGet[T any](c *CacheLayer, bucketName string, cacheKey string, n
 // networkFirstGetSQLite is like networkFirstGet but uses SQLite (via c.db) for
 // unlimited media caching instead of the bounded file cache. Falls back to
 // file cache for backward-compat with existing cached data.
+//
+// The file cache is read here but deliberately never written: it used to be mirrored alongside
+// every SQLite write, and a bucket file holds every entry ever written to it — the anime-details
+// copy alone grew to gigabytes, and decoding it on first use stalled the enqueue walk for an hour
+// at startup. SQLite is the store for these entries; the file read remains only for entries cached
+// before that migration.
 func networkFirstGetSQLite[T any](c *CacheLayer, bucketName string, cacheKey string, networkFn func() (*T, error)) (*T, error) {
 	if !ShouldCache.Load() || c.db == nil {
 		return networkFirstGet(c, bucketName, cacheKey, networkFn)
@@ -549,8 +583,6 @@ func networkFirstGetSQLite[T any](c *CacheLayer, bucketName string, cacheKey str
 					_ = c.db.SetMediaCache(bucketName, cacheKey, data)
 				}
 			}()
-			// Also keep file cache current for other tooling
-			_ = c.fileCacher.SetPerm(bucket, cacheKey, result)
 			return result, nil
 		}
 	} else {
@@ -562,7 +594,6 @@ func networkFirstGetSQLite[T any](c *CacheLayer, bucketName string, cacheKey str
 				if data, marshalErr := json.Marshal(result); marshalErr == nil {
 					_ = c.db.SetMediaCache(bucketName, cacheKey, data)
 				}
-				_ = c.fileCacher.SetPerm(bucket, cacheKey, result)
 			}
 		}()
 	}
