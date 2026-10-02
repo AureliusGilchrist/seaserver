@@ -1808,6 +1808,25 @@ app.whenReady().then(async () => {
             popoutPlayerWindow.setMenuBarVisibility(false)
         }
 
+        // Surface the popout window's failures in the main log, the same way the main window's
+        // are surfaced. Without this, anything that goes wrong in here — a failed handoff, a
+        // renderer error, a blank page — is invisible: the log stays empty and there is nothing
+        // to diagnose from.
+        popoutPlayerWindow.webContents.on("preload-error", (_e, preloadPath, err) => {
+            log.error("[PopoutWindow] preload-error", preloadPath, err)
+        })
+        popoutPlayerWindow.webContents.on("did-fail-load", (_e, code, desc, url) => {
+            log.error("[PopoutWindow] did-fail-load", code, desc, url)
+        })
+        popoutPlayerWindow.webContents.on("render-process-gone", (_e, details) => {
+            log.error("[PopoutWindow] render-process-gone", details)
+        })
+        popoutPlayerWindow.webContents.on("console-message", (_e, level, message, line, sourceId) => {
+            if (level >= 2) {
+                log.warn(`[PopoutWindow console L${level}] ${message} (${sourceId}:${line})`)
+            }
+        })
+
         // Same policy as the main window: no renderer-spawned windows, external links go
         // to the system browser.
         popoutPlayerWindow.webContents.setWindowOpenHandler(({ url: openUrl }) => {
@@ -1841,6 +1860,21 @@ app.whenReady().then(async () => {
     // Register server IPC handlers
     ipcMain.on("restart-server", () => {
         console.log("EVENT restart-server")
+
+        // In remote mode the server lives on another machine and this shell has no process to
+        // restart. Spawning the bundled sidecar anyway starts a server that cannot serve this
+        // client's config: it exits immediately ("Server process exited before starting") and
+        // the app tears itself down over a server it was never going to reach. Reload the
+        // window instead so the client reconnects to the remote server on its own.
+        const cfg = loadServerConfig()
+        if (cfg && cfg.mode === "remote") {
+            console.log("[Main] Ignoring restart-server in remote mode; reloading the window to reconnect")
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.reload()
+            }
+            return
+        }
+
         restartSeanimeServer().catch(console.error)
     })
 

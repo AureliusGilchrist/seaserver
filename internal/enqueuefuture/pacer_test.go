@@ -97,3 +97,38 @@ func TestNewPacerRejectsNonsense(t *testing.T) {
 		t.Errorf("first call: %v", err)
 	}
 }
+
+func TestPacerNeverDriftsWhenItemsTakeAboutTheInterval(t *testing.T) {
+	// The regression test for the runaway: the previous arithmetic reserved "this slot's last time
+	// plus a whole window" — a figure that compounds, because the stored time already includes the
+	// window that produced it. A run whose items take about as long as the interval sat exactly on
+	// the boundary where every item added the shortfall to a slot's stored time, and over a queue
+	// of thousands the stored times drifted hours into the future. The worker then parked in wait()
+	// silently for hours.
+	//
+	// This replays that pattern at a compressed scale: a 10ms interval with a 40ms window, items
+	// taking 8ms — the same 80% boundary — for enough items that the old arithmetic would have
+	// drifted several windows into the future. With the sliding window the worst wait stays at one
+	// window throughout.
+	p := newPacer(6000, 4) // 10ms interval, 40ms window
+
+	worst := time.Duration(0)
+	for i := 0; i < 400; i++ {
+		start := time.Now()
+		if err := p.wait(context.Background()); err != nil {
+			t.Fatalf("call %d: %v", i+1, err)
+		}
+		waited := time.Since(start)
+		if waited > worst {
+			worst = waited
+		}
+		// The item itself takes 80% of the interval — the boundary case. The old arithmetic
+		// compounded 2ms of drift into the slots per item; 400 items would be 800ms of drift,
+		// twenty windows deep.
+		time.Sleep(8 * time.Millisecond)
+	}
+
+	if worst > 60*time.Millisecond {
+		t.Errorf("worst wait was %s; the pacer is drifting (one window is 40ms)", worst)
+	}
+}

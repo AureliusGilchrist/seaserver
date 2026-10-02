@@ -1,5 +1,5 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
-import { serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { serverAuthTokenAtom, serverConnectionModeAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { isUpdateInstalledAtom, isUpdatingAtom } from "@/app/(main)/_electron/electron-update-modal"
 import { websocketConnectedAtom, websocketConnectionErrorCountAtom } from "@/app/websocket-provider"
 import { LuffyError } from "@/components/shared/luffy-error"
@@ -27,6 +27,7 @@ export function ElectronRestartServerPrompt() {
     const [hasClickedRestarted, setHasClickedRestarted] = React.useState(false)
     const isUpdatedInstalled = useAtomValue(isUpdateInstalledAtom)
     const isUpdating = useAtomValue(isUpdatingAtom)
+    const connectionMode = useAtomValue(serverConnectionModeAtom)
 
     // Check if the server requires a password (no router dependency)
     const [serverHasPassword, setServerHasPassword] = React.useState(false)
@@ -65,6 +66,17 @@ export function ElectronRestartServerPrompt() {
 
     const handleRestart = async () => {
         if (import.meta.env.MODE === "development") return toast.warning("Dev mode: Not restarting server")
+
+        // Remote mode (the server lives on another machine — a NAS, a home server): there is no
+        // local server process to restart, and asking the shell to start one spawns a sidecar
+        // that cannot serve this client's config. It exits immediately and takes the app down
+        // with it, which is the blank window users saw. Reload instead and let the client
+        // reconnect on its own — the same thing the Tauri build does here.
+        if (connectionMode === "remote") {
+            toast.info("Reconnecting...")
+            window.location.reload()
+            return
+        }
 
         setHasClickedRestarted(true)
         toast.info("Restarting server...")
@@ -120,7 +132,9 @@ export function ElectronRestartServerPrompt() {
                 <LuffyError>
                     <div className="space-y-4 flex flex-col items-center">
                         <p className="text-lg max-w-sm">
-                            The background server process has stopped responding. Please restart it to continue.
+                            {connectionMode === "remote"
+                                ? "The server is not responding. Please check that it is running, then reconnect."
+                                : "The background server process has stopped responding. Please restart it to continue."}
                         </p>
 
                         <Button
@@ -130,10 +144,12 @@ export function ElectronRestartServerPrompt() {
                             size="lg"
                             className="rounded-full"
                         >
-                            Restart server
+                            {connectionMode === "remote" ? "Reconnect" : "Restart server"}
                         </Button>
                         <p className="text-[--muted] text-sm max-w-xl">
-                            If this message persists after multiple tries, please relaunch the application.
+                            {connectionMode === "remote"
+                                ? "If this message persists, check the server machine or your connection to it."
+                                : "If this message persists after multiple tries, please relaunch the application."}
                         </p>
                     </div>
                 </LuffyError>

@@ -65,6 +65,7 @@ function PopoutPlaybackHandoff() {
     const serverStatus = useServerStatus()
     const clientId = useAtomValue(clientIdAtom)
     const nativePlayerState = useAtomValue(nativePlayer_stateAtom)
+    const [handoffError, setHandoffError] = React.useState<string | null>(null)
     const { mutate: playLocalFile } = useDirectstreamPlayLocalFile()
 
     React.useEffect(() => {
@@ -91,7 +92,18 @@ function PopoutPlaybackHandoff() {
         if (!filePath) return
 
         log.info("Starting popout playback", filePath)
-        playLocalFile({ path: filePath, clientId })
+        playLocalFile({ path: filePath, clientId }, {
+            onError: (error: any) => {
+                // Most likely causes: the profile session was rejected (401) or the server is
+                // unreachable. Say so instead of leaving the spinner up forever — this window
+                // has no other UI to explain itself with.
+                const message = error?.response?.status === 401
+                    ? "Your session has ended. Sign in again in the main window, then pop the player out once more."
+                    : "The server could not start this stream. Check that it is running, then try again from the main window."
+                log.error("Popout playback handoff failed", error)
+                setHandoffError(message)
+            },
+        })
     }, [encodedPath, serverStatus, clientId, playLocalFile])
 
     // Close the window once the handed-off stream is terminated (or fails to start)
@@ -115,6 +127,21 @@ function PopoutPlaybackHandoff() {
         return (
             <div className="h-dvh w-full flex items-center justify-center bg-black text-white/70 text-sm">
                 Nothing to play.
+            </div>
+        )
+    }
+
+    if (handoffError) {
+        return (
+            <div className="h-dvh w-full flex flex-col items-center justify-center gap-3 bg-black px-6 text-center">
+                <p className="text-white/80 text-sm max-w-md">{handoffError}</p>
+                <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-white/80 hover:bg-white/10"
+                    onClick={() => window.close()}
+                >
+                    Close
+                </button>
             </div>
         )
     }

@@ -2,6 +2,7 @@ package enqueuefuture
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -59,11 +60,22 @@ func itemsPerMinuteFromBudget() int {
 // The shared util/limiter does the same arithmetic but blocks in a bare time.Sleep, so a run told to
 // stop kept sleeping until its turn came round regardless — which is most of why stopping one used
 // to take so long. Everything here selects on the context instead.
+//
+// The window is a sliding one over the last `burst` reservations: a new item is admitted when the
+// OLDEST reservation is a whole window old, and it then takes the oldest slot's place. That shape
+// matters. The previous arithmetic kept a ring of slots and reserved "this slot's last time plus a
+// whole window" — a figure that compounds, because the stored time already includes the window that
+// produced it. A run whose items take about as long as the interval sits exactly on the boundary
+// where the compounding neither cancels nor corrects: every item adds the shortfall to a slot's
+// stored time, and over a queue of thousands of items the stored times drift hours into the future.
+// The worker then parks in wait() — silently, because the pacer is the first thing prepare does and
+// everything it logs comes after — for as long as the drift took to accumulate. That was the
+// enqueue walk "pausing" partway through a session and never coming back until the process was
+// restarted.
 type pacer struct {
 	mu       sync.Mutex
 	interval time.Duration
 	slots    []time.Time
-	index    int
 }
 
 func newPacer(itemsPerMinute int, burst int) *pacer {
@@ -74,14 +86,14 @@ func newPacer(itemsPerMinute int, burst int) *pacer {
 		burst = 1
 	}
 
-	interval := time.Minute / time.Duration(itemsPerMinute)
+	window := time.Minute / time.Duration(itemsPerMinute)
 	p := &pacer{
-		interval: interval,
+		interval: window,
 		slots:    make([]time.Time, burst),
 	}
 
 	// Start every slot far enough in the past that the first `burst` calls go straight through.
-	past := time.Now().Add(-interval * time.Duration(burst) * 2)
+	past := time.Now().Add(-2 * p.interval * time.Duration(burst))
 	for i := range p.slots {
 		p.slots[i] = past
 	}
@@ -90,20 +102,28 @@ func newPacer(itemsPerMinute int, burst int) *pacer {
 
 // wait blocks until this item's turn, or until the context is cancelled — whichever comes first.
 //
-// The slot is reserved before sleeping, so a cancelled wait still leaves the schedule intact and a
-// resumed run does not get a free burst it has not earned.
+// The reservation is made before sleeping, so a cancelled wait still leaves the schedule intact and
+// a resumed run does not get a free burst it has not earned. The new reservation REPLACES the oldest
+// slot, sorted back into place, so the window always holds the last `burst` items and can never
+// drift: calls faster than the rate fill the window and wait their turn; calls slower than it are
+// never held at all.
 func (p *pacer) wait(ctx context.Context) error {
 	p.mu.Lock()
+	slots := make([]time.Time, len(p.slots))
+	copy(slots, p.slots)
+	sort.Slice(slots, func(i, j int) bool { return slots[i].Before(slots[j]) })
+
 	window := p.interval * time.Duration(len(p.slots))
-	earliest := p.slots[p.index].Add(window)
+	earliest := slots[0].Add(window)
 	now := time.Now()
 
 	at := now
 	if now.Before(earliest) {
 		at = earliest
 	}
-	p.slots[p.index] = at
-	p.index = (p.index + 1) % len(p.slots)
+	slots[0] = at
+	sort.Slice(slots, func(i, j int) bool { return slots[i].Before(slots[j]) })
+	copy(p.slots, slots)
 	p.mu.Unlock()
 
 	delay := time.Until(at)
