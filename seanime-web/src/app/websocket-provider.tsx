@@ -307,7 +307,10 @@ function WebsocketManagement() {
                 })
 
                 socketRef.current?.addEventListener("close", (event) => {
-                    logger("WebsocketProvider").info(`WebSocket connection closed: ${event.code} ${event.reason}`)
+                    // Warn, not info: the desktop shell only forwards console warnings and
+                    // errors to the app log, and a disconnect is exactly the kind of event
+                    // that needs to be visible there when something goes wrong.
+                    logger("WebsocketProvider").warning(`WebSocket connection closed: ${event.code} ${event.reason}`)
                     handleDisconnection()
                 })
 
@@ -349,7 +352,7 @@ function WebsocketManagement() {
                 // Calculate backoff time (1s, 2s, max 3s)
                 const backoffTime = Math.min(Math.pow(2, Math.min(newCount - 1, 10)) * 1000, 3000)
 
-                logger("WebsocketProvider").info(`Reconnecting in ${backoffTime}ms (attempt ${newCount})`)
+                logger("WebsocketProvider").warning(`Reconnecting in ${backoffTime}ms (attempt ${newCount})`)
 
                 reconnectTimeoutRef.current = setTimeout(() => {
                     connectWebSocket()

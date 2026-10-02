@@ -1,5 +1,6 @@
 "use client"
 import { WebsocketProvider } from "@/app/websocket-provider"
+import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { CustomCSSProvider } from "@/components/shared/custom-css-provider"
 import { CustomThemeProvider } from "@/components/shared/custom-theme-provider"
 import { Toaster } from "@/components/ui/toaster"
@@ -55,6 +56,23 @@ const asyncStoragePersister = createAsyncStoragePersister({
 // `@/app/jotai-store` so non-React modules can share it without an import cycle.
 export { store }
 
+// Per-entry detail queries (the library prefetch, plus the same endpoints loaded on demand)
+// are deliberately NOT persisted.
+//
+// They are the bulk of the cache on a large library — four queries per series — and they are
+// cheap to refetch the moment a series is actually opened. Persisting them means every cache
+// change re-serializes the whole set on the renderer's main thread, which on a library of a
+// few thousand entries is a blob large enough to block the UI for seconds at a time, over and
+// over. The persisted cache is meant to make the app open instantly, not to freeze it.
+const NON_PERSISTED_QUERY_KEYS = new Set<string>([
+    API_ENDPOINTS.ANIME_ENTRIES.GetAnimeEntry.key,
+    API_ENDPOINTS.ANILIST.GetAnilistAnimeDetails.key,
+    API_ENDPOINTS.METADATA.GetMediaMetadataParent.key,
+    API_ENDPOINTS.ANIME.GetAnimeEpisodeCollection.key,
+    API_ENDPOINTS.MANGA.GetMangaEntry.key,
+    API_ENDPOINTS.MANGA.GetMangaEntryDetails.key,
+])
+
 export const ClientProviders: React.FC<ClientProvidersProps> = ({ children }) => {
 
     return (
@@ -68,7 +86,20 @@ export const ClientProviders: React.FC<ClientProvidersProps> = ({ children }) =>
                             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
                             // Tied to the app version (injected via rsbuild define) so every
                             // update busts stale persisted cache automatically.
-                            buster: `seanime-${process.env.SEA_APP_VERSION || "v2"}`,
+                            //
+                            // The suffix is a one-time bust: caches written before the
+                            // per-entry prefetch was bounded and excluded from persistence
+                            // can be hundreds of megabytes (the app would spend the first
+                            // minutes of every boot hydrating and re-serializing them).
+                            // Dropping them once is cheaper than carrying them forward.
+                            buster: `seanime-${process.env.SEA_APP_VERSION || "v2"}-lean`,
+                            dehydrateOptions: {
+                                shouldDehydrateQuery: (query) => {
+                                    // See NON_PERSISTED_QUERY_KEYS: the per-entry details are the
+                                    // bulk of the cache and the reason persisting it froze the app.
+                                    return !NON_PERSISTED_QUERY_KEYS.has(query.queryKey?.[0] as string)
+                                },
+                            },
                         }}
                     >
                         <WebsocketProvider>

@@ -23,6 +23,20 @@ const PREFETCH_STALE = 30 * 60 * 1000
 const BATCH_SIZE = 2
 const BATCH_GAP_MS = 600
 
+// How many entries the prefetch is allowed to touch, per collection.
+//
+// The prefetch exists so that opening a series you own is instant. It is speculative work,
+// and its cost scales with the library: four requests per entry, every one of them cached
+// and persisted. On a library of a few thousand entries that is tens of thousands of
+// queries — half an hour of continuous background traffic, and, worse, a query cache whose
+// every persist has to serialize all of it on the renderer's main thread. Any cache change
+// then re-serializes the whole thing, which is enough to freeze the app outright.
+//
+// The bound used to be "entries you have files for", which is not a bound at all on a large
+// library. A few hundred is: it covers the series anyone is actually about to open, and a
+// series outside it simply loads on demand, exactly as it would have.
+const MAX_PREFETCH_ENTRIES = 200
+
 type QueryDef = { key: string; endpoint: string; method: string }
 
 async function prefetchIds(
@@ -98,6 +112,7 @@ export function useAnimeLibraryCollectionLoader() {
             .filter(e => !!e.libraryData)
             .map(e => e.mediaId)
             .filter((id): id is number => !!id)
+            .slice(0, MAX_PREFETCH_ENTRIES)
 
         if (ids.length === 0) return
 
@@ -133,6 +148,7 @@ export function useAnimeLibraryCollectionLoader() {
             .flatMap(l => l?.entries ?? [])
             .map(e => e?.media?.id)
             .filter((id): id is number => !!id)
+            .slice(0, MAX_PREFETCH_ENTRIES)
 
         if (ids.length === 0) return
 

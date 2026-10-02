@@ -96,12 +96,16 @@ export function ElectronRestartServerPrompt() {
     // Try to reconnect automatically
     const tryAutoReconnectRef = React.useRef(true)
     React.useEffect(() => {
+        // Remote mode: never restart or reload on our own. There is no local process to kick,
+        // and reloading the whole app over a connection blip turns one hiccup into a loop of
+        // full boots — the websocket already retries with backoff, so let it.
+        if (connectionMode === "remote") return
         if (!isConnected && connectionErrorCount >= threshold && tryAutoReconnectRef.current && !isUpdatedInstalled && !isUnauthenticated) {
             tryAutoReconnectRef.current = false
             console.log("Connection error count reached 10, restarting server automatically")
             handleRestart()
         }
-    }, [connectionErrorCount, isUnauthenticated])
+    }, [connectionErrorCount, isUnauthenticated, connectionMode])
 
     React.useEffect(() => {
         if (isConnected) {
