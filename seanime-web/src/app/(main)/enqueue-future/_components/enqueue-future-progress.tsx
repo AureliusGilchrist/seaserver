@@ -117,7 +117,7 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
                         ) : (
                             <>
                                 {status.prepared} of {status.discovered} ready
-                                {status.families ? ` · ${status.families}/${status.cap} series` : ""}
+                                {status.families ? ` · ${status.families} series` : ""}
                                 {status.currentTitle ? ` · ${status.currentTitle}` : ""}
                                 {status.skipped ? ` · ${status.skipped} skipped` : ""}
                                 {status.failed ? ` · ${status.failed} failed` : ""}
@@ -250,8 +250,9 @@ export function EnqueueFutureProgress({ status }: { status: EnqueueFuture_Status
 
             <p className="text-xs text-[--muted]">
                 This runs on the server — you can close this page, or go and do something else, and it keeps going.
-                It stops taking on new series at {status.cap}; a show and all of its seasons count as one, and once a
-                series is in, the rest of it comes along regardless.
+                It has no limit on how much it takes on: it keeps walking until it runs out of shows to find, and once
+                a series is in, the rest of it comes along regardless. Stop it any time — everything prepared so far
+                stays in the queue.
             </p>
         </div>
     )

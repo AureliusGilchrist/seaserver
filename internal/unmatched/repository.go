@@ -2377,69 +2377,205 @@ func extractSeasonNumber(name string) int {
 	return 0
 }
 
+// +-------------------------------------+
+// |  Episode numbers from torrent names  |
+// +-------------------------------------+
+
+// Everything below reads an episode number out of a release's file name, as a best effort. This is
+// the "Depend on index" OFF path of the match dialog: the number the file claims, trusted as far as
+// it can be read.
+//
+// The dialog previews this numbering with a mirror of this function — see extractEpisodeNumber in
+// seanime-web/src/app/(main)/unmatched/_components/unmatched-match-modal.tsx. The two are kept in
+// lockstep; a change here is a change there, or the confirmation prompt describes a numbering the
+// match will not produce.
+//
+// The strategy, in order: strip everything that carries numbers but is never an episode (resolutions,
+// codecs, audio channels, sources, hashes, years, season markers), then look for the episode in
+// decreasing order of confidence — S01E05 and 1x05 first, then labelled forms (Episode 5, EP24, E05,
+// OVA 2, #05), then the number after the last dash (the "Title - 05" shape), then a bracketed or
+// trailing number, and finally any standalone number left. Within a tier the last candidate wins,
+// because a release's episode number sits after its title, and titles are where stray numbers live.
+
+// epAudioChannels matches channel layouts — "5.1", "2.0", "7.1.4" — numbers that are never episodes.
+// Applied before dots become separators, while the pair is still recognisable, and anchored at the
+// end so that a decimal like "2.15" is left alone.
+var epAudioChannels = regexp.MustCompile(`[1257]\.1\.\d\b|(?:2\.[01]|5\.1|7\.1|1\.0)\b`)
+
+// epNameNoise is everything stripped before any number is read. Each pattern is replaced with a
+// space, so the remaining text keeps its word boundaries.
+var epNameNoise = []*regexp.Regexp{
+	regexp.MustCompile(`\b\d{3,4}\s*x\s*\d{3,4}\b`),                                         // 1920x1080
+	regexp.MustCompile(`\b\d{3,4}p\b`),                                                      // 1080p, 720p
+	regexp.MustCompile(`\b[48]k\b`),                                                         // 4k, 8k
+	regexp.MustCompile(`\b(?:hi)?\d{1,2}[- ]?bit\b`),                                        // 10bit, 8-bit
+	regexp.MustCompile(`\b(?:ma|hi)\d{1,2}p\b`),                                             // Ma10p, Hi10p
+	regexp.MustCompile(`\b[hx][. ]?26[45]\b`),                                               // x264, h.265
+	regexp.MustCompile(`\b(?:hevc|avc|av1|xvid|divx|vp9)\b`),                                // video codecs
+	regexp.MustCompile(`\b(?:aac|ac3|eac3|dts|flac|opus|truehd|ddp|dd|mp3|pcm|vorbis)\d?\b`), // audio codecs
+	regexp.MustCompile(`\b(?:blu[ -]?ray|bdrip|brrip|bd|web[ -]?dl|webdl|webrip|web|hdtv|dvdrip|dvd|remux|hdrip|uhd|hd|fhd)\b`),
+	regexp.MustCompile(`\b(?:multi[ -]?subs?|dual[ -]?audio|uncensored|batch|complete|repack|proper)\b`),
+	regexp.MustCompile(`\b(?:ncop|nced|op\d{1,2}|ed\d{1,2})\b`), // creditless opening/ending markers
+	regexp.MustCompile(`\bv\d{1,2}\b`),                          // version tags
+	regexp.MustCompile(`\b(?:19|20)\d{2}\b`),                    // years
+	regexp.MustCompile(`\b(?:season|part|cour)\s*\d{0,2}\b`),    // season markers
+	regexp.MustCompile(`\bs\s*\d{1,2}\b`),                       // "S2", kept apart from "S01E05"
+	regexp.MustCompile(`\b\d{1,2}(?:st|nd|rd|th)\b`),            // 2nd, 3rd
+}
+
+// epHexToken finds hash-looking tokens: six to eight hex characters, the shape of the CRC32 and
+// friends that releases append to a file name. Only the ones carrying a digit are stripped — a
+// pure-letter token like "deadbeef" has no number in it to confuse anything with.
+var epHexToken = regexp.MustCompile(`\b[0-9a-f]{6,8}\b`)
+
+// epNoDigitBrackets is bracket content with no digit in it — [Group], [Multiple Subtitle], or a
+// bracket whose numbers were stripped as noise. Removed so that a trailing number is actually
+// trailing.
+var epNoDigitBrackets = regexp.MustCompile(`[\[\(][^0-9\]\)]*[\]\)]`)
+
+// The candidate tiers, in the order they are tried.
+var (
+	// S01E05 — the most explicit an episode number gets.
+	epSxxExx = regexp.MustCompile(`\bs\s*\d{1,2}\s*(?:e|ep)\s*#?\s*(\d{1,4})(?:v\d+)?`)
+	// 1x05 — the other explicit spelling.
+	epNxN = regexp.MustCompile(`\b\d{1,2}\s*x\s*(\d{1,3})(?:v\d+)?\b`)
+	// 第05话 / 第5話 — the Chinese/Japanese episode marker.
+	epCJK = regexp.MustCompile(`第\s*(\d{1,4})\s*[话話集]`)
+	// Labelled numbers: "Episode 5", "EP24", "E05", "OVA 2", "SP 5".
+	epLabelled = regexp.MustCompile(`\b(?:episode|special|ep|sp|ova|e)\s*#?\s*(\d{1,4})(?:v\d+)?\b`)
+	// "#05" — hash-prefixed numbering.
+	epHashNumber = regexp.MustCompile(`#\s*(\d{1,4})(?:v\d+)?\b`)
+	// A tight range, "01-02" — one file holding two episodes. Only ranges whose first side is two
+	// digits or more collapse; "2-05" is read as the episode after a dash instead.
+	epRange = regexp.MustCompile(`\b(\d{2,4})-(\d{1,4})\b`)
+	// The number after a dash — the "Title - 05" shape.
+	epAfterDash = regexp.MustCompile(`-\s*(\d{1,4})(?:v\d+)?\b`)
+	// A trailing number — "Show 03", "Show 12 END", "Show 05v2".
+	epTrailing = regexp.MustCompile(`(\d{1,4})(?:v\d+)?\s*(?:end|final)?\s*$`)
+	// Any standalone number at all.
+	epStandalone = regexp.MustCompile(`(?:^|\s)(\d{1,4})(?:v\d+)?\b`)
+)
+
+// epNumber turns a captured group into an episode number, or 0 when it cannot be one.
+func epNumber(captured string) int {
+	num, err := strconv.Atoi(captured)
+	if err != nil || num <= 0 || num > 9999 {
+		return 0
+	}
+	return num
+}
+
+// epFirst returns the first number a pattern captures, or 0.
+func epFirst(s string, re *regexp.Regexp) int {
+	m := re.FindStringSubmatch(s)
+	if len(m) < 2 {
+		return 0
+	}
+	return epNumber(m[1])
+}
+
+// epLast returns the last captured number that passes the filter — a release's episode number sits
+// after its title, so when several candidates remain, the last one is the likeliest.
+func epLast(s string, re *regexp.Regexp, reject func(int) bool) int {
+	matches := re.FindAllStringSubmatch(s, -1)
+	for i := len(matches) - 1; i >= 0; i-- {
+		if len(matches[i]) < 2 {
+			continue
+		}
+		num := epNumber(matches[i][1])
+		if num == 0 || (reject != nil && reject(num)) {
+			continue
+		}
+		return num
+	}
+	return 0
+}
+
+// epResolutionLike reports whether a bare number is one of the standard video widths. It only rules
+// a number out where there is nothing vouching for it: "One Piece - 1080" is an episode, but a lone
+// "1080" at the end of a name is a resolution that lost its "p".
+func epResolutionLike(num int) bool {
+	switch num {
+	case 360, 480, 540, 576, 720, 1080, 1440, 2160:
+		return true
+	}
+	return false
+}
+
+// extractEpisodeNumber reads the episode number out of a torrent file name, or 0 when there is none
+// to read. 0 is a real answer: the caller falls back to the file's position in the list, which is
+// what the match dialog says happens to "files with no readable number".
 func extractEpisodeNumber(name string) int {
 	base := filepath.Base(name)
-	ext := filepath.Ext(base)
-	base = strings.TrimSuffix(base, ext)
-	lower := strings.ToLower(base)
-	lower = strings.NewReplacer("_", " ", ".", " ").Replace(lower)
+	base = strings.TrimSuffix(base, filepath.Ext(base))
 
-	// Strip common noise that contains numbers but isn't episode info:
-	// [1080p], [720p], [480p], (1080p), x264, x265, h264, h265, 10bit, etc.
-	noise := regexp.MustCompile(`(?i)[\[\(]\d{3,4}p[\]\)]|\b\d{3,4}p\b|\b(?:[xh]\.?26[45]|hevc|av1|flac|aac|opus|blu-?ray|b[rd]rip|web[- ]?dl|webrip|dual[- ]audio|multi[- ]subtitle|uncensored)\b|\b\d+[_-]?bit\b`)
-	cleaned := noise.ReplaceAllString(lower, " ")
+	// Lowercased, with every separator that only ever stands between tokens normalised to a space —
+	// underscores, dots, and the dashes that are not hyphens. "Show.E05.1080p" and "Show E05 1080p"
+	// are then the same string, and one set of patterns reads both.
+	s := strings.ToLower(base)
+	s = epAudioChannels.ReplaceAllString(s, " ")
+	s = strings.NewReplacer("_", " ", ".", " ", "–", "-", "—", "-").Replace(s)
 
-	// Strip subgroup tags in brackets: [SubGroup], (SubGroup)
-	brackets := regexp.MustCompile(`[\[\(][^\]\)]*[\]\)]`)
-	cleaned = brackets.ReplaceAllString(cleaned, " ")
-
-	// 1. Most specific: S01E05 pattern — always episode
-	re := regexp.MustCompile(`s\d+\s*e(\d+)`)
-	if m := re.FindStringSubmatch(cleaned); len(m) > 1 {
-		if num, err := strconv.Atoi(m[1]); err == nil && num > 0 && num < 10000 {
-			return num
-		}
+	for _, re := range epNameNoise {
+		s = re.ReplaceAllString(s, " ")
 	}
 
-	// 2. "Episode ##" or "Episode ##" — explicit label
-	re = regexp.MustCompile(`episode\s*(\d+)`)
-	if m := re.FindStringSubmatch(cleaned); len(m) > 1 {
-		if num, err := strconv.Atoi(m[1]); err == nil && num > 0 && num < 10000 {
-			return num
+	// Hash-looking tokens, then whatever brackets are left holding nothing but punctuation.
+	s = epHexToken.ReplaceAllStringFunc(s, func(token string) string {
+		for _, c := range token {
+			if c >= '0' && c <= '9' {
+				return " "
+			}
 		}
+		return token
+	})
+	s = epNoDigitBrackets.ReplaceAllString(s, " ")
+	s = epNoDigitBrackets.ReplaceAllString(s, " ")
+	s = strings.NewReplacer("[", " ", "]", " ", "(", " ", ")", " ").Replace(s)
+	s = strings.Join(strings.Fields(s), " ")
+
+	// 1. Explicit episode syntax: S01E05, 1x05, 第05话.
+	if num := epFirst(s, epSxxExx); num > 0 {
+		return num
+	}
+	if num := epFirst(s, epNxN); num > 0 {
+		return num
+	}
+	if num := epFirst(s, epCJK); num > 0 {
+		return num
 	}
 
-	// 3. Standalone "EP##" or "E##" with word boundary (not preceded by letter)
-	re = regexp.MustCompile(`(?:^|[^a-z])ep?\s*(\d+)(?:[^a-z\d]|$)`)
-	if m := re.FindStringSubmatch(cleaned); len(m) > 1 {
-		if num, err := strconv.Atoi(m[1]); err == nil && num > 0 && num < 10000 {
-			return num
-		}
+	// 2. Labelled numbers: "Episode 5", "EP24", "E05", "OVA 2", "SP 5", "#05".
+	if num := epFirst(s, epLabelled); num > 0 {
+		return num
+	}
+	if num := epFirst(s, epHashNumber); num > 0 {
+		return num
 	}
 
-	// 4. " - ## " pattern — take the LAST match since the episode separator
-	//    comes after the title. This avoids matching numbers in series names
-	//    like "86 EIGHTY-SIX - 03" or "Season 2 - 05".
-	//    Also strip "season X" before scanning to avoid "Season 2 - " being matched.
-	noSeason := regexp.MustCompile(`(?i)\bseason\s*\d+\b|\b\d+(?:st|nd|rd|th)\s+season\b|\bcour\s*\d+\b|\bpart\s*\d+\b`).ReplaceAllString(cleaned, " ")
-	re = regexp.MustCompile(`-\s*(\d+)`)
-	allMatches := re.FindAllStringSubmatch(noSeason, -1)
-	if len(allMatches) > 0 {
-		last := allMatches[len(allMatches)-1]
-		if num, err := strconv.Atoi(last[1]); err == nil && num > 0 && num < 10000 {
-			return num
+	// 3. Ranges collapse to their first episode: "01-02" is one file holding episodes 1 and 2.
+	for i := 0; i < 4; i++ {
+		collapsed := epRange.ReplaceAllString(s, "$1")
+		if collapsed == s {
+			break
 		}
+		s = collapsed
 	}
 
-	// 5. A trailing standalone number — last resort for names like "Show 03"
-	re = regexp.MustCompile(`(?:^|[^a-z\d])(\d{1,4})(?:v\d+)?\s*$`)
-	if m := re.FindStringSubmatch(cleaned); len(m) > 1 {
-		if num, err := strconv.Atoi(m[1]); err == nil && num > 0 && num < 10000 {
-			return num
-		}
+	// 4. The number after a dash — the usual "Title - 05" shape. The last one wins: a title's own
+	// numbers ("86", "The 100") sit to its left. A bare resolution is allowed here, because after a
+	// dash it is vouched for by position.
+	if num := epLast(s, epAfterDash, nil); num > 0 {
+		return num
 	}
 
-	return 0
+	// 5. A trailing number — "Show 03", "Show 12 END", "Show 05v2".
+	if num := epLast(s, epTrailing, epResolutionLike); num > 0 {
+		return num
+	}
+
+	// 6. Any standalone number left, the last one.
+	return epLast(s, epStandalone, epResolutionLike)
 }
 
 func sanitizeDirectoryName(input string) string {

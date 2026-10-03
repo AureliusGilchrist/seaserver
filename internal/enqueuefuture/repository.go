@@ -90,7 +90,6 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 		isSimulatedFunc:     opts.IsSimulatedFunc,
 		pacer:               newPacer(ItemsPerMinute, RateBurst),
 		status: Status{
-			Cap:             MaxFamiliesPerRun,
 			BackoffRungs:    len(backoffLadder),
 			BackoffAttempts: MaxBackoffAttempts,
 		},
@@ -141,7 +140,7 @@ func (r *Repository) Status() Status {
 }
 
 // Enqueue starts a run rooted at an anime: its recommendations seed the queue, and each item's own
-// recommendations extend it as that item is prepared, up to MaxFamiliesPerRun franchises.
+// recommendations extend it as that item is prepared, until the graph runs dry.
 //
 // Returns immediately — the run is the point of the feature, and it has to outlive the page you
 // started it from.
@@ -258,7 +257,6 @@ func (r *Repository) start(progress *RunProgress) (Status, error) {
 		Prepared:        progress.Prepared,
 		Failed:          progress.Failed,
 		Skipped:         progress.Skipped,
-		Cap:             MaxFamiliesPerRun,
 		BackoffRungs:    len(backoffLadder),
 		BackoffAttempts: MaxBackoffAttempts,
 		StartedAt:       progress.StartedAt,
@@ -326,7 +324,7 @@ func (r *Repository) Stop() Status {
 	return r.Status()
 }
 
-// run is the worker. One at a time, rate limited, until the frontier empties or the cap is hit.
+// run is the worker. One at a time, rate limited, until the frontier empties.
 func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 	// Two guards, because a run that exits without clearing its flag wedges the feature for good:
 	// every later Enqueue is refused as "already in progress" and the button silently does nothing
@@ -350,8 +348,8 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 	// resumed run, so it carries on walking rather than rediscovering what it already decided about.
 	// Two frontiers, drained on different terms: familyFrontier empties completely on every pass,
 	// recFrontier gives up RecommendationSpread at a time. See drainFrontier.
-	familyFrontier := make([]recommendation, 0, MaxFamiliesPerRun)
-	recFrontier := make([]recommendation, 0, MaxFamiliesPerRun)
+	familyFrontier := make([]recommendation, 0, 64)
+	recFrontier := make([]recommendation, 0, 64)
 	seen := make(map[int]bool, len(progress.Seen))
 	for _, id := range progress.Seen {
 		seen[id] = true
@@ -548,8 +546,8 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 		// The root has no row — it was never queued, only walked for its recommendations.
 		if !rootPending {
 			if result.tetheredOVA {
-				// Dropped rather than marked skipped, so it gives its slot back: the cap should be
-				// spent on anime worth downloading, not on extras filtered out along the way.
+				// Dropped rather than marked skipped: the queue should hold anime worth downloading,
+				// not extras filtered out along the way.
 				r.logger.Debug().Int("mediaId", mediaID).Msg("enqueuefuture: Dropping OVA tied to a parent series")
 				_ = r.database.DeleteEnqueueFutureItem(mediaID)
 				r.bumpSkipped()
@@ -617,8 +615,7 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 			rootPending = false
 		}
 
-		// Insert as much of the frontier as the cap allows, then drop the rest: past the cap there
-		// is no point holding on to anime that will never be queued.
+		// Insert what the frontier is due to give up on this pass; the rest waits for the next one.
 		familyFrontier, recFrontier = r.drainFrontier(profileID, rootMediaID, familyFrontier, recFrontier, depths)
 
 		// A root that produces nothing is a dead end worth naming. It is the one case that leaves
@@ -650,8 +647,8 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 // the rows carry, and it always changes towards the half that is higher up the queue, so the screen
 // gathers the franchise at the point the user has already seen rather than somewhere below them.
 
-// drainFrontier inserts discovered anime into the queue, applying the skip rules and the per-run
-// franchise cap. Returns whatever it could not insert.
+// drainFrontier inserts discovered anime into the queue, applying the skip rules. Returns whatever
+// it could not insert.
 //
 // Insertion order is the order the queue is walked, so this is where "family, then a spread of
 // recommendations, then family again" is decided. The family frontier is drained completely on every
@@ -659,10 +656,9 @@ func (r *Repository) run(ctx context.Context, progress *RunProgress) {
 // are left over wait for the next pass, by which time the family edges discovered from this one have
 // already gone in ahead of them.
 //
-// The cap is spent on franchises, not anime. A candidate joining a family that is already queued
-// goes in regardless of how full the run is — the alternative is a queue holding season 1 and season
-// 3 of something because a counter ran out between them, which is worse than not holding it at all.
-// Only a candidate that would start a *new* franchise has to pay.
+// Nothing is refused for being over a count. A run takes on everything it reaches until the graph
+// runs dry; the rate limit is what bounds it, and stopping it by hand is what ends it early. See the
+// note above RecommendationSpread for why the franchise cap that used to live here was removed.
 func (r *Repository) drainFrontier(
 	profileID uint,
 	rootMediaID int,
@@ -670,14 +666,6 @@ func (r *Repository) drainFrontier(
 	recFrontier []recommendation,
 	depths map[int]int,
 ) ([]recommendation, []recommendation) {
-	families, err := r.database.CountEnqueueFutureFamiliesForRoot(rootMediaID)
-	if err != nil {
-		r.logger.Warn().Err(err).Msg("enqueuefuture: Failed to count queued franchises")
-		return familyFrontier, recFrontier
-	}
-
-	full := false
-
 	// The whole family first, however long the chain is, then a bounded spread of recommendations.
 	batch := make([]recommendation, 0, len(familyFrontier)+RecommendationSpread)
 	batch = append(batch, familyFrontier...)
@@ -697,26 +685,6 @@ func (r *Repository) drainFrontier(
 		familyID := rec.familyID
 		if familyID == 0 {
 			familyID = rec.mediaID
-		}
-
-		// Draining continues past the cap rather than stopping, because later entries in the
-		// frontier may well belong to franchises already taken on — those still have to get in.
-		isNewFamily := !r.database.HasEnqueueFutureFamily(familyID)
-
-		// Family edges never pay. A member joining a franchise already queued was always free, but a
-		// family edge whose family has no row yet was not — and that is exactly the root's own
-		// sequels and prequels, since the root itself is never queued. With a full cap that split the
-		// franchise you started from, which is the one thing the run must never do. Family edges
-		// inherit their parent's family, so the only new family reachable this way is the root's own:
-		// the exemption cannot be used to walk past the cap indefinitely.
-		if isNewFamily && !rec.isFamily && families >= MaxFamiliesPerRun {
-			if !full {
-				full = true
-				r.logger.Info().
-					Int("cap", MaxFamiliesPerRun).
-					Msg("enqueuefuture: Reached the per-run franchise cap, only completing what is already queued")
-			}
-			continue
 		}
 
 		// A family edge landing on something a previous run already queued is the same second sighting
@@ -746,10 +714,6 @@ func (r *Repository) drainFrontier(
 		})
 		if err != nil || !inserted {
 			continue
-		}
-
-		if isNewFamily {
-			families++
 		}
 	}
 

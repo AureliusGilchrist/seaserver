@@ -2845,7 +2845,6 @@ export type EnqueueFuture_Status = {
     failed: number
     skipped: number
     families: number
-    cap: number
     pendingRoots?: number
     pendingRootList?: Array<EnqueueFuture_PendingRootInfo>
     rewalkBacklog?: number

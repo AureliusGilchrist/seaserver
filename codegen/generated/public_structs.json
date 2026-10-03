@@ -37309,6 +37309,15 @@
         "comments": []
       },
       {
+        "name": "SeedersVersion",
+        "jsonName": "",
+        "goType": "int",
+        "typescriptType": "number",
+        "required": true,
+        "public": true,
+        "comments": []
+      },
+      {
         "name": "AiredAt",
         "jsonName": "airedAt",
         "goType": "int",
@@ -49067,15 +49076,6 @@
       {
         "name": "Families",
         "jsonName": "families",
-        "goType": "int",
-        "typescriptType": "number",
-        "required": true,
-        "public": true,
-        "comments": []
-      },
-      {
-        "name": "Cap",
-        "jsonName": "cap",
         "goType": "int",
         "typescriptType": "number",
         "required": true,
@@ -110452,10 +110452,92 @@
         "required": false,
         "public": false,
         "comments": []
+      },
+      {
+        "name": "dirty",
+        "jsonName": "dirty",
+        "goType": "bool",
+        "typescriptType": "boolean",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "poke",
+        "jsonName": "poke",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "stop",
+        "jsonName": "stop",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "done",
+        "jsonName": "done",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "loading",
+        "jsonName": "loading",
+        "goType": "",
+        "typescriptType": "any",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "loadErr",
+        "jsonName": "loadErr",
+        "goType": "error",
+        "typescriptType": "Filecache_error",
+        "usedTypescriptType": "Filecache_error",
+        "usedStructName": "filecache.error",
+        "required": true,
+        "public": false,
+        "comments": []
+      },
+      {
+        "name": "stopOnce",
+        "jsonName": "stopOnce",
+        "goType": "sync.Once",
+        "typescriptType": "Once",
+        "usedTypescriptType": "Once",
+        "usedStructName": "sync.Once",
+        "required": false,
+        "public": false,
+        "comments": []
       }
     ],
     "comments": [
-      " CacheStore represents a single-process, file-based, key/value cache store."
+      " CacheStore represents a single-process, file-based, key/value cache store.",
+      "",
+      " Persistence is coalesced: mutations mark the store dirty and wake a background flusher rather",
+      " than re-encoding and re-writing the whole file on every call. The store's file holds one JSON",
+      " object for every key in the bucket, and a bucket like the AniList base-anime cache runs to tens",
+      " of thousands of entries — hundreds of megabytes on a server that has been running a while.",
+      " Re-writing that per SetPerm, under the store lock, meant each cache write took as long as a",
+      " full-file marshal plus a synced write to disk, and with the server's background workers writing",
+      " several entries a second, callers queued behind the writes faster than the writes could finish.",
+      " From the outside that was every AniList-touching request — home, playback metadata, matching —",
+      " parked for as long as the queue took to drain, which on a NAS-mounted cache directory was many",
+      " minutes at startup and grew every session as the buckets grew.",
+      "",
+      " The whole file is still written on flush (the format is unchanged); what changed is how often,",
+      " and that nobody waits for it. A crash now costs at most flushMaxDelay worth of newly written",
+      " entries — acceptable for a cache whose only job is surviving restarts."
     ]
   },
   {

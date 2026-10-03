@@ -22,8 +22,8 @@ import (
 //
 //	@summary starts preparing the recommendation graph around an anime.
 //	@desc Walks outward from the given anime, queueing what it recommends and what those recommend
-//	@desc in turn, up to a per-run cap. Each queued anime gets its full entry metadata and a torrent
-//	@desc search stored, so its download screen opens with no waiting.
+//	@desc in turn, until the graph runs dry. Each queued anime gets its full entry metadata and a
+//	@desc torrent search stored, so its download screen opens with no waiting.
 //	@desc Returns as soon as the run starts — the work continues with no page open.
 //	@route /api/v1/enqueue-future/enqueue [POST]
 //	@returns enqueuefuture.Status

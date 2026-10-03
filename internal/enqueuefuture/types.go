@@ -7,29 +7,17 @@ import (
 	"seanime/internal/torrents/torrent"
 )
 
-// MaxFamiliesPerRun is how many distinct franchises a single Enqueue Future run will take on before
-// it stops branching out into new ones.
+// A run has no cap on how much it takes on. It walks until the graph runs dry — every anime it can
+// reach has been queued or deliberately passed on — and stops there. That is a real end rather than
+// a theoretical one: `seen` is persisted, the catalog behind it is finite, and once everything
+// reachable has been decided about the frontier empties and the run finishes on its own terms.
 //
-// The graph is effectively unbounded — every anime recommends eight more — so a run has to be told
-// when to stop branching or it never will. What it counts is franchises, not anime, and it counts
-// only the *branching*: a franchise already taken on is completed in full, however many entries that
-// turns out to be. See the cap check in drainFrontier — a family edge is never refused, whatever the
-// count is at.
+// There used to be a cap of 750 franchises per run here, which read as generous and behaved as
+// anything but: a franchise is several entries on average, so the queue stalled around three and a
+// half thousand anime and the far side of the graph was simply never walked. It is gone. A run that
+// is going too far can be stopped at any time, everything prepared survives the stop, and the queue
+// picks up where it left off — so the thing worth bounding was the rate, not the reach.
 //
-// That is what makes the number smaller than it looks. A franchise is one slot whether it is a
-// single film or a fifteen-entry saga with every OVA and side story, so the item count a run
-// produces is a multiple of this and not a bound on it.
-//
-// To say the important half plainly: this caps how far a run branches *outward* into franchises it
-// has not seen. It is not a cap on anime, and it is emphatically not a cap on a family. Once a
-// franchise is taken on it is followed to its ends — every sequel, prequel, side story, OVA and
-// spin-off — however many entries that turns out to be, and a family edge is never refused for
-// being over the count. See the cap check in drainFrontier.
-//
-// The queue survives restarts and resumes on its own, so this is about how much is worth having
-// waiting for you rather than about what a run can finish in one go.
-const MaxFamiliesPerRun = 750
-
 // RecommendationSpread is how many recommendations are queued between one franchise and the next.
 //
 // The queue is walked in the order things are inserted, so insertion order is the reading order. Every
@@ -127,10 +115,9 @@ type Status struct {
 	Prepared   int `json:"prepared"`
 	Failed     int `json:"failed"`
 	Skipped    int `json:"skipped"`
-	// Families is how many distinct franchises are queued, which is what Cap limits — a show and
-	// all of its seasons count as one between them.
+	// Families is how many distinct franchises are queued — a show and all of its seasons count as
+	// one between them.
 	Families int `json:"families"`
-	Cap      int `json:"cap"`
 	// PendingRoots is how many anime are queued behind this run, each waiting to be walked in turn.
 	PendingRoots int `json:"pendingRoots,omitempty"`
 	// PendingRootList is that queue itself, in the order it will be walked — so the screen can show

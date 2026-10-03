@@ -5530,8 +5530,8 @@
       "",
       "\t@summary starts preparing the recommendation graph around an anime.",
       "\t@desc Walks outward from the given anime, queueing what it recommends and what those recommend",
-      "\t@desc in turn, up to a per-run cap. Each queued anime gets its full entry metadata and a torrent",
-      "\t@desc search stored, so its download screen opens with no waiting.",
+      "\t@desc in turn, until the graph runs dry. Each queued anime gets its full entry metadata and a",
+      "\t@desc torrent search stored, so its download screen opens with no waiting.",
       "\t@desc Returns as soon as the run starts — the work continues with no page open.",
       "\t@route /api/v1/enqueue-future/enqueue [POST]",
       "\t@returns enqueuefuture.Status",
@@ -5543,8 +5543,8 @@
       "summary": "starts preparing the recommendation graph around an anime.",
       "descriptions": [
         "Walks outward from the given anime, queueing what it recommends and what those recommend",
-        "in turn, up to a per-run cap. Each queued anime gets its full entry metadata and a torrent",
-        "search stored, so its download screen opens with no waiting.",
+        "in turn, until the graph runs dry. Each queued anime gets its full entry metadata and a",
+        "torrent search stored, so its download screen opens with no waiting.",
         "Returns as soon as the run starts — the work continues with no page open."
       ],
       "endpoint": "/api/v1/enqueue-future/enqueue",
