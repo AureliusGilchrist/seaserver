@@ -231,9 +231,13 @@ export function useGetUnmatchedTorrentContents(torrentName: string | null) {
  * `onConflict` is called when the server refused to overwrite library files already sitting at the
  * destinations — nothing was moved or deleted. The match is not finished in that case, so the modal
  * must stay open to ask, which is why this path deliberately skips `onSuccess` and the toast.
+ *
+ * `onSuccess` is called on every completed attempt, including ones that failed, and receives the
+ * result so the caller can tell the two apart — the match queue uses that to decide whether a
+ * download is done with or still waiting to be matched.
  */
 export function useMatchUnmatchedTorrent(
-    onSuccess?: () => void,
+    onSuccess?: (data?: MatchResult) => void,
     onConflict?: (conflict: MatchConflict) => void,
     onCountMismatch?: (mismatch: CountMismatch) => void,
 ) {
@@ -263,7 +267,7 @@ export function useMatchUnmatchedTorrent(
                 toast.error(data?.errorMessage || "Some files failed to move")
             }
             // Close modal immediately — don't wait for query invalidations
-            onSuccess?.()
+            onSuccess?.(data)
             // Invalidate queries in the background so lists refresh after close
             Promise.all([
                 queryClient.invalidateQueries({ queryKey: [UNMATCHED_ENDPOINTS.GetUnmatchedTorrents.key] }),

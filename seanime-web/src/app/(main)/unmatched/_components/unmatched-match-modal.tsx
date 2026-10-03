@@ -5,6 +5,7 @@ import {
     UnmatchedFile,
     CountMismatch,
     MatchConflict,
+    MatchResult,
     useMatchUnmatchedTorrent,
     useGetUnmatchedTorrentContents,
 } from "@/api/hooks/unmatched.hooks"
@@ -16,6 +17,7 @@ import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetLocalFiles } from "@/api/hooks/localfiles.hooks"
 import { AL_BaseAnime, AL_AnimeDetailsById_Media } from "@/api/generated/types"
 import { AppLayoutStack } from "@/components/ui/app-layout"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/components/ui/core/styling"
@@ -48,7 +50,14 @@ interface TreeNode {
 interface UnmatchedMatchModalProps {
     torrent: UnmatchedTorrent | null
     onClose: () => void
-    onSuccess: () => void
+    /** Called after every completed attempt, successful or not — see useMatchUnmatchedTorrent. */
+    onSuccess: (result?: MatchResult) => void
+    /**
+     * Where this download sits in the to-match queue, when it is queued — shown as a badge in the
+     * header. `autoAdvance` marks a modal opened from the queue tab, where a successful match
+     * opens the next queued download in its place.
+     */
+    queueInfo?: { position: number, total: number, autoAdvance?: boolean } | null
 }
 
 /**
@@ -247,7 +256,7 @@ function isAnimeInLibrary(animeId: number, localFiles: any[] | undefined): boole
     return localFiles.some(f => f.mediaId === animeId)
 }
 
-export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMatchModalProps) {
+export function UnmatchedMatchModal({ torrent, onClose, onSuccess, queueInfo }: UnmatchedMatchModalProps) {
     const queryClient = useQueryClient()
     const { data: libraryCollection } = useGetLibraryCollection()
     const { data: localFiles } = useGetLocalFiles()
@@ -347,6 +356,10 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             setIsLoadingContents(true)
             setLoadError(null)
             setFetchedName(torrent.name)
+            // Back to the start for this download. The modal can move to a different torrent
+            // without closing — matching from the queue opens the next one in place — and the
+            // files have to be picked again for whatever it lands on.
+            setStep("select-files")
             // Reset selection when switching to a different torrent
             selectTarget(null)
             setSearchQuery("")
@@ -399,9 +412,9 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         selectTarget(null)
     }, [torrent?.name])
 
-    const { mutate: matchTorrent, isPending: isMatching } = useMatchUnmatchedTorrent(() => {
+    const { mutate: matchTorrent, isPending: isMatching } = useMatchUnmatchedTorrent((result) => {
         setConflict(null)
-        onSuccess()
+        onSuccess(result)
         // Reset selection to avoid carrying the previous anime into subsequent matches in the same modal session
         selectTarget(null)
         setSearchQuery("")
@@ -864,7 +877,21 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             // every title to be cut short. The viewport units are the guard: it grows to fill the
             // space that exists and stops there, so nothing ends up off the edge on a laptop.
             contentClass="max-w-[min(96rem,95vw)] w-[95vw] max-h-[92vh] overflow-y-auto"
-            title={step === "select-files" ? "Select Episodes" : "Select Anime"}
+            title={
+                <span className="inline-flex items-center gap-2 flex-wrap align-middle">
+                    <span>{step === "select-files" ? "Select Episodes" : "Select Anime"}</span>
+                    {!!queueInfo && (
+                        <Badge intent="primary-solid" size="sm" className="align-middle">
+                            To match {queueInfo.position} of {queueInfo.total}
+                        </Badge>
+                    )}
+                </span>
+            }
+            description={queueInfo?.autoAdvance
+                ? (queueInfo.position < queueInfo.total
+                    ? "This download is in the to-match queue — the next queued download opens here automatically after this one is matched."
+                    : "This download is in the to-match queue, and it is the last one.")
+                : undefined}
         >
             {(isLoadingContents || isLoadingAnimeInfo) ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-10">

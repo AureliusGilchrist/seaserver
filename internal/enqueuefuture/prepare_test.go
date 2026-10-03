@@ -11,6 +11,11 @@ import (
 // The format follows the media type, the way AniList's own payload does: discovery demands both an
 // ANIME type and an anime format before it will queue anything, so a node with only one of the two is
 // not a realistic stand-in for a real one.
+//
+// The title goes in the English field, because that is the one the queue stores — enqueueTitle reads
+// English first and romaji behind it, deliberately not the user's AniList title preference. A node
+// carrying only userPreferred is a node with no title as far as the queue is concerned, which is
+// exactly the mistake these tests used to make.
 func recEdge(id int, title string, status anilist.MediaStatus, mediaType anilist.MediaType, episodes int) *anilist.AnimeDetailsById_Media_Recommendations_Edges {
 	format := anilist.MediaFormatTv
 	if mediaType != anilist.MediaTypeAnime {
@@ -25,7 +30,7 @@ func recEdge(id int, title string, status anilist.MediaStatus, mediaType anilist
 				Format:   lo.ToPtr(format),
 				Episodes: lo.ToPtr(episodes),
 				Title: &anilist.AnimeDetailsById_Media_Recommendations_Edges_Node_MediaRecommendation_Title{
-					UserPreferred: lo.ToPtr(title),
+					English: lo.ToPtr(title),
 				},
 			},
 		},
@@ -225,7 +230,9 @@ func TestRelationsFromRejectsPromoEntries(t *testing.T) {
 				Format:   lo.ToPtr(anilist.MediaFormatSpecial),
 				Type:     lo.ToPtr(anilist.MediaTypeAnime),
 				Episodes: lo.ToPtr(1),
-				Title:    &anilist.BaseAnime_Title{UserPreferred: lo.ToPtr(title)},
+				// English, not userPreferred: enqueueTitle reads English first, and a node the queue
+				// sees no title for is a node the promo filter cannot turn away.
+				Title: &anilist.BaseAnime_Title{English: lo.ToPtr(title)},
 			},
 		}
 	}
