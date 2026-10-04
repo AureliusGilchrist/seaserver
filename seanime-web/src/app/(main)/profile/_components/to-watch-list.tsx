@@ -144,6 +144,7 @@ function ToWatchCard({
     onRemove?: () => void
 }) {
     const href = `/entry?id=${entry.animeId}`
+    const router = useRouter()
 
     return (
         <div className="flex items-stretch gap-4 rounded-xl border border-gray-800 bg-gray-950/50 overflow-hidden hover:border-gray-700 transition-colors">
