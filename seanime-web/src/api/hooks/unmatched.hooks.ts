@@ -187,6 +187,46 @@ const UNMATCHED_ENDPOINTS = {
         methods: ["POST"] as const,
         endpoint: "/api/v1/unmatched/match-all",
     },
+    GetMatchQueue: {
+        key: "UNMATCHED-get-match-queue",
+        methods: ["GET"] as const,
+        endpoint: "/api/v1/unmatched/queue",
+    },
+    EnqueueMatch: {
+        key: "UNMATCHED-enqueue-match",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/queue",
+    },
+    RemoveMatchQueueItem: {
+        key: "UNMATCHED-remove-match-queue-item",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/queue/remove",
+    },
+    ClearMatchQueue: {
+        key: "UNMATCHED-clear-match-queue",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/queue/clear",
+    },
+    PauseMatchQueue: {
+        key: "UNMATCHED-pause-match-queue",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/queue/pause",
+    },
+    ResumeMatchQueue: {
+        key: "UNMATCHED-resume-match-queue",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/queue/resume",
+    },
+    RetryMatchQueueItem: {
+        key: "UNMATCHED-retry-match-queue-item",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/queue/retry",
+    },
+    ResolveMatchQueueItem: {
+        key: "UNMATCHED-resolve-match-queue-item",
+        methods: ["POST"] as const,
+        endpoint: "/api/v1/unmatched/queue/resolve",
+    },
     GetSweepStatus: {
         key: "UNMATCHED-get-sweep-status",
         methods: ["GET"] as const,
