@@ -42,6 +42,7 @@ import { WallhavenPickerModal } from "./_components/wallhaven-picker"
 import { WallpaperShop } from "./_components/wallpaper-shop"
 import { fetchSharedThemesList, downloadSharedTheme, deleteSharedTheme, type SharedThemeInfo, type MarketplaceThemeMeta, fetchMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 import { Button } from "@/components/ui/button"
+import { HoverCard } from "@/components/ui/hover-card"
 
 export default function ThemeManagerPage() {
     // ── Shared/Marketplace themes state ──
@@ -740,6 +741,16 @@ export default function ThemeManagerPage() {
                                         </div>
                                     </div>
                                 </button>
+                                {/* What the theme says about itself, on hover — the cards are small
+                                    and the description is what "should I equip this?" is answered
+                                    from, so it waits for the pointer rather than the card. */}
+                                {!!theme.description && (
+                                    <ThemeDescriptionHover
+                                        name={theme.displayName || theme.id}
+                                        description={theme.description}
+                                        author={theme.author}
+                                    />
+                                )}
                                 {/* Delete button */}
                                 <button
                                     onClick={() => handleDeleteTheme(theme.id)}
@@ -865,6 +876,13 @@ export default function ThemeManagerPage() {
                                                     <p className="text-xs font-semibold truncate text-white drop-shadow-md">{theme.displayName}</p>
                                                 </div>
                                             </div>
+                                            {!!theme.description && (
+                                                <ThemeDescriptionHover
+                                                    name={theme.displayName}
+                                                    description={theme.description}
+                                                    author={theme.author}
+                                                />
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -2487,5 +2505,29 @@ function CustomThemeBuilder({ themeId, setThemeId, customThemeData, setCustomThe
                 )}
             </div>
         </div>
+    )
+}
+
+/**
+ * What a theme says about itself, on hover.
+ *
+ * The cards are small and show a name and three color dots; the description is what "should I equip
+ * this?" is answered from, and it is written by the theme itself — the story of the anime and why
+ * the colors are what they are. It waits for the pointer rather than the card, so a wall of themes
+ * stays a wall of art.
+ */
+function ThemeDescriptionHover({ name, description, author }: { name: string, description: string, author?: string }) {
+    return (
+        <HoverCard
+            trigger={<span className="absolute inset-0 z-[5] cursor-pointer" aria-hidden />}
+            side="right"
+            align="start"
+            openDelay={200}
+            className="w-[24rem] max-w-[90vw] p-0"
+        >
+            <p className="px-4 pt-3 text-sm font-semibold leading-tight" style={{ fontFamily: "inherit" }}>{name}</p>
+            {!!author && <p className="px-4 text-[11px] text-[--muted] mt-0.5">by {author}</p>}
+            <p className="px-4 pb-4 pt-2 text-[13px] text-gray-200 leading-relaxed">{description}</p>
+        </HoverCard>
     )
 }

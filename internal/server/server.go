@@ -106,6 +106,12 @@ appLoop:
 			stopJobs := cron.RunJobs(app)
 			app.AddCleanupFunctionOnce("cron.stop-jobs", stopJobs)
 
+			// The fork's own auto-updater: watches the fork's repository for new commits, pulls,
+			// builds, and replaces the running process with what it built. Runs on its own clock —
+			// fifteen minutes, no cron, no external scheduler — and a failed build keeps the
+			// current version serving. See updater/gitupdate.go.
+			updater.StartGitAutoUpdate(app.Logger, app.WSEventManager)
+
 			select {
 			case <-selfupdater.Started():
 				app.Cleanup()

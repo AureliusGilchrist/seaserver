@@ -229,6 +229,10 @@ func (h *Handler) HandleListSharedThemes(c echo.Context) error {
 	type ThemeInfo struct {
 		ID          string `json:"id"`
 		DisplayName string `json:"displayName"`
+		// Description and Author are what the theme says about itself, read from its own theme.json
+		// so the picker can show them without a second request per card.
+		Description string `json:"description,omitempty"`
+		Author      string `json:"author,omitempty"`
 		URL         string `json:"url"`
 	}
 
@@ -243,20 +247,29 @@ func (h *Handler) HandleListSharedThemes(c echo.Context) error {
 			continue // Skip directories without theme.json
 		}
 
-		// Try to read theme.json to get display name
+		// Try to read theme.json to get display name and what the theme says about itself
 		displayName := entry.Name()
+		var description, author string
 		if data, readErr := os.ReadFile(themeJsonPath); readErr == nil {
 			var theme struct {
 				DisplayName string `json:"displayName"`
+				Description string `json:"description"`
+				Author      string `json:"author"`
 			}
-			if json.Unmarshal(data, &theme) == nil && theme.DisplayName != "" {
-				displayName = theme.DisplayName
+			if json.Unmarshal(data, &theme) == nil {
+				if theme.DisplayName != "" {
+					displayName = theme.DisplayName
+				}
+				description = theme.Description
+				author = theme.Author
 			}
 		}
 
 		themes = append(themes, ThemeInfo{
 			ID:          entry.Name(),
 			DisplayName: displayName,
+			Description: description,
+			Author:      author,
 			URL:         "/shared-themes/" + entry.Name() + "/theme.json",
 		})
 	}

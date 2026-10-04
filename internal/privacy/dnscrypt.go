@@ -1,6 +1,7 @@
 package privacy
 
 import (
+	"errors"
 	"os/exec"
 	"sync/atomic"
 
@@ -73,9 +74,34 @@ func (m *DNSCryptManager) isRunning() bool {
 	return cmd.Run() == nil
 }
 
+// startService starts the dnscrypt-proxy service.
+//
+// Starting a system service is a root privilege, and the server is deliberately not run as one —
+// so the elevation happens on the command itself, in the order anything like this is tried:
+// directly first (which works when polkit's rules let a user session manage the service), then
+// through sudo non-interactively.
+//
+// `sudo -n` is the whole reason this does not hang: it fails immediately when a password would be
+// required, and a background server sitting on a prompt nobody can type into is the worst outcome
+// this could have. It succeeds when sudoers carries a NOPASSWD rule for this one command — the
+// one-line setup that makes the elevation automatic from then on, without the server itself ever
+// being started as root.
 func (m *DNSCryptManager) startService() error {
-	cmd := exec.Command("systemctl", "start", "dnscrypt-proxy")
-	return cmd.Run()
+	// Direct: the server runs as root, or polkit already allows a user session to manage the
+	// service.
+	if err := exec.Command("systemctl", "start", "dnscrypt-proxy").Run(); err == nil {
+		return nil
+	}
+
+	// sudo, non-interactive: fails immediately rather than asking for a password.
+	if err := exec.Command("sudo", "-n", "systemctl", "start", "dnscrypt-proxy").Run(); err == nil {
+		return nil
+	}
+
+	return errors.New(
+		"could not start the dnscrypt-proxy service — start the server as root, or allow it once " +
+			"with a sudoers rule: <your user> ALL=(ALL) NOPASSWD: /usr/bin/systemctl start dnscrypt-proxy " +
+			"(sudo visudo -f /etc/sudoers.d/seanime-dnscrypt)")
 }
 
 // Install attempts to install dnscrypt-proxy using dnf.

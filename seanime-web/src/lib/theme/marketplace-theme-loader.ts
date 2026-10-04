@@ -12,6 +12,7 @@ export interface MarketplaceThemeMeta {
     id: string
     displayName: string
     description?: string
+    author?: string
     milestoneNames: Record<number, string>
     milestoneCategoryNames: Record<string, string>
     achievementNames: Record<string, string>
@@ -31,6 +32,7 @@ export interface SharedThemeInfo {
     previewColors?: { bg: string; primary: string; secondary: string; accent: string }
     backgroundImageUrl?: string
     description?: string
+    author?: string
 }
 
 // In-memory cache: themeId → MarketplaceThemeMeta | null (null = 404/unavailable)
@@ -61,6 +63,7 @@ export async function fetchMarketplaceThemeMeta(themeId: string): Promise<Market
                 id?: string
                 displayName?: string
                 description?: string
+                author?: string
                 milestoneNames?: Record<string | number, string>
                 milestoneCategoryNames?: Record<string, string>
                 achievementNames?: Record<string, string>
@@ -83,6 +86,7 @@ export async function fetchMarketplaceThemeMeta(themeId: string): Promise<Market
                 id: raw.id ?? themeId,
                 displayName: raw.displayName ?? themeId,
                 description: raw.description,
+                author: raw.author,
                 milestoneNames,
                 milestoneCategoryNames: raw.milestoneCategoryNames ?? {},
                 achievementNames: raw.achievementNames ?? {},
