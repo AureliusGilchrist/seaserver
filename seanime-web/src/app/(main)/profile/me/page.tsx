@@ -124,7 +124,7 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => { setUserSoundLevel(currentLevel) }, [currentLevel, setUserSoundLevel])
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { activeTitle, activeNameColor, activeBorder, activeXPBarSkin } = useRewards()
+    const { activeTitle, activeNameColor, activeBorder, activeXPBarSkin, effectiveXPBarFill } = useRewards()
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const { config: themeConfig } = useAnimeTheme()
 
@@ -164,13 +164,13 @@ export default function Page() {
 
     // Derive a solid accent color from XP bar fill for scoped brand overrides
     const profileAccentColor = React.useMemo<string | null>(() => {
-        const fill = activeXPBarSkin?.fillCss
+        const fill = effectiveXPBarFill
         if (!fill) return null
         if (fill.startsWith("linear-gradient")) {
             return fill.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)?.[0] ?? null
         }
         return fill
-    }, [activeXPBarSkin])
+    }, [effectiveXPBarFill])
 
     // Inject scoped brand shades derived from the XP bar color on the profile page
     const profileAccentVars: React.CSSProperties = profileAccentColor ? {
@@ -227,7 +227,11 @@ export default function Page() {
                                 name: profile!.name,
                             }}
                             size={120}
-                            xpBarFillOverride={activeXPBarSkin?.fillCss || undefined}
+                            xpBarFillOverride={effectiveXPBarFill || undefined}
+                            // A moving skin moves here too, exactly as it does in the shop — the
+                            // ring is the same bar in a different shape.
+                            xpBarAnimClass={activeXPBarSkin?.animClass}
+                            xpBarTrackCss={activeXPBarSkin?.trackCss}
                         />
                     </div>
                     <div className="flex-1 min-w-0">

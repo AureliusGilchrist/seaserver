@@ -25,7 +25,8 @@ import { resolveIcon } from "@/lib/theme/anime-themes/icon-registry"
 import { recordActivatedTheme } from "@/lib/theme/anime-themes/theme-prerequisites"
 import { fetchMarketplaceThemeMeta, getCachedMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
 import { applyRootCssVars } from "@/lib/helpers/css"
-import { animeThemeBaseColorAtom, animeThemeBrandOverrideAtom, SETTINGS_OWNED_COLOR_VARS } from "@/lib/theme/color-mixing"
+import { animeThemeBaseColorAtom, animeThemeBrandOverrideAtom, animeThemePrimaryColorAtom, SETTINGS_OWNED_COLOR_VARS, wallpaperAccentColorAtom, xpBarSkinBrandColorAtom } from "@/lib/theme/color-mixing"
+import { extractWallpaperAccent } from "@/lib/theme/wallpaper-accent"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { seaStorage } from "@/lib/sea-storage/sea-storage"
 
@@ -109,17 +110,41 @@ function hslToHex(h: number, s: number, l: number): string {
     return `#${f(0)}${f(8)}${f(4)}`
 }
 
+/** `#rrggbb` as the space-separated triplet every `--color-brand-*` variable is written in. */
+export function hexToTriplet(hex: string): string {
+    const h = hex.replace("#", "")
+    const full = h.length === 3 ? h.split("").map(c => c + c).join("") : h
+    const r = parseInt(full.slice(0, 2), 16) || 0
+    const g = parseInt(full.slice(2, 4), 16) || 0
+    const b = parseInt(full.slice(4, 6), 16) || 0
+    return `${r} ${g} ${b}`
+}
+
+/**
+ * The brand ramp, derived from one color: the color itself is the 500, lighter steps are mixed
+ * toward white and darker ones toward black.
+ *
+ * Written as space-separated RGB triplets because that is what the ramp is consumed as —
+ * `rgb(var(--color-brand-500) / <alpha-value>)` in the Tailwind config. Hex values used to be
+ * written here, which `rgb()` cannot read, so a brand override never actually took.
+ */
 export function deriveBrandShades(hex: string): Record<string, string> {
     try {
-        if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return {}
-        const [h, s] = hexToHSL(hex)
-        return {
-            "--color-brand-300": hslToHex(h, s, 75),
-            "--color-brand-400": hslToHex(h, s, 65),
-            "--color-brand-500": hex,
-            "--color-brand-600": hslToHex(h, s, 45),
-            "--color-brand-700": hslToHex(h, s, 35),
+        if (!/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(hex)) return {}
+        const [h, s] = hexToHSL(hex.length === 4
+            ? `#${hex.slice(1).split("").map(c => c + c).join("")}`
+            : hex)
+        const ramp: Record<string, number> = {
+            "200": 88, "300": 75, "400": 65, "500": 52, "600": 45, "700": 35, "800": 27, "900": 20, "950": 12,
         }
+        const shades: Record<string, string> = {}
+        for (const [step, lightness] of Object.entries(ramp)) {
+            const shade = step === "500" ? hex : hslToHex(h, s, lightness)
+            shades[`--color-brand-${step}`] = hexToTriplet(shade)
+        }
+        // `--brand` is the flat alias the app reads in a few places; it tracks the 500.
+        shades["--brand"] = shades["--color-brand-500"]!
+        return shades
     } catch { return {} }
 }
 
@@ -244,6 +269,10 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const colorSettingsEnabled = !!themeSettings?.enableColorSettings
     const setAnimeThemeBaseColor = useSetAtom(animeThemeBaseColorAtom)
     const setAnimeThemeBrandOverride = useSetAtom(animeThemeBrandOverrideAtom)
+    const setAnimeThemePrimaryColor = useSetAtom(animeThemePrimaryColorAtom)
+    const setWallpaperAccent = useSetAtom(wallpaperAccentColorAtom)
+    const wallpaperAccent = useAtomValue(wallpaperAccentColorAtom)
+    const xpBarSkinBrandColor = useAtomValue(xpBarSkinBrandColorAtom)
 
     // ── Theme persistence ──
     // Allow any string theme ID (including marketplace themes not bundled in-app)
@@ -589,6 +618,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     }, [themeId, profileKey])
 
     const setActiveBackgroundUrl = React.useCallback((url: string | null) => {
+
         if (themeId === "seanime") return
         setActiveBackgroundUrlRaw(url)
         try {
@@ -616,12 +646,25 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             const shades = deriveBrandShades(brandColorOverride)
             Object.entries(shades).forEach(([k, v]) => root.style.setProperty(k, v))
         }
+        // The equipped XP bar skin colors the ramp when nothing else does.
+        if (xpBarSkinBrandColor) {
+            const shades = deriveBrandShades(xpBarSkinBrandColor)
+            Object.entries(shades).forEach(([k, v]) => root.style.setProperty(k, v))
+        }
+        // The wallpaper has the last word, and deliberately so: the primary color is the general
+        // highlight of the picture behind the UI, not a color a theme or a reward declares. A theme
+        // still contributes its wallpaper, its effects, its fonts — and the interface's color comes
+        // out of that wallpaper, changing with it.
+        if (wallpaperAccent) {
+            const shades = deriveBrandShades(wallpaperAccent)
+            Object.entries(shades).forEach(([k, v]) => root.style.setProperty(k, v))
+        }
 
         return () => {
             // On cleanup, clear only the vars this theme set (next theme will overwrite)
             entries.forEach(([k]) => root.style.removeProperty(k))
         }
-    }, [config, brandColorOverride, colorSettingsEnabled])
+    }, [config, brandColorOverride, colorSettingsEnabled, xpBarSkinBrandColor, wallpaperAccent])
 
     // ── Publish the theme's own colors so the settings color scheme can mix them in ──
     React.useEffect(() => {
@@ -633,6 +676,37 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setAnimeThemeBrandOverride(brandColorOverride)
         return () => setAnimeThemeBrandOverride(null)
     }, [brandColorOverride, setAnimeThemeBrandOverride])
+
+    // ── Publish the theme's primary color ──
+    // The exp bar reads this: with a theme equipped and no XP bar skin chosen, the bar is drawn in
+    // the theme's own color, which is what keeps the bar and the app's primary color the same.
+    React.useEffect(() => {
+        setAnimeThemePrimaryColor(config.id === "seanime" ? null : (config.previewColors?.primary ?? null))
+        return () => setAnimeThemePrimaryColor(null)
+    }, [config, setAnimeThemePrimaryColor])
+
+    // ── The wallpaper's color ──
+    //
+    // Read from the image itself, every time it changes: the wallpaper is picked in the theme
+    // manager and the primary color has to change with it, at that moment, without a reload. The
+    // extraction is asynchronous and the result only lands if the wallpaper it was taken from is
+    // still the one on screen — switching wallpapers quickly must not leave the color of the one
+    // before it behind.
+    React.useEffect(() => {
+        const url = config.id === "seanime" ? null : activeBackgroundUrl
+        if (!url) {
+            setWallpaperAccent(null)
+            return
+        }
+
+        let cancelled = false
+        extractWallpaperAccent(url).then(accent => {
+            if (cancelled) return
+            setWallpaperAccent(accent)
+        })
+
+        return () => { cancelled = true }
+    }, [config.id, activeBackgroundUrl, setWallpaperAccent])
 
     // ── Background image: hide default body:before AND body:after when a custom bg is active ──
     React.useEffect(() => {
