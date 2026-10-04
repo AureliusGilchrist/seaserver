@@ -336,18 +336,27 @@ func (q *unmatchedMatchQueue) process(item *models.UnmatchedMatchQueueItem) {
 		return
 	}
 
-	_ = q.h.App.Database.MarkUnmatchedMatchQueueItemStarted(item.ID)
-	q.sendQueueEvent()
-
-	// Nothing left to match: the download is gone, was matched by something else, or was finished
-	// by an interrupted match being resumed. The item is done with, not retried — there is nothing
-	// to retry.
-	if !q.h.App.UnmatchedRepository.StagingDirExists(item.TorrentName) {
+	// What is left of the files this match selected. A download can be matched more than once — a
+	// pack in parts, or the same pack to different entries — so "the download is still there" says
+	// nothing about whether *this* match still has anything to do. An item whose files have all
+	// been matched already is done with, quietly: it is what a second decision for the same files
+	// looks like, and it is also what the item left behind by an interrupted match looks like once
+	// that match has been finished.
+	switch q.itemFilesState(item, req.SelectedFiles) {
+	case queueFilesGone:
 		q.h.App.Logger.Info().Str("torrent", item.TorrentName).
-			Msg("unmatched queue: The download is no longer in the staging area, dropping its queued match")
+			Msg("unmatched queue: Nothing left of the files this match selected, dropping it")
 		_ = q.h.App.Database.DeleteUnmatchedMatchQueueItem(item.ID)
 		return
+	case queueFilesUnreadable:
+		// The download is there but could not be read this time — a disk that is busy, a network
+		// share that is asleep. Not a reason to give up on it; it is retried like any other failure.
+		q.retry(item, "the download could not be read")
+		return
 	}
+
+	_ = q.h.App.Database.MarkUnmatchedMatchQueueItemStarted(item.ID)
+	q.sendQueueEvent()
 
 	// The same lock the manual match and the sweep take, so a queued match never moves files at the
 	// same time as either. Held only for the match itself — never while waiting on anything.
@@ -460,6 +469,48 @@ func (q *unmatchedMatchQueue) retry(item *models.UnmatchedMatchQueueItem, reason
 		Dur("retryIn", delay).
 		Msg("unmatched queue: Match failed, it will be tried again")
 	q.sendQueueEvent()
+}
+
+// What is left of the files a queued match selected.
+type queueFilesState int
+
+const (
+	// queueFilesPresent: at least one of the files this match selected is still in the download.
+	queueFilesPresent queueFilesState = iota
+	// queueFilesGone: the download is gone, or none of the selected files are left — matched
+	// already, by this queue or by something else. There is nothing to carry out.
+	queueFilesGone
+	// queueFilesUnreadable: the download is there but could not be read this time.
+	queueFilesUnreadable
+)
+
+// itemFilesState reports what is left of the files a queued match selected.
+//
+// A download is matched more than once as a matter of course — a pack in parts, one season at a
+// time, sometimes to different entries of the franchise — so each item is judged on its own files
+// rather than on whether the download still exists. An item whose files have all been matched
+// already is what a repeated decision looks like, and it is dropped without touching anything.
+func (q *unmatchedMatchQueue) itemFilesState(item *models.UnmatchedMatchQueueItem, selected []string) queueFilesState {
+	contents, err := q.h.App.UnmatchedRepository.GetTorrentContents(item.TorrentName)
+	if err != nil || contents == nil {
+		if q.h.App.UnmatchedRepository.StagingDirExists(item.TorrentName) {
+			return queueFilesUnreadable
+		}
+		return queueFilesGone
+	}
+
+	present := make(map[string]struct{}, len(contents.Files))
+	for _, f := range contents.Files {
+		if f != nil {
+			present[f.RelativePath] = struct{}{}
+		}
+	}
+	for _, rel := range selected {
+		if _, ok := present[rel]; ok {
+			return queueFilesPresent
+		}
+	}
+	return queueFilesGone
 }
 
 // onPendingMatchFinished settles the queue item held for a download whose interrupted match has

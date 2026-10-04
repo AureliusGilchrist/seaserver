@@ -136,7 +136,7 @@ export interface MatchResult {
     skippedFiles?: string[]
 }
 
-const UNMATCHED_ENDPOINTS = {
+export const UNMATCHED_ENDPOINTS = {
     GetUnmatchedTorrents: {
         key: "UNMATCHED-get-unmatched-torrents",
         methods: ["GET"] as const,
@@ -628,5 +628,172 @@ export function useUnmatchedFamilySearch() {
         endpoint: UNMATCHED_ENDPOINTS.FamilySearch.endpoint,
         method: UNMATCHED_ENDPOINTS.FamilySearch.methods[0],
         mutationKey: [UNMATCHED_ENDPOINTS.FamilySearch.key],
+    })
+}
+
+// ─── Match queue ─────────────────────────────────────────────────────
+//
+// A match decided on in the Unmatched screen is written down and carried out by the server, in the
+// order the decisions were made — see internal/handlers/unmatched_match_queue.go. The screen only
+// ever reads the queue and asks for changes to it; it never performs a match itself. That is what
+// lets the next download be dealt with the moment the last one is confirmed, instead of waiting
+// out its file moves.
+//
+// Every endpoint here answers with the whole queue, so the cache is set from the answer rather than
+// invalidated and re-fetched — one round trip per action, and the screen is never briefly stale.
+
+export type UnmatchedMatchQueueItemStatus = "pending" | "matching" | "needs_decision"
+
+export interface UnmatchedMatchQueueItem {
+    id: number
+    torrentName: string
+    animeId: number
+    animeTitle: string
+    fileCount: number
+    status: UnmatchedMatchQueueItemStatus
+    /** Why the last attempt did not get through, on an item waiting to be retried. */
+    errorMessage?: string
+    attempts: number
+    createdAt: string
+    startedAt?: string
+    finishedAt?: string
+    /** When a failed match will be tried again. */
+    nextAttemptAt?: string
+    /** Set when the match stopped on a question — the same payloads a match would have reported. */
+    conflict?: MatchConflict
+    countMismatch?: CountMismatch
+}
+
+export interface UnmatchedMatchQueueStatus {
+    /** Stopped by the user. */
+    paused: boolean
+    /** Waiting on something by itself — AniList not answering, or an interrupted match. */
+    holding: boolean
+    holdReason?: string
+    /** The match being carried out right now, if any. */
+    current?: UnmatchedMatchQueueItem
+    total: number
+    pending: number
+    matching: number
+    needsDecision: number
+    /** Matches carried out since the server started. */
+    matched: number
+    lastMatchedAt?: string
+}
+
+export interface UnmatchedMatchQueueState {
+    items: UnmatchedMatchQueueItem[]
+    status: UnmatchedMatchQueueStatus
+}
+
+export function useGetUnmatchedMatchQueue({ enabled }: { enabled?: boolean } = {}) {
+    return useServerQuery<UnmatchedMatchQueueState>({
+        endpoint: UNMATCHED_ENDPOINTS.GetMatchQueue.endpoint,
+        method: UNMATCHED_ENDPOINTS.GetMatchQueue.methods[0],
+        queryKey: [UNMATCHED_ENDPOINTS.GetMatchQueue.key],
+        gcTime: 0,
+        staleTime: 0,
+        // The server pushes an event whenever the queue moves; this is the safety net under it, and
+        // it tightens while there is work so a match finishing between events is noticed quickly.
+        refetchInterval: query => ((query.state.data?.status?.total ?? 0) > 0 ? 5_000 : 20_000),
+        enabled,
+    })
+}
+
+/** Sets the queue cache from an endpoint's answer, so no action costs a second round trip. */
+function useMatchQueueCacheWriter() {
+    const queryClient = useQueryClient()
+    return (data?: UnmatchedMatchQueueState) => {
+        if (data) {
+            queryClient.setQueryData([UNMATCHED_ENDPOINTS.GetMatchQueue.key], data)
+        }
+    }
+}
+
+/**
+ * Queues a match and returns immediately — the server carries it out in its own time. This is the
+ * only way the screen matches anything: the request comes back as soon as the decision is written
+ * down, so the next download can be opened while this one is still being moved.
+ */
+export function useEnqueueUnmatchedMatch(onSuccess?: (data?: UnmatchedMatchQueueState) => void) {
+    const writeCache = useMatchQueueCacheWriter()
+
+    return useServerMutation<UnmatchedMatchQueueState, MatchRequest>({
+        endpoint: UNMATCHED_ENDPOINTS.EnqueueMatch.endpoint,
+        method: UNMATCHED_ENDPOINTS.EnqueueMatch.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.EnqueueMatch.key],
+        onSuccess: async (data) => {
+            writeCache(data)
+            onSuccess?.(data)
+        },
+    })
+}
+
+export function useRemoveUnmatchedMatchQueueItem() {
+    const writeCache = useMatchQueueCacheWriter()
+    return useServerMutation<UnmatchedMatchQueueState, { id: number }>({
+        endpoint: UNMATCHED_ENDPOINTS.RemoveMatchQueueItem.endpoint,
+        method: UNMATCHED_ENDPOINTS.RemoveMatchQueueItem.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.RemoveMatchQueueItem.key],
+        onSuccess: async (data) => writeCache(data),
+    })
+}
+
+export function useClearUnmatchedMatchQueue() {
+    const writeCache = useMatchQueueCacheWriter()
+    return useServerMutation<UnmatchedMatchQueueState, {}>({
+        endpoint: UNMATCHED_ENDPOINTS.ClearMatchQueue.endpoint,
+        method: UNMATCHED_ENDPOINTS.ClearMatchQueue.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.ClearMatchQueue.key],
+        onSuccess: async (data) => {
+            toast.success("Match queue cleared")
+            writeCache(data)
+        },
+    })
+}
+
+/** Stops the queue between matches — never inside one; the match running is finished. */
+export function usePauseUnmatchedMatchQueue() {
+    const writeCache = useMatchQueueCacheWriter()
+    return useServerMutation<UnmatchedMatchQueueState, {}>({
+        endpoint: UNMATCHED_ENDPOINTS.PauseMatchQueue.endpoint,
+        method: UNMATCHED_ENDPOINTS.PauseMatchQueue.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.PauseMatchQueue.key],
+        onSuccess: async (data) => writeCache(data),
+    })
+}
+
+export function useResumeUnmatchedMatchQueue() {
+    const writeCache = useMatchQueueCacheWriter()
+    return useServerMutation<UnmatchedMatchQueueState, {}>({
+        endpoint: UNMATCHED_ENDPOINTS.ResumeMatchQueue.endpoint,
+        method: UNMATCHED_ENDPOINTS.ResumeMatchQueue.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.ResumeMatchQueue.key],
+        onSuccess: async (data) => writeCache(data),
+    })
+}
+
+/** Tries a match again now, clearing the backoff it was waiting out. */
+export function useRetryUnmatchedMatchQueueItem() {
+    const writeCache = useMatchQueueCacheWriter()
+    return useServerMutation<UnmatchedMatchQueueState, { id: number }>({
+        endpoint: UNMATCHED_ENDPOINTS.RetryMatchQueueItem.endpoint,
+        method: UNMATCHED_ENDPOINTS.RetryMatchQueueItem.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.RetryMatchQueueItem.key],
+        onSuccess: async (data) => writeCache(data),
+    })
+}
+
+/**
+ * Answers the question a queued match stopped on and puts it back in line — replacing what is
+ * already in the library, proceeding past an episode count that does not match, or both.
+ */
+export function useResolveUnmatchedMatchQueueItem() {
+    const writeCache = useMatchQueueCacheWriter()
+    return useServerMutation<UnmatchedMatchQueueState, { id: number, overwriteExisting?: boolean, confirmCountMismatch?: boolean }>({
+        endpoint: UNMATCHED_ENDPOINTS.ResolveMatchQueueItem.endpoint,
+        method: UNMATCHED_ENDPOINTS.ResolveMatchQueueItem.methods[0],
+        mutationKey: [UNMATCHED_ENDPOINTS.ResolveMatchQueueItem.key],
+        onSuccess: async (data) => writeCache(data),
     })
 }

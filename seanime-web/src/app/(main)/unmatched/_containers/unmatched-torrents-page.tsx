@@ -5,14 +5,25 @@ import {
     useGetUnmatchedTorrents,
     useStopUnmatchedSweep,
     useSweepUnmatchedTorrents,
-    MatchResult,
+    useGetUnmatchedMatchQueue,
+    useRemoveUnmatchedMatchQueueItem,
+    useClearUnmatchedMatchQueue,
+    usePauseUnmatchedMatchQueue,
+    useResumeUnmatchedMatchQueue,
+    useRetryUnmatchedMatchQueueItem,
+    useResolveUnmatchedMatchQueueItem,
     UnmatchedTorrent,
+    UnmatchedMatchQueueItem,
+    MatchConflict,
+    CountMismatch,
 } from "@/api/hooks/unmatched.hooks"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { UnmatchedTorrentCard } from "@/app/(main)/unmatched/_components/unmatched-torrent-card"
 import { UnmatchedMatchModal } from "@/app/(main)/unmatched/_components/unmatched-match-modal"
 import { UnmatchedUndoModal } from "@/app/(main)/unmatched/_components/unmatched-undo-modal"
 import { UnmatchedDiagnosticsModal } from "@/app/(main)/unmatched/_components/unmatched-diagnostics-modal"
+import { UnmatchedConflictModal } from "@/app/(main)/unmatched/_components/unmatched-conflict-modal"
+import { UnmatchedCountMismatchModal } from "@/app/(main)/unmatched/_components/unmatched-count-mismatch-modal"
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,26 +34,25 @@ import { PageWrapper } from "@/components/shared/page-wrapper"
 import { atom, useAtom } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 import React from "react"
-import { LuFolderSearch, LuEye, LuEyeOff, LuUndo2, LuStethoscope, LuWandSparkles, LuCircleStop, LuListTodo, LuPlay, LuTrash2 } from "react-icons/lu"
+import {
+    LuFolderSearch,
+    LuEye,
+    LuEyeOff,
+    LuUndo2,
+    LuStethoscope,
+    LuWandSparkles,
+    LuCircleStop,
+    LuListTodo,
+    LuPause,
+    LuPlay,
+    LuRotateCw,
+    LuTrash2,
+    LuX,
+} from "react-icons/lu"
 
 export const selectedUnmatchedTorrentAtom = atom<UnmatchedTorrent | null>(null)
 
-/**
- * Downloads waiting to be matched, in the order they were queued (first in, first matched).
- *
- * Held by name, because that is what every unmatched endpoint keys on, and persisted so a queue
- * built up over a session survives a reload. Names that no longer appear in the downloads list —
- * matched elsewhere, swept, or deleted — are dropped from the queue once the list confirms they
- * are gone.
- */
-export const unmatchedMatchQueueAtom = atomWithStorage<string[]>(
-    "sea-unmatched-match-queue",
-    [],
-    undefined,
-    { getOnInit: true },
-)
-
-/** Which tab the page was last on — working through a queue survives a reload. */
+/** Which tab the page was last on — kept across a reload, since the queue is worked from here. */
 export const unmatchedPageTabAtom = atomWithStorage<"downloads" | "queue">(
     "sea-unmatched-tab",
     "downloads",
@@ -50,6 +60,19 @@ export const unmatchedPageTabAtom = atomWithStorage<"downloads" | "queue">(
     { getOnInit: true },
 )
 
+/**
+ * The Unmatched Downloads screen.
+ *
+ * Two things live here now, and they are different kinds of thing:
+ *
+ *   - The downloads list, which is a list of work to be decided on.
+ *   - The match queue, which is a list of decisions being carried out by the server.
+ *
+ * Deciding on a match — picking the files, picking the anime, confirming — writes it into the
+ * server's queue and returns. Nothing is moved by this screen, so the next download can be opened
+ * the moment the last one is confirmed; the queue works through them in order, in the background,
+ * and says what it is doing. See internal/handlers/unmatched_match_queue.go.
+ */
 export function UnmatchedTorrentsPage() {
     const { data: torrents, isLoading, refetch, error, isError, isFetching } = useGetUnmatchedTorrents({
         // Answering this means walking every file of every download in the staging area, over the
@@ -66,17 +89,13 @@ export function UnmatchedTorrentsPage() {
         refetchOnWindowFocus: true,
     })
     const { data: libraryCollection } = useGetLibraryCollection({ staleTime: 30_000 })
+    const { data: queue } = useGetUnmatchedMatchQueue()
     const [selectedTorrent, setSelectedTorrent] = useAtom(selectedUnmatchedTorrentAtom)
-    const [matchQueue, setMatchQueue] = useAtom(unmatchedMatchQueueAtom)
     const [tab, setTab] = useAtom(unmatchedPageTabAtom)
     const [search, setSearch] = React.useState("")
     const [hideMatched, setHideMatched] = React.useState(true)
     const [undoOpen, setUndoOpen] = React.useState(false)
     const [diagnosticsOpen, setDiagnosticsOpen] = React.useState(false)
-    // True while the open modal was started from the queue tab. Only then does a completed match
-    // open the next queued download in its place — matching from the downloads list behaves as it
-    // always has, and closes when it is done.
-    const [queueMode, setQueueMode] = React.useState(false)
 
     const { data: sweep } = useGetUnmatchedSweepStatus()
     const { mutate: startSweep, isPending: isStartingSweep } = useSweepUnmatchedTorrents()
@@ -124,99 +143,36 @@ export function UnmatchedTorrentsPage() {
         [torrentsList],
     )
 
-    // ─── To-match queue ──────────────────────────────────────────────
+    // ─── The match queue ─────────────────────────────────────────────
     //
-    // Opening a download to match it puts it in the queue; a completed match takes it out, so what
-    // is left in the queue is what still needs matching. The cards also carry a button to add and
-    // remove without opening anything, which is how a run of downloads gets lined up to work
-    // through. The queue only ever shows here — it is a work list for this screen, not a library
-    // surface.
+    // Read-only from here: the server owns the queue and works through it on its own. What this
+    // screen does with it is show it, and answer the questions it stops on.
 
-    const enqueueTorrent = React.useCallback((name: string) => {
-        setMatchQueue(prev => prev.includes(name) ? prev : [...prev, name])
-    }, [setMatchQueue])
+    const queueItems = queue?.items ?? []
+    const queueStatus = queue?.status
+    const queueEmpty = queueItems.length === 0
 
-    const dequeueTorrent = React.useCallback((name: string) => {
-        setMatchQueue(prev => prev.filter(n => n !== name))
-    }, [setMatchQueue])
+    // Downloads with a match waiting in the queue, so the list can say so on the card itself.
+    const queuedTorrentNames = React.useMemo(
+        () => new Set(queueItems.map(i => i.torrentName)),
+        [queueItems],
+    )
 
-    const toggleQueued = React.useCallback((name: string) => {
-        setMatchQueue(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name])
-    }, [setMatchQueue])
-
-    // Queued downloads the list no longer knows about have nothing left to match, so they drop
-    // out. Only done once the list has actually arrived, so a failed or slow fetch cannot empty a
-    // queue that is still valid.
-    React.useEffect(() => {
-        if (isError || torrents === undefined) return
-        const present = new Set(torrents.map(t => t.name))
-        setMatchQueue(prev => {
-            const next = prev.filter(name => present.has(name))
-            return next.length === prev.length ? prev : next
-        })
-    }, [torrents, isError, setMatchQueue])
-
-    // The queue, in order, resolved against the listed downloads.
-    const queuedTorrents = React.useMemo(() => {
-        const byName = new Map(torrentsList.map(t => [t.name, t]))
-        return matchQueue.map(name => byName.get(name)).filter((t): t is UnmatchedTorrent => !!t)
-    }, [matchQueue, torrentsList])
-
-    const queuedNames = React.useMemo(() => new Set(matchQueue), [matchQueue])
+    const { mutate: removeQueueItem } = useRemoveUnmatchedMatchQueueItem()
+    const { mutate: retryQueueItem, isPending: isRetrying } = useRetryUnmatchedMatchQueueItem()
+    const { mutate: resolveQueueItem, isPending: isResolving } = useResolveUnmatchedMatchQueueItem()
+    const { mutate: pauseQueue } = usePauseUnmatchedMatchQueue()
+    const { mutate: resumeQueue } = useResumeUnmatchedMatchQueue()
+    const { mutate: clearQueue } = useClearUnmatchedMatchQueue()
 
     const clearQueueConfirmation = useConfirmationDialog({
-        title: "Clear the to-match queue",
-        description: "Removes every download from the queue. The downloads themselves are left untouched.",
-        onConfirm: () => setMatchQueue([]),
+        title: "Clear the match queue",
+        description: "Removes every queued match without carrying it out. Downloads already matched stay matched; nothing on disk is touched.",
+        onConfirm: () => clearQueue({}),
     })
 
-    const openForMatch = React.useCallback((torrent: UnmatchedTorrent, fromQueue: boolean = false) => {
-        setQueueMode(fromQueue)
-        setSelectedTorrent(torrent)
-        // Trying to match a download is what queues it. Matching from the queue tab doesn't need
-        // this — it is already there.
-        if (!fromQueue) enqueueTorrent(torrent.name)
-    }, [setSelectedTorrent, enqueueTorrent])
-
-    const handleMatchNext = React.useCallback(() => {
-        const next = queuedTorrents[0]
-        if (!next) return
-        openForMatch(next, true)
-    }, [queuedTorrents, openForMatch])
-
-    const handleMatchSuccess = React.useCallback((result?: MatchResult) => {
-        const matchedName = selectedTorrent?.name
-        // A match that failed stays in the queue: it still needs matching.
-        const completed = !!result?.success && !!matchedName
-        if (completed && matchedName) dequeueTorrent(matchedName)
-
-        // Working from the queue: the next queued download opens in place of the one just matched,
-        // so a backlog can be worked through without going back to the list in between. Closing
-        // the modal stops the run; whatever was not reached stays queued.
-        let next: UnmatchedTorrent | null = null
-        if (completed && queueMode) {
-            const nextName = matchQueue.find(name => name !== matchedName)
-            if (nextName) next = torrentsList.find(t => t.name === nextName) ?? null
-        }
-
-        if (next) {
-            setSelectedTorrent(next)
-        } else {
-            setSelectedTorrent(null)
-            setQueueMode(false)
-        }
-        // NOTE: no library scan here on purpose. The server already injects the moved files into
-        // the library DB as hydrated, locked local files, so a scan adds nothing — and a full
-        // enhanced scan after *every* match is what made matching get slower and slower the longer
-        // a matching session ran.
-        refetch()
-    }, [selectedTorrent, queueMode, matchQueue, torrentsList, dequeueTorrent, setSelectedTorrent, refetch])
-
-    // Where the open download sits in the queue, for the badge in the modal header.
-    const selectedQueueIndex = selectedTorrent ? matchQueue.indexOf(selectedTorrent.name) : -1
-    const queueInfo = selectedQueueIndex >= 0
-        ? { position: selectedQueueIndex + 1, total: matchQueue.length, autoAdvance: queueMode }
-        : null
+    // The question a queued match stopped on, and the item it belongs to. Opened from the queue.
+    const [answering, setAnswering] = React.useState<UnmatchedMatchQueueItem | null>(null)
 
     if (initialLoading) {
         return (
@@ -237,6 +193,9 @@ export function UnmatchedTorrentsPage() {
     }
 
     const hasTorrents = torrentsList.length > 0
+
+    // Whether the queue is doing anything worth showing a strip about on the downloads tab.
+    const queueActive = !!queueStatus && (queueStatus.total > 0 || queueStatus.matching > 0)
 
     return (
         <PageWrapper className="p-4 sm:p-8 space-y-4">
@@ -345,9 +304,9 @@ export function UnmatchedTorrentsPage() {
                     </TabsTrigger>
                     <TabsTrigger value="queue">
                         To Match
-                        {matchQueue.length > 0 && (
+                        {queueItems.length > 0 && (
                             <Badge className="ml-2 font-bold" intent="alert" size="sm">
-                                {matchQueue.length}
+                                {queueItems.length}
                             </Badge>
                         )}
                     </TabsTrigger>
@@ -357,6 +316,35 @@ export function UnmatchedTorrentsPage() {
                     <p className="text-[--muted]">
                         Downloaded torrents that haven't been matched to an anime yet. Select a torrent to choose episodes and match them to an anime.
                     </p>
+
+                    {/* The queue doing its work, said on the tab where the deciding happens — so it
+                        is clear the last match is still being carried out while the next download
+                        is being dealt with. */}
+                    {queueActive && (
+                        <div className="flex items-center gap-3 flex-wrap border rounded-md px-4 py-2.5 bg-gray-900/50">
+                            {queueStatus!.matching || (queueStatus!.holding && !queueStatus!.paused)
+                                ? <LoadingSpinner className="h-4 w-4 flex-shrink-0" />
+                                : <LuListTodo className="h-4 w-4 flex-shrink-0 text-brand-200" />}
+                            <p className="text-sm">
+                                {queueStatus!.matching && queueStatus!.current
+                                    ? <>Matching <span className="font-medium text-gray-200">{queueStatus!.current.animeTitle || queueStatus!.current.torrentName}</span> now</>
+                                    : queueStatus!.paused
+                                        ? "Match queue paused"
+                                        : queueStatus!.holding
+                                            ? queueStatus!.holdReason || "Match queue waiting"
+                                            : `${queueStatus!.pending} match${queueStatus!.pending === 1 ? "" : "es"} waiting in the queue`}
+                            </p>
+                            <span className="text-xs text-[--muted]">
+                                {queueStatus!.total} queued
+                                {queueStatus!.needsDecision > 0 ? ` · ${queueStatus!.needsDecision} needs a decision` : ""}
+                                {queueStatus!.matched > 0 ? ` · ${queueStatus!.matched} matched this session` : ""}
+                            </span>
+                            <div className="flex-1" />
+                            <Button intent="gray-outline" size="sm" onClick={() => setTab("queue")}>
+                                View queue
+                            </Button>
+                        </div>
+                    )}
 
                     {hasTorrents && (
                         <div className="flex items-center gap-3 flex-wrap">
@@ -406,9 +394,8 @@ export function UnmatchedTorrentsPage() {
                                     <UnmatchedTorrentCard
                                         key={torrent.path}
                                         torrent={torrent}
-                                        queued={queuedNames.has(torrent.name)}
-                                        onToggleQueue={() => toggleQueued(torrent.name)}
-                                        onSelect={() => openForMatch(torrent)}
+                                        matchQueued={queuedTorrentNames.has(torrent.name)}
+                                        onSelect={() => setSelectedTorrent(torrent)}
                                     />
                                 ))}
                                 {filteredTorrents.length === 0 && (
@@ -420,14 +407,13 @@ export function UnmatchedTorrentsPage() {
                 </TabsContent>
 
                 <TabsContent value="queue" className="space-y-4">
-                    {matchQueue.length === 0 ? (
+                    {queueEmpty ? (
                         <div className="flex flex-col items-center justify-center py-20 text-center">
                             <LuListTodo className="text-6xl text-[--muted] mb-4" />
                             <p className="text-lg text-[--muted]">Nothing queued to match</p>
                             <p className="text-sm text-[--muted] max-w-md">
-                                Opening a download to match it adds it here, and the queue button on a card lines
-                                one up without opening it. Matching from this tab opens the next queued download
-                                automatically.
+                                Matching a download from the list puts it here, and the server carries it out in the
+                                order you decided on things — so the next download can be dealt with straight away.
                             </p>
                             <Button intent="gray-outline" size="sm" className="mt-4" onClick={() => setTab("downloads")}>
                                 Browse downloads
@@ -436,19 +422,21 @@ export function UnmatchedTorrentsPage() {
                     ) : (
                         <>
                             <div className="flex items-center gap-3 flex-wrap">
-                                <Button
-                                    intent="primary"
-                                    leftIcon={<LuPlay />}
-                                    onClick={handleMatchNext}
-                                    disabled={queuedTorrents.length === 0}
-                                >
-                                    Match next
-                                </Button>
+                                {queueStatus?.paused ? (
+                                    <Button intent="primary" leftIcon={<LuPlay />} onClick={() => resumeQueue({})}>
+                                        Resume matching
+                                    </Button>
+                                ) : (
+                                    <Button intent="gray-outline" leftIcon={<LuPause />} onClick={() => pauseQueue({})}>
+                                        Pause
+                                    </Button>
+                                )}
                                 <span className="text-sm text-[--muted]">
-                                    {matchQueue.length} queued
-                                    {queuedTorrents[0] && (
-                                        <> · next: <span className="text-gray-300">{queuedTorrents[0].animeTitleRomaji || queuedTorrents[0].animeTitleNative || queuedTorrents[0].name}</span></>
-                                    )}
+                                    {queueStatus?.matching && queueStatus.current
+                                        ? `Matching ${queueStatus.current.animeTitle || queueStatus.current.torrentName} now`
+                                        : `${queueStatus?.pending ?? 0} waiting`}
+                                    {queueStatus?.needsDecision ? ` · ${queueStatus.needsDecision} needs a decision` : ""}
+                                    {queueStatus?.matched ? ` · ${queueStatus.matched} matched this session` : ""}
                                 </span>
                                 <div className="flex-1" />
                                 <Button
@@ -461,30 +449,27 @@ export function UnmatchedTorrentsPage() {
                                 </Button>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {queuedTorrents.map((torrent, i) => (
-                                    <UnmatchedTorrentCard
-                                        key={torrent.path}
-                                        torrent={torrent}
-                                        queued
-                                        queuePosition={i + 1}
-                                        onToggleQueue={() => toggleQueued(torrent.name)}
-                                        onSelect={() => openForMatch(torrent, true)}
+                            {/* The queue waiting on something by itself. Said once, at the top,
+                                rather than on every item it is holding back. */}
+                            {queueStatus?.holding && (
+                                <div className="flex items-center gap-3 border rounded-md px-4 py-3 bg-amber-950/30 text-amber-100">
+                                    <LoadingSpinner className="h-4 w-4 flex-shrink-0" />
+                                    <p className="text-sm">{queueStatus.holdReason || "The queue is waiting"}</p>
+                                </div>
+                            )}
+
+                            <div className="space-y-3">
+                                {queueItems.map((item) => (
+                                    <QueueItemRow
+                                        key={item.id}
+                                        item={item}
+                                        onRemove={() => removeQueueItem({ id: item.id })}
+                                        onRetry={() => retryQueueItem({ id: item.id })}
+                                        onAnswer={() => setAnswering(item)}
+                                        isBusy={isRetrying || isResolving}
                                     />
                                 ))}
                             </div>
-
-                            {!isLoading && !isError && queuedTorrents.length < matchQueue.length && (
-                                <p className="text-xs text-[--muted]">
-                                    {matchQueue.length - queuedTorrents.length} queued download{matchQueue.length - queuedTorrents.length === 1 ? " is" : "s are"} no longer in the list and will drop out of the queue.
-                                </p>
-                            )}
-
-                            {isError && (
-                                <p className="text-xs text-amber-200/90">
-                                    The downloads list couldn't be loaded, so the queue can't be worked through right now.
-                                </p>
-                            )}
                         </>
                     )}
                 </TabsContent>
@@ -492,13 +477,15 @@ export function UnmatchedTorrentsPage() {
 
             <UnmatchedMatchModal
                 torrent={selectedTorrent}
-                queueInfo={queueInfo}
-                onClose={() => {
+                onClose={() => setSelectedTorrent(null)}
+                onSuccess={() => {
                     setSelectedTorrent(null)
-                    // Closing stops a queue run; whatever wasn't reached stays queued.
-                    setQueueMode(false)
+                    refetch()
+                    // NOTE: no library scan here on purpose. The server already injects the moved
+                    // files into the library DB as hydrated, locked local files, so a scan adds
+                    // nothing — and a full enhanced scan after *every* match is what made matching
+                    // get slower and slower the longer a matching session ran.
                 }}
-                onSuccess={handleMatchSuccess}
             />
 
             <UnmatchedDiagnosticsModal open={diagnosticsOpen} onClose={() => setDiagnosticsOpen(false)} />
@@ -513,7 +500,170 @@ export function UnmatchedTorrentsPage() {
                 }}
             />
 
+            {/* The questions the queue stopped on. The same dialogs a match used to raise, now
+                answered against the queued item rather than mid-match — the answer is recorded on
+                the stored request and the match goes back in line. */}
+            {!!answering?.countMismatch && (
+                <UnmatchedCountMismatchModal
+                    mismatch={answering.countMismatch}
+                    torrentName={answering.torrentName}
+                    animeTitle={answering.animeTitle || answering.torrentName}
+                    isMatching={isResolving}
+                    onConfirm={() => {
+                        resolveQueueItem({ id: answering.id, confirmCountMismatch: true })
+                        setAnswering(null)
+                    }}
+                    onCancel={() => setAnswering(null)}
+                />
+            )}
+
+            {!!answering?.conflict && (
+                <UnmatchedConflictModal
+                    conflict={answering.conflict}
+                    torrentName={answering.torrentName}
+                    animeTitle={answering.animeTitle || answering.torrentName}
+                    isReplacing={isResolving}
+                    onAccept={() => {
+                        resolveQueueItem({ id: answering.id, overwriteExisting: true, confirmCountMismatch: true })
+                        setAnswering(null)
+                    }}
+                    onDecline={() => setAnswering(null)}
+                    onCancel={() => setAnswering(null)}
+                />
+            )}
+
             <ConfirmationDialog {...clearQueueConfirmation} />
         </PageWrapper>
     )
+}
+
+/**
+ * One row of the match queue.
+ *
+ * The status is the whole point of the row: whether the match is waiting its turn, running now,
+ * waiting to be tried again after a failure, or stopped on a question. An item that failed is not a
+ * dead end — it is retried on its own, for as long as it takes — so the row says when it will be
+ * tried again rather than presenting it as something to fix.
+ */
+function QueueItemRow({
+    item,
+    onRemove,
+    onRetry,
+    onAnswer,
+    isBusy,
+}: {
+    item: UnmatchedMatchQueueItem
+    onRemove: () => void
+    onRetry: () => void
+    onAnswer: () => void
+    isBusy: boolean
+}) {
+    const failed = item.status === "pending" && item.attempts > 0 && !!item.errorMessage
+    const needsDecision = item.status === "needs_decision"
+
+    return (
+        <div className="p-4 border rounded-lg bg-gray-950/50 flex items-start gap-3">
+            <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm line-clamp-1">
+                    {item.animeTitle || item.torrentName}
+                </p>
+                <p className="text-xs text-[--muted] line-clamp-1 mt-0.5" title={item.torrentName}>
+                    {item.torrentName}
+                </p>
+
+                <div className="flex flex-wrap gap-2 mt-2">
+                    {item.status === "matching" && (
+                        <Badge intent="primary-solid" size="sm">
+                            <LoadingSpinner className="mr-1 h-3 w-3" />
+                            Matching now
+                        </Badge>
+                    )}
+                    {item.status === "pending" && !failed && (
+                        <Badge intent="blue" size="sm">
+                            <LuListTodo className="mr-1" />
+                            Waiting
+                        </Badge>
+                    )}
+                    {failed && (
+                        <Badge intent="warning" size="sm">
+                            <LuRotateCw className="mr-1" />
+                            Retrying
+                        </Badge>
+                    )}
+                    {needsDecision && (
+                        <Badge intent="warning" size="sm">
+                            Needs your decision
+                        </Badge>
+                    )}
+                    <Badge intent="gray" size="sm">
+                        {item.fileCount} file{item.fileCount === 1 ? "" : "s"}
+                    </Badge>
+                </div>
+
+                {/* Why it failed, and when it comes back round. Nothing here is a dead end. */}
+                {failed && (
+                    <p className="text-xs text-amber-200/90 mt-2">
+                        {item.errorMessage}
+                        {item.nextAttemptAt && (
+                            <> · trying again {formatNextAttempt(item.nextAttemptAt)}</>
+                        )}
+                    </p>
+                )}
+
+                {needsDecision && !!item.errorMessage && (
+                    <p className="text-xs text-amber-200/90 mt-2">{item.errorMessage}</p>
+                )}
+
+                {needsDecision && !item.errorMessage && (
+                    <p className="text-xs text-[--muted] mt-2">
+                        {item.conflict
+                            ? `${item.conflict.files.length} of ${item.conflict.totalPlanned} episode${item.conflict.totalPlanned === 1 ? "" : "s"} are already in the library.`
+                            : item.countMismatch
+                                ? `This download has ${item.countMismatch.found} episode${item.countMismatch.found === 1 ? "" : "s"} but ${item.countMismatch.expected} were expected.`
+                                : ""}
+                    </p>
+                )}
+            </div>
+
+            <div className="flex items-center gap-1 flex-shrink-0">
+                {needsDecision && (item.conflict || item.countMismatch) && (
+                    <Button size="sm" intent="primary" onClick={onAnswer} disabled={isBusy}>
+                        Answer
+                    </Button>
+                )}
+                {item.status === "pending" && (
+                    <Button
+                        size="sm"
+                        intent="gray-outline"
+                        leftIcon={<LuRotateCw />}
+                        onClick={onRetry}
+                        disabled={isBusy || !failed}
+                        title={failed ? "Try this match again now" : "Waiting its turn"}
+                    >
+                        Try again
+                    </Button>
+                )}
+                <Button
+                    size="sm"
+                    intent="gray-outline"
+                    leftIcon={<LuX />}
+                    onClick={onRemove}
+                    title="Take this match out of the queue"
+                >
+                    Remove
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+/** "in 2 minutes" / "in 45 seconds" — the retry backoff, said the way a person would. */
+function formatNextAttempt(next: string): string {
+    const at = new Date(next).getTime()
+    if (!Number.isFinite(at)) return "shortly"
+    const seconds = Math.max(0, Math.round((at - Date.now()) / 1000))
+    if (seconds < 60) return `in ${seconds}s`
+    const minutes = Math.round(seconds / 60)
+    if (minutes < 60) return `in ${minutes}m`
+    return `in ${Math.round(minutes / 60)}h`
 }

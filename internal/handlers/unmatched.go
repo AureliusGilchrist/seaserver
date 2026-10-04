@@ -574,6 +574,11 @@ func (h *Handler) HandleDeleteUnmatchedTorrent(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
+	// Matches queued for it go with it — the files they selected are being deleted, so there is
+	// nothing left for them to carry out.
+	_ = h.App.Database.DeleteUnmatchedMatchQueueItemsForTorrent(b.Name)
+	h.UnmatchedMatchQueue.sendQueueEvent()
+
 	// Drop the scanner's record of the torrent too. It is keyed by name, so leaving it behind
 	// means re-downloading the same release later is skipped as "already completed" — never
 	// marked done, never auto-matched.

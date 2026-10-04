@@ -3,21 +3,15 @@
 import {
     UnmatchedTorrent,
     UnmatchedFile,
-    CountMismatch,
-    MatchConflict,
-    MatchResult,
-    useMatchUnmatchedTorrent,
+    useEnqueueUnmatchedMatch,
     useGetUnmatchedTorrentContents,
 } from "@/api/hooks/unmatched.hooks"
 import { UnmatchedFamilyResult } from "./unmatched-family-result"
-import { UnmatchedConflictModal } from "./unmatched-conflict-modal"
-import { UnmatchedCountMismatchModal } from "./unmatched-count-mismatch-modal"
 import { useAnilistListAnime, useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetLocalFiles } from "@/api/hooks/localfiles.hooks"
 import { AL_BaseAnime, AL_AnimeDetailsById_Media } from "@/api/generated/types"
 import { AppLayoutStack } from "@/components/ui/app-layout"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/components/ui/core/styling"
@@ -29,7 +23,6 @@ import { Switch } from "@/components/ui/switch"
 import { TextInput } from "@/components/ui/text-input"
 import { Alert } from "@/components/ui/alert/alert"
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react"
-import { useQueryClient } from "@tanstack/react-query"
 import { useAtom } from "jotai/react"
 import { atomWithStorage } from "jotai/utils"
 import { toast } from "sonner"
@@ -50,14 +43,8 @@ interface TreeNode {
 interface UnmatchedMatchModalProps {
     torrent: UnmatchedTorrent | null
     onClose: () => void
-    /** Called after every completed attempt, successful or not — see useMatchUnmatchedTorrent. */
-    onSuccess: (result?: MatchResult) => void
-    /**
-     * Where this download sits in the to-match queue, when it is queued — shown as a badge in the
-     * header. `autoAdvance` marks a modal opened from the queue tab, where a successful match
-     * opens the next queued download in its place.
-     */
-    queueInfo?: { position: number, total: number, autoAdvance?: boolean } | null
+    /** Called once the match has been queued — the screen is free from that moment on. */
+    onSuccess: () => void
 }
 
 /**
@@ -256,8 +243,7 @@ function isAnimeInLibrary(animeId: number, localFiles: any[] | undefined): boole
     return localFiles.some(f => f.mediaId === animeId)
 }
 
-export function UnmatchedMatchModal({ torrent, onClose, onSuccess, queueInfo }: UnmatchedMatchModalProps) {
-    const queryClient = useQueryClient()
+export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMatchModalProps) {
     const { data: libraryCollection } = useGetLibraryCollection()
     const { data: localFiles } = useGetLocalFiles()
     const [step, setStep] = useState<"select-files" | "select-anime">("select-files")
@@ -412,10 +398,12 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess, queueInfo }: 
         selectTarget(null)
     }, [torrent?.name])
 
-    const { mutate: matchTorrent, isPending: isMatching } = useMatchUnmatchedTorrent((result) => {
-        setConflict(null)
-        onSuccess(result)
-        // Reset selection to avoid carrying the previous anime into subsequent matches in the same modal session
+    // The match is queued, not performed here. The request comes back as soon as the decision has
+    // been written down, which is what lets the next download be opened immediately — the server
+    // works through the queued matches in the order they were made, on its own time.
+    const { mutate: enqueueMatch, isPending: isMatching } = useEnqueueUnmatchedMatch(() => {
+        onSuccess()
+        // Reset selection to avoid carrying the previous anime into the next download's modal
         selectTarget(null)
         setSearchQuery("")
         setSearchInputValue("")
@@ -426,7 +414,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess, queueInfo }: 
         setEpisodeOffset(1)
         // Keep the files list but drop selections after a match
         setSelectedFiles(new Set())
-    }, (c) => setConflict(c), (m) => setCountMismatch(m))
+    })
 
 
     // Search only triggers when user hits Enter or clicks Search button
@@ -452,7 +440,6 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess, queueInfo }: 
 
     const resetState = useCallback(() => {
         setStep("select-files")
-        setConflict(null)
         setSelectedFiles(new Set())
         selectTarget(null)
         setSearchQuery("")
@@ -552,15 +539,10 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess, queueInfo }: 
 
     const [confirmPlan, setConfirmPlan] = useState(false)
 
-    // Set when the server refused to overwrite library files already sitting at the destinations.
-    // Nothing moved, so the modal stays open behind the conflict dialog and the match can still be
-    // completed (replacing) or abandoned (deleting this torrent).
-    const [conflict, setConflict] = useState<MatchConflict | null>(null)
-
-    // Set when the episode count did not match exactly. Nothing moved; the plan the server was
-    // about to carry out comes back with it, and is shown so the numbering can be checked before
-    // any of it happens.
-    const [countMismatch, setCountMismatch] = useState<CountMismatch | null>(null)
+    // The questions a match can stop on — a destination already occupied, an episode count that
+    // does not agree — are no longer asked here. The match runs in the queue, and the queue is
+    // where it stops and waits for an answer; see the To Match tab. What is decided here is only
+    // what to match and how to number it.
 
     // The titles the match is sent with — also what the destination folder is named.
     const matchTitles = useMemo(() => {
@@ -629,9 +611,10 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess, queueInfo }: 
         }
     }, [torrentContents, selectedFiles, dependOnIndex, episodeOffset])
 
-    // overwriteExisting is the answer coming back from the conflict dialog: the first attempt always
-    // goes without it, so the server gets the chance to stop and ask before replacing anything.
-    const doMatch = useCallback((overwriteExisting: boolean = false, confirmCountMismatch: boolean = false) => {
+    // The decision is written down and the modal closes; the server carries the match out in its
+    // own time, in the order the decisions were made. Nothing is moved from here, which is what
+    // makes the next download immediate.
+    const doMatch = useCallback(() => {
         if (!torrent || !selectedAnime || selectedFiles.size === 0) return
 
         const { titleJp, titleClean } = matchTitles
@@ -639,7 +622,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess, queueInfo }: 
         // Remember what we matched to so the next torrent's picker opens on this series.
         if (titleClean) setLastMatchedTitle(titleClean)
 
-        matchTorrent({
+        enqueueMatch({
             torrentName: torrent.name,
             selectedFiles: Array.from(selectedFiles),
             animeId: selectedAnime.id,
@@ -647,10 +630,8 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess, queueInfo }: 
             animeTitleClean: titleClean,
             useIndexBasedEpisodes: dependOnIndex,
             episodeOffset: dependOnIndex ? (episodeOffset > 0 ? episodeOffset : 1) : undefined,
-            overwriteExisting: overwriteExisting || undefined,
-            confirmCountMismatch: confirmCountMismatch || undefined,
         })
-    }, [torrent, selectedAnime, selectedFiles, matchTorrent, matchTitles, dependOnIndex, episodeOffset, setLastMatchedTitle])
+    }, [torrent, selectedAnime, selectedFiles, enqueueMatch, matchTitles, dependOnIndex, episodeOffset, setLastMatchedTitle])
 
     // Never match straight from the button — moving and renaming files can't be undone from here,
     // so the plan gets laid out for confirmation first.
@@ -816,7 +797,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess, queueInfo }: 
                 open={confirmPlan}
                 onOpenChange={(open) => !open && setConfirmPlan(false)}
                 contentClass="max-w-2xl"
-                title="Confirm this match"
+                title="Queue this match"
             >
                 <MatchPlanConfirmation
                     anime={selectedAnime}
@@ -833,40 +814,6 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess, queueInfo }: 
                 />
             </Modal>
         )}
-        {countMismatch && torrent && (
-            <UnmatchedCountMismatchModal
-                mismatch={countMismatch}
-                torrentName={torrent.name}
-                animeTitle={displayAnimeTitle || torrent.name}
-                isMatching={isMatching}
-                onConfirm={() => { setCountMismatch(null); doMatch(false, true) }}
-                onCancel={() => setCountMismatch(null)}
-            />
-        )}
-        {conflict && torrent && (
-            <UnmatchedConflictModal
-                conflict={conflict}
-                torrentName={torrent.name}
-                animeTitle={displayAnimeTitle || torrent.name}
-                isReplacing={isMatching}
-                // Both answers ride along, not just this one. The server re-asks the episode-count
-                // question on every attempt sent without confirmCountMismatch, and that question was
-                // already answered on the way to this dialog — the numbering prompt is shown before
-                // the conflict one, and nothing reached the disk in between. Dropping the earlier
-                // answer here sends the match back to the numbering prompt instead of replacing
-                // anything, and the two dialogs ask forever.
-                onAccept={() => doMatch(true, true)}
-                // Declining a conflict closes the conflict, and nothing else.
-                //
-                // It used to delete the whole staged torrent — every episode of it — so "I do not
-                // want to overwrite what is already in my library" and "destroy this download" were
-                // the same button. Those are not the same decision, and only one of them is
-                // recoverable. The download stays exactly where it is, unmatched, and deleting it
-                // remains its own deliberate action on the torrent card.
-                onDecline={() => setConflict(null)}
-                onCancel={() => setConflict(null)}
-            />
-        )}
         <Modal
             open={!!torrent}
             onOpenChange={(open) => !open && handleClose()}
@@ -877,21 +824,7 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess, queueInfo }: 
             // every title to be cut short. The viewport units are the guard: it grows to fill the
             // space that exists and stops there, so nothing ends up off the edge on a laptop.
             contentClass="max-w-[min(96rem,95vw)] w-[95vw] max-h-[92vh] overflow-y-auto"
-            title={
-                <span className="inline-flex items-center gap-2 flex-wrap align-middle">
-                    <span>{step === "select-files" ? "Select Episodes" : "Select Anime"}</span>
-                    {!!queueInfo && (
-                        <Badge intent="primary-solid" size="sm" className="align-middle">
-                            To match {queueInfo.position} of {queueInfo.total}
-                        </Badge>
-                    )}
-                </span>
-            }
-            description={queueInfo?.autoAdvance
-                ? (queueInfo.position < queueInfo.total
-                    ? "This download is in the to-match queue — the next queued download opens here automatically after this one is matched."
-                    : "This download is in the to-match queue, and it is the last one.")
-                : undefined}
+            title={step === "select-files" ? "Select Episodes" : "Select Anime"}
         >
             {(isLoadingContents || isLoadingAnimeInfo) ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-10">
@@ -1268,6 +1201,13 @@ function MatchPlanConfirmation({
                 {anime.format ? ` (${anime.format}${expectedEpisodes ? `, ${expectedEpisodes} eps` : ""})` : ""}.
             </p>
 
+            {/* The one thing that changed about matching: it is queued, not waited out. */}
+            <p className="text-sm text-[--muted]">
+                The match is <span className="text-gray-300">queued</span> and carried out by the server in the order
+                you decide on things — so you can go straight on to the next download. Its progress is on the
+                <span className="text-gray-300"> To Match</span> tab.
+            </p>
+
             {/* How the episode numbers are decided */}
             <div className="p-3 border rounded-md bg-[--subtle] space-y-1">
                 <p className="text-sm font-medium">
@@ -1331,6 +1271,7 @@ function MatchPlanConfirmation({
                 </p>
                 <p>Creditless openings/endings and anything inside an "Extra" folder are <span className="text-gray-300">deleted</span>, not moved.</p>
                 <p>Moving and renaming can't be undone from here — files would have to be moved back by hand.</p>
+                <p>Anything that needs a decision while it runs — episodes already in the library, a count that does not agree — waits in the To Match tab for your answer.</p>
             </div>
 
             {warnings.length > 0 && (
@@ -1357,7 +1298,7 @@ function MatchPlanConfirmation({
                     loading={isMatching}
                     leftIcon={<BiCheck />}
                 >
-                    Move &amp; match {count} file{count === 1 ? "" : "s"}
+                    Queue match — {count} file{count === 1 ? "" : "s"}
                 </Button>
             </div>
         </div>

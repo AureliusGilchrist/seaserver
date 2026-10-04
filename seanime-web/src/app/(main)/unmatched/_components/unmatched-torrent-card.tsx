@@ -7,17 +7,17 @@ import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/c
 import { IconButton } from "@/components/ui/button"
 import React from "react"
 import { BiFolder, BiFile, BiTrash } from "react-icons/bi"
-import { LuHardDrive, LuListPlus, LuListTodo, LuListX } from "react-icons/lu"
+import { LuHardDrive, LuListTodo } from "react-icons/lu"
 
 interface UnmatchedTorrentCardProps {
     torrent: UnmatchedTorrent
     onSelect: () => void
-    /** Whether this download is in the to-match queue. */
-    queued?: boolean
-    /** Where it sits in the queue, when the card is shown inside the queue tab. */
-    queuePosition?: number
-    /** When given, the card gets a button that adds it to / removes it from the to-match queue. */
-    onToggleQueue?: () => void
+    /**
+     * Whether a match for this download is waiting in the server's queue. Said on the card because
+     * the download stays in this list until the match actually runs, and without it a download with
+     * a match lined up looks exactly like one nobody has dealt with.
+     */
+    matchQueued?: boolean
 }
 
 function formatBytes(bytes: number): string {
@@ -40,7 +40,7 @@ function truncatePathSegments(path: string, maxCharsPerSegment: number = 15, tre
     return truncated.join(" / ")
 }
 
-export function UnmatchedTorrentCard({ torrent, onSelect, queued, queuePosition, onToggleQueue }: UnmatchedTorrentCardProps) {
+export function UnmatchedTorrentCard({ torrent, onSelect, matchQueued }: UnmatchedTorrentCardProps) {
     const hasSeasons = torrent.seasons && torrent.seasons.length > 0
     // Use name, or fall back to the folder name from path
     const displayName = torrent.name || torrent.path?.split("/").pop() || "Unknown torrent"
@@ -65,11 +65,6 @@ export function UnmatchedTorrentCard({ torrent, onSelect, queued, queuePosition,
     const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation()
         deleteConfirmation.open()
-    }
-
-    const handleToggleQueue = (e: React.MouseEvent) => {
-        e.stopPropagation()
-        onToggleQueue?.()
     }
 
     return (
@@ -111,20 +106,12 @@ export function UnmatchedTorrentCard({ torrent, onSelect, queued, queuePosition,
                                     {torrent.seasons!.length} seasons
                                 </Badge>
                             )}
-                            {/* Waiting in the to-match queue — with its place in the order when
-                                the card is being shown inside the queue tab itself. */}
-                            {queued && (
-                                queuePosition === 1 ? (
-                                    <Badge intent="primary-solid" size="sm">
-                                        <LuListTodo className="mr-1" />
-                                        Next up
-                                    </Badge>
-                                ) : (
-                                    <Badge intent="blue" size="sm">
-                                        <LuListTodo className="mr-1" />
-                                        To match{typeof queuePosition === "number" ? ` · #${queuePosition}` : ""}
-                                    </Badge>
-                                )
+                            {/* A match for this download is lined up in the server's queue. */}
+                            {matchQueued && (
+                                <Badge intent="blue" size="sm">
+                                    <LuListTodo className="mr-1" />
+                                    Match queued
+                                </Badge>
                             )}
                             {/* An automatic match stopped on this one and had nobody to ask. Said on
                                 the card because there is otherwise nothing to distinguish it from a
@@ -152,15 +139,6 @@ export function UnmatchedTorrentCard({ torrent, onSelect, queued, queuePosition,
                         )}
                     </div>
                     <div className="flex flex-col gap-1">
-                        {!!onToggleQueue && (
-                            <IconButton
-                                icon={queued ? <LuListX /> : <LuListPlus />}
-                                intent={queued ? "primary-subtle" : "gray-outline"}
-                                size="sm"
-                                onClick={handleToggleQueue}
-                                title={queued ? "Remove from the to-match queue" : "Add to the to-match queue"}
-                            />
-                        )}
                         <IconButton
                             icon={<BiTrash />}
                             intent="alert-subtle"

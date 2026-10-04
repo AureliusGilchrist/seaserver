@@ -25,6 +25,7 @@ import { useExternalPlayerLinkListener } from "@/app/(main)/_listeners/external-
 import { useMangaListener } from "@/app/(main)/_listeners/manga.listeners"
 import { useMiscEventListeners } from "@/app/(main)/_listeners/misc-events.listeners"
 import { useSyncListener } from "@/app/(main)/_listeners/sync.listeners"
+import { useUnmatchedListener } from "@/app/(main)/_listeners/unmatched.listeners"
 import { DebridStreamOverlay } from "@/app/(main)/entry/_containers/debrid-stream/debrid-stream-overlay"
 import { useTorrentStreamListener } from "@/app/(main)/entry/_containers/torrent-stream/_lib/handle-torrent-stream"
 import { TorrentStreamOverlay } from "@/app/(main)/entry/_containers/torrent-stream/torrent-stream-overlay"
@@ -155,6 +156,7 @@ function Loader() {
     useMangaListener()
     useExternalPlayerLinkListener()
     useSyncListener()
+    useUnmatchedListener()
     useInvalidateQueriesListener()
     useTorrentStreamListener()
 

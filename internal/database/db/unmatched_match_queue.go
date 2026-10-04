@@ -64,10 +64,13 @@ func (db *Database) GetNextUnmatchedMatchQueueItem() (*models.UnmatchedMatchQueu
 	return &res, nil
 }
 
-// GetUnmatchedMatchQueueItemForTorrent returns the item queued for a torrent, if any. One torrent
-// has at most one: a second match decision for the same download replaces the first rather than
-// lining up behind it, because the first has not happened yet and the user has just said what they
-// want instead.
+// GetUnmatchedMatchQueueItemForTorrent returns the oldest match queued for a torrent, if any.
+//
+// A download can have more than one match queued: a season pack is routinely matched in parts, one
+// season at a time and sometimes to different entries of the franchise, and each of those is its
+// own decision with its own files. So this is not "the" item for a torrent, it is the first one —
+// which is the one the worker would have been carrying out, and the one an interrupted match
+// belongs to.
 func (db *Database) GetUnmatchedMatchQueueItemForTorrent(torrentName string) (*models.UnmatchedMatchQueueItem, error) {
 	var res models.UnmatchedMatchQueueItem
 	err := retryOnBusy(func() error {
@@ -82,17 +85,15 @@ func (db *Database) GetUnmatchedMatchQueueItemForTorrent(torrentName string) (*m
 	return &res, nil
 }
 
-// InsertUnmatchedMatchQueueItem queues a match, replacing whatever was queued for the same torrent.
+// InsertUnmatchedMatchQueueItem queues a match.
+//
+// Always an insert, never a replacement: the same download is matched more than once as a matter of
+// course — part of a pack now, the rest later, sometimes to different entries — so a second
+// decision is a second match, not a correction of the first. An item whose files have all been
+// matched already resolves itself when its turn comes: there is nothing left of what it selected,
+// so it is dropped without touching anything.
 func (db *Database) InsertUnmatchedMatchQueueItem(item *models.UnmatchedMatchQueueItem) error {
 	err := retryOnBusy(func() error {
-		return db.gormdb.Where("torrent_name = ?", item.TorrentName).Delete(&models.UnmatchedMatchQueueItem{}).Error
-	})
-	if err != nil {
-		db.Logger.Error().Err(err).Msg("db: Failed to replace the queued match for a torrent")
-		return err
-	}
-
-	err = retryOnBusy(func() error {
 		return db.gormdb.Create(item).Error
 	})
 	if err != nil {
