@@ -67,6 +67,7 @@ const (
 
 	RefreshedMangaDownloadData    = "refreshed-manga-download-data"
 	ChapterDownloadQueueUpdated   = "chapter-download-queue-updated"
+	UnmatchedMatchQueueUpdated    = "unmatched-match-queue-updated"
 	MangaChapterMigrationProgress = "manga-chapter-migration-progress"
 	MangaScanProgress             = "manga-scan-progress"
 	MangaScanCompleted            = "manga-scan-completed"

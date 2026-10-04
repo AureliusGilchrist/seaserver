@@ -22,6 +22,9 @@ import (
 
 type Handler struct {
 	App *core.App
+	// UnmatchedMatchQueue carries out the matches decided on in the Unmatched screen, in the order
+	// they were decided on. See unmatched_match_queue.go.
+	UnmatchedMatchQueue *unmatchedMatchQueue
 }
 
 // uncompressiblePrefixes are the routes response compression is kept away from: bytes that are
@@ -210,6 +213,19 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	}
 
 	h := &Handler{App: app}
+
+	// The match queue. Started here rather than lazily so a queue left behind by a stop picks
+	// itself back up — the matches are in the database, and the worker is what carries them out.
+	//
+	// It runs on its own goroutine and never holds anything the rest of the app needs: the match
+	// lock is taken only while a match is actually running, and waiting on AniList or on a retry
+	// happens between matches, not inside one.
+	h.UnmatchedMatchQueue = newUnmatchedMatchQueue(h)
+	// An interrupted match being resumed at startup is finished before the queue touches the
+	// download it belongs to, and this is how the queue hears about it.
+	app.UnmatchedRepository.SetOnPendingMatchFinished(h.UnmatchedMatchQueue.onPendingMatchFinished)
+	h.UnmatchedMatchQueue.start()
+	app.AddCleanupFunction(h.UnmatchedMatchQueue.shutdown)
 
 	// Run the same post-match pipeline for automatically matched downloads as for manual
 	// matches, so a torrent downloaded with "auto-match" enabled ends up in the library
@@ -944,6 +960,14 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1Unmatched.GET("/torrents", h.HandleGetUnmatchedTorrents)
 	v1Unmatched.POST("/torrent/contents", h.HandleGetUnmatchedTorrentContents)
 	v1Unmatched.POST("/match", h.HandleMatchUnmatchedTorrent)
+	v1Unmatched.GET("/queue", h.HandleGetUnmatchedMatchQueue)
+	v1Unmatched.POST("/queue", h.HandleEnqueueUnmatchedMatch)
+	v1Unmatched.POST("/queue/remove", h.HandleRemoveUnmatchedMatchQueueItem)
+	v1Unmatched.POST("/queue/clear", h.HandleClearUnmatchedMatchQueue)
+	v1Unmatched.POST("/queue/pause", h.HandlePauseUnmatchedMatchQueue)
+	v1Unmatched.POST("/queue/resume", h.HandleResumeUnmatchedMatchQueue)
+	v1Unmatched.POST("/queue/retry", h.HandleRetryUnmatchedMatchQueueItem)
+	v1Unmatched.POST("/queue/resolve", h.HandleResolveUnmatchedMatchQueueItem)
 	v1Unmatched.POST("/match-all", h.HandleSweepUnmatchedTorrents)
 	v1Unmatched.GET("/match-all/status", h.HandleGetUnmatchedSweepStatus)
 	v1Unmatched.POST("/match-all/stop", h.HandleStopUnmatchedSweep)

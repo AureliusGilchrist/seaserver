@@ -207,6 +207,7 @@ func migrateTables(db *gorm.DB) error {
 		&models.EasterEggDiscovery{},
 		&models.BuiltinTorrentItem{},
 		&models.UnmatchedMatchRecord{},
+		&models.UnmatchedMatchQueueItem{},
 		&models.UnmatchedTorrentMetadata{},
 		&models.AnimeDownloadState{},
 		&models.EnqueueFutureItem{},

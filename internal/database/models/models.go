@@ -415,6 +415,54 @@ type UnmatchedMatchRecord struct {
 	Value      []byte     `gorm:"column:value" json:"value"`
 }
 
+// UnmatchedMatchQueueItem is one match the user has decided on and the server has yet to carry out.
+//
+// A match decided in the Unmatched screen used to be performed inside that request, with the screen
+// waiting on it: minutes of copying for a season pack, and an AniList outage in the middle of it
+// meant the work was lost rather than postponed. Here the decision is written down first and the
+// server works through the decisions in the order they were made — so the answer to "match this" is
+// "queued", the screen is free immediately, and a server that stops has not forgotten anything.
+//
+// The row is the whole job: the request as it was made (everything the worker needs to run it) and,
+// when the match stopped on a question, the question itself, so the screen can put it to the user
+// without re-running anything.
+type UnmatchedMatchQueueItem struct {
+	BaseModel
+	TorrentName string `gorm:"column:torrent_name;index" json:"torrentName"`
+	AnimeID     int    `gorm:"column:anime_id" json:"animeId"`
+	// AnimeTitle and FileCount are denormalized for the queue list, which renders every row.
+	AnimeTitle string `gorm:"column:anime_title" json:"animeTitle"`
+	FileCount  int    `gorm:"column:file_count" json:"fileCount"`
+	// Status is "pending", "matching" or "needs_decision".
+	//
+	// There is no failed state. A match that could not be carried out — a file locked by something
+	// else, a drive that went away, anything short of a question only the user can answer — goes
+	// back to "pending" with the reason attached and is tried again, for as long as it takes, at an
+	// interval that grows to a cap. Nothing about that touches the rest of the app: the retries
+	// happen on the queue's own clock, the lock a match takes is only held while the match itself
+	// runs, and everything else carries on in the meantime.
+	Status string `gorm:"column:status;index" json:"status"`
+	// ErrorMessage is why the last attempt did not get through, kept so the screen can say what is
+	// being waited on instead of showing an item that never seems to move.
+	ErrorMessage string `gorm:"column:error_message" json:"errorMessage,omitempty"`
+	// Attempts counts the tries made so far, and is what the retry interval is computed from.
+	Attempts int `gorm:"column:attempts;default:0" json:"attempts"`
+	// NextAttemptAt is when a match that failed may be tried again; nil means "as soon as the queue
+	// reaches it". Persisted rather than held in memory so a restart does not reset a long backoff
+	// into an immediate retry of something that has already failed twenty times.
+	NextAttemptAt *time.Time `gorm:"column:next_attempt_at" json:"nextAttemptAt,omitempty"`
+	// Request is the match exactly as the user asked for it, as JSON — see unmatched.MatchRequest.
+	// Kept whole rather than re-derived, because a decision made by hand is not reproducible from
+	// what the disk looks like later.
+	Request []byte `gorm:"column:request" json:"-"`
+	// Conflict and CountMismatch hold the question a match stopped on, as JSON, so the queue screen
+	// can ask it exactly as the match would have.
+	Conflict      []byte `gorm:"column:conflict" json:"-"`
+	CountMismatch []byte `gorm:"column:count_mismatch" json:"-"`
+	StartedAt     *time.Time `gorm:"column:started_at" json:"startedAt,omitempty"`
+	FinishedAt    *time.Time `gorm:"column:finished_at" json:"finishedAt,omitempty"`
+}
+
 // +---------------------+
 // |   Enqueue Future    |
 // +---------------------+

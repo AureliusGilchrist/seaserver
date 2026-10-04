@@ -55,6 +55,12 @@ type Repository struct {
 
 	// pending holds conflicts an automatic match stopped on, waiting for a decision.
 	pending *pendingConflicts
+
+	// onPendingMatchFinished is told when an interrupted match has been resumed, and whether it was
+	// seen all the way through. The match queue holds the item for such a download back until this
+	// fires, so it never re-runs a match whose files are part-way into the library — numbering the
+	// remainder from the files that are left would file them under episodes that are already taken.
+	onPendingMatchFinished func(torrentName string, completed bool)
 }
 
 func NewRepository(logger *zerolog.Logger, database *db.Database) *Repository {

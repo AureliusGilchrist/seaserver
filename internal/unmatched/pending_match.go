@@ -224,6 +224,34 @@ func (r *Repository) writePendingMatch(req *MatchRequest, destination string, pl
 	return journal
 }
 
+// HasPendingMatchJournal reports whether a match for this torrent was interrupted and has not been
+// seen through. The match queue steps around such a download until the plan on disk is finished:
+// re-running the match from the files that are left would number them from one.
+func (r *Repository) HasPendingMatchJournal(torrentName string) bool {
+	if torrentName == "" {
+		return false
+	}
+	_, err := os.Stat(pendingMatchPath(torrentName))
+	return err == nil
+}
+
+// SetOnPendingMatchFinished registers a listener for resumed matches. It is called once per
+// interrupted match that ResumePendingMatches took on, with whether the match was completed.
+func (r *Repository) SetOnPendingMatchFinished(fn func(torrentName string, completed bool)) {
+	r.onPendingMatchFinished = fn
+}
+
+// StagingDirExists reports whether a download's directory is still in the staging area. A queued
+// match whose directory is gone has nothing left to match — it was matched by something else, or
+// deleted — and is finished rather than retried forever.
+func (r *Repository) StagingDirExists(torrentName string) bool {
+	if torrentName == "" {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(UnmatchedBasePath, torrentName))
+	return err == nil && info.IsDir()
+}
+
 // ResumePendingMatches finishes matches that were interrupted by the server stopping — including one
 // stopped abruptly, since nothing about this depends on the server having been given the chance to
 // tidy up. Call once at startup, before the scanner begins looking for new work.
@@ -266,6 +294,16 @@ func (r *Repository) ResumePendingMatches() {
 // the bookkeeping steps it had not reached.
 func (r *Repository) resumeMatch(record *pendingMatch, path string) {
 	journal := &matchJournal{repo: r, path: path, record: record}
+
+	// Whether the match was seen all the way through. Reported once, however this returns, so
+	// anything waiting on this download — the match queue holds an item back for it — learns where
+	// it stands rather than waiting forever.
+	completed := false
+	defer func() {
+		if r.onPendingMatchFinished != nil {
+			r.onPendingMatchFinished(record.TorrentName, completed)
+		}
+	}()
 
 	planned := make([]plannedMove, 0, len(record.Moves))
 	for _, move := range record.Moves {
@@ -328,6 +366,7 @@ func (r *Repository) resumeMatch(record *pendingMatch, path string) {
 		// is what it did before, so it is finished the old way rather than left to be retried forever.
 		if allSucceeded(moveErrs) {
 			journal.clear()
+			completed = true
 			r.logger.Info().Str("torrent", record.TorrentName).Msg("unmatched: Interrupted match finished")
 		}
 		return
@@ -353,6 +392,7 @@ func (r *Repository) resumeMatch(record *pendingMatch, path string) {
 	r.finalizeMatch(req, result, planned, moveErrs, record.PreMetadata, journal)
 
 	if len(result.FailedFiles) == 0 {
+		completed = true
 		r.logger.Info().Str("torrent", record.TorrentName).Msg("unmatched: Interrupted match finished")
 	}
 }
