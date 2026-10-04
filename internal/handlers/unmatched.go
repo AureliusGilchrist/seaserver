@@ -41,6 +41,10 @@ type UnmatchedFamilyEntry struct {
 	SeasonYear   int    `json:"seasonYear,omitempty"`
 	MeanScore    int    `json:"meanScore,omitempty"`
 	EnglishTitle string `json:"englishTitle,omitempty"`
+	// Synonyms are every other name the entry is known by, shipped with the row so the picker can
+	// show them on hover. A download is named after a release, and the release's name is routinely
+	// one of these rather than the title on the row.
+	Synonyms []string `json:"synonyms,omitempty"`
 }
 
 // UnmatchedFamilyResult is a walked relation tree.
@@ -449,6 +453,7 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 			SeasonYear:   intOf(media.GetSeasonYear()),
 			MeanScore:    intOf(media.GetMeanScore()),
 			EnglishTitle: englishTitleOf(media.GetTitle().GetEnglish(), title),
+			Synonyms:     synonymsOf(media.GetSynonyms()),
 		}
 
 		if media.ID == b.AnimeID {
@@ -511,6 +516,7 @@ func (h *Handler) HandleUnmatchedFamilySearch(c echo.Context) error {
 				SeasonYear:   intOf(n.GetSeasonYear()),
 				MeanScore:    intOf(n.GetMeanScore()),
 				EnglishTitle: englishTitleOf(n.GetTitle().GetEnglish(), childTitle),
+				Synonyms:     synonymsOf(n.GetSynonyms()),
 			}
 			entries = append(entries, childEntry)
 			visited[n.ID] = true
@@ -686,6 +692,32 @@ func intOf(v *int) int {
 		return 0
 	}
 	return *v
+}
+
+// synonymsOf turns AniList's pointer slice of alternative titles into the plain list the picker
+// ships. Empty and duplicate entries are dropped: the row already shows the entry's own title, and
+// repeating it as a synonym is a line of noise.
+func synonymsOf(synonyms []*string) []string {
+	if len(synonyms) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(synonyms))
+	seen := make(map[string]bool, len(synonyms))
+	for _, s := range synonyms {
+		if s == nil {
+			continue
+		}
+		v := strings.TrimSpace(*s)
+		if v == "" || seen[strings.ToLower(v)] {
+			continue
+		}
+		seen[strings.ToLower(v)] = true
+		out = append(out, v)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // englishTitleOf returns the English title only when it says something the main title does not.

@@ -206,6 +206,7 @@ func migrateTables(db *gorm.DB) error {
 		&models.ClientPref{},
 		&models.EasterEggDiscovery{},
 		&models.BuiltinTorrentItem{},
+		&models.ToWatchItem{},
 		&models.TorrentAddQueueItem{},
 		&models.UnmatchedMatchRecord{},
 		&models.UnmatchedMatchQueueItem{},

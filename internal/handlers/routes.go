@@ -1063,6 +1063,15 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.GET("/profile/level", h.HandleGetLevel)
 	v1.GET("/profile/exp-bar/all", h.HandleGetExpBarProgression)
 	v1.GET("/profile/exp-bar/level/:level", h.HandleGetExpBarForLevel)
+
+	// To-watch list: what a profile means to watch, in the order they arranged. Starts blank; the
+	// entries are added from an anime's own page, and the list is what their public profile shows.
+	v1.GET("/profile/to-watch", h.HandleGetToWatch)
+	v1.GET("/profile/to-watch/user/:profileId", h.HandleGetToWatchForUser)
+	v1.POST("/profile/to-watch/add", h.HandleAddToWatch)
+	v1.POST("/profile/to-watch/remove", h.HandleRemoveToWatch)
+	v1.POST("/profile/to-watch/reorder", h.HandleReorderToWatch)
+	v1.POST("/profile/to-watch/clear", h.HandleClearToWatch)
 	v1.POST("/profile/easter-egg", h.HandleDiscoverEasterEgg)
 	v1.GET("/profile/easter-eggs", h.HandleGetEasterEggDiscoveries)
 

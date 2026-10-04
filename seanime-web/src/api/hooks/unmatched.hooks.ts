@@ -618,6 +618,8 @@ export interface FamilyEntry {
     seasonYear?: number
     meanScore?: number   // percentage
     englishTitle?: string // only present when it differs from the main title
+    /** Every other name the entry is known by, shown when the row is hovered. */
+    synonyms?: string[]
 }
 
 export interface FamilyResult {

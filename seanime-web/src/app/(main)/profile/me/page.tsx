@@ -55,6 +55,7 @@ import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAnimeTheme, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { RewardShop } from "@/app/(main)/profile/me/_components/reward-shop"
+import { ToWatchList } from "@/app/(main)/profile/_components/to-watch-list"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import { userSoundLevelAtom } from "@/lib/sounds/sound-provider"
@@ -64,7 +65,7 @@ import { EASTER_EGG_DEFINITIONS } from "@/lib/easter-eggs/easter-egg-definitions
 import * as React from "react"
 import {
     LuTrophy, LuStar, LuPencil, LuCheck, LuX, LuFlame,
-    LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity,
+    LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuListVideo,
     LuGlobe, LuHourglass, LuLock, LuZap, LuDownload, LuEye, LuEyeOff, LuHeart,
 } from "react-icons/lu"
 
@@ -351,6 +352,9 @@ export default function Page() {
                         <TabsTrigger value="activity" className={tabsTriggerClass}>
                             <LuActivity className="mr-1.5" /> Activity
                         </TabsTrigger>
+                        <TabsTrigger value="towatch" className={tabsTriggerClass}>
+                            <LuListVideo className="mr-1.5" /> To Watch
+                        </TabsTrigger>
                         <TabsTrigger value="stats" className={tabsTriggerClass}>
                             <LuStar className="mr-1.5" /> Stats
                         </TabsTrigger>
@@ -367,6 +371,9 @@ export default function Page() {
                             🥚 Secrets
                         </TabsTrigger>
                     </TabsList>
+                    <TabsContent value="towatch" className="space-y-6 mt-6">
+                        <ToWatchList />
+                    </TabsContent>
                     <TabsContent value="activity" className="space-y-6 mt-6">
                         <ActivityTabContent
                             animeStreak={animeStreak}
@@ -498,7 +505,7 @@ function StatsTabContent() {
     const [selectedYear, setSelectedYear] = React.useState<number | undefined>(undefined)
     const { data: profileStats, isLoading: profileLoading } = useGetProfileStats(selectedYear)
     const { data: anilistStats, isLoading: anilistLoading } = useGetAniListStats(true)
-    const { activeXPBarSkin } = useRewards()
+    const { activeXPBarSkin, effectiveXPBarFill } = useRewards()
 
     const currentYear = new Date().getFullYear()
     const yearOptions = React.useMemo(() => {
@@ -524,26 +531,47 @@ function StatsTabContent() {
 
             <Separator />
 
-            <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold flex items-center gap-2">
-                        <LuCalendar className="text-blue-400" />
-                        Activity
-                    </h2>
-                    <select
-                        className="bg-gray-900 border border-[--border] rounded-md px-3 py-1.5 text-sm"
-                        value={selectedYear ?? ""}
-                        onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : undefined)}
-                    >
-                        {yearOptions.map((y) => (
-                            <option key={y ?? "rolling"} value={y ?? ""}>
-                                {y ? `${y}` : "Last 365 days"}
-                            </option>
-                        ))}
-                    </select>
+            <div className="space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                        <h2 className="text-xl font-semibold flex items-center gap-2">
+                            <LuCalendar className="text-brand-300" />
+                            Activity
+                        </h2>
+                        <p className="text-xs text-[--muted] mt-0.5">
+                            Every day you watched or read something, in your own color.
+                        </p>
+                    </div>
+                    {/* A control rather than a bare select: the range is part of reading the grid,
+                        so it sits with the grid and looks like something you can change. */}
+                    <div className="flex items-center gap-1 rounded-lg border border-[--border] bg-gray-900/60 p-1">
+                        {yearOptions.map((y) => {
+                            const active = (selectedYear ?? undefined) === (y ?? undefined)
+                            return (
+                                <button
+                                    key={y ?? "rolling"}
+                                    onClick={() => setSelectedYear(y ?? undefined)}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-md text-xs font-medium transition-colors tabular-nums",
+                                        active
+                                            ? "bg-[--subtle] text-white"
+                                            : "text-[--muted] hover:text-white hover:bg-white/5",
+                                    )}
+                                >
+                                    {y ? `${y}` : "Last 365 days"}
+                                </button>
+                            )
+                        })}
+                    </div>
                 </div>
-                <StatsActivityHeatmap days={profileStats?.activityHeatmap} fillCss={activeXPBarSkin?.fillCss} />
-                <DayOfWeekChart patterns={profileStats?.watchPatterns?.byDayOfWeek} />
+
+                <div className="rounded-xl border border-[--border] bg-gray-950/40 p-4">
+                    <StatsActivityHeatmap days={profileStats?.activityHeatmap} fillCss={effectiveXPBarFill || undefined} />
+                </div>
+
+                <div className="rounded-xl border border-[--border] bg-gray-950/40 p-4">
+                    <DayOfWeekChart patterns={profileStats?.watchPatterns?.byDayOfWeek} />
+                </div>
             </div>
 
             <Separator />
@@ -769,95 +797,27 @@ function HeroStats({ anilistStats, profileStats }: { anilistStats?: AL_Stats; pr
 }
 
 export function StatsActivityHeatmap({ days, fillCss }: { days?: ProfileStats_ActivityDay[]; fillCss?: string }) {
-    if (!days || days.length === 0) {
-        return <p className="text-[--muted] text-sm">No activity data yet.</p>
-    }
-
-    const baseColor = React.useMemo(() => {
-        if (!fillCss) return null
-        const stops = fillCss.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)
-        return stops?.[0] ?? (fillCss.startsWith("linear-gradient") ? null : fillCss)
-    }, [fillCss])
-
-    const getCellFill = (intensity: number): { className?: string; style?: React.CSSProperties } => {
-        if (baseColor) {
-            if (intensity <= 0) return { style: { fill: "rgba(255,255,255,0.04)" } }
-            return { style: { fill: baseColor, opacity: 0.15 + intensity * 0.85 } }
-        }
-        return { className: getHeatmapColor(intensity) }
-    }
-
-    const firstDate = new Date(days[0].date + "T00:00:00")
-    const startDow = (firstDate.getDay() + 6) % 7
-    const maxActivity = Math.max(1, ...days.map(d => d.totalActivity))
-    const cells: (ProfileStats_ActivityDay | null)[] = []
-    for (let i = 0; i < startDow; i++) cells.push(null)
-    for (const d of days) cells.push(d)
-    const columns: (ProfileStats_ActivityDay | null)[][] = []
-    for (let i = 0; i < cells.length; i += 7) columns.push(cells.slice(i, i + 7))
-    const lastCol = columns[columns.length - 1]
-    while (lastCol && lastCol.length < 7) lastCol.push(null)
-    const cellSize = 12, gap = 2, dayLabelWidth = 20
-    const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    const width = dayLabelWidth + columns.length * (cellSize + gap)
-    const height = 7 * (cellSize + gap)
-
-    return (
-        <div className="overflow-x-auto pb-2">
-            <svg width={width} height={height + 20} className="block">
-                {dayLabels.map((label, i) => (
-                    <text key={`label-${i}`} x={dayLabelWidth - 4} y={i * (cellSize + gap) + cellSize - 1} textAnchor="end" className="fill-[--muted] text-[9px]">
-                        {i % 2 === 0 ? label : ""}
-                    </text>
-                ))}
-                {columns.map((col, ci) => {
-                    const firstDay = col.find(c => c !== null)
-                    if (!firstDay) return null
-                    const d = new Date(firstDay.date + "T00:00:00")
-                    if (d.getDate() <= 7) {
-                        return (
-                            <text key={`month-${ci}`} x={dayLabelWidth + ci * (cellSize + gap)} y={height + 14} className="fill-[--muted] text-[9px]">
-                                {d.toLocaleString("default", { month: "short" })}
-                            </text>
-                        )
-                    }
-                    return null
-                })}
-                {columns.map((col, ci) =>
-                    col.map((cell, ri) => {
-                        if (!cell) {
-                            const { className, style } = getCellFill(0)
-                            return <rect key={`${ci}-${ri}`} x={dayLabelWidth + ci * (cellSize + gap)} y={ri * (cellSize + gap)} width={cellSize} height={cellSize} rx={2} className={className ?? "fill-gray-800/50"} style={style} />
-                        }
-                        const intensity = cell.totalActivity / maxActivity
-                        const { className, style } = getCellFill(intensity)
-                        return (
-                            <rect key={`${ci}-${ri}`} x={dayLabelWidth + ci * (cellSize + gap)} y={ri * (cellSize + gap)} width={cellSize} height={cellSize} rx={2} className={className} style={style}>
-                                <title>{cell.date}: {cell.animeEpisodes} ep, {cell.mangaChapters} ch</title>
-                            </rect>
-                        )
-                    }),
-                )}
-            </svg>
-            <div className="flex items-center gap-1 mt-1 text-xs text-[--muted]">
-                <span>Less</span>
-                {[0, 0.25, 0.5, 0.75, 1].map((v, i) => {
-                    const { className, style } = getCellFill(v)
-                    return <span key={i} className={cn("inline-block w-3 h-3 rounded-sm", className)} style={style} />
-                })}
-                <span>More</span>
-            </div>
-        </div>
-    )
+    // One heatmap in the app, drawn the same way wherever it appears: the profile's own year and
+    // somebody else's public profile differ only in whose color fills the days.
+    return <ActivityHeatmap days={days} fill={fillCss} />
 }
 
 export function DayOfWeekChart({ patterns }: { patterns?: number[] }) {
     if (!patterns || patterns.every(v => v === 0)) return null
     const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     const data = dayNames.map((name, i) => ({ name, Activity: patterns[i] ?? 0 }))
+    const peak = Math.max(...data.map(d => d.Activity))
+    const peakDay = data.find(d => d.Activity === peak)?.name
     return (
-        <div className="w-full max-w-md">
-            <p className="text-sm text-[--muted] mb-2">Activity by day of week</p>
+        <div className="w-full">
+            <div className="flex items-baseline justify-between mb-3">
+                <p className="text-sm font-medium">Activity by day of week</p>
+                {peakDay && (
+                    <p className="text-xs text-[--muted]">
+                        Busiest on <span className="text-gray-200">{peakDay}</span>
+                    </p>
+                )}
+            </div>
             <BarChart data={data} index="name" categories={["Activity"]} colors={["brand"]} />
         </div>
     )

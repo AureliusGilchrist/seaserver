@@ -4,6 +4,7 @@ import { FamilyEntry } from "@/api/hooks/unmatched.hooks"
 import { useFamilyWalk } from "@/app/(main)/unmatched/_lib/use-family-walk"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
+import { HoverCard } from "@/components/ui/hover-card"
 import React from "react"
 import { LuChevronDown, LuChevronRight, LuLoader } from "react-icons/lu"
 
@@ -63,6 +64,7 @@ export function UnmatchedFamilyResult({ anime, selectedId, onSelect, isInLibrary
 
     const title = anime.title?.userPreferred || anime.title?.romaji || anime.title?.english || `#${anime.id}`
     const cover = anime.coverImage?.large || anime.coverImage?.extraLarge || anime.coverImage?.medium || ""
+    const synonyms = anime.synonyms ?? []
 
     return (
         <div
@@ -90,6 +92,15 @@ export function UnmatchedFamilyResult({ anime, selectedId, onSelect, isInLibrary
                 expandable
                 expanded={expanded}
                 onToggle={toggle}
+                // Everything this entry is also known by. A download's folder name is a release's
+                // title, which is often none of the names on the row — the synonym is what makes
+                // the right entry recognisable without opening it.
+                titleVariants={{
+                    romaji: anime.title?.romaji,
+                    english: anime.title?.english,
+                    native: anime.title?.native,
+                    synonyms,
+                }}
                 onSelect={() => onSelect({
                     id: anime.id,
                     title,
@@ -129,6 +140,10 @@ export function UnmatchedFamilyResult({ anime, selectedId, onSelect, isInLibrary
                             depth={node.depth}
                             pending={node.pending}
                             selected={selectedId === node.entry.id}
+                            titleVariants={{
+                                english: node.entry.englishTitle,
+                                synonyms: node.entry.synonyms,
+                            }}
                             onSelect={() => onSelect({
                                 id: node.entry.id,
                                 title: node.entry.title,
@@ -164,7 +179,7 @@ export function UnmatchedFamilyResult({ anime, selectedId, onSelect, isInLibrary
 
 function FamilyRow({
     title, subtitle, cover, format, episodes, year, season, status, score, relation,
-    depth, pending, selected, badge, expandable, expanded, onToggle, onSelect,
+    depth, pending, selected, badge, expandable, expanded, onToggle, onSelect, titleVariants,
 }: {
     title: string
     subtitle?: string
@@ -184,6 +199,8 @@ function FamilyRow({
     expanded?: boolean
     onToggle?: () => void
     onSelect: () => void
+    /** Every name the entry is known by, shown when the row is hovered. */
+    titleVariants?: { romaji?: string, english?: string, native?: string, synonyms?: string[] }
 }) {
     return (
         <div
@@ -258,12 +275,23 @@ function FamilyRow({
                 )} />}
 
             <span className="flex-1 min-w-0 space-y-0.5">
-                <span className={cn(
-                    "block leading-snug line-clamp-2 break-words",
-                    depth === 0 ? "text-sm font-medium text-white" : "text-[13px] text-gray-200",
-                )}>
-                    {title}
-                </span>
+                {titleVariants ? (
+                    <TitleVariantsHover variants={titleVariants}>
+                        <span className={cn(
+                            "block leading-snug line-clamp-2 break-words",
+                            depth === 0 ? "text-sm font-medium text-white" : "text-[13px] text-gray-200",
+                        )}>
+                            {title}
+                        </span>
+                    </TitleVariantsHover>
+                ) : (
+                    <span className={cn(
+                        "block leading-snug line-clamp-2 break-words",
+                        depth === 0 ? "text-sm font-medium text-white" : "text-[13px] text-gray-200",
+                    )}>
+                        {title}
+                    </span>
+                )}
                 {subtitle && <span className="block truncate text-[11px] text-[--muted]">{subtitle}</span>}
                 <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-[--muted]">
                     {format && (
@@ -311,5 +339,63 @@ function FamilyRow({
                 <span className="text-[10px] font-semibold text-brand-300 flex-shrink-0">SELECTED</span>
             )}
         </div>
+    )
+}
+
+/**
+ * Every name an entry is known by, on hover.
+ *
+ * The row shows one title, and the download in front of you is named after a release — which is
+ * routinely none of the names on the row: a synonym, a native title, an abbreviation, an English
+ * title nobody uses. Deciding "is this the one?" from one line of text means guessing; the whole
+ * list is what makes it a recognition rather than a search.
+ *
+ * Rendered in a hover card rather than a tooltip so it can be read at a glance from a distance —
+ * a step up from the row's own type, and set as a list with the name each variant is, because
+ * "which of these is the romaji" is the next question after "which of these is my release".
+ */
+function TitleVariantsHover({ variants, children }: {
+    variants: { romaji?: string, english?: string, native?: string, synonyms?: string[] }
+    children: React.ReactElement
+}) {
+    const rows = React.useMemo(() => {
+        const seen = new Set<string>()
+        const out: { label: string, value: string }[] = []
+        const push = (label: string, value?: string) => {
+            const v = (value ?? "").trim()
+            if (!v || seen.has(v.toLowerCase())) return
+            seen.add(v.toLowerCase())
+            out.push({ label, value: v })
+        }
+        push("Romaji", variants.romaji)
+        push("English", variants.english)
+        push("Native", variants.native)
+        for (const synonym of variants.synonyms ?? []) push("Also known as", synonym)
+        return out
+    }, [variants])
+
+    if (rows.length <= 1) return children
+
+    return (
+        <HoverCard
+            trigger={children}
+            side="right"
+            align="start"
+            openDelay={120}
+            closeDelay={80}
+            className="w-[26rem] max-w-[90vw] p-0"
+        >
+            <p className="px-4 pt-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-[--muted]">
+                Also known as
+            </p>
+            <ul className="px-4 pb-3 space-y-1.5">
+                {rows.map((row, i) => (
+                    <li key={i} className="flex items-baseline gap-2">
+                        <span className="w-24 flex-shrink-0 text-[11px] text-[--muted]">{row.label}</span>
+                        <span className="text-[15px] leading-snug text-gray-100 break-words">{row.value}</span>
+                    </li>
+                ))}
+            </ul>
+        </HoverCard>
     )
 }

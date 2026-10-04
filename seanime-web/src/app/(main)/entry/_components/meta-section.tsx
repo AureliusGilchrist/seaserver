@@ -17,6 +17,7 @@ import {
     MediaPageHeaderEntryDetails,
 } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { MediaSyncTrackButton } from "@/app/(main)/_features/media/_containers/media-sync-track-button"
+import { ToWatchButton } from "@/app/(main)/_features/media/_components/to-watch-button"
 import { PluginWebviewSlot } from "@/app/(main)/_features/plugin/webview/plugin-webviews"
 import { useHasDebridService, useHasTorrentProvider, useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { NextAiringEpisode } from "@/app/(main)/entry/_components/next-airing-episode"
@@ -243,6 +244,9 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                     }>
                         {isFavorite(entry.mediaId) ? "Remove from favorites" : "Add to favorites"}
                     </Tooltip>
+
+                    {/* The button the to-watch list is built from — every anime page has one. */}
+                    <ToWatchButton media={entry.media!} />
 
                     <PluginAnimePageButtons media={entry.media!} />
 

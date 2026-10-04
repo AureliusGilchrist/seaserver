@@ -36,10 +36,16 @@ export function LevelRingAvatar({
     profile,
     size = 80,
     xpBarFillOverride,
+    xpBarAnimClass,
+    xpBarTrackCss,
 }: {
     profile: { currentLevel: number; totalXP?: number; avatarPath?: string; anilistAvatar?: string; name: string }
     size?: number
     xpBarFillOverride?: string
+    /** The skin's animation, when it is a moving one — the ring sweeps like the shop's bar. */
+    xpBarAnimClass?: string | null
+    /** The skin's own groove color, when it has one. */
+    xpBarTrackCss?: string | null
 }) {
     const tierInfo = getLevelTier(profile.currentLevel)
     const avatarSrc = profile.avatarPath || profile.anilistAvatar
@@ -68,8 +74,17 @@ export function LevelRingAvatar({
         ? xpBarFillOverride : null
     const overrideGlowColor = overrideStops?.[0] ?? overrideSolid ?? null
 
+    // A moving skin sweeps in the shop's bar; the ring sweeps with it rather than sitting still,
+    // which is what "the same bar in a different shape" has to mean. The sweep is an SVG gradient
+    // transform, so it costs nothing on the main thread.
+    const moving = !!xpBarAnimClass
+
     const glowColor = overrideGlowColor ?? gradDef?.stops?.[0] ?? null
-    const glowStyle = glowColor ? { boxShadow: `0 0 16px 4px ${glowColor}60` } : {}
+    // A moving or effects skin is the brightest thing on the page in the shop; the ring carries a
+    // stronger halo to match, and a quiet skin keeps the tier's own.
+    const glowStyle = glowColor
+        ? { boxShadow: moving ? `0 0 22px 6px ${glowColor}80` : `0 0 16px 4px ${glowColor}60` }
+        : {}
 
     // Determine stroke reference
     const strokeRef = overrideStops
@@ -86,10 +101,20 @@ export function LevelRingAvatar({
             <svg className="absolute inset-0" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
                 <defs>
                     {overrideStops && (
-                        <linearGradient id={overrideGradId} x1="0%" y1="0%" x2="100%" y2="0%">
+                        <linearGradient id={overrideGradId} x1="0%" y1="0%" x2="100%" y2="0%" spreadMethod={moving ? "repeat" : "pad"}>
                             {overrideStops.map((color, i) => (
                                 <stop key={i} offset={`${(i / (overrideStops.length - 1)) * 100}%`} stopColor={color} />
                             ))}
+                            {moving && (
+                                <animateTransform
+                                    attributeName="gradientTransform"
+                                    type="translate"
+                                    from="-1 0"
+                                    to="0 0"
+                                    dur={overrideStops.length > 4 ? "2.5s" : "3.5s"}
+                                    repeatCount="indefinite"
+                                />
+                            )}
                         </linearGradient>
                     )}
                     {gradDef && !overrideStops && (
@@ -108,7 +133,15 @@ export function LevelRingAvatar({
                         </linearGradient>
                     )}
                 </defs>
-                <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={3} className="stroke-gray-700/50" />
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    fill="none"
+                    strokeWidth={3}
+                    className={xpBarTrackCss ? "" : "stroke-gray-700/50"}
+                    style={xpBarTrackCss ? { stroke: xpBarTrackCss } : undefined}
+                />
                 <circle
                     cx={size / 2}
                     cy={size / 2}

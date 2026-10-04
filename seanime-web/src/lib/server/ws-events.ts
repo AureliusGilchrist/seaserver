@@ -26,6 +26,7 @@ export const enum WSEvents {
     REFRESHED_MANGA_DOWNLOAD_DATA = "refreshed-manga-download-data",
     CHAPTER_DOWNLOAD_QUEUE_UPDATED = "chapter-download-queue-updated",
     UNMATCHED_MATCH_QUEUE_UPDATED = "unmatched-match-queue-updated",
+    TORRENT_ADD_QUEUE_UPDATED = "torrent-add-queue-updated",
     MANGA_CHAPTER_MIGRATION_PROGRESS = "manga-chapter-migration-progress",
     OFFLINE_SNAPSHOT_CREATED = "offline-snapshot-created",
     MEDIASTREAM_SHUTDOWN_STREAM = "mediastream-shutdown-stream",

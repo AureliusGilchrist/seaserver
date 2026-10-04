@@ -135,7 +135,19 @@ export function UnmatchedTorrentsPage() {
         }
         const q = search.trim().toLowerCase()
         if (!q) return list
-        return list.filter(t => t.name.toLowerCase().includes(q))
+        // Searched across every name a download goes by, not just the folder name. A release is
+        // named after whichever title the group used — often the romaji, sometimes the native one,
+        // occasionally neither — so typing the name you know has to find it however the folder is
+        // spelled. Substring and case-insensitive: nobody types a title in full, and nobody types
+        // it with the capitals AniList happens to use.
+        return list.filter(t => {
+            const haystack = [
+                t.name,
+                t.animeTitleRomaji,
+                t.animeTitleNative,
+            ]
+            return haystack.some(value => value?.toLowerCase().includes(q))
+        })
     }, [torrentsList, search, hideMatched, libraryMediaIds])
 
     // How many of the listed downloads the sweep would actually take on: it matches from the anime

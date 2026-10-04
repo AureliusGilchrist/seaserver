@@ -499,6 +499,32 @@ type TorrentAddQueueItem struct {
 }
 
 // +---------------------+
+// |      To watch       |
+// +---------------------+
+
+// ToWatchItem is one entry in a profile's to-watch list: an anime the user means to watch, in the
+// order they mean to watch it.
+//
+// The list is deliberately its own thing rather than a reading of the AniList planning list: a
+// plan is everything anybody ever marked, and a to-watch list is a running order — what is next.
+// It belongs to a profile (so one person's order is their own), it is stored here rather than in a
+// browser, because it is also what their public profile shows, and it is allowed to be as long as
+// its owner wants: a list of thousands is a list, not a mistake.
+//
+// Value holds a snapshot of the entry — title, cover, format, episodes, description — taken when it
+// was added. A list of thousands rendered a row at a time must not ask AniList for each one, and a
+// list that shows what was added when it was added does not change under the user either.
+type ToWatchItem struct {
+	BaseModel
+	ProfileID uint `gorm:"column:profile_id;index" json:"profileId"`
+	AnimeID   int  `gorm:"column:anime_id;index" json:"animeId"`
+	// Position is the running order. Assigned on add, rewritten whole on a reorder, so "in order"
+	// means exactly what the user arranged and nothing else.
+	Position int    `gorm:"column:position;index" json:"position"`
+	Value    []byte `gorm:"column:value" json:"-"`
+}
+
+// +---------------------+
 // |   Enqueue Future    |
 // +---------------------+
 

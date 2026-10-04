@@ -25,10 +25,11 @@ import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import * as React from "react"
 import {
     LuTrophy, LuStar, LuArrowLeft, LuCalendar, LuBookOpen,
-    LuTv, LuActivity,
+    LuTv, LuActivity, LuListVideo,
 } from "react-icons/lu"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Stats } from "@/components/ui/stats"
+import { ToWatchList } from "@/app/(main)/profile/_components/to-watch-list"
 
 export default function Page() {
     const searchParams = useSearchParams()
@@ -228,6 +229,9 @@ export default function Page() {
                         <TabsTrigger value="activity" className={tabsTriggerClass}>
                             <LuActivity className="mr-1.5" /> Activity
                         </TabsTrigger>
+                        <TabsTrigger value="towatch" className={tabsTriggerClass}>
+                            <LuListVideo className="mr-1.5" /> To Watch
+                        </TabsTrigger>
                         <TabsTrigger value="stats" className={tabsTriggerClass}>
                             <LuStar className="mr-1.5" /> Stats
                         </TabsTrigger>
@@ -249,6 +253,11 @@ export default function Page() {
                                 name: profile.name,
                             } : undefined}
                         />
+                    </TabsContent>
+                    <TabsContent value="towatch" className="space-y-6 mt-6">
+                        {/* What this person means to watch next — the list is theirs, so it is shown
+                            read-only: the order and the watch button stay, the editing does not. */}
+                        <ToWatchList profileId={id} readOnly />
                     </TabsContent>
                     <TabsContent value="stats" className="space-y-6 mt-6">
                         <UserStatsTabContent userId={id} xpBarFillCss={xpBarFillCss} />
