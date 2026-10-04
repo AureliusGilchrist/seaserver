@@ -72,6 +72,7 @@ type UnmatchedMatchQueueItem struct {
 	TorrentName  string     `json:"torrentName"`
 	AnimeID      int        `json:"animeId"`
 	AnimeTitle   string     `json:"animeTitle"`
+	CoverImage   string     `json:"coverImage,omitempty"`
 	FileCount    int        `json:"fileCount"`
 	Status       string     `json:"status"`
 	ErrorMessage string     `json:"errorMessage,omitempty"`
@@ -592,6 +593,7 @@ func (q *unmatchedMatchQueue) state() *UnmatchedMatchQueueState {
 			TorrentName:   item.TorrentName,
 			AnimeID:       item.AnimeID,
 			AnimeTitle:    item.AnimeTitle,
+			CoverImage:    item.CoverImage,
 			FileCount:     item.FileCount,
 			Status:        item.Status,
 			ErrorMessage:  item.ErrorMessage,
@@ -687,6 +689,7 @@ func (h *Handler) HandleEnqueueUnmatchedMatch(c echo.Context) error {
 		AnimeID:     req.AnimeID,
 		AnimeTitle:  req.AnimeTitleClean,
 		FileCount:   len(req.SelectedFiles),
+		CoverImage:  req.CoverImage,
 		Status:      unmatchedQueuePending,
 		Request:     requestJSON,
 	}

@@ -14,8 +14,7 @@ import {
     useResolveUnmatchedMatchQueueItem,
     UnmatchedTorrent,
     UnmatchedMatchQueueItem,
-    MatchConflict,
-    CountMismatch,
+    UnmatchedMatchQueueStatus,
 } from "@/api/hooks/unmatched.hooks"
 import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { UnmatchedTorrentCard } from "@/app/(main)/unmatched/_components/unmatched-torrent-card"
@@ -27,10 +26,12 @@ import { UnmatchedCountMismatchModal } from "@/app/(main)/unmatched/_components/
 import { AppLayoutStack } from "@/components/ui/app-layout"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { PageWrapper } from "@/components/shared/page-wrapper"
+import { SeaImage } from "@/components/shared/sea-image"
 import { atom, useAtom } from "jotai"
 import { atomWithStorage } from "jotai/utils"
 import React from "react"
@@ -47,6 +48,7 @@ import {
     LuPlay,
     LuRotateCw,
     LuTrash2,
+    LuTriangleAlert,
     LuX,
 } from "react-icons/lu"
 
@@ -290,29 +292,29 @@ export function UnmatchedTorrentsPage() {
             <Tabs
                 value={tab}
                 onValueChange={(value) => setTab(value as "downloads" | "queue")}
-                triggerClass={"text-base px-6 h-auto py-2 rounded-[--radius-md] w-fit border-none data-[state=active]:bg-[--subtle] data-[state=active]:text-white dark:hover:text-white"}
-                listClass={"w-full flex flex-wrap md:flex-nowrap h-fit"}
+                triggerClass={"h-auto py-2 px-4 rounded-lg w-fit border-none text-sm gap-2 data-[state=active]:bg-[--subtle] data-[state=active]:text-white dark:hover:text-white"}
+                listClass={"w-fit h-fit"}
             >
-                <TabsList className="flex-wrap max-w-full bg-[--paper] p-2 border rounded-xl">
+                <TabsList className="flex-wrap max-w-full bg-[--paper] p-1 border rounded-xl gap-1">
                     <TabsTrigger value="downloads">
+                        <LuFolderSearch className="text-base" />
                         Downloads
                         {hasTorrents && (
-                            <Badge className="ml-2 font-bold" intent="gray" size="sm">
-                                {torrentsList.length}
-                            </Badge>
+                            <span className="ml-1 text-xs text-[--muted] tabular-nums">{torrentsList.length}</span>
                         )}
                     </TabsTrigger>
                     <TabsTrigger value="queue">
+                        <LuListTodo className="text-base" />
                         To Match
                         {queueItems.length > 0 && (
-                            <Badge className="ml-2 font-bold" intent="alert" size="sm">
+                            <Badge className="ml-1 font-bold" intent="alert" size="sm">
                                 {queueItems.length}
                             </Badge>
                         )}
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="downloads" className="space-y-4">
+                <TabsContent value="downloads" className="space-y-4 pt-4">
                     <p className="text-[--muted]">
                         Downloaded torrents that haven't been matched to an anime yet. Select a torrent to choose episodes and match them to an anime.
                     </p>
@@ -321,10 +323,10 @@ export function UnmatchedTorrentsPage() {
                         is clear the last match is still being carried out while the next download
                         is being dealt with. */}
                     {queueActive && (
-                        <div className="flex items-center gap-3 flex-wrap border rounded-md px-4 py-2.5 bg-gray-900/50">
+                        <div className="flex items-center gap-3 flex-wrap border border-gray-800 rounded-xl px-4 py-2.5 bg-gray-900/40">
                             {queueStatus!.matching || (queueStatus!.holding && !queueStatus!.paused)
-                                ? <LoadingSpinner className="h-4 w-4 flex-shrink-0" />
-                                : <LuListTodo className="h-4 w-4 flex-shrink-0 text-brand-200" />}
+                                ? <LoadingSpinner className="h-4 w-4 flex-shrink-0 text-brand-300" />
+                                : <LuListTodo className="h-4 w-4 flex-shrink-0 text-brand-300" />}
                             <p className="text-sm">
                                 {queueStatus!.matching && queueStatus!.current
                                     ? <>Matching <span className="font-medium text-gray-200">{queueStatus!.current.animeTitle || queueStatus!.current.torrentName}</span> now</>
@@ -335,9 +337,8 @@ export function UnmatchedTorrentsPage() {
                                             : `${queueStatus!.pending} match${queueStatus!.pending === 1 ? "" : "es"} waiting in the queue`}
                             </p>
                             <span className="text-xs text-[--muted]">
-                                {queueStatus!.total} queued
-                                {queueStatus!.needsDecision > 0 ? ` · ${queueStatus!.needsDecision} needs a decision` : ""}
-                                {queueStatus!.matched > 0 ? ` · ${queueStatus!.matched} matched this session` : ""}
+                                {queueStatus!.needsDecision > 0 ? `${queueStatus!.needsDecision} needs a decision · ` : ""}
+                                {queueStatus!.matched > 0 ? `${queueStatus!.matched} matched this session` : ""}
                             </span>
                             <div className="flex-1" />
                             <Button intent="gray-outline" size="sm" onClick={() => setTab("queue")}>
@@ -409,60 +410,33 @@ export function UnmatchedTorrentsPage() {
                 <TabsContent value="queue" className="space-y-4">
                     {queueEmpty ? (
                         <div className="flex flex-col items-center justify-center py-20 text-center">
-                            <LuListTodo className="text-6xl text-[--muted] mb-4" />
-                            <p className="text-lg text-[--muted]">Nothing queued to match</p>
-                            <p className="text-sm text-[--muted] max-w-md">
+                            <div className="w-16 h-16 rounded-2xl bg-gray-900/70 border border-gray-800 flex items-center justify-center mb-5">
+                                <LuListTodo className="text-3xl text-brand-300" />
+                            </div>
+                            <p className="text-lg font-medium">Nothing queued to match</p>
+                            <p className="text-sm text-[--muted] max-w-md mt-1">
                                 Matching a download from the list puts it here, and the server carries it out in the
                                 order you decided on things — so the next download can be dealt with straight away.
                             </p>
-                            <Button intent="gray-outline" size="sm" className="mt-4" onClick={() => setTab("downloads")}>
+                            <Button intent="gray-outline" size="sm" className="mt-5" onClick={() => setTab("downloads")}>
                                 Browse downloads
                             </Button>
                         </div>
                     ) : (
                         <>
-                            <div className="flex items-center gap-3 flex-wrap">
-                                {queueStatus?.paused ? (
-                                    <Button intent="primary" leftIcon={<LuPlay />} onClick={() => resumeQueue({})}>
-                                        Resume matching
-                                    </Button>
-                                ) : (
-                                    <Button intent="gray-outline" leftIcon={<LuPause />} onClick={() => pauseQueue({})}>
-                                        Pause
-                                    </Button>
-                                )}
-                                <span className="text-sm text-[--muted]">
-                                    {queueStatus?.matching && queueStatus.current
-                                        ? `Matching ${queueStatus.current.animeTitle || queueStatus.current.torrentName} now`
-                                        : `${queueStatus?.pending ?? 0} waiting`}
-                                    {queueStatus?.needsDecision ? ` · ${queueStatus.needsDecision} needs a decision` : ""}
-                                    {queueStatus?.matched ? ` · ${queueStatus.matched} matched this session` : ""}
-                                </span>
-                                <div className="flex-1" />
-                                <Button
-                                    intent="gray-outline"
-                                    size="sm"
-                                    leftIcon={<LuTrash2 />}
-                                    onClick={clearQueueConfirmation.open}
-                                >
-                                    Clear queue
-                                </Button>
-                            </div>
+                            <QueueHeader
+                                status={queueStatus}
+                                onPause={() => pauseQueue({})}
+                                onResume={() => resumeQueue({})}
+                                onClear={clearQueueConfirmation.open}
+                            />
 
-                            {/* The queue waiting on something by itself. Said once, at the top,
-                                rather than on every item it is holding back. */}
-                            {queueStatus?.holding && (
-                                <div className="flex items-center gap-3 border rounded-md px-4 py-3 bg-amber-950/30 text-amber-100">
-                                    <LoadingSpinner className="h-4 w-4 flex-shrink-0" />
-                                    <p className="text-sm">{queueStatus.holdReason || "The queue is waiting"}</p>
-                                </div>
-                            )}
-
-                            <div className="space-y-3">
-                                {queueItems.map((item) => (
+                            <div className="space-y-2.5">
+                                {queueItems.map((item, index) => (
                                     <QueueItemRow
                                         key={item.id}
                                         item={item}
+                                        position={index + 1}
                                         onRemove={() => removeQueueItem({ id: item.id })}
                                         onRetry={() => retryQueueItem({ id: item.id })}
                                         onAnswer={() => setAnswering(item)}
@@ -538,21 +512,116 @@ export function UnmatchedTorrentsPage() {
 }
 
 /**
+ * The queue's header: what it is doing, how much of it there is, and the two things you can do to
+ * it as a whole. One line of state — paused, waiting on AniList, matching something, or simply
+ * working through what is left — because that is the question the screen is here to answer.
+ */
+function QueueHeader({
+    status,
+    onPause,
+    onResume,
+    onClear,
+}: {
+    status?: UnmatchedMatchQueueStatus
+    onPause: () => void
+    onResume: () => void
+    onClear: () => void
+}) {
+    const paused = !!status?.paused
+    const holding = !!status?.holding
+    const matching = !!status?.matching && !!status?.current
+
+    const state = paused
+        ? { label: "Paused", detail: "The queue keeps its place and picks up where it left off.", tone: "muted" as const }
+        : holding
+            ? { label: "Waiting", detail: status?.holdReason || "The queue is waiting on something.", tone: "waiting" as const }
+            : matching
+                ? { label: "Matching now", detail: status?.current?.animeTitle || status?.current?.torrentName || "", tone: "active" as const }
+                : { label: "Working through the queue", detail: "Matches run in the order you decided on them.", tone: "idle" as const }
+
+    return (
+        <div className="border border-gray-800 rounded-xl bg-gray-900/40 overflow-hidden">
+            <div className="flex items-center gap-3 flex-wrap px-4 py-3">
+                {/* The one live indicator on the page: what the queue is doing this second. */}
+                <div className="flex items-center gap-2.5 min-w-0">
+                    {matching || holding ? (
+                        <LoadingSpinner className="h-4 w-4 flex-shrink-0 text-brand-300" />
+                    ) : paused ? (
+                        <LuPause className="h-4 w-4 flex-shrink-0 text-[--muted]" />
+                    ) : (
+                        <LuListTodo className="h-4 w-4 flex-shrink-0 text-brand-300" />
+                    )}
+                    <div className="min-w-0">
+                        <p className="text-sm font-medium leading-tight">{state.label}</p>
+                        <p className="text-xs text-[--muted] leading-tight truncate max-w-[28rem]" title={state.detail}>
+                            {state.detail}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex-1" />
+
+                {/* The numbers, as numbers — waiting is the one that matters. */}
+                <div className="flex items-center gap-4">
+                    <QueueStat label="Waiting" value={status?.pending ?? 0} />
+                    {!!status?.needsDecision && <QueueStat label="Needs you" value={status.needsDecision} tone="warning" />}
+                    {!!status?.matched && <QueueStat label="Matched" value={status.matched} tone="success" />}
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {paused ? (
+                        <Button size="sm" intent="primary" leftIcon={<LuPlay />} onClick={onResume}>
+                            Resume
+                        </Button>
+                    ) : (
+                        <Button size="sm" intent="gray-outline" leftIcon={<LuPause />} onClick={onPause}>
+                            Pause
+                        </Button>
+                    )}
+                    <Button size="sm" intent="gray-outline" leftIcon={<LuTrash2 />} onClick={onClear}>
+                        Clear
+                    </Button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function QueueStat({ label, value, tone = "default" }: { label: string; value: number; tone?: "default" | "warning" | "success" }) {
+    return (
+        <div className="text-right">
+            <p className={cn(
+                "text-base font-semibold leading-none tabular-nums",
+                tone === "warning" ? "text-amber-300" : tone === "success" ? "text-green-300" : "text-gray-200",
+            )}>
+                {value}
+            </p>
+            <p className="text-[10px] text-[--muted] uppercase tracking-wide mt-1">{label}</p>
+        </div>
+    )
+}
+
+/**
  * One row of the match queue.
  *
  * The status is the whole point of the row: whether the match is waiting its turn, running now,
  * waiting to be tried again after a failure, or stopped on a question. An item that failed is not a
  * dead end — it is retried on its own, for as long as it takes — so the row says when it will be
  * tried again rather than presenting it as something to fix.
+ *
+ * The cover is what makes a row recognisable at a glance: a queue of twenty rows is a list of
+ * titles, and the artwork is what tells them apart without reading.
  */
 function QueueItemRow({
     item,
+    position,
     onRemove,
     onRetry,
     onAnswer,
     isBusy,
 }: {
     item: UnmatchedMatchQueueItem
+    position: number
     onRemove: () => void
     onRetry: () => void
     onAnswer: () => void
@@ -560,27 +629,61 @@ function QueueItemRow({
 }) {
     const failed = item.status === "pending" && item.attempts > 0 && !!item.errorMessage
     const needsDecision = item.status === "needs_decision"
+    const matching = item.status === "matching"
+    const title = item.animeTitle || item.torrentName
 
     return (
-        <div className="p-4 border rounded-lg bg-gray-950/50 flex items-start gap-3">
-            <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm line-clamp-1">
-                    {item.animeTitle || item.torrentName}
-                </p>
+        <div
+            className={cn(
+                "relative flex items-stretch gap-3 rounded-xl border overflow-hidden transition-colors",
+                matching
+                    ? "border-brand-600/60 bg-brand-900/20"
+                    : needsDecision
+                        ? "border-amber-600/40 bg-amber-950/10"
+                        : "border-gray-800 bg-gray-950/50 hover:border-gray-700",
+            )}
+        >
+            {/* Where it sits in the order. A queue is a sequence, so the number is information. */}
+            <div className={cn(
+                "flex flex-col items-center justify-center w-10 flex-shrink-0 border-r",
+                matching ? "border-brand-700/40 text-brand-200" : "border-gray-800/70 text-[--muted]",
+            )}>
+                {matching ? <LoadingSpinner className="h-4 w-4" /> : <span className="text-sm font-semibold tabular-nums">{position}</span>}
+            </div>
+
+            {/* The cover, or a folder block for a match queued without one. */}
+            <div className="py-3 flex-shrink-0">
+                <div className="w-[46px] h-[64px] rounded-md overflow-hidden bg-gray-800/70 border border-gray-700/60">
+                    {item.coverImage ? (
+                        <SeaImage
+                            src={item.coverImage}
+                            alt={title}
+                            width={46}
+                            height={64}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                            <LuListTodo className="text-lg text-gray-500" />
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="flex-1 min-w-0 py-3">
+                <p className="font-semibold text-sm line-clamp-1">{title}</p>
                 <p className="text-xs text-[--muted] line-clamp-1 mt-0.5" title={item.torrentName}>
                     {item.torrentName}
                 </p>
 
-                <div className="flex flex-wrap gap-2 mt-2">
-                    {item.status === "matching" && (
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {matching && (
                         <Badge intent="primary-solid" size="sm">
-                            <LoadingSpinner className="mr-1 h-3 w-3" />
                             Matching now
                         </Badge>
                     )}
                     {item.status === "pending" && !failed && (
                         <Badge intent="blue" size="sm">
-                            <LuListTodo className="mr-1" />
                             Waiting
                         </Badge>
                     )}
@@ -592,12 +695,15 @@ function QueueItemRow({
                     )}
                     {needsDecision && (
                         <Badge intent="warning" size="sm">
+                            <LuTriangleAlert className="mr-1" />
                             Needs your decision
                         </Badge>
                     )}
-                    <Badge intent="gray" size="sm">
+                    <span className="text-xs text-[--muted]">
                         {item.fileCount} file{item.fileCount === 1 ? "" : "s"}
-                    </Badge>
+                    </span>
+                    <span className="text-xs text-[--muted]">·</span>
+                    <span className="text-xs text-[--muted]">queued {formatQueuedAt(item.createdAt)}</span>
                 </div>
 
                 {/* Why it failed, and when it comes back round. Nothing here is a dead end. */}
@@ -610,35 +716,31 @@ function QueueItemRow({
                     </p>
                 )}
 
-                {needsDecision && !!item.errorMessage && (
-                    <p className="text-xs text-amber-200/90 mt-2">{item.errorMessage}</p>
-                )}
-
-                {needsDecision && !item.errorMessage && (
-                    <p className="text-xs text-[--muted] mt-2">
-                        {item.conflict
+                {needsDecision && (
+                    <p className="text-xs text-amber-200/90 mt-2">
+                        {item.errorMessage || (item.conflict
                             ? `${item.conflict.files.length} of ${item.conflict.totalPlanned} episode${item.conflict.totalPlanned === 1 ? "" : "s"} are already in the library.`
                             : item.countMismatch
                                 ? `This download has ${item.countMismatch.found} episode${item.countMismatch.found === 1 ? "" : "s"} but ${item.countMismatch.expected} were expected.`
-                                : ""}
+                                : "")}
                     </p>
                 )}
             </div>
 
-            <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex items-center gap-1.5 flex-shrink-0 pr-3">
                 {needsDecision && (item.conflict || item.countMismatch) && (
                     <Button size="sm" intent="primary" onClick={onAnswer} disabled={isBusy}>
                         Answer
                     </Button>
                 )}
-                {item.status === "pending" && (
+                {item.status === "pending" && failed && (
                     <Button
                         size="sm"
                         intent="gray-outline"
                         leftIcon={<LuRotateCw />}
                         onClick={onRetry}
-                        disabled={isBusy || !failed}
-                        title={failed ? "Try this match again now" : "Waiting its turn"}
+                        disabled={isBusy}
+                        title="Try this match again now"
                     >
                         Try again
                     </Button>
@@ -646,15 +748,28 @@ function QueueItemRow({
                 <Button
                     size="sm"
                     intent="gray-outline"
-                    leftIcon={<LuX />}
                     onClick={onRemove}
                     title="Take this match out of the queue"
+                    className="px-2"
                 >
-                    Remove
+                    <LuX />
                 </Button>
             </div>
         </div>
     )
+}
+
+/** "2 minutes ago" / "just now" — when the decision was made. */
+function formatQueuedAt(createdAt: string): string {
+    const at = new Date(createdAt).getTime()
+    if (!Number.isFinite(at)) return "just now"
+    const seconds = Math.max(0, Math.round((Date.now() - at) / 1000))
+    if (seconds < 45) return "just now"
+    const minutes = Math.round(seconds / 60)
+    if (minutes < 60) return `${minutes}m ago`
+    const hours = Math.round(minutes / 60)
+    if (hours < 24) return `${hours}h ago`
+    return `${Math.round(hours / 24)}d ago`
 }
 
 /** "in 2 minutes" / "in 45 seconds" — the retry backoff, said the way a person would. */

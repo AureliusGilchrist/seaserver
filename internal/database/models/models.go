@@ -433,6 +433,9 @@ type UnmatchedMatchQueueItem struct {
 	// AnimeTitle and FileCount are denormalized for the queue list, which renders every row.
 	AnimeTitle string `gorm:"column:anime_title" json:"animeTitle"`
 	FileCount  int    `gorm:"column:file_count" json:"fileCount"`
+	// CoverImage is the anime's cover the client sent with the decision, denormalized for the same
+	// reason — so the queue shows a recognisable row after a restart without going back to AniList.
+	CoverImage string `gorm:"column:cover_image" json:"coverImage,omitempty"`
 	// Status is "pending", "matching" or "needs_decision".
 	//
 	// There is no failed state. A match that could not be carried out — a file locked by something
@@ -457,10 +460,42 @@ type UnmatchedMatchQueueItem struct {
 	Request []byte `gorm:"column:request" json:"-"`
 	// Conflict and CountMismatch hold the question a match stopped on, as JSON, so the queue screen
 	// can ask it exactly as the match would have.
-	Conflict      []byte `gorm:"column:conflict" json:"-"`
-	CountMismatch []byte `gorm:"column:count_mismatch" json:"-"`
+	Conflict      []byte     `gorm:"column:conflict" json:"-"`
+	CountMismatch []byte     `gorm:"column:count_mismatch" json:"-"`
 	StartedAt     *time.Time `gorm:"column:started_at" json:"startedAt,omitempty"`
 	FinishedAt    *time.Time `gorm:"column:finished_at" json:"finishedAt,omitempty"`
+}
+
+// +---------------------+
+// |   Torrent client    |
+// +---------------------+
+
+// TorrentAddQueueItem is a torrent the torrent client could not take because it was unreachable,
+// waiting to be added the moment it answers again.
+//
+// Adding a torrent used to be a request that failed with a timeout when the client was offline, and
+// the download was lost with it: the user pressed download, got "try again later", and had to be
+// there to press it again. Here the add is written down first and the server works through them on
+// its own clock — so an offline client is not a failed download, it is a queued one, and when the
+// client comes back the entries are imported as if it never went down.
+//
+// Retried for as long as it takes, at an interval that grows to a cap; nothing about that holds up
+// the rest of the app. In the database rather than in memory, because a client that is offline and
+// a server that was restarted in the meantime is the normal case, not the exception.
+type TorrentAddQueueItem struct {
+	BaseModel
+	// Magnets is the magnet or torrent URL(s) the client was asked for, as JSON.
+	Magnets []byte `gorm:"column:magnets" json:"-"`
+	// Destination is where the torrent's files go.
+	Destination string `gorm:"column:destination" json:"destination"`
+	// Status is "pending" or "adding".
+	Status       string `gorm:"column:status;index" json:"status"`
+	ErrorMessage string `gorm:"column:error_message" json:"errorMessage,omitempty"`
+	Attempts     int    `gorm:"column:attempts;default:0" json:"attempts"`
+	// NextAttemptAt is when a failed add may be tried again; nil means "as soon as the queue
+	// reaches it". Persisted so a restart does not reset a long backoff into an immediate retry.
+	NextAttemptAt *time.Time `gorm:"column:next_attempt_at" json:"nextAttemptAt,omitempty"`
+	StartedAt     *time.Time `gorm:"column:started_at" json:"startedAt,omitempty"`
 }
 
 // +---------------------+
@@ -857,7 +892,7 @@ type KitsuIDMapping struct {
 	MalID     int    `gorm:"column:mal_id" json:"malId"`
 	MediaType string `gorm:"column:media_type;index" json:"mediaType"`
 	// CanonicalTitle stores the title at the moment of first lookup. Empty until populated.
-	CanonicalTitle string `gorm:"column:canonical_title" json:"canonicalTitle"`
+	CanonicalTitle string    `gorm:"column:canonical_title" json:"canonicalTitle"`
 	LastResolvedAt time.Time `gorm:"column:last_resolved_at" json:"lastResolvedAt"`
 }
 
@@ -907,11 +942,11 @@ type SyntheticIDIndex struct {
 	Name string `gorm:"column:name;index" json:"name"`
 	// MediaType keeps the synthetic range partitioned: the same negative id can in principle refer
 	// to an anime or a manga, but never both.
-	MediaType string `gorm:"column:media_type;index" json:"mediaType"`
-	KitsuID   string `gorm:"column:kitsu_id;index" json:"kitsuId"`
-	KitsuSlug string `gorm:"column:kitsu_slug;index" json:"kitsuSlug"`
-	AnilistID int    `gorm:"column:anilist_id;index" json:"anilistId"`
-	MalID     int    `gorm:"column:mal_id" json:"malId"`
+	MediaType  string `gorm:"column:media_type;index" json:"mediaType"`
+	KitsuID    string `gorm:"column:kitsu_id;index" json:"kitsuId"`
+	KitsuSlug  string `gorm:"column:kitsu_slug;index" json:"kitsuSlug"`
+	AnilistID  int    `gorm:"column:anilist_id;index" json:"anilistId"`
+	MalID      int    `gorm:"column:mal_id" json:"malId"`
 	CoverImage string `gorm:"column:cover_image" json:"coverImage"`
 	// Source records which upstream surfaced this entry. Used to pick the right refresh path when
 	// a cached name goes stale.
@@ -927,7 +962,6 @@ type SyntheticIDCounter struct {
 	ID    uint `gorm:"primaryKey" json:"id"`
 	Value int  `gorm:"column:value" json:"value"`
 }
-
 
 // +---------------------+
 // |  Online streaming   |

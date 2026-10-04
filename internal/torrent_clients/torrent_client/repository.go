@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"seanime/internal/api/metadata_provider"
+	"seanime/internal/database/db"
 	"seanime/internal/events"
 	"seanime/internal/torrent_clients/builtin_client"
 	"seanime/internal/torrent_clients/qbittorrent"
@@ -38,6 +39,9 @@ type (
 		metadataProviderRef         *util.Ref[metadata_provider.Provider]
 		activeTorrentCountCtxCancel context.CancelFunc
 		activeTorrentCount          *ActiveCount
+		// offlineQueue holds torrents the client could not take because it was unreachable, and
+		// imports them the moment it answers again. See offline_queue.go.
+		offlineQueue *torrentAddQueue
 	}
 
 	NewRepositoryOptions struct {
@@ -48,6 +52,10 @@ type (
 		TorrentRepository   *torrent.Repository
 		Provider            string
 		MetadataProviderRef *util.Ref[metadata_provider.Provider]
+		// Database and WSEventManager back the offline add queue; both optional, without them the
+		// queue simply does not run.
+		Database       *db.Database
+		WSEventManager events.WSEventManagerInterface
 	}
 
 	ActiveCount struct {
@@ -61,7 +69,7 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 	if opts.Provider == "" {
 		opts.Provider = QbittorrentClient
 	}
-	return &Repository{
+	r := &Repository{
 		logger:              opts.Logger,
 		qBittorrentClient:   opts.QbittorrentClient,
 		transmission:        opts.Transmission,
@@ -71,9 +79,21 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 		metadataProviderRef: opts.MetadataProviderRef,
 		activeTorrentCount:  &ActiveCount{},
 	}
+
+	// The offline add queue: started with the repository, so a queue left behind by a stop — or by
+	// a client that went down and a server that was restarted — picks itself back up.
+	if opts.Database != nil {
+		r.offlineQueue = newTorrentAddQueue(r, opts.Database, opts.WSEventManager)
+		r.offlineQueue.start()
+	}
+
+	return r
 }
 
 func (r *Repository) Shutdown() {
+	if r.offlineQueue != nil {
+		r.offlineQueue.shutdown()
+	}
 	if r.activeTorrentCountCtxCancel != nil {
 		r.activeTorrentCountCtxCancel()
 		r.activeTorrentCountCtxCancel = nil
@@ -330,6 +350,12 @@ func (r *Repository) GetActiveTorrents(opts *GetListOptions) ([]*Torrent, error)
 	return active, nil
 }
 
+// AddMagnets adds torrents to the client.
+//
+// When the client cannot be reached — a timeout, a refused connection — the add is queued rather
+// than failed: the queue is persisted, the server imports it the moment the client answers again,
+// and the caller is told the torrent was accepted. "The client is offline" is not a failed download;
+// it is a queued one. See offline_queue.go.
 func (r *Repository) AddMagnets(magnets []string, dest string) error {
 	r.logger.Trace().Any("magnets", magnets).Msg("torrent client: Adding magnets")
 
@@ -338,6 +364,24 @@ func (r *Repository) AddMagnets(magnets []string, dest string) error {
 		return nil
 	}
 
+	err := r.addToClient(magnets, dest)
+	if err != nil {
+		if offlineAddError(err) {
+			r.enqueueForLater(magnets, dest)
+			return nil
+		}
+		r.logger.Err(err).Msg("torrent client: Error while adding magnets")
+		return err
+	}
+
+	r.logger.Debug().Msg("torrent client: Added torrents")
+
+	return nil
+}
+
+// addToClient is the raw add — the client switch, nothing else. The offline queue uses it too, so
+// an import that fails cannot queue itself.
+func (r *Repository) addToClient(magnets []string, dest string) error {
 	var err error
 	switch r.provider {
 	case QbittorrentClient:
@@ -380,14 +424,7 @@ func (r *Repository) AddMagnets(magnets []string, dest string) error {
 		return errors.New("torrent client: No torrent client selected")
 	}
 
-	if err != nil {
-		r.logger.Err(err).Msg("torrent client: Error while adding magnets")
-		return err
-	}
-
-	r.logger.Debug().Msg("torrent client: Added torrents")
-
-	return nil
+	return err
 }
 
 func (r *Repository) RemoveTorrents(hashes []string) error {

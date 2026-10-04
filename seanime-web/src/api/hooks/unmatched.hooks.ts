@@ -57,6 +57,8 @@ export interface MatchRequest {
     animeTitleClean: string
     useIndexBasedEpisodes?: boolean
     episodeOffset?: number
+    /** Display only — the anime's cover, shown on the queued match in the queue. */
+    coverImage?: string
     /**
      * Replace library files this match would land on top of. Without it, a match that finds any
      * destination already occupied moves nothing and returns `conflict` instead.
@@ -649,6 +651,7 @@ export interface UnmatchedMatchQueueItem {
     torrentName: string
     animeId: number
     animeTitle: string
+    coverImage?: string
     fileCount: number
     status: UnmatchedMatchQueueItemStatus
     /** Why the last attempt did not get through, on an item waiting to be retried. */

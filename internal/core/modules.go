@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/continuity"
@@ -15,13 +16,13 @@ import (
 	"seanime/internal/enqueuefuture"
 	"seanime/internal/events"
 	"seanime/internal/library/anime"
-	"seanime/internal/local"
 	"seanime/internal/library/autodownloader"
 	"seanime/internal/library/autoscanner"
 	"seanime/internal/library/fillermanager"
 	"seanime/internal/library/gojuuon"
 	"seanime/internal/library/playbackmanager"
 	"seanime/internal/library_explorer"
+	"seanime/internal/local"
 	"seanime/internal/manga"
 	"seanime/internal/mediaplayers/iina"
 	"seanime/internal/mediaplayers/mediaplayer"
@@ -662,11 +663,11 @@ func (a *App) initModulesOnce() {
 			Trigger:   achievement.TriggerEpisodeProgress,
 			MediaID:   evt.MediaID,
 			Metadata: map[string]interface{}{
-				"episode_number":  evt.EpisodeNumber,
-				"total_episodes":  evt.TotalEpisodes,
-				"duration":        evt.DurationMinutes,
+				"episode_number":   evt.EpisodeNumber,
+				"total_episodes":   evt.TotalEpisodes,
+				"duration":         evt.DurationMinutes,
 				"session_episodes": evt.SessionEpisodeCount,
-				"session_hours":   sessionHours,
+				"session_hours":    sessionHours,
 			},
 		})
 
@@ -677,9 +678,9 @@ func (a *App) initModulesOnce() {
 				Trigger:   achievement.TriggerSeriesComplete,
 				MediaID:   evt.MediaID,
 				Metadata: map[string]interface{}{
-					"episodes":        evt.TotalEpisodes,
-					"duration":        evt.DurationMinutes,
-					"session_hours":   sessionHours,
+					"episodes":      evt.TotalEpisodes,
+					"duration":      evt.DurationMinutes,
+					"session_hours": sessionHours,
 				},
 			})
 			_ = pdb.RecordActivityEvent("series_complete", evt.MediaID, map[string]interface{}{
@@ -725,10 +726,41 @@ func (a *App) initModulesOnce() {
 
 }
 
+// torrentModuleChanged reports whether the torrent settings differ from the ones the currently
+// running torrent client was built from. The client is only rebuilt when something about it changed
+// — an unchanged module is left standing, because every settings save used to rebuild it and drop
+// the client's sessions over a change that had nothing to do with torrents.
+//
+// Compared by JSON rather than field by field: the settings struct carries everything the client is
+// built from, and a comparison that misses a field is a client silently running on old settings.
+func (a *App) torrentModuleChanged(next *models.TorrentSettings) bool {
+	if next == nil {
+		return false
+	}
+	if a.torrentModuleSettings == nil {
+		// Never built. Recorded now, so the next save can be compared against what is running.
+		a.torrentModuleSettings = next
+		return true
+	}
+
+	prevJSON, err := json.Marshal(a.torrentModuleSettings)
+	if err != nil {
+		a.torrentModuleSettings = next
+		return true
+	}
+	nextJSON, err := json.Marshal(next)
+	if err != nil {
+		return true
+	}
+
+	changed := string(prevJSON) != string(nextJSON)
+	if changed {
+		a.torrentModuleSettings = next
+	}
+	return changed
+}
+
 // buildTorrentStateSource builds the closure both the unmatched scanner and the stuck-download
-// monitor use to ask the torrent client for its current list. Read through the ref so this keeps
-// working after the client is re-created on a settings change, and never call Start() on the client:
-// both callers run on a timer, and a background pass must not be what brings a torrent client up.
 func (a *App) buildTorrentStateSource() func() ([]unmatched.TorrentState, bool) {
 	return func() ([]unmatched.TorrentState, bool) {
 		repo := a.TorrentClientRepositoryRef.Get()
@@ -907,84 +939,96 @@ func (a *App) InitOrRefreshModules() {
 	// +---------------------+
 
 	if settings.Torrent != nil {
-		// Init qBittorrent
-		qbit := qbittorrent.NewClient(&qbittorrent.NewClientOptions{
-			Logger:   a.Logger,
-			Username: settings.Torrent.QBittorrentUsername,
-			Password: settings.Torrent.QBittorrentPassword,
-			Port:     settings.Torrent.QBittorrentPort,
-			Host:     settings.Torrent.QBittorrentHost,
-			Path:     settings.Torrent.QBittorrentPath,
-			Tags:     settings.Torrent.QBittorrentTags,
-			Category: settings.Torrent.QBittorrentCategory,
-		})
-		// Login to qBittorrent
-		go func() {
-			if settings.Torrent.Default == "qbittorrent" {
-				err = qbit.Login()
-				if err != nil {
-					a.Logger.Error().Err(err).Msg("app: Failed to login to qBittorrent")
-				} else {
-					a.Logger.Info().Msg("app: Logged in to qBittorrent")
-				}
-			}
-		}()
-		// Init Transmission
-		trans, err := transmission.New(&transmission.NewTransmissionOptions{
-			Logger:   a.Logger,
-			Username: settings.Torrent.TransmissionUsername,
-			Password: settings.Torrent.TransmissionPassword,
-			Port:     settings.Torrent.TransmissionPort,
-			Host:     settings.Torrent.TransmissionHost,
-			Path:     settings.Torrent.TransmissionPath,
-		})
-		if err != nil && settings.Torrent.TransmissionUsername != "" && settings.Torrent.TransmissionPassword != "" { // Only log error if username and password are set
-			a.Logger.Error().Err(err).Msg("app: Failed to initialize transmission client")
-		}
-
-		// Shutdown torrent client first
-		if a.TorrentClientRepository != nil {
-			a.TorrentClientRepository.Shutdown()
-		}
-
-		// Built-in torrent client
-		var builtinTorrentClient *builtin_client.Client
-		if settings.Torrent.Default == torrent_client.BuiltinClient {
-			builtinTorrentClient = builtin_client.NewClient(&builtin_client.NewClientOptions{
-				Logger:      a.Logger,
-				Database:    a.Database,
-				DownloadDir: settings.Torrent.BuiltinDownloadDir,
-				OnComplete: func() {
-					if a.UnmatchedScanner != nil {
-						a.UnmatchedScanner.TriggerScan()
+		// The torrent client is not recreated when nothing about it changed. Every settings save
+		// used to arrive here and rebuild the whole module — a new qBittorrent client, a fresh
+		// login, a new repository — which dropped the client's sessions and state over a change
+		// that had nothing to do with torrents, and left a client that was fine being torn down
+		// for no reason. So the settings are compared against the ones the current client was
+		// built from, and an unchanged torrent module is left standing.
+		if !a.torrentModuleChanged(settings.Torrent) {
+			a.Logger.Debug().Msg("app: Torrent settings unchanged, keeping the existing torrent client")
+		} else {
+			// Init qBittorrent
+			qbit := qbittorrent.NewClient(&qbittorrent.NewClientOptions{
+				Logger:   a.Logger,
+				Username: settings.Torrent.QBittorrentUsername,
+				Password: settings.Torrent.QBittorrentPassword,
+				Port:     settings.Torrent.QBittorrentPort,
+				Host:     settings.Torrent.QBittorrentHost,
+				Path:     settings.Torrent.QBittorrentPath,
+				Tags:     settings.Torrent.QBittorrentTags,
+				Category: settings.Torrent.QBittorrentCategory,
+			})
+			// Login to qBittorrent
+			go func() {
+				if settings.Torrent.Default == "qbittorrent" {
+					err = qbit.Login()
+					if err != nil {
+						a.Logger.Error().Err(err).Msg("app: Failed to login to qBittorrent")
+					} else {
+						a.Logger.Info().Msg("app: Logged in to qBittorrent")
 					}
-				},
+				}
+			}()
+			// Init Transmission
+			trans, err := transmission.New(&transmission.NewTransmissionOptions{
+				Logger:   a.Logger,
+				Username: settings.Torrent.TransmissionUsername,
+				Password: settings.Torrent.TransmissionPassword,
+				Port:     settings.Torrent.TransmissionPort,
+				Host:     settings.Torrent.TransmissionHost,
+				Path:     settings.Torrent.TransmissionPath,
+			})
+			if err != nil && settings.Torrent.TransmissionUsername != "" && settings.Torrent.TransmissionPassword != "" { // Only log error if username and password are set
+				a.Logger.Error().Err(err).Msg("app: Failed to initialize transmission client")
+			}
+
+			// Shutdown torrent client first
+			if a.TorrentClientRepository != nil {
+				a.TorrentClientRepository.Shutdown()
+			}
+
+			// Built-in torrent client
+			var builtinTorrentClient *builtin_client.Client
+			if settings.Torrent.Default == torrent_client.BuiltinClient {
+				builtinTorrentClient = builtin_client.NewClient(&builtin_client.NewClientOptions{
+					Logger:      a.Logger,
+					Database:    a.Database,
+					DownloadDir: settings.Torrent.BuiltinDownloadDir,
+					OnComplete: func() {
+						if a.UnmatchedScanner != nil {
+							a.UnmatchedScanner.TriggerScan()
+						}
+					},
+				})
+			}
+
+			// Torrent Client Repository
+			a.TorrentClientRepository = torrent_client.NewRepository(&torrent_client.NewRepositoryOptions{
+				Logger:              a.Logger,
+				QbittorrentClient:   qbit,
+				Transmission:        trans,
+				BuiltinClient:       builtinTorrentClient,
+				TorrentRepository:   a.TorrentRepository,
+				Provider:            settings.Torrent.Default,
+				MetadataProviderRef: a.MetadataProviderRef,
+				Database:            a.Database,
+				WSEventManager:      a.WSEventManager,
+			})
+
+			// Update the Ref for late binding
+			a.TorrentClientRepositoryRef.Set(a.TorrentClientRepository)
+
+			a.TorrentClientRepository.InitActiveTorrentCount(settings.Torrent.ShowActiveTorrentCount, a.WSEventManager)
+
+			// Set AutoDownloader qBittorrent client
+			a.AutoDownloader.SetTorrentClientRepository(a.TorrentClientRepository)
+
+			plugin.GlobalAppContext.SetModulesPartial(plugin.AppContextModules{
+				TorrentClientRepository: a.TorrentClientRepository,
+				AutoDownloader:          a.AutoDownloader,
 			})
 		}
-
-		// Torrent Client Repository
-		a.TorrentClientRepository = torrent_client.NewRepository(&torrent_client.NewRepositoryOptions{
-			Logger:              a.Logger,
-			QbittorrentClient:   qbit,
-			Transmission:        trans,
-			BuiltinClient:       builtinTorrentClient,
-			TorrentRepository:   a.TorrentRepository,
-			Provider:            settings.Torrent.Default,
-			MetadataProviderRef: a.MetadataProviderRef,
-		})
-
-		// Update the Ref for late binding
-		a.TorrentClientRepositoryRef.Set(a.TorrentClientRepository)
-
-		a.TorrentClientRepository.InitActiveTorrentCount(settings.Torrent.ShowActiveTorrentCount, a.WSEventManager)
-
-		// Set AutoDownloader qBittorrent client
-		a.AutoDownloader.SetTorrentClientRepository(a.TorrentClientRepository)
-
-		plugin.GlobalAppContext.SetModulesPartial(plugin.AppContextModules{
-			TorrentClientRepository: a.TorrentClientRepository,
-			AutoDownloader:          a.AutoDownloader,
-		})
 	} else {
 		a.Logger.Warn().Msg("app: Did not initialize torrent client module, no settings found")
 	}

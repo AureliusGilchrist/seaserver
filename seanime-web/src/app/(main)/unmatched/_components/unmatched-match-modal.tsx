@@ -630,6 +630,8 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
             animeTitleClean: titleClean,
             useIndexBasedEpisodes: dependOnIndex,
             episodeOffset: dependOnIndex ? (episodeOffset > 0 ? episodeOffset : 1) : undefined,
+            // So the queue shows the series rather than a folder icon while it waits.
+            coverImage: selectedAnime.coverImage?.medium || selectedAnime.coverImage?.large || undefined,
         })
     }, [torrent, selectedAnime, selectedFiles, enqueueMatch, matchTitles, dependOnIndex, episodeOffset, setLastMatchedTitle])
 

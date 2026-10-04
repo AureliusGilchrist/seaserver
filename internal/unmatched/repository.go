@@ -197,6 +197,11 @@ type MatchRequest struct {
 	// equal the number the anime is expected to have. Without it, such a match stops and reports
 	// what it was about to do — see MatchResult.CountMismatch.
 	ConfirmCountMismatch bool `json:"confirmCountMismatch,omitempty"`
+	// CoverImage is display data the client sent with the decision — the anime's cover, shown on
+	// the queued match in the queue screen. The match itself never reads it, and it is persisted
+	// with the request so the queue can show the cover after a restart without going back to
+	// AniList for it.
+	CoverImage string `json:"coverImage,omitempty"`
 }
 
 // MatchResult represents the result of a match operation

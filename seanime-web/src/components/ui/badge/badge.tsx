@@ -9,7 +9,11 @@ import { cn, ComponentAnatomy, defineStyleAnatomy } from "../core/styling"
 export const BadgeAnatomy = defineStyleAnatomy({
     root: cva([
         "UI-Badge__root",
-        "inline-flex flex-none text-base w-fit overflow-hidden justify-center items-center gap-2",
+        // A badge is a single-line label. width:fit-content on its own shrinks to the longest word
+        // when the row around it is tight, which wrapped the text and clipped it against the fixed
+        // height — nowrap keeps the whole label on one line, and the wrap-friendly rows these sit
+        // in take the badge as a unit.
+        "inline-flex flex-none whitespace-nowrap text-base w-fit overflow-hidden justify-center items-center gap-2",
         "group/badge",
     ], {
         variants: {

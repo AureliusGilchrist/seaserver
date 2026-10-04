@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"seanime/internal/achievement"
 	"seanime/internal/api/anilist"
 	"seanime/internal/api/metadata_provider"
@@ -63,6 +62,7 @@ import (
 	"seanime/internal/util/filecache"
 	"seanime/internal/util/result"
 	"seanime/internal/videocore"
+	"strings"
 	"sync"
 
 	"github.com/rs/zerolog"
@@ -80,6 +80,10 @@ type (
 		TorrentClientRepositoryRef *util.Ref[*torrent_client.Repository]
 		TorrentRepository          *torrent.Repository
 		DebridClientRepository     *debrid_client.Repository
+		// torrentModuleSettings is the torrent settings the running torrent client was built from,
+		// so a settings refresh can tell a change from a save that had nothing to do with torrents —
+		// the client is only rebuilt when something about it changed.
+		torrentModuleSettings *models.TorrentSettings
 
 		// File system monitoring
 		Watcher *scanner.Watcher
@@ -511,25 +515,25 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 		ExtensionBankRef:              extensionBankRef,
 		ExtensionPlaygroundRepository: extensionPlaygroundRepository,
 		ReportRepository:              report.NewRepository(logger),
-		TorrentRepository:             nil, // Initialized in App.initModulesOnce
-		FillerManager:                 nil, // Initialized in App.initModulesOnce
-		MangaDownloader:               nil, // Initialized in App.initModulesOnce
-		PlaybackManager:               nil, // Initialized in App.initModulesOnce
-		AutoDownloader:                nil, // Initialized in App.initModulesOnce
-		AutoScanner:                   nil, // Initialized in App.initModulesOnce
-		MediastreamRepository:         nil, // Initialized in App.initModulesOnce
-		TorrentstreamRepository:       nil, // Initialized in App.initModulesOnce
-		ContinuityManager:             nil, // Initialized in App.initModulesOnce
-		DebridClientRepository:        nil, // Initialized in App.initModulesOnce
-		DirectStreamManager:           nil, // Initialized in App.initModulesOnce
-		NativePlayer:                  nil, // Initialized in App.initModulesOnce
-		VideoCore:                     nil, // Initialized in App.initModulesOnce
-		NakamaManager:                 nil, // Initialized in App.initModulesOnce
-		LibraryExplorer:               nil, // Initialized in App.initModulesOnce
-		TorrentClientRepository:       nil, // Initialized in App.InitOrRefreshModules
+		TorrentRepository:             nil,                                          // Initialized in App.initModulesOnce
+		FillerManager:                 nil,                                          // Initialized in App.initModulesOnce
+		MangaDownloader:               nil,                                          // Initialized in App.initModulesOnce
+		PlaybackManager:               nil,                                          // Initialized in App.initModulesOnce
+		AutoDownloader:                nil,                                          // Initialized in App.initModulesOnce
+		AutoScanner:                   nil,                                          // Initialized in App.initModulesOnce
+		MediastreamRepository:         nil,                                          // Initialized in App.initModulesOnce
+		TorrentstreamRepository:       nil,                                          // Initialized in App.initModulesOnce
+		ContinuityManager:             nil,                                          // Initialized in App.initModulesOnce
+		DebridClientRepository:        nil,                                          // Initialized in App.initModulesOnce
+		DirectStreamManager:           nil,                                          // Initialized in App.initModulesOnce
+		NativePlayer:                  nil,                                          // Initialized in App.initModulesOnce
+		VideoCore:                     nil,                                          // Initialized in App.initModulesOnce
+		NakamaManager:                 nil,                                          // Initialized in App.initModulesOnce
+		LibraryExplorer:               nil,                                          // Initialized in App.initModulesOnce
+		TorrentClientRepository:       nil,                                          // Initialized in App.InitOrRefreshModules
 		TorrentClientRepositoryRef:    util.NewRef[*torrent_client.Repository](nil), // Ref for late binding
-		MediaPlayerRepository:         nil, // Initialized in App.InitOrRefreshModules
-		DiscordPresence:               nil, // Initialized in App.InitOrRefreshModules
+		MediaPlayerRepository:         nil,                                          // Initialized in App.InitOrRefreshModules
+		DiscordPresence:               nil,                                          // Initialized in App.InitOrRefreshModules
 		previousVersion:               previousVersion,
 		FeatureFlags:                  NewFeatureFlags(cfg, logger),
 		IsDesktopSidecar:              configOpts.Flags.IsDesktopSidecar,
