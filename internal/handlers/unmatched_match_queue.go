@@ -150,6 +150,10 @@ func newUnmatchedMatchQueue(h *Handler) *unmatchedMatchQueue {
 
 func (q *unmatchedMatchQueue) start() {
 	q.once.Do(func() {
+		// "Matching" is a claim only the worker that made it can justify, and nothing survives a
+		// restart — so anything left mid-match goes back to waiting. What actually happened to the
+		// files is decided from the disk, not from a status written down before the stop.
+		_ = q.h.App.Database.ResetMatchingUnmatchedMatchQueueItems()
 		go q.loop()
 	})
 }
@@ -303,6 +307,25 @@ func (q *unmatchedMatchQueue) clearJournalBlocked(id uint) {
 
 // process carries out one queued match.
 func (q *unmatchedMatchQueue) process(item *models.UnmatchedMatchQueueItem) {
+	q.mu.Lock()
+	q.current = item.ID
+	q.mu.Unlock()
+
+	// However this returns — through the end, through a failure, or through a panic — the item stops
+	// being the current work and the queue is free to pick up the next one.
+	defer func() {
+		q.mu.Lock()
+		q.current = 0
+		q.mu.Unlock()
+		q.sendQueueEvent()
+	}()
+
+	// A panic here is a bug in the match, not in the queue: the item goes back in line to be tried
+	// again rather than the worker stalling on it forever with the rest of the queue behind it.
+	defer util.HandlePanicInModuleThen("handlers/unmatchedMatchQueue/process", func() {
+		q.retry(item, "the match stopped unexpectedly — see the server log")
+	})
+
 	var req unmatched.MatchRequest
 	if err := json.Unmarshal(item.Request, &req); err != nil {
 		// The decision cannot be read back, so it cannot be carried out, and retrying will not
@@ -313,18 +336,8 @@ func (q *unmatchedMatchQueue) process(item *models.UnmatchedMatchQueueItem) {
 		return
 	}
 
-	q.mu.Lock()
-	q.current = item.ID
-	q.mu.Unlock()
 	_ = q.h.App.Database.MarkUnmatchedMatchQueueItemStarted(item.ID)
 	q.sendQueueEvent()
-
-	finished := func() {
-		q.mu.Lock()
-		q.current = 0
-		q.mu.Unlock()
-		q.sendQueueEvent()
-	}
 
 	// Nothing left to match: the download is gone, was matched by something else, or was finished
 	// by an interrupted match being resumed. The item is done with, not retried — there is nothing
@@ -333,12 +346,11 @@ func (q *unmatchedMatchQueue) process(item *models.UnmatchedMatchQueueItem) {
 		q.h.App.Logger.Info().Str("torrent", item.TorrentName).
 			Msg("unmatched queue: The download is no longer in the staging area, dropping its queued match")
 		_ = q.h.App.Database.DeleteUnmatchedMatchQueueItem(item.ID)
-		finished()
 		return
 	}
 
 	// The same lock the manual match and the sweep take, so a queued match never moves files at the
-	// same time as either. Held only for the match itself.
+	// same time as either. Held only for the match itself — never while waiting on anything.
 	matchMu.Lock()
 	result, err := q.h.App.UnmatchedRepository.MatchAndMoveFiles(&req)
 	matchMu.Unlock()
@@ -371,8 +383,6 @@ func (q *unmatchedMatchQueue) process(item *models.UnmatchedMatchQueueItem) {
 	default:
 		q.complete(item, req, result)
 	}
-
-	finished()
 }
 
 // complete finishes a match that went through: the post-match pipeline, then the item leaves the
