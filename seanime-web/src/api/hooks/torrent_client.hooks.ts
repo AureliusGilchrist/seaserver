@@ -12,6 +12,31 @@ import { useQueryClient } from "@tanstack/react-query"
 import React from "react"
 import { toast } from "sonner"
 
+// ─── Offline add queue ───────────────────────────────────────────────
+//
+// A torrent the client could not take because it was offline is queued on the server and imported
+// the moment the client answers again — see internal/torrent_clients/torrent_client/offline_queue.go.
+// The screen shows what is waiting, so a client that is down says so rather than looking stuck.
+
+export interface TorrentAddQueueView {
+    waiting: number
+    adding: number
+    total: number
+    oldest?: string
+    lastError?: string
+}
+
+export function useGetTorrentAddQueue() {
+    return useServerQuery<TorrentAddQueueView>({
+        endpoint: "/api/v1/torrent-client/add-queue",
+        method: "GET",
+        queryKey: ["TORRENT_CLIENT-get-add-queue"],
+        gcTime: 0,
+        staleTime: 0,
+        refetchInterval: query => ((query.state.data?.total ?? 0) > 0 ? 5_000 : false),
+    })
+}
+
 export function useGetActiveTorrentList(enabled: boolean, category: string, sort: string) {
     const query = React.useMemo(() => {
         if (!category && !sort) return ""

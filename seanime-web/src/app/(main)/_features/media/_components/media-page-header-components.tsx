@@ -52,9 +52,14 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
     const shouldDimBanner = (ts.mediaPageBannerType === ThemeMediaPageBannerType.DimWhenUnavailable && !backgroundImage) ||
         ts.mediaPageBannerType === ThemeMediaPageBannerType.Dim
 
-    const shouldShowBlurredBackground = ts.enableMediaPageBlurredBackground && (
+    // Never shown when a custom wallpaper is set: the wallpaper is the background, and a blurred
+    // banner laid over it is what put the effects on the header instead of on the wallpaper — the
+    // blurred layer sat under the global effects (z-4 under z-5), so scrolling a details page
+    // painted scanlines and vignettes onto a blurred banner and hid the wallpaper behind it.
+    // Without a wallpaper the blurred banner IS the background, and it fills in for a hidden one.
+    const shouldShowBlurredBackground = ts.enableMediaPageBlurredBackground && !ts.libraryScreenCustomBackgroundImage && (
         y > 100
-        || (shouldHideBanner && !ts.libraryScreenCustomBackgroundImage)
+        || shouldHideBanner
     )
 
 

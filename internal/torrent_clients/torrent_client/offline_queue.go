@@ -245,6 +245,54 @@ func (q *torrentAddQueue) sendQueueEvent() {
 // |  Wiring into the repository                                              |
 // +--------------------------------------------------------------------------+
 
+// TorrentAddQueueView is the queue as the screen sees it: what is waiting for the client, and
+// whether anything is being imported right now.
+type TorrentAddQueueView struct {
+	// Waiting counts the entries queued for a client that is not there.
+	Waiting int `json:"waiting"`
+	// Adding counts the entries being imported right now.
+	Adding int `json:"adding"`
+	// Total is both together.
+	Total int `json:"total"`
+	// Oldest is the destination of the entry that has waited longest, for the screen's one line
+	// about what is being waited on.
+	Oldest string `json:"oldest,omitempty"`
+	// LastError is the most recent reason an add did not get through, so a queue that keeps
+	// waiting says why rather than looking stuck.
+	LastError string `json:"lastError,omitempty"`
+}
+
+// GetAddQueueView builds the queue as the screen sees it. Cheap: one indexed read.
+func (r *Repository) GetAddQueueView() *TorrentAddQueueView {
+	view := &TorrentAddQueueView{}
+
+	if r.offlineQueue == nil {
+		return view
+	}
+	items, err := r.offlineQueue.db.GetTorrentAddQueueItems()
+	if err != nil {
+		return view
+	}
+
+	for _, item := range items {
+		switch item.Status {
+		case torrentAddQueuePending:
+			view.Waiting++
+			if view.Oldest == "" {
+				view.Oldest = item.Destination
+			}
+		case torrentAddQueueAdding:
+			view.Adding++
+		}
+		if item.ErrorMessage != "" {
+			view.LastError = item.ErrorMessage
+		}
+	}
+	view.Total = view.Waiting + view.Adding
+
+	return view
+}
+
 // enqueueForLater writes a torrent the client could not take into the queue, to be imported the
 // moment the client answers again. Persisted, so a restart in the meantime loses nothing.
 func (r *Repository) enqueueForLater(magnets []string, dest string) {

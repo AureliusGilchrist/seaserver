@@ -1266,6 +1266,12 @@ function EffectSlider({
             <span className="text-sm text-[--muted] w-20 shrink-0">{label}</span>
             <div className="flex-1 relative h-1.5 bg-white/10 rounded-full overflow-hidden">
                 <div className="absolute inset-y-0 left-0 bg-[--color-brand-500] rounded-full transition-all" style={{ width: `${pct}%` }} />
+                {/* Where the handle actually is: an invisible input over a fill that ends without it
+                    reads as a line, not a control. */}
+                <div
+                    className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white shadow-sm pointer-events-none"
+                    style={{ left: `calc(${Math.min(100, Math.max(0, pct))}% - 7px)` }}
+                />
                 <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
             </div>
             <span className="text-sm text-[--muted] w-12 text-right tabular-nums">{display}</span>

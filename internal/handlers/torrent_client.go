@@ -34,6 +34,22 @@ func (h *Handler) torrentClientRepo() (*torrent_client.Repository, error) {
 	return h.App.TorrentClientRepository, nil
 }
 
+// HandleGetTorrentAddQueue
+//
+//	@summary returns the queue of torrents waiting for an offline client.
+//	@desc Returns how many entries are queued and being imported. A torrent the client could not
+//	@desc take because it was offline is queued here and imported the moment the client answers
+//	@desc again — see internal/torrent_clients/torrent_client/offline_queue.go. Safe to poll.
+//	@route /api/v1/torrent-client/add-queue [GET]
+//	@returns torrent_client.TorrentAddQueueView
+func (h *Handler) HandleGetTorrentAddQueue(c echo.Context) error {
+	repo := h.App.TorrentClientRepositoryRef.Get()
+	if repo == nil {
+		return h.RespondWithData(c, &torrent_client.TorrentAddQueueView{})
+	}
+	return h.RespondWithData(c, repo.GetAddQueueView())
+}
+
 // HandleGetActiveTorrentList
 //
 //	@summary returns all active torrents.

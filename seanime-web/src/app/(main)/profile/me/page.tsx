@@ -722,7 +722,7 @@ function AchievementsTabContent({ editable, isAdmin }: { editable?: boolean; isA
 
 export function StreakCard({ label, icon, streak }: { label: string; icon: React.ReactNode; streak?: ProfileStats_StreakInfo }) {
     return (
-        <div className="bg-gray-900 border border-[--border] rounded-lg p-4 space-y-2">
+        <div className="bg-gray-950/40 border border-[--border] rounded-xl p-4 space-y-2">
             <div className="flex items-center gap-2 text-[--muted]">
                 {icon}
                 <span className="text-sm font-medium">{label}</span>
@@ -731,12 +731,12 @@ export function StreakCard({ label, icon, streak }: { label: string; icon: React
                 <div>
                     <div className="flex items-center gap-2">
                         <LuFlame className={cn("text-2xl", (streak?.current ?? 0) > 0 ? "text-orange-400" : "text-gray-600")} />
-                        <span className="text-3xl font-bold">{streak?.current ?? 0}</span>
+                        <span className="text-3xl font-bold tabular-nums">{streak?.current ?? 0}</span>
                     </div>
                     <span className="text-xs text-[--muted]">Current</span>
                 </div>
                 <div>
-                    <span className="text-xl font-semibold text-[--muted]">{streak?.longest ?? 0}</span>
+                    <span className="text-xl font-semibold text-[--muted] tabular-nums">{streak?.longest ?? 0}</span>
                     <p className="text-xs text-[--muted]">Longest</p>
                 </div>
             </div>
@@ -886,7 +886,10 @@ function AniListCharts({ stats }: { stats?: AL_Stats }) {
 
     return (
         <div className="space-y-10">
-            <h2 className="text-xl font-semibold text-center">Anime Breakdown</h2>
+            <div>
+                <h2 className="text-xl font-semibold">Anime Breakdown</h2>
+                <p className="text-xs text-[--muted] mt-0.5">What you watch, and what it scores, straight from AniList.</p>
+            </div>
 
             {genreData.length > 0 && <ChartSection title="Genres"><BarChart data={genreData} index="name" categories={["Count", "Avg Score"]} colors={["brand", "blue"]} /></ChartSection>}
             {formatData.length > 0 && (
@@ -903,7 +906,10 @@ function AniListCharts({ stats }: { stats?: AL_Stats }) {
 
             <Separator />
 
-            <h2 className="text-xl font-semibold text-center">Manga Breakdown</h2>
+            <div>
+                <h2 className="text-xl font-semibold">Manga Breakdown</h2>
+                <p className="text-xs text-[--muted] mt-0.5">What you read, and what it scores, straight from AniList.</p>
+            </div>
             <Stats className="w-full" size="lg" items={[
                 { icon: <LuBookOpen />, name: "Total Manga", value: stats?.mangaStats?.count ?? 0 },
                 { icon: <LuHourglass />, name: "Chapters Read", value: stats?.mangaStats?.chaptersRead ?? 0 },
@@ -915,9 +921,11 @@ function AniListCharts({ stats }: { stats?: AL_Stats }) {
 }
 
 function ChartSection({ title, children }: { title: string; children: React.ReactNode }) {
+    // A panel, like every other section on this page — a chart floating in whitespace reads as
+    // decoration; one with an edge reads as something that was measured.
     return (
-        <div className="space-y-4">
-            <h3 className="text-center text-lg font-medium">{title}</h3>
+        <div className="rounded-xl border border-[--border] bg-gray-950/40 p-4">
+            <h3 className="text-sm font-medium mb-3">{title}</h3>
             <div className="w-full">{children}</div>
         </div>
     )

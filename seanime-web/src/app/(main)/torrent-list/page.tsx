@@ -1,7 +1,7 @@
 "use client"
 import { TorrentClientAction_Variables } from "@/api/generated/endpoint.types"
 import { TorrentClient_Torrent } from "@/api/generated/types"
-import { useGetActiveTorrentList, useTorrentClientAction } from "@/api/hooks/torrent_client.hooks"
+import { useGetActiveTorrentList, useGetTorrentAddQueue, useTorrentClientAction } from "@/api/hooks/torrent_client.hooks"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { SortDirection } from "@/app/(main)/entry/_containers/torrent-search/_components/torrent-common-helpers"
@@ -52,6 +52,7 @@ export default function Page() {
                 </div>
 
                 <div data-torrent-list-page-content className="pb-10">
+                    <OfflineAddQueuePanel />
                     <Content />
                 </div>
             </PageWrapper>
@@ -104,8 +105,40 @@ const getSortIcon = (sortDirection: SortDirection) => {
         <TbSortDescending className="text-[--muted] text-lg" />
 }
 
-function Content() {
-    const serverStatus = useServerStatus()
+/**
+ * What the server is holding for a client that is not there.
+ *
+ * A download pressed while the torrent client is offline is queued rather than failed, and imported
+ * the moment the client answers again — so this panel says what is waiting instead of the download
+ * looking lost. Nothing here is a dead end: the queue keeps trying for as long as it takes, and the
+ * reason it is still waiting is the line under it.
+ */
+function OfflineAddQueuePanel() {
+    const { data: queue } = useGetTorrentAddQueue()
+
+    if (!queue || queue.total === 0) return null
+
+    return (
+        <div className="flex items-center gap-3 flex-wrap border border-gray-800 rounded-xl px-4 py-3 bg-gray-900/40 mb-4">
+            <LoadingSpinner className="h-4 w-4 flex-shrink-0 text-brand-300" />
+            <p className="text-sm">
+                <span className="font-medium text-gray-200">{queue.waiting}</span> torrent{queue.waiting === 1 ? "" : "s"} waiting for the client
+                {queue.adding > 0 && <> · <span className="text-brand-300">importing {queue.adding} now</span></>}
+            </p>
+            {!!queue.oldest && (
+                <span className="text-xs text-[--muted] truncate max-w-[24rem]" title={queue.oldest}>
+                    next: {queue.oldest}
+                </span>
+            )}
+            <div className="flex-1" />
+            <p className="text-xs text-[--muted]">
+                {queue.lastError || "They'll be added automatically when the client is back"}
+            </p>
+        </div>
+    )
+}
+
+function Content() {    const serverStatus = useServerStatus()
     const [enabled, setEnabled] = React.useState(true)
     const [categoryInput, setCategoryInput] = React.useState("")
     const [category, setCategory] = React.useState("")
