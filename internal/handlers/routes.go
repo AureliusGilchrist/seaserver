@@ -1062,6 +1062,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.PATCH("/profile/display-title", h.HandleSetDisplayTitle)
 	v1.PATCH("/profile/display-cosmetics", h.HandleSetDisplayCosmetics)
 	v1.GET("/profile/level", h.HandleGetLevel)
+	// What the last update was, kept until the client has seen it. Shown after sign-in, never at
+	// the PIN screen, and dismissed only by the person looking at it.
+	v1.GET("/update/notice", h.HandleGetUpdateNotice)
+	v1.POST("/update/notice/dismiss", h.HandleDismissUpdateNotice)
+
 	v1.GET("/profile/exp-bar/all", h.HandleGetExpBarProgression)
 	v1.GET("/profile/exp-bar/level/:level", h.HandleGetExpBarForLevel)
 
