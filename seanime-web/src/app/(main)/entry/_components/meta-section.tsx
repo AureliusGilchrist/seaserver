@@ -187,8 +187,9 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                     />}
 
                     {/* The button the to-watch list is built from, near the front of the row — it
-                        is the only place the list is added to, so it has to be findable. */}
-                    <ToWatchButton media={entry.media!} />
+                        is the only place the list is added to, so it has to be findable. The
+                        studio rides along, since the snapshot's row shows it. */}
+                    <ToWatchButton media={entry.media!} studios={details?.studios?.nodes?.[0]?.name} />
 
                     <AnimeAutoDownloaderButton entry={entry} size="md" />
 

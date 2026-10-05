@@ -18,15 +18,25 @@ import (
 
 // toWatchEntry is one row of the list, as the screen draws it: the snapshot taken when it was added,
 // plus the anime's id, which is the row's identity.
+//
+// The snapshot carries everything a row shows, because a list of thousands rendered a row at a time
+// must not ask AniList for each one — and a list that shows what was true when it was added does not
+// change under the person reading it.
 type toWatchEntry struct {
-	AnimeID     int    `json:"animeId"`
-	Title       string `json:"title"`
-	Description string `json:"description,omitempty"`
-	CoverImage  string `json:"coverImage,omitempty"`
-	BannerImage string `json:"bannerImage,omitempty"`
-	Format      string `json:"format,omitempty"`
-	Episodes    int    `json:"episodes,omitempty"`
-	SeasonYear  int    `json:"seasonYear,omitempty"`
+	AnimeID     int      `json:"animeId"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	CoverImage  string   `json:"coverImage,omitempty"`
+	BannerImage string   `json:"bannerImage,omitempty"`
+	Format      string   `json:"format,omitempty"`
+	Episodes    int      `json:"episodes,omitempty"`
+	Duration    int      `json:"duration,omitempty"`
+	Season      string   `json:"season,omitempty"`
+	SeasonYear  int      `json:"seasonYear,omitempty"`
+	Status      string   `json:"status,omitempty"`
+	MeanScore   int      `json:"meanScore,omitempty"`
+	Genres      []string `json:"genres,omitempty"`
+	Studio      string   `json:"studio,omitempty"`
 }
 
 func decodeToWatchEntry(item *models.ToWatchItem) toWatchEntry {
@@ -99,14 +109,20 @@ func (h *Handler) HandleAddToWatch(c echo.Context) error {
 	}
 
 	type body struct {
-		AnimeID     int    `json:"animeId"`
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		CoverImage  string `json:"coverImage"`
-		BannerImage string `json:"bannerImage"`
-		Format      string `json:"format"`
-		Episodes    int    `json:"episodes"`
-		SeasonYear  int    `json:"seasonYear"`
+		AnimeID     int      `json:"animeId"`
+		Title       string   `json:"title"`
+		Description string   `json:"description"`
+		CoverImage  string   `json:"coverImage"`
+		BannerImage string   `json:"bannerImage"`
+		Format      string   `json:"format"`
+		Episodes    int      `json:"episodes"`
+		Duration    int      `json:"duration"`
+		Season      string   `json:"season"`
+		SeasonYear  int      `json:"seasonYear"`
+		Status      string   `json:"status"`
+		MeanScore   int      `json:"meanScore"`
+		Genres      []string `json:"genres"`
+		Studio      string   `json:"studio"`
 	}
 
 	var b body
@@ -132,7 +148,13 @@ func (h *Handler) HandleAddToWatch(c echo.Context) error {
 		BannerImage: b.BannerImage,
 		Format:      b.Format,
 		Episodes:    b.Episodes,
+		Duration:    b.Duration,
+		Season:      b.Season,
 		SeasonYear:  b.SeasonYear,
+		Status:      b.Status,
+		MeanScore:   b.MeanScore,
+		Genres:      b.Genres,
+		Studio:      b.Studio,
 	})
 	if err != nil {
 		return h.RespondWithError(c, err)

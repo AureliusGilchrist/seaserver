@@ -2,6 +2,7 @@ package updater
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -54,13 +55,17 @@ type GitAutoUpdater struct {
 	logger         *zerolog.Logger
 	wsEventManager *events.WSEventManager
 	repoDir        string
-	updating       bool
+	// appDataDir is where the update notice is written. The notice has to survive the restart this
+	// updater performs — the process is replaced underneath itself — so it is in the data
+	// directory, not in memory.
+	appDataDir string
+	updating   bool
 }
 
 // StartGitAutoUpdate starts the fork's auto-updater when the server is running from inside its own
 // git checkout — the NAS deployment case. A binary that is not in a checkout has nothing to pull,
 // so the updater is simply not started there.
-func StartGitAutoUpdate(logger *zerolog.Logger, wsEventManager *events.WSEventManager) {
+func StartGitAutoUpdate(logger *zerolog.Logger, wsEventManager *events.WSEventManager, appDataDir string) {
 	if disabled := os.Getenv("SEANIME_AUTO_UPDATE"); disabled == "0" || strings.EqualFold(disabled, "false") {
 		logger.Info().Msg("selfupdate: Auto-update disabled (SEANIME_AUTO_UPDATE=0)")
 		return
@@ -76,6 +81,7 @@ func StartGitAutoUpdate(logger *zerolog.Logger, wsEventManager *events.WSEventMa
 		logger:         logger,
 		wsEventManager: wsEventManager,
 		repoDir:        repoDir,
+		appDataDir:     appDataDir,
 	}
 
 	logger.Info().Str("dir", repoDir).Dur("interval", gitUpdateInterval).
@@ -211,6 +217,12 @@ func (u *GitAutoUpdater) update() {
 		return
 	}
 
+	// What the update was, written down before the process is replaced underneath itself: the
+	// commit's message and its description, so the client can say what arrived rather than only
+	// that something did. The file survives the restart, which is the point — a client that was
+	// closed while the update happened reads it the next time it signs in.
+	u.writeUpdateNotice()
+
 	u.notify("Update built — restarting now…")
 	u.logger.Info().Str("exe", exePath).Msg("selfupdate: Restarting with the new version")
 
@@ -229,6 +241,65 @@ func (u *GitAutoUpdater) update() {
 	}
 	if err := syscallExec(exePath, args, os.Environ()); err != nil {
 		u.logger.Error().Err(err).Msg("selfupdate: Could not restart with the new version")
+	}
+}
+
+// UpdateNotice is what an update was, shown to the client after it signs in.
+type UpdateNotice struct {
+	// Title is the commit's subject line; Description is its body.
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+	Commit      string `json:"commit,omitempty"`
+	UpdatedAt   string `json:"updatedAt"`
+}
+
+// updateNoticeFileName is where the notice lives: in the data directory, because the notice has to
+// survive the restart that the updater itself performs.
+const updateNoticeFileName = "update-notice.json"
+
+func (u *GitAutoUpdater) writeUpdateNotice() {
+	if u.appDataDir == "" {
+		return
+	}
+
+	// The commit's subject and body, read from what was just pulled — `git log -1` on the new HEAD.
+	out, err := u.git("log", "-1", "--format=%s%n%n%b")
+	if err != nil {
+		u.logger.Warn().Err(err).Msg("selfupdate: Could not read the new commit's message")
+	}
+
+	title, description := "", ""
+	if lines := strings.SplitN(strings.TrimSpace(out), "\n", 2); len(lines) > 0 {
+		title = strings.TrimSpace(lines[0])
+		if len(lines) > 1 {
+			description = strings.TrimSpace(lines[1])
+		}
+	}
+
+	commit, _ := u.git("rev-parse", "HEAD")
+	commit = strings.TrimSpace(commit)
+	if len(commit) > 8 {
+		commit = commit[:8]
+	}
+
+	notice := UpdateNotice{
+		Title:       title,
+		Description: description,
+		Commit:      commit,
+		UpdatedAt:   time.Now().Format(time.RFC3339),
+	}
+
+	data, err := json.Marshal(notice)
+	if err != nil {
+		return
+	}
+	if err := util.WriteFileCrashSafe(filepath.Join(u.appDataDir, updateNoticeFileName), data, 0o644); err != nil {
+		u.logger.Warn().Err(err).Msg("selfupdate: Could not write the update notice")
+		return
+	}
+
+	if u.wsEventManager != nil {
+		u.wsEventManager.SendEvent(events.UpdateNoticeAvailable, nil)
 	}
 }
 

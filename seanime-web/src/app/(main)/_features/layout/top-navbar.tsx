@@ -89,7 +89,7 @@ export function TopNavbar(props: TopNavbarProps) {
             >
                 <div
                     data-top-navbar-content-container
-                    className="relative z-10 px-4 w-full flex flex-row md:items-center overflow-x-auto overflow-y-hidden"
+                    className="relative z-10 px-4 w-full flex flex-row items-center overflow-x-auto overflow-y-hidden"
                 >
                     <div data-top-navbar-content className="flex items-center w-full gap-3">
                         <AppSidebarTrigger />
@@ -133,8 +133,10 @@ export function SidebarNavbar(props: SidebarNavbarProps) {
 
     return (
         <div data-sidebar-navbar className="flex flex-col gap-1">
+            {/* Side by side, on one line: back on the left, forward on the right, the way every
+                browser draws them. Stacked, they read as two unrelated buttons. */}
             <div className="flex justify-center py-1">
-                <NavHistoryButtons vertical />
+                <NavHistoryButtons />
             </div>
             {!serverStatus?.isOffline && <VerticalMenu
                 data-sidebar-navbar-vertical-menu

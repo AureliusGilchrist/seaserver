@@ -19,7 +19,7 @@ import { LuCheck, LuListVideo } from "react-icons/lu"
  * to, so it has to be findable. Once the anime is on the list it says so and takes it off again,
  * which is also how somebody checks whether it is already there.
  */
-export function ToWatchButton({ media, className }: { media: AL_BaseAnime, className?: string }) {
+export function ToWatchButton({ media, studios, className }: { media: AL_BaseAnime, studios?: string, className?: string }) {
     const { data: list } = useGetToWatch()
     const { mutate: addToWatch, isPending: isAdding } = useAddToWatch()
     const { mutate: removeFromToWatch, isPending: isRemoving } = useRemoveFromToWatch()
@@ -46,9 +46,15 @@ export function ToWatchButton({ media, className }: { media: AL_BaseAnime, class
             bannerImage: m?.bannerImage || undefined,
             format: m?.format || undefined,
             episodes: m?.episodes || undefined,
+            duration: m?.duration || undefined,
+            season: m?.season || undefined,
             seasonYear: m?.seasonYear || undefined,
+            status: m?.status || undefined,
+            meanScore: m?.meanScore ? Math.round(m.meanScore) : undefined,
+            genres: (m?.genres ?? []).slice(0, 5),
+            studio: studios || undefined,
         })
-    }, [media, onList, addToWatch, removeFromToWatch])
+    }, [media, studios, onList, addToWatch, removeFromToWatch])
 
     return (
         <Button

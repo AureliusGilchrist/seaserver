@@ -11,25 +11,29 @@ import {
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
-import { SeaImage } from "@/components/shared/sea-image"
 import { useRouter } from "@/lib/navigation"
-import { Virtuoso } from "react-virtuoso"
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import capitalize from "lodash/capitalize"
 import React from "react"
-import { LuChevronDown, LuChevronUp, LuListVideo, LuPlay, LuTrash2, LuX } from "react-icons/lu"
+import { LuGripVertical, LuListVideo, LuPlay, LuTrash2, LuX } from "react-icons/lu"
 
 /**
  * The to-watch list: what somebody means to watch, in the order they arranged.
  *
  * A strip of cards rather than a grid, because the whole point of the list is the running order —
- * the next thing is at the top and the rest follow in a line, the way a person keeps a list in
- * their head. The cover sits at the far left so each entry is recognisable without reading; the
- * description is the middle, because it is what "should I watch this?" is answered from; the
- * metadata sits to the right of it; and the button that starts it is on the far right.
+ * the next thing is at the top and the rest follow in a line. The cover sits at the far left so
+ * each entry is recognisable without reading; the description is the middle, because that is what
+ * "should I watch this?" is answered from; the metadata sits to the right of it; and the button
+ * that starts it is on the far right.
+ *
+ * The order is changed with a grab handle, and one drag is one request: the whole order is sent
+ * whole, so a move lands as the arrangement that was made rather than a sequence of swaps.
  *
  * It starts blank and every entry on it was put there deliberately from an anime's own page. It is
- * allowed to be as long as its owner wants — thousands is a list — so it is rendered a window at a
- * time, and reordering is a pair of buttons rather than a drag: a drag over three thousand rows is
- * a scroll problem, and a move is one request either way.
+ * allowed to be as long as its owner wants — thousands is a list.
  */
 export function ToWatchList({ profileId, readOnly }: { profileId?: number, readOnly?: boolean }) {
     const isSelf = !readOnly
@@ -42,21 +46,37 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
     const { mutate: reorder } = useReorderToWatch()
     const { mutate: removeItem } = useRemoveFromToWatch()
     const { mutate: clearList } = useClearToWatch()
-    const router = useRouter()
     const clearConfirmation = useConfirmationDialog({
         title: "Clear the to-watch list",
         description: "Removes every entry. The anime themselves are not touched.",
         onConfirm: () => clearList({}),
     })
 
-    const move = React.useCallback((index: number, direction: -1 | 1) => {
-        const next = [...items]
-        const target = index + direction
-        if (target < 0 || target >= next.length) return
-        const [moved] = next.splice(index, 1)
-        next.splice(target, 0, moved!)
-        // The whole order, in one request — so a move is a move, not a sequence of swaps that can
-        // land half-done.
+    const router = useRouter()
+
+    // The drag is a pointer grab on the handle only — scrolling the strip must never start a drag,
+    // which is what a listener on the whole card would do on a phone.
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+    )
+    const [draggingId, setDraggingId] = React.useState<string | null>(null)
+    const dragging = items.find(e => toWatchKey(e) === draggingId) ?? null
+
+    const handleDragStart = React.useCallback((event: DragStartEvent) => {
+        setDraggingId(String(event.active.id))
+    }, [])
+
+    const handleDragEnd = React.useCallback((event: DragEndEvent) => {
+        setDraggingId(null)
+        const { active, over } = event
+        if (!over || active.id === over.id) return
+
+        const oldIndex = items.findIndex(e => toWatchKey(e) === active.id)
+        const newIndex = items.findIndex(e => toWatchKey(e) === over.id)
+        if (oldIndex < 0 || newIndex < 0) return
+
+        const next = arrayMove(items, oldIndex, newIndex)
         reorder({ animeIds: next.map(e => e.animeId) })
     }, [items, reorder])
 
@@ -85,7 +105,7 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
     }
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-4">
             {isSelf && (
                 <div className="flex items-center gap-3 flex-wrap">
                     <p className="text-sm text-[--muted]">
@@ -99,116 +119,189 @@ export function ToWatchList({ profileId, readOnly }: { profileId?: number, readO
                 </div>
             )}
 
-            {/* Rendered a window at a time: the list is allowed to be thousands, and mounting every
-                row up front would make it the slowest page on the server. */}
-            <Virtuoso
-                useWindowScroll
-                totalCount={items.length}
-                increaseViewportBy={{ top: 600, bottom: 900 }}
-                itemContent={(index, entry) => (
-                    <div className="pb-3">
-                        <ToWatchCard
-                            entry={entry}
-                            position={index + 1}
-                            readOnly={!isSelf}
-                            onMoveUp={index > 0 ? () => move(index, -1) : undefined}
-                            onMoveDown={index < items.length - 1 ? () => move(index, 1) : undefined}
-                            onRemove={isSelf ? () => removeItem({ animeId: entry.animeId }) : undefined}
-                        />
+            <DndContext
+                sensors={sensors}
+                modifiers={[restrictToVerticalAxis]}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragCancel={() => setDraggingId(null)}
+            >
+                <SortableContext items={items.map(toWatchKey)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2.5">
+                        {items.map((entry, index) => (
+                            <ToWatchCard
+                                key={toWatchKey(entry)}
+                                entry={entry}
+                                position={index + 1}
+                                readOnly={!isSelf}
+                                onRemove={isSelf ? () => removeItem({ animeId: entry.animeId }) : undefined}
+                                isDragging={draggingId === toWatchKey(entry)}
+                            />
+                        ))}
                     </div>
-                )}
-            />
+                </SortableContext>
+
+                {/* The card being carried, above everything while it moves. */}
+                <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
+                    {dragging && (
+                        <ToWatchCard entry={dragging} position={items.findIndex(e => toWatchKey(e) === draggingId) + 1} readOnly isOverlay />
+                    )}
+                </DragOverlay>
+            </DndContext>
 
             <ConfirmationDialog {...clearConfirmation} />
         </div>
     )
 }
 
+function toWatchKey(entry: ToWatchEntry): string {
+    return `tw-${entry.animeId}`
+}
+
+/** "2023" / "Spring 2023" — the year, said the way a person would. */
+function toWatchSeasonYear(entry: ToWatchEntry): string | null {
+    if (!entry.seasonYear) return null
+    const season = entry.season ? capitalize(entry.season.toLowerCase()) : null
+    return season ? `${season} ${entry.seasonYear}` : `${entry.seasonYear}`
+}
+
 /**
- * One row of the strip: the cover on the far left, the description in the middle, the metadata to
- * its right, and the button that starts it on the far right.
+ * One card of the strip: the grab handle, where it sits in the order, the poster that makes it
+ * recognisable, the title, the description that answers "should I watch this?", the metadata it
+ * carries, and the button that starts it.
  */
 function ToWatchCard({
     entry,
     position,
     readOnly,
-    onMoveUp,
-    onMoveDown,
     onRemove,
+    isDragging,
+    isOverlay,
 }: {
     entry: ToWatchEntry
     position: number
     readOnly?: boolean
-    onMoveUp?: () => void
-    onMoveDown?: () => void
     onRemove?: () => void
+    isDragging?: boolean
+    isOverlay?: boolean
 }) {
-    const href = `/entry?id=${entry.animeId}`
     const router = useRouter()
+    const href = `/entry?id=${entry.animeId}`
+
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging: isSortDragging,
+    } = useSortable({ id: toWatchKey(entry), disabled: !!readOnly })
+
+    const seasonYear = toWatchSeasonYear(entry)
 
     return (
-        <div className="flex items-stretch gap-4 rounded-xl border border-gray-800 bg-gray-950/50 overflow-hidden hover:border-gray-700 transition-colors">
-            {/* Where it sits in the order, and the cover that makes it recognisable. */}
-            <div className="flex items-center justify-center w-9 flex-shrink-0 border-r border-gray-800/70 text-[--muted]">
+        <div
+            ref={setNodeRef}
+            {...attributes}
+            style={{
+                transform: CSS.Transform.toString(transform ? { ...transform, scaleY: 1 } : null),
+                transition,
+            }}
+            className={cn(
+                "flex items-stretch gap-3 rounded-xl border bg-gray-950/60 overflow-hidden",
+                "transition-colors",
+                isSortDragging
+                    ? "border-brand-500/70 opacity-40"
+                    : "border-gray-800 hover:border-gray-700",
+                isOverlay && "border-brand-500/70 shadow-2xl shadow-black/60 bg-gray-900",
+            )}
+        >
+            {/* The grab handle. The order is changed from here and nowhere else — the rest of the
+                card is for reading and starting. */}
+            {!readOnly && (
+                <button
+                    {...listeners}
+                    aria-label="Drag to reorder"
+                    className="flex items-center justify-center w-7 flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-600 hover:text-gray-300 touch-none"
+                >
+                    <LuGripVertical className="w-4 h-4" />
+                </button>
+            )}
+
+            {/* Where it sits in the order. A list is a sequence, so the number is information. */}
+            <div className="flex items-center justify-center w-8 flex-shrink-0 text-[--muted]">
                 <span className="text-sm font-semibold tabular-nums">{position}</span>
             </div>
 
             {entry.coverImage ? (
                 <a href={href} className="py-3 flex-shrink-0" title={entry.title}>
-                    <div className="w-[54px] h-[76px] rounded-md overflow-hidden bg-gray-800/70 border border-gray-700/60">
-                        <SeaImage
+                    <div className="w-[56px] h-[78px] rounded-md overflow-hidden bg-gray-800/70 border border-gray-700/60 relative group/poster">
+                        <img
                             src={entry.coverImage}
                             alt={entry.title}
-                            width={54}
-                            height={76}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover"
                         />
+                        <div className="absolute inset-0 bg-black/0 group-hover/poster:bg-black/30 transition-colors flex items-center justify-center">
+                            <LuPlay className="w-5 h-5 text-white opacity-0 group-hover/poster:opacity-100 transition-opacity" />
+                        </div>
                     </div>
                 </a>
-            ) : null}
+            ) : (
+                <div className="py-3 flex-shrink-0">
+                    <div className="w-[56px] h-[78px] rounded-md bg-gray-800/70 border border-gray-700/60 flex items-center justify-center">
+                        <LuListVideo className="text-lg text-gray-500" />
+                    </div>
+                </div>
+            )}
 
-            {/* The description — what "should I watch this?" is answered from. */}
-            <div className="flex-1 min-w-0 py-3">
+            {/* The description — what "should I watch this?" is answered from — and the metadata. */}
+            <div className="flex-1 min-w-0 py-3 pr-3">
                 <a href={href} title={entry.title}>
                     <p className="font-semibold text-[15px] leading-tight line-clamp-1 hover:text-brand-200 transition-colors">
                         {entry.title}
                     </p>
                 </a>
+
                 {entry.description && (
                     <p className="text-xs text-[--muted] leading-relaxed line-clamp-2 mt-1" title={entry.description}>
                         {entry.description}
                     </p>
                 )}
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-2 text-xs text-[--muted]">
-                    {entry.format && <span className="px-1.5 py-px rounded-full bg-white/[0.06] text-gray-300">{entry.format}</span>}
+
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-xs text-[--muted]">
+                    {entry.format && (
+                        <span className="px-1.5 py-px rounded-full bg-white/[0.06] text-gray-300 font-medium">{entry.format}</span>
+                    )}
                     {!!entry.episodes && <span className="tabular-nums">{entry.episodes} ep{entry.episodes === 1 ? "" : "s"}</span>}
-                    {!!entry.seasonYear && <span className="tabular-nums">{entry.seasonYear}</span>}
+                    {seasonYear && <span className="tabular-nums">{seasonYear}</span>}
+                    {entry.status && (
+                        <span className={cn(
+                            entry.status === "FINISHED" && "text-emerald-400/90",
+                            entry.status === "RELEASING" && "text-sky-400/90",
+                            entry.status === "NOT_YET_RELEASED" && "text-amber-400/90",
+                        )}>
+                            {entry.status.replace(/_/g, " ").toLowerCase()}
+                        </span>
+                    )}
+                    {!!entry.meanScore && <span className="text-amber-300/80">★ {entry.meanScore}%</span>}
+                    {!!entry.duration && <span className="tabular-nums">{entry.duration} min/ep</span>}
                 </div>
+
+                {(!!entry.genres?.length || !!entry.studio) && (
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[11px] text-[--muted]">
+                        {!!entry.studio && <span>{entry.studio}</span>}
+                        {!!entry.genres?.length && (
+                            <span className="truncate">
+                                {entry.studio ? "· " : ""}{entry.genres.slice(0, 4).join(" · ")}
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="flex items-center gap-1.5 flex-shrink-0 pr-3">
-                {/* The order is a pair of buttons: a drag over thousands of rows is a scroll
-                    problem, and a move is one request either way. */}
-                {!readOnly && (
-                    <div className="flex flex-col gap-0.5">
-                        <button
-                            onClick={onMoveUp}
-                            disabled={!onMoveUp}
-                            className="w-6 h-6 rounded-md flex items-center justify-center text-[--muted] hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                            title="Move up"
-                        >
-                            <LuChevronUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                            onClick={onMoveDown}
-                            disabled={!onMoveDown}
-                            className="w-6 h-6 rounded-md flex items-center justify-center text-[--muted] hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                            title="Move down"
-                        >
-                            <LuChevronDown className="w-3.5 h-3.5" />
-                        </button>
-                    </div>
-                )}
                 <Button
                     size="sm"
                     intent="primary"

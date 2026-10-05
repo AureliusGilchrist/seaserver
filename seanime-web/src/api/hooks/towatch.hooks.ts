@@ -22,7 +22,13 @@ export interface ToWatchEntry {
     bannerImage?: string
     format?: string
     episodes?: number
+    duration?: number
+    season?: string
     seasonYear?: number
+    status?: string
+    meanScore?: number
+    genres?: string[]
+    studio?: string
 }
 
 export interface AddToWatchBody {
@@ -33,7 +39,13 @@ export interface AddToWatchBody {
     bannerImage?: string
     format?: string
     episodes?: number
+    duration?: number
+    season?: string
     seasonYear?: number
+    status?: string
+    meanScore?: number
+    genres?: string[]
+    studio?: string
 }
 
 const TO_WATCH_KEY = ["to-watch"]

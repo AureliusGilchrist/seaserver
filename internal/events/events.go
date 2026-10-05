@@ -69,6 +69,7 @@ const (
 	ChapterDownloadQueueUpdated   = "chapter-download-queue-updated"
 	UnmatchedMatchQueueUpdated    = "unmatched-match-queue-updated"
 	TorrentAddQueueUpdated        = "torrent-add-queue-updated"
+	UpdateNoticeAvailable         = "update-notice-available"
 	MangaChapterMigrationProgress = "manga-chapter-migration-progress"
 	MangaScanProgress             = "manga-scan-progress"
 	MangaScanCompleted            = "manga-scan-completed"
