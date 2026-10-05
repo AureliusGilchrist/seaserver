@@ -186,6 +186,10 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                         </Button>}
                     />}
 
+                    {/* The button the to-watch list is built from, near the front of the row — it
+                        is the only place the list is added to, so it has to be findable. */}
+                    <ToWatchButton media={entry.media!} />
+
                     <AnimeAutoDownloaderButton entry={entry} size="md" />
 
                     {isLibraryView && !entry._isNakamaEntry && !!entry.libraryData && <>
@@ -244,9 +248,6 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                     }>
                         {isFavorite(entry.mediaId) ? "Remove from favorites" : "Add to favorites"}
                     </Tooltip>
-
-                    {/* The button the to-watch list is built from — every anime page has one. */}
-                    <ToWatchButton media={entry.media!} />
 
                     <PluginAnimePageButtons media={entry.media!} />
 

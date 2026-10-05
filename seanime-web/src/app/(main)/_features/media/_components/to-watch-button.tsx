@@ -1,12 +1,11 @@
 "use client"
 
-import { useAddToWatch } from "@/api/hooks/towatch.hooks"
+import { useAddToWatch, useGetToWatch, useRemoveFromToWatch } from "@/api/hooks/towatch.hooks"
 import { AL_BaseAnime } from "@/api/generated/types"
-import { Button, IconButton } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
-import { Tooltip } from "@/components/ui/tooltip"
 import React from "react"
-import { LuListVideo } from "react-icons/lu"
+import { LuCheck, LuListVideo } from "react-icons/lu"
 
 /**
  * The button the to-watch list is built from.
@@ -15,11 +14,27 @@ import { LuListVideo } from "react-icons/lu"
  * anime's own page, which is why there is nothing to turn off: the list is exactly as long as the
  * person made it. The snapshot the list shows is taken here, at the moment of adding, so the row
  * never has to ask AniList for itself.
+ *
+ * A labeled button rather than another icon in the row: this is the only place the list is added
+ * to, so it has to be findable. Once the anime is on the list it says so and takes it off again,
+ * which is also how somebody checks whether it is already there.
  */
-export function ToWatchButton({ media, size = "md" }: { media: AL_BaseAnime, size?: "sm" | "md" }) {
-    const { mutate: addToWatch, isPending } = useAddToWatch()
+export function ToWatchButton({ media, className }: { media: AL_BaseAnime, className?: string }) {
+    const { data: list } = useGetToWatch()
+    const { mutate: addToWatch, isPending: isAdding } = useAddToWatch()
+    const { mutate: removeFromToWatch, isPending: isRemoving } = useRemoveFromToWatch()
 
-    const handleAdd = React.useCallback(() => {
+    const onList = React.useMemo(
+        () => (list ?? []).some(entry => entry.animeId === media?.id),
+        [list, media?.id],
+    )
+
+    const handleClick = React.useCallback(() => {
+        if (!media?.id) return
+        if (onList) {
+            removeFromToWatch({ animeId: media.id })
+            return
+        }
         const m = media as any
         addToWatch({
             animeId: media.id,
@@ -33,50 +48,19 @@ export function ToWatchButton({ media, size = "md" }: { media: AL_BaseAnime, siz
             episodes: m?.episodes || undefined,
             seasonYear: m?.seasonYear || undefined,
         })
-    }, [media, addToWatch])
-
-    return (
-        <Tooltip trigger={
-            <IconButton
-                size="sm"
-                intent="gray-link"
-                className="px-0"
-                icon={<LuListVideo className="text-lg" />}
-                loading={isPending}
-                onClick={handleAdd}
-            />
-        }>
-            Add to your to-watch list
-        </Tooltip>
-    )
-}
-
-/** A compact variant for places a row of buttons does not fit. */
-export function ToWatchButtonCompact({ media, className }: { media: AL_BaseAnime, className?: string }) {
-    const { mutate: addToWatch, isPending } = useAddToWatch()
+    }, [media, onList, addToWatch, removeFromToWatch])
 
     return (
         <Button
             size="sm"
-            intent="gray-outline"
-            leftIcon={<LuListVideo />}
-            loading={isPending}
+            intent={onList ? "primary-subtle" : "gray-outline"}
+            leftIcon={onList ? <LuCheck /> : <LuListVideo />}
+            loading={isAdding || isRemoving}
             className={cn("flex-none", className)}
-            onClick={() => {
-                const m = media as any
-                addToWatch({
-                    animeId: media.id,
-                    title: m?.title?.userPreferred || m?.title?.romaji || m?.title?.english || m?.title?.native || `#${media.id}`,
-                    description: m?.description ? String(m.description).replace(/<[^>]*>/g, "").slice(0, 400) : undefined,
-                    coverImage: m?.coverImage?.large || m?.coverImage?.extraLarge || m?.coverImage?.medium || undefined,
-                    bannerImage: m?.bannerImage || undefined,
-                    format: m?.format || undefined,
-                    episodes: m?.episodes || undefined,
-                    seasonYear: m?.seasonYear || undefined,
-                })
-            }}
+            onClick={handleClick}
+            title={onList ? "On your to-watch list — click to take it off" : "Add to your to-watch list"}
         >
-            To watch
+            {onList ? "On your list" : "To watch"}
         </Button>
     )
 }
