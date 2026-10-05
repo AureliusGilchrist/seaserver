@@ -293,7 +293,7 @@ func (u *GitAutoUpdater) writeUpdateNotice() {
 	if err != nil {
 		return
 	}
-	if err := util.WriteFileCrashSafe(filepath.Join(u.appDataDir, updateNoticeFileName), data, 0o644); err != nil {
+	if err := util.WriteFileCrashSafe(filepath.Join(u.appDataDir, UpdateNoticeFileName), data, 0o644); err != nil {
 		u.logger.Warn().Err(err).Msg("selfupdate: Could not write the update notice")
 		return
 	}
