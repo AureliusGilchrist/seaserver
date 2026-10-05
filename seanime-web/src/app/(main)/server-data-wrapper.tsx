@@ -199,6 +199,12 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
     if (pathname.startsWith("/auth/callback")) return children
 
     /**
+     * What the server's last update was. Below the auth gate, so the PIN screen never carries it —
+     * it is shown the moment the app is signed in, and it stays until its X is pressed.
+     */
+    const updateNotice = <UpdateNoticeBanner />
+
+    /**
      * If the server status doesn't have settings, show the getting started page
      */
     if (!serverStatus?.settings) {
