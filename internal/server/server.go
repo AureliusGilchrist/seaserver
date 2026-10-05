@@ -109,8 +109,10 @@ appLoop:
 			// The fork's own auto-updater: watches the fork's repository for new commits, pulls,
 			// builds, and replaces the running process with what it built. Runs on its own clock —
 			// fifteen minutes, no cron, no external scheduler — and a failed build keeps the
-			// current version serving. See updater/gitupdate.go.
-			updater.StartGitAutoUpdate(app.Logger, app.WSEventManager)
+			// current version serving. See updater/gitupdate.go. The data dir is where it writes
+			// what an update was, so a client that was closed while it happened hears about it
+			// when it next signs in.
+			updater.StartGitAutoUpdate(app.Logger, app.WSEventManager, app.Config.Data.AppDataDir)
 
 			select {
 			case <-selfupdater.Started():
