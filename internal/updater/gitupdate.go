@@ -253,9 +253,9 @@ type UpdateNotice struct {
 	UpdatedAt   string `json:"updatedAt"`
 }
 
-// updateNoticeFileName is where the notice lives: in the data directory, because the notice has to
+// UpdateNoticeFileName is where the notice lives: in the data directory, because the notice has to
 // survive the restart that the updater itself performs.
-const updateNoticeFileName = "update-notice.json"
+const UpdateNoticeFileName = "update-notice.json"
 
 func (u *GitAutoUpdater) writeUpdateNotice() {
 	if u.appDataDir == "" {
