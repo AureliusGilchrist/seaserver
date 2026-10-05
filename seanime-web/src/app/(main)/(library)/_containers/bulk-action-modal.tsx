@@ -85,7 +85,8 @@ export function BulkActionModal() {
                 if (!input) return true
                 return item.value.toLowerCase().includes(input.toLowerCase())
             },
-            shouldShow: ({ ctx }) => ctx.router.pathname === "/",
+            // The library moved to its own address; these belong to it wherever it lives.
+            shouldShow: ({ ctx }) => ctx.router.pathname === "/anime" || ctx.router.pathname === "/",
             showBasedOnInput: "startsWith",
         })
 

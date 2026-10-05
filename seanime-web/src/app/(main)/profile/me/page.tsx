@@ -55,7 +55,6 @@ import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAnimeTheme, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { RewardShop } from "@/app/(main)/profile/me/_components/reward-shop"
-import { ToWatchList } from "@/app/(main)/profile/_components/to-watch-list"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import { userSoundLevelAtom } from "@/lib/sounds/sound-provider"
@@ -352,9 +351,6 @@ export default function Page() {
                         <TabsTrigger value="activity" className={tabsTriggerClass}>
                             <LuActivity className="mr-1.5" /> Activity
                         </TabsTrigger>
-                        <TabsTrigger value="towatch" className={tabsTriggerClass}>
-                            <LuListVideo className="mr-1.5" /> To Watch
-                        </TabsTrigger>
                         <TabsTrigger value="stats" className={tabsTriggerClass}>
                             <LuStar className="mr-1.5" /> Stats
                         </TabsTrigger>
@@ -371,9 +367,6 @@ export default function Page() {
                             🥚 Secrets
                         </TabsTrigger>
                     </TabsList>
-                    <TabsContent value="towatch" className="space-y-6 mt-6">
-                        <ToWatchList />
-                    </TabsContent>
                     <TabsContent value="activity" className="space-y-6 mt-6">
                         <ActivityTabContent
                             animeStreak={animeStreak}

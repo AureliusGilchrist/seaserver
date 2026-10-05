@@ -145,6 +145,11 @@ export type VerticalMenuItem = {
     subContentOpen?: boolean
     onSubContentOpenChange?: (open: boolean) => void
     isSidebar?: boolean
+    /**
+     * Renders the item as a group heading rather than a menu entry: an icon and a small label that
+     * say what the entries under it are, and that cannot be clicked, focused or navigated to.
+     */
+    isGroupHeading?: boolean
 }
 
 export type VerticalMenuProps = React.ComponentPropsWithRef<"div"> &
@@ -264,6 +269,37 @@ export const VerticalMenu = React.forwardRef<HTMLDivElement, VerticalMenuProps>(
                 }}
             >
                 {items.map((item, idx) => {
+                    // A group heading: the entries under it belong together, and this says what
+                    // they are. Not a menu entry — nothing to click, nothing to focus, nothing to
+                    // navigate to — so it renders before every branch that would make one.
+                    if (item.isGroupHeading) {
+                        return (
+                            <div
+                                key={item.name + idx}
+                                data-vertical-menu-group={item.name}
+                                className={cn(
+                                    "flex items-center gap-2 select-none",
+                                    collapsed ? "justify-center py-1 mt-1" : "px-2 pt-4 pb-1",
+                                )}
+                            >
+                                {item.iconType && (
+                                    <item.iconType
+                                        className={cn(
+                                            "flex-none text-[--muted] opacity-70",
+                                            collapsed ? "size-4" : "size-3.5",
+                                        )}
+                                        aria-hidden="true"
+                                    />
+                                )}
+                                {!collapsed && (
+                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-[--muted] opacity-70">
+                                        {item.name}
+                                    </span>
+                                )}
+                            </div>
+                        )
+                    }
+
                     return (
                         <React.Fragment key={item.name + idx}>
                             {!item.subContent ?

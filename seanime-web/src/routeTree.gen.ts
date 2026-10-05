@@ -48,6 +48,8 @@ const IssueReportIndexLazyRouteImport = createFileRoute('/issue-report/')()
 const DocsIndexLazyRouteImport = createFileRoute('/docs/')()
 const MainWebviewIndexLazyRouteImport = createFileRoute('/_main/webview/')()
 const MainUnmatchedIndexLazyRouteImport = createFileRoute('/_main/unmatched/')()
+const MainToWatchIndexLazyRouteImport = createFileRoute('/_main/to-watch/')()
+const MainAnimeIndexLazyRouteImport = createFileRoute('/_main/anime/')()
 const MainTorrentListIndexLazyRouteImport = createFileRoute(
   '/_main/torrent-list/',
 )()
@@ -139,6 +141,20 @@ const MainUnmatchedIndexLazyRoute = MainUnmatchedIndexLazyRouteImport.update({
   getParentRoute: () => MainRoute,
 } as any).lazy(() =>
   import('./routes/_main/unmatched/index.lazy').then((d) => d.Route),
+)
+const MainToWatchIndexLazyRoute = MainToWatchIndexLazyRouteImport.update({
+  id: '/to-watch/',
+  path: '/to-watch/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/to-watch/index.lazy').then((d) => d.Route),
+)
+const MainAnimeIndexLazyRoute = MainAnimeIndexLazyRouteImport.update({
+  id: '/anime/',
+  path: '/anime/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/anime/index.lazy').then((d) => d.Route),
 )
 const MainTorrentListIndexLazyRoute =
   MainTorrentListIndexLazyRouteImport.update({
@@ -459,6 +475,7 @@ export interface FileRoutesByFullPath {
   '/theme-manager/': typeof MainThemeManagerIndexRoute
   '/public/auth/': typeof PublicAuthIndexRoute
   '/splashscreen/crash/': typeof SplashscreenCrashIndexRoute
+  '/anime/': typeof MainAnimeIndexLazyRoute
   '/auto-downloader/': typeof MainAutoDownloaderIndexLazyRoute
   '/debrid/': typeof MainDebridIndexLazyRoute
   '/enmasse-anime/': typeof MainEnmasseAnimeIndexLazyRoute
@@ -470,6 +487,7 @@ export interface FileRoutesByFullPath {
   '/scan-summaries/': typeof MainScanSummariesIndexLazyRoute
   '/schedule/': typeof MainScheduleIndexLazyRoute
   '/sync/': typeof MainSyncIndexLazyRoute
+  '/to-watch/': typeof MainToWatchIndexLazyRoute
   '/torrent-list/': typeof MainTorrentListIndexLazyRoute
   '/unmatched/': typeof MainUnmatchedIndexLazyRoute
   '/webview/': typeof MainWebviewIndexLazyRoute
@@ -510,6 +528,7 @@ export interface FileRoutesByTo {
   '/theme-manager': typeof MainThemeManagerIndexRoute
   '/public/auth': typeof PublicAuthIndexRoute
   '/splashscreen/crash': typeof SplashscreenCrashIndexRoute
+  '/anime': typeof MainAnimeIndexLazyRoute
   '/auto-downloader': typeof MainAutoDownloaderIndexLazyRoute
   '/debrid': typeof MainDebridIndexLazyRoute
   '/enmasse-anime': typeof MainEnmasseAnimeIndexLazyRoute
@@ -521,6 +540,7 @@ export interface FileRoutesByTo {
   '/scan-summaries': typeof MainScanSummariesIndexLazyRoute
   '/schedule': typeof MainScheduleIndexLazyRoute
   '/sync': typeof MainSyncIndexLazyRoute
+  '/to-watch': typeof MainToWatchIndexLazyRoute
   '/torrent-list': typeof MainTorrentListIndexLazyRoute
   '/unmatched': typeof MainUnmatchedIndexLazyRoute
   '/webview': typeof MainWebviewIndexLazyRoute
@@ -563,6 +583,7 @@ export interface FileRoutesById {
   '/_main/theme-manager/': typeof MainThemeManagerIndexRoute
   '/public/auth/': typeof PublicAuthIndexRoute
   '/splashscreen/crash/': typeof SplashscreenCrashIndexRoute
+  '/_main/anime/': typeof MainAnimeIndexLazyRoute
   '/_main/auto-downloader/': typeof MainAutoDownloaderIndexLazyRoute
   '/_main/debrid/': typeof MainDebridIndexLazyRoute
   '/_main/enmasse-anime/': typeof MainEnmasseAnimeIndexLazyRoute
@@ -574,6 +595,7 @@ export interface FileRoutesById {
   '/_main/scan-summaries/': typeof MainScanSummariesIndexLazyRoute
   '/_main/schedule/': typeof MainScheduleIndexLazyRoute
   '/_main/sync/': typeof MainSyncIndexLazyRoute
+  '/_main/to-watch/': typeof MainToWatchIndexLazyRoute
   '/_main/torrent-list/': typeof MainTorrentListIndexLazyRoute
   '/_main/unmatched/': typeof MainUnmatchedIndexLazyRoute
   '/_main/webview/': typeof MainWebviewIndexLazyRoute
@@ -616,6 +638,7 @@ export interface FileRouteTypes {
     | '/theme-manager/'
     | '/public/auth/'
     | '/splashscreen/crash/'
+    | '/anime/'
     | '/auto-downloader/'
     | '/debrid/'
     | '/enmasse-anime/'
@@ -627,6 +650,7 @@ export interface FileRouteTypes {
     | '/scan-summaries/'
     | '/schedule/'
     | '/sync/'
+    | '/to-watch/'
     | '/torrent-list/'
     | '/unmatched/'
     | '/webview/'
@@ -667,6 +691,7 @@ export interface FileRouteTypes {
     | '/theme-manager'
     | '/public/auth'
     | '/splashscreen/crash'
+    | '/anime'
     | '/auto-downloader'
     | '/debrid'
     | '/enmasse-anime'
@@ -678,6 +703,7 @@ export interface FileRouteTypes {
     | '/scan-summaries'
     | '/schedule'
     | '/sync'
+    | '/to-watch'
     | '/torrent-list'
     | '/unmatched'
     | '/webview'
@@ -719,6 +745,7 @@ export interface FileRouteTypes {
     | '/_main/theme-manager/'
     | '/public/auth/'
     | '/splashscreen/crash/'
+    | '/_main/anime/'
     | '/_main/auto-downloader/'
     | '/_main/debrid/'
     | '/_main/enmasse-anime/'
@@ -730,6 +757,7 @@ export interface FileRouteTypes {
     | '/_main/scan-summaries/'
     | '/_main/schedule/'
     | '/_main/sync/'
+    | '/_main/to-watch/'
     | '/_main/torrent-list/'
     | '/_main/unmatched/'
     | '/_main/webview/'
@@ -833,6 +861,13 @@ declare module '@tanstack/react-router' {
       path: '/torrent-list'
       fullPath: '/torrent-list/'
       preLoaderRoute: typeof MainTorrentListIndexLazyRouteImport
+      parentRoute: typeof MainRoute
+    }
+    '/_main/to-watch/': {
+      id: '/_main/to-watch/'
+      path: '/to-watch'
+      fullPath: '/to-watch/'
+      preLoaderRoute: typeof MainToWatchIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/sync/': {
@@ -1141,6 +1176,7 @@ interface MainRouteChildren {
   MainScanSummariesIndexLazyRoute: typeof MainScanSummariesIndexLazyRoute
   MainScheduleIndexLazyRoute: typeof MainScheduleIndexLazyRoute
   MainSyncIndexLazyRoute: typeof MainSyncIndexLazyRoute
+  MainToWatchIndexLazyRoute: typeof MainToWatchIndexLazyRoute
   MainTorrentListIndexLazyRoute: typeof MainTorrentListIndexLazyRoute
   MainUnmatchedIndexLazyRoute: typeof MainUnmatchedIndexLazyRoute
   MainWebviewIndexLazyRoute: typeof MainWebviewIndexLazyRoute
@@ -1186,6 +1222,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainScanSummariesIndexLazyRoute: MainScanSummariesIndexLazyRoute,
   MainScheduleIndexLazyRoute: MainScheduleIndexLazyRoute,
   MainSyncIndexLazyRoute: MainSyncIndexLazyRoute,
+  MainToWatchIndexLazyRoute: MainToWatchIndexLazyRoute,
   MainTorrentListIndexLazyRoute: MainTorrentListIndexLazyRoute,
   MainUnmatchedIndexLazyRoute: MainUnmatchedIndexLazyRoute,
   MainWebviewIndexLazyRoute: MainWebviewIndexLazyRoute,

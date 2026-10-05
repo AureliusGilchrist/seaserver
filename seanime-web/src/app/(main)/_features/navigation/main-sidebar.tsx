@@ -52,7 +52,8 @@ import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
-import { LuBook, LuBookOpen, LuBell, LuCalendar, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuLayers, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUsers } from "react-icons/lu"
+import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuHardDriveDownload, LuLayers, LuListVideo, LuMonitorPlay, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUsers, LuWrench } from "react-icons/lu"
+import { SiAnilist } from "react-icons/si"
 import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
 import { PiArrowCircleLeftDuotone, PiArrowCircleRightDuotone } from "react-icons/pi"
 import { RiListCheck3 } from "react-icons/ri"
@@ -197,21 +198,28 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         },
     ]
 
+    // The sidebar, grouped.
+    //
+    // Every entry sits under a heading that says what it is for, so the column reads as a few
+    // short lists rather than one long one: what you watch, what AniList knows about you, what is
+    // downloading, and who else is here. The headings are marked with an icon — the watch group's
+    // is a play button, the AniList group's is the AniList logo — and they are not entries: nothing
+    // to click, nothing to navigate to.
     const items = React.useMemo(() => [
+        // ── Watch ────────────────────────────────────────────────────────
+        {
+            id: "group-watch",
+            name: "Watch",
+            iconType: LuCirclePlay,
+            isGroupHeading: true,
+        },
         {
             id: "home",
-            iconType: IoHomeOutline,
-            name: "Home",
-            href: "/",
-            isCurrent: pathname === "/",
+            iconType: LuMonitorPlay,
+            name: "Anime",
+            href: "/anime",
+            isCurrent: pathname === "/anime",
         },
-        // ...(process.env.NODE_ENV === "development" ? [{
-        //     id: "test",
-        //     iconType: GrTest,
-        //     name: "Test",
-        //     href: "/test",
-        //     isCurrent: pathname === "/test",
-        // }] : []),
         {
             id: "schedule",
             iconType: LuCalendar,
@@ -231,11 +239,19 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             isCurrent: pathname.startsWith("/manga"),
         }] : [],
         {
-            id: "lists",
-            iconType: RiListCheck3,
-            name: "My lists",
-            href: "/lists",
-            isCurrent: pathname === "/lists",
+            id: "to-watch",
+            iconType: LuListVideo,
+            name: "To Watch",
+            href: "/to-watch",
+            isCurrent: pathname === "/to-watch",
+        },
+
+        // ── AniList ──────────────────────────────────────────────────────
+        {
+            id: "group-anilist",
+            name: "AniList",
+            iconType: SiAnilist,
+            isGroupHeading: true,
         },
         {
             id: "discover",
@@ -243,6 +259,29 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             name: "Discover",
             href: "/discover",
             isCurrent: pathname === "/discover",
+        },
+        {
+            id: "lists",
+            iconType: RiListCheck3,
+            name: "My List",
+            href: "/lists",
+            isCurrent: pathname === "/lists",
+        },
+
+        // ── Downloads ────────────────────────────────────────────────────
+        {
+            id: "group-downloads",
+            name: "Downloads",
+            iconType: LuHardDriveDownload,
+            isGroupHeading: true,
+        },
+        {
+            id: "unmatched",
+            iconType: LuFolderSearch,
+            name: "Unmatched Downloads",
+            href: "/unmatched",
+            isCurrent: pathname === "/unmatched",
+            addon: unmatchedCount > 0 ? <Badge className="absolute right-0 top-0" size="sm" intent="alert-solid">{unmatchedCount}</Badge> : undefined,
         },
         ...(
             serverStatus?.settings?.library?.torrentProvider !== TORRENT_PROVIDER.NONE
@@ -270,14 +309,6 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             isCurrent: pathname === "/debrid",
         }] : [],
         {
-            id: "unmatched",
-            iconType: LuFolderSearch,
-            name: "Unmatched Downloads",
-            href: "/unmatched",
-            isCurrent: pathname === "/unmatched",
-            addon: unmatchedCount > 0 ? <Badge className="absolute right-0 top-0" size="sm" intent="alert-solid">{unmatchedCount}</Badge> : undefined,
-        },
-        {
             id: "enqueue-future",
             iconType: LuLayers,
             name: "Enqueue Future",
@@ -294,13 +325,6 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             isCurrent: pathname.startsWith("/enmasse"),
             subContent: <SidebarSubMenu items={enmasseDownloaders} collapsed={isCollapsed} />,
         },
-        ...(!!serverStatus?.settings?.library?.libraryPath) ? [{
-            id: "scan-summaries",
-            iconType: TbReportSearch,
-            name: "Scan summaries",
-            href: "/scan-summaries",
-            isCurrent: pathname === "/scan-summaries",
-        }] : [],
         ...(serverStatus?.settings?.library?.torrentProvider !== TORRENT_PROVIDER.NONE && !!serverStatus?.settings?.library?.libraryPath) ? [{
             id: "auto-downloader",
             iconType: LuRss,
@@ -312,9 +336,24 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 intent="alert-solid"
             >{autoDownloaderQueueCount}</Badge> : undefined,
         }] : [],
+        ...(!!serverStatus?.settings?.library?.libraryPath) ? [{
+            id: "scan-summaries",
+            iconType: TbReportSearch,
+            name: "Scan summaries",
+            href: "/scan-summaries",
+            isCurrent: pathname === "/scan-summaries",
+        }] : [],
+
+        // ── Community ────────────────────────────────────────────────────
+        {
+            id: "group-community",
+            name: "Community",
+            iconType: LuUsers,
+            isGroupHeading: true,
+        },
         {
             id: "community",
-            iconType: LuUsers,
+            iconType: LuGlobe,
             name: "Community",
             href: "/community",
             isCurrent: pathname.includes("/community"),
@@ -333,6 +372,14 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             name: "Milestones",
             href: "/milestones",
             isCurrent: pathname === "/milestones",
+        },
+
+        // ── Tools ────────────────────────────────────────────────────────
+        {
+            id: "group-tools",
+            name: "Tools",
+            iconType: LuWrench,
+            isGroupHeading: true,
         },
         {
             id: "search",
