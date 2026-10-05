@@ -4,6 +4,7 @@ import { useLogin } from "@/api/hooks/auth.hooks"
 import { useCreateProfile } from "@/api/hooks/profiles.hooks"
 import { profileSessionEndedAtom, profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { MigrationWizard } from "@/app/(main)/_features/profile/migration-wizard"
+import { UpdateNoticeBanner } from "@/app/(main)/_features/update/update-notice-banner"
 import { ProfileSelector } from "@/app/(main)/_features/profile/profile-selector"
 import { GettingStartedPage } from "@/app/(main)/_features/getting-started/getting-started-page"
 import { useServerStatus, useSetServerStatus } from "@/app/(main)/_hooks/use-server-status"
@@ -362,7 +363,14 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         />
     }
 
-    return children
+    return (
+        <>
+            <div className="px-4 pt-4 md:px-8">
+                {updateNotice}
+            </div>
+            {children}
+        </>
+    )
 }
 
 export { ProfileAniListGate };
