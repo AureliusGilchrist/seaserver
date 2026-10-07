@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useAtomValue, useSetAtom } from "jotai/react"
 import React from "react"
-import { LuArrowDownUp, LuEye, LuEyeOff, LuGitBranch, LuLayers, LuRotateCcw } from "react-icons/lu"
+import { LuArrowDownUp, LuEye, LuEyeOff, LuGitBranch, LuLayers, LuList, LuRotateCcw } from "react-icons/lu"
 import { toast } from "sonner"
 
 /**
@@ -174,7 +174,20 @@ export function EnqueueFuturePage() {
     // Whether the rows you have already dealt with are drawn at all.
     const [hideSettled, setHideSettled] = React.useState(false)
 
+    // The queue itself, rather than the franchises.
+    //
+    // The grouped view answers "what is this connected to"; the flat one answers "what is next".
+    // While the torrent client is offline nothing can be dealt with at all, so what is left is a
+    // strip of everything still waiting, in the order it will be worked — one row each, no spines,
+    // nothing greyed — which is the reading of the list that matters in exactly that state.
+    const [queueView, setQueueView] = React.useState(false)
+
     const families = React.useMemo(() => {
+        if (queueView) {
+            // Only what is still waiting, in the order the screen already holds — a franchise's
+            // seasons read in a row like anyone else's, so nothing is re-ordered for this view.
+            return items.filter(item => isActionable(item)).map(item => [item])
+        }
         const grouped = groupIntoFamilies(items, familyOrderingRef.current)
         familyOrderingRef.current = grouped.ordering
         // Every franchise stays, including the ones you have finished with entirely.
@@ -195,7 +208,7 @@ export function EnqueueFuturePage() {
         }
         return grouped.families
         // resortSignal is a dependency and nothing else: it exists to re-run this memo.
-    }, [items, resortSignal, hideSettled])
+    }, [items, resortSignal, hideSettled, queueView])
     const orderedItems = React.useMemo(() => families.flat(), [families])
 
     const [activeMediaId, setActiveMediaId] = React.useState<number | undefined>(undefined)
@@ -445,6 +458,15 @@ export function EnqueueFuturePage() {
                                     Reading "Show all" while everything was already shown, and hiding
                                     things when pressed, is exactly backwards. */}
                                 {hideSettled ? "Show all" : "Hide done"}
+                            </Button>
+                            <Button
+                                size="xs"
+                                intent={queueView ? "primary-subtle" : "gray-subtle"}
+                                leftIcon={queueView ? <LuGitBranch /> : <LuList />}
+                                onClick={() => setQueueView(v => !v)}
+                                data-enqueue-future-toggle-queue-view
+                            >
+                                {queueView ? "Franchise view" : "Queue view"}
                             </Button>
                             <Button
                                 size="xs"

@@ -1878,6 +1878,32 @@ app.whenReady().then(async () => {
         popoutPlayerWindow.loadURL(url)
     })
 
+    // ── Popout player aspect ratio ───────────────────────────────────────────────────
+    // The renderer reports the video's aspect ratio once the stream's metadata is known, and
+    // the window is locked to it: setAspectRatio() keeps every later resize on the same shape,
+    // and the one-off resize below brings the current window to that shape immediately — width
+    // kept, height recomputed — so a window opened at 720x480 around a 16:9 stream becomes
+    // exactly the shape of the picture instead of drawing bars top and bottom.
+    ipcMain.handle("window:set-player-popout-aspect-ratio", (event, ratio) => {
+        const aspect = Number(ratio)
+        if (!popoutPlayerWindow || popoutPlayerWindow.isDestroyed()) return
+        if (!Number.isFinite(aspect) || aspect <= 0) return
+
+        popoutPlayerWindow.setAspectRatio(aspect)
+
+        // Bring the current size to the ratio (width kept), capped so a very tall video cannot
+        // ask for a window taller than the screen.
+        const { width } = popoutPlayerWindow.getBounds()
+        let newHeight = Math.round(width / aspect)
+        try {
+            const wa = require("electron").screen.getPrimaryDisplay().workArea
+            newHeight = Math.min(newHeight, wa.height - 80)
+        } catch {}
+        if (newHeight > 0) {
+            popoutPlayerWindow.setBounds({ width, height: newHeight })
+        }
+    })
+
     // Clipboard handler
     ipcMain.handle("clipboard:writeText", (_, text) => {
         if (text) {

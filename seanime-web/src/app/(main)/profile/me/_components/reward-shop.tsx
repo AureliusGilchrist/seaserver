@@ -21,7 +21,7 @@ import { packFilter } from "@/lib/cursors/cursor-packs"
 import { useCursor } from "@/lib/cursors/cursor-provider"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { XPBarFxOverlay } from "@/lib/rewards/xpbar-fx-overlay"
-import { useAccentSkin } from "@/lib/rewards/accent-recolor"
+import { colord } from "colord"
 import {
     TITLE_REWARDS,
     NAME_COLOR_REWARDS,
@@ -480,17 +480,36 @@ const XP_BAR_CATEGORY_META: { id: XPBarCategory; label: string; description: str
     { id: "effects",   label: "Effects",   description: "Fills that bleed into the surrounding UI." },
 ]
 
+/**
+ * The color a skin is drawn in on its card.
+ *
+ * Every skin is named for what it looks like — Crimson, Ocean, Sakura, Copper — and the card shows
+ * it in that color rather than in the accent, so the shelf reads as a shelf of different things
+ * instead of two hundred copies of one bar. Skins that already carry a gradient keep it; the ones
+ * defined as a single flat color are given a gradient in their own hue (dark end, the color, a
+ * lighter band), so the shelf is gradients almost all the way down and every one of them still
+ * matches its name.
+ */
+function skinCardFill(reward: XPBarSkinReward): string {
+    const fill = reward.fillCss
+    if (!fill) return "rgba(255,255,255,0.25)"
+    if (fill.includes("gradient")) return fill
+
+    const color = colord(fill)
+    if (!color.isValid()) return fill
+
+    const dark = color.darken(0.22).toHex()
+    const light = color.lighten(0.18).toHex()
+    return `linear-gradient(90deg, ${dark}, ${fill}, ${light})`
+}
+
 function XPBarSkinCard({ reward, currentLevel }: { reward: XPBarSkinReward; currentLevel: number }) {
     const { activeXPBarSkin, setActiveXPBarSkin } = useRewards()
-    const toAccentSkin = useAccentSkin()
     const isUnlocked = reward.requiredLevel <= currentLevel
     const isActive = activeXPBarSkin?.id === reward.id
 
-    // Every skin is worn in the accent color, so every card previews it that way — a shop that shows
-    // a palette the bar will not actually have is a shop lying about what it sells. What the card
-    // still shows honestly is the difference between skins: the shape of the gradient and the way it
-    // moves, which is what is actually being chosen here.
-    const shown: XPBarSkinReward = React.useMemo(() => toAccentSkin(reward) ?? reward, [toAccentSkin, reward])
+    // Drawn in the skin's own color, so what the card shows is what the bar is.
+    const shown: XPBarSkinReward = React.useMemo(() => ({ ...reward, fillCss: skinCardFill(reward) }), [reward])
     return (
         <CardBase isActive={isActive} isUnlocked={isUnlocked} onClick={() => setActiveXPBarSkin(reward.id)} className="items-start">
             <div className="w-full space-y-2">
@@ -544,12 +563,12 @@ function XPBarsTab({ currentLevel }: { currentLevel: number }) {
                 </div>
             </div>
 
-            {/* Said plainly, because the names below still say "Crimson" and "Ocean Wave" while every
-                one of them is drawn in the accent color. What a skin decides is its shape and its
-                motion; the color comes from Settings. */}
+            {/* Said plainly, because the names below say "Crimson" and "Ocean Wave" and each card is
+                drawn in exactly that color — the shelf shows what each bar is, not one bar repeated
+                in different shapes. */}
             <p className="text-xs text-[--muted]">
-                Every bar is drawn in your accent color — set it in Settings › Color scheme. What you
-                pick here is the shape of the gradient and the way it moves.
+                Each bar is drawn in its own color, named for what it looks like. What you pick here is
+                the color, the shape of the gradient, and the way it moves.
             </p>
 
             {/* Category tabs */}

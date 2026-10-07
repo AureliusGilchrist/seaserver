@@ -6,9 +6,19 @@ import (
 	"seanime/internal/discordrpc/presence"
 	"seanime/internal/events"
 	"seanime/internal/mkvparser"
+	"time"
 
 	"github.com/samber/lo"
 )
+
+// How often the watch position is persisted while the picture is playing. See the status handler
+// below: the client reports every second, and writing every report to disk made playback cost a
+// database write a second for its whole duration.
+const watchHistoryWriteInterval = 10 * time.Second
+
+// The last time each client's position was written. The shared-effects goroutine is the only
+// reader and writer, so no lock is needed.
+var lastHistoryWrite = make(map[string]time.Time)
 
 func (vc *VideoCore) setupEffects() {
 	vc.setupSharedEffects()
@@ -103,7 +113,17 @@ func (vc *VideoCore) setupSharedEffects() {
 				if !ok {
 					continue
 				}
-				if event.Duration != 0 {
+				// The watch position is written to disk, and the client reports its position every
+				// second — so this used to be one database write per second per playing client, all
+				// the way through every episode. On a NAS that is enough to make the whole server
+				// feel slow for the rest of the session, and it buys nothing: a resume position is
+				// not worth a write per second.
+				//
+				// Written at most every ten seconds instead, and always when the picture is paused
+				// (which is when a position is most likely to be left at) — so a resume lands within
+				// ten seconds of where it was left, for a tenth of the writes.
+				if event.Duration != 0 && (event.Paused || time.Since(lastHistoryWrite[event.GetClientId()]) >= watchHistoryWriteInterval) {
+					lastHistoryWrite[event.GetClientId()] = time.Now()
 					_ = vc.continuityManager.UpdateWatchHistoryItem(&continuity.UpdateWatchHistoryItemOptions{
 						CurrentTime:   event.CurrentTime,
 						Duration:      event.Duration,

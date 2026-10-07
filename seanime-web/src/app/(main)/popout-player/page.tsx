@@ -15,6 +15,7 @@
  */
 import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
 import { ElectronWindowTitleBar } from "@/app/(main)/_electron/electron-window-title-bar"
+import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { NativePlayer } from "@/app/(main)/_features/native-player/native-player"
 import { VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
@@ -41,6 +42,7 @@ export default function Page() {
                     <div className="h-dvh w-full bg-black relative z-[1]">
                         <VideoCoreProvider key="native-player" id="native-player">
                             <PopoutPlaybackHandoff />
+                            <PopoutAspectLock />
                             <AppLayoutStack className="z-[5]">
                                 <NativePlayer />
                             </AppLayoutStack>
@@ -50,6 +52,42 @@ export default function Page() {
             </AnimeThemeProvider>
         </ClientPrefsHydrator>
     )
+}
+
+/**
+ * Locks the popout window to the picture's shape.
+ *
+ * The video's own aspect ratio is reported to the shell the moment its metadata is known, and
+ * again whenever it changes — the window is told to keep its width and height on that ratio for
+ * every later resize, and to come to it immediately. A window that opened at a fixed size around
+ * a 16:9 stream used to draw bars top and bottom for its whole life; this is the difference
+ * between a window that contains the video and one that fits it.
+ *
+ * Rendered inside VideoCoreProvider so the video element atom resolves to the player's scope.
+ */
+function PopoutAspectLock() {
+    const videoElement = useAtomValue(vc_videoElement)
+
+    React.useEffect(() => {
+        const reportRatio = window.electron?.window?.setPopoutAspectRatio
+        if (!videoElement || !reportRatio) return
+
+        const report = () => {
+            const { videoWidth, videoHeight } = videoElement
+            if (!videoWidth || !videoHeight) return
+            reportRatio(videoWidth / videoHeight)
+        }
+
+        report()
+        videoElement.addEventListener("loadedmetadata", report)
+        videoElement.addEventListener("resize", report)
+        return () => {
+            videoElement.removeEventListener("loadedmetadata", report)
+            videoElement.removeEventListener("resize", report)
+        }
+    }, [videoElement])
+
+    return null
 }
 
 /**

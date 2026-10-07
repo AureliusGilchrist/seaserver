@@ -27,7 +27,7 @@ import { BiCollection, BiDotsVerticalRounded, BiFolder } from "react-icons/bi"
 import { HiExclamation } from "react-icons/hi"
 import { IoHome, IoLibraryOutline, IoLibrarySharp } from "react-icons/io5"
 import { LuSearch } from "react-icons/lu"
-import { LuFolderSearch, LuFolderSync, LuFolderTree } from "react-icons/lu"
+import { LuArrowLeftRight, LuFolderSearch, LuFolderSync, LuFolderTree } from "react-icons/lu"
 import { MdOutlineConnectWithoutContact, MdOutlineVideoLibrary } from "react-icons/md"
 import { TbFileSad, TbReportSearch } from "react-icons/tb"
 import { PluginAnimeLibraryDropdownItems } from "../../_features/plugin/actions/plugin-actions"
@@ -188,6 +188,26 @@ export function HomeToolbar(props: HomeToolbarProps) {
                 >
                     Resolve hidden media ({unknownGroups.length})
                 </Button>}
+
+                {/* The other library, one press away. Reads as its own door — the swap arrows say
+                    "over there", the label says what is over there — rather than another tool. */}
+                {serverStatus?.settings?.library?.enableManga && <Tooltip
+                    trigger={<div>
+                        <SeaLink href="/manga">
+                            <Button
+                                data-home-toolbar-swap-to-manga-button
+                                intent="white-subtle"
+                                leftIcon={<LuArrowLeftRight className="text-lg" />}
+                                hideTextOnSmallScreen
+                                className="bg-gradient-to-r from-[--brand]/15 to-transparent border border-[--brand]/25 hover:border-[--brand]/50 hover:from-[--brand]/30 transition-all"
+                            >
+                                Manga
+                            </Button>
+                        </SeaLink>
+                    </div>}
+                >
+                    Switch to Manga
+                </Tooltip>}
 
                 <HomeSettingsButton type="toolbar" />
 

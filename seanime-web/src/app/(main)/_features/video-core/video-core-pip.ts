@@ -371,12 +371,30 @@ export class VideoCorePipManager extends EventTarget {
         body.style.flexDirection = "column"
         body.style.overflow = "hidden"
 
+        // The picture sits in its own box so the vignette can cover exactly the video and nothing
+        // else — the controls below keep their own surface.
+        const stage = pipWindow.document.createElement("div")
+        stage.style.position = "relative"
+        stage.style.flex = "1 1 0%"
+        stage.style.minHeight = "0"
+        stage.style.display = "flex"
+
         pipVideo.style.width = "100%"
-        pipVideo.style.flex = "1 1 0%"
+        pipVideo.style.height = "100%"
         pipVideo.style.minHeight = "0"
         pipVideo.style.objectFit = "contain"
 
-        body.appendChild(pipVideo)
+        // The same light vignette the main player draws over its picture, so the floating window
+        // reads as the same player rather than a bare video element.
+        const vignette = pipWindow.document.createElement("div")
+        vignette.style.position = "absolute"
+        vignette.style.inset = "0"
+        vignette.style.pointerEvents = "none"
+        vignette.style.background = "radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.15) 75%, rgba(0,0,0,0.35) 100%)"
+
+        stage.appendChild(pipVideo)
+        stage.appendChild(vignette)
+        body.appendChild(stage)
     }
 
     private newPipVideo() {

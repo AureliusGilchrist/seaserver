@@ -5,6 +5,7 @@ import (
 	"seanime/internal/extension"
 	"seanime/internal/extension_repo"
 	manga_providers "seanime/internal/manga/providers"
+	onlinestream_providers "seanime/internal/onlinestream/providers"
 	torrent_providers "seanime/internal/torrents/providers"
 
 	"github.com/rs/zerolog"
@@ -116,6 +117,51 @@ func LoadExtensions(extensionRepository *extension_repo.Repository, logger *zero
 			},
 		},
 	}, torrent_providers.NewBakaBT())
+
+	// Load built-in onlinestream providers
+	//
+	// These ship with the server rather than arriving as extensions from a repository, which is
+	// what a NAS deployment wants: they are here after the next sync and rebuild, with nothing to
+	// install by hand. The providers are the English streaming sites the app can actually reach —
+	// see the providers package for what each one talks to.
+	extensionRepository.ReloadBuiltInExtension(extension.Extension{
+		ID:          onlinestream_providers.AniZoneProvider,
+		Name:        "AniZone",
+		Version:     "1.0.0",
+		ManifestURI: "builtin",
+		Language:    extension.LanguageGo,
+		Type:        extension.TypeOnlinestreamProvider,
+		Author:      "Seanime",
+		Description: "Online streaming provider for anizone.to",
+		Lang:        "en",
+		Icon:        "https://anizone.to/favicon.svg",
+	}, onlinestream_providers.NewAniZone(logger))
+
+	extensionRepository.ReloadBuiltInExtension(extension.Extension{
+		ID:          onlinestream_providers.AnimePaheProvider,
+		Name:        "AnimePahe",
+		Version:     "1.0.0",
+		ManifestURI: "builtin",
+		Language:    extension.LanguageGo,
+		Type:        extension.TypeOnlinestreamProvider,
+		Author:      "Seanime",
+		Description: "Online streaming provider for animepahe.com",
+		Lang:        "en",
+		Icon:        "https://animepahe.com/favicon.ico",
+	}, onlinestream_providers.NewAnimePahe(logger))
+
+	extensionRepository.ReloadBuiltInExtension(extension.Extension{
+		ID:          onlinestream_providers.AnimetsuProvider,
+		Name:        "GojoWtf",
+		Version:     "1.0.0",
+		ManifestURI: "builtin",
+		Language:    extension.LanguageGo,
+		Type:        extension.TypeOnlinestreamProvider,
+		Author:      "Seanime",
+		Description: "Online streaming provider for animetsu.net (GojoWtf) — pahe, zoro and zaza servers",
+		Lang:        "en",
+		Icon:        "https://animetsu.net/favicon.ico",
+	}, onlinestream_providers.NewAnimetsu(logger))
 
 	// Load external extensions
 	//extensionRepository.ReloadExternalExtensions()

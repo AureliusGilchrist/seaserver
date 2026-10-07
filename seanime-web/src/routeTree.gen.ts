@@ -48,11 +48,10 @@ const IssueReportIndexLazyRouteImport = createFileRoute('/issue-report/')()
 const DocsIndexLazyRouteImport = createFileRoute('/docs/')()
 const MainWebviewIndexLazyRouteImport = createFileRoute('/_main/webview/')()
 const MainUnmatchedIndexLazyRouteImport = createFileRoute('/_main/unmatched/')()
-const MainToWatchIndexLazyRouteImport = createFileRoute('/_main/to-watch/')()
-const MainAnimeIndexLazyRouteImport = createFileRoute('/_main/anime/')()
 const MainTorrentListIndexLazyRouteImport = createFileRoute(
   '/_main/torrent-list/',
 )()
+const MainToWatchIndexLazyRouteImport = createFileRoute('/_main/to-watch/')()
 const MainSyncIndexLazyRouteImport = createFileRoute('/_main/sync/')()
 const MainScheduleIndexLazyRouteImport = createFileRoute('/_main/schedule/')()
 const MainScanSummariesIndexLazyRouteImport = createFileRoute(
@@ -76,6 +75,7 @@ const MainDebridIndexLazyRouteImport = createFileRoute('/_main/debrid/')()
 const MainAutoDownloaderIndexLazyRouteImport = createFileRoute(
   '/_main/auto-downloader/',
 )()
+const MainAnimeIndexLazyRouteImport = createFileRoute('/_main/anime/')()
 const MainOfflineMangaIndexLazyRouteImport = createFileRoute(
   '/_main/offline/manga/',
 )()
@@ -142,20 +142,6 @@ const MainUnmatchedIndexLazyRoute = MainUnmatchedIndexLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_main/unmatched/index.lazy').then((d) => d.Route),
 )
-const MainToWatchIndexLazyRoute = MainToWatchIndexLazyRouteImport.update({
-  id: '/to-watch/',
-  path: '/to-watch/',
-  getParentRoute: () => MainRoute,
-} as any).lazy(() =>
-  import('./routes/_main/to-watch/index.lazy').then((d) => d.Route),
-)
-const MainAnimeIndexLazyRoute = MainAnimeIndexLazyRouteImport.update({
-  id: '/anime/',
-  path: '/anime/',
-  getParentRoute: () => MainRoute,
-} as any).lazy(() =>
-  import('./routes/_main/anime/index.lazy').then((d) => d.Route),
-)
 const MainTorrentListIndexLazyRoute =
   MainTorrentListIndexLazyRouteImport.update({
     id: '/torrent-list/',
@@ -164,6 +150,13 @@ const MainTorrentListIndexLazyRoute =
   } as any).lazy(() =>
     import('./routes/_main/torrent-list/index.lazy').then((d) => d.Route),
   )
+const MainToWatchIndexLazyRoute = MainToWatchIndexLazyRouteImport.update({
+  id: '/to-watch/',
+  path: '/to-watch/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/to-watch/index.lazy').then((d) => d.Route),
+)
 const MainSyncIndexLazyRoute = MainSyncIndexLazyRouteImport.update({
   id: '/sync/',
   path: '/sync/',
@@ -247,6 +240,13 @@ const MainAutoDownloaderIndexLazyRoute =
   } as any).lazy(() =>
     import('./routes/_main/auto-downloader/index.lazy').then((d) => d.Route),
   )
+const MainAnimeIndexLazyRoute = MainAnimeIndexLazyRouteImport.update({
+  id: '/anime/',
+  path: '/anime/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/anime/index.lazy').then((d) => d.Route),
+)
 const SplashscreenCrashIndexRoute = SplashscreenCrashIndexRouteImport.update({
   id: '/splashscreen/crash/',
   path: '/splashscreen/crash/',
@@ -947,6 +947,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainAutoDownloaderIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
+    '/_main/anime/': {
+      id: '/_main/anime/'
+      path: '/anime'
+      fullPath: '/anime/'
+      preLoaderRoute: typeof MainAnimeIndexLazyRouteImport
+      parentRoute: typeof MainRoute
+    }
     '/splashscreen/crash/': {
       id: '/splashscreen/crash/'
       path: '/splashscreen/crash'
@@ -1165,6 +1172,7 @@ interface MainRouteChildren {
   MainStaffIndexRoute: typeof MainStaffIndexRoute
   MainStudioIndexRoute: typeof MainStudioIndexRoute
   MainThemeManagerIndexRoute: typeof MainThemeManagerIndexRoute
+  MainAnimeIndexLazyRoute: typeof MainAnimeIndexLazyRoute
   MainAutoDownloaderIndexLazyRoute: typeof MainAutoDownloaderIndexLazyRoute
   MainDebridIndexLazyRoute: typeof MainDebridIndexLazyRoute
   MainEnmasseAnimeIndexLazyRoute: typeof MainEnmasseAnimeIndexLazyRoute
@@ -1211,6 +1219,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainStaffIndexRoute: MainStaffIndexRoute,
   MainStudioIndexRoute: MainStudioIndexRoute,
   MainThemeManagerIndexRoute: MainThemeManagerIndexRoute,
+  MainAnimeIndexLazyRoute: MainAnimeIndexLazyRoute,
   MainAutoDownloaderIndexLazyRoute: MainAutoDownloaderIndexLazyRoute,
   MainDebridIndexLazyRoute: MainDebridIndexLazyRoute,
   MainEnmasseAnimeIndexLazyRoute: MainEnmasseAnimeIndexLazyRoute,

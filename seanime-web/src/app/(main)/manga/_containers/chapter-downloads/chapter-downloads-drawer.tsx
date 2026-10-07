@@ -17,7 +17,7 @@ import { ProgressBar } from "@/components/ui/progress-bar"
 import { atom } from "jotai"
 import { useAtom } from "jotai/react"
 import React from "react"
-import { Virtuoso } from "react-virtuoso"
+import { Virtuoso, VirtuosoGrid } from "react-virtuoso"
 import { MdClear } from "react-icons/md"
 import { PiWarningOctagonDuotone } from "react-icons/pi"
 import { TbWorldDownload } from "react-icons/tb"
@@ -281,6 +281,27 @@ export function ChapterDownloadList(props: ChapterDownloadListProps) {
 
     const { data, isLoading, isError } = useGetMangaDownloadsList()
 
+    // Sorted once per payload rather than on every render.
+    //
+    // The two lists below were rebuilt — filtered, then sorted twice each — on every render of
+    // the drawer, and the drawer re-renders on every poll of the download queue. Sorting a few
+    // hundred entries four times between paints is work nothing looked at; done here it happens
+    // once per payload and the renders in between reuse it.
+    const byChapterCount = React.useCallback((a: { downloadData: any }, b: { downloadData: any }) =>
+        Object.values(b.downloadData ?? {}).flatMap(n => n).length - Object.values(a.downloadData ?? {}).flatMap(n => n).length, [])
+
+    const noMediaItems = React.useMemo(
+        () => (data ?? []).filter(n => !n.media)
+            .sort((a, b) => a.mediaId - b.mediaId)
+            .sort(byChapterCount),
+        [data, byChapterCount])
+
+    const withMedia = React.useMemo(
+        () => (data ?? []).filter(n => !!n.media)
+            .sort((a, b) => a.mediaId - b.mediaId)
+            .sort(byChapterCount),
+        [data, byChapterCount])
+
     return (
         <>
             <div className="space-y-4" data-chapter-download-list-container>
@@ -300,17 +321,17 @@ export function ChapterDownloadList(props: ChapterDownloadListProps) {
 
                     {!!data?.length ? (
                         <>
-                            {data?.filter(n => !n.media)
-                                .sort((a, b) => a.mediaId - b.mediaId)
-                                .sort((a, b) => Object.values(b.downloadData).flatMap(n => n).length - Object.values(a.downloadData)
-                                    .flatMap(n => n).length)
-                                .map(item => {
-                                    const chapterCount = Object.values(item.downloadData).flatMap(n => n).length
+                            {!!noMediaItems.length && <Virtuoso
+                                style={{ height: "14rem" }}
+                                data={noMediaItems}
+                                computeItemKey={(_index, item) => `nomedia-${item.mediaId}`}
+                                itemContent={(_index, item) => {
+                                    const chapterCount = Object.values(item.downloadData ?? {}).flatMap(n => n).length
                                     return (
                                         <Card
-                                            key={item.mediaId} className={cn(
-                                            "px-3 py-2 bg-gray-800 space-y-1",
-                                        )}
+                                            className={cn(
+                                                "px-3 py-2 bg-gray-800 space-y-1 mb-2",
+                                            )}
                                         >
                                             <SeaLink
                                                 className="font-semibold underline"
@@ -324,31 +345,35 @@ export function ChapterDownloadList(props: ChapterDownloadListProps) {
                                             </div>
                                         </Card>
                                     )
-                                })}
+                                }}
+                            />}
 
-                            <div
+                            {/* Virtualized rows of the grid: only what is on screen is built.
+                                Every card here is a full media card — image, overlays, buttons —
+                                and a library of hundreds of them built the whole grid before the
+                                popup painted anything, which was the lag. The rows scrolled past
+                                exist the moment they are reached, and a poll of the queue no
+                                longer rebuilds any of them. */}
+                            {!!withMedia.length && <VirtuosoGrid
+                                style={{ height: "56vh" }}
+                                data={withMedia}
+                                computeItemKey={(_index, item) => String(item.media?.id)}
+                                listClassName="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-4 gap-4"
+                                itemClassName="col-span-1"
                                 data-chapter-download-list-media-grid
-                                className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-4 gap-4"
-                            >
-                                {data?.filter(n => !!n.media)
-                                    .sort((a, b) => a.mediaId - b.mediaId)
-                                    .sort((a, b) => Object.values(b.downloadData).flatMap(n => n).length - Object.values(a.downloadData)
-                                        .flatMap(n => n).length)
-                                    .map(item => {
-                                        const nb = Object.values(item.downloadData).flatMap(n => n).length
-                                        return <div key={item.media?.id!} className="col-span-1">
-                                            <MediaEntryCard
-                                                media={item.media!}
-                                                type="manga"
-                                                hideUnseenCountBadge
-                                                hideAnilistEntryEditButton
-                                                overlay={<p
-                                                    className="font-semibold text-white bg-gray-950 z-[-1] absolute right-0 w-fit px-4 py-1.5 text-center !bg-opacity-90 text-sm lg:text-base rounded-none rounded-bl-lg"
-                                                >{nb} chapter{nb === 1 ? "" : "s"}</p>}
-                                            />
-                                        </div>
-                                    })}
-                            </div>
+                                itemContent={(_index, item) => {
+                                    const nb = Object.values(item.downloadData ?? {}).flatMap(n => n).length
+                                    return <MediaEntryCard
+                                        media={item.media!}
+                                        type="manga"
+                                        hideUnseenCountBadge
+                                        hideAnilistEntryEditButton
+                                        overlay={<p
+                                            className="font-semibold text-white bg-gray-950 z-[-1] absolute right-0 w-fit px-4 py-1.5 text-center !bg-opacity-90 text-sm lg:text-base rounded-none rounded-bl-lg"
+                                        >{nb} chapter{nb === 1 ? "" : "s"}</p>}
+                                    />
+                                }}
+                            />}
                         </>
                     ) : ((!isLoading && !isError) && (
                         <p className="text-center text-[--muted] italic" data-chapter-download-list-empty-state>

@@ -45,6 +45,8 @@ declare global {
                 isMainWindow: () => Promise<boolean>;
                 // Fork: open (or reuse) the always-on-top popout player window
                 openPlayerPopout: (url: string) => Promise<void>;
+                // Fork: lock the popout window's size to the video's aspect ratio
+                setPopoutAspectRatio: (ratio: number) => Promise<void>;
             };
             localServer: {
                 getPort: () => Promise<number>;

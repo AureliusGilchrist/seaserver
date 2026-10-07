@@ -120,12 +120,13 @@ func (u *Updater) GetLatestRelease(channel string) (*Release, error) {
 		return u.LatestRelease, nil
 	}
 
-	fallbackChannel, ok := u.fetchGithubStatus()
-	// if github is down, use fallback channel
-	if !ok {
-		u.UpdateChannel = fallbackChannel
-		channel = fallbackChannel
-	}
+	// The channel is never switched here.
+	//
+	// This used to ask seanime.app whether GitHub was up and, when it said otherwise, move to the
+	// channel that endpoint named — upstream Seanime's own feed. For this fork that is the wrong
+	// answer twice over: the releases on it are not installable here, and the server does not
+	// install releases at all (it updates itself from its own git checkout). A fork that cannot
+	// reach its own releases has no update to offer, which is what it now says.
 
 	release, err := u.fetchLatestRelease(channel)
 	if err != nil {

@@ -5,13 +5,13 @@ import { libraryExplorer_drawerOpenAtom } from "@/app/(main)/_features/library-e
 import { usePlaylistEditorManager } from "@/app/(main)/_features/playlists/lib/playlist-editor-manager"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { SeaLink } from "@/components/shared/sea-link"
-import { IconButton } from "@/components/ui/button"
+import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { DropdownMenu, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useSetAtom } from "jotai/react"
 import { BiDotsVerticalRounded, BiFolder } from "react-icons/bi"
-import { LuFolderTree, LuSettings2 } from "react-icons/lu"
+import { LuArrowLeftRight, LuFolderTree, LuSettings2 } from "react-icons/lu"
 import { MdOutlineVideoLibrary } from "react-icons/md"
 
 export type MangaHomeToolbarProps = {
@@ -65,6 +65,26 @@ export function MangaHomeToolbar(props: MangaHomeToolbarProps) {
                         >Playlists</Tooltip>
                     </>
                 )}
+
+                {/* The other library, one press away — the same door the anime page's toolbar
+                    carries back here, so the two read as a pair. */}
+                <Tooltip
+                    trigger={<div>
+                        <SeaLink href="/anime">
+                            <Button
+                                data-manga-home-toolbar-swap-to-anime-button
+                                intent="white-subtle"
+                                leftIcon={<LuArrowLeftRight className="text-lg" />}
+                                hideTextOnSmallScreen
+                                className="bg-gradient-to-r from-[--brand]/15 to-transparent border border-[--brand]/25 hover:border-[--brand]/50 hover:from-[--brand]/30 transition-all"
+                            >
+                                Anime
+                            </Button>
+                        </SeaLink>
+                    </div>}
+                >
+                    Switch to Anime
+                </Tooltip>
 
                 <MangaHomeSettingsToolbarButton />
 

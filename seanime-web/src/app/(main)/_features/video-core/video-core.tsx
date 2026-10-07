@@ -58,6 +58,7 @@ import { VideoCoreDrawer } from "@/app/(main)/_features/video-core/video-core-dr
 import { useVideoCoreSetupEvents } from "@/app/(main)/_features/video-core/video-core-events"
 import { vc_fullscreenManager, VideoCoreFullscreenManager } from "@/app/(main)/_features/video-core/video-core-fullscreen"
 import { useVideoCoreAutoProgress, VideoCoreProgressPrompt } from "@/app/(main)/_features/video-core/video-core-auto-progress"
+import { useVideoCoreWatchingChecks, VideoCoreSequelPrompt, VideoCoreStillWatchingPrompt } from "@/app/(main)/_features/video-core/video-core-watching-checks"
 import {
     useVideoCoreHls,
     vc_hlsAudioTracks,
@@ -411,6 +412,8 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                         <VideoCoreOverlayDisplay />
 
                         <VideoCoreProgressPrompt />
+                        <VideoCoreSequelPrompt />
+                        <VideoCoreStillWatchingPrompt onResume={() => videoRef.current?.play().catch(() => {})} />
 
                         {buffering && (
                             <div
@@ -521,6 +524,20 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                     />
                                 ))}
                             </video>
+
+                            {/* A light vignette over the picture, under everything the user
+                                touches. It sits inside the video's own container — above the
+                                element, below the control bar and top section — and takes no
+                                pointer events, so a click meant for the video reaches it as if
+                                the layer were not there. */}
+                            <div
+                                data-vc-element="vignette"
+                                aria-hidden
+                                className="pointer-events-none absolute inset-0 z-[1]"
+                                style={{
+                                    background: "radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.15) 75%, rgba(0,0,0,0.35) 100%)",
+                                }}
+                            />
                         </div>
 
                         {!isMobile && <VideoCoreInSight />}
@@ -749,6 +766,13 @@ export function VideoCore(props: VideoCoreProps) {
 
     // Client-side AniList progress at 80% (reliable REST path) for both online + local players
     const { onReachedThreshold: onReachedProgressThreshold } = useVideoCoreAutoProgress(state)
+
+    // The sequel offer and the every-third-episode check. Both are raised from the same place the
+    // episode's end is noticed, and the check pauses the video so the question is asked to somebody
+    // who is actually there.
+    const { onEpisodeEnded } = useVideoCoreWatchingChecks(state, () => {
+        videoRef.current?.pause()
+    })
 
     const { isParticipant: isWatchPartyParticipant } = useNakamaWatchParty()
 
@@ -1426,6 +1450,7 @@ export function VideoCore(props: VideoCoreProps) {
             onCompleted?.()
             dispatchVideoCompletedEvent()
             onReachedProgressThreshold()
+            onEpisodeEnded()
         }
     }
 

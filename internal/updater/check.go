@@ -131,20 +131,19 @@ func (u *Updater) fetchLatestRelease(channel string) (*Release, error) {
 	case "github":
 		fallthrough
 	default:
-		// Primary: the fork's GitHub releases (AureliusGilchrist/seaserver).
+		// Primary and only: the fork's GitHub releases (AureliusGilchrist/seaserver).
+		//
+		// There is deliberately no fallback to seanime.app here. That endpoint serves upstream
+		// Seanime's releases, and this fork never installs those — the server updates itself from
+		// its own git checkout. Falling back to it meant that whenever the fork's releases could
+		// not be read, the app offered an update that was not its own: a banner and a modal about a
+		// version that could never be installed, which is worse than saying nothing. A fork that
+		// cannot reach its own releases has no update to offer.
 		ghRelease, ghErr := u.fetchLatestReleaseFromGitHub()
 		if ghErr != nil {
-			if u.logger != nil {
-				u.logger.Warn().Err(ghErr).Msg("updater: Failed to fetch from GitHub fork, falling back to seanime.app")
-			}
-			apiRelease, err := u.fetchLatestReleaseFromApi(websiteUrl)
-			if err != nil {
-				return nil, ghErr // return primary error
-			}
-			release = apiRelease
-		} else {
-			release = ghRelease
+			return nil, ghErr
 		}
+		release = ghRelease
 	}
 
 	return release, nil

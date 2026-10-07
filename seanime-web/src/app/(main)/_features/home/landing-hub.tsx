@@ -1,6 +1,5 @@
 "use client"
 
-import { useGetLibraryCollection } from "@/api/hooks/anime_collection.hooks"
 import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
 import { useGetToWatch } from "@/api/hooks/towatch.hooks"
 import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
@@ -8,6 +7,7 @@ import { useCurrentUser, useServerStatus } from "@/app/(main)/_hooks/use-server-
 import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loader"
 import { ContinueWatching } from "@/app/(main)/(library)/_containers/continue-watching"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
+import { useHandleLibraryCollection } from "@/app/(main)/(library)/_lib/handle-library-collection"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
 import { useRouter } from "@/lib/navigation"
@@ -34,7 +34,7 @@ export function LandingHub() {
     const user = useCurrentUser()
     const serverStatus = useServerStatus()
 
-    const { data: libraryCollection } = useGetLibraryCollection({ staleTime: 30_000 })
+    const { continueWatchingList, isLoading: isLibraryLoading, libraryCollectionList } = useHandleLibraryCollection()
     const { data: toWatch } = useGetToWatch()
     const { data: unmatched } = useGetUnmatchedTorrents({ staleTime: 60_000 })
     const { data: achievements } = useGetAchievementSummary()
@@ -42,11 +42,11 @@ export function LandingHub() {
 
     const libraryCount = React.useMemo(() => {
         let count = 0
-        for (const list of libraryCollection?.lists ?? []) {
+        for (const list of libraryCollectionList ?? []) {
             count += list.entries?.length ?? 0
         }
         return count
-    }, [libraryCollection])
+    }, [libraryCollectionList])
 
     const hasManga = !!serverStatus?.settings?.library?.enableManga
 
@@ -155,7 +155,10 @@ export function LandingHub() {
 
                 {/* Whatever was being watched, first — it is the one thing a landing page can know
                     that a menu cannot. */}
-                <ContinueWatching />
+                <ContinueWatching
+                    episodes={continueWatchingList}
+                    isLoading={isLibraryLoading}
+                />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {destinations.map(destination => (

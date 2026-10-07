@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld(
             // Fork: open (or reuse) the always-on-top popout player window with the given
             // same-origin app URL; playback is handed off to that window.
             openPlayerPopout: (url) => ipcRenderer.invoke("window:open-player-popout", url),
+            // Fork: lock the popout player window's width/height to the video's aspect ratio, so
+            // the window is always exactly the shape of the picture and no bars are ever drawn.
+            setPopoutAspectRatio: (ratio) => ipcRenderer.invoke("window:set-player-popout-aspect-ratio", ratio),
         },
 
         localServer: {
