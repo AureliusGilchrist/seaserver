@@ -25,6 +25,18 @@ import { LuArrowRight, LuPlay } from "react-icons/lu"
 /** How many episodes play before the player checks that somebody is watching. */
 const EPISODES_BETWEEN_CHECKS = 3
 
+/**
+ * The hours the check applies in: from 7 pm to 10 am — the night, which is when a session runs long
+ * enough for the question to be worth asking and when an empty room is most likely. Midday viewing
+ * is short and deliberate, so it is never interrupted.
+ *
+ * The window spans midnight, so it is "past 7 pm or before 10 am", not a between-two check.
+ */
+function isNightHours(): boolean {
+    const hour = new Date().getHours()
+    return hour >= 19 || hour < 10
+}
+
 export type VideoCoreSequelPromptState = {
     mediaId: number
     /** The series just finished. */
@@ -116,11 +128,15 @@ export function useVideoCoreWatchingChecks(state: VideoCoreLifecycleState, onPau
             }
         }
 
-        // Every third episode, check that somebody is still there. The sequel prompt, if it just
-        // came up, is the more useful question and is asked on its own.
+        // Every third episode, check that somebody is still there — but only at night. The count
+        // keeps running either way, so a session that crosses into the night hours asks at its next
+        // episode rather than never. The sequel prompt, if it just came up, is the more useful
+        // question and is asked on its own.
         if (!isLastEpisode && playedRef.current >= EPISODES_BETWEEN_CHECKS) {
             playedRef.current = 0
-            setStillWatching({ episodesWatched: EPISODES_BETWEEN_CHECKS })
+            if (isNightHours()) {
+                setStillWatching({ episodesWatched: EPISODES_BETWEEN_CHECKS })
+            }
         }
     }, [])
 

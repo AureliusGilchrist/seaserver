@@ -2,6 +2,7 @@ package mkvparser
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -142,6 +143,13 @@ read:
 	w := &bytes.Buffer{}
 	err = o.WriteToSSA(w)
 	if err != nil {
+		// A file whose events parse to nothing — an empty track, or one the parser cannot turn into
+		// items — is refused by the writer ("no subtitles to write"). It is not a failure worth a
+		// 500: the content itself is intact and playable, so it is handed back unchanged rather than
+		// ending the track with an error toast.
+		if errors.Is(err, astisub.ErrNoSubtitlesToWrite) {
+			return content, nil
+		}
 		return "", fmt.Errorf("failed to write subtitles: %w", err)
 	}
 
@@ -188,6 +196,10 @@ read:
 	w := &bytes.Buffer{}
 	err = o.WriteToWebVTT(w)
 	if err != nil {
+		// Same as the ASS write above: an empty track is content, not an error.
+		if errors.Is(err, astisub.ErrNoSubtitlesToWrite) {
+			return content, nil
+		}
 		return "", fmt.Errorf("failed to write subtitles: %w", err)
 	}
 

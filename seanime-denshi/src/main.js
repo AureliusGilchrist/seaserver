@@ -1889,18 +1889,25 @@ app.whenReady().then(async () => {
         if (!popoutPlayerWindow || popoutPlayerWindow.isDestroyed()) return
         if (!Number.isFinite(aspect) || aspect <= 0) return
 
+        // Same ratio twice in a row is a no-op. The renderer reports once per stream now, but a
+        // setBounds that resizes an already-fitting window still makes Chromium re-enforce the
+        // constraint it just met — one resize answering another.
+        if (popoutPlayerWindow.__aspectRatio === aspect) return
+        popoutPlayerWindow.__aspectRatio = aspect
+
         popoutPlayerWindow.setAspectRatio(aspect)
 
         // Bring the current size to the ratio (width kept), capped so a very tall video cannot
-        // ask for a window taller than the screen.
-        const { width } = popoutPlayerWindow.getBounds()
-        let newHeight = Math.round(width / aspect)
+        // ask for a window taller than the screen. Set once, and only when the current shape is
+        // actually off the ratio.
+        const { width, height } = popoutPlayerWindow.getBounds()
+        let wanted = Math.round(width / aspect)
         try {
             const wa = require("electron").screen.getPrimaryDisplay().workArea
-            newHeight = Math.min(newHeight, wa.height - 80)
+            wanted = Math.min(wanted, wa.height - 80)
         } catch {}
-        if (newHeight > 0) {
-            popoutPlayerWindow.setBounds({ width, height: newHeight })
+        if (wanted > 0 && Math.abs(wanted - height) > 2) {
+            popoutPlayerWindow.setBounds({ width, height: wanted })
         }
     })
 

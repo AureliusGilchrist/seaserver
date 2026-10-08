@@ -564,7 +564,10 @@ function RowStateMark({ item }: { item: EnqueueFuture_Item }) {
         },
         matched: {
             label: "In your library",
-            className: "bg-emerald-500",
+            // The accent color itself — bg-brand is the accent exactly (the wallpaper's own), where
+            // --brand is the accent lightened and desaturated, which reads orange. "In your library"
+            // is the good outcome, and the good outcome is the one the app paints in its brand.
+            className: "bg-brand",
             icon: <LuCheck className="h-2.5 w-2.5" />,
         },
     }[state]
@@ -603,7 +606,7 @@ function RowStateLabel({ item }: { item: EnqueueFuture_Item }) {
         case "downloaded":
             return <span className="text-amber-400">Downloaded — waiting to be matched</span>
         case "matched":
-            return <span className="text-emerald-400">In your library</span>
+            return <span className="text-brand">In your library</span>
     }
     // No download state and still settled: you passed on it.
     return <span className="text-[--muted]">Skipped</span>

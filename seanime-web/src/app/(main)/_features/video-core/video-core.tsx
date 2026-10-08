@@ -769,10 +769,12 @@ export function VideoCore(props: VideoCoreProps) {
 
     // The sequel offer and the every-third-episode check. Both are raised from the same place the
     // episode's end is noticed, and the check pauses the video so the question is asked to somebody
-    // who is actually there.
-    const { onEpisodeEnded } = useVideoCoreWatchingChecks(state, () => {
+    // who is actually there. Stable on purpose: a fresh callback on every render would re-run the
+    // hook's effect every render, and while the check is up that is a pause per render.
+    const pausePlayback = React.useCallback(() => {
         videoRef.current?.pause()
-    })
+    }, [])
+    const { onEpisodeEnded } = useVideoCoreWatchingChecks(state, pausePlayback)
 
     const { isParticipant: isWatchPartyParticipant } = useNakamaWatchParty()
 

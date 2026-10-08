@@ -72,6 +72,11 @@ function PopoutAspectLock() {
         const reportRatio = window.electron?.window?.setPopoutAspectRatio
         if (!videoElement || !reportRatio) return
 
+        // Reported once per stream, on metadata. The video's intrinsic size changes when the episode
+        // changes — loadedmetadata fires for that too — and reporting on top of the element's own
+        // resize event as well meant every window resize was answered with another setBounds, which
+        // is a resize loop dressed up as a fitting: the window adjusts, the element re-lays out, and
+        // the whole thing thrashes for the life of the stream.
         const report = () => {
             const { videoWidth, videoHeight } = videoElement
             if (!videoWidth || !videoHeight) return
@@ -80,10 +85,8 @@ function PopoutAspectLock() {
 
         report()
         videoElement.addEventListener("loadedmetadata", report)
-        videoElement.addEventListener("resize", report)
         return () => {
             videoElement.removeEventListener("loadedmetadata", report)
-            videoElement.removeEventListener("resize", report)
         }
     }, [videoElement])
 
