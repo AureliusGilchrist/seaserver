@@ -133,32 +133,69 @@ type azItem struct {
 	AirDate      string            `json:"air_date"`
 }
 
-// extractJsonArray pulls the escaped JSON array an AniZone page embeds in its Alpine state.
-// The markup carries it as `JSON.parse('[{...},{...}]')` with " entity escapes and \/ path
-// separators, so the raw bytes are not JSON until both are undone.
+// azUnescape undoes the escaping AniZone's pages apply to their embedded JSON.
+//
+// The payloads arrive as `JSON.parse('[{...}]')` with the structural quotes written as
+// backslash-u0022 (and apostrophes as backslash-u0027) and the path separators as \/ — the
+// escaping json_encode of an HTML attribute produces. The quote escapes in particular sit where
+// the delimiters belong, and a parser handed escaped delimiters rejects the document outright.
+func azUnescape(raw string) string {
+	// Written as interpreted literals rather than entity text, so the sequence that reaches this
+	// function is matched byte for byte: the payload's quotes are the six characters
+	// backslash-u-0-0-2-2, and its apostrophes backslash-u-0-0-2-7.
+	raw = strings.ReplaceAll(raw, "\\u0022", "\"")
+	raw = strings.ReplaceAll(raw, "\\u0027", "'")
+	// The doubled form first, so a single pass does not leave a stray backslash behind.
+	raw = strings.ReplaceAll(raw, "\\\\/", "/")
+	raw = strings.ReplaceAll(raw, "\\/", "/")
+	return raw
+}
+
+// azExtractJsonArray pulls the JSON array an AniZone page embeds in its Alpine state.
+//
+// Anchored on the binding that carries it (`items: JSON.parse(`) rather than on the first
+// JSON.parse in the document: the pages build several components this way, and the one that comes
+// first is not always the one holding the results.
+//
+// Read with a streaming decoder rather than a closing-substring search: the array's end is wherever
+// the JSON value ends, which a `]')` lookup only guesses at — the pages nest objects (tags, title
+// lists) and the first `]')` after the start is not reliably the array's.
 func azExtractJsonArray(html string) ([]azItem, error) {
-	const marker = "JSON.parse('"
-	idx := strings.Index(html, marker)
-	if idx == -1 {
-		return nil, fmt.Errorf("anizone: could not find the embedded data in the page")
+	raw, err := azExtractEmbedded(html, "items: JSON.parse('")
+	if err != nil {
+		return nil, err
 	}
-	rest := html[idx+len(marker):]
-	end := strings.Index(rest, ")]")
-	if end == -1 {
-		return nil, fmt.Errorf("anizone: embedded data is truncated")
-	}
-	raw := rest[:end]
 
-	// Unescape what the page escaped: the quote entities, the escaped separators.
-	raw = strings.ReplaceAll(raw, `"`, `"`)
-	raw = strings.ReplaceAll(raw, `'`, "'")
-	raw = strings.ReplaceAll(raw, `\/`, "/")
-
+	dec := json.NewDecoder(strings.NewReader(raw))
 	var items []azItem
-	if err := json.Unmarshal([]byte(raw), &items); err != nil {
+	if err := dec.Decode(&items); err != nil {
 		return nil, fmt.Errorf("anizone: could not parse the embedded data: %w", err)
 	}
 	return items, nil
+}
+
+// azExtractEmbedded returns everything after the marker, unescaped, so the caller can read one JSON
+// value out of it with a decoder. Falls back to the bare JSON.parse marker when the anchored one is
+// absent (the site's markup has changed shape before, and a page that moved the binding should
+// still be readable).
+func azExtractEmbedded(html string, marker string) (string, error) {
+	idx := strings.Index(html, marker)
+	if idx == -1 {
+		marker = "JSON.parse('"
+		idx = strings.Index(html, marker)
+	}
+	if idx == -1 {
+		return "", fmt.Errorf("anizone: could not find the embedded data in the page")
+	}
+	rest := html[idx+len(marker):]
+
+	// The value starts at its first bracket, whatever sits between the call and it.
+	start := strings.IndexAny(rest, "[{")
+	if start == -1 {
+		return "", fmt.Errorf("anizone: embedded data is truncated")
+	}
+
+	return azUnescape(rest[start:]), nil
 }
 
 var (
@@ -302,27 +339,19 @@ type azPlayerProps struct {
 	} `json:"subtitles"`
 }
 
-// extractPlayerProps pulls the player's JSON props out of an episode page. It is embedded the same
-// way the lists are, as `JSON.parse('{...}')`.
+// azExtractPlayerProps pulls the player's JSON props out of an episode page.
+//
+// Anchored on the player's own call — the episode page embeds an episode list the same way, and the
+// list comes first in the document, so the unanchored first JSON.parse is the wrong one.
 func azExtractPlayerProps(html string) (*azPlayerProps, error) {
-	const marker = "JSON.parse('"
-	idx := strings.Index(html, marker)
-	if idx == -1 {
-		return nil, fmt.Errorf("anizone: could not find the player's data in the page")
+	raw, err := azExtractEmbedded(html, "vidstackPlayer(JSON.parse('")
+	if err != nil {
+		return nil, err
 	}
-	rest := html[idx+len(marker):]
-	end := strings.Index(rest, "')")
-	if end == -1 {
-		return nil, fmt.Errorf("anizone: the player's data is truncated")
-	}
-	raw := rest[:end]
 
-	raw = strings.ReplaceAll(raw, `"`, `"`)
-	raw = strings.ReplaceAll(raw, `'`, "'")
-	raw = strings.ReplaceAll(raw, `\/`, "/")
-
+	dec := json.NewDecoder(strings.NewReader(raw))
 	var props azPlayerProps
-	if err := json.Unmarshal([]byte(raw), &props); err != nil {
+	if err := dec.Decode(&props); err != nil {
 		return nil, fmt.Errorf("anizone: could not parse the player's data: %w", err)
 	}
 	return &props, nil

@@ -117,6 +117,25 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 	if strings.HasPrefix(subtitleURL, "//") {
 		subtitleURL = "https:" + subtitleURL
 	}
+
+	// A third shape, and the one that reaches here most often: a bare path — "7b4123141/en.srt",
+	// with no host and no scheme at all. Providers hand these out because in a browser they resolve
+	// against the page the video is playing on, and the extension that carried the track along
+	// knows which page that was: its Referer or Origin header is that address. Resolving against it
+	// is exactly what the browser would have done, and it is the difference between a subtitle that
+	// loads and a 500 naming a URL that looks like nothing.
+	if parsed, parseErr := url.Parse(subtitleURL); parseErr == nil && parsed.Host == "" {
+		for k, v := range b.Headers {
+			if v == "" || !(strings.EqualFold(k, "Referer") || strings.EqualFold(k, "Origin")) {
+				continue
+			}
+			if base, baseErr := url.Parse(strings.TrimSpace(v)); baseErr == nil && base.Host != "" {
+				subtitleURL = base.ResolveReference(&url.URL{Path: parsed.Path, RawQuery: parsed.RawQuery}).String()
+				break
+			}
+		}
+	}
+
 	if parsed, parseErr := url.Parse(subtitleURL); parseErr != nil || parsed.Host == "" || parsed.Scheme == "" {
 		return h.RespondWithError(c, fmt.Errorf(
 			"subtitle URL is not a complete address (%q) — the provider gave a link this server cannot fetch on its own", b.Url))

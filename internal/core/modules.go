@@ -543,6 +543,12 @@ func (a *App) initModulesOnce() {
 	// away — so one that was cut off mid-walk picks itself back up here, from its saved progress.
 	a.EnqueueFutureRepository.ResumeIfInterrupted()
 
+	// And it is meant to outlive the page, full stop. The resume above covers a restart; this keeps
+	// looking, so a walk that ended in an error or a waiting list that still has something on it
+	// starts again on its own rather than waiting for somebody to open the queue and press Resume.
+	// See supervisor.go.
+	a.EnqueueFutureRepository.StartSupervisor()
+
 	// +---------------------+
 	// | En Masse Downloader |
 	// +---------------------+

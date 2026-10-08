@@ -2,11 +2,31 @@
 
 import { SeaLink } from "@/components/shared/sea-link"
 import { cva, VariantProps } from "class-variance-authority"
+import { atomWithStorage } from "jotai/utils"
+import { useAtom } from "jotai/react"
 import * as React from "react"
 import { useContext } from "react"
 import { cn, ComponentAnatomy, defineStyleAnatomy } from "../core/styling"
 import { Disclosure, DisclosureContent, DisclosureItem, DisclosureTrigger } from "../disclosure"
 import { Tooltip, TooltipProps } from "../tooltip"
+
+/* -------------------------------------------------------------------------------------------------
+ * Group collapsing
+ * -----------------------------------------------------------------------------------------------*/
+
+/**
+ * Which groups are folded shut, by group name.
+ *
+ * Remembered across reloads on purpose: folding a group is a statement about what you do not need to
+ * see — the same statement every time you open the app — and a sidebar that unfolds itself again on
+ * the next launch is one you have to re-teach.
+ */
+export const __verticalMenuCollapsedGroups = atomWithStorage<Record<string, boolean>>(
+    "sea-vertical-menu-collapsed-groups",
+    {},
+    undefined,
+    { getOnInit: true },
+)
 
 /* -------------------------------------------------------------------------------------------------
  * Anatomy
@@ -268,19 +288,40 @@ export const VerticalMenu = React.forwardRef<HTMLDivElement, VerticalMenuProps>(
                     collapsed: _collapsed1 ?? false,
                 }}
             >
-                {items.map((item, idx) => {
+                {(() => {
+                    // Which group each entry belongs to, decided as the list is walked: a heading
+                    // starts its group, and every entry after it is in that group until the next
+                    // heading. Computed here rather than on each item, so an entry carries nothing
+                    // extra and a group without a heading hides nothing.
+                    const [collapsedGroups, setCollapsedGroups] = useAtom(__verticalMenuCollapsedGroups)
+
+                    const isGroupCollapsed = (name: string) => !!collapsedGroups?.[name]
+
+                    let currentGroup: string | null = null
+
+                    return items.map((item, idx) => {
                     // A group heading: the entries under it belong together, and this says what
-                    // they are. Not a menu entry — nothing to click, nothing to focus, nothing to
-                    // navigate to — so it renders before every branch that would make one.
+                    // they are. A collapsible one — a fold — rather than a plain label: a sidebar
+                    // this long is a lot to scroll when you only ever open half of it, and folding
+                    // what you do not need is one press. Still not an entry: it navigates to
+                    // nothing, it only folds.
                     if (item.isGroupHeading) {
+                        currentGroup = item.name
+                        const isFolded = isGroupCollapsed(item.name)
                         return (
-                            <div
+                            <button
                                 key={item.name + idx}
+                                type="button"
                                 data-vertical-menu-group={item.name}
+                                data-vertical-menu-group-collapsed={isFolded || undefined}
+                                onClick={() => {
+                                    setCollapsedGroups(prev => ({ ...(prev ?? {}), [item.name]: !isFolded }))
+                                }}
                                 className={cn(
-                                    "flex items-center gap-2 select-none",
+                                    "flex items-center gap-2 select-none cursor-pointer group/group-heading",
                                     collapsed ? "justify-center py-1 mt-1" : "px-2 pt-4 pb-1",
                                 )}
+                                title={collapsed ? item.name : undefined}
                             >
                                 {item.iconType && (
                                     <item.iconType
@@ -292,12 +333,39 @@ export const VerticalMenu = React.forwardRef<HTMLDivElement, VerticalMenuProps>(
                                     />
                                 )}
                                 {!collapsed && (
-                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-[--muted] opacity-70">
+                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-[--muted] opacity-70 group-hover/group-heading:opacity-100">
                                         {item.name}
                                     </span>
                                 )}
-                            </div>
+                                {!collapsed && (
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="10"
+                                        height="10"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        className={cn(
+                                            "text-[--muted] opacity-0 group-hover/group-heading:opacity-70 transition-transform duration-200",
+                                            isFolded && "rotate-180",
+                                        )}
+                                        aria-hidden="true"
+                                    >
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                )}
+                            </button>
                         )
+                    }
+
+                    // An entry in a group that is folded shut renders nothing. A collapsed sidebar
+                    // shows everything — the icons are the navigation there — so folding only
+                    // applies while the labels are shown.
+                    if (currentGroup !== null && !collapsed && isGroupCollapsed(currentGroup)) {
+                        return null
                     }
 
                     return (
@@ -358,7 +426,8 @@ export const VerticalMenu = React.forwardRef<HTMLDivElement, VerticalMenuProps>(
                                 )}
                         </React.Fragment>
                     )
-                })}
+                    })
+                })()}
             </__VerticalMenuContext.Provider>
         </nav>
     )

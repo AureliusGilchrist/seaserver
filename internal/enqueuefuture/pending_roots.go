@@ -25,12 +25,14 @@ const pendingRootsFileName = "enqueue-future-pending-roots.json"
 
 // MaxPendingRoots is how many anime may wait their turn behind the running one.
 //
-// Each root is a full walk of its own — every franchise it leads to, every family walked to its ends
-// — so twenty of them is a very long stretch of unattended work, measured in hours rather than
-// minutes. The cap is not about memory or disk; it is about the list still meaning something. A
-// waiting list you can no longer remember the far end of is a way to queue things you have forgotten
-// wanting, and to be told "already queued" about an anime whose turn is a day away.
-const MaxPendingRoots = 20
+// There is no cap. There used to be one of twenty, on the reasoning that a waiting list you cannot
+// remember the far end of is a way to queue things you have forgotten wanting — but that is a
+// judgement about somebody else's list, and the cost of being wrong about it is the one thing this
+// feature must not do: refuse to take the anime you asked for. A queue that stops accepting work is
+// a queue that has to be babysat, which is the opposite of what it is for.
+//
+// Zero means unlimited, and the duplicate check below is what keeps the list honest instead.
+const MaxPendingRoots = 0
 
 // pendingRoot is one anime waiting for its turn.
 type pendingRoot struct {
@@ -90,7 +92,7 @@ func (r *Repository) queueRoot(root pendingRoot) (int, bool) {
 		}
 	}
 
-	if len(roots) >= MaxPendingRoots {
+	if MaxPendingRoots > 0 && len(roots) >= MaxPendingRoots {
 		return len(roots), false
 	}
 

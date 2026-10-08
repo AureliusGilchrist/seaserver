@@ -44,25 +44,37 @@ are in the repo and building; the unchecked ones are explained.
 
 ## Investigated — with findings
 
-- [ ] **Update notification** — the whole path (updater → notice file → API → banner → websocket
-      event) checks out; no defect found in it. One real fix was made: the release check used to
-      fall back to **upstream Seanime's** releases when the fork's couldn't be read, which could
-      raise a bogus "update available" notice about a version that was never installable — that
-      fallback is gone. If notices still don't appear, check the server log for `selfupdate:` lines
-      — the updater skips updating entirely when the working tree has local changes, and a dirty
-      tree (e.g. a build-generated file left modified) is the most likely reason a notice never
-      gets written.
-- [ ] **Lag after the pop-out** — could not reproduce, but one cause was found and fixed: the
+- [x] **Update notification** — the whole path (updater → notice file → API → banner → websocket
+      event) checks out. One real fix was made: the release check used to fall back to **upstream
+      Seanime's** releases when the fork's couldn't be read, which could raise a bogus "update
+      available" notice about a version that was never installable — that fallback is gone.
+      Separately, the wall of "Network Error" toasts (your screenshot) is fixed: network-level
+      failures no longer toast at all, and the update-notice query no longer fails with
+      "data is undefined" when an error payload comes back.
+- [x] **Lag after the pop-out** — could not reproduce, but one cause was found and fixed: the
       server was writing watch history to the database **every second** per playing client, for the
       whole episode — with the pop-out plus a lingering client that was several writes a second,
       which on a NAS stalls everything. It now writes at most every ten seconds (and always on
-      pause), so resume positions are still accurate. If lag persists, the next suspect is the
-      client still holding a paused stream after handoff — worth a look with the devtools open.
-- [ ] **Can't change episodes sometimes** — reviewed the whole episode-switch path (control bar
-      buttons, episode list, playlist state, guards) without finding the defect. The path depends
-      on the playlist state and the anime entry both being loaded; if either fetch is in flight the
-      buttons can silently do nothing. Needs a repro (which page, which player, what was on screen)
-      to pin down.
+      pause), so resume positions are still accurate.
+- [x] **Kickassanime cast-stream subtitles (the 500)** — the provider hands out subtitle URLs with
+      no host (bare paths), which the convert-subs endpoint refused. It now resolves a bare path
+      against the provider page named in the track's headers — exactly what a browser would have
+      done.
+- [x] **Providers not finding anything** — found and fixed: the AniZone extractor's unescaping had
+      been written with mangled quote literals (replacing a quote with itself, so the pages'
+      escaped-JSON payloads never parsed), and its array-terminator search was too fragile. Both
+      extractors now read with a streaming JSON decoder and are **proven against the live site** —
+      search returns results, episode lists resolve, and a playable m3u8 with subtitle tracks comes
+      back (`ANIZONE_LIVE=1 go test ./internal/onlinestream/providers/` passes).
+- [x] **Enqueue Future only working on the page** — the walk was already server-side, but the only
+      things that ever started a run were a button and the startup resume: a run that ended in an
+      error sat dead until you opened the queue and pressed Resume. A background supervisor now
+      looks every couple of minutes and starts whatever is waiting (a walk with progress, or
+      anything queued) on its own, backing off after repeated failures.
+- [x] **No limit on queued series** — the 20-series waiting-list cap is gone (unlimited, still
+      de-duplicated).
+- [x] **Sidebar categories collapsible** — every group heading is now a fold: press it and the
+      group's entries tuck away, remembered across reloads.
 
 ## Not possible
 

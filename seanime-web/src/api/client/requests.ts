@@ -195,6 +195,17 @@ export async function buildSeaQuery<T, D extends any = any>(
         },
     })
     const response = _handleSeaResponse<T>(res.data)
+
+    // An error payload is a rejected query, not a silent one.
+    //
+    // This used to resolve with `undefined`, which React Query refuses: "query data cannot be
+    // undefined" — an error about the plumbing instead of the thing that happened, toasted with a
+    // query key for a description. Throwing the server's own message puts it where the rest of the
+    // error handling already lives.
+    if (response.error) {
+        throw new Error(response.error)
+    }
+
     return response.data
 }
 
@@ -221,6 +232,12 @@ export function useServerMutation<R = void, V = void>(
     return useMutation<R | undefined, SeaError, V>({
         onError: error => {
             console.log("Mutation error", error)
+            // A request the server never saw is one toast per attempted request if it is announced —
+            // and the app makes dozens while the server is restarting or the connection drops, each
+            // with its own toast, which is a wall of red over a screen that is already showing the
+            // reconnect state. Network-level failures are console-only, here and in the query
+            // handler below; the websocket atom is what tells the user the server is unreachable.
+            if (!error?.response) return
             // 401 errors are always handled by the call-site's own onError (e.g. profile login
             // showing the AniList token modal). Showing a generic toast on top of that causes
             // duplicate noise, so bail out early and let the caller deal with it.
@@ -292,6 +309,10 @@ export function useServerQuery<R, V = any>(
 
     useEffect(() => {
         if (!muteError && props.isError) {
+            // Network-level failures are console-only: the app makes dozens of requests while the
+            // server restarts or the link drops, and one toast each is a wall of red over a screen
+            // that is already telling the user it cannot connect. See the mutation handler.
+            if (!props.error?.response) return
             if (props.error?.response?.data?.error === "UNAUTHENTICATED" && pathname !== "/public/auth") {
                 setPassword(undefined)
                 window.location.href = "/public/auth"
