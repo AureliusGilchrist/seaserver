@@ -96,10 +96,14 @@ export function ElectronUpdateModal(props: UpdateModalProps) {
                 }
             })
 
-            const removeUpdateError = window.electron.on("update-error", (error: string) => {
+            const removeUpdateError = window.electron.on("update-error", (error: any) => {
                 logger("ELECTRON").error("Update error", error)
                 if (!isMacOS) {
-                    toast.error(`Update error: ${error}`)
+                    // The shell sends the error as an object ({ code, message, stack }), so it was
+                    // interpolated as "[object Object]" — a toast about nothing. The message is the
+                    // part worth reading; the rest is already in the log.
+                    const message = typeof error === "string" ? error : (error?.message || "The updater could not reach its releases")
+                    toast.error(`Update error: ${message}`)
                     setIsUpdating(false)
                     setIsDownloading(false)
                 }
