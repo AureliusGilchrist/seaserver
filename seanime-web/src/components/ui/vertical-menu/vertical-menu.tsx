@@ -218,8 +218,16 @@ export const VerticalMenu = React.forwardRef<HTMLDivElement, VerticalMenuProps>(
     // Which groups are folded shut, read at the top of the component. It decides what the group
     // headings render as and whether the entries under them are drawn at all — state that belongs
     // to the render, not inside it.
+    //
+    // A group with no stored answer is shut, not open: the sidebar opens folded, and the only thing
+    // that ever changes that is somebody opening a group by hand. Stored as what it is — `false`
+    // means open, anything else (including absent) means folded — so the default is the collapsed
+    // state rather than the expanded one, and opening a group is remembered for good.
     const [collapsedGroups, setCollapsedGroups] = useAtom(__verticalMenuCollapsedGroups)
-    const isGroupCollapsed = React.useCallback((name: string) => !!collapsedGroups?.[name], [collapsedGroups])
+    const isGroupCollapsed = React.useCallback(
+        (name: string) => collapsedGroups?.[name] !== false,
+        [collapsedGroups],
+    )
 
     const {
         onLinkItemClick: _onLinkItemClick,
@@ -326,15 +334,15 @@ function renderItems(
     ctx: {
         collapsed: boolean
         isGroupCollapsed: (name: string) => boolean
-        toggleGroup: (updater: (prev: Record<string, boolean>) => Record<string, boolean>) => void
+        toggleGroup: React.Dispatch<React.SetStateAction<Record<string, boolean>>>
         itemProps: (item: VerticalMenuItem) => any
         ItemContent: (item: VerticalMenuItem) => React.ReactNode
         itemChevronClass?: string
         subContentClass?: string
         parentItemClass?: string
         itemClass?: string
-        size: string
-        isSidebar?: boolean
+        size?: "sm" | "md" | "lg" | null
+        isSidebar?: boolean | null
     },
 ) {
     const { collapsed, isGroupCollapsed, toggleGroup, itemProps, ItemContent, itemChevronClass, subContentClass, parentItemClass, itemClass, size, isSidebar } = ctx
@@ -363,7 +371,7 @@ function renderItems(
                     data-vertical-menu-group={item.name}
                                 data-vertical-menu-group-collapsed={isFolded || undefined}
                                 onClick={() => {
-                                    setCollapsedGroups(prev => ({ ...(prev ?? {}), [item.name]: !isFolded }))
+                                    toggleGroup(prev => ({ ...(prev ?? {}), [item.name]: !isFolded }))
                                 }}
                                 className={cn(
                                     "flex items-center gap-2 select-none cursor-pointer group/group-heading",
@@ -474,12 +482,7 @@ function renderItems(
                                 )}
                         </React.Fragment>
                     )
-                    })
-                })()}
-            </__VerticalMenuContext.Provider>
-        </nav>
-    )
-
-})
+    })
+}
 
 VerticalMenu.displayName = "VerticalMenu"
