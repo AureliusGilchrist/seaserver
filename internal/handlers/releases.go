@@ -67,11 +67,41 @@ func (h *Handler) HandleCheckForUpdates(c echo.Context) error {
 // HandleGetLatestUpdate
 //
 //	@summary returns the latest update.
-//	@desc This will return the latest update.
+//	@desc When the server runs from its own git checkout, this is the commit the fork has that the
+//	@desc checkout does not — what gets pulled, not what is released. Releases are only asked when
+//	@desc there is no checkout to ask git about.
 //	@desc If an error occurs, it will return an empty update.
 //	@route /api/v1/latest-update [GET]
 //	@returns updater.Update
 func (h *Handler) HandleGetLatestUpdate(c echo.Context) error {
+	// A checkout deployment's update is a commit. The git updater already knows how to ask, and
+	// what it answers is the thing the client should hear: an update is what gets pulled in, and a
+	// releases endpoint's answer about upstream versions is not that.
+	if gitUpdater := updater.CurrentGitUpdater(); gitUpdater != nil {
+		behind, err := gitUpdater.CheckForUpdate()
+		if err != nil {
+			return h.RespondWithData(c, &updater.Update{})
+		}
+		if !behind {
+			return h.RespondWithData(c, &updater.Update{})
+		}
+
+		// The release shape is kept so the client's modal keeps working: the tag names the commit
+		// the checkout is behind, and the modal says what arrived.
+		remote, _ := gitUpdater.RemoteCommit()
+		return h.RespondWithData(c, &updater.Update{
+			Release: &updater.Release{
+				TagName:  remote,
+				Name:     "A new commit was pulled",
+				Released: true,
+				Version:  remote,
+				Body:     "The fork's repository has commits this server does not have yet. It will pull and restart itself.",
+			},
+			CurrentVersion: h.App.Updater.CurrentVersion,
+			Type:           "minor",
+		})
+	}
+
 	update, err := h.App.Updater.GetLatestUpdate()
 	if err != nil {
 		return h.RespondWithData(c, &updater.Update{})

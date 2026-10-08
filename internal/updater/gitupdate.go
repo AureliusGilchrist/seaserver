@@ -62,6 +62,11 @@ type GitAutoUpdater struct {
 	updating   bool
 }
 
+// gitUpdaterRef holds the updater the server started with, so the API can ask it whether the
+// checkout is behind the fork's latest commit — the question the update check is, now that updates
+// are a commit and not a release.
+var gitUpdaterRef = util.NewRef[*GitAutoUpdater](nil)
+
 // StartGitAutoUpdate starts the fork's auto-updater when the server is running from inside its own
 // git checkout — the NAS deployment case. A binary that is not in a checkout has nothing to pull,
 // so the updater is simply not started there.
@@ -83,6 +88,7 @@ func StartGitAutoUpdate(logger *zerolog.Logger, wsEventManager *events.WSEventMa
 		repoDir:        repoDir,
 		appDataDir:     appDataDir,
 	}
+	gitUpdaterRef.Set(u)
 
 	logger.Info().Str("dir", repoDir).Dur("interval", gitUpdateInterval).
 		Msg("selfupdate: Watching the fork's repository for new commits")
@@ -157,6 +163,37 @@ func (u *GitAutoUpdater) checkForUpdate() (bool, error) {
 			Msg("selfupdate: The fork has a new commit")
 	}
 	return behind, nil
+}
+
+// CheckForUpdate is the exported form, for the API's update check. An update here is a commit on
+// the fork's repository — what the server pulls — and nothing else, so the check asks git and
+// never a releases endpoint.
+func (u *GitAutoUpdater) CheckForUpdate() (bool, error) {
+	return u.checkForUpdate()
+}
+
+// CurrentGitUpdater returns the git updater the server started with, or nil when the server is not
+// running from a checkout (a binary deployment has nothing to pull, and so nothing to ask).
+func CurrentGitUpdater() *GitAutoUpdater {
+	return gitUpdaterRef.Get()
+}
+
+// RemoteCommit returns the commit the checkout is behind, without fetching — the ref the update
+// check names. Empty when the last fetch left nothing to compare against.
+func (u *GitAutoUpdater) RemoteCommit() (string, error) {
+	branch, err := u.git("rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", err
+	}
+	branch = strings.TrimSpace(branch)
+	if branch == "" || branch == "HEAD" {
+		branch = "main"
+	}
+	remote, err := u.git("rev-parse", fmt.Sprintf("%s/%s", gitUpdateRemote, branch))
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(remote), nil
 }
 
 // update pulls, builds, and replaces the running process with what it built.

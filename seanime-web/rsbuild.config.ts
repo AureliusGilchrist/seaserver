@@ -73,6 +73,8 @@ export default defineConfig({
     source: {
         entry: {
             index: "./src/main.tsx",
+            // Temporary: the sidebar fold reproduction. Delete with src/sidebar-test.tsx.
+            "sidebar-test": "./src/sidebar-test.tsx",
         },
         define: {
             ...publicVars,
