@@ -294,27 +294,73 @@ export const VerticalMenu = React.forwardRef<HTMLDivElement, VerticalMenuProps>(
                     collapsed: _collapsed1 ?? false,
                 }}
             >
-                {(() => {
-                    // Which group each entry belongs to, decided as the list is walked: a heading
-                    // starts its group, and every entry after it is in that group until the next
-                    // heading. Computed here rather than on each item, so an entry carries nothing
-                    // extra and a group without a heading hides nothing.
-                    let currentGroup: string | null = null
+                {renderItems(items, {
+                    collapsed,
+                    isGroupCollapsed,
+                    toggleGroup: setCollapsedGroups,
+                    itemProps,
+                    ItemContent,
+                    itemChevronClass,
+                    subContentClass,
+                    parentItemClass,
+                    itemClass,
+                    size,
+                    isSidebar,
+                })}
+            </__VerticalMenuContext.Provider>
+        </nav>
+    )
 
-                    return items.map((item, idx) => {
-                    // A group heading: the entries under it belong together, and this says what
-                    // they are. A collapsible one — a fold — rather than a plain label: a sidebar
-                    // this long is a lot to scroll when you only ever open half of it, and folding
-                    // what you do not need is one press. Still not an entry: it navigates to
-                    // nothing, it only folds.
-                    if (item.isGroupHeading) {
-                        currentGroup = item.name
-                        const isFolded = isGroupCollapsed(item.name)
-                        return (
-                            <button
-                                key={item.name + idx}
-                                type="button"
-                                data-vertical-menu-group={item.name}
+})
+
+/**
+ * The items, rendered.
+ *
+ * A plain function rather than an IIFE with hooks inside it: the React Compiler rewrites this
+ * component, and hook calls inside nested functions are the one shape it does not transform — the
+ * atom subscription silently never attached, so clicks updated storage and nothing on screen moved.
+ * Every hook is read at the top of the component and passed in here as values.
+ */
+function renderItems(
+    items: VerticalMenuItem[],
+    ctx: {
+        collapsed: boolean
+        isGroupCollapsed: (name: string) => boolean
+        toggleGroup: (updater: (prev: Record<string, boolean>) => Record<string, boolean>) => void
+        itemProps: (item: VerticalMenuItem) => any
+        ItemContent: (item: VerticalMenuItem) => React.ReactNode
+        itemChevronClass?: string
+        subContentClass?: string
+        parentItemClass?: string
+        itemClass?: string
+        size: string
+        isSidebar?: boolean
+    },
+) {
+    const { collapsed, isGroupCollapsed, toggleGroup, itemProps, ItemContent, itemChevronClass, subContentClass, parentItemClass, itemClass, size, isSidebar } = ctx
+
+    // Which group each entry belongs to, decided as the list is walked: a heading starts its group,
+    // and every entry after it is in that group until the next heading. Computed here rather than
+    // on each item, so an entry carries nothing extra and a group without a heading hides nothing.
+    let currentGroup: string | null = null
+
+    return items.map((item, idx) => {
+        // A group heading: the entries under it belong together, and this says what they are. A
+        // collapsible one — a fold — rather than a plain label: a sidebar this long is a lot to
+        // scroll when you only ever open half of it, and folding what you do not need is one press.
+        // Still not an entry: it navigates to nothing, it only folds.
+        if (item.isGroupHeading) {
+            currentGroup = item.name
+            const isFolded = isGroupCollapsed(item.name)
+            return (
+                <button
+                    // Keyed on the group's name alone, not on the position: a fold changes nothing
+                    // about where a heading sits, and a key that moved when entries hid made React
+                    // remount the heading as a different node — losing the element the fold was
+                    // supposed to act on.
+                    key={item.name}
+                    type="button"
+                    data-vertical-menu-group={item.name}
                                 data-vertical-menu-group-collapsed={isFolded || undefined}
                                 onClick={() => {
                                     setCollapsedGroups(prev => ({ ...(prev ?? {}), [item.name]: !isFolded }))
