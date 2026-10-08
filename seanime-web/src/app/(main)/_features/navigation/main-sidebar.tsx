@@ -52,7 +52,7 @@ import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
-import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuHardDriveDownload, LuLayers, LuListVideo, LuMonitorPlay, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUsers, LuWrench } from "react-icons/lu"
+import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuHardDriveDownload, LuLayers, LuListVideo, LuLayoutDashboard, LuMonitorPlay, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUsers, LuWrench } from "react-icons/lu"
 import { SiAnilist } from "react-icons/si"
 import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
 import { PiArrowCircleLeftDuotone, PiArrowCircleRightDuotone } from "react-icons/pi"
@@ -200,12 +200,24 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
 
     // The sidebar, grouped.
     //
-    // Every entry sits under a heading that says what it is for, so the column reads as a few
+    // Above the groups, the landing page itself — the map of the app, and the one place that is
+    // somebody's own: its widgets are arranged from there. It is an entry, not a group, so it sits
+    // alone at the top where a home button belongs.
+    //
+    // Every entry then sits under a heading that says what it is for, so the column reads as a few
     // short lists rather than one long one: what you watch, what AniList knows about you, what is
     // downloading, and who else is here. The headings are marked with an icon — the watch group's
-    // is a play button, the AniList group's is the AniList logo — and they are not entries: nothing
-    // to click, nothing to navigate to.
+    // is a play button, the AniList group's is the AniList logo — and they fold: pressing one puts
+    // its entries away, in both modes, and the folds are remembered.
     const items = React.useMemo(() => [
+        {
+            id: "landing",
+            iconType: LuLayoutDashboard,
+            name: "Home",
+            href: "/",
+            isCurrent: pathname === "/",
+        },
+
         // ── Watch ────────────────────────────────────────────────────────
         {
             id: "group-watch",
@@ -425,16 +437,6 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     // Plugins
     const pluginWebviewItems = usePluginSidebarItems()
 
-    // Overflow logic
-    const [autoUnpinnedIds, setAutoUnpinnedIds] = React.useState<string[]>([])
-    const overflowCheckTimeoutRef = React.useRef<NodeJS.Timeout | undefined>(undefined)
-
-    React.useEffect(() => {
-        const handleResize = () => setAutoUnpinnedIds([])
-        window.addEventListener("resize", handleResize)
-        return () => window.removeEventListener("resize", handleResize)
-    }, [])
-
     // Apply anime theme overrides (icon + label) to any item that has an override
     const applyAnimeOverride = React.useCallback((item: any) => {
         const ov = animeConfig.sidebarOverrides[item.id]
@@ -442,97 +444,19 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         return { ...item, iconType: ov.icon ?? item.iconType, name: ov.label ?? item.name }
     }, [animeConfig.sidebarOverrides])
 
-    const allPinnedItems = React.useMemo(() => {
+    // Everything that is not hidden by hand.
+    //
+    // There is no overflow menu and no automatic hiding. There used to be both: when the column ran
+    // taller than the screen, items were moved into a "More" entry one at a time, and the next
+    // render measured the result and moved another — so the bar ate its own icons, and clicking
+    // "More" made more of them disappear. It also fought the group folds, since a heading could be
+    // moved out from under the entries it labels.
+    //
+    // What the bar does instead is scroll, and the groups fold. Both are in the user's hands; neither
+    // takes something away on its own.
+    const visibleItems = React.useMemo(() => {
         return items.filter(item => !ts.unpinnedMenuItems?.includes(item.id))
     }, [items, ts.unpinnedMenuItems])
-
-    const displayedPinnedItems = React.useMemo(() => {
-        return allPinnedItems.filter(item => !autoUnpinnedIds.includes(item.id))
-    }, [allPinnedItems, autoUnpinnedIds])
-
-    const displayedPluginItems = React.useMemo(() => {
-        return pluginWebviewItems.filter((item: any) => !autoUnpinnedIds.includes(item.id))
-    }, [pluginWebviewItems, autoUnpinnedIds])
-
-    const checkOverflow = React.useCallback(() => {
-        if (!containerRef.current) return
-
-        const { scrollHeight, clientHeight } = containerRef.current
-        if (scrollHeight > clientHeight + 2) {
-            if (displayedPluginItems.length > 0) {
-                const lastPlugin = displayedPluginItems[displayedPluginItems.length - 1] as any
-                if (lastPlugin?.id) {
-                    setAutoUnpinnedIds(prev => {
-                        if (prev.includes(lastPlugin.id)) return prev
-                        return [...prev, lastPlugin.id]
-                    })
-                    return
-                }
-            }
-
-            if (displayedPinnedItems.length > 1) {
-                // Walked back from the end to the last item that is an entry, not a group heading.
-                // A heading is a label, not a destination — unpinning one put it in "More" without
-                // its entries, and left the entries below it belonging to a group that was no longer
-                // on the bar, which is what made the folds look dead: nothing to fold, nothing to
-                // press.
-                let cut = displayedPinnedItems.length - 1
-                while (cut > 0 && (displayedPinnedItems[cut] as any).isGroupHeading) {
-                    cut--
-                }
-                if (cut === 0) return
-                const lastItem = displayedPinnedItems[cut]
-                setAutoUnpinnedIds(prev => {
-                    if (prev.includes(lastItem.id)) return prev
-                    return [...prev, lastItem.id]
-                })
-            }
-        }
-    }, [displayedPinnedItems, displayedPluginItems])
-
-    React.useEffect(() => {
-        if (!containerRef.current) return
-
-        const observer = new ResizeObserver(() => {
-            if (overflowCheckTimeoutRef.current) {
-                clearTimeout(overflowCheckTimeoutRef.current)
-            }
-            overflowCheckTimeoutRef.current = setTimeout(() => {
-                checkOverflow()
-            }, 16)
-        })
-
-        observer.observe(containerRef.current)
-        checkOverflow()
-
-        return () => {
-            observer.disconnect()
-            if (overflowCheckTimeoutRef.current) {
-                clearTimeout(overflowCheckTimeoutRef.current)
-            }
-        }
-    }, [checkOverflow])
-
-    const unpinnedMenuItems = React.useMemo(() => {
-        const manuallyUnpinned = items.filter(item => ts.unpinnedMenuItems?.includes(item.id))
-        const forcedUnpinned = items.filter(item => autoUnpinnedIds.includes(item.id))
-        const forcedUnpinnedPlugins = pluginWebviewItems.filter(item => autoUnpinnedIds.includes(item.id))
-
-        const allHidden = [...manuallyUnpinned, ...forcedUnpinnedPlugins, ...forcedUnpinned]
-
-        if (allHidden.length === 0) return []
-
-        return [
-            {
-                iconType: BiChevronRight,
-                name: "More",
-                subContent: <VerticalMenu
-                    items={allHidden}
-                    isSidebar
-                />,
-            } as VerticalMenuItem,
-        ]
-    }, [items, ts.unpinnedMenuItems, autoUnpinnedIds, pluginWebviewItems])
 
     return (
         <div>
@@ -557,9 +481,8 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 itemChevronClass="hidden"
                 itemIconClass="transition-transform duration-300"
                 items={[
-                    ...displayedPinnedItems.map(applyAnimeOverride),
-                    ...displayedPluginItems,
-                    ...unpinnedMenuItems,
+                    ...visibleItems.map(applyAnimeOverride),
+                    ...pluginWebviewItems,
                     {
                         iconType: LuRefreshCw,
                         name: "Refresh AniList",

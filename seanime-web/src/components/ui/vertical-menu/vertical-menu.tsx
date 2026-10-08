@@ -417,10 +417,11 @@ function renderItems(
                         )
                     }
 
-                    // An entry in a group that is folded shut renders nothing. A collapsed sidebar
-                    // shows everything — the icons are the navigation there — so folding only
-                    // applies while the labels are shown.
-                    if (currentGroup !== null && !collapsed && isGroupCollapsed(currentGroup)) {
+                    // An entry in a group that is folded shut renders nothing — in both modes. The
+                    // fold applies to the icons too: a bar of icons is exactly where a group you are
+                    // not using is most in the way, and its heading is the thing you press to put it
+                    // away.
+                    if (currentGroup !== null && isGroupCollapsed(currentGroup)) {
                         return null
                     }
 
