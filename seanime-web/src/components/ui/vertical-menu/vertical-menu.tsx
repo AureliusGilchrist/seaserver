@@ -215,6 +215,12 @@ export const VerticalMenu = React.forwardRef<HTMLDivElement, VerticalMenuProps>(
         ...rest
     } = props
 
+    // Which groups are folded shut, read at the top of the component. It decides what the group
+    // headings render as and whether the entries under them are drawn at all — state that belongs
+    // to the render, not inside it.
+    const [collapsedGroups, setCollapsedGroups] = useAtom(__verticalMenuCollapsedGroups)
+    const isGroupCollapsed = React.useCallback((name: string) => !!collapsedGroups?.[name], [collapsedGroups])
+
     const {
         onLinkItemClick: _onLinkItemClick,
         onAnyItemClick: _onAnyItemClick,
@@ -293,10 +299,6 @@ export const VerticalMenu = React.forwardRef<HTMLDivElement, VerticalMenuProps>(
                     // starts its group, and every entry after it is in that group until the next
                     // heading. Computed here rather than on each item, so an entry carries nothing
                     // extra and a group without a heading hides nothing.
-                    const [collapsedGroups, setCollapsedGroups] = useAtom(__verticalMenuCollapsedGroups)
-
-                    const isGroupCollapsed = (name: string) => !!collapsedGroups?.[name]
-
                     let currentGroup: string | null = null
 
                     return items.map((item, idx) => {

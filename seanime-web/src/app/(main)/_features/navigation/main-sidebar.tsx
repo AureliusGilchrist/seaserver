@@ -471,7 +471,17 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             }
 
             if (displayedPinnedItems.length > 1) {
-                const lastItem = displayedPinnedItems[displayedPinnedItems.length - 1]
+                // Walked back from the end to the last item that is an entry, not a group heading.
+                // A heading is a label, not a destination — unpinning one put it in "More" without
+                // its entries, and left the entries below it belonging to a group that was no longer
+                // on the bar, which is what made the folds look dead: nothing to fold, nothing to
+                // press.
+                let cut = displayedPinnedItems.length - 1
+                while (cut > 0 && (displayedPinnedItems[cut] as any).isGroupHeading) {
+                    cut--
+                }
+                if (cut === 0) return
+                const lastItem = displayedPinnedItems[cut]
                 setAutoUnpinnedIds(prev => {
                     if (prev.includes(lastItem.id)) return prev
                     return [...prev, lastItem.id]
