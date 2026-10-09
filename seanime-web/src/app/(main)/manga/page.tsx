@@ -15,6 +15,7 @@ import { MangaLibraryView } from "@/app/(main)/manga/_screens/manga-library-view
 import { MangaCarousel } from "@/app/(main)/(library)/_home/home-screen"
 import { MangaHomeSettingsModal, DEFAULT_MANGA_HOME_ITEMS } from "@/app/(main)/manga/_components/manga-home-settings"
 import { MangaContinueReading } from "@/app/(main)/manga/_containers/manga-continue-reading"
+import { MangaContinueReadingHeader } from "@/app/(main)/manga/_containers/manga-continue-reading-header"
 import { MangaDiscoverHeader } from "@/app/(main)/manga/_containers/manga-discover-header"
 import { MangaUpcomingChapters } from "@/app/(main)/manga/_containers/manga-upcoming-chapters"
 import { MangaRecentlyReleased } from "@/app/(main)/manga/_containers/manga-recently-released"
@@ -241,9 +242,10 @@ export default function Page() {
                     <MangaDiscoverHeader onHoverImage={handleHoverImage} cardSizeClass={cardSizeClass} />
                 )}
 
-                {/* Manga Continue Reading Header - if first item */}
+                {/* Manga Continue Reading Header - if first item. The full header — banner, card,
+                    description, genres — the way the anime home screen's is. */}
                 {homeItems[0]?.type === "manga-continue-reading-header" && (
-                    <MangaContinueReading onHoverImage={handleHoverImage} />
+                    <MangaContinueReadingHeader onHoverImage={handleHoverImage} />
                 )}
 
                 {/* Manga Library Header - dynamic banner only when manga-library is first */}

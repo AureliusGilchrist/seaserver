@@ -1,88 +1,73 @@
-# To-do — this batch of work
+# To-do — everything from this batch
 
-Everything below was asked for in one batch. Status as of the work being done — the checked items
-are in the repo and building; the unchecked ones are explained.
+Status as of the work being done. The checked items are in the repo and type-check/build clean;
+the unchecked ones are explained below.
 
-## Done — in the repo and building
+## Done
 
-- [x] **Fix the build errors** — the landing hub was calling `ContinueWatching` without its props,
-      and the generated route tree was missing the `/anime` route in three places. Both fixed; the
-      frontend type-check and the full `build:denshi` build pass.
-- [x] **"To watch" on the left sidebar** — its own page at `/to-watch`, in the first ("Watch")
-      group of the sidebar, showing the same list the profile tab shows. The tab was removed from
-      your own profile; other people's profiles keep theirs, read-only.
-- [x] **Sidebar categories** — the whole nav above the theme icon is grouped: **Watch** (play
-      button icon), **AniList** (AniList logo), **Downloads**, **Community**, **Tools**. The
-      back/forward buttons are deliberately left ungrouped.
-- [x] **Landing page** — the hub at `/` leading to every popular area, each a card with a live
-      count of what is waiting in it, plus continue-watching on top.
-- [x] **Manga ⇄ Anime swap button** — a brand-tinted pill in both library toolbars ("Switch to
-      Manga" / "Switch to Anime"), always visible when manga is enabled.
-- [x] **Enqueue Future — queue view switch** — a "Queue view" toggle next to the other list
-      buttons: a flat strip of everything still waiting, in order, no franchise spines — the
-      reading that matters while the torrent client is offline.
-- [x] **PiP sized to the video exactly** — the pop-out player window locks its width/height to the
-      video's aspect ratio the moment the stream's metadata is known (and on every resize), so no
-      bars are ever drawn. Wired through the Denshi preload, main process, and the player.
-- [x] **Vignette** — a light vignette over the picture, under the UI, in the main player, the
-      pop-out window, and the Document PiP window.
-- [x] **Manga downloads popup lag** — the downloaded grid now renders a window at a time
-      (virtualized), and the double re-sort on every render is done once per payload.
-- [x] **Profile shop XP bar colors** — each bar in the shop is drawn in its own color, named for
-      what it looks like; the flat ones are given a gradient in their own hue, so the shelf is
-      gradients almost all the way down.
-- [x] **"Move to the sequel?"** — when the last episode of a series ends and AniList knows a sequel
-      exists, the player offers it: one press to the sequel's page.
-- [x] **"Still watching?" check** — every 3 episodes, playback pauses and asks; continuing is one
-      press, nothing is marked either way.
-- [x] **Streaming providers** — three built-in Go providers that ship with the server (no manual
-      install on the NAS), all searching versatilely (query → english → romaji → synonyms):
-      - **AniZone** (anizone.to) — verified end-to-end: search, episode lists, playable m3u8.
-      - **AnimePahe** (animepahe.com) — its own API + Kwik embed unpacking.
-      - **GojoWtf** (animetsu.net) — the working extension's API, ported to Go (pahe/zoro/zaza
-        servers, sub + dub).
-
-## Investigated — with findings
-
-- [x] **Update notification** — the whole path (updater → notice file → API → banner → websocket
-      event) checks out. One real fix was made: the release check used to fall back to **upstream
-      Seanime's** releases when the fork's couldn't be read, which could raise a bogus "update
-      available" notice about a version that was never installable — that fallback is gone.
-      Separately, the wall of "Network Error" toasts (your screenshot) is fixed: network-level
-      failures no longer toast at all, and the update-notice query no longer fails with
-      "data is undefined" when an error payload comes back.
-- [x] **Lag after the pop-out** — could not reproduce, but one cause was found and fixed: the
-      server was writing watch history to the database **every second** per playing client, for the
-      whole episode — with the pop-out plus a lingering client that was several writes a second,
-      which on a NAS stalls everything. It now writes at most every ten seconds (and always on
-      pause), so resume positions are still accurate.
-- [x] **Kickassanime cast-stream subtitles (the 500)** — the provider hands out subtitle URLs with
-      no host (bare paths), which the convert-subs endpoint refused. It now resolves a bare path
-      against the provider page named in the track's headers — exactly what a browser would have
-      done.
-- [x] **Providers not finding anything** — found and fixed: the AniZone extractor's unescaping had
-      been written with mangled quote literals (replacing a quote with itself, so the pages'
-      escaped-JSON payloads never parsed), and its array-terminator search was too fragile. Both
-      extractors now read with a streaming JSON decoder and are **proven against the live site** —
-      search returns results, episode lists resolve, and a playable m3u8 with subtitle tracks comes
-      back (`ANIZONE_LIVE=1 go test ./internal/onlinestream/providers/` passes).
-- [x] **Enqueue Future only working on the page** — the walk was already server-side, but the only
-      things that ever started a run were a button and the startup resume: a run that ended in an
-      error sat dead until you opened the queue and pressed Resume. A background supervisor now
-      looks every couple of minutes and starts whatever is waiting (a walk with progress, or
-      anything queued) on its own, backing off after repeated failures.
-- [x] **No limit on queued series** — the 20-series waiting-list cap is gone (unlimited, still
-      de-duplicated).
-- [x] **Sidebar categories collapsible** — every group heading is now a fold: press it and the
-      group's entries tuck away, remembered across reloads.
+- [x] **The two original build errors** — fixed (landing hub props + route tree); the full denshi
+      build passes end-to-end.
+- [x] **"To watch" on the left sidebar** — its own page, in the Watch group; removed from your own
+      profile.
+- [x] **Sidebar categories** — the whole nav grouped (Watch / AniList / Downloads / Community /
+      Tools), with the landing page as its own entry above them.
+- [x] **Collapsible categories** — every group heading folds, in both label and icon-only mode,
+      remembered across reloads. The "More" overflow menu is **gone** — it was eating the bar's own
+      icons and fighting the folds; the bar scrolls instead, and folding is in your hands.
+- [x] **Anime ⇄ Manga in one sidebar slot** — one entry that flips: the icon and label follow the
+      page you are on, and the swap button's jump re-highlights the same slot as its other door.
+- [x] **Landing page** — rebuilt as a compact dashboard: a hero strip (greeting, search,
+      Customize), a tile band where every door shares one grid with its stats, and the wider
+      sections below. Customize opens the same kind of settings the anime/manga home screens have:
+      every widget toggleable and draggable.
+- [x] **Landing widgets (12)** — continue watching, quick links, anime stats, manga stats,
+      schedule, updates, to-watch, unmatched, torrents, achievements, continue reading, airing
+      today. Per-profile config, stored client-side; every widget reads the hooks the app already
+      reads.
+- [x] **Manga continue-reading header** — the full header the anime home screen has: banner, cover
+      card on the left, title, genres, score, description, Preview — for what you are reading.
+- [x] **AniList banner not updating** — the banner/avatar came from a snapshot taken at login and
+      never refreshed; an hourly job now re-fetches the Viewer and updates the stored account (only
+      when it changed, only when a real account is signed in).
+- [x] **Profile banner missing** — same root cause, same fix: the account row now stays current.
+- [x] **Missed sequels** — its own page in the Watch group, two sections: **Not watched** (from
+      AniList) and **Not matched** (in your library, nothing on disk). Press a "not matched" card
+      and the real torrent search opens in a drawer — live, the same UI the anime page opens. Every
+      card has hide (for now) and skip (never again); a restore button brings the hidden ones back.
+- [x] **The orange "matched" badges** — now the brand color (your wallpaper's accent), everywhere
+      the badge exists: the corner flags, the pills, the compact markers, and the queue's state
+      mark.
+- [x] **The "Update error" toast** — the Electron shell sent the updater's error as an object, so
+      the toast said "[object Object]"; it now shows the actual message.
+- [x] **The Denshi updater 404** — your releases carry no `latest.yml`, so every client update
+      check errored. The client now treats that as "nothing to check" instead of announcing it —
+      the server updates itself from its checkout, which is the updater that matters.
+- [x] **Updates based on git, not releases** — the `latest-update` endpoint now asks the git
+      checkout (what gets pulled) when the server runs from one, and only falls back to the
+      releases endpoint when there is no checkout.
+- [x] **Update checks in real time** — the git check now runs hourly in the cron (plus the
+      updater's own 15-minute loop), so "behind" state is known within the hour of a push.
+- [x] **Network-error toast wall** — network-level failures no longer toast; error payloads throw
+      the server's real message instead of React Query's "data is undefined".
+- [x] **Providers working** — AniZone (verified against the live site end-to-end), AnimePahe, and
+      GojoWtf/Animetsu, all built-in Go, all searching versatilely (query → english → romaji →
+      synonyms).
+- [x] **Enqueue Future** — no more 20-series waiting-list cap (unlimited), a background supervisor
+      that starts whatever is waiting every couple of minutes with no page open, the queue-view
+      switch, and the queue's "matched" badge in the brand color.
+- [x] **Manga downloads popup lag** — virtualized; sorts done once per payload.
+- [x] **PiP** — the pop-out window locks to the video's exact aspect ratio (no bars), the vignette
+      under the UI / above the video in the main player, pop-out and Document PiP, and the lag
+      fixes (write throttle + no resize thrash + stable pause callback).
+- [x] **"Move to the sequel?" prompt** and the **"Still watching?" check every 3 episodes** (night
+      hours only: 7 pm–10 am).
+- [x] **Manga ⇄ Anime swap buttons** on both library toolbars.
+- [x] **Subtitle fixes** — relative URLs resolved against the provider page (Kickassanime cast
+      streams), and empty subtitle files handed back instead of a 500.
 
 ## Not possible
 
-- **AnimeCrush** — animecrush.to is a real site but has been **down for over a month** (every
-  uptime check since early September shows it not responding), and animecrush.com is a parked
-  domain. There is nothing to scrape. AniZone and AnimePahe cover the same ground while it's down;
-  when it returns, a provider for it can follow the same pattern.
-- **AniFlix** — aniflix.tv is a parked ad page, not a streaming site.
-- **Hanime** — noted from the earlier request; hanime.tv is up but its API rejected the probe
-  requests (404s). It can be added as a fourth built-in provider the same way once the right
-  endpoints are confirmed.
+- **AnimeCrush** — animecrush.to has been down for over a month; animecrush.com is parked.
+- **AniFlix** — aniflix.tv is a parked ad page.
+- **Hanime** — hanime.tv is up but its API rejected the probes; addable later as a fourth built-in
+  provider once the right endpoints are confirmed.

@@ -750,6 +750,16 @@ autoUpdater.on("update-downloaded", (info) => {
 
 autoUpdater.on("error", (err) => {
     autoUpdater.logger.error("Error in auto-updater:", err)
+
+    // A feed with no electron-updater metadata (404 on latest.yml) is "nothing to check" for this
+    // fork — the server updates itself from its own checkout, and the releases carry none. It is
+    // not announced to the client: a wall about a release that does not exist is worse than
+    // silence, and the check handler above answers "no update" for it already.
+    const message = String(err?.message || "")
+    if (message.includes("latest.yml") || message.includes("404")) {
+        return
+    }
+
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("update-error", {
             code: err.code || "unknown", message: err.message, stack: err.stack
@@ -1548,6 +1558,15 @@ app.whenReady().then(async () => {
                 updateDownloaded: updateDownloaded
             }
         } catch (error) {
+            // A feed with no electron-updater metadata — this fork's releases carry none, the
+            // server updates itself from its checkout — answers the check with a 404 on latest.yml.
+            // That is "there is nothing to check", not an error: it is reported as no update rather
+            // than thrown, so the client is not handed a wall about a release that does not exist.
+            const message = String(error?.message || error || "")
+            if (message.includes("latest.yml") || message.includes("404")) {
+                console.log("[Main] No updater metadata in the releases, treating as no update")
+                return { updateAvailable: false, updateInfo: null, updateDownloaded: updateDownloaded }
+            }
             console.error("[Main] Error checking for updates:", error)
             throw error
         }

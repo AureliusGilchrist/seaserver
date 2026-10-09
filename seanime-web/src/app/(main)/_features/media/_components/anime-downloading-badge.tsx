@@ -143,9 +143,11 @@ const STATE_PRESENTATION: Record<AnimeDownloadState, {
     },
     matched: {
         label: "Matched",
-        overlayClass: "bg-orange-300 text-orange-900",
-        pillClass: "text-orange-300 bg-orange-500 bg-opacity-10 border-orange-500 border-opacity-40",
-        compactClass: "text-orange-300 border-orange-400/30",
+        // The brand color — the wallpaper's own accent — rather than orange: "in your library" is
+        // the good outcome, and the good outcome is the one the app paints in its brand.
+        overlayClass: "bg-brand text-white",
+        pillClass: "text-brand-300 bg-brand bg-opacity-10 border-brand border-opacity-40",
+        compactClass: "text-brand-300 border-brand/30",
         icon: AnimeMatchedIcon,
     },
 }

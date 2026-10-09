@@ -26,10 +26,10 @@ import React from "react"
 /**
  * The landing page.
  *
- * A hub rather than a library: the app has a dozen places worth going, and opening on one of them
- * made the rest a hunt through the sidebar. This is the map — and it is the person's own map: the
- * page is a set of widgets, each optional, each reorderable, arranged in the settings the gear
- * above opens. The anime library is one door among them rather than the room you start in.
+ * A dashboard rather than a feed: everything the app can say on one screen, arranged so that none
+ * of it wastes the space it sits in. The tiles share one band — each a door, each carrying its
+ * number — the sections below it are the things that are more than a number, and the person's own
+ * arrangement sits over all of it: every widget optional, every one reorderable, from the gear.
  *
  * Every number here is a count the app already knows: nothing on this page is a second source of
  * truth, and a widget without anything to show simply says what it is.
@@ -42,20 +42,30 @@ export function LandingHub() {
 
     const [settingsOpen, setSettingsOpen] = useAtom(__landingSettingsModalOpen)
 
-    // The one thing a landing page can know that a menu cannot — whatever was being watched — reads
-    // full width above the cards when it is switched on, and inside the order it was put otherwise.
-    const firstWidgetId = widgets.find(w => w.enabled)?.id
+    // Whatever was being watched reads full width when it is the first thing on — the one thing a
+    // landing page can know that a menu cannot. Inside the person's order otherwise.
+    const ordered = React.useMemo(() => widgets.filter(w => w.enabled), [widgets])
+    const firstWidgetId = ordered[0]?.id
+
+    // The tile band: the widgets that are a number and a door. The rest render below, full width.
+    const tileIds: LandingWidgetId[] = [
+        "quick-links", "anime-stats", "manga-stats", "schedule", "to-watch", "unmatched", "torrents", "achievements",
+    ]
+    const tiles = React.useMemo(() => ordered.filter(w => tileIds.includes(w.id)), [ordered])
+    const sections = React.useMemo(() => ordered.filter(w => !tileIds.includes(w.id)), [ordered])
 
     return (
         <>
             <CustomLibraryBanner discrete />
-            <PageWrapper className="p-4 sm:p-8 space-y-8">
-                <div className="flex items-end justify-between gap-4 flex-wrap">
-                    <div>
-                        <h1 className="text-3xl font-bold">
+            <PageWrapper className="p-4 sm:p-6 lg:p-8 space-y-6">
+
+                {/* ── The hero: greeting, search, customize — one row, no wasted height ── */}
+                <div className="rounded-2xl border border-[--border] bg-gray-950/60 backdrop-blur-sm px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+                    <div className="min-w-0">
+                        <h1 className="text-2xl lg:text-3xl font-bold leading-tight">
                             {user?.viewer?.name ? <>Welcome back, {user.viewer.name}</> : <>Welcome back</>}
                         </h1>
-                        <p className="text-sm text-[--muted] mt-1">Where do you want to go?</p>
+                        <p className="text-sm text-[--muted] mt-0.5">Where do you want to go?</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <button
@@ -76,6 +86,7 @@ export function LandingHub() {
                     </div>
                 </div>
 
+                {/* ── Whatever was being watched ── */}
                 {firstWidgetId === "continue-watching" && (
                     <ContinueWatching
                         episodes={continueWatchingList}
@@ -83,11 +94,19 @@ export function LandingHub() {
                     />
                 )}
 
-                {widgets
-                    .filter(w => w.enabled && w.id !== (firstWidgetId === "continue-watching" ? "continue-watching" : null))
-                    .map(widget => (
-                        <LandingWidget key={widget.id} id={widget.id} />
-                    ))}
+                {/* ── The tile band: every door and its number, on one grid ── */}
+                {!!tiles.length && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
+                        {tiles.map(widget => (
+                            <LandingWidget key={widget.id} id={widget.id} />
+                        ))}
+                    </div>
+                )}
+
+                {/* ── The sections: the widgets that are more than a number, full width ── */}
+                {sections.filter(w => w.id !== (firstWidgetId === "continue-watching" ? "continue-watching" : null)).map(widget => (
+                    <LandingWidget key={widget.id} id={widget.id} />
+                ))}
 
                 <LandingSettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
             </PageWrapper>
@@ -116,9 +135,7 @@ function LandingWidget({ id }: { id: LandingWidgetId }) {
         case "updates":
             return <LandingUpdatesWidget />
         case "continue-watching":
-            return null
         case "continue-reading":
-            return null
         case "airing-today":
             return null
         default:

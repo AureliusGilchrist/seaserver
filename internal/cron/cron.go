@@ -22,6 +22,10 @@ func RunJobs(app *core.App) func() {
 	refetchReleaseTicker := time.NewTicker(1 * time.Hour)
 	refetchAnnouncementsTicker := time.NewTicker(10 * time.Minute)
 	notificationCleanupTicker := time.NewTicker(24 * time.Hour)
+	// The account's AniList profile — the banner and avatar the app shows — re-fetched hourly. A
+	// banner changed on AniList used to do nothing until the next sign-in, which for a server that
+	// stays signed in is never.
+	refreshViewerTicker := time.NewTicker(1 * time.Hour)
 	stopCh := make(chan struct{})
 	var stopOnce sync.Once
 	var wg sync.WaitGroup
@@ -34,6 +38,7 @@ func RunJobs(app *core.App) func() {
 			refetchReleaseTicker.Stop()
 			refetchAnnouncementsTicker.Stop()
 			notificationCleanupTicker.Stop()
+			refreshViewerTicker.Stop()
 			wg.Wait()
 		})
 	}
@@ -112,6 +117,22 @@ func RunJobs(app *core.App) func() {
 				return
 			case <-notificationCleanupTicker.C:
 				CleanupOldNotificationsJob(ctx)
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stopCh:
+				return
+			case <-refreshViewerTicker.C:
+				if app.IsOffline() {
+					continue
+				}
+				RefreshViewerJob(ctx)
 			}
 		}
 	}()
