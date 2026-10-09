@@ -52,7 +52,7 @@ import { GiTrophyCup, GiPalette } from "react-icons/gi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
-import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuHardDriveDownload, LuLayers, LuListVideo, LuLayoutDashboard, LuMonitorPlay, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUsers, LuWrench } from "react-icons/lu"
+import { LuBook, LuBookOpen, LuBell, LuCalendar, LuCirclePlay, LuClipboardCheck, LuCompass, LuDownload, LuFlag, LuFolderSearch, LuGlobe, LuGitFork, LuHardDriveDownload, LuLayers, LuListVideo, LuLayoutDashboard, LuMonitorPlay, LuRefreshCw, LuRss, LuSettings, LuShieldCheck, LuTv, LuUsers, LuWrench } from "react-icons/lu"
 import { SiAnilist } from "react-icons/si"
 import { MdBackspace, MdOutlineConnectWithoutContact } from "react-icons/md"
 import { PiArrowCircleLeftDuotone, PiArrowCircleRightDuotone } from "react-icons/pi"
@@ -139,6 +139,10 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     const router = useRouter()
     const pathname = usePathname()
     const serverStatus = useServerStatus()
+
+    // Which library the shared slot is naming: the flip-item at the top of the Watch group is the
+    // manga door when manga is on and you are in it, and the anime door the rest of the time.
+    const isOnManga = !!serverStatus?.settings?.library?.enableManga && pathname.startsWith("/manga")
 
     // Anime theme (safe: null if provider not yet mounted — prevents crash hiding avatar)
     const animeTheme = useAnimeThemeOrNull()
@@ -227,10 +231,14 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
         },
         {
             id: "home",
-            iconType: LuMonitorPlay,
-            name: "Anime",
-            href: "/anime",
-            isCurrent: pathname === "/anime",
+            // One slot for both libraries, whichever one you are in. The icon and the label follow
+            // the page — swap from the anime page and this is the manga door, highlighted; swap
+            // back and it is the anime door again. Two entries read as two unrelated things; one
+            // that flips reads as what it is: the same shelf, with its other half on it.
+            iconType: isOnManga ? LuBookOpen : LuMonitorPlay,
+            name: isOnManga ? "Manga" : "Anime",
+            href: isOnManga ? "/manga" : "/anime",
+            isCurrent: isOnManga ? pathname.startsWith("/manga") : pathname === "/anime",
         },
         {
             id: "schedule",
@@ -243,13 +251,13 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                 intent="alert-solid"
             >{missingEpisodeCount}</Badge> : undefined,
         },
-        ...serverStatus?.settings?.library?.enableManga ? [{
-            id: "manga",
-            iconType: LuBookOpen,
-            name: "Manga",
-            href: "/manga",
-            isCurrent: pathname.startsWith("/manga"),
-        }] : [],
+        {
+            id: "missed-sequels",
+            iconType: LuGitFork,
+            name: "Missed sequels",
+            href: "/missed-sequels",
+            isCurrent: pathname === "/missed-sequels",
+        },
         {
             id: "to-watch",
             iconType: LuListVideo,

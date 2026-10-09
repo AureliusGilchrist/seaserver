@@ -60,6 +60,9 @@ const MainScanSummariesIndexLazyRouteImport = createFileRoute(
 const MainQbittorrentIndexLazyRouteImport = createFileRoute(
   '/_main/qbittorrent/',
 )()
+const MainMissedSequelsIndexLazyRouteImport = createFileRoute(
+  '/_main/missed-sequels/',
+)()
 const MainMangaIndexLazyRouteImport = createFileRoute('/_main/manga/')()
 const MainListsIndexLazyRouteImport = createFileRoute('/_main/lists/')()
 const MainEnqueueFutureIndexLazyRouteImport = createFileRoute(
@@ -186,6 +189,14 @@ const MainQbittorrentIndexLazyRoute =
     getParentRoute: () => MainRoute,
   } as any).lazy(() =>
     import('./routes/_main/qbittorrent/index.lazy').then((d) => d.Route),
+  )
+const MainMissedSequelsIndexLazyRoute =
+  MainMissedSequelsIndexLazyRouteImport.update({
+    id: '/missed-sequels/',
+    path: '/missed-sequels/',
+    getParentRoute: () => MainRoute,
+  } as any).lazy(() =>
+    import('./routes/_main/missed-sequels/index.lazy').then((d) => d.Route),
   )
 const MainMangaIndexLazyRoute = MainMangaIndexLazyRouteImport.update({
   id: '/manga/',
@@ -483,6 +494,7 @@ export interface FileRoutesByFullPath {
   '/enqueue-future/': typeof MainEnqueueFutureIndexLazyRoute
   '/lists/': typeof MainListsIndexLazyRoute
   '/manga/': typeof MainMangaIndexLazyRoute
+  '/missed-sequels/': typeof MainMissedSequelsIndexLazyRoute
   '/qbittorrent/': typeof MainQbittorrentIndexLazyRoute
   '/scan-summaries/': typeof MainScanSummariesIndexLazyRoute
   '/schedule/': typeof MainScheduleIndexLazyRoute
@@ -536,6 +548,7 @@ export interface FileRoutesByTo {
   '/enqueue-future': typeof MainEnqueueFutureIndexLazyRoute
   '/lists': typeof MainListsIndexLazyRoute
   '/manga': typeof MainMangaIndexLazyRoute
+  '/missed-sequels': typeof MainMissedSequelsIndexLazyRoute
   '/qbittorrent': typeof MainQbittorrentIndexLazyRoute
   '/scan-summaries': typeof MainScanSummariesIndexLazyRoute
   '/schedule': typeof MainScheduleIndexLazyRoute
@@ -591,6 +604,7 @@ export interface FileRoutesById {
   '/_main/enqueue-future/': typeof MainEnqueueFutureIndexLazyRoute
   '/_main/lists/': typeof MainListsIndexLazyRoute
   '/_main/manga/': typeof MainMangaIndexLazyRoute
+  '/_main/missed-sequels/': typeof MainMissedSequelsIndexLazyRoute
   '/_main/qbittorrent/': typeof MainQbittorrentIndexLazyRoute
   '/_main/scan-summaries/': typeof MainScanSummariesIndexLazyRoute
   '/_main/schedule/': typeof MainScheduleIndexLazyRoute
@@ -646,6 +660,7 @@ export interface FileRouteTypes {
     | '/enqueue-future/'
     | '/lists/'
     | '/manga/'
+    | '/missed-sequels/'
     | '/qbittorrent/'
     | '/scan-summaries/'
     | '/schedule/'
@@ -699,6 +714,7 @@ export interface FileRouteTypes {
     | '/enqueue-future'
     | '/lists'
     | '/manga'
+    | '/missed-sequels'
     | '/qbittorrent'
     | '/scan-summaries'
     | '/schedule'
@@ -753,6 +769,7 @@ export interface FileRouteTypes {
     | '/_main/enqueue-future/'
     | '/_main/lists/'
     | '/_main/manga/'
+    | '/_main/missed-sequels/'
     | '/_main/qbittorrent/'
     | '/_main/scan-summaries/'
     | '/_main/schedule/'
@@ -896,6 +913,13 @@ declare module '@tanstack/react-router' {
       path: '/qbittorrent'
       fullPath: '/qbittorrent/'
       preLoaderRoute: typeof MainQbittorrentIndexLazyRouteImport
+      parentRoute: typeof MainRoute
+    }
+    '/_main/missed-sequels/': {
+      id: '/_main/missed-sequels/'
+      path: '/missed-sequels'
+      fullPath: '/missed-sequels/'
+      preLoaderRoute: typeof MainMissedSequelsIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/manga/': {
@@ -1180,6 +1204,7 @@ interface MainRouteChildren {
   MainEnqueueFutureIndexLazyRoute: typeof MainEnqueueFutureIndexLazyRoute
   MainListsIndexLazyRoute: typeof MainListsIndexLazyRoute
   MainMangaIndexLazyRoute: typeof MainMangaIndexLazyRoute
+  MainMissedSequelsIndexLazyRoute: typeof MainMissedSequelsIndexLazyRoute
   MainQbittorrentIndexLazyRoute: typeof MainQbittorrentIndexLazyRoute
   MainScanSummariesIndexLazyRoute: typeof MainScanSummariesIndexLazyRoute
   MainScheduleIndexLazyRoute: typeof MainScheduleIndexLazyRoute
@@ -1227,6 +1252,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainEnqueueFutureIndexLazyRoute: MainEnqueueFutureIndexLazyRoute,
   MainListsIndexLazyRoute: MainListsIndexLazyRoute,
   MainMangaIndexLazyRoute: MainMangaIndexLazyRoute,
+  MainMissedSequelsIndexLazyRoute: MainMissedSequelsIndexLazyRoute,
   MainQbittorrentIndexLazyRoute: MainQbittorrentIndexLazyRoute,
   MainScanSummariesIndexLazyRoute: MainScanSummariesIndexLazyRoute,
   MainScheduleIndexLazyRoute: MainScheduleIndexLazyRoute,
