@@ -71,35 +71,70 @@ if [[ ! -d "$SCRIPT_DIR/seanime-web" ]]; then
 fi
 
 # ── 1. Frontend ──────────────────────────────────────────
+#
+# Skipped when the web's source is unchanged since the last build.
+#
+# The frontend is the heavy step — npm ci plus a full bundle — and the thing a NAS runs out of
+# memory on. Most commits do not touch it (the extension and updater fixes rebuilt only Go files),
+# so the web output is rebuilt only when something under seanime-web changed or the last build left
+# nothing behind. WEB_FORCE_BUILD=1 forces it.
 
-step "1.1" "Frontend dependencies"
-(
-  cd seanime-web
-  substep "Running npm ci..."
-  npm ci
-)
-success "Dependencies installed"
+WEB_FORCE_BUILD="${WEB_FORCE_BUILD:-0}"
+WEB_CHANGED=1
+if [[ "$WEB_FORCE_BUILD" != "1" && -d "$SCRIPT_DIR/web" ]]; then
+  LAST_BUILD_TS="$SCRIPT_DIR/web/.last-build-ts"
+  if [[ -f "$LAST_BUILD_TS" ]]; then
+    LAST_BUILD_EPOCH=$(cat "$LAST_BUILD_TS" 2>/dev/null || echo 0)
+    NEWEST_SRC=$(find "$SCRIPT_DIR/seanime-web" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.mjs" -o -name "*.json" -o -name "*.css" -o -name "*.html" -o -name "package-lock.json" \) -newer "$LAST_BUILD_TS" -not -path "*/node_modules/*" -not -path "*/out/*" -print -quit 2>/dev/null)
+    if [[ -z "$NEWEST_SRC" ]]; then
+      WEB_CHANGED=0
+    fi
+  fi
+fi
 
-step "1.2" "Frontend build (tsgo + rsbuild)"
-(
-  cd seanime-web
-  substep "Type-checking and bundling..."
-  npm run build
-  substep "Checking build output (./out)..."
-  [[ -d out ]] || { fail "Frontend build output missing (expected seanime-web/out/)"; exit 1; }
-)
-success "Frontend built"
+if [[ "$WEB_CHANGED" == "1" ]]; then
+  step "1.1" "Frontend dependencies"
+  (
+    cd seanime-web
+    substep "Running npm ci..."
+    npm ci
+  )
+  success "Dependencies installed"
+
+  step "1.2" "Frontend build (tsgo + rsbuild)"
+  (
+    cd seanime-web
+    substep "Type-checking and bundling..."
+    npm run build
+    substep "Checking build output (./out)..."
+    [[ -d out ]] || { fail "Frontend build output missing (expected seanime-web/out/)"; exit 1; }
+  )
+  success "Frontend built"
+else
+  step "1.1" "Frontend dependencies"
+  substep "Web source unchanged since last build — skipping npm ci"
+  success "Dependencies up to date"
+  step "1.2" "Frontend build (tsgo + rsbuild)"
+  substep "Web source unchanged since last build — reusing ./web"
+  success "Frontend reused"
+fi
 
 # ── 2. Copy web output ───────────────────────────────────
 
 step "2.1" "Prepare web output"
-substep "Removing old ./web..."
-rm -rf web
-substep "Copying seanime-web/out → ./web..."
-cp -r seanime-web/out web
-# Keep the tracked placeholder so the embed compiles on a fresh clone (web/* is gitignored).
-touch web/.gitkeep
-[[ -d web ]] && success "Web output ready at ./web"
+if [[ "$WEB_CHANGED" == "1" ]]; then
+  substep "Removing old ./web..."
+  rm -rf web
+  substep "Copying seanime-web/out → ./web..."
+  cp -r seanime-web/out web
+  # Keep the tracked placeholder so the embed compiles on a fresh clone (web/* is gitignored).
+  touch web/.gitkeep
+  # Stamp when the web was last rebuilt — the skip check above compares against it.
+  date +%s > web/.last-build-ts
+  [[ -d web ]] && success "Web output ready at ./web"
+else
+  [[ -d web ]] && success "Web output reused (unchanged)"
+fi
 
 # ── 3. Go backend ────────────────────────────────────────
 
