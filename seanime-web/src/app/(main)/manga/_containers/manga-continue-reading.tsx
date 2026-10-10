@@ -1,18 +1,21 @@
 "use client"
-import { MangaReadingHistory, useGetMangaReadingHistory } from "@/api/hooks/manga.hooks"
 import { useGetCurrentProfile } from "@/api/hooks/profiles.hooks"
 import { useSeaCommandInject } from "@/app/(main)/_features/sea-command/use-inject"
 import { seaCommand_compareMediaTitles } from "@/app/(main)/_features/sea-command/utils"
 import { episodeCardCarouselItemClass } from "@/components/shared/classnames"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaImage } from "@/components/shared/sea-image"
+import { SeaLink } from "@/components/shared/sea-link"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
 import { cn } from "@/components/ui/core/styling"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { useRouter } from "@/lib/navigation"
 import React from "react"
+import { LuBookMarked } from "react-icons/lu"
+import { MangaContinueReadingEntry } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
 
 interface MangaContinueReadingProps {
+    list: MangaContinueReadingEntry[]
     onHoverImage?: (image: string | null) => void
     withTitle?: boolean
 }
@@ -21,12 +24,12 @@ interface MangaContinueReadingProps {
  * The manga counterpart of the anime Continue Watching section: the same heading, the same carousel
  * shape, the same card — for chapters rather than episodes.
  *
- * The heading and the carousel mirror the anime's ContinueWatching exactly, so an anime home screen
- * and a manga home screen side by side read as the same app. What differs is only the data — the
- * reading history's series, the chapter you are on, and the date you read it.
+ * The list comes from the collection the way the anime's does, so the section renders whenever
+ * there is something to continue and never goes blank on a data hiccup. What differs is only the
+ * data — the series, the chapter you are on, and the date you read it. An entry the endpoint could
+ * not enrich takes a placeholder tile, which is a way in rather than a dead space.
  */
-export function MangaContinueReading({ onHoverImage, withTitle }: MangaContinueReadingProps) {
-    const { data: readingHistory, isLoading } = useGetMangaReadingHistory()
+export function MangaContinueReading({ list, onHoverImage, withTitle }: MangaContinueReadingProps) {
     const ts = useThemeSettings()
 
     // Get current profile
@@ -34,22 +37,12 @@ export function MangaContinueReading({ onHoverImage, withTitle }: MangaContinueR
 
     const router = useRouter()
 
-    const uniqueManga = React.useMemo(() => {
-        if (!readingHistory || readingHistory.length === 0) return []
-        // Filter to get unique manga (by mediaId) and limit to recent ones
-        return readingHistory
-            .filter((item, index, self) =>
-                index === self.findIndex(t => t.mediaId === item.mediaId),
-            )
-            .slice(0, 20)
-    }, [readingHistory])
-
     const { inject, remove } = useSeaCommandInject()
 
     React.useEffect(() => {
-        if (!uniqueManga.length) return
+        if (!list.length) return
         inject("continue-reading-manga", {
-            items: uniqueManga.map(item => ({
+            items: list.map(item => ({
                 data: item,
                 id: `manga-${item.mediaId}`,
                 value: item.media?.title?.romaji || "",
@@ -58,16 +51,16 @@ export function MangaContinueReading({ onHoverImage, withTitle }: MangaContinueR
                 render: () => (
                     <>
                         <div className="w-12 aspect-[6/5] flex-none rounded-[--radius-md] relative overflow-hidden">
-                            <SeaImage
-                                src={item.media?.coverImage?.medium || ""}
+                            {!!item.media?.coverImage?.medium && <SeaImage
+                                src={item.media.coverImage.medium}
                                 alt="manga cover"
                                 fill
                                 className="object-center object-cover"
-                            />
+                            />}
                         </div>
                         <div className="flex gap-1 items-center w-full">
-                            <p className="max-w-[70%] truncate">{item.media?.title?.romaji || ""}</p>&nbsp;-&nbsp;
-                            <p className="text-[--muted]">Ch</p><span>{item.lastChapterNumber || "?"}</span>
+                            <p className="max-w-[70%] truncate">{item.media?.title?.romaji || `Manga ID: ${item.mediaId}`}</p>&nbsp;-&nbsp;
+                            <p className="text-[--muted]">Ch</p><span>{item.chapterNumber ?? "?"}</span>
                         </div>
                     </>
                 ),
@@ -77,29 +70,19 @@ export function MangaContinueReading({ onHoverImage, withTitle }: MangaContinueR
             })),
             filter: ({ item, input }) => {
                 if (!input) return true
-                return item.value.toLowerCase().includes(input.toLowerCase()) ||
-                    seaCommand_compareMediaTitles((item.data as MangaReadingHistory).media?.title, input)
+                const data = item.data as MangaContinueReadingEntry
+                const media = data.media
+                return (item.value.toLowerCase().includes(input.toLowerCase())) ||
+                    (!!media && seaCommand_compareMediaTitles(media.title, input)) ||
+                    `manga id ${data.mediaId}`.includes(input.toLowerCase())
             },
             priority: 100,
         })
 
         return () => remove("continue-reading-manga")
-    }, [uniqueManga, inject, remove, router])
+    }, [list, inject, remove, router])
 
-    if (isLoading) {
-        return (
-            <PageWrapper className="px-4 py-8 space-y-4" data-continue-reading-container>
-                <h2 data-continue-reading-title>Continue reading</h2>
-                <div className="flex gap-4 overflow-hidden">
-                    {[...Array(5)].map((_, i) => (
-                        <div key={i} className="w-48 h-72 bg-gray-800/50 rounded-lg animate-pulse" />
-                    ))}
-                </div>
-            </PageWrapper>
-        )
-    }
-
-    if (!uniqueManga.length) {
+    if (!list.length) {
         return null
     }
 
@@ -121,10 +104,42 @@ export function MangaContinueReading({ onHoverImage, withTitle }: MangaContinueR
             >
                 <CarouselDotButtons />
                 <CarouselContent>
-                    {uniqueManga.map((item) => {
-                        if (!item.media) return null
+                    {list.map((item) => {
+                        const hoverImage = item.media?.bannerImage || item.media?.coverImage?.extraLarge || item.media?.coverImage?.large || null
 
-                        const hoverImage = item.media.bannerImage || item.media.coverImage?.extraLarge || item.media.coverImage?.large || null
+                        if (!item.media) {
+                            // No metadata — the endpoint never enriched this one. The tile keeps
+                            // its ID and its chapter number, and it opens the entry page, where the
+                            // server fetches what is missing in the background.
+                            return (
+                                <CarouselItem
+                                    key={`history-${item.mediaId}`}
+                                    className={episodeCardCarouselItemClass(ts.smallerEpisodeCarouselSize)}
+                                >
+                                    <SeaLink
+                                        href={`/manga/entry?id=${item.mediaId}`}
+                                        className="block h-full group/dl-card"
+                                        onMouseEnter={() => onHoverImage?.(null)}
+                                        onMouseLeave={() => onHoverImage?.(null)}
+                                    >
+                                        <div
+                                            className={cn(
+                                                "relative aspect-[4/2] w-full overflow-hidden rounded-xl",
+                                                "border border-gray-800 bg-gray-900/70",
+                                                "flex flex-col items-center justify-center gap-2",
+                                                "transition group-hover/dl-card:border-gray-600 group-hover/dl-card:bg-gray-900",
+                                            )}
+                                        >
+                                            <LuBookMarked className="text-4xl text-gray-700" />
+                                            <p className="px-3 text-center text-xs text-[--muted]">Manga ID: {item.mediaId}</p>
+                                        </div>
+                                        <div className="pt-2 space-y-0.5">
+                                            <p className="text-sm font-semibold text-white line-clamp-1">Chapter {item.chapterNumber ?? "?"}</p>
+                                        </div>
+                                    </SeaLink>
+                                </CarouselItem>
+                            )
+                        }
 
                         return (
                             <CarouselItem
@@ -153,12 +168,12 @@ export function MangaContinueReading({ onHoverImage, withTitle }: MangaContinueR
  * the anime episode card's: landscape image on top, the chapter you are on, the date below.
  */
 const MediaEntryCardWrapper = React.memo(({ item }: {
-    item: MangaReadingHistory,
+    item: MangaContinueReadingEntry,
 }) => {
     const router = useRouter()
 
-    const progressTotal = item.media?.chapters
-    const progressNumber = item.lastChapterNumber ? parseInt(item.lastChapterNumber, 10) : undefined
+    const progressTotal = item.chaptersTotal
+    const progressNumber = item.chapterNumber
     const percentage = (!!progressTotal && !!progressNumber && progressNumber <= progressTotal)
         ? Math.round((progressNumber / progressTotal) * 100)
         : undefined

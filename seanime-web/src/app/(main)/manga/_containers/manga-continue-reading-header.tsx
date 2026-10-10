@@ -1,7 +1,5 @@
 "use client"
 import { AL_BaseManga } from "@/api/generated/types"
-import { useGetMangaReadingHistory } from "@/api/hooks/manga.hooks"
-import { __mangaLibraryHeaderImageAtom } from "@/app/(main)/manga/_components/library-header"
 import { TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE } from "@/app/(main)/_features/custom-ui/styles"
 import { MediaEntryAudienceScore } from "@/app/(main)/_features/media/_components/media-entry-metadata-components"
 import { useMediaPreviewModal } from "@/app/(main)/_features/media/_containers/media-preview-modal"
@@ -23,6 +21,7 @@ import { AnimatePresence, motion } from "motion/react"
 import React from "react"
 import { RiSignalTowerLine } from "react-icons/ri"
 import { useWindowScroll } from "react-use"
+import { MangaContinueReadingEntry } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
 
 /**
  * The manga counterpart of the anime continue-watching header: the same banner, the same metadata
@@ -30,11 +29,14 @@ import { useWindowScroll } from "react-use"
  * you are reading rather than what you are watching.
  *
  * Built to match rather than to echo: an anime home screen and a manga home screen side by side
- * should read as the same app. What differs is only the data — the reading history's most recent
- * series is the one on the banner, the card on the right is the chapter you are on, and the dots
- * walk the rest. The manga home screen item mounts this; the header also renders in flow (like the
+ * should read as the same app. What differs is only the data — the list comes from the collection
+ * the way the anime's does, the most recently read series is the one on the banner, the card on the
+ * right is the chapter you are on, and the dots walk the rest. The header renders in flow (like the
  * anime's, a tall block the toolbar sits under), which is what keeps the toolbar out of the
  * window's title bar.
+ *
+ * It never touches the page wallpaper — the anime header doesn't either; on both screens the
+ * background only answers to card hover.
  */
 
 export const __mangaHeader_currentIndexAtom = atom(0)
@@ -92,10 +94,11 @@ function HeaderCarouselDots({ totalManga, currentIndex, onIndexChange, className
 }
 
 type MediaMetadataProps = {
-    manga: NonNullable<ReturnType<typeof useHeaderMangaList>[number]["media"]>
+    manga: AL_BaseManga
+    onHoverChange: (hovering: boolean) => void
 }
 
-function MediaMetadata({ manga }: MediaMetadataProps) {
+function MediaMetadata({ manga, onHoverChange }: MediaMetadataProps) {
     const ts = useThemeSettings()
     const { setPreviewModalMediaId } = useMediaPreviewModal()
 
@@ -113,6 +116,8 @@ function MediaMetadata({ manga }: MediaMetadataProps) {
         >
             <motion.div
                 className="flex items-center relative gap-6 p-6 pr-3 w-fit overflow-hidden"
+                onMouseEnter={() => onHoverChange(true)}
+                onMouseLeave={() => onHoverChange(false)}
                 {...{
                     initial: { opacity: 0, x: -40 },
                     animate: { opacity: 1, x: 0 },
@@ -208,13 +213,13 @@ function MediaMetadata({ manga }: MediaMetadataProps) {
 }
 
 type ChapterCardSidebarProps = {
-    item: NonNullable<ReturnType<typeof useHeaderMangaList>[number]>
+    item: MangaContinueReadingEntry
     isTransitioning: boolean
 }
 
 /**
  * The right-hand card, the same slot the anime header puts the episode card in: what you are up to,
- * as a card. For manga that is the chapter — its number against the total, the date you read it,
+ * as a card. For manga that is the chapter — its number against the total, the date you read last,
  * and the reading progress bar along the bottom edge.
  */
 function ChapterCardSidebar({ item, isTransitioning }: ChapterCardSidebarProps) {
@@ -224,8 +229,8 @@ function ChapterCardSidebar({ item, isTransitioning }: ChapterCardSidebarProps) 
 
     if (!manga) return null
 
-    const progressTotal = manga.chapters
-    const progressNumber = item.lastChapterNumber ? parseInt(item.lastChapterNumber, 10) : undefined
+    const progressTotal = item.chaptersTotal
+    const progressNumber = item.chapterNumber
     const percentage = (!!progressTotal && !!progressNumber && progressNumber <= progressTotal)
         ? Math.round((progressNumber / progressTotal) * 100)
         : undefined
@@ -264,8 +269,8 @@ function ChapterCardSidebar({ item, isTransitioning }: ChapterCardSidebarProps) 
                             data-manga-chapter-card-image-container
                             className="w-full h-full rounded-xl overflow-hidden z-[1] aspect-[4/2] relative bg-[--background]"
                         >
-                            {!!(item.media?.bannerImage || item.media?.coverImage?.extraLarge) ? <SeaImage
-                                src={item.media?.bannerImage || item.media?.coverImage?.extraLarge || ""}
+                            {!!(manga.bannerImage || manga.coverImage?.extraLarge) ? <SeaImage
+                                src={manga.bannerImage || manga.coverImage?.extraLarge || ""}
                                 alt=""
                                 fill
                                 quality={100}
@@ -316,7 +321,7 @@ function ChapterCardSidebar({ item, isTransitioning }: ChapterCardSidebarProps) 
 }
 
 type BannerImageProps = {
-    manga: ReturnType<typeof useHeaderMangaList>[number]["media"] | null
+    manga: AL_BaseManga | null
     isTransitioning: boolean
     shouldBlurBanner: boolean
 }
@@ -410,67 +415,34 @@ function BannerImage({ manga, isTransitioning, shouldBlurBanner }: BannerImagePr
     )
 }
 
-type HeaderHistoryItem = {
-    mediaId: number
-    lastReadAt: string
-    lastChapterNumber: string
-    isSynthetic: boolean
-    media?: AL_BaseManga
-}
-
-function useHeaderMangaList(): HeaderHistoryItem[] {
-    const { data: readingHistory } = useGetMangaReadingHistory()
-
-    return React.useMemo(() => {
-        if (!readingHistory || readingHistory.length === 0) return []
-        return readingHistory
-            .filter((item, index, self) =>
-                index === self.findIndex(t => t.mediaId === item.mediaId),
-            )
-            .slice(0, 20) as HeaderHistoryItem[]
-    }, [readingHistory])
-}
-
-export function MangaContinueReadingHeader({ onHoverImage, className }: { onHoverImage?: (image: string | null) => void, className?: string }) {
+export function MangaContinueReadingHeader({ list, className }: { list: MangaContinueReadingEntry[], className?: string }) {
     const ts = useThemeSettings()
-
-    const uniqueManga = useHeaderMangaList()
 
     const currentIndex = useAtomValue(__mangaHeader_currentIndexAtom)
     const isTransitioning = useAtomValue(__mangaHeader_headerIsTransitioningAtom)
     const setCurrentIndex = useSetAtom(__mangaHeader_setCurrentIndexAtom)
     const [isHoveringHeader, setHoveringHeader] = useAtom(__mangaHeader_hoveringHeaderAtom)
 
-    const currentMangaItem = uniqueManga[currentIndex] || uniqueManga[0] || null
+    const currentMangaItem = list[currentIndex] || list[0] || null
     const manga = currentMangaItem?.media ?? null
 
     const shouldBlurBanner = ts.mediaPageBannerType === ThemeMediaPageBannerType.BlurWhenUnavailable &&
         !manga?.bannerImage
 
-    // The banner behind the header follows the series on show — the same atom the manga library
-    // header reads, so the wallpaper and the card agree.
-    const setHeaderImage = useSetAtom(__mangaLibraryHeaderImageAtom)
-
-    React.useEffect(() => {
-        if (!manga) return
-        setHeaderImage(manga.bannerImage || manga.coverImage?.extraLarge || null)
-        onHoverImage?.(manga.bannerImage || manga.coverImage?.extraLarge || null)
-    }, [manga?.id])
-
     // Walk the recent series when nobody is hovering, the way the anime header does.
     React.useEffect(() => {
-        if (uniqueManga.length <= 1) return
+        if (list.length <= 1) return
 
         const interval = setInterval(() => {
             if (!isHoveringHeader) {
-                setCurrentIndex((currentIndex + 1) % uniqueManga.length)
+                setCurrentIndex((currentIndex + 1) % list.length)
             }
         }, 8000)
 
         return () => clearInterval(interval)
-    }, [currentIndex, uniqueManga.length, isHoveringHeader, setCurrentIndex])
+    }, [currentIndex, list.length, isHoveringHeader, setCurrentIndex])
 
-    if (!uniqueManga.length) return null
+    if (!list.length) return null
 
     return (
         <motion.div
@@ -497,14 +469,14 @@ export function MangaContinueReadingHeader({ onHoverImage, className }: { onHove
             <AnimatePresence>
                 {manga && !isTransitioning && (
                     <>
-                        <MediaMetadata manga={manga} />
+                        <MediaMetadata manga={manga} onHoverChange={setHoveringHeader} />
                         <ChapterCardSidebar item={currentMangaItem!} isTransitioning={isTransitioning} />
                     </>
                 )}
             </AnimatePresence>
 
             <HeaderCarouselDots
-                totalManga={uniqueManga.length}
+                totalManga={list.length}
                 currentIndex={currentIndex}
                 onIndexChange={setCurrentIndex}
             />

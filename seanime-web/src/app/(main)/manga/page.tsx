@@ -21,6 +21,7 @@ import { MangaUpcomingChapters } from "@/app/(main)/manga/_containers/manga-upco
 import { MangaRecentlyReleased } from "@/app/(main)/manga/_containers/manga-recently-released"
 import { MangaMissedSequels } from "@/app/(main)/manga/_containers/manga-missed-sequels"
 import { useGetMangaHomeItems } from "@/api/hooks/status.hooks"
+import { MangaContinueReadingEntry, useMangaContinueReadingList } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
 import { mangaCardSizeAtom, getCardSizeClasses } from "@/app/(main)/_atoms/card-size.atoms"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
@@ -34,6 +35,7 @@ import { __isDesktop__ } from "@/types/constants"
 import { displayTitle } from "@/lib/helpers/media"
 import { AnimatePresence } from "motion/react"
 import { useAtomValue } from "jotai/react"
+import { useWindowSize } from "react-use"
 import React from "react"
 
 export const dynamic = "force-static"
@@ -42,6 +44,7 @@ export default function Page() {
     const { data: mangaHomeItems } = useGetMangaHomeItems()
     const cardSize = useAtomValue(mangaCardSizeAtom)
     const cardSizeClass = getCardSizeClasses(cardSize)
+    const { width } = useWindowSize()
     const {
         mangaCollection,
         filteredMangaCollection,
@@ -158,7 +161,33 @@ export default function Page() {
         return map
     }, [filteredDownloads])
 
-    const homeItems = mangaHomeItems || DEFAULT_MANGA_HOME_ITEMS
+    const homeItems = React.useMemo(() => {
+        let ret = !!mangaHomeItems?.length ? mangaHomeItems : DEFAULT_MANGA_HOME_ITEMS
+        // The header's banner, metadata block and chapter card are all lg-only, so below lg the
+        // header collapses to an empty block — the same reason the anime home swaps its
+        // continue-watching header for the carousel on mobile.
+        if (width < 1024 && ret[0]?.type === "manga-continue-reading-header") {
+            if (ret.find(n => n.type === "manga-continue-reading")) {
+                // remove any other continue reading section
+                ret = ret.filter(n => n.type !== "manga-continue-reading")
+            }
+            return ret.map(item => {
+                if (item.type === "manga-continue-reading-header") {
+                    return {
+                        ...item,
+                        type: "manga-continue-reading",
+                    }
+                }
+                return item
+            })
+        }
+        return ret
+    }, [mangaHomeItems, width < 1024])
+
+    // The continue-reading list, built once here and handed to the header and the section —
+    // the collection the way the anime home's continue-watching list is, not the reading history
+    // alone, whose media enrichment can come back empty and leave both blank.
+    const { entries: continueReadingList } = useMangaContinueReadingList()
 
     // Loading state - matching anime home screen skeleton
     if (!mangaCollection || mangaCollectionLoading) {
@@ -229,8 +258,8 @@ export default function Page() {
                 />
                 <div
                     className={cn(
-                        "absolute inset-0 bg-gradient-to-b from-black/90 via-black/70 to-black/90 transition-opacity duration-400",
-                        scrolled ? "opacity-95" : "opacity-85",
+                        "absolute inset-0 bg-gradient-to-b from-black/60 via-black/70 to-black/80 transition-opacity duration-400",
+                        scrolled ? "opacity-75" : "opacity-55",
                     )}
                 />
             </div>
@@ -247,7 +276,7 @@ export default function Page() {
                     screen's is. It renders in flow (a tall block), which is also what keeps the
                     toolbar below it out of the window's title bar. */}
                 {homeItems[0]?.type === "manga-continue-reading-header" && (
-                    <MangaContinueReadingHeader onHoverImage={handleHoverImage} />
+                    <MangaContinueReadingHeader list={continueReadingList} />
                 )}
 
                 {/* Manga Library Header - dynamic banner only when manga-library is first */}
@@ -295,11 +324,14 @@ export default function Page() {
                     data-manga-toolbar-top-padding
                 ></div>}
 
-                {/* Manga Home Toolbar - same position as anime HomeToolbar */}
+                {/* Manga Home Toolbar - same position as anime HomeToolbar. The negative margin
+                    only when the header above actually rendered — the anime home conditions it on
+                    the list being non-empty the same way, so an empty header never drags the
+                    toolbar up into the window's title bar. */}
                 <MangaHomeToolbar
                     hasManga={hasManga}
                     className={cn(
-                        (homeItems[0]?.type === "manga-discover-header" || homeItems[0]?.type === "manga-continue-reading-header") && "!mt-[-4rem] !mb-[-1rem]",
+                        (homeItems[0]?.type === "manga-discover-header" || (homeItems[0]?.type === "manga-continue-reading-header" && !!continueReadingList.length)) && "!mt-[-4rem] !mb-[-1rem]",
                     )}
                 />
 
@@ -353,6 +385,7 @@ export default function Page() {
                                         item={item}
                                         index={homeItems.findIndex(n => n.id === item.id)}
                                         onHoverImage={handleHoverImage}
+                                        continueReadingList={continueReadingList}
                                         downloadSearch={downloadSearch}
                                         setDownloadSearch={setDownloadSearch}
                                         sourceFilteredDownloadsMap={sourceFilteredDownloadsMap}
@@ -392,6 +425,7 @@ interface MangaHomeScreenItemProps {
     item: any
     index: number
     onHoverImage: (image: string | null) => void
+    continueReadingList: MangaContinueReadingEntry[]
     downloadSearch: string
     setDownloadSearch: (value: string) => void
     sourceFilteredDownloadsMap: Record<string, any[]>
@@ -415,6 +449,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         item,
         index,
         onHoverImage,
+        continueReadingList,
         downloadSearch,
         setDownloadSearch,
         sourceFilteredDownloadsMap,
@@ -518,6 +553,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
     if (item.type === "manga-continue-reading" || item.type === "manga-continue-reading-header") {
         return (
             <MangaContinueReading
+                list={continueReadingList}
                 onHoverImage={onHoverImage}
             />
         )
