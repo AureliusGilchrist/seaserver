@@ -138,15 +138,45 @@ func torrentHasVideoFiles(t *hibiketorrent.AnimeTorrent) bool {
 }
 
 // audioExtensions lists file extensions for audio-only content.
-var audioExtensions = []string{".mp3", ".flac", ".aac", ".ogg", ".opus", ".wav", ".m4a", ".wma", ".alac", ".ape"}
+//
+// ".aac" is deliberately absent: it is the most common audio-track tag inside
+// normal video release names ("[BD 1080p][AAC][Eng Sub]"), and a substring hit
+// on it was rejecting those as audio-only torrents. Actual audio-only releases
+// are still caught by the keywords below and by the .torrent content check.
+var audioExtensions = []string{".mp3", ".flac", ".ogg", ".opus", ".wav", ".m4a", ".wma", ".alac", ".ape"}
 
 // audioKeywords lists name-level indicators of music / soundtrack releases.
+//
+// These describe releases that ARE the music. Format tags that merely say what
+// the audio track inside a video is ("aac", "flac", "mp3") are not here — see
+// audioExtensions above — because video releases carry them too.
 var audioKeywords = []string{
 	"soundtrack", "ost", "original sound", "character song",
 	"drama cd", "radio cd", "djcd", "dj cd",
 	"single", "album", "discography", "music collection",
-	"lossless", "flac", "mp3", "aac", "hi-res",
+	"lossless",
 	"vocal", "vocal album", "insert song",
+}
+
+// videoEvidenceKeywords are markers that say a release name describes a VIDEO
+// release, even when the name also mentions audio tracks. Checked before the
+// audio and non-anime keyword lists, so "[BD 1080p Hi10 FLAC][Dual-Audio]" is
+// never eaten for the FLAC it mentions.
+var videoEvidenceKeywords = []string{
+	// File names inside the torrent
+	".mkv", ".mp4", ".avi", ".m2ts", ".ts",
+	// Codecs and encodes
+	"x264", "x265", "h.264", "h.265", "h264", "h265", "avc", "av1", "hevc",
+	"10bit", "10-bit", "hi10", "hi-10",
+	// Sources
+	"bluray", "blu-ray", "bdrip", "bd-rip", "bd ", "webrip", "web-rip",
+	"web-dl", "webdl", "dvdrip", "dvd", "hdtv",
+	// Resolutions
+	"2160p", "4k", "uhd", "1080p", "1080", "720p", "720", "480p", "480",
+	// Dual audio — always a video release, the audio half is a track in it
+	"dual audio", "dual-audio", "dualaudio", "multi audio", "multi-audio",
+	// Subtitles and batch/episode structure
+	"eng sub", "subs", "subbed", "batch", "complete",
 }
 
 // nonAnimeKeywords lists name-level indicators of non-anime content.
@@ -169,8 +199,22 @@ var nonAnimeKeywords = []string{
 
 // isNonAnimeContent returns true when the torrent name indicates it is NOT
 // anime video content (audio, manga, games, live-action, software, etc).
+//
+// Video evidence wins: a name that describes a video release is never rejected
+// here, no matter what else the name mentions. This is checked first because the
+// keyword lists below substring-match, and release names routinely carry tokens
+// that look like those keywords — "[BD 1080p Hi10 FLAC][Dual-Audio]" mentions
+// FLAC (an audio track in the video), "[NoobSubs] … 01-25 (1080p Blu-ray 8bit
+// AAC MP4)" mentions AAC and MP4. Rejecting those threw away exactly the
+// high-quality dual-audio BD releases a search exists to find, and left popular
+// series with "no results".
 func isNonAnimeContent(name string) bool {
 	lower := strings.ToLower(name)
+
+	// A name that says "video" is video, full stop.
+	if hasVideoEvidence(lower) {
+		return false
+	}
 
 	// Check for audio file extensions in the name
 	for _, ext := range audioExtensions {
@@ -193,6 +237,17 @@ func isNonAnimeContent(name string) bool {
 		}
 	}
 
+	return false
+}
+
+// hasVideoEvidence reports whether a lowercased release name carries a marker
+// that implies video content.
+func hasVideoEvidence(lower string) bool {
+	for _, kw := range videoEvidenceKeywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
 	return false
 }
 
