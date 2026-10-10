@@ -141,8 +141,9 @@ func NewRepository(opts *NewRepositoryOptions) *Repository {
 		builtinExtensions:  result.NewMap[string, *builtinExtension](),
 		updateData:         make([]UpdateData, 0),
 	}
-
 	ret.loadOnlyType.Store([]extension.Type{})
+
+	ret.repairKnownDeadExtensionHosts()
 
 	firstExtensionLoadedCtx, firstExtensionLoadedCancel := context.WithCancel(context.Background())
 	ret.firstExternalExtensionLoadedFunc = firstExtensionLoadedCancel

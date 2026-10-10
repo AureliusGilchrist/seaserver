@@ -1,6 +1,7 @@
 package extension_repo
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -461,6 +462,65 @@ func (r *Repository) UpdateExtensionCode(id string, payload string) error {
 // Loading/Reloading external extensions
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// knownDeadExtensionHosts are hosts that no longer resolve and the replacement they moved to.
+//
+// AnimeTosho's feed server moved off feed.animetosho.org (NXDOMAIN on every resolver since the
+// migration), and every request to it dies at DNS lookup — a provider built on it returns nothing,
+// and a search answers "no results" for a network reason rather than a data one. The replacement
+// is the same API on the new domain; only the host changes. Verified live against both hosts when
+// this table was written.
+var knownDeadExtensionHosts = map[string]string{
+	"feed.animetosho.org": "feed.animetosho.net",
+}
+
+// repairKnownDeadExtensionHosts rewrites installed extension manifests that point at a dead host.
+//
+// The extension code is only fetched from its repository at install time, so a manifest installed
+// before a host moved keeps pointing at the dead one until something repairs it — and the NAS
+// deployment has nothing else to do it: the app is the only thing that touches this directory. One
+// replacement per file, in place, before anything loads; a manifest whose host is fine is left
+// alone.
+func (r *Repository) repairKnownDeadExtensionHosts() {
+	defer util.HandlePanicInModuleThen("extension_repo/repairKnownDeadExtensionHosts", func() {})
+
+	err := filepath.WalkDir(r.extensionDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // directory may not exist yet; loading handles that itself
+		}
+		if d.IsDir() || filepath.Ext(path) != ".json" {
+			return nil
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+
+		changed := false
+		for dead, replacement := range knownDeadExtensionHosts {
+			if !bytes.Contains(content, []byte(dead)) {
+				continue
+			}
+			content = bytes.ReplaceAll(content, []byte(dead), []byte(replacement))
+			changed = true
+		}
+		if !changed {
+			return nil
+		}
+
+		if err := util.WriteFileCrashSafe(path, content, 0o644); err != nil {
+			r.logger.Warn().Err(err).Str("filepath", path).Msg("extensions: Could not repair extension manifest pointing at a dead host")
+			return nil
+		}
+		r.logger.Info().Str("filepath", path).Msg("extensions: Repaired extension manifest pointing at a dead host")
+
+		return nil
+	})
+	if err != nil {
+		r.logger.Warn().Err(err).Msg("extensions: Could not walk extension directory for dead-host repair")
+	}
+}
+
 func (r *Repository) ReloadExternalExtensions() {
 	r.loadExternalExtensions()
 }
@@ -638,6 +698,21 @@ func (r *Repository) loadExternalExtension(filePath string) {
 
 	// Skip loading the extension if it's not the type specified by loadOnlyType
 	if !r.shouldLoadType(ext.Type) {
+		return
+	}
+
+	// A stale copy of an extension that now ships with the server.
+	//
+	// Built-ins are registered before external extensions load, so an old installed copy of the
+	// same provider (installed by hand from a repository before the provider became built-in)
+	// collides on its ID in the sanity check and can never load again — it sits in the Invalid
+	// extensions list forever, dead weight next to the working built-in. The built-in supersedes
+	// it, so the file is removed; the next reload stops seeing the collision.
+	if _, found := r.builtinExtensions.Get(ext.ID); found {
+		r.logger.Info().Str("id", ext.ID).Str("filepath", filePath).Msg("extensions: Removing stale external copy of a built-in extension")
+		if err := os.Remove(filePath); err != nil {
+			r.logger.Warn().Err(err).Str("filepath", filePath).Msg("extensions: Could not remove stale external copy")
+		}
 		return
 	}
 
