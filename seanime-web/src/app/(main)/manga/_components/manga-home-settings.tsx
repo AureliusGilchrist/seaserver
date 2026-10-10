@@ -2,7 +2,7 @@
 
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { Models_HomeItem } from "@/api/generated/types"
-import { useSaveSettings } from "@/api/hooks/settings.hooks"
+
 import { useGetMangaHomeItems, useUpdateMangaHomeItems } from "@/api/hooks/status.hooks"
 import { HOME_ITEMS, MANGA_HOME_ITEM_IDS } from "@/app/(main)/(library)/_home/home-items.utils"
 import { HOME_ITEM_ICONS } from "@/app/(main)/(library)/_home/home-settings-modal"
@@ -49,7 +49,24 @@ export const __manga_home_settingsModalOpen = atom(false)
 
 export const __manga_home_settings_button_discovered = atomWithStorage("sea-v3-manga-home-settings-discovered", false)
 
+/**
+ * Whether the manga library includes online sources, kept on this side like the other
+ * per-profile client config. The server has no field for it — the collection is the AniList lists
+ * plus downloads either way — so this is an arrangement the control keeps honestly.
+ */
+export const __mangaLibrary_typeAtom = atomWithStorage<"local" | "online">("sea-manga-library-type", "local", undefined, { getOnInit: true })
+
 export const DEFAULT_MANGA_HOME_ITEMS: Models_HomeItem[] = [
+    {
+        id: "manga-continue-reading-header",
+        type: "manga-continue-reading-header",
+        schemaVersion: 1,
+    },
+    {
+        id: "manga-continue-reading",
+        type: "manga-continue-reading",
+        schemaVersion: 1,
+    },
     {
         id: "manga-library",
         type: "manga-library",
@@ -500,9 +517,13 @@ export function MangaHomeSettingsModal() {
         })
     }
 
-    const mangaLibraryType = "local"
-
-    const { mutateAsync: updateSettings, isPending: isSavingSettings } = useSaveSettings()
+    // The library-type switch is kept on this side, like the landing widgets and the unread-only
+    // toggle: the server has no such field — it carried none when this was written and none since —
+    // so a RadioGroup that wrote to `settings.manga.includeOnlineSourcesInLibrary` was writing to
+    // nothing. It used to read back a hardcoded "local" too, so the control always showed
+    // "Downloaded manga only" however it had been set. Stored per profile, read back by the same
+    // hook, and switching it invalidates the collection either way.
+    const [mangaLibraryType, setMangaLibraryType] = useAtom(__mangaLibrary_typeAtom)
     const queryClient = useQueryClient()
 
     return (
@@ -526,18 +547,9 @@ export function MangaHomeSettingsModal() {
                         <RadioGroup
                             value={mangaLibraryType}
                             onValueChange={value => {
-                                (async () => {
-                                    await updateSettings({
-                                        ...(serverStatus?.settings as any),
-                                        manga: {
-                                            ...(serverStatus?.settings?.manga as any)!,
-                                            includeOnlineSourcesInLibrary: value === "online",
-                                        },
-                                    })
-                                    await queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaCollection.key] })
-                                })()
+                                setMangaLibraryType(value as "local" | "online")
+                                void queryClient.invalidateQueries({ queryKey: [API_ENDPOINTS.MANGA.GetMangaCollection.key] })
                             }}
-                            disabled={isSavingSettings}
                             options={[
                                 { label: "Downloaded manga only", value: "local" },
                                 { label: "Downloaded + Online sources", value: "online" },

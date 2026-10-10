@@ -404,7 +404,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
         <React.Fragment>
 
             <div className="flex gap-3 items-center" data-manga-library-view-collection-list-item-header-container>
-                <h2 data-manga-library-view-collection-list-item-header-title>{list.type === "CURRENT" ? "Continue reading" : getMangaCollectionTitle(
+                <h2 data-manga-library-view-collection-list-item-header-title>{list.type === "CURRENT" ? "Currently reading" : getMangaCollectionTitle(
                     list.type)}</h2>
                 <div className="flex flex-1" data-manga-library-view-collection-list-item-header-spacer></div>
 

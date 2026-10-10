@@ -243,13 +243,15 @@ export default function Page() {
                 )}
 
                 {/* Manga Continue Reading Header - if first item. The full header — banner, card,
-                    description, genres — the way the anime home screen's is. */}
+                    description, genres, the chapter card on the right — the way the anime home
+                    screen's is. It renders in flow (a tall block), which is also what keeps the
+                    toolbar below it out of the window's title bar. */}
                 {homeItems[0]?.type === "manga-continue-reading-header" && (
                     <MangaContinueReadingHeader onHoverImage={handleHoverImage} />
                 )}
 
                 {/* Manga Library Header - dynamic banner only when manga-library is first */}
-                {(ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic && 
+                {(ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic &&
                     (homeItems[0]?.type === "manga-library")
                 ) && (
                     <MangaLibraryHeader manga={mangaCollection?.lists?.flatMap(l => l.entries)?.flatMap(e => e?.media)?.filter(Boolean) || []} />
@@ -271,6 +273,24 @@ export default function Page() {
                     className={cn(
                         "h-28",
                         ts.hideTopNavbar && "h-40",
+                    )}
+                    data-manga-toolbar-top-padding
+                ></div>}
+
+                {/* When nothing above puts space between the toolbar and the window's title bar —
+                    no header item first, no banner — the toolbar would sit at the very top of the
+                    page, inside the desktop title bar's drag strip, where its buttons cannot be
+                    pressed. A header item first is the shape the anime home screen has; this spacer
+                    covers every other arrangement. */}
+                {(
+                    homeItems[0]?.type !== "manga-discover-header"
+                    && homeItems[0]?.type !== "manga-continue-reading-header"
+                    && !(ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Dynamic && hasManga && homeItems[0]?.type === "manga-library")
+                    && !(!!ts.libraryScreenCustomBannerImage && ts.libraryScreenBannerType === ThemeLibraryScreenBannerType.Custom && homeItems[0]?.type !== "manga-discover-header" && homeItems[0]?.type !== "manga-continue-reading-header")
+                ) && <div
+                    className={cn(
+                        "h-14",
+                        ts.hideTopNavbar && "h-20",
                     )}
                     data-manga-toolbar-top-padding
                 ></div>}
@@ -317,30 +337,14 @@ export default function Page() {
                             },
                         }}
                     >
-                        {/* Local Manga Library Stats - always at top of items */}
-                        {!downloadsLoading && !downloadsError && (downloadedList?.length ?? 0) > 0 && (
-                            <div className="px-4 pb-4">
-                                <div className="grid gap-4 md:grid-cols-3 bg-gray-900/50 border border-gray-800 rounded-xl p-4 text-sm text-gray-100">
-                                    <div className="space-y-1">
-                                        <p className="text-xs text-gray-400">Total Series</p>
-                                        <p className="text-lg font-semibold">{downloadedList?.length || 0}</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-xs text-gray-400">Total Chapters</p>
-                                        <p className="text-lg font-semibold">{downloadedChaptersTotal}</p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-xs text-gray-400">With Metadata</p>
-                                        <p className="text-lg font-semibold">{downloadedWithMedia.length}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {homeItems.filter(n => n.type !== "manga-discover-header" && n.type !== "manga-continue-reading-header" && n.type !== "local-manga-library-stats").map((item, index) => {
-                            // Divider between items (except for certain types)
-                            const showDivider = index !== 0 && 
-                                !(item?.type === "manga-library" || item?.type === "manga-continue-reading")
+                        {/* The stats bar the anime home screen has, as the same optional item —
+                            an arrangement choice, not a fixture. The numbers read from the same
+                            downloads list either way. */}
+                        {homeItems.filter(n => n.type !== "manga-discover-header" && n.type !== "manga-continue-reading-header").map((item, index) => {
+                            // Divider between items (except for certain types) — the same rule the
+                            // anime home screen applies to its items.
+                            const showDivider = index !== 0 &&
+                                !(item?.type === "manga-library" || item?.type === "manga-continue-reading" || item?.type === "local-manga-library-stats")
 
                             return (
                                 <React.Fragment key={item.id}>
