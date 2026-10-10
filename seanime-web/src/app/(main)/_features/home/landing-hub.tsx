@@ -26,13 +26,14 @@ import React from "react"
 /**
  * The landing page.
  *
- * A dashboard rather than a feed: everything the app can say on one screen, arranged so that none
- * of it wastes the space it sits in. The tiles share one band — each a door, each carrying its
- * number — the sections below it are the things that are more than a number, and the person's own
- * arrangement sits over all of it: every widget optional, every one reorderable, from the gear.
+ * A map of the app, set like a front door rather than a dashboard: the greeting is the one large
+ * thing on the page, the thing that was being watched sits directly under it, the doors the app
+ * opens read as a row the way the sidebar does — a name, not a card — and the library's numbers are
+ * a line of figures rather than a grid of boxes. Everything after that is the person's own
+ * arrangement: every widget optional, every one reorderable, from the gear.
  *
- * Every number here is a count the app already knows: nothing on this page is a second source of
- * truth, and a widget without anything to show simply says what it is.
+ * The page inherits the app's materials — its background, borders and brand color, so it changes
+ * with the wallpaper the way every other screen does — and adds nothing of its own except scale.
  */
 export function LandingHub() {
     const user = useCurrentUser()
@@ -47,40 +48,44 @@ export function LandingHub() {
     const ordered = React.useMemo(() => widgets.filter(w => w.enabled), [widgets])
     const firstWidgetId = ordered[0]?.id
 
-    // The tile band: the widgets that are a number and a door. The rest render below, full width.
-    const tileIds: LandingWidgetId[] = [
+    // The stat doors: the widgets that are a number and a way in. The rest render below, full width.
+    const statIds: LandingWidgetId[] = [
         "quick-links", "anime-stats", "manga-stats", "schedule", "to-watch", "unmatched", "torrents", "achievements",
     ]
-    const tiles = React.useMemo(() => ordered.filter(w => tileIds.includes(w.id)), [ordered])
-    const sections = React.useMemo(() => ordered.filter(w => !tileIds.includes(w.id)), [ordered])
+    const stats = React.useMemo(() => ordered.filter(w => statIds.includes(w.id)), [ordered])
+    const sections = React.useMemo(() => ordered.filter(w => !statIds.includes(w.id)), [ordered])
 
     return (
         <>
             <CustomLibraryBanner discrete />
-            <PageWrapper className="p-4 sm:p-6 lg:p-8 space-y-6">
+            <PageWrapper className="p-4 sm:p-6 lg:p-8 space-y-8">
 
-                {/* ── The hero: greeting, search, customize — one row, no wasted height ── */}
-                <div className="rounded-2xl border border-[--border] bg-gray-950/60 backdrop-blur-sm px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+                {/* ── The greeting, set large ──
+                    One row: the name, and the two actions that are worth their place. The search is
+                    the page's real question — "Where do you want to go?" is what the row answers. */}
+                <div className="flex items-end justify-between gap-6 flex-wrap">
                     <div className="min-w-0">
-                        <h1 className="text-2xl lg:text-3xl font-bold leading-tight">
-                            {user?.viewer?.name ? <>Welcome back, {user.viewer.name}</> : <>Welcome back</>}
+                        <h1 className="text-4xl lg:text-6xl font-bold tracking-tight leading-[1.05] text-white">
+                            {user?.viewer?.name
+                                ? <>Welcome back, <span className="text-[--brand]">{user.viewer.name}</span></>
+                                : <>Welcome back</>}
                         </h1>
-                        <p className="text-sm text-[--muted] mt-0.5">Where do you want to go?</p>
+                        <p className="text-lg text-[--muted] mt-2 font-medium">Where do you want to go?</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 pb-1">
                         <button
                             onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-                            className="flex items-center gap-2 rounded-lg border border-[--border] bg-gray-900/60 px-3 py-2 text-xs text-[--muted] hover:text-white hover:border-gray-600 transition-colors"
+                            className="flex items-center gap-2 rounded-lg border border-[--border] bg-[--card] px-3.5 py-2 text-sm text-[--muted] hover:text-white hover:border-[--brand]/50 transition-colors"
                         >
-                            <FiSearch className="w-3.5 h-3.5" />
-                            Search everything
+                            <FiSearch className="w-4 h-4" />
+                            Search
                         </button>
                         <button
                             onClick={() => setSettingsOpen(true)}
-                            className="flex items-center gap-2 rounded-lg border border-[--border] bg-gray-900/60 px-3 py-2 text-xs text-[--muted] hover:text-white hover:border-gray-600 transition-colors"
+                            className="flex items-center gap-2 rounded-lg border border-[--border] bg-[--card] px-3.5 py-2 text-sm text-[--muted] hover:text-white hover:border-[--brand]/50 transition-colors"
                             title="Landing page settings"
                         >
-                            <LuSettings2 className="w-3.5 h-3.5" />
+                            <LuSettings2 className="w-4 h-4" />
                             Customize
                         </button>
                     </div>
@@ -94,10 +99,16 @@ export function LandingHub() {
                     />
                 )}
 
-                {/* ── The tile band: every door and its number, on one grid ── */}
-                {!!tiles.length && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                        {tiles.map(widget => (
+                {/* ── The doors and their numbers ──
+                    One quiet strip: the widgets that are a number and a way in, drawn as the sidebar
+                    draws itself — an icon, a name, and where there is one, the figure. No boxes: the
+                    separators between them are the only structure, so the numbers carry the weight. */}
+                {!!stats.length && (
+                    <div
+                        className="flex flex-wrap items-stretch gap-x-0 gap-y-4 divide-x divide-[--border]"
+                        data-landing-stats-strip
+                    >
+                        {stats.map(widget => (
                             <LandingWidget key={widget.id} id={widget.id} />
                         ))}
                     </div>
