@@ -159,7 +159,7 @@ func NewConfig(options *ConfigOptions, logger *zerolog.Logger) (*Config, error) 
 	viper.SetDefault("offline.assetDir", "$SEANIME_DATA_DIR/offline/assets")
 	viper.SetDefault("extensions.dir", "$SEANIME_DATA_DIR/extensions")
 	// Default to the standalone seanime-themes marketplace repo cloned next to the server
-	viper.SetDefault("marketplace.dir", "$SEANIME_WORKING_DIR/seanime-themes")
+	viper.SetDefault("marketplace.dir", "../seanime-themes")
 	viper.SetDefault("marketplace.cursorPacksDir", "$SEANIME_WORKING_DIR/seanime-cursor-packs")
 	viper.SetDefault("marketplace.soundPacksDir", "$SEANIME_WORKING_DIR/seanime-sound-packs")
 
@@ -474,9 +474,24 @@ func expandEnvironmentValues(cfg *Config) {
 	cfg.Extensions.Dir = filepath.FromSlash(os.ExpandEnv(cfg.Extensions.Dir))
 	cfg.Server.Tls.CertPath = filepath.FromSlash(os.ExpandEnv(cfg.Server.Tls.CertPath))
 	cfg.Server.Tls.KeyPath = filepath.FromSlash(os.ExpandEnv(cfg.Server.Tls.KeyPath))
-	cfg.Marketplace.Dir = filepath.FromSlash(os.ExpandEnv(cfg.Marketplace.Dir))
-	cfg.Marketplace.CursorPacksDir = filepath.FromSlash(os.ExpandEnv(cfg.Marketplace.CursorPacksDir))
-	cfg.Marketplace.SoundPacksDir = filepath.FromSlash(os.ExpandEnv(cfg.Marketplace.SoundPacksDir))
+	cfg.Marketplace.Dir = resolveRelativeToWorkingDir(cfg.Marketplace.Dir)
+	cfg.Marketplace.CursorPacksDir = resolveRelativeToWorkingDir(cfg.Marketplace.CursorPacksDir)
+	cfg.Marketplace.SoundPacksDir = resolveRelativeToWorkingDir(cfg.Marketplace.SoundPacksDir)
+}
+
+// resolveRelativeToWorkingDir expands env vars and resolves relative paths (e.g. "../seanime-themes")
+// against $SEANIME_WORKING_DIR so the config doesn't need machine-specific absolute paths.
+func resolveRelativeToWorkingDir(p string) string {
+	if p == "" {
+		return p
+	}
+	p = filepath.FromSlash(os.ExpandEnv(p))
+	if !filepath.IsAbs(p) {
+		if wd := os.Getenv("SEANIME_WORKING_DIR"); wd != "" {
+			p = filepath.Join(wd, p)
+		}
+	}
+	return filepath.Clean(p)
 }
 
 // createConfigFile creates a default config file if it doesn't exist
