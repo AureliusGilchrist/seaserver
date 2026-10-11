@@ -222,6 +222,16 @@ foreach ($tool in @(@('node', 'Node.js'), @('npm', 'npm'), @('go', 'Go'))) {
 }
 Success 'Required directories and tools present'
 
+Step '0.3' 'Pull latest changes'
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    SubStep 'git pull --ff-only'
+    git pull --ff-only
+    if ($LASTEXITCODE -ne 0) { Warn 'git pull failed (local changes or diverged branch?) -- building the current checkout instead' }
+    else { Success 'Repository up to date' }
+} else {
+    Warn 'git not found -- skipping pull'
+}
+
 # -- 1. Frontend -------------------------------------------
 
 Invoke-BuildStep '1.1' 'Frontend dependencies (seanime-web)' -Dir $WebDir {
