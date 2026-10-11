@@ -23,7 +23,7 @@ import { ActivityBuffBadge, StreakCard, StatsActivityHeatmap, DayOfWeekChart, Ca
 import { getProfileOwnerMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import * as React from "react"
-import { profileAccentStyle } from "@/lib/rewards/profile-accent"
+import { profileAccentStyle, useProfileAccentOnRoot } from "@/lib/rewards/profile-accent"
 import {
     LuTrophy, LuStar, LuArrowLeft, LuCalendar, LuBookOpen,
     LuTv, LuActivity, LuListVideo,
@@ -72,6 +72,7 @@ export default function Page() {
 
     // Derive a solid accent color from the XP bar fill for scoped brand overrides
     const profileAccentVars = React.useMemo(() => profileAccentStyle(xpBarFillCss), [xpBarFillCss])
+    useProfileAccentOnRoot(xpBarFillCss)
 
     // Name style: driven by xpBarFillCss skin first, then nameGradientCss/nameColorCss
     const nameStyle: React.CSSProperties = xpBarFillCss

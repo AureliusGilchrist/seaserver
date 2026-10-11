@@ -62,7 +62,7 @@ import { LuGift } from "react-icons/lu"
 import { useEasterEggs } from "@/lib/easter-eggs/easter-egg-engine"
 import { EASTER_EGG_DEFINITIONS } from "@/lib/easter-eggs/easter-egg-definitions"
 import * as React from "react"
-import { profileAccentStyle } from "@/lib/rewards/profile-accent"
+import { profileAccentStyle, useProfileAccentOnRoot } from "@/lib/rewards/profile-accent"
 import {
     LuTrophy, LuStar, LuPencil, LuCheck, LuX, LuFlame,
     LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuListVideo,
@@ -165,6 +165,7 @@ export default function Page() {
 
     // Derive a solid accent color from XP bar fill for scoped brand overrides
     const profileAccentVars = React.useMemo(() => profileAccentStyle(effectiveXPBarFill), [effectiveXPBarFill])
+    useProfileAccentOnRoot(effectiveXPBarFill)
 
     // Merge any page-level effect vars from the active XP bar skin (effects category)
     const pageEffectVarsStyle: React.CSSProperties = activeXPBarSkin?.pageEffectVars
