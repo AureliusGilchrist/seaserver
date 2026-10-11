@@ -48,6 +48,7 @@ let sharedThemesInflight: Promise<SharedThemeInfo[]> | null = null
  * Returns null if the theme isn't in the marketplace or the server isn't configured.
  */
 export async function fetchMarketplaceThemeMeta(themeId: string, opts?: { marketplaceFirst?: boolean }): Promise<MarketplaceThemeMeta | null> {
+    themeId = themeId.trim()
     if (cache.has(themeId)) return cache.get(themeId) ?? null
 
     // Deduplicate concurrent requests for the same theme
@@ -125,11 +126,12 @@ export async function fetchMarketplaceThemeMeta(themeId: string, opts?: { market
 
 /** Synchronous cache read — only returns data if already fetched. */
 export function getCachedMarketplaceThemeMeta(themeId: string): MarketplaceThemeMeta | null {
-    return cache.get(themeId) ?? null
+    return cache.get(themeId.trim()) ?? null
 }
 
 /** Warm the cache for a theme in the background (fire-and-forget). */
 export function prefetchMarketplaceThemeMeta(themeId: string): void {
+    themeId = themeId.trim()
     if (!cache.has(themeId) && !inflight.has(themeId)) {
         void fetchMarketplaceThemeMeta(themeId)
     }
