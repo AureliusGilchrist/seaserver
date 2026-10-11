@@ -490,60 +490,72 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.libassHealthListener = null
     }
 
+    private async _isRendererHealthy(renderer: JASSUB): Promise<boolean> {
+        let timer: ReturnType<typeof setTimeout> | undefined
+        try {
+            await Promise.race([
+                renderer.resize(false),
+                new Promise((_, reject) => {
+                    timer = setTimeout(() => reject(new Error("libass worker unresponsive")), 3000)
+                }),
+            ])
+            return true
+        }
+        catch (e) {
+            subtitleLog.warning("Libass renderer unhealthy", e)
+            return false
+        }
+        finally {
+            clearTimeout(timer)
+        }
+    }
+
+    // Throws the dead renderer away and builds a new one. Callers re-select the track afterwards.
+    private async _rebuildRenderer() {
+        const renderer = this.libassRenderer
+        subtitleLog.warning("Recreating libass renderer")
+
+        // Terminate the worker directly; a graceful destroy() would await the dead worker.
+        try {
+            if (renderer) {
+                (renderer as any)._destroyed = true
+                ;(renderer as any)._canvas?.remove?.()
+                ;(renderer as any)._worker?.terminate?.()
+            }
+        }
+        catch {
+        }
+        if (sharedRenderer === renderer) {
+            sharedRenderer = null
+            sharedRendererOwner = null
+            sharedRendererLoadedFontKeys.clear()
+        }
+        this.libassRenderer = null
+
+        if (this.libassFullscreenListener) {
+            document.removeEventListener("fullscreenchange", this.libassFullscreenListener)
+            document.removeEventListener("webkitfullscreenchange", this.libassFullscreenListener)
+            this.libassFullscreenListener = null
+        }
+        if (this.libassLoadedMetadataListener) {
+            this.videoElement.removeEventListener("loadedmetadata", this.libassLoadedMetadataListener)
+            this.libassLoadedMetadataListener = null
+        }
+        this.initPromise = null
+
+        await this._init()
+    }
+
     private async _recoverRendererIfUnresponsive() {
         const renderer = this.libassRenderer
         if (!renderer || this.isDestroyed || this.recoveringRenderer) return
         this.recoveringRenderer = true
 
         try {
-            let healthy = true
-            let timer: ReturnType<typeof setTimeout> | undefined
-            try {
-                await Promise.race([
-                    renderer.resize(false),
-                    new Promise((_, reject) => {
-                        timer = setTimeout(() => reject(new Error("libass worker unresponsive")), 3000)
-                    }),
-                ])
-            }
-            catch (e) {
-                healthy = false
-                subtitleLog.warning("Libass renderer unhealthy, recreating", e)
-            }
-            finally {
-                clearTimeout(timer)
-            }
-            if (healthy || this.isDestroyed) return
+            if (await this._isRendererHealthy(renderer) || this.isDestroyed) return
 
             const trackNumber = this.currentTrackNumber
-
-            // Terminate the worker directly; a graceful destroy() would await the dead worker.
-            try {
-                (renderer as any)._destroyed = true
-                ;(renderer as any)._canvas?.remove?.()
-                ;(renderer as any)._worker?.terminate?.()
-            }
-            catch {
-            }
-            if (sharedRenderer === renderer) {
-                sharedRenderer = null
-                sharedRendererOwner = null
-                sharedRendererLoadedFontKeys.clear()
-            }
-            this.libassRenderer = null
-
-            if (this.libassFullscreenListener) {
-                document.removeEventListener("fullscreenchange", this.libassFullscreenListener)
-                document.removeEventListener("webkitfullscreenchange", this.libassFullscreenListener)
-                this.libassFullscreenListener = null
-            }
-            if (this.libassLoadedMetadataListener) {
-                this.videoElement.removeEventListener("loadedmetadata", this.libassLoadedMetadataListener)
-                this.libassLoadedMetadataListener = null
-            }
-            this.initPromise = null
-
-            await this._init()
+            await this._rebuildRenderer()
             if (this.isDestroyed) return
             if (trackNumber !== NO_TRACK_NUMBER) {
                 await this.selectTrack(trackNumber)
@@ -556,6 +568,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             this.recoveringRenderer = false
         }
     }
+
 
     addEventListener<K extends keyof VideoCoreSubtitleManagerEventMap>(
         type: K,
@@ -646,20 +659,34 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
      * and libass scans the entire event list on every rendered frame — so a session grew
      * slower the longer it ran and the more events it had seen.
      */
-    private _freeLibassTrack() {
-        if (!this.libassRenderer) return
+    // Any explicit track selection (including toggling subtitles off and on) revives a dead renderer.
+    private async _ensureRendererAlive() {
+        const renderer = this.libassRenderer
+        if (!renderer || this.recoveringRenderer) return
+        if (await this._isRendererHealthy(renderer) || this.isDestroyed) return
+        this.recoveringRenderer = true
         try {
-            ;(this.libassRenderer.renderer as any)?.freeTrack?.()
+            await this._rebuildRenderer()
         }
-        catch (e) {
-            subtitleLog.warn("Failed to free previous libass track", e)
+        finally {
+            this.recoveringRenderer = false
         }
+    }
+
+    private async _freeLibassTrack() {
+        if (!this.libassRenderer) return
+        await Promise.race([
+            Promise.resolve((this.libassRenderer.renderer as any)?.freeTrack?.()),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("freeTrack timed out")), 3000)),
+        ])
     }
 
     async selectTrack(trackNumber: number) {
         subtitleLog.info("Track selection requested", trackNumber)
         if (this.isDestroyed) return
         await this._init()
+        if (this.isDestroyed) return
+        await this._ensureRendererAlive()
         if (this.isDestroyed) return
 
         this.shouldTranslate = this.translationTargetLang
@@ -750,8 +777,16 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             // track's events onto an ever-growing list. Libass scans the whole list on every
             // frame (rawRender), which is why playback degraded the longer it ran and the
             // more words a caption had. Free the old track before adding the new one.
-            this._freeLibassTrack()
-            this.libassRenderer?.renderer?.setTrack(codecPrivate)
+            try {
+                await this._freeLibassTrack()
+                await this.libassRenderer?.renderer?.setTrack(codecPrivate)
+            }
+            catch (e) {
+                subtitleLog.warning("Setting libass track failed, rebuilding renderer", e)
+                await this._rebuildRenderer()
+                if (this.isDestroyed) return
+                await this.libassRenderer?.renderer?.setTrack(codecPrivate)
+            }
             // Apply customization to Default styles
             await this._applySubtitleCustomization()
             if (this.isDestroyed) return
@@ -1328,7 +1363,12 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             if (this.isDestroyed) return
             // Free the old track first — see the note in selectTrack: setTrack is additive
             // and this renderer outlives the track being replaced.
-            this._freeLibassTrack()
+            try {
+                await this._freeLibassTrack()
+            }
+            catch (e) {
+                subtitleLog.warn("Failed to free previous libass track", e)
+            }
             this.libassRenderer?.renderer?.setTrack(this.eventTracks[track]?.info.codecPrivate?.slice(0, -1) || this.defaultSubtitleHeader)
             await this._applySubtitleCustomization()
             if (this.isDestroyed) return

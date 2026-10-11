@@ -69,15 +69,45 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
     async function guarded(target, fn) {
         if (busy) return { ok: false, error: "Another update is already running." }
         busy = true
+        const stats = { files: 0, insertions: 0, deletions: 0, lines: 0 }
         try {
-            const message = await fn()
-            return { ok: true, message }
+            const message = await fn(stats)
+            return { ok: true, message, stats }
         } catch (err) {
             log.error(`[LiveUpdate] ${target} update failed:`, err)
-            return { ok: false, error: err?.message ?? String(err) }
+            return { ok: false, error: err?.message ?? String(err), stats }
         } finally {
             busy = false
         }
+    }
+
+    function git(root, args) {
+        return new Promise((resolve) => {
+            let out = ""
+            try {
+                const child = spawn("git", args, { cwd: root, windowsHide: true })
+                child.stdout.on("data", (d) => { out += d.toString() })
+                child.on("error", () => resolve(""))
+                child.on("close", () => resolve(out.trim()))
+            } catch {
+                resolve("")
+            }
+        })
+    }
+
+    // Pulls and records how many lines the pull changed.
+    async function pullWithStats(target, root, stats) {
+        const before = await git(root, ["rev-parse", "HEAD"])
+        const out = await run(target, "git", ["pull", "--ff-only"], { cwd: root })
+        const after = await git(root, ["rev-parse", "HEAD"])
+        if (before && after && before !== after) {
+            const short = await git(root, ["diff", "--shortstat", before, after])
+            stats.files = Number(/(\d+) files? changed/.exec(short)?.[1] ?? 0)
+            stats.insertions = Number(/(\d+) insertions?\(\+\)/.exec(short)?.[1] ?? 0)
+            stats.deletions = Number(/(\d+) deletions?\(-\)/.exec(short)?.[1] ?? 0)
+            stats.lines = stats.insertions + stats.deletions
+        }
+        return out
     }
 
     function requireRepo() {
@@ -89,11 +119,11 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
     }
 
     function updateBackend() {
-        return guarded("backend", async () => {
+        return guarded("backend", async (stats) => {
             if (isRemoteMode()) throw new Error("The backend runs on a remote server; update it there.")
             const root = requireRepo()
 
-            const pullOut = await run("backend", "git", ["pull", "--ff-only"], { cwd: root })
+            const pullOut = await pullWithStats("backend", root, stats)
 
             const binaryName = getBinaryName()
             const livePath = getLiveBinaryPath(app, binaryName)
@@ -135,12 +165,14 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
     }
 
     function updateFrontend() {
-        return guarded("frontend", async () => {
+        return guarded("frontend", async (stats) => {
             const root = requireRepo()
             const webRoot = path.join(root, "seanime-web")
             if (!fs.existsSync(path.join(webRoot, "node_modules"))) {
                 throw new Error("seanime-web/node_modules is missing. Install the frontend dependencies first.")
             }
+
+            await pullWithStats("frontend", root, stats)
 
             await run("frontend", "npm", ["run", "build:denshi"], { cwd: webRoot, shell: process.platform === "win32" })
 

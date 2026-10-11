@@ -46,15 +46,20 @@ export function UpdateSettings() {
         try {
             await savePath()
             const res = target === "backend" ? await liveUpdate!.updateBackend() : await liveUpdate!.updateFrontend()
+            const label = target === "backend" ? "Backend" : "Frontend"
+            const s = res.stats
+            const changed = s && s.lines > 0
+                ? ` (${s.files} file${s.files === 1 ? "" : "s"}, +${s.insertions}/-${s.deletions} = ${s.lines} lines changed)`
+                : " (0 lines changed)"
             if (res.ok) {
-                toast.success(res.message ?? "Update complete")
+                toast.success(`${label} update succeeded${changed}. ${res.message ?? ""}`.trim())
             } else {
-                toast.error(res.error ?? "Update failed")
+                toast.error(`${label} update failed${changed}: ${(res.error ?? "").split("\n")[0]}`)
                 setLines(prev => [...prev, "", `ERROR: ${res.error}`])
             }
         }
         catch (e: any) {
-            toast.error(e?.message ?? "Update failed")
+            toast.error(`Update failed: ${e?.message ?? "unknown error"}`)
         }
         finally {
             setRunning(null)

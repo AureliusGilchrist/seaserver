@@ -76,8 +76,8 @@ declare global {
                 set: (settings: DenshiSettings) => Promise<DenshiSettings>;
             };
             liveUpdate?: {
-                updateBackend: () => Promise<{ ok: boolean; message?: string; error?: string }>;
-                updateFrontend: () => Promise<{ ok: boolean; message?: string; error?: string }>;
+                updateBackend: () => Promise<LiveUpdateResult>;
+                updateFrontend: () => Promise<LiveUpdateResult>;
                 getInfo: () => Promise<{
                     repoRoot: string | null;
                     busy: boolean;
@@ -153,6 +153,13 @@ declare global {
         imageUrl?: string;
         duration?: number;
         serverPort?: number;
+    }
+
+    interface LiveUpdateResult {
+        ok: boolean;
+        message?: string;
+        error?: string;
+        stats?: { files: number; insertions: number; deletions: number; lines: number };
     }
 
     interface DenshiSettings {
