@@ -95,8 +95,18 @@ export default function Page() {
     // Resolved display title text (falls back to milestone name or level label)
     const displayTitleText = profile?.displayTitle || null
 
+    const hasGradientFill = !!xpBarFillCss?.includes("gradient")
+    const profilePageStyle: React.CSSProperties = hasGradientFill
+        ? { ...profileAccentVars, ["--profile-fill" as string]: xpBarFillCss }
+        : profileAccentVars
+
     return (
-        <div style={profileAccentVars}>
+        <div
+            className="sea-profile-accent"
+            style={profilePageStyle}
+            data-profile-fill={hasGradientFill ? "" : undefined}
+            data-profile-fx={hasGradientFill && xpBarAnimClass ? "" : undefined}
+        >
             {profile!.bannerImage ? (
                 <div
                     className="relative h-[300px] overflow-hidden"

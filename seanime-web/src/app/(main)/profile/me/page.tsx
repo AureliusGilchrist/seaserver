@@ -173,10 +173,17 @@ export default function Page() {
         ) as React.CSSProperties
         : {}
 
-    const profilePageStyle: React.CSSProperties = { ...profileAccentVars, ...pageEffectVarsStyle }
+    const profilePageStyle: React.CSSProperties = {
+        ...profileAccentVars,
+        ...pageEffectVarsStyle,
+        ...(effectiveXPBarFill?.includes("gradient") ? { ["--profile-fill" as string]: effectiveXPBarFill } : {}),
+    }
+    const profileFillAttrs = effectiveXPBarFill?.includes("gradient")
+        ? { "data-profile-fill": "", "data-profile-fx": activeXPBarSkin?.animClass ? "" : undefined }
+        : {}
 
     return (
-        <div style={profilePageStyle}>
+        <div className="sea-profile-accent" style={profilePageStyle} {...profileFillAttrs}>
             {/* Banner */}
             {profile!.bannerImage ? (
                 <div

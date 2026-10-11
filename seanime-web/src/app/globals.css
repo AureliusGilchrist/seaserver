@@ -1598,6 +1598,33 @@ body.vc-fullscreen .appLayout {
     .sea-xpbar-fire, .sea-xpbar-void, .sea-xpbar-pulse-glow { animation: none !important; }
 }
 
+/* ── Profile accent: the XP bar's full gradient on the page's solid accent fills ──
+ * The gradient is a static background, so it is rasterized once. The skin's motion is a highlight
+ * sweep on a pseudo-element moved with transform, which the compositor handles without repainting
+ * the element — unlike animating background-position, which repaints every frame. */
+.sea-profile-accent[data-profile-fill] .bg-brand-500:not(.absolute):not(.fixed):not(.sticky) {
+    background-image: var(--profile-fill);
+    background-size: 100% 100%;
+    position: relative;
+    overflow: hidden;
+}
+.sea-profile-accent[data-profile-fill][data-profile-fx] .bg-brand-500:not(.absolute):not(.fixed):not(.sticky)::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%);
+    transform: translateX(-100%);
+    animation: sea-profile-sweep 2.8s linear infinite;
+    will-change: transform;
+    pointer-events: none;
+}
+@keyframes sea-profile-sweep {
+    to { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sea-profile-accent .bg-brand-500::after { animation: none !important; }
+}
+
 /* Flow: smooth left-to-right gradient drift (background-position based) */
 @keyframes sea-xpbar-flow-kf {
     0%   { background-position: 0% 50%; }
