@@ -71,6 +71,7 @@ For development, you should be familiar with both Go and React.
    
 3. **Configure the development server**:
    - Change the port in the `config.toml` located in the development data directory to `43000`. The web interface will connect to this port during development. Change the host to `0.0.0.0` to allow connections from other devices.
+   - If the `seanime-themes` repository is outside the server's working directory, set `SEANIME_MARKETPLACE_DIR` to its absolute path. The path must be the repository root containing the `themes` directory. This environment variable overrides `marketplace.dir` in `config.toml`.
    - Re-run the server with the updated configuration.
 
    The server will be available at `http://127.0.0.1:43000`.
