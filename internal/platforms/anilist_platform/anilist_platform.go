@@ -152,6 +152,8 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 
 		// Check if the anime is in the repeating list
 		// If it is, set the status to repeating
+		wasRepeating := false
+		repeatCount := 0
 		if ap.rawAnimeCollection.IsPresent() {
 			for _, list := range ap.rawAnimeCollection.MustGet().MediaListCollection.Lists {
 				if list.Status != nil && *list.Status == anilist.MediaListStatusRepeating {
@@ -159,6 +161,10 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 						for _, entry := range list.Entries {
 							if entry.GetMedia().GetID() == mediaID {
 								*event.Status = anilist.MediaListStatusRepeating
+								wasRepeating = true
+								if r := entry.GetRepeat(); r != nil {
+									repeatCount = *r
+								}
 								break
 							}
 						}
@@ -166,7 +172,8 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 				}
 			}
 		}
-		if realTotalCount > 0 && *event.Progress >= realTotalCount {
+		finishing := realTotalCount > 0 && *event.Progress >= realTotalCount
+		if finishing {
 			*event.Status = anilist.MediaListStatusCompleted
 		}
 
@@ -208,7 +215,18 @@ func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int,
 			startedAt,
 			completedAt,
 		)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Finishing a rewatch counts it.
+		if finishing && wasRepeating {
+			repeat := repeatCount + 1
+			if _, rerr := ap.anilistClient.UpdateMediaListEntryRepeat(ctx, &mediaID, &repeat); rerr != nil {
+				ap.logger.Warn().Err(rerr).Int("mediaId", mediaID).Msg("anilist platform: Failed to bump rewatch count")
+			}
+		}
+		return nil
 	})
 }
 
