@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -225,13 +226,30 @@ func (u *GitAutoUpdater) update() {
 		return
 	}
 
+	// The working tree has to stay clean through the whole update — the check above ran before the
+	// merge, and the merge itself is the step most able to have left something behind (a pull that
+	// pauses for a credential prompt, for instance, can leave a partially-written index behind).
+	status, err := u.git("status", "--porcelain")
+	if err != nil || strings.TrimSpace(status) != "" {
+		u.logger.Warn().Msg("selfupdate: The merge left the working tree dirty, not updating")
+		return
+	}
+
 	u.notify("A new version was found — building it now…")
 	u.logger.Info().Msg("selfupdate: Building the new version while the current one keeps running")
 
 	// The build is the web interface first and the server second, which is what the embed in the
 	// binary needs. A failed build writes no binary — go build only replaces what it compiled — so
-	// the running version is untouched by it.
-	build := exec.Command("bash", "build-all.sh")
+	// the running version is untouched by it. The script is run through its shell (bash on the NAS,
+	// powershell on Windows) so the platform's own script handles the platform's own paths, and the
+	// command runs attached to a console-independent process on Windows so a GUI binary does not
+	// flash a shell window for every step of the build.
+	build, err := buildCommand(u.repoDir)
+	if err != nil {
+		u.logger.Error().Err(err).Msg("selfupdate: No shell available to run the build — the running version keeps serving")
+		u.notify("The update could not be built — still running the current version")
+		return
+	}
 	build.Dir = u.repoDir
 	build.Stdout = os.Stdout
 	build.Stderr = os.Stderr
@@ -246,12 +264,33 @@ func (u *GitAutoUpdater) update() {
 		u.logger.Error().Msg("selfupdate: Could not locate the running binary, not updating")
 		return
 	}
-	info, err := os.Stat(exePath)
-	if err != nil || time.Since(info.ModTime()) > 10*time.Minute {
+	// The mtime check guards against a build that produced no binary. But the build does not write
+	// to the running binary's path — it writes the repo's output (seanime_exe / seanime.exe in the
+	// checkout) — so the check is made against the file the build actually produced. When the
+	// running binary is that same file (started as ./seanime_exe from the checkout) the paths
+	// agree; when it is not, the freshly built binary is carried to the running binary's path
+	// before the swap instead of the update being thrown away.
+	builtPath := filepath.Join(u.repoDir, builtBinaryName())
+	info, err := os.Stat(builtPath)
+	if err != nil {
+		u.logger.Error().Err(err).Str("built", builtPath).Msg("selfupdate: The build did not produce a binary, not updating")
+		return
+	}
+	if time.Since(info.ModTime()) > 10*time.Minute {
 		// The binary on disk is not the one this build produced — a build that did not touch it is
 		// not an update.
 		u.logger.Warn().Msg("selfupdate: The build did not produce a new binary, not updating")
 		return
+	}
+	if sameFile, err := sameFilePath(exePath, builtPath); err == nil && !sameFile {
+		// The server was started from somewhere other than the checkout's output (a copy in
+		// /usr/local/bin, say). The checkout's binary is the new version; the running one is the
+		// old. Move the new over the old, which is what "swap" has to mean here.
+		if err := copyBinary(builtPath, exePath); err != nil {
+			u.logger.Error().Err(err).Msg("selfupdate: Could not place the new binary, not updating")
+			return
+		}
+		u.logger.Info().Str("from", builtPath).Str("to", exePath).Msg("selfupdate: New binary moved to the running binary's location")
 	}
 
 	// What the update was, written down before the process is replaced underneath itself: the
@@ -365,4 +404,80 @@ func (u *GitAutoUpdater) git(args ...string) (string, error) {
 // fail to compile here rather than everywhere.
 func syscallExec(path string, args []string, env []string) error {
 	return syscallExecImpl(path, args, env)
+}
+
+// builtBinaryName is the file the build scripts leave the new server binary at, inside the
+// checkout. build-all.sh (NAS, Linux) writes seanime_exe; build-all-desktop.ps1 (Windows) writes
+// seanime.exe.
+func builtBinaryName() string {
+	if runtime.GOOS == "windows" {
+		return "seanime.exe"
+	}
+	return "seanime_exe"
+}
+
+// buildCommand returns the command that runs the checkout's build script. Each platform runs its
+// own script: bash runs build-all.sh on the NAS, and on Windows powershell runs the desktop
+// script. The Windows command is created through util.NewCmd so a GUI binary does not flash a
+// console window for the duration of the build.
+func buildCommand(repoDir string) (*exec.Cmd, error) {
+	if runtime.GOOS == "windows" {
+		ps, err := exec.LookPath("powershell")
+		if err != nil {
+			return nil, fmt.Errorf("powershell not found: %w", err)
+		}
+		return util.NewCmd(ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", filepath.Join(repoDir, "build-all-desktop.ps1")), nil
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		return nil, fmt.Errorf("bash not found: %w", err)
+	}
+	return exec.Command(bash, "build-all.sh"), nil
+}
+
+// sameFilePath reports whether two paths name the same file.
+func sameFilePath(a, b string) (bool, error) {
+	if filepath.Clean(a) == filepath.Clean(b) {
+		return true, nil
+	}
+	ai, err := os.Stat(a)
+	if err != nil {
+		return false, err
+	}
+	bi, err := os.Stat(b)
+	if err != nil {
+		return false, err
+	}
+	return os.SameFile(ai, bi), nil
+}
+
+// copyBinary copies the freshly built binary over the running one. On Linux the running image is
+// fine with this — the file's contents are replaced, but the kernel keeps the mapped inode of the
+// old file alive until the process exits, which is exactly how long it needs to. On Windows the
+// running image's file cannot be opened for writing, so the old binary is renamed aside first —
+// a running executable can be renamed even though it cannot be overwritten — and the new one
+// takes its place; the renamed copy is removed on the next start.
+func copyBinary(src, dst string) error {
+	if runtime.GOOS == "windows" {
+		old := dst + ".old"
+		_ = os.Remove(old)
+		if err := os.Rename(dst, old); err != nil {
+			return fmt.Errorf("could not set aside the running binary: %w", err)
+		}
+		if err := copyFile(src, dst); err != nil {
+			// Put the running binary back rather than leave the path empty.
+			if rbErr := os.Rename(old, dst); rbErr != nil {
+				return fmt.Errorf("copy failed (%v) and the old binary could not be restored: %w", err, rbErr)
+			}
+			return err
+		}
+		if err := os.Chmod(dst, 0o755); err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := copyFile(src, dst); err != nil {
+		return err
+	}
+	return os.Chmod(dst, 0o755)
 }

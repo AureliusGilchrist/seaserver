@@ -293,7 +293,12 @@ export function useUpdateHomeItems() {
         endpoint: API_ENDPOINTS.STATUS.UpdateHomeItems.endpoint,
         method: API_ENDPOINTS.STATUS.UpdateHomeItems.methods[0],
         mutationKey: [API_ENDPOINTS.STATUS.UpdateHomeItems.key],
-        onSuccess: async () => {
+        onMutate: async ({ items }) => {
+            const queryKey = [API_ENDPOINTS.STATUS.GetHomeItems.key]
+            await qc.cancelQueries({ queryKey })
+            qc.setQueryData<Array<Models_HomeItem>>(queryKey, items)
+        },
+        onSettled: async () => {
             await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.STATUS.GetHomeItems.key] })
         },
     })
@@ -314,7 +319,12 @@ export function useUpdateMangaHomeItems() {
         endpoint: API_ENDPOINTS.STATUS.UpdateMangaHomeItems.endpoint,
         method: API_ENDPOINTS.STATUS.UpdateMangaHomeItems.methods[0],
         mutationKey: [API_ENDPOINTS.STATUS.UpdateMangaHomeItems.key],
-        onSuccess: async () => {
+        onMutate: async ({ items }) => {
+            const queryKey = [API_ENDPOINTS.STATUS.GetMangaHomeItems.key]
+            await qc.cancelQueries({ queryKey })
+            qc.setQueryData<Array<Models_HomeItem>>(queryKey, items)
+        },
+        onSettled: async () => {
             await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.STATUS.GetMangaHomeItems.key] })
         },
     })

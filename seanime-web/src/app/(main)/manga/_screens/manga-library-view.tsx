@@ -479,16 +479,7 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                     renderItem={item => {
                         if (item.type === "regular" && item.entry) {
                             return (
-                                <div
-                                    key={item.entry.media?.id}
-                                    onMouseEnter={() => {
-                                        if (item.bannerImage) {
-                                            React.startTransition(() => {
-                                                setCurrentHeaderImage(item.bannerImage!)
-                                            })
-                                        }
-                                    }}
-                                >
+                                <div key={item.entry.media?.id}>
                                     <MediaEntryCard
                                         media={item.entry.media!}
                                         listData={item.entry.listData}
@@ -551,13 +542,6 @@ const CollectionListItem = memo(({ list, storedProviders, showStatuses, type, wi
                                     <div
                                         key={item.entry.media?.id}
                                         className="relative basis-[200px] col-span-1 place-content-stretch flex-none md:basis-[250px] mx-2 mt-8 mb-0"
-                                        onMouseEnter={() => {
-                                            if (item.bannerImage) {
-                                                React.startTransition(() => {
-                                                    setCurrentHeaderImage(item.bannerImage!)
-                                                })
-                                            }
-                                        }}
                                     >
                                         <MediaEntryCard
                                             media={item.entry.media!}
@@ -695,4 +679,3 @@ function GenreSelector({
         />
     )
 }
-

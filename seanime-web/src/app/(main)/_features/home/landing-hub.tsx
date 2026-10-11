@@ -100,12 +100,13 @@ export function LandingHub() {
                 )}
 
                 {/* ── The doors and their numbers ──
-                    One quiet strip: the widgets that are a number and a way in, drawn as the sidebar
-                    draws itself — an icon, a name, and where there is one, the figure. No boxes: the
-                    separators between them are the only structure, so the numbers carry the weight. */}
+                    A grid of cards, the same material the quick links below are drawn with: an icon,
+                    a name, and the figure it carries, each on a card of its own. The wallpaper runs
+                    behind this strip — numbers sitting straight on it were unreadable — so every
+                    door carries the card background the rest of the page reads by. */}
                 {!!stats.length && (
                     <div
-                        className="flex flex-wrap items-stretch gap-x-0 gap-y-4 divide-x divide-[--border]"
+                        className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"
                         data-landing-stats-strip
                     >
                         {stats.map(widget => (

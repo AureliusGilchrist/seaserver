@@ -30,7 +30,6 @@ import { cn } from "@/components/ui/core/styling"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/components/ui/carousel"
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
-import { useDebounce } from "use-debounce"
 import { __isDesktop__ } from "@/types/constants"
 import { displayTitle } from "@/lib/helpers/media"
 import { AnimatePresence } from "motion/react"
@@ -65,44 +64,11 @@ export default function Page() {
     }, [favorites, mangaCollection])
 
     const ts = useThemeSettings()
+    const handleHoverImage = React.useCallback((_image: string | null) => undefined, [])
 
-    // Hero background image state (hover-driven) - matching anime home screen
-    const [hoverImage, setHoverImage] = React.useState<string | null>(null)
-    const [activeHero] = useDebounce(hoverImage, 50)
-    const [prevHero, setPrevHero] = React.useState<string | null>(null)
-    const [isCrossfading, setIsCrossfading] = React.useState(false)
-    const crossfadeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-    const [scrolled, setScrolled] = React.useState(false)
-
-    const handleHoverImage = React.useCallback((img: string | null) => {
-        setHoverImage(img)
-    }, [])
-
-    React.useEffect(() => {
-        const handler = () => setScrolled(window.scrollY > 60)
-        handler()
-        window.addEventListener("scroll", handler)
-        return () => window.removeEventListener("scroll", handler)
-    }, [])
-
-    React.useEffect(() => {
-        if (scrolled) {
-            setHoverImage(null)
-        }
-    }, [scrolled])
-
-    // Crossfade: when activeHero changes, keep the old image visible while the new one fades in
-    React.useEffect(() => {
-        if (crossfadeTimerRef.current) clearTimeout(crossfadeTimerRef.current)
-        setIsCrossfading(true)
-        crossfadeTimerRef.current = setTimeout(() => {
-            setPrevHero(activeHero)
-            setIsCrossfading(false)
-        }, 600)
-        return () => {
-            if (crossfadeTimerRef.current) clearTimeout(crossfadeTimerRef.current)
-        }
-    }, [activeHero])
+    // No hover-driven wallpaper here — the theme's background stays put, and the only banners are
+    // the continue-reading header's and the library header's, which belong to headers, not to
+    // whatever the cursor last crossed.
 
     const { data: downloadedList, isLoading: downloadsLoading, isError: downloadsError } = useGetMangaDownloadsList()
     const [downloadSearch, setDownloadSearch] = React.useState("")
@@ -226,49 +192,11 @@ export default function Page() {
             data-stored-providers={JSON.stringify(storedProviders)}
             className="relative"
         >
-            {/* Dynamic blurred background hero - matching anime home screen z-index */}
-            <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-                {/* Previous image layer — fades out during crossfade */}
-                <div
-                    className={cn(
-                        "absolute inset-0 transition-opacity duration-500",
-                        prevHero && isCrossfading ? "opacity-100" : "opacity-0",
-                    )}
-                    style={{
-                        backgroundImage: prevHero ? `url(${prevHero})` : undefined,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        filter: "blur(22px) saturate(120%)",
-                        transform: "scale(1.05)",
-                    }}
-                />
-                {/* New image layer — fades in */}
-                <div
-                    className={cn(
-                        "absolute inset-0 transition-opacity duration-500",
-                        activeHero ? "opacity-100" : "opacity-0",
-                    )}
-                    style={{
-                        backgroundImage: activeHero ? `url(${activeHero})` : undefined,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        filter: "blur(22px) saturate(120%)",
-                        transform: "scale(1.05)",
-                    }}
-                />
-                <div
-                    className={cn(
-                        "absolute inset-0 bg-gradient-to-b from-black/60 via-black/70 to-black/80 transition-opacity duration-400",
-                        scrolled ? "opacity-75" : "opacity-55",
-                    )}
-                />
-            </div>
-
             <div className="relative z-[1]">
 
                 {/* Manga Discover Header - if first item */}
                 {homeItems[0]?.type === "manga-discover-header" && (
-                    <MangaDiscoverHeader onHoverImage={handleHoverImage} cardSizeClass={cardSizeClass} />
+                    <MangaDiscoverHeader cardSizeClass={cardSizeClass} />
                 )}
 
                 {/* Manga Continue Reading Header - if first item. The full header — banner, card,

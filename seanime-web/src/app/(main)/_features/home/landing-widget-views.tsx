@@ -213,10 +213,10 @@ export function LandingAchievementsWidget() {
 /**
  * One cell of the landing strip.
  *
- * A door, drawn the way the sidebar draws itself: an icon, a name, the figure it carries. The strip
- * supplies the separators; the cell supplies nothing but spacing — no border, no background, no
- * shadow — so the numbers carry the weight and the row reads as one line of figures rather than a
- * grid of boxes.
+ * A door drawn as a card, the way the quick links below the strip are drawn: the app's card
+ * material behind it, so the numbers stay readable over the wallpaper — the strip sits directly on
+ * the background, and a figure with no material under it fought the artwork for legibility. An
+ * icon, a name, the figure it carries, and room between them so a card is read at a glance.
  */
 function StatsDoor({ title, icon, stats, href }: {
     title: string
@@ -225,19 +225,22 @@ function StatsDoor({ title, icon, stats, href }: {
     href: string
 }) {
     return (
-        <SeaLink href={href} className="group/door block min-w-[10rem] flex-1">
+        <SeaLink href={href} className="group/door block h-full">
             <button
-                className="w-full text-left px-5 py-3 rounded-lg transition-colors hover:bg-[--subtle] focus-visible:ring-2 focus-visible:ring-[--brand] outline-none"
+                className={cn(
+                    "group w-full h-full text-left rounded-xl border border-[--border] bg-[--card] p-4 lg:p-5",
+                    "transition-colors hover:border-[--brand]/50 hover:bg-[--subtle]",
+                )}
             >
                 <div className="flex items-center gap-2.5 text-[--brand]">
                     {icon}
                     <p className="font-semibold text-white">{title}</p>
                 </div>
                 {!!stats.length && (
-                    <div className="mt-2 space-y-0.5">
+                    <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
                         {stats.map(stat => (
-                            <p key={stat.label} className="text-xs text-[--muted] leading-snug">
-                                <span className="text-xl lg:text-2xl font-bold text-white tabular-nums mr-1.5 align-[-0.05em]">{stat.value.toLocaleString()}</span>
+                            <p key={stat.label} className="text-xs text-[--muted] leading-snug whitespace-nowrap">
+                                <span className="text-2xl lg:text-3xl font-bold text-white tabular-nums mr-1.5 align-[-0.08em]">{stat.value.toLocaleString()}</span>
                                 {stat.label}
                             </p>
                         ))}
