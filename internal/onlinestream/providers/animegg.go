@@ -121,7 +121,7 @@ func (p *AnimeGG) Search(opts hibikeonlinestream.SearchOptions) ([]*hibikeonline
 			s.Find("div").EachWithBreak(func(_ int, d *goquery.Selection) bool {
 				text := strings.TrimSpace(d.Text())
 				if strings.HasPrefix(text, "Alt Titles") {
-					alt := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(text, "Alt Titles"), ":"))
+					alt := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(strings.TrimPrefix(text, "Alt Titles")), ":"))
 					if alt != "" {
 						title = title + " / " + alt
 					}

@@ -163,6 +163,47 @@ func LoadExtensions(extensionRepository *extension_repo.Repository, logger *zero
 		Icon:        "https://animetsu.net/favicon.ico",
 	}, onlinestream_providers.NewAnimetsu(logger))
 
+	// Providers found through MALSync's site index and checked by hand to be up, English, and
+	// playable in the built-in player (HLS or MP4 — the player has no DASH support).
+	extensionRepository.ReloadBuiltInExtension(extension.Extension{
+		ID:          onlinestream_providers.KickAssAnimeProvider,
+		Name:        "KickAssAnime",
+		Version:     "1.0.0",
+		ManifestURI: "builtin",
+		Language:    extension.LanguageGo,
+		Type:        extension.TypeOnlinestreamProvider,
+		Author:      "Seanime",
+		Description: "Online streaming provider for kaa.lt — HLS with English subtitles, sub and dub",
+		Lang:        "en",
+		Icon:        "https://kaa.lt/favicon.ico",
+	}, onlinestream_providers.NewKickAssAnime(logger))
+
+	extensionRepository.ReloadBuiltInExtension(extension.Extension{
+		ID:          onlinestream_providers.AnimeHeavenProvider,
+		Name:        "AnimeHeaven",
+		Version:     "1.0.0",
+		ManifestURI: "builtin",
+		Language:    extension.LanguageGo,
+		Type:        extension.TypeOnlinestreamProvider,
+		Author:      "Seanime",
+		Description: "Online streaming provider for animeheaven.me — direct MP4",
+		Lang:        "en",
+		Icon:        "https://animeheaven.me/favicon.ico",
+	}, onlinestream_providers.NewAnimeHeaven(logger))
+
+	extensionRepository.ReloadBuiltInExtension(extension.Extension{
+		ID:          onlinestream_providers.AnimeGGProvider,
+		Name:        "AnimeGG",
+		Version:     "1.0.0",
+		ManifestURI: "builtin",
+		Language:    extension.LanguageGo,
+		Type:        extension.TypeOnlinestreamProvider,
+		Author:      "Seanime",
+		Description: "Online streaming provider for animegg.org — direct MP4, sub and dub",
+		Lang:        "en",
+		Icon:        "https://www.animegg.org/favicon.ico",
+	}, onlinestream_providers.NewAnimeGG(logger))
+
 	// Load external extensions
 	//extensionRepository.ReloadExternalExtensions()
 	extensionRepository.LoadOnlyWrapper([]extension.Type{extension.TypeMangaProvider, extension.TypeOnlinestreamProvider, extension.TypeAnimeTorrentProvider, extension.TypePlugin}, func() {
