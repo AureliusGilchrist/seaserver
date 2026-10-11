@@ -1,4 +1,3 @@
-import { deriveBrandShades } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { colord } from "colord"
 import type * as React from "react"
 
@@ -27,6 +26,17 @@ export function representativeFillColor(fill: string | null | undefined): string
 
 /** Scoped `--color-brand-*` variables, in the `r g b` form Tailwind reads them in. */
 export function profileAccentStyle(fill: string | null | undefined): React.CSSProperties {
-    const color = representativeFillColor(fill)
-    return color ? (deriveBrandShades(color) as React.CSSProperties) : {}
+    const hex = representativeFillColor(fill)
+    if (!hex) return {}
+    const base = colord(hex)
+    const { h, s } = base.toHsl()
+    const ramp: Record<string, number> = { "200": 88, "300": 75, "400": 65, "500": 52, "600": 45, "700": 35, "800": 27, "900": 20, "950": 12 }
+    const vars: Record<string, string> = {}
+    for (const [step, l] of Object.entries(ramp)) {
+        const c = step === "500" ? base : colord({ h, s, l })
+        const { r, g, b } = c.toRgb()
+        vars[`--color-brand-${step}`] = `${r} ${g} ${b}`
+    }
+    vars["--brand"] = vars["--color-brand-500"]!
+    return vars as React.CSSProperties
 }
