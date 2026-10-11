@@ -309,7 +309,7 @@ func (p *KickAssAnime) FindEpisodeServer(episode *hibikeonlinestream.EpisodeDeta
 	return &hibikeonlinestream.EpisodeServer{
 		Provider: KickAssAnimeProvider,
 		Server:   "default",
-		Headers:  map[string]string{"Referer": origin},
+		Headers:  map[string]string{"Referer": origin, "Origin": strings.TrimSuffix(origin, "/")},
 		VideoSources: []*hibikeonlinestream.VideoSource{{
 			URL:       manifest[1],
 			Type:      hibikeonlinestream.VideoSourceM3U8,

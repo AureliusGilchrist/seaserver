@@ -204,19 +204,6 @@ func LoadExtensions(extensionRepository *extension_repo.Repository, logger *zero
 		Icon:        "https://www.animegg.org/favicon.ico",
 	}, onlinestream_providers.NewAnimeGG(logger))
 
-	extensionRepository.ReloadBuiltInExtension(extension.Extension{
-		ID:          onlinestream_providers.GogoanimeByProvider,
-		Name:        "Gogoanime (gogoanime.by)",
-		Version:     "1.0.0",
-		ManifestURI: "builtin",
-		Language:    extension.LanguageGo,
-		Type:        extension.TypeOnlinestreamProvider,
-		Author:      "Seanime",
-		Description: "Online streaming provider for gogoanime.by — direct MP4, english subs",
-		Lang:        "en",
-		Icon:        "https://gogoanime.by/favicon.ico",
-	}, onlinestream_providers.NewGogoanimeBy(logger))
-
 	// Load external extensions
 	//extensionRepository.ReloadExternalExtensions()
 	extensionRepository.LoadOnlyWrapper([]extension.Type{extension.TypeMangaProvider, extension.TypeOnlinestreamProvider, extension.TypeAnimeTorrentProvider, extension.TypePlugin}, func() {

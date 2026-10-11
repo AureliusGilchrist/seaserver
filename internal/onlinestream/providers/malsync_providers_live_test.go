@@ -22,7 +22,6 @@ func TestMalsyncProvidersLive(t *testing.T) {
 		"kickassanime": NewKickAssAnime(logger),
 		"animeheaven":  NewAnimeHeaven(logger),
 		"animegg":      NewAnimeGG(logger),
-		"gogoanime-by": NewGogoanimeBy(logger),
 	}
 
 	for name, provider := range cases {
@@ -47,6 +46,8 @@ func TestMalsyncProvidersLive(t *testing.T) {
 				t.Fatal("no video sources")
 			}
 			t.Logf("source: %s (%s), %d subtitles", server.VideoSources[0].URL, server.VideoSources[0].Type, len(server.VideoSources[0].Subtitles))
+			t.Logf("headers: %v", server.Headers)
+			checkPlayable(t, server.VideoSources[0].URL, server.Headers)
 		})
 	}
 }
