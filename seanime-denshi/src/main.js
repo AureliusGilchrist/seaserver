@@ -1523,8 +1523,8 @@ app.whenReady().then(async () => {
     }
 
     autoUpdater.setFeedURL(updateConfig)
-    autoUpdater.autoDownload = true
-    autoUpdater.autoInstallOnAppQuit = true
+    autoUpdater.autoDownload = false
+    autoUpdater.autoInstallOnAppQuit = false
 
     if (!_development && (process.platform === "darwin" || process.platform === "win32")) {
         app.setLoginItemSettings({
@@ -1636,14 +1636,11 @@ app.whenReady().then(async () => {
         logStartupEvent("Boot: remote mode", serverCfg.remote_url)
         // Skip sidecar entirely; tell splash to wire up frontend with remote URL.
         sendToSplash("remote-ready", { remote_url: serverCfg.remote_url })
-        // Note: still kick off update check
-        autoUpdater.checkForUpdatesAndNotify()
     } else if (serverCfg && serverCfg.mode === "local") {
         try {
             logStartupEvent("Boot: local mode — attempting to launch server")
             await launchSeanimeServer(false)
             logStartupEvent("Server launched successfully")
-            autoUpdater.checkForUpdatesAndNotify()
         } catch (error) {
             logStartupEvent("Server launch failed", error.message)
             console.error("[Main] Failed to start server:", error)
@@ -1664,7 +1661,6 @@ app.whenReady().then(async () => {
                 sendToSplash("show-setup", {
                     error: `Could not start the local server: ${error}. Choose where the server is, or try again.`,
                 })
-                autoUpdater.checkForUpdatesAndNotify()
                 return
             }
 
@@ -1684,7 +1680,6 @@ app.whenReady().then(async () => {
         // Show setup UI in splash; user will save config and either trigger
         // server-config:launch-local or server-config:remote-ready-ack.
         sendToSplash("show-setup", {})
-        autoUpdater.checkForUpdatesAndNotify()
     }
 
     // Register Window Control IPC handlers
