@@ -77,7 +77,8 @@ export function MainSidebar() {
     const { mutate: logout, data, isPending } = useLogout()
 
     React.useEffect(() => {
-        if (!isPending) {
+        // `data` is undefined until a logout has actually run; setting it then wipes the server status
+        if (!isPending && data) {
             setServerStatus(data)
         }
     }, [isPending, data])
