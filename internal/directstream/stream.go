@@ -329,7 +329,7 @@ func (m *Manager) handlePlayerEvent(event videocore.VideoEvent) {
 					// all for a rewatch. See anilist.FirstWatchDates.
 					startedAt, completedAt := anilist.FirstWatchDates(
 						baseStream.manager.listEntryFor(mediaId, resolvedProfileID), isCompleted, time.Now())
-					_, updateErr = client.UpdateMediaListEntryProgress(context.Background(), &mediaId, &epNum, &status, startedAt, completedAt)
+					_, updateErr = client.UpdateMediaListEntryProgress(anilist.WithUserInitiated(context.Background()), &mediaId, &epNum, &status, startedAt, completedAt)
 				} else {
 					// No linked AniList account anywhere — fall back to the platform layer,
 					// which handles the simulated (offline) account.

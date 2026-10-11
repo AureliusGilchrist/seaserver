@@ -132,6 +132,10 @@ func (ap *AnilistPlatform) UpdateEntry(ctx context.Context, mediaID int, status 
 func (ap *AnilistPlatform) UpdateEntryProgress(ctx context.Context, mediaID int, progress int, totalCount *int) error {
 	ap.logger.Trace().Msg("anilist platform: Updating entry progress")
 
+	// Progress sync after playback runs on its own context rather than a request, so it would
+	// otherwise queue behind background work for a slot.
+	ctx = anilist.WithUserInitiated(ctx)
+
 	// Use shared hook handling
 	return ap.helper.TriggerUpdateEntryProgressHooks(ctx, mediaID, progress, totalCount, func(event *platform.PreUpdateEntryProgressEvent) error {
 		// Check if this is a custom source entry (after hooks have been triggered)
@@ -241,6 +245,7 @@ func (ap *AnilistPlatform) entryHasDates(mediaID int) (hasStartedAt bool, hasCom
 
 func (ap *AnilistPlatform) UpdateEntryRepeat(ctx context.Context, mediaID int, repeat int) error {
 	ap.logger.Trace().Msg("anilist platform: Updating entry repeat")
+	ctx = anilist.WithUserInitiated(ctx)
 
 	// Use shared hook handling
 	return ap.helper.TriggerUpdateEntryRepeatHooks(ctx, mediaID, repeat, func(event *platform.PreUpdateEntryRepeatEvent) error {
@@ -256,6 +261,7 @@ func (ap *AnilistPlatform) UpdateEntryRepeat(ctx context.Context, mediaID int, r
 
 func (ap *AnilistPlatform) DeleteEntry(ctx context.Context, mediaID, entryId int) error {
 	ap.logger.Trace().Msg("anilist platform: Deleting entry")
+	ctx = anilist.WithUserInitiated(ctx)
 
 	return ap.helper.TriggerDeleteEntryHooks(ctx, mediaID, entryId, func(event *platform.PreDeleteEntryEvent) error {
 		if handled, err := ap.helper.HandleCustomSourceDeleteEntry(ctx, *event.MediaID, *event.EntryID); handled {
@@ -860,6 +866,7 @@ func (ap *AnilistPlatform) GetViewerStats(ctx context.Context) (*anilist.ViewerS
 	}
 
 	ap.logger.Trace().Msg("anilist platform: Fetching viewer stats")
+	ctx = anilist.WithUserInitiated(ctx)
 	ret, err := ap.anilistClient.ViewerStats(ctx)
 	if err != nil {
 		return nil, err
