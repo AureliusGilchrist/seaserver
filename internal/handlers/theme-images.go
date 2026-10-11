@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -33,8 +34,10 @@ type ThemeIndex struct {
 
 // HandleGetMarketplaceThemes returns themes from the marketplace index.json
 func (h *Handler) HandleGetMarketplaceThemes(c echo.Context) error {
-	// Path to marketplace index.json
-	indexPath := filepath.Join(h.App.Config.Data.AppDataDir, "..", "seanime-themes", "index.json")
+	indexPath, err := getMarketplaceIndexPath(h.App.Config.Marketplace.Dir)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
 
 	// Read index.json
 	indexData, err := ioutil.ReadFile(indexPath)
@@ -50,10 +53,19 @@ func (h *Handler) HandleGetMarketplaceThemes(c echo.Context) error {
 	return h.RespondWithData(c, themeIndex.Themes)
 }
 
+func getMarketplaceIndexPath(marketplaceDir string) (string, error) {
+	if marketplaceDir == "" {
+		return "", fmt.Errorf("marketplace not configured")
+	}
+	return filepath.Join(marketplaceDir, "index.json"), nil
+}
+
 // HandlePopulateThemeImages fetches anime images from AniList and caches them in index.json
 func (h *Handler) HandlePopulateThemeImages(c echo.Context) error {
-	// Path to themes directory and index.json
-	indexPath := filepath.Join(h.App.Config.Data.AppDataDir, "..", "seanime-themes", "index.json")
+	indexPath, err := getMarketplaceIndexPath(h.App.Config.Marketplace.Dir)
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
 
 	// Read current index.json
 	indexData, err := ioutil.ReadFile(indexPath)

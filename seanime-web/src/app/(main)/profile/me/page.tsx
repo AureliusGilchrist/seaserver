@@ -62,6 +62,7 @@ import { LuGift } from "react-icons/lu"
 import { useEasterEggs } from "@/lib/easter-eggs/easter-egg-engine"
 import { EASTER_EGG_DEFINITIONS } from "@/lib/easter-eggs/easter-egg-definitions"
 import * as React from "react"
+import { profileAccentStyle } from "@/lib/rewards/profile-accent"
 import {
     LuTrophy, LuStar, LuPencil, LuCheck, LuX, LuFlame,
     LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuListVideo,
@@ -163,25 +164,7 @@ export default function Page() {
         : {}
 
     // Derive a solid accent color from XP bar fill for scoped brand overrides
-    const profileAccentColor = React.useMemo<string | null>(() => {
-        const fill = effectiveXPBarFill
-        if (!fill) return null
-        if (fill.startsWith("linear-gradient")) {
-            return fill.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)?.[0] ?? null
-        }
-        return fill
-    }, [effectiveXPBarFill])
-
-    // Inject scoped brand shades derived from the XP bar color on the profile page
-    const profileAccentVars: React.CSSProperties = profileAccentColor ? {
-        ["--color-brand-300" as string]: profileAccentColor + "bf",
-        ["--color-brand-400" as string]: profileAccentColor + "cc",
-        ["--color-brand-500" as string]: profileAccentColor,
-        ["--color-brand-600" as string]: profileAccentColor + "99",
-        ["--color-brand-700" as string]: profileAccentColor + "66",
-        ["--color-brand-800" as string]: profileAccentColor + "33",
-        ["--color-brand-900" as string]: profileAccentColor + "1a",
-    } : {}
+    const profileAccentVars = React.useMemo(() => profileAccentStyle(effectiveXPBarFill), [effectiveXPBarFill])
 
     // Merge any page-level effect vars from the active XP bar skin (effects category)
     const pageEffectVarsStyle: React.CSSProperties = activeXPBarSkin?.pageEffectVars
@@ -197,8 +180,8 @@ export default function Page() {
             {/* Banner */}
             {profile!.bannerImage ? (
                 <div
-                    className="relative h-[400px] overflow-hidden"
-                    style={{ width: "calc(100% + 5rem)", marginLeft: "-5rem", marginTop: "-1rem" }}
+                    className="relative h-[320px] overflow-hidden"
+                    style={{ width: "calc(100% + 5rem)", marginLeft: "-5rem", marginTop: "-2rem" }}
                 >
                     <div
                         className="absolute inset-0 bg-no-repeat bg-cover"

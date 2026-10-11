@@ -37,11 +37,7 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 		HTML5:      true,
 		Skipper: func(c echo.Context) bool {
 			cUrl := c.Request().URL
-			if strings.HasPrefix(cUrl.RequestURI(), "/api") ||
-				strings.HasPrefix(cUrl.RequestURI(), "/events") ||
-				strings.HasPrefix(cUrl.RequestURI(), "/assets") ||
-				strings.HasPrefix(cUrl.RequestURI(), "/manga-downloads") ||
-				strings.HasPrefix(cUrl.RequestURI(), "/offline-assets") {
+			if shouldSkipWebStatic(cUrl.Path) {
 				return true // Continue to the next handler
 			}
 			if !strings.HasSuffix(cUrl.Path, ".html") && filepath.Ext(cUrl.Path) == "" {
@@ -112,6 +108,30 @@ func NewEchoApp(app *App, webFS *embed.FS) *echo.Echo {
 	}
 
 	return e
+}
+
+func shouldSkipWebStatic(path string) bool {
+	for _, prefix := range []string{
+		"/api",
+		"/events",
+		"/assets",
+		"/manga-downloads",
+		"/offline-assets",
+		"/theme-bg",
+		"/theme-music",
+		"/shared-themes",
+		"/cursor-packs",
+		"/sound-packs",
+		"/cursor-library",
+		"/marketplace",
+		"/marketplace-cursor-packs",
+		"/marketplace-sound-packs",
+	} {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveWebFilesystem decides where the web UI is served from.
