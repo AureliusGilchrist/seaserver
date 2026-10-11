@@ -118,7 +118,9 @@ func (ap *AnilistPlatform) UpdateEntry(ctx context.Context, mediaID int, status 
 		// one that never got set: an entry could be moved to Watching with progress on it and still
 		// have no record of when it was started. Only a date that is genuinely absent is filled,
 		// so an existing one is never touched.
-		if event.StartedAt == nil && event.Progress != nil && *event.Progress >= 1 {
+		// Moving an entry to Watching is starting it, with or without progress.
+		startingSeries := event.Status != nil && *event.Status == anilist.MediaListStatusCurrent
+		if event.StartedAt == nil && (startingSeries || (event.Progress != nil && *event.Progress >= 1)) {
 			if hasStartedAt, _ := ap.entryHasDates(mediaID); !hasStartedAt {
 				event.StartedAt = todayFuzzyDate()
 			}
