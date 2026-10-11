@@ -24,7 +24,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var proxyUA = util.GetRandomUserAgent()
+var proxyUA = util.GetSharedUserAgent()
 
 // videoProxyClient2 is lazily initialized per-handler to use the privacy transport.
 // The getVideoProxyClient method on Handler provides the client.
@@ -90,8 +90,14 @@ func (h *Handler) VideoProxy(c echo.Context) (err error) {
 		}
 	}
 
-	req.Header.Set("User-Agent", proxyUA)
-	req.Header.Set("Accept", "*/*")
+	// The provider's own User-Agent must survive: stream URLs are often bound to the UA used when
+	// they were resolved, and a different one is answered with a 403. The random UA is only a fallback.
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", proxyUA)
+	}
+	if req.Header.Get("Accept") == "" {
+		req.Header.Set("Accept", "*/*")
+	}
 	if rangeHeader := c.Request().Header.Get("Range"); rangeHeader != "" {
 		req.Header.Set("Range", rangeHeader)
 	}

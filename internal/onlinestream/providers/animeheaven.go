@@ -41,7 +41,7 @@ func NewAnimeHeaven(logger *zerolog.Logger) hibikeonlinestream.Provider {
 		Url: "https://animeheaven.me",
 		// Redirects are not followed for the gate: it answers with the page itself.
 		Client:    &http.Client{Timeout: time.Second * 20},
-		UserAgent: util.GetRandomUserAgent(),
+		UserAgent: util.GetSharedUserAgent(),
 		logger:    logger,
 	}
 }

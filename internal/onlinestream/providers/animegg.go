@@ -43,7 +43,7 @@ func NewAnimeGG(logger *zerolog.Logger) hibikeonlinestream.Provider {
 	return &AnimeGG{
 		Url:       "https://www.animegg.org",
 		Client:    &http.Client{Timeout: time.Second * 20},
-		UserAgent: util.GetRandomUserAgent(),
+		UserAgent: util.GetSharedUserAgent(),
 		logger:    logger,
 	}
 }

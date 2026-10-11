@@ -43,7 +43,7 @@ func NewAnimePahe(logger *zerolog.Logger) hibikeonlinestream.Provider {
 	return &AnimePahe{
 		Url:       "https://animepahe.com",
 		Client:    &http.Client{Timeout: time.Second * 20},
-		UserAgent: util.GetRandomUserAgent(),
+		UserAgent: util.GetSharedUserAgent(),
 		logger:    logger,
 	}
 }

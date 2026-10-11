@@ -42,7 +42,7 @@ func NewKickAssAnime(logger *zerolog.Logger) hibikeonlinestream.Provider {
 	return &KickAssAnime{
 		Url:       "https://kaa.lt",
 		Client:    &http.Client{Timeout: time.Second * 20},
-		UserAgent: util.GetRandomUserAgent(),
+		UserAgent: util.GetSharedUserAgent(),
 		logger:    logger,
 	}
 }

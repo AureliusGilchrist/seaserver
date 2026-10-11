@@ -1209,7 +1209,8 @@ function absoluteUrl(u: string): string {
 
 function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, scanlinesStrength = 0, scanlinesSize = 0.5, noiseStrength = 0, noiseSpeed = 1, noiseScale = 1, vignetteStrength = 0, vignetteSize = 0.5, glowStrength = 0, glowSpeed = 2, glowScale = 0.5, hologramStrength = 0 }: { url: string; dim?: number; blur?: number; exposure?: number; saturation?: number; contrast?: number; scanlinesStrength?: number; scanlinesSize?: number; noiseStrength?: number; noiseSpeed?: number; noiseScale?: number; vignetteStrength?: number; vignetteSize?: number; glowStrength?: number; glowSpeed?: number; glowScale?: number; hologramStrength?: number }) {
     const previewMode = useAtomValue(wallpaperPreviewModeAtom)
-    const effectiveDim = previewMode ? 0.05 : (dim ?? 0.65)
+    // The wallpaper never goes above ~50% opacity so page text stays readable on busy images.
+    const effectiveDim = previewMode ? 0.05 : Math.max(dim ?? 0.65, 0.5)
     const opacity = 1 - effectiveDim
     const filterParts: string[] = []
     if (blur) filterParts.push(`blur(${blur}px)`)
@@ -1220,6 +1221,8 @@ function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, contrast, 
     const noiseAnimDuration = `${(1 / noiseSpeed).toFixed(2)}s`
     return (
         <div aria-hidden style={{ position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none" }}>
+            {/* Dark underlay so the semi-transparent wallpaper reads darker */}
+            {!previewMode && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.75)" }} />}
             {/* Wallpaper image */}
             <div
                 style={{

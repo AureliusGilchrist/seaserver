@@ -66,6 +66,19 @@ func getOnlineUserAgents() ([]string, error) {
 	return agents, nil
 }
 
+var (
+	sharedUAOnce sync.Once
+	sharedUA     string
+)
+
+// GetSharedUserAgent returns one User-Agent that stays the same for the life of the process. Stream
+// providers and the video proxy must present the same UA: CDNs commonly bind a stream URL to the UA
+// that resolved it and answer any other with a 403.
+func GetSharedUserAgent() string {
+	sharedUAOnce.Do(func() { sharedUA = GetRandomUserAgent() })
+	return sharedUA
+}
+
 func GetRandomUserAgent() string {
 	uaMu.RLock()
 	defer uaMu.RUnlock()

@@ -62,8 +62,8 @@ export function LandingQuickLinksWidget({ visibleLinks }: { visibleLinks?: strin
                         <SeaLink key={link.id} href={link.href}>
                             <button
                                 className={cn(
-                                    "group w-full text-left rounded-xl border border-brand-500/20 bg-brand-500/5 p-5",
-                                    "transition-colors hover:border-brand-500/50 hover:bg-brand-500/10",
+                                    "group w-full text-left rounded-xl border border-brand-500/20 bg-black/70 backdrop-blur-sm p-5",
+                                    "transition-colors hover:border-brand-500/50 hover:bg-black/85",
                                 )}
                             >
                                 <div className="flex items-start justify-between gap-3">
@@ -228,8 +228,8 @@ function StatsDoor({ title, icon, stats, href }: {
         <SeaLink href={href} className="group/door block h-full">
             <button
                 className={cn(
-                    "group w-full h-full text-left rounded-xl border border-brand-500/20 bg-brand-500/5 p-4 lg:p-5",
-                    "transition-colors hover:border-brand-500/50 hover:bg-brand-500/10",
+                    "group w-full h-full text-left rounded-xl border border-brand-500/20 bg-black/70 backdrop-blur-sm p-4 lg:p-5",
+                    "transition-colors hover:border-brand-500/50 hover:bg-black/85",
                 )}
             >
                 <div className="flex items-center gap-2.5 text-[--brand]">
@@ -260,7 +260,7 @@ function StatsDoor({ title, icon, stats, href }: {
  */
 export function LandingUpdatesWidget() {
     return (
-        <div className="rounded-xl border border-brand-500/20 bg-brand-500/5 p-5">
+        <div className="rounded-xl border border-brand-500/20 bg-black/70 backdrop-blur-sm p-5">
             <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-brand-500/15">
                     <LuRss className="w-4 h-4 text-[--brand]" />

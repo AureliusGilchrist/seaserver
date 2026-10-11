@@ -43,7 +43,7 @@ func NewAnimetsu(logger *zerolog.Logger) hibikeonlinestream.Provider {
 		Url:        "https://animetsu.net",
 		BlobDomain: "https://swiftstream.top",
 		Client:     &http.Client{Timeout: time.Second * 20},
-		UserAgent:  util.GetRandomUserAgent(),
+		UserAgent:  util.GetSharedUserAgent(),
 		logger:     logger,
 	}
 }

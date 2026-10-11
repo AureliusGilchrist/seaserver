@@ -43,7 +43,7 @@ func NewAniZone(logger *zerolog.Logger) hibikeonlinestream.Provider {
 	return &AniZone{
 		Url:       "https://anizone.to",
 		Client:    &http.Client{Timeout: time.Second * 15},
-		UserAgent: util.GetRandomUserAgent(),
+		UserAgent: util.GetSharedUserAgent(),
 		logger:    logger,
 	}
 }
