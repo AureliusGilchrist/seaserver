@@ -920,15 +920,9 @@ func (m *ManagerImpl) SynchronizeSimulatedCollectionToAnilist() error {
 				if e, found := m.animeCollection.MustGet().GetListEntryFromAnimeId(entry.GetMedia().GetID()); found {
 					originalEntry = e
 				}
-				if originalEntry == nil {
-					continue
-				}
 
-				key1 := GetAnimeListDataKey(entry)
-				key2 := GetAnimeListDataKey(originalEntry)
-
-				// If the entry is the same, skip
-				if key1 == key2 {
+				// Local data wins: entries missing from AniList are created, differing ones overwritten
+				if originalEntry != nil && GetAnimeListDataKey(entry) == GetAnimeListDataKey(originalEntry) {
 					continue
 				}
 
@@ -985,15 +979,7 @@ func (m *ManagerImpl) SynchronizeSimulatedCollectionToAnilist() error {
 				if e, found := m.mangaCollection.MustGet().GetListEntryFromMangaId(entry.GetMedia().GetID()); found {
 					originalEntry = e
 				}
-				if originalEntry == nil {
-					continue
-				}
-
-				key1 := GetMangaListDataKey(entry)
-				key2 := GetMangaListDataKey(originalEntry)
-
-				// If the entry is the same, skip
-				if key1 == key2 {
+				if originalEntry != nil && GetMangaListDataKey(entry) == GetMangaListDataKey(originalEntry) {
 					continue
 				}
 
