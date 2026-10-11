@@ -22,6 +22,7 @@ func TestMalsyncProvidersLive(t *testing.T) {
 		"kickassanime": NewKickAssAnime(logger),
 		"animeheaven":  NewAnimeHeaven(logger),
 		"animegg":      NewAnimeGG(logger),
+		"gogoanime-by": NewGogoanimeBy(logger),
 	}
 
 	for name, provider := range cases {
