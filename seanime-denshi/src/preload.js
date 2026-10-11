@@ -90,6 +90,7 @@ contextBridge.exposeInMainWorld(
                 "cast:error",
                 "show-setup",
                 "remote-ready",
+                "live-update:progress",
                 // Sent when the client is closed to the tray, which never unloads the page and so
                 // is the one "close" the launch id alone cannot catch.
                 "session:end",
@@ -150,6 +151,13 @@ contextBridge.exposeInMainWorld(
         denshiSettings: {
             get: () => ipcRenderer.invoke("denshi:getSettings"),
             set: (settings) => ipcRenderer.invoke("denshi:setSettings", settings),
+        },
+
+        // Live updates (pull/build/swap without restarting the app)
+        liveUpdate: {
+            updateBackend: () => ipcRenderer.invoke("live-update:backend"),
+            updateFrontend: () => ipcRenderer.invoke("live-update:frontend"),
+            getInfo: () => ipcRenderer.invoke("live-update:info"),
         },
 
         // Discord Rich Presence (used when server runs on a different machine

@@ -9,6 +9,7 @@ import("strip-ansi").then(module => {
 })
 const { autoUpdater } = require("electron-updater")
 const log = require("electron-log/main")
+const { createLiveUpdater, getLiveWebDir, getLiveBinaryPath } = require("./live-update")
 log.initialize()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -22,6 +23,7 @@ const DENSHI_SETTINGS_DEFAULTS = {
     updateChannel: "github",
     windowBounds: null,
     windowMaximized: true,
+    sourceRepoPath: "",
 }
 
 const MAIN_WINDOW_DEFAULT_BOUNDS = {
@@ -353,8 +355,7 @@ function setupChromiumFlags() {
     // enable-zero-copy switches above.
     // app.commandLine.appendSwitch("disable-direct-composition-video-overlays")
 
-    // 120 FPS rendering
-    app.commandLine.appendSwitch("disable-frame-rate-limit")
+    // Cap camera capture without disabling Chromium's display frame pacing.
     app.commandLine.appendSwitch("max-gum-fps", "120")
 
     if (process.platform === "linux") {
@@ -541,10 +542,17 @@ setupCustomProtocol()
 function setupAppProtocol() {
     if (_development) return
 
-    const webPath = path.join(__dirname, "../web-denshi")
+    const bundledWebPath = path.join(__dirname, "../web-denshi")
+
+    // A frontend built through "Update frontend" takes precedence over the bundled one
+    const getWebPath = () => {
+        const liveWebPath = getLiveWebDir(app)
+        return fs.existsSync(path.join(liveWebPath, "index.html")) ? liveWebPath : bundledWebPath
+    }
 
     if (!_isRsbuildFrontend) {
         protocol.handle("app", (request) => {
+            const webPath = getWebPath()
             const requestUrl = new URL(request.url)
             let urlPath = requestUrl.pathname
 
@@ -584,6 +592,7 @@ function setupAppProtocol() {
         })
     } else {
         protocol.handle("app", async (request) => {
+            const webPath = getWebPath()
             const requestUrl = new URL(request.url)
             const urlPath = requestUrl.pathname
             let filePath = path.join(webPath, urlPath)
@@ -972,20 +981,14 @@ async function launchSeanimeServer(isRestart) {
         }
 
         // Determine the correct binary to use based on platform and architecture
-        let binaryName = ""
-        if (process.platform === "win32") {
-            binaryName = "seanime-server-windows.exe"
-        } else if (process.platform === "darwin") {
-            const arch = process.arch === "arm64" ? "arm64" : "amd64"
-            binaryName = `seanime-server-darwin-${arch}`
-        } else if (process.platform === "linux") {
-            const arch = process.arch === "arm64" ? "arm64" : "amd64"
-            binaryName = `seanime-server-linux-${arch}`
-        }
+        const binaryName = getServerBinaryName()
 
         let binaryPath
 
-        if (_development) {
+        if (fs.existsSync(getLiveBinaryPath(app, binaryName))) {
+            // Backend built through "Update backend"
+            binaryPath = getLiveBinaryPath(app, binaryName)
+        } else if (_development) {
             // In development, look for binaries in the project directory
             binaryPath = path.join(__dirname, "../binaries", binaryName)
         } else {
@@ -1104,6 +1107,62 @@ async function launchSeanimeServer(isRestart) {
         })
     })
 }
+
+function getServerBinaryName() {
+    if (process.platform === "win32") {
+        return "seanime-server-windows.exe"
+    }
+    const arch = process.arch === "arm64" ? "arm64" : "amd64"
+    return process.platform === "darwin" ? `seanime-server-darwin-${arch}` : `seanime-server-linux-${arch}`
+}
+
+function stopServerAndWait() {
+    const current = serverProcess
+    serverProcess = null
+    if (!current || current.exitCode !== null || current.signalCode !== null) {
+        return Promise.resolve()
+    }
+
+    return new Promise((resolve) => {
+        const timer = setTimeout(resolve, 8000)
+        current.once("close", () => {
+            clearTimeout(timer)
+            // Give the OS a moment to release the port and the executable lock
+            setTimeout(resolve, 300)
+        })
+        try {
+            current.kill()
+        } catch (error) {
+            console.error("[Main] Failed to kill server:", error)
+            clearTimeout(timer)
+            resolve()
+        }
+    })
+}
+
+const liveUpdater = createLiveUpdater({
+    app,
+    log,
+    getSettings: () => denshiSettings,
+    getBinaryName: getServerBinaryName,
+    isRemoteMode: () => loadServerConfig()?.mode === "remote",
+    stopServer: stopServerAndWait,
+    startServer: () => launchSeanimeServer(true),
+    reloadWindows: () => {
+        for (const win of BrowserWindow.getAllWindows()) {
+            if (!win.isDestroyed() && /^(app|http):/.test(win.webContents.getURL())) {
+                win.webContents.reloadIgnoringCache()
+            }
+        }
+    },
+    emitProgress: (payload) => {
+        for (const win of BrowserWindow.getAllWindows()) {
+            if (!win.isDestroyed()) {
+                win.webContents.send("live-update:progress", payload)
+            }
+        }
+    },
+})
 
 async function restartSeanimeServer() {
     if (serverRestartPromise) {
@@ -2017,6 +2076,10 @@ app.whenReady().then(async () => {
     })
 
     ipcMain.handle("get-local-server-port", () => localServerPort)
+
+    ipcMain.handle("live-update:backend", () => liveUpdater.updateBackend())
+    ipcMain.handle("live-update:frontend", () => liveUpdater.updateFrontend())
+    ipcMain.handle("live-update:info", () => liveUpdater.getInfo())
 
     // Denshi settings IPC handlers
     ipcMain.handle("denshi:getSettings", () => {

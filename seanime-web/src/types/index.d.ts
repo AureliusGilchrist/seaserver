@@ -75,6 +75,16 @@ declare global {
                 get: () => Promise<DenshiSettings>;
                 set: (settings: DenshiSettings) => Promise<DenshiSettings>;
             };
+            liveUpdate?: {
+                updateBackend: () => Promise<{ ok: boolean; message?: string; error?: string }>;
+                updateFrontend: () => Promise<{ ok: boolean; message?: string; error?: string }>;
+                getInfo: () => Promise<{
+                    repoRoot: string | null;
+                    busy: boolean;
+                    hasLiveBackend: boolean;
+                    hasLiveFrontend: boolean
+                }>;
+            };
             discord?: {
                 setActivity: (payload: any) => Promise<boolean>;
                 clearActivity: () => Promise<boolean>;
@@ -150,5 +160,6 @@ declare global {
         openInBackground: boolean;
         openAtLaunch: boolean;
         updateChannel?: string;
+        sourceRepoPath?: string;
     }
 }

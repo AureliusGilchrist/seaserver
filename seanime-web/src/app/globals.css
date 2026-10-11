@@ -1989,6 +1989,14 @@ body.vc-fullscreen .appLayout {
     50%       { opacity: 1;    transform: scale(1.04); }
 }
 
+/* The page behind a fullscreen video is invisible, but its infinite animations, blur and blend
+   effects are still recomposited every frame and compete with video presentation on long sessions. */
+html[data-vc-fullscreen] *:not(:fullscreen, :fullscreen *, :has(:fullscreen)),
+html[data-vc-fullscreen] *:not(:fullscreen, :fullscreen *, :has(:fullscreen))::before,
+html[data-vc-fullscreen] *:not(:fullscreen, :fullscreen *, :has(:fullscreen))::after {
+    animation-play-state: paused !important;
+}
+
 /* Fullscreen video player fixes — ensure no gaps/bars */
 :fullscreen {
     width: 100vw !important;

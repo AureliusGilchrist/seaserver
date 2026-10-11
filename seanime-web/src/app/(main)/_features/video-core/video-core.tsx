@@ -819,6 +819,14 @@ export function VideoCore(props: VideoCoreProps) {
     const fullscreen = useAtomValue(vc_isFullscreen)
     const showOverlayFeedback = useSetAtom(vc_showOverlayFeedback)
 
+    // Lets CSS freeze the decorative animations of the page hidden behind the fullscreen video.
+    React.useEffect(() => {
+        if (!fullscreen) return
+        const root = document.documentElement
+        root.setAttribute("data-vc-fullscreen", "")
+        return () => root.removeAttribute("data-vc-fullscreen")
+    }, [fullscreen])
+
     const [skipOpeningTime, setSkipOpeningTime] = useAtom(vc_skipOpeningTime)
     const [skipEndingTime, setSkipEndingTime] = useAtom(vc_skipEndingTime)
 

@@ -1,0 +1,118 @@
+import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
+import { Button } from "@/components/ui/button"
+import { TextInput } from "@/components/ui/text-input"
+import React from "react"
+import { toast } from "sonner"
+
+type Target = "backend" | "frontend"
+
+export function UpdateSettings() {
+    const [repoPath, setRepoPath] = React.useState("")
+    const [detectedRoot, setDetectedRoot] = React.useState<string | null>(null)
+    const [running, setRunning] = React.useState<Target | null>(null)
+    const [lines, setLines] = React.useState<string[]>([])
+    const logRef = React.useRef<HTMLPreElement>(null)
+
+    const liveUpdate = window.electron?.liveUpdate
+
+    const refreshInfo = React.useCallback(() => {
+        window.electron?.liveUpdate?.getInfo().then(info => setDetectedRoot(info.repoRoot))
+    }, [])
+
+    React.useEffect(() => {
+        window.electron?.denshiSettings.get().then(s => setRepoPath(s.sourceRepoPath ?? ""))
+        refreshInfo()
+        const off = window.electron?.on("live-update:progress", (p: { target: Target, line: string }) => {
+            setLines(prev => [...prev.slice(-199), p.line])
+        })
+        return () => off?.()
+    }, [refreshInfo])
+
+    React.useEffect(() => {
+        logRef.current?.scrollTo({ top: logRef.current.scrollHeight })
+    }, [lines])
+
+    if (!liveUpdate) return null
+
+    async function savePath() {
+        const settings = await window.electron!.denshiSettings.get()
+        await window.electron!.denshiSettings.set({ ...settings, sourceRepoPath: repoPath.trim() })
+        refreshInfo()
+    }
+
+    async function run(target: Target) {
+        setRunning(target)
+        setLines([])
+        try {
+            await savePath()
+            const res = target === "backend" ? await liveUpdate!.updateBackend() : await liveUpdate!.updateFrontend()
+            if (res.ok) {
+                toast.success(res.message ?? "Update complete")
+            } else {
+                toast.error(res.error ?? "Update failed")
+                setLines(prev => [...prev, "", `ERROR: ${res.error}`])
+            }
+        }
+        catch (e: any) {
+            toast.error(e?.message ?? "Update failed")
+        }
+        finally {
+            setRunning(null)
+        }
+    }
+
+    return (
+        <div className="space-y-4">
+            <SettingsCard title="Source repository">
+                <TextInput
+                    label="Repository path"
+                    value={repoPath}
+                    onValueChange={setRepoPath}
+                    onBlur={savePath}
+                    placeholder={detectedRoot ?? "E:\\path\\to\\seanime"}
+                    help={detectedRoot
+                        ? `Using ${detectedRoot}`
+                        : "A git checkout containing go.mod and seanime-web. Requires git, Go and Node.js on this machine."}
+                />
+            </SettingsCard>
+
+            <SettingsCard title="Backend">
+                <p className="text-sm text-[--muted]">
+                    Pulls the latest changes, builds the server, and only if the build succeeds swaps in the new binary
+                    and restarts the backend. If the new backend fails to start, the previous one is restored.
+                </p>
+                <Button
+                    intent="primary"
+                    loading={running === "backend"}
+                    disabled={running !== null}
+                    onClick={() => run("backend")}
+                >
+                    Update backend
+                </Button>
+            </SettingsCard>
+
+            <SettingsCard title="Frontend">
+                <p className="text-sm text-[--muted]">
+                    Builds the desktop frontend and swaps it in live. The window reloads when it is done.
+                </p>
+                <Button
+                    intent="primary"
+                    loading={running === "frontend"}
+                    disabled={running !== null}
+                    onClick={() => run("frontend")}
+                >
+                    Update frontend
+                </Button>
+            </SettingsCard>
+
+            {lines.length > 0 && (
+                <pre
+                    ref={logRef}
+                    className="max-h-64 overflow-auto rounded-lg border bg-gray-950 p-3 text-xs text-gray-300 whitespace-pre-wrap"
+                >
+                    {lines.join("\n")}
+                </pre>
+            )}
+        </div>
+    )
+}

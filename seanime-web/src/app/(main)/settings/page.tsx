@@ -73,6 +73,7 @@ import { LocalSettings } from "./_containers/local-settings"
 import { NakamaSettings } from "./_containers/nakama-settings"
 import { PrivacySettings } from "./_containers/privacy-settings"
 import { ProfileManagement } from "./_containers/profile-management"
+import { UpdateSettings } from "./_containers/update-settings"
 
 const tabContentClass = cn(
     "space-y-4 animate-in fade-in-0 duration-300",
@@ -306,6 +307,10 @@ export default function Page() {
                                         value="services"
                                         className="group"
                                     ><HiOutlineServerStack className="text-xl mr-3 transition-transform duration-200" /> Services</TabsTrigger>
+                                    {__isElectronDesktop__ && <TabsTrigger
+                                        value="updates"
+                                        className="group"
+                                    ><LuRefreshCw className="text-xl mr-3 transition-transform duration-200" /> Updates</TabsTrigger>}
                                 </Card>
                             </div>
                         </SettingsNavCard>
@@ -999,6 +1004,18 @@ export default function Page() {
                             <ServicesSettings />
 
                         </TabsContent>
+
+                        {__isElectronDesktop__ && <TabsContent value="updates" className={tabContentClass}>
+
+                            <SettingsPageHeader
+                                title="Updates"
+                                description="Pull, build and swap the backend or frontend live"
+                                icon={LuRefreshCw}
+                            />
+
+                            <UpdateSettings />
+
+                        </TabsContent>}
                     </div>
                 </Tabs>
                 {/*</Card>*/}

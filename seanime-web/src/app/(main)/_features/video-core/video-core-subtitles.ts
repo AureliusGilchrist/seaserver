@@ -127,6 +127,8 @@ export class VideoCoreSubtitleManager extends EventTarget {
     pgsRenderer: VideoCorePgsRenderer | null = null
     private libassLoadedMetadataListener: (() => void) | null = null
     private libassFullscreenListener: (() => void) | null = null
+    private libassHealthListener: (() => void) | null = null
+    private recoveringRenderer = false
     private settings: VideoCoreSettings
     private defaultSubtitleHeader = `[Script Info]
 Title: English (US)
@@ -419,6 +421,16 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 document.addEventListener("fullscreenchange", this.libassFullscreenListener)
                 document.addEventListener("webkitfullscreenchange", this.libassFullscreenListener)
 
+                // After a long pause the render worker can be suspended or killed, and every
+                // later draw then never settles, leaving subtitles dead until a full restart.
+                this._removeHealthListeners()
+                this.libassHealthListener = () => {
+                    if (document.visibilityState === "hidden") return
+                    void this._recoverRendererIfUnresponsive()
+                }
+                this.videoElement.addEventListener("play", this.libassHealthListener)
+                this.videoElement.addEventListener("seeked", this.libassHealthListener)
+                document.addEventListener("visibilitychange", this.libassHealthListener)
 
                 // Keyed by attachment filename (stable across episodes of a series, while
                 // the URL changes per stream) so fonts already in the shared renderer are
@@ -467,6 +479,81 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 videoElement: this.videoElement,
                 // debug: process.env.NODE_ENV === "development",
             })
+        }
+    }
+
+    private _removeHealthListeners() {
+        if (!this.libassHealthListener) return
+        this.videoElement.removeEventListener("play", this.libassHealthListener)
+        this.videoElement.removeEventListener("seeked", this.libassHealthListener)
+        document.removeEventListener("visibilitychange", this.libassHealthListener)
+        this.libassHealthListener = null
+    }
+
+    private async _recoverRendererIfUnresponsive() {
+        const renderer = this.libassRenderer
+        if (!renderer || this.isDestroyed || this.recoveringRenderer) return
+        this.recoveringRenderer = true
+
+        try {
+            let healthy = true
+            let timer: ReturnType<typeof setTimeout> | undefined
+            try {
+                await Promise.race([
+                    renderer.resize(false),
+                    new Promise((_, reject) => {
+                        timer = setTimeout(() => reject(new Error("libass worker unresponsive")), 3000)
+                    }),
+                ])
+            }
+            catch (e) {
+                healthy = false
+                subtitleLog.warning("Libass renderer unhealthy, recreating", e)
+            }
+            finally {
+                clearTimeout(timer)
+            }
+            if (healthy || this.isDestroyed) return
+
+            const trackNumber = this.currentTrackNumber
+
+            // Terminate the worker directly; a graceful destroy() would await the dead worker.
+            try {
+                (renderer as any)._destroyed = true
+                ;(renderer as any)._canvas?.remove?.()
+                ;(renderer as any)._worker?.terminate?.()
+            }
+            catch {
+            }
+            if (sharedRenderer === renderer) {
+                sharedRenderer = null
+                sharedRendererOwner = null
+                sharedRendererLoadedFontKeys.clear()
+            }
+            this.libassRenderer = null
+
+            if (this.libassFullscreenListener) {
+                document.removeEventListener("fullscreenchange", this.libassFullscreenListener)
+                document.removeEventListener("webkitfullscreenchange", this.libassFullscreenListener)
+                this.libassFullscreenListener = null
+            }
+            if (this.libassLoadedMetadataListener) {
+                this.videoElement.removeEventListener("loadedmetadata", this.libassLoadedMetadataListener)
+                this.libassLoadedMetadataListener = null
+            }
+            this.initPromise = null
+
+            await this._init()
+            if (this.isDestroyed) return
+            if (trackNumber !== NO_TRACK_NUMBER) {
+                await this.selectTrack(trackNumber)
+            }
+        }
+        catch (e) {
+            subtitleLog.error("Failed to recover libass renderer", e)
+        }
+        finally {
+            this.recoveringRenderer = false
         }
     }
 
@@ -700,6 +787,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             this.videoElement.removeEventListener("loadedmetadata", this.libassLoadedMetadataListener)
             this.libassLoadedMetadataListener = null
         }
+        this._removeHealthListeners()
         // Release the shared renderer instead of destroying it — the next manager (next
         // episode) reuses the live worker so its subtitles appear instantly instead of
         // waiting for a full worker + WASM + font re-initialization mid-playback.

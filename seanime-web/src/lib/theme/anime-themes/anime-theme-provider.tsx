@@ -20,6 +20,7 @@ import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ANIME_THEMES, ANIME_THEME_LIST } from "@/lib/theme/anime-themes"
 import type { AnimeThemeId, AnimeThemeConfig, ParticleTypeConfig, SidebarItemOverride, PlayerIconOverrides } from "@/lib/theme/anime-themes"
 import { ThemeAnimatedOverlay } from "@/lib/theme/anime-themes/animated-elements"
+import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { buildThemeCursorCSS } from "@/lib/theme/anime-themes/cursor-svgs"
 import { resolveIcon } from "@/lib/theme/anime-themes/icon-registry"
 import { recordActivatedTheme } from "@/lib/theme/anime-themes/theme-prerequisites"
@@ -904,12 +905,24 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         setHologramStrength,
     }), [themeId, config, setThemeId, musicEnabled, setMusicEnabled, musicVolume, setMusicVolume, animatedIntensity, setAnimatedIntensity, particleSettings, setParticleTypeEnabled, setParticleTypeIntensity, backgroundDim, setBackgroundDim, backgroundBlur, setBackgroundBlur, backgroundExposure, setBackgroundExposure, backgroundSaturation, setBackgroundSaturation, backgroundContrast, setBackgroundContrast, activeBackgroundUrl, setActiveBackgroundUrl, brandColorOverride, setBrandColorOverride, vignetteStrength, setVignetteStrength, vignetteSize, setVignetteSize, glowStrength, setGlowStrength, glowSpeed, setGlowSpeed, glowScale, setGlowScale, customThemeData, setCustomThemeData, scanlinesStrength, setScanlinesStrength, scanlinesSize, setScanlinesSize, scanlinesSpeed, setScanlinesSpeed, noiseStrength, setNoiseStrength, noiseSpeed, setNoiseSpeed, noiseScale, setNoiseScale, hologramStrength, setHologramStrength])
 
+    // Behind a fullscreen video the wallpaper and its animated overlays are never seen, but they
+    // are still composited every frame (blend modes, filters, animated noise) and that load builds
+    // up over a long session. Unmounted while fullscreen instead.
+    const videoFullscreen = useAtomValue(vc_isFullscreen)
+    const [browserFullscreen, setBrowserFullscreen] = React.useState(false)
+    React.useEffect(() => {
+        const onChange = () => setBrowserFullscreen(!!document.fullscreenElement)
+        document.addEventListener("fullscreenchange", onChange)
+        return () => document.removeEventListener("fullscreenchange", onChange)
+    }, [])
+    const hideBackdrop = videoFullscreen || browserFullscreen
+
     return (
         <AnimeThemeContext.Provider value={value}>
             {children}
             <AnimeThemeMusicPlayer />
-            {config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} vignetteStrength={vignetteStrength} vignetteSize={vignetteSize} glowStrength={glowStrength} glowSpeed={glowSpeed} glowScale={glowScale} hologramStrength={hologramStrength} />}
-            {config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
+            {!hideBackdrop && config.id !== "seanime" && activeBackgroundUrl && <ThemeBackgroundImage url={activeBackgroundUrl} dim={backgroundDim} blur={backgroundBlur} exposure={backgroundExposure} saturation={backgroundSaturation} contrast={backgroundContrast} scanlinesStrength={scanlinesStrength} scanlinesSize={scanlinesSize} noiseStrength={noiseStrength} noiseSpeed={noiseSpeed} vignetteStrength={vignetteStrength} vignetteSize={vignetteSize} glowStrength={glowStrength} glowSpeed={glowSpeed} glowScale={glowScale} hologramStrength={hologramStrength} />}
+            {!hideBackdrop && config.id !== "seanime" && <ThemeAnimatedOverlay themeId={themeId} intensity={animatedIntensity} particleSettings={particleSettings} particleColor={config.particleColor} />}
         </AnimeThemeContext.Provider>
     )
 }
@@ -1084,7 +1097,10 @@ function AnimeThemeMusicPlayer() {
                 const a = refFor(activeRef.current)
                 if (a) a.volume = effectiveVolume()
             }
-            raf = requestAnimationFrame(tick)
+            // Only runs while a fade is in progress; an idle loop here costs a callback every frame
+            // for the whole session.
+            if (videoFadeAmountRef.current !== target) raf = requestAnimationFrame(tick)
+            else lastTickRef.current = 0
         }
         raf = requestAnimationFrame(tick)
         return () => { cancelAnimationFrame(raf); lastTickRef.current = 0 }
