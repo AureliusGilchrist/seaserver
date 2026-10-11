@@ -155,19 +155,18 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         },
     })
 
-    const [authenticated, setAuthenticated] = React.useState(false)
+    // Derived rather than stored. It used to be state set from an effect keyed on the password flag,
+    // the token and the path — none of which change when the status simply arrives, so a server
+    // without a password (flag unchanged) never flipped it and the app sat on the bare logo forever.
+    const needsPasswordLogin = !!serverStatus?.serverHasPassword && !password && pathname !== "/public/auth"
+    const authenticated = !!serverStatus && !needsPasswordLogin
 
     React.useEffect(() => {
-        if (serverStatus) {
-            if (serverStatus?.serverHasPassword && !password && pathname !== "/public/auth") {
-                window.location.href = "/public/auth"
-                setAuthenticated(false)
-                console.warn("Redirecting to auth")
-            } else {
-                setAuthenticated(true)
-            }
+        if (needsPasswordLogin) {
+            window.location.href = "/public/auth"
+            console.warn("Redirecting to auth")
         }
-    }, [serverStatus?.serverHasPassword, password, pathname])
+    }, [needsPasswordLogin])
 
     // Refetch the server status every 2 seconds if serverReady is false
     // This is a fallback to the websocket
