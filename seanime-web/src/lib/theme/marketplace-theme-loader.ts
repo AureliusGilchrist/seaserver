@@ -55,9 +55,16 @@ export async function fetchMarketplaceThemeMeta(themeId: string): Promise<Market
 
     const promise = (async () => {
         try {
-            const url = `${getServerBaseUrl()}/marketplace/themes/${themeId}/theme.json`
-            const res = await fetch(url, { cache: "force-cache" })
-            if (!res.ok) { cache.set(themeId, null); return null }
+            // Themes installed from the marketplace are copied to the shared themes directory, which
+            // is always served; the marketplace directory only exists when `marketplace.dir` is
+            // configured. Without this fallback an installed theme resolved to nothing and the app
+            // quietly stayed on Seanime.
+            const base = getServerBaseUrl()
+            let res = await fetch(`${base}/shared-themes/${encodeURIComponent(themeId)}/theme.json`, { cache: "no-cache" }).catch(() => null)
+            if (!res || !res.ok) {
+                res = await fetch(`${base}/marketplace/themes/${encodeURIComponent(themeId)}/theme.json`, { cache: "no-cache" }).catch(() => null)
+            }
+            if (!res || !res.ok) { return null }
 
             const raw = await res.json() as {
                 id?: string
@@ -102,7 +109,6 @@ export async function fetchMarketplaceThemeMeta(themeId: string): Promise<Market
             cache.set(themeId, meta)
             return meta
         } catch {
-            cache.set(themeId, null)
             return null
         } finally {
             inflight.delete(themeId)
