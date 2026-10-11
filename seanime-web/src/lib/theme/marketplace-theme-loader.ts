@@ -47,7 +47,7 @@ let sharedThemesInflight: Promise<SharedThemeInfo[]> | null = null
  * Fetch and cache a marketplace theme's metadata.
  * Returns null if the theme isn't in the marketplace or the server isn't configured.
  */
-export async function fetchMarketplaceThemeMeta(themeId: string): Promise<MarketplaceThemeMeta | null> {
+export async function fetchMarketplaceThemeMeta(themeId: string, opts?: { marketplaceFirst?: boolean }): Promise<MarketplaceThemeMeta | null> {
     if (cache.has(themeId)) return cache.get(themeId) ?? null
 
     // Deduplicate concurrent requests for the same theme
@@ -60,9 +60,13 @@ export async function fetchMarketplaceThemeMeta(themeId: string): Promise<Market
             // configured. Without this fallback an installed theme resolved to nothing and the app
             // quietly stayed on Seanime.
             const base = getServerBaseUrl()
-            let res = await fetch(`${base}/shared-themes/${encodeURIComponent(themeId)}/theme.json`, { cache: "no-cache" }).catch(() => null)
-            if (!res || !res.ok) {
-                res = await fetch(`${base}/marketplace/themes/${encodeURIComponent(themeId)}/theme.json`, { cache: "no-cache" }).catch(() => null)
+            const id = encodeURIComponent(themeId)
+            const urls = [`${base}/shared-themes/${id}/theme.json`, `${base}/marketplace/themes/${id}/theme.json`]
+            if (opts?.marketplaceFirst) urls.reverse()
+            let res: Response | null = null
+            for (const u of urls) {
+                res = await fetch(u, { cache: "no-cache" }).catch(() => null)
+                if (res?.ok) break
             }
             if (!res || !res.ok) { return null }
 

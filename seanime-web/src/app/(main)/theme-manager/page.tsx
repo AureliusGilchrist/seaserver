@@ -71,7 +71,7 @@ export default function ThemeManagerPage() {
                 if (data?.themes) {
                     // Load full metadata for each theme
                     const promises = data.themes.map((t) => 
-                        fetchMarketplaceThemeMeta(t.id).then(meta => meta || null)
+                        fetchMarketplaceThemeMeta(t.id, { marketplaceFirst: true }).then(meta => meta || null)
                     )
                     Promise.all(promises).then(results => {
                         const loaded = results.filter(Boolean) as MarketplaceThemeMeta[]
@@ -749,6 +749,7 @@ export default function ThemeManagerPage() {
                                         name={theme.displayName || theme.id}
                                         description={theme.description}
                                         author={theme.author}
+                                        onSelect={() => setThemeId(theme.id as AnimeThemeId)}
                                     />
                                 )}
                                 {/* Delete button */}
@@ -2522,10 +2523,11 @@ function CustomThemeBuilder({ themeId, setThemeId, customThemeData, setCustomThe
  * the colors are what they are. It waits for the pointer rather than the card, so a wall of themes
  * stays a wall of art.
  */
-function ThemeDescriptionHover({ name, description, author }: { name: string, description: string, author?: string }) {
+function ThemeDescriptionHover({ name, description, author, onSelect }: { name: string, description: string, author?: string, onSelect?: () => void }) {
     return (
         <HoverCard
-            trigger={<span className="absolute inset-0 z-[5] cursor-pointer" aria-hidden />}
+            // This overlay sits on top of the card, so it has to forward the click itself.
+            trigger={<span className="absolute inset-0 z-[5] cursor-pointer" aria-hidden onClick={onSelect} />}
             side="right"
             align="start"
             openDelay={200}
