@@ -158,7 +158,7 @@ func NewConfig(options *ConfigOptions, logger *zerolog.Logger) (*Config, error) 
 	viper.SetDefault("offline.dir", "$SEANIME_DATA_DIR/offline")
 	viper.SetDefault("offline.assetDir", "$SEANIME_DATA_DIR/offline/assets")
 	viper.SetDefault("extensions.dir", "$SEANIME_DATA_DIR/extensions")
-	// Default to the seanime-themes submodule directory for marketplace themes
+	// Default to the standalone seanime-themes marketplace repo cloned next to the server
 	viper.SetDefault("marketplace.dir", "$SEANIME_WORKING_DIR/seanime-themes")
 	viper.SetDefault("marketplace.cursorPacksDir", "$SEANIME_WORKING_DIR/seanime-cursor-packs")
 	viper.SetDefault("marketplace.soundPacksDir", "$SEANIME_WORKING_DIR/seanime-sound-packs")
