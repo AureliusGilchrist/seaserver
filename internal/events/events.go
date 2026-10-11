@@ -18,7 +18,7 @@ type WebsocketClientEvent struct {
 }
 
 const (
-	ServerReady = "server-ready" // The anilist data has been loaded
+	ServerReady = "server-ready" // The app is ready; collection refreshes continue in the background.
 
 	EventScanProgress               = "scan-progress"                      // Progress of the scan
 	EventScanStatus                 = "scan-status"                        // Status text of the scan

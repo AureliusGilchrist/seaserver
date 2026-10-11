@@ -125,7 +125,7 @@ func (h *Handler) NewStatus(c echo.Context) *Status {
 		Updating:              false,
 		IsDesktopSidecar:      h.App.IsDesktopSidecar,
 		FeatureFlags:          h.App.FeatureFlags,
-		ServerReady:           h.App.ServerReady,
+		ServerReady:           h.App.ServerReady.Load(),
 		ServerHasPassword:     h.App.Config.Server.Password != "",
 		DisabledFeatures:      h.App.FeatureManager.DisabledFeatures,
 		BootID:                h.App.BootID,
@@ -165,7 +165,7 @@ func (h *Handler) NewStatus(c echo.Context) *Status {
 		// unauthenticated -> return bare minimum
 		status = &Status{
 			User:              user.NewSimulatedUser(),
-			ServerReady:       h.App.ServerReady,
+			ServerReady:       h.App.ServerReady.Load(),
 			ServerHasPassword: h.App.Config.Server.Password != "",
 			Settings:          &models.Settings{},
 		}

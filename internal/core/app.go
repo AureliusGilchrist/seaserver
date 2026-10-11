@@ -64,6 +64,7 @@ import (
 	"seanime/internal/videocore"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/rs/zerolog"
 )
@@ -173,7 +174,7 @@ type (
 		user               *user.User
 		previousVersion    string
 		moduleMu           sync.Mutex
-		ServerReady        bool
+		ServerReady        atomic.Bool
 		isOfflineRef       *util.Ref[bool]
 		ServerPasswordHash string
 
@@ -675,7 +676,7 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	if !app.IsOffline() {
 		app.InitOrRefreshAnilistData()
 	} else {
-		app.ServerReady = true
+		app.ServerReady.Store(true)
 	}
 
 	// Load the other extensions asynchronously

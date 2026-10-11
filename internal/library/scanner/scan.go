@@ -505,11 +505,8 @@ func (scn *Scanner) Scan(ctx context.Context) (lfs []*anime.LocalFile, err error
 		wg := sync.WaitGroup{}
 		mu := sync.Mutex{}
 		wg.Add(len(skippedLfs))
-		// Bounded by a fixed pool, like the hydrator: one goroutine per skipped file unbounded is a
-		// goroutine explosion on a library the size of a NAS mount — every FileExists is a
-		// round-trip over the network filesystem, so hundreds of thousands of them pile up at once,
-		// all runnable with no thread to run on, and the process goes down under the weight.
-		const maxConcurrentFileChecks = 100
+		// Keep NAS metadata requests bounded so a scan does not crowd out active playback.
+		const maxConcurrentFileChecks = 8
 		sem := make(chan struct{}, maxConcurrentFileChecks)
 		for _, skippedLf := range skippedLfs {
 			sem <- struct{}{} // Acquire semaphore

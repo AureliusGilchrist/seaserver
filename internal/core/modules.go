@@ -1248,7 +1248,6 @@ func (a *App) InitOrRefreshAnilistData() {
 				return "nil"
 			}()).
 			Msg("app: No valid account found, using simulated user")
-		a.ServerReady = true
 		currUser = user.NewSimulatedUser() // Create a simulated user if no account is found
 	} else {
 		currUser, err = user.NewUser(acc)
@@ -1273,14 +1272,16 @@ func (a *App) InitOrRefreshAnilistData() {
 
 	a.Logger.Info().Msg("app: Authenticated to AniList")
 
+	// The app can serve its UI and start playback before the collection refresh finishes.
+	// Collection-backed screens can load their data as soon as the background refresh completes.
+	a.ServerReady.Store(true)
+	a.WSEventManager.SendEvent(events.ServerReady, nil)
+
 	go func() {
 		_, err = a.RefreshAnimeCollection()
 		if err != nil {
 			a.Logger.Error().Err(err).Msg("app: Failed to fetch Anilist anime collection")
 		}
-
-		a.ServerReady = true
-		a.WSEventManager.SendEvent(events.ServerReady, nil)
 
 		_, err = a.RefreshMangaCollection()
 		if err != nil {

@@ -438,10 +438,6 @@ func (pm *PlaybackManager) StartPlayingUsingMediaPlayer(opts *StartPlayingOption
 		return nil
 	}
 
-	if err := pm.checkOrLoadAnimeCollection(); err != nil {
-		return err
-	}
-
 	// Cancel manual tracking if active
 	if pm.manualTrackingCtxCancel != nil {
 		pm.manualTrackingCtxCancel()
@@ -451,6 +447,14 @@ func (pm *PlaybackManager) StartPlayingUsingMediaPlayer(opts *StartPlayingOption
 	err = pm.MediaPlayerRepository.Play(opts.Payload)
 	if err != nil {
 		return err
+	}
+
+	// Start local playback before loading AniList data. On a cold start, collection
+	// refresh may take several seconds; it should delay progress tracking, not playback.
+	if err := pm.checkOrLoadAnimeCollection(); err != nil {
+		pm.Logger.Warn().Err(err).Msg("playback manager: Playback started without progress tracking because the anime collection could not be loaded")
+		pm.sendEventToCurrentClient(events.WarningToast, "Playing without tracking: "+err.Error())
+		return nil
 	}
 
 	trackingEvent := &PlaybackBeforeTrackingEvent{

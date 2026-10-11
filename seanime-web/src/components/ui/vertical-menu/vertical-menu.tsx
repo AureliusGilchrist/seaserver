@@ -374,8 +374,11 @@ function renderItems(
                                     toggleGroup(prev => ({ ...(prev ?? {}), [item.name]: !isFolded }))
                                 }}
                                 className={cn(
-                                    "flex items-center gap-2 select-none cursor-pointer group/group-heading",
-                                    collapsed ? "justify-center py-1 mt-1" : "px-2 pt-4 pb-1",
+                                    // Same height in both modes: the sidebar expands under the cursor on
+                                    // hover, and any height change shifts the entries below it, so the
+                                    // first click lands on a different entry (usually Home).
+                                    "flex items-center gap-2 select-none cursor-pointer group/group-heading h-8 mt-2",
+                                    collapsed ? "justify-center" : "px-2",
                                 )}
                                 title={collapsed ? item.name : undefined}
                             >

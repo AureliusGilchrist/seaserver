@@ -414,6 +414,7 @@ export class VideoCorePipManager extends EventTarget {
         pipVideo: HTMLVideoElement,
         context: CanvasRenderingContext2D,
         animationFrameRef: { current: number },
+        lastRenderTimeRef: { current: number },
     ) => (now?: number, metadata?: VideoFrameCallbackMetadata) => {
         if (!this.video || !context) return
 
@@ -430,26 +431,31 @@ export class VideoCorePipManager extends EventTarget {
             }
         }
 
-        context.drawImage(this.video, 0, 0, context.canvas.width, context.canvas.height)
+        // The PiP stream is capped at 30fps; avoid doing canvas and subtitle work on
+        // every source frame when the main video is running at 60fps or higher.
+        if (now === undefined || now - lastRenderTimeRef.current >= 1000 / 30) {
+            lastRenderTimeRef.current = now ?? performance.now()
+            context.drawImage(this.video, 0, 0, context.canvas.width, context.canvas.height)
 
-        // Draw ASS/SSA subtitles
-        const subtitleCanvas = this.subtitleManager?.libassRenderer?._canvas
-        if (subtitleCanvas && context.canvas.width && context.canvas.height) {
-            context.drawImage(subtitleCanvas, 0, 0, context.canvas.width, context.canvas.height)
+            // Draw ASS/SSA subtitles
+            const subtitleCanvas = this.subtitleManager?.libassRenderer?._canvas
+            if (subtitleCanvas && context.canvas.width && context.canvas.height) {
+                context.drawImage(subtitleCanvas, 0, 0, context.canvas.width, context.canvas.height)
+            }
+
+            // Draw PGS subtitles
+            const pgsCanvas = this.subtitleManager?.pgsRenderer?._canvas
+            if (pgsCanvas && context.canvas.width && context.canvas.height) {
+                context.drawImage(pgsCanvas, 0, 0, context.canvas.width, context.canvas.height)
+            }
+
+            // Draw media captions
+            if (this.mediaCaptionsManager) {
+                this.mediaCaptionsManager.renderToCanvas(context, context.canvas.width, context.canvas.height, this.video.currentTime)
+            }
         }
 
-        // Draw PGS subtitles
-        const pgsCanvas = this.subtitleManager?.pgsRenderer?._canvas
-        if (pgsCanvas && context.canvas.width && context.canvas.height) {
-            context.drawImage(pgsCanvas, 0, 0, context.canvas.width, context.canvas.height)
-        }
-
-        // Draw media captions
-        if (this.mediaCaptionsManager) {
-            this.mediaCaptionsManager.renderToCanvas(context, context.canvas.width, context.canvas.height, this.video.currentTime)
-        }
-
-        animationFrameRef.current = this.video.requestVideoFrameCallback(this.renderToCanvas(pipVideo, context, animationFrameRef))
+        animationFrameRef.current = this.video.requestVideoFrameCallback(this.renderToCanvas(pipVideo, context, animationFrameRef, lastRenderTimeRef))
     }
 
     private handleMainVideoPlay = () => {
@@ -481,7 +487,7 @@ export class VideoCorePipManager extends EventTarget {
         }
 
         const pipVideo = this.newPipVideo()
-        pipVideo.srcObject = canvas.captureStream()
+        pipVideo.srcObject = canvas.captureStream(30)
         pipVideo.muted = true
         this.pipProxy = pipVideo
 
@@ -524,6 +530,7 @@ export class VideoCorePipManager extends EventTarget {
         pipVideo.addEventListener("play", forwardPlay, { signal: this.canvasController.signal })
         pipVideo.addEventListener("pause", forwardPause, { signal: this.canvasController.signal })
         const animationFrameRef = { current: 0 }
+        const lastRenderTimeRef = { current: performance.now() }
 
         // draw initial frame
         context.drawImage(this.video, 0, 0, context.canvas.width, context.canvas.height)
@@ -578,7 +585,7 @@ export class VideoCorePipManager extends EventTarget {
 
         try {
             // start the continuous rendering loop
-            this.renderToCanvas(pipVideo, context, animationFrameRef)(performance.now())
+            this.renderToCanvas(pipVideo, context, animationFrameRef, lastRenderTimeRef)(performance.now())
 
             // always start the canvas stream
             try {
@@ -661,4 +668,3 @@ export class VideoCorePipManager extends EventTarget {
         }
     }
 }
-
