@@ -3,7 +3,7 @@ import { useGetTimeline } from "@/api/hooks/community.hooks"
 import * as React from "react"
 import { cn } from "@/components/ui/core/styling"
 import { useRewards } from "@/lib/rewards/reward-provider"
-import { LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuScan, LuFileCheck, LuFileX, LuPencil, LuTrash, LuTrophy } from "react-icons/lu"
+import { LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuScan, LuFileCheck, LuFileX, LuPencil, LuTrash, LuTrophy, LuCheck } from "react-icons/lu"
 import { ActivityHeatmap } from "@/app/(main)/_features/profile/activity-heatmap"
 import { StreakCard, ShowcaseCard, RecentAchievementRow } from "./shared-cards"
 
@@ -41,6 +41,7 @@ const EVENT_CONFIG: Record<string, { icon: React.ElementType; label: string; col
   anilist_entry_edited: { icon: LuPencil,    label: "Entry edited",   color: "text-violet-300",  bgColor: "bg-violet-500/10" },
   anilist_entry_deleted:{ icon: LuTrash,     label: "Entry deleted",  color: "text-red-300",     bgColor: "bg-red-500/10" },
   achievement_unlocked: { icon: LuTrophy,    label: "Achievement",    color: "text-yellow-300",  bgColor: "bg-yellow-500/10" },
+  series_complete:      { icon: LuCheck,     label: "Series completed", color: "text-emerald-300", bgColor: "bg-emerald-500/10" },
 }
 
 function parseMetadata(raw: string): Record<string, any> | null {
@@ -183,6 +184,10 @@ function formatEventDescription(event: MergedTimelineEvent): string {
       const tierStr = tierName ? ` — ${tierName}` : ""
       const xpStr = xp != null ? ` (+${xp} XP)` : ""
       return base + tierStr + xpStr
+    }
+    case "series_complete": {
+      if (!title) return "Finished a series"
+      return meta?.type === "manga" ? `Finished reading ${title}` : `Finished watching ${title}`
     }
     default:
       return cfg?.label || event.eventType

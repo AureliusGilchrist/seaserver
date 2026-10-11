@@ -40,20 +40,39 @@ import {
 } from "@/api/hooks/theme_backgrounds.hooks"
 import { WallhavenPickerModal } from "./_components/wallhaven-picker"
 import { WallpaperShop } from "./_components/wallpaper-shop"
-import { fetchSharedThemesList, downloadSharedTheme, deleteSharedTheme, type SharedThemeInfo, type MarketplaceThemeMeta, fetchMarketplaceThemeMeta } from "@/lib/theme/marketplace-theme-loader"
+import { fetchSharedThemesList, downloadSharedTheme, deleteSharedTheme, type SharedThemeInfo } from "@/lib/theme/marketplace-theme-loader"
 import { Button } from "@/components/ui/button"
 import { HoverCard } from "@/components/ui/hover-card"
+import { VirtuosoGrid } from "react-virtuoso"
+
+type MarketplaceThemePreview = NonNullable<SharedThemeInfo["previewColors"]>
+
+type MarketplaceThemeCard = Omit<SharedThemeInfo, "url" | "previewColors"> & {
+    previewColors?: MarketplaceThemePreview
+    searchText: string
+}
+
+type MarketplaceThemeIndexEntry = {
+    id: string
+    name?: string
+    title?: string
+    description?: string
+    author?: string
+    backgroundImageUrl?: string
+    previewColors?: Partial<MarketplaceThemePreview>
+}
 
 export default function ThemeManagerPage() {
     // ── Shared/Marketplace themes state ──
     const [sharedThemes, setSharedThemes] = React.useState<SharedThemeInfo[]>([])
-    const [marketplaceThemes, setMarketplaceThemes] = React.useState<MarketplaceThemeMeta[]>([])
+    const [marketplaceThemes, setMarketplaceThemes] = React.useState<MarketplaceThemeCard[]>([])
     const [isLoadingMarketplace, setIsLoadingMarketplace] = React.useState(false)
     const [marketplaceError, setMarketplaceError] = React.useState<string | null>(null)
     const [activeMarketplaceTab, setActiveMarketplaceTab] = React.useState<"installed" | "browse">("installed")
     const [downloadingId, setDownloadingId] = React.useState<string | null>(null)
     const [deletingId, setDeletingId] = React.useState<string | null>(null)
     const [marketplaceSearchQuery, setMarketplaceSearchQuery] = React.useState("")
+    const [themeManagerScrollParent, setThemeManagerScrollParent] = React.useState<HTMLDivElement | null>(null)
 
     // Note: OST search is now in the bottom-left sidebar (GlobalOstSearchButton).
 
@@ -64,47 +83,102 @@ export default function ThemeManagerPage() {
 
     // Fetch available marketplace themes from index
     React.useEffect(() => {
+        const controller = new AbortController()
         setIsLoadingMarketplace(true)
-        fetch(`${getServerBaseUrl()}/marketplace/index.json`)
-            .then(r => r.ok ? r.json() as Promise<{themes?: {id: string}[]}> : null)
+        fetch(`${getServerBaseUrl()}/marketplace/index.json`, { signal: controller.signal })
+            .then(r => {
+                if (!r.ok) throw new Error(`Marketplace index request failed (${r.status})`)
+                return r.json() as Promise<{ themes?: MarketplaceThemeIndexEntry[] }>
+            })
             .then(data => {
-                if (data?.themes) {
-                    // Load full metadata for each theme
-                    const promises = data.themes.map((t) => 
-                        fetchMarketplaceThemeMeta(t.id, { marketplaceFirst: true }).then(meta => meta || null)
-                    )
-                    Promise.all(promises).then(results => {
-                        const loaded = results.filter(Boolean) as MarketplaceThemeMeta[]
-                        setMarketplaceThemes(loaded)
-                        setIsLoadingMarketplace(false)
-                        // Enrich already-downloaded themes with previewColors + backgroundImageUrl from meta
-                        setSharedThemes(prev => prev.map(st => {
-                            const meta = loaded.find(m => m.id === st.id)
-                            if (!meta) return st
-                            return {
-                                ...st,
-                                previewColors: st.previewColors ?? meta.previewColors,
-                                backgroundImageUrl: st.backgroundImageUrl ?? meta.backgroundImageUrl,
+                if (!Array.isArray(data?.themes)) throw new Error("Marketplace index has no theme list")
+                const loaded = data.themes
+                    .filter(theme => typeof theme.id === "string" && theme.id.length > 0)
+                    .map((theme): MarketplaceThemeCard => {
+                        const previewColors = theme.previewColors
+                            ? {
+                                bg: theme.previewColors.bg ?? "#0a0a0a",
+                                primary: theme.previewColors.primary ?? "#333333",
+                                secondary: theme.previewColors.secondary ?? "#666666",
+                                accent: theme.previewColors.accent ?? "#999999",
                             }
-                        }))
+                            : undefined
+                        const displayName = theme.title || theme.name || theme.id
+                        const searchText = [
+                            theme.id,
+                            displayName,
+                            theme.description,
+                            theme.author,
+                        ].filter(Boolean).join(" ").toLowerCase()
+                        return {
+                            id: theme.id,
+                            displayName,
+                            description: theme.description,
+                            author: theme.author,
+                            backgroundImageUrl: theme.backgroundImageUrl,
+                            previewColors,
+                            searchText,
+                        }
                     })
-                } else {
-                    setMarketplaceError("No marketplace themes found")
-                    setIsLoadingMarketplace(false)
-                }
+                setMarketplaceThemes(loaded)
+                setMarketplaceError(null)
+                const detailsById = new Map(loaded.map(theme => [theme.id, theme]))
+                setSharedThemes(prev => prev.map(shared => {
+                    const meta = detailsById.get(shared.id)
+                    if (!meta) return shared
+                    return {
+                        ...shared,
+                        previewColors: shared.previewColors ?? meta.previewColors,
+                        backgroundImageUrl: shared.backgroundImageUrl ?? meta.backgroundImageUrl,
+                        description: shared.description ?? meta.description,
+                        author: shared.author ?? meta.author,
+                    }
+                }))
             })
-            .catch(() => {
+            .catch(error => {
+                if (controller.signal.aborted) return
+                console.error("Failed to load marketplace themes:", error)
                 setMarketplaceError("Failed to load marketplace")
-                setIsLoadingMarketplace(false)
             })
+            .finally(() => {
+                if (!controller.signal.aborted) setIsLoadingMarketplace(false)
+            })
+        return () => controller.abort()
     }, [])
+
+    const installedThemeIds = React.useMemo(
+        () => new Set(sharedThemes.map(theme => theme.id)),
+        [sharedThemes],
+    )
+    const searchTerm = React.useDeferredValue(marketplaceSearchQuery.trim().toLowerCase())
+    const browseableMarketplaceThemes = React.useMemo(
+        () => marketplaceThemes.filter(theme =>
+            !installedThemeIds.has(theme.id) && (!searchTerm || theme.searchText.includes(searchTerm)),
+        ),
+        [installedThemeIds, marketplaceThemes, searchTerm],
+    )
+    const availableMarketplaceThemeCount = React.useMemo(
+        () => marketplaceThemes.reduce((count, theme) => count + Number(!installedThemeIds.has(theme.id)), 0),
+        [installedThemeIds, marketplaceThemes],
+    )
 
     const handleDownloadTheme = async (themeId: string) => {
         setDownloadingId(themeId)
         try {
             const result = await downloadSharedTheme(themeId)
             if (result) {
-                setSharedThemes(prev => [...prev.filter(t => t.id !== themeId), result])
+                const theme = marketplaceThemes.find(item => item.id === themeId)
+                const enrichedResult: SharedThemeInfo = theme
+                    ? {
+                        ...result,
+                        displayName: theme.displayName,
+                        description: result.description ?? theme.description,
+                        author: result.author ?? theme.author,
+                        previewColors: result.previewColors ?? theme.previewColors,
+                        backgroundImageUrl: result.backgroundImageUrl ?? theme.backgroundImageUrl,
+                    }
+                    : result
+                setSharedThemes(prev => [...prev.filter(t => t.id !== themeId), enrichedResult])
             }
         } finally {
             setDownloadingId(null)
@@ -329,7 +403,7 @@ export default function ThemeManagerPage() {
             </div>
 
             {/* Scrollable Content Area */}
-            <div className="flex-1 overflow-y-auto">
+            <div ref={setThemeManagerScrollParent} className="flex-1 overflow-y-auto">
                 <div className="p-4 sm:p-8 space-y-10">
 
             {/* Presets tab */}
@@ -628,7 +702,7 @@ export default function ThemeManagerPage() {
                         <h2 className="text-xl font-semibold">Theme Marketplace</h2>
                     </div>
                     <div className="text-sm text-[--muted]">
-                        {sharedThemes.length} installed · {Math.max(0, marketplaceThemes.length - sharedThemes.length)} available
+                        {sharedThemes.length} installed · {availableMarketplaceThemeCount} available
                     </div>
                 </div>
 
@@ -817,22 +891,20 @@ export default function ThemeManagerPage() {
                             <div className="text-center py-8 text-[--muted]">
                                 <p>No themes available in marketplace.</p>
                             </div>
-                        ) : (() => {
-                            const browseable = marketplaceThemes
-                                .filter(theme => !Array.isArray(sharedThemes) || !sharedThemes.some(st => st.id === theme.id))
-                                .filter(theme => !marketplaceSearchQuery ||
-                                    theme.displayName.toLowerCase().includes(marketplaceSearchQuery.toLowerCase()) ||
-                                    (theme.description ?? "").toLowerCase().includes(marketplaceSearchQuery.toLowerCase())
-                                )
-                            return browseable.length === 0 ? (
+                        ) : browseableMarketplaceThemes.length === 0 ? (
                                 <div className="text-center py-8 text-[--muted]">
-                                    <p>No themes match your search.</p>
+                                    <p>{searchTerm ? "No themes match your search." : "All marketplace themes are installed."}</p>
                                 </div>
-                            ) : (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-                                    {browseable.map(theme => (
+                        ) : themeManagerScrollParent ? (
+                                <VirtuosoGrid
+                                    data={browseableMarketplaceThemes}
+                                    customScrollParent={themeManagerScrollParent}
+                                    increaseViewportBy={500}
+                                    computeItemKey={(_index, theme) => theme.id}
+                                    listClassName="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3"
+                                    itemClassName="col-span-1 min-w-0"
+                                    itemContent={(_index, theme) => (
                                         <div
-                                            key={theme.id}
                                             className="group relative rounded-xl border-2 border-[--border] hover:border-[--color-brand-600] overflow-hidden transition-all isolate"
                                         >
                                             {/* Banner art - library style */}
@@ -885,10 +957,9 @@ export default function ThemeManagerPage() {
                                                 />
                                             )}
                                         </div>
-                                    ))}
-                                </div>
-                            )
-                        })()}
+                                    )}
+                                />
+                        ) : null}
                     </div>
                 )}
             </div>

@@ -23,6 +23,7 @@ import { ActivityBuffBadge, StreakCard, StatsActivityHeatmap, DayOfWeekChart, Ca
 import { getProfileOwnerMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import * as React from "react"
+import { profileAccentStyle } from "@/lib/rewards/profile-accent"
 import {
     LuTrophy, LuStar, LuArrowLeft, LuCalendar, LuBookOpen,
     LuTv, LuActivity, LuListVideo,
@@ -70,24 +71,7 @@ export default function Page() {
     const xpBarAnimClass = profile?.xpBarAnimClass || undefined
 
     // Derive a solid accent color from the XP bar fill for scoped brand overrides
-    const profileAccentColor = React.useMemo<string | null>(() => {
-        if (!xpBarFillCss) return null
-        if (xpBarFillCss.startsWith("linear-gradient")) {
-            return xpBarFillCss.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/g)?.[0] ?? null
-        }
-        return xpBarFillCss
-    }, [xpBarFillCss])
-
-    // Inject scoped brand shades derived from the XP bar color
-    const profileAccentVars: React.CSSProperties = profileAccentColor ? {
-        ["--color-brand-300" as string]: profileAccentColor + "bf",
-        ["--color-brand-400" as string]: profileAccentColor + "cc",
-        ["--color-brand-500" as string]: profileAccentColor,
-        ["--color-brand-600" as string]: profileAccentColor + "99",
-        ["--color-brand-700" as string]: profileAccentColor + "66",
-        ["--color-brand-800" as string]: profileAccentColor + "33",
-        ["--color-brand-900" as string]: profileAccentColor + "1a",
-    } : {}
+    const profileAccentVars = React.useMemo(() => profileAccentStyle(xpBarFillCss), [xpBarFillCss])
 
     // Name style: driven by xpBarFillCss skin first, then nameGradientCss/nameColorCss
     const nameStyle: React.CSSProperties = xpBarFillCss
@@ -115,8 +99,8 @@ export default function Page() {
         <div style={profileAccentVars}>
             {profile!.bannerImage ? (
                 <div
-                    className="relative h-[360px] overflow-hidden"
-                    style={{ width: "calc(100% + 5rem)", marginLeft: "-5rem", marginTop: "-1rem" }}
+                    className="relative h-[300px] overflow-hidden"
+                    style={{ width: "calc(100% + 5rem)", marginLeft: "-5rem", marginTop: "-2rem" }}
                 >
                     <div
                         className="absolute inset-0 bg-no-repeat bg-cover"
