@@ -158,7 +158,11 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
     // Derived rather than stored. It used to be state set from an effect keyed on the password flag,
     // the token and the path — none of which change when the status simply arrives, so a server
     // without a password (flag unchanged) never flipped it and the app sat on the bare logo forever.
-    const needsPasswordLogin = !!serverStatus?.serverHasPassword && !password && pathname !== "/public/auth"
+    // The server answers a request whose password it refuses with a bare status (no version, no
+    // account). That reads as "no AniList account", which is what put the token prompt up over a
+    // perfectly good sign-in. A bare answer is a password problem, so it goes to the password screen.
+    const bareUnauthenticatedStatus = !!serverStatus?.serverHasPassword && !!password && !serverStatus?.version
+    const needsPasswordLogin = !!serverStatus?.serverHasPassword && (!password || bareUnauthenticatedStatus) && pathname !== "/public/auth"
     const authenticated = !!serverStatus && !needsPasswordLogin
 
     React.useEffect(() => {
@@ -256,6 +260,12 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         }
         // No profiles exist yet — force creating the first one
         return <CreateFirstProfileGate onCreated={() => refetch()} />
+    }
+
+    // No profile session on a settings page is not "no AniList account": the account lives in the
+    // profile, which just isn't selected yet. Show the page instead of the token prompt.
+    if (serverStatus?.profilesEnabled && !serverStatus?.currentProfile && pathname.startsWith("/settings")) {
+        return <>{children}</>
     }
 
     if (!serverStatus?.planningSlutConfigured) {

@@ -134,7 +134,7 @@ function ServerDownModal() {
                 <p className="text-lg font-semibold">
                     Server is down due to {reason || "an unexpected problem"}, please wait or contact Aurelius.
                 </p>
-                <p className="text-sm text-[--muted]">Attempting to reconnect every 10 seconds…</p>
+                <p className="text-sm text-[--muted]">Attempting to reconnect every 5 seconds…</p>
             </div>
         </div>
     )
@@ -206,6 +206,7 @@ function WebsocketManagement() {
     const heartbeatRef = React.useRef<NodeJS.Timeout | null>(null)
     const pingIntervalRef = React.useRef<NodeJS.Timeout | null>(null)
     const reconnectTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+    const immediateRetryUsedRef = React.useRef(false)
     const lastPongRef = React.useRef<number>(Date.now())
     const socketRef = React.useRef<WebSocket | null>(null)
     const wasDisconnected = React.useRef<boolean>(false)
@@ -241,7 +242,7 @@ function WebsocketManagement() {
      }, [isConnected]) */
 
     useEffectOnce(() => {
-        function clearAllIntervals() {
+        function clearAllIntervals(keepReconnect = false) {
             if (heartbeatRef.current) {
                 clearInterval(heartbeatRef.current)
                 heartbeatRef.current = null
@@ -250,7 +251,7 @@ function WebsocketManagement() {
                 clearInterval(pingIntervalRef.current)
                 pingIntervalRef.current = null
             }
-            if (reconnectTimeoutRef.current) {
+            if (!keepReconnect && reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current)
                 reconnectTimeoutRef.current = null
             }
@@ -285,6 +286,7 @@ function WebsocketManagement() {
                     logger("WebsocketProvider").info("WebSocket connection opened")
                     setIsConnected(true)
                     setConnectionErrorCount(0)
+                    immediateRetryUsedRef.current = false
 
                     // Set cookie if it doesn't exist
                     if (!cookies["Seanime-Client-Id"]) {
@@ -379,7 +381,8 @@ function WebsocketManagement() {
         }
 
         function handleDisconnection() {
-            clearAllIntervals()
+            // error and close both report one drop; keep a retry that is already pending
+            clearAllIntervals(true)
             setIsConnected(false)
             scheduleReconnect()
         }
@@ -397,21 +400,19 @@ function WebsocketManagement() {
         }
 
         function scheduleReconnect() {
-            // Reconnect after a delay with exponential backoff
-            setConnectionErrorCount(count => {
-                const newCount = count + 1
-                // Calculate backoff time (1s, 2s, max 3s)
-                const backoffTime = 10000
+            // error and close both land here for one drop; keep the retry already pending
+            if (reconnectTimeoutRef.current) return
+            // The first retry after a drop is immediate; later ones wait 5s.
+            const backoffTime = immediateRetryUsedRef.current ? 5000 : 0
+            immediateRetryUsedRef.current = true
+            setConnectionErrorCount(count => count + 1)
 
-                logger("WebsocketProvider").warning(`Reconnecting in ${backoffTime}ms (attempt ${newCount})`)
+            logger("WebsocketProvider").warning(`Reconnecting in ${backoffTime}ms`)
 
-                if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
-                reconnectTimeoutRef.current = setTimeout(() => {
-                    connectWebSocket()
-                }, backoffTime)
-
-                return newCount
-            })
+            reconnectTimeoutRef.current = setTimeout(() => {
+                reconnectTimeoutRef.current = null
+                connectWebSocket()
+            }, backoffTime)
         }
 
         if (!socket || socket.readyState === WebSocket.CLOSED) {
