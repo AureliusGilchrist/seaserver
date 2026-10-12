@@ -3,6 +3,8 @@ import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websocke
 import { WSEvents } from "@/lib/server/ws-events"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
 import { Button } from "@/components/ui/button"
+import { websocketConnectedAtom } from "@/app/websocket-provider"
+import { useAtomValue } from "jotai"
 import React from "react"
 import { toast } from "sonner"
 
@@ -71,12 +73,32 @@ function ElectronUpdates() {
 
     // The server writes the update notice right before it swaps to the new binary, so this is the
     // point where a remote backend update is known to have succeeded.
+    const pendingRef = React.useRef(false)
+    const wasDownRef = React.useRef(false)
+    const isConnected = useAtomValue(websocketConnectedAtom)
+
+    const markSucceeded = React.useCallback((text: string) => {
+        if (!pendingRef.current) return
+        pendingRef.current = false
+        setLines(prev => [...prev, "", stamp(`Backend update: Succeeded (${text})`)])
+    }, [])
+
     useWebsocketMessageListener({
         type: WSEvents.UPDATE_NOTICE_AVAILABLE,
-        onMessage: () => {
-            setLines(prev => [...prev, "", stamp("Backend update: Succeeded (restarting on the new version)")])
-        },
+        onMessage: () => markSucceeded("restarting on the new version"),
     })
+
+    // The server restarts into the new binary, which drops the websocket. Coming back means the new
+    // version is up, even if the notice event was missed while disconnecting.
+    React.useEffect(() => {
+        if (!pendingRef.current) return
+        if (!isConnected) {
+            wasDownRef.current = true
+        } else if (wasDownRef.current) {
+            wasDownRef.current = false
+            markSucceeded("now running the new version")
+        }
+    }, [isConnected, markSucceeded])
 
     const liveUpdate = window.electron?.liveUpdate
 
@@ -109,11 +131,14 @@ function ElectronUpdates() {
                 const res = await updateRemoteBackend({})
                 const msg = res?.message ?? "Update requested."
                 toast.success(msg)
+                pendingRef.current = !!res?.started
+                wasDownRef.current = false
                 setLines(res?.started
                     ? [stamp(msg), stamp("Backend update: In progress...")]
                     : [stamp(msg), stamp("Backend update: Succeeded (already up to date)")])
             }
             catch (e: any) {
+                pendingRef.current = false
                 toast.error(`Backend update failed: ${e?.message ?? "unknown error"}`)
                 setLines([stamp(`Backend update: Failed - ${e?.message ?? "unknown error"}`)])
             }
