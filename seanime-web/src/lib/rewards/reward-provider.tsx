@@ -3,8 +3,6 @@
 import React from "react"
 import { useAtomValue, useSetAtom } from "jotai"
 import { currentProfileAtom, serverStatusAtom } from "@/app/(main)/_atoms/server-status.atoms"
-import { THEME_DEFAULT_VALUES } from "@/lib/theme/hooks"
-import { accentSkin } from "@/lib/rewards/accent-recolor"
 import { useServerMutation } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import {
@@ -221,18 +219,10 @@ function lookupParticleSet(id: string): ParticleSetReward | null {
 
 export function RewardProvider({ children }: { children: React.ReactNode }) {
     const currentProfile = useAtomValue(currentProfileAtom)
-    // Read straight from the atom rather than through useThemeSettings: this provider sits above the
-    // screens that hook is written for, and the accent color is the only value needed here.
-    const themeSettings = useAtomValue(serverStatusAtom)?.themeSettings
-    const accent = themeSettings?.accentColor || THEME_DEFAULT_VALUES.accentColor
-
-    // Every bar wears the accent, whichever skin is on: the skin keeps its gradient shape and its
-    // animation, and every color in it is turned to the accent's hue. Change the accent in Settings
-    // and the bar — and everything downstream that takes its color from the bar, the level ring, the
-    // heatmap, the name — moves with it on the same render. See accent-recolor.ts.
+    // Each skin shows its own colors; the profile follows the bar's fill.
     const toAccent = React.useCallback(
-        (skin: XPBarSkinReward | null | undefined) => (skin ? accentSkin(skin, accent) : null),
-        [accent],
+        (skin: XPBarSkinReward | null | undefined) => skin ?? null,
+        [],
     )
     const profileKey = currentProfile?.id ? String(currentProfile.id) : "default"
     const storageKey    = `sea-rewards-${profileKey}`

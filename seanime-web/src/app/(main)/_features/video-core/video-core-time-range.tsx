@@ -246,7 +246,9 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
     }
 
     function getPointerProgress<T extends HTMLElement>(e: React.PointerEvent<T>) { // 0-100
-        const rect = rangeRectRef.current ?? e.currentTarget.getBoundingClientRect()
+        // The rect is only reused while actively seeking (pointer captured, layout is stable then);
+        // hovering re-measures every time so a moved/resized bar can't leave a stale rect behind.
+        const rect = seeking && rangeRectRef.current ? rangeRectRef.current : e.currentTarget.getBoundingClientRect()
         rangeRectRef.current = rect
         if (rect.width <= 0) return 0
         const x = e.clientX - rect.left

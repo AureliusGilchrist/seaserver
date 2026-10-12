@@ -1,3 +1,4 @@
+import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_miniPlayerSize } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { CloseButton } from "@/components/ui/button"
 import { cn, ComponentAnatomy, defineStyleAnatomy } from "@/components/ui/core/styling"
@@ -5,7 +6,7 @@ import { __isDesktop__ } from "@/types/constants"
 import type * as DialogPrimitive from "@radix-ui/react-dialog"
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { cva, VariantProps } from "class-variance-authority"
-import { useAtom } from "jotai/react"
+import { useAtom, useAtomValue } from "jotai/react"
 import * as React from "react"
 import { RemoveScrollBar } from "react-remove-scroll-bar"
 import { Drawer as VaulPrimitive } from "vaul"
@@ -268,6 +269,7 @@ export function VideoCoreDrawer(props: DrawerProps) {
     const [isDragging, setIsDragging] = React.useState(false)
     const [isHidden, setIsHidden] = React.useState(false)
     const dragStartPos = React.useRef({ x: 0, y: 0 })
+    const videoContainerElement = useAtomValue(vc_containerElement)
     const hasDraggedRef = React.useRef(false)
     const elementStartPos = React.useRef({ x: 0, y: 0 })
     const PADDING = 20 // Define padding constant
@@ -586,7 +588,7 @@ export function VideoCoreDrawer(props: DrawerProps) {
                         DrawerAnatomy.content({ size, side: "player" }),
                         contentClass,
                         "w-full h-full transition-all duration-300 overflow-hidden fixed transform-gpu [contain:layout_paint_style]",
-                        miniPlayer && "aspect-video w-[300px] lg:w-[400px] h-auto rounded-lg shadow-xl will-change-[transform,opacity]",
+                        miniPlayer && "aspect-video w-[300px] lg:w-[400px] h-auto rounded-lg shadow-xl will-change-[transform,opacity] !cursor-default",
                         isHidden && "ring-2 ring-brand-300",
                     )}
                     ref={contentRef}
@@ -623,7 +625,23 @@ export function VideoCoreDrawer(props: DrawerProps) {
                     {miniPlayer && <div
                         ref={draggableAreaRef}
                         data-vc-element="drawer-miniplayer-draggable-area"
-                        className="vc-drawer-draggable-area absolute inset-0 z-[6]"
+                        className="vc-drawer-draggable-area absolute inset-0 z-[6] !cursor-default"
+                        style={{ cursor: "default" }}
+                        onPointerMove={e => {
+                            // The overlay sits above the player, so hand the hover to the player's
+                            // container — that is what reveals the bottom time bar.
+                            videoContainerElement?.dispatchEvent(new PointerEvent("pointermove", {
+                                clientX: e.clientX,
+                                clientY: e.clientY,
+                                pointerType: e.pointerType,
+                                bubbles: true,
+                            }))
+                        }}
+                        onPointerLeave={e => {
+                            if (videoContainerElement && !videoContainerElement.contains(e.relatedTarget as Node | null)) {
+                                videoContainerElement.dispatchEvent(new PointerEvent("pointerleave", { bubbles: false }))
+                            }
+                        }}
                     >
 
                     </div>}

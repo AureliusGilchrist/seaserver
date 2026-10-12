@@ -881,6 +881,48 @@ export function VideoCore(props: VideoCoreProps) {
         setIsMiniPlayer(false)
     }, [])
 
+    // Keep what was playing across the full <-> mini player switch: if the video element was
+    // re-created (or its position reset) by the layout change, put it back where it was and keep
+    // it paused if it was paused.
+    const playbackSnapshotRef = React.useRef<{ time: number, paused: boolean } | null>(null)
+    const snapshotPlaybackIdRef = React.useRef(state.playbackInfo?.id)
+    React.useEffect(() => {
+        if (snapshotPlaybackIdRef.current !== state.playbackInfo?.id) {
+            snapshotPlaybackIdRef.current = state.playbackInfo?.id
+            playbackSnapshotRef.current = null
+        }
+        const snap = playbackSnapshotRef.current
+        const restoreTimers: number[] = []
+        if (snap && snap.time > 0) {
+            const restore = () => {
+                const v = videoRef.current
+                if (!v) return
+                const apply = () => {
+                    if (Math.abs(v.currentTime - snap.time) > 1.5) v.currentTime = snap.time
+                    if (snap.paused && !v.paused) v.pause()
+                }
+                if (v.readyState >= 1) apply()
+                else v.addEventListener("loadedmetadata", apply, { once: true })
+            }
+            ;[50, 300, 900].forEach(ms => restoreTimers.push(window.setTimeout(restore, ms)))
+        }
+
+        const v = videoRef.current
+        if (!v) return () => restoreTimers.forEach(t => window.clearTimeout(t))
+        const record = () => {
+            if (v.currentTime > 0) playbackSnapshotRef.current = { time: v.currentTime, paused: v.paused }
+        }
+        v.addEventListener("timeupdate", record)
+        v.addEventListener("pause", record)
+        v.addEventListener("play", record)
+        return () => {
+            restoreTimers.forEach(t => window.clearTimeout(t))
+            v.removeEventListener("timeupdate", record)
+            v.removeEventListener("pause", record)
+            v.removeEventListener("play", record)
+        }
+    }, [isMiniPlayer, state.playbackInfo?.id])
+
     React.useLayoutEffect(() => {
         if (!pendingMiniPlayerTransitionRef.current || fullscreen) return
 

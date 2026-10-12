@@ -116,7 +116,7 @@ export function VideoCoreControlBar(props: {
             return
         }
 
-        const rect = containerRectRef.current ?? containerElement.getBoundingClientRect()
+        const rect = containerElement.getBoundingClientRect()
         containerRectRef.current = rect
         const y = e instanceof PointerEvent ? e.clientY - rect.top : 0
         const registerThreshold = !isMiniPlayer ? 150 : 100 // pixels from the bottom to start registering position

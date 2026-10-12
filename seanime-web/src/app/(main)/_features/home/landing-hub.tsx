@@ -58,7 +58,7 @@ export function LandingHub() {
     return (
         <>
             <CustomLibraryBanner discrete />
-            <PageWrapper className="p-4 sm:p-6 lg:p-8 space-y-8 bg-black/50 backdrop-blur-[2px] min-h-screen">
+            <PageWrapper className="p-4 sm:p-6 lg:p-8 space-y-8 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.55)_100%)] min-h-screen">
 
                 {/* ── The greeting, set large ──
                     One row: the name, and the two actions that are worth their place. The search is
