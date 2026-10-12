@@ -28,6 +28,12 @@ contextBridge.exposeInMainWorld(
             // Fork: lock the popout player window's width/height to the video's aspect ratio, so
             // the window is always exactly the shape of the picture and no bars are ever drawn.
             setPopoutAspectRatio: (ratio) => ipcRenderer.invoke("window:set-player-popout-aspect-ratio", ratio),
+            // Fork: drag the frameless popout window from anywhere on the page.
+            popoutDragStart: () => ipcRenderer.send("window:popout-drag-start"),
+            popoutDragMove: (dx, dy) => ipcRenderer.send("window:popout-drag-move", dx, dy),
+            popoutDragEnd: () => ipcRenderer.send("window:popout-drag-end"),
+            // Fork: hand playback (file + position) back to the main window and close the popout.
+            returnPlayerFromPopout: (state) => ipcRenderer.invoke("window:return-player-from-popout", state),
         },
 
         localServer: {
@@ -91,6 +97,7 @@ contextBridge.exposeInMainWorld(
                 "show-setup",
                 "remote-ready",
                 "live-update:progress",
+                "player:return-from-popout",
                 // Sent when the client is closed to the tray, which never unloads the page and so
                 // is the one "close" the launch id alone cannot catch.
                 "session:end",

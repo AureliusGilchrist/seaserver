@@ -62,6 +62,9 @@ export function ElectronWindowTitleBar(props: ElectronWindowTitleBarProps) {
         }
     }, [])
 
+    // The popout player is a bare video window: its drag area would cover the player's top controls
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/popout-player")) return null
+
     // Only show on Windows and macOS
     if (!(currentPlatform === "win32" || currentPlatform === "darwin")) return null
 

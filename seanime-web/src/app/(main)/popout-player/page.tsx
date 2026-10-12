@@ -14,7 +14,6 @@
  * the stream terminates.
  */
 import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
-import { ElectronWindowTitleBar } from "@/app/(main)/_electron/electron-window-title-bar"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { NativePlayer } from "@/app/(main)/_features/native-player/native-player"
@@ -30,6 +29,8 @@ import { logger } from "@/lib/helpers/debug"
 import { useAtomValue } from "jotai"
 import React from "react"
 import { ImSpinner2 } from "react-icons/im"
+import { LuArrowUpLeft } from "react-icons/lu"
+import { cn } from "@/components/ui/core/styling"
 
 const log = logger("POPOUT PLAYER")
 
@@ -38,11 +39,12 @@ export default function Page() {
         <ClientPrefsHydrator>
             <AnimeThemeProvider>
                 <UICustomizeProvider>
-                    <ElectronWindowTitleBar />
                     <div className="h-dvh w-full bg-black relative z-[1]">
                         <VideoCoreProvider key="native-player" id="native-player">
                             <PopoutPlaybackHandoff />
                             <PopoutAspectLock />
+                            <PopoutWindowDrag />
+                            <PopoutReturnButton />
                             <AppLayoutStack className="z-[5]">
                                 <NativePlayer />
                             </AppLayoutStack>
@@ -91,6 +93,153 @@ function PopoutAspectLock() {
     }, [videoElement])
 
     return null
+}
+
+/**
+ * Lets the frameless popout window be dragged from anywhere on the video.
+ *
+ * An OS drag region would swallow every click (and cover the player's top controls), so the
+ * drag is done in the page instead: once the pointer travels past a small threshold the
+ * window follows it, and the click that would follow the release is swallowed so a drag
+ * never toggles pause. A plain click still reaches the player, and controls (buttons,
+ * sliders, menus) are never treated as drag handles.
+ */
+function PopoutWindowDrag() {
+    React.useEffect(() => {
+        const win = window.electron?.window
+        if (!win?.popoutDragStart) return
+
+        const NO_DRAG = [
+            "button", "a", "input", "select", "textarea",
+            "[role='slider']", "[role='menu']", "[role='menuitem']", "[role='dialog']", "[role='listbox']",
+            "[data-vc-element='time-range']", "[data-radix-popper-content-wrapper]", "[data-popout-nodrag]",
+        ].join(",")
+        const THRESHOLD = 4
+
+        let pointerId: number | null = null
+        let startX = 0
+        let startY = 0
+        let dragging = false
+
+        const swallowNextClick = () => {
+            const handler = (e: MouseEvent) => {
+                e.stopPropagation()
+                e.preventDefault()
+            }
+            window.addEventListener("click", handler, { capture: true, once: true })
+            setTimeout(() => window.removeEventListener("click", handler, { capture: true }), 0)
+        }
+
+        const onDown = (e: PointerEvent) => {
+            if (e.button !== 0 || !e.isPrimary) return
+            if ((e.target as Element | null)?.closest?.(NO_DRAG)) return
+            pointerId = e.pointerId
+            startX = e.screenX
+            startY = e.screenY
+            dragging = false
+        }
+
+        const onMove = (e: PointerEvent) => {
+            if (pointerId === null || e.pointerId !== pointerId) return
+            const dx = e.screenX - startX
+            const dy = e.screenY - startY
+            if (!dragging) {
+                if (Math.hypot(dx, dy) < THRESHOLD) return
+                dragging = true
+                win.popoutDragStart()
+            }
+            win.popoutDragMove(dx, dy)
+        }
+
+        const onUp = (e: PointerEvent) => {
+            if (pointerId === null || e.pointerId !== pointerId) return
+            pointerId = null
+            if (dragging) {
+                dragging = false
+                win.popoutDragEnd()
+                swallowNextClick()
+            }
+        }
+
+        window.addEventListener("pointerdown", onDown, true)
+        window.addEventListener("pointermove", onMove, true)
+        window.addEventListener("pointerup", onUp, true)
+        window.addEventListener("pointercancel", onUp, true)
+        return () => {
+            window.removeEventListener("pointerdown", onDown, true)
+            window.removeEventListener("pointermove", onMove, true)
+            window.removeEventListener("pointerup", onUp, true)
+            window.removeEventListener("pointercancel", onUp, true)
+        }
+    }, [])
+
+    return null
+}
+
+/**
+ * "Return to Seaserver": hands the file and the exact playback position back to the main
+ * window, which resumes it there, and closes the popout. Shown on mouse activity at the
+ * top center, which the player's own top controls leave free.
+ */
+function PopoutReturnButton() {
+    const videoElement = useAtomValue(vc_videoElement)
+    const nativePlayerState = useAtomValue(nativePlayer_stateAtom)
+    const searchParams = useSearchParams()
+    const [visible, setVisible] = React.useState(true)
+
+    React.useEffect(() => {
+        let timeout: ReturnType<typeof setTimeout> | undefined
+        const show = () => {
+            setVisible(true)
+            clearTimeout(timeout)
+            timeout = setTimeout(() => setVisible(false), 2500)
+        }
+        show()
+        window.addEventListener("pointermove", show)
+        window.addEventListener("pointerdown", show)
+        return () => {
+            clearTimeout(timeout)
+            window.removeEventListener("pointermove", show)
+            window.removeEventListener("pointerdown", show)
+        }
+    }, [])
+
+    const returnToMain = () => {
+        let path: string | null | undefined = nativePlayerState.playbackInfo?.localFile?.path
+        if (!path) {
+            const encoded = searchParams.get("path")
+            try {
+                path = encoded ? Buffer.from(encoded, "base64").toString("utf-8") : null
+            }
+            catch {
+                path = null
+            }
+        }
+        if (!path || !window.electron?.window?.returnPlayerFromPopout) return
+
+        window.electron.window.returnPlayerFromPopout({
+            path,
+            time: videoElement?.currentTime ?? 0,
+            paused: videoElement?.paused ?? false,
+        })
+    }
+
+    return (
+        <button
+            type="button"
+            data-popout-nodrag
+            onClick={returnToMain}
+            className={cn(
+                "fixed top-3 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 rounded-full",
+                "bg-black/60 hover:bg-black/80 text-white text-sm font-medium px-3 py-1.5",
+                "backdrop-blur transition-opacity duration-200",
+                visible ? "opacity-100" : "opacity-0 pointer-events-none",
+            )}
+        >
+            <LuArrowUpLeft className="size-4" />
+            Return to Seaserver
+        </button>
+    )
 }
 
 /**

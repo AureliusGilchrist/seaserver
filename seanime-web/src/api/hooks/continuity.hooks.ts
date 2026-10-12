@@ -3,6 +3,8 @@ import { GetContinuityWatchHistoryItem_Variables, UpdateContinuityWatchHistoryIt
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { Continuity_WatchHistory, Continuity_WatchHistoryItemResponse, Nullish } from "@/api/generated/types"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { vc_exactResumeAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { useAtomValue } from "jotai"
 import { logger } from "@/lib/helpers/debug"
 import { useQueryClient } from "@tanstack/react-query"
 import { MediaPlayerInstance } from "@vidstack/react"
@@ -21,7 +23,11 @@ export function useUpdateContinuityWatchHistoryItem() {
 }
 
 export function useGetContinuityWatchHistoryItem(mediaId: Nullish<number | string>, enabled = true, force = false, episodeNumber?: Nullish<number>) {
+    const exactResume = useAtomValue(vc_exactResumeAtom)
     let endpoint = `${API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.endpoint.replace("{id}", String(mediaId))}${force ? "?force=true" : ""}`
+    if (exactResume) {
+        endpoint += (endpoint.includes("?") ? "&" : "?") + "resume=exact"
+    }
     // Append episode param for per-episode query
     if (episodeNumber != null && episodeNumber > 0) {
         endpoint += (endpoint.includes("?") ? "&" : "?") + `episode=${episodeNumber}`
@@ -29,7 +35,7 @@ export function useGetContinuityWatchHistoryItem(mediaId: Nullish<number | strin
     return useServerQuery<Continuity_WatchHistoryItemResponse, GetContinuityWatchHistoryItem_Variables>({
         endpoint,
         method: API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.methods[0],
-        queryKey: [API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.key, String(mediaId), force ? "force" : "default", String(episodeNumber ?? 0)],
+        queryKey: [API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.key, String(mediaId), force ? "force" : "default", String(episodeNumber ?? 0), exactResume ? "exact" : "std"],
         enabled: enabled && !!mediaId,
     })
 }
@@ -120,11 +126,18 @@ export function useHandleCurrentMediaContinuity(mediaId: Nullish<number | string
 
     const waitForWatchHistory = watchHistoryLoading && enabled
 
+    const exactResume = useAtomValue(vc_exactResumeAtom)
+
     function getEpisodeContinuitySeekTo(episodeNumber: Nullish<number>, playerCurrentTime: Nullish<number>, playerDuration: Nullish<number>) {
         if (!enabled || !mediaId || !watchHistory || !playerDuration || !episodeNumber) return 0
         const item = watchHistory?.item
         if (!item || !item.currentTime || !item.duration || item.episodeNumber !== episodeNumber) return 0
-        if (!(item.currentTime > 0 && item.currentTime < playerDuration) || (item.currentTime / item.duration) > 0.9) return 0
+        const ratio = item.currentTime / item.duration
+        if (exactResume) {
+            if (ratio < 0.05 || playerDuration - item.currentTime < 10) return 0
+            return item.currentTime
+        }
+        if (!(item.currentTime > 0 && item.currentTime < playerDuration) || ratio > 0.9) return 0
         logger("CONTINUITY").info("Found last watched time", {
             currentTime: item.currentTime,
             duration: item.duration,

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { defineSchema, Field, Form } from "@/components/ui/form"
 import { Switch } from "@/components/ui/switch"
+import { vc_exactResumeAtom } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ANIME_COLLECTION_SORTING_OPTIONS, CONTINUE_WATCHING_SORTING_OPTIONS, MANGA_COLLECTION_SORTING_OPTIONS } from "@/lib/helpers/filtering"
 import {
@@ -105,6 +106,7 @@ export function UISettings() {
     const { mutate, isPending } = useUpdateTheme()
     const [fixBorderRenderingArtifacts, setFixBorerRenderingArtifacts] = useAtom(__ui_fixBorderRenderingArtifacts)
     const [enableLivePreview, setEnableLivePreview] = useState(false)
+    const [exactResume, setExactResume] = useAtom(vc_exactResumeAtom)
     const animeThemeBaseColor = useAtomValue(animeThemeBaseColorAtom)
 
     const [tab, setTab] = useAtom(selectUISettingTabAtom)
@@ -627,6 +629,14 @@ export function UISettings() {
                                         description="Watch continuity needs to be enabled to use the last watched sorting options."
                                     />
                                 )}
+
+                                <Switch
+                                    side="right"
+                                    label="Exact resume (this client)"
+                                    help="Resume exactly where you stopped, even with minutes left. Under 5% watched starts over."
+                                    value={exactResume}
+                                    onValueChange={setExactResume}
+                                />
 
                                 <Field.RadioCards
                                     label="Banner type"

@@ -1984,6 +1984,57 @@ app.whenReady().then(async () => {
         }
     })
 
+    // ── Popout player dragging ───────────────────────────────────────────────────────
+    // The popout is frameless and has no OS drag region (an app-region drag area would swallow
+    // every click and hide the player's own controls), so the page reports drags itself:
+    // a start message pins the window's bounds, and each move applies the pointer delta to them.
+    let popoutDragOrigin = null
+    ipcMain.on("window:popout-drag-start", (event) => {
+        if (!popoutPlayerWindow || popoutPlayerWindow.isDestroyed()) return
+        if (event.sender !== popoutPlayerWindow.webContents) return
+        if (popoutPlayerWindow.isMaximized()) {
+            popoutDragOrigin = null
+            return
+        }
+        popoutDragOrigin = popoutPlayerWindow.getBounds()
+    })
+    ipcMain.on("window:popout-drag-move", (event, dx, dy) => {
+        if (!popoutDragOrigin || !popoutPlayerWindow || popoutPlayerWindow.isDestroyed()) return
+        if (event.sender !== popoutPlayerWindow.webContents) return
+        if (!Number.isFinite(dx) || !Number.isFinite(dy)) return
+        popoutPlayerWindow.setBounds({
+            x: Math.round(popoutDragOrigin.x + dx),
+            y: Math.round(popoutDragOrigin.y + dy),
+            width: popoutDragOrigin.width,
+            height: popoutDragOrigin.height,
+        })
+    })
+    ipcMain.on("window:popout-drag-end", () => {
+        popoutDragOrigin = null
+    })
+
+    // ── Return from popout ───────────────────────────────────────────────────────────
+    // Sends the file and playback position back to the main window, which restarts the stream
+    // there and seeks to the same time; then the popout closes.
+    ipcMain.handle("window:return-player-from-popout", (event, state) => {
+        if (!popoutPlayerWindow || popoutPlayerWindow.isDestroyed()) return
+        if (event.sender !== popoutPlayerWindow.webContents) return
+        if (!mainWindow || mainWindow.isDestroyed()) return
+        if (!state || typeof state.path !== "string") return
+
+        const time = Number(state.time)
+        mainWindow.webContents.send("player:return-from-popout", {
+            path: state.path,
+            time: Number.isFinite(time) && time > 0 ? time : 0,
+            paused: !!state.paused,
+        })
+
+        if (mainWindow.isMinimized()) mainWindow.restore()
+        mainWindow.show()
+        mainWindow.focus()
+        popoutPlayerWindow.close()
+    })
+
     // Clipboard handler
     ipcMain.handle("clipboard:writeText", (_, text) => {
         if (text) {

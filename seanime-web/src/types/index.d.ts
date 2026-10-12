@@ -47,6 +47,10 @@ declare global {
                 openPlayerPopout: (url: string) => Promise<void>;
                 // Fork: lock the popout window's size to the video's aspect ratio
                 setPopoutAspectRatio: (ratio: number) => Promise<void>;
+                popoutDragStart: () => void;
+                popoutDragMove: (dx: number, dy: number) => void;
+                popoutDragEnd: () => void;
+                returnPlayerFromPopout: (state: { path: string; time: number; paused: boolean }) => Promise<void>;
             };
             localServer: {
                 getPort: () => Promise<number>;

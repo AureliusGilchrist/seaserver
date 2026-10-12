@@ -55,7 +55,8 @@ func (h *Handler) HandleGetContinuityWatchHistoryItem(c echo.Context) error {
 	}
 
 	force := c.QueryParam("force") == "true" || c.QueryParam("force") == "1"
-
+	// resume=exact: only treat an episode as finished when a few seconds remain, and start over under 5%
+	exact := c.QueryParam("resume") == "exact"
 	if !h.App.ContinuityManager.GetSettings().WatchContinuityEnabled && !force {
 		return h.RespondWithData(c, &continuity.WatchHistoryItemResponse{
 			Item:  nil,
@@ -74,9 +75,9 @@ func (h *Handler) HandleGetContinuityWatchHistoryItem(c echo.Context) error {
 		profileID := h.GetProfileID(c)
 		var epResp *continuity.EpisodeWatchPositionResponse
 		if profileID > 0 {
-			epResp = h.App.ContinuityManager.GetEpisodeWatchPositionForProfile(profileID, id, episodeNum)
+			epResp = h.App.ContinuityManager.GetEpisodeWatchPositionForProfile(profileID, id, episodeNum, exact)
 		} else {
-			epResp = h.App.ContinuityManager.GetEpisodeWatchPosition(id, episodeNum)
+			epResp = h.App.ContinuityManager.GetEpisodeWatchPosition(id, episodeNum, exact)
 		}
 
 		if epResp.Found {
@@ -98,11 +99,11 @@ func (h *Handler) HandleGetContinuityWatchHistoryItem(c echo.Context) error {
 
 	profileID := h.GetProfileID(c)
 	if profileID > 0 {
-		resp := h.App.ContinuityManager.GetWatchHistoryItemForProfile(profileID, id)
+		resp := h.App.ContinuityManager.GetWatchHistoryItemForProfile(profileID, id, exact)
 		return h.RespondWithData(c, resp)
 	}
 
-	resp := h.App.ContinuityManager.GetWatchHistoryItem(id)
+	resp := h.App.ContinuityManager.GetWatchHistoryItem(id, exact)
 	return h.RespondWithData(c, resp)
 }
 

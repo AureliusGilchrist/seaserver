@@ -1,4 +1,6 @@
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
+import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
+import { setPendingPopoutResume } from "@/app/(main)/_features/video-core/video-core-popout-resume"
 import { MKVParser_SubtitleEvent, NativePlayer_PlaybackInfo, NativePlayer_ServerEvent } from "@/api/generated/types"
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { vc_miniPlayer, vc_requestTranscodeForAudio, vc_videoElement, vc_directPlayAudioUrl, vc_directPlayAudioLoading } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -38,7 +40,18 @@ export function NativePlayer() {
     const setDirectPlayAudioUrl = useSetAtom(vc_directPlayAudioUrl)
     const setDirectPlayAudioLoading = useSetAtom(vc_directPlayAudioLoading)
     const { setFilePath: setMediastreamFilePath } = useMediastreamCurrentFile()
+    const { mutate: playLocalFile } = useDirectstreamPlayLocalFile()
 
+    // Fork (Electron): the popout window hands playback back here with its position.
+    React.useEffect(() => {
+        if (typeof window === "undefined" || !window.electron?.on || !clientId) return
+        const off = window.electron.on("player:return-from-popout", (payload: { path: string, time: number, paused: boolean }) => {
+            if (!payload?.path) return
+            setPendingPopoutResume(payload.time, payload.paused)
+            playLocalFile({ path: payload.path, clientId })
+        })
+        return () => off?.()
+    }, [clientId, playLocalFile])
     // AniSkip
     const { data: aniSkipData } = useSkipData(state?.playbackInfo?.media?.idMal, state?.playbackInfo?.episode?.progressNumber ?? -1)
 

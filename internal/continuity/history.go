@@ -15,6 +15,7 @@ import (
 const (
 	MaxWatchHistoryItems            = 100
 	IgnoreRatioThreshold            = 0.9
+	ResumeExactFinishedSeconds      = 10
 	MinSaveTimeSeconds              = 30
 	WatchHistoryBucketName          = "watch_history"
 	EpisodeWatchPositionBucketName  = "episode_watch_positions"
@@ -115,13 +116,26 @@ func (m *Manager) GetWatchHistory() WatchHistory {
 	return ret
 }
 
-func (m *Manager) GetWatchHistoryItem(mediaId int) *WatchHistoryItemResponse {
+// isFinishedPosition reports whether a saved position should be treated as "watched". In exact resume mode, an
+// episode only counts as finished when under ResumeExactFinishedSeconds remain, so resuming with 2 minutes left works.
+func isFinishedPosition(currentTime, duration float64, exact bool) bool {
+	if exact {
+		return duration-currentTime < ResumeExactFinishedSeconds
+	}
+	return currentTime/duration >= IgnoreRatioThreshold
+}
+
+func useExactResume(exact []bool) bool {
+	return len(exact) > 0 && exact[0]
+}
+
+func (m *Manager) GetWatchHistoryItem(mediaId int, exact ...bool) *WatchHistoryItemResponse {
 	defer util.HandlePanicInModuleThen("continuity/GetWatchHistoryItem", func() {})
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	i, found := m.getWatchHistory(mediaId)
+	i, found := m.getWatchHistory(mediaId, useExactResume(exact))
 	return &WatchHistoryItemResponse{
 		Item:  i,
 		Found: found,
@@ -129,42 +143,41 @@ func (m *Manager) GetWatchHistoryItem(mediaId int) *WatchHistoryItemResponse {
 }
 
 // GetEpisodeWatchPosition returns the saved playback position for a specific episode.
-func (m *Manager) GetEpisodeWatchPosition(mediaId, episodeNumber int) *EpisodeWatchPositionResponse {
+func (m *Manager) GetEpisodeWatchPosition(mediaId, episodeNumber int, exact ...bool) *EpisodeWatchPositionResponse {
 	defer util.HandlePanicInModuleThen("continuity/GetEpisodeWatchPosition", func() {})
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	return m.getEpisodeWatchPosition(*m.episodeWatchPositionFileCacheBucket, mediaId, episodeNumber)
+	return m.getEpisodeWatchPosition(*m.episodeWatchPositionFileCacheBucket, mediaId, episodeNumber, useExactResume(exact))
 }
 
 // GetEpisodeWatchPositionForProfile returns the saved playback position for a specific episode, scoped to a profile.
-func (m *Manager) GetEpisodeWatchPositionForProfile(profileID uint, mediaId, episodeNumber int) *EpisodeWatchPositionResponse {
+func (m *Manager) GetEpisodeWatchPositionForProfile(profileID uint, mediaId, episodeNumber int, exact ...bool) *EpisodeWatchPositionResponse {
 	defer util.HandlePanicInModuleThen("continuity/GetEpisodeWatchPositionForProfile", func() {})
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	bucket := GetEpisodeProfileBucket(profileID)
-	return m.getEpisodeWatchPosition(bucket, mediaId, episodeNumber)
+	return m.getEpisodeWatchPosition(bucket, mediaId, episodeNumber, useExactResume(exact))
 }
 
-func (m *Manager) getEpisodeWatchPosition(bucket filecache.Bucket, mediaId, episodeNumber int) *EpisodeWatchPositionResponse {
+func (m *Manager) getEpisodeWatchPosition(bucket filecache.Bucket, mediaId, episodeNumber int, exact bool) *EpisodeWatchPositionResponse {
 	key := fmt.Sprintf("%d_%d", mediaId, episodeNumber)
 
 	var pos *EpisodeWatchPosition
 	exists, _ := m.fileCacher.Get(bucket, key, &pos)
 
 	if exists && pos != nil && pos.Duration > 0 {
-		ratio := pos.CurrentTime / pos.Duration
-		if ratio >= IgnoreRatioThreshold {
+		if isFinishedPosition(pos.CurrentTime, pos.Duration, exact) {
 			go func() {
 				defer util.HandlePanicInModuleThen("continuity/getEpisodeWatchPosition", func() {})
 				_ = m.fileCacher.Delete(bucket, key)
 			}()
 			return &EpisodeWatchPositionResponse{Item: nil, Found: false}
 		}
-		if pos.CurrentTime < MinSaveTimeSeconds {
+		if pos.CurrentTime < MinSaveTimeSeconds || (exact && pos.CurrentTime/pos.Duration < 0.05) {
 			return &EpisodeWatchPositionResponse{Item: nil, Found: false}
 		}
 	}
@@ -191,7 +204,7 @@ func (m *Manager) UpdateWatchHistoryItem(opts *UpdateWatchHistoryItemOptions) (e
 	added := false
 
 	// Get the current history
-	i, found := m.getWatchHistory(opts.MediaId)
+	i, found := m.getWatchHistory(opts.MediaId, false)
 	if !found {
 		added = true
 		i = &WatchHistoryItem{
@@ -301,7 +314,7 @@ func (m *Manager) GetExternalPlayerEpisodeWatchHistoryItem(path string, isStream
 			return
 		}
 
-		i, found := m.getWatchHistory(mediaId)
+		i, found := m.getWatchHistory(mediaId, false)
 		if !found || i.EpisodeNumber != episode {
 			m.logger.Trace().
 				Interface("item", i).
@@ -363,7 +376,7 @@ func (m *Manager) GetExternalPlayerEpisodeWatchHistoryItem(path string, isStream
 			return
 		}
 
-		i, found := m.getWatchHistory(lf.MediaId)
+		i, found := m.getWatchHistory(lf.MediaId, false)
 		if !found || i.EpisodeNumber != lf.GetEpisodeNumber() {
 			m.logger.Trace().
 				Interface("item", i).
@@ -409,7 +422,7 @@ func (m *Manager) UpdateExternalPlayerEpisodeWatchHistoryItem(currentTime, durat
 	}
 
 	// Get the current history
-	i, found := m.getWatchHistory(opts.MediaId)
+	i, found := m.getWatchHistory(opts.MediaId, false)
 	if !found {
 		added = true
 		i = &WatchHistoryItem{
@@ -462,7 +475,7 @@ func (m *Manager) saveEpisodeWatchPosition(bucket filecache.Bucket, opts *Update
 	_ = m.fileCacher.Set(bucket, key, pos)
 }
 
-func (m *Manager) getWatchHistory(mediaId int) (ret *WatchHistoryItem, exists bool) {
+func (m *Manager) getWatchHistory(mediaId int, exact bool) (ret *WatchHistoryItem, exists bool) {
 	defer util.HandlePanicInModuleThen("continuity/getWatchHistory", func() {
 		ret = nil
 		exists = false
@@ -484,7 +497,7 @@ func (m *Manager) getWatchHistory(mediaId int) (ret *WatchHistoryItem, exists bo
 	if exists && ret != nil && ret.Duration > 0 {
 		// If the item completion ratio is equal or above IgnoreRatioThreshold, don't return anything
 		ratio := ret.CurrentTime / ret.Duration
-		if ratio >= IgnoreRatioThreshold {
+		if isFinishedPosition(ret.CurrentTime, ret.Duration, exact) {
 			// keep the timestamp for last-watched sorting
 			return nil, false
 		}
@@ -548,7 +561,7 @@ func (m *Manager) GetWatchHistoryForProfile(profileID uint) WatchHistory {
 	return ret
 }
 
-func (m *Manager) GetWatchHistoryItemForProfile(profileID uint, mediaId int) *WatchHistoryItemResponse {
+func (m *Manager) GetWatchHistoryItemForProfile(profileID uint, mediaId int, exact ...bool) *WatchHistoryItemResponse {
 	defer util.HandlePanicInModuleThen("continuity/GetWatchHistoryItemForProfile", func() {})
 
 	m.mu.RLock()
@@ -560,7 +573,7 @@ func (m *Manager) GetWatchHistoryItemForProfile(profileID uint, mediaId int) *Wa
 
 	if exists && ret != nil && ret.Duration > 0 {
 		ratio := ret.CurrentTime / ret.Duration
-		if ratio >= IgnoreRatioThreshold {
+		if isFinishedPosition(ret.CurrentTime, ret.Duration, useExactResume(exact)) {
 			go func() {
 				defer util.HandlePanicInModuleThen("continuity/GetWatchHistoryItemForProfile", func() {})
 				_ = m.fileCacher.Delete(bucket, strconv.Itoa(mediaId))

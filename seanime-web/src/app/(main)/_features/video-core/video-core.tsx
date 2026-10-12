@@ -99,6 +99,7 @@ import { VideoCoreSubtitleMenu } from "@/app/(main)/_features/video-core/video-c
 import { VideoCoreSubtitleManager } from "@/app/(main)/_features/video-core/video-core-subtitles"
 import { vc_timeRangeElement, VideoCoreTimeRange } from "@/app/(main)/_features/video-core/video-core-time-range"
 import { VideoCoreTopPlaybackInfo, VideoCoreTopSection } from "@/app/(main)/_features/video-core/video-core-top-section"
+import { takePendingPopoutResume } from "@/app/(main)/_features/video-core/video-core-popout-resume"
 import { VideoCoreWatchPartyChat } from "@/app/(main)/_features/video-core/video-core-watch-party-chat"
 import {
     vc_autoNextAtom,
@@ -1683,8 +1684,11 @@ export function VideoCore(props: VideoCoreProps) {
 
             dispatchCanPlayEvent()
 
-            // Restore previous position if available
-            if (!state.playbackInfo.disableRestoreFromContinuity && !state.playbackInfo.initialState) {
+            // Restore the position handed back from the popout, or the previous position if available
+            const popoutResume = takePendingPopoutResume()
+            if (popoutResume) {
+                restoreSeekTime(popoutResume.time, false, popoutResume.paused)
+            } else if (!state.playbackInfo.disableRestoreFromContinuity && !state.playbackInfo.initialState) {
                 if (state.playbackInfo?.episode?.progressNumber && watchHistory?.found && watchHistory.item?.episodeNumber === state.playbackInfo?.episode?.progressNumber) {
                     const lastWatchedTime = getEpisodeContinuitySeekTo(state.playbackInfo?.episode?.progressNumber,
                         videoRef.current?.currentTime,
@@ -1703,7 +1707,7 @@ export function VideoCore(props: VideoCoreProps) {
                     // action({ type: "seekTo", payload: { time: state.playbackInfo.initialState.currentTime } })
                     restoreSeekTime(state.playbackInfo.initialState.currentTime, false, state.playbackInfo.initialState.paused)
                 }
-            } else if (autoPlay) {
+            } else if (autoPlay && !popoutResume?.paused) {
                 videoRef.current.play().catch()
             }
         }

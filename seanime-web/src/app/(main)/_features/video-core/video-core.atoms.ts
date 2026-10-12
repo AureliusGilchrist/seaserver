@@ -203,6 +203,10 @@ export const vc_autoSkipFillerAtom = atomWithStorage<"off" | "full" | "partial">
 )
 // Watch Continuity override: "inherit" uses global setting, "on" forces enabled, "off" forces disabled
 export const vc_watchContinuityAtom = atomWithStorage<"inherit" | "on" | "off">("sea-video-core-watch-continuity", "inherit", undefined, { getOnInit: true })
+
+// Exact resume mode: resume wherever you left off (even with a couple of minutes left), but
+// start over if you were less than 5% in. When off, episodes past 90% restart.
+export const vc_exactResumeAtom = atomWithStorage<boolean>("sea-video-core-exact-resume", false, undefined, { getOnInit: true })
 export const vc_storedVolumeAtom = atomWithStorage("sea-video-core-volume", 1, undefined, { getOnInit: true })
 export const vc_storedMutedAtom = atomWithStorage("sea-video-core-muted", false, undefined, { getOnInit: true })
 export const vc_storedPlaybackRateAtom = atomWithStorage("sea-video-core-playback-rate", 1, undefined, { getOnInit: true })
