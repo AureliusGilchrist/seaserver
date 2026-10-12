@@ -180,23 +180,41 @@ func (u *GitAutoUpdater) checkForUpdate() (bool, error) {
 		return false, err
 	}
 
-	local, err := u.git("rev-parse", "HEAD")
+	// Behind means the fork has commits this checkout lacks. A checkout that merely differs (it is
+	// ahead, or has diverged) is not behind, and reporting it as such made the update look
+	// permanently available while the fast-forward could never succeed.
+	remoteRef := fmt.Sprintf("%s/%s", gitUpdateRemote, branch)
+	countStr, err := u.git("rev-list", "--count", "HEAD.."+remoteRef)
 	if err != nil {
 		return false, err
 	}
-	remote, err := u.git("rev-parse", fmt.Sprintf("%s/%s", gitUpdateRemote, branch))
-	if err != nil {
-		return false, err
-	}
-
-	behind := strings.TrimSpace(local) != strings.TrimSpace(remote)
+	count, _ := strconv.Atoi(strings.TrimSpace(countStr))
+	behind := count > 0
 	if behind {
-		u.logger.Info().
-			Str("local", strings.TrimSpace(local)[:min(8, len(local))]).
-			Str("remote", strings.TrimSpace(remote)[:min(8, len(remote))]).
-			Msg("selfupdate: The fork has a new commit")
+		u.logger.Info().Int("commits", count).Msg("selfupdate: The fork has new commits")
 	}
 	return behind, nil
+}
+
+// blocker explains why the checkout cannot be fast-forwarded to the fork's latest commit, or
+// returns "" when it can.
+func (u *GitAutoUpdater) blocker(remoteRef string) string {
+	// Untracked files (build output) do not stop a fast-forward; changes to tracked files do.
+	status, err := u.git("status", "--porcelain", "--untracked-files=no")
+	if err != nil {
+		return "could not read the working tree status: " + err.Error()
+	}
+	if s := strings.TrimSpace(status); s != "" {
+		lines := strings.Split(s, "\n")
+		if len(lines) > 5 {
+			lines = append(lines[:5], fmt.Sprintf("… and %d more", len(lines)-5))
+		}
+		return "the server's checkout has local changes that would be overwritten, so it will not update: " + strings.Join(lines, "; ")
+	}
+	if _, err := u.git("merge-base", "--is-ancestor", "HEAD", remoteRef); err != nil {
+		return "the server's checkout has local commits that are not on the fork (it has diverged), so it cannot fast-forward"
+	}
+	return ""
 }
 
 // CheckForUpdate is the exported form, for the API's update check. An update here is a commit on
@@ -227,6 +245,11 @@ func (u *GitAutoUpdater) UpdateNow() (started bool, files []FileChange, err erro
 	if !behind {
 		u.updating.Store(false)
 		return false, nil, nil
+	}
+	if reason := u.blocker(u.remoteRef()); reason != "" {
+		u.updating.Store(false)
+		u.logger.Warn().Msg("selfupdate: " + reason)
+		return false, nil, fmt.Errorf("the update was not pulled: %s", reason)
 	}
 	// Read before the background update merges, after which there is nothing left to diff.
 	files = u.PendingChanges()
@@ -270,34 +293,35 @@ func (u *GitAutoUpdater) runUpdate() {
 		u.logger.Error().Msg("selfupdate: The update stopped unexpectedly — the running version is untouched")
 	})
 
-	// Local work is never destroyed. A tree with changes in it is somebody's; an update only ever
-	// fast-forwards a clean one, and anything else is left for the person to deal with.
-	if status, err := u.git("status", "--porcelain"); err != nil || strings.TrimSpace(status) != "" {
-		u.logger.Warn().Msg("selfupdate: The working tree has local changes, not updating")
+	// Local work is never destroyed: an update only ever fast-forwards, and anything else is left
+	// for the person to deal with — with the reason said out loud.
+	remoteRef := u.remoteRef()
+	if _, err := u.git("fetch", gitUpdateRemote); err != nil {
+		u.logger.Warn().Err(err).Msg("selfupdate: Could not fetch the fork, not updating")
+		u.notify("The update could not be fetched: " + err.Error())
 		return
 	}
-
-	branch, err := u.git("rev-parse", "--abbrev-ref", "HEAD")
-	if err != nil {
+	if reason := u.blocker(remoteRef); reason != "" {
+		u.logger.Warn().Msg("selfupdate: " + reason)
+		u.notify("The update was not pulled: " + reason)
 		return
 	}
-	remoteRef := fmt.Sprintf("%s/%s", gitUpdateRemote, strings.TrimSpace(branch))
 
 	stats := u.diffStats(remoteRef)
 
-	if _, err := u.git("merge", "--ff-only", remoteRef); err != nil {
-		// A checkout that cannot fast-forward has local commits — not something to discard, so
-		// the update stops here rather than forcing its way through.
+	// Fast-forwarding to the fork's ref takes every new commit at once, so nothing is left behind.
+	if out, err := u.git("merge", "--ff-only", remoteRef); err != nil {
 		u.logger.Warn().Err(err).Msg("selfupdate: Could not fast-forward to the fork's latest commit, not updating")
+		u.notify("The update was not pulled: git could not fast-forward (" + strings.TrimSpace(out+" "+err.Error()) + ")")
 		return
 	}
 
-	// The working tree has to stay clean through the whole update — the check above ran before the
-	// merge, and the merge itself is the step most able to have left something behind (a pull that
-	// pauses for a credential prompt, for instance, can leave a partially-written index behind).
-	status, err := u.git("status", "--porcelain")
+	// The tree has to stay clean through the whole update; the merge is the step most able to have
+	// left something behind.
+	status, err := u.git("status", "--porcelain", "--untracked-files=no")
 	if err != nil || strings.TrimSpace(status) != "" {
 		u.logger.Warn().Msg("selfupdate: The merge left the working tree dirty, not updating")
+		u.notify("The update was pulled but left the checkout dirty, so it was not built")
 		return
 	}
 
@@ -418,13 +442,19 @@ type FileChange struct {
 	Deletions  int    `json:"deletions"`
 }
 
+// remoteRef is the fork's ref for the branch being tracked.
+func (u *GitAutoUpdater) remoteRef() string {
+	branch, err := u.git("rev-parse", "--abbrev-ref", "HEAD")
+	branch = strings.TrimSpace(branch)
+	if err != nil || branch == "" || branch == "HEAD" {
+		branch = "main"
+	}
+	return fmt.Sprintf("%s/%s", gitUpdateRemote, branch)
+}
+
 // PendingChanges lists the files the update would change, read from the last fetch.
 func (u *GitAutoUpdater) PendingChanges() []FileChange {
-	branch, err := u.git("rev-parse", "--abbrev-ref", "HEAD")
-	if err != nil {
-		return nil
-	}
-	return u.diffFiles(fmt.Sprintf("%s/%s", gitUpdateRemote, strings.TrimSpace(branch)))
+	return u.diffFiles(u.remoteRef())
 }
 
 func (u *GitAutoUpdater) diffFiles(remoteRef string) []FileChange {
