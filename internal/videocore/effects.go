@@ -2,6 +2,7 @@ package videocore
 
 import (
 	"context"
+	"fmt"
 	"seanime/internal/continuity"
 	"seanime/internal/discordrpc/presence"
 	"seanime/internal/events"
@@ -22,6 +23,9 @@ var lastHistoryWrite = make(map[string]time.Time)
 
 // The latest position that has not been written yet, flushed when the client terminates.
 var lastHistoryOptions = make(map[string]*continuity.UpdateWatchHistoryItemOptions)
+
+// The "mediaId_episode" each client has completed, so later position reports don't revive it.
+var completedPlayback = make(map[string]string)
 
 func (vc *VideoCore) setupEffects() {
 	vc.setupSharedEffects()
@@ -72,12 +76,29 @@ func (vc *VideoCore) setupSharedEffects() {
 				if !ok {
 					continue
 				}
+				mediaId := state.PlaybackInfo.Media.GetID()
+
+				// Mark the episode as finished right away (before any early exit below), and stop
+				// later position reports from reviving it as "in progress".
+				if vc.continuityManager != nil {
+					epNumber := state.PlaybackInfo.Episode.GetEpisodeNumber()
+					completedPlayback[event.GetClientId()] = fmt.Sprintf("%d_%d", mediaId, epNumber)
+					delete(lastHistoryOptions, event.GetClientId())
+					if status, ok := vc.getPlaybackStatusFor(event.GetClientId()); ok && status != nil && status.Duration > 0 {
+						_ = vc.continuityManager.UpdateWatchHistoryItem(&continuity.UpdateWatchHistoryItemOptions{
+							CurrentTime:   status.Duration,
+							Duration:      status.Duration,
+							MediaId:       mediaId,
+							EpisodeNumber: epNumber,
+							Kind:          continuity.MediastreamKind,
+						})
+					}
+				}
+
 				shouldUpdateProgress := false
 				vc.settingsMu.RLock()
 				shouldUpdateProgress = vc.settings.Library.AutoUpdateProgress
 				vc.settingsMu.RUnlock()
-
-				mediaId := state.PlaybackInfo.Media.GetID()
 
 				if shouldUpdateProgress {
 					// get the list entry
@@ -102,22 +123,21 @@ func (vc *VideoCore) setupSharedEffects() {
 					}
 					vc.refreshAnimeCollectionFunc()
 				}
-
-				// Clear continuity watch history for completed episode
-				if vc.continuityManager != nil {
-					_ = vc.continuityManager.DeleteWatchHistoryItem(mediaId)
-				}
 			case *VideoTerminatedEvent:
 				if opts, ok := lastHistoryOptions[event.GetClientId()]; ok {
 					delete(lastHistoryOptions, event.GetClientId())
 					_ = vc.continuityManager.UpdateWatchHistoryItem(opts)
 				}
+				delete(completedPlayback, event.GetClientId())
 				if vc.discordPresence != nil && !vc.isOfflineRef.Get() {
 					go vc.discordPresence.CloseFor(event.GetClientId())
 				}
 			case *VideoStatusEvent:
 				state, ok := vc.getPlaybackStateFor(event.GetClientId())
 				if !ok {
+					continue
+				}
+				if completedPlayback[event.GetClientId()] == fmt.Sprintf("%d_%d", state.PlaybackInfo.Media.GetID(), state.PlaybackInfo.Episode.GetEpisodeNumber()) {
 					continue
 				}
 				// The watch position is written to disk, and the client reports its position every
