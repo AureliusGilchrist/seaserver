@@ -23,8 +23,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner, Spinner } from "@/components/ui/loading-spinner"
-import { Modal } from "@/components/ui/modal"
-import { Separator } from "@/components/ui/separator"
 import { anilist_getListDataFromEntry } from "@/lib/helpers/media"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useAtomValue } from "jotai/react"
@@ -37,8 +35,6 @@ export const dynamic = "force-static"
 
 export default function Page() {
     const serverStatus = useServerStatus()
-
-    const [syncModalOpen, setSyncModalOpen] = React.useState(false)
 
     const { data: trackedMediaItems, isLoading } = useLocalGetTrackedMediaItems()
     const { mutate: syncLocal, isPending: isSyncingLocal } = useLocalSyncData()
@@ -93,19 +89,11 @@ export default function Page() {
     })
 
     function handleSyncLocal() {
-        syncLocal(undefined, {
-            onSuccess: () => {
-                setSyncModalOpen(false)
-            },
-        })
+        syncLocal()
     }
 
     function handleSyncAnilist() {
-        syncAnilist(undefined, {
-            onSuccess: () => {
-                setSyncModalOpen(false)
-            },
-        })
+        syncAnilist()
     }
 
     function handleIgnoreLocalChanges() {
@@ -160,62 +148,7 @@ export default function Page() {
                 <div className="flex flex-1"></div>
 
                 <div className="contents">
-                    <Modal
-                        title="Sync"
-                        open={syncModalOpen}
-                        onOpenChange={v => {
-                            if (isSyncingLocal) return
-                            return setSyncModalOpen(v)
-                        }}
-                        trigger={<Button
-                            intent="white"
-                            rounded
-                            leftIcon={<LuFolderSync className="text-2xl" />}
-                            loading={isSyncingLocal}
-                        >
-                            Sync now
-                        </Button>}
-                    >
-                        <div className="space-y-4">
 
-                            <Button
-                                intent="white"
-                                rounded
-                                className="w-full"
-                                leftIcon={<LuCloudDownload className="text-2xl" />}
-                                loading={isSyncingLocal}
-                                disabled={isSyncingAnilist}
-                                onClick={handleSyncLocal}
-                            >
-                                Update local data
-                            </Button>
-                            <p className="text-sm">
-                                Update your local snapshots with the data from AniList.
-                                This will overwrite your offline changes. You can automate this in <kbd>Settings {`>`} App {`>`} Offline mode</kbd>.
-                            </p>
-                            <Separator />
-                            <Button
-                                intent="primary-subtle"
-                                rounded
-                                className="w-full"
-                                leftIcon={<LuCloudUpload className="text-2xl" />}
-                                disabled={isSyncingLocal}
-                                loading={isSyncingAnilist}
-                                onClick={handleSyncAnilist}
-                            >
-                                Upload local changes to AniList
-                            </Button>
-                            <p className="text-sm">
-                                Update your AniList lists with the data from your local snapshots.
-                                This should be done after you've made changes offline.
-                            </p>
-
-                            <Alert
-                                intent="warning"
-                                description="Changes are irreversible."
-                            />
-                        </div>
-                    </Modal>
 
                     <SyncAddMediaModal
                         savedMediaIds={trackedMediaItems?.map(n => n.mediaId) ?? []}
@@ -223,6 +156,44 @@ export default function Page() {
                 </div>
             </div>
 
+            <div className="rounded-xl border border-white/10 bg-gray-950/40 backdrop-blur-xl p-4 lg:p-5 grid gap-4 md:grid-cols-2">
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 font-semibold">
+                        <LuCloudDownload className="text-xl text-brand-200" /> Update local data
+                    </div>
+                    <p className="text-sm text-[--muted]">
+                        Update your local snapshots with the data from AniList. This will overwrite your offline changes. You can automate this in <kbd>Settings {`>`} App {`>`} Offline mode</kbd>.
+                    </p>
+                    <Button
+                        intent="white"
+                        rounded
+                        leftIcon={<LuFolderSync className="text-xl" />}
+                        loading={isSyncingLocal}
+                        disabled={isSyncingAnilist}
+                        onClick={handleSyncLocal}
+                    >
+                        Sync now
+                    </Button>
+                </div>
+                <div className="space-y-3 md:border-l md:border-white/10 md:pl-4">
+                    <div className="flex items-center gap-2 font-semibold">
+                        <LuCloudUpload className="text-xl text-brand-200" /> Upload to AniList
+                    </div>
+                    <p className="text-sm text-[--muted]">
+                        Update your AniList lists with the data from your local snapshots. Do this after you've made changes offline. Changes are irreversible.
+                    </p>
+                    <Button
+                        intent="primary-subtle"
+                        rounded
+                        leftIcon={<LuCloudUpload className="text-xl" />}
+                        loading={isSyncingAnilist}
+                        disabled={isSyncingLocal}
+                        onClick={handleSyncAnilist}
+                    >
+                        Upload local changes
+                    </Button>
+                </div>
+            </div>
             {(!!unsavedAnime?.length || !!unsavedManga?.length) && (
                 <Alert
                     intent="info-basic"

@@ -1986,33 +1986,40 @@ app.whenReady().then(async () => {
 
     // ── Popout player dragging ───────────────────────────────────────────────────────
     // The popout is frameless and has no OS drag region (an app-region drag area would swallow
-    // every click and hide the player's own controls), so the page reports drags itself:
-    // a start message pins the window's bounds, and each move applies the pointer delta to them.
-    let popoutDragOrigin = null
+    // every click and hide the player's own controls), so the page only says when a drag starts
+    // and ends. While it lasts, the window follows the real cursor position read here, which
+    // does not depend on any coordinates or events the page can see.
+    let popoutDragTimer = null
+    const stopPopoutDrag = () => {
+        if (popoutDragTimer) {
+            clearInterval(popoutDragTimer)
+            popoutDragTimer = null
+        }
+    }
     ipcMain.on("window:popout-drag-start", (event) => {
+        stopPopoutDrag()
         if (!popoutPlayerWindow || popoutPlayerWindow.isDestroyed()) return
         if (event.sender !== popoutPlayerWindow.webContents) return
-        if (popoutPlayerWindow.isMaximized()) {
-            popoutDragOrigin = null
-            return
-        }
-        popoutDragOrigin = popoutPlayerWindow.getBounds()
-    })
-    ipcMain.on("window:popout-drag-move", (event, dx, dy) => {
-        if (!popoutDragOrigin || !popoutPlayerWindow || popoutPlayerWindow.isDestroyed()) return
-        if (event.sender !== popoutPlayerWindow.webContents) return
-        if (!Number.isFinite(dx) || !Number.isFinite(dy)) return
-        popoutPlayerWindow.setBounds({
-            x: Math.round(popoutDragOrigin.x + dx),
-            y: Math.round(popoutDragOrigin.y + dy),
-            width: popoutDragOrigin.width,
-            height: popoutDragOrigin.height,
-        })
-    })
-    ipcMain.on("window:popout-drag-end", () => {
-        popoutDragOrigin = null
-    })
+        if (popoutPlayerWindow.isMaximized()) return
 
+        const { screen } = require("electron")
+        const startCursor = screen.getCursorScreenPoint()
+        const startBounds = popoutPlayerWindow.getBounds()
+        const startedAt = Date.now()
+        popoutDragTimer = setInterval(() => {
+            if (!popoutPlayerWindow || popoutPlayerWindow.isDestroyed() || Date.now() - startedAt > 120000) {
+                stopPopoutDrag()
+                return
+            }
+            const cursor = screen.getCursorScreenPoint()
+            popoutPlayerWindow.setPosition(
+                Math.round(startBounds.x + cursor.x - startCursor.x),
+                Math.round(startBounds.y + cursor.y - startCursor.y),
+            )
+        }, 8)
+    })
+    ipcMain.on("window:popout-drag-move", () => {})
+    ipcMain.on("window:popout-drag-end", stopPopoutDrag)
     // ── Return from popout ───────────────────────────────────────────────────────────
     // Sends the file and playback position back to the main window, which restarts the stream
     // there and seeks to the same time; then the popout closes.
