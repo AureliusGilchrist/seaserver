@@ -12,7 +12,6 @@ import { useAtomValue } from "jotai"
 import { useAtom } from "jotai/react"
 import React from "react"
 import { startVideoCoreMiniPlayerTransition } from "./video-core"
-import { isPopoutWindow } from "./video-core-popout-resume"
 import { vc_fullscreenManager } from "./video-core-fullscreen"
 
 export function VideoCoreTopSection(props: { children?: React.ReactNode, inline?: boolean }) {
@@ -32,7 +31,7 @@ export function VideoCoreTopSection(props: { children?: React.ReactNode, inline?
                 data-vc-element="control-bar-top-section"
                 className={cn(
                     "absolute left-0 w-full py-4 px-5 duration-200 transition-[opacity,transform] opacity-0 z-[999] transform-gpu",
-                    (__isDesktop__ && !isPopoutWindow() && ((inline && fullscreen) || !inline)) ? "top-8" : "top-0",
+                    (__isDesktop__ && ((inline && fullscreen) || !inline)) ? "top-8" : "top-0",
                     showTopSection && "opacity-100",
                     isMiniPlayer && "top-0",
                 )}

@@ -99,7 +99,7 @@ import { VideoCoreSubtitleMenu } from "@/app/(main)/_features/video-core/video-c
 import { VideoCoreSubtitleManager } from "@/app/(main)/_features/video-core/video-core-subtitles"
 import { vc_timeRangeElement, VideoCoreTimeRange } from "@/app/(main)/_features/video-core/video-core-time-range"
 import { VideoCoreTopPlaybackInfo, VideoCoreTopSection } from "@/app/(main)/_features/video-core/video-core-top-section"
-import { isPopoutWindow, takePendingPopoutResume } from "@/app/(main)/_features/video-core/video-core-popout-resume"
+import { takePendingPopoutResume } from "@/app/(main)/_features/video-core/video-core-popout-resume"
 import { VideoCoreWatchPartyChat } from "@/app/(main)/_features/video-core/video-core-watch-party-chat"
 import {
     vc_autoNextAtom,
@@ -2033,7 +2033,7 @@ export function VideoCore(props: VideoCoreProps) {
                     hideCloseButton
                     closeClass={cn(
                         "z-[99]",
-                        __isDesktop__ && !isMiniPlayer && !isPopoutWindow() && "top-8",
+                        __isDesktop__ && !isMiniPlayer && "top-8",
                         isMiniPlayer && "left-4",
                     )}
                     data-native-player-drawer
@@ -2193,7 +2193,7 @@ function FloatingButtons(props: { part: "video" | "loading", onTerminateStream: 
                 data-vc-element="loading-floating-buttons-container"
                 data-vc-for={part}
                 className={cn(
-                    isPopoutWindow() ? "absolute top-0 w-full z-[100]" : "absolute top-8 w-full z-[100]",
+                    "absolute top-8 w-full z-[100]",
                     isMiniPlayer && "top-0",
                 )}
             >

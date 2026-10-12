@@ -14,7 +14,7 @@
  * the stream terminates.
  */
 import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
-import { vc_miniPlayer, vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { NativePlayer } from "@/app/(main)/_features/native-player/native-player"
 import { VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
@@ -26,9 +26,8 @@ import { AnimeThemeProvider } from "@/lib/theme/anime-themes/anime-theme-provide
 import { UICustomizeProvider } from "@/lib/ui-customize/ui-customize-provider"
 import { useSearchParams } from "@/lib/navigation"
 import { logger } from "@/lib/helpers/debug"
-import { useAtom, useAtomValue } from "jotai"
+import { useAtomValue } from "jotai"
 import React from "react"
-import ReactDOM from "react-dom"
 import { ImSpinner2 } from "react-icons/im"
 import { LuArrowUpLeft } from "react-icons/lu"
 import { cn } from "@/components/ui/core/styling"
@@ -112,7 +111,7 @@ function PopoutWindowDrag() {
 
         const NO_DRAG = [
             "button", "a", "input", "select", "textarea",
-            "[role='slider']", "[role='menu']", "[role='menuitem']", "[role='listbox']",
+            "[role='slider']", "[role='menu']", "[role='menuitem']", "[role='dialog']", "[role='listbox']",
             "[data-vc-element='time-range']", "[data-radix-popper-content-wrapper]", "[data-popout-nodrag]",
         ].join(",")
         const THRESHOLD = 4
@@ -187,12 +186,7 @@ function PopoutReturnButton() {
     const nativePlayerState = useAtomValue(nativePlayer_stateAtom)
     const searchParams = useSearchParams()
     const [visible, setVisible] = React.useState(true)
-    const [isMiniPlayer, setMiniPlayer] = useAtom(vc_miniPlayer)
 
-    // A bare popout has no mini mode: its overlay would swallow every click on the player.
-    React.useEffect(() => {
-        if (isMiniPlayer) setMiniPlayer(false)
-    }, [isMiniPlayer, setMiniPlayer])
     React.useEffect(() => {
         let timeout: ReturnType<typeof setTimeout> | undefined
         const show = () => {
@@ -230,23 +224,21 @@ function PopoutReturnButton() {
         })
     }
 
-    return ReactDOM.createPortal(
+    return (
         <button
             type="button"
             data-popout-nodrag
             onClick={returnToMain}
-            style={{ pointerEvents: visible ? "auto" : "none", zIndex: 2147483647 }}
             className={cn(
-                "fixed top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full",
+                "fixed top-3 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 rounded-full",
                 "bg-black/60 hover:bg-black/80 text-white text-sm font-medium px-3 py-1.5",
                 "backdrop-blur transition-opacity duration-200",
-                visible ? "opacity-100" : "opacity-0",
+                visible ? "opacity-100" : "opacity-0 pointer-events-none",
             )}
         >
             <LuArrowUpLeft className="size-4" />
             Return to Seaserver
-        </button>,
-        document.body,
+        </button>
     )
 }
 
