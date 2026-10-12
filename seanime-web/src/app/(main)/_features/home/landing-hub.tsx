@@ -59,7 +59,7 @@ export function LandingHub() {
     return (
         <>
             <CustomLibraryBanner discrete />
-            <PageWrapper className="relative p-4 sm:p-6 lg:p-10 space-y-10 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.55)_100%)] min-h-screen">
+            <PageWrapper className="relative p-4 sm:p-6 lg:p-10 space-y-10 min-h-screen">
                 {/* Soft brand glows give the wallpaper some colour without covering it */}
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] -z-0 bg-[radial-gradient(60%_80%_at_15%_0%,rgb(var(--color-brand-500)/0.28),transparent_70%),radial-gradient(45%_70%_at_90%_10%,rgb(var(--color-brand-300)/0.16),transparent_70%)]" />
 
@@ -79,14 +79,14 @@ export function LandingHub() {
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-                                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 backdrop-blur-md px-5 py-2.5 text-sm text-white/90 hover:bg-white/20 hover:border-[--brand]/60 transition-all"
+                                className="flex items-center gap-2 rounded-full border border-white/30 bg-black/50 backdrop-blur-md shadow-lg shadow-black/30 px-5 py-2.5 text-sm font-medium text-white hover:bg-black/60 hover:border-[--brand]/70 transition-all"
                             >
                                 <FiSearch className="w-4 h-4" />
                                 Search
                             </button>
                             <button
                                 onClick={() => setSettingsOpen(true)}
-                                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 backdrop-blur-md px-5 py-2.5 text-sm text-white/90 hover:bg-white/20 hover:border-[--brand]/60 transition-all"
+                                className="flex items-center gap-2 rounded-full border border-white/30 bg-black/50 backdrop-blur-md shadow-lg shadow-black/30 px-5 py-2.5 text-sm font-medium text-white hover:bg-black/60 hover:border-[--brand]/70 transition-all"
                                 title="Landing page settings"
                             >
                                 <LuSettings2 className="w-4 h-4" />
