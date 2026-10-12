@@ -14,7 +14,7 @@
  * the stream terminates.
  */
 import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
-import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_busy, vc_hoveringControlBar, vc_paused, vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { NativePlayer } from "@/app/(main)/_features/native-player/native-player"
 import { VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
@@ -207,32 +207,15 @@ function PopoutReturnButton() {
         })
     }
 
-    const [visible, setVisible] = React.useState(false)
-    const hideTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+    // Same visibility rule as the player's other top controls: shown while paused, busy or
+    // hovering the controls, and slid up and faded out otherwise.
+    const busy = useAtomValue(vc_busy)
+    const paused = useAtomValue(vc_paused)
+    const hoveringControlBar = useAtomValue(vc_hoveringControlBar)
+    const [hovered, setHovered] = React.useState(false)
+    const visible = busy || paused || hoveringControlBar || hovered
 
-    React.useEffect(() => {
-        const show = () => {
-            setVisible(true)
-            if (hideTimer.current) clearTimeout(hideTimer.current)
-            hideTimer.current = setTimeout(() => setVisible(false), 2500)
-        }
-        const hide = () => {
-            if (hideTimer.current) clearTimeout(hideTimer.current)
-            setVisible(false)
-        }
-        window.addEventListener("pointermove", show, true)
-        window.addEventListener("pointerdown", show, true)
-        document.documentElement.addEventListener("mouseleave", hide)
-        return () => {
-            window.removeEventListener("pointermove", show, true)
-            window.removeEventListener("pointerdown", show, true)
-            document.documentElement.removeEventListener("mouseleave", hide)
-            if (hideTimer.current) clearTimeout(hideTimer.current)
-        }
-    }, [])
-
-    const fade = `pointer-events-auto transition-opacity duration-200 hover:opacity-100 ${visible ? "opacity-100" : "opacity-60"}`
-
+    const fade = `${visible ? "pointer-events-auto" : "pointer-events-none"} transition-opacity duration-200`
     return createPortal(
         <>
             {/* OS-level drag handle between the player's top-left and top-right controls. It is
@@ -241,15 +224,23 @@ function PopoutReturnButton() {
                 className="fixed top-0 left-[150px] right-[240px] h-9 z-[2147483000] select-none"
                 style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
             />
-            <div className="fixed top-0 left-0 right-0 h-12 z-[2147483001] pointer-events-none flex items-center justify-center">
+            <div
+                className="fixed top-0 left-0 right-0 py-4 px-5 z-[2147483001] pointer-events-none flex items-center justify-center gap-3 duration-200 transition-[opacity,transform] transform-gpu"
+                style={{
+                    opacity: visible ? 1 : 0,
+                    transform: visible ? "translateY(0)" : "translateY(-20px)",
+                }}
+            >
                 <button
                     type="button"
                     data-popout-nodrag
                     onClick={returnToMain}
+                    onMouseEnter={() => setHovered(true)}
+                    onMouseLeave={() => setHovered(false)}
                     style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-                    className={`${fade} flex items-center gap-1.5 rounded-full bg-black/70 border border-white/15 text-white/90 hover:text-white hover:bg-white/15 text-xs font-medium px-3 py-1.5`}
+                    className={`${fade} flex items-center gap-2 text-white/90 hover:text-white text-sm font-semibold drop-shadow-md`}
                 >
-                    <LuArrowUpLeft className="size-3.5" />
+                    <LuArrowUpLeft className="size-5" />
                     Return to Denshi
                 </button>
                 <button
@@ -257,10 +248,12 @@ function PopoutReturnButton() {
                     data-popout-nodrag
                     aria-label="Close"
                     onClick={() => window.close()}
+                    onMouseEnter={() => setHovered(true)}
+                    onMouseLeave={() => setHovered(false)}
                     style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-                    className={`${fade} ml-2 size-7 rounded-full bg-black/70 border border-white/15 flex items-center justify-center text-white/80 hover:text-white hover:bg-red-600`}
+                    className={`${fade} text-white/80 hover:text-red-400 drop-shadow-md`}
                 >
-                    <LuX className="size-4" />
+                    <LuX className="size-5" />
                 </button>
             </div>
         </>,
