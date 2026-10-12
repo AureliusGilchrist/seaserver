@@ -1067,6 +1067,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.GET("/update/notice", h.HandleGetUpdateNotice)
 	v1.POST("/update/backend", h.HandleUpdateBackend)
 	v1.POST("/anilist/overwrite", h.HandleOverwriteAnilist)
+	v1.POST("/anilist/overwrite/preview", h.HandleOverwriteAnilistPreview)
 	v1.POST("/update/notice/dismiss", h.HandleDismissUpdateNotice)
 
 	v1.GET("/profile/exp-bar/all", h.HandleGetExpBarProgression)

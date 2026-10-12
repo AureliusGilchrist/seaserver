@@ -32,7 +32,11 @@ export function useGetUpdateNotice({ enabled }: { enabled?: boolean } = {}) {
 }
 
 export function useUpdateBackend() {
-    return useServerMutation<{ started: boolean, message: string }, {}>({
+    return useServerMutation<{
+        started: boolean,
+        message: string,
+        files?: { path: string, insertions: number, deletions: number }[]
+    }, {}>({
         endpoint: "/api/v1/update/backend",
         method: "POST",
         mutationKey: ["update-backend"],
@@ -44,6 +48,30 @@ export function useOverwriteAnilist() {
         endpoint: "/api/v1/anilist/overwrite",
         method: "POST",
         mutationKey: ["anilist-overwrite"],
+    })
+}
+
+export interface OverwriteChange {
+    kind: "add" | "update" | "remove"
+    media: "anime" | "manga"
+    mediaId: number
+    title: string
+    fields: string[]
+}
+
+export interface OverwritePreview {
+    changes: OverwriteChange[]
+    add: number
+    update: number
+    remove: number
+    unchanged: number
+}
+
+export function useOverwriteAnilistPreview() {
+    return useServerMutation<OverwritePreview, {}>({
+        endpoint: "/api/v1/anilist/overwrite/preview",
+        method: "POST",
+        mutationKey: ["anilist-overwrite-preview"],
     })
 }
 

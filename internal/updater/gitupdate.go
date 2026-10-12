@@ -215,24 +215,26 @@ func CurrentGitUpdater() *GitAutoUpdater {
 // UpdateNow is the manual "update backend": it fetches origin (the fork's repository) and, when the
 // checkout is behind, pulls, builds and restarts in the background. It reports whether an update
 // was started; the build and restart themselves happen after this returns.
-func (u *GitAutoUpdater) UpdateNow() (started bool, err error) {
+func (u *GitAutoUpdater) UpdateNow() (started bool, files []FileChange, err error) {
 	if !u.updating.CompareAndSwap(false, true) {
-		return false, fmt.Errorf("an update is already running")
+		return false, nil, fmt.Errorf("an update is already running")
 	}
 	behind, err := u.checkForUpdate()
 	if err != nil {
 		u.updating.Store(false)
-		return false, err
+		return false, nil, err
 	}
 	if !behind {
 		u.updating.Store(false)
-		return false, nil
+		return false, nil, nil
 	}
+	// Read before the background update merges, after which there is nothing left to diff.
+	files = u.PendingChanges()
 	go func() {
 		defer u.updating.Store(false)
 		u.runUpdate()
 	}()
-	return true, nil
+	return true, files, nil
 }
 
 // RemoteCommit returns the commit the checkout is behind, without fetching — the ref the update
@@ -408,6 +410,41 @@ type UpdateNotice struct {
 }
 
 type updateStats struct{ files, insertions, deletions int }
+
+// FileChange is one file an update touches and how many lines it adds and removes.
+type FileChange struct {
+	Path       string `json:"path"`
+	Insertions int    `json:"insertions"`
+	Deletions  int    `json:"deletions"`
+}
+
+// PendingChanges lists the files the update would change, read from the last fetch.
+func (u *GitAutoUpdater) PendingChanges() []FileChange {
+	branch, err := u.git("rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return nil
+	}
+	return u.diffFiles(fmt.Sprintf("%s/%s", gitUpdateRemote, strings.TrimSpace(branch)))
+}
+
+func (u *GitAutoUpdater) diffFiles(remoteRef string) []FileChange {
+	out, err := u.git("diff", "--numstat", "HEAD", remoteRef)
+	if err != nil {
+		return nil
+	}
+	var files []FileChange
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		parts := strings.SplitN(strings.TrimSpace(line), "\t", 3)
+		if len(parts) != 3 {
+			continue
+		}
+		// Binary files report "-" for both counts.
+		ins, _ := strconv.Atoi(parts[0])
+		del, _ := strconv.Atoi(parts[1])
+		files = append(files, FileChange{Path: parts[2], Insertions: ins, Deletions: del})
+	}
+	return files
+}
 
 var shortstatRe = regexp.MustCompile(`(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?`)
 

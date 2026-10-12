@@ -33,7 +33,7 @@ func (h *Handler) HandleUpdateBackend(c echo.Context) error {
 	if u == nil {
 		return h.RespondWithError(c, errors.New("this server is not running from a git checkout, so it cannot update itself"))
 	}
-	started, err := u.UpdateNow()
+	started, files, err := u.UpdateNow()
 	if err != nil {
 		return h.RespondWithError(c, err)
 	}
@@ -41,12 +41,13 @@ func (h *Handler) HandleUpdateBackend(c echo.Context) error {
 	if started {
 		msg = "Update found. The server is building it and will restart shortly."
 	}
-	return h.RespondWithData(c, UpdateBackendResponse{Started: started, Message: msg})
+	return h.RespondWithData(c, UpdateBackendResponse{Started: started, Message: msg, Files: files})
 }
 
 type UpdateBackendResponse struct {
-	Started bool   `json:"started"`
-	Message string `json:"message"`
+	Started bool                 `json:"started"`
+	Message string               `json:"message"`
+	Files   []updater.FileChange `json:"files,omitempty"`
 }
 
 // HandleGetUpdateNotice
