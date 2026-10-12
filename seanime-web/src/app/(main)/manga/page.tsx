@@ -129,6 +129,13 @@ export default function Page() {
 
     const homeItems = React.useMemo(() => {
         let ret = !!mangaHomeItems?.length ? mangaHomeItems : DEFAULT_MANGA_HOME_ITEMS
+        // Saved layouts that predate the stats row get it right above the library.
+        if (!ret.some(n => n.type === "local-manga-library-stats")) {
+            const libIdx = ret.findIndex(n => n.type === "manga-library")
+            if (libIdx >= 0) {
+                ret = [...ret.slice(0, libIdx), { id: "local-manga-library-stats", type: "local-manga-library-stats", schemaVersion: 1 }, ...ret.slice(libIdx)]
+            }
+        }
         // The header's banner, metadata block and chapter card are all lg-only, so below lg the
         // header collapses to an empty block — the same reason the anime home swaps its
         // continue-watching header for the carousel on mobile.
@@ -669,27 +676,32 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
         )
     }
 
-    // Local Manga Library Stats (downloads only)
+    // Local Manga Library Stats, laid out like the anime home's row
     if (item.type === "local-manga-library-stats") {
-        const totalSeries = downloadedList?.length || 0
+        const entries = mangaCollection?.lists?.flatMap((l: any) => l.entries ?? []).filter(Boolean) ?? []
+        const countOf = (type: string) => mangaCollection?.lists?.find((l: any) => l.type === type)?.entries?.length ?? 0
+        const stats: [string | number, string][] = [
+            [entries.length, "Entries"],
+            [countOf("CURRENT"), "Reading"],
+            [countOf("COMPLETED"), "Completed"],
+            [downloadedList?.length ?? 0, "Downloaded series"],
+            [downloadedChaptersTotal, "Downloaded chapters"],
+            [downloadedWithMedia.length, "With metadata"],
+        ]
         return (
-            <div className="px-4 py-8">
-                <h2 className="text-xl font-semibold text-white mb-4">Downloads Statistics</h2>
-                <div className="grid gap-4 md:grid-cols-3 bg-gray-900/50 border border-gray-800 rounded-xl p-4 text-sm text-gray-100">
-                    <div className="space-y-1">
-                        <p className="text-xs text-gray-400">Total Series</p>
-                        <p className="text-lg font-semibold">{totalSeries}</p>
-                    </div>
-                    <div className="space-y-1">
-                        <p className="text-xs text-gray-400">Total Chapters</p>
-                        <p className="text-lg font-semibold">{downloadedChaptersTotal}</p>
-                    </div>
-                    <div className="space-y-1">
-                        <p className="text-xs text-gray-400">With Metadata</p>
-                        <p className="text-lg font-semibold">{downloadedWithMedia.length}</p>
-                    </div>
+            <PageWrapper>
+                <div
+                    className="grid grid-cols-3 lg:grid-cols-6 gap-4 [&>div]:text-center [&>div>p]:text-[--muted] py-4"
+                    data-manga-library-stats-container
+                >
+                    {stats.map(([value, label]) => (
+                        <div key={label}>
+                            <h3>{value}</h3>
+                            <p>{label}</p>
+                        </div>
+                    ))}
                 </div>
-            </div>
+            </PageWrapper>
         )
     }
 

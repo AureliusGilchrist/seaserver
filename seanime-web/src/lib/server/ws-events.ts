@@ -29,6 +29,7 @@ export const enum WSEvents {
     TORRENT_ADD_QUEUE_UPDATED = "torrent-add-queue-updated",
     UPDATE_NOTICE_AVAILABLE = "update-notice-available",
     SERVER_GOING_DOWN = "server-going-down",
+    ANILIST_OVERWRITE_COMPLETED = "anilist-overwrite-completed",
     MANGA_CHAPTER_MIGRATION_PROGRESS = "manga-chapter-migration-progress",
     OFFLINE_SNAPSHOT_CREATED = "offline-snapshot-created",
     MEDIASTREAM_SHUTDOWN_STREAM = "mediastream-shutdown-stream",

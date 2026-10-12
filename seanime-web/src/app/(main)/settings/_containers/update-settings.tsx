@@ -1,4 +1,6 @@
-import { useUpdateBackend } from "@/api/hooks/update-notice.hooks"
+import { useOverwriteAnilist, useUpdateBackend } from "@/api/hooks/update-notice.hooks"
+import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
+import { WSEvents } from "@/lib/server/ws-events"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
 import { Button } from "@/components/ui/button"
 import React from "react"
@@ -6,7 +8,53 @@ import { toast } from "sonner"
 
 type Target = "backend" | "frontend"
 
+function AnilistOverwriteCard() {
+    const { mutateAsync, isPending } = useOverwriteAnilist()
+    const [busy, setBusy] = React.useState(false)
+
+    useWebsocketMessageListener<{ ok: boolean, message: string }>({
+        type: WSEvents.ANILIST_OVERWRITE_COMPLETED,
+        onMessage: data => {
+            setBusy(false)
+            if (data.ok) toast.success(data.message)
+            else toast.error(data.message)
+        },
+    })
+
+    async function start() {
+        if (!window.confirm("This overwrites your AniList lists so they match this library exactly: statuses, scores, progress and dates. Entries that are on AniList but not in the library will be deleted. Continue?")) return
+        try {
+            await mutateAsync({})
+            setBusy(true)
+            toast.info("Overwriting AniList with your library...")
+        }
+        catch {
+            setBusy(false)
+        }
+    }
+
+    return (
+        <SettingsCard title="AniList">
+            <p className="text-sm text-[--muted]">
+                Overwrites AniList with exactly what is in your library: every status, score, progress and date. Entries not in your library are removed from AniList.
+            </p>
+            <Button intent="alert-subtle" loading={isPending || busy} disabled={isPending || busy} onClick={start}>
+                Overwrite AniList
+            </Button>
+        </SettingsCard>
+    )
+}
+
 export function UpdateSettings() {
+    return (
+        <div className="space-y-4">
+            <AnilistOverwriteCard />
+            {!!window.electron?.liveUpdate && <ElectronUpdates />}
+        </div>
+    )
+}
+
+function ElectronUpdates() {
     const [detectedRoot, setDetectedRoot] = React.useState<string | null>(null)
     const [detectedOrigin, setDetectedOrigin] = React.useState<string | null>(null)
     const [running, setRunning] = React.useState<Target | null>(null)

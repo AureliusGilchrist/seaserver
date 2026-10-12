@@ -32,10 +32,9 @@ export function useMangaContinueReadingList(): { entries: MangaContinueReadingEn
 
     return React.useMemo(() => {
         if (!collection) return { entries: [], isLoading: false }
-        // The order comes from the history, so render nothing until it settles — success or
-        // failure. On failure the history reads as empty and the collection alone drives the list,
-        // which is the honest answer rather than a blank section.
-        if (historyLoading) return { entries: [], isLoading: true }
+        // Render from the collection straight away; the history only refines the order once it
+        // arrives, so the header never waits on it.
+        void historyLoading
 
         const history: MangaReadingHistory[] = readingHistory ?? []
         const historyByMediaId = new Map<number, MangaReadingHistory>()

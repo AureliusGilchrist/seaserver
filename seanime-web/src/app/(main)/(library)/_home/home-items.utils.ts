@@ -55,6 +55,7 @@ export const MANGA_HOME_ITEM_IDS = [
     "manga-favorites",
     "my-lists",
     "local-manga-library",
+    "local-manga-library-stats",
     "manga-upcoming-chapters",
     "manga-aired-recently",
     "manga-missed-sequels",
@@ -555,6 +556,12 @@ export const HOME_ITEMS = {
         kind: ["row"],
         schemaVersion: 1,
         description: "Display your favorite manga series.",
+    },
+    "local-manga-library-stats": {
+        name: "Local Manga Library Stats",
+        kind: ["row"],
+        schemaVersion: 1,
+        description: "Display the stats for your manga library and downloads.",
     },
     "local-manga-library": {
         name: "Local Manga Library",

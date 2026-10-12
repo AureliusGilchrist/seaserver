@@ -39,6 +39,14 @@ export function useUpdateBackend() {
     })
 }
 
+export function useOverwriteAnilist() {
+    return useServerMutation<boolean, {}>({
+        endpoint: "/api/v1/anilist/overwrite",
+        method: "POST",
+        mutationKey: ["anilist-overwrite"],
+    })
+}
+
 export function useDismissUpdateNotice() {
     const queryClient = useQueryClient()
     return useServerMutation<boolean, {}>({

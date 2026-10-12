@@ -115,7 +115,7 @@ export function MangaContinueReading({ list, onHoverImage, withTitle }: MangaCon
                             return (
                                 <CarouselItem
                                     key={`history-${item.mediaId}`}
-                                    className={episodeCardCarouselItemClass(ts.smallerEpisodeCarouselSize)}
+                                    className="basis-[9.5rem] md:basis-[11rem] lg:basis-[12rem]"
                                 >
                                     <SeaLink
                                         href={`/manga/entry?id=${item.mediaId}`}
@@ -125,13 +125,13 @@ export function MangaContinueReading({ list, onHoverImage, withTitle }: MangaCon
                                     >
                                         <div
                                             className={cn(
-                                                "relative aspect-[4/2] w-full overflow-hidden rounded-xl",
-                                                "border border-gray-800 bg-gray-900/70",
+                                                "relative aspect-[2/3] w-full overflow-hidden rounded-xl",
+                                                "border border-gray-800 bg-gradient-to-b from-gray-800 to-gray-900",
                                                 "flex flex-col items-center justify-center gap-2",
                                                 "transition group-hover/dl-card:border-gray-600 group-hover/dl-card:bg-gray-900",
                                             )}
                                         >
-                                            <LuBookMarked className="text-4xl text-gray-700" />
+                                            <LuBookMarked className="text-5xl text-gray-600" />
                                             <p className="px-3 text-center text-xs text-[--muted]">Manga ID: {item.mediaId}</p>
                                         </div>
                                         <div className="pt-2 space-y-0.5">

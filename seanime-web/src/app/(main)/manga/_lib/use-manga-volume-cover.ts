@@ -22,12 +22,38 @@ async function fetchVolumeOneCover(title: string): Promise<string | null> {
     return file ? `https://uploads.mangadex.org/covers/${id}/${file}.512.jpg` : null
 }
 
+const CACHE_KEY = "sea-manga-volume-covers"
+
+function readCached(title: string): string | undefined {
+    try {
+        return (JSON.parse(localStorage.getItem(CACHE_KEY) || "{}") as Record<string, string>)[title] || undefined
+    }
+    catch {
+        return undefined
+    }
+}
+
+function writeCached(title: string, url: string | null) {
+    if (!url) return
+    try {
+        const all = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}") as Record<string, string>
+        all[title] = url
+        localStorage.setItem(CACHE_KEY, JSON.stringify(all))
+    }
+    catch {}
+}
+
 /** The volume 1 cover of a manga (portrait), falling back to the AniList cover. */
 export function useMangaVolumeCover(media: VolumeCoverMedia): string | null {
     const title = media?.title?.english || media?.title?.romaji || media?.title?.userPreferred || ""
     const { data } = useQuery({
         queryKey: ["manga-volume-1-cover", title],
-        queryFn: () => fetchVolumeOneCover(title),
+        queryFn: async () => {
+            const url = await fetchVolumeOneCover(title)
+            writeCached(title, url)
+            return url
+        },
+        initialData: () => (title ? readCached(title) : undefined),
         enabled: !!title,
         staleTime: Infinity,
         gcTime: 7 * 24 * 60 * 60 * 1000,

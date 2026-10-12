@@ -21,6 +21,7 @@ import { useAtom } from "jotai/react"
 import { AnimatePresence, motion } from "motion/react"
 import React from "react"
 import { RiSignalTowerLine } from "react-icons/ri"
+import { LuBookMarked } from "react-icons/lu"
 import { useWindowScroll } from "react-use"
 import { MangaContinueReadingEntry } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
 
@@ -241,13 +242,10 @@ function ChapterCardSidebar({ item, isTransitioning }: ChapterCardSidebarProps) 
         <motion.div
             className={cn(
                 "absolute right-6 w-fit z-[3] hidden lg:block overflow-hidden",
-                "top-[5rem]",
-                ts.hideTopNavbar && "top-[4rem]",
-                (__isDesktop__ && ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small) && "top-[1rem]",
-                (__isDesktop__ && ts.mediaPageBannerSize !== ThemeMediaPageBannerSize.Small) && "top-[3rem]",
+                "top-[0.5rem]",
             )}
         >
-            <div className="p-6 w-fit">
+            <div className="p-2 w-fit">
                 <motion.div
                     {...{
                         initial: { opacity: 0, x: 40 },
@@ -259,7 +257,7 @@ function ChapterCardSidebar({ item, isTransitioning }: ChapterCardSidebarProps) 
                             stiffness: 100,
                         },
                     }}
-                    className="w-[220px] rounded-xl overflow-hidden"
+                    className="w-[170px] rounded-xl overflow-hidden"
                 >
                     <div
                         className="rounded-xl space-y-2 flex-none group/episode-card cursor-pointer select-none w-full"
@@ -281,8 +279,8 @@ function ChapterCardSidebar({ item, isTransitioning }: ChapterCardSidebarProps) 
                                 sizes="14rem"
                                 className="object-cover rounded-xl object-center transition lg:group-hover/episode-card:scale-[1.02] duration-200"
                             /> : <div
-                                className="h-full block rounded-xl absolute w-full bg-gradient-to-t from-gray-800 to-transparent z-[2]"
-                            />}
+                                className="h-full w-full rounded-xl absolute inset-0 bg-gradient-to-b from-gray-800 to-gray-900 z-[2] flex items-center justify-center"
+                            ><LuBookMarked className="text-5xl text-gray-600" /></div>}
                         </div>
 
                         <div className="relative z-[3] w-full space-y-0">
@@ -458,7 +456,7 @@ export function MangaContinueReadingHeader({ list, className }: { list: MangaCon
             {...{
                 initial: { opacity: 0 },
                 animate: { opacity: 1 },
-                transition: { duration: 1.2 },
+                transition: { duration: 0.4 },
             }}
         >
 

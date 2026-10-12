@@ -90,34 +90,6 @@ func LoadExtensions(extensionRepository *extension_repo.Repository, logger *zero
 		Lang:        "multi",
 	}, torrent_providers.NewShanaProject())
 
-	extensionRepository.ReloadBuiltInExtension(extension.Extension{
-		ID:          torrent_providers.BakaBTProviderID,
-		Name:        "BakaBT",
-		Version:     "1.0.0",
-		ManifestURI: "builtin",
-		Language:    extension.LanguageGo,
-		Type:        extension.TypeAnimeTorrentProvider,
-		Author:      "Seanime",
-		Description: "Anime torrent provider for bakabt.me (private tracker, requires login)",
-		Lang:        "multi",
-		UserConfig: &extension.UserConfig{
-			Version:        1,
-			RequiresConfig: true,
-			Fields: []extension.ConfigField{
-				{
-					Type:  extension.ConfigFieldTypeText,
-					Name:  "username",
-					Label: "BakaBT Username",
-				},
-				{
-					Type:  extension.ConfigFieldTypeText,
-					Name:  "password",
-					Label: "BakaBT Password",
-				},
-			},
-		},
-	}, torrent_providers.NewBakaBT())
-
 	// Load built-in onlinestream providers
 	//
 	// These ship with the server rather than arriving as extensions from a repository, which is

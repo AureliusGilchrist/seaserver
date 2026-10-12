@@ -71,6 +71,7 @@ const (
 	TorrentAddQueueUpdated        = "torrent-add-queue-updated"
 	UpdateNoticeAvailable         = "update-notice-available"
 	ServerGoingDown               = "server-going-down"
+	AnilistOverwriteCompleted     = "anilist-overwrite-completed"
 	MangaChapterMigrationProgress = "manga-chapter-migration-progress"
 	MangaScanProgress             = "manga-scan-progress"
 	MangaScanCompleted            = "manga-scan-completed"
