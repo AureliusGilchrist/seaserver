@@ -6,6 +6,7 @@ import { useUICustomize } from "@/lib/ui-customize/ui-customize-provider"
 import { EFFECTS_PRESETS } from "@/lib/ui-customize/ui-customize-definitions"
 import { motion } from "motion/react"
 import { usePathname } from "@/lib/navigation"
+import { ThemeBackgroundImage, useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { useAtomValue } from "jotai"
 import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-atoms"
 import React from "react"
@@ -80,7 +81,12 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     const pathname = usePathname()
     const { state: uiState } = useUICustomize()
     const isFullscreen = useAtomValue(vc_isFullscreen)
-
+    const animeTheme = useAnimeThemeOrNull()
+    const themeActive = !!animeTheme && animeTheme.config.id !== "seanime"
+    // The theme's Blur slider drives the wallpaper blur; without an anime theme the old fixed 40px stays.
+    const wallpaperBlurPx = themeActive ? animeTheme!.backgroundBlur : 40
+    // When the theme draws its own wallpaper it already carries these effects; only add them for the custom one.
+    const showThemeEffectsOnCustom = themeActive && !animeTheme!.activeBackgroundUrl
     // Exclude specific pages from background effects.
     // NOTE: anime/character detail pages (/entry) are intentionally NOT excluded —
     // users want their wallpaper (and scanlines/grain/glow/etc.) visible behind the
@@ -104,6 +110,12 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     // Build image filter string — combines slider glow, hue-rotate, and ink-wash
     const buildImageFilter = React.useCallback(() => {
         const parts: string[] = []
+        if (showThemeEffectsOnCustom) {
+            const t = animeTheme!
+            if (t.backgroundExposure !== 1) parts.push(`brightness(${t.backgroundExposure})`)
+            if (t.backgroundSaturation !== 1) parts.push(`saturate(${t.backgroundSaturation})`)
+            if (t.backgroundContrast !== 1) parts.push(`contrast(${t.backgroundContrast})`)
+        }
         if (ts.libraryScreenCustomBackgroundGlow > 0) {
             parts.push(`brightness(${1 + ts.libraryScreenCustomBackgroundGlow * 0.025})`)
             parts.push(`saturate(${1 + ts.libraryScreenCustomBackgroundGlow * 0.015})`)
@@ -116,7 +128,7 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
             parts.push("contrast(1.08)")
         }
         return parts.length > 0 ? parts.join(" ") : undefined
-    }, [ts.libraryScreenCustomBackgroundGlow, hueRotate, hasInkWash])
+    }, [ts.libraryScreenCustomBackgroundGlow, hueRotate, hasInkWash, showThemeEffectsOnCustom, animeTheme?.backgroundExposure, animeTheme?.backgroundSaturation, animeTheme?.backgroundContrast])
 
     // Dim alpha: derived from opacity slider so the overlay darkens/lightens visibly
     // opacity=10  → dimAlpha ≈ 0.845  (very dark)
@@ -144,11 +156,15 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                     className="fixed w-full h-full inset-0 pointer-events-none"
                     data-custom-background-image
                 >
-                    {/* Dim/blur overlay — opacity driven by the settings slider */}
+                    {/* Dim/blur overlay — dim from the opacity slider, blur from the theme's Blur slider */}
                     <div
                         data-custom-background-image-blur
-                        className="fixed w-full h-full inset-0 z-[0] backdrop-blur-2xl transition-all duration-1000"
-                        style={{ backgroundColor: `rgba(0,0,0,${dimAlpha})` }}
+                        className="fixed w-full h-full inset-0 z-[0] transition-all duration-1000"
+                        style={{
+                            backgroundColor: `rgba(0,0,0,${dimAlpha})`,
+                            backdropFilter: wallpaperBlurPx > 0 ? `blur(${wallpaperBlurPx}px)` : "none",
+                            WebkitBackdropFilter: wallpaperBlurPx > 0 ? `blur(${wallpaperBlurPx}px)` : "none",
+                        }}
                     />
 
                     {/* Base wallpaper */}
@@ -164,6 +180,24 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
                         }}
                         {...rest}
                     />
+
+                    {showThemeEffectsOnCustom && !isFullscreen && (
+                        <ThemeBackgroundImage
+                            effectsOnly
+                            url=""
+                            scanlinesStrength={animeTheme!.scanlinesStrength}
+                            scanlinesSize={animeTheme!.scanlinesSize}
+                            noiseStrength={animeTheme!.noiseStrength}
+                            noiseSpeed={animeTheme!.noiseSpeed}
+                            noiseScale={animeTheme!.noiseScale}
+                            vignetteStrength={animeTheme!.vignetteStrength}
+                            vignetteSize={animeTheme!.vignetteSize}
+                            glowStrength={animeTheme!.glowStrength}
+                            glowSpeed={animeTheme!.glowSpeed}
+                            glowScale={animeTheme!.glowScale}
+                            hologramStrength={animeTheme!.hologramStrength}
+                        />
+                    )}
 
                     {/* ── Bloom/glow from settings slider ── */}
                     {ts.libraryScreenCustomBackgroundGlow > 0 && (

@@ -312,10 +312,9 @@ export function AnimeEntryPage() {
 
     return (
         <div data-anime-entry-page data-media={JSON.stringify(animeEntry.media)} data-anime-entry-list-data={JSON.stringify(animeEntry.listData)}>
-            {/* The header sits just under the global effects layer (z-[5]) so the scanlines / grain /
-                vignette / glow cover the banner and the wallpaper around it exactly as they do on
-                every other page. Content sits above at z-[8]. */}
-            <div className="relative z-[4]">
+            {/* The header sits above the global effects layer (z-[5]) so the theme's scanlines / grain /
+                vignette / glow / blur only decorate the wallpaper, never the banner. Content is at z-[8]. */}
+            <div className="relative z-[6]">
                 <MetaSection entry={animeEntry} details={animeDetails} />
             </div>
 
