@@ -227,8 +227,8 @@ func (m *Manager) UpdateWatchHistoryItem(opts *UpdateWatchHistoryItemOptions) (e
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Don't save if less than 30 seconds watched
-	if opts.CurrentTime < MinSaveTimeSeconds {
+	// Always store the latest position; positions under the minimum are ignored when reading
+	if opts.CurrentTime <= 0 {
 		return nil
 	}
 
@@ -618,8 +618,8 @@ func (m *Manager) UpdateWatchHistoryItemForProfile(profileID uint, opts *UpdateW
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Don't save if less than 30 seconds watched
-	if opts.CurrentTime < MinSaveTimeSeconds {
+	// Always store the latest position; positions under the minimum are ignored when reading
+	if opts.CurrentTime <= 0 {
 		return nil
 	}
 

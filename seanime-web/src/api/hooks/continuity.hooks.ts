@@ -37,6 +37,8 @@ export function useGetContinuityWatchHistoryItem(mediaId: Nullish<number | strin
         method: API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.methods[0],
         queryKey: [API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistoryItem.key, String(mediaId), force ? "force" : "default", String(episodeNumber ?? 0), exactResume ? "exact" : "std"],
         enabled: enabled && !!mediaId,
+        staleTime: 0,
+        refetchOnMount: "always",
     })
 }
 
@@ -46,6 +48,8 @@ export function useGetContinuityWatchHistory() {
         method: API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistory.methods[0],
         queryKey: [API_ENDPOINTS.CONTINUITY.GetContinuityWatchHistory.key],
         enabled: true,
+        staleTime: 0,
+        refetchOnMount: "always",
     })
 }
 
@@ -75,7 +79,7 @@ function getInProgressItem(history: Nullish<Continuity_WatchHistory>, mediaId: n
     const item = history[mediaId]
     if (!item) return undefined
     const candidate = item.episodes?.[progressNumber] ?? (item.episodeNumber === progressNumber ? item : undefined)
-    if (!candidate || !candidate.currentTime || !candidate.duration) return undefined
+    if (!candidate || candidate.currentTime < 30 || !candidate.duration) return undefined
     if (candidate.currentTime / candidate.duration >= CONTINUITY_FINISHED_RATIO) return undefined
     return candidate
 }

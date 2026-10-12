@@ -177,7 +177,7 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
                         data-src={image}
                     />}
 
-                    {(!!percentageComplete && !isWatched) &&
+                    {!!percentageComplete &&
                         <div data-episode-grid-item-progress-bar-container className="absolute bottom-0 left-0 w-full z-[3]">
                             <ProgressBar value={percentageComplete} size="xs" />
                             {!!minutesRemaining && <span className="absolute bottom-1.5 right-1.5 text-xs text-gray-200 drop-shadow">

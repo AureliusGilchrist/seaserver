@@ -83,7 +83,7 @@ func (m *Manager) SetSettings(settings *Settings) {
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.settings = settings
+	m.settings = &Settings{WatchContinuityEnabled: true}
 }
 
 // GetSettings returns the current settings.
