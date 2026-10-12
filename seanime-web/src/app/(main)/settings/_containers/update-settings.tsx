@@ -219,7 +219,9 @@ function ElectronUpdates() {
                 if (res?.behind && res.blocked) summary = `Update available. Note: ${res.blocked}`
                 else summary = res?.behind ? "Update available" : "Up to date"
             } else {
-                const res = target === "backend" ? await liveUpdate!.checkBackend() : await liveUpdate!.checkFrontend()
+                const fn = target === "backend" ? liveUpdate!.checkBackend : liveUpdate!.checkFrontend
+                if (typeof fn !== "function") throw new Error("this Denshi window is older than the update page; fully quit and restart Denshi")
+                const res = await fn()
                 if (!res.ok) throw new Error(res.error ?? "check failed")
                 files = res.files ?? []
                 if (target === "backend") summary = res.behind ? `Update available (${res.behind} new commit${res.behind === 1 ? "" : "s"})` : "Up to date"
