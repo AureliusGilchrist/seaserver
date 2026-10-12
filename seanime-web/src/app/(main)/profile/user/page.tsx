@@ -1,7 +1,7 @@
 "use client"
 
 import { useGetUserAchievements } from "@/api/hooks/achievement.hooks"
-import { useGetUserProfile } from "@/api/hooks/community.hooks"
+import { useGetMyProfile, useGetUserProfile } from "@/api/hooks/community.hooks"
 import { useGetUserProfileStats } from "@/api/hooks/profile-stats.hooks"
 import {
     Achievement_Category,
@@ -38,9 +38,12 @@ import { ToWatchList } from "@/app/(main)/profile/_components/to-watch-list"
 export default function Page() {
     const searchParams = useSearchParams()
     const currentProfile = useAtomValue(currentProfileAtom)
+    // The atom is only filled on profile login, so after a reload ask the server who "me" is
+    const { data: me } = useGetMyProfile()
     const id = Number(searchParams.get("id")) || 0
+    const ownId = currentProfile?.id ?? me?.profile?.id
     // Your own profile is the editable page, on the same URL everyone else sees
-    if (id > 0 && currentProfile?.id === id) return <MyProfilePage />
+    if (id > 0 && ownId === id) return <MyProfilePage />
     return <UserProfilePage />
 }
 
