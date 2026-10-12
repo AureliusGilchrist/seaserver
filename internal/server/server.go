@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"seanime/internal/core"
 	"seanime/internal/cron"
+	"seanime/internal/events"
 	"seanime/internal/handlers"
 	"seanime/internal/updater"
 	"seanime/internal/util"
@@ -113,6 +114,10 @@ appLoop:
 			// what an update was, so a client that was closed while it happened hears about it
 			// when it next signs in.
 			updater.StartGitAutoUpdate(app.Logger, app.WSEventManager, app.Config.Data.AppDataDir)
+
+			// Clients already connected hear that the server is ready; ones that connect in the
+			// next couple of minutes are told by the websocket manager as they join.
+			app.WSEventManager.SendEvent(events.SuccessToast, "Server successfully prepared!")
 
 			select {
 			case <-selfupdater.Started():

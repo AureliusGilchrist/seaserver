@@ -58,6 +58,7 @@ type (
 		Conns                              []*WSConn
 		Logger                             *zerolog.Logger
 		hasHadConnection                   bool
+		readyToasted                       map[string]struct{}
 		sidecarMonitorStopCh               chan struct{}
 		sidecarMonitorOnce                 sync.Once
 		sidecarMonitorStopOnce             sync.Once
@@ -161,15 +162,35 @@ func (m *WSEventManager) Stop() {
 	})
 }
 
+// serverStartedAt marks when this process came up. Clients that connect shortly after it are the
+// ones that were waiting for the server (a restart, an update) and are told it is ready.
+var serverStartedAt = time.Now()
+
+const serverReadyToastWindow = 2 * time.Minute
+
 func (m *WSEventManager) AddConn(id string, profileID uint, conn *websocket.Conn) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.hasHadConnection = true
-	m.Conns = append(m.Conns, &WSConn{
+	wsConn := &WSConn{
 		ID:        id,
 		ProfileID: profileID,
 		Conn:      conn,
-	})
+	}
+	m.Conns = append(m.Conns, wsConn)
+
+	if time.Since(serverStartedAt) < serverReadyToastWindow {
+		if m.readyToasted == nil {
+			m.readyToasted = make(map[string]struct{})
+		}
+		if _, done := m.readyToasted[id]; !done {
+			m.readyToasted[id] = struct{}{}
+			go func() {
+				time.Sleep(time.Second)
+				wsConn.writeJSON(WSEvent{Type: SuccessToast, Payload: "Server successfully prepared!"})
+			}()
+		}
+	}
 }
 
 // RemoveConnByConn removes the specific connection instance. This is preferred over RemoveConn(id)
