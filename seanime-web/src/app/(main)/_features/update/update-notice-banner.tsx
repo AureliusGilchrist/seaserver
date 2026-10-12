@@ -51,6 +51,14 @@ function UpdateNoticeBannerInner({ notice, onDismiss }: { notice: UpdateNotice, 
                     {notice.commit && <> to <span className="text-gray-300 font-mono text-[11px]">{notice.commit}</span></>}
                     {notice.updatedAt && <> · {new Date(notice.updatedAt).toLocaleString()}</>}
                 </p>
+                {!!notice.filesChanged && (
+                    <p className="text-xs text-gray-300 mt-1">
+                        Update complete: {notice.filesChanged} file{notice.filesChanged === 1 ? "" : "s"} changed,{" "}
+                        <span className="text-green-400">+{notice.insertions ?? 0}</span>{" "}
+                        <span className="text-red-400">-{notice.deletions ?? 0}</span>{" "}
+                        ({(notice.insertions ?? 0) + (notice.deletions ?? 0)} lines)
+                    </p>
+                )}
                 {notice.description && (
                     <p className="text-xs text-gray-300 leading-relaxed mt-1.5 whitespace-pre-wrap break-words max-w-3xl">
                         {notice.description}

@@ -13,6 +13,7 @@ import { useRouter } from "@/lib/navigation"
 import React from "react"
 import { LuBookMarked } from "react-icons/lu"
 import { MangaContinueReadingEntry } from "@/app/(main)/manga/_lib/use-manga-continue-reading"
+import { useMangaVolumeCover } from "@/app/(main)/manga/_lib/use-manga-volume-cover"
 
 interface MangaContinueReadingProps {
     list: MangaContinueReadingEntry[]
@@ -144,7 +145,7 @@ export function MangaContinueReading({ list, onHoverImage, withTitle }: MangaCon
                         return (
                             <CarouselItem
                                 key={item.mediaId}
-                                className={episodeCardCarouselItemClass(ts.smallerEpisodeCarouselSize)}
+                                className="basis-[9.5rem] md:basis-[11rem] lg:basis-[12rem]"
                             >
                                 <div
                                     onMouseEnter={() => {
@@ -178,6 +179,8 @@ const MediaEntryCardWrapper = React.memo(({ item }: {
         ? Math.round((progressNumber / progressTotal) * 100)
         : undefined
 
+    const volumeCover = useMangaVolumeCover(item.media)
+
     return (
         <div
             className="rounded-xl space-y-2 flex-none group/episode-card cursor-pointer select-none w-full"
@@ -187,14 +190,14 @@ const MediaEntryCardWrapper = React.memo(({ item }: {
         >
             <div
                 data-manga-chapter-card-image-container
-                className="w-full h-full rounded-xl overflow-hidden z-[1] aspect-[4/2] relative bg-[--background]"
+                className="w-full rounded-xl overflow-hidden z-[1] aspect-[2/3] relative bg-[--background]"
             >
-                {!!(item.media?.bannerImage || item.media?.coverImage?.extraLarge || item.media?.coverImage?.large) ? <SeaImage
-                    src={item.media?.bannerImage || item.media?.coverImage?.extraLarge || item.media?.coverImage?.large || ""}
+                {!!volumeCover ? <SeaImage
+                    src={volumeCover}
                     alt=""
                     fill
                     quality={100}
-                    sizes="20rem"
+                    sizes="14rem"
                     className="object-cover rounded-xl object-center transition lg:group-hover/episode-card:scale-[1.02] duration-200"
                 /> : <div
                     className="h-full block rounded-xl absolute w-full bg-gradient-to-t from-gray-800 to-transparent z-[2]"

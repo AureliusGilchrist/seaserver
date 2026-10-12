@@ -1776,6 +1776,42 @@ body.vc-fullscreen .appLayout {
     contain: layout style;
 }
 
+/* Compositor-only XP bar motion: the gradient sits on a layer 4x the fill's width (two repeating
+   periods) and slides by half of it, so the loop is seamless and nothing repaints. */
+.sea-xpbar-layer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 400%;
+    background-size: 50% 100% !important;
+    background-repeat: repeat-x !important;
+    will-change: transform;
+    box-shadow: none !important;
+    contain: none !important;
+}
+@keyframes sea-xpbar-slide-kf {
+    from { transform: translate3d(0, 0, 0); }
+    to   { transform: translate3d(-50%, 0, 0); }
+}
+@keyframes sea-xpbar-aurora-op-kf {
+    0%, 100% { opacity: 0.85; }
+    50%      { opacity: 1; }
+}
+.sea-xpbar-layer.sea-xpbar-shimmer      { animation: sea-xpbar-slide-kf 3s linear infinite !important; }
+.sea-xpbar-layer.sea-xpbar-shimmer-fast { animation: sea-xpbar-slide-kf 1.6s linear infinite !important; }
+.sea-xpbar-layer.sea-xpbar-flow         { animation: sea-xpbar-slide-kf 4s cubic-bezier(0.37, 0, 0.63, 1) infinite !important; }
+.sea-xpbar-layer.sea-xpbar-wave         { animation: sea-xpbar-slide-kf 2.6s ease-in-out infinite !important; }
+.sea-xpbar-layer.sea-xpbar-pulse-glow   { animation: sea-xpbar-slide-kf 3.4s linear infinite, sea-xpbar-pulse-glow-kf 2.2s ease-in-out infinite !important; }
+.sea-xpbar-layer.sea-xpbar-plasma       { animation: sea-xpbar-slide-kf 2.4s linear infinite, sea-xpbar-plasma-kf 2s linear infinite !important; }
+.sea-xpbar-layer.sea-xpbar-aurora       { animation: sea-xpbar-slide-kf 5s ease-in-out infinite, sea-xpbar-aurora-op-kf 5s ease-in-out infinite !important; }
+.sea-xpbar-layer.sea-xpbar-lightning    { animation: sea-xpbar-slide-kf 1.8s linear infinite, sea-xpbar-lightning-kf 1.2s steps(1) infinite !important; }
+.sea-xpbar-layer.sea-xpbar-fire         { animation: sea-xpbar-slide-kf 2s linear infinite, sea-xpbar-fire-kf 1.6s ease-in-out infinite !important; }
+.sea-xpbar-layer.sea-xpbar-void         { animation: sea-xpbar-slide-kf 5s linear infinite, sea-xpbar-void-kf 2.8s ease-in-out infinite !important; }
+@media (prefers-reduced-motion: reduce) {
+    .sea-xpbar-layer { animation: none !important; }
+}
+
 /* ─── XP Bar — "effects" tier decorative overlays ─────────────────────────── */
 /* Used only on the highest "effects" category XP bar skins. Applied as a stack
    of absolutely-positioned children inside the bar track (overflow-hidden).

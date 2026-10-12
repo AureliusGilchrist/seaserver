@@ -3,6 +3,9 @@ import { profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atom
 import { websocketAtom, WebSocketContext } from "@/app/(main)/_atoms/websocket.atoms"
 import { ElectronRestartServerPrompt } from "@/app/(main)/_electron/electron-restart-server-prompt"
 import { __openDrawersAtom } from "@/components/ui/drawer"
+import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
+import { WSEvents } from "@/lib/server/ws-events"
+import { useQueryClient } from "@tanstack/react-query"
 import { useMainTab } from "@/hooks/use-main-tab"
 import { logger } from "@/lib/helpers/debug"
 import { usePathname } from "@/lib/navigation.ts"
@@ -80,6 +83,7 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
             <ManageOpenDrawers />
             {__isElectronDesktop__ && <ElectronRestartServerPrompt />}
             <WebSocketContext.Provider value={socket}>
+                <ServerDownModal />
                 {!isConnected && <div
                     className="fixed right-4 bottom-4 bg-gray-950 border text-sm py-2 px-4 font-semibold rounded-xl z-[100] flex gap-2 items-center opacity-70"
                 >
@@ -89,6 +93,50 @@ export function WebsocketProvider({ children }: { children: React.ReactNode }) {
                 {children}
             </WebSocketContext.Provider>
         </>
+    )
+}
+
+const serverDownReasonAtom = atom<string | null>(null)
+
+// An in-place pop-up while the server is unreachable. It never navigates anywhere, and it goes
+// away on its own once the websocket reconnects (which also refreshes the data).
+function ServerDownModal() {
+    const isConnected = useAtomValue(websocketConnectedAtom)
+    const errorCount = useAtomValue(websocketConnectionErrorCountAtom)
+    const [reason, setReason] = useAtom(serverDownReasonAtom)
+    const queryClient = useQueryClient()
+    const wasDown = React.useRef(false)
+
+    useWebsocketMessageListener<{ reason?: string }>({
+        type: WSEvents.SERVER_GOING_DOWN,
+        onMessage: (data) => setReason(data?.reason || "maintenance"),
+    })
+
+    React.useEffect(() => {
+        if (!isConnected) {
+            wasDown.current = true
+            return
+        }
+        setReason(null)
+        if (wasDown.current) {
+            wasDown.current = false
+            queryClient.invalidateQueries()
+        }
+    }, [isConnected])
+
+    const visible = !isConnected && (!!reason || errorCount >= 1)
+    if (!visible) return null
+
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <div className="max-w-md mx-4 rounded-2xl border border-white/10 bg-gray-950/90 p-6 text-center space-y-3 shadow-2xl">
+                <ImSpinner2 className="animate-spin text-2xl mx-auto" />
+                <p className="text-lg font-semibold">
+                    Server is down for {reason || "an unexpected disconnection"}, please wait or contact Aurelius
+                </p>
+                <p className="text-sm text-[--muted]">Reconnecting automatically every 10 seconds…</p>
+            </div>
+        </div>
     )
 }
 
@@ -306,7 +354,9 @@ function WebsocketManagement() {
                     }
                 })
 
+                const thisSocket = socketRef.current
                 socketRef.current?.addEventListener("close", (event) => {
+                    if (thisSocket !== socketRef.current) return
                     // Warn, not info: the desktop shell only forwards console warnings and
                     // errors to the app log, and a disconnect is exactly the kind of event
                     // that needs to be visible there when something goes wrong.
@@ -315,6 +365,7 @@ function WebsocketManagement() {
                 })
 
                 socketRef.current?.addEventListener("error", (event) => {
+                    if (thisSocket !== socketRef.current) return
                     logger("WebsocketProvider").error("WebSocket encountered an error:", event)
                     reconnectSocket()
                 })
@@ -350,10 +401,11 @@ function WebsocketManagement() {
             setConnectionErrorCount(count => {
                 const newCount = count + 1
                 // Calculate backoff time (1s, 2s, max 3s)
-                const backoffTime = Math.min(Math.pow(2, Math.min(newCount - 1, 10)) * 1000, 3000)
+                const backoffTime = 10000
 
                 logger("WebsocketProvider").warning(`Reconnecting in ${backoffTime}ms (attempt ${newCount})`)
 
+                if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
                 reconnectTimeoutRef.current = setTimeout(() => {
                     connectWebSocket()
                 }, backoffTime)

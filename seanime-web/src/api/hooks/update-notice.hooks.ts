@@ -15,6 +15,9 @@ export interface UpdateNotice {
     description?: string
     commit?: string
     updatedAt: string
+    filesChanged?: number
+    insertions?: number
+    deletions?: number
 }
 
 export function useGetUpdateNotice({ enabled }: { enabled?: boolean } = {}) {

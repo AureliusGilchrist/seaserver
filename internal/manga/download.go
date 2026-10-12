@@ -13,6 +13,7 @@ import (
 	hibikemanga "seanime/internal/extension/hibike/manga"
 	"seanime/internal/hook"
 	chapter_downloader "seanime/internal/manga/downloader"
+	"seanime/internal/manga/mangabaka"
 	manga_providers "seanime/internal/manga/providers"
 	"seanime/internal/platforms/platform"
 	"seanime/internal/util"
@@ -49,6 +50,8 @@ func NewDownloader(opts *NewDownloaderOptions) *Downloader {
 	})
 
 	go d.hydrateMediaMap()
+
+	mangabaka.Configure(opts.Logger, filepath.Dir(opts.DownloadDir))
 
 	return d
 }

@@ -6,6 +6,7 @@ import { useMediaPreviewModal } from "@/app/(main)/_features/media/_containers/m
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
 import { SeaLink } from "@/components/shared/sea-link"
+import { useMangaVolumeCover } from "@/app/(main)/manga/_lib/use-manga-volume-cover"
 import { TextGenerateEffect } from "@/components/shared/text-generate-effect"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -226,6 +227,7 @@ function ChapterCardSidebar({ item, isTransitioning }: ChapterCardSidebarProps) 
     const ts = useThemeSettings()
     const router = useRouter()
     const manga = item.media
+    const volumeCover = useMangaVolumeCover(manga)
 
     if (!manga) return null
 
@@ -238,7 +240,7 @@ function ChapterCardSidebar({ item, isTransitioning }: ChapterCardSidebarProps) 
     return (
         <motion.div
             className={cn(
-                "absolute right-6 w-fit h-[25rem] z-[3] hidden lg:block overflow-hidden",
+                "absolute right-6 w-fit z-[3] hidden lg:block overflow-hidden",
                 "top-[5rem]",
                 ts.hideTopNavbar && "top-[4rem]",
                 (__isDesktop__ && ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small) && "top-[1rem]",
@@ -257,7 +259,7 @@ function ChapterCardSidebar({ item, isTransitioning }: ChapterCardSidebarProps) 
                             stiffness: 100,
                         },
                     }}
-                    className="2xl:w-[500px] xl:w-[400px] lg:w-[300px] rounded-xl overflow-hidden"
+                    className="w-[220px] rounded-xl overflow-hidden"
                 >
                     <div
                         className="rounded-xl space-y-2 flex-none group/episode-card cursor-pointer select-none w-full"
@@ -267,16 +269,16 @@ function ChapterCardSidebar({ item, isTransitioning }: ChapterCardSidebarProps) 
                     >
                         <div
                             data-manga-chapter-card-image-container
-                            className="w-full h-full rounded-xl overflow-hidden z-[1] aspect-[4/2] relative bg-[--background]"
+                            className="w-full rounded-xl overflow-hidden z-[1] aspect-[2/3] relative bg-[--background]"
                         >
-                            {!!(manga.bannerImage || manga.coverImage?.extraLarge) ? <SeaImage
-                                src={manga.bannerImage || manga.coverImage?.extraLarge || ""}
+                            {!!volumeCover ? <SeaImage
+                                src={volumeCover}
                                 alt=""
                                 fill
                                 quality={100}
                                 priority
-                                placeholder={imageShimmer(700, 475)}
-                                sizes="20rem"
+                                placeholder={imageShimmer(440, 660)}
+                                sizes="14rem"
                                 className="object-cover rounded-xl object-center transition lg:group-hover/episode-card:scale-[1.02] duration-200"
                             /> : <div
                                 className="h-full block rounded-xl absolute w-full bg-gradient-to-t from-gray-800 to-transparent z-[2]"

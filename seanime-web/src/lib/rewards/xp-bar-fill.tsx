@@ -117,22 +117,24 @@ export function XPBarFill({
             <div
                 className={cn(
                     "h-full rounded-full relative overflow-hidden",
-                    // Only animate width when there's no moving fill animation,
-                    // so width changes don't fight the keyframe animation.
                     hasAnim ? "" : "transition-[width] duration-500",
                     !fillCss && fallbackBgClass,
-                    // For animated variants, put the animation class directly on
-                    // the fill so the gradient flows through the actual progress.
-                    hasAnim && animClass,
                 )}
                 style={{
                     width: `${clamped}%`,
-                    // When animated, the fill IS the gradient (flowing via
-                    // background-position keyframes). When not, use derived base.
-                    background: hasAnim ? (fillCss ?? undefined) : (baseColor ?? undefined),
-                    backgroundSize: hasAnim ? "200% 100%" : undefined,
+                    background: hasAnim ? undefined : (baseColor ?? undefined),
                 }}
-            />
+            >
+                {hasAnim && (
+                    // The moving gradient lives on a wide layer that slides with transform, which the
+                    // compositor animates without repainting (animating background-position repaints
+                    // every frame and stutters under blurred glass cards).
+                    <div
+                        className={cn("sea-xpbar-layer", animClass)}
+                        style={{ background: fillCss ?? undefined }}
+                    />
+                )}
+            </div>
         </div>
     )
 }

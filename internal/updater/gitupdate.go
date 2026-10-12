@@ -10,7 +10,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -251,6 +253,8 @@ func (u *GitAutoUpdater) runUpdate() {
 	}
 	remoteRef := fmt.Sprintf("%s/%s", gitUpdateRemote, strings.TrimSpace(branch))
 
+	stats := u.diffStats(remoteRef)
+
 	if _, err := u.git("merge", "--ff-only", remoteRef); err != nil {
 		// A checkout that cannot fast-forward has local commits — not something to discard, so
 		// the update stops here rather than forcing its way through.
@@ -336,9 +340,12 @@ func (u *GitAutoUpdater) runUpdate() {
 	// commit's message and its description, so the client can say what arrived rather than only
 	// that something did. The file survives the restart, which is the point — a client that was
 	// closed while the update happened reads it the next time it signs in.
-	u.writeUpdateNotice()
+	u.writeUpdateNotice(stats)
 
 	u.notify("Update built — restarting now…")
+	if u.wsEventManager != nil {
+		u.wsEventManager.SendEvent(events.ServerGoingDown, map[string]string{"reason": "a backend update"})
+	}
 	u.logger.Info().Str("exe", exePath).Msg("selfupdate: Restarting with the new version")
 
 	// Long enough for the message to reach the client, short enough that the restart is felt as
@@ -366,13 +373,38 @@ type UpdateNotice struct {
 	Description string `json:"description,omitempty"`
 	Commit      string `json:"commit,omitempty"`
 	UpdatedAt   string `json:"updatedAt"`
+	// The size of the update: files touched and lines added and removed.
+	FilesChanged int `json:"filesChanged"`
+	Insertions   int `json:"insertions"`
+	Deletions    int `json:"deletions"`
+}
+
+type updateStats struct{ files, insertions, deletions int }
+
+var shortstatRe = regexp.MustCompile(`(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?`)
+
+// diffStats is what merging the remote ref would change, read before the merge.
+func (u *GitAutoUpdater) diffStats(remoteRef string) updateStats {
+	out, err := u.git("diff", "--shortstat", "HEAD", remoteRef)
+	if err != nil {
+		return updateStats{}
+	}
+	m := shortstatRe.FindStringSubmatch(out)
+	if m == nil {
+		return updateStats{}
+	}
+	var s updateStats
+	s.files, _ = strconv.Atoi(m[1])
+	s.insertions, _ = strconv.Atoi(m[2])
+	s.deletions, _ = strconv.Atoi(m[3])
+	return s
 }
 
 // UpdateNoticeFileName is where the notice lives: in the data directory, because the notice has to
 // survive the restart that the updater itself performs.
 const UpdateNoticeFileName = "update-notice.json"
 
-func (u *GitAutoUpdater) writeUpdateNotice() {
+func (u *GitAutoUpdater) writeUpdateNotice(stats updateStats) {
 	if u.appDataDir == "" {
 		return
 	}
@@ -402,6 +434,10 @@ func (u *GitAutoUpdater) writeUpdateNotice() {
 		Description: description,
 		Commit:      commit,
 		UpdatedAt:   time.Now().Format(time.RFC3339),
+
+		FilesChanged: stats.files,
+		Insertions:   stats.insertions,
+		Deletions:    stats.deletions,
 	}
 
 	data, err := json.Marshal(notice)

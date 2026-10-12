@@ -119,7 +119,7 @@ export function ElectronRestartServerPrompt() {
     // Not connected for 10 seconds
     return (
         <>
-            {(!isConnected && connectionErrorCount > 2 && connectionErrorCount < threshold && !isUpdating && !isUpdatedInstalled) && (
+            {(connectionMode !== "remote" && !isConnected && connectionErrorCount > 2 && connectionErrorCount < threshold && !isUpdating && !isUpdatedInstalled) && (
                 <LoadingOverlay className="fixed left-0 top-0 z-[9999]">
                     <p>
                         The server connection has been lost. Please wait while we attempt to reconnect.
@@ -128,7 +128,7 @@ export function ElectronRestartServerPrompt() {
             )}
 
             <Modal
-                open={!isConnected && connectionErrorCount >= threshold && !isUpdatedInstalled}
+                open={connectionMode !== "remote" && !isConnected && connectionErrorCount >= threshold && !isUpdatedInstalled}
                 onOpenChange={() => {}}
                 hideCloseButton
                 contentClass="max-w-2xl"

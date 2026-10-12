@@ -1,6 +1,7 @@
 package manga
 
 import (
+	"seanime/internal/manga/mangabaka"
 	"context"
 	"strings"
 	"sync"
@@ -323,6 +324,19 @@ func (d *Downloader) fetchAndStoreMetadata(platformRef *util.Ref[platform.Platfo
 		coverImage = d.coverFromProvider(d.providerFor(mediaID), title)
 	}
 
+	if coverImage == "" {
+		rec := mangabaka.FindByAniListID(mediaID)
+		if rec == nil && title != "" {
+			rec = mangabaka.FindByTitle(title, 0)
+		}
+		if rec != nil {
+			coverImage = rec.Cover
+			if title == "" {
+				title = rec.Title
+			}
+		}
+	}
+
 	if title == "" && coverImage == "" {
 		return backfillOutcome{usedAniList: true}
 	}
@@ -351,6 +365,59 @@ const FallbackCoverProvider = manga_providers.WeebCentralProvider
 // genres and the alternative titles, which between them are everything the entry page shows. That
 // page is fetched once per series and stored, so the card describes itself from then on.
 func (d *Downloader) fillSyntheticMetadata(syntheticID int) bool {
+	fromProvider := d.fillSyntheticFromProvider(syntheticID)
+	return d.fillSyntheticFromMangaBaka(syntheticID) || fromProvider
+}
+
+// fillSyntheticFromMangaBaka fills whatever the provider left empty from the local MangaBaka index.
+// It only ever fills gaps.
+func (d *Downloader) fillSyntheticFromMangaBaka(syntheticID int) bool {
+	if d.database == nil {
+		return false
+	}
+	synthetic, found := d.database.GetSyntheticManga(syntheticID)
+	if !found || synthetic == nil || strings.TrimSpace(synthetic.Title) == "" || !needsMetadata(synthetic) {
+		return false
+	}
+	rec := mangabaka.FindByTitle(synthetic.Title, synthetic.Year)
+	if rec == nil {
+		return false
+	}
+
+	changed := false
+	set := func(field *string, value string) {
+		value = strings.TrimSpace(value)
+		if value != "" && strings.TrimSpace(*field) == "" {
+			*field = value
+			changed = true
+		}
+	}
+	set(&synthetic.CoverImage, rec.Cover)
+	set(&synthetic.Description, rec.Description)
+	set(&synthetic.Genres, strings.Join(rec.Genres, ", "))
+	set(&synthetic.Authors, strings.Join(rec.Authors, ", "))
+	if synthetic.Status == "" && rec.Status != "" {
+		synthetic.Status = rec.Status
+		changed = true
+	}
+	if synthetic.Year == 0 && rec.Year > 0 {
+		synthetic.Year = rec.Year
+		changed = true
+	}
+	if !changed {
+		return false
+	}
+	if err := d.database.UpdateSyntheticManga(synthetic); err != nil {
+		d.logger.Warn().Err(err).Int("syntheticId", syntheticID).
+			Msg("manga downloader: Could not store the MangaBaka metadata found for a local series")
+		return false
+	}
+	d.logger.Info().Int("syntheticId", syntheticID).Str("title", synthetic.Title).
+		Msg("manga downloader: Described a local series from MangaBaka")
+	return true
+}
+
+func (d *Downloader) fillSyntheticFromProvider(syntheticID int) bool {
 	if d.database == nil {
 		return false
 	}

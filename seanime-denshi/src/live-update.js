@@ -22,14 +22,17 @@ function isRepoRoot(dir, webOnly) {
         && (webOnly || (fs.existsSync(path.join(dir, "go.mod")) && fs.existsSync(path.join(dir, ".git"))))
 }
 
-function resolveRepoRoot(configured, webOnly) {
+function resolveRepoRoot(configured, webOnly, extraStarts) {
     if (configured && isRepoRoot(configured, webOnly)) return configured
-    let dir = __dirname
-    for (let i = 0; i < 6; i++) {
-        if (isRepoRoot(dir, webOnly)) return dir
-        const parent = path.dirname(dir)
-        if (parent === dir) break
-        dir = parent
+    const starts = [__dirname, ...(extraStarts || []), process.cwd(), path.dirname(process.execPath)]
+    for (const start of starts) {
+        let dir = start
+        for (let i = 0; i < 14 && dir; i++) {
+            if (isRepoRoot(dir, webOnly)) return dir
+            const parent = path.dirname(dir)
+            if (parent === dir) break
+            dir = parent
+        }
     }
     return null
 }
@@ -109,8 +112,21 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
         return out
     }
 
+    const rememberFile = path.join(app.getPath("userData"), "source-root.txt")
+    function extraStarts() {
+        const starts = []
+        try { starts.push(fs.readFileSync(rememberFile, "utf8").trim()) } catch {}
+        try { starts.push(app.getAppPath()) } catch {}
+        return starts.filter(Boolean)
+    }
+    function findRoot(webOnly) {
+        const root = resolveRepoRoot(getSettings().sourceRepoPath, webOnly, extraStarts())
+        if (root) { try { fs.writeFileSync(rememberFile, root) } catch {} }
+        return root
+    }
+
     function requireRepo() {
-        const root = resolveRepoRoot(getSettings().sourceRepoPath)
+        const root = findRoot(false)
         if (!root) {
             throw new Error("Source repository not found. Set the repository path (a git checkout containing go.mod and seanime-web).")
         }
@@ -118,8 +134,8 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
     }
 
     function requireWebRoot() {
-        const root = resolveRepoRoot(getSettings().sourceRepoPath, true)
-        if (!root) throw new Error("Local frontend source (seanime-web) not found next to this app.")
+        const root = findRoot(true)
+        if (!root) throw new Error("Local frontend source (seanime-web) not found. Run the app once from inside your seanime checkout so it can remember where the source is.")
         return root
     }
 
@@ -211,7 +227,7 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
     }
 
     function getInfo() {
-        const root = resolveRepoRoot(getSettings().sourceRepoPath)
+        const root = findRoot(false)
         return {
             repoRoot: root,
             repoOrigin: root ? readOrigin(root) : null,
