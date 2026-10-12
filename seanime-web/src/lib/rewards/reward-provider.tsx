@@ -476,7 +476,7 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
     // ── Shine animation CSS variables ─────────────────────────────────────────
     React.useEffect(() => {
         const root = document.documentElement
-        root.style.setProperty("--sea-name-shine-direction", active.shineDirection === "left" ? "reverse" : "normal")
+        root.style.setProperty("--sea-name-shine-direction", active.shineDirection === "left" ? "alternate-reverse" : "alternate")
         root.style.setProperty("--sea-name-shine-duration", `${Math.max(0.3, active.shineDuration)}s`)
         root.style.setProperty("--sea-name-shine-easing", active.shineEasing || "linear")
         root.style.setProperty("--sea-name-shine-play", active.shineEnabled ? "running" : "paused")

@@ -3,14 +3,12 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { useServerMutation } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { useListThemeBackgrounds } from "@/api/hooks/theme_backgrounds.hooks"
+import { useListThemeBackgrounds, useSearchWallhaven, WallhavenWallpaper } from "@/api/hooks/theme_backgrounds.hooks"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
-import { Modal } from "@/components/ui/modal"
 import { ThemeBackgroundImage } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { useQueryClient } from "@tanstack/react-query"
 import * as React from "react"
-import { LuImage } from "react-icons/lu"
 import { toast } from "sonner"
 
 export type WallpaperEffects = {
@@ -89,18 +87,31 @@ const SLIDERS: { key: keyof WallpaperEffects; label: string; min: number; max: n
 
 export function ProfileWallpaperEditor({ currentUrl, currentEffects }: { currentUrl?: string | null; currentEffects?: string | null }) {
     const qc = useQueryClient()
-    const [open, setOpen] = React.useState(false)
     const [url, setUrl] = React.useState(currentUrl ?? "")
     const [fx, setFx] = React.useState<WallpaperEffects>(() => parseWallpaperEffects(currentEffects))
     const fileRef = React.useRef<HTMLInputElement>(null)
     const { data: themeBgs } = useListThemeBackgrounds()
 
+    const [query, setQuery] = React.useState("")
+    const [committedQuery, setCommittedQuery] = React.useState("")
+    const [page, setPage] = React.useState(1)
+    const [results, setResults] = React.useState<WallhavenWallpaper[]>([])
+    const { data: searchData, isFetching } = useSearchWallhaven(committedQuery, page, !!committedQuery)
+    const lastData = React.useRef<typeof searchData>(undefined)
     React.useEffect(() => {
-        if (open) {
-            setUrl(currentUrl ?? "")
-            setFx(parseWallpaperEffects(currentEffects))
-        }
-    }, [open])
+        if (!searchData?.data || searchData === lastData.current) return
+        lastData.current = searchData
+        setResults(prev => page === 1 ? searchData.data : [...prev, ...searchData.data])
+    }, [searchData, page])
+
+    const runSearch = () => {
+        const q = query.trim()
+        if (!q) return
+        lastData.current = undefined
+        setResults([])
+        setPage(1)
+        setCommittedQuery(q)
+    }
 
     const refresh = () => {
         qc.invalidateQueries({ queryKey: [API_ENDPOINTS.PROFILE_PAGE.GetMyProfile.key] })
@@ -113,7 +124,6 @@ export function ProfileWallpaperEditor({ currentUrl, currentEffects }: { current
         onSuccess: () => {
             toast.success("Profile wallpaper saved")
             refresh()
-            setOpen(false)
         },
     })
 
@@ -138,14 +148,11 @@ export function ProfileWallpaperEditor({ currentUrl, currentEffects }: { current
 
     return (
         <>
-            <Button intent="gray-outline" size="sm" leftIcon={<LuImage />} onClick={() => setOpen(true)}>
-                Wallpaper
-            </Button>
-            <Modal open={open} onOpenChange={setOpen} title="Profile wallpaper" contentClass="max-w-3xl">
+            <div>
                 <div className="space-y-4">
-                    <p className="text-sm text-[--muted]">Everyone who visits your profile sees this wallpaper with these effects.</p>
+                    <p className="text-sm text-[--muted]">Everyone who visits your profile sees this wallpaper with these effects. Only you can edit it.</p>
 
-                    <div className="relative h-40 rounded-md overflow-hidden border border-[--border] bg-black isolate [transform:translateZ(0)]">
+                    <div className="relative h-56 rounded-md overflow-hidden border border-[--border] bg-black isolate [transform:translateZ(0)]">
                         {url
                             ? <ProfileWallpaper url={url} effects={JSON.stringify(fx)} />
                             : <div className="absolute inset-0 flex items-center justify-center text-[--muted] text-sm">No wallpaper</div>}
@@ -161,10 +168,45 @@ export function ProfileWallpaperEditor({ currentUrl, currentEffects }: { current
                         </Button>
                     </div>
 
+                    <div>
+                        <div className="text-sm font-medium mb-2">Search wallpapers</div>
+                        <form className="flex gap-2 mb-2" onSubmit={e => { e.preventDefault(); runSearch() }}>
+                            <input
+                                className="flex-1 bg-[--subtle] border border-[--border] rounded px-3 py-1.5 text-sm"
+                                placeholder="e.g. anime city night"
+                                value={query}
+                                onChange={e => setQuery(e.target.value)}
+                            />
+                            <Button type="submit" size="sm" intent="primary-outline" loading={isFetching && page === 1}>Search</Button>
+                        </form>
+                        {!!results.length && (
+                            <>
+                                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-h-72 overflow-y-auto pr-1">
+                                    {results.map(w => (
+                                        <button
+                                            key={w.id}
+                                            type="button"
+                                            onClick={() => setUrl(w.path)}
+                                            className={cn(
+                                                "aspect-video rounded overflow-hidden border-2 bg-cover bg-center",
+                                                url === w.path ? "border-brand-400" : "border-transparent hover:border-[--border]",
+                                            )}
+                                            style={{ backgroundImage: `url("${w.thumbs.small}")` }}
+                                            title={w.resolution}
+                                        />
+                                    ))}
+                                </div>
+                                <Button className="mt-2" size="sm" intent="gray-subtle" loading={isFetching && page > 1} onClick={() => setPage(p => p + 1)}>
+                                    Load more
+                                </Button>
+                            </>
+                        )}
+                    </div>
+
                     {!!themeBgs?.length && (
                         <div>
                             <div className="text-sm font-medium mb-2">Anime theme wallpapers</div>
-                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-40 overflow-y-auto pr-1">
+                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto pr-1">
                                 {themeBgs.map(bg => (
                                     <button
                                         key={bg.filename}
@@ -205,7 +247,7 @@ export function ProfileWallpaperEditor({ currentUrl, currentEffects }: { current
                         <Button intent="primary" loading={saving} onClick={() => save({ url, effects: JSON.stringify(fx) })}>Save</Button>
                     </div>
                 </div>
-            </Modal>
+            </div>
         </>
     )
 }

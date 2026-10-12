@@ -1584,17 +1584,18 @@ body.vc-fullscreen .appLayout {
  *  Direction/duration/easing are controlled via CSS variables that the
  *  RewardProvider keeps in sync with the user's profile settings. */
 @keyframes sea-name-shine-kf {
-    0%   { background-position: 200% 50%; }
+    0%   { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
 }
 .sea-name-shine {
     background-size: 200% 100% !important;
+    background-repeat: no-repeat !important;
     animation:
         sea-name-shine-kf
         var(--sea-name-shine-duration, 3s)
         var(--sea-name-shine-easing, linear)
-        infinite !important;
-    animation-direction: var(--sea-name-shine-direction, normal) !important;
+        infinite alternate !important;
+    animation-direction: var(--sea-name-shine-direction, alternate) !important;
     animation-play-state: var(--sea-name-shine-play, running) !important;
     will-change: background-position;
 }
@@ -1808,6 +1809,17 @@ body.vc-fullscreen .appLayout {
 .sea-xpbar-layer.sea-xpbar-lightning    { animation: sea-xpbar-slide-kf 1.8s linear infinite, sea-xpbar-lightning-kf 1.2s steps(1) infinite !important; }
 .sea-xpbar-layer.sea-xpbar-fire         { animation: sea-xpbar-slide-kf 2s linear infinite, sea-xpbar-fire-kf 1.6s ease-in-out infinite !important; }
 .sea-xpbar-layer.sea-xpbar-void         { animation: sea-xpbar-slide-kf 5s linear infinite, sea-xpbar-void-kf 2.8s ease-in-out infinite !important; }
+/* Gradients are not seamless tiles, so ping-pong the slide instead of wrapping (wrapping teleports). */
+.sea-xpbar-layer.sea-xpbar-shimmer,
+.sea-xpbar-layer.sea-xpbar-shimmer-fast,
+.sea-xpbar-layer.sea-xpbar-flow,
+.sea-xpbar-layer.sea-xpbar-wave { animation-direction: alternate !important; animation-timing-function: ease-in-out !important; }
+.sea-xpbar-layer.sea-xpbar-pulse-glow,
+.sea-xpbar-layer.sea-xpbar-plasma,
+.sea-xpbar-layer.sea-xpbar-lightning,
+.sea-xpbar-layer.sea-xpbar-fire,
+.sea-xpbar-layer.sea-xpbar-void { animation-direction: alternate, normal !important; }
+.sea-xpbar-layer.sea-xpbar-aurora { animation-direction: alternate, normal !important; }
 @media (prefers-reduced-motion: reduce) {
     .sea-xpbar-layer { animation: none !important; }
 }
@@ -2185,8 +2197,8 @@ h1.sea-profile-name:not(.sea-name-shine),
 /* Beats any per-theme h1 animation so the gradient sweep on the name keeps moving. */
 h1.sea-profile-name.sea-name-shine,
 [data-anime-theme] h1.sea-profile-name.sea-name-shine {
-    animation: sea-name-shine-kf var(--sea-name-shine-duration, 3s) var(--sea-name-shine-easing, linear) infinite !important;
-    animation-direction: var(--sea-name-shine-direction, normal) !important;
+    animation: sea-name-shine-kf var(--sea-name-shine-duration, 3s) var(--sea-name-shine-easing, linear) infinite alternate !important;
+    animation-direction: var(--sea-name-shine-direction, alternate) !important;
     animation-play-state: var(--sea-name-shine-play, running) !important;
 }
 

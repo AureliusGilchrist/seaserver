@@ -60,7 +60,7 @@ import { RewardShop } from "@/app/(main)/profile/me/_components/reward-shop"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import { userSoundLevelAtom } from "@/lib/sounds/sound-provider"
-import { LuGift } from "react-icons/lu"
+import { LuGift, LuImage } from "react-icons/lu"
 import { useEasterEggs } from "@/lib/easter-eggs/easter-egg-engine"
 import { EASTER_EGG_DEFINITIONS } from "@/lib/easter-eggs/easter-egg-definitions"
 import * as React from "react"
@@ -331,9 +331,6 @@ export function MyProfilePage() {
                                 </div>
                             )}
                         </div>
-                        <div className="mt-3">
-                            <ProfileWallpaperEditor currentUrl={profile!.wallpaperUrl} currentEffects={profile!.wallpaperEffects} />
-                        </div>
                     </div>
                 </div>
                 {/* Level progress bar */}
@@ -376,6 +373,9 @@ export function MyProfilePage() {
                         <TabsTrigger value="rewards" className={tabsTriggerClass}>
                             <LuGift className="mr-1.5" /> Rewards
                         </TabsTrigger>
+                        <TabsTrigger value="wallpaper" className={tabsTriggerClass}>
+                            <LuImage className="mr-1.5" /> Wallpaper
+                        </TabsTrigger>
                         <TabsTrigger value="secrets" className={tabsTriggerClass}>
                             🥚 Secrets
                         </TabsTrigger>
@@ -407,6 +407,13 @@ export function MyProfilePage() {
                     </TabsContent>
                     <TabsContent value="rewards" className="space-y-6 mt-6">
                         <RewardShop currentLevel={level?.currentLevel ?? 1} />
+                    </TabsContent>
+                    <TabsContent value="wallpaper" className="space-y-6 mt-6">
+                        <ProfileWallpaperEditor
+                            key={`${profile!.wallpaperUrl ?? ""}|${profile!.wallpaperEffects ?? ""}`}
+                            currentUrl={profile!.wallpaperUrl}
+                            currentEffects={profile!.wallpaperEffects}
+                        />
                     </TabsContent>
                     <TabsContent value="secrets" className="space-y-6 mt-6">
                         <EasterEggSecrets />
