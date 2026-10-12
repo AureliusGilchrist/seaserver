@@ -28,6 +28,7 @@ import { useSearchParams } from "@/lib/navigation"
 import { logger } from "@/lib/helpers/debug"
 import { useAtomValue } from "jotai"
 import React from "react"
+import { createPortal } from "react-dom"
 import { ImSpinner2 } from "react-icons/im"
 import { LuArrowUpLeft, LuX } from "react-icons/lu"
 
@@ -232,15 +233,15 @@ function PopoutReturnButton() {
 
     const fade = `pointer-events-auto transition-opacity duration-200 hover:opacity-100 ${visible ? "opacity-100" : "opacity-60"}`
 
-    return (
+    return createPortal(
         <>
             {/* OS-level drag handle between the player's top-left and top-right controls. It is
                 always active (even when the buttons are faded out), so the window can always be moved. */}
             <div
-                className="fixed top-0 left-[150px] right-[240px] h-9 z-[9998] select-none"
+                className="fixed top-0 left-[150px] right-[240px] h-9 z-[2147483000] select-none"
                 style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
             />
-            <div className="fixed top-0 left-0 right-0 h-12 z-[9999] pointer-events-none flex items-center justify-center">
+            <div className="fixed top-0 left-0 right-0 h-12 z-[2147483001] pointer-events-none flex items-center justify-center">
                 <button
                     type="button"
                     data-popout-nodrag
@@ -262,7 +263,8 @@ function PopoutReturnButton() {
                     <LuX className="size-4" />
                 </button>
             </div>
-        </>
+        </>,
+        document.body,
     )
 }
 
