@@ -150,7 +150,7 @@ function PopoutWindowDrag() {
         }
 
         const onDown = (e: MouseEvent) => {
-            if (e.button !== 0 || pressed) return
+            if (e.button !== 0) return
             if (isControl(e.target as Element | null)) return
             pressed = true
             startX = e.screenX
@@ -164,12 +164,9 @@ function PopoutWindowDrag() {
             if (dragging) return
             if (Math.hypot(e.screenX - startX, e.screenY - startY) < THRESHOLD) return
             dragging = true
-            console.warn("[PopoutDrag] start", e.type)
             win.popoutDragStart()
         }
 
-        window.addEventListener("pointerdown", onDown, true)
-        window.addEventListener("pointermove", onMove, true)
         window.addEventListener("mousedown", onDown, true)
         window.addEventListener("mousemove", onMove, true)
         window.addEventListener("mouseup", finish, true)
@@ -178,8 +175,6 @@ function PopoutWindowDrag() {
         window.addEventListener("dragend", finish, true)
         window.addEventListener("blur", finish)
         return () => {
-            window.removeEventListener("pointerdown", onDown, true)
-            window.removeEventListener("pointermove", onMove, true)
             window.removeEventListener("mousedown", onDown, true)
             window.removeEventListener("mousemove", onMove, true)
             window.removeEventListener("mouseup", finish, true)

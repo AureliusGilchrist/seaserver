@@ -235,30 +235,27 @@ function ToWatchCard({
 
             {entry.coverImage ? (
                 <a href={href} className="py-3 flex-shrink-0" title={entry.title}>
-                    <div className="w-[84px] h-[120px] rounded-lg overflow-hidden bg-gray-800 ring-1 ring-white/15 shadow-lg shadow-black/50 relative group/poster transition-transform duration-300 hover:scale-[1.04]">
+                    <div className="w-[56px] h-[78px] rounded-md overflow-hidden bg-gray-800/70 border border-gray-700/60 relative group/poster">
                         <img
                             src={entry.coverImage.replace(/\/cover\/(medium|large)\//, "/cover/extraLarge/")}
                             alt={entry.title}
                             loading="lazy"
                             decoding="async"
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover/poster:scale-110"
+                            className="w-full h-full object-cover"
                         />
-                        <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
-                        {!!entry.meanScore && (
-                            <span className="absolute bottom-1 left-1.5 text-[10px] font-semibold text-amber-300 drop-shadow">★ {entry.meanScore}%</span>
-                        )}
-                        <div className="absolute inset-0 bg-black/0 group-hover/poster:bg-black/35 transition-colors flex items-center justify-center">
-                            <LuPlay className="w-6 h-6 text-white opacity-0 group-hover/poster:opacity-100 transition-opacity drop-shadow" />
+                        <div className="absolute inset-0 bg-black/0 group-hover/poster:bg-black/30 transition-colors flex items-center justify-center">
+                            <LuPlay className="w-5 h-5 text-white opacity-0 group-hover/poster:opacity-100 transition-opacity" />
                         </div>
                     </div>
                 </a>
             ) : (
                 <div className="py-3 flex-shrink-0">
-                    <div className="w-[84px] h-[120px] rounded-lg bg-gray-800/70 ring-1 ring-white/10 flex items-center justify-center">
-                        <LuListVideo className="text-2xl text-gray-500" />
+                    <div className="w-[56px] h-[78px] rounded-md bg-gray-800/70 border border-gray-700/60 flex items-center justify-center">
+                        <LuListVideo className="text-lg text-gray-500" />
                     </div>
                 </div>
             )}
+
             {/* The description — what "should I watch this?" is answered from — and the metadata. */}
             <div className="flex-1 min-w-0 py-3 pr-3">
                 <a href={href} title={entry.title}>
