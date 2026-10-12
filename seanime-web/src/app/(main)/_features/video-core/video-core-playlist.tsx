@@ -109,8 +109,15 @@ export function useVideoCorePlaylistSetup(providedState: VideoCoreLifecycleState
     }, [episodes, currProgressNumber, autoSkipFiller])
 
     React.useEffect(() => {
-        if (!playbackInfo || !playbackInfo.streamUrl || !currentEpisode || !episodes.length || !animeEntry) {
-            log.info("No playback info or episodes found, clearing playlist state")
+        if (!playbackInfo || !playbackInfo.streamUrl) {
+            log.info("No playback info found, clearing playlist state")
+            setPlaylistState(null)
+            return
+        }
+        // Still fetching the entry/episodes: keep the previous state instead of wiping the
+        // episode controls, which otherwise vanish whenever a refetch is in flight.
+        if (!currentEpisode || !episodes.length || !animeEntry) {
+            if (!animeEntry || isLoading) return
             setPlaylistState(null)
             return
         }

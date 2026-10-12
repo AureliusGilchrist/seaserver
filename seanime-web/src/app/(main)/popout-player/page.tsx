@@ -230,7 +230,7 @@ function PopoutReturnButton() {
         }
     }, [])
 
-    const fade = `transition-opacity duration-200 ${visible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`
+    const fade = `pointer-events-auto transition-opacity duration-200 hover:opacity-100 ${visible ? "opacity-100" : "opacity-60"}`
 
     return (
         <>
