@@ -911,6 +911,20 @@ func (vc *VideoCore) listenToClientEvents() {
 					case PlayerEventVideoStatus:
 						payload := &clientVideoStatusPayload{}
 						if err := playerEvent.UnmarshalAs(&payload); err == nil {
+							// Self-register the status if loadedmetadata was missed or arrived before the state
+							if _, ok := vc.getPlaybackStatusFor(clientId); !ok && payload.Duration > 0 {
+								if ps, ok := vc.getPlaybackStateFor(clientId); ok {
+									vc.playbackMu.Lock()
+									vc.playbackStatuses[clientId] = &PlaybackStatus{
+										Id:          ps.PlaybackInfo.Id,
+										ClientId:    clientId,
+										CurrentTime: payload.CurrentTime,
+										Duration:    payload.Duration,
+										Paused:      payload.Paused,
+									}
+									vc.playbackMu.Unlock()
+								}
+							}
 							vc.updatePlaybackStatusForFn(clientId, func(s *PlaybackStatus) {
 								s.Duration = payload.Duration
 								s.CurrentTime = payload.CurrentTime
