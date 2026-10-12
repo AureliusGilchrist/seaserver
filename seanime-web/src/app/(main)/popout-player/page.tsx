@@ -232,8 +232,7 @@ function PopoutReturnButton() {
 
     return (
         <div
-            style={{ WebkitAppRegion: visible ? "drag" : "no-drag" } as React.CSSProperties}
-            className={`fixed top-0 left-0 right-0 h-10 z-[300] flex items-center justify-center bg-gradient-to-b from-black/80 to-transparent select-none transition-opacity duration-200 ${visible
+            className={`fixed top-0 left-0 right-0 h-12 z-[9999] flex items-center justify-center bg-gradient-to-b from-black/80 to-transparent select-none transition-opacity duration-200 ${visible
                 ? "opacity-100"
                 : "opacity-0 pointer-events-none"}`}
         >
