@@ -28,6 +28,14 @@ export function useGetUpdateNotice({ enabled }: { enabled?: boolean } = {}) {
     })
 }
 
+export function useUpdateBackend() {
+    return useServerMutation<{ started: boolean, message: string }, {}>({
+        endpoint: "/api/v1/update/backend",
+        method: "POST",
+        mutationKey: ["update-backend"],
+    })
+}
+
 export function useDismissUpdateNotice() {
     const queryClient = useQueryClient()
     return useServerMutation<boolean, {}>({

@@ -1,14 +1,18 @@
 package updater
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"seanime/internal/events"
@@ -60,7 +64,7 @@ type GitAutoUpdater struct {
 	// updater performs — the process is replaced underneath itself — so it is in the data
 	// directory, not in memory.
 	appDataDir string
-	updating   bool
+	updating   atomic.Bool
 }
 
 // gitUpdaterRef holds the updater the server started with, so the API can ask it whether the
@@ -116,8 +120,7 @@ func (u *GitAutoUpdater) loop() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		if u.updating {
-			continue
+		if u.updating.Load() {
 		}
 		if behind, err := u.checkForUpdate(); err != nil {
 			u.logger.Warn().Err(err).Msg("selfupdate: Could not check for an update")
@@ -179,6 +182,29 @@ func CurrentGitUpdater() *GitAutoUpdater {
 	return gitUpdaterRef.Get()
 }
 
+// UpdateNow is the manual "update backend": it fetches origin (the fork's repository) and, when the
+// checkout is behind, pulls, builds and restarts in the background. It reports whether an update
+// was started; the build and restart themselves happen after this returns.
+func (u *GitAutoUpdater) UpdateNow() (started bool, err error) {
+	if !u.updating.CompareAndSwap(false, true) {
+		return false, fmt.Errorf("an update is already running")
+	}
+	behind, err := u.checkForUpdate()
+	if err != nil {
+		u.updating.Store(false)
+		return false, err
+	}
+	if !behind {
+		u.updating.Store(false)
+		return false, nil
+	}
+	go func() {
+		defer u.updating.Store(false)
+		u.runUpdate()
+	}()
+	return true, nil
+}
+
 // RemoteCommit returns the commit the checkout is behind, without fetching — the ref the update
 // check names. Empty when the last fetch left nothing to compare against.
 func (u *GitAutoUpdater) RemoteCommit() (string, error) {
@@ -199,9 +225,15 @@ func (u *GitAutoUpdater) RemoteCommit() (string, error) {
 
 // update pulls, builds, and replaces the running process with what it built.
 func (u *GitAutoUpdater) update() {
-	u.updating = true
-	defer func() { u.updating = false }()
+	if !u.updating.CompareAndSwap(false, true) {
+		return
+	}
+	defer u.updating.Store(false)
+	u.runUpdate()
+}
 
+// runUpdate is the update itself; the caller holds the updating flag.
+func (u *GitAutoUpdater) runUpdate() {
 	defer util.HandlePanicInModuleThen("updater/gitAutoUpdate/update", func() {
 		u.logger.Error().Msg("selfupdate: The update stopped unexpectedly — the running version is untouched")
 	})
@@ -282,6 +314,13 @@ func (u *GitAutoUpdater) update() {
 		u.logger.Warn().Msg("selfupdate: The build did not produce a new binary, not updating")
 		return
 	}
+	if err := smokeTestBinary(builtPath); err != nil {
+		u.logger.Error().Err(err).Msg("selfupdate: The new version did not start cleanly — the running version keeps serving")
+		u.notify("The new version failed its start-up check — still running the current version")
+		return
+	}
+	u.logger.Info().Msg("selfupdate: The new version started and answered — switching to it")
+
 	if sameFile, err := sameFilePath(exePath, builtPath); err == nil && !sameFile {
 		// The server was started from somewhere other than the checkout's output (a copy in
 		// /usr/local/bin, say). The checkout's binary is the new version; the running one is the
@@ -420,6 +459,67 @@ func builtBinaryName() string {
 // own script: bash runs build-all.sh on the NAS, and on Windows powershell runs the desktop
 // script. The Windows command is created through util.NewCmd so a GUI binary does not flash a
 // console window for the duration of the build.
+// smokeTestBinary starts the freshly built binary in isolation — a throwaway data directory, a
+// loopback-only free port — and waits for it to answer HTTP. The running server is only replaced
+// once the new one has proven it can start; the test process is always killed afterwards and the
+// throwaway directory removed, so nothing of the real installation is touched.
+func smokeTestBinary(binPath string) error {
+	dataDir, err := os.MkdirTemp("", "seanime-smoketest-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dataDir)
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return err
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	_ = ln.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, binPath,
+		"-datadir", dataDir, "-host", "127.0.0.1", "-port", fmt.Sprint(port), "-disable-password")
+	cmd.Env = append(os.Environ(), "SEANIME_AUTO_UPDATE=0")
+	var out bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &out
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("could not launch the new binary: %w", err)
+	}
+	exited := make(chan error, 1)
+	go func() { exited <- cmd.Wait() }()
+	defer func() {
+		_ = cmd.Process.Kill()
+		select {
+		case <-exited:
+		case <-time.After(5 * time.Second):
+		}
+	}()
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/status", port)
+	for {
+		select {
+		case err := <-exited:
+			exited <- err
+			tail := out.String()
+			if len(tail) > 600 {
+				tail = tail[len(tail)-600:]
+			}
+			return fmt.Errorf("the new binary exited during start-up (%v): %s", err, tail)
+		case <-ctx.Done():
+			return fmt.Errorf("the new binary did not answer within 90s")
+		case <-time.After(500 * time.Millisecond):
+		}
+		if resp, err := client.Get(url); err == nil {
+			_ = resp.Body.Close()
+			return nil
+		}
+	}
+}
+
 func buildCommand(repoDir string) (*exec.Cmd, error) {
 	if runtime.GOOS == "windows" {
 		ps, err := exec.LookPath("powershell")
@@ -476,8 +576,20 @@ func copyBinary(src, dst string) error {
 		}
 		return nil
 	}
-	if err := copyFile(src, dst); err != nil {
+	if err := copyFile(src, dst+".tmp"); err != nil {
+		_ = os.Remove(dst + ".tmp")
 		return err
 	}
-	return os.Chmod(dst, 0o755)
+	if err := os.Chmod(dst+".tmp", 0o755); err != nil {
+		_ = os.Remove(dst + ".tmp")
+		return err
+	}
+	// Keep the previous binary as a manual rollback, then swap atomically so a crash mid-copy
+	// can never leave a half-written executable at the running path.
+	_ = copyFile(dst, dst+".bak")
+	if err := os.Rename(dst+".tmp", dst); err != nil {
+		_ = os.Remove(dst + ".tmp")
+		return err
+	}
+	return nil
 }

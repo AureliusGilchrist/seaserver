@@ -201,6 +201,7 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
         const root = resolveRepoRoot(getSettings().sourceRepoPath)
         return {
             repoRoot: root,
+            remote: !!isRemoteMode(),
             busy,
             hasLiveBackend: fs.existsSync(getLiveBinaryPath(app, getBinaryName())),
             hasLiveFrontend: fs.existsSync(path.join(getLiveWebDir(app), "index.html")),

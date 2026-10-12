@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -19,6 +20,34 @@ import (
 //
 // It is never pushed at the PIN screen, and it never dismisses itself: it is shown once the client
 // is signed in, and it is gone when the person looking at it says so.
+
+// HandleUpdateBackend
+//
+//	@summary updates the backend from the fork's repository.
+//	@desc Fetches origin and, when the checkout is behind, pulls, builds and restarts the server.
+//	@desc Used by remote clients (e.g. the desktop app connected to a NAS).
+//	@route /api/v1/update/backend [POST]
+//	@returns handlers.UpdateBackendResponse
+func (h *Handler) HandleUpdateBackend(c echo.Context) error {
+	u := updater.CurrentGitUpdater()
+	if u == nil {
+		return h.RespondWithError(c, errors.New("this server is not running from a git checkout, so it cannot update itself"))
+	}
+	started, err := u.UpdateNow()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	msg := "Backend is already up to date."
+	if started {
+		msg = "Update found. The server is building it and will restart shortly."
+	}
+	return h.RespondWithData(c, UpdateBackendResponse{Started: started, Message: msg})
+}
+
+type UpdateBackendResponse struct {
+	Started bool   `json:"started"`
+	Message string `json:"message"`
+}
 
 // HandleGetUpdateNotice
 //

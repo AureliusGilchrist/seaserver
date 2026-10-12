@@ -17,7 +17,12 @@ Dockerfile.dev
 dev.dockerfile
 .dockerignore
 seanime_exe
-build-all-stats.json
+seanime_exe.tmp
+seanime_exe.bak
+seanime_exe.old
+seanime.exe.tmp
+seanime.exe.bak
+seanime.exe.oldbuild-all-stats.json
 go.work
 
 .github/*.md

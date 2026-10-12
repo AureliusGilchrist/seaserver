@@ -268,6 +268,7 @@ export function VideoCoreDrawer(props: DrawerProps) {
     const [isDragging, setIsDragging] = React.useState(false)
     const [isHidden, setIsHidden] = React.useState(false)
     const dragStartPos = React.useRef({ x: 0, y: 0 })
+    const hasDraggedRef = React.useRef(false)
     const elementStartPos = React.useRef({ x: 0, y: 0 })
     const PADDING = 20 // Define padding constant
     const AUTO_HIDE_THRESHOLD = 0.5 // Hide when 50% is overflowing
@@ -301,6 +302,7 @@ export function VideoCoreDrawer(props: DrawerProps) {
 
         const handleMouseDown = (e: MouseEvent) => {
             setIsDragging(true)
+            hasDraggedRef.current = false
             dragStartPos.current = { x: e.clientX, y: e.clientY }
             elementStartPos.current = { x: position.x, y: position.y }
         }
@@ -310,90 +312,32 @@ export function VideoCoreDrawer(props: DrawerProps) {
 
             const deltaX = e.clientX - dragStartPos.current.x
             const deltaY = e.clientY - dragStartPos.current.y
-
-            const newX = elementStartPos.current.x + deltaX
-            const newY = elementStartPos.current.y + deltaY
+            if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) hasDraggedRef.current = true
+            if (!hasDraggedRef.current) return
 
             const boundaries = calculateBoundaries()
             if (!boundaries) return
 
-            // Check for auto-hide (when dragged to the right edge)
-            const hideThresholdX = window.innerWidth - (boundaries.width * AUTO_HIDE_THRESHOLD)
-            if (newX >= hideThresholdX) {
-                if (!isHidden) {
-                    setIsHidden(true)
-                }
-                setPosition({ x: window.innerWidth - boundaries.width * 0.15, y: newY }) // Show just a sliver
-                return
-            } else {
-                if (isHidden) {
-                    setIsHidden(false)
-                }
-            }
-
-            // Apply boundaries for normal dragging
-            const boundedX = Math.max(boundaries.leftBoundary, Math.min(newX, boundaries.rightBoundary * 1.25))
-            const boundedY = Math.max(boundaries.topBoundary, Math.min(newY, boundaries.bottomBoundary))
-
-            setPosition({ x: boundedX, y: boundedY })
+            // Follow the pointer anywhere, only keeping the player fully on screen.
+            const newX = elementStartPos.current.x + deltaX
+            const newY = elementStartPos.current.y + deltaY
+            const maxX = window.innerWidth - boundaries.width
+            const maxY = window.innerHeight - boundaries.height
+            setIsHidden(false)
+            setPosition({
+                x: Math.max(0, Math.min(newX, maxX)),
+                y: Math.max(0, Math.min(newY, maxY)),
+            })
         }
 
         const handleMouseUp = (e: MouseEvent) => {
+            if (!isDragging) return
             setIsDragging(false)
 
-            // If hidden, snap to hidden position or reveal based on drag behavior
-            if (isHidden) {
-                const boundaries = calculateBoundaries()
-                if (!boundaries) return
-
-                // If dragged back far enough to the left, show it again
-                if (position.x < window.innerWidth - boundaries.width * 0.5) {
-                    setIsHidden(false)
-                    setPosition({ x: boundaries.rightBoundary, y: position.y })
-                } else {
-                    // Keep it hidden at the edge
-                    setPosition({ x: window.innerWidth - boundaries.width * 0.1, y: position.y })
-                }
-                return
+            // A press that never moved is a click; a drag stays exactly where it was dropped.
+            if (!hasDraggedRef.current && e.target === draggableAreaRef.current) {
+                onMiniPlayerClick?.()
             }
-
-            // if it's just a click and the target is the draggable area, do nothing
-            if (Math.abs(position.x - elementStartPos.current.x) < 10 && Math.abs(position.y - elementStartPos.current.y) < 10) {
-                if (e.target === draggableAreaRef.current) {
-                    onMiniPlayerClick?.()
-                    return
-                }
-            }
-
-            // Snap to the nearest corner when dragging stops
-            const boundaries = calculateBoundaries()
-            if (!boundaries) return
-
-            const corners = [
-                { x: boundaries.leftBoundary, y: boundaries.topBoundary }, // Top-left
-                { x: boundaries.rightBoundary, y: boundaries.topBoundary }, // Top-right
-                { x: boundaries.leftBoundary, y: boundaries.bottomBoundary }, // Bottom-left
-                { x: boundaries.rightBoundary, y: boundaries.bottomBoundary }, // Bottom-right
-            ]
-
-            // Find the nearest corner
-            let nearestCorner = corners[0]
-            let minDistance = Number.MAX_VALUE
-
-            corners.forEach(corner => {
-                const distance = Math.sqrt(
-                    Math.pow(position.x - corner.x, 2) +
-                    Math.pow(position.y - corner.y, 2),
-                )
-
-                if (distance < minDistance) {
-                    minDistance = distance
-                    nearestCorner = corner
-                }
-            })
-
-            // Snap to the nearest corner
-            setPosition({ x: nearestCorner.x, y: nearestCorner.y })
         }
 
         // Add event listeners

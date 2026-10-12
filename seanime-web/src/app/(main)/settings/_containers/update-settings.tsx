@@ -1,3 +1,4 @@
+import { useUpdateBackend } from "@/api/hooks/update-notice.hooks"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
 import { Button } from "@/components/ui/button"
 import { TextInput } from "@/components/ui/text-input"
@@ -13,10 +14,16 @@ export function UpdateSettings() {
     const [lines, setLines] = React.useState<string[]>([])
     const logRef = React.useRef<HTMLPreElement>(null)
 
+    const [remote, setRemote] = React.useState(false)
+    const { mutateAsync: updateRemoteBackend } = useUpdateBackend()
+
     const liveUpdate = window.electron?.liveUpdate
 
     const refreshInfo = React.useCallback(() => {
-        window.electron?.liveUpdate?.getInfo().then(info => setDetectedRoot(info.repoRoot))
+        window.electron?.liveUpdate?.getInfo().then(info => {
+            setDetectedRoot(info.repoRoot)
+            setRemote(!!info.remote)
+        })
     }, [])
 
     React.useEffect(() => {
@@ -41,6 +48,22 @@ export function UpdateSettings() {
     }
 
     async function run(target: Target) {
+        if (target === "backend" && remote) {
+            setRunning(target)
+            try {
+                const res = await updateRemoteBackend({})
+                const msg = res?.message ?? "Update requested."
+                toast.success(msg)
+                setLines([msg])
+            }
+            catch (e: any) {
+                toast.error(`Backend update failed: ${e?.message ?? "unknown error"}`)
+            }
+            finally {
+                setRunning(null)
+            }
+            return
+        }
         setRunning(target)
         setLines([])
         try {
@@ -83,8 +106,9 @@ export function UpdateSettings() {
 
             <SettingsCard title="Backend">
                 <p className="text-sm text-[--muted]">
-                    Pulls the latest changes, builds the server, and only if the build succeeds swaps in the new binary
-                    and restarts the backend. If the new backend fails to start, the previous one is restored.
+                    {remote
+                        ? "Asks the remote server to pull the latest commit from its own repository (origin, the seaserver repo it was checked out from), build it, and restart. The server keeps running the old version if the build fails."
+                        : "Pulls the latest changes, builds the server, and only if the build succeeds swaps in the new binary and restarts the backend. If the new backend fails to start, the previous one is restored."}
                 </p>
                 <Button
                     intent="primary"
