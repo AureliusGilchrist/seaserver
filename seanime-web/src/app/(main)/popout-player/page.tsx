@@ -30,7 +30,7 @@ import { useAtom, useAtomValue } from "jotai"
 import React from "react"
 import ReactDOM from "react-dom"
 import { ImSpinner2 } from "react-icons/im"
-import { LuArrowUpLeft, LuGripVertical } from "react-icons/lu"
+import { LuArrowUpLeft } from "react-icons/lu"
 import { cn } from "@/components/ui/core/styling"
 
 const log = logger("POPOUT PLAYER")
@@ -153,7 +153,6 @@ function PopoutWindowDrag() {
             if (e.button !== 0 || pressed) return
             if (isControl(e.target as Element | null)) return
             pressed = true
-            console.warn("[PopoutDrag] down on", (e.target as Element | null)?.tagName, (e.target as Element | null)?.getAttribute?.("data-vc-element"))
             startX = e.screenX
             startY = e.screenY
             dragging = false
@@ -169,9 +168,6 @@ function PopoutWindowDrag() {
             win.popoutDragStart()
         }
 
-        const stopNative = (e: Event) => e.preventDefault()
-        window.addEventListener("dragstart", stopNative, true)
-        window.addEventListener("selectstart", stopNative, true)
         window.addEventListener("pointerdown", onDown, true)
         window.addEventListener("pointermove", onMove, true)
         window.addEventListener("mousedown", onDown, true)
@@ -182,8 +178,6 @@ function PopoutWindowDrag() {
         window.addEventListener("dragend", finish, true)
         window.addEventListener("blur", finish)
         return () => {
-            window.removeEventListener("dragstart", stopNative, true)
-            window.removeEventListener("selectstart", stopNative, true)
             window.removeEventListener("pointerdown", onDown, true)
             window.removeEventListener("pointermove", onMove, true)
             window.removeEventListener("mousedown", onDown, true)
@@ -253,64 +247,22 @@ function PopoutReturnButton() {
         })
     }
 
-    const dragging = React.useRef(false)
-    const endDrag = React.useCallback(() => {
-        if (!dragging.current) return
-        dragging.current = false
-        window.electron?.window?.popoutDragEnd?.()
-    }, [])
-    React.useEffect(() => {
-        window.addEventListener("pointerup", endDrag)
-        window.addEventListener("pointercancel", endDrag)
-        window.addEventListener("blur", endDrag)
-        return () => {
-            window.removeEventListener("pointerup", endDrag)
-            window.removeEventListener("pointercancel", endDrag)
-            window.removeEventListener("blur", endDrag)
-            endDrag()
-        }
-    }, [endDrag])
-
-    const overlayStyle = { pointerEvents: visible ? "auto" : "none", zIndex: 2147483647 } as const
-
     return ReactDOM.createPortal(
-        <>
-            <button
-                type="button"
-                title="Drag to move the player"
-                aria-label="Drag to move the player"
-                data-popout-nodrag
-                onPointerDown={(e) => {
-                    if (e.button !== 0) return
-                    e.preventDefault()
-                    dragging.current = true
-                    window.electron?.window?.popoutDragStart?.()
-                }}
-                style={overlayStyle}
-                className={cn(
-                    "fixed top-3 left-3 flex items-center justify-center rounded-full size-8 cursor-grab active:cursor-grabbing",
-                    "bg-black/60 hover:bg-black/80 text-white backdrop-blur transition-opacity duration-200 touch-none",
-                    visible ? "opacity-100" : "opacity-0",
-                )}
-            >
-                <LuGripVertical className="size-4" />
-            </button>
-            <button
-                type="button"
-                data-popout-nodrag
-                onClick={returnToMain}
-                style={overlayStyle}
-                className={cn(
-                    "fixed top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full",
-                    "bg-black/60 hover:bg-black/80 text-white text-sm font-medium px-3 py-1.5",
-                    "backdrop-blur transition-opacity duration-200",
-                    visible ? "opacity-100" : "opacity-0",
-                )}
-            >
-                <LuArrowUpLeft className="size-4" />
-                Return to Denshi
-            </button>
-        </>,
+        <button
+            type="button"
+            data-popout-nodrag
+            onClick={returnToMain}
+            style={{ pointerEvents: visible ? "auto" : "none", zIndex: 2147483647 }}
+            className={cn(
+                "fixed top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full",
+                "bg-black/60 hover:bg-black/80 text-white text-sm font-medium px-3 py-1.5",
+                "backdrop-blur transition-opacity duration-200",
+                visible ? "opacity-100" : "opacity-0",
+            )}
+        >
+            <LuArrowUpLeft className="size-4" />
+            Return to Seaserver
+        </button>,
         document.body,
     )
 }
