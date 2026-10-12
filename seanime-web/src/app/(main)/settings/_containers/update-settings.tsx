@@ -216,7 +216,7 @@ function ElectronUpdates() {
             if (target === "backend" && remote) {
                 const res = await checkRemoteBackend({})
                 files = res?.files ?? []
-                if (res?.behind && res.blocked) summary = `Update available, but it will not be pulled: ${res.blocked}`
+                if (res?.behind && res.blocked) summary = `Update available. Note: ${res.blocked}`
                 else summary = res?.behind ? "Update available" : "Up to date"
             } else {
                 const res = target === "backend" ? await liveUpdate!.checkBackend() : await liveUpdate!.checkFrontend()

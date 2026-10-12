@@ -196,25 +196,43 @@ func (u *GitAutoUpdater) checkForUpdate() (bool, error) {
 	return behind, nil
 }
 
-// blocker explains why the checkout cannot be fast-forwarded to the fork's latest commit, or
-// returns "" when it can.
-func (u *GitAutoUpdater) blocker(remoteRef string) string {
-	// Untracked files (build output) do not stop a fast-forward; changes to tracked files do.
-	status, err := u.git("status", "--porcelain", "--untracked-files=no")
-	if err != nil {
-		return "could not read the working tree status: " + err.Error()
-	}
-	if s := strings.TrimSpace(status); s != "" {
-		lines := strings.Split(s, "\n")
-		if len(lines) > 5 {
-			lines = append(lines[:5], fmt.Sprintf("… and %d more", len(lines)-5))
+// localWork describes local changes or commits that an update will shelve, or "" when the checkout
+// is clean and simply behind.
+func (u *GitAutoUpdater) localWork(remoteRef string) string {
+	var notes []string
+	if status, err := u.git("status", "--porcelain", "--untracked-files=no"); err == nil {
+		if s := strings.TrimSpace(status); s != "" {
+			lines := strings.Split(s, "\n")
+			if len(lines) > 5 {
+				lines = append(lines[:5], fmt.Sprintf("… and %d more", len(lines)-5))
+			}
+			notes = append(notes, "local changes ("+strings.Join(lines, "; ")+")")
 		}
-		return "the server's checkout has local changes that would be overwritten, so it will not update: " + strings.Join(lines, "; ")
 	}
 	if _, err := u.git("merge-base", "--is-ancestor", "HEAD", remoteRef); err != nil {
-		return "the server's checkout has local commits that are not on the fork (it has diverged), so it cannot fast-forward"
+		notes = append(notes, "local commits that are not on the fork")
 	}
-	return ""
+	if len(notes) == 0 {
+		return ""
+	}
+	return "this checkout has " + strings.Join(notes, " and ") + "; they will be saved to a backup ref and replaced by the fork's version"
+}
+
+// shelve saves whatever local work the checkout has under refs/seanime-backup/ (so nothing is
+// lost) and then moves the checkout onto the fork's latest commit, whatever state it was in.
+func (u *GitAutoUpdater) shelve(remoteRef string) error {
+	stamp := time.Now().Format("20060102-150405")
+	if head, err := u.git("rev-parse", "HEAD"); err == nil {
+		_, _ = u.git("update-ref", "refs/seanime-backup/"+stamp+"-head", strings.TrimSpace(head))
+	}
+	// `stash create` records the tracked changes as a commit without touching the tree.
+	if snap, err := u.git("stash", "create"); err == nil && strings.TrimSpace(snap) != "" {
+		_, _ = u.git("update-ref", "refs/seanime-backup/"+stamp+"-changes", strings.TrimSpace(snap))
+	}
+	if out, err := u.git("reset", "--hard", remoteRef); err != nil {
+		return fmt.Errorf("%s %w", strings.TrimSpace(out), err)
+	}
+	return nil
 }
 
 // CheckForUpdate is the exported form, for the API's update check. An update here is a commit on
@@ -238,7 +256,7 @@ func (u *GitAutoUpdater) CheckPending() (behind bool, files []FileChange, blocke
 		return false, nil, "", err
 	}
 	ref := u.remoteRef()
-	return true, u.diffFiles(ref), u.blocker(ref), nil
+	return true, u.diffFiles(ref), u.localWork(ref), nil
 }
 
 // UpdateNow is the manual "update backend": it fetches origin (the fork's repository) and, when the
@@ -257,12 +275,7 @@ func (u *GitAutoUpdater) UpdateNow() (started bool, files []FileChange, err erro
 		u.updating.Store(false)
 		return false, nil, nil
 	}
-	if reason := u.blocker(u.remoteRef()); reason != "" {
-		u.updating.Store(false)
-		u.logger.Warn().Msg("selfupdate: " + reason)
-		return false, nil, fmt.Errorf("the update was not pulled: %s", reason)
-	}
-	// Read before the background update merges, after which there is nothing left to diff.
+	// Read before the background update moves the checkout, after which there is nothing left to diff.
 	files = u.PendingChanges()
 	go func() {
 		defer u.updating.Store(false)
@@ -304,26 +317,24 @@ func (u *GitAutoUpdater) runUpdate() {
 		u.logger.Error().Msg("selfupdate: The update stopped unexpectedly — the running version is untouched")
 	})
 
-	// Local work is never destroyed: an update only ever fast-forwards, and anything else is left
-	// for the person to deal with — with the reason said out loud.
+	// An update always lands: local work is saved under refs/seanime-backup/ and the checkout is
+	// moved onto the fork's latest commit, so nothing is left behind and nothing is lost.
 	remoteRef := u.remoteRef()
 	if _, err := u.git("fetch", gitUpdateRemote); err != nil {
 		u.logger.Warn().Err(err).Msg("selfupdate: Could not fetch the fork, not updating")
 		u.notify("The update could not be fetched: " + err.Error())
 		return
 	}
-	if reason := u.blocker(remoteRef); reason != "" {
-		u.logger.Warn().Msg("selfupdate: " + reason)
-		u.notify("The update was not pulled: " + reason)
-		return
+	if note := u.localWork(remoteRef); note != "" {
+		u.logger.Warn().Msg("selfupdate: " + note)
+		u.notify("Saving local work to a backup ref before updating")
 	}
 
 	stats := u.diffStats(remoteRef)
 
-	// Fast-forwarding to the fork's ref takes every new commit at once, so nothing is left behind.
-	if out, err := u.git("merge", "--ff-only", remoteRef); err != nil {
-		u.logger.Warn().Err(err).Msg("selfupdate: Could not fast-forward to the fork's latest commit, not updating")
-		u.notify("The update was not pulled: git could not fast-forward (" + strings.TrimSpace(out+" "+err.Error()) + ")")
+	if err := u.shelve(remoteRef); err != nil {
+		u.logger.Warn().Err(err).Msg("selfupdate: Could not move to the fork's latest commit, not updating")
+		u.notify("The update was not pulled: " + err.Error())
 		return
 	}
 
