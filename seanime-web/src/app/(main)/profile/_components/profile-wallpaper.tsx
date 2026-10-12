@@ -9,6 +9,7 @@ import { cn } from "@/components/ui/core/styling"
 import { ThemeBackgroundImage } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { useQueryClient } from "@tanstack/react-query"
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { toast } from "sonner"
 
 export type WallpaperEffects = {
@@ -54,8 +55,11 @@ function resolveUrl(url: string): string {
 /** The profile's wallpaper, drawn with the same effect stack as the anime theme wallpaper. */
 export function ProfileWallpaper({ url, effects }: { url?: string | null; effects?: string | null }) {
     const fx = React.useMemo(() => parseWallpaperEffects(effects), [effects])
-    if (!url) return null
-    return (
+    const [mounted, setMounted] = React.useState(false)
+    React.useEffect(() => setMounted(true), [])
+    if (!url || !mounted) return null
+    // Portaled to <body> so no ancestor transform/stacking context can hide or clip the fixed layer.
+    return createPortal(
         <ThemeBackgroundImage
             url={resolveUrl(url)}
             dim={fx.dim}
@@ -68,7 +72,8 @@ export function ProfileWallpaper({ url, effects }: { url?: string | null; effect
             vignetteStrength={fx.vignetteStrength}
             glowStrength={fx.glowStrength}
             hologramStrength={fx.hologramStrength}
-        />
+        />,
+        document.body,
     )
 }
 
@@ -150,13 +155,12 @@ export function ProfileWallpaperEditor({ currentUrl, currentEffects }: { current
         <>
             <div>
                 <div className="space-y-4">
-                    <p className="text-sm text-[--muted]">Everyone who visits your profile sees this wallpaper with these effects. Only you can edit it.</p>
+                    <p className="text-sm text-[--muted]">
+                        Everyone who visits your profile sees this wallpaper with these effects. Only you can edit it. The preview is the full page background,
+                        live behind this tab.
+                    </p>
 
-                    <div className="relative h-56 rounded-md overflow-hidden border border-[--border] bg-black isolate [transform:translateZ(0)]">
-                        {url
-                            ? <ProfileWallpaper url={url} effects={JSON.stringify(fx)} />
-                            : <div className="absolute inset-0 flex items-center justify-center text-[--muted] text-sm">No wallpaper</div>}
-                    </div>
+                    {url && <ProfileWallpaper url={url} effects={JSON.stringify(fx)} />}
 
                     <div className="flex flex-wrap gap-2">
                         <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={onPickFile} />

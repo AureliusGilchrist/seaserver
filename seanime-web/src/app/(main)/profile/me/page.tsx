@@ -203,7 +203,7 @@ export function MyProfilePage() {
 
     return (
         <div className="sea-profile-accent" style={profilePageStyle} {...profileFillAttrs}>
-            <ProfileWallpaper url={profile!.wallpaperUrl} effects={profile!.wallpaperEffects} />
+            {activeTab !== "wallpaper" && <ProfileWallpaper url={profile!.wallpaperUrl} effects={profile!.wallpaperEffects} />}
             {/* Banner */}
             {profile!.bannerImage ? (
                 <div
