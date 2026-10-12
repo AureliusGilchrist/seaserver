@@ -141,12 +141,110 @@ export function UpdateSettings() {
     )
 }
 
+type LogTone = "ok" | "fail" | "warn" | "info" | "dim" | "plain"
+
+function toneOf(text: string): LogTone {
+    if (/\b(fail(ed|ure)?|error|fatal|panic|denied|cannot|could not)\b/i.test(text)) return "fail"
+    if (/\b(succeed(ed)?|success|up to date|complete(d)?|done|now running)\b/i.test(text)) return "ok"
+    if (/\b(warn(ing)?|note|blocked|stash(ed)?|backup)\b/i.test(text)) return "warn"
+    if (/\b(update available|checking|fetching|building|installing|restarting|pulling|resetting|running)\b/i.test(text)) return "info"
+    return "plain"
+}
+
+// Syntax-highlights a log line like source code: each token class gets its own color.
+const TOKEN_RE = new RegExp([
+    "(?<str>\"[^\"]*\"|'[^']*'|`[^`]*`)",
+    "(?<url>https?://[^\\s)]+)",
+    "(?<hash>\\b[0-9a-f]{7,40}\\b)",
+    "(?<ref>\\b(?:refs/[\\w./-]+|origin/[\\w./-]+|HEAD)\\b)",
+    "(?<path>(?:[\\w.-]+/)+[\\w.-]+|\\b[\\w-]+\\.(?:go|tsx?|jsx?|json|css|sh|md|mod|sum|ya?ml|html|exe)\\b)",
+    "(?<add>\\+\\d+)",
+    "(?<del>(?<![\\w-])-\\d+)",
+    "(?<dur>\\b\\d+(?:\\.\\d+)?\\s?(?:ms|s|sec|seconds|m|min|minutes|MB|KB|GB)\\b)",
+    "(?<ver>\\bv?\\d+\\.\\d+(?:\\.\\d+)+\\S*)",
+    "(?<num>\\b\\d+\\b)",
+    "(?<good>\\b(?:succeeded|success|successful|passed|ok|done|complete|completed|up to date|now running)\\b)",
+    "(?<bad>\\b(?:failed|failure|error|fatal|panic|denied|cannot|could not|EACCES|aborted)\\b)",
+    "(?<warn>\\b(?:warning|warn|note|blocked|stashed|backup|dirty|skipped)\\b)",
+    "(?<kw>\\b(?:git|npm|go|bash|sudo|fetch|pull|reset|clean|checkout|build|install|restart|restarting|update|updating|available|checking|checked|stash|commit|branch|remote|binary|backend|frontend|server)\\b)",
+    "(?<label>^[A-Za-z][\\w ]{0,30}(?=:))",
+].join("|"), "gi")
+
+const GROUP_CLASS: Record<string, string> = {
+    str: "text-amber-300",
+    url: "text-sky-400 underline decoration-sky-400/40",
+    hash: "text-fuchsia-400",
+    ref: "text-pink-400",
+    path: "text-cyan-300",
+    add: "text-green-400 font-semibold",
+    del: "text-red-400 font-semibold",
+    dur: "text-orange-300",
+    ver: "text-teal-300",
+    num: "text-orange-300",
+    good: "text-green-400 font-semibold",
+    bad: "text-red-400 font-semibold",
+    warn: "text-yellow-300 font-semibold",
+    kw: "text-violet-400",
+    label: "text-blue-300",
+}
+
+function highlight(text: string): React.ReactNode[] {
+    const out: React.ReactNode[] = []
+    let last = 0
+    let key = 0
+    for (const m of text.matchAll(TOKEN_RE)) {
+        const idx = m.index ?? 0
+        if (idx > last) out.push(<React.Fragment key={key++}>{text.slice(last, idx)}</React.Fragment>)
+        const group = Object.entries(m.groups ?? {}).find(([, v]) => v !== undefined)?.[0] ?? "plain"
+        out.push(<span key={key++} className={GROUP_CLASS[group]}>{m[0]}</span>)
+        last = idx + m[0].length
+    }
+    if (last < text.length) out.push(<React.Fragment key={key++}>{text.slice(last)}</React.Fragment>)
+    return out
+}
+
+function LogLine({ line, inFailure }: { line: string, inFailure: boolean }) {
+    if (line === "") return <div className="h-2" />
+    const m = line.match(/^\[(\d{1,2}:\d{2}:\d{2})\]\s?(.*)$/)
+    const time = m?.[1]
+    const text = m ? m[2] : line
+    const indented = /^\s{2,}/.test(text)
+    const isHeader = !indented && /^(backend|frontend) update:/i.test(text)
+    const headerTone = isHeader ? (toneOf(text) === "fail" ? "bg-red-500/10" : toneOf(text) === "ok" ? "bg-green-500/10" : "bg-brand-500/10") : ""
+    return (
+        <div className={`flex gap-2 rounded px-1 ${headerTone} ${indented ? "pl-4 border-l-2 ml-1 " + (inFailure ? "border-red-500/50" : "border-gray-700") : ""}`}>
+            {time && <span className="shrink-0 text-gray-600 tabular-nums">{time}</span>}
+            <span className={`${inFailure && indented ? "text-red-200/90" : "text-gray-300"} ${isHeader ? "font-semibold" : ""} whitespace-pre-wrap break-all`}>
+                {highlight(text)}
+            </span>
+        </div>
+    )
+}
+
+function StructuredLog({ lines, logRef }: { lines: string[], logRef: React.RefObject<HTMLDivElement | null> }) {
+    let inFailure = false
+    return (
+        <div
+            ref={logRef}
+            style={{ userSelect: "text", WebkitUserSelect: "text" }}
+            className="max-h-64 overflow-auto rounded-lg border bg-gray-950 p-3 pr-24 text-xs font-mono space-y-0.5 cursor-text select-text"
+        >
+            {lines.map((line, i) => {
+                const text = line.replace(/^\[[\d:]+\]\s?/, "")
+                if (line === "") inFailure = false
+                else if (!/^\s{2,}/.test(text)) inFailure = /:\s*failed\b/i.test(text)
+                return <LogLine key={i} line={line} inFailure={inFailure} />
+            })}
+        </div>
+    )
+}
+
 function ElectronUpdates() {
     const [detectedRoot, setDetectedRoot] = React.useState<string | null>(null)
     const [detectedOrigin, setDetectedOrigin] = React.useState<string | null>(null)
     const [running, setRunning] = React.useState<Target | null>(null)
     const [lines, setLines] = React.useState<string[]>([])
-    const logRef = React.useRef<HTMLPreElement>(null)
+    const logRef = React.useRef<HTMLDivElement>(null)
 
     const [remote, setRemote] = React.useState(false)
     const { mutateAsync: updateRemoteBackend } = useUpdateBackend()
@@ -383,13 +481,7 @@ function ElectronUpdates() {
                     >
                         Copy log
                     </Button>
-                    <pre
-                        ref={logRef}
-                        style={{ userSelect: "text", WebkitUserSelect: "text" }}
-                        className="max-h-64 overflow-auto rounded-lg border bg-gray-950 p-3 pr-24 text-xs text-gray-300 whitespace-pre-wrap cursor-text select-text"
-                    >
-                        {lines.join("\n")}
-                    </pre>
+                    <StructuredLog lines={lines} logRef={logRef} />
                 </div>
             )}
         </div>
