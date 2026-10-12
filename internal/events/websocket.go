@@ -168,6 +168,25 @@ var serverStartedAt = time.Now()
 
 const serverReadyToastWindow = 2 * time.Minute
 
+var (
+	startupToastMu      sync.RWMutex
+	startupToastMessage = "Server successfully prepared!"
+)
+
+// SetStartupToastMessage replaces the toast clients get when they connect to a freshly started
+// server, e.g. to say that a backend update has been switched to.
+func SetStartupToastMessage(message string) {
+	startupToastMu.Lock()
+	defer startupToastMu.Unlock()
+	startupToastMessage = message
+}
+
+func getStartupToastMessage() string {
+	startupToastMu.RLock()
+	defer startupToastMu.RUnlock()
+	return startupToastMessage
+}
+
 func (m *WSEventManager) AddConn(id string, profileID uint, conn *websocket.Conn) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -187,7 +206,7 @@ func (m *WSEventManager) AddConn(id string, profileID uint, conn *websocket.Conn
 			m.readyToasted[id] = struct{}{}
 			go func() {
 				time.Sleep(time.Second)
-				wsConn.writeJSON(WSEvent{Type: SuccessToast, Payload: "Server successfully prepared!"})
+				wsConn.writeJSON(WSEvent{Type: SuccessToast, Payload: getStartupToastMessage()})
 			}()
 		}
 	}

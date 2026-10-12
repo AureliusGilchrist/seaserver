@@ -78,6 +78,8 @@ var gitUpdaterRef = util.NewRef[*GitAutoUpdater](nil)
 // git checkout — the NAS deployment case. A binary that is not in a checkout has nothing to pull,
 // so the updater is simply not started there.
 func StartGitAutoUpdate(logger *zerolog.Logger, wsEventManager *events.WSEventManager, appDataDir string) {
+	announceCompletedUpdate(appDataDir)
+
 	if disabled := os.Getenv("SEANIME_AUTO_UPDATE"); disabled == "0" || strings.EqualFold(disabled, "false") {
 		logger.Info().Msg("selfupdate: Auto-update disabled (SEANIME_AUTO_UPDATE=0)")
 		return
@@ -101,6 +103,32 @@ func StartGitAutoUpdate(logger *zerolog.Logger, wsEventManager *events.WSEventMa
 		Msg("selfupdate: Watching the fork's repository for new commits")
 
 	go u.loop()
+}
+
+// announceCompletedUpdate runs at start-up. When the notice the previous process wrote just before
+// replacing itself is fresh, this process is the new version, so clients connecting to it are
+// told the switch succeeded.
+func announceCompletedUpdate(appDataDir string) {
+	if appDataDir == "" {
+		return
+	}
+	data, err := os.ReadFile(filepath.Join(appDataDir, UpdateNoticeFileName))
+	if err != nil {
+		return
+	}
+	var notice UpdateNotice
+	if json.Unmarshal(data, &notice) != nil {
+		return
+	}
+	at, err := time.Parse(time.RFC3339, notice.UpdatedAt)
+	if err != nil || time.Since(at) > 5*time.Minute {
+		return
+	}
+	msg := "Backend updated successfully — now running the new version"
+	if notice.Title != "" {
+		msg += ": " + notice.Title
+	}
+	events.SetStartupToastMessage(msg)
 }
 
 // gitRepoDir returns the working directory when it is inside a git checkout.
