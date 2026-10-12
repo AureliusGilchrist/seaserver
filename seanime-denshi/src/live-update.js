@@ -119,14 +119,45 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
         try { starts.push(app.getAppPath()) } catch {}
         return starts.filter(Boolean)
     }
-    function findRoot(webOnly) {
-        const root = resolveRepoRoot(getSettings().sourceRepoPath, webOnly, extraStarts())
+
+    const SKIP_DIRS = new Set(["node_modules", ".git", "windows", "program files", "program files (x86)", "programdata", "appdata", "$recycle.bin", "system volume information", "out", "out-denshi", "dist"])
+    function scanForRoot(dir, depth, webOnly) {
+        if (isRepoRoot(dir, webOnly)) return dir
+        if (depth <= 0) return null
+        let entries
+        try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return null }
+        for (const e of entries) {
+            if (!e.isDirectory() || e.name.startsWith(".") || SKIP_DIRS.has(e.name.toLowerCase())) continue
+            const found = scanForRoot(path.join(dir, e.name), depth - 1, webOnly)
+            if (found) return found
+        }
+        return null
+    }
+    // Last resort when the app was not started from inside the checkout: look in the usual places once.
+    function searchCommonLocations(webOnly) {
+        const bases = []
+        for (const n of ["home", "documents", "desktop", "downloads"]) {
+            try { bases.push(app.getPath(n)) } catch {}
+        }
+        if (process.platform === "win32") {
+            for (const l of "CDEFGH") bases.push(`${l}:\\`)
+        }
+        for (const base of bases) {
+            const found = scanForRoot(base, 4, webOnly)
+            if (found) return found
+        }
+        return null
+    }
+
+    function findRoot(webOnly, scan) {
+        let root = resolveRepoRoot(getSettings().sourceRepoPath, webOnly, extraStarts())
+        if (!root && scan) root = searchCommonLocations(webOnly)
         if (root) { try { fs.writeFileSync(rememberFile, root) } catch {} }
         return root
     }
 
     function requireRepo() {
-        const root = findRoot(false)
+        const root = findRoot(false, true)
         if (!root) {
             throw new Error("Source repository not found. Set the repository path (a git checkout containing go.mod and seanime-web).")
         }
@@ -134,8 +165,8 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
     }
 
     function requireWebRoot() {
-        const root = findRoot(true)
-        if (!root) throw new Error("Local frontend source (seanime-web) not found. Run the app once from inside your seanime checkout so it can remember where the source is.")
+        const root = findRoot(true, true)
+        if (!root) throw new Error("Local frontend source (seanime-web) not found in any usual location. Set the repository path in settings once and it will be remembered.")
         return root
     }
 
