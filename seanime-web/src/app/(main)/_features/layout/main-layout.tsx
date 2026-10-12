@@ -40,7 +40,9 @@ import { useInvalidateQueriesListener } from "../../_listeners/invalidate-querie
 import { AdminAnnouncementsBanner } from "../admin-announcements"
 import { AnilistStatusBanner } from "../anilist-status-banner"
 import { Announcements } from "../announcements"
-import { AnimeThemeProvider } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { AnimeThemeProvider, useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { ProfileWallpaper } from "@/app/(main)/profile/_components/profile-wallpaper"
+import { useGetMyProfile } from "@/api/hooks/community.hooks"
 import { CursorProvider } from "@/lib/cursors/cursor-provider"
 import { CursorLibraryProvider } from "@/lib/cursors/cursor-library-provider"
 import { DiscordRpcBridge } from "@/lib/discord-rpc/discord-rpc-bridge"
@@ -61,6 +63,17 @@ import { useGetProfiles } from "@/api/hooks/profiles.hooks"
 import { ClientPrefsHydrator } from "@/lib/sea-storage/client-prefs-hydrator"
 import { useOfflineProgressSync } from "@/lib/offline-progress/use-offline-progress-sync"
 
+/** Your own profile wallpaper as the app-wide background, when the theme doesn't supply one. */
+export function GlobalProfileWallpaper() {
+    const pathname = usePathname()
+    const theme = useAnimeThemeOrNull()
+    const { data } = useGetMyProfile()
+    const themeHasWallpaper = !!theme && theme.config.id !== "seanime" && !!theme.activeBackgroundUrl
+    // Profile pages draw the wallpaper themselves
+    if (themeHasWallpaper || pathname.startsWith("/profile")) return null
+    return <ProfileWallpaper url={data?.profile?.wallpaperUrl} effects={data?.profile?.wallpaperEffects} />
+}
+
 export const MainLayout = ({ children }: { children: React.ReactNode }) => {
     const { data: profiles } = useGetProfiles(true)
     const hasMultipleProfiles = (profiles?.length ?? 0) > 1
@@ -79,6 +92,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
             <CursorProvider>
             <SoundProvider>
             <CursorLibraryProvider />
+            <GlobalProfileWallpaper />
             <DiscordRpcBridge />
             <RewardParticlesLayer />
             <Loader />
