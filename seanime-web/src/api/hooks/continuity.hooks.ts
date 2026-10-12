@@ -59,16 +59,31 @@ export function getEpisodePercentageComplete(history: Nullish<Continuity_WatchHi
     return Math.max(1, Math.round((item.currentTime / item.duration) * 100))
 }
 
-export function getEpisodeMinutesRemaining(history: Nullish<Continuity_WatchHistory>, mediaId: number, progressNumber: number) {
+export function getEpisodeSecondsRemaining(history: Nullish<Continuity_WatchHistory>, mediaId: number, progressNumber: number) {
     const item = getInProgressItem(history, mediaId, progressNumber)
     if (!item) return 0
-    return Math.max(1, Math.round((item.duration - item.currentTime) / 60))
+    return Math.max(1, Math.round(item.duration - item.currentTime))
 }
 
-export function getEpisodeTotalMinutes(history: Nullish<Continuity_WatchHistory>, mediaId: number, progressNumber: number) {
+export function getEpisodeTotalSeconds(history: Nullish<Continuity_WatchHistory>, mediaId: number, progressNumber: number) {
     const item = getInProgressItem(history, mediaId, progressNumber)
     if (!item) return 0
-    return Math.max(1, Math.round(item.duration / 60))
+    return Math.max(1, Math.round(item.duration))
+}
+
+// "17m 23s"; drops the minutes below a minute.
+export function formatMinSec(totalSeconds: number) {
+    const s = Math.max(0, Math.round(totalSeconds))
+    const m = Math.floor(s / 60)
+    const r = s % 60
+    return m > 0 ? `${m}m ${r}s` : `${r}s`
+}
+
+// "17m 23s in · 12m 7s left of 29m 30s"
+export function formatProgressText(secondsRemaining: number, totalSeconds?: number) {
+    const inPart = totalSeconds ? `${formatMinSec(Math.max(0, totalSeconds - secondsRemaining))} in · ` : ""
+    const ofPart = totalSeconds ? ` of ${formatMinSec(totalSeconds)}` : ""
+    return `${inPart}${formatMinSec(secondsRemaining)} left${ofPart}`
 }
 
 // Episodes are considered watched from this ratio onwards (mirrors the server's IgnoreRatioThreshold)

@@ -31,7 +31,7 @@ export const EpisodeItemIsolation = createIsolation()
 
 const __metadataModalIsOpenAtom = atom(false)
 
-export const EpisodeItem = memo(({ episode, media, isWatched, watchedProgress, onPlay, percentageComplete, minutesRemaining, totalMinutes, onPlayExternally }: {
+export const EpisodeItem = memo(({ episode, media, isWatched, watchedProgress, onPlay, percentageComplete, secondsRemaining, totalSeconds, onPlayExternally }: {
     episode: Anime_Episode,
     media: AL_BaseAnime,
     onPlay?: ({ path, mediaId }: { path: string, mediaId: number }) => void,
@@ -39,8 +39,8 @@ export const EpisodeItem = memo(({ episode, media, isWatched, watchedProgress, o
     isWatched?: boolean
     watchedProgress?: number
     percentageComplete?: number
-    minutesRemaining?: number
-    totalMinutes?: number
+    secondsRemaining?: number
+    totalSeconds?: number
     isOffline?: boolean
 }) => {
 
@@ -77,8 +77,8 @@ export const EpisodeItem = memo(({ episode, media, isWatched, watchedProgress, o
                 length={episode.episodeMetadata?.length}
                 rating={episode.episodeMetadata?.rating}
                 percentageComplete={percentageComplete}
-                minutesRemaining={minutesRemaining}
-                totalMinutes={totalMinutes}
+                secondsRemaining={secondsRemaining}
+                totalSeconds={totalSeconds}
                 episodeNumber={episode.episodeNumber}
                 watchedProgress={watchedProgress}
                 progressNumber={episode.progressNumber}

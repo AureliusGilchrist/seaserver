@@ -1,4 +1,5 @@
 import { Anime_Episode } from "@/api/generated/types"
+import { formatProgressText } from "@/api/hooks/continuity.hooks"
 import { SeaContextMenu } from "@/app/(main)/_features/context-menu/sea-context-menu"
 import { EpisodeItemBottomGradient } from "@/app/(main)/_features/custom-ui/item-bottom-gradients"
 import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
@@ -45,8 +46,8 @@ type EpisodeCardProps = {
     badge?: React.ReactNode
     isFiller?: boolean
     percentageComplete?: number
-    minutesRemaining?: number
-    totalMinutes?: number
+    secondsRemaining?: number
+    totalSeconds?: number
     allowAnimeInfo?: boolean
     forceSingleContainer?: boolean
     additionalContextMenuItems?: React.ReactNode
@@ -88,8 +89,8 @@ export function EpisodeCard(props: EpisodeCardProps) {
         badge,
         isFiller,
         percentageComplete,
-        minutesRemaining,
-        totalMinutes,
+        secondsRemaining,
+        totalSeconds,
         allowAnimeInfo,
         forceSingleContainer,
         anime,
@@ -149,7 +150,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
                         ? "- " + anime.title
                         : ""}</span>
                 </p>
-                {(!!meta || !!length) && (!isSingleContainer || !minutesRemaining) && (
+                {(!!meta || !!length) && (!isSingleContainer || !secondsRemaining) && (
                     <p data-episode-card-meta-text className="text-[--muted] flex-none ml-2 text-sm md:text-base line-clamp-2 text-right">
                         {meta}{!!meta && !!length && `  • `}{length ? `${length}m` : ""}
                     </p>)}
@@ -282,13 +283,13 @@ export function EpisodeCard(props: EpisodeCardProps) {
                                 data-progress-number={progressNumber}
                             >
                                 <ProgressBar value={percentageComplete} size="xs" />
-                                {!!minutesRemaining && <div
+                                {!!secondsRemaining && <div
                                     className={cn(
                                         "absolute bottom-2 right-2 text-[--muted]",
                                         isSingleContainer && "right-4 bottom-4 ",
                                     )}
                                 >
-                                    <span>{!!totalMinutes && `${Math.max(0, totalMinutes - minutesRemaining)}m in · `}{minutesRemaining}m left{!!totalMinutes && ` of ${totalMinutes}m`}</span>
+                                    <span>{formatProgressText(secondsRemaining, totalSeconds)}</span>
                                 </div>}
                             </div>}
 

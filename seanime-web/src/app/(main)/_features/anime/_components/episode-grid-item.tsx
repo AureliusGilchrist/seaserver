@@ -1,4 +1,5 @@
 import { AL_BaseAnime } from "@/api/generated/types"
+import { formatProgressText } from "@/api/hooks/continuity.hooks"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { SeaImage } from "@/components/shared/sea-image"
@@ -34,8 +35,8 @@ type EpisodeGridItemProps = {
     imageContainerClassName?: string
     episodeTitleClassName?: string
     percentageComplete?: number
-    minutesRemaining?: number
-    totalMinutes?: number
+    secondsRemaining?: number
+    totalSeconds?: number
     episodeNumber?: number
     progressNumber?: number
     watchedProgress?: number
@@ -68,8 +69,8 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
         actionIcon = props.actionIcon !== null ? <AiFillPlayCircle data-episode-grid-item-action-icon className="opacity-70 text-4xl" /> : undefined,
         episodeTitleClassName,
         percentageComplete,
-        minutesRemaining,
-        totalMinutes,
+        secondsRemaining,
+        totalSeconds,
         episodeNumber,
         progressNumber,
         watchedProgress,
@@ -180,8 +181,8 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
                     {!!percentageComplete &&
                         <div data-episode-grid-item-progress-bar-container className="absolute bottom-0 left-0 w-full z-[3]">
                             <ProgressBar value={percentageComplete} size="xs" />
-                            {!!minutesRemaining && <span className="absolute bottom-1.5 right-1.5 text-xs text-gray-200 drop-shadow">
-                                {!!totalMinutes && `${Math.max(0, totalMinutes - minutesRemaining)}m in · `}{minutesRemaining}m left{!!totalMinutes && ` of ${totalMinutes}m`}
+                            {!!secondsRemaining && <span className="absolute bottom-1.5 right-1.5 text-xs text-gray-200 drop-shadow">
+                                {formatProgressText(secondsRemaining, totalSeconds)}
                             </span>}
                         </div>}
                 </div>

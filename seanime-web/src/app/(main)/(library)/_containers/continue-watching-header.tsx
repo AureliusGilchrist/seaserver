@@ -1,7 +1,7 @@
 "use client"
 
 import { Anime_Episode } from "@/api/generated/types"
-import { getEpisodeMinutesRemaining, getEpisodePercentageComplete, getEpisodeTotalMinutes, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
+import { getEpisodeSecondsRemaining, getEpisodePercentageComplete, getEpisodeTotalSeconds, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { usePlayNext } from "@/app/(main)/_atoms/playback.atoms"
 import { EpisodeCard } from "@/app/(main)/_features/anime/_components/episode-card"
 import { TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE } from "@/app/(main)/_features/custom-ui/styles"
@@ -315,8 +315,8 @@ function EpisodeCardSidebar({ episode, isTransitioning }: EpisodeCardSidebarProp
                         length={episode.episodeMetadata?.length}
                         hasDiscrepancy={episode.episodeNumber !== episode.progressNumber}
                         percentageComplete={getEpisodePercentageComplete(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
-                        minutesRemaining={getEpisodeMinutesRemaining(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
-                        totalMinutes={getEpisodeTotalMinutes(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
+                        secondsRemaining={getEpisodeSecondsRemaining(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
+                        totalSeconds={getEpisodeTotalSeconds(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
                         anime={{
                             id: episode?.baseAnime?.id || 0,
                             image: episode?.baseAnime?.coverImage?.medium,
