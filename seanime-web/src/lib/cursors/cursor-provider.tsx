@@ -97,10 +97,6 @@ function buildCursorCss(urls: Record<string, string>): string {
             `${selector} { cursor: url("${url}") ${entry.hotX} ${entry.hotY}, ${entry.fallback} !important; }`,
         )
     }
-    // Glassmorphism perk preserved from the legacy provider.
-    rules.push(
-        `[class*="bg-"][class*="/"]:not(.UI-AppSidebar__sidebar):not(.UI-AppSidebar__sidebar *) { backdrop-filter: blur(8px) !important; }`,
-    )
     return rules.join("\n")
 }
 
