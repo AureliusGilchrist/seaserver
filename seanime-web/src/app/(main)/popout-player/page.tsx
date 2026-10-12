@@ -206,17 +206,43 @@ function PopoutReturnButton() {
         })
     }
 
+    const [visible, setVisible] = React.useState(false)
+    const hideTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    React.useEffect(() => {
+        const show = () => {
+            setVisible(true)
+            if (hideTimer.current) clearTimeout(hideTimer.current)
+            hideTimer.current = setTimeout(() => setVisible(false), 2500)
+        }
+        const hide = () => {
+            if (hideTimer.current) clearTimeout(hideTimer.current)
+            setVisible(false)
+        }
+        window.addEventListener("pointermove", show, true)
+        window.addEventListener("pointerdown", show, true)
+        document.documentElement.addEventListener("mouseleave", hide)
+        return () => {
+            window.removeEventListener("pointermove", show, true)
+            window.removeEventListener("pointerdown", show, true)
+            document.documentElement.removeEventListener("mouseleave", hide)
+            if (hideTimer.current) clearTimeout(hideTimer.current)
+        }
+    }, [])
+
     return (
         <div
-            style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-            className="fixed top-0 left-0 right-0 h-8 z-[300] flex items-center justify-center bg-black/90 select-none"
+            style={{ WebkitAppRegion: visible ? "drag" : "no-drag" } as React.CSSProperties}
+            className={`fixed top-0 left-0 right-0 h-10 z-[300] flex items-center justify-center bg-gradient-to-b from-black/80 to-transparent select-none transition-opacity duration-200 ${visible
+                ? "opacity-100"
+                : "opacity-0 pointer-events-none"}`}
         >
             <button
                 type="button"
                 data-popout-nodrag
                 onClick={returnToMain}
                 style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-                className="flex items-center gap-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10 text-xs font-medium px-2.5 py-1"
+                className="flex items-center gap-1.5 rounded-full bg-black/60 border border-white/15 text-white/90 hover:text-white hover:bg-white/15 text-xs font-medium px-3 py-1.5"
             >
                 <LuArrowUpLeft className="size-3.5" />
                 Return to Denshi
@@ -227,7 +253,7 @@ function PopoutReturnButton() {
                 aria-label="Close"
                 onClick={() => window.close()}
                 style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-                className="absolute right-0 top-0 h-8 w-10 flex items-center justify-center text-white/70 hover:text-white hover:bg-red-600"
+                className="absolute right-0 top-0 h-10 w-10 flex items-center justify-center text-white/70 hover:text-white hover:bg-red-600"
             >
                 <LuX className="size-4" />
             </button>
