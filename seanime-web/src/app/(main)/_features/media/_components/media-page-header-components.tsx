@@ -96,11 +96,6 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                         ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "object-left",
                     )}
                 />
-
-                <div
-                    data-media-page-header-blurred-background-blur
-                    className="absolute top-0 w-full h-full backdrop-blur-2xl z-[2]"
-                ></div>
             </div>}
 
             {children}
