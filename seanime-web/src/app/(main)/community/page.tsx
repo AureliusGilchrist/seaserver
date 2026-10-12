@@ -12,6 +12,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { XPBarFxOverlay } from "@/lib/rewards/xpbar-fx-overlay"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
+import { getMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { useAtomValue } from "jotai"
 import * as React from "react"
 import { LuUsers, LuLayoutGrid, LuList, LuTrophy, LuStar, LuActivity, LuZap } from "react-icons/lu"
@@ -22,8 +23,8 @@ import { SeaLink } from "@/components/shared/sea-link"
 function resolveDisplayTitle(title: string): string {
     const m = title.match(/^milestone-(.+)-(\d+)$/)
     if (!m) return title
-    const name = ANIME_THEMES?.[m[1] as keyof typeof ANIME_THEMES]?.milestoneNames?.[Number(m[2])]
-    return name ?? title
+    const names = ANIME_THEMES?.[m[1] as keyof typeof ANIME_THEMES]?.milestoneNames
+    return getMilestoneName(Number(m[2]), names) ?? title
 }
 
 export default function Page() {

@@ -173,8 +173,17 @@ function lookupTitle(id: string, milestoneNames?: Record<string, Record<number, 
         // Resolve the human-readable name from the pre-passed milestone map so
         // displayTitle stored on the backend is the actual rank name, not the raw ID.
         // Check passed-in map first, then marketplace cache fallback
-        const name: string = milestoneNames?.[themeId]?.[level]
-            ?? getMilestoneNames(themeId)[level]
+        const pick = (names?: Record<number, string>): string | undefined => {
+            if (!names) return undefined
+            if (names[level]) return names[level]
+            let best: number | null = null
+            for (const k of Object.keys(names).map(Number)) {
+                if (k <= level && (best === null || k > best)) best = k
+            }
+            return best === null ? undefined : names[best]
+        }
+        const name: string = pick(milestoneNames?.[themeId])
+            ?? pick(getMilestoneNames(themeId))
             ?? id
         return {
             id,
@@ -255,28 +264,31 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
 
     const isEggUnlocked = React.useCallback((rewardId: string) => eggUnlockedRewards.has(rewardId), [eggUnlockedRewards])
 
-    const [active, setActive] = React.useState<ActiveRewards>(() => {
-        if (typeof window === "undefined") return DEFAULTS
+    // The profile id resolves after first render, so selections made under the "default" key
+    // must carry over when the profile-specific key has nothing saved yet.
+    const loadActive = React.useCallback((key: string): ActiveRewards | null => {
         try {
-            const raw = seaStorage.getItem(storageKey)
-            if (!raw) return DEFAULTS
+            const raw = seaStorage.getItem(key) ?? (key !== "sea-rewards-default" ? seaStorage.getItem("sea-rewards-default") : null)
+            if (!raw) return null
             return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<ActiveRewards>) } as ActiveRewards
         } catch {
-            return DEFAULTS
+            return null
         }
+    }, [])
+
+    const [active, setActive] = React.useState<ActiveRewards>(() => {
+        if (typeof window === "undefined") return DEFAULTS
+        return loadActive(storageKey) ?? DEFAULTS
     })
 
     // Reload when profile changes and sync current cosmetics to the backend
     // so the community page always reflects the user's actual active rewards.
     React.useEffect(() => {
-        let loaded: ActiveRewards = DEFAULTS
-        try {
-            const raw = seaStorage.getItem(storageKey)
-            if (raw) {
-                loaded = { ...DEFAULTS, ...(JSON.parse(raw) as Partial<ActiveRewards>) } as ActiveRewards
-            }
-            setActive(loaded)
-        } catch { /* noop */ }
+        const loaded: ActiveRewards = loadActive(storageKey) ?? DEFAULTS
+        setActive(loaded)
+        if (profileKey !== "default" && !seaStorage.getItem(storageKey) && loaded !== DEFAULTS) {
+            try { seaStorage.setItem(storageKey, JSON.stringify(loaded)) } catch { /* noop */ }
+        }
 
         // Skip sync if not attached to a real profile
         if (!profileKey || profileKey === "default") return
@@ -302,10 +314,10 @@ export function RewardProvider({ children }: { children: React.ReactNode }) {
 
         // Also sync the display title (resolves raw milestone IDs to rank names)
         const title = lookupTitle(loaded.titleId, MILESTONE_NAMES)
-        if (title) {
+        if (title && title.text !== title.id) {
             saveDisplayTitle({ title: title.text, color: title.color ?? "#ffffff" })
         }
-    }, [storageKey, toAccent])
+    }, [storageKey, toAccent, loadActive])
 
     function persist(next: ActiveRewards) {
         setActive(next)

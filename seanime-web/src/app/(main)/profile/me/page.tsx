@@ -53,7 +53,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAtomValue, useSetAtom } from "jotai/react"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useRouter, useSearchParams } from "@/lib/navigation"
-import { useAnimeTheme, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
+import { getMilestoneName, useAnimeTheme, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { RewardShop } from "@/app/(main)/profile/me/_components/reward-shop"
 import { useRewards } from "@/lib/rewards/reward-provider"
@@ -157,11 +157,11 @@ export function MyProfilePage() {
             if (activeTitle.text && activeTitle.text !== activeTitle.id) return activeTitle.text
             // Legacy fallback: try the current theme's milestone names
             if (themeConfig.milestoneNames) {
-                const fromCurrentTheme = themeConfig.milestoneNames[Number(m[2])]
+                const fromCurrentTheme = getMilestoneName(Number(m[2]), themeConfig.milestoneNames)
                 if (fromCurrentTheme) return fromCurrentTheme
             }
             // Last resort: look up from ANIME_THEMES using the title's own themeId
-            const name = ANIME_THEMES?.[m[1] as keyof typeof ANIME_THEMES]?.milestoneNames?.[Number(m[2])]
+            const name = getMilestoneName(Number(m[2]), ANIME_THEMES?.[m[1] as keyof typeof ANIME_THEMES]?.milestoneNames)
             if (name) return name
         }
         return activeTitle.text
