@@ -237,7 +237,7 @@ function ToWatchCard({
                 <a href={href} className="py-3 flex-shrink-0" title={entry.title}>
                     <div className="w-[56px] h-[78px] rounded-md overflow-hidden bg-gray-800/70 border border-gray-700/60 relative group/poster">
                         <img
-                            src={entry.coverImage}
+                            src={entry.coverImage.replace(/\/cover\/(medium|large)\//, "/cover/extraLarge/")}
                             alt={entry.title}
                             loading="lazy"
                             decoding="async"

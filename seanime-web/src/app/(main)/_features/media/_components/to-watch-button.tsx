@@ -42,7 +42,7 @@ export function ToWatchButton({ media, studios, className }: { media: AL_BaseAni
             description: m?.description
                 ? String(m.description).replace(/<[^>]*>/g, "").slice(0, 400)
                 : undefined,
-            coverImage: m?.coverImage?.large || m?.coverImage?.extraLarge || m?.coverImage?.medium || undefined,
+            coverImage: m?.coverImage?.extraLarge || m?.coverImage?.large || m?.coverImage?.medium || undefined,
             bannerImage: m?.bannerImage || undefined,
             format: m?.format || undefined,
             episodes: m?.episodes || undefined,

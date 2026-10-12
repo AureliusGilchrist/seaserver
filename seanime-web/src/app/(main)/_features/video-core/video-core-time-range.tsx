@@ -273,11 +273,11 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
     }
 
     const setTimeRangeElement = useSetAtom(vc_timeRangeElement)
+    // Each instance (main window and the PiP window) previews against its own element, not the shared atom
+    const [localTimeRangeElement, setLocalTimeRangeElement] = React.useState<HTMLDivElement | null>(null)
     const combineRef = React.useCallback((instance: HTMLDivElement | null) => {
-        // if (ref as unknown instanceof Function) (ref as any)(instance)
-        // else if (ref) (ref as any).current = instance
-        // if (instance) measureRef(instance)
-        setTimeRangeElement(instance)
+        setLocalTimeRangeElement(instance)
+        setTimeRangeElement(prev => instance ?? (prev?.isConnected ? prev : null))
     }, [setTimeRangeElement])
 
     return (
@@ -304,7 +304,7 @@ export function VideoCoreTimeRange(props: VideoCoreTimeRangeProps) {
             onPointerMove={handlePointerMove}
         >
 
-            <VideoCoreTimePreview chapters={chapters} />
+            <VideoCoreTimePreview chapters={chapters} timeRangeElement={localTimeRangeElement} />
 
             {chapters.map((chapter, i) => {
                 return <VideoCoreTimeRangeSegment
@@ -442,8 +442,8 @@ const PREVIEW_REQUEST_DELAY_MS = 80
 const STALE_PREVIEW_GRACE_MS = 100
 const PREVIEW_TOOLTIP_GUTTER = 8
 
-function VideoCoreTimePreview(props: { chapters: VideoCoreTimeRangeChapter[] }) {
-    const { chapters } = props
+function VideoCoreTimePreview(props: { chapters: VideoCoreTimeRangeChapter[], timeRangeElement: HTMLDivElement | null }) {
+    const { chapters, timeRangeElement } = props
 
     const isMobile = useAtomValue(vc_isMobile)
 
@@ -454,7 +454,6 @@ function VideoCoreTimePreview(props: { chapters: VideoCoreTimeRangeChapter[] }) 
     const isSwiping = useAtomValue(vc_isSwiping)
     const swipeSeekTime = useAtomValue(vc_swipeSeekTime)
     const previewManager = useAtomValue(vc_previewManager)
-    const timeRangeElement = useAtomValue(vc_timeRangeElement)
 
     const [previewThumbnail, setPreviewThumbnail] = React.useState<string | null>(null)
     const [timeRangeWidth, setTimeRangeWidth] = React.useState(0)
