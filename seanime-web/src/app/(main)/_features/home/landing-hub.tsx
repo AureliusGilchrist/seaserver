@@ -98,7 +98,7 @@ export function LandingHub() {
 
                 {/* Whatever was being watched */}
                 {firstWidgetId === "continue-watching" && (
-                    <div className="relative z-[1]">
+                    <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/25 backdrop-blur-xl shadow-xl shadow-black/20 p-4 lg:p-6">
                         <ContinueWatching
                             episodes={continueWatchingList}
                             isLoading={isLibraryLoading}
@@ -120,13 +120,15 @@ export function LandingHub() {
 
                 {/* Sections, full width */}
                 {sections.filter(w => w.id !== (firstWidgetId === "continue-watching" ? "continue-watching" : null)).map(widget => (
-                    <div key={widget.id} className="relative z-[1]">
+                    <div key={widget.id} className="relative z-[1] rounded-3xl border border-white/10 bg-black/25 backdrop-blur-xl shadow-xl shadow-black/20 p-4 lg:p-6">
                         <LandingWidget id={widget.id} />
                     </div>
                 ))}
 
                 {/* Community */}
-                <CommunityHomeSection />
+                <div className="relative z-[1] rounded-3xl border border-white/10 bg-black/25 backdrop-blur-xl shadow-xl shadow-black/20 p-4 lg:p-6">
+                    <CommunityHomeSection />
+                </div>
 
                 <LandingSettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
             </PageWrapper>
