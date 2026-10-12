@@ -77,26 +77,8 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
             {/*    className={cn(MediaPageHeaderAnatomy.fadeBg({ size }))}*/}
             {/*/>*/}
 
-            {(ts.enableMediaPageBlurredBackground) && <div
-                data-media-page-header-blurred-background
-                className={cn(
-                    "fixed opacity-0 transition-opacity duration-1000 top-0 left-0 w-full h-full z-[4] bg-[--background] rounded-xl",
-                    shouldShowBlurredBackground && "opacity-100",
-                )}
-            >
-                <SeaImage
-                    data-media-page-header-blurred-background-image
-                    src={getImageUrl(bannerImage || "")}
-                    alt={""}
-                    fill
-                    quality={100}
-                    sizes="20rem"
-                    className={cn(
-                        "object-cover object-bottom transition opacity-10",
-                        ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small && "object-left",
-                    )}
-                />
-            </div>}
+            {/* The blurred-banner background layer is gone: it was a full-screen opaque layer that
+                faded in after load and covered the wallpaper and its effects. */}
 
             {children}
 
@@ -106,7 +88,7 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                     "w-full scroll-locked-offset flex-none object-cover object-center z-[3] bg-[--background] h-[20rem]",
                     ts.mediaPageBannerSize === ThemeMediaPageBannerSize.Small ? "lg:h-[28rem]" : "h-[20rem] lg:h-[32rem] 2xl:h-[34rem]",
                     ts.libraryScreenCustomBackgroundImage ? "absolute -top-[5rem]" : "fixed transition-opacity top-0 duration-1000",
-                    !ts.libraryScreenCustomBackgroundImage && y > 100 && (ts.enableMediaPageBlurredBackground ? "opacity-0" : shouldDimBanner
+                    !ts.libraryScreenCustomBackgroundImage && y > 100 && (shouldDimBanner
                         ? "opacity-15"
                         : (y > 300 ? "opacity-5" : "opacity-15")),
                     !ts.disableSidebarTransparency && TRANSPARENT_SIDEBAR_BANNER_IMG_STYLE,
