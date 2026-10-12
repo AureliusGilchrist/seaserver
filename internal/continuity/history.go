@@ -64,6 +64,8 @@ type (
 		// Timestamp of when the item was last updated.
 		// Used to determine when to remove the item from the history (First in, first out).
 		TimeUpdated time.Time `json:"timeUpdated"`
+		// Per-episode positions, only populated when listing the whole history.
+		Episodes map[int]*EpisodeWatchPosition `json:"episodes,omitempty"`
 	}
 
 	WatchHistoryItemResponse struct {
@@ -113,7 +115,39 @@ func (m *Manager) GetWatchHistory() WatchHistory {
 		ret[item.MediaId] = item
 	}
 
+	m.attachEpisodePositions(ret, *m.episodeWatchPositionFileCacheBucket)
+
 	return ret
+}
+
+// attachEpisodePositions fills each item's Episodes with the unfinished per-episode positions.
+func (m *Manager) attachEpisodePositions(history WatchHistory, bucket filecache.Bucket) {
+	positions, err := filecache.GetAll[*EpisodeWatchPosition](m.fileCacher, bucket)
+	if err != nil {
+		return
+	}
+	for key, pos := range positions {
+		if pos == nil || pos.Duration <= 0 || pos.CurrentTime < MinSaveTimeSeconds || isFinishedPosition(pos.CurrentTime, pos.Duration, false) {
+			continue
+		}
+		parts := strings.SplitN(key, "_", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		mediaId, err1 := strconv.Atoi(parts[0])
+		episode, err2 := strconv.Atoi(parts[1])
+		if err1 != nil || err2 != nil {
+			continue
+		}
+		item, ok := history[mediaId]
+		if !ok {
+			continue
+		}
+		if item.Episodes == nil {
+			item.Episodes = make(map[int]*EpisodeWatchPosition)
+		}
+		item.Episodes[episode] = pos
+	}
 }
 
 // isFinishedPosition reports whether a saved position should be treated as "watched" (at or past IgnoreRatioThreshold).
@@ -551,6 +585,7 @@ func (m *Manager) GetWatchHistoryForProfile(profileID uint) WatchHistory {
 	for _, item := range items {
 		ret[item.MediaId] = item
 	}
+	m.attachEpisodePositions(ret, GetEpisodeProfileBucket(profileID))
 	return ret
 }
 

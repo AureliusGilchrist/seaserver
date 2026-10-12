@@ -73,10 +73,17 @@ export const CONTINUITY_FINISHED_RATIO = 0.85
 function getInProgressItem(history: Nullish<Continuity_WatchHistory>, mediaId: number, progressNumber: number) {
     if (!history) return undefined
     const item = history[mediaId]
-    if (!item || !item.currentTime || !item.duration) return undefined
-    if (item.episodeNumber !== progressNumber) return undefined
-    if (item.currentTime / item.duration >= CONTINUITY_FINISHED_RATIO) return undefined
-    return item
+    if (!item) return undefined
+    const candidate = item.episodes?.[progressNumber] ?? (item.episodeNumber === progressNumber ? item : undefined)
+    if (!candidate || !candidate.currentTime || !candidate.duration) return undefined
+    if (candidate.currentTime / candidate.duration >= CONTINUITY_FINISHED_RATIO) return undefined
+    return candidate
+}
+
+export function getEpisodeMinutesAt(history: Nullish<Continuity_WatchHistory>, mediaId: number, progressNumber: number) {
+    const item = getInProgressItem(history, mediaId, progressNumber)
+    if (!item) return 0
+    return Math.max(0, Math.floor(item.currentTime / 60))
 }
 
 // Resolves effective continuity enabled state. Tracking is on by default, only an explicit per-player "off" disables it.
@@ -157,6 +164,10 @@ export function useHandleContinuityWithMediaPlayer(playerRef: React.RefObject<Me
             }
         }
         const interval = setInterval(track, 1000)
+        const saveInterval = setInterval(() => {
+            track()
+            savePosition()
+        }, 5000)
         const onHide = () => {
             if (document.visibilityState === "hidden") {
                 track()
@@ -167,6 +178,7 @@ export function useHandleContinuityWithMediaPlayer(playerRef: React.RefObject<Me
         window.addEventListener("pagehide", onHide)
         return () => {
             clearInterval(interval)
+            clearInterval(saveInterval)
             document.removeEventListener("visibilitychange", onHide)
             window.removeEventListener("pagehide", onHide)
         }

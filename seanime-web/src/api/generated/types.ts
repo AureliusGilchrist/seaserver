@@ -2354,6 +2354,7 @@ export type Continuity_WatchHistoryItem = {
     duration: number
     timeAdded?: string
     timeUpdated?: string
+    episodes?: Record<number, { currentTime: number, duration: number, timeUpdated?: string }>
 }
 
 /**

@@ -14,7 +14,7 @@ import (
 // How often the watch position is persisted while the picture is playing. See the status handler
 // below: the client reports every second, and writing every report to disk made playback cost a
 // database write a second for its whole duration.
-const watchHistoryWriteInterval = 10 * time.Second
+const watchHistoryWriteInterval = 5 * time.Second
 
 // The last time each client's position was written. The shared-effects goroutine is the only
 // reader and writer, so no lock is needed.

@@ -288,7 +288,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
                                         isSingleContainer && "right-4 bottom-4 ",
                                     )}
                                 >
-                                    <span>{minutesRemaining}m left{!!totalMinutes && ` of ${totalMinutes}m`}</span>
+                                    <span>{!!totalMinutes && `${Math.max(0, totalMinutes - minutesRemaining)}m in · `}{minutesRemaining}m left{!!totalMinutes && ` of ${totalMinutes}m`}</span>
                                 </div>}
                             </div>}
 
