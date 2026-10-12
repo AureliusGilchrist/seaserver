@@ -14,7 +14,7 @@
  * the stream terminates.
  */
 import { useDirectstreamPlayLocalFile } from "@/api/hooks/directstream.hooks"
-import { vc_busy, vc_hoveringControlBar, vc_paused, vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_paused, vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { NativePlayer } from "@/app/(main)/_features/native-player/native-player"
 import { VideoCoreProvider } from "@/app/(main)/_features/video-core/video-core"
@@ -209,11 +209,9 @@ function PopoutReturnButton() {
 
     // Same visibility rule as the player's other top controls: shown while paused, busy or
     // hovering the controls, and slid up and faded out otherwise.
-    const busy = useAtomValue(vc_busy)
     const paused = useAtomValue(vc_paused)
-    const hoveringControlBar = useAtomValue(vc_hoveringControlBar)
     const [hovered, setHovered] = React.useState(false)
-    const visible = busy || paused || hoveringControlBar || hovered
+    const visible = paused || hovered
 
     const fade = `${visible ? "pointer-events-auto" : "pointer-events-none"} transition-opacity duration-200`
     return createPortal(
