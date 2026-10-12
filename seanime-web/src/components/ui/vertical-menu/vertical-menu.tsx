@@ -254,39 +254,44 @@ export const VerticalMenu = React.forwardRef<HTMLDivElement, VerticalMenuProps>(
         },
     })
 
-    const ItemContentWrapper = React.useCallback((props: { children: React.ReactElement, name: string }) => {
-        return !collapsed ? props.children : (
-            <Tooltip trigger={props.children} side="right" {...itemTooltipProps}>
-                {props.name}
-            </Tooltip>
-        )
-    }, [collapsed, itemTooltipProps])
-
-    const ItemContent = React.useCallback((item: VerticalMenuItem) => (
-        <ItemContentWrapper name={item.name}>
-            <div
-                data-vertical-menu-item={item.name}
-                className={cn(
-                    VerticalMenuAnatomy.itemContent({ size, collapsed, isSidebar }),
-                    itemContentClass,
-                    item.className,
-                )}
-            >
-                {item.iconType && <item.iconType
+    // Both of these are plain functions called inline, never components. They used to be components
+    // created with useCallback on `collapsed`, so expanding the sidebar on hover gave every item a
+    // new component type and React threw away and rebuilt all of them. A click that began on the old
+    // element was lost, or landed on whatever was under the cursor after the rebuild.
+    // The tooltip is always mounted and only held shut while expanded, so the item's DOM keeps
+    // its identity through the expand.
+    const ItemContent = (item: VerticalMenuItem) => (
+        <Tooltip
+            side="right"
+            {...itemTooltipProps}
+            open={collapsed ? itemTooltipProps?.open : false}
+            trigger={
+                <div
+                    data-vertical-menu-item={item.name}
                     className={cn(
-                        VerticalMenuAnatomy.itemIcon({ size, collapsed, isSidebar }),
-                        itemIconClass,
-                        item.iconClass,
+                        VerticalMenuAnatomy.itemContent({ size, collapsed, isSidebar }),
+                        itemContentClass,
+                        item.className,
                     )}
-                    aria-hidden="true"
-                    data-current={item.isCurrent}
-                    data-collapsed={collapsed}
-                />}
-                {!collapsed && <span>{item.name}</span>}
-                {item.addon}
-            </div>
-        </ItemContentWrapper>
-    ), [collapsed, size, itemContentClass, itemIconClass, isSidebar])
+                >
+                    {item.iconType && <item.iconType
+                        className={cn(
+                            VerticalMenuAnatomy.itemIcon({ size, collapsed, isSidebar }),
+                            itemIconClass,
+                            item.iconClass,
+                        )}
+                        aria-hidden="true"
+                        data-current={item.isCurrent}
+                        data-collapsed={collapsed}
+                    />}
+                    {!collapsed && <span>{item.name}</span>}
+                    {item.addon}
+                </div>
+            }
+        >
+            {item.name}
+        </Tooltip>
+    )
 
     return (
         <nav
@@ -433,11 +438,11 @@ function renderItems(
                             {!item.subContent ?
                                 item.href ? (
                                     <SeaLink href={item.href} {...itemProps(item)} data-vertical-menu-item-link={item.name}>
-                                        <ItemContent {...item} />
+                                        {ItemContent(item)}
                                     </SeaLink>
                                 ) : (
                                     <button {...itemProps(item)} data-vertical-menu-item-button={item.name}>
-                                        <ItemContent {...item} />
+                                        {ItemContent(item)}
                                     </button>
                                 ) : (
                                     <Disclosure
@@ -459,7 +464,7 @@ function renderItems(
                                                     data-current={item.isCurrent}
                                                     onClick={item.onClick}
                                                 >
-                                                    <ItemContent {...item} />
+                                                    {ItemContent(item)}
                                                     <svg
                                                         xmlns="http://www.w3.org/2000/svg"
                                                         width="24"
