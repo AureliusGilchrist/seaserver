@@ -166,6 +166,34 @@ function toWatchSeasonYear(entry: ToWatchEntry): string | null {
 }
 
 /**
+ * The poster. Only a "large" AniList cover can be upgraded to "extraLarge" (same file name);
+ * "medium" files are named differently, so upgrading them breaks the URL. If the upgraded URL
+ * still fails, the stored one is used, then the placeholder.
+ */
+function ToWatchCover({ src, alt }: { src: string, alt: string }) {
+    const upgraded = src.replace("/cover/large/", "/cover/extraLarge/")
+    const [current, setCurrent] = React.useState(upgraded)
+
+    React.useEffect(() => {
+        setCurrent(upgraded)
+    }, [upgraded])
+
+    return (
+        <img
+            src={current}
+            alt={alt}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover"
+            onError={() => {
+                if (current !== src) setCurrent(src)
+                else if (current !== "/no-cover.png") setCurrent("/no-cover.png")
+            }}
+        />
+    )
+}
+
+/**
  * One card of the strip: the grab handle, where it sits in the order, the poster that makes it
  * recognisable, the title, the description that answers "should I watch this?", the metadata it
  * carries, and the button that starts it.
@@ -236,13 +264,7 @@ function ToWatchCard({
             {entry.coverImage ? (
                 <a href={href} className="py-3 flex-shrink-0" title={entry.title}>
                     <div className="w-[56px] h-[78px] rounded-md overflow-hidden bg-gray-800/70 border border-gray-700/60 relative group/poster">
-                        <img
-                            src={entry.coverImage.replace(/\/cover\/(medium|large)\//, "/cover/extraLarge/")}
-                            alt={entry.title}
-                            loading="lazy"
-                            decoding="async"
-                            className="w-full h-full object-cover"
-                        />
+                        <ToWatchCover src={entry.coverImage} alt={entry.title} />
                         <div className="absolute inset-0 bg-black/0 group-hover/poster:bg-black/30 transition-colors flex items-center justify-center">
                             <LuPlay className="w-5 h-5 text-white opacity-0 group-hover/poster:opacity-100 transition-opacity" />
                         </div>
