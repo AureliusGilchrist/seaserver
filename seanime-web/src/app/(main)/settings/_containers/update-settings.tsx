@@ -8,6 +8,11 @@ import { toast } from "sonner"
 
 type Target = "backend" | "frontend"
 
+// Prefixes a log line with the time it was received; blank spacer lines are left alone.
+function stamp(line: string) {
+    return line === "" ? line : `[${new Date().toLocaleTimeString([], { hour12: false })}] ${line}`
+}
+
 function AnilistOverwriteCard() {
     const { mutateAsync, isPending } = useOverwriteAnilist()
     const [busy, setBusy] = React.useState(false)
@@ -69,7 +74,7 @@ function ElectronUpdates() {
     useWebsocketMessageListener({
         type: WSEvents.UPDATE_NOTICE_AVAILABLE,
         onMessage: () => {
-            setLines(prev => [...prev, "", "Backend update: Succeeded (restarting on the new version)"])
+            setLines(prev => [...prev, "", stamp("Backend update: Succeeded (restarting on the new version)")])
         },
     })
 
@@ -86,7 +91,7 @@ function ElectronUpdates() {
     React.useEffect(() => {
         refreshInfo()
         const off = window.electron?.on("live-update:progress", (p: { target: Target, line: string }) => {
-            setLines(prev => [...prev.slice(-199), p.line])
+            setLines(prev => [...prev.slice(-199), stamp(p.line)])
         })
         return () => off?.()
     }, [refreshInfo])
@@ -105,12 +110,12 @@ function ElectronUpdates() {
                 const msg = res?.message ?? "Update requested."
                 toast.success(msg)
                 setLines(res?.started
-                    ? [msg, "Backend update: In progress..."]
-                    : [msg, "Backend update: Succeeded (already up to date)"])
+                    ? [stamp(msg), stamp("Backend update: In progress...")]
+                    : [stamp(msg), stamp("Backend update: Succeeded (already up to date)")])
             }
             catch (e: any) {
                 toast.error(`Backend update failed: ${e?.message ?? "unknown error"}`)
-                setLines([`Backend update: Failed - ${e?.message ?? "unknown error"}`])
+                setLines([stamp(`Backend update: Failed - ${e?.message ?? "unknown error"}`)])
             }
             finally {
                 setRunning(null)
@@ -128,15 +133,15 @@ function ElectronUpdates() {
                 : " (0 lines changed)"
             if (res.ok) {
                 toast.success(`${label} update succeeded${changed}. ${res.message ?? ""}`.trim())
-                setLines(prev => [...prev, "", `${label} update: Succeeded${changed}`])
+                setLines(prev => [...prev, "", stamp(`${label} update: Succeeded${changed}`)])
             } else {
                 toast.error(`${label} update failed${changed}: ${(res.error ?? "").split("\n")[0]}`)
-                setLines(prev => [...prev, "", `ERROR: ${res.error}`, `${label} update: Failed${changed}`])
+                setLines(prev => [...prev, "", stamp(`ERROR: ${res.error}`), stamp(`${label} update: Failed${changed}`)])
             }
         }
         catch (e: any) {
             toast.error(`Update failed: ${e?.message ?? "unknown error"}`)
-            setLines(prev => [...prev, "", `Update: Failed - ${e?.message ?? "unknown error"}`])
+            setLines(prev => [...prev, "", stamp(`Update: Failed - ${e?.message ?? "unknown error"}`)])
         }
         finally {
             setRunning(null)
