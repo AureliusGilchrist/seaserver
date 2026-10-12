@@ -4,6 +4,11 @@ type PopoutResume = { time: number, paused: boolean, expiresAt: number }
 
 let pending: PopoutResume | null = null
 
+// The popout window is frameless and has no title bar, so nothing should reserve room for one.
+export function isPopoutWindow() {
+    return typeof window !== "undefined" && window.location.pathname.startsWith("/popout-player")
+}
+
 export function setPendingPopoutResume(time: number, paused: boolean) {
     pending = { time, paused, expiresAt: Date.now() + 60_000 }
 }
