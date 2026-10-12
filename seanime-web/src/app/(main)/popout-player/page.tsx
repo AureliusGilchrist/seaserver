@@ -230,33 +230,39 @@ function PopoutReturnButton() {
         }
     }, [])
 
+    const fade = `transition-opacity duration-200 ${visible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`
+
     return (
-        <div
-            className={`fixed top-0 left-0 right-0 h-12 z-[9999] flex items-center justify-center bg-gradient-to-b from-black/80 to-transparent select-none transition-opacity duration-200 ${visible
-                ? "opacity-100"
-                : "opacity-0 pointer-events-none"}`}
-        >
-            <button
-                type="button"
-                data-popout-nodrag
-                onClick={returnToMain}
-                style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-                className="flex items-center gap-1.5 rounded-full bg-black/60 border border-white/15 text-white/90 hover:text-white hover:bg-white/15 text-xs font-medium px-3 py-1.5"
-            >
-                <LuArrowUpLeft className="size-3.5" />
-                Return to Denshi
-            </button>
-            <button
-                type="button"
-                data-popout-nodrag
-                aria-label="Close"
-                onClick={() => window.close()}
-                style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-                className="absolute right-0 top-0 h-10 w-10 flex items-center justify-center text-white/70 hover:text-white hover:bg-red-600"
-            >
-                <LuX className="size-4" />
-            </button>
-        </div>
+        <>
+            {/* OS-level drag handle between the player's top-left and top-right controls. It is
+                always active (even when the buttons are faded out), so the window can always be moved. */}
+            <div
+                className="fixed top-0 left-[150px] right-[240px] h-9 z-[9998] select-none"
+                style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+            />
+            <div className="fixed top-0 left-0 right-0 h-12 z-[9999] pointer-events-none flex items-center justify-center">
+                <button
+                    type="button"
+                    data-popout-nodrag
+                    onClick={returnToMain}
+                    style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+                    className={`${fade} flex items-center gap-1.5 rounded-full bg-black/70 border border-white/15 text-white/90 hover:text-white hover:bg-white/15 text-xs font-medium px-3 py-1.5`}
+                >
+                    <LuArrowUpLeft className="size-3.5" />
+                    Return to Denshi
+                </button>
+                <button
+                    type="button"
+                    data-popout-nodrag
+                    aria-label="Close"
+                    onClick={() => window.close()}
+                    style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+                    className={`${fade} ml-2 size-7 rounded-full bg-black/70 border border-white/15 flex items-center justify-center text-white/80 hover:text-white hover:bg-red-600`}
+                >
+                    <LuX className="size-4" />
+                </button>
+            </div>
+        </>
     )
 }
 
