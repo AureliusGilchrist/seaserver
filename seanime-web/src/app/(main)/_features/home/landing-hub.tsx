@@ -18,6 +18,7 @@ import {
 } from "@/app/(main)/_features/home/landing-widget-views"
 import { __landingSettingsModalOpen, LandingSettingsModal } from "@/app/(main)/_features/home/landing-settings-modal"
 import { PageWrapper } from "@/components/shared/page-wrapper"
+import { CommunityHomeSection } from "@/app/(main)/_features/community/community-home-section"
 import { FiSearch } from "react-icons/fi"
 import { LuSettings2 } from "react-icons/lu"
 import { useAtom } from "jotai/react"
@@ -58,55 +59,57 @@ export function LandingHub() {
     return (
         <>
             <CustomLibraryBanner discrete />
-            <PageWrapper className="p-4 sm:p-6 lg:p-8 space-y-8 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.55)_100%)] min-h-screen">
+            <PageWrapper className="relative p-4 sm:p-6 lg:p-10 space-y-10 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.55)_100%)] min-h-screen">
+                {/* Soft brand glows give the wallpaper some colour without covering it */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] -z-0 bg-[radial-gradient(60%_80%_at_15%_0%,rgb(var(--color-brand-500)/0.28),transparent_70%),radial-gradient(45%_70%_at_90%_10%,rgb(var(--color-brand-300)/0.16),transparent_70%)]" />
 
-                {/* ── The greeting, set large ──
-                    One row: the name, and the two actions that are worth their place. The search is
-                    the page's real question — "Where do you want to go?" is what the row answers. */}
-                <div className="flex items-end justify-between gap-6 flex-wrap">
-                    <div className="min-w-0">
-                        <h1 className="text-4xl lg:text-6xl font-bold tracking-tight leading-[1.05] text-white">
-                            {user?.viewer?.name
-                                ? <>Welcome back, <span className="text-[--brand]">{user.viewer.name}</span></>
-                                : <>Welcome back</>}
-                        </h1>
-                        <p className="text-lg text-[--muted] mt-2 font-medium">Where do you want to go?</p>
+                {/* Hero */}
+                <section className="relative z-[1] rounded-3xl border border-white/10 bg-black/25 backdrop-blur-xl shadow-2xl shadow-black/30 p-6 lg:p-10 overflow-hidden">
+                    <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-[--brand]/25 blur-3xl" />
+                    <div className="relative flex items-end justify-between gap-6 flex-wrap">
+                        <div className="min-w-0">
+                            <p className="text-sm uppercase tracking-[0.25em] text-[--brand] font-semibold">{greeting()}</p>
+                            <h1 className="mt-2 text-4xl lg:text-6xl font-extrabold tracking-tight leading-[1.05] text-white drop-shadow-lg">
+                                {user?.viewer?.name
+                                    ? <>Welcome back, <span className="bg-gradient-to-r from-brand-200 to-brand-500 bg-clip-text text-transparent">{user.viewer.name}</span></>
+                                    : <>Welcome back</>}
+                            </h1>
+                            <p className="text-lg text-white/70 mt-3 font-medium">Where do you want to go?</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+                                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 backdrop-blur-md px-5 py-2.5 text-sm text-white/90 hover:bg-white/20 hover:border-[--brand]/60 transition-all"
+                            >
+                                <FiSearch className="w-4 h-4" />
+                                Search
+                            </button>
+                            <button
+                                onClick={() => setSettingsOpen(true)}
+                                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 backdrop-blur-md px-5 py-2.5 text-sm text-white/90 hover:bg-white/20 hover:border-[--brand]/60 transition-all"
+                                title="Landing page settings"
+                            >
+                                <LuSettings2 className="w-4 h-4" />
+                                Customize
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2 pb-1">
-                        <button
-                            onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-                            className="flex items-center gap-2 rounded-lg border border-[--border] bg-[--card] px-3.5 py-2 text-sm text-[--muted] hover:text-white hover:border-[--brand]/50 transition-colors"
-                        >
-                            <FiSearch className="w-4 h-4" />
-                            Search
-                        </button>
-                        <button
-                            onClick={() => setSettingsOpen(true)}
-                            className="flex items-center gap-2 rounded-lg border border-[--border] bg-[--card] px-3.5 py-2 text-sm text-[--muted] hover:text-white hover:border-[--brand]/50 transition-colors"
-                            title="Landing page settings"
-                        >
-                            <LuSettings2 className="w-4 h-4" />
-                            Customize
-                        </button>
-                    </div>
-                </div>
+                </section>
 
-                {/* ── Whatever was being watched ── */}
+                {/* Whatever was being watched */}
                 {firstWidgetId === "continue-watching" && (
-                    <ContinueWatching
-                        episodes={continueWatchingList}
-                        isLoading={isLibraryLoading}
-                    />
+                    <div className="relative z-[1]">
+                        <ContinueWatching
+                            episodes={continueWatchingList}
+                            isLoading={isLibraryLoading}
+                        />
+                    </div>
                 )}
 
-                {/* ── The doors and their numbers ──
-                    A grid of cards, the same material the quick links below are drawn with: an icon,
-                    a name, and the figure it carries, each on a card of its own. The wallpaper runs
-                    behind this strip — numbers sitting straight on it were unreadable — so every
-                    door carries the card background the rest of the page reads by. */}
+                {/* The doors and their numbers */}
                 {!!stats.length && (
                     <div
-                        className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"
+                        className="relative z-[1] grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
                         data-landing-stats-strip
                     >
                         {stats.map(widget => (
@@ -115,15 +118,28 @@ export function LandingHub() {
                     </div>
                 )}
 
-                {/* ── The sections: the widgets that are more than a number, full width ── */}
+                {/* Sections, full width */}
                 {sections.filter(w => w.id !== (firstWidgetId === "continue-watching" ? "continue-watching" : null)).map(widget => (
-                    <LandingWidget key={widget.id} id={widget.id} />
+                    <div key={widget.id} className="relative z-[1]">
+                        <LandingWidget id={widget.id} />
+                    </div>
                 ))}
+
+                {/* Community */}
+                <CommunityHomeSection />
 
                 <LandingSettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
             </PageWrapper>
         </>
     )
+}
+
+function greeting() {
+    const h = new Date().getHours()
+    if (h < 5) return "Up late"
+    if (h < 12) return "Good morning"
+    if (h < 18) return "Good afternoon"
+    return "Good evening"
 }
 
 function LandingWidget({ id }: { id: LandingWidgetId }) {

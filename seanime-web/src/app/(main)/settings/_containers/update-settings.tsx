@@ -1,15 +1,14 @@
 import { useUpdateBackend } from "@/api/hooks/update-notice.hooks"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
 import { Button } from "@/components/ui/button"
-import { TextInput } from "@/components/ui/text-input"
 import React from "react"
 import { toast } from "sonner"
 
 type Target = "backend" | "frontend"
 
 export function UpdateSettings() {
-    const [repoPath, setRepoPath] = React.useState("")
     const [detectedRoot, setDetectedRoot] = React.useState<string | null>(null)
+    const [detectedOrigin, setDetectedOrigin] = React.useState<string | null>(null)
     const [running, setRunning] = React.useState<Target | null>(null)
     const [lines, setLines] = React.useState<string[]>([])
     const logRef = React.useRef<HTMLPreElement>(null)
@@ -22,12 +21,12 @@ export function UpdateSettings() {
     const refreshInfo = React.useCallback(() => {
         window.electron?.liveUpdate?.getInfo().then(info => {
             setDetectedRoot(info.repoRoot)
+            setDetectedOrigin(info.repoOrigin ?? null)
             setRemote(!!info.remote)
         })
     }, [])
 
     React.useEffect(() => {
-        window.electron?.denshiSettings.get().then(s => setRepoPath(s.sourceRepoPath ?? ""))
         refreshInfo()
         const off = window.electron?.on("live-update:progress", (p: { target: Target, line: string }) => {
             setLines(prev => [...prev.slice(-199), p.line])
@@ -40,12 +39,6 @@ export function UpdateSettings() {
     }, [lines])
 
     if (!liveUpdate) return null
-
-    async function savePath() {
-        const settings = await window.electron!.denshiSettings.get()
-        await window.electron!.denshiSettings.set({ ...settings, sourceRepoPath: repoPath.trim() })
-        refreshInfo()
-    }
 
     async function run(target: Target) {
         if (target === "backend" && remote) {
@@ -67,7 +60,6 @@ export function UpdateSettings() {
         setRunning(target)
         setLines([])
         try {
-            await savePath()
             const res = target === "backend" ? await liveUpdate!.updateBackend() : await liveUpdate!.updateFrontend()
             const label = target === "backend" ? "Backend" : "Frontend"
             const s = res.stats
@@ -91,25 +83,19 @@ export function UpdateSettings() {
 
     return (
         <div className="space-y-4">
-            <SettingsCard title="Source repository">
-                <TextInput
-                    label="Repository path"
-                    value={repoPath}
-                    onValueChange={setRepoPath}
-                    onBlur={savePath}
-                    placeholder={detectedRoot ?? "E:\\path\\to\\seanime"}
-                    help={detectedRoot
-                        ? `Using ${detectedRoot}`
-                        : "A git checkout containing go.mod and seanime-web. Requires git, Go and Node.js on this machine."}
-                />
-            </SettingsCard>
-
             <SettingsCard title="Backend">
                 <p className="text-sm text-[--muted]">
                     {remote
                         ? "Asks the remote server to pull the latest commit from its own repository (origin, the seaserver repo it was checked out from), build it, and restart. The server keeps running the old version if the build fails."
                         : "Pulls the latest changes, builds the server, and only if the build succeeds swaps in the new binary and restarts the backend. If the new backend fails to start, the previous one is restored."}
                 </p>
+                {!remote && (
+                    <p className="text-xs text-[--muted] break-all">
+                        {detectedRoot
+                            ? `Source repository: ${detectedOrigin ?? detectedRoot}`
+                            : "No source repository was found for this backend."}
+                    </p>
+                )}
                 <Button
                     intent="primary"
                     loading={running === "backend"}
@@ -122,7 +108,7 @@ export function UpdateSettings() {
 
             <SettingsCard title="Frontend">
                 <p className="text-sm text-[--muted]">
-                    Builds the desktop frontend and swaps it in live. The window reloads when it is done.
+                    Builds the desktop frontend from the local files on this machine (no repository involved) and swaps it in live. The window reloads when it is done.
                 </p>
                 <Button
                     intent="primary"

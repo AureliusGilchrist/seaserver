@@ -80,6 +80,7 @@ declare global {
                 updateFrontend: () => Promise<LiveUpdateResult>;
                 getInfo: () => Promise<{
                     repoRoot: string | null;
+                    repoOrigin?: string | null;
                     remote?: boolean;
                     busy: boolean;
                     hasLiveBackend: boolean;

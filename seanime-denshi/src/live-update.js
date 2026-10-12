@@ -16,18 +16,17 @@ function getLiveBinaryPath(app, binaryName) {
     return path.join(getLiveDir(app), "bin", binaryName)
 }
 
-function isRepoRoot(dir) {
+function isRepoRoot(dir, webOnly) {
     return !!dir
-        && fs.existsSync(path.join(dir, "go.mod"))
         && fs.existsSync(path.join(dir, "seanime-web", "package.json"))
-        && fs.existsSync(path.join(dir, ".git"))
+        && (webOnly || (fs.existsSync(path.join(dir, "go.mod")) && fs.existsSync(path.join(dir, ".git"))))
 }
 
-function resolveRepoRoot(configured) {
-    if (configured && isRepoRoot(configured)) return configured
+function resolveRepoRoot(configured, webOnly) {
+    if (configured && isRepoRoot(configured, webOnly)) return configured
     let dir = __dirname
     for (let i = 0; i < 6; i++) {
-        if (isRepoRoot(dir)) return dir
+        if (isRepoRoot(dir, webOnly)) return dir
         const parent = path.dirname(dir)
         if (parent === dir) break
         dir = parent
@@ -118,6 +117,12 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
         return root
     }
 
+    function requireWebRoot() {
+        const root = resolveRepoRoot(getSettings().sourceRepoPath, true)
+        if (!root) throw new Error("Local frontend source (seanime-web) not found next to this app.")
+        return root
+    }
+
     function updateBackend() {
         return guarded("backend", async (stats) => {
             if (isRemoteMode()) throw new Error("The backend runs on a remote server; update it there.")
@@ -166,14 +171,13 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
 
     function updateFrontend() {
         return guarded("frontend", async (stats) => {
-            const root = requireRepo()
+            const root = requireWebRoot()
             const webRoot = path.join(root, "seanime-web")
             if (!fs.existsSync(path.join(webRoot, "node_modules"))) {
                 throw new Error("seanime-web/node_modules is missing. Install the frontend dependencies first.")
             }
 
-            await pullWithStats("frontend", root, stats)
-
+            // Built from the local files as they are; nothing is pulled.
             await run("frontend", "npm", ["run", "build:denshi"], { cwd: webRoot, shell: process.platform === "win32" })
 
             const outDir = path.join(webRoot, "out-denshi")
@@ -197,10 +201,20 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
         })
     }
 
+    function readOrigin(root) {
+        try {
+            const cfg = fs.readFileSync(path.join(root, ".git", "config"), "utf8")
+            return /\[remote "origin"\][^\[]*?url\s*=\s*(\S+)/.exec(cfg)?.[1] ?? null
+        } catch {
+            return null
+        }
+    }
+
     function getInfo() {
         const root = resolveRepoRoot(getSettings().sourceRepoPath)
         return {
             repoRoot: root,
+            repoOrigin: root ? readOrigin(root) : null,
             remote: !!isRemoteMode(),
             busy,
             hasLiveBackend: fs.existsSync(getLiveBinaryPath(app, getBinaryName())),

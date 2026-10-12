@@ -54,7 +54,7 @@ export function LandingQuickLinksWidget({ visibleLinks }: { visibleLinks?: strin
 
     return (
         <PageWrapper className="px-0">
-            <h2 className="px-4 lg:px-0">Quick links</h2>
+            <h2 className="text-2xl font-bold tracking-tight px-1">Quick links</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4">
                 {links.map(link => {
                     const Icon = quickLinkIcons[link.id] ?? LuArrowRight
@@ -62,18 +62,19 @@ export function LandingQuickLinksWidget({ visibleLinks }: { visibleLinks?: strin
                         <SeaLink key={link.id} href={link.href}>
                             <button
                                 className={cn(
-                                    "group w-full text-left rounded-xl border border-brand-500/20 bg-black/30 backdrop-blur-xl shadow-lg shadow-black/20 p-5",
-                                    "transition-colors hover:border-brand-500/50 hover:bg-black/40",
+                                    "group relative w-full h-full text-left rounded-2xl border border-white/10 bg-black/25 backdrop-blur-xl shadow-lg shadow-black/20 p-5 overflow-hidden",
+                                    "transition-all duration-300 hover:-translate-y-1 hover:border-[--brand]/60 hover:bg-black/35 hover:shadow-xl hover:shadow-[--brand]/20",
                                 )}
                             >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-brand-500/15 text-[--brand]">
+                                <div className="pointer-events-none absolute -right-10 -bottom-10 size-32 rounded-full bg-[--brand]/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="relative flex items-start justify-between gap-3">
+                                    <div className="flex items-center justify-center size-11 rounded-xl bg-gradient-to-br from-brand-400/40 to-brand-600/30 text-white ring-1 ring-white/10">
                                         <Icon className="w-5 h-5" />
                                     </div>
-                                    <LuArrowRight className="w-4 h-4 text-[--muted] opacity-0 group-hover:opacity-100 group-hover:text-[--brand] transition-all" />
+                                    <LuArrowRight className="w-4 h-4 text-white/40 -translate-x-1 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[--brand] transition-all" />
                                 </div>
-                                <p className="font-semibold mt-4">{link.name}</p>
-                                <p className="text-xs text-[--muted] leading-relaxed mt-1">{link.description}</p>
+                                <p className="relative font-semibold text-white mt-4">{link.name}</p>
+                                <p className="relative text-xs text-white/60 leading-relaxed mt-1">{link.description}</p>
                             </button>
                         </SeaLink>
                     )
@@ -228,21 +229,27 @@ function StatsDoor({ title, icon, stats, href }: {
         <SeaLink href={href} className="group/door block h-full">
             <button
                 className={cn(
-                    "group w-full h-full text-left rounded-xl border border-brand-500/20 bg-black/30 backdrop-blur-xl shadow-lg shadow-black/20 p-4 lg:p-5",
-                    "transition-colors hover:border-brand-500/50 hover:bg-black/40",
+                    "group relative w-full h-full text-left rounded-2xl border border-white/10 bg-black/25 backdrop-blur-xl shadow-lg shadow-black/20 p-4 lg:p-5 overflow-hidden",
+                    "transition-all duration-300 hover:-translate-y-1 hover:border-[--brand]/60 hover:bg-black/35 hover:shadow-xl hover:shadow-[--brand]/20",
                 )}
             >
-                <div className="flex items-center gap-2.5 text-[--brand]">
-                    {icon}
-                    <p className="font-semibold text-white">{title}</p>
+                <div className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full bg-[--brand]/20 blur-2xl opacity-60 group-hover:opacity-100 transition-opacity" />
+                <div className="relative flex items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center size-10 rounded-xl bg-gradient-to-br from-brand-400/40 to-brand-600/30 text-white ring-1 ring-white/10">
+                            {icon}
+                        </div>
+                        <p className="font-semibold text-white">{title}</p>
+                    </div>
+                    <LuArrowRight className="w-4 h-4 text-white/40 -translate-x-1 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[--brand] transition-all" />
                 </div>
                 {!!stats.length && (
-                    <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <div className="relative mt-4 flex flex-wrap items-end gap-x-5 gap-y-2">
                         {stats.map(stat => (
-                            <p key={stat.label} className="text-xs text-[--muted] leading-snug whitespace-nowrap">
-                                <span className="text-2xl lg:text-3xl font-bold text-white tabular-nums mr-1.5 align-[-0.08em]">{stat.value.toLocaleString()}</span>
-                                {stat.label}
-                            </p>
+                            <div key={stat.label} className="leading-none">
+                                <p className="text-3xl lg:text-4xl font-extrabold text-white tabular-nums">{stat.value.toLocaleString()}</p>
+                                <p className="text-[11px] uppercase tracking-wider text-white/60 mt-1.5 whitespace-nowrap">{stat.label}</p>
+                            </div>
                         ))}
                     </div>
                 )}
