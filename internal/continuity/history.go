@@ -143,6 +143,9 @@ func (m *Manager) attachEpisodePositions(history WatchHistory, bucket filecache.
 		if !ok {
 			continue
 		}
+		if existing, ok := item.Episodes[episode]; ok && existing.TimeUpdated.After(pos.TimeUpdated) {
+			continue
+		}
 		if item.Episodes == nil {
 			item.Episodes = make(map[int]*EpisodeWatchPosition)
 		}
@@ -191,7 +194,12 @@ func (m *Manager) GetEpisodeWatchPositionForProfile(profileID uint, mediaId, epi
 	defer m.mu.RUnlock()
 
 	bucket := GetEpisodeProfileBucket(profileID)
-	return m.getEpisodeWatchPosition(bucket, mediaId, episodeNumber, useExactResume(exact))
+	profileResp := m.getEpisodeWatchPosition(bucket, mediaId, episodeNumber, useExactResume(exact))
+	globalResp := m.getEpisodeWatchPosition(*m.episodeWatchPositionFileCacheBucket, mediaId, episodeNumber, useExactResume(exact))
+	if globalResp.Found && (!profileResp.Found || globalResp.Item.TimeUpdated.After(profileResp.Item.TimeUpdated)) {
+		return globalResp
+	}
+	return profileResp
 }
 
 func (m *Manager) getEpisodeWatchPosition(bucket filecache.Bucket, mediaId, episodeNumber int, exact bool) *EpisodeWatchPositionResponse {
@@ -585,8 +593,27 @@ func (m *Manager) GetWatchHistoryForProfile(profileID uint) WatchHistory {
 	for _, item := range items {
 		ret[item.MediaId] = item
 	}
+	m.mergeGlobalHistory(ret)
 	m.attachEpisodePositions(ret, GetEpisodeProfileBucket(profileID))
+	m.attachEpisodePositions(ret, *m.episodeWatchPositionFileCacheBucket)
 	return ret
+}
+
+// mergeGlobalHistory merges the global bucket into a profile's history, keeping the most recently updated item.
+// The native player saves positions to the global bucket since it is not tied to a profile session.
+func (m *Manager) mergeGlobalHistory(history WatchHistory) {
+	global, err := filecache.GetAll[*WatchHistoryItem](m.fileCacher, *m.watchHistoryFileCacheBucket)
+	if err != nil {
+		return
+	}
+	for _, g := range global {
+		if g == nil {
+			continue
+		}
+		if cur, ok := history[g.MediaId]; !ok || g.TimeUpdated.After(cur.TimeUpdated) {
+			history[g.MediaId] = g
+		}
+	}
 }
 
 func (m *Manager) GetWatchHistoryItemForProfile(profileID uint, mediaId int, exact ...bool) *WatchHistoryItemResponse {
@@ -599,6 +626,10 @@ func (m *Manager) GetWatchHistoryItemForProfile(profileID uint, mediaId int, exa
 	var ret *WatchHistoryItem
 	exists, _ := m.fileCacher.Get(bucket, strconv.Itoa(mediaId), &ret)
 
+	var global *WatchHistoryItem
+	if gExists, _ := m.fileCacher.Get(*m.watchHistoryFileCacheBucket, strconv.Itoa(mediaId), &global); gExists && global != nil && (!exists || ret == nil || global.TimeUpdated.After(ret.TimeUpdated)) {
+		ret, exists = global, true
+	}
 	if exists && ret != nil && ret.Duration > 0 {
 		if isFinishedPosition(ret.CurrentTime, ret.Duration, useExactResume(exact)) {
 			go func() {
