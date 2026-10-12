@@ -342,23 +342,56 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 			return util.IsMostlyLatinString(*title)
 		})
 
+		// Deduplicate titles and search them concurrently (results keep title order)
+		seenTitles := make(map[string]struct{}, len(titles))
+		titles = lo.Filter(titles, func(title *string, _ int) bool {
+			if title == nil {
+				return false
+			}
+			key := strings.ToLower(strings.TrimSpace(*title))
+			if key == "" || !util.IsMostlyLatinString(*title) {
+				return false
+			}
+			if _, ok := seenTitles[key]; ok {
+				return false
+			}
+			seenTitles[key] = struct{}{}
+			return true
+		})
+
+		type titleSearch struct {
+			res []*hibikemanga.SearchResult
+			err error
+		}
+		searches := make([]titleSearch, len(titles))
+		searchProvider := providerExtension.GetProvider()
+		var searchWg sync.WaitGroup
+		// Limit concurrency to avoid hammering the provider
+		sem := make(chan struct{}, 3)
+		for i, title := range titles {
+			searchWg.Add(1)
+			go func(i int, title *string) {
+				defer searchWg.Done()
+				defer func() { _ = recover() }()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+				searches[i].res, searches[i].err = searchProvider.Search(hibikemanga.SearchOptions{
+					Query: *title,
+					Year:  opts.Year,
+				})
+			}(i, title)
+		}
+		searchWg.Wait()
+
 		var searchRes []*hibikemanga.SearchResult
-
 		var err error
-		for _, title := range titles {
-			var _searchRes []*hibikemanga.SearchResult
-
-			_searchRes, err = providerExtension.GetProvider().Search(hibikemanga.SearchOptions{
-				Query: *title,
-				Year:  opts.Year,
-			})
-			if err == nil {
-
-				HydrateSearchResultSearchRating(_searchRes, title)
-
-				searchRes = append(searchRes, _searchRes...)
+		for i, s := range searches {
+			err = s.err
+			if s.err == nil {
+				HydrateSearchResultSearchRating(s.res, titles[i])
+				searchRes = append(searchRes, s.res...)
 			} else {
-				r.logger.Warn().Err(err).Msg("manga: Search failed")
+				r.logger.Warn().Err(s.err).Msg("manga: Search failed")
 			}
 		}
 
