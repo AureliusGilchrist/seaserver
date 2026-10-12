@@ -1997,6 +1997,7 @@ app.whenReady().then(async () => {
         }
     }
     ipcMain.on("window:popout-drag-start", (event) => {
+        log.warn("[PopoutWindow] drag start")
         stopPopoutDrag()
         if (!popoutPlayerWindow || popoutPlayerWindow.isDestroyed()) return
         if (event.sender !== popoutPlayerWindow.webContents) return
