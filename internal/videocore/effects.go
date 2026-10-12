@@ -20,6 +20,9 @@ const watchHistoryWriteInterval = 10 * time.Second
 // reader and writer, so no lock is needed.
 var lastHistoryWrite = make(map[string]time.Time)
 
+// The latest position that has not been written yet, flushed when the client terminates.
+var lastHistoryOptions = make(map[string]*continuity.UpdateWatchHistoryItemOptions)
+
 func (vc *VideoCore) setupEffects() {
 	vc.setupSharedEffects()
 	vc.setupOnlinestreamEffects()
@@ -105,6 +108,10 @@ func (vc *VideoCore) setupSharedEffects() {
 					_ = vc.continuityManager.DeleteWatchHistoryItem(mediaId)
 				}
 			case *VideoTerminatedEvent:
+				if opts, ok := lastHistoryOptions[event.GetClientId()]; ok {
+					delete(lastHistoryOptions, event.GetClientId())
+					_ = vc.continuityManager.UpdateWatchHistoryItem(opts)
+				}
 				if vc.discordPresence != nil && !vc.isOfflineRef.Get() {
 					go vc.discordPresence.CloseFor(event.GetClientId())
 				}
@@ -124,6 +131,7 @@ func (vc *VideoCore) setupSharedEffects() {
 				// ten seconds of where it was left, for a tenth of the writes.
 				if event.Duration != 0 && (event.Paused || time.Since(lastHistoryWrite[event.GetClientId()]) >= watchHistoryWriteInterval) {
 					lastHistoryWrite[event.GetClientId()] = time.Now()
+					delete(lastHistoryOptions, event.GetClientId())
 					_ = vc.continuityManager.UpdateWatchHistoryItem(&continuity.UpdateWatchHistoryItemOptions{
 						CurrentTime:   event.CurrentTime,
 						Duration:      event.Duration,
@@ -131,6 +139,15 @@ func (vc *VideoCore) setupSharedEffects() {
 						EpisodeNumber: state.PlaybackInfo.Episode.GetEpisodeNumber(),
 						Kind:          continuity.MediastreamKind,
 					})
+				} else if event.Duration != 0 {
+					// Remember the unsaved position so it can be flushed when the player goes away
+					lastHistoryOptions[event.GetClientId()] = &continuity.UpdateWatchHistoryItemOptions{
+						CurrentTime:   event.CurrentTime,
+						Duration:      event.Duration,
+						MediaId:       state.PlaybackInfo.Media.GetID(),
+						EpisodeNumber: state.PlaybackInfo.Episode.GetEpisodeNumber(),
+						Kind:          continuity.MediastreamKind,
+					}
 				}
 
 				if vc.discordPresence != nil && !vc.isOfflineRef.Get() {

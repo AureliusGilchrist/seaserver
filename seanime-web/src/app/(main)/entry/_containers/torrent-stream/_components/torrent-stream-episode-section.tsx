@@ -1,5 +1,5 @@
 import { Anime_Entry, Anime_Episode, Anime_EpisodeCollection } from "@/api/generated/types"
-import { getEpisodeMinutesRemaining, getEpisodePercentageComplete, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
+import { getEpisodeMinutesRemaining, getEpisodePercentageComplete, getEpisodeTotalMinutes, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { EpisodeCard } from "@/app/(main)/_features/anime/_components/episode-card"
 import { EpisodeGridItem } from "@/app/(main)/_features/anime/_components/episode-grid-item"
 import { MediaEpisodeInfoModal } from "@/app/(main)/_features/media/_components/media-episode-info-modal"
@@ -98,6 +98,7 @@ export function TorrentStreamEpisodeSection(props: TorrentStreamEpisodeSectionPr
                                 length={episode.episodeMetadata?.length}
                                 percentageComplete={getEpisodePercentageComplete(watchHistory, entry.mediaId, episode.episodeNumber)}
                                 minutesRemaining={getEpisodeMinutesRemaining(watchHistory, entry.mediaId, episode.episodeNumber)}
+                                totalMinutes={getEpisodeTotalMinutes(watchHistory, entry.mediaId, episode.episodeNumber)}
                                 hasDiscrepancy={episodeCollection?.episodes?.findIndex(e => e.type === "special") !== -1}
                                 onClick={() => {
                                     onEpisodeClick(episode)

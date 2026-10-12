@@ -1,6 +1,6 @@
 "use client"
 import { Anime_Episode, Continuity_WatchHistory } from "@/api/generated/types"
-import { getEpisodeMinutesRemaining, getEpisodePercentageComplete, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
+import { getEpisodeMinutesRemaining, getEpisodePercentageComplete, getEpisodeTotalMinutes, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { __libraryHeaderImageAtom } from "@/app/(main)/(library)/_components/library-header"
 import { usePlayNext } from "@/app/(main)/_atoms/playback.atoms"
 import { EpisodeCard } from "@/app/(main)/_features/anime/_components/episode-card"
@@ -241,6 +241,7 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
             hasDiscrepancy={episode.episodeNumber !== episode.progressNumber}
             percentageComplete={getEpisodePercentageComplete(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
             minutesRemaining={getEpisodeMinutesRemaining(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
+            totalMinutes={getEpisodeTotalMinutes(watchHistory, episode.baseAnime?.id || 0, episode.episodeNumber)}
             anime={{
                 id: episode?.baseAnime?.id || 0,
                 image: episode?.baseAnime?.coverImage?.medium,

@@ -1071,7 +1071,8 @@ func (a *App) InitOrRefreshModules() {
 
 	if settings.Library != nil {
 		go a.ContinuityManager.SetSettings(&continuity.Settings{
-			WatchContinuityEnabled: settings.Library.EnableWatchContinuity,
+			// Resume positions are always tracked, regardless of the legacy setting
+			WatchContinuityEnabled: true,
 		})
 	}
 

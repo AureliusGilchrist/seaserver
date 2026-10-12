@@ -620,13 +620,13 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
      */
     // Resume: the last in-progress episode from watch continuity (if watched > 30s and not
     // finished), used to load where the user left off regardless of AniList progress.
-    const continuityEnabled = serverStatus?.settings?.library?.enableWatchContinuity
+    const continuityEnabled = true
     const resumeItem = React.useMemo(() => {
         if (!continuityEnabled || !mediaId || !continuityWatchHistory) return null
         const item = continuityWatchHistory[Number(mediaId)]
         if (!item || !item.currentTime || item.currentTime < 30) return null
         // Skip if effectively finished.
-        if (item.duration && (item.currentTime / item.duration) > 0.9) return null
+        if (item.duration && (item.currentTime / item.duration) >= 0.85) return null
         return item
     }, [continuityEnabled, mediaId, continuityWatchHistory])
 

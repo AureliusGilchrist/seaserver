@@ -278,7 +278,7 @@ export function SeaMediaPlayer(props: SeaMediaPlayerProps) {
             setShowSkipEndingButton(false)
         }
 
-        if (watchHistoryRef.current > 2000) {
+        if (watchHistoryRef.current > 40) {
             watchHistoryRef.current = 0
             handleUpdateWatchHistory()
         }

@@ -1,6 +1,6 @@
 "use client"
 import { AL_AnimeDetailsById_Media, Anime_Entry, Anime_Episode } from "@/api/generated/types"
-import { getEpisodeMinutesRemaining, getEpisodePercentageComplete, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
+import { getEpisodeMinutesRemaining, getEpisodePercentageComplete, getEpisodeTotalMinutes, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { EpisodeCard } from "@/app/(main)/_features/anime/_components/episode-card"
 
 import { useSeaCommandInject } from "@/app/(main)/_features/sea-command/use-inject"
@@ -180,6 +180,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                             length={episode.episodeMetadata?.length}
                                             percentageComplete={getEpisodePercentageComplete(watchHistory, entry.mediaId, episode.episodeNumber)}
                                             minutesRemaining={getEpisodeMinutesRemaining(watchHistory, entry.mediaId, episode.episodeNumber)}
+                                            totalMinutes={getEpisodeTotalMinutes(watchHistory, entry.mediaId, episode.episodeNumber)}
                                             onClick={() => playMediaFile({
                                                 path: episode.localFile?.path ?? "",
                                                 mediaId: entry.mediaId,
@@ -234,6 +235,7 @@ export function EpisodeSection({ entry, details, bottomSection, hideCarousel, ma
                                     }))}
                                 percentageComplete={getEpisodePercentageComplete(watchHistory, entry.mediaId, mainEpisodes[index].episodeNumber)}
                                 minutesRemaining={getEpisodeMinutesRemaining(watchHistory, entry.mediaId, mainEpisodes[index].episodeNumber)}
+                                totalMinutes={getEpisodeTotalMinutes(watchHistory, entry.mediaId, mainEpisodes[index].episodeNumber)}
                             />
                         )}
                     />

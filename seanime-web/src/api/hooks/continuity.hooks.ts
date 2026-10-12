@@ -50,30 +50,38 @@ export function useGetContinuityWatchHistory() {
 }
 
 export function getEpisodePercentageComplete(history: Nullish<Continuity_WatchHistory>, mediaId: number, progressNumber: number) {
-    if (!history) return 0
-    const item = history[mediaId]
-    if (!item || !item.currentTime || !item.duration) return 0
-    if (item.episodeNumber !== progressNumber) return 0
-    const ratio = item.currentTime / item.duration
-    if (ratio >= 0.9 || ratio < 0.05) return 0
-    return Math.round(ratio * 100)
+    const item = getInProgressItem(history, mediaId, progressNumber)
+    if (!item) return 0
+    return Math.max(1, Math.round((item.currentTime / item.duration) * 100))
 }
 
 export function getEpisodeMinutesRemaining(history: Nullish<Continuity_WatchHistory>, mediaId: number, progressNumber: number) {
-    if (!history) return 0
-    const item = history[mediaId]
-    if (!item || !item.currentTime || !item.duration) return 0
-    if (item.episodeNumber !== progressNumber) return 0
-    const ratio = item.currentTime / item.duration
-    if (ratio >= 0.9 || ratio < 0.05) return 0
-    return Math.round((item.duration - item.currentTime) / 60)
+    const item = getInProgressItem(history, mediaId, progressNumber)
+    if (!item) return 0
+    return Math.max(1, Math.round((item.duration - item.currentTime) / 60))
 }
 
-// Resolves effective continuity enabled state from global setting + per-player override.
-function resolveContinuityEnabled(globalEnabled: boolean | undefined, playerOverride?: "inherit" | "on" | "off"): boolean {
-    if (playerOverride === "on") return true
-    if (playerOverride === "off") return false
-    return !!globalEnabled
+export function getEpisodeTotalMinutes(history: Nullish<Continuity_WatchHistory>, mediaId: number, progressNumber: number) {
+    const item = getInProgressItem(history, mediaId, progressNumber)
+    if (!item) return 0
+    return Math.max(1, Math.round(item.duration / 60))
+}
+
+// Episodes are considered watched from this ratio onwards (mirrors the server's IgnoreRatioThreshold)
+export const CONTINUITY_FINISHED_RATIO = 0.85
+
+function getInProgressItem(history: Nullish<Continuity_WatchHistory>, mediaId: number, progressNumber: number) {
+    if (!history) return undefined
+    const item = history[mediaId]
+    if (!item || !item.currentTime || !item.duration) return undefined
+    if (item.episodeNumber !== progressNumber) return undefined
+    if (item.currentTime / item.duration >= CONTINUITY_FINISHED_RATIO) return undefined
+    return item
+}
+
+// Resolves effective continuity enabled state. Tracking is on by default, only an explicit per-player "off" disables it.
+function resolveContinuityEnabled(_globalEnabled: boolean | undefined, playerOverride?: "inherit" | "on" | "off"): boolean {
+    return playerOverride !== "off"
 }
 
 export function useHandleContinuityWithMediaPlayer(playerRef: React.RefObject<MediaPlayerInstance | HTMLVideoElement | null>,
@@ -94,6 +102,39 @@ export function useHandleContinuityWithMediaPlayer(playerRef: React.RefObject<Me
 
     const { mutate: updateWatchHistory } = useUpdateContinuityWatchHistoryItem()
 
+    // Last position seen from the player, kept so it can still be saved once the player element is gone
+    const lastPositionRef = React.useRef<{ currentTime: number, duration: number } | null>(null)
+    const latestRef = React.useRef({ enabled, mediaId, episodeNumber, updateWatchHistory })
+    latestRef.current = { enabled, mediaId, episodeNumber, updateWatchHistory }
+
+    const savePosition = React.useCallback((episodeOverride?: Nullish<number>) => {
+        const { enabled, mediaId, episodeNumber, updateWatchHistory } = latestRef.current
+        const pos = lastPositionRef.current
+        if (!enabled || !mediaId || !pos?.duration || !pos?.currentTime) return
+        updateWatchHistory({
+            options: {
+                currentTime: pos.currentTime,
+                duration: pos.duration,
+                mediaId: Number(mediaId),
+                episodeNumber: (episodeOverride ?? episodeNumber) ?? 0,
+                kind: "onlinestream",
+            },
+        })
+    }, [])
+
+    // Save the position of the episode being left (episode change or page unmount)
+    React.useEffect(() => {
+        const ep = episodeNumber
+        return () => {
+            const p = playerRef.current
+            if (p?.duration && p?.currentTime) {
+                lastPositionRef.current = { currentTime: p.currentTime, duration: p.duration }
+            }
+            savePosition(ep)
+            lastPositionRef.current = null
+        }
+    }, [episodeNumber])
+
     function handleUpdateWatchHistory() {
         if (!enabled) return
 
@@ -102,21 +143,38 @@ export function useHandleContinuityWithMediaPlayer(playerRef: React.RefObject<Me
                 currentTime: playerRef.current?.currentTime,
                 duration: playerRef.current?.duration,
             })
-
-            updateWatchHistory({
-                options: {
-                    currentTime: playerRef.current?.currentTime ?? 0,
-                    duration: playerRef.current?.duration ?? 0,
-                    mediaId: Number(mediaId),
-                    episodeNumber: episodeNumber ?? 0,
-                    kind: "onlinestream",
-                },
-            })
+            lastPositionRef.current = { currentTime: playerRef.current.currentTime, duration: playerRef.current.duration }
+            savePosition()
         }
     }
 
+    // Track the position every second, and save it when the player is paused, hidden or unmounted (leaving the page)
+    React.useEffect(() => {
+        const track = () => {
+            const p = playerRef.current
+            if (p?.duration && p?.currentTime) {
+                lastPositionRef.current = { currentTime: p.currentTime, duration: p.duration }
+            }
+        }
+        const interval = setInterval(track, 1000)
+        const onHide = () => {
+            if (document.visibilityState === "hidden") {
+                track()
+                savePosition()
+            }
+        }
+        document.addEventListener("visibilitychange", onHide)
+        window.addEventListener("pagehide", onHide)
+        return () => {
+            clearInterval(interval)
+            document.removeEventListener("visibilitychange", onHide)
+            window.removeEventListener("pagehide", onHide)
+        }
+    }, [])
+
     return { handleUpdateWatchHistory }
 }
+
 
 export function useHandleCurrentMediaContinuity(mediaId: Nullish<number | string>, playerOverride?: "inherit" | "on" | "off", episodeNumber?: Nullish<number>) {
     const serverStatus = useServerStatus()
@@ -134,10 +192,10 @@ export function useHandleCurrentMediaContinuity(mediaId: Nullish<number | string
         if (!item || !item.currentTime || !item.duration || item.episodeNumber !== episodeNumber) return 0
         const ratio = item.currentTime / item.duration
         if (exactResume) {
-            if (ratio < 0.05 || playerDuration - item.currentTime < 10) return 0
+            if (ratio >= CONTINUITY_FINISHED_RATIO) return 0
             return item.currentTime
         }
-        if (!(item.currentTime > 0 && item.currentTime < playerDuration) || ratio > 0.9) return 0
+        if (!(item.currentTime > 0 && item.currentTime < playerDuration) || ratio >= CONTINUITY_FINISHED_RATIO) return 0
         logger("CONTINUITY").info("Found last watched time", {
             currentTime: item.currentTime,
             duration: item.duration,

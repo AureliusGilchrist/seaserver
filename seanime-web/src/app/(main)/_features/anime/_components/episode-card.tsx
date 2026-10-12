@@ -46,6 +46,7 @@ type EpisodeCardProps = {
     isFiller?: boolean
     percentageComplete?: number
     minutesRemaining?: number
+    totalMinutes?: number
     allowAnimeInfo?: boolean
     forceSingleContainer?: boolean
     additionalContextMenuItems?: React.ReactNode
@@ -88,6 +89,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
         isFiller,
         percentageComplete,
         minutesRemaining,
+        totalMinutes,
         allowAnimeInfo,
         forceSingleContainer,
         anime,
@@ -270,7 +272,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
                             </div>
                         )}
 
-                        {(serverStatus?.settings?.library?.enableWatchContinuity && !!percentageComplete) &&
+                        {!!percentageComplete &&
                             <div
                                 data-episode-card-progress-bar-container
                                 className="absolute bottom-0 left-0 w-full z-[3]"
@@ -286,7 +288,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
                                         isSingleContainer && "right-4 bottom-4 ",
                                     )}
                                 >
-                                    <span>{minutesRemaining}m left</span>
+                                    <span>{minutesRemaining}m left{!!totalMinutes && ` of ${totalMinutes}m`}</span>
                                 </div>}
                             </div>}
 

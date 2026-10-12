@@ -35,6 +35,7 @@ type EpisodeGridItemProps = {
     episodeTitleClassName?: string
     percentageComplete?: number
     minutesRemaining?: number
+    totalMinutes?: number
     episodeNumber?: number
     progressNumber?: number
     watchedProgress?: number
@@ -68,6 +69,7 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
         episodeTitleClassName,
         percentageComplete,
         minutesRemaining,
+        totalMinutes,
         episodeNumber,
         progressNumber,
         watchedProgress,
@@ -175,9 +177,12 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
                         data-src={image}
                     />}
 
-                    {(serverStatus?.settings?.library?.enableWatchContinuity && !!percentageComplete && !isWatched) &&
+                    {(!!percentageComplete && !isWatched) &&
                         <div data-episode-grid-item-progress-bar-container className="absolute bottom-0 left-0 w-full z-[3]">
                             <ProgressBar value={percentageComplete} size="xs" />
+                            {!!minutesRemaining && <span className="absolute bottom-1.5 right-1.5 text-xs text-gray-200 drop-shadow">
+                                {minutesRemaining}m left{!!totalMinutes && ` of ${totalMinutes}m`}
+                            </span>}
                         </div>}
                 </div>
 

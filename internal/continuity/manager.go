@@ -65,7 +65,7 @@ func NewManager(opts *NewManagerOptions) *Manager {
 		watchHistoryFileCacheBucket:           &watchHistoryFileCacheBucket,
 		episodeWatchPositionFileCacheBucket:   &episodeWatchPositionBucket,
 		settings: &Settings{
-			WatchContinuityEnabled: false,
+			WatchContinuityEnabled: true,
 		},
 		externalPlayerEpisodeDetails: mo.None[*ExternalPlayerEpisodeDetails](),
 	}

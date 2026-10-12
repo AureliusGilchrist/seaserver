@@ -14,7 +14,7 @@ import (
 
 const (
 	MaxWatchHistoryItems            = 100
-	IgnoreRatioThreshold            = 0.9
+	IgnoreRatioThreshold            = 0.85
 	ResumeExactFinishedSeconds      = 10
 	MinSaveTimeSeconds              = 30
 	WatchHistoryBucketName          = "watch_history"
@@ -116,12 +116,9 @@ func (m *Manager) GetWatchHistory() WatchHistory {
 	return ret
 }
 
-// isFinishedPosition reports whether a saved position should be treated as "watched". In exact resume mode, an
-// episode only counts as finished when under ResumeExactFinishedSeconds remain, so resuming with 2 minutes left works.
+// isFinishedPosition reports whether a saved position should be treated as "watched" (at or past IgnoreRatioThreshold).
+// The exact flag is kept for API compatibility: the threshold now applies in every resume mode.
 func isFinishedPosition(currentTime, duration float64, exact bool) bool {
-	if exact {
-		return duration-currentTime < ResumeExactFinishedSeconds
-	}
 	return currentTime/duration >= IgnoreRatioThreshold
 }
 
@@ -177,7 +174,7 @@ func (m *Manager) getEpisodeWatchPosition(bucket filecache.Bucket, mediaId, epis
 			}()
 			return &EpisodeWatchPositionResponse{Item: nil, Found: false}
 		}
-		if pos.CurrentTime < MinSaveTimeSeconds || (exact && pos.CurrentTime/pos.Duration < 0.05) {
+		if pos.CurrentTime < MinSaveTimeSeconds {
 			return &EpisodeWatchPositionResponse{Item: nil, Found: false}
 		}
 	}
@@ -496,12 +493,8 @@ func (m *Manager) getWatchHistory(mediaId int, exact bool) (ret *WatchHistoryIte
 
 	if exists && ret != nil && ret.Duration > 0 {
 		// If the item completion ratio is equal or above IgnoreRatioThreshold, don't return anything
-		ratio := ret.CurrentTime / ret.Duration
 		if isFinishedPosition(ret.CurrentTime, ret.Duration, exact) {
 			// keep the timestamp for last-watched sorting
-			return nil, false
-		}
-		if ratio < 0.05 {
 			return nil, false
 		}
 	}
@@ -572,15 +565,11 @@ func (m *Manager) GetWatchHistoryItemForProfile(profileID uint, mediaId int, exa
 	exists, _ := m.fileCacher.Get(bucket, strconv.Itoa(mediaId), &ret)
 
 	if exists && ret != nil && ret.Duration > 0 {
-		ratio := ret.CurrentTime / ret.Duration
 		if isFinishedPosition(ret.CurrentTime, ret.Duration, useExactResume(exact)) {
 			go func() {
 				defer util.HandlePanicInModuleThen("continuity/GetWatchHistoryItemForProfile", func() {})
 				_ = m.fileCacher.Delete(bucket, strconv.Itoa(mediaId))
 			}()
-			return &WatchHistoryItemResponse{Item: nil, Found: false}
-		}
-		if ratio < 0.05 {
 			return &WatchHistoryItemResponse{Item: nil, Found: false}
 		}
 	}
