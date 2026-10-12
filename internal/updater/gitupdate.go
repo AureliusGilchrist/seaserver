@@ -414,7 +414,10 @@ func (u *GitAutoUpdater) runUpdate() {
 		u.setBuiltCommit(u.headCommit())
 	}
 	remoteHead, _ := u.git("rev-parse", remoteRef)
-	if strings.TrimSpace(remoteHead) != u.headCommit() {
+	// Also reset when HEAD already matches but the tree or index is dirty (an earlier attempt can
+	// move HEAD and then fail halfway, leaving staged leftovers).
+	dirty, _ := u.git("status", "--porcelain", "--untracked-files=no")
+	if strings.TrimSpace(remoteHead) != u.headCommit() || strings.TrimSpace(dirty) != "" {
 		if err := u.shelve(remoteRef); err != nil {
 			u.fail("moving the checkout to the fork's latest commit (git reset --hard)", err, "")
 			return
