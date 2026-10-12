@@ -64,6 +64,15 @@ function ElectronUpdates() {
     const [remote, setRemote] = React.useState(false)
     const { mutateAsync: updateRemoteBackend } = useUpdateBackend()
 
+    // The server writes the update notice right before it swaps to the new binary, so this is the
+    // point where a remote backend update is known to have succeeded.
+    useWebsocketMessageListener({
+        type: WSEvents.UPDATE_NOTICE_AVAILABLE,
+        onMessage: () => {
+            setLines(prev => [...prev, "", "Backend update: Succeeded (restarting on the new version)"])
+        },
+    })
+
     const liveUpdate = window.electron?.liveUpdate
 
     const refreshInfo = React.useCallback(() => {
@@ -95,10 +104,13 @@ function ElectronUpdates() {
                 const res = await updateRemoteBackend({})
                 const msg = res?.message ?? "Update requested."
                 toast.success(msg)
-                setLines([msg])
+                setLines(res?.started
+                    ? [msg, "Backend update: In progress..."]
+                    : [msg, "Backend update: Succeeded (already up to date)"])
             }
             catch (e: any) {
                 toast.error(`Backend update failed: ${e?.message ?? "unknown error"}`)
+                setLines([`Backend update: Failed - ${e?.message ?? "unknown error"}`])
             }
             finally {
                 setRunning(null)
@@ -116,13 +128,15 @@ function ElectronUpdates() {
                 : " (0 lines changed)"
             if (res.ok) {
                 toast.success(`${label} update succeeded${changed}. ${res.message ?? ""}`.trim())
+                setLines(prev => [...prev, "", `${label} update: Succeeded${changed}`])
             } else {
                 toast.error(`${label} update failed${changed}: ${(res.error ?? "").split("\n")[0]}`)
-                setLines(prev => [...prev, "", `ERROR: ${res.error}`])
+                setLines(prev => [...prev, "", `ERROR: ${res.error}`, `${label} update: Failed${changed}`])
             }
         }
         catch (e: any) {
             toast.error(`Update failed: ${e?.message ?? "unknown error"}`)
+            setLines(prev => [...prev, "", `Update: Failed - ${e?.message ?? "unknown error"}`])
         }
         finally {
             setRunning(null)
