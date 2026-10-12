@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -321,8 +322,7 @@ func (u *GitAutoUpdater) runUpdate() {
 	// moved onto the fork's latest commit, so nothing is left behind and nothing is lost.
 	remoteRef := u.remoteRef()
 	if _, err := u.git("fetch", gitUpdateRemote); err != nil {
-		u.logger.Warn().Err(err).Msg("selfupdate: Could not fetch the fork, not updating")
-		u.notify("The update could not be fetched: " + err.Error())
+		u.fail("fetching the fork", err, "")
 		return
 	}
 	if note := u.localWork(remoteRef); note != "" {
@@ -333,8 +333,7 @@ func (u *GitAutoUpdater) runUpdate() {
 	stats := u.diffStats(remoteRef)
 
 	if err := u.shelve(remoteRef); err != nil {
-		u.logger.Warn().Err(err).Msg("selfupdate: Could not move to the fork's latest commit, not updating")
-		u.notify("The update was not pulled: " + err.Error())
+		u.fail("moving the checkout to the fork's latest commit (git reset --hard)", err, "")
 		return
 	}
 
@@ -342,8 +341,7 @@ func (u *GitAutoUpdater) runUpdate() {
 	// left something behind.
 	status, err := u.git("status", "--porcelain", "--untracked-files=no")
 	if err != nil || strings.TrimSpace(status) != "" {
-		u.logger.Warn().Msg("selfupdate: The merge left the working tree dirty, not updating")
-		u.notify("The update was pulled but left the checkout dirty, so it was not built")
+		u.fail("verifying the checkout after the reset", fmt.Errorf("tracked files are still modified: %s %v", strings.TrimSpace(status), err), "")
 		return
 	}
 
@@ -358,22 +356,21 @@ func (u *GitAutoUpdater) runUpdate() {
 	// flash a shell window for every step of the build.
 	build, err := buildCommand(u.repoDir)
 	if err != nil {
-		u.logger.Error().Err(err).Msg("selfupdate: No shell available to run the build — the running version keeps serving")
-		u.notify("The update could not be built — still running the current version")
+		u.fail("preparing the build (no shell found to run the build script)", err, "")
 		return
 	}
 	build.Dir = u.repoDir
-	build.Stdout = os.Stdout
-	build.Stderr = os.Stderr
+	var buildOut bytes.Buffer
+	build.Stdout = io.MultiWriter(os.Stdout, &buildOut)
+	build.Stderr = io.MultiWriter(os.Stderr, &buildOut)
 	if err := build.Run(); err != nil {
-		u.logger.Error().Err(err).Msg("selfupdate: The build failed — the running version keeps serving")
-		u.notify("The update could not be built — still running the current version")
+		u.fail("running the build script ("+strings.Join(build.Args, " ")+")", err, buildOut.String())
 		return
 	}
 
 	exePath := getExePath()
 	if exePath == "" {
-		u.logger.Error().Msg("selfupdate: Could not locate the running binary, not updating")
+		u.fail("locating the running binary", fmt.Errorf("could not determine the running executable's path"), "")
 		return
 	}
 	// The mtime check guards against a build that produced no binary. But the build does not write
@@ -385,18 +382,15 @@ func (u *GitAutoUpdater) runUpdate() {
 	builtPath := filepath.Join(u.repoDir, builtBinaryName())
 	info, err := os.Stat(builtPath)
 	if err != nil {
-		u.logger.Error().Err(err).Str("built", builtPath).Msg("selfupdate: The build did not produce a binary, not updating")
+		u.fail("looking for the built binary at "+builtPath, err, buildOut.String())
 		return
 	}
 	if time.Since(info.ModTime()) > 10*time.Minute {
-		// The binary on disk is not the one this build produced — a build that did not touch it is
-		// not an update.
-		u.logger.Warn().Msg("selfupdate: The build did not produce a new binary, not updating")
+		u.fail("checking the built binary", fmt.Errorf("%s was last written %s ago, so the build did not produce a new binary", builtPath, time.Since(info.ModTime()).Round(time.Second)), buildOut.String())
 		return
 	}
 	if err := smokeTestBinary(builtPath); err != nil {
-		u.logger.Error().Err(err).Msg("selfupdate: The new version did not start cleanly — the running version keeps serving")
-		u.notify("The new version failed its start-up check — still running the current version")
+		u.fail("start-up check of the new binary", err, "")
 		return
 	}
 	u.logger.Info().Msg("selfupdate: The new version started and answered — switching to it")
@@ -406,7 +400,7 @@ func (u *GitAutoUpdater) runUpdate() {
 		// /usr/local/bin, say). The checkout's binary is the new version; the running one is the
 		// old. Move the new over the old, which is what "swap" has to mean here.
 		if err := copyBinary(builtPath, exePath); err != nil {
-			u.logger.Error().Err(err).Msg("selfupdate: Could not place the new binary, not updating")
+			u.fail("copying the new binary over "+exePath, err, "")
 			return
 		}
 		u.logger.Info().Str("from", builtPath).Str("to", exePath).Msg("selfupdate: New binary moved to the running binary's location")
@@ -575,6 +569,25 @@ func (u *GitAutoUpdater) writeUpdateNotice(stats updateStats) {
 func (u *GitAutoUpdater) notify(message string) {
 	if u.wsEventManager != nil {
 		u.wsEventManager.SendEvent(events.InfoToast, message)
+	}
+}
+
+// fail reports where an update stopped and why: to the server log, to a toast, and as a log block
+// (step, error, and the tail of the build output) for the settings page.
+func (u *GitAutoUpdater) fail(step string, err error, output string) {
+	tail := strings.Split(strings.TrimSpace(output), "\n")
+	if len(tail) > 40 {
+		tail = tail[len(tail)-40:]
+	}
+	detail := strings.TrimSpace(strings.Join(tail, "\n"))
+	u.logger.Error().Err(err).Str("step", step).Msg("selfupdate: The update failed — the running version keeps serving")
+	msg := fmt.Sprintf("Update failed while %s\nReason: %v", step, err)
+	if detail != "" {
+		msg += "\nLast build output:\n" + detail
+	}
+	u.notify(fmt.Sprintf("The update failed while %s: %v", step, err))
+	if u.wsEventManager != nil {
+		u.wsEventManager.SendEvent(events.UpdateBackendLog, msg)
 	}
 }
 

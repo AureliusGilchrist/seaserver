@@ -70,6 +70,7 @@ const (
 	UnmatchedMatchQueueUpdated    = "unmatched-match-queue-updated"
 	TorrentAddQueueUpdated        = "torrent-add-queue-updated"
 	UpdateNoticeAvailable         = "update-notice-available"
+	UpdateBackendLog              = "update-backend-log"
 	ServerGoingDown               = "server-going-down"
 	AnilistOverwriteCompleted     = "anilist-overwrite-completed"
 	MangaChapterMigrationProgress = "manga-chapter-migration-progress"

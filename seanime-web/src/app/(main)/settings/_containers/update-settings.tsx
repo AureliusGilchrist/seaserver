@@ -165,6 +165,14 @@ function ElectronUpdates() {
         setLines(prev => [...prev, "", stamp(`Backend update: Succeeded (${text})`)])
     }, [])
 
+    useWebsocketMessageListener<string>({
+        type: WSEvents.UPDATE_BACKEND_LOG,
+        onMessage: (msg) => {
+            pendingRef.current = false
+            setLines(prev => [...prev.slice(-199), "", stamp("Backend update: Failed"), ...String(msg).split("\n").map(l => `    ${l}`)])
+        },
+    })
+
     useWebsocketMessageListener({
         type: WSEvents.UPDATE_NOTICE_AVAILABLE,
         onMessage: () => markSucceeded("restarting on the new version"),
@@ -361,12 +369,28 @@ function ElectronUpdates() {
             </SettingsCard>
 
             {lines.length > 0 && (
-                <pre
-                    ref={logRef}
-                    className="max-h-64 overflow-auto rounded-lg border bg-gray-950 p-3 text-xs text-gray-300 whitespace-pre-wrap"
-                >
-                    {lines.join("\n")}
-                </pre>
+                <div className="relative">
+                    <Button
+                        size="sm"
+                        intent="gray-outline"
+                        className="absolute right-2 top-2 z-10"
+                        onClick={() => {
+                            navigator.clipboard.writeText(lines.join("\n")).then(
+                                () => toast.success("Log copied"),
+                                () => toast.error("Could not copy the log"),
+                            )
+                        }}
+                    >
+                        Copy log
+                    </Button>
+                    <pre
+                        ref={logRef}
+                        style={{ userSelect: "text", WebkitUserSelect: "text" }}
+                        className="max-h-64 overflow-auto rounded-lg border bg-gray-950 p-3 pr-24 text-xs text-gray-300 whitespace-pre-wrap cursor-text select-text"
+                    >
+                        {lines.join("\n")}
+                    </pre>
+                </div>
             )}
         </div>
     )
