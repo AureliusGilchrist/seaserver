@@ -230,6 +230,17 @@ func CurrentGitUpdater() *GitAutoUpdater {
 	return gitUpdaterRef.Get()
 }
 
+// CheckPending fetches and reports what an update would change and whether the checkout is able to
+// take it, without changing anything.
+func (u *GitAutoUpdater) CheckPending() (behind bool, files []FileChange, blocked string, err error) {
+	behind, err = u.checkForUpdate()
+	if err != nil || !behind {
+		return false, nil, "", err
+	}
+	ref := u.remoteRef()
+	return true, u.diffFiles(ref), u.blocker(ref), nil
+}
+
 // UpdateNow is the manual "update backend": it fetches origin (the fork's repository) and, when the
 // checkout is behind, pulls, builds and restarts in the background. It reports whether an update
 // was started; the build and restart themselves happen after this returns.

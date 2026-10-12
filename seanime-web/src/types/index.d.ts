@@ -82,6 +82,8 @@ declare global {
             liveUpdate?: {
                 updateBackend: () => Promise<LiveUpdateResult>;
                 updateFrontend: () => Promise<LiveUpdateResult>;
+                checkBackend: () => Promise<LiveUpdateCheck>;
+                checkFrontend: () => Promise<LiveUpdateCheck>;
                 getInfo: () => Promise<{
                     repoRoot: string | null;
                     repoOrigin?: string | null;
@@ -161,11 +163,27 @@ declare global {
         serverPort?: number;
     }
 
+    interface LiveUpdateFileChange {
+        path: string;
+        insertions: number;
+        deletions: number;
+    }
+
+    interface LiveUpdateCheck {
+        ok: boolean;
+        error?: string;
+        /** Frontend: whether a previous build was recorded to compare against. */
+        baseline?: boolean;
+        /** Backend: how many commits the fork has that this checkout lacks. */
+        behind?: number;
+        files?: LiveUpdateFileChange[];
+    }
+
     interface LiveUpdateResult {
         ok: boolean;
         message?: string;
         error?: string;
-        stats?: { files: number; insertions: number; deletions: number; lines: number };
+        stats?: { files: number; insertions: number; deletions: number; lines: number; changes?: LiveUpdateFileChange[]; baseline?: boolean };
     }
 
     interface DenshiSettings {

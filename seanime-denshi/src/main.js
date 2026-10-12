@@ -2130,6 +2130,8 @@ app.whenReady().then(async () => {
 
     ipcMain.handle("live-update:backend", () => liveUpdater.updateBackend())
     ipcMain.handle("live-update:frontend", () => liveUpdater.updateFrontend())
+    ipcMain.handle("live-update:check-backend", () => liveUpdater.checkBackend())
+    ipcMain.handle("live-update:check-frontend", () => liveUpdater.checkFrontend())
     ipcMain.handle("live-update:info", () => liveUpdater.getInfo())
 
     // Denshi settings IPC handlers

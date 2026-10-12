@@ -43,6 +43,20 @@ export function useUpdateBackend() {
     })
 }
 
+export interface FileDelta {
+    path: string
+    insertions: number
+    deletions: number
+}
+
+export function useCheckBackendUpdate() {
+    return useServerMutation<{ behind: boolean, blocked?: string, files: FileDelta[] }, {}>({
+        endpoint: "/api/v1/update/backend/check",
+        method: "POST",
+        mutationKey: ["update-backend-check"],
+    })
+}
+
 export function useOverwriteAnilist() {
     return useServerMutation<boolean, {}>({
         endpoint: "/api/v1/anilist/overwrite",

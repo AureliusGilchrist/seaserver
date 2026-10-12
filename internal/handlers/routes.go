@@ -1066,6 +1066,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// the PIN screen, and dismissed only by the person looking at it.
 	v1.GET("/update/notice", h.HandleGetUpdateNotice)
 	v1.POST("/update/backend", h.HandleUpdateBackend)
+	v1.POST("/update/backend/check", h.HandleCheckBackendUpdate)
 	v1.POST("/anilist/overwrite", h.HandleOverwriteAnilist)
 	v1.POST("/anilist/overwrite/preview", h.HandleOverwriteAnilistPreview)
 	v1.POST("/update/notice/dismiss", h.HandleDismissUpdateNotice)

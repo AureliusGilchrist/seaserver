@@ -164,6 +164,8 @@ contextBridge.exposeInMainWorld(
         liveUpdate: {
             updateBackend: () => ipcRenderer.invoke("live-update:backend"),
             updateFrontend: () => ipcRenderer.invoke("live-update:frontend"),
+            checkBackend: () => ipcRenderer.invoke("live-update:check-backend"),
+            checkFrontend: () => ipcRenderer.invoke("live-update:check-frontend"),
             getInfo: () => ipcRenderer.invoke("live-update:info"),
         },
 

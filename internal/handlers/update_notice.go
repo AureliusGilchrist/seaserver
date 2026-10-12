@@ -50,6 +50,33 @@ type UpdateBackendResponse struct {
 	Files   []updater.FileChange `json:"files,omitempty"`
 }
 
+// CheckBackendUpdateResponse is what pulling would bring, without pulling it.
+type CheckBackendUpdateResponse struct {
+	Behind  bool                 `json:"behind"`
+	Blocked string               `json:"blocked,omitempty"`
+	Files   []updater.FileChange `json:"files"`
+}
+
+// HandleCheckBackendUpdate
+//
+//	@summary reports whether the backend has an update and which files it changes.
+//	@route /api/v1/update/backend/check [POST]
+//	@returns handlers.CheckBackendUpdateResponse
+func (h *Handler) HandleCheckBackendUpdate(c echo.Context) error {
+	u := updater.CurrentGitUpdater()
+	if u == nil {
+		return h.RespondWithError(c, errors.New("this server is not running from a git checkout, so it cannot update itself"))
+	}
+	behind, files, blocked, err := u.CheckPending()
+	if err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if files == nil {
+		files = []updater.FileChange{}
+	}
+	return h.RespondWithData(c, CheckBackendUpdateResponse{Behind: behind, Blocked: blocked, Files: files})
+}
+
 // HandleGetUpdateNotice
 //
 //	@summary returns the pending update notice, if there is one.

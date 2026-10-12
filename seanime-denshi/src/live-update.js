@@ -83,11 +83,12 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
         }
     }
 
-    function git(root, args) {
+    // Git with an optional environment; resolves "" on any failure.
+    function git(root, args, env) {
         return new Promise((resolve) => {
             let out = ""
             try {
-                const child = spawn("git", args, { cwd: root, windowsHide: true })
+                const child = spawn("git", args, { cwd: root, windowsHide: true, env: env ?? process.env })
                 child.stdout.on("data", (d) => { out += d.toString() })
                 child.on("error", () => resolve(""))
                 child.on("close", () => resolve(out.trim()))
@@ -95,6 +96,64 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
                 resolve("")
             }
         })
+    }
+
+    function parseNumstat(out) {
+        const files = []
+        for (const line of out.split(/\r?\n/)) {
+            const m = /^(\S+)\t(\S+)\t(.+)$/.exec(line)
+            if (!m) continue
+            // Binary files report "-" for both counts.
+            files.push({ path: m[3], insertions: Number(m[1]) || 0, deletions: Number(m[2]) || 0 })
+        }
+        return files
+    }
+
+    function toStats(files) {
+        const insertions = files.reduce((n, f) => n + f.insertions, 0)
+        const deletions = files.reduce((n, f) => n + f.deletions, 0)
+        return { files: files.length, insertions, deletions, lines: insertions + deletions, changes: files }
+    }
+
+    // What the frontend looked like when it was last built is remembered as a git tree of seanime-web
+    // (kept alive by a ref), so "what did I change since the last build" is a plain tree diff that
+    // includes uncommitted and untracked work.
+    const buildStateFile = path.join(app.getPath("userData"), "frontend-build.json")
+    const BUILD_REF = "refs/seanime-denshi/frontend-build"
+    const snapshotIndex = path.join(app.getPath("userData"), "frontend-snapshot.index")
+
+    async function snapshotWebTree(root) {
+        fs.rmSync(snapshotIndex, { force: true })
+        const env = { ...process.env, GIT_INDEX_FILE: snapshotIndex }
+        await git(root, ["add", "-A", "--", "seanime-web"], env)
+        const tree = await git(root, ["write-tree"], env)
+        fs.rmSync(snapshotIndex, { force: true })
+        return /^[0-9a-f]{40,64}$/.test(tree) ? tree : ""
+    }
+
+    function readBuiltTree() {
+        try { return JSON.parse(fs.readFileSync(buildStateFile, "utf8")).tree || "" } catch { return "" }
+    }
+
+    async function rememberBuiltTree(root, tree) {
+        try { fs.writeFileSync(buildStateFile, JSON.stringify({ tree, at: new Date().toISOString() })) } catch {}
+        const env = {
+            ...process.env,
+            GIT_AUTHOR_NAME: "denshi", GIT_AUTHOR_EMAIL: "denshi@localhost",
+            GIT_COMMITTER_NAME: "denshi", GIT_COMMITTER_EMAIL: "denshi@localhost",
+        }
+        const commit = await git(root, ["commit-tree", tree, "-m", "frontend build snapshot"], env)
+        if (commit) await git(root, ["update-ref", BUILD_REF, commit])
+    }
+
+    // The delta between the last built frontend and the files as they are now.
+    async function frontendDelta(root) {
+        const tree = await snapshotWebTree(root)
+        if (!tree) return { tree: "", baseline: false, files: [], error: "Could not read the frontend files with git, so changes cannot be listed." }
+        const last = readBuiltTree()
+        if (!last || (await git(root, ["cat-file", "-t", last])) !== "tree") return { tree, baseline: false, files: [] }
+        const files = parseNumstat(await git(root, ["diff", "--numstat", last, tree]))
+        return { tree, baseline: true, files }
     }
 
     // Pulls and records how many lines the pull changed.
@@ -224,7 +283,19 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
                 throw new Error("seanime-web/node_modules is missing. Install the frontend dependencies first.")
             }
 
-            // Built from the local files as they are; nothing is pulled.
+            // Built from the local files as they are; nothing is pulled. The delta is what changed
+            // since the last build, read before building.
+            const delta = await frontendDelta(root)
+            Object.assign(stats, toStats(delta.files))
+            stats.baseline = delta.baseline
+            emitProgress({
+                target: "frontend",
+                line: delta.baseline
+                    ? `${delta.files.length} file(s) changed since the last build (+${stats.insertions} -${stats.deletions})`
+                    : "No previous build recorded; this build becomes the baseline.",
+            })
+            for (const f of delta.files) emitProgress({ target: "frontend", line: `    ${f.path}  +${f.insertions} -${f.deletions}` })
+
             await run("frontend", "npm", ["run", "build:denshi"], { cwd: webRoot, shell: process.platform === "win32" })
 
             const outDir = path.join(webRoot, "out-denshi")
@@ -241,11 +312,39 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
             if (fs.existsSync(liveWeb)) fs.renameSync(liveWeb, oldWeb)
             fs.renameSync(newWeb, liveWeb)
             fs.rmSync(oldWeb, { recursive: true, force: true })
+            if (delta.tree) await rememberBuiltTree(root, delta.tree)
 
             emitProgress({ target: "frontend", line: "Frontend swapped, reloading..." })
             setTimeout(reloadWindows, 400)
             return "Frontend updated; reloading."
         })
+    }
+
+    async function checkFrontend() {
+        try {
+            const root = requireWebRoot()
+            const delta = await frontendDelta(root)
+            if (delta.error) return { ok: false, error: delta.error }
+            return { ok: true, baseline: delta.baseline, files: delta.files, stats: toStats(delta.files) }
+        } catch (err) {
+            return { ok: false, error: err?.message ?? String(err) }
+        }
+    }
+
+    // Local backend: what pulling the fork's latest commits would change.
+    async function checkBackend() {
+        try {
+            if (isRemoteMode()) throw new Error("The backend runs on a remote server; check it there.")
+            const root = requireRepo()
+            await run("backend", "git", ["fetch", "origin"], { cwd: root })
+            const branch = (await git(root, ["rev-parse", "--abbrev-ref", "HEAD"])) || "main"
+            const ref = `origin/${branch === "HEAD" ? "main" : branch}`
+            const behind = Number(await git(root, ["rev-list", "--count", `HEAD..${ref}`])) || 0
+            const files = behind > 0 ? parseNumstat(await git(root, ["diff", "--numstat", "HEAD", ref])) : []
+            return { ok: true, behind, files, stats: toStats(files) }
+        } catch (err) {
+            return { ok: false, error: err?.message ?? String(err) }
+        }
     }
 
     function readOrigin(root) {
@@ -269,7 +368,7 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
         }
     }
 
-    return { updateBackend, updateFrontend, getInfo }
+    return { updateBackend, updateFrontend, checkBackend, checkFrontend, getInfo }
 }
 
 module.exports = { createLiveUpdater, getLiveWebDir, getLiveBinaryPath }

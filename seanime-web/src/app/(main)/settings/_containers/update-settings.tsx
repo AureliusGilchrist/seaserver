@@ -1,4 +1,4 @@
-import { OverwriteChange, OverwritePreview, useOverwriteAnilist, useOverwriteAnilistPreview, useUpdateBackend } from "@/api/hooks/update-notice.hooks"
+import { OverwriteChange, OverwritePreview, useCheckBackendUpdate, useOverwriteAnilist, useOverwriteAnilistPreview, useUpdateBackend } from "@/api/hooks/update-notice.hooks"
 import { Modal } from "@/components/ui/modal"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { WSEvents } from "@/lib/server/ws-events"
@@ -150,6 +150,8 @@ function ElectronUpdates() {
 
     const [remote, setRemote] = React.useState(false)
     const { mutateAsync: updateRemoteBackend } = useUpdateBackend()
+    const { mutateAsync: checkRemoteBackend } = useCheckBackendUpdate()
+    const [checking, setChecking] = React.useState<Target | null>(null)
 
     // The server writes the update notice right before it swaps to the new binary, so this is the
     // point where a remote backend update is known to have succeeded.
@@ -203,6 +205,42 @@ function ElectronUpdates() {
     }, [lines])
 
     if (!liveUpdate) return null
+
+    async function check(target: Target) {
+        setChecking(target)
+        setLines([])
+        const label = target === "backend" ? "Backend" : "Frontend"
+        try {
+            let files: { path: string, insertions: number, deletions: number }[] = []
+            let summary: string
+            if (target === "backend" && remote) {
+                const res = await checkRemoteBackend({})
+                files = res?.files ?? []
+                if (res?.behind && res.blocked) summary = `Update available, but it will not be pulled: ${res.blocked}`
+                else summary = res?.behind ? "Update available" : "Up to date"
+            } else {
+                const res = target === "backend" ? await liveUpdate!.checkBackend() : await liveUpdate!.checkFrontend()
+                if (!res.ok) throw new Error(res.error ?? "check failed")
+                files = res.files ?? []
+                if (target === "backend") summary = res.behind ? `Update available (${res.behind} new commit${res.behind === 1 ? "" : "s"})` : "Up to date"
+                else if (!res.baseline) summary = "No previous build recorded yet. The next build becomes the baseline"
+                else summary = files.length ? "Changes since the last build" : "No changes since the last build"
+            }
+            const ins = files.reduce((n, f) => n + f.insertions, 0)
+            const del = files.reduce((n, f) => n + f.deletions, 0)
+            setLines([
+                stamp(`${label}: ${summary}`),
+                ...(files.length ? [stamp(`${files.length} file${files.length === 1 ? "" : "s"} (+${ins} -${del}):`), ...files.map(f => `    ${f.path}  +${f.insertions} -${f.deletions}`)] : []),
+            ])
+        }
+        catch (e: any) {
+            toast.error(`${label} check failed: ${e?.message ?? "unknown error"}`)
+            setLines([stamp(`${label} check: Failed - ${e?.message ?? "unknown error"}`)])
+        }
+        finally {
+            setChecking(null)
+        }
+    }
 
     async function run(target: Target) {
         if (target === "backend" && remote) {
@@ -276,28 +314,48 @@ function ElectronUpdates() {
                             : "No source repository was found for this backend."}
                     </p>
                 )}
-                <Button
-                    intent="primary"
-                    loading={running === "backend"}
-                    disabled={running !== null}
-                    onClick={() => run("backend")}
-                >
-                    Update backend
-                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        intent="primary"
+                        loading={running === "backend"}
+                        disabled={running !== null || checking !== null}
+                        onClick={() => run("backend")}
+                    >
+                        Update backend
+                    </Button>
+                    <Button
+                        intent="gray-outline"
+                        loading={checking === "backend"}
+                        disabled={running !== null || checking !== null}
+                        onClick={() => check("backend")}
+                    >
+                        Check for updates
+                    </Button>
+                </div>
             </SettingsCard>
 
             <SettingsCard title="Frontend">
                 <p className="text-sm text-[--muted]">
                     Builds the desktop frontend from the local files on this machine (no repository involved) and swaps it in live. The window reloads when it is done.
                 </p>
-                <Button
-                    intent="primary"
-                    loading={running === "frontend"}
-                    disabled={running !== null}
-                    onClick={() => run("frontend")}
-                >
-                    Update frontend
-                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        intent="primary"
+                        loading={running === "frontend"}
+                        disabled={running !== null || checking !== null}
+                        onClick={() => run("frontend")}
+                    >
+                        Update frontend
+                    </Button>
+                    <Button
+                        intent="gray-outline"
+                        loading={checking === "frontend"}
+                        disabled={running !== null || checking !== null}
+                        onClick={() => check("frontend")}
+                    >
+                        Check for updates
+                    </Button>
+                </div>
             </SettingsCard>
 
             {lines.length > 0 && (
