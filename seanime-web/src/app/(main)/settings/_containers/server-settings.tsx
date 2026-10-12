@@ -1,9 +1,10 @@
 import { useGetAnilistCacheLayerStatus, useToggleAnilistCacheLayerStatus } from "@/api/hooks/anilist.hooks"
+import { useLocalSyncSimulatedDataToAnilist } from "@/api/hooks/local.hooks"
 import { remoteServerUrlAtom, serverConnectionModeAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { __seaCommand_shortcuts } from "@/app/(main)/_features/sea-command/sea-command"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
 import { SettingsSubmitButton } from "@/app/(main)/settings/_components/settings-submit-button"
-import { AnilistUploadButton } from "@/app/(main)/settings/_components/anilist-upload-button"
+import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -15,7 +16,7 @@ import { useAtom, useAtomValue } from "jotai/react"
 import React from "react"
 import { useFormContext } from "react-hook-form"
 import { FaRedo } from "react-icons/fa"
-import { LuCircleAlert, LuCircleX, LuGlobe, LuLoader, LuMonitor } from "react-icons/lu"
+import { LuCircleAlert, LuCircleX, LuCloudUpload, LuGlobe, LuLoader, LuMonitor } from "react-icons/lu"
 import { useServerStatus } from "../../_hooks/use-server-status"
 
 type ServerSettingsProps = {
@@ -34,8 +35,21 @@ export function ServerSettings(props: ServerSettingsProps) {
     const [shortcuts, setShortcuts] = useAtom(__seaCommand_shortcuts)
     const f = useFormContext()
 
+    const { mutate: upload, isPending: isUploading } = useLocalSyncSimulatedDataToAnilist()
+
     const { data: isApiWorking, isLoading: isFetchingApiStatus } = useGetAnilistCacheLayerStatus()
     const { mutate: toggleCacheLayer, isPending: isTogglingCacheLayer } = useToggleAnilistCacheLayerStatus()
+
+    const confirmDialog = useConfirmationDialog({
+        title: "Upload to AniList",
+        description: "This will upload your local Seanime collection to your AniList account. Are you sure you want to proceed?",
+        actionText: "Upload",
+        actionIntent: "primary",
+        onConfirm: async () => {
+            if (isUploading) return
+            upload()
+        },
+    })
 
     return (
         <div className="space-y-4">
@@ -121,8 +135,22 @@ export function ServerSettings(props: ServerSettingsProps) {
                     />
                 </div>
                 <Separator />
-                <AnilistUploadButton label="Upload local lists to AniList" />
+                <Button
+                    size="sm"
+                    intent="primary-subtle"
+                    loading={isUploading}
+                    leftIcon={<LuCloudUpload className="size-4" />}
+                    onClick={() => {
+                        confirmDialog.open()
+                    }}
+                    disabled={serverStatus?.user?.isSimulated}
+                >
+                    Upload local lists to AniList
+                </Button>
             </SettingsCard>
+
+            <ConfirmationDialog {...confirmDialog} />
+
             <SettingsCard title="Offline mode" description="Only available when authenticated with AniList.">
 
                 <Field.Switch

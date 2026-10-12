@@ -117,7 +117,7 @@ function PopoutWindowDrag() {
         ].join(",")
         const THRESHOLD = 4
 
-        let pressed = false
+        let pointerId: number | null = null
         let startX = 0
         let startY = 0
         let dragging = false
@@ -131,17 +131,30 @@ function PopoutWindowDrag() {
             setTimeout(() => window.removeEventListener("click", handler, { capture: true }), 0)
         }
 
-        // A control only blocks dragging when it is a real control: a wrapper that happens to
-        // be a button/dialog and fills the window would otherwise make the whole window undraggable.
-        const isControl = (target: Element | null) => {
-            const el = target?.closest?.(NO_DRAG)
-            if (!el) return false
-            const r = el.getBoundingClientRect()
-            return r.width * r.height < window.innerWidth * window.innerHeight * 0.5
+        const onDown = (e: PointerEvent) => {
+            if (e.button !== 0 || !e.isPrimary) return
+            if ((e.target as Element | null)?.closest?.(NO_DRAG)) return
+            pointerId = e.pointerId
+            startX = e.screenX
+            startY = e.screenY
+            dragging = false
         }
 
-        const finish = () => {
-            pressed = false
+        const onMove = (e: PointerEvent) => {
+            if (pointerId === null || e.pointerId !== pointerId) return
+            const dx = e.screenX - startX
+            const dy = e.screenY - startY
+            if (!dragging) {
+                if (Math.hypot(dx, dy) < THRESHOLD) return
+                dragging = true
+                win.popoutDragStart()
+            }
+            win.popoutDragMove(dx, dy)
+        }
+
+        const onUp = (e: PointerEvent) => {
+            if (pointerId === null || e.pointerId !== pointerId) return
+            pointerId = null
             if (dragging) {
                 dragging = false
                 win.popoutDragEnd()
@@ -149,40 +162,15 @@ function PopoutWindowDrag() {
             }
         }
 
-        const onDown = (e: MouseEvent) => {
-            if (e.button !== 0) return
-            if (isControl(e.target as Element | null)) return
-            pressed = true
-            startX = e.screenX
-            startY = e.screenY
-            dragging = false
-        }
-
-        const onMove = (e: MouseEvent) => {
-            if (!pressed) return
-            if ((e.buttons & 1) === 0) return finish()
-            if (dragging) return
-            if (Math.hypot(e.screenX - startX, e.screenY - startY) < THRESHOLD) return
-            dragging = true
-            win.popoutDragStart()
-        }
-
-        window.addEventListener("mousedown", onDown, true)
-        window.addEventListener("mousemove", onMove, true)
-        window.addEventListener("mouseup", finish, true)
-        window.addEventListener("pointerup", finish, true)
-        window.addEventListener("pointercancel", finish, true)
-        window.addEventListener("dragend", finish, true)
-        window.addEventListener("blur", finish)
+        window.addEventListener("pointerdown", onDown, true)
+        window.addEventListener("pointermove", onMove, true)
+        window.addEventListener("pointerup", onUp, true)
+        window.addEventListener("pointercancel", onUp, true)
         return () => {
-            window.removeEventListener("mousedown", onDown, true)
-            window.removeEventListener("mousemove", onMove, true)
-            window.removeEventListener("mouseup", finish, true)
-            window.removeEventListener("pointerup", finish, true)
-            window.removeEventListener("pointercancel", finish, true)
-            window.removeEventListener("dragend", finish, true)
-            window.removeEventListener("blur", finish)
-            win.popoutDragEnd()
+            window.removeEventListener("pointerdown", onDown, true)
+            window.removeEventListener("pointermove", onMove, true)
+            window.removeEventListener("pointerup", onUp, true)
+            window.removeEventListener("pointercancel", onUp, true)
         }
     }, [])
 
