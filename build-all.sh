@@ -148,7 +148,15 @@ fi
 step "2.1" "Prepare web output"
 if [[ "$WEB_CHANGED" == "1" ]]; then
   substep "Removing old ./web..."
-  rm -rf web
+  if ! rm -rf web 2>/dev/null; then
+    # Root-owned leftovers from a sudo build: repair ownership, or move the old tree aside
+    # (renaming needs only write access to the repo dir, not to the files inside).
+    warn "Could not remove old ./web (permissions) — repairing"
+    sudo -n chown -R "$(id -u):$(id -g)" web 2>/dev/null || true
+    if ! rm -rf web 2>/dev/null; then
+      mv web "web.stale-$(date +%s)" || { fail "Cannot replace ./web; run: sudo chown -R \$USER: web"; exit 1; }
+    fi
+  fi
   substep "Copying seanime-web/out → ./web..."
   cp -r seanime-web/out web
   # Keep the tracked placeholder so the embed compiles on a fresh clone (web/* is gitignored).

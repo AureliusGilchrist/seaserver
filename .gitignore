@@ -34,6 +34,9 @@ logs
 # `//go:embed all:web` still compiles on a fresh clone before the frontend is built.
 web/*
 !web/.gitkeep
+web.stale-*/
+node_modules.stale-*/
+seanime-web/node_modules.stale-*/
 web-desktop/
 web-denshi/
 out/
