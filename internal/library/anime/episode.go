@@ -32,15 +32,16 @@ type (
 	// EpisodeMetadata represents the metadata of an Episode.
 	// Metadata is fetched from Animap (AniDB) and, optionally, AniList (if Animap is not available).
 	EpisodeMetadata struct {
-		AnidbId  int    `json:"anidbId,omitempty"`
-		Image    string `json:"image,omitempty"`
-		AirDate  string `json:"airDate,omitempty"`
-		Length   int    `json:"length,omitempty"`
-		Summary  string `json:"summary,omitempty"`
-		Overview string `json:"overview,omitempty"`
-		IsFiller bool   `json:"isFiller,omitempty"`
-		HasImage bool   `json:"hasImage,omitempty"` // Indicates if the episode has a real image
-		Title    string `json:"title,omitempty"`
+		AnidbId  int     `json:"anidbId,omitempty"`
+		Image    string  `json:"image,omitempty"`
+		AirDate  string  `json:"airDate,omitempty"`
+		Length   int     `json:"length,omitempty"`
+		Summary  string  `json:"summary,omitempty"`
+		Overview string  `json:"overview,omitempty"`
+		IsFiller bool    `json:"isFiller,omitempty"`
+		HasImage bool    `json:"hasImage,omitempty"` // Indicates if the episode has a real image
+		Title    string  `json:"title,omitempty"`
+		Rating   float64 `json:"rating,omitempty"` // Episode rating out of 10, when the metadata source provides one
 	}
 )
 
@@ -279,7 +280,7 @@ func NewEpisodeMetadata(
 	md.Overview = epMetadata.Overview
 	md.HasImage = epMetadata.HasImage
 	md.Title = epMetadata.Title
-	md.IsFiller = false // Default to false
+	md.Rating = epMetadata.Rating // Default to false
 
 	return md
 }

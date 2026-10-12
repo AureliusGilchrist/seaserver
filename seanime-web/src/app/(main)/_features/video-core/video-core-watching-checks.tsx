@@ -2,7 +2,8 @@ import { useGetAnimeEntry } from "@/api/hooks/anime_entries.hooks"
 import { useGetAnilistAnimeDetails } from "@/api/hooks/anilist.hooks"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { Button } from "@/components/ui/button"
-import { SeaLink } from "@/components/shared/sea-link"
+import { usePlayNext } from "@/app/(main)/_atoms/playback.atoms"
+import { useRouter } from "@/lib/navigation"
 import { atom, useAtomValue, useSetAtom } from "jotai"
 import { useAtom } from "jotai/react"
 import React from "react"
@@ -114,29 +115,35 @@ export function useVideoCoreWatchingChecks(state: VideoCoreLifecycleState, onPau
 
         playedRef.current += 1
 
-        // The last episode of a finished series: offer whatever continues it.
         const isLastEpisode = totalEpisodes > 0 && episodeNumber >= totalEpisodes
-        if (isLastEpisode) {
-            const sequel = findSequel(details?.relations?.edges)
-            if (sequel?.id) {
-                setSequelPrompt({
-                    mediaId,
-                    title: state.playbackInfo?.media?.title?.userPreferred ?? state.playbackInfo?.media?.title?.romaji ?? "This series",
-                    sequelId: sequel.id,
-                    sequelTitle: sequel.title?.userPreferred ?? sequel.title?.romaji ?? "the sequel",
-                })
-            }
-        }
 
         // Every third episode, check that somebody is still there — but only at night. The count
         // keeps running either way, so a session that crosses into the night hours asks at its next
-        // episode rather than never. The sequel prompt, if it just came up, is the more useful
-        // question and is asked on its own.
+        // episode rather than never.
         if (!isLastEpisode && playedRef.current >= EPISODES_BETWEEN_CHECKS) {
             playedRef.current = 0
             if (isNightHours()) {
                 setStillWatching({ episodesWatched: EPISODES_BETWEEN_CHECKS })
             }
+        }
+    }, [])
+
+    /**
+     * Called when the video has actually finished playing, i.e. after the ending song. The sequel
+     * offer waits for this rather than appearing at the 80% mark.
+     */
+    const onVideoEnded = React.useCallback(() => {
+        const { details, state, mediaId, episodeNumber, totalEpisodes, setSequelPrompt } = latestRef.current
+        if (!mediaId || !episodeNumber) return
+        if (!(totalEpisodes > 0 && episodeNumber >= totalEpisodes)) return
+        const sequel = findSequel(details?.relations?.edges)
+        if (sequel?.id) {
+            setSequelPrompt({
+                mediaId,
+                title: state.playbackInfo?.media?.title?.userPreferred ?? state.playbackInfo?.media?.title?.romaji ?? "This series",
+                sequelId: sequel.id,
+                sequelTitle: sequel.title?.userPreferred ?? sequel.title?.romaji ?? "the sequel",
+            })
         }
     }, [])
 
@@ -148,7 +155,7 @@ export function useVideoCoreWatchingChecks(state: VideoCoreLifecycleState, onPau
         }
     }, [stillWatching, onPausePlayback])
 
-    return { onEpisodeEnded }
+    return { onEpisodeEnded, onVideoEnded }
 }
 
 /**
@@ -157,8 +164,16 @@ export function useVideoCoreWatchingChecks(state: VideoCoreLifecycleState, onPau
  */
 export function VideoCoreSequelPrompt() {
     const [prompt, setPrompt] = useAtom(vc_sequelPrompt)
+    const router = useRouter()
+    const { setPlayNext } = usePlayNext()
 
     if (!prompt) return null
+
+    const startSequel = () => {
+        const id = prompt.sequelId
+        setPrompt(null)
+        setPlayNext(id, () => router.push(`/entry?id=${id}`))
+    }
 
     return (
         <div
@@ -173,11 +188,9 @@ export function VideoCoreSequelPrompt() {
                     <span className="font-semibold text-white">{prompt.sequelTitle}</span> continues the story.
                 </p>
                 <div className="flex gap-3 justify-center">
-                    <SeaLink href={`/entry?id=${prompt.sequelId}`} onClick={() => setPrompt(null)}>
-                        <Button size="sm" intent="white" leftIcon={<LuPlay />}>
-                            Move to the sequel
-                        </Button>
-                    </SeaLink>
+                    <Button size="sm" intent="white" leftIcon={<LuPlay />} onClick={startSequel}>
+                        Start episode 1
+                    </Button>
                     <Button
                         size="sm"
                         intent="gray-outline"

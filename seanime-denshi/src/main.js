@@ -2162,7 +2162,7 @@ app.whenReady().then(async () => {
     function mapDiscordPayload(p) {
         if (!p || typeof p !== "object") return null
         const activity = {}
-        // Forward the activity name so Discord shows it (e.g. "Watching Karasu Player") instead of
+        // Forward the activity name so Discord shows it (e.g. "Watching Deus Ex Aeternae"
         // falling back to the registered application's name.
         if (p.name) activity.name = String(p.name)
         if (p.details) activity.details = String(p.details)
@@ -2181,7 +2181,7 @@ app.whenReady().then(async () => {
             if (activity.buttons.length === 0) delete activity.buttons
         }
         if (typeof p.type === "number") activity.type = p.type
-        // Controls Discord's status text: 0=name ("Watching Karasu Player"), 2=details ("Reading from Karasu").
+        // Controls Discord's status text: 0=name ("Watching Deus Ex Aeternae"), 2=details ("Reading from Deus Ex Aeternae").
         if (typeof p.statusDisplayType === "number") activity.statusDisplayType = p.statusDisplayType
         activity.instance = !!p.instance
         return activity

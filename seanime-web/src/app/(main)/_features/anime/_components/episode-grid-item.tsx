@@ -29,6 +29,7 @@ type EpisodeGridItemProps = {
     actionIcon?: React.ReactElement | null
     isFiller?: boolean
     length?: string | number | null
+    rating?: number | null
     imageClassName?: string
     imageContainerClassName?: string
     episodeTitleClassName?: string
@@ -62,6 +63,7 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
         disabled,
         isFiller,
         length,
+        rating,
         actionIcon = props.actionIcon !== null ? <AiFillPlayCircle data-episode-grid-item-action-icon className="opacity-70 text-4xl" /> : undefined,
         episodeTitleClassName,
         percentageComplete,
@@ -202,6 +204,10 @@ export const EpisodeGridItem = React.memo((props: EpisodeGridItemProps & React.C
                         >
                             {title?.replaceAll("`", "'")}</span>{(!!episodeTitle && !!length) &&
                                 <span className="ml-4">{length}m</span>}
+                    {!!rating && rating > 0 &&
+                        <span data-episode-grid-item-rating className="ml-3 text-sm text-amber-300/90 font-medium">
+                            ★ {rating.toFixed(1)} rating
+                        </span>}
                     </p>
 
                     {!!episodeTitle &&

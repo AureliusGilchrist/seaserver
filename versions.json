@@ -2,7 +2,7 @@
     "$comment": "Single source of truth for all version numbers. Edit ONLY this file — sync-versions.js (run via predev/prebuild hooks or `node sync-versions.js`) propagates values to seanime-web/package.json, seanime-denshi/package.json, and internal/constants/constants.go automatically.",
     "seaserver": {
         "version": "5.0.0-0",
-        "codename": "Karasu",
+        "codename": "Deus Ex Aeternae",
         "source": "internal/constants/constants.go (Version, VersionName)"
     },
     "rooms": {

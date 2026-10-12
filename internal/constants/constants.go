@@ -11,7 +11,7 @@ import (
 // manifest is missing or malformed.
 var (
 	Version             = "5.0.0-0"
-	VersionName         = "Karasu"
+	VersionName         = "Deus Ex Aeternae"
 	SeanimeRoomsVersion = "5.0.0-0"
 )
 

@@ -43,20 +43,21 @@ type (
 	}
 
 	EpisodeMetadata struct {
-		AnidbId               int    `json:"anidbId"`
-		TvdbId                int    `json:"tvdbId"`
-		Title                 string `json:"title"`
-		Image                 string `json:"image"`
-		AirDate               string `json:"airDate"`
-		Length                int    `json:"length"`
-		Summary               string `json:"summary"`
-		Overview              string `json:"overview"`
-		EpisodeNumber         int    `json:"episodeNumber"`
-		Episode               string `json:"episode"`
-		SeasonNumber          int    `json:"seasonNumber"`
-		AbsoluteEpisodeNumber int    `json:"absoluteEpisodeNumber"`
-		AnidbEid              int    `json:"anidbEid"`
-		HasImage              bool   `json:"hasImage"` // Indicates if the episode has a real image
+		AnidbId               int     `json:"anidbId"`
+		TvdbId                int     `json:"tvdbId"`
+		Title                 string  `json:"title"`
+		Image                 string  `json:"image"`
+		AirDate               string  `json:"airDate"`
+		Length                int     `json:"length"`
+		Summary               string  `json:"summary"`
+		Overview              string  `json:"overview"`
+		EpisodeNumber         int     `json:"episodeNumber"`
+		Episode               string  `json:"episode"`
+		SeasonNumber          int     `json:"seasonNumber"`
+		AbsoluteEpisodeNumber int     `json:"absoluteEpisodeNumber"`
+		AnidbEid              int     `json:"anidbEid"`
+		HasImage              bool    `json:"hasImage"` // Indicates if the episode has a real image
+		Rating                float64 `json:"rating,omitempty"`
 	}
 )
 

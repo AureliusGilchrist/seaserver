@@ -15,7 +15,7 @@ import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websocke
 import { useMissingEpisodeCount } from "@/app/(main)/_hooks/missing-episodes-loader"
 import { useCurrentUser, useServerStatus, useSetServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
-import { useGetLevel } from "@/api/hooks/community.hooks"
+import { useGetLevel, useGetMyProfile } from "@/api/hooks/community.hooks"
 import { isEnqueueFuturePending, useGetEnqueueFutureQueue } from "@/api/hooks/enqueue_future.hooks"
 import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
 import { useGetUnreadNotificationCount, useNotificationWSListener } from "@/api/hooks/notifications.hooks"
@@ -45,7 +45,7 @@ import { ANIME_THEMES } from "@/lib/theme/anime-themes"
 import { __isDesktop__, __isElectronDesktop__, __isTauriDesktop__ } from "@/types/constants"
 import { useAtom, useSetAtom } from "jotai"
 import { SeaLink as Link } from "@/components/shared/sea-link"
-import { usePathname, useRouter } from "@/lib/navigation"
+import { usePathname, useRouter, useSearchParams } from "@/lib/navigation"
 import React from "react"
 import { BiCheck, BiChevronRight, BiExtension, BiLogIn, BiLogOut } from "react-icons/bi"
 import { GiTrophyCup, GiPalette } from "react-icons/gi"
@@ -140,6 +140,17 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     const router = useRouter()
     const pathname = usePathname()
     const serverStatus = useServerStatus()
+    const searchParams = useSearchParams()
+
+    // One profile link: your profile is the same page everyone sees at /profile/user?id=<id>
+    const myProfileId = serverStatus?.currentProfile?.id
+    const myProfileHref = myProfileId ? `/profile/user?id=${myProfileId}` : "/profile/me"
+    // Warm the profile chunk and data so opening it doesn't wait on either
+    useGetMyProfile()
+    React.useEffect(() => {
+        const t = window.setTimeout(() => { void import("@/app/(main)/profile/user/page") }, 1500)
+        return () => window.clearTimeout(t)
+    }, [])
 
     // Which library the shared slot is naming: the flip-item at the top of the Watch group is the
     // manga door when manga is on and you are in it, and the anime door the rest of the time.
@@ -371,6 +382,13 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             name: "Community",
             iconType: LuUsers,
             isGroupHeading: true,
+        },
+        {
+            id: "my-profile",
+            iconType: LuUsers,
+            name: "Profile",
+            href: myProfileHref,
+            isCurrent: pathname.startsWith("/profile/user") && (!myProfileId || searchParams.get("id") === String(myProfileId)),
         },
         {
             id: "community",
@@ -872,7 +890,7 @@ function SidebarUser({ isCollapsed, expandedSidebar, onLogout }: { isCollapsed: 
                     }}>
                         <LuRefreshCw /> Refresh account authorization
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setDropdownOpen(false); router.push("/profile/me") }}>
+                    <DropdownMenuItem onClick={() => { setDropdownOpen(false); router.push(serverStatus?.currentProfile?.id ? `/profile/user?id=${serverStatus.currentProfile.id}` : "/profile/me") }}>
                         <LuUsers /> My Profile
                     </DropdownMenuItem>
                     {!!serverStatus?.currentProfile && <DropdownMenuItem onClick={confirmProfileLogout.open}>

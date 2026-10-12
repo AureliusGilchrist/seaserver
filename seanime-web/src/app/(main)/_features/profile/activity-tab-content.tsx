@@ -2,6 +2,7 @@ import { AchievementShowcase } from "@/app/(main)/_features/achievement/achievem
 import { useGetTimeline } from "@/api/hooks/community.hooks"
 import * as React from "react"
 import { cn } from "@/components/ui/core/styling"
+import { SeaLink } from "@/components/shared/sea-link"
 import { useRewards } from "@/lib/rewards/reward-provider"
 import { LuCalendar, LuBookOpen, LuTv, LuClock, LuActivity, LuScan, LuFileCheck, LuFileX, LuPencil, LuTrash, LuTrophy, LuCheck } from "react-icons/lu"
 import { ActivityHeatmap } from "@/app/(main)/_features/profile/activity-heatmap"
@@ -196,6 +197,22 @@ function formatEventDescription(event: MergedTimelineEvent): string {
 
 // ────────────────────────── Timeline event card ──────────────────────────
 
+function getEventHref(event: Handlers_TimelineEvent): string | null {
+  const mediaId = Number(event.mediaId) || 0
+  if (mediaId > 0) {
+    const meta = parseMetadata(event.metadata)
+    const isManga = event.mediaType === "manga" || event.eventType === "manga_chapter_read" || meta?.type === "manga"
+    return isManga ? `/manga/entry?id=${mediaId}` : `/entry?id=${mediaId}`
+  }
+  switch (event.eventType) {
+    case "achievement_unlocked": return "/achievements"
+    case "library_scanned":
+    case "file_matched":
+    case "file_unmatched": return "/scan-summaries"
+    default: return null
+  }
+}
+
 function TimelineEventCard({ event }: { event: Handlers_TimelineEvent }) {
   const cfg = EVENT_CONFIG[event.eventType] || { icon: LuActivity, label: event.eventType, color: "text-gray-300", bgColor: "bg-gray-500/10" }
   const Icon = cfg.icon
@@ -218,6 +235,7 @@ function TimelineEventCard({ event }: { event: Handlers_TimelineEvent }) {
   const badgeStyle = accentColor && badgeIsMedia ? { color: accentColor, backgroundColor: accentColor + "1a" } : undefined
 
   const isAchievement = event.eventType === "achievement_unlocked"
+  const href = getEventHref(event)
 
   return (
     <div className="flex items-start gap-3 group">
@@ -231,7 +249,8 @@ function TimelineEventCard({ event }: { event: Handlers_TimelineEvent }) {
         <div className="w-px flex-1 bg-[--border] mt-1 min-h-[1rem]" />
       </div>
       <div className="flex-1 min-w-0 pb-3">
-        <div className="flex items-start gap-2.5">
+        <EventWrapper href={href}>
+          <div className="flex items-start gap-2.5">
           {isAchievement && event.achievementIconSvg ? (
             <div
               className="w-10 h-10 shrink-0 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center text-yellow-300 p-1.5"
@@ -261,10 +280,16 @@ function TimelineEventCard({ event }: { event: Handlers_TimelineEvent }) {
               <span className="text-xs text-[--muted]">{time}</span>
             </div>
           </div>
-        </div>
+          </div>
+        </EventWrapper>
       </div>
     </div>
   )
+}
+
+function EventWrapper({ href, children }: { href: string | null | undefined, children: React.ReactNode }) {
+  if (!href) return <div>{children}</div>
+  return <SeaLink href={href} className="block rounded-lg hover:bg-white/5 transition-colors -m-1 p-1">{children}</SeaLink>
 }
 
 // ────────────────────────── Day separator ──────────────────────────

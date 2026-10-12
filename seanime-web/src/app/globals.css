@@ -305,8 +305,8 @@ h6 {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
-    backdrop-filter: blur(18px) saturate(140%);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(36px) saturate(180%);
+    -webkit-backdrop-filter: blur(36px) saturate(180%);
     border-radius: 18px;
     position: relative;
     overflow: hidden;
@@ -363,10 +363,19 @@ h6 {
 
 .frosted-surface {
     background: linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
-    backdrop-filter: blur(14px) saturate(125%);
-    -webkit-backdrop-filter: blur(14px) saturate(125%);
+    backdrop-filter: blur(28px) saturate(150%);
+    -webkit-backdrop-filter: blur(28px) saturate(150%);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 14px;
+}
+
+/* Card style presets (Card Style customization) */
+html[data-sea-card-style]:not([data-sea-card-style=""]) .UI-Card__root {
+    background: var(--sea-card-bg);
+    border-color: var(--sea-card-border);
+    box-shadow: var(--sea-card-shadow, none);
+    backdrop-filter: blur(var(--sea-card-blur, 0px)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--sea-card-blur, 0px)) saturate(160%);
 }
 
 /* JASSUB inserts this wrapper as a sibling right after <video>, inside video-core's flex
@@ -1624,6 +1633,35 @@ body.vc-fullscreen .appLayout {
 @media (prefers-reduced-motion: reduce) {
     .sea-profile-accent .bg-brand-500::after { animation: none !important; }
 }
+
+/* ── Profile accent: hard-coded palette colors follow the XP bar too ──
+ * Stat icons, charts and badges on a profile use fixed Tailwind hues (blue, emerald, purple...),
+ * which stay put when only the brand ramp is recolored. Inside a profile they take the accent. */
+.sea-profile-accent :is(
+    [class*="text-blue-"], [class*="text-sky-"], [class*="text-cyan-"], [class*="text-indigo-"], [class*="text-violet-"],
+    [class*="text-purple-"], [class*="text-fuchsia-"], [class*="text-pink-"], [class*="text-emerald-"], [class*="text-green-"],
+    [class*="text-teal-"], [class*="text-lime-"], [class*="text-yellow-"], [class*="text-amber-"], [class*="text-orange-"]
+) { color: rgb(var(--color-brand-300)) !important; }
+.sea-profile-accent :is(
+    [class*="bg-blue-"], [class*="bg-sky-"], [class*="bg-cyan-"], [class*="bg-indigo-"], [class*="bg-violet-"],
+    [class*="bg-purple-"], [class*="bg-fuchsia-"], [class*="bg-pink-"], [class*="bg-emerald-"], [class*="bg-green-"],
+    [class*="bg-teal-"], [class*="bg-lime-"], [class*="bg-yellow-"], [class*="bg-amber-"], [class*="bg-orange-"]
+):not([class*="bg-gradient"]) { background-color: rgb(var(--color-brand-500) / 0.18) !important; }
+.sea-profile-accent :is(
+    [class*="border-blue-"], [class*="border-sky-"], [class*="border-cyan-"], [class*="border-indigo-"], [class*="border-violet-"],
+    [class*="border-purple-"], [class*="border-fuchsia-"], [class*="border-pink-"], [class*="border-emerald-"], [class*="border-green-"],
+    [class*="border-teal-"], [class*="border-lime-"], [class*="border-yellow-"], [class*="border-amber-"], [class*="border-orange-"]
+) { border-color: rgb(var(--color-brand-500) / 0.4) !important; }
+.sea-profile-accent :is(
+    [class*="fill-emerald-"], [class*="fill-green-"], [class*="fill-blue-"], [class*="fill-purple-"], [class*="fill-indigo-"]
+) { fill: rgb(var(--color-brand-500)) !important; }
+.sea-profile-accent :is(
+    [class*="stroke-emerald-"], [class*="stroke-green-"], [class*="stroke-blue-"], [class*="stroke-purple-"], [class*="stroke-indigo-"],
+    [class*="stroke-yellow-"], [class*="stroke-amber-"], [class*="stroke-orange-"], [class*="stroke-cyan-"], [class*="stroke-sky-"]
+) { stroke: rgb(var(--color-brand-500)) !important; }
+.sea-profile-accent :is([class*="from-purple-"], [class*="from-blue-"], [class*="from-indigo-"]) { --tw-gradient-from: rgb(var(--color-brand-900) / 0.4) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(var(--color-brand-900) / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.sea-profile-accent :is([class*="to-indigo-"], [class*="to-blue-"], [class*="to-purple-"]) { --tw-gradient-to: rgb(var(--color-brand-800) / 0.4) var(--tw-gradient-to-position) !important; }
+.sea-profile-accent :is([class*="via-purple-"], [class*="via-blue-"]) { --tw-gradient-stops: var(--tw-gradient-from), rgb(var(--color-brand-900) / 0.3), var(--tw-gradient-to) !important; }
 
 /* Flow: smooth left-to-right gradient drift (background-position based) */
 @keyframes sea-xpbar-flow-kf {

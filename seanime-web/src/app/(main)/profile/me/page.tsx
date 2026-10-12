@@ -50,7 +50,8 @@ import { Modal } from "@/components/ui/modal"
 import { Separator } from "@/components/ui/separator"
 import { Stats } from "@/components/ui/stats"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useSetAtom } from "jotai/react"
+import { useAtomValue, useSetAtom } from "jotai/react"
+import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAnimeTheme, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
@@ -90,7 +91,23 @@ const formatName: Record<string, string> = {
     SPECIAL: "Special", OVA: "OVA", ONA: "ONA", MUSIC: "Music",
 }
 
+/** `/profile/me` is an alias of the canonical `/profile/user?id=<own id>`. */
 export default function Page() {
+    const currentProfile = useAtomValue(currentProfileAtom)
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    const ownId = currentProfile?.id
+
+    React.useEffect(() => {
+        if (!ownId) return
+        const tab = searchParams.get("tab")
+        router.replace(`/profile/user?id=${ownId}${tab ? `&tab=${tab}` : ""}`)
+    }, [ownId])
+
+    return ownId ? null : <MyProfilePage />
+}
+
+export function MyProfilePage() {
     const { data, isLoading } = useGetMyProfile()
     const { mutate: updateBio, isPending: isUpdatingBio } = useUpdateBio()
     const [editingBio, setEditingBio] = React.useState(false)
@@ -336,7 +353,7 @@ export default function Page() {
                 {/* Tabs */}
                 <Tabs
                     value={activeTab}
-                    onValueChange={(v: string) => router.push(`/profile/me?tab=${v}`)}
+                    onValueChange={(v: string) => router.push(`/profile/user?id=${profile.id}&tab=${v}`)}
                 >
                     <TabsList className={tabsListClass}>
                         <TabsTrigger value="activity" className={tabsTriggerClass}>

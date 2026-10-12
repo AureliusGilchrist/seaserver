@@ -9,6 +9,7 @@ import (
 	"seanime/internal/events"
 	"seanime/internal/hook"
 	"seanime/internal/util"
+	"strings"
 	"sync"
 	"time"
 
@@ -242,14 +243,14 @@ func (p *Presence) check() (proceed bool) {
 
 var (
 	defaultActivity = discordrpc_client.Activity{
-		Name:    "Karasu Player",
+		Name:    "Deus Ex Aeternae",
 		Details: "Watching anime",
 		State:   "",
 		Assets: &discordrpc_client.Assets{
 			LargeImage: "",
 			LargeText:  "",
 			SmallImage: "",
-			SmallText:  "Karasu Player v" + constants.Version,
+			SmallText:  "Deus Ex Aeternae v" + constants.Version,
 		},
 		Timestamps: &discordrpc_client.Timestamps{
 			Start: &discordrpc_client.Epoch{
@@ -315,17 +316,25 @@ func (p *Presence) setAnimeActivityImpl(clientId string, a *AnimeActivity) {
 
 	event := &DiscordPresenceAnimeActivityRequestedEvent{}
 
-	state := fmt.Sprintf("Watching Episode %d", a.EpisodeNumber)
-	//if a.TotalEpisodes != nil {
-	//	state += fmt.Sprintf(" of %d", *a.TotalEpisodes)
-	//}
+	state := fmt.Sprintf("Episode %d", a.EpisodeNumber)
+	if a.TotalEpisodes != nil && *a.TotalEpisodes > 0 {
+		state += fmt.Sprintf(" of %d", *a.TotalEpisodes)
+	}
+	if a.EpisodeTitle != nil && strings.TrimSpace(*a.EpisodeTitle) != "" {
+		state += " · " + strings.TrimSpace(*a.EpisodeTitle)
+	}
 	if a.IsMovie {
-		state = "Watching Movie"
+		state = "Movie"
+	}
+	if a.Paused {
+		state = "⏸ Paused · " + state
+	} else {
+		state = "▶ " + state
 	}
 
 	activity := defaultActivity
-	activity.Name = "Karasu Player"
-	// Show "Watching Karasu Player" as the Discord status (NAME display + Watching type).
+	activity.Name = "Deus Ex Aeternae"
+	// Show "Watching Deus Ex Aeternae" as the Discord status (NAME display + Watching type).
 	activity.StatusDisplayType = 0
 	activity.Details = a.Title
 	activity.DetailsURL = fmt.Sprintf("https://anilist.co/anime/%d", a.ID)
@@ -583,8 +592,8 @@ func (p *Presence) LegacySetAnimeActivity(a *LegacyAnimeActivity) {
 	}
 
 	activity := defaultActivity
-	activity.Name = "Karasu Player"
-	// Show "Watching Karasu Player" as the Discord status (NAME display + Watching type).
+	activity.Name = "Deus Ex Aeternae"
+	// Show "Watching Deus Ex Aeternae" as the Discord status (NAME display + Watching type).
 	activity.StatusDisplayType = 0
 	activity.Details = a.Title
 	activity.DetailsURL = fmt.Sprintf("https://anilist.co/anime/%d", a.ID)
@@ -640,12 +649,12 @@ func (p *Presence) SetMangaActivity(a *MangaActivity) {
 	event := &DiscordPresenceMangaActivityRequestedEvent{}
 
 	activity := defaultActivity
-	activity.Name = "Karasu"
-	// Show "Reading from Karasu" as the Discord status. Discord has no "Reading" verb, so we put
+	activity.Name = "Deus Ex Aeternae"
+	// Show "Reading from Deus Ex Aeternae" as the Discord status. Discord has no "Reading" verb, so we put
 	// the phrase in Details and select DETAILS display (no verb prefix). The manga title/chapter
 	// stay in State and on the card.
 	activity.StatusDisplayType = 2
-	activity.Details = "Reading from Karasu"
+	activity.Details = "Reading from Deus Ex Aeternae"
 	activity.DetailsURL = fmt.Sprintf("https://anilist.co/manga/%d", a.ID)
 	activity.State = fmt.Sprintf("%s · Chapter %s", a.Title, a.Chapter)
 	activity.Assets.LargeImage = a.Image

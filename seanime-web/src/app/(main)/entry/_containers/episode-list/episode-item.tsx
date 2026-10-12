@@ -74,6 +74,7 @@ export const EpisodeItem = memo(({ episode, media, isWatched, watchedProgress, o
                 isWatched={episode.progressNumber > 0 && isWatched}
                 isFiller={episode.episodeMetadata?.isFiller}
                 length={episode.episodeMetadata?.length}
+                rating={episode.episodeMetadata?.rating}
                 percentageComplete={percentageComplete}
                 minutesRemaining={minutesRemaining}
                 episodeNumber={episode.episodeNumber}
@@ -305,6 +306,7 @@ export function EpisodeItemInfoModalButton({ episode }: { episode: Anime_Episode
             </p>
             <p className="text-[--muted]">
                 {episode.episodeMetadata?.airDate || "Unknown airing date"} - {episode.episodeMetadata?.length || "N/A"} minutes
+                {!!episode.episodeMetadata?.rating && ` - ★ ${episode.episodeMetadata.rating.toFixed(1)} rating`}
             </p>
             <p className="text-gray-300">
                 {(episode.episodeMetadata?.summary || episode.episodeMetadata?.overview)?.replaceAll("`", "'")

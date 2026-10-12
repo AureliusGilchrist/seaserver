@@ -2031,6 +2031,7 @@ export type Anime_EpisodeMetadata = {
      */
     hasImage?: boolean
     title?: string
+    rating?: number
 }
 
 /**

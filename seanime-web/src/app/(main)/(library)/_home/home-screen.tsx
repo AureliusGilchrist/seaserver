@@ -7,6 +7,7 @@ import { useGetHomeItems } from "@/api/hooks/status.hooks"
 import { LibraryHeader } from "@/app/(main)/(library)/_components/library-header"
 import { BulkActionModal } from "@/app/(main)/(library)/_containers/bulk-action-modal"
 import { ContinueWatching } from "@/app/(main)/(library)/_containers/continue-watching"
+import { CommunityHomeSection } from "@/app/(main)/_features/community/community-home-section"
 import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-library-banner"
 import { IgnoredFileManager } from "@/app/(main)/(library)/_containers/ignored-file-manager"
 import { __scanner_modalIsOpen } from "@/app/(main)/(library)/_containers/scanner-modal"
@@ -439,6 +440,10 @@ export function HomeScreen() {
                             </React.Fragment>
                         )
                     })}
+
+                    <div data-home-screen-item-divider className="h-8" />
+
+                    <CommunityHomeSection />
 
                     <div data-home-screen-item-divider className="h-8" />
 

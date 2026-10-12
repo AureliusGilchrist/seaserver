@@ -103,6 +103,35 @@ export function VideoCoreProgressPrompt() {
     const [prompt, setPrompt] = useAtom(vc_progressPrompt)
     const { mutate: updateProgress, isPending } = useUpdateAnimeEntryProgress(prompt?.mediaId ?? null, prompt?.episodeNumber ?? 0, true)
 
+    const [secondsLeft, setSecondsLeft] = React.useState(30)
+    const applyRef = React.useRef<() => void>(() => {})
+    applyRef.current = () => {
+        if (!prompt) return
+        updateProgress({
+            episodeNumber: prompt.episodeNumber,
+            mediaId: prompt.mediaId,
+            totalEpisodes: prompt.totalEpisodes,
+            malId: prompt.malId ?? undefined,
+        })
+        setPrompt(null)
+    }
+
+    React.useEffect(() => {
+        if (!prompt) return
+        setSecondsLeft(30)
+        const id = window.setInterval(() => {
+            setSecondsLeft(s => {
+                if (s <= 1) {
+                    window.clearInterval(id)
+                    window.setTimeout(() => applyRef.current(), 0)
+                    return 0
+                }
+                return s - 1
+            })
+        }, 1000)
+        return () => window.clearInterval(id)
+    }, [prompt?.mediaId, prompt?.episodeNumber])
+
     if (!prompt) return null
 
     const { direction, delta, episodeNumber, mediaId, totalEpisodes, malId, currentProgress } = prompt
@@ -132,7 +161,7 @@ export function VideoCoreProgressPrompt() {
                             setPrompt(null)
                         }}
                     >
-                        Update
+                        Update ({secondsLeft}s)
                     </Button>
                     <Button
                         size="sm"

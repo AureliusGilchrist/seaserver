@@ -774,7 +774,7 @@ export function VideoCore(props: VideoCoreProps) {
     const pausePlayback = React.useCallback(() => {
         videoRef.current?.pause()
     }, [])
-    const { onEpisodeEnded } = useVideoCoreWatchingChecks(state, pausePlayback)
+    const { onEpisodeEnded, onVideoEnded } = useVideoCoreWatchingChecks(state, pausePlayback)
 
     const { isParticipant: isWatchPartyParticipant } = useNakamaWatchParty()
 
@@ -1469,6 +1469,7 @@ export function VideoCore(props: VideoCoreProps) {
         log.info("Video ended")
         subtitleManager?.pgsRenderer?.stop()
         onEnded?.()
+        onVideoEnded()
         if (autoNext && !isWatchPartyParticipant) {
             if (props.id === "native-player" && isGlobalPlaylistActive) {
                 log.info("Skipping frontend auto next for native global playlist")

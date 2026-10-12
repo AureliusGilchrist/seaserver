@@ -78,6 +78,7 @@ export function UndownloadedEpisodeList({ downloadInfo, media, watchedProgress, 
                                     <BiCalendarAlt /> {episode.episodeMetadata?.airDate
                                     ? `Aired on ${new Date(episode.episodeMetadata?.airDate).toLocaleDateString()}`
                                     : "Aired"}
+                                    {!!episode.episodeMetadata?.rating && <span className="ml-2 text-amber-300/90">★ {episode.episodeMetadata.rating.toFixed(1)} rating</span>}
                                 </p>
                             </div>
                         </EpisodeGridItem>

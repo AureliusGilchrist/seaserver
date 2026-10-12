@@ -15,6 +15,7 @@ import (
 	"seanime/internal/util"
 	"seanime/internal/util/filecache"
 	"seanime/internal/util/result"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -465,6 +466,7 @@ func (p *ProviderImpl) AnizipFallback(platform metadata.Platform, mId int) (ret 
 			AbsoluteEpisodeNumber: ep.AbsoluteEpisodeNumber,
 			AnidbEid:              ep.AnidbEid,
 			HasImage:              ep.Image != "",
+			Rating:                parseEpisodeRating(ep.Rating),
 		}
 		if em.Length == 0 && ep.Length > 0 {
 			em.Length = ep.Length
@@ -524,4 +526,12 @@ func (p *ProviderImpl) loadMetadataFromDisk(cacheKey string) *metadata.AnimeMeta
 		return nil
 	}
 	return &m
+}
+
+func parseEpisodeRating(s string) float64 {
+	v, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+	if err != nil || v <= 0 {
+		return 0
+	}
+	return v
 }

@@ -1,7 +1,9 @@
 "use client"
 
 import React, { createContext, useCallback, useContext, useEffect, useRef } from "react"
-import { usePathname } from "@/lib/navigation"
+import { usePathname, useSearchParams } from "@/lib/navigation"
+import { useAtomValue } from "jotai/react"
+import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { toast } from "sonner"
 import { useServerMutation, useServerQuery } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
@@ -116,6 +118,16 @@ export function EasterEggEngine({ children }: { children: React.ReactNode }) {
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pathname])
+
+    // Your own profile now lives at /profile/user?id=<own id>
+    const searchParams = useSearchParams()
+    const currentProfile = useAtomValue(currentProfileAtom)
+    useEffect(() => {
+        if (pathname?.startsWith("/profile/user") && currentProfile?.id && Number(searchParams.get("id")) === currentProfile.id) {
+            trigger("page-profile-me")
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pathname, searchParams, currentProfile?.id])
 
     // Sequence buffer for keyboard-based triggers
     const keyBufferRef = useRef<string[]>([])

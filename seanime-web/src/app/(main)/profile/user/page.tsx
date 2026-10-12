@@ -18,8 +18,10 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "@/lib/navigation"
+import { useAtomValue } from "jotai"
+import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
-import { ActivityBuffBadge, StreakCard, StatsActivityHeatmap, DayOfWeekChart, CategoryPill, AchievementCard, ProgressRing, getLevelColor } from "@/app/(main)/profile/me/page"
+import { ActivityBuffBadge, MyProfilePage, StreakCard, StatsActivityHeatmap, DayOfWeekChart, CategoryPill, AchievementCard, ProgressRing, getLevelColor } from "@/app/(main)/profile/me/page"
 import { getProfileOwnerMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
 import * as React from "react"
@@ -33,6 +35,15 @@ import { Stats } from "@/components/ui/stats"
 import { ToWatchList } from "@/app/(main)/profile/_components/to-watch-list"
 
 export default function Page() {
+    const searchParams = useSearchParams()
+    const currentProfile = useAtomValue(currentProfileAtom)
+    const id = Number(searchParams.get("id")) || 0
+    // Your own profile is the editable page, on the same URL everyone else sees
+    if (id > 0 && currentProfile?.id === id) return <MyProfilePage />
+    return <UserProfilePage />
+}
+
+function UserProfilePage() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const id = Number(searchParams.get("id")) || 0

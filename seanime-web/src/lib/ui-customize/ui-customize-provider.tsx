@@ -70,6 +70,9 @@ export function UICustomizeProvider({ children }: { children: React.ReactNode })
 
         // Apply scrollbar via CSS
         applyScrollbarStyle(state.scrollbar)
+
+        // Lets CSS apply the card preset only when a non-default style is chosen
+        document.documentElement.dataset.seaCardStyle = state.cards === "card-default" ? "" : state.cards
     }, [state])
 
     const setPreset = React.useCallback((category: UICustomizeCategoryId, presetId: string) => {
