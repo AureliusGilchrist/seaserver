@@ -29,8 +29,8 @@ import { logger } from "@/lib/helpers/debug"
 import { useAtomValue } from "jotai"
 import React from "react"
 import { ImSpinner2 } from "react-icons/im"
-import { LuArrowUpLeft } from "react-icons/lu"
-import { cn } from "@/components/ui/core/styling"
+import { LuArrowUpLeft, LuX } from "react-icons/lu"
+
 
 const log = logger("POPOUT PLAYER")
 
@@ -185,24 +185,6 @@ function PopoutReturnButton() {
     const videoElement = useAtomValue(vc_videoElement)
     const nativePlayerState = useAtomValue(nativePlayer_stateAtom)
     const searchParams = useSearchParams()
-    const [visible, setVisible] = React.useState(true)
-
-    React.useEffect(() => {
-        let timeout: ReturnType<typeof setTimeout> | undefined
-        const show = () => {
-            setVisible(true)
-            clearTimeout(timeout)
-            timeout = setTimeout(() => setVisible(false), 2500)
-        }
-        show()
-        window.addEventListener("pointermove", show)
-        window.addEventListener("pointerdown", show)
-        return () => {
-            clearTimeout(timeout)
-            window.removeEventListener("pointermove", show)
-            window.removeEventListener("pointerdown", show)
-        }
-    }, [])
 
     const returnToMain = () => {
         let path: string | null | undefined = nativePlayerState.playbackInfo?.localFile?.path
@@ -225,20 +207,31 @@ function PopoutReturnButton() {
     }
 
     return (
-        <button
-            type="button"
-            data-popout-nodrag
-            onClick={returnToMain}
-            className={cn(
-                "fixed top-3 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 rounded-full",
-                "bg-black/60 hover:bg-black/80 text-white text-sm font-medium px-3 py-1.5",
-                "backdrop-blur transition-opacity duration-200",
-                visible ? "opacity-100" : "opacity-0 pointer-events-none",
-            )}
+        <div
+            style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+            className="fixed top-0 left-0 right-0 h-8 z-[300] flex items-center justify-center bg-black/90 select-none"
         >
-            <LuArrowUpLeft className="size-4" />
-            Return to Seaserver
-        </button>
+            <button
+                type="button"
+                data-popout-nodrag
+                onClick={returnToMain}
+                style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+                className="flex items-center gap-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10 text-xs font-medium px-2.5 py-1"
+            >
+                <LuArrowUpLeft className="size-3.5" />
+                Return to Denshi
+            </button>
+            <button
+                type="button"
+                data-popout-nodrag
+                aria-label="Close"
+                onClick={() => window.close()}
+                style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+                className="absolute right-0 top-0 h-8 w-10 flex items-center justify-center text-white/70 hover:text-white hover:bg-red-600"
+            >
+                <LuX className="size-4" />
+            </button>
+        </div>
     )
 }
 
