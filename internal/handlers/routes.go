@@ -1061,6 +1061,8 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.PATCH("/profile/bio", h.HandleUpdateBio)
 	v1.PATCH("/profile/display-title", h.HandleSetDisplayTitle)
 	v1.PATCH("/profile/display-cosmetics", h.HandleSetDisplayCosmetics)
+	v1.PATCH("/profile/wallpaper", h.HandleSetProfileWallpaper)
+	v1.POST("/profile/wallpaper/upload", h.HandleUploadProfileWallpaper)
 	v1.GET("/profile/level", h.HandleGetLevel)
 	// What the last update was, kept until the client has seen it. Shown after sign-in, never at
 	// the PIN screen, and dismissed only by the person looking at it.
@@ -1095,6 +1097,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	// Timeline
 	v1.GET("/profile/timeline", h.HandleGetTimeline)
+	v1.POST("/profile/timeline/episode-watched", h.HandleRecordEpisodeWatched)
 
 	// Milestones (global)
 	v1.GET("/milestones", h.HandleGetMilestones)

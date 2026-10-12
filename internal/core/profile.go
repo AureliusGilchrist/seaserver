@@ -50,6 +50,10 @@ type Profile struct {
 	NameGradientCss string `gorm:"column:name_gradient_css" json:"nameGradientCss"`
 	// Theme selection — persisted so cross-device/cross-browser viewers see correct milestone names.
 	ThemeID string `gorm:"column:theme_id;default:'seanime'" json:"themeId"`
+	// Profile wallpaper — an image URL (upload or theme wallpaper) plus a JSON blob of effect settings,
+	// stored globally so every viewer sees it.
+	WallpaperURL     string `gorm:"column:wallpaper_url" json:"wallpaperUrl"`
+	WallpaperEffects string `gorm:"column:wallpaper_effects;type:text" json:"wallpaperEffects"`
 }
 
 // ProfileSummary is a safe projection of Profile for API responses (never includes PIN data).
@@ -73,6 +77,8 @@ type ProfileSummary struct {
 	NameGradientCss   string    `json:"nameGradientCss"`
 	ThemeID           string    `json:"themeId"`
 	AnilistAuthenticated bool   `json:"anilistAuthenticated"`
+	WallpaperURL         string `json:"wallpaperUrl"`
+	WallpaperEffects     string `json:"wallpaperEffects"`
 }
 
 func (p *Profile) ToSummary() *ProfileSummary {
@@ -94,6 +100,8 @@ func (p *Profile) ToSummary() *ProfileSummary {
 		XPBarSkinID:       p.XPBarSkinID,
 		NameColorCss:      p.NameColorCss,
 		NameGradientCss:   p.NameGradientCss,
+		WallpaperURL:      p.WallpaperURL,
+		WallpaperEffects:  p.WallpaperEffects,
 		ThemeID:           func() string { if p.ThemeID == "" { return "seanime" }; return p.ThemeID }(),
 	}
 }

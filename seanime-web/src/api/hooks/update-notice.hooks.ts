@@ -57,6 +57,14 @@ export function useCheckBackendUpdate() {
     })
 }
 
+export function useRecordEpisodeWatched() {
+    return useServerMutation<boolean, { mediaId: number, episodeNumber: number, totalEpisodes: number }>({
+        endpoint: "/api/v1/profile/timeline/episode-watched",
+        method: "POST",
+        mutationKey: ["record-episode-watched"],
+    })
+}
+
 export function useOverwriteAnilist() {
     return useServerMutation<boolean, {}>({
         endpoint: "/api/v1/anilist/overwrite",

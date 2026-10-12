@@ -213,7 +213,7 @@ function getLevelColor(level: number): { ring: string; glow: string; label: stri
 
 export function xpForLevel(level: number): number {
     if (level <= 1) return 0
-    return Math.floor(100 * Math.pow(level - 1, 1.5))
+    return Math.floor(100 * Math.pow(level - 1, 1.7))
 }
 
 // Gradient stop definitions per animated tier

@@ -23,7 +23,7 @@ export function getLevelTier(level: number): {
 
 export function xpForLevel(level: number): number {
     if (level <= 1) return 0
-    return Math.floor(100 * Math.pow(level - 1, 1.5))
+    return Math.floor(100 * Math.pow(level - 1, 1.7))
 }
 
 const RING_GRADIENTS: Record<string, { stops: string[]; dur: string }> = {

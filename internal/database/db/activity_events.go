@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"seanime/internal/database/models"
+	"sync"
 	"time"
 )
 
@@ -75,10 +76,15 @@ func (db *Database) HasRecentEpisodeWatchedEvent(mediaId int, episode int, windo
 	return false
 }
 
+var episodeWatchedMu sync.Mutex
+
 // RecordEpisodeWatched records both the daily aggregate and the granular event for a
 // watched episode, skipping both when the same (media, episode) was already recorded in
 // the last 12 hours (see HasRecentEpisodeWatchedEvent).
 func (db *Database) RecordEpisodeWatched(mediaId int, episode int, totalEpisodes int, minutes int) error {
+	// The check and the insert must be one step: several paths report the same completion at once.
+	episodeWatchedMu.Lock()
+	defer episodeWatchedMu.Unlock()
 	if db.HasRecentEpisodeWatchedEvent(mediaId, episode, 12*time.Hour) {
 		return nil
 	}

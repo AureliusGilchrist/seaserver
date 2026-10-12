@@ -21,6 +21,7 @@ import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useAtomValue } from "jotai"
 import { currentProfileAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { ActivityTabContent } from "@/app/(main)/_features/profile/activity-tab-content"
+import { ProfileWallpaper } from "@/app/(main)/profile/_components/profile-wallpaper"
 import { ActivityBuffBadge, MyProfilePage, StreakCard, StatsActivityHeatmap, DayOfWeekChart, CategoryPill, AchievementCard, ProgressRing, getLevelColor } from "@/app/(main)/profile/me/page"
 import { getProfileOwnerMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { XPBarFill } from "@/lib/rewards/xp-bar-fill"
@@ -119,6 +120,7 @@ function UserProfilePage() {
             data-profile-fill={hasGradientFill ? "" : undefined}
             data-profile-fx={hasGradientFill && xpBarAnimClass ? "" : undefined}
         >
+            <ProfileWallpaper url={profile!.wallpaperUrl} effects={profile!.wallpaperEffects} />
             {profile!.bannerImage ? (
                 <div
                     className="relative h-[300px] overflow-hidden"
@@ -156,6 +158,7 @@ function UserProfilePage() {
                         }}
                         size={120}
                         xpBarFillOverride={xpBarFillCss}
+                        xpBarAnimClass={xpBarAnimClass}
                     />
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
@@ -166,7 +169,7 @@ function UserProfilePage() {
                                 )}
                             </h1>
                             <span
-                                className={cn("text-lg font-bold", !xpBarFillCss && levelColors.label)}
+                                className={cn("text-lg font-bold", !xpBarFillCss && levelColors.label, xpBarFillCss?.startsWith("linear-gradient") && "sea-name-shine")}
                                 style={titleStyle}
                             >
                                 {displayTitleText ?? milestoneName ?? `Level ${currentLevel}`}

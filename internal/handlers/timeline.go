@@ -195,6 +195,49 @@ func (h *Handler) HandleGetTimeline(c echo.Context) error {
 	})
 }
 
+// HandleRecordEpisodeWatched
+//
+//	@summary records that an episode was watched, independent of AniList progress.
+//	@desc The in-app player calls this when an episode passes the watched threshold. Progress updates
+//	@desc are skipped when the episode is already at or behind the list progress (rewatches, resumed
+//	@desc episodes), and those used to leave no trace on the timeline. Deduped per media + episode.
+//	@route /api/v1/profile/timeline/episode-watched [POST]
+//	@returns bool
+func (h *Handler) HandleRecordEpisodeWatched(c echo.Context) error {
+	type body struct {
+		MediaId       int `json:"mediaId"`
+		EpisodeNumber int `json:"episodeNumber"`
+		TotalEpisodes int `json:"totalEpisodes"`
+	}
+	b := new(body)
+	if err := c.Bind(b); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if b.MediaId <= 0 || b.EpisodeNumber <= 0 {
+		return h.RespondWithData(c, false)
+	}
+
+	pdb := h.GetProfileDatabase(c)
+	if pdb == nil {
+		return h.RespondWithData(c, false)
+	}
+
+	minutes := 0
+	if col, err := h.App.GetAnimeCollection(false); err == nil && col != nil {
+		if anime, ok := col.FindAnime(b.MediaId); ok && anime.Duration != nil {
+			minutes = *anime.Duration
+		}
+	}
+	if err := pdb.RecordEpisodeWatched(b.MediaId, b.EpisodeNumber, b.TotalEpisodes, minutes); err != nil {
+		return h.RespondWithError(c, err)
+	}
+	if h.App.MilestoneEngine != nil {
+		profileID := h.GetProfileID(c)
+		go h.App.MilestoneEngine.EvaluateProfile(profileID)
+	}
+	return h.RespondWithData(c, true)
+}
+
 // lookupMediaTitle resolves a media title from the profile's (or global) cached
 // collections so it can be embedded in activity event metadata at record time.
 // Returns "" when the media can't be found.

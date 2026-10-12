@@ -1,3 +1,4 @@
+import { useRecordEpisodeWatched } from "@/api/hooks/update-notice.hooks"
 import { useGetAnimeEntry, useUpdateAnimeEntryProgress } from "@/api/hooks/anime_entries.hooks"
 import { VideoCoreLifecycleState } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
@@ -45,21 +46,32 @@ export function useVideoCoreAutoProgress(state: VideoCoreLifecycleState) {
     const { data: entry } = useGetAnimeEntry(mediaId)
     const setPrompt = useSetAtom(vc_progressPrompt)
     const { mutate: updateProgress } = useUpdateAnimeEntryProgress(mediaId, episodeNumber, true)
+    const { mutate: recordWatched } = useRecordEpisodeWatched()
 
     // Ensure we only act once per (media, episode) playback.
     const handledRef = React.useRef<string | null>(null)
+    const recordedRef = React.useRef<string | null>(null)
     React.useEffect(() => {
         handledRef.current = null
+        recordedRef.current = null
     }, [mediaId, episodeNumber])
 
     // Keep the latest render values so the stable callback never reads stale data.
-    const latestRef = React.useRef({ entry, autoUpdate, state, mediaId, episodeNumber, updateProgress })
-    latestRef.current = { entry, autoUpdate, state, mediaId, episodeNumber, updateProgress }
+    const latestRef = React.useRef({ entry, autoUpdate, state, mediaId, episodeNumber, updateProgress, recordWatched })
+    latestRef.current = { entry, autoUpdate, state, mediaId, episodeNumber, updateProgress, recordWatched }
 
     const onReachedThreshold = React.useCallback(() => {
-        const { entry, autoUpdate, state, mediaId, episodeNumber, updateProgress } = latestRef.current
+        const { entry, autoUpdate, state, mediaId, episodeNumber, updateProgress, recordWatched } = latestRef.current
         const media = state.playbackInfo?.media
         if (!media || !mediaId || !episodeNumber) return
+
+        // The timeline entry is recorded for every watched episode, including rewatches and
+        // resumed episodes where the AniList progress is already at or past this one.
+        const recordKey = `${mediaId}:${episodeNumber}`
+        if (recordedRef.current !== recordKey) {
+            recordedRef.current = recordKey
+            recordWatched({ mediaId, episodeNumber, totalEpisodes: media.episodes ?? 0 })
+        }
 
         // Only update real AniList list entries (skip when not on the user's list / unauthenticated).
         if (!entry?.listData) return

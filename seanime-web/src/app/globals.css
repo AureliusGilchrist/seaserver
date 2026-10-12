@@ -2176,8 +2176,18 @@ body:fullscreen {
 /* Disable per-anime-theme h1 animations on the profile name (Feature G2). */
 h1.sea-profile-name,
 [data-anime-theme] h1.sea-profile-name {
-    animation: none !important;
     text-shadow: none !important;
+}
+h1.sea-profile-name:not(.sea-name-shine),
+[data-anime-theme] h1.sea-profile-name:not(.sea-name-shine) {
+    animation: none !important;
+}
+/* Beats any per-theme h1 animation so the gradient sweep on the name keeps moving. */
+h1.sea-profile-name.sea-name-shine,
+[data-anime-theme] h1.sea-profile-name.sea-name-shine {
+    animation: sea-name-shine-kf var(--sea-name-shine-duration, 3s) var(--sea-name-shine-easing, linear) infinite !important;
+    animation-direction: var(--sea-name-shine-direction, normal) !important;
+    animation-play-state: var(--sea-name-shine-play, running) !important;
 }
 
 /* Mako marks — favorited card holographic overlay.

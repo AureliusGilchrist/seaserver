@@ -40,6 +40,7 @@ import { CustomLibraryBanner } from "@/app/(main)/(library)/_containers/custom-l
 import { AchievementShowcase } from "@/app/(main)/_features/achievement/achievement-showcase"
 import { LevelRingAvatar } from "@/app/(main)/_features/level-ring-avatar"
 import { ActivityHeatmap } from "@/app/(main)/_features/profile/activity-heatmap"
+import { ProfileWallpaper, ProfileWallpaperEditor } from "@/app/(main)/profile/_components/profile-wallpaper"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { tabsTriggerClass, tabsListClass } from "@/components/shared/classnames"
 import { Badge } from "@/components/ui/badge"
@@ -202,6 +203,7 @@ export function MyProfilePage() {
 
     return (
         <div className="sea-profile-accent" style={profilePageStyle} {...profileFillAttrs}>
+            <ProfileWallpaper url={profile!.wallpaperUrl} effects={profile!.wallpaperEffects} />
             {/* Banner */}
             {profile!.bannerImage ? (
                 <div
@@ -328,6 +330,9 @@ export function MyProfilePage() {
                                     </button>
                                 </div>
                             )}
+                        </div>
+                        <div className="mt-3">
+                            <ProfileWallpaperEditor currentUrl={profile!.wallpaperUrl} currentEffects={profile!.wallpaperEffects} />
                         </div>
                     </div>
                 </div>
