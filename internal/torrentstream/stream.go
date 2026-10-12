@@ -49,7 +49,7 @@ func (r *Repository) StartStream(ctx context.Context, opts *StartStreamOptions) 
 	//r.Shutdown()
 
 	r.previousStreamOptions = mo.Some(opts)
-
+	events.SetStreamOwner(events.TorrentStreamState, opts.ClientId)
 	r.logger.Info().
 		Str("clientId", opts.ClientId).
 		Any("playbackType", opts.PlaybackType).

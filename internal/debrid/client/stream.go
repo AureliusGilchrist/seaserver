@@ -90,7 +90,7 @@ func (s *StreamManager) startStream(ctx context.Context, opts *StartStreamOption
 	defer util.HandlePanicInModuleWithError("debrid/client/StartStream", &err)
 
 	s.repository.previousStreamOptions = mo.Some(opts)
-
+	events.SetStreamOwner(events.DebridStreamState, opts.ClientId)
 	s.repository.logger.Info().
 		Str("clientId", opts.ClientId).
 		Any("playbackType", opts.PlaybackType).

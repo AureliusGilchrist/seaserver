@@ -241,14 +241,36 @@ func (c *WSConn) writeJSON(v interface{}) {
 	_ = c.Conn.WriteJSON(v)
 }
 
-// SendEvent sends a websocket event to all clients.
+// streamOwners maps a session-scoped event type to the client whose stream produces it.
+var streamOwners sync.Map
+
+// SetStreamOwner scopes a watching-session event type (e.g. stream state) to the client that
+// started the stream, so it is no longer broadcast to everyone. An empty clientId clears it.
+func SetStreamOwner(eventType string, clientID string) {
+	if clientID == "" {
+		streamOwners.Delete(eventType)
+		return
+	}
+	streamOwners.Store(eventType, clientID)
+}
+
+// SendEvent sends a websocket event to all clients, or only to the owning client for session-scoped events.
 func (m *WSEventManager) SendEvent(t string, payload interface{}) {
 	if t != PlaybackManagerProgressPlaybackState && t != ChapterDownloadQueueUpdated && payload == nil {
 		m.Logger.Trace().Str("type", t).Msg("ws: Sending message")
 	}
 
 	evt := WSEvent{Type: t, Payload: payload}
-	for _, conn := range m.snapshotConns() {
+	conns := m.snapshotConns()
+	if owner, ok := streamOwners.Load(t); ok {
+		for _, conn := range conns {
+			if conn.ID == owner.(string) {
+				conn.writeJSON(evt)
+				return
+			}
+		}
+	}
+	for _, conn := range conns {
 		conn.writeJSON(evt)
 	}
 }
