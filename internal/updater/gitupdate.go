@@ -193,8 +193,71 @@ func (u *GitAutoUpdater) checkForUpdate() (bool, error) {
 	behind := count > 0
 	if behind {
 		u.logger.Info().Int("commits", count).Msg("selfupdate: The fork has new commits")
+	} else if built := u.builtCommit(); built != "" && built != u.headCommit() {
+		// HEAD already matches the fork, but the last successful build was of an older commit: an
+		// earlier update moved the checkout and then failed to build, so the running binary is old.
+		u.logger.Info().Msg("selfupdate: The checkout is newer than the last successful build")
+		behind = true
+	} else if built == "" && u.binaryOlderThanHead() {
+		u.logger.Info().Msg("selfupdate: The running binary is older than the checked-out commit")
+		behind = true
 	}
 	return behind, nil
+}
+
+// binaryOlderThanHead covers a checkout moved by an update from before builds were tracked.
+func (u *GitAutoUpdater) binaryOlderThanHead() bool {
+	exe := getExePath()
+	if exe == "" {
+		return false
+	}
+	info, err := os.Stat(exe)
+	if err != nil {
+		return false
+	}
+	out, err := u.git("show", "-s", "--format=%ct", "HEAD")
+	if err != nil {
+		return false
+	}
+	secs, err := strconv.ParseInt(strings.TrimSpace(out), 10, 64)
+	return err == nil && time.Unix(secs, 0).After(info.ModTime())
+}
+
+func (u *GitAutoUpdater) markerPath() string {
+	return filepath.Join(u.repoDir, ".git", "seanime-built-commit")
+}
+
+func (u *GitAutoUpdater) headCommit() string {
+	out, err := u.git("rev-parse", "HEAD")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
+}
+
+// builtCommit is the commit the running binary was last successfully built from, or "".
+func (u *GitAutoUpdater) builtCommit() string {
+	b, err := os.ReadFile(u.markerPath())
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func (u *GitAutoUpdater) setBuiltCommit(commit string) {
+	if commit == "" {
+		return
+	}
+	_ = os.WriteFile(u.markerPath(), []byte(commit+"\n"), 0o644)
+}
+
+// diffBase is what the update's changes are measured from: the last successfully built commit when
+// there is one, otherwise HEAD.
+func (u *GitAutoUpdater) diffBase() string {
+	if b := u.builtCommit(); b != "" {
+		return b
+	}
+	return "HEAD"
 }
 
 // localWork describes local changes or commits that an update will shelve, or "" when the checkout
@@ -332,9 +395,17 @@ func (u *GitAutoUpdater) runUpdate() {
 
 	stats := u.diffStats(remoteRef)
 
-	if err := u.shelve(remoteRef); err != nil {
-		u.fail("moving the checkout to the fork's latest commit (git reset --hard)", err, "")
-		return
+	// Record what the running binary was built from before the checkout moves, so a failed build
+	// still counts as "update available" afterwards.
+	if u.builtCommit() == "" {
+		u.setBuiltCommit(u.headCommit())
+	}
+	remoteHead, _ := u.git("rev-parse", remoteRef)
+	if strings.TrimSpace(remoteHead) != u.headCommit() {
+		if err := u.shelve(remoteRef); err != nil {
+			u.fail("moving the checkout to the fork's latest commit (git reset --hard)", err, "")
+			return
+		}
 	}
 
 	// The tree has to stay clean through the whole update; the merge is the step most able to have
@@ -356,15 +427,17 @@ func (u *GitAutoUpdater) runUpdate() {
 	// flash a shell window for every step of the build.
 	build, err := buildCommand(u.repoDir)
 	if err != nil {
-		u.fail("preparing the build (no shell found to run the build script)", err, "")
+		u.fail("preparing the build", err, "")
 		return
 	}
+	u.notify("Build started: " + strings.Join(build.Args, " "))
+	started := time.Now()
 	build.Dir = u.repoDir
 	var buildOut bytes.Buffer
 	build.Stdout = io.MultiWriter(os.Stdout, &buildOut)
 	build.Stderr = io.MultiWriter(os.Stderr, &buildOut)
 	if err := build.Run(); err != nil {
-		u.fail("running the build script ("+strings.Join(build.Args, " ")+")", err, buildOut.String())
+		u.fail(fmt.Sprintf("running the build script (%s, failed after %s)", strings.Join(build.Args, " "), time.Since(started).Round(time.Millisecond)), err, buildOut.String())
 		return
 	}
 
@@ -410,6 +483,7 @@ func (u *GitAutoUpdater) runUpdate() {
 	// commit's message and its description, so the client can say what arrived rather than only
 	// that something did. The file survives the restart, which is the point — a client that was
 	// closed while the update happened reads it the next time it signs in.
+	u.setBuiltCommit(u.headCommit())
 	u.writeUpdateNotice(stats)
 
 	u.notify("Update built — restarting now…")
@@ -474,7 +548,7 @@ func (u *GitAutoUpdater) PendingChanges() []FileChange {
 }
 
 func (u *GitAutoUpdater) diffFiles(remoteRef string) []FileChange {
-	out, err := u.git("diff", "--numstat", "HEAD", remoteRef)
+	out, err := u.git("diff", "--numstat", u.diffBase(), remoteRef)
 	if err != nil {
 		return nil
 	}
@@ -496,7 +570,7 @@ var shortstatRe = regexp.MustCompile(`(\d+) files? changed(?:, (\d+) insertions?
 
 // diffStats is what merging the remote ref would change, read before the merge.
 func (u *GitAutoUpdater) diffStats(remoteRef string) updateStats {
-	out, err := u.git("diff", "--shortstat", "HEAD", remoteRef)
+	out, err := u.git("diff", "--shortstat", u.diffBase(), remoteRef)
 	if err != nil {
 		return updateStats{}
 	}
