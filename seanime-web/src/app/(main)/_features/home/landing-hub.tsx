@@ -79,14 +79,14 @@ export function LandingHub() {
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-                                className="flex items-center gap-2 rounded-full border border-white/30 bg-black/50 backdrop-blur-md shadow-lg shadow-black/30 px-5 py-2.5 text-sm font-medium text-white hover:bg-black/60 hover:border-[--brand]/70 transition-all"
+                                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 backdrop-blur-xl px-5 py-2.5 text-sm font-medium text-white hover:bg-black/60 hover:border-[--brand]/70 transition-all"
                             >
                                 <FiSearch className="w-4 h-4" />
                                 Search
                             </button>
                             <button
                                 onClick={() => setSettingsOpen(true)}
-                                className="flex items-center gap-2 rounded-full border border-white/30 bg-black/50 backdrop-blur-md shadow-lg shadow-black/30 px-5 py-2.5 text-sm font-medium text-white hover:bg-black/60 hover:border-[--brand]/70 transition-all"
+                                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 backdrop-blur-xl px-5 py-2.5 text-sm font-medium text-white hover:bg-black/60 hover:border-[--brand]/70 transition-all"
                                 title="Landing page settings"
                             >
                                 <LuSettings2 className="w-4 h-4" />

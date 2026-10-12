@@ -62,7 +62,7 @@ export function LandingQuickLinksWidget({ visibleLinks }: { visibleLinks?: strin
                         <SeaLink key={link.id} href={link.href}>
                             <button
                                 className={cn(
-                                    "group relative w-full h-full text-left rounded-2xl border border-white/25 bg-black/50 backdrop-blur-md shadow-lg shadow-black/30 p-5 overflow-hidden",
+                                    "group relative w-full h-full text-left rounded-2xl border border-white/10 bg-black/25 backdrop-blur-xl shadow-lg shadow-black/20 p-5 overflow-hidden",
                                     "transition-all duration-300 hover:-translate-y-1 hover:border-[--brand]/70 hover:bg-black/60 hover:shadow-xl hover:shadow-[--brand]/20",
                                 )}
                             >
@@ -229,7 +229,7 @@ function StatsDoor({ title, icon, stats, href }: {
         <SeaLink href={href} className="group/door block h-full">
             <button
                 className={cn(
-                    "group relative w-full h-full text-left rounded-2xl border border-white/25 bg-black/50 backdrop-blur-md shadow-lg shadow-black/30 p-4 lg:p-5 overflow-hidden",
+                    "group relative w-full h-full text-left rounded-2xl border border-white/10 bg-black/25 backdrop-blur-xl shadow-lg shadow-black/20 p-4 lg:p-5 overflow-hidden",
                     "transition-all duration-300 hover:-translate-y-1 hover:border-[--brand]/70 hover:bg-black/60 hover:shadow-xl hover:shadow-[--brand]/20",
                 )}
             >

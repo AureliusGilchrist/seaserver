@@ -208,7 +208,7 @@ function ToWatchCard({
                 transition,
             }}
             className={cn(
-                "flex items-stretch gap-3 rounded-xl border bg-gray-950/60 overflow-hidden",
+                "flex items-stretch gap-3 rounded-xl border bg-gray-950/40 backdrop-blur-xl overflow-hidden",
                 "transition-colors",
                 isSortDragging
                     ? "border-brand-500/70 opacity-40"
