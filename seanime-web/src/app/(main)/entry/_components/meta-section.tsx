@@ -1,7 +1,6 @@
 "use client"
 import { AL_AnimeDetailsById_Media, Anime_Entry } from "@/api/generated/types"
 import { TrailerModal } from "@/app/(main)/_features/anime/_components/trailer-modal"
-import { PVBackgroundPlayer } from "@/app/(main)/_features/anime/_components/pv-background-player"
 import { AnimeAutoDownloaderButton } from "@/app/(main)/_features/anime/_containers/anime-auto-downloader-button"
 import { ToggleLockFilesButton } from "@/app/(main)/_features/anime/_containers/toggle-lock-files-button"
 import { AnimeDownloadingBadge } from "@/app/(main)/_features/media/_components/anime-downloading-badge"
@@ -80,9 +79,6 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
 
     return (
         <>
-            {/* PV Background Player */}
-            <PVBackgroundPlayer trailerId={entry?.media?.trailer?.id} />
-            
             <MediaPageHeader
                 backgroundImage={entry.media?.bannerImage}
                 coverImage={entry.media?.coverImage?.extraLarge}
