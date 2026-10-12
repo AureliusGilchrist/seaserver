@@ -132,9 +132,9 @@ function ServerDownModal() {
             <div className="max-w-md mx-4 rounded-2xl border border-white/10 bg-gray-950/90 p-6 text-center space-y-3 shadow-2xl">
                 <ImSpinner2 className="animate-spin text-2xl mx-auto" />
                 <p className="text-lg font-semibold">
-                    Server is down for {reason || "an unexpected disconnection"}, please wait or contact Aurelius
+                    Server is down due to {reason || "an unexpected problem"}, please wait or contact Aurelius.
                 </p>
-                <p className="text-sm text-[--muted]">Reconnecting automatically every 10 seconds…</p>
+                <p className="text-sm text-[--muted]">Attempting to reconnect every 10 seconds…</p>
             </div>
         </div>
     )

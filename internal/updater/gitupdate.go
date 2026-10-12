@@ -293,7 +293,20 @@ func (u *GitAutoUpdater) shelve(remoteRef string) error {
 	if snap, err := u.git("stash", "create"); err == nil && strings.TrimSpace(snap) != "" {
 		_, _ = u.git("update-ref", "refs/seanime-backup/"+stamp+"-changes", strings.TrimSpace(snap))
 	}
-	if out, err := u.git("reset", "--hard", remoteRef); err != nil {
+	out, err := u.git("reset", "--hard", remoteRef)
+	if err != nil && runtime.GOOS != "windows" && strings.Contains(err.Error(), "Permission denied") {
+		// A build run as root leaves root-owned directories behind that this process cannot write to.
+		// Take them back with passwordless sudo when it exists, then retry once.
+		chown := exec.Command("sudo", "-n", "chown", "-R", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()), ".")
+		chown.Dir = u.repoDir
+		if cOut, cErr := chown.CombinedOutput(); cErr == nil {
+			out, err = u.git("reset", "--hard", remoteRef)
+		} else {
+			return fmt.Errorf("%w (files in the checkout are owned by another user, probably root from a sudo build; fix once with: sudo chown -R %d:%d %s -- automatic repair failed: %s)",
+				err, os.Getuid(), os.Getgid(), u.repoDir, strings.TrimSpace(string(cOut)))
+		}
+	}
+	if err != nil {
 		return fmt.Errorf("%s %w", strings.TrimSpace(out), err)
 	}
 	return nil
