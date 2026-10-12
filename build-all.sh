@@ -85,7 +85,7 @@ if [[ "$WEB_FORCE_BUILD" != "1" && -d "$SCRIPT_DIR/web" ]]; then
   LAST_BUILD_TS="$SCRIPT_DIR/web/.last-build-ts"
   if [[ -f "$LAST_BUILD_TS" ]]; then
     LAST_BUILD_EPOCH=$(cat "$LAST_BUILD_TS" 2>/dev/null || echo 0)
-    NEWEST_SRC=$(find "$SCRIPT_DIR/seanime-web" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.mjs" -o -name "*.json" -o -name "*.css" -o -name "*.html" -o -name "package-lock.json" \) -newer "$LAST_BUILD_TS" -not -path "*/node_modules/*" -not -path "*/out/*" -print -quit 2>/dev/null)
+    NEWEST_SRC=$(find "$SCRIPT_DIR/seanime-web" -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.mjs" -o -name "*.json" -o -name "*.css" -o -name "*.html" -o -name "package-lock.json" \) -newer "$LAST_BUILD_TS" -not -path "*/node_modules*" -not -path "*/out/*" -print -quit 2>/dev/null)
     if [[ -z "$NEWEST_SRC" ]]; then
       WEB_CHANGED=0
     fi
@@ -97,7 +97,20 @@ if [[ "$WEB_CHANGED" == "1" ]]; then
   (
     cd seanime-web
     substep "Running npm ci..."
-    npm ci
+    if ! npm ci; then
+      # An earlier build run as root (sudo) leaves root-owned files that this user cannot delete.
+      # Take ownership back with passwordless sudo when it exists; otherwise move the old tree aside.
+      warn "npm ci failed — fixing ownership of build outputs and retrying"
+      if sudo -n true 2>/dev/null; then
+        sudo -n chown -R "$(id -u):$(id -g)" node_modules out ../web ../seanime_exe 2>/dev/null || true
+        npm ci
+      else
+        STALE="node_modules.stale-$(date +%s)"
+        mv node_modules "$STALE"
+        npm ci
+        rm -rf node_modules.stale-* 2>/dev/null || warn "Could not delete old $STALE (permissions); remove it manually with sudo"
+      fi
+    fi
   )
   success "Dependencies installed"
 
