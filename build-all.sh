@@ -102,7 +102,7 @@ if [[ "$WEB_CHANGED" == "1" ]]; then
       # Take ownership back with passwordless sudo when it exists; otherwise move the old tree aside.
       warn "npm ci failed — fixing ownership of build outputs and retrying"
       if sudo -n true 2>/dev/null; then
-        sudo -n chown -R "$(id -u):$(id -g)" node_modules out ../web ../seanime_exe 2>/dev/null || true
+        sudo -n chown -R "$(id -u):$(id -g)" node_modules out public ../web ../seanime_exe 2>/dev/null || true
         npm ci
       else
         STALE="node_modules.stale-$(date +%s)"
@@ -117,6 +117,17 @@ if [[ "$WEB_CHANGED" == "1" ]]; then
   step "1.2" "Frontend build (tsgo + rsbuild)"
   (
     cd seanime-web
+    # Files a previous sudo build left behind (public/jassub, out, ...) can block the build's copy steps.
+    if [[ -n "$(find public out ../web -not -user "$(id -u)" -print -quit 2>/dev/null)" ]]; then
+      warn "Found files owned by another user in build outputs — repairing ownership"
+      if sudo -n true 2>/dev/null; then
+        sudo -n chown -R "$(id -u):$(id -g)" public out ../web 2>/dev/null || true
+      else
+        for d in public/jassub out; do
+          [[ -e "$d" ]] && mv "$d" "$d.stale-$(date +%s)" 2>/dev/null || true
+        done
+      fi
+    fi
     substep "Type-checking and bundling..."
     npm run build
     substep "Checking build output (./out)..."
