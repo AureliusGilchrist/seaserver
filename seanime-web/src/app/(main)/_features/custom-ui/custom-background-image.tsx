@@ -83,8 +83,8 @@ export function CustomBackgroundImage(props: CustomBackgroundImageProps) {
     const isFullscreen = useAtomValue(vc_isFullscreen)
     const animeTheme = useAnimeThemeOrNull()
     const themeActive = !!animeTheme && animeTheme.config.id !== "seanime"
-    // The theme's Blur slider drives the wallpaper blur; without an anime theme the old fixed 40px stays.
-    const wallpaperBlurPx = themeActive ? animeTheme!.backgroundBlur : 40
+    // Keep custom wallpapers sharp by default so targeted glass surfaces can visibly blur them.
+    const wallpaperBlurPx = themeActive ? animeTheme!.backgroundBlur : 0
     // When the theme draws its own wallpaper it already carries these effects; only add them for the custom one.
     const showThemeEffectsOnCustom = themeActive && !animeTheme!.activeBackgroundUrl
     // Exclude specific pages from background effects.

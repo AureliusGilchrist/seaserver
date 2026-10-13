@@ -57,7 +57,7 @@ export function SettingsCard({ title, description, children, className }: Settin
         <>
             <Card
                 ref={cardRef}
-                className={cn("group/settings-card relative lg:bg-gray-950/80 rounded-xl backdrop-blur-md", className)}
+                className={cn("group/settings-card relative bg-gray-950/55 rounded-xl backdrop-blur-lg", className)}
                 onMouseMove={handleMouseMove}
             >
                 {/* <div

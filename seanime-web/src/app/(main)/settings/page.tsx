@@ -172,7 +172,7 @@ export default function Page() {
                             </div>
                             <div className="overflow-x-none overflow-y-hidden rounded-[--radius-md] space-y-1 lg:space-y-3 flex justify-center flex-wrap lg:block">
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/80 backdrop-blur-md">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
                                     <div className="space-y-2 p-4 w-full">
                                         <h4 className="text-center text-xl font-bold">Settings</h4>
                                         <div className="space-y-1">
@@ -190,7 +190,7 @@ export default function Page() {
                                         </div>
                                     </div>
                                 </Card>
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/80 backdrop-blur-md">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
                                     <TabsTrigger
                                         value="seanime"
                                         className="group"
@@ -213,7 +213,7 @@ export default function Page() {
                                 {/*    Anime playback*/}
                                 {/*</div>*/}
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/80 backdrop-blur-md">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
 
                                     <TabsTrigger
                                         value="media-player"
@@ -235,7 +235,7 @@ export default function Page() {
                                 {/*    Torrenting*/}
                                 {/*</div>*/}
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/80 backdrop-blur-md">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
                                     <TabsTrigger
                                         value="torrent"
                                         className="group"
@@ -258,7 +258,7 @@ export default function Page() {
                                 {/*    Other features*/}
                                 {/*</div>*/}
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/80 backdrop-blur-md">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
                                     <TabsTrigger
                                         value="onlinestream"
                                         className="group"
@@ -290,7 +290,7 @@ export default function Page() {
                                 {/*    Server & Interface*/}
                                 {/*</div>*/}
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/80 backdrop-blur-md">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
                                     <TabsTrigger
                                         value="ui"
                                         className="group"
@@ -788,7 +788,7 @@ export default function Page() {
                                         {/*<SettingsCard>*/}
                                         <Accordion
                                             type="single"
-                                            className="group/settings-card relative bg-gray-950/70 rounded-xl border overflow-hidden backdrop-blur-md"
+                                            className="group/settings-card relative bg-gray-950/50 rounded-xl border overflow-hidden backdrop-blur-lg"
                                             triggerClass="px-4 py-3 text-[--muted] dark:data-[state=open]:text-white dark:hover:bg-transparent hover:bg-transparent dark:hover:text-white !font-medium transition-all duration-200 hover:translate-x-1"
                                             itemClass="border-b border-[--border] rounded-none transition-all duration-200 hover:border-[--brand]/30"
                                             contentClass="!p-4 animate-in duration-300"

@@ -73,7 +73,7 @@ export function UnmatchedTorrentCard({ torrent, onSelect, matchQueued }: Unmatch
                 className={cn(
                     "p-4 border rounded-lg cursor-pointer transition-all",
                     "hover:border-brand-200 hover:bg-gray-900/50",
-                    "bg-gray-950/50 backdrop-blur-md"
+                    "bg-gray-950/40 backdrop-blur-lg"
                 )}
                 onClick={onSelect}
             >

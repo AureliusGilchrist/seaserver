@@ -30,8 +30,15 @@ const updateSettingsLogAtom = atomWithStorage<string[]>(UPDATE_LOG_STORAGE_KEY, 
 function readProgress(lines: string[]) {
     for (let i = lines.length - 1; i >= 0; i--) {
         const text = lines[i].replace(/^\[[\d:]+\]\s?/, "")
-        const match = text.match(/^Backend update:\s*\[(\d{1,3})%\]\s*(.*)$/)
-        if (match) return { percent: Math.min(100, Number(match[1])), step: match[2] }
+        const match = text.match(/^(Backend|Frontend) update:\s*\[(\d{1,3})%\]\s*(.*)$/i)
+        if (match) {
+            const target: Target = match[1].toLowerCase() === "backend" ? "backend" : "frontend"
+            return {
+                target,
+                percent: Math.min(100, Number(match[2])),
+                step: match[3],
+            }
+        }
     }
     return null
 }
@@ -301,9 +308,9 @@ function LogLine({ line, inFailure }: { line: string, inFailure: boolean }) {
     const time = m?.[1]
     const text = m ? m[2] : line
     const indented = /^\s{2,}/.test(text)
-    const progress = text.match(/^Backend update:\s*\[(\d{1,3})%\]\s*(.*)$/)
-    const progressPercent = progress ? Number(progress[1]) : null
-    const progressStep = progress?.[2] ?? ""
+    const progress = text.match(/^(Backend|Frontend) update:\s*\[(\d{1,3})%\]\s*(.*)$/i)
+    const progressPercent = progress ? Number(progress[2]) : null
+    const progressStep = progress?.[3] ?? ""
     const isProgress = progressPercent !== null
     const isHeader = !indented && /^(backend|frontend) update:/i.test(text)
     const isFailed = toneOf(isProgress ? progressStep : text) === "fail"
@@ -338,6 +345,7 @@ function LogLine({ line, inFailure }: { line: string, inFailure: boolean }) {
 function StructuredLog({ lines, logRef }: { lines: string[], logRef: React.RefObject<HTMLDivElement | null> }) {
     const progress = readProgress(lines)
     const failed = !!progress && /fail(ed|ure)?|error/i.test(progress.step)
+    const isFrontendBuild = progress?.target === "frontend" && progress.step === "Building Denshi frontend"
     const status = failed ? "Failed" : progress?.percent === 100 ? "Complete" : progress ? "In progress" : "Saved log"
     let inFailure = false
     return (
@@ -363,21 +371,23 @@ function StructuredLog({ lines, logRef }: { lines: string[], logRef: React.RefOb
             {progress && (
                 <div className="border-b border-white/5 bg-gradient-to-r from-brand-500/[0.08] via-transparent to-cyan-500/[0.05] px-3 py-2.5">
                     <div className="mb-1.5 flex items-center justify-between gap-3 text-[11px]">
-                        <span className="truncate text-gray-300">{progress.step}</span>
+                        <span className="truncate text-gray-300">
+                            {progress.target === "backend" ? "Backend" : "Frontend"} · {progress.step}
+                        </span>
                         <span className={`shrink-0 font-mono font-bold tabular-nums ${failed ? "text-red-300" : progress.percent === 100 ? "text-green-300" : "text-brand-200"}`}>
                             {String(progress.percent).padStart(2, "0")}%
                         </span>
                     </div>
                     <div
                         role="progressbar"
-                        aria-label="Backend update progress"
+                        aria-label={`${progress.target === "backend" ? "Backend" : "Frontend"} update progress`}
                         aria-valuemin={0}
                         aria-valuemax={100}
                         aria-valuenow={progress.percent}
                         className="h-1.5 overflow-hidden rounded-full bg-white/10"
                     >
                         <div
-                            className={`h-full rounded-full transition-[width] duration-500 ${failed ? "bg-red-400" : progress.percent === 100 ? "bg-green-400" : "bg-gradient-to-r from-brand-400 to-cyan-300"}`}
+                            className={`h-full rounded-full transition-[width] duration-1000 ease-in-out ${failed ? "bg-red-400" : progress.percent === 100 ? "bg-green-400" : "bg-gradient-to-r from-brand-400 to-cyan-300"} ${isFrontendBuild ? "animate-pulse" : ""}`}
                             style={{ width: `${progress.percent}%` }}
                         />
                     </div>
@@ -405,7 +415,9 @@ function ElectronUpdates() {
     const [running, setRunning] = React.useState<Target | null>(null)
     const [lines, setLines] = useAtom(updateSettingsLogAtom)
     const logRef = React.useRef<HTMLDivElement>(null)
-    const currentProgressRef = React.useRef(readProgress(lines)?.percent ?? 0)
+    const initialProgress = readProgress(lines)
+    const currentProgressRef = React.useRef(initialProgress?.target === "backend" ? initialProgress.percent : 0)
+    const currentFrontendProgressRef = React.useRef(initialProgress?.target === "frontend" ? initialProgress.percent : 0)
 
     const [remote, setRemote] = React.useState(false)
     const { mutateAsync: updateRemoteBackend } = useUpdateBackend()
@@ -476,6 +488,7 @@ function ElectronUpdates() {
         const off = window.electron?.on("live-update:progress", (p: { target: Target, line: string }) => {
             const progress = readProgress([p.line])
             if (p.target === "backend" && progress) currentProgressRef.current = progress.percent
+            if (p.target === "frontend" && progress) currentFrontendProgressRef.current = progress.percent
             appendLines([stamp(p.line)])
         })
         return () => off?.()
@@ -528,12 +541,13 @@ function ElectronUpdates() {
     async function run(target: Target) {
         const label = target === "backend" ? "Backend" : "Frontend"
         currentProgressRef.current = 0
+        currentFrontendProgressRef.current = 0
         failureReceivedRef.current = false
         pendingRef.current = target === "backend" && remote
         wasDownRef.current = false
         setLines([stamp(target === "backend"
             ? "Backend update: [00%] Checking for an available update"
-            : "Frontend update: Starting local build")])
+            : "Frontend update: [00%] Preparing frontend update")])
 
         if (target === "backend" && remote) {
             setRunning(target)
@@ -580,14 +594,15 @@ function ElectronUpdates() {
             if (res.ok) {
                 toast.success(`${label} update succeeded${changed}. ${res.message ?? ""}`.trim())
                 if (target === "backend") currentProgressRef.current = 100
+                else currentFrontendProgressRef.current = 100
                 appendLines(["", stamp(target === "backend"
                     ? `Backend update: [100%] Succeeded${changed}`
-                    : `Frontend update: Succeeded${changed}`)])
+                    : `Frontend update: [100%] Succeeded${changed}`)])
             } else {
                 toast.error(`${label} update failed${changed}: ${(res.error ?? "").split("\n")[0]}`)
                 appendLines(["", stamp(`ERROR: ${res.error}`), stamp(target === "backend"
                     ? `Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] Failed${changed}`
-                    : `Frontend update: Failed${changed}`)])
+                    : `Frontend update: [${String(currentFrontendProgressRef.current).padStart(2, "0")}%] Failed${changed}`)])
             }
         }
         catch (e: any) {
@@ -595,7 +610,7 @@ function ElectronUpdates() {
             toast.error(`Update failed: ${e?.message ?? "unknown error"}`)
             appendLines(["", stamp(target === "backend"
                 ? `Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] Failed - ${e?.message ?? "unknown error"}`
-                : `Frontend update: Failed - ${e?.message ?? "unknown error"}`)])
+                : `Frontend update: [${String(currentFrontendProgressRef.current).padStart(2, "0")}%] Failed - ${e?.message ?? "unknown error"}`)])
         }
         finally {
             setRunning(null)

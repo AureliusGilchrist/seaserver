@@ -40,11 +40,20 @@ function resolveRepoRoot(configured, webOnly, extraStarts) {
 function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode, stopServer, startServer, reloadWindows, emitProgress }) {
     let busy = false
 
-    function emitBackendStep(percent, step) {
+    function emitUpdateStep(target, percent, step) {
+        const label = target === "backend" ? "Backend" : "Frontend"
         emitProgress({
-            target: "backend",
-            line: `Backend update: [${String(percent).padStart(2, "0")}%] ${step}`,
+            target,
+            line: `${label} update: [${String(percent).padStart(2, "0")}%] ${step}`,
         })
+    }
+
+    function emitBackendStep(percent, step) {
+        emitUpdateStep("backend", percent, step)
+    }
+
+    function emitFrontendStep(percent, step) {
+        emitUpdateStep("frontend", percent, step)
     }
 
     function run(target, cmd, args, opts) {
@@ -291,6 +300,7 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
 
     function updateFrontend() {
         return guarded("frontend", async (stats) => {
+            emitFrontendStep(0, "Preparing frontend update")
             const root = requireWebRoot()
             const webRoot = path.join(root, "seanime-web")
             if (!fs.existsSync(path.join(webRoot, "node_modules"))) {
@@ -299,6 +309,7 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
 
             // Built from the local files as they are; nothing is pulled. The delta is what changed
             // since the last build, read before building.
+            emitFrontendStep(8, "Checking changes since the last build")
             const delta = await frontendDelta(root)
             Object.assign(stats, toStats(delta.files))
             stats.baseline = delta.baseline
@@ -310,11 +321,14 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
             })
             for (const f of delta.files) emitProgress({ target: "frontend", line: `    ${f.path}  +${f.insertions} -${f.deletions}` })
 
+            emitFrontendStep(18, "Building Denshi frontend")
             await run("frontend", "npm", ["run", "build:denshi"], { cwd: webRoot, shell: process.platform === "win32" })
 
+            emitFrontendStep(72, "Validating frontend build output")
             const outDir = path.join(webRoot, "out-denshi")
             if (!fs.existsSync(path.join(outDir, "index.html"))) throw new Error("Frontend build output missing (out-denshi/index.html)")
 
+            emitFrontendStep(82, "Staging the new frontend")
             const liveWeb = getLiveWebDir(app)
             const newWeb = liveWeb + ".new"
             const oldWeb = liveWeb + ".old"
@@ -323,12 +337,14 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
             fs.rmSync(oldWeb, { recursive: true, force: true })
             fs.cpSync(outDir, newWeb, { recursive: true })
 
+            emitFrontendStep(92, "Activating the new frontend")
             if (fs.existsSync(liveWeb)) fs.renameSync(liveWeb, oldWeb)
             fs.renameSync(newWeb, liveWeb)
             fs.rmSync(oldWeb, { recursive: true, force: true })
+            emitFrontendStep(97, "Recording the successful build")
             if (delta.tree) await rememberBuiltTree(root, delta.tree)
 
-            emitProgress({ target: "frontend", line: "Frontend swapped, reloading..." })
+            emitFrontendStep(100, "Frontend updated; reloading...")
             setTimeout(reloadWindows, 400)
             return "Frontend updated; reloading."
         })
