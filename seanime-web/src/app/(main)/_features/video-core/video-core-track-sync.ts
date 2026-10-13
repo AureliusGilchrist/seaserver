@@ -15,9 +15,10 @@ export function useTrackPreferenceSync() {
     const setLoaded = useSetAtom(vc_trackPrefsLoaded)
     const setSaveCallback = useSetAtom(vc_saveTrackOverride)
     const overridesRef = useRef(overrides)
+    const localOverridesRef = useRef<Record<string, PerMediaTrackOverride>>({})
     overridesRef.current = overrides
 
-    // Populate atom from server data on initial load
+    // Refresh server preferences without overwriting local choices.
     useEffect(() => {
         if (isSuccess && serverPrefs) {
             const mapped: Record<string, PerMediaTrackOverride> = {}
@@ -30,7 +31,8 @@ export function useTrackPreferenceSync() {
                     subtitleLabel: pref.subtitleLabel || undefined,
                 }
             }
-            setOverrides(mapped)
+            // Keep local choices over any response that may have started before an upsert completed.
+            setOverrides({ ...mapped, ...localOverridesRef.current })
             setLoaded(true)
         }
     }, [isSuccess, serverPrefs])
@@ -43,6 +45,7 @@ export function useTrackPreferenceSync() {
             // Update the ref immediately (synchronously) so any loadedmetadata handler
             // that fires in the same tick already sees the new value
             overridesRef.current = { ...overridesRef.current, [mediaId]: merged }
+            localOverridesRef.current = { ...localOverridesRef.current, [mediaId]: merged }
             setOverrides(prev => {
                 const prevMerged = { ...prev[mediaId], ...override }
                 return { ...prev, [mediaId]: prevMerged }

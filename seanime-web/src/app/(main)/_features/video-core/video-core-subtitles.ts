@@ -1612,15 +1612,23 @@ export function resolveOverrideTrackNumber(
 
     // 1. Match by label (most specific, e.g. "English (Honorifics)")
     if (override.subtitleLabel) {
-        const wanted = override.subtitleLabel.toLowerCase()
-        const byLabel = ts.find(t => t.label?.toLowerCase() === wanted)
+        const wanted = override.subtitleLabel.trim().toLowerCase()
+        const byLabel = ts.find(t => t.label?.trim().toLowerCase() === wanted)
         if (byLabel) return byLabel.number
     }
 
-    // 2. Match by language, preferring the same codec when one was recorded.
+    // 2. Match by normalized language (including ISO 639 aliases and BCP 47 tags),
+    // preferring the same codec when one was recorded.
     if (override.subtitleLanguage) {
-        const wantedLang = override.subtitleLanguage.toLowerCase()
-        const sameLang = ts.filter(t => t.language?.toLowerCase() === wantedLang || t.languageIETF?.toLowerCase() === wantedLang)
+        const normalizeLanguage = (language?: string, label?: string) => {
+            const baseLanguage = language?.trim().toLowerCase().replace(/_/g, "-").split("-")[0]
+            return detectTrackLanguage({ language: baseLanguage, label }) ?? baseLanguage ?? detectTrackLanguage({ label })
+        }
+        const wantedLang = normalizeLanguage(override.subtitleLanguage, override.subtitleLabel)
+        const sameLang = wantedLang
+            ? ts.filter(t => normalizeLanguage(t.languageIETF, t.label) === wantedLang
+                || normalizeLanguage(t.language, t.label) === wantedLang)
+            : []
         if (sameLang.length) {
             if (override.subtitleCodecID) {
                 const byCodec = sameLang.find(t => t.codecID === override.subtitleCodecID)
