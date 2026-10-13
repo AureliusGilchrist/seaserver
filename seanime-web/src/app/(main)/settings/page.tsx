@@ -197,7 +197,7 @@ export default function Page() {
                             </div>
                             <div className="overflow-x-hidden overflow-y-auto rounded-[--radius-md] space-y-1 lg:max-h-[70vh] lg:space-y-3 flex justify-center flex-wrap lg:block">
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 lg:backdrop-blur-md">
                                     <div className="space-y-2 p-4 w-full">
                                         <h4 className="text-center text-xl font-bold">Settings</h4>
                                         <div className="space-y-1">
@@ -215,12 +215,12 @@ export default function Page() {
                                         </div>
                                     </div>
                                 </Card>
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 lg:backdrop-blur-md">
                                     <TabsTrigger value="updates" className="group">
                                         <LuRefreshCw className="mr-3 text-xl text-[--brand]" /> Updates
                                     </TabsTrigger>
                                 </Card>
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 lg:backdrop-blur-md">
                                     <TabsTrigger
                                         value="seanime"
                                         className="group"
@@ -243,7 +243,7 @@ export default function Page() {
                                 {/*    Anime playback*/}
                                 {/*</div>*/}
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 lg:backdrop-blur-md">
 
                                     <TabsTrigger
                                         value="media-player"
@@ -265,7 +265,7 @@ export default function Page() {
                                 {/*    Torrenting*/}
                                 {/*</div>*/}
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 lg:backdrop-blur-md">
                                     <TabsTrigger
                                         value="torrent"
                                         className="group"
@@ -288,7 +288,7 @@ export default function Page() {
                                 {/*    Other features*/}
                                 {/*</div>*/}
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 lg:backdrop-blur-md">
                                     <TabsTrigger
                                         value="onlinestream"
                                         className="group"
@@ -320,7 +320,7 @@ export default function Page() {
                                 {/*    Server & Interface*/}
                                 {/*</div>*/}
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 lg:backdrop-blur-md">
                                     <TabsTrigger
                                         value="ui"
                                         className="group"
