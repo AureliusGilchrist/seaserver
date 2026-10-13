@@ -81,11 +81,6 @@ var gitUpdaterRef = util.NewRef[*GitAutoUpdater](nil)
 func StartGitAutoUpdate(logger *zerolog.Logger, wsEventManager *events.WSEventManager, appDataDir string) {
 	announceCompletedUpdate(appDataDir)
 
-	if disabled := os.Getenv("SEANIME_AUTO_UPDATE"); disabled == "0" || strings.EqualFold(disabled, "false") {
-		logger.Info().Msg("selfupdate: Auto-update disabled (SEANIME_AUTO_UPDATE=0)")
-		return
-	}
-
 	repoDir, ok := gitRepoDir()
 	if !ok {
 		logger.Info().Msg("selfupdate: Not running from a git checkout, auto-update is off")
@@ -99,6 +94,11 @@ func StartGitAutoUpdate(logger *zerolog.Logger, wsEventManager *events.WSEventMa
 		appDataDir:     appDataDir,
 	}
 	gitUpdaterRef.Set(u)
+
+	if disabled := os.Getenv("SEANIME_AUTO_UPDATE"); disabled == "0" || strings.EqualFold(disabled, "false") {
+		logger.Info().Msg("selfupdate: Auto-update disabled (SEANIME_AUTO_UPDATE=0)")
+		return
+	}
 
 	logger.Info().Str("dir", repoDir).Dur("interval", gitUpdateInterval).
 		Msg("selfupdate: Watching the fork's repository for new commits")

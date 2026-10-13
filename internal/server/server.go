@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	golog "log"
@@ -121,6 +122,17 @@ appLoop:
 
 			select {
 			case <-selfupdater.Started():
+				// Stop accepting requests and wait for active handlers before closing their
+				// database connections. The release updater runs only for packaged installs;
+				// checkout deployments use GitAutoUpdater directly.
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				if err := echoApp.Shutdown(shutdownCtx); err != nil {
+					log.Error().Err(err).Msg("server: Could not gracefully stop HTTP server before update")
+					if closeErr := echoApp.Close(); closeErr != nil {
+						log.Error().Err(closeErr).Msg("server: Could not force-close HTTP server before update")
+					}
+				}
+				cancel()
 				app.Cleanup()
 				updateMode = true
 				break

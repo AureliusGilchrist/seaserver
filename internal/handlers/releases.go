@@ -17,7 +17,7 @@ import (
 // HandleInstallLatestUpdate
 //
 //	@summary installs the latest update.
-//	@desc This will install the latest update and launch the new version.
+//	@desc Git checkouts build and restart from the fork's repository; packaged installs download and launch the latest release.
 //	@route /api/v1/install-update [POST]
 //	@returns handlers.Status
 func (h *Handler) HandleInstallLatestUpdate(c echo.Context) error {
@@ -27,6 +27,19 @@ func (h *Handler) HandleInstallLatestUpdate(c echo.Context) error {
 	var b body
 	if err := c.Bind(&b); err != nil {
 		return h.RespondWithError(c, err)
+	}
+
+	// A checkout update is a commit from the fork, not a packaged upstream release. Route it
+	// through the same build-and-restart flow used by the backend update settings instead of the
+	// legacy release updater, which would replace the wrong binary on checkout deployments.
+	if gitUpdater := updater.CurrentGitUpdater(); gitUpdater != nil {
+		started, _, err := gitUpdater.UpdateNow()
+		if err != nil {
+			return h.RespondWithError(c, err)
+		}
+		status := h.NewStatus(c)
+		status.Updating = started
+		return h.RespondWithData(c, status)
 	}
 
 	go func() {
