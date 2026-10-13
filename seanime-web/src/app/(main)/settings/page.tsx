@@ -195,7 +195,7 @@ export default function Page() {
                             <div className="flex flex-col gap-4 md:flex-row justify-between items-center">
 
                             </div>
-                            <div className="overflow-x-hidden overflow-y-auto rounded-[--radius-md] space-y-1 lg:max-h-[70vh] lg:space-y-3 flex justify-center flex-wrap lg:block">
+                            <div className="overflow-x-hidden overflow-y-auto rounded-[--radius-md] space-y-1 lg:h-[calc(100dvh-5rem)] lg:space-y-3 flex justify-center flex-wrap lg:block">
 
                                 <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 lg:backdrop-blur-md">
                                     <div className="space-y-2 p-4 w-full">
