@@ -31,6 +31,27 @@ import { extractWallpaperAccent } from "@/lib/theme/wallpaper-accent"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { seaStorage } from "@/lib/sea-storage/sea-storage"
 
+function readBackgroundBlur(profileKey: string, themeId: AnimeThemeId): number {
+    const globalKey = `sea-global-anime-bgblur-${themeId}`
+    const globalValue = seaStorage.getItem(globalKey)
+    if (globalValue !== null) {
+        const value = parseFloat(globalValue)
+        if (!isNaN(value)) return Math.max(0, Math.min(100, value))
+    }
+
+    const legacyValue = seaStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
+    if (legacyValue !== null) {
+        const value = parseFloat(legacyValue)
+        if (!isNaN(value)) {
+            const clamped = Math.max(0, Math.min(100, value))
+            seaStorage.setItem(globalKey, String(clamped))
+            return clamped
+        }
+    }
+
+    return 0
+}
+
 // ─────────────────────────────────────────────────────────────────
 // Milestone name utility
 // ─────────────────────────────────────────────────────────────────
@@ -470,14 +491,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
 
     const [backgroundBlur, setBackgroundBlurRaw] = React.useState<number>(() => {
         if (typeof window === "undefined") return 0
-        try {
-            const stored = seaStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
-            if (stored !== null) {
-                const v = parseFloat(stored)
-                if (!isNaN(v)) return Math.max(0, Math.min(100, v))
-            }
-        } catch { }
-        return 0
+        try { return readBackgroundBlur(profileKey, themeId) } catch { return 0 }
     })
 
     // ── Background exposure / saturation (per-theme, user-overridable) ──
@@ -531,10 +545,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
             const s = seaStorage.getItem(`sea-anime-bgdim-${profileKey}-${themeId}`)
             setBackgroundDimRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(1, parseFloat(s))) : (config.backgroundDim ?? 0.30))
         } catch { setBackgroundDimRaw(config.backgroundDim ?? 0.30) }
-        try {
-            const s = seaStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
-            setBackgroundBlurRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(100, parseFloat(s))) : 0)
-        } catch { setBackgroundBlurRaw(0) }
+        try { setBackgroundBlurRaw(readBackgroundBlur(profileKey, themeId)) } catch { setBackgroundBlurRaw(0) }
         try {
             const s = seaStorage.getItem(`sea-anime-bgexposure-${profileKey}-${themeId}`)
             setBackgroundExposureRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0.1, Math.min(2.5, parseFloat(s))) : 1.0)
@@ -552,6 +563,14 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         } catch { setBrandColorOverrideRaw(null) }
     }, [themeId, profileKey, config.backgroundDim])
 
+    React.useEffect(() => {
+        const reloadBackgroundBlur = () => {
+            try { setBackgroundBlurRaw(readBackgroundBlur(profileKey, themeId)) } catch { setBackgroundBlurRaw(0) }
+        }
+        window.addEventListener("sea-client-prefs-hydrated", reloadBackgroundBlur)
+        return () => window.removeEventListener("sea-client-prefs-hydrated", reloadBackgroundBlur)
+    }, [profileKey, themeId])
+
     const setBackgroundDim = React.useCallback((v: number) => {
         const clamped = Math.max(0, Math.min(1, v))
         setBackgroundDimRaw(clamped)
@@ -561,8 +580,8 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const setBackgroundBlur = React.useCallback((v: number) => {
         const clamped = Math.max(0, Math.min(100, v))
         setBackgroundBlurRaw(clamped)
-        try { seaStorage.setItem(`sea-anime-bgblur-${profileKey}-${themeId}`, String(clamped)) } catch { }
-    }, [profileKey, themeId])
+        try { seaStorage.setItem(`sea-global-anime-bgblur-${themeId}`, String(clamped)) } catch { }
+    }, [themeId])
 
     const setBackgroundExposure = React.useCallback((v: number) => {
         const clamped = Math.max(0.1, Math.min(2.5, v))

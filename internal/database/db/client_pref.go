@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// GetClientPrefs returns all client preferences stored for the active database (per-profile).
+// GetClientPrefs returns all client preferences stored in the active database.
 func (db *Database) GetClientPrefs() ([]*models.ClientPref, error) {
 	var prefs []*models.ClientPref
 	if err := db.gormdb.Find(&prefs).Error; err != nil {
@@ -30,7 +30,7 @@ func (db *Database) GetClientPref(key string) (*models.ClientPref, error) {
 	return &pref, nil
 }
 
-// UpsertClientPref creates or updates a client preference for the active database (per-profile).
+// UpsertClientPref creates or updates a client preference in the active database.
 // The Value is opaque JSON-encoded text owned by the client.
 func (db *Database) UpsertClientPref(key string, value string) (*models.ClientPref, error) {
 	pref := &models.ClientPref{

@@ -5,7 +5,7 @@
  * on every reinstall, which deleted browser localStorage and reset every UI preference
  * (UI customizer, theme, easter eggs, reward progress, sound pack, etc.). This module mirrors
  * a registered set of localStorage keys to the backend (`/api/v1/client-prefs`, scoped per
- * profile) so the values survive across reinstalls and remote setups.
+ * profile by default) so the values survive across reinstalls and remote setups.
  *
  * Behaviour:
  *  - Reads always come from localStorage (fast, synchronous).
@@ -46,15 +46,23 @@ const SYNCED_KEY_PATTERNS: readonly string[] = [
     "sea-custom-css",
 ]
 
+const GLOBAL_SYNCED_KEY_PATTERNS: readonly string[] = [
+    // Wallpaper blur is shared across profiles but remains specific to each theme.
+    "sea-global-anime-bgblur-*",
+]
+
+function matchesPattern(key: string, patterns: readonly string[]): boolean {
+    return patterns.some(pattern => pattern.endsWith("*")
+        ? key.startsWith(pattern.slice(0, -1))
+        : key === pattern)
+}
+
+function isGlobalSyncedKey(key: string): boolean {
+    return matchesPattern(key, GLOBAL_SYNCED_KEY_PATTERNS)
+}
+
 function isSyncedKey(key: string): boolean {
-    for (const pat of SYNCED_KEY_PATTERNS) {
-        if (pat.endsWith("*")) {
-            if (key.startsWith(pat.slice(0, -1))) return true
-        } else if (key === pat) {
-            return true
-        }
-    }
-    return false
+    return isGlobalSyncedKey(key) || matchesPattern(key, SYNCED_KEY_PATTERNS)
 }
 
 // ─── Token helpers (read directly from localStorage so seaStorage works outside React) ──
@@ -112,16 +120,17 @@ async function flushNow(): Promise<void> {
 
     for (const [key, op] of ops) {
         try {
+            const scope = isGlobalSyncedKey(key) ? "?scope=global" : ""
             if (op.type === "upsert") {
                 await buildSeaQuery({
-                    endpoint: API_ENDPOINTS.CLIENT_PREFS.UpsertClientPref.endpoint,
+                    endpoint: `${API_ENDPOINTS.CLIENT_PREFS.UpsertClientPref.endpoint}${scope}`,
                     method: "PUT",
                     data: { key, value: op.value },
                     ...tokens,
                 })
             } else {
                 await buildSeaQuery({
-                    endpoint: API_ENDPOINTS.CLIENT_PREFS.DeleteClientPref.endpoint.replace(":key", encodeURIComponent(key)),
+                    endpoint: `${API_ENDPOINTS.CLIENT_PREFS.DeleteClientPref.endpoint.replace(":key", encodeURIComponent(key))}${scope}`,
                     method: "DELETE",
                     ...tokens,
                 })
@@ -242,10 +251,24 @@ export async function hydrateClientPrefs(): Promise<void> {
                     } catch {}
                 }
             }
+            const globalData = await buildSeaQuery<Record<string, string>>({
+                endpoint: `${API_ENDPOINTS.CLIENT_PREFS.GetClientPrefs.endpoint}?scope=global`,
+                method: "GET",
+                ...tokens,
+            })
+            if (globalData && typeof globalData === "object") {
+                for (const [k, v] of Object.entries(globalData)) {
+                    if (!isGlobalSyncedKey(k)) continue
+                    try {
+                        localStorage.setItem(k, v)
+                    } catch {}
+                }
+            }
         } catch {
             // Silently tolerate hydration failure — local values remain in effect.
         } finally {
             _hydrated = true
+            window.dispatchEvent(new Event("sea-client-prefs-hydrated"))
             // Kick off a flush in case anything was queued before hydration finished.
             if (pending.size > 0) scheduleFlush()
         }

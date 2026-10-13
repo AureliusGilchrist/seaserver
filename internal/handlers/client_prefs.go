@@ -13,11 +13,15 @@ import (
 //
 //	@summary returns all client preferences stored for the current profile.
 //	@desc Returns a map of key -> JSON-encoded value strings. The value strings are opaque to the server.
+//	@desc Pass scope=global to read preferences shared across profiles.
 //	@desc Used by the web client to hydrate UI state (UI customizer, easter eggs, theme settings, etc.) on bootstrap.
 //	@route /api/v1/client-prefs [GET]
 //	@returns map[string]string
 func (h *Handler) HandleGetClientPrefs(c echo.Context) error {
 	database := h.GetProfileDatabase(c)
+	if c.QueryParam("scope") == "global" {
+		database = h.App.Database
+	}
 	prefs, err := database.GetClientPrefs()
 	if err != nil {
 		return h.RespondWithError(c, err)
@@ -36,6 +40,7 @@ func (h *Handler) HandleGetClientPrefs(c echo.Context) error {
 //
 //	@summary creates or updates a client preference for the current profile.
 //	@desc The value is an opaque JSON-encoded string owned by the web client.
+//	@desc Pass scope=global to write a preference shared across profiles.
 //	@route /api/v1/client-prefs [PUT]
 //	@returns models.ClientPref
 func (h *Handler) HandleUpsertClientPref(c echo.Context) error {
@@ -57,6 +62,9 @@ func (h *Handler) HandleUpsertClientPref(c echo.Context) error {
 	}
 
 	database := h.GetProfileDatabase(c)
+	if c.QueryParam("scope") == "global" {
+		database = h.App.Database
+	}
 	pref, err := database.UpsertClientPref(b.Key, b.Value)
 	if err != nil {
 		return h.RespondWithError(c, err)
@@ -75,6 +83,9 @@ func (h *Handler) HandleDeleteClientPref(c echo.Context) error {
 		return h.RespondWithError(c, errors.New("key is required"))
 	}
 	database := h.GetProfileDatabase(c)
+	if c.QueryParam("scope") == "global" {
+		database = h.App.Database
+	}
 	if err := database.DeleteClientPref(key); err != nil {
 		return h.RespondWithError(c, err)
 	}

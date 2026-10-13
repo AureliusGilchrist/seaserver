@@ -1231,10 +1231,10 @@ type AdminAnnouncement struct {
 	Dismissed string    `gorm:"column:dismissed;type:text" json:"-"` // comma-separated profile IDs
 }
 
-// ClientPref is a per-profile arbitrary key/value blob used by the web client to persist
+// ClientPref is an arbitrary key/value blob used by the web client to persist
 // settings that would otherwise live only in browser localStorage (UI customizer state,
 // theme preferences, discovered easter eggs, reward progress, cursor pack, sound pack, etc.).
-// Stored in the per-profile database, so each profile gets its own values automatically.
+// It is stored in a profile database by default, but may also be stored globally.
 // The Value column is opaque JSON-encoded text the client owns; the server never inspects it.
 type ClientPref struct {
 	BaseModel
