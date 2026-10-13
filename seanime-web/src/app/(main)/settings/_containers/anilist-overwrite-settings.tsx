@@ -1,6 +1,7 @@
 import { OverwriteChange, OverwritePreview, useOverwriteAnilist, useOverwriteAnilistPreview } from "@/api/hooks/update-notice.hooks"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/ui/modal"
 import { WSEvents } from "@/lib/server/ws-events"
