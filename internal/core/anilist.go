@@ -39,9 +39,14 @@ func (a *App) UpdatePlatform(platform platform.Platform) {
 
 // UpdateAnilistClientToken will update the Anilist Client Wrapper token.
 // This function should be called when a user logs in
-func (a *App) UpdateAnilistClientToken(token string) {
+func (a *App) UpdateAnilistClientToken(token string, profileID ...uint) {
 	ac := anilist.NewAnilistClient(token, a.AnilistCacheDir)
 	ac.SetWSEventManager(a.WSEventManager)
+	id := uint(0)
+	if len(profileID) > 0 {
+		id = profileID[0]
+	}
+	ac.SetTokenExpiredProfileID(id)
 	a.AnilistClientRef.Set(ac)
 }
 

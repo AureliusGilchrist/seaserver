@@ -337,6 +337,7 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	// If the token is empty, the client will not be authenticated
 	anilistCW := anilist.NewAnilistClient(anilistToken, anilistCacheDir)
 	anilistCW.SetWSEventManager(wsEventManager)
+	anilistCW.SetTokenExpiredProfileID(0)
 	anilistCWRef := util.NewRef[anilist.AnilistClient](anilistCW)
 
 	// Exit if no WebSocket connections in desktop sidecar mode

@@ -305,12 +305,14 @@ func (m *AnilistClientManager) GetClient(profileID uint) anilist.AnilistClient {
 		}
 		client := anilist.NewAnilistClient("", m.cacheDir)
 		client.SetWSEventManager(m.app.WSEventManager)
+		client.SetTokenExpiredProfileID(profileID)
 		m.clients[profileID] = client
 		return client
 	}
 
 	client := anilist.NewAnilistClient(token, m.cacheDir)
 	client.SetWSEventManager(m.app.WSEventManager)
+	client.SetTokenExpiredProfileID(profileID)
 	m.clients[profileID] = client
 
 	m.logger.Debug().Uint("profileID", profileID).Bool("authenticated", client.IsAuthenticated()).Msg("anilist_client_manager: Loaded client for profile")
@@ -386,6 +388,7 @@ func (m *AnilistClientManager) ResolveClientForWrites(profileID uint) (anilist.A
 func (m *AnilistClientManager) UpdateClient(profileID uint, token string) {
 	client := anilist.NewAnilistClient(token, m.cacheDir)
 	client.SetWSEventManager(m.app.WSEventManager)
+	client.SetTokenExpiredProfileID(profileID)
 
 	m.mu.Lock()
 	m.clients[profileID] = client
@@ -394,7 +397,7 @@ func (m *AnilistClientManager) UpdateClient(profileID uint, token string) {
 	// If this is the admin profile, also update the global client ref
 	// so background subsystems (auto-downloader, playback manager, etc.) use it
 	if m.isAdminProfile(profileID) {
-		m.app.UpdateAnilistClientToken(token)
+		m.app.UpdateAnilistClientToken(token, profileID)
 	}
 
 	// A fresh login is a good moment to flush any progress queued while logged out / offline.

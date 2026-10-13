@@ -141,14 +141,17 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         },
     })
 
-    const [tokenExpired, setTokenExpired] = React.useState(false)
+    const [expiredProfileId, setExpiredProfileId] = React.useState<number | null>(null)
     const [planningSlutTokenExpired, setPlanningSlutTokenExpired] = React.useState(false)
 
     useWebsocketMessageListener({
         type: WSEvents.ANILIST_TOKEN_EXPIRED,
-        onMessage: () => {
-            logger("Data Wrapper").warn("AniList token expired, prompting re-authentication")
-            setTokenExpired(true)
+        onMessage: (payload: { profileId?: number } | null) => {
+            if (!payload || !Number.isInteger(payload.profileId) || !payload.profileId || payload.profileId < 1) {
+                return
+            }
+            logger("Data Wrapper").warn(`AniList token expired for profile ${payload.profileId}, prompting re-authentication`)
+            setExpiredProfileId(payload.profileId)
         },
     })
 
@@ -358,13 +361,13 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
         </div>
     }
 
-    if (tokenExpired && serverStatus?.currentProfile) {
+    if (expiredProfileId !== null && expiredProfileId === serverStatus?.currentProfile?.id) {
         return <ProfileAniListGateConnected
             profileId={serverStatus.currentProfile.id}
             profileName={serverStatus.currentProfile.name}
             host={host}
             clientId={serverStatus?.anilistClientId}
-            onSuccess={() => { setTokenExpired(false); refetch() }}
+            onSuccess={() => { setExpiredProfileId(null); refetch() }}
             expiredNotice="Your AniList token has expired. Please re-authenticate to continue."
         />
     }

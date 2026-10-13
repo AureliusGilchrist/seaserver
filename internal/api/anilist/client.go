@@ -92,7 +92,9 @@ type (
 		cacheDir       string
 		wsEventManager events.WSEventManagerInterface
 		// tokenExpiredEvent is the WS event name sent on 401. Defaults to AnilistTokenExpired.
-		tokenExpiredEvent string
+		tokenExpiredEvent        string
+		tokenExpiredProfileID    uint
+		tokenExpiredProfileIDSet bool
 		// httpClient is a shared HTTP client reused across all requests for connection pooling.
 		httpClient *http.Client
 		// rateLimited tracks whether we are currently in a rate-limited state so we
@@ -110,6 +112,12 @@ func (ac *AnilistClientImpl) SetWSEventManager(wsem events.WSEventManagerInterfa
 // SetTokenExpiredEvent overrides the WS event name sent when a 401 is received.
 func (ac *AnilistClientImpl) SetTokenExpiredEvent(eventName string) {
 	ac.tokenExpiredEvent = eventName
+}
+
+// SetTokenExpiredProfileID identifies which profile owns the token-expired event.
+func (ac *AnilistClientImpl) SetTokenExpiredProfileID(profileID uint) {
+	ac.tokenExpiredProfileID = profileID
+	ac.tokenExpiredProfileIDSet = true
 }
 
 func (ac *AnilistClientImpl) broadcastRateLimited(retryAfterSec int) {
@@ -138,7 +146,11 @@ func (ac *AnilistClientImpl) broadcastTokenExpired() {
 	if eventName == "" {
 		eventName = events.AnilistTokenExpired
 	}
-	ac.wsEventManager.SendEvent(eventName, nil)
+	var payload interface{}
+	if ac.tokenExpiredProfileIDSet {
+		payload = map[string]uint{"profileId": ac.tokenExpiredProfileID}
+	}
+	ac.wsEventManager.SendEvent(eventName, payload)
 }
 
 // NewAnilistClient creates a new AnilistClientImpl with the given token.

@@ -11,6 +11,35 @@ import { MdBackspace } from "react-icons/md"
 const MAX_PIN_LENGTH = 8
 const MIN_PIN_LENGTH = 4
 
+type ProfileLoginError = {
+    response?: {
+        data?: {
+            error?: unknown
+            message?: unknown
+        }
+    }
+    message?: unknown
+}
+
+function requiresAniListToken(error: unknown): boolean {
+    if (!error || typeof error !== "object") return false
+
+    const loginError = error as ProfileLoginError
+    const messages = [
+        loginError.response?.data?.error,
+        loginError.response?.data?.message,
+        loginError.message,
+    ]
+    const message = messages
+        .filter((value): value is string => typeof value === "string")
+        .join(" ")
+        .toLowerCase()
+
+    return message.includes("anilist login required for this profile")
+        || message.includes("invalid anilist token")
+        || message.includes("could not find anilist user for this token")
+}
+
 type ProfileSelectorProps = {
     profiles: ProfileSummary[]
     onManageProfiles?: () => void
@@ -35,17 +64,14 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
     React.useEffect(() => { pinRef.current = pin }, [pin])
 
     const handleProfileClick = (profile: ProfileSummary) => {
-        // Always enforce AniList token modal on first login (no exceptions)
         if (!profile.hasPIN) {
             lastLoginProfileRef.current = profile
             lastLoginPinRef.current = ""
             login(
                 { profileId: profile.id, pin: "" },
                 {
-                    onError: (error: any) => {
-                        const isAniList401 = error?.response?.status === 401
-                        const isAniListMsg = error?.response?.data?.message?.includes("AniList login required for this profile")
-                        if (isAniList401 || isAniListMsg) {
+                    onError: (error: unknown) => {
+                        if (requiresAniListToken(error)) {
                             setPendingProfile(profile)
                             setShowAniListModal(true)
                         } else {
@@ -72,10 +98,8 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
         login(
             { profileId: selectedProfile.id, pin: currentPin },
             {
-                onError: (error: any) => {
-                    const isAniList401 = error?.response?.status === 401
-                    const isAniListMsg = error?.response?.data?.message?.includes("AniList login required for this profile")
-                    if (isAniList401 || isAniListMsg) {
+                onError: (error: unknown) => {
+                    if (requiresAniListToken(error)) {
                         setPendingProfile(selectedProfile)
                         setShowAniListModal(true)
                     } else {
