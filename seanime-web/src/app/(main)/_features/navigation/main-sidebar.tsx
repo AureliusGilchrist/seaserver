@@ -17,8 +17,9 @@ import { useGetAchievementSummary } from "@/api/hooks/achievement.hooks"
 import { useGetLevel, useGetMyProfile } from "@/api/hooks/community.hooks"
 import { isEnqueueFuturePending, useGetEnqueueFutureQueue } from "@/api/hooks/enqueue_future.hooks"
 import { useGetUnmatchedTorrents } from "@/api/hooks/unmatched.hooks"
-import { useGetUnreadNotificationCount, useNotificationWSListener } from "@/api/hooks/notifications.hooks"
+import { NotificationCreatedEvent, useGetUnreadNotificationCount, useNotificationWSListener } from "@/api/hooks/notifications.hooks"
 import { NotificationDrawer } from "@/app/(main)/_features/notification/notification-drawer"
+import { LiveNotificationPanel } from "@/app/(main)/_features/notification/live-notification-panel"
 import { TauriUpdateModal } from "@/app/(main)/_tauri/tauri-update-modal"
 import { ConfirmationDialog, useConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { SeaLink } from "@/components/shared/sea-link"
@@ -180,8 +181,16 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
 
     // Notifications
     const [notificationDrawerOpen, setNotificationDrawerOpen] = React.useState(false)
+    const [liveNotifications, setLiveNotifications] = React.useState<(NotificationCreatedEvent & { liveID: string })[]>([])
     const { data: unreadCount } = useGetUnreadNotificationCount()
-    useNotificationWSListener()
+    const handleNotificationCreated = React.useCallback((notification: NotificationCreatedEvent) => {
+        const liveID = notification.id ? String(notification.id) : `${Date.now()}-${notification.mediaId}`
+        setLiveNotifications(previous => [
+            ...previous,
+            { ...notification, liveID },
+        ].slice(-3))
+    }, [])
+    useNotificationWSListener(handleNotificationCreated)
 
     // Persistent sidebar badge data
     const { data: achievementSummary } = useGetAchievementSummary()
@@ -559,6 +568,14 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             <NotificationDrawer
                 open={notificationDrawerOpen}
                 onOpenChange={setNotificationDrawerOpen}
+            />
+            <LiveNotificationPanel
+                notifications={liveNotifications}
+                onDismiss={liveID => setLiveNotifications(previous => previous.filter(notification => notification.liveID !== liveID))}
+                onOpenNotificationBox={() => {
+                    setLiveNotifications([])
+                    setNotificationDrawerOpen(true)
+                }}
             />
 
         </div>

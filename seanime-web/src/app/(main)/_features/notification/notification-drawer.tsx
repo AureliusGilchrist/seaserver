@@ -31,6 +31,8 @@ type NotificationDrawerProps = {
 
 const NOTIFICATION_TYPE_CONFIG: Record<string, { icon: React.ElementType; label: string; mediaRoute: string }> = {
     new_episode: { icon: LuTv, label: "New Episode", mediaRoute: "/entry" },
+    related_anime_addition: { icon: LuTv, label: "Related Anime", mediaRoute: "/entry" },
+    related_manga_addition: { icon: LuBookOpen, label: "Related Manga", mediaRoute: "/manga/entry" },
     sequel_announced: { icon: LuStar, label: "Sequel Announced", mediaRoute: "/entry" },
     related_airing: { icon: LuCalendar, label: "Related Airing", mediaRoute: "/entry" },
     planning_first_episode: { icon: LuTv, label: "First Episode Aired", mediaRoute: "/entry" },

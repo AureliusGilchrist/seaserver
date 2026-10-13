@@ -36,6 +36,37 @@ func (db *Database) CreateNotification(n *models.Notification) error {
 	return db.gormdb.Create(n).Error
 }
 
+// HasAnilistNotification reports whether an AniList notification was already imported.
+func (db *Database) HasAnilistNotification(id int) (bool, error) {
+	if id <= 0 {
+		return false, nil
+	}
+
+	var count int64
+	if err := db.gormdb.Model(&models.AnilistNotificationReceipt{}).
+		Where("notification_id = ?", id).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	if count == 0 {
+		if err := db.gormdb.Model(&models.Notification{}).
+			Where("anilist_notification_id = ?", id).
+			Count(&count).Error; err != nil {
+			return false, err
+		}
+	}
+	return count > 0, nil
+}
+
+// SaveAnilistNotificationReceipt records an imported notification ID idempotently.
+func (db *Database) SaveAnilistNotificationReceipt(id int) error {
+	if id <= 0 {
+		return nil
+	}
+	receipt := models.AnilistNotificationReceipt{NotificationID: id}
+	return db.gormdb.Where("notification_id = ?", id).FirstOrCreate(&receipt).Error
+}
+
 // MarkNotificationRead marks a single notification as read.
 func (db *Database) MarkNotificationRead(id uint) error {
 	return db.gormdb.Model(&models.Notification{}).Where("id = ?", id).Update("is_read", true).Error

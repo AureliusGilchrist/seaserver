@@ -1144,13 +1144,20 @@ type StudioFavorite struct {
 // Notification stores a notification per profile (stored in per-profile DB).
 type Notification struct {
 	BaseModel
-	Type     string `gorm:"column:type" json:"type"` // new_episode, sequel_announced, related_airing, character_birthday, achievement_unlocked, manga_chapter
-	Title    string `gorm:"column:title" json:"title"`
-	Body     string `gorm:"column:body" json:"body"`
-	ImageURL string `gorm:"column:image_url" json:"imageUrl"`
-	MediaID  int    `gorm:"column:media_id" json:"mediaId"` // 0 if not media-related
-	IsRead   bool   `gorm:"column:is_read;default:false" json:"isRead"`
-	Metadata string `gorm:"column:metadata;type:text" json:"metadata"` // JSON string for extra data
+	Type                  string `gorm:"column:type" json:"type"` // new_episode, related_anime_addition, related_manga_addition, related_airing, etc.
+	Title                 string `gorm:"column:title" json:"title"`
+	Body                  string `gorm:"column:body" json:"body"`
+	ImageURL              string `gorm:"column:image_url" json:"imageUrl"`
+	MediaID               int    `gorm:"column:media_id" json:"mediaId"` // 0 if not media-related
+	AnilistNotificationID int    `gorm:"column:anilist_notification_id;index" json:"-"`
+	IsRead                bool   `gorm:"column:is_read;default:false" json:"isRead"`
+	Metadata              string `gorm:"column:metadata;type:text" json:"metadata"` // JSON string for extra data
+}
+
+// AnilistNotificationReceipt keeps imported notification IDs after a user deletes a notification.
+type AnilistNotificationReceipt struct {
+	BaseModel
+	NotificationID int `gorm:"column:notification_id;uniqueIndex" json:"-"`
 }
 
 // Achievement stores per-profile achievement progress and unlock state (stored in per-profile DB).

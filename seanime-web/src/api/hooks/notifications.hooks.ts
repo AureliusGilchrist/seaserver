@@ -7,6 +7,17 @@ import { WSEvents } from "@/lib/server/ws-events"
 import { useQueryClient } from "@tanstack/react-query"
 import { useAtomValue } from "jotai"
 import { useMutation } from "@tanstack/react-query"
+import { useCallback } from "react"
+
+export type NotificationCreatedEvent = {
+    id: number
+    createdAt: string
+    type: string
+    title: string
+    body: string
+    imageUrl: string
+    mediaId: number
+}
 
 export function useGetNotifications(page: number, limit: number = 20, enabled?: boolean) {
     return useServerQuery<NotificationsResponse>({
@@ -95,14 +106,16 @@ export function useDeleteNotification() {
  * Hook to listen for new notification WS events and invalidate queries.
  * Should be placed in a component that's always mounted (e.g., sidebar).
  */
-export function useNotificationWSListener() {
+export function useNotificationWSListener(onNotificationCreated?: (notification: NotificationCreatedEvent) => void) {
     const qc = useQueryClient()
+    const handleNotification = useCallback((notification: NotificationCreatedEvent) => {
+        qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATION.GetNotifications.key] })
+        qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATION.GetUnreadNotificationCount.key] })
+        onNotificationCreated?.(notification)
+    }, [qc, onNotificationCreated])
 
     useWebsocketMessageListener({
         type: WSEvents.NOTIFICATION_CREATED,
-        onMessage: () => {
-            qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATION.GetNotifications.key] })
-            qc.invalidateQueries({ queryKey: [API_ENDPOINTS.NOTIFICATION.GetUnreadNotificationCount.key] })
-        },
+        onMessage: handleNotification,
     })
 }
