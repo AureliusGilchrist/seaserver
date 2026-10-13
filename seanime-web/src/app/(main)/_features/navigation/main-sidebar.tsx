@@ -1049,7 +1049,7 @@ function SidebarSubMenu({ items, collapsed }: { items: SidebarSubMenuItem[], col
             className={cn(
                 "flex flex-col gap-2",
                 "border border-[rgba(255,255,255,0.06)] rounded-2xl p-3",
-                "bg-[rgba(255,255,255,0.02)] backdrop-blur-lg",
+                "bg-[rgba(255,255,255,0.02)]",
                 collapsed && "items-center"
             )}
         >
