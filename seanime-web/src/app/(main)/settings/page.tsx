@@ -195,7 +195,7 @@ export default function Page() {
                             <div className="flex flex-col gap-4 md:flex-row justify-between items-center">
 
                             </div>
-                            <div className="overflow-x-none overflow-y-hidden rounded-[--radius-md] space-y-1 lg:space-y-3 flex justify-center flex-wrap lg:block">
+                            <div className="overflow-x-hidden overflow-y-auto rounded-[--radius-md] space-y-1 lg:max-h-[70vh] lg:space-y-3 flex justify-center flex-wrap lg:block">
 
                                 <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
                                     <div className="space-y-2 p-4 w-full">
@@ -214,6 +214,11 @@ export default function Page() {
                                              <span className="font-medium">- Denshi</span>}</p> */}
                                         </div>
                                     </div>
+                                </Card>
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
+                                    <TabsTrigger value="updates" className="group">
+                                        <LuRefreshCw className="mr-3 text-xl text-[--brand]" /> Updates
+                                    </TabsTrigger>
                                 </Card>
                                 <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
                                     <TabsTrigger
@@ -332,10 +337,6 @@ export default function Page() {
                                         value="services"
                                         className="group"
                                     ><HiOutlineServerStack className="text-xl mr-3 transition-transform duration-200" /> Services</TabsTrigger>
-                                    <TabsTrigger
-                                        value="updates"
-                                        className="group"
-                                    ><LuRefreshCw className="text-xl mr-3 transition-transform duration-200" /> Updates</TabsTrigger>
                                 </Card>
                             </div>
                         </SettingsNavCard>
