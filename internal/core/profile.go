@@ -123,11 +123,8 @@ type ProfileManager struct {
 	// JWT signing key for profile sessions
 	jwtSecret []byte
 
-	// sessionEpoch identifies this run of the server. It is generated in memory at startup and
-	// never written anywhere, which is the entire mechanism: when the process ends — cleanly, by
-	// crash, by the machine going down — the epoch goes with it, and every session token issued
-	// under it stops being accepted. There is nothing to clean up on the way out, which is what
-	// makes it work for the shutdowns nobody gets to handle.
+	// sessionEpoch identifies this run of the server. A valid token from an earlier epoch is
+	// accepted for renewal, so a process restart does not sign out active clients.
 	sessionEpoch string
 }
 
@@ -202,8 +199,8 @@ func newSessionEpoch() (string, error) {
 	return hex.EncodeToString(raw), nil
 }
 
-// GetSessionEpoch returns the identifier for this run of the server. Sessions are only accepted
-// while it matches the one they were issued under.
+// GetSessionEpoch returns the identifier for this run of the server. Sessions from earlier runs
+// are accepted by the middleware for renewal under this epoch.
 func (pm *ProfileManager) GetSessionEpoch() string {
 	return pm.sessionEpoch
 }

@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	_ "time/tzdata"
 
 	"seanime/internal/events"
 	"seanime/internal/util"
@@ -46,12 +47,11 @@ import (
 //     the current version is still serving; the only moment that matters is the swap, which is the
 //     last thing that happens.
 //
-// Checked every fifteen minutes, starting fifteen minutes after the server comes up — a deployment
-// is usually synced before it is started, so the first check would only be asking a question
-// somebody just answered. SEANIME_AUTO_UPDATE=0 turns it off.
+// Checked once a day at 2:00 a.m. in the Pacific time zone, so the process replacement does not
+// interrupt normal use. SEANIME_AUTO_UPDATE=0 turns it off.
 
 const (
-	gitUpdateInterval = 15 * time.Minute
+	gitUpdateTimeZone = "America/Los_Angeles"
 	// The remote the updater is allowed to name. This is a fork; upstream is never read.
 	gitUpdateRemote = "origin"
 	// How long the "restarting" message is given to reach the client before the process is
@@ -100,10 +100,17 @@ func StartGitAutoUpdate(logger *zerolog.Logger, wsEventManager *events.WSEventMa
 		return
 	}
 
-	logger.Info().Str("dir", repoDir).Dur("interval", gitUpdateInterval).
-		Msg("selfupdate: Watching the fork's repository for new commits")
+	location, err := time.LoadLocation(gitUpdateTimeZone)
+	if err != nil {
+		logger.Error().Err(err).Str("timezone", gitUpdateTimeZone).
+			Msg("selfupdate: Could not load the scheduled update time zone; auto-update is off")
+		return
+	}
 
-	go u.loop()
+	logger.Info().Str("dir", repoDir).Str("schedule", "02:00 "+gitUpdateTimeZone).
+		Msg("selfupdate: Scheduled daily check for updates from the fork")
+
+	go u.loop(location)
 }
 
 // announceCompletedUpdate runs at start-up. When the notice the previous process wrote just before
@@ -144,14 +151,17 @@ func gitRepoDir() (string, bool) {
 	return wd, true
 }
 
-func (u *GitAutoUpdater) loop() {
+func (u *GitAutoUpdater) loop(location *time.Location) {
 	defer util.HandlePanicInModuleThen("updater/gitAutoUpdate/loop", func() {})
 
-	ticker := time.NewTicker(gitUpdateInterval)
-	defer ticker.Stop()
+	for {
+		nextCheck := nextGitAutoUpdateTime(time.Now(), location)
+		timer := time.NewTimer(time.Until(nextCheck))
+		<-timer.C
 
-	for range ticker.C {
 		if u.updating.Load() {
+			u.logger.Info().Msg("selfupdate: Skipping scheduled check because an update is already running")
+			continue
 		}
 		if behind, err := u.checkForUpdate(); err != nil {
 			u.logger.Warn().Err(err).Msg("selfupdate: Could not check for an update")
@@ -159,6 +169,24 @@ func (u *GitAutoUpdater) loop() {
 			u.update()
 		}
 	}
+}
+
+func nextGitAutoUpdateTime(now time.Time, location *time.Location) time.Time {
+	localNow := now.In(location)
+	year, month, day := localNow.Date()
+	next := time.Date(year, month, day, 2, 0, 0, 0, location)
+	if next.Hour() != 2 {
+		next = time.Date(year, month, day, 3, 0, 0, 0, location)
+	}
+	if !next.After(localNow) {
+		nextDay := localNow.AddDate(0, 0, 1)
+		year, month, day = nextDay.Date()
+		next = time.Date(year, month, day, 2, 0, 0, 0, location)
+		if next.Hour() != 2 {
+			next = time.Date(year, month, day, 3, 0, 0, 0, location)
+		}
+	}
+	return next
 }
 
 // checkForUpdate fetches the fork's repository — origin, and only origin — and reports whether the
