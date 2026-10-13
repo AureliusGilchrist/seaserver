@@ -659,20 +659,6 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
      * and libass scans the entire event list on every rendered frame — so a session grew
      * slower the longer it ran and the more events it had seen.
      */
-    // Any explicit track selection (including toggling subtitles off and on) revives a dead renderer.
-    private async _ensureRendererAlive() {
-        const renderer = this.libassRenderer
-        if (!renderer || this.recoveringRenderer) return
-        if (await this._isRendererHealthy(renderer) || this.isDestroyed) return
-        this.recoveringRenderer = true
-        try {
-            await this._rebuildRenderer()
-        }
-        finally {
-            this.recoveringRenderer = false
-        }
-    }
-
     private async _freeLibassTrack() {
         if (!this.libassRenderer) return
         await Promise.race([
@@ -685,8 +671,6 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         subtitleLog.info("Track selection requested", trackNumber)
         if (this.isDestroyed) return
         await this._init()
-        if (this.isDestroyed) return
-        await this._ensureRendererAlive()
         if (this.isDestroyed) return
 
         this.shouldTranslate = this.translationTargetLang
