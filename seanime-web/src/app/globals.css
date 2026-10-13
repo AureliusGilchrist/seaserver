@@ -369,8 +369,8 @@ h6 {
     border-radius: 14px;
 }
 
-/* Card style presets (Card Style customization) */
-html[data-sea-card-style]:not([data-sea-card-style=""]) .UI-Card__root {
+/* Card style presets (Card Style customization). Preserve explicit per-component blur utilities. */
+html[data-sea-card-style]:not([data-sea-card-style=""]) .UI-Card__root:not([class*="backdrop-blur"]) {
     background: var(--sea-card-bg);
     border-color: var(--sea-card-border);
     box-shadow: var(--sea-card-shadow, none);
