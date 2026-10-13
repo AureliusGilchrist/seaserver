@@ -1,18 +1,13 @@
 import { OverwriteChange, OverwritePreview, useCheckBackendUpdate, useOverwriteAnilist, useOverwriteAnilistPreview, useUpdateBackend } from "@/api/hooks/update-notice.hooks"
-import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { useCheckForUpdates, useGetLatestUpdate } from "@/api/hooks/releases.hooks"
-import { electronUpdateModalOpenAtom } from "@/app/(main)/_electron/electron-update-modal"
 import { Modal } from "@/components/ui/modal"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
-import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { WSEvents } from "@/lib/server/ws-events"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { websocketConnectedAtom } from "@/app/websocket-provider"
-import { useAtom, useAtomValue, useSetAtom } from "jotai"
+import { useAtom, useAtomValue } from "jotai"
 import { atomWithStorage } from "jotai/utils"
-import { useQueryClient } from "@tanstack/react-query"
 import React from "react"
 import { toast } from "sonner"
 
@@ -162,81 +157,9 @@ function AnilistOverwriteCard() {
 export function UpdateSettings() {
     return (
         <div className="space-y-4">
-            <DesktopAppUpdateCard />
             <AnilistOverwriteCard />
             {!!window.electron?.liveUpdate && <ElectronUpdates />}
         </div>
-    )
-}
-
-function DesktopAppUpdateCard() {
-    const serverStatus = useServerStatus()
-    const updateChecksEnabled = !!serverStatus && !serverStatus.settings?.library?.disableUpdateCheck
-    const { data: updateData } = useGetLatestUpdate(false)
-    const { mutateAsync: checkForUpdates } = useCheckForUpdates()
-    const queryClient = useQueryClient()
-    const setUpdateModalOpen = useSetAtom(electronUpdateModalOpenAtom)
-    const [isChecking, setIsChecking] = React.useState(false)
-
-    async function check() {
-        setIsChecking(true)
-        try {
-            const result = await checkForUpdates(undefined)
-            if (!result) throw new Error("The update check returned no status")
-            queryClient.setQueryData([API_ENDPOINTS.RELEASES.GetLatestUpdate.key], result)
-            if (!window.electron) throw new Error("The Denshi updater is not available in this window")
-            await window.electron.checkForUpdates()
-
-            if (result.release) {
-                setUpdateModalOpen(true)
-            } else {
-                toast.success("Denshi desktop app is up to date")
-            }
-        }
-        catch (error) {
-            const message = error instanceof Error ? error.message : String(error)
-            toast.error(`Denshi desktop update check failed: ${message}`)
-        }
-        finally {
-            setIsChecking(false)
-        }
-    }
-
-    const release = updateData?.release
-    const notice = release
-        ? `Denshi desktop app update available: ${release.version}.`
-        : updateData
-            ? "Denshi desktop app is up to date."
-            : !updateChecksEnabled
-                ? "Automatic update checks are disabled. Use the button below to check manually."
-                : "Check for updates to see whether the Denshi desktop app needs updating."
-
-    return (
-        <SettingsCard title="Denshi desktop app">
-            <Alert
-                intent={release ? "warning" : updateData ? "success" : "info"}
-                title={release ? "Desktop app update available" : "Desktop app update status"}
-                description={notice}
-            />
-            <p className="text-sm text-[--muted]">
-                This updates the Denshi desktop application. Backend and live frontend updates are separate and are listed below.
-            </p>
-            <div className="flex flex-wrap gap-2">
-                {release && (
-                    <Button intent="primary" onClick={() => setUpdateModalOpen(true)}>
-                        Review &amp; install {release.version}
-                    </Button>
-                )}
-                <Button
-                    intent="gray-outline"
-                    loading={isChecking}
-                    disabled={isChecking}
-                    onClick={check}
-                >
-                    Check for desktop app updates
-                </Button>
-            </div>
-        </SettingsCard>
     )
 }
 

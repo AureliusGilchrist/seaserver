@@ -5,7 +5,6 @@ import { useGetExtensionUpdateData as useGetExtensionUpdateData, usePluginWithIs
 import { useProfileLogin, useProfileLogout, useRevalidateSession } from "@/api/hooks/profiles.hooks"
 import { isLoginModalOpenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useSyncIsActive } from "@/app/(main)/_atoms/sync.atoms"
-import { ElectronUpdateModal } from "@/app/(main)/_electron/electron-update-modal"
 import { SidebarNavbar } from "@/app/(main)/_features/layout/top-navbar"
 import { usePluginSidebarItems } from "@/app/(main)/_features/plugin/webview/plugin-sidebar"
 import { useSeaCommand } from "@/app/(main)/_features/sea-command/sea-command"
@@ -42,7 +41,7 @@ import { WSEvents } from "@/lib/server/ws-events"
 import { useThemeSettings } from "@/lib/theme/hooks"
 import { useAnimeThemeOrNull, useThemeMilestoneName } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ANIME_THEMES } from "@/lib/theme/anime-themes"
-import { __isDesktop__, __isElectronDesktop__, __isTauriDesktop__ } from "@/types/constants"
+import { __isDesktop__, __isTauriDesktop__ } from "@/types/constants"
 import { useAtom, useSetAtom } from "jotai"
 import { SeaLink as Link } from "@/components/shared/sea-link"
 import { usePathname, useRouter, useSearchParams } from "@/lib/navigation"
@@ -570,8 +569,7 @@ function SidebarUpdates({ isCollapsed }: { isCollapsed: boolean }) {
     return (
         !__isDesktop__ ? <UpdateModal collapsed={isCollapsed} /> :
             __isTauriDesktop__ ? <TauriUpdateModal collapsed={isCollapsed} /> :
-                __isElectronDesktop__ ? <ElectronUpdateModal collapsed={isCollapsed} /> :
-                    null
+                null
     )
 }
 

@@ -83,10 +83,6 @@ contextBridge.exposeInMainWorld(
                 "window:hidden",
                 "window:maximized",
                 "window:unmaximized",
-                "update-downloaded",
-                "update-error",
-                "update-available",
-                "download-progress",
                 "window:currentWindow",
                 "window:isMainWindow",
                 "cast:deviceFound",
@@ -120,7 +116,6 @@ contextBridge.exposeInMainWorld(
             // Whitelist channels
             const validChannels = [
                 "restart-server",
-                "kill-server",
                 "macos-activation-policy-accessory",
                 "macos-activation-policy-regular"
             ]
@@ -148,12 +143,6 @@ contextBridge.exposeInMainWorld(
         clipboard: {
             writeText: (text) => ipcRenderer.invoke("clipboard:writeText", text)
         },
-
-        // Update functions
-        checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
-        downloadUpdate: () => ipcRenderer.invoke("download-update"),
-        installUpdate: () => ipcRenderer.invoke("install-update"),
-        killServer: () => ipcRenderer.invoke("kill-server"),
 
         // Denshi Settings
         denshiSettings: {

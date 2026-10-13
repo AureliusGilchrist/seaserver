@@ -1081,11 +1081,6 @@ export const API_ENDPOINTS = {
             methods: ["POST"],
             endpoint: "/api/v1/download-release",
         },
-        DownloadMacDenshiUpdate: {
-            key: "DOWNLOAD-download-mac-denshi-update",
-            methods: ["POST"],
-            endpoint: "/api/v1/download-mac-denshi-update",
-        },
     },
     EASTER_EGG: {
         /**
@@ -3987,4 +3982,3 @@ export const API_ENDPOINTS = {
         },
     },
 } satisfies ApiEndpoints
-

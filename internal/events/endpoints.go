@@ -76,7 +76,6 @@ const (
 	DismissAdminAnnouncementEndpoint                   = "ADMIN-ANNOUNCEMENTS-dismiss-admin-announcement"
 	DismissUnmatchedMatchRecordEndpoint                = "UNMATCHED-HISTORY-dismiss-unmatched-match-record"
 	DownloadIssueReportEndpoint                        = "REPORT-download-issue-report"
-	DownloadMacDenshiUpdateEndpoint                    = "DOWNLOAD-download-mac-denshi-update"
 	DownloadMangaChaptersEndpoint                      = "MANGA-DOWNLOAD-download-manga-chapters"
 	DownloadReleaseEndpoint                            = "DOWNLOAD-download-release"
 	DownloadThemeMusicEndpoint                         = "THEME-MUSIC-download-theme-music"

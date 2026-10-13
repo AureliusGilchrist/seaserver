@@ -7,7 +7,6 @@ let stripAnsi
 import("strip-ansi").then(module => {
     stripAnsi = module.default
 })
-const { autoUpdater } = require("electron-updater")
 const log = require("electron-log/main")
 const { createLiveUpdater, getLiveWebDir, getLiveBinaryPath } = require("./live-update")
 log.initialize()
@@ -20,7 +19,6 @@ const DENSHI_SETTINGS_DEFAULTS = {
     minimizeToTray: true,
     openInBackground: false,
     openAtLaunch: false,
-    updateChannel: "github",
     windowBounds: null,
     windowMaximized: true,
     sourceRepoPath: "",
@@ -364,12 +362,6 @@ function setupChromiumFlags() {
     }
 }
 
-// Setup update events for logging
-autoUpdater.logger = log
-// Don't auto-install / run the downloaded installer when the user quits the
-// app. Updates can still be installed manually via the in-app Install Update
-// flow (which calls autoUpdater.quitAndInstall explicitly).
-autoUpdater.autoInstallOnAppQuit = false
 log.transports.file.level = "debug"
 
 // Redirect console logging to electron-log
@@ -382,7 +374,6 @@ const LOCAL_EMBED_HOST = "127.0.0.1"
 const DESKTOP_SERVER_HOST = "127.0.0.1"
 const DESKTOP_SERVER_DEFAULT_PORT = 43211
 const DESKTOP_SERVER_DEV_PORT = 43000
-const DEFAULT_UPDATE_FEED_URL = "https://github.com/AureliusGilchrist/seaserver/releases/latest/download"
 
 function isAllowedLocalEmbedURL(rawURL) {
     if (!localServerPort) {
@@ -397,20 +388,6 @@ function isAllowedLocalEmbedURL(rawURL) {
             && parsed.pathname.startsWith("/player/")
     } catch {
         return false
-    }
-}
-
-function normalizeUpdateFeedURL(candidate, fallbackURL) {
-    try {
-        const parsed = new URL(candidate)
-        if (parsed.protocol !== "https:" || !parsed.host) {
-            throw new Error("update feeds must use https")
-        }
-
-        return parsed.toString()
-    } catch (error) {
-        log.warn(`[Denshi] Ignoring update feed URL ${candidate}: ${error.message}`)
-        return fallbackURL
     }
 }
 
@@ -717,64 +694,7 @@ let serverProcess = null
 let isShutdown = false
 let serverStarted = false
 let mainWindowStartupReady = false
-let updateDownloaded = false
 let serverRestartPromise = null
-
-// Setup autoUpdater events with improved error handling
-autoUpdater.on("checking-for-update", () => {
-    autoUpdater.logger.info("Checking for update...")
-})
-
-autoUpdater.on("update-available", (info) => {
-    autoUpdater.logger.info("Update available:", info)
-    if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("update-available", {
-            version: info.version, releaseDate: info.releaseDate, files: info.files
-        })
-    }
-})
-
-autoUpdater.on("update-not-available", (info) => {
-    autoUpdater.logger.info("Update not available:", info)
-})
-
-autoUpdater.on("download-progress", (progressObj) => {
-    autoUpdater.logger.info(`Download progress: ${progressObj.percent}%`)
-    if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("download-progress", {
-            percent: progressObj.percent, bytesPerSecond: progressObj.bytesPerSecond, transferred: progressObj.transferred, total: progressObj.total
-        })
-    }
-})
-
-autoUpdater.on("update-downloaded", (info) => {
-    autoUpdater.logger.info("Update downloaded:", info)
-    updateDownloaded = true
-    if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("update-downloaded", {
-            version: info.version, releaseDate: info.releaseDate, files: info.files
-        })
-    }
-})
-
-autoUpdater.on("error", (err) => {
-    autoUpdater.logger.error("Error in auto-updater:", err)
-
-    // A feed with no electron-updater metadata (404 on latest.yml) is "nothing to check" for this
-    // fork — the server updates itself from its own checkout, and the releases carry none. It is
-    // not announced to the client: a wall about a release that does not exist is worse than
-    // silence, and the check handler above answers "no update" for it already.
-    const message = String(err?.message || "")
-    if (message.includes("latest.yml") || message.includes("404")) {
-        return
-    }
-
-    if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("update-error", {
-            code: err.code || "unknown", message: err.message, stack: err.stack
-        })
-    }
-})
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Single instance
@@ -1507,36 +1427,6 @@ function cleanupAndExit() {
 // Initialization
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// returns true if github is ok OR url is unreachable
-// returns false if github is down and fallback should be used
-async function fetchGithubStatus() {
-    try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-        const response = await net.fetch("https://seanime.app/api/github-status", {
-            signal: controller.signal
-        })
-        clearTimeout(timeoutId)
-
-        if (!response.ok) {
-            return { ok: true, fallback: "" }
-        }
-
-        const data = await response.json()
-
-        // url is reachable, status is "down"
-        if (data.status === "down") {
-            log.warn(`[Denshi] App: Changing update channel to ${data.fallback}, reason: ${data.description}`)
-            return { ok: false, fallback: data.fallback || "seanime" }
-        }
-
-        return { ok: true, fallback: "" }
-    } catch (err) {
-        return { ok: true, fallback: "" }
-    }
-}
-
 // Initialize the app
 app.whenReady().then(async () => {
     logStartupEvent("App ready")
@@ -1551,39 +1441,6 @@ app.whenReady().then(async () => {
         denshiSettings.openInBackground = false
     }
     log.info("[Denshi] Loaded settings:", JSON.stringify(denshiSettings))
-
-    let currentUpdateChannel = denshiSettings.updateChannel
-    const { ok, fallback } = await fetchGithubStatus()
-    // if github is down, use fallback channel
-    if (!ok) {
-        currentUpdateChannel = fallback
-    }
-
-    const updateConfig = {
-        provider: "generic",
-        url: DEFAULT_UPDATE_FEED_URL,
-        channel: "latest",
-        allowPrerelease: false,
-        verifyUpdateCodeSignature: false,
-    }
-
-    if (currentUpdateChannel === "seanime_nightly") {
-        updateConfig.url = "https://seanime.app/api/updates/nightly/"
-        updateConfig.allowPrerelease = true
-    } else if (currentUpdateChannel === "seanime") {
-        updateConfig.url = "https://seanime.app/api/updates/stable/"
-        updateConfig.allowPrerelease = false
-    }
-
-    updateConfig.url = normalizeUpdateFeedURL(updateConfig.url, DEFAULT_UPDATE_FEED_URL)
-
-    if (process.env.UPDATES_URL) {
-        updateConfig.url = normalizeUpdateFeedURL(process.env.UPDATES_URL, updateConfig.url)
-    }
-
-    autoUpdater.setFeedURL(updateConfig)
-    autoUpdater.autoDownload = false
-    autoUpdater.autoInstallOnAppQuit = false
 
     if (!_development && (process.platform === "darwin" || process.platform === "win32")) {
         app.setLoginItemSettings({
@@ -1604,65 +1461,6 @@ app.whenReady().then(async () => {
 
         mainWindowStartupReady = true
         logStartupEvent("RENDERER READY", "main window committed first frame")
-    })
-
-    // Setup IPC handlers for update functions
-    ipcMain.handle("check-for-updates", async () => {
-        try {
-            console.log("[Main] Checking for updates...")
-            const result = await autoUpdater.checkForUpdates()
-            return {
-                updateAvailable: result?.isUpdateAvailable === true,
-                updateInfo: result?.updateInfo,
-                updateDownloaded: updateDownloaded
-            }
-        } catch (error) {
-            // A feed with no electron-updater metadata — this fork's releases carry none, the
-            // server updates itself from its checkout — answers the check with a 404 on latest.yml.
-            // That is "there is nothing to check", not an error: it is reported as no update rather
-            // than thrown, so the client is not handed a wall about a release that does not exist.
-            const message = String(error?.message || error || "")
-            if (message.includes("latest.yml") || message.includes("404")) {
-                console.log("[Main] No updater metadata in the releases, treating as no update")
-                return { updateAvailable: false, updateInfo: null, updateDownloaded: updateDownloaded }
-            }
-            console.error("[Main] Error checking for updates:", error)
-            throw error
-        }
-    })
-
-    ipcMain.handle("download-update", async () => {
-        try {
-            if (updateDownloaded) return true
-            await autoUpdater.downloadUpdate()
-            return true
-        } catch (error) {
-            console.error("[Main] Error downloading update:", error)
-            throw error
-        }
-    })
-
-    ipcMain.handle("install-update", async () => {
-        try {
-            if (!updateDownloaded) {
-                throw new Error("Update has not finished downloading.")
-            }
-            console.log("[Main] Installing update...")
-            autoUpdater.quitAndInstall(false, true)
-            return true
-        } catch (error) {
-            console.error("[Main] Error installing update:", error)
-            throw error
-        }
-    })
-
-    ipcMain.handle("kill-server", async () => {
-        if (serverProcess) {
-            console.log("[Main] Killing server before update...")
-            serverProcess.kill()
-            return true
-        }
-        return false
     })
 
     setupAppProtocol()
@@ -2070,14 +1868,6 @@ app.whenReady().then(async () => {
         }
 
         restartSeanimeServer().catch(console.error)
-    })
-
-    ipcMain.on("kill-server", () => {
-        console.log("EVENT kill-server")
-        if (serverProcess) {
-            console.log("Killing server process")
-            serverProcess.kill()
-        }
     })
 
     // Watch for window events to notify renderer

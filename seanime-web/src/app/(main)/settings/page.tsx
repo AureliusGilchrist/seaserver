@@ -5,7 +5,6 @@ import { useAnimeListTorrentProviderExtensions } from "@/api/hooks/extensions.ho
 import { useCheckForUpdates } from "@/api/hooks/releases.hooks"
 import { useSaveSettings } from "@/api/hooks/settings.hooks"
 import { useGetTorrentstreamSettings } from "@/api/hooks/torrentstream.hooks"
-import { electronUpdateModalOpenAtom } from "@/app/(main)/_electron/electron-update-modal"
 import { CustomLibraryBanner } from "@/app/(main)/_features/anime-library/_containers/custom-library-banner"
 import { __issueReport_overlayOpenAtom } from "@/app/(main)/_features/issue-report/issue-report"
 import { updateModalOpenAtom as webUpdateModalOpenAtom } from "@/app/(main)/_features/update/update-modal"
@@ -103,7 +102,6 @@ export default function Page() {
 
     const { mutate: checkForUpdates, isPending: isCheckingForUpdates } = useCheckForUpdates()
     const setWebUpdateModalOpen = useSetAtom(webUpdateModalOpenAtom)
-    const setElectronUpdateModalOpen = useSetAtom(electronUpdateModalOpenAtom)
 
     React.useEffect(() => {
         if (!isPending && !!data?.settings) {
@@ -450,16 +448,6 @@ export default function Page() {
                                 }, {
                                     onSuccess: () => {
                                         formRef.current?.reset(formRef.current.getValues())
-
-                                        // Sync updateChannel to Denshi
-                                        if (__isElectronDesktop__ && window.electron?.denshiSettings) {
-                                            window.electron.denshiSettings.get().then((denshiSettings) => {
-                                                window.electron!.denshiSettings.set({
-                                                    ...denshiSettings,
-                                                    updateChannel: data.updateChannel || "github",
-                                                })
-                                            })
-                                        }
                                     },
                                 })
                             }}
@@ -596,20 +584,15 @@ export default function Page() {
                                                 size="sm"
                                                 intent="gray-outline"
                                                 onClick={() => {
+                                                    if (__isElectronDesktop__) {
+                                                        setTab("updates")
+                                                        return
+                                                    }
                                                     checkForUpdates(undefined, {
                                                         onSuccess: (data) => {
                                                             if (data?.release) {
                                                                 queryClient.setQueryData([API_ENDPOINTS.RELEASES.GetLatestUpdate.key], data)
-
-                                                                if (__isElectronDesktop__) {
-                                                                    // Also trigger Electron update
-                                                                    if (window.electron) {
-                                                                        window.electron.checkForUpdates().catch(() => { })
-                                                                    }
-                                                                    setElectronUpdateModalOpen(true)
-                                                                } else {
-                                                                    setWebUpdateModalOpen(true)
-                                                                }
+                                                                setWebUpdateModalOpen(true)
                                                             } else {
                                                                 toast.success("You are running the latest version")
                                                             }
@@ -617,12 +600,13 @@ export default function Page() {
                                                         },
                                                     })
                                                 }}
-                                                loading={isCheckingForUpdates}
+                                                loading={!__isElectronDesktop__ && isCheckingForUpdates}
+                                                disabled={!__isElectronDesktop__ && isCheckingForUpdates}
                                                 leftIcon={<LuRefreshCw className="transition-transform duration-200 group-hover:rotate-180" />}
                                                 className="transition-all duration-200 hover:scale-105 hover:shadow-md group"
                                                 data-check-for-updates-button
                                             >
-                                                Check for updates
+                                                {__isElectronDesktop__ ? "Manage updates" : "Check for updates"}
                                             </Button>
                                         </div>
 
@@ -1009,7 +993,7 @@ export default function Page() {
 
                             <SettingsPageHeader
                                 title="Updates"
-                                description="Manage the Denshi desktop app, backend, and live frontend updates"
+                                description="Manage backend and live frontend updates"
                                 icon={LuRefreshCw}
                             />
 

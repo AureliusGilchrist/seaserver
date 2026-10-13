@@ -1,6 +1,5 @@
 import { getServerBaseUrl } from "@/api/client/server-url"
 import { serverAuthTokenAtom, serverConnectionModeAtom } from "@/app/(main)/_atoms/server-status.atoms"
-import { isUpdateInstalledAtom, isUpdatingAtom } from "@/app/(main)/_electron/electron-update-modal"
 import { websocketConnectedAtom, websocketConnectionErrorCountAtom } from "@/app/websocket-provider"
 import { LuffyError } from "@/components/shared/luffy-error"
 import { Button } from "@/components/ui/button"
@@ -25,8 +24,6 @@ export function ElectronRestartServerPrompt() {
     const [isConnected, setIsConnected] = useAtom(websocketConnectedAtom)
     const connectionErrorCount = useAtomValue(websocketConnectionErrorCountAtom)
     const [hasClickedRestarted, setHasClickedRestarted] = React.useState(false)
-    const isUpdatedInstalled = useAtomValue(isUpdateInstalledAtom)
-    const isUpdating = useAtomValue(isUpdatingAtom)
     const connectionMode = useAtomValue(serverConnectionModeAtom)
 
     // Check if the server requires a password (no router dependency)
@@ -100,7 +97,7 @@ export function ElectronRestartServerPrompt() {
         // and reloading the whole app over a connection blip turns one hiccup into a loop of
         // full boots — the websocket already retries with backoff, so let it.
         if (connectionMode === "remote") return
-        if (!isConnected && connectionErrorCount >= threshold && tryAutoReconnectRef.current && !isUpdatedInstalled && !isUnauthenticated) {
+        if (!isConnected && connectionErrorCount >= threshold && tryAutoReconnectRef.current && !isUnauthenticated) {
             tryAutoReconnectRef.current = false
             console.log("Connection error count reached 10, restarting server automatically")
             handleRestart()
@@ -119,7 +116,7 @@ export function ElectronRestartServerPrompt() {
     // Not connected for 10 seconds
     return (
         <>
-            {(connectionMode !== "remote" && !isConnected && connectionErrorCount > 2 && connectionErrorCount < threshold && !isUpdating && !isUpdatedInstalled) && (
+            {(connectionMode !== "remote" && !isConnected && connectionErrorCount > 2 && connectionErrorCount < threshold) && (
                 <LoadingOverlay className="fixed left-0 top-0 z-[9999]">
                     <p>
                         The server connection has been lost. Please wait while we attempt to reconnect.
@@ -128,7 +125,7 @@ export function ElectronRestartServerPrompt() {
             )}
 
             <Modal
-                open={connectionMode !== "remote" && !isConnected && connectionErrorCount >= threshold && !isUpdatedInstalled}
+                open={connectionMode !== "remote" && !isConnected && connectionErrorCount >= threshold}
                 onOpenChange={() => {}}
                 hideCloseButton
                 contentClass="max-w-2xl"

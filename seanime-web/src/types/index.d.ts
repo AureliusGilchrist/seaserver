@@ -72,14 +72,6 @@ declare global {
             clipboard: {
                 writeText: (text: string) => Promise<void>;
             };
-            checkForUpdates: () => Promise<{
-                updateAvailable: boolean;
-                updateInfo: unknown;
-                updateDownloaded: boolean;
-            }>;
-            downloadUpdate: () => Promise<boolean>;
-            installUpdate: () => Promise<any>;
-            killServer: () => Promise<any>;
             denshiSettings: {
                 get: () => Promise<DenshiSettings>;
                 set: (settings: DenshiSettings) => Promise<DenshiSettings>;
@@ -195,7 +187,6 @@ declare global {
         minimizeToTray: boolean;
         openInBackground: boolean;
         openAtLaunch: boolean;
-        updateChannel?: string;
         sourceRepoPath?: string;
     }
 }

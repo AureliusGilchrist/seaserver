@@ -18,7 +18,6 @@
     "@xhayper/discord-rpc": "^1.3.0",
     "castv2": "^0.1.10",
     "electron-log": "^5.4.3",
-    "electron-updater": "^6.7.3",
     "mdns-js": "^1.0.3",
     "mime-types": "^2.1.35",
     "strip-ansi": "^7.1.0"
@@ -42,14 +41,6 @@
         "to": "binaries"
       }
     ],
-    "generateUpdatesFilesForAllChannels": true,
-    "publish": {
-      "provider": "generic",
-      "url": "https://github.com/AureliusGilchrist/seaserver/releases/latest/download",
-      "channel": "latest",
-      "publishAutoUpdate": true,
-      "useMultipleRangeRequest": false
-    },
     "mac": {
       "category": "public.app-category.entertainment",
       "target": [
