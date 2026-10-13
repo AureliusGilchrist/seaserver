@@ -1009,7 +1009,7 @@ export default function Page() {
 
                             <SettingsPageHeader
                                 title="Updates"
-                                description="Pull, build and swap the backend or frontend live"
+                                description="Manage the Denshi desktop app, backend, and live frontend updates"
                                 icon={LuRefreshCw}
                             />
 

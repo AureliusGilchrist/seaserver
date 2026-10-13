@@ -4,15 +4,17 @@ import { useGetLatestUpdate } from "@/api/hooks/releases.hooks"
 import { UpdateChangelogBody } from "@/app/(main)/_features/update/update-helper"
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
+import { __settings_tabAtom } from "@/app/(main)/settings/_components/settings-page.atoms"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/ui/modal"
 import { VerticalMenu } from "@/components/ui/vertical-menu"
 import { logger } from "@/lib/helpers/debug"
+import { useRouter } from "@/lib/navigation"
 import { WSEvents } from "@/lib/server/ws-events"
 import { atom } from "jotai"
-import { useAtom } from "jotai/react"
+import { useAtom, useSetAtom } from "jotai/react"
 import React from "react"
 import { AiFillExclamationCircle } from "react-icons/ai"
 import { BiLinkExternal } from "react-icons/bi"
@@ -32,6 +34,8 @@ export function ElectronUpdateModal(props: UpdateModalProps) {
     const serverStatus = useServerStatus()
     const [updateModalOpen, setUpdateModalOpen] = useAtom(electronUpdateModalOpenAtom)
     const [isUpdating, setIsUpdating] = useAtom(isUpdatingAtom)
+    const setSettingsTab = useSetAtom(__settings_tabAtom)
+    const router = useRouter()
 
     const { data: updateData, isLoading, refetch } = useGetLatestUpdate(!!serverStatus && !serverStatus?.settings?.library?.disableUpdateCheck)
 
@@ -243,6 +247,12 @@ export function ElectronUpdateModal(props: UpdateModalProps) {
         }
     }
 
+    function openUpdateSettings() {
+        setUpdateModalOpen(false)
+        setSettingsTab("updates")
+        router.push("/settings")
+    }
+
     if (!updateModalOpen && (serverStatus?.settings?.library?.disableUpdateCheck || isLoading || updateLoading || !updateData || !updateData.release)) return null
 
     if (isInstalled) return (
@@ -265,7 +275,7 @@ export function ElectronUpdateModal(props: UpdateModalProps) {
                 items={[
                     {
                         iconType: AiFillExclamationCircle,
-                        name: "Update available",
+                        name: "Denshi app update available",
                         onClick: () => setUpdateModalOpen(true),
                     },
                 ]}
@@ -277,10 +287,16 @@ export function ElectronUpdateModal(props: UpdateModalProps) {
                 contentClass="max-w-3xl"
             >
                 <div className="space-y-2">
-                    <h3 className="text-center">A new update is available!</h3>
+                    <h3 className="text-center">A Denshi desktop app update is available</h3>
                     <h4 className="font-bold flex gap-2 text-center items-center justify-center">
                         <span className="text-[--muted]">{updateData?.current_version}</span> <FiArrowRight />
                         <span className="text-indigo-200">{updateData?.release?.version}</span></h4>
+
+                    <Alert
+                        intent="info"
+                        title="Denshi desktop app update"
+                        description="This update is for the desktop app itself, not the backend. You can review it in Settings → Updates."
+                    />
 
                     {!electronUpdate && !isMacOS && (
                         <Alert intent="warning">
@@ -292,7 +308,14 @@ export function ElectronUpdateModal(props: UpdateModalProps) {
                     <UpdateChangelogBody updateData={updateData} />
 
                     <div className="flex gap-2 w-full !mt-4">
+                        <Button
+                            intent="primary"
+                            onClick={openUpdateSettings}
+                        >
+                            Open Settings → Updates
+                        </Button>
                         {electronUpdate && !isMacOS && <Button
+                            intent="gray-outline"
                             leftIcon={<GrInstall className="text-2xl" />}
                             onClick={handleInstallUpdate}
                             loading={isUpdating || isDownloading || isMacUpdatePending}
