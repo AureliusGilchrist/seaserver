@@ -245,7 +245,7 @@ function LogLine({ line, inFailure }: { line: string, inFailure: boolean }) {
             {time && <span className="shrink-0 text-gray-600 tabular-nums">{time}</span>}
             {isProgress ? (
                 <>
-                    <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold leading-none tabular-nums ${
+                    <span className={`inline-flex min-w-[3.5rem] shrink-0 justify-center rounded-md border px-2 py-1 text-sm font-bold leading-none tabular-nums tracking-tight ${
                         isFailed ? "border-red-500/30 bg-red-500/10 text-red-300"
                             : progressPercent === 100 ? "border-green-500/30 bg-green-500/10 text-green-300"
                                 : "border-brand-400/30 bg-brand-500/10 text-brand-200"
@@ -297,7 +297,11 @@ function StructuredLog({ lines, logRef }: { lines: string[], logRef: React.RefOb
                         <span className="truncate text-gray-300">
                             {progress.target === "backend" ? "Backend" : "Frontend"} · {progress.step}
                         </span>
-                        <span className={`shrink-0 font-mono font-bold tabular-nums ${failed ? "text-red-300" : progress.percent === 100 ? "text-green-300" : "text-brand-200"}`}>
+                        <span className={`inline-flex min-w-[4.25rem] shrink-0 justify-center rounded-lg border px-2.5 py-1 font-mono text-xl font-semibold leading-none tabular-nums tracking-tight ${
+                            failed ? "border-red-500/30 bg-red-500/10 text-red-300"
+                                : progress.percent === 100 ? "border-green-500/30 bg-green-500/10 text-green-300"
+                                    : "border-brand-400/20 bg-brand-500/[0.08] text-brand-100"
+                        }`}>
                             {String(progress.percent).padStart(2, "0")}%
                         </span>
                     </div>
