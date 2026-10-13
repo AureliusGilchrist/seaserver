@@ -68,8 +68,12 @@ export function ElectronUpdateModal(props: UpdateModalProps) {
                 // Check if the update is available
                 setUpdateLoading(true)
                 window.electron.checkForUpdates()
-                    .then((updateAvailable: boolean) => {
-                        setUpdate(updateAvailable)
+                    .then(result => {
+                        setUpdate(result.updateAvailable)
+                        if (result.updateDownloaded) {
+                            setIsDownloaded(true)
+                            setDownloadProgress(100)
+                        }
                         setUpdateLoading(false)
                     })
                     .catch((error: any) => {
@@ -120,12 +124,7 @@ export function ElectronUpdateModal(props: UpdateModalProps) {
             })
 
             const removeUpdateAvailable = window.electron.on("update-available", () => {
-                setIsDownloading(true)
-                setIsDownloaded(false)
-                setDownloadProgress(0)
-                if (!isMacOS) {
-                    toast.info("Update found, downloading...")
-                }
+                setUpdate(true)
             })
 
             return () => {
@@ -154,7 +153,7 @@ export function ElectronUpdateModal(props: UpdateModalProps) {
     }, [isDownloaded, isUpdating, isDownloading])
 
     async function handleInstallUpdate() {
-        if (!electronUpdate || isUpdating) return
+        if (!electronUpdate || (isUpdating && !isDownloaded)) return
 
         try {
             setIsUpdating(true)
@@ -213,8 +212,7 @@ export function ElectronUpdateModal(props: UpdateModalProps) {
                     toast.info("Downloading update...")
                     setIsDownloading(true)
 
-                    // Trigger update check which will start download
-                    await window.electron.checkForUpdates()
+                    await window.electron.downloadUpdate()
 
                     // Wait for download to complete
                     // The update-downloaded event will set isDownloaded to true

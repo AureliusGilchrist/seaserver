@@ -151,6 +151,7 @@ contextBridge.exposeInMainWorld(
 
         // Update functions
         checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+        downloadUpdate: () => ipcRenderer.invoke("download-update"),
         installUpdate: () => ipcRenderer.invoke("install-update"),
         killServer: () => ipcRenderer.invoke("kill-server"),
 

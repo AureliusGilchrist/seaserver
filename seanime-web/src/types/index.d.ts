@@ -72,7 +72,12 @@ declare global {
             clipboard: {
                 writeText: (text: string) => Promise<void>;
             };
-            checkForUpdates: () => Promise<any>;
+            checkForUpdates: () => Promise<{
+                updateAvailable: boolean;
+                updateInfo: unknown;
+                updateDownloaded: boolean;
+            }>;
+            downloadUpdate: () => Promise<boolean>;
             installUpdate: () => Promise<any>;
             killServer: () => Promise<any>;
             denshiSettings: {
