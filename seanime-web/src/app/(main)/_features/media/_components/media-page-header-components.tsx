@@ -141,14 +141,13 @@ export function MediaPageHeader(props: MediaPageHeaderProps) {
                         sizes="100vw"
                         className={cn(
                             "object-cover object-center scroll-locked-offset z-[1]",
+                            shouldBlurBanner && "blur",
                             // shouldDimBanner && "!opacity-30",
                         )}
                         initial={{ scale: 1.05, x: 0, y: -10, opacity: 0 }}
                         animate={{ scale: 1, x: 0, y: 1, opacity: shouldDimBanner ? 0.3 : 1 }}
                         transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
                     />}
-
-                    {/* Banner blur removed (Feature C). Previously rendered backdrop-blur-xl when shouldBlurBanner was true. */}
 
                     {/* Banner scanlines removed: scanlines (and the other anime-theme / effects-preset
                         decorations) belong to the TRUE background only. The page header is now layered

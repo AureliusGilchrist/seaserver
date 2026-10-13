@@ -58,4 +58,3 @@ export const HoverCard = React.forwardRef<HTMLDivElement, HoverCardProps>((props
 })
 
 HoverCard.displayName = "HoverCard"
-

@@ -29,8 +29,7 @@ const VaulOverlay = React.forwardRef<
     return (
         <VaulPrimitive.Overlay
             ref={ref}
-            className={cn("fixed inset-0 z-50 bg-black/80", className)}
-            // className={cn("fixed inset-0 z-50 bg-gray-950/70 backdrop-blur-sm", className)}
+            className={cn("fixed inset-0 z-50 bg-black/80 backdrop-blur-sm", className)}
             {...props}
         />
     )
@@ -47,7 +46,7 @@ const VaulContent = React.forwardRef<
             <VaulPrimitive.Content
                 ref={ref}
                 className={cn(
-                    "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-2xl border border-b-0 bg-[var(--background)]",
+                    "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-2xl border border-b-0 bg-[var(--background)] backdrop-blur",
                     "select-none focus:outline-none outline-none outline-0 focus:outline-0",
                     className,
                 )}

@@ -2219,11 +2219,3 @@ h1.sea-profile-name.sea-name-shine,
 [data-mako-mark] .mako-sparkle {
     animation: mako-sparkle-twinkle 2.5s ease-in-out infinite;
 }
-
-/* No blur anywhere in the anime details header/banner */
-[data-media-page-header],
-[data-media-page-header] * {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-}
-
