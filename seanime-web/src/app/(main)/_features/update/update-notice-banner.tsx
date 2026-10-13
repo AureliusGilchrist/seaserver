@@ -4,6 +4,7 @@ import { useDismissUpdateNotice, useGetUpdateNotice, UpdateNotice } from "@/api/
 import { useWebsocketMessageListener } from "@/app/(main)/_hooks/handle-websockets"
 import { IconButton } from "@/components/ui/button"
 import { WSEvents } from "@/lib/server/ws-events"
+import { __isDesktop__ } from "@/types/constants"
 import { useQueryClient } from "@tanstack/react-query"
 import React from "react"
 import { LuGithub, LuX } from "react-icons/lu"
@@ -40,7 +41,7 @@ export function UpdateNoticeBanner() {
 
 function UpdateNoticeBannerInner({ notice, onDismiss }: { notice: UpdateNotice, onDismiss: () => void }) {
     return (
-        <div className="border border-gray-800 rounded-xl bg-gray-900/70 px-4 py-3 flex items-start gap-3">
+        <div className={`relative z-[1000] ${__isDesktop__ ? "mt-10" : "mt-4"} border border-gray-800 rounded-xl bg-gray-900/70 px-4 py-3 flex items-start gap-3`}>
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-800/70 flex-shrink-0">
                 <LuGithub className="w-4 h-4 text-brand-300" />
             </div>
