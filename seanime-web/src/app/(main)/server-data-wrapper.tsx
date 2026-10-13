@@ -2,7 +2,7 @@ import { useGetStatus } from "@/api/hooks/status.hooks"
 import { useSavePlanningSlutToken } from "@/api/hooks/admin.hooks"
 import { useLogin } from "@/api/hooks/auth.hooks"
 import { useCreateProfile } from "@/api/hooks/profiles.hooks"
-import { profileSessionEndedAtom, profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
+import { currentProfileAtom, profileSessionEndedAtom, profileSessionTokenAtom, serverAuthTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { MigrationWizard } from "@/app/(main)/_features/profile/migration-wizard"
 import { UpdateNoticeBanner } from "@/app/(main)/_features/update/update-notice-banner"
 import { ProfileSelector } from "@/app/(main)/_features/profile/profile-selector"
@@ -24,6 +24,7 @@ import { SeaLink as Link } from "@/components/shared/sea-link"
 import { usePathname, useRouter } from "@/lib/navigation"
 import React from "react"
 import { useWebsocketMessageListener } from "./_hooks/handle-websockets"
+import { websocketConnectedAtom } from "@/app/websocket-provider"
 
 type ServerDataWrapperProps = {
     host: string
@@ -42,7 +43,9 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
     const router = useRouter()
     const serverStatus = useServerStatus()
     const setServerStatus = useSetServerStatus()
+    const setCurrentProfile = useSetAtom(currentProfileAtom)
     const password = useAtomValue(serverAuthTokenAtom)
+    const websocketConnected = useAtomValue(websocketConnectedAtom)
     const setProfileToken = useSetAtom(profileSessionTokenAtom)
     const [sessionEnded, setSessionEnded] = useAtom(profileSessionEndedAtom)
     const { data: _serverStatus, isLoading, refetch } = useGetStatus()
@@ -123,10 +126,21 @@ export function ServerDataWrapper(props: ServerDataWrapperProps) {
 
     React.useEffect(() => {
         if (_serverStatus) {
-            // logger("SERVER").info("Server status", _serverStatus)
             setServerStatus(_serverStatus)
+            setCurrentProfile(_serverStatus.currentProfile)
         }
-    }, [_serverStatus])
+    }, [_serverStatus, setCurrentProfile, setServerStatus])
+
+    // After a backend update the API can come back before the websocket reconnects. Refresh status
+    // on a connection edge so the current profile and profile-scoped UI state are restored from the
+    // new process instead of leaving the shell on defaults.
+    const wasWebsocketConnected = React.useRef(websocketConnected)
+    React.useEffect(() => {
+        if (websocketConnected && !wasWebsocketConnected.current) {
+            void refetch()
+        }
+        wasWebsocketConnected.current = websocketConnected
+    }, [websocketConnected, refetch])
 
     useWebsocketMessageListener({
         type: WSEvents.ANILIST_DATA_LOADED,

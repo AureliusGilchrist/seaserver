@@ -42,7 +42,6 @@ import { AnilistStatusBanner } from "../anilist-status-banner"
 import { Announcements } from "../announcements"
 import { AnimeThemeProvider, useAnimeThemeOrNull } from "@/lib/theme/anime-themes/anime-theme-provider"
 import { ProfileWallpaper } from "@/app/(main)/profile/_components/profile-wallpaper"
-import { useGetMyProfile } from "@/api/hooks/community.hooks"
 import { CursorProvider } from "@/lib/cursors/cursor-provider"
 import { CursorLibraryProvider } from "@/lib/cursors/cursor-library-provider"
 import { DiscordRpcBridge } from "@/lib/discord-rpc/discord-rpc-bridge"
@@ -67,11 +66,11 @@ import { useOfflineProgressSync } from "@/lib/offline-progress/use-offline-progr
 export function GlobalProfileWallpaper() {
     const pathname = usePathname()
     const theme = useAnimeThemeOrNull()
-    const { data } = useGetMyProfile()
+    const serverStatus = useServerStatus()
     const themeHasWallpaper = !!theme && theme.config.id !== "seanime" && !!theme.activeBackgroundUrl
     // Profile pages draw the wallpaper themselves
     if (themeHasWallpaper || pathname.startsWith("/profile")) return null
-    return <ProfileWallpaper url={data?.profile?.wallpaperUrl} effects={data?.profile?.wallpaperEffects} />
+    return <ProfileWallpaper url={serverStatus?.currentProfile?.wallpaperUrl} effects={serverStatus?.currentProfile?.wallpaperEffects} />
 }
 
 export const MainLayout = ({ children }: { children: React.ReactNode }) => {

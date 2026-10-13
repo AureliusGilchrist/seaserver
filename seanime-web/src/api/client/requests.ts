@@ -75,26 +75,16 @@ axios.interceptors.response.use(response => {
 axios.interceptors.response.use(undefined, (error: AxiosError) => {
     const url = (error.config as any)?.url as string | undefined
 
-    // A session the server does not recognise is not a session. The server says so on every request
-    // it refuses, but only an explicit "expired" header used to clear the stored token — a session
-    // ended any other way (a restart, a profile removed, a token from a previous run) left the app
-    // holding a token it would go on presenting forever, signed in to nothing.
-    //
-    // Dropping it here puts the app back at profile selection, where signing in is one click.
-    // Two shapes, because the server refuses a session in two different ways. Handlers answer with
-    // `{ error }` through RespondWithError, but the middleware that guards every route returns an
-    // echo.HTTPError directly and echo serialises that as `{ message }`. Reading only `error` meant
-    // the one refusal that matters most — "profile session required", the guard on every request the
-    // app makes — was never recognised: the app browsed on, showing that message everywhere, holding
-    // a token the server had already rejected, and never once offered to sign in again.
+    // A profile session is cleared only when the server explicitly says it expired or a guarded
+    // route says it requires a profile session. Other 401s can be unrelated (for example, an
+    // endpoint returning an authorization error during a backend restart); clearing the session on
+    // those transient responses caused the app to bounce to profile selection after updates.
     if (error.response?.status === 401) {
         const data = error.response?.data as { error?: string, message?: string } | undefined
         const message = `${data?.error ?? ""} ${data?.message ?? ""}`.toLowerCase()
+        const expired = error.response.headers?.["x-seanime-profile-expired"] === "true"
 
-        // Any 401 from our own server while a session is held is that session being refused —
-        // whatever wording it arrives in. There is nothing to be gained by holding onto a token the
-        // server will not accept, and the cost of guessing wrong is one sign-in.
-        if (message.includes("profile session") || (!isAnilistUrl(url) && store.get(profileSessionTokenAtom))) {
+        if (expired || message.includes("profile session")) {
             if (store.get(profileSessionTokenAtom)) {
                 store.set(profileSessionTokenAtom, undefined)
             }
