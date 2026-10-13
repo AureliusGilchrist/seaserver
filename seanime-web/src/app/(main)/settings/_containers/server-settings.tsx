@@ -307,32 +307,34 @@ export function ServerSettings(props: ServerSettingsProps) {
                 {/*    name="disableAutoScannerNotifications"*/}
                 {/*    label="Disable Auto Scanner system notifications"*/}
                 {/*/>*/}
-                <Separator />
-                <Field.Switch
-                    side="right"
-                    name="disableUpdateCheck"
-                    label="Do not check for updates"
-                    help="If enabled, Seanime will not check for new releases."
-                />
-                <Field.Select
-                    label="Update Channel (Experimental)"
-                    name="updateChannel"
-                    help="Select the backend update channel."
-                    options={[
-                        { label: "GitHub (Default)", value: "github" },
-                        { label: "Seanime", value: "seanime" },
-                        { label: "Seanime (Canary)", value: "seanime_nightly" },
-                    ]}
-                />
-                {serverStatus?.settings?.library?.updateChannel === "seanime" && (
-                    <Alert intent="info" description="You are currently using a release channel hosted on Seanime." />
-                )}
-                {serverStatus?.settings?.library?.updateChannel === "seanime_nightly" && (
-                    <Alert
-                        intent="warning"
-                        description="You are currently using the canary release channel hosted on Seanime. This channel may receive unstable updates without much testing."
+                {!__isElectronDesktop__ && <>
+                    <Separator />
+                    <Field.Switch
+                        side="right"
+                        name="disableUpdateCheck"
+                        label="Do not check for updates"
+                        help="If enabled, Seanime will not check for new releases."
                     />
-                )}
+                    <Field.Select
+                        label="Update Channel (Experimental)"
+                        name="updateChannel"
+                        help="Select the backend update channel."
+                        options={[
+                            { label: "GitHub (Default)", value: "github" },
+                            { label: "Seanime", value: "seanime" },
+                            { label: "Seanime (Canary)", value: "seanime_nightly" },
+                        ]}
+                    />
+                    {serverStatus?.settings?.library?.updateChannel === "seanime" && (
+                        <Alert intent="info" description="You are currently using a release channel hosted on Seanime." />
+                    )}
+                    {serverStatus?.settings?.library?.updateChannel === "seanime_nightly" && (
+                        <Alert
+                            intent="warning"
+                            description="You are currently using the canary release channel hosted on Seanime. This channel may receive unstable updates without much testing."
+                        />
+                    )}
+                </>}
             </SettingsCard>
 
             {/*<Accordion*/}

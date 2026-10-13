@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import React from "react"
+import { AnilistOverwriteCard } from "./anilist-overwrite-settings"
 import { SettingsCard } from "../_components/settings-card"
 
 export function ServicesSettings() {
@@ -146,6 +147,8 @@ export function ServicesSettings() {
                     <p className="mt-2 text-xs text-green-400">Manga library updated successfully.</p>
                 )}
             </SettingsCard>
+
+            <AnilistOverwriteCard />
 
             <SettingsCard title="Library scans" description="Trigger a local anime or manga library scan.">
                 <div className="flex gap-2 flex-wrap items-center">

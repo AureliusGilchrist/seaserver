@@ -72,7 +72,6 @@ import { LocalSettings } from "./_containers/local-settings"
 import { NakamaSettings } from "./_containers/nakama-settings"
 import { PrivacySettings } from "./_containers/privacy-settings"
 import { ProfileManagement } from "./_containers/profile-management"
-import { UpdateSettings } from "./_containers/update-settings"
 
 const tabContentClass = cn(
     "space-y-4 animate-in fade-in-0 duration-300",
@@ -305,10 +304,6 @@ export default function Page() {
                                         value="services"
                                         className="group"
                                     ><HiOutlineServerStack className="text-xl mr-3 transition-transform duration-200" /> Services</TabsTrigger>
-                                    {__isElectronDesktop__ && <TabsTrigger
-                                        value="updates"
-                                        className="group"
-                                    ><LuRefreshCw className="text-xl mr-3 transition-transform duration-200" /> Updates</TabsTrigger>}
                                 </Card>
                             </div>
                         </SettingsNavCard>
@@ -580,14 +575,10 @@ export default function Page() {
                                             >
                                                 Record an issue
                                             </Button>
-                                            <Button
+                                            {!__isElectronDesktop__ && <Button
                                                 size="sm"
                                                 intent="gray-outline"
                                                 onClick={() => {
-                                                    if (__isElectronDesktop__) {
-                                                        setTab("updates")
-                                                        return
-                                                    }
                                                     checkForUpdates(undefined, {
                                                         onSuccess: (data) => {
                                                             if (data?.release) {
@@ -600,14 +591,14 @@ export default function Page() {
                                                         },
                                                     })
                                                 }}
-                                                loading={!__isElectronDesktop__ && isCheckingForUpdates}
-                                                disabled={!__isElectronDesktop__ && isCheckingForUpdates}
+                                                loading={isCheckingForUpdates}
+                                                disabled={isCheckingForUpdates}
                                                 leftIcon={<LuRefreshCw className="transition-transform duration-200 group-hover:rotate-180" />}
                                                 className="transition-all duration-200 hover:scale-105 hover:shadow-md group"
                                                 data-check-for-updates-button
                                             >
-                                                {__isElectronDesktop__ ? "Manage updates" : "Check for updates"}
-                                            </Button>
+                                                Check for updates
+                                            </Button>}
                                         </div>
 
                                         <ServerSettings isPending={isPending} />
@@ -989,17 +980,6 @@ export default function Page() {
 
                         </TabsContent>
 
-                        {__isElectronDesktop__ && <TabsContent value="updates" className={tabContentClass}>
-
-                            <SettingsPageHeader
-                                title="Updates"
-                                description="Manage backend and live frontend updates"
-                                icon={LuRefreshCw}
-                            />
-
-                            <UpdateSettings />
-
-                        </TabsContent>}
                     </div>
                 </Tabs>
                 {/*</Card>*/}
