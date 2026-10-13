@@ -40,6 +40,13 @@ function resolveRepoRoot(configured, webOnly, extraStarts) {
 function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode, stopServer, startServer, reloadWindows, emitProgress }) {
     let busy = false
 
+    function emitBackendStep(percent, step) {
+        emitProgress({
+            target: "backend",
+            line: `Backend update: [${String(percent).padStart(2, "0")}%] ${step}`,
+        })
+    }
+
     function run(target, cmd, args, opts) {
         return new Promise((resolve, reject) => {
             emitProgress({ target, line: `> ${cmd} ${args.join(" ")}` })
@@ -234,7 +241,9 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
             if (isRemoteMode()) throw new Error("The backend runs on a remote server; update it there.")
             const root = requireRepo()
 
+            emitBackendStep(5, "Fetching the latest commits from origin")
             const pullOut = await pullWithStats("backend", root, stats)
+            emitBackendStep(22, "Latest commits collected; preparing the build")
 
             const binaryName = getBinaryName()
             const livePath = getLiveBinaryPath(app, binaryName)
@@ -244,13 +253,15 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
             fs.rmSync(newPath, { force: true })
 
             // Build while the current server keeps running; nothing is touched unless this succeeds.
+            emitBackendStep(40, "Building the updated backend")
             await run("backend", "go", ["build", "-trimpath", "-ldflags=-s -w", "-o", newPath, "."], {
                 cwd: root,
                 env: { ...process.env },
             })
             if (!fs.existsSync(newPath)) throw new Error("Build produced no binary")
-            emitProgress({ target: "backend", line: "Build succeeded, swapping backend..." })
+            emitBackendStep(70, "Build complete; validating the binary")
 
+            emitBackendStep(80, "Stopping the current backend")
             await stopServer()
 
             fs.rmSync(bakPath, { force: true })
@@ -259,8 +270,10 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
             fs.renameSync(newPath, livePath)
 
             try {
+                emitBackendStep(90, "Starting the updated backend")
                 await startServer()
             } catch (err) {
+                emitBackendStep(92, "Startup failed; restoring the previous backend")
                 emitProgress({ target: "backend", line: `New backend failed to start (${err.message}); rolling back...` })
                 await stopServer()
                 fs.rmSync(livePath, { force: true })
@@ -269,6 +282,7 @@ function createLiveUpdater({ app, log, getSettings, getBinaryName, isRemoteMode,
                 throw new Error(`New backend failed to start; previous backend restored. ${err.message}`)
             }
 
+            emitBackendStep(97, "Updated backend started; cleaning up the backup")
             fs.rmSync(bakPath, { force: true })
             const upToDate = /already up to date/i.test(pullOut)
             return upToDate ? "Backend rebuilt and restarted (no new commits)." : "Backend updated and restarted."

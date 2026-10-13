@@ -5,7 +5,8 @@ import { WSEvents } from "@/lib/server/ws-events"
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
 import { Button } from "@/components/ui/button"
 import { websocketConnectedAtom } from "@/app/websocket-provider"
-import { useAtomValue } from "jotai"
+import { useAtom, useAtomValue } from "jotai"
+import { atomWithStorage } from "jotai/utils"
 import React from "react"
 import { toast } from "sonner"
 
@@ -14,6 +15,19 @@ type Target = "backend" | "frontend"
 // Prefixes a log line with the time it was received; blank spacer lines are left alone.
 function stamp(line: string) {
     return line === "" ? line : `[${new Date().toLocaleTimeString([], { hour12: false })}] ${line}`
+}
+
+const UPDATE_LOG_STORAGE_KEY = "sea-settings-update-log"
+const MAX_LOG_LINES = 500
+const updateSettingsLogAtom = atomWithStorage<string[]>(UPDATE_LOG_STORAGE_KEY, [], undefined, { getOnInit: true })
+
+function readProgress(lines: string[]) {
+    for (let i = lines.length - 1; i >= 0; i--) {
+        const text = lines[i].replace(/^\[[\d:]+\]\s?/, "")
+        const match = text.match(/^Backend update:\s*\[(\d{1,3})%\]\s*(.*)$/)
+        if (match) return { percent: Math.min(100, Number(match[1])), step: match[2] }
+    }
+    return null
 }
 
 const KIND_STYLE: Record<OverwriteChange["kind"], { label: string, badge: string }> = {
@@ -209,32 +223,100 @@ function LogLine({ line, inFailure }: { line: string, inFailure: boolean }) {
     const time = m?.[1]
     const text = m ? m[2] : line
     const indented = /^\s{2,}/.test(text)
+    const progress = text.match(/^Backend update:\s*\[(\d{1,3})%\]\s*(.*)$/)
+    const progressPercent = progress ? Number(progress[1]) : null
+    const progressStep = progress?.[2] ?? ""
+    const isProgress = progressPercent !== null
     const isHeader = !indented && /^(backend|frontend) update:/i.test(text)
-    const headerTone = isHeader ? (toneOf(text) === "fail" ? "bg-red-500/10" : toneOf(text) === "ok" ? "bg-green-500/10" : "bg-brand-500/10") : ""
+    const isFailed = toneOf(isProgress ? progressStep : text) === "fail"
+    const headerTone = isProgress
+        ? isFailed ? "bg-red-500/10" : progressPercent === 100 ? "bg-green-500/10" : "bg-brand-500/10"
+        : isHeader ? (isFailed ? "bg-red-500/10" : toneOf(text) === "ok" ? "bg-green-500/10" : "bg-brand-500/10") : ""
     return (
         <div className={`flex gap-2 rounded px-1 ${headerTone} ${indented ? "pl-4 border-l-2 ml-1 " + (inFailure ? "border-red-500/50" : "border-gray-700") : ""}`}>
             {time && <span className="shrink-0 text-gray-600 tabular-nums">{time}</span>}
-            <span className={`${inFailure && indented ? "text-red-200/90" : "text-gray-300"} ${isHeader ? "font-semibold" : ""} whitespace-pre-wrap break-all`}>
-                {highlight(text)}
-            </span>
+            {isProgress ? (
+                <>
+                    <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold leading-none tabular-nums ${
+                        isFailed ? "border-red-500/30 bg-red-500/10 text-red-300"
+                            : progressPercent === 100 ? "border-green-500/30 bg-green-500/10 text-green-300"
+                                : "border-brand-400/30 bg-brand-500/10 text-brand-200"
+                    }`}>
+                        {String(progressPercent).padStart(2, "0")}%
+                    </span>
+                    <span className={`min-w-0 whitespace-pre-wrap break-all ${isFailed ? "text-red-200" : "text-gray-200"} font-semibold`}>
+                        {highlight(progressStep)}
+                    </span>
+                </>
+            ) : (
+                <span className={`${inFailure && indented ? "text-red-200/90" : "text-gray-300"} ${isHeader ? "font-semibold" : ""} whitespace-pre-wrap break-all`}>
+                    {highlight(text)}
+                </span>
+            )}
         </div>
     )
 }
 
 function StructuredLog({ lines, logRef }: { lines: string[], logRef: React.RefObject<HTMLDivElement | null> }) {
+    const progress = readProgress(lines)
+    const failed = !!progress && /fail(ed|ure)?|error/i.test(progress.step)
+    const status = failed ? "Failed" : progress?.percent === 100 ? "Complete" : progress ? "In progress" : "Saved log"
     let inFailure = false
     return (
-        <div
-            ref={logRef}
-            style={{ userSelect: "text", WebkitUserSelect: "text" }}
-            className="max-h-64 overflow-auto rounded-lg border bg-gray-950 p-3 pr-24 text-xs font-mono space-y-0.5 cursor-text select-text"
-        >
-            {lines.map((line, i) => {
-                const text = line.replace(/^\[[\d:]+\]\s?/, "")
-                if (line === "") inFailure = false
-                else if (!/^\s{2,}/.test(text)) inFailure = /:\s*failed\b/i.test(text)
-                return <LogLine key={i} line={line} inFailure={inFailure} />
-            })}
+        <div className="overflow-hidden rounded-xl border border-gray-700/80 bg-gray-950 shadow-xl shadow-black/20">
+            <div className="flex items-center justify-between border-b border-white/5 bg-white/[0.03] pl-3 pr-24 py-2">
+                <div className="flex items-center gap-2">
+                    <span className="flex gap-1" aria-hidden="true">
+                        <span className="h-2 w-2 rounded-full bg-red-400/80" />
+                        <span className="h-2 w-2 rounded-full bg-amber-300/80" />
+                        <span className="h-2 w-2 rounded-full bg-green-400/80" />
+                    </span>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">Update log</span>
+                    <span className="hidden text-[10px] text-gray-500 sm:inline">Saved locally · clears on the next update</span>
+                </div>
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                    failed ? "border-red-500/30 bg-red-500/10 text-red-300"
+                        : status === "Complete" ? "border-green-500/30 bg-green-500/10 text-green-300"
+                            : "border-gray-700 bg-gray-900 text-gray-400"
+                }`}>
+                    {status}
+                </span>
+            </div>
+            {progress && (
+                <div className="border-b border-white/5 bg-gradient-to-r from-brand-500/[0.08] via-transparent to-cyan-500/[0.05] px-3 py-2.5">
+                    <div className="mb-1.5 flex items-center justify-between gap-3 text-[11px]">
+                        <span className="truncate text-gray-300">{progress.step}</span>
+                        <span className={`shrink-0 font-mono font-bold tabular-nums ${failed ? "text-red-300" : progress.percent === 100 ? "text-green-300" : "text-brand-200"}`}>
+                            {String(progress.percent).padStart(2, "0")}%
+                        </span>
+                    </div>
+                    <div
+                        role="progressbar"
+                        aria-label="Backend update progress"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={progress.percent}
+                        className="h-1.5 overflow-hidden rounded-full bg-white/10"
+                    >
+                        <div
+                            className={`h-full rounded-full transition-[width] duration-500 ${failed ? "bg-red-400" : progress.percent === 100 ? "bg-green-400" : "bg-gradient-to-r from-brand-400 to-cyan-300"}`}
+                            style={{ width: `${progress.percent}%` }}
+                        />
+                    </div>
+                </div>
+            )}
+            <div
+                ref={logRef}
+                style={{ userSelect: "text", WebkitUserSelect: "text" }}
+                className="max-h-64 overflow-auto p-3 pr-24 text-xs font-mono space-y-0.5 cursor-text select-text"
+            >
+                {lines.map((line, i) => {
+                    const text = line.replace(/^\[[\d:]+\]\s?/, "")
+                    if (line === "") inFailure = false
+                    else if (!/^\s{2,}/.test(text)) inFailure = /:\s*(?:\[\d{1,3}%\]\s*)?failed\b/i.test(text)
+                    return <LogLine key={i} line={line} inFailure={inFailure} />
+                })}
+            </div>
         </div>
     )
 }
@@ -243,37 +325,50 @@ function ElectronUpdates() {
     const [detectedRoot, setDetectedRoot] = React.useState<string | null>(null)
     const [detectedOrigin, setDetectedOrigin] = React.useState<string | null>(null)
     const [running, setRunning] = React.useState<Target | null>(null)
-    const [lines, setLines] = React.useState<string[]>([])
+    const [lines, setLines] = useAtom(updateSettingsLogAtom)
     const logRef = React.useRef<HTMLDivElement>(null)
+    const currentProgressRef = React.useRef(readProgress(lines)?.percent ?? 0)
 
     const [remote, setRemote] = React.useState(false)
     const { mutateAsync: updateRemoteBackend } = useUpdateBackend()
     const { mutateAsync: checkRemoteBackend } = useCheckBackendUpdate()
     const [checking, setChecking] = React.useState<Target | null>(null)
 
-    // The server writes the update notice right before it swaps to the new binary, so this is the
-    // point where a remote backend update is known to have succeeded.
+    const appendLines = React.useCallback((next: string[]) => {
+        if (!next.length) return
+        setLines(prev => [...prev, ...next].slice(-MAX_LOG_LINES))
+    }, [setLines])
+
+    // Mark remote updates complete only after the backend has restarted and websocket reconnects.
     const pendingRef = React.useRef(false)
     const wasDownRef = React.useRef(false)
+    const failureReceivedRef = React.useRef(false)
     const isConnected = useAtomValue(websocketConnectedAtom)
 
-    const markSucceeded = React.useCallback((text: string) => {
+    const markSucceeded = React.useCallback(() => {
         if (!pendingRef.current) return
         pendingRef.current = false
-        setLines(prev => [...prev, "", stamp(`Backend update: Succeeded (${text})`)])
-    }, [])
+        currentProgressRef.current = 100
+        appendLines(["", stamp("Backend update: [100%] New version is running")])
+    }, [appendLines])
 
     useWebsocketMessageListener<string>({
         type: WSEvents.UPDATE_BACKEND_LOG,
         onMessage: (msg) => {
             pendingRef.current = false
-            setLines(prev => [...prev.slice(-199), "", stamp("Backend update: Failed"), ...String(msg).split("\n").map(l => `    ${l}`)])
+            failureReceivedRef.current = true
+            const percent = currentProgressRef.current
+            appendLines(["", stamp(`Backend update: [${String(percent).padStart(2, "0")}%] Failed`), ...String(msg).split("\n").map(l => `    ${l}`)])
         },
     })
 
-    useWebsocketMessageListener({
-        type: WSEvents.UPDATE_NOTICE_AVAILABLE,
-        onMessage: () => markSucceeded("restarting on the new version"),
+    useWebsocketMessageListener<{ percent: number, step: string }>({
+        type: WSEvents.UPDATE_BACKEND_PROGRESS,
+        onMessage: ({ percent, step }) => {
+            const safePercent = Math.max(0, Math.min(100, Math.round(percent)))
+            currentProgressRef.current = safePercent
+            appendLines([stamp(`Backend update: [${String(safePercent).padStart(2, "0")}%] ${step}`)])
+        },
     })
 
     // The server restarts into the new binary, which drops the websocket. Coming back means the new
@@ -284,7 +379,7 @@ function ElectronUpdates() {
             wasDownRef.current = true
         } else if (wasDownRef.current) {
             wasDownRef.current = false
-            markSucceeded("now running the new version")
+            markSucceeded()
         }
     }, [isConnected, markSucceeded])
 
@@ -301,10 +396,12 @@ function ElectronUpdates() {
     React.useEffect(() => {
         refreshInfo()
         const off = window.electron?.on("live-update:progress", (p: { target: Target, line: string }) => {
-            setLines(prev => [...prev.slice(-199), stamp(p.line)])
+            const progress = readProgress([p.line])
+            if (p.target === "backend" && progress) currentProgressRef.current = progress.percent
+            appendLines([stamp(p.line)])
         })
         return () => off?.()
-    }, [refreshInfo])
+    }, [appendLines, refreshInfo])
 
     React.useEffect(() => {
         logRef.current?.scrollTo({ top: logRef.current.scrollHeight })
@@ -314,7 +411,6 @@ function ElectronUpdates() {
 
     async function check(target: Target) {
         setChecking(target)
-        setLines([])
         const label = target === "backend" ? "Backend" : "Frontend"
         try {
             let files: { path: string, insertions: number, deletions: number }[] = []
@@ -336,14 +432,15 @@ function ElectronUpdates() {
             }
             const ins = files.reduce((n, f) => n + f.insertions, 0)
             const del = files.reduce((n, f) => n + f.deletions, 0)
-            setLines([
+            appendLines([
+                "",
                 stamp(`${label}: ${summary}`),
                 ...(files.length ? [stamp(`${files.length} file${files.length === 1 ? "" : "s"} (+${ins} -${del}):`), ...files.map(f => `    ${f.path}  +${f.insertions} -${f.deletions}`)] : []),
             ])
         }
         catch (e: any) {
             toast.error(`${label} check failed: ${e?.message ?? "unknown error"}`)
-            setLines([stamp(`${label} check: Failed - ${e?.message ?? "unknown error"}`)])
+            appendLines(["", stamp(`${label} check: Failed - ${e?.message ?? "unknown error"}`)])
         }
         finally {
             setChecking(null)
@@ -351,14 +448,21 @@ function ElectronUpdates() {
     }
 
     async function run(target: Target) {
+        const label = target === "backend" ? "Backend" : "Frontend"
+        currentProgressRef.current = 0
+        failureReceivedRef.current = false
+        pendingRef.current = target === "backend" && remote
+        wasDownRef.current = false
+        setLines([stamp(target === "backend"
+            ? "Backend update: [00%] Checking for an available update"
+            : "Frontend update: Starting local build")])
+
         if (target === "backend" && remote) {
             setRunning(target)
             try {
                 const res = await updateRemoteBackend({})
                 const msg = res?.message ?? "Update requested."
-                toast.success(msg)
-                pendingRef.current = !!res?.started
-                wasDownRef.current = false
+                pendingRef.current = !!res?.started && !failureReceivedRef.current
                 const files = res?.files ?? []
                 const fileLines = files.length
                     ? [
@@ -367,14 +471,21 @@ function ElectronUpdates() {
                         ...files.map(f => `    ${f.path}  +${f.insertions} -${f.deletions}`),
                     ]
                     : []
-                setLines(res?.started
-                    ? [stamp(msg), ...fileLines, stamp("Backend update: In progress...")]
-                    : [stamp(msg), stamp("Backend update: Succeeded (already up to date)")])
+                if (res?.started) {
+                    toast.success(msg)
+                    setLines(prev => [stamp(msg), ...fileLines, "", ...prev].slice(-MAX_LOG_LINES))
+                } else {
+                    pendingRef.current = false
+                    currentProgressRef.current = 100
+                    toast.success(msg)
+                    setLines([stamp(msg), stamp("Backend update: [100%] Already up to date")])
+                }
             }
             catch (e: any) {
                 pendingRef.current = false
+                failureReceivedRef.current = true
                 toast.error(`Backend update failed: ${e?.message ?? "unknown error"}`)
-                setLines([stamp(`Backend update: Failed - ${e?.message ?? "unknown error"}`)])
+                appendLines(["", stamp(`Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] Failed - ${e?.message ?? "unknown error"}`)])
             }
             finally {
                 setRunning(null)
@@ -382,25 +493,31 @@ function ElectronUpdates() {
             return
         }
         setRunning(target)
-        setLines([])
         try {
             const res = target === "backend" ? await liveUpdate!.updateBackend() : await liveUpdate!.updateFrontend()
-            const label = target === "backend" ? "Backend" : "Frontend"
             const s = res.stats
             const changed = s && s.lines > 0
                 ? ` (${s.files} file${s.files === 1 ? "" : "s"}, +${s.insertions}/-${s.deletions} = ${s.lines} lines changed)`
                 : " (0 lines changed)"
             if (res.ok) {
                 toast.success(`${label} update succeeded${changed}. ${res.message ?? ""}`.trim())
-                setLines(prev => [...prev, "", stamp(`${label} update: Succeeded${changed}`)])
+                if (target === "backend") currentProgressRef.current = 100
+                appendLines(["", stamp(target === "backend"
+                    ? `Backend update: [100%] Succeeded${changed}`
+                    : `Frontend update: Succeeded${changed}`)])
             } else {
                 toast.error(`${label} update failed${changed}: ${(res.error ?? "").split("\n")[0]}`)
-                setLines(prev => [...prev, "", stamp(`ERROR: ${res.error}`), stamp(`${label} update: Failed${changed}`)])
+                appendLines(["", stamp(`ERROR: ${res.error}`), stamp(target === "backend"
+                    ? `Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] Failed${changed}`
+                    : `Frontend update: Failed${changed}`)])
             }
         }
         catch (e: any) {
+            if (target === "backend" && remote) pendingRef.current = false
             toast.error(`Update failed: ${e?.message ?? "unknown error"}`)
-            setLines(prev => [...prev, "", stamp(`Update: Failed - ${e?.message ?? "unknown error"}`)])
+            appendLines(["", stamp(target === "backend"
+                ? `Backend update: [${String(currentProgressRef.current).padStart(2, "0")}%] Failed - ${e?.message ?? "unknown error"}`
+                : `Frontend update: Failed - ${e?.message ?? "unknown error"}`)])
         }
         finally {
             setRunning(null)

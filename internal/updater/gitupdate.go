@@ -422,6 +422,7 @@ func (u *GitAutoUpdater) runUpdate() {
 		u.logger.Error().Msg("selfupdate: The update stopped unexpectedly — the running version is untouched")
 	})
 
+	u.progress(5, "Fetching the latest commits from origin")
 	// An update always lands: local work is saved under refs/seanime-backup/ and the checkout is
 	// moved onto the fork's latest commit, so nothing is left behind and nothing is lost.
 	remoteRef := u.remoteRef()
@@ -429,9 +430,11 @@ func (u *GitAutoUpdater) runUpdate() {
 		u.fail("fetching the fork", err, "")
 		return
 	}
+	u.progress(15, "Reviewing local changes and update contents")
 	if note := u.localWork(remoteRef); note != "" {
 		u.logger.Warn().Msg("selfupdate: " + note)
 		u.notify("Saving local work to a backup ref before updating")
+		u.progress(20, "Backing up local changes")
 	}
 
 	stats := u.diffStats(remoteRef)
@@ -446,6 +449,7 @@ func (u *GitAutoUpdater) runUpdate() {
 	// move HEAD and then fail halfway, leaving staged leftovers).
 	dirty, _ := u.git("status", "--porcelain", "--untracked-files=no")
 	if strings.TrimSpace(remoteHead) != u.headCommit() || strings.TrimSpace(dirty) != "" {
+		u.progress(25, "Moving the checkout to the latest commit")
 		if err := u.shelve(remoteRef); err != nil {
 			u.fail("moving the checkout to the fork's latest commit (git reset --hard)", err, "")
 			return
@@ -454,6 +458,7 @@ func (u *GitAutoUpdater) runUpdate() {
 
 	// The tree has to stay clean through the whole update; the merge is the step most able to have
 	// left something behind.
+	u.progress(30, "Verifying the updated checkout")
 	status, err := u.git("status", "--porcelain", "--untracked-files=no")
 	if err != nil || strings.TrimSpace(status) != "" {
 		u.fail("verifying the checkout after the reset", fmt.Errorf("tracked files are still modified: %s %v", strings.TrimSpace(status), err), "")
@@ -461,6 +466,7 @@ func (u *GitAutoUpdater) runUpdate() {
 	}
 
 	u.notify("A new version was found — building it now…")
+	u.progress(38, "Preparing the build")
 	u.logger.Info().Msg("selfupdate: Building the new version while the current one keeps running")
 
 	// The build is the web interface first and the server second, which is what the embed in the
@@ -475,6 +481,7 @@ func (u *GitAutoUpdater) runUpdate() {
 		return
 	}
 	u.notify("Build started: " + strings.Join(build.Args, " "))
+	u.progress(42, "Building the web assets and backend")
 	started := time.Now()
 	build.Dir = u.repoDir
 	var buildOut bytes.Buffer
@@ -485,6 +492,7 @@ func (u *GitAutoUpdater) runUpdate() {
 		return
 	}
 
+	u.progress(70, "Build finished; validating the new binary")
 	exePath := getExePath()
 	if exePath == "" {
 		u.fail("locating the running binary", fmt.Errorf("could not determine the running executable's path"), "")
@@ -506,12 +514,14 @@ func (u *GitAutoUpdater) runUpdate() {
 		u.fail("checking the built binary", fmt.Errorf("%s was last written %s ago, so the build did not produce a new binary", builtPath, time.Since(info.ModTime()).Round(time.Second)), buildOut.String())
 		return
 	}
+	u.progress(78, "Running the new binary startup check")
 	if err := smokeTestBinary(builtPath); err != nil {
 		u.fail("start-up check of the new binary", err, "")
 		return
 	}
 	u.logger.Info().Msg("selfupdate: The new version started and answered — switching to it")
 
+	u.progress(86, "Preparing the updated binary for restart")
 	if sameFile, err := sameFilePath(exePath, builtPath); err == nil && !sameFile {
 		// The server was started from somewhere other than the checkout's output (a copy in
 		// /usr/local/bin, say). The checkout's binary is the new version; the running one is the
@@ -528,9 +538,11 @@ func (u *GitAutoUpdater) runUpdate() {
 	// that something did. The file survives the restart, which is the point — a client that was
 	// closed while the update happened reads it the next time it signs in.
 	u.setBuiltCommit(u.headCommit())
+	u.progress(92, "Saving the update summary")
 	u.writeUpdateNotice(stats)
 
 	u.notify("Update built — restarting now…")
+	u.progress(96, "Build complete; restarting the server")
 	if u.wsEventManager != nil {
 		u.wsEventManager.SendEvent(events.ServerGoingDown, map[string]string{"reason": "a backend update"})
 	}
@@ -687,6 +699,15 @@ func (u *GitAutoUpdater) writeUpdateNotice(stats updateStats) {
 func (u *GitAutoUpdater) notify(message string) {
 	if u.wsEventManager != nil {
 		u.wsEventManager.SendEvent(events.InfoToast, message)
+	}
+}
+
+func (u *GitAutoUpdater) progress(percent int, step string) {
+	if u.wsEventManager != nil {
+		u.wsEventManager.SendEvent(events.UpdateBackendProgress, struct {
+			Percent int    `json:"percent"`
+			Step    string `json:"step"`
+		}{Percent: percent, Step: step})
 	}
 }
 
