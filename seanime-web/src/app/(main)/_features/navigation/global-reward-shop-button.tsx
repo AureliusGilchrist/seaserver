@@ -55,7 +55,7 @@ export function GlobalRewardShopButton() {
                 title="Reward Shop"
                 style={badgeStyle}
                 className={cn(
-                    "fixed left-5 z-50 flex items-center gap-2 px-3 py-2 rounded-2xl",
+                    "fixed left-5 lg:left-24 z-50 flex items-center gap-2 px-3 py-2 rounded-2xl",
                     "border shadow-xl transition-all duration-300 ease-out",
                     "hover:brightness-125",
                     "text-[--foreground] text-sm font-semibold group",
