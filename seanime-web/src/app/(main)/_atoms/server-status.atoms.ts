@@ -119,18 +119,9 @@ function createExpiringStorage(ttlMs: number) {
 }
 
 /**
- * The signed-in profile's session.
- *
- * Kept for a day, renewed whenever the app is used, and ended by closing the desktop client or
- * hiding it to the tray — the launch id above is what draws that last distinction.
- *
- * It used to live in sessionStorage and be thrown away by any restart of the server, on the
- * reasoning that a session the server no longer held would leave the app looking signed in while
- * every request came back "profile session required". That is not what a restart does: everything a
- * session names is looked up by profile ID from disk on demand, and the server now reissues a
- * session from an earlier run rather than refusing it. What the old rule did in practice was ask for
- * a PIN every time the server came back up, which on a server that restarts a few times an hour is
- * a PIN prompt a few times an hour.
+ * The signed-in profile's session. It is renewed while the server is running and deliberately
+ * invalidated by a backend restart; the expired-session response takes the client back to profile
+ * selection so it cannot keep rendering against a stale profile context.
  *
  * Storage rather than an in-memory atom because the browser login flow navigates this page to
  * AniList and back; an in-memory session would not survive the return trip, and linking an account

@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-// A restart changes the run epoch, but a valid unexpired session remains usable and can be
-// reissued under the new epoch by the HTTP middleware.
-func TestSessionsSurviveARestartForRenewal(t *testing.T) {
+// A restart changes the run epoch, so the frontend must discard the old session and ask the user
+// to sign in again rather than carrying stale profile state into the new server process.
+func TestSessionsEndAfterRestart(t *testing.T) {
 	secret := []byte("a-signing-secret-that-lives-on-disk")
 
 	firstRun, err := newSessionEpoch()
@@ -40,28 +40,16 @@ func TestSessionsSurviveARestartForRenewal(t *testing.T) {
 
 	payload, err = ValidateProfileSessionToken(secret, secondRun, token)
 	if !errors.Is(err, ErrSessionFromPreviousRun) {
-		t.Fatalf("expected a previous-run session to be identified for renewal (err = %v)", err)
+		t.Fatalf("expected a previous-run session to be rejected (err = %v)", err)
 	}
-	if payload == nil || payload.ProfileID != 7 || !payload.IsAdmin || payload.ClientID != "client-1" {
-		t.Fatalf("previous-run session did not preserve its identity: %+v", payload)
-	}
-
-	renewedToken, err := CreateProfileSessionToken(secret, secondRun, payload.ProfileID, payload.IsAdmin, payload.ClientID)
-	if err != nil {
-		t.Fatalf("renew: %v", err)
-	}
-	renewedPayload, err := ValidateProfileSessionToken(secret, secondRun, renewedToken)
-	if err != nil {
-		t.Fatalf("renewed session was rejected: %v", err)
-	}
-	if renewedPayload.ProfileID != payload.ProfileID || renewedPayload.ClientID != payload.ClientID {
-		t.Errorf("renewal changed the session identity: %+v", renewedPayload)
+	if payload != nil {
+		t.Fatalf("previous-run session returned a usable payload: %+v", payload)
 	}
 }
 
-// Tokens issued before sessions carried an epoch are still signed and unexpired, so they can be
-// accepted once and reissued with the current epoch.
-func TestSessionsWithoutAnEpochAreRenewed(t *testing.T) {
+// Tokens issued before sessions carried an epoch are refused for the same reason as any other
+// token from an earlier run.
+func TestSessionsWithoutAnEpochAreRefused(t *testing.T) {
 	secret := []byte("secret")
 
 	epochless, err := CreateProfileSessionToken(secret, "", 3, false, "client-2")
@@ -72,10 +60,10 @@ func TestSessionsWithoutAnEpochAreRenewed(t *testing.T) {
 	current, _ := newSessionEpoch()
 	payload, err := ValidateProfileSessionToken(secret, current, epochless)
 	if !errors.Is(err, ErrSessionFromPreviousRun) {
-		t.Fatalf("expected an epochless session to be identified for renewal (err = %v)", err)
+		t.Fatalf("expected an epochless session to be rejected (err = %v)", err)
 	}
-	if payload == nil || payload.ProfileID != 3 || payload.IsAdmin || payload.ClientID != "client-2" {
-		t.Fatalf("epochless session did not preserve its identity: %+v", payload)
+	if payload != nil {
+		t.Fatalf("epochless session returned a usable payload: %+v", payload)
 	}
 }
 

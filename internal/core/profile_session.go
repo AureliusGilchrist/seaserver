@@ -24,9 +24,8 @@ type ProfileSessionPayload struct {
 	Epoch string `json:"ses"`
 }
 
-// ProfileSessionDuration is how long a session lasts without being used. Any request renews it (see
-// ProfileSessionMiddleware), so this is the idle limit rather than a ceiling on how long you can
-// stay signed in.
+// ProfileSessionDuration is the idle lifetime of a session during one server run. Requests renew
+// it; a backend restart invalidates it regardless of the remaining duration.
 const ProfileSessionDuration = 24 * time.Hour
 
 const profileSessionDuration = ProfileSessionDuration
@@ -34,21 +33,9 @@ const profileSessionDuration = ProfileSessionDuration
 // CreateProfileSessionToken creates a signed session token for a profile, stamped with the epoch of
 // the server run that issued it.
 //
-// A day, renewed on use, and it survives the server restarting. That last part is what changed: the
-// epoch used to be what decided how long a session lived, and every restart of the server — an
-// update, a crash, a settings change that rebuilt the process — signed every client out. On a
-// server that restarts a few times an hour that is a PIN prompt a few times an hour, which is what
-// this is here to stop.
-//
-// The epoch is still stamped and still read, but as a reason to *reissue* rather than to refuse: see
-// ValidateProfileSessionToken, which hands back the payload alongside ErrSessionFromPreviousRun, and
-// the middleware, which mints a fresh token under the current epoch and returns it in the response.
-// The client is signed in throughout and never sees it happen.
-//
-// The state this originally guarded against — a client rendering as signed in to a server holding
-// nothing behind the session — is not a thing a rejection was needed for. There is no per-run
-// session state to be out of step with: everything a session names is looked up by profile ID from
-// disk, on demand, and is exactly as available a second after a restart as a second before one.
+// Tokens are renewed while the server is running, but are invalidated when the server restarts.
+// This makes the client return to profile selection instead of presenting stale profile state to a
+// newly started backend.
 func CreateProfileSessionToken(secret []byte, epoch string, profileID uint, isAdmin bool, clientID string) (string, error) {
 	now := time.Now()
 	payload := ProfileSessionPayload{
@@ -74,19 +61,13 @@ func CreateProfileSessionToken(secret []byte, epoch string, profileID uint, isAd
 	return payloadB64 + "." + sig, nil
 }
 
-// ErrSessionFromPreviousRun is returned for a token issued by an earlier run of the server. It is a
-// perfectly valid, unexpired session that simply predates this process.
-//
-// It comes back *with* the payload, not instead of it, because it is not a refusal — it is a request
-// to reissue. Callers that can mint a token should honour the session and hand back a fresh one
-// under the current epoch; callers that cannot may treat the payload as good as it stands.
+// ErrSessionFromPreviousRun is returned for a token issued by an earlier run of the server.
 var ErrSessionFromPreviousRun = errors.New("session belongs to a previous run of the server")
 
 // ValidateProfileSessionToken verifies and decodes a profile session token.
 //
-// A token that fails its signature or has expired returns a nil payload and an error, and nothing
-// should be done with it. A token from an earlier run of the server returns the decoded payload
-// together with ErrSessionFromPreviousRun — valid, and due for renewal.
+// A token that fails its signature, has expired, or belongs to an earlier run returns a nil payload
+// and an error.
 func ValidateProfileSessionToken(secret []byte, epoch string, token string) (*ProfileSessionPayload, error) {
 	parts := strings.SplitN(token, ".", 2)
 	if len(parts) != 2 {
@@ -121,10 +102,10 @@ func ValidateProfileSessionToken(secret []byte, epoch string, token string) (*Pr
 		return nil, errors.New("token expired")
 	}
 
-	// Tokens from an earlier run, and tokens minted before sessions carried an epoch at all. The
-	// payload goes back with the error so the caller can renew rather than sign anybody out.
+	// Reject old-run and epochless tokens so a backend restart cannot leave the client in a stale
+	// profile context.
 	if payload.Epoch != epoch {
-		return &payload, ErrSessionFromPreviousRun
+		return nil, ErrSessionFromPreviousRun
 	}
 
 	return &payload, nil

@@ -123,8 +123,8 @@ type ProfileManager struct {
 	// JWT signing key for profile sessions
 	jwtSecret []byte
 
-	// sessionEpoch identifies this run of the server. A valid token from an earlier epoch is
-	// accepted for renewal, so a process restart does not sign out active clients.
+	// sessionEpoch identifies this run of the server. Tokens from earlier epochs are rejected so
+	// clients reselect a profile after a process restart.
 	sessionEpoch string
 }
 
@@ -199,8 +199,8 @@ func newSessionEpoch() (string, error) {
 	return hex.EncodeToString(raw), nil
 }
 
-// GetSessionEpoch returns the identifier for this run of the server. Sessions from earlier runs
-// are accepted by the middleware for renewal under this epoch.
+// GetSessionEpoch returns the identifier for this run of the server. Profile sessions are bound to
+// this epoch and are invalidated when it changes.
 func (pm *ProfileManager) GetSessionEpoch() string {
 	return pm.sessionEpoch
 }

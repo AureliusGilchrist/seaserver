@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"seanime/internal/core"
 	"strings"
 	"time"
@@ -21,10 +20,8 @@ const profileSessionRenewAfter = core.ProfileSessionDuration - time.Hour
 // X-Seanime-Profile-Token header and sets it in the echo context.
 // This runs after OptionalAuthMiddleware and FeaturesMiddleware.
 //
-// It also renews: a session near the end of its day, or one issued by an earlier run of the server,
-// comes back with a fresh token in the X-Seanime-Profile-Token response header, which the client
-// stores. So a session lasts a day, rolls over into another day whenever the app is being used, and
-// a restart of the server renews it rather than ending it.
+// It renews sessions near the end of their day. A token from an earlier server run is rejected and
+// marked expired so the client returns to profile selection after a backend restart.
 func (h *Handler) ProfileSessionMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		if h.App.ProfileManager == nil {
@@ -42,11 +39,7 @@ func (h *Handler) ProfileSessionMiddleware(next echo.HandlerFunc) echo.HandlerFu
 			token,
 		)
 
-		// A session from an earlier run of the server is honoured and reissued, not refused. The
-		// server restarting is not the user signing out, and treating it as one is what had this
-		// app asking for a PIN several times a day.
-		fromPreviousRun := errors.Is(err, core.ErrSessionFromPreviousRun)
-		if payload == nil || (err != nil && !fromPreviousRun) {
+		if payload == nil || err != nil {
 			// Token invalid or expired — signal expiry to the frontend so it can clear the stale
 			// token and offer a way to sign in again.
 			c.Response().Header().Set("X-Seanime-Profile-Expired", "true")
@@ -55,7 +48,7 @@ func (h *Handler) ProfileSessionMiddleware(next echo.HandlerFunc) echo.HandlerFu
 
 		c.Set("profileSession", payload)
 
-		if fromPreviousRun || time.Now().Unix()-payload.IssuedAt > int64(profileSessionRenewAfter.Seconds()) {
+		if time.Now().Unix()-payload.IssuedAt > int64(profileSessionRenewAfter.Seconds()) {
 			if newToken, err := core.CreateProfileSessionToken(
 				h.App.ProfileManager.GetJWTSecret(),
 				h.App.ProfileManager.GetSessionEpoch(),
