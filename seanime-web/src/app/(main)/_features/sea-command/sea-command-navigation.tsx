@@ -131,7 +131,11 @@ export function SeaCommandNavigation() {
             name: "Settings",
             href: "/settings",
             flag: "settings",
-            show: !serverStatus?.isOffline,
+            show: !serverStatus?.isOffline && (
+                !serverStatus?.profilesEnabled ||
+                !serverStatus?.profiles?.length ||
+                !!serverStatus?.currentProfile?.isAdmin
+            ),
         },
         {
             name: "Manga",

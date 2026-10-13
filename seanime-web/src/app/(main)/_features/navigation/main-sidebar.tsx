@@ -694,13 +694,13 @@ function SidebarFooter({ isCollapsed, onLogout }: { isCollapsed: boolean, onLogo
                             </Badge>
                             : undefined,
                     }),
-                    applyFooterOverride({
+                    ...(!serverStatus?.profilesEnabled || !serverStatus?.profiles?.length || serverStatus?.currentProfile?.isAdmin ? [applyFooterOverride({
                         id: "settings",
                         iconType: LuSettings,
                         name: "Settings",
                         href: "/settings",
                         isCurrent: pathname === ("/settings"),
-                    }),
+                    })] : []),
                     ...(serverStatus?.currentProfile?.isAdmin ? [applyFooterOverride({
                         id: "admin-announcements",
                         iconType: LuBell,

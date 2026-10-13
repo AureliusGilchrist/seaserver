@@ -4,6 +4,7 @@ import { useOpenInExplorer } from "@/api/hooks/explorer.hooks"
 import { useAnimeListTorrentProviderExtensions } from "@/api/hooks/extensions.hooks"
 import { useCheckForUpdates } from "@/api/hooks/releases.hooks"
 import { useSaveSettings } from "@/api/hooks/settings.hooks"
+import { useGetCurrentProfile } from "@/api/hooks/profiles.hooks"
 import { useGetTorrentstreamSettings } from "@/api/hooks/torrentstream.hooks"
 import { CustomLibraryBanner } from "@/app/(main)/_features/anime-library/_containers/custom-library-banner"
 import { __issueReport_overlayOpenAtom } from "@/app/(main)/_features/issue-report/issue-report"
@@ -82,6 +83,8 @@ export const dynamic = "force-static"
 
 export default function Page() {
     const status = useServerStatus()
+    const profileCount = status?.profiles?.length ?? 0
+    const { data: currentProfile, isLoading: isCurrentProfileLoading } = useGetCurrentProfile(profileCount > 0)
     const { isFeatureDisabled, showFeatureWarning } = useServerDisabledFeatures()
     const setServerStatus = useSetServerStatus()
     const router = useRouter()
@@ -140,6 +143,30 @@ export default function Page() {
             }, 500)
         }
     }, [searchParams])
+
+    if (profileCount > 0 && isCurrentProfileLoading) {
+        return (
+            <PageWrapper className="p-4 sm:p-8">
+                <div className="mx-auto max-w-lg rounded-2xl border border-[--border] bg-[--paper]/80 p-8 text-center shadow-xl backdrop-blur-xl">
+                    <LuShieldCheck className="mx-auto mb-3 text-3xl text-[--brand]" />
+                    <h1 className="text-xl font-semibold">Checking admin access</h1>
+                    <p className="mt-2 text-sm text-[--muted]">Settings are available to profile admins.</p>
+                </div>
+            </PageWrapper>
+        )
+    }
+
+    if (profileCount > 0 && !currentProfile?.isAdmin) {
+        return (
+            <PageWrapper className="p-4 sm:p-8">
+                <div className="mx-auto max-w-lg rounded-2xl border border-red-400/20 bg-[--paper]/80 p-8 text-center shadow-xl backdrop-blur-xl">
+                    <LuShieldCheck className="mx-auto mb-3 text-3xl text-red-300" />
+                    <h1 className="text-xl font-semibold">Admin access required</h1>
+                    <p className="mt-2 text-sm text-[--muted]">Only an admin profile can open or change server settings. Switch to an admin profile and try again.</p>
+                </div>
+            </PageWrapper>
+        )
+    }
 
     return (
         <>

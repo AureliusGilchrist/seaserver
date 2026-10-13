@@ -299,9 +299,9 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	v1.GET("/status", h.HandleGetStatus)
 	v1.GET("/status/home-items", h.HandleGetHomeItems)
-	v1.POST("/status/home-items", h.HandleUpdateHomeItems)
+	v1.POST("/status/home-items", h.HandleUpdateHomeItems, h.RequireProfileAdmin)
 	v1.GET("/status/manga-home-items", h.HandleGetMangaHomeItems)
-	v1.POST("/status/manga-home-items", h.HandleUpdateMangaHomeItems)
+	v1.POST("/status/manga-home-items", h.HandleUpdateMangaHomeItems, h.RequireProfileAdmin)
 
 	v1.GET("/anime-themes/:id", h.HandleGetAnimeThemes)
 
@@ -370,11 +370,11 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/announcements", h.HandleGetAnnouncements)
 
 	// Settings
-	v1.GET("/settings", h.HandleGetSettings)
-	v1.PATCH("/settings", h.HandleSaveSettings)
-	v1.POST("/start", h.HandleGettingStarted)
-	v1.PATCH("/settings/auto-downloader", h.HandleSaveAutoDownloaderSettings)
-	v1.PATCH("/settings/media-player", h.HandleSaveMediaPlayerSettings)
+	v1.GET("/settings", h.HandleGetSettings, h.RequireProfileAdmin)
+	v1.PATCH("/settings", h.HandleSaveSettings, h.RequireProfileAdmin)
+	v1.POST("/start", h.HandleGettingStarted, h.RequireProfileAdmin)
+	v1.PATCH("/settings/auto-downloader", h.HandleSaveAutoDownloaderSettings, h.RequireProfileAdmin)
+	v1.PATCH("/settings/media-player", h.HandleSaveMediaPlayerSettings, h.RequireProfileAdmin)
 
 	// Shared AniList library account
 	// Note: POST /planning-slut/token uses a custom inline auth check to allow initial setup
@@ -422,22 +422,22 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.DELETE("/client-prefs/:key", h.HandleDeleteClientPref)
 
 	// Privacy
-	v1.GET("/privacy/settings", h.HandleGetPrivacySettings)
-	v1.PATCH("/privacy/settings", h.HandleSavePrivacySettings)
-	v1.POST("/privacy/test", h.HandleTestPrivacyConnection)
-	v1.POST("/privacy/dnscrypt/install", h.HandleInstallDNSCrypt)
+	v1.GET("/privacy/settings", h.HandleGetPrivacySettings, h.RequireProfileAdmin)
+	v1.PATCH("/privacy/settings", h.HandleSavePrivacySettings, h.RequireProfileAdmin)
+	v1.POST("/privacy/test", h.HandleTestPrivacyConnection, h.RequireProfileAdmin)
+	v1.POST("/privacy/dnscrypt/install", h.HandleInstallDNSCrypt, h.RequireProfileAdmin)
 
 	// Profiles
 	v1.GET("/profiles", h.HandleGetProfiles)
-	v1.POST("/profiles", h.HandleCreateProfile)
+	v1.POST("/profiles", h.HandleCreateProfile, h.RequireProfileAdmin)
 	v1.GET("/profiles/current", h.HandleGetCurrentProfile)
 	v1.POST("/profiles/login", h.HandleProfileLogin)
 	v1.POST("/profiles/revalidate", h.HandleRevalidateSession)
 	v1.POST("/profiles/logout", h.HandleProfileLogout)
-	v1.PATCH("/profiles/:id", h.HandleUpdateProfile)
-	v1.DELETE("/profiles/:id", h.HandleDeleteProfile)
-	v1.POST("/profiles/:id/avatar", h.HandleUploadProfileAvatar)
-	v1.POST("/profiles/:id/anilist-token", h.HandleAdminSetProfileAniListToken)
+	v1.PATCH("/profiles/:id", h.HandleUpdateProfile, h.RequireProfileSession)
+	v1.DELETE("/profiles/:id", h.HandleDeleteProfile, h.RequireProfileAdmin)
+	v1.POST("/profiles/:id/avatar", h.HandleUploadProfileAvatar, h.RequireProfileSession)
+	v1.POST("/profiles/:id/anilist-token", h.HandleAdminSetProfileAniListToken, h.RequireProfileAdmin)
 
 	// Comments
 	v1.GET("/comments", h.HandleGetComments)
@@ -447,12 +447,12 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	v1.POST("/comments/:id/vote", h.HandleVoteComment)
 	v1.GET("/profiles/:id/avatar/:filename", h.HandleServeProfileAvatar)
 	v1.GET("/profiles/library-paths", h.HandleGetAllowedLibraryPaths)
-	v1.POST("/profiles/library-paths", h.HandleSetAllowedLibraryPaths)
+	v1.POST("/profiles/library-paths", h.HandleSetAllowedLibraryPaths, h.RequireProfileAdmin)
 
 	// Profile Migration
 	v1.GET("/profiles/migration/status", h.HandleGetMigrationStatus)
-	v1.POST("/profiles/migration/run", h.HandleRunMigration)
-	v1.POST("/profiles/migration/skip", h.HandleSkipMigration)
+	v1.POST("/profiles/migration/run", h.HandleRunMigration, h.RequireProfileAdmin)
+	v1.POST("/profiles/migration/skip", h.HandleSkipMigration, h.RequireProfileAdmin)
 
 	// Auto Downloader
 	v1.POST("/auto-downloader/run", h.HandleRunAutoDownloader)
@@ -518,7 +518,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 
 	v1Anilist.GET("/cache-layer/status", h.HandleGetAnilistCacheLayerStatus)
 
-	v1Anilist.POST("/cache-layer/status", h.HandleToggleAnilistCacheLayerStatus)
+	v1Anilist.POST("/cache-layer/status", h.HandleToggleAnilistCacheLayerStatus, h.RequireProfileAdmin)
 
 	// Character Favorites (per-profile)
 	v1.GET("/character/favorites", h.HandleGetCharacterFavorites)
@@ -799,7 +799,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// Media Stream
 	//
 	v1.GET("/mediastream/settings", h.HandleGetMediastreamSettings)
-	v1.PATCH("/mediastream/settings", h.HandleSaveMediastreamSettings)
+	v1.PATCH("/mediastream/settings", h.HandleSaveMediastreamSettings, h.RequireProfileAdmin)
 	v1.POST("/mediastream/request", h.HandleRequestMediastreamMediaContainer)
 	v1.POST("/mediastream/preload", h.HandlePreloadMediastreamMediaContainer)
 	// Track preferences
@@ -829,7 +829,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// Torrent stream
 	//
 	v1.GET("/torrentstream/settings", h.HandleGetTorrentstreamSettings)
-	v1.PATCH("/torrentstream/settings", h.HandleSaveTorrentstreamSettings)
+	v1.PATCH("/torrentstream/settings", h.HandleSaveTorrentstreamSettings, h.RequireProfileAdmin)
 	v1.POST("/torrentstream/start", h.HandleTorrentstreamStartStream)
 	v1.POST("/torrentstream/stop", h.HandleTorrentstreamStopStream)
 	v1.POST("/torrentstream/drop", h.HandleTorrentstreamDropTorrent)
@@ -897,7 +897,7 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	//
 
 	v1.GET("/debrid/settings", h.HandleGetDebridSettings)
-	v1.PATCH("/debrid/settings", h.HandleSaveDebridSettings)
+	v1.PATCH("/debrid/settings", h.HandleSaveDebridSettings, h.RequireProfileAdmin)
 	v1.POST("/debrid/torrents", h.HandleDebridAddTorrents)
 	v1.POST("/debrid/torrents/download", h.HandleDebridDownloadTorrent)
 	v1.POST("/debrid/torrents/cancel", h.HandleDebridCancelDownload)
@@ -1066,10 +1066,10 @@ func InitRoutes(app *core.App, e *echo.Echo) {
 	// What the last update was, kept until the client has seen it. Shown after sign-in, never at
 	// the PIN screen, and dismissed only by the person looking at it.
 	v1.GET("/update/notice", h.HandleGetUpdateNotice)
-	v1.POST("/update/backend", h.HandleUpdateBackend)
-	v1.POST("/update/backend/check", h.HandleCheckBackendUpdate)
-	v1.POST("/anilist/overwrite", h.HandleOverwriteAnilist)
-	v1.POST("/anilist/overwrite/preview", h.HandleOverwriteAnilistPreview)
+	v1.POST("/update/backend", h.HandleUpdateBackend, h.RequireProfileAdmin)
+	v1.POST("/update/backend/check", h.HandleCheckBackendUpdate, h.RequireProfileAdmin)
+	v1.POST("/anilist/overwrite", h.HandleOverwriteAnilist, h.RequireProfileAdmin)
+	v1.POST("/anilist/overwrite/preview", h.HandleOverwriteAnilistPreview, h.RequireProfileAdmin)
 	v1.POST("/update/notice/dismiss", h.HandleDismissUpdateNotice)
 
 	v1.GET("/profile/exp-bar/all", h.HandleGetExpBarProgression)

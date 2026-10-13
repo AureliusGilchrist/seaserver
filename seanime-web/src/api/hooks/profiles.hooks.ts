@@ -7,7 +7,7 @@ type ProfileLoginResponse = { token: string; profile: ProfileSummary }
 import { currentProfileAtom, profileSessionTokenAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { serverStatusAtom } from "@/app/(main)/_atoms/server-status.atoms"
 import { useQueryClient } from "@tanstack/react-query"
-import { useSetAtom } from "jotai"
+import { useAtomValue, useSetAtom } from "jotai"
 import { toast } from "sonner"
 
 export function useGetProfiles(enabled?: boolean) {
@@ -135,12 +135,24 @@ export function useCreateProfile() {
 
 export function useUpdateProfile(id: number) {
     const qc = useQueryClient()
+    const currentProfile = useAtomValue(currentProfileAtom)
+    const setCurrentProfile = useSetAtom(currentProfileAtom)
+    const setServerStatus = useSetAtom(serverStatusAtom)
     return useServerMutation<ProfileSummary, { name?: string; pin?: string; isAdmin?: boolean }>({
         endpoint: API_ENDPOINTS.PROFILE.UpdateProfile.endpoint.replace("{id}", String(id)),
         method: API_ENDPOINTS.PROFILE.UpdateProfile.methods[0],
         mutationKey: [API_ENDPOINTS.PROFILE.UpdateProfile.key, id],
-        onSuccess: async () => {
-            await qc.invalidateQueries({ queryKey: [API_ENDPOINTS.PROFILE.GetProfiles.key] })
+        onSuccess: async (profile) => {
+            await Promise.all([
+                qc.invalidateQueries({ queryKey: [API_ENDPOINTS.PROFILE.GetProfiles.key] }),
+                qc.invalidateQueries({ queryKey: [API_ENDPOINTS.PROFILE.GetCurrentProfile.key] }),
+            ])
+            if (profile && currentProfile?.id === id) {
+                setCurrentProfile(profile)
+                setServerStatus(draft => {
+                    if (draft?.currentProfile?.id === id) draft.currentProfile = profile
+                })
+            }
             toast.success("Profile updated")
         },
     })

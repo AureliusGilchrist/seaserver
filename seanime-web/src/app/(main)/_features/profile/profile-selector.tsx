@@ -199,22 +199,26 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
     // PIN entry screen with keypad
     if (selectedProfile) {
         return (
-            <div className="flex min-h-screen flex-col items-center justify-center bg-[--background]">
-                <div className="mb-8">
-                    <img src="/seanime-logo.png" alt="logo" className="w-14 h-auto" />
-                </div>
-                <div className="flex flex-col items-center gap-6">
+            <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#080a16] px-4 py-10 text-white">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_15%_10%,rgba(124,58,237,0.22),transparent_42%),radial-gradient(ellipse_at_85%_80%,rgba(8,145,178,0.16),transparent_45%)]" />
+                <div className="pointer-events-none absolute -left-20 top-1/3 h-64 w-64 rounded-full bg-violet-600/10 blur-3xl" />
+                <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+                <div className="relative z-10 flex w-full max-w-sm flex-col items-center rounded-3xl border border-white/10 bg-white/[0.045] p-8 shadow-[0_30px_100px_-35px_rgba(124,58,237,0.5)] backdrop-blur-2xl">
+                    <div className="mb-8">
+                        <img src="/seanime-logo.png" alt="logo" className="w-14 h-auto drop-shadow-[0_0_18px_rgba(167,139,250,0.4)]" />
+                    </div>
+                    <div className="flex flex-col items-center gap-6">
                     <Avatar
                         src={selectedProfile.avatarPath || selectedProfile.anilistAvatar || undefined}
                         fallback={selectedProfile.name.charAt(0).toUpperCase()}
                         size="xl"
-                        className="w-24 h-24 text-3xl"
+                        className="w-24 h-24 text-3xl ring-4 ring-violet-300/20 shadow-xl shadow-violet-950/60"
                     />
-                    <h2 className="text-xl font-semibold text-[--foreground]">
+                    <h2 className="text-xl font-semibold text-white">
                         {selectedProfile.name}
                     </h2>
 
-                    <p className="text-sm text-[--muted]">Enter your PIN</p>
+                    <p className="text-sm text-white/55">Enter your PIN</p>
 
                     {/* Dot indicators */}
                     <div className="flex gap-3">
@@ -224,10 +228,10 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
                                 className={cn(
                                     "w-3 h-3 rounded-full transition-all duration-200",
                                     i < pin.length
-                                        ? "bg-[--brand] scale-110"
+                                        ? "scale-110 bg-violet-300 shadow-[0_0_12px_rgba(196,181,253,0.8)]"
                                         : i < MIN_PIN_LENGTH
-                                            ? "bg-[--border]"
-                                            : "bg-[--border] opacity-40",
+                                            ? "bg-white/20"
+                                            : "bg-white/10 opacity-50",
                                 )}
                             />
                         ))}
@@ -277,10 +281,11 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
                         size="sm"
                         leftIcon={<BiArrowBack />}
                         onClick={handleBack}
-                        className="mt-2"
+                        className="mt-2 text-white/65 hover:text-white"
                     >
                         Back
                     </Button>
+                    </div>
                 </div>
             </div>
         );
@@ -288,32 +293,37 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
 
     // Profile grid
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-[--background]">
-            <div className="mb-8">
-                <img src="/seanime-logo.png" alt="logo" className="w-14 h-auto" />
+        <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#080a16] px-4 py-10 text-white">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_15%_10%,rgba(124,58,237,0.22),transparent_42%),radial-gradient(ellipse_at_85%_80%,rgba(8,145,178,0.16),transparent_45%)]" />
+            <div className="pointer-events-none absolute -left-20 top-1/3 h-64 w-64 rounded-full bg-violet-600/10 blur-3xl" />
+            <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+            <div className="relative z-10 flex w-full max-w-3xl flex-col items-center rounded-3xl border border-white/10 bg-white/[0.045] p-8 shadow-[0_30px_100px_-35px_rgba(124,58,237,0.5)] backdrop-blur-2xl sm:p-10">
+            <div className="mb-7">
+                <img src="/seanime-logo.png" alt="logo" className="w-14 h-auto drop-shadow-[0_0_18px_rgba(167,139,250,0.4)]" />
             </div>
-            <h1 className="text-2xl font-bold text-[--foreground] mb-8">Who's watching?</h1>
-            <div className="flex flex-wrap justify-center gap-6 max-w-2xl">
+            <h1 className="mb-2 bg-gradient-to-r from-violet-200 via-white to-cyan-200 bg-clip-text text-3xl font-bold text-transparent">Who's watching?</h1>
+            <p className="mb-8 text-sm text-white/50">Choose a profile to continue</p>
+            <div className="flex max-w-2xl flex-wrap justify-center gap-4 sm:gap-6">
                 {profiles.map((profile) => (
                     <button
                         key={profile.id}
                         onClick={() => handleProfileClick(profile)}
-                        className="group flex flex-col items-center gap-3 p-4 rounded-lg transition-all hover:bg-[--subtle] focus:outline-none focus-visible:ring-2 focus-visible:ring-[--brand]"
+                        className="group flex min-w-32 flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.025] p-4 transition-all duration-200 hover:-translate-y-1 hover:border-violet-300/40 hover:bg-violet-400/[0.08] hover:shadow-[0_14px_40px_-18px_rgba(139,92,246,0.7)] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
                     >
                         <div className="relative">
                             <Avatar
                                 src={profile.avatarPath || profile.anilistAvatar || undefined}
                                 fallback={profile.name.charAt(0).toUpperCase()}
                                 size="xl"
-                                className="w-24 h-24 text-3xl rounded-lg border-2 border-transparent group-hover:border-[--brand] transition-colors"
+                                className="w-24 h-24 rounded-xl border-2 border-white/10 text-3xl shadow-lg shadow-black/30 transition-colors group-hover:border-violet-300/60"
                             />
                             {profile.isAdmin && (
-                                <div className="absolute -top-1 -right-1 bg-[--brand] text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                                <div className="absolute -right-2 -top-2 rounded-full border border-white/20 bg-gradient-to-r from-violet-500 to-cyan-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-lg shadow-violet-950/50">
                                     Admin
                                 </div>
                             )}
                         </div>
-                        <span className="text-sm font-medium text-[--muted] group-hover:text-[--foreground] transition-colors">
+                        <span className="text-sm font-medium text-white/65 transition-colors group-hover:text-white">
                             {profile.name}
                         </span>
                     </button>
@@ -323,13 +333,14 @@ export function ProfileSelector({ profiles, onManageProfiles }: ProfileSelectorP
                 <Button
                     intent="gray"
                     size="sm"
-                    className="mt-8"
+                    className="mt-8 border border-violet-300/20 bg-violet-400/10 text-violet-100 hover:bg-violet-400/20"
                     leftIcon={<BiPlus />}
                     onClick={onManageProfiles}
                 >
                     Manage Profiles
                 </Button>
             )}
+            </div>
         </div>
     )
 }
@@ -353,19 +364,19 @@ function KeypadButton({ label, pressed, onClick, disabled, variant = "digit" }: 
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-[--brand] focus-visible:ring-offset-2 focus-visible:ring-offset-[--background]",
                 "disabled:opacity-30 disabled:cursor-not-allowed",
                 variant === "digit" && [
-                    "bg-[--paper] border border-[--border] text-[--foreground]",
-                    "hover:bg-[--subtle] active:bg-[--brand]/20 active:border-[--brand]/50",
-                    pressed && "scale-90 bg-[--brand]/20 border-[--brand]/50",
+                    "border border-white/10 bg-white/[0.06] text-white",
+                    "hover:border-violet-300/35 hover:bg-violet-400/15 active:bg-violet-400/25",
+                    pressed && "scale-90 border-violet-300/50 bg-violet-400/25",
                 ],
                 variant === "utility" && [
-                    "bg-transparent border border-transparent text-[--muted]",
-                    "hover:bg-[--subtle] active:text-[--foreground]",
-                    pressed && "scale-90 text-[--foreground]",
+                    "border border-transparent bg-transparent text-white/50",
+                    "hover:bg-white/10 hover:text-white active:text-white",
+                    pressed && "scale-90 text-white",
                 ],
                 variant === "submit" && [
-                    "bg-[--brand]/20 border border-[--brand]/30 text-[--brand]",
-                    "hover:bg-[--brand]/30 active:bg-[--brand]/40",
-                    pressed && "scale-90 bg-[--brand]/40",
+                    "border border-violet-300/30 bg-gradient-to-br from-violet-400/25 to-cyan-400/15 text-violet-100",
+                    "hover:border-violet-200/50 hover:from-violet-400/35 hover:to-cyan-400/25",
+                    pressed && "scale-90 from-violet-400/45 to-cyan-400/30",
                 ],
             )}
         >

@@ -119,12 +119,12 @@ export function OfflineSidebar() {
                                         confirmDialog.open()
                                     },
                                 },
-                                {
+                                ...(!serverStatus?.profilesEnabled || !serverStatus?.profiles?.length || serverStatus?.currentProfile?.isAdmin ? [{
                                     iconType: LuSettings,
                                     name: "Settings",
                                     href: "/settings",
                                     isCurrent: pathname === ("/settings"),
-                                },
+                                }] : []),
                             ]}
                         />
                     </div>

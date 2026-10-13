@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"seanime/internal/core"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
 )
 
 // profileSessionRenewAfter is how old a token has to be before a request renews it.
@@ -45,6 +47,16 @@ func (h *Handler) ProfileSessionMiddleware(next echo.HandlerFunc) echo.HandlerFu
 			c.Response().Header().Set("X-Seanime-Profile-Expired", "true")
 			return next(c)
 		}
+
+		profile, err := h.App.ProfileManager.GetProfile(payload.ProfileID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.Response().Header().Set("X-Seanime-Profile-Expired", "true")
+			return next(c)
+		}
+		if err != nil {
+			return h.RespondWithError(c, err)
+		}
+		payload.IsAdmin = profile.IsAdmin
 
 		c.Set("profileSession", payload)
 

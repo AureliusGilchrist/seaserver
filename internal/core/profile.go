@@ -19,6 +19,8 @@ import (
 	gormlogger "gorm.io/gorm/logger"
 )
 
+var ErrProfileAdminRequired = errors.New("admin access required")
+
 // Profile represents a user profile in the system.
 // Stored in the global profiles.db, NOT in a per-profile database.
 type Profile struct {
@@ -167,6 +169,23 @@ func NewProfileManager(dataDir string, logger *zerolog.Logger) (*ProfileManager,
 		return nil, fmt.Errorf("profile: failed to migrate: %w", err)
 	}
 
+	var adminCount int64
+	if err := gormDB.Model(&Profile{}).Where("is_admin = ?", true).Count(&adminCount).Error; err != nil {
+		return nil, fmt.Errorf("profile: failed to check admin profiles: %w", err)
+	}
+	if adminCount == 0 {
+		var earliestProfile Profile
+		err := gormDB.Order("id asc").First(&earliestProfile).Error
+		if err == nil {
+			if err := gormDB.Model(&Profile{}).Where("id = ?", earliestProfile.ID).Update("is_admin", true).Error; err != nil {
+				return nil, fmt.Errorf("profile: failed to promote the earliest profile to admin: %w", err)
+			}
+			logger.Warn().Uint("id", earliestProfile.ID).Msg("profile: Promoted earliest profile to admin because no admins existed")
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("profile: failed to find earliest profile: %w", err)
+		}
+	}
+
 	// Generate or load JWT signing secret
 	jwtSecret, err := loadOrCreateJWTSecret(dataDir)
 	if err != nil {
@@ -263,8 +282,26 @@ func verifyPIN(pin, storedHash, storedSalt string) bool {
 // ──────────────────────────────────────────────
 
 func (pm *ProfileManager) CreateProfile(name, pin string, isAdmin bool) (*Profile, error) {
+	return pm.createProfile(name, pin, isAdmin, true)
+}
+
+func (pm *ProfileManager) CreateProfileForAdmin(name, pin string, isAdmin, hasAdminSession bool) (*Profile, error) {
+	return pm.createProfile(name, pin, isAdmin, hasAdminSession)
+}
+
+func (pm *ProfileManager) createProfile(name, pin string, isAdmin, hasAdminSession bool) (*Profile, error) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
+
+	var profileCount int64
+	if err := pm.db.Model(&Profile{}).Count(&profileCount).Error; err != nil {
+		return nil, err
+	}
+	if profileCount == 0 {
+		isAdmin = true
+	} else if !hasAdminSession {
+		return nil, ErrProfileAdminRequired
+	}
 
 	if len(pin) < 4 || len(pin) > 8 {
 		return nil, errors.New("PIN must be 4-8 digits")
@@ -333,6 +370,22 @@ func (pm *ProfileManager) GetAllProfiles() ([]*Profile, error) {
 func (pm *ProfileManager) UpdateProfile(id uint, updates map[string]interface{}) (*Profile, error) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
+
+	if isAdmin, ok := updates["is_admin"].(bool); ok && !isAdmin {
+		var profile Profile
+		if err := pm.db.First(&profile, id).Error; err != nil {
+			return nil, err
+		}
+		if profile.IsAdmin {
+			var adminCount int64
+			if err := pm.db.Model(&Profile{}).Where("is_admin = ?", true).Count(&adminCount).Error; err != nil {
+				return nil, err
+			}
+			if adminCount <= 1 {
+				return nil, errors.New("cannot demote the last admin profile")
+			}
+		}
+	}
 
 	if err := pm.db.Model(&Profile{}).Where("id = ?", id).Updates(updates).Error; err != nil {
 		return nil, err

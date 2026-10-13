@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -300,8 +301,17 @@ func (h *Handler) HandleCreateProfile(c echo.Context) error {
 		return h.RespondWithError(c, err)
 	}
 
-	profile, err := h.App.ProfileManager.CreateProfile(b.Name, b.PIN, b.IsAdmin)
+	session := c.Get("profileSession")
+	isAdminSession := session != nil && session.(*core.ProfileSessionPayload).IsAdmin
+	profile, err := h.App.ProfileManager.CreateProfileForAdmin(b.Name, b.PIN, b.IsAdmin, isAdminSession)
 	if err != nil {
+		if errors.Is(err, core.ErrProfileAdminRequired) {
+			status := 401
+			if session != nil {
+				status = 403
+			}
+			return h.RespondWithError(c, echo.NewHTTPError(status, "admin access required"))
+		}
 		return h.RespondWithError(c, err)
 	}
 

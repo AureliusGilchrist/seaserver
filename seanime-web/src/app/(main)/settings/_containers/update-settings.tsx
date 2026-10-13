@@ -158,7 +158,7 @@ export function UpdateSettings() {
     return (
         <div className="space-y-4">
             <AnilistOverwriteCard />
-            {!!window.electron?.liveUpdate && <LiveUpdates />}
+            <LiveUpdates />
         </div>
     )
 }
@@ -342,7 +342,7 @@ function LiveUpdates() {
     const currentProgressRef = React.useRef(initialProgress?.target === "backend" ? initialProgress.percent : 0)
     const currentFrontendProgressRef = React.useRef(initialProgress?.target === "frontend" ? initialProgress.percent : 0)
 
-    const [remote, setRemote] = React.useState(false)
+    const [remote, setRemote] = React.useState(!window.electron?.liveUpdate)
     const { mutateAsync: updateRemoteBackend } = useUpdateBackend()
     const { mutateAsync: checkRemoteBackend } = useCheckBackendUpdate()
     const [checking, setChecking] = React.useState<Target | null>(null)
@@ -399,7 +399,12 @@ function LiveUpdates() {
     const liveUpdate = window.electron?.liveUpdate
 
     const refreshInfo = React.useCallback(() => {
-        window.electron?.liveUpdate?.getInfo().then(info => {
+        const localUpdater = window.electron?.liveUpdate
+        if (!localUpdater) {
+            setRemote(true)
+            return
+        }
+        localUpdater.getInfo().then(info => {
             setDetectedRoot(info.repoRoot)
             setDetectedOrigin(info.repoOrigin ?? null)
             setRemote(!!info.remote)
@@ -421,20 +426,19 @@ function LiveUpdates() {
         logRef.current?.scrollTo({ top: logRef.current.scrollHeight })
     }, [lines])
 
-    if (!liveUpdate) return null
-
     async function check(target: Target) {
         setChecking(target)
         const label = target === "backend" ? "Backend" : "Frontend"
         try {
             let files: { path: string, insertions: number, deletions: number }[] = []
             let summary: string
-            if (target === "backend" && remote) {
+            if (target === "backend" && (remote || !liveUpdate)) {
                 const res = await checkRemoteBackend({})
                 files = res?.files ?? []
                 if (res?.behind && res.blocked) summary = `Update available. Note: ${res.blocked}`
                 else summary = res?.behind ? "Update available" : "Up to date"
             } else {
+                if (!liveUpdate) throw new Error("Frontend live updates are only available in the Denshi desktop app.")
                 const fn = target === "backend" ? liveUpdate!.checkBackend : liveUpdate!.checkFrontend
                 if (typeof fn !== "function") throw new Error("This app needs to be fully quit and restarted before it can run this update.")
                 const res = await fn()
@@ -466,13 +470,13 @@ function LiveUpdates() {
         currentProgressRef.current = 0
         currentFrontendProgressRef.current = 0
         failureReceivedRef.current = false
-        pendingRef.current = target === "backend" && remote
+        pendingRef.current = target === "backend" && (remote || !liveUpdate)
         wasDownRef.current = false
         setLines([stamp(target === "backend"
             ? "Backend update: [00%] Checking for an available update"
             : "Frontend update: [00%] Preparing frontend update")])
 
-        if (target === "backend" && remote) {
+        if (target === "backend" && (remote || !liveUpdate)) {
             setRunning(target)
             try {
                 const res = await updateRemoteBackend({})
@@ -509,6 +513,7 @@ function LiveUpdates() {
         }
         setRunning(target)
         try {
+            if (!liveUpdate) throw new Error("Frontend live updates are only available in the Denshi desktop app.")
             const res = target === "backend" ? await liveUpdate!.updateBackend() : await liveUpdate!.updateFrontend()
             const s = res.stats
             const changed = s && s.lines > 0
@@ -577,13 +582,15 @@ function LiveUpdates() {
 
             <SettingsCard title="Frontend">
                 <p className="text-sm text-[--muted]">
-                    Builds the frontend from the local files on this machine and swaps it in live. The window reloads when it is done.
+                    {liveUpdate
+                        ? "Builds the frontend from the local files on this machine and swaps it in live. The window reloads when it is done."
+                        : "Frontend live updates are available in the Denshi desktop app. The backend update controls above work from this page."}
                 </p>
                 <div className="flex gap-2">
                     <Button
                         intent="primary"
                         loading={running === "frontend"}
-                        disabled={running !== null || checking !== null}
+                        disabled={!liveUpdate || running !== null || checking !== null}
                         onClick={() => run("frontend")}
                     >
                         Update frontend
@@ -591,7 +598,7 @@ function LiveUpdates() {
                     <Button
                         intent="gray-outline"
                         loading={checking === "frontend"}
-                        disabled={running !== null || checking !== null}
+                        disabled={!liveUpdate || running !== null || checking !== null}
                         onClick={() => check("frontend")}
                     >
                         Check for updates
