@@ -64,7 +64,7 @@ export function LandingHub() {
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] -z-0 bg-[radial-gradient(60%_80%_at_15%_0%,rgb(var(--color-brand-500)/0.28),transparent_70%),radial-gradient(45%_70%_at_90%_10%,rgb(var(--color-brand-300)/0.16),transparent_70%)]" />
 
                 {/* Hero */}
-                <section className="relative z-[1] rounded-3xl border border-white/10 bg-black/25 backdrop-blur-xl shadow-2xl shadow-black/30 p-6 lg:p-10 overflow-hidden">
+                <section className="relative z-[1] rounded-3xl border border-white/10 bg-black/25 backdrop-blur-md shadow-2xl shadow-black/30 p-6 lg:p-10 overflow-hidden">
                     <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-[--brand]/25 blur-3xl" />
                     <div className="relative flex items-end justify-between gap-6 flex-wrap">
                         <div className="min-w-0">
@@ -79,14 +79,14 @@ export function LandingHub() {
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-                                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 backdrop-blur-xl px-5 py-2.5 text-sm font-medium text-white hover:bg-black/60 hover:border-[--brand]/70 transition-all"
+                                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 backdrop-blur-md px-5 py-2.5 text-sm font-medium text-white hover:bg-black/60 hover:border-[--brand]/70 transition-all"
                             >
                                 <FiSearch className="w-4 h-4" />
                                 Search
                             </button>
                             <button
                                 onClick={() => setSettingsOpen(true)}
-                                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 backdrop-blur-xl px-5 py-2.5 text-sm font-medium text-white hover:bg-black/60 hover:border-[--brand]/70 transition-all"
+                                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 backdrop-blur-md px-5 py-2.5 text-sm font-medium text-white hover:bg-black/60 hover:border-[--brand]/70 transition-all"
                                 title="Landing page settings"
                             >
                                 <LuSettings2 className="w-4 h-4" />

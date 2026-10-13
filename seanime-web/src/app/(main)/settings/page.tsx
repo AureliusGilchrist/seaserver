@@ -147,7 +147,7 @@ export default function Page() {
     if (profileCount > 0 && isCurrentProfileLoading) {
         return (
             <PageWrapper className="p-4 sm:p-8">
-                <div className="mx-auto max-w-lg rounded-2xl border border-[--border] bg-[--paper]/80 p-8 text-center shadow-xl backdrop-blur-xl">
+                <div className="mx-auto max-w-lg rounded-2xl border border-[--border] bg-[--paper]/80 p-8 text-center shadow-xl backdrop-blur-md">
                     <LuShieldCheck className="mx-auto mb-3 text-3xl text-[--brand]" />
                     <h1 className="text-xl font-semibold">Checking admin access</h1>
                     <p className="mt-2 text-sm text-[--muted]">Settings are available to profile admins.</p>
@@ -159,7 +159,7 @@ export default function Page() {
     if (profileCount > 0 && !currentProfile?.isAdmin) {
         return (
             <PageWrapper className="p-4 sm:p-8">
-                <div className="mx-auto max-w-lg rounded-2xl border border-red-400/20 bg-[--paper]/80 p-8 text-center shadow-xl backdrop-blur-xl">
+                <div className="mx-auto max-w-lg rounded-2xl border border-red-400/20 bg-[--paper]/80 p-8 text-center shadow-xl backdrop-blur-md">
                     <LuShieldCheck className="mx-auto mb-3 text-3xl text-red-300" />
                     <h1 className="text-xl font-semibold">Admin access required</h1>
                     <p className="mt-2 text-sm text-[--muted]">Only an admin profile can open or change server settings. Switch to an admin profile and try again.</p>
@@ -197,7 +197,7 @@ export default function Page() {
                             </div>
                             <div className="overflow-x-hidden overflow-y-auto rounded-[--radius-md] space-y-1 lg:max-h-[70vh] lg:space-y-3 flex justify-center flex-wrap lg:block">
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-md">
                                     <div className="space-y-2 p-4 w-full">
                                         <h4 className="text-center text-xl font-bold">Settings</h4>
                                         <div className="space-y-1">
@@ -215,12 +215,12 @@ export default function Page() {
                                         </div>
                                     </div>
                                 </Card>
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-md">
                                     <TabsTrigger value="updates" className="group">
                                         <LuRefreshCw className="mr-3 text-xl text-[--brand]" /> Updates
                                     </TabsTrigger>
                                 </Card>
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-md">
                                     <TabsTrigger
                                         value="seanime"
                                         className="group"
@@ -243,7 +243,7 @@ export default function Page() {
                                 {/*    Anime playback*/}
                                 {/*</div>*/}
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-md">
 
                                     <TabsTrigger
                                         value="media-player"
@@ -265,7 +265,7 @@ export default function Page() {
                                 {/*    Torrenting*/}
                                 {/*</div>*/}
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-md">
                                     <TabsTrigger
                                         value="torrent"
                                         className="group"
@@ -288,7 +288,7 @@ export default function Page() {
                                 {/*    Other features*/}
                                 {/*</div>*/}
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-md">
                                     <TabsTrigger
                                         value="onlinestream"
                                         className="group"
@@ -320,7 +320,7 @@ export default function Page() {
                                 {/*    Server & Interface*/}
                                 {/*</div>*/}
 
-                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-lg">
+                                <Card className="lg:p-2 contents lg:block border-0 bg-transparent lg:border lg:bg-gray-950/55 backdrop-blur-md">
                                     <TabsTrigger
                                         value="ui"
                                         className="group"
@@ -800,7 +800,7 @@ export default function Page() {
                                         {/*<SettingsCard>*/}
                                         <Accordion
                                             type="single"
-                                            className="group/settings-card relative bg-gray-950/50 rounded-xl border overflow-hidden backdrop-blur-lg"
+                                            className="group/settings-card relative bg-gray-950/50 rounded-xl border overflow-hidden backdrop-blur-md"
                                             triggerClass="px-4 py-3 text-[--muted] dark:data-[state=open]:text-white dark:hover:bg-transparent hover:bg-transparent dark:hover:text-white !font-medium transition-all duration-200 hover:translate-x-1"
                                             itemClass="border-b border-[--border] rounded-none transition-all duration-200 hover:border-[--brand]/30"
                                             contentClass="!p-4 animate-in duration-300"

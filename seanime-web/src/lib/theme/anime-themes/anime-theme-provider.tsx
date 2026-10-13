@@ -469,7 +469,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     })
 
     const [backgroundBlur, setBackgroundBlurRaw] = React.useState<number>(() => {
-        if (typeof window === "undefined") return config.backgroundBlur ?? 30
+        if (typeof window === "undefined") return 0
         try {
             const stored = seaStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
             if (stored !== null) {
@@ -477,7 +477,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
                 if (!isNaN(v)) return Math.max(0, Math.min(100, v))
             }
         } catch { }
-        return config.backgroundBlur ?? 30
+        return 0
     })
 
     // ── Background exposure / saturation (per-theme, user-overridable) ──
@@ -533,8 +533,8 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         } catch { setBackgroundDimRaw(config.backgroundDim ?? 0.30) }
         try {
             const s = seaStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
-            setBackgroundBlurRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(100, parseFloat(s))) : (config.backgroundBlur ?? 30))
-        } catch { setBackgroundBlurRaw(config.backgroundBlur ?? 30) }
+            setBackgroundBlurRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0, Math.min(100, parseFloat(s))) : 0)
+        } catch { setBackgroundBlurRaw(0) }
         try {
             const s = seaStorage.getItem(`sea-anime-bgexposure-${profileKey}-${themeId}`)
             setBackgroundExposureRaw(s !== null && !isNaN(parseFloat(s)) ? Math.max(0.1, Math.min(2.5, parseFloat(s))) : 1.0)
@@ -550,7 +550,7 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
         try {
             setBrandColorOverrideRaw(seaStorage.getItem(`sea-anime-color-${profileKey}-${themeId}`) ?? null)
         } catch { setBrandColorOverrideRaw(null) }
-    }, [themeId, profileKey, config.backgroundDim, config.backgroundBlur])
+    }, [themeId, profileKey, config.backgroundDim])
 
     const setBackgroundDim = React.useCallback((v: number) => {
         const clamped = Math.max(0, Math.min(1, v))
@@ -1331,4 +1331,3 @@ export function ThemeBackgroundImage({ url, dim, blur, exposure, saturation, con
         </div>
     )
 }
-

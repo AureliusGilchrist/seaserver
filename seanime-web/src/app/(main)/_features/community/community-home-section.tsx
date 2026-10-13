@@ -17,7 +17,7 @@ export function CommunityHomeSection() {
     const stats = data?.aggregateStats
 
     return (
-        <div data-community-home-section className="relative z-[1] mx-4 md:mx-6 lg:mx-8 rounded-3xl border border-white/10 bg-black/25 backdrop-blur-xl shadow-xl shadow-black/20 p-5 lg:p-6 space-y-5">
+        <div data-community-home-section className="relative z-[1] mx-4 md:mx-6 lg:mx-8 rounded-3xl border border-white/10 bg-black/25 backdrop-blur-md shadow-xl shadow-black/20 p-5 lg:p-6 space-y-5">
             <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
                     <LuUsers className="text-brand-300" />
