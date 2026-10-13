@@ -305,10 +305,10 @@ export default function Page() {
                                         value="services"
                                         className="group"
                                     ><HiOutlineServerStack className="text-xl mr-3 transition-transform duration-200" /> Services</TabsTrigger>
-                                    {__isElectronDesktop__ && <TabsTrigger
+                                    <TabsTrigger
                                         value="updates"
                                         className="group"
-                                    ><LuRefreshCw className="text-xl mr-3 transition-transform duration-200" /> Updates</TabsTrigger>}
+                                    ><LuRefreshCw className="text-xl mr-3 transition-transform duration-200" /> Updates</TabsTrigger>
                                 </Card>
                             </div>
                         </SettingsNavCard>
@@ -989,7 +989,7 @@ export default function Page() {
 
                         </TabsContent>
 
-                        {__isElectronDesktop__ && <TabsContent value="updates" className={tabContentClass}>
+                        <TabsContent value="updates" className={tabContentClass}>
 
                             <SettingsPageHeader
                                 title="Updates"
@@ -999,7 +999,7 @@ export default function Page() {
 
                             <UpdateSettings />
 
-                        </TabsContent>}
+                        </TabsContent>
                     </div>
                 </Tabs>
                 {/*</Card>*/}
