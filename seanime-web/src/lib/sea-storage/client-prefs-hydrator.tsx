@@ -12,8 +12,8 @@ import { hydrateClientPrefs, resetClientPrefsHydration } from "./sea-storage"
  *
  * Behaviour:
  *  - If there's no profile session token, render children immediately (no-op hydration).
- *  - If a profile session token exists, fetch /api/v1/client-prefs and write each entry to
- *    localStorage, then render children. Renders nothing while the request is in flight.
+ *  - If a profile session token exists, fetch profile and global preferences into localStorage,
+ *    then render children. Renders nothing while the requests are in flight.
  *  - When the profile session token changes, re-hydrate so per-profile values are correct.
  */
 export function ClientPrefsHydrator({ children }: { children: React.ReactNode }) {

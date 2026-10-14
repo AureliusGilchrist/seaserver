@@ -51,6 +51,22 @@ var (
 	animeheavenSourceRe = regexp.MustCompile(`<source\s+src=['"]([^'"]+)['"]`)
 )
 
+func animeheavenSourceMatchesEpisode(sourceURL, episodeID string) bool {
+	parsedURL, err := url.Parse(sourceURL)
+	if err != nil {
+		return false
+	}
+	_, ok := parsedURL.Query()[episodeID]
+	return ok
+}
+
+func sortAnimeHeavenSources(sources []*hibikeonlinestream.VideoSource, episodeID string) {
+	sort.SliceStable(sources, func(i, j int) bool {
+		return animeheavenSourceMatchesEpisode(sources[i].URL, episodeID) &&
+			!animeheavenSourceMatchesEpisode(sources[j].URL, episodeID)
+	})
+}
+
 func (p *AnimeHeaven) get(rawUrl string, cookie string) ([]byte, error) {
 	req, err := http.NewRequest("GET", rawUrl, nil)
 	if err != nil {
@@ -211,6 +227,8 @@ func (p *AnimeHeaven) FindEpisodeServer(episode *hibikeonlinestream.EpisodeDetai
 	if len(sources) == 0 {
 		return nil, ErrSourceNotFound
 	}
+
+	sortAnimeHeavenSources(sources, episode.ID)
 
 	return &hibikeonlinestream.EpisodeServer{
 		Provider:     AnimeHeavenProvider,

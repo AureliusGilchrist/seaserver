@@ -32,15 +32,33 @@ import { useThemeSettings } from "@/lib/theme/hooks"
 import { seaStorage } from "@/lib/sea-storage/sea-storage"
 
 function readBackgroundBlur(profileKey: string, themeId: AnimeThemeId): number {
-    const globalKey = `sea-global-anime-bgblur-${themeId}`
+    const globalKey = "sea-global-anime-bgblur"
     const globalValue = seaStorage.getItem(globalKey)
     if (globalValue !== null) {
         const value = parseFloat(globalValue)
         if (!isNaN(value)) return Math.max(0, Math.min(100, value))
     }
 
-    const legacyValue = seaStorage.getItem(`sea-anime-bgblur-${profileKey}-${themeId}`)
-    if (legacyValue !== null) {
+    const legacyGlobalKeys = [`sea-global-anime-bgblur-${themeId}`]
+    const legacyProfileKeys = [
+        `sea-anime-bgblur-default-${themeId}`,
+        `sea-anime-bgblur-${profileKey}-${themeId}`,
+    ]
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (!key) continue
+            if (key.startsWith("sea-global-anime-bgblur-") && !legacyGlobalKeys.includes(key)) {
+                legacyGlobalKeys.push(key)
+            } else if (key.startsWith("sea-anime-bgblur-") && !legacyProfileKeys.includes(key)) {
+                legacyProfileKeys.push(key)
+            }
+        }
+    } catch {}
+
+    for (const key of [...legacyGlobalKeys, ...legacyProfileKeys]) {
+        const legacyValue = seaStorage.getItem(key)
+        if (legacyValue === null) continue
         const value = parseFloat(legacyValue)
         if (!isNaN(value)) {
             const clamped = Math.max(0, Math.min(100, value))
@@ -580,8 +598,8 @@ export function AnimeThemeProvider({ children }: { children: React.ReactNode }) 
     const setBackgroundBlur = React.useCallback((v: number) => {
         const clamped = Math.max(0, Math.min(100, v))
         setBackgroundBlurRaw(clamped)
-        try { seaStorage.setItem(`sea-global-anime-bgblur-${themeId}`, String(clamped)) } catch { }
-    }, [themeId])
+        try { seaStorage.setItem("sea-global-anime-bgblur", String(clamped)) } catch { }
+    }, [])
 
     const setBackgroundExposure = React.useCallback((v: number) => {
         const clamped = Math.max(0.1, Math.min(2.5, v))

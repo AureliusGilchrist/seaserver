@@ -45,9 +45,23 @@ func TestMalsyncProvidersLive(t *testing.T) {
 			if len(server.VideoSources) == 0 || server.VideoSources[0].URL == "" {
 				t.Fatal("no video sources")
 			}
-			t.Logf("source: %s (%s), %d subtitles", server.VideoSources[0].URL, server.VideoSources[0].Type, len(server.VideoSources[0].Subtitles))
+			for i, source := range server.VideoSources {
+				t.Logf("source %d: %s (%s)", i, source.URL, source.Type)
+			}
+			t.Logf("%d subtitles", len(server.VideoSources[0].Subtitles))
 			t.Logf("headers: %v", server.Headers)
 			checkPlayable(t, server.VideoSources[0].URL, server.Headers)
+			if name == "kickassanime" && len(server.VideoSources[0].Subtitles) > 0 {
+				subtitle := server.VideoSources[0].Subtitles[0]
+				for _, candidate := range server.VideoSources[0].Subtitles {
+					if candidate.IsDefault {
+						subtitle = candidate
+						break
+					}
+				}
+				t.Logf("checking %s subtitle", subtitle.Language)
+				checkSubtitlePlayable(t, subtitle.URL, server.Headers)
+			}
 		})
 	}
 }

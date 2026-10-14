@@ -47,7 +47,9 @@ const SYNCED_KEY_PATTERNS: readonly string[] = [
 ]
 
 const GLOBAL_SYNCED_KEY_PATTERNS: readonly string[] = [
-    // Wallpaper blur is shared across profiles but remains specific to each theme.
+    // Wallpaper blur is shared across profiles and themes.
+    "sea-global-anime-bgblur",
+    // Previous global-per-theme keys are still hydrated for migration.
     "sea-global-anime-bgblur-*",
 ]
 
@@ -94,6 +96,7 @@ const FLUSH_DEBOUNCE_MS = 400
 
 let _hydrated = false
 let _hydrating: Promise<void> | null = null
+let _hydrationGeneration = 0
 
 function scheduleFlush() {
     if (flushTimer != null) return
@@ -222,19 +225,19 @@ export const seaJotaiStorage: SyncStorage<any> = {
 // ─── Hydration ────────────────────────────────────────────────────────────────
 
 /**
- * Pulls all client preferences for the current profile from the server and writes them
- * to localStorage, clobbering any local values. After this completes, queued local writes
- * begin flushing to the server.
+ * Pulls profile and global client preferences into localStorage. Unsynced local edits take
+ * precedence, and global keys are never hydrated from profile-scoped data.
  */
 export async function hydrateClientPrefs(): Promise<void> {
     if (typeof window === "undefined") return
     if (_hydrating) return _hydrating
 
+    const generation = ++_hydrationGeneration
     const run = (async () => {
         const tokens = getTokens()
         if (!tokens.profileToken) {
             // No active profile — nothing to hydrate. Mark hydrated so future writes flush.
-            _hydrated = true
+            if (generation === _hydrationGeneration) _hydrated = true
             return
         }
 
@@ -244,8 +247,10 @@ export async function hydrateClientPrefs(): Promise<void> {
                 method: "GET",
                 ...tokens,
             })
+            if (generation !== _hydrationGeneration) return
             if (data && typeof data === "object") {
                 for (const [k, v] of Object.entries(data)) {
+                    if (isGlobalSyncedKey(k) || pending.has(k)) continue
                     try {
                         localStorage.setItem(k, v)
                     } catch {}
@@ -256,31 +261,42 @@ export async function hydrateClientPrefs(): Promise<void> {
                 method: "GET",
                 ...tokens,
             })
+            if (generation !== _hydrationGeneration) return
             if (globalData && typeof globalData === "object") {
                 for (const [k, v] of Object.entries(globalData)) {
-                    if (!isGlobalSyncedKey(k)) continue
+                    if (!isGlobalSyncedKey(k) || pending.has(k)) continue
                     try {
                         localStorage.setItem(k, v)
                     } catch {}
                 }
             }
-        } catch {
-            // Silently tolerate hydration failure — local values remain in effect.
+        } catch (error) {
+            // Keep local values in effect when the server cannot be reached.
+            if (generation === _hydrationGeneration) {
+                console.warn("[seaStorage] Client preference hydration failed", error)
+            }
         } finally {
-            _hydrated = true
-            window.dispatchEvent(new Event("sea-client-prefs-hydrated"))
-            // Kick off a flush in case anything was queued before hydration finished.
-            if (pending.size > 0) scheduleFlush()
+            if (generation === _hydrationGeneration) {
+                _hydrated = true
+                window.dispatchEvent(new Event("sea-client-prefs-hydrated"))
+                // Kick off a flush in case anything was queued before hydration finished.
+                if (pending.size > 0) scheduleFlush()
+            }
         }
     })()
 
     _hydrating = run
-    try { await run } finally { _hydrating = null }
+    try { await run } finally {
+        if (_hydrating === run) _hydrating = null
+    }
 }
 
-/** Force-reset hydration state. Used when switching profiles. */
+/** Reset profile hydration while preserving unsynced global preferences. */
 export function resetClientPrefsHydration() {
+    _hydrationGeneration++
     _hydrated = false
     _hydrating = null
-    pending.clear()
+    for (const key of pending.keys()) {
+        if (!isGlobalSyncedKey(key)) pending.delete(key)
+    }
 }

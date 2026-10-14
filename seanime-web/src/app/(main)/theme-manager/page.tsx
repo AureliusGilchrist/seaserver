@@ -413,12 +413,15 @@ export default function ThemeManagerPage() {
             {activeTab === "effects" && (
                 <div className="space-y-4">
                     {config.id === "seanime" && (
-                        <div className="rounded-2xl border border-dashed border-[--border] bg-[--paper] px-5 py-4 flex items-center justify-between gap-4">
+                        <div className="rounded-2xl border border-dashed border-[--border] bg-[--paper] px-5 py-4 flex flex-col gap-4">
                             <div className="flex items-center gap-3">
                                 <LuSlidersHorizontal className="w-5 h-5 text-[--muted] opacity-40 shrink-0" />
-                                <p className="text-sm text-[--muted]">Background effects require an active theme. Font picker is available below.</p>
+                                <p className="text-sm text-[--muted]">Most background effects require an active theme. Global blur also applies to custom wallpapers across profiles.</p>
                             </div>
-                            <button onClick={() => setActiveTab("themes")} className="text-xs text-[--color-brand-400] hover:text-[--color-brand-300] transition-colors shrink-0">Pick a theme →</button>
+                            <EffectSlider label="Global Blur" value={backgroundBlur} min={0} max={60} step={1} display={`${backgroundBlur}px`} fillPct={(backgroundBlur / 60) * 100} onChange={setBackgroundBlur} onReset={() => setBackgroundBlur(0)} />
+                            <div className="flex justify-end">
+                                <button onClick={() => setActiveTab("themes")} className="text-xs text-[--color-brand-400] hover:text-[--color-brand-300] transition-colors shrink-0">Pick a theme →</button>
+                            </div>
                         </div>
                     )}
                     {config.id !== "seanime" && (

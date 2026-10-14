@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"seanime/internal/mkvparser"
 )
 
 // checkPlayable fetches a source the way the player does, using the headers the provider returned:
@@ -65,5 +67,48 @@ func checkPlayable(t *testing.T, srcUrl string, headers map[string]string) {
 			fetch(current)
 			return
 		}
+	}
+}
+
+func checkSubtitlePlayable(t *testing.T, subtitleURL string, headers map[string]string) {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodGet, subtitleURL, nil)
+	if err != nil {
+		t.Fatalf("build subtitle request: %v", err)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
+	if err != nil {
+		t.Fatalf("fetch subtitle: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		t.Fatalf("fetch subtitle: status %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		t.Fatalf("read subtitle: %v", err)
+	}
+	content := strings.TrimSpace(string(body))
+	if content == "" {
+		t.Fatal("subtitle response is empty")
+	}
+	if strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/html") ||
+		strings.HasPrefix(strings.ToLower(content), "<!doctype html") ||
+		strings.HasPrefix(strings.ToLower(content), "<html") {
+		t.Fatal("subtitle URL returned an HTML page instead of subtitle content")
+	}
+	subtitleType := mkvparser.DetectSubtitleType(content)
+	if subtitleType == mkvparser.SubtitleTypeUnknown {
+		t.Fatal("subtitle content format could not be detected")
+	}
+	if _, err := mkvparser.ConvertToASS(content, subtitleType); err != nil {
+		t.Fatalf("convert subtitle: %v", err)
 	}
 }

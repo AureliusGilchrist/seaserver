@@ -15,6 +15,42 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+func directstreamSubtitleRefererCandidates(headers map[string]string, subtitleURL string) []string {
+	candidates := make([]string, 0, 8)
+	seen := make(map[string]struct{})
+	add := func(referer string) {
+		if _, ok := seen[referer]; ok {
+			return
+		}
+		seen[referer] = struct{}{}
+		candidates = append(candidates, referer)
+	}
+
+	for _, headerName := range []string{"Referer", "Origin"} {
+		for key, value := range headers {
+			if value != "" && strings.EqualFold(key, headerName) {
+				add(value)
+				break
+			}
+		}
+	}
+	add("")
+
+	if parsedURL, err := url.Parse(subtitleURL); err == nil && parsedURL.Host != "" {
+		add(parsedURL.Scheme + "://" + parsedURL.Host + "/")
+	}
+	for _, referer := range []string{
+		"https://kickassanime.mx/",
+		"https://kaa.mx/",
+		"https://animetsu.net/",
+		"https://megacloud.club/",
+		"https://megacloud.tv/",
+	} {
+		add(referer)
+	}
+	return candidates
+}
+
 // HandleDirectstreamPlayLocalFile
 //
 //	@summary request local file stream.
@@ -205,49 +241,45 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 		return redirectClient.Do(retryReq)
 	}
 
-	// Referer candidates, most specific first: whatever the extension supplied, then the
-	// subtitle host itself, then known embed hosts.
-	refererCandidates := []string{""}
-	for k, v := range b.Headers {
-		if v != "" && (strings.EqualFold(k, "Referer") || strings.EqualFold(k, "Origin")) {
-			refererCandidates = append([]string{v}, refererCandidates...)
-		}
-	}
-	if parsedURL, parseErr := url.Parse(subtitleURL); parseErr == nil && parsedURL.Host != "" {
-		refererCandidates = append(refererCandidates,
-			parsedURL.Scheme+"://"+parsedURL.Host+"/",
-		)
-	}
-	refererCandidates = append(refererCandidates,
-		"https://kickassanime.mx/",
-		"https://kaa.mx/",
-		"https://animetsu.net/",
-		"https://megacloud.club/",
-		"https://megacloud.tv/",
-	)
-
-	var resp *http.Response
+	refererCandidates := directstreamSubtitleRefererCandidates(b.Headers, subtitleURL)
+	var converted string
 	var lastStatus int
 	var lastErr error
+	var lastConversionErr error
 	for _, referer := range refererCandidates {
-		r, retryErr := fetchSubtitle(referer)
-		if retryErr != nil {
-			lastErr = retryErr
+		resp, fetchErr := fetchSubtitle(referer)
+		if fetchErr != nil {
+			lastErr = fetchErr
 			continue
 		}
-		if r.StatusCode >= 200 && r.StatusCode < 300 {
-			resp = r
-			break
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			lastStatus = resp.StatusCode
+			resp.Body.Close()
+			// Only hotlink-protection responses are worth retrying with another referer.
+			if resp.StatusCode != 401 && resp.StatusCode != 403 {
+				break
+			}
+			continue
 		}
-		lastStatus = r.StatusCode
-		r.Body.Close()
-		// Only hotlink-protection responses are worth retrying with another referer.
-		if r.StatusCode != 401 && r.StatusCode != 403 {
+
+		bodyBytes, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr != nil {
+			lastErr = fmt.Errorf("failed to read subtitle response: %w", readErr)
+			continue
+		}
+		converted, lastConversionErr = h.App.VideoCore.ConvertSubsTo(
+			strings.TrimSpace(string(bodyBytes)), mkvparser.SubtitleTypeUnknown, to,
+		)
+		if lastConversionErr == nil {
 			break
 		}
 	}
 
-	if resp == nil {
+	if converted == "" {
+		if lastConversionErr != nil {
+			return h.RespondWithError(c, fmt.Errorf("subtitle response could not be converted: %w", lastConversionErr))
+		}
 		if lastStatus != 0 {
 			return h.RespondWithError(c, fmt.Errorf("subtitle URL returned HTTP %d (hotlink protection, all referers blocked)", lastStatus))
 		}
@@ -255,24 +287,7 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 			"could not fetch the subtitle file from %s: %w — the provider's subtitle host refused or could not be reached",
 			subtitleURL, lastErr))
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return h.RespondWithError(c, fmt.Errorf("subtitle URL returned HTTP %d", resp.StatusCode))
-	}
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return h.RespondWithError(c, fmt.Errorf("failed to read subtitle response: %w", err))
-	}
-
-	content := strings.TrimSpace(string(bodyBytes))
-	ret, err := h.App.VideoCore.ConvertSubsTo(content, mkvparser.SubtitleTypeUnknown, to)
-	if err != nil {
-		return h.RespondWithError(c, err)
-	}
-
-	return h.RespondWithData(c, ret)
+	return h.RespondWithData(c, converted)
 }
 
 func (h *Handler) HandleDirectstreamGetStream(c echo.Context) error {
