@@ -333,11 +333,12 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                         }
                         await sharedRenderer.setVideo(this.videoElement)
                         if (this.isDestroyed) return
-                        // Fresh start for the new episode: blank the previous track and
-                        // unwedge the render loop in case a failed draw left `busy` stuck
-                        // (which freezes the last subtitle on the canvas indefinitely).
+                        // Reusing the renderer must release the prior episode's track before
+                        // installing the blank track; setTrack() adds tracks rather than replacing them.
                         sharedRenderer.busy = false
-                        sharedRenderer.renderer.setTrack(this.defaultSubtitleHeader)
+                        await this._freeLibassTrack(sharedRenderer)
+                        if (this.isDestroyed) return
+                        await sharedRenderer.renderer.setTrack(this.defaultSubtitleHeader)
                         sharedRenderer.resize(true)?.catch?.(() => {})
                         this.libassRenderer = sharedRenderer
                         sharedRendererOwner = this
@@ -659,12 +660,27 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
      * and libass scans the entire event list on every rendered frame — so a session grew
      * slower the longer it ran and the more events it had seen.
      */
-    private async _freeLibassTrack() {
-        if (!this.libassRenderer) return
+    private async _freeLibassTrack(renderer: JASSUB | null = this.libassRenderer) {
+        if (!renderer) return
         await Promise.race([
-            Promise.resolve((this.libassRenderer.renderer as any)?.freeTrack?.()),
+            Promise.resolve((renderer.renderer as any)?.freeTrack?.()),
             new Promise((_, reject) => setTimeout(() => reject(new Error("freeTrack timed out")), 3000)),
         ])
+    }
+
+    private async _replaceLibassTrack(content: string) {
+        const renderer = this.libassRenderer
+        if (!renderer || this.isDestroyed) return
+        try {
+            await this._freeLibassTrack(renderer)
+        }
+        catch (e) {
+            if (this.isDestroyed || this.libassRenderer !== renderer) return
+            subtitleLog.warning("Rebuilding libass renderer after track cleanup failed", e)
+            await this._rebuildRenderer()
+        }
+        if (this.isDestroyed || !this.libassRenderer) return
+        await this.libassRenderer.renderer.setTrack(content)
     }
 
     async selectTrack(trackNumber: number) {
@@ -1537,7 +1553,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         // If content is already loaded, use it
         if (!!fileTrack.content) {
             subtitleLog.info("Using cached converted content for track", trackNumber)
-            this.libassRenderer?.renderer?.setTrack(fileTrack.content)
+            await this._replaceLibassTrack(fileTrack.content)
+            if (this.isDestroyed) return
             await this._applySubtitleCustomization()
             await this.libassRenderer?.resize?.()?.catch?.(e => subtitleLog.warn("Failed to resize libass renderer", e))
             this.pgsRenderer?.resize()
@@ -1552,7 +1569,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 const content = fileTrack.info.src ? await fetch(fileTrack.info.src).then(res => res.text()) : (fileTrack.info.content || "")
                 if (this.isDestroyed) return
                 this.fileTracks[trackNumber].content = content // cache it
-                this.libassRenderer?.renderer?.setTrack(content) // load it
+                await this._replaceLibassTrack(content)
+                if (this.isDestroyed) return
                 await this._applySubtitleCustomization()
                 await this.libassRenderer?.resize?.()
                 this.pgsRenderer?.resize()
@@ -1570,7 +1588,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 // Cache the converted content
                 this.fileTracks[trackNumber].content = assContent
                 subtitleLog.info("Loading converted ASS content")
-                this.libassRenderer?.renderer?.setTrack(assContent) // load it
+                await this._replaceLibassTrack(assContent)
+                if (this.isDestroyed) return
                 await this._applySubtitleCustomization()
                 await this.libassRenderer?.resize?.()
                 this.pgsRenderer?.resize()

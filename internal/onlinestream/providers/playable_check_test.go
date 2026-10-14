@@ -108,6 +108,18 @@ func checkSubtitlePlayable(t *testing.T, subtitleURL string, headers map[string]
 	if subtitleType == mkvparser.SubtitleTypeUnknown {
 		t.Fatal("subtitle content format could not be detected")
 	}
+	cueCount := strings.Count(content, "-->")
+	if cueCount == 0 {
+		for _, line := range strings.Split(content, "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "Dialogue:") {
+				cueCount++
+			}
+		}
+	}
+	if cueCount == 0 {
+		t.Fatal("subtitle content has no timed cues")
+	}
+	t.Logf("subtitle contains %d timed cues", cueCount)
 	if _, err := mkvparser.ConvertToASS(content, subtitleType); err != nil {
 		t.Fatalf("convert subtitle: %v", err)
 	}
