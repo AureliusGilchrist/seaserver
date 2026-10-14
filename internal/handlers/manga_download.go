@@ -141,8 +141,9 @@ func (h *Handler) HandleGetMangaDownloadQueue(c echo.Context) error {
 //	@route /api/v1/manga/download-queue/start [POST]
 //	@returns bool
 func (h *Handler) HandleStartMangaDownloadQueue(c echo.Context) error {
-
-	h.App.MangaDownloader.RunChapterDownloadQueue()
+	if err := h.App.MangaDownloader.RunChapterDownloadQueue(); err != nil {
+		return h.RespondWithError(c, err)
+	}
 
 	return h.RespondWithData(c, true)
 }
@@ -155,8 +156,9 @@ func (h *Handler) HandleStartMangaDownloadQueue(c echo.Context) error {
 //	@route /api/v1/manga/download-queue/stop [POST]
 //	@returns bool
 func (h *Handler) HandleStopMangaDownloadQueue(c echo.Context) error {
-
-	h.App.MangaDownloader.StopChapterDownloadQueue()
+	if err := h.App.MangaDownloader.StopChapterDownloadQueue(); err != nil {
+		return h.RespondWithError(c, err)
+	}
 
 	return h.RespondWithData(c, true)
 

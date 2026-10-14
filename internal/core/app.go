@@ -698,6 +698,14 @@ func NewApp(configOpts *ConfigOptions, selfupdater *updater.SelfUpdater) *App {
 	// Run one-time initialization actions
 	app.performActionsOnce()
 
+	if err := app.MangaDownloader.ResumeChapterDownloadQueue(); err != nil {
+		app.Logger.Error().Err(err).Msg("app: Failed to resume manga chapter download queue")
+	}
+
+	if err := app.MangaEnMasseDownloader.ResumeIfInterrupted(); err != nil {
+		app.Logger.Error().Err(err).Msg("app: Failed to resume manga en masse downloader")
+	}
+
 	return app
 }
 

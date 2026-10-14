@@ -26,6 +26,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const chapterDownloadQueueActivePrefKey = "manga-chapter-download-queue-active"
+
 func NewDownloader(opts *NewDownloaderOptions) *Downloader {
 	_ = os.MkdirAll(opts.DownloadDir, os.ModePerm)
 	filecacher, _ := filecache.NewCacher(opts.DownloadDir)
@@ -508,13 +510,72 @@ func (d *Downloader) GetMediaMap() map[int]ProviderDownloadMap {
 	return result
 }
 
-func (d *Downloader) RunChapterDownloadQueue() {
+func (d *Downloader) RunChapterDownloadQueue() error {
+	if err := d.setChapterDownloadQueueActive(true); err != nil {
+		return fmt.Errorf("failed to save manga chapter queue state: %w", err)
+	}
 	d.chapterDownloader.Run()
+	return nil
 }
 
-func (d *Downloader) StopChapterDownloadQueue() {
-	_ = d.database.ResetDownloadingChapterDownloadQueueItems()
+func (d *Downloader) StopChapterDownloadQueue() error {
+	if err := d.setChapterDownloadQueueActive(false); err != nil {
+		return fmt.Errorf("failed to save manga chapter queue state: %w", err)
+	}
+	resetErr := d.database.ResetDownloadingChapterDownloadQueueItems()
 	d.chapterDownloader.Stop()
+	if resetErr != nil {
+		return fmt.Errorf("failed to reset interrupted manga chapters: %w", resetErr)
+	}
+	return nil
+}
+
+func (d *Downloader) ResumeChapterDownloadQueue() error {
+	pref, err := d.database.GetClientPref(chapterDownloadQueueActivePrefKey)
+	if err != nil {
+		return fmt.Errorf("failed to read manga chapter queue state: %w", err)
+	}
+	hasInterruptedDownload := false
+	if pref == nil {
+		queued, err := d.database.GetChapterDownloadQueue()
+		if err != nil {
+			return fmt.Errorf("failed to inspect manga chapter queue: %w", err)
+		}
+		for _, item := range queued {
+			if item.Status == string(chapter_downloader.QueueStatusDownloading) {
+				hasInterruptedDownload = true
+				break
+			}
+		}
+	}
+	shouldResume := shouldResumeChapterDownloadQueue(pref, hasInterruptedDownload)
+	if !shouldResume {
+		return nil
+	}
+	if err := d.setChapterDownloadQueueActive(true); err != nil {
+		return fmt.Errorf("failed to save manga chapter queue state: %w", err)
+	}
+	if err := d.database.ResetDownloadingChapterDownloadQueueItems(); err != nil {
+		return fmt.Errorf("failed to recover interrupted manga chapter downloads: %w", err)
+	}
+	d.chapterDownloader.Run()
+	return nil
+}
+
+func (d *Downloader) setChapterDownloadQueueActive(active bool) error {
+	value := "false"
+	if active {
+		value = "true"
+	}
+	_, err := d.database.UpsertClientPref(chapterDownloadQueueActivePrefKey, value)
+	return err
+}
+
+func shouldResumeChapterDownloadQueue(pref *models.ClientPref, hasInterruptedDownload bool) bool {
+	if pref != nil {
+		return pref.Value == "true"
+	}
+	return hasInterruptedDownload
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

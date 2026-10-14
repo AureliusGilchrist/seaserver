@@ -30,22 +30,22 @@ import (
 )
 
 const (
-	HakunekoMangasPath       = "/zroot/Soul/Otaku Media/Databases/weebcentral.json"
-	MangaProgressFilePath    = "/zroot/Soul/Otaku Media/Databases/enmasse-manga-progress.json"
-	DefaultMangaProvider     = "weebcentral"
+	HakunekoMangasPath    = "/zroot/Soul/Otaku Media/Databases/weebcentral.json"
+	MangaProgressFilePath = "/zroot/Soul/Otaku Media/Databases/enmasse-manga-progress.json"
+	DefaultMangaProvider  = "weebcentral"
 	// Rate limiting: max concurrent requests and delay between manga processing
-	MaxConcurrentManga       = 1  // Process one manga at a time
-	MaxConcurrentChapters    = 8  // Download up to 8 chapters concurrently per manga
-	DelayBetweenManga        = 1 * time.Second  // Wait between each manga
-	DelayBetweenChapters     = 50 * time.Millisecond  // Wait between chapter queuing
-	DelayBetweenAPIRequests  = 180 * time.Millisecond  // Wait between API requests to same provider
-	MaxLogEntries            = 333 // Maximum entries to keep in each log category
+	MaxConcurrentManga      = 1                      // Process one manga at a time
+	MaxConcurrentChapters   = 8                      // Download up to 8 chapters concurrently per manga
+	DelayBetweenManga       = 1 * time.Second        // Wait between each manga
+	DelayBetweenChapters    = 50 * time.Millisecond  // Wait between chapter queuing
+	DelayBetweenAPIRequests = 180 * time.Millisecond // Wait between API requests to same provider
+	MaxLogEntries           = 333                    // Maximum entries to keep in each log category
 	// Retry settings for queue full / rate limiting - will wait indefinitely
-	QueueFullRetryDelay      = 15 * time.Second  // Wait before retrying when queue is full
-	RateLimitRetryDelay      = 30 * time.Second  // Wait before retrying on rate limit errors
+	QueueFullRetryDelay = 15 * time.Second // Wait before retrying when queue is full
+	RateLimitRetryDelay = 30 * time.Second // Wait before retrying on rate limit errors
 	// AniListResolveTimeout caps how long one title may spend looking itself up on AniList before
 	// the walk gives up and uses a synthetic entry. Metadata is optional; downloading is not.
-	AniListResolveTimeout    = 45 * time.Second
+	AniListResolveTimeout      = 45 * time.Second
 	searchMangaAllFormatsQuery = `query SearchMangaAllFormats($page: Int, $perPage: Int, $search: String) {
 	  Page(page: $page, perPage: $perPage) {
 	    pageInfo {
@@ -97,12 +97,12 @@ const (
 
 type (
 	MangaDownloader struct {
-		logger            *zerolog.Logger
-		mangaRepository   *manga.Repository
-		mangaDownloader   *manga.Downloader
-		database          *database.Database
-		wsEventManager    events.WSEventManagerInterface
-		platformRef       *util.Ref[platform.Platform]
+		logger          *zerolog.Logger
+		mangaRepository *manga.Repository
+		mangaDownloader *manga.Downloader
+		database        *database.Database
+		wsEventManager  events.WSEventManagerInterface
+		platformRef     *util.Ref[platform.Platform]
 
 		mu              sync.Mutex
 		isRunning       bool
@@ -117,9 +117,10 @@ type (
 		skippedManga    []string
 		status          string
 		details         MangaDownloadDetails
+		resumeOnStartup bool
 		// Rate limiting semaphores
-		mangaSemaphore    chan struct{}  // Controls concurrent manga processing
-		chapterSemaphore  chan struct{}  // Controls concurrent chapter downloads
+		mangaSemaphore   chan struct{} // Controls concurrent manga processing
+		chapterSemaphore chan struct{} // Controls concurrent chapter downloads
 	}
 
 	MangaDownloaderProgress struct {
@@ -127,6 +128,7 @@ type (
 		DownloadedManga []string `json:"downloaded_manga"`
 		FailedManga     []string `json:"failed_manga"`
 		SkippedManga    []string `json:"skipped_manga"`
+		ResumeOnStartup bool     `json:"resume_on_startup,omitempty"`
 	}
 
 	HakunekoMangaItem struct {
@@ -135,18 +137,18 @@ type (
 	}
 
 	MangaDownloaderStatus struct {
-		IsRunning        bool     `json:"isRunning"`
-		IsPaused         bool     `json:"isPaused"`
-		CurrentManga     *string  `json:"currentManga"`
-		CurrentChapter   *string  `json:"currentChapter"`
-		ProcessedCount   int      `json:"processedCount"`
-		TotalCount       int      `json:"totalCount"`
-		DownloadedManga  []string `json:"downloadedManga"`
-		FailedManga      []string `json:"failedManga"`
-		SkippedManga     []string `json:"skippedManga"`
-		Status           string   `json:"status"`
+		IsRunning        bool                 `json:"isRunning"`
+		IsPaused         bool                 `json:"isPaused"`
+		CurrentManga     *string              `json:"currentManga"`
+		CurrentChapter   *string              `json:"currentChapter"`
+		ProcessedCount   int                  `json:"processedCount"`
+		TotalCount       int                  `json:"totalCount"`
+		DownloadedManga  []string             `json:"downloadedManga"`
+		FailedManga      []string             `json:"failedManga"`
+		SkippedManga     []string             `json:"skippedManga"`
+		Status           string               `json:"status"`
 		Details          MangaDownloadDetails `json:"details"`
-		HasSavedProgress bool     `json:"hasSavedProgress"`
+		HasSavedProgress bool                 `json:"hasSavedProgress"`
 	}
 
 	MangaDownloadDetails struct {
@@ -170,12 +172,12 @@ type (
 	}
 
 	NewMangaDownloaderOptions struct {
-		Logger           *zerolog.Logger
-		MangaRepository  *manga.Repository
-		MangaDownloader  *manga.Downloader
-		Database         *database.Database
-		WSEventManager   events.WSEventManagerInterface
-		PlatformRef      *util.Ref[platform.Platform]
+		Logger          *zerolog.Logger
+		MangaRepository *manga.Repository
+		MangaDownloader *manga.Downloader
+		Database        *database.Database
+		WSEventManager  events.WSEventManagerInterface
+		PlatformRef     *util.Ref[platform.Platform]
 	}
 )
 
@@ -217,15 +219,15 @@ func (d *MangaDownloader) searchAniListMangaAllFormats(ctx context.Context, sear
 
 func NewMangaDownloader(opts *NewMangaDownloaderOptions) *MangaDownloader {
 	return &MangaDownloader{
-		logger:           opts.Logger,
-		mangaRepository:  opts.MangaRepository,
-		mangaDownloader:  opts.MangaDownloader,
-		database:         opts.Database,
-		wsEventManager:   opts.WSEventManager,
-		platformRef:      opts.PlatformRef,
-		downloadedManga:  make([]string, 0, MaxLogEntries),
-		failedManga:      make([]string, 0, MaxLogEntries),
-		skippedManga:     make([]string, 0, MaxLogEntries),
+		logger:          opts.Logger,
+		mangaRepository: opts.MangaRepository,
+		mangaDownloader: opts.MangaDownloader,
+		database:        opts.Database,
+		wsEventManager:  opts.WSEventManager,
+		platformRef:     opts.PlatformRef,
+		downloadedManga: make([]string, 0, MaxLogEntries),
+		failedManga:     make([]string, 0, MaxLogEntries),
+		skippedManga:    make([]string, 0, MaxLogEntries),
 		details: MangaDownloadDetails{
 			Phase: "idle",
 			Step:  "idle",
@@ -240,14 +242,14 @@ func (d *MangaDownloader) GetStatus() *MangaDownloaderStatus {
 	defer d.mu.Unlock()
 
 	status := &MangaDownloaderStatus{
-		IsRunning:        d.isRunning,
-		IsPaused:         d.isPaused,
-		ProcessedCount:   d.processedCount,
-		TotalCount:       d.totalCount,
-		DownloadedManga:  d.downloadedManga,
-		FailedManga:      d.failedManga,
-		SkippedManga:     d.skippedManga,
-		Status:           d.status,
+		IsRunning:       d.isRunning,
+		IsPaused:        d.isPaused,
+		ProcessedCount:  d.processedCount,
+		TotalCount:      d.totalCount,
+		DownloadedManga: d.downloadedManga,
+		FailedManga:     d.failedManga,
+		SkippedManga:    d.skippedManga,
+		Status:          d.status,
 		Details: MangaDownloadDetails{
 			Phase:             d.details.Phase,
 			Step:              d.details.Step,
@@ -304,6 +306,7 @@ func (d *MangaDownloader) Start(resume bool) error {
 	}
 	d.isRunning = true
 	d.isPaused = false
+	d.resumeOnStartup = true
 	autoResume := resume
 	if resume && d.hasSavedProgress() {
 		autoResume = true
@@ -317,15 +320,34 @@ func (d *MangaDownloader) Start(resume bool) error {
 		d.skippedManga = make([]string, 0, MaxLogEntries)
 		d.clearProgress()
 	}
+	if err := d.writeResumeOnStartupMarker(true); err != nil {
+		d.isRunning = false
+		d.resumeOnStartup = false
+		d.status = "Unable to save resume state"
+		d.mu.Unlock()
+		d.sendStatusUpdate()
+		return fmt.Errorf("failed to persist manga downloader resume state: %w", err)
+	}
 	d.status = "Starting..."
-	d.mu.Unlock()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	d.cancelFunc = cancel
+	d.mu.Unlock()
 
 	go d.run(ctx, resume)
 
 	return nil
+}
+
+// ResumeIfInterrupted restarts the downloader only if the last backend process recorded that it
+// was actively running. Paused/manual progress files deliberately do not trigger a restart.
+func (d *MangaDownloader) ResumeIfInterrupted() error {
+	progress := d.loadProgress()
+	if !shouldResumeOnStartup(progress) {
+		return nil
+	}
+
+	d.logger.Info().Msg("enmasse-manga: Resuming run interrupted by backend restart")
+	return d.Start(true)
 }
 
 func (d *MangaDownloader) Stop(saveProgress bool) {
@@ -337,6 +359,7 @@ func (d *MangaDownloader) Stop(saveProgress bool) {
 	}
 	d.isRunning = false
 	d.isPaused = saveProgress
+	d.resumeOnStartup = false
 
 	if saveProgress {
 		d.status = "Paused - Progress saved"
@@ -358,6 +381,7 @@ func (d *MangaDownloader) saveProgressFromState() {
 		DownloadedManga: d.downloadedManga,
 		FailedManga:     d.failedManga,
 		SkippedManga:    d.skippedManga,
+		ResumeOnStartup: d.resumeOnStartup,
 	}
 
 	// Combine all processed titles from downloaded, failed, and skipped
@@ -398,6 +422,31 @@ func (d *MangaDownloader) saveProgressFromState() {
 	}
 }
 
+func (d *MangaDownloader) writeResumeOnStartupMarker(resume bool) error {
+	progress := d.loadProgress()
+	if progress == nil {
+		progress = &MangaDownloaderProgress{
+			ProcessedTitles: make([]string, 0),
+			DownloadedManga: make([]string, 0),
+			FailedManga:     make([]string, 0),
+			SkippedManga:    make([]string, 0),
+		}
+	}
+	progress.ResumeOnStartup = resume
+
+	data, err := json.MarshalIndent(progress, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal progress: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(MangaProgressFilePath), 0755); err != nil {
+		return fmt.Errorf("create progress directory: %w", err)
+	}
+	if err := util.WriteFileCrashSafe(MangaProgressFilePath, data, 0644); err != nil {
+		return fmt.Errorf("write progress file: %w", err)
+	}
+	return nil
+}
+
 func (d *MangaDownloader) run(ctx context.Context, resume bool) {
 	defer func() {
 		d.mu.Lock()
@@ -429,6 +478,12 @@ func (d *MangaDownloader) run(ctx context.Context, resume bool) {
 	if err != nil {
 		d.logger.Error().Err(err).Msg("enmasse-manga: Failed to load manga list")
 		d.setStatus(fmt.Sprintf("Error: %v", err))
+		d.mu.Lock()
+		d.resumeOnStartup = false
+		if markerErr := d.writeResumeOnStartupMarker(false); markerErr != nil {
+			d.logger.Warn().Err(markerErr).Msg("enmasse-manga: Failed to clear startup resume marker")
+		}
+		d.mu.Unlock()
 		return
 	}
 
@@ -541,7 +596,9 @@ func (d *MangaDownloader) run(ctx context.Context, resume bool) {
 			})
 			d.addToDownloaded(mangaItem.Title)
 			// Start the download queue so chapters download while the next manga is being queued
-			d.mangaDownloader.RunChapterDownloadQueue()
+			if err := d.mangaDownloader.RunChapterDownloadQueue(); err != nil {
+				d.logger.Error().Err(err).Msg("enmasse-manga: Failed to start chapter download queue")
+			}
 		}
 
 		// Save progress after every manga for reliable resume
@@ -624,6 +681,7 @@ func (d *MangaDownloader) saveCurrentProgress(processedTitles map[string]bool) {
 		DownloadedManga: d.downloadedManga,
 		FailedManga:     d.failedManga,
 		SkippedManga:    d.skippedManga,
+		ResumeOnStartup: d.resumeOnStartup,
 	}
 	d.mu.Unlock()
 
@@ -656,6 +714,10 @@ func (d *MangaDownloader) clearProgress() {
 
 func (d *MangaDownloader) clearProgressUnlocked() {
 	os.Remove(MangaProgressFilePath)
+}
+
+func shouldResumeOnStartup(progress *MangaDownloaderProgress) bool {
+	return progress != nil && progress.ResumeOnStartup
 }
 
 // buildTitleVariants returns a set of title candidates to match on-disk folders.
@@ -916,7 +978,7 @@ func (d *MangaDownloader) processManga(ctx context.Context, mangaItem *HakunekoM
 		}
 	} else {
 		anilistManga := searchResult.bestMatch
-		
+
 		mediaId = anilistManga.ID
 		if anilistManga.Title != nil && anilistManga.Title.Romaji != nil {
 			mediaTitle = *anilistManga.Title.Romaji
@@ -1181,7 +1243,7 @@ func (d *MangaDownloader) isRetryableError(err error) bool {
 // This helps handle cases where AniList's API returns 500 errors for certain character combinations.
 func (d *MangaDownloader) generateSearchVariants(title string) []string {
 	variants := make([]string, 0, 4)
-	
+
 	// Variant 1: Basic sanitization (remove quotes and common problematic chars)
 	v1 := strings.TrimSpace(title)
 	v1 = strings.ReplaceAll(v1, "\"", "")
@@ -1215,7 +1277,7 @@ func (d *MangaDownloader) generateSearchVariants(title string) []string {
 		v1 = strings.ReplaceAll(v1, "  ", " ")
 	}
 	v1 = strings.TrimSpace(v1)
-	
+
 	// Truncate if too long
 	if len(v1) > 80 {
 		v1 = v1[:80]
@@ -1224,11 +1286,11 @@ func (d *MangaDownloader) generateSearchVariants(title string) []string {
 		}
 		v1 = strings.TrimSpace(v1)
 	}
-	
+
 	if len(v1) >= 3 {
 		variants = append(variants, v1)
 	}
-	
+
 	// Variant 2: Only keep alphanumeric and spaces (most aggressive sanitization)
 	v2 := strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == ' ' {
@@ -1247,11 +1309,11 @@ func (d *MangaDownloader) generateSearchVariants(title string) []string {
 		}
 		v2 = strings.TrimSpace(v2)
 	}
-	
+
 	if len(v2) >= 3 && v2 != v1 {
 		variants = append(variants, v2)
 	}
-	
+
 	// Variant 3: First few significant words only (for very long/complex titles)
 	words := strings.Fields(v2)
 	if len(words) > 3 {
@@ -1274,7 +1336,7 @@ func (d *MangaDownloader) generateSearchVariants(title string) []string {
 			}
 		}
 	}
-	
+
 	return variants
 }
 
@@ -1346,7 +1408,7 @@ func (d *MangaDownloader) searchAniListMangaWithResults(ctx context.Context, tit
 
 	// Generate multiple search variants to try, from most specific to least
 	searchVariants := d.generateSearchVariants(title)
-	
+
 	if len(searchVariants) == 0 {
 		d.logger.Debug().Str("title", title).Msg("enmasse-manga: No valid search variants generated")
 		return nil, fmt.Errorf("title too short after sanitization")
@@ -1715,7 +1777,6 @@ func (d *MangaDownloader) queueMetadataLookup(syntheticID int) {
 	}
 	d.mangaDownloader.BackfillMissingMetadata(d.platformRef, []int{syntheticID})
 }
-
 
 // generateSyntheticId generates a negative ID from the provider ID to avoid collision with AniList IDs
 func (d *MangaDownloader) generateSyntheticId(providerId string) int {
