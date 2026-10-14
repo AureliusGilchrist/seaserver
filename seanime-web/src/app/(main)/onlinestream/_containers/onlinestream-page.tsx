@@ -891,7 +891,7 @@ export function OnlinestreamPage({ animeEntry, animeEntryLoading, hideBackButton
                                                 label: sub.language,
                                                 src: sub.url,
                                                 language: sub.language,
-                                                default: index === 0,
+                                                default: sub.isDefault,
                                                 useLibassRenderer: useLibassRenderer,
                                                 // Subtitle CDNs behind hotlink protection (e.g. Kickass Anime)
                                                 // reject fetches that don't carry the video source's headers.

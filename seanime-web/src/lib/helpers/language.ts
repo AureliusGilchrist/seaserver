@@ -92,3 +92,21 @@ export function detectTrackLanguage(source: LanguageSource): string | null {
 
     return null
 }
+
+export function trackMatchesLanguage(source: LanguageSource, preferredLanguage: string): boolean {
+    const normalize = (language: string | undefined): string | null => {
+        if (!language) return null
+        const cleaned = language.trim().toLowerCase().replace(/_/g, "-")
+        const baseLanguage = cleaned.split("-")[0]
+        return detectTrackLanguage({ language: cleaned })
+            ?? detectTrackLanguage({ language: baseLanguage })
+            ?? baseLanguage
+    }
+
+    const preferred = normalize(preferredLanguage)
+    const trackLanguage = detectTrackLanguage(source)
+        ?? normalize(source.language)
+        ?? detectTrackLanguage({ label: source.label })
+
+    return preferred !== null && trackLanguage !== null && trackLanguage === preferred
+}
