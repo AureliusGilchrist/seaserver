@@ -42,6 +42,15 @@ Choose the appropriate command based on your target platform:
 
 **Important**: The web interface must be built first before building the server.
 
+### Automated GitHub Releases
+
+Every push to `main` runs `.github/workflows/auto-release.yml` on Windows. It builds the Denshi
+frontend with the existing `npm run build:denshi` (Rsbuild) command and Windows server sidecar,
+packages the Electron app, and publishes only the Denshi Windows x64 installer as a GitHub
+prerelease. The release version is derived from the Denshi version in `versions.json` and the
+Actions run number. Automated builds are prereleases so they do not replace the server updater's
+latest stable release.
+
 ---
 
 ## Development Guide

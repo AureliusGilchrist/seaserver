@@ -1,0 +1,129 @@
+name: Auto Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            seanime-web/package-lock.json
+            seanime-denshi/package-lock.json
+
+      - name: Install frontend and Denshi dependencies
+        shell: pwsh
+        run: |
+          Push-Location seanime-web
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw "npm ci failed in seanime-web" }
+          Pop-Location
+
+          Push-Location seanime-denshi
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw "npm ci failed in seanime-denshi" }
+          Pop-Location
+
+      - name: Set Denshi release version
+        id: version
+        shell: pwsh
+        run: |
+          $versions = Get-Content versions.json -Raw | ConvertFrom-Json
+          $releaseVersion = "$($versions.'seanime-denshi'.version).auto.$env:GITHUB_RUN_NUMBER.$env:GITHUB_RUN_ATTEMPT"
+          $versions.'seanime-denshi'.version = $releaseVersion
+          $versions | ConvertTo-Json -Depth 100 | Set-Content versions.json -Encoding utf8
+          node sync-versions.js
+          if ($LASTEXITCODE -ne 0) { throw "Version sync failed" }
+          "release_version=$releaseVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Build Denshi frontend
+        working-directory: seanime-web
+        shell: pwsh
+        run: |
+          npm run build:denshi
+          if ($LASTEXITCODE -ne 0) { throw "Denshi frontend build failed" }
+          if (-not (Test-Path out-denshi)) { throw "Denshi frontend output is missing" }
+
+      - name: Prepare Denshi frontend
+        shell: pwsh
+        run: |
+          $destination = "seanime-denshi\web-denshi"
+          if (Test-Path $destination) {
+            Remove-Item -LiteralPath $destination -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path $destination | Out-Null
+          Get-ChildItem -LiteralPath "seanime-web\out-denshi" -Force |
+            Copy-Item -Destination $destination -Recurse -Force
+
+      - name: Build Windows server sidecar
+        shell: pwsh
+        run: |
+          go build -trimpath '-ldflags=-s -w' -tags=nosystray -o seanime.exe .
+          if ($LASTEXITCODE -ne 0) { throw "Windows server sidecar build failed" }
+          $binaries = "seanime-denshi\binaries"
+          New-Item -ItemType Directory -Force -Path $binaries | Out-Null
+          Copy-Item -LiteralPath seanime.exe -Destination "$binaries\seanime-server-windows.exe" -Force
+
+      - name: Build Windows Denshi installer
+        working-directory: seanime-denshi
+        shell: pwsh
+        run: |
+          npm run build:win
+          if ($LASTEXITCODE -ne 0) { throw "Windows Denshi packaging failed" }
+
+      - name: Verify Denshi package and expose installer
+        id: package
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
+        run: |
+          $built = "seanime-denshi\binaries\seanime-server-windows.exe"
+          $packaged = "seanime-denshi\dist\win-unpacked\resources\binaries\seanime-server-windows.exe"
+          if (-not (Test-Path $packaged)) { throw "Packaged Denshi sidecar is missing" }
+          $builtHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $built).Hash
+          $packagedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $packaged).Hash
+          if ($builtHash -ne $packagedHash) { throw "Denshi package contains a stale sidecar binary" }
+
+          $asset = "seanime-denshi\dist\seanime-denshi-{0}_Windows_x64.exe" -f $env:RELEASE_VERSION
+          if (-not (Test-Path $asset)) { throw "Windows Denshi installer is missing: $asset" }
+          "asset=$asset" >> $env:GITHUB_OUTPUT
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
+          ASSET: ${{ steps.package.outputs.asset }}
+        shell: pwsh
+        run: |
+          $tag = "v$env:RELEASE_VERSION"
+          $notes = "Automated Windows Denshi build from commit $env:GITHUB_SHA."
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $env:ASSET --clobber
+          else
+            gh release create $tag $env:ASSET `
+              --title "Seanime Denshi $env:RELEASE_VERSION" `
+              --notes $notes `
+              --prerelease `
+              --target $env:GITHUB_SHA
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Failed to publish the Denshi release" }
