@@ -12,6 +12,7 @@ import { MediaCaptionsTrack } from "@/app/(main)/_features/video-core/video-core
 import { VideoCoreMenu, VideoCoreMenuBody, VideoCoreMenuTitle, VideoCoreSettingSelect } from "@/app/(main)/_features/video-core/video-core-menu"
 import { NormalizedTrackInfo } from "@/app/(main)/_features/video-core/video-core-subtitles"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
+import { saveLocalTrackOverride } from "@/app/(main)/_features/video-core/video-core-track-preferences"
 import { IconButton } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useAtomValue } from "jotai"
@@ -169,9 +170,13 @@ export function VideoCoreSubtitleMenu({ inline, mediaId }: { inline?: boolean, m
                         // Persist the choice per-series so it is re-applied on every other episode
                         // of the same media (local files and online streaming alike).
                         const persist = (override: Parameters<NonNullable<typeof saveTrackOverride>>[1]) => {
-                            if (mediaId != null && saveTrackOverride) {
-                                saveTrackOverride(String(mediaId), override)
+                            if (mediaId == null) {
+                                console.error("[VideoCore] Cannot persist subtitle choice without a media ID")
+                                return
                             }
+                            saveLocalTrackOverride(mediaId, override)
+                            if (saveTrackOverride) saveTrackOverride(String(mediaId), override)
+                            else console.warn("[VideoCore] Server track-preference sync is not ready; saved locally")
                         }
 
                         if (value === -1) {

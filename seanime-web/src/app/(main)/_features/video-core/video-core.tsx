@@ -119,6 +119,7 @@ import {
 import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
 import { useTrackPreferenceSync } from "@/app/(main)/_features/video-core/video-core-track-sync"
+import { getLocalTrackOverride } from "@/app/(main)/_features/video-core/video-core-track-preferences"
 import {
     useVideoCoreBindings,
     vc_createChapterCues,
@@ -1269,7 +1270,7 @@ export function VideoCore(props: VideoCoreProps) {
                         : null,
                     settings: settings,
                     preferredTrackOverride: state.playbackInfo?.media?.id != null
-                        ? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
+                        ? getLocalTrackOverride(state.playbackInfo.media.id) ?? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
                         : undefined,
                     fetchAndConvertToVTT: (url?: string, content?: string, headers?: Record<string, string>) => {
                         return new Promise((resolve, reject) => {
@@ -1302,7 +1303,7 @@ export function VideoCore(props: VideoCoreProps) {
                         : null,
                     settings: settings,
                     preferredTrackOverride: state.playbackInfo?.media?.id != null
-                        ? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
+                        ? getLocalTrackOverride(state.playbackInfo.media.id) ?? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
                         : undefined,
                     fetchAndConvertToASS: (url?: string, content?: string, headers?: Record<string, string>) => {
                         return new Promise((resolve, reject) => {
@@ -1489,7 +1490,7 @@ export function VideoCore(props: VideoCoreProps) {
                     : null,
                 settings: settings,
                 preferredTrackOverride: state.playbackInfo?.media?.id != null
-                    ? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
+                    ? getLocalTrackOverride(state.playbackInfo.media.id) ?? perMediaTrackOverrides[String(state.playbackInfo.media.id)]
                     : undefined,
                 fetchAndConvertToASS: (url?: string, content?: string, headers?: Record<string, string>) => {
                     return new Promise((resolve, reject) => {
