@@ -116,6 +116,7 @@ import {
     VideoCore_VideoSubtitleTrack,
     VideoCoreLifecycleState,
 } from "@/app/(main)/_features/video-core/video-core.atoms"
+import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_dispatchAction } from "@/app/(main)/_features/video-core/video-core.utils"
 import { useTrackPreferenceSync } from "@/app/(main)/_features/video-core/video-core-track-sync"
 import {
@@ -226,6 +227,7 @@ export function VideoCoreProvider(props: { id: string, children: React.ReactNode
                 vc_busy,
                 vc_videoElement,
                 vc_containerElement,
+                vc_playbackInfo,
                 vc_subtitleManager,
                 vc_audioManager,
                 vc_previewManager,
@@ -725,9 +727,18 @@ export function VideoCore(props: VideoCoreProps) {
         onChangePlaybackType,
         mRef,
     } = props
+    const setPlaybackInfo = useSetAtom(vc_playbackInfo)
     const serverStatus = useServerStatus()
     const { getHMACTokenQueryParam } = useServerHMACAuth()
     const [streamType, setStreamType] = useState<VideoCore_VideoPlaybackInfo["streamType"]>(state.playbackInfo?.streamType ?? "unknown")
+
+    React.useEffect(() => {
+        setPlaybackInfo(state.playbackInfo)
+    }, [setPlaybackInfo, state.playbackInfo])
+
+    React.useEffect(() => () => {
+        setPlaybackInfo(null)
+    }, [setPlaybackInfo])
 
     // HMAC token for directstream attachment URLs (fonts)
     const [directstreamAttToken, setDirectstreamAttToken] = React.useState("")

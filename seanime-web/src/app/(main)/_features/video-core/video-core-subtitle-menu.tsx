@@ -1,4 +1,3 @@
-import { nativePlayer_stateAtom } from "@/app/(main)/_features/native-player/native-player.atoms"
 import { vc_subtitleManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_mediaCaptionsManager } from "@/app/(main)/_features/video-core/video-core"
 import { vc_menuOpen } from "@/app/(main)/_features/video-core/video-core-atoms"
@@ -7,6 +6,7 @@ import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-at
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
+import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { VideoCoreControlButtonIcon } from "@/app/(main)/_features/video-core/video-core-control-bar"
 import { MediaCaptionsTrack } from "@/app/(main)/_features/video-core/video-core-media-captions"
@@ -24,7 +24,7 @@ import { LuCaptions, LuPaintbrush } from "react-icons/lu"
 export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
     const action = useSetAtom(vc_dispatchAction)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
-    const state = useAtomValue(nativePlayer_stateAtom)
+    const playbackInfo = useAtomValue(vc_playbackInfo)
     const subtitleManager = useAtomValue(vc_subtitleManager)
     const mediaCaptionsManager = useAtomValue(vc_mediaCaptionsManager)
     const videoElement = useAtomValue(vc_videoElement)
@@ -170,7 +170,7 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                     onValueChange={(value: number) => {
                         // Persist the choice per-series so it is re-applied on every other episode
                         // of the same media (local files and online streaming alike).
-                        const mediaId = state?.playbackInfo?.media?.id
+                        const mediaId = playbackInfo?.media?.id
                         const persist = (override: Parameters<NonNullable<typeof saveTrackOverride>>[1]) => {
                             if (mediaId != null && saveTrackOverride) {
                                 saveTrackOverride(String(mediaId), override)
