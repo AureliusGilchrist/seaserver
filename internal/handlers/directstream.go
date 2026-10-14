@@ -141,6 +141,13 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 			ua = v
 		}
 	}
+	providerReferer := ""
+	for k, v := range b.Headers {
+		if strings.EqualFold(k, "Referer") && v != "" {
+			providerReferer = v
+			break
+		}
+	}
 
 	// The URL is normalised before anything is asked to fetch it.
 	//
@@ -192,7 +199,7 @@ func (h *Handler) HandleDirectstreamConvertSubs(c echo.Context) error {
 		}
 		r.Header.Set("User-Agent", ua)
 		r.Header.Set("Accept", "*/*")
-		if referer != "" {
+		if referer != "" && referer != providerReferer {
 			r.Header.Set("Referer", referer)
 			// Hotlink checks usually validate Origin alongside Referer.
 			if origin, parseErr := url.Parse(referer); parseErr == nil && origin.Host != "" {
