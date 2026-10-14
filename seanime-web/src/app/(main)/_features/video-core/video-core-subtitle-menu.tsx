@@ -6,7 +6,6 @@ import { vc_isFullscreen } from "@/app/(main)/_features/video-core/video-core-at
 import { vc_miniPlayer } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_videoElement } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_containerElement } from "@/app/(main)/_features/video-core/video-core-atoms"
-import { vc_playbackInfo } from "@/app/(main)/_features/video-core/video-core-atoms"
 import { vc_saveTrackOverride } from "@/app/(main)/_features/video-core/video-core.atoms"
 import { VideoCoreControlButtonIcon } from "@/app/(main)/_features/video-core/video-core-control-bar"
 import { MediaCaptionsTrack } from "@/app/(main)/_features/video-core/video-core-media-captions"
@@ -21,10 +20,9 @@ import React from "react"
 import { AiFillInfoCircle } from "react-icons/ai"
 import { LuCaptions, LuPaintbrush } from "react-icons/lu"
 
-export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
+export function VideoCoreSubtitleMenu({ inline, mediaId }: { inline?: boolean, mediaId?: number }) {
     const action = useSetAtom(vc_dispatchAction)
     const isMiniPlayer = useAtomValue(vc_miniPlayer)
-    const playbackInfo = useAtomValue(vc_playbackInfo)
     const subtitleManager = useAtomValue(vc_subtitleManager)
     const mediaCaptionsManager = useAtomValue(vc_mediaCaptionsManager)
     const videoElement = useAtomValue(vc_videoElement)
@@ -170,7 +168,6 @@ export function VideoCoreSubtitleMenu({ inline }: { inline?: boolean }) {
                     onValueChange={(value: number) => {
                         // Persist the choice per-series so it is re-applied on every other episode
                         // of the same media (local files and online streaming alike).
-                        const mediaId = playbackInfo?.media?.id
                         const persist = (override: Parameters<NonNullable<typeof saveTrackOverride>>[1]) => {
                             if (mediaId != null && saveTrackOverride) {
                                 saveTrackOverride(String(mediaId), override)

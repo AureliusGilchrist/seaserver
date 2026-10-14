@@ -604,7 +604,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 onVideoSourceChange={onVideoSourceChange}
                                 onHlsQualityChange={onHlsQualityChange}
                             />
-                            <VideoCoreSubtitleMenu inline={inline} />
+                            <VideoCoreSubtitleMenu inline={inline} mediaId={state.playbackInfo?.media?.id} />
                             <VideoCoreAudioMenu />
                             <VideoCoreCastButton />
                             <VideoCorePipButton />
@@ -621,7 +621,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                     onVideoSourceChange={onVideoSourceChange}
                                     onHlsQualityChange={onHlsQualityChange}
                                 />
-                                <VideoCoreSubtitleMenu inline={inline} />
+                                <VideoCoreSubtitleMenu inline={inline} mediaId={state.playbackInfo?.media?.id} />
                                 <VideoCoreAudioMenu />
                                 <VideoCoreCastButton />
                                 <VideoCorePipButton />
