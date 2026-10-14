@@ -62,6 +62,28 @@ func TestMalsyncProvidersLive(t *testing.T) {
 				t.Logf("checking %s subtitle", subtitle.Language)
 				checkSubtitlePlayable(t, subtitle.URL, server.Headers)
 			}
+			if name == "kickassanime" && len(episodes) > 1 {
+				secondServer, err := provider.FindEpisodeServer(episodes[1], "default")
+				if err != nil {
+					t.Fatalf("second episode sources failed: %v", err)
+				}
+				if len(secondServer.VideoSources) == 0 {
+					t.Fatal("second episode has no video sources")
+				}
+				t.Logf("second episode has %d subtitles", len(secondServer.VideoSources[0].Subtitles))
+				var defaultSubtitle *hibikeonlinestream.VideoSubtitle
+				for _, candidate := range secondServer.VideoSources[0].Subtitles {
+					if candidate.IsDefault {
+						defaultSubtitle = candidate
+						break
+					}
+				}
+				if defaultSubtitle == nil {
+					t.Fatal("second episode has no default English subtitle")
+				}
+				t.Logf("checking second episode default subtitle language %q", defaultSubtitle.Language)
+				checkSubtitlePlayable(t, defaultSubtitle.URL, secondServer.Headers)
+			}
 		})
 	}
 }

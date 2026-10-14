@@ -785,6 +785,7 @@ export function VideoCore(props: VideoCoreProps) {
 
     const videoCompletedRef = useRef(false)
     const currentPlaybackRef = useRef<string | null>(null)
+    const subtitleManagerPlaybackKeyRef = useRef<string | null>(null)
     const stalledPlaybackRef = useRef<string | null>(null)
 
     const [, setContainerElement] = useAtom(vc_containerElement)
@@ -1107,6 +1108,7 @@ export function VideoCore(props: VideoCoreProps) {
                 videoRef.current.load()
                 videoRef.current = null
             }
+            subtitleManagerPlaybackKeyRef.current = null
             setVideoElement(null)
             subtitleManager?.destroy?.()
             setSubtitleManager(null)
@@ -1221,6 +1223,12 @@ export function VideoCore(props: VideoCoreProps) {
 
         currentPlaybackRef.current = state.playbackInfo.id
 
+        const subtitlePlaybackKey = JSON.stringify({
+            id: state.playbackInfo.id,
+            episodeNumber: state.playbackInfo.onlinestreamParams?.episodeNumber ?? state.playbackInfo.episode?.episodeNumber,
+            subtitleSources: state.playbackInfo.subtitleTracks?.map(track => [track.src, track.useLibassRenderer]),
+        })
+
         /*
          * Event or file tracks using libass renderer
          */
@@ -1233,15 +1241,16 @@ export function VideoCore(props: VideoCoreProps) {
         /*
          * File subtitle tracks that don't use libass renderer
          */
-        const nonLibassSubtitleTracks = state.playbackInfo?.subtitleTracks?.filter(t => !t.useLibassRenderer)
-        if (nonLibassSubtitleTracks && nonLibassSubtitleTracks.length > 0) {
-            setSubtitleManager(p => {
-                if (p) p.destroy()
-                return null
-            })
-            setMediaCaptionsManager(p => {
-                if (p) p.destroy()
-                return new MediaCaptionsManager({
+        // A source can emit loadedmetadata more than once. Recreating its manager mid-load
+        // cancels subtitle fetches and can hand the shared renderer to competing managers.
+        if (subtitleManagerPlaybackKeyRef.current !== subtitlePlaybackKey) {
+            subtitleManagerPlaybackKeyRef.current = subtitlePlaybackKey
+            const nonLibassSubtitleTracks = state.playbackInfo.subtitleTracks?.filter(t => !t.useLibassRenderer)
+            if (nonLibassSubtitleTracks && nonLibassSubtitleTracks.length > 0) {
+                subtitleManager?.destroy()
+                setSubtitleManager(null)
+                mediaCaptionsManager?.destroy()
+                setMediaCaptionsManager(new MediaCaptionsManager({
                     videoElement: v!,
                     tracks: nonLibassSubtitleTracks,
                     translateTargetLang: serverStatus?.settings?.mediaPlayer?.vcTranslate
@@ -1267,16 +1276,12 @@ export function VideoCore(props: VideoCoreProps) {
                             dispatchTranslateSubtitleTrackEvent(track)
                         }
                     },
-                })
-            })
-        } else {
-            setMediaCaptionsManager(p => {
-                if (p) p.destroy()
-                return null
-            })
-            setSubtitleManager(p => {
-                if (p) p.destroy()
-                return new VideoCoreSubtitleManager({
+                }))
+            } else {
+                mediaCaptionsManager?.destroy()
+                setMediaCaptionsManager(null)
+                subtitleManager?.destroy()
+                setSubtitleManager(new VideoCoreSubtitleManager({
                     videoElement: v!,
                     playbackInfo: state.playbackInfo!,
                     jassubOffscreenRender: true,
@@ -1304,8 +1309,8 @@ export function VideoCore(props: VideoCoreProps) {
                             dispatchTranslateSubtitleTrackEvent(track)
                         }
                     },
-                })
-            })
+                }))
+            }
         }
 
         // Initialize audio manager for HLS streams
