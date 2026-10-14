@@ -74,6 +74,12 @@ jobs:
           Get-ChildItem -LiteralPath "seanime-web\out-denshi" -Force |
             Copy-Item -Destination $destination -Recurse -Force
 
+      - name: Prepare server embed placeholder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "web" | Out-Null
+          Set-Content -LiteralPath "web\.placeholder" -Value "Denshi sidecar build placeholder."
+
       - name: Build Windows server sidecar
         shell: pwsh
         run: |

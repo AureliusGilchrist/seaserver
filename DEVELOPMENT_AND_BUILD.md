@@ -49,7 +49,9 @@ frontend with the existing `npm run build:denshi` (Rsbuild) command and Windows 
 packages the Electron app, and publishes only the Denshi Windows x64 installer as a GitHub
 prerelease. The release version is derived from the Denshi version in `versions.json` and the
 Actions run number. Automated builds are prereleases so they do not replace the server updater's
-latest stable release.
+latest stable release. Before compiling the sidecar, the workflow also creates a placeholder in
+the root `web` directory, which satisfies Go's `//go:embed all:web` directive without building or
+publishing a separate server frontend.
 
 ---
 
