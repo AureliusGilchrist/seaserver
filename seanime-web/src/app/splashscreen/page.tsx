@@ -250,12 +250,12 @@ export default function Page() {
 
                     {/* Remote Server Card */}
                     <button
-                        onClick={() => setBootState("setup")} // already in setup, this focuses the remote form
-                        className="group flex flex-col items-center gap-3 p-6 rounded-xl border border-gray-700 bg-gray-900/50 hover:border-gray-500 hover:bg-gray-800/50 transition-all duration-200 w-56 cursor-pointer"
+                        onClick={() => document.getElementById("remote-server-url")?.focus()}
+                        className="group flex flex-col items-center gap-3 p-6 rounded-xl border border-sky-500/70 bg-sky-950/40 ring-1 ring-sky-400/20 hover:border-sky-400 hover:bg-sky-900/40 transition-all duration-200 w-56 cursor-pointer"
                         id="remote-card"
                     >
                         <LuGlobe className="text-3xl text-gray-300 group-hover:text-white transition-colors" />
-                        <span className="font-semibold text-sm">Remote Server</span>
+                        <span className="font-semibold text-sm">Remote Server <span className="text-sky-300">(Default)</span></span>
                         <span className="text-xs text-gray-500 text-center leading-relaxed">
                             Connect to a Seanime server on your network
                         </span>
@@ -266,6 +266,8 @@ export default function Page() {
                 <div className="w-full max-w-md space-y-3">
                     <div className="flex gap-2">
                         <input
+                            id="remote-server-url"
+                            autoFocus
                             type="text"
                             value={remoteUrl}
                             onChange={(e) => {
