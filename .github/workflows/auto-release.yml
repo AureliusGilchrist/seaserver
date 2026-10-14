@@ -127,20 +127,40 @@ jobs:
             throw "Denshi release asset is missing: $assetPath"
           }
           $notes = "Automated Windows Denshi build from commit $env:GITHUB_SHA."
-          gh release view $tag --repo $repository *> $null
-          $viewExitCode = $LASTEXITCODE
-          if ($viewExitCode -eq 0) {
-            gh release upload $tag $assetPath --clobber --repo $repository
+          $maxAttempts = 4
+          $published = $false
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            gh release view $tag --repo $repository *> $null
+            $viewExitCode = $LASTEXITCODE
+            if ($viewExitCode -eq 0) {
+              $publishArgs = @("release", "upload", $tag, $assetPath, "--clobber", "--repo", $repository)
+            } else {
+              $publishArgs = @(
+                "release", "create", $tag, $assetPath,
+                "--repo", $repository,
+                "--title", "Seanime Denshi $env:RELEASE_VERSION",
+                "--notes", $notes,
+                "--prerelease",
+                "--target", $env:GITHUB_SHA
+              )
+            }
+
+            $publishOutput = & gh @publishArgs 2>&1
             $publishExitCode = $LASTEXITCODE
-          } else {
-            gh release create $tag $assetPath `
-              --repo $repository `
-              --title "Seanime Denshi $env:RELEASE_VERSION" `
-              --notes $notes `
-              --prerelease `
-              --target $env:GITHUB_SHA
-            $publishExitCode = $LASTEXITCODE
+            $outputText = ($publishOutput | ForEach-Object { "$_" }) -join "`n"
+            if ($outputText) { Write-Host $outputText }
+            if ($publishExitCode -eq 0) {
+              $published = $true
+              break
+            }
+
+            $retryable = $outputText -match '(?i)HTTP 5\d{2}|already exists'
+            if (-not $retryable -or $attempt -eq $maxAttempts) {
+              throw "GitHub CLI failed to publish $tag to $repository (exit code $publishExitCode). $outputText"
+            }
+
+            $delaySeconds = [int][Math]::Pow(2, $attempt + 1)
+            Write-Warning "Transient GitHub release failure; retrying in $delaySeconds seconds (attempt $attempt of $maxAttempts)."
+            Start-Sleep -Seconds $delaySeconds
           }
-          if ($publishExitCode -ne 0) {
-            throw "GitHub CLI failed to publish $tag to $repository (exit code $publishExitCode). See the gh output above."
-          }
+          if (-not $published) { throw "Failed to publish $tag after $maxAttempts attempts." }
