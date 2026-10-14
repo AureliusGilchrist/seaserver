@@ -121,15 +121,26 @@ jobs:
         shell: pwsh
         run: |
           $tag = "v$env:RELEASE_VERSION"
+          $repository = $env:GITHUB_REPOSITORY
+          $assetPath = [System.IO.Path]::GetFullPath($env:ASSET)
+          if (-not (Test-Path -LiteralPath $assetPath -PathType Leaf)) {
+            throw "Denshi release asset is missing: $assetPath"
+          }
           $notes = "Automated Windows Denshi build from commit $env:GITHUB_SHA."
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $env:ASSET --clobber
-          else
-            gh release create $tag $env:ASSET `
+          gh release view $tag --repo $repository *> $null
+          $viewExitCode = $LASTEXITCODE
+          if ($viewExitCode -eq 0) {
+            gh release upload $tag $assetPath --clobber --repo $repository
+            $publishExitCode = $LASTEXITCODE
+          } else {
+            gh release create $tag $assetPath `
+              --repo $repository `
               --title "Seanime Denshi $env:RELEASE_VERSION" `
               --notes $notes `
               --prerelease `
               --target $env:GITHUB_SHA
+            $publishExitCode = $LASTEXITCODE
           }
-          if ($LASTEXITCODE -ne 0) { throw "Failed to publish the Denshi release" }
+          if ($publishExitCode -ne 0) {
+            throw "GitHub CLI failed to publish $tag to $repository (exit code $publishExitCode). See the gh output above."
+          }
