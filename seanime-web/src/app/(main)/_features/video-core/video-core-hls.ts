@@ -96,6 +96,7 @@ export function useVideoCoreHls({
     const setSubtitleTracks = useSetAtom(vc_hlsSubtitleTracks)
 
     useEffect(() => {
+        setSubtitleTracks([])
         if (!streamUrl || !videoElement) return
 
         const isHls = streamType === "hls" || isHLSSrc(streamUrl)
@@ -275,6 +276,7 @@ export function useVideoCoreHls({
             })
 
             hls.on(Events.SUBTITLE_TRACKS_UPDATED, (event, data) => {
+                if (hlsRef.current !== hls) return
                 if (!data.subtitleTracks?.length) {
                     setSubtitleTracks([])
                     return
@@ -459,4 +461,3 @@ export async function isProbablyHls(url: string): Promise<"hls" | "unknown"> {
         return "unknown"
     }
 }
-
