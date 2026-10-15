@@ -136,9 +136,12 @@ export function ScheduleCalendar(props: ScheduleCalendarProps) {
 
     return (
         <>
-            <div className="flex h-full flex-col rounded-xl border" data-schedule-calendar>
+            <div
+                className="relative z-[1] flex h-full flex-col rounded-xl border border-white/10 bg-black/25 backdrop-blur-md shadow-xl shadow-black/20"
+                data-schedule-calendar
+            >
                 <header
-                    className="relative flex items-center justify-center py-3 px-4 lg:py-4 lg:px-6 gap-3 lg:gap-4 flex-none rounded-tr-xl rounded-tl-xl border-b bg-[--background]"
+                    className="relative flex items-center justify-center py-3 px-4 lg:py-4 lg:px-6 gap-3 lg:gap-4 flex-none rounded-tr-xl rounded-tl-xl border-b border-white/10 bg-black/20"
                     data-schedule-calendar-header
                 >
                     <IconButton
@@ -646,7 +649,7 @@ function CalendarDay({ day, index }: { day: any, index: number }) {
         <div
             key={index}
             className={cn(
-                day.isCurrentMonth ? "bg-[--background]" : "opacity-20",
+                day.isCurrentMonth ? "bg-black/15" : "opacity-20",
                 "relative py-1 px-1 sm:py-2 sm:px-3 h-24 sm:h-32 lg:h-40 rounded-md",
                 "flex flex-col justify-between group",
             )}

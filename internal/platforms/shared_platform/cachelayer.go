@@ -517,8 +517,11 @@ func networkFirstGet[T any](c *CacheLayer, bucketName string, cacheKey string, n
 	bucket := c.buckets[bucketName]
 
 	// Try network first if API is working
-	if IsWorking.Load() {
+	wasWorking := IsWorking.Load()
+	var networkErr error
+	if wasWorking {
 		result, err := networkFn()
+		networkErr = err
 		c.checkAndUpdateWorkingState(err)
 
 		if err == nil && result != nil {
@@ -528,18 +531,6 @@ func networkFirstGet[T any](c *CacheLayer, bucketName string, cacheKey string, n
 			}
 			return result, nil
 		}
-	} else {
-		// If API is not working, try it in the background to check if it's back
-		go func() {
-			result, err := networkFn()
-			c.checkAndUpdateWorkingState(err)
-			if err == nil && result != nil {
-				// Cache the result for future use
-				if err := c.fileCacher.SetPerm(bucket, cacheKey, result); err != nil {
-					c.logger.Warn().Err(err).Msg("anilist cache: Failed to cache background result")
-				}
-			}
-		}()
 	}
 
 	// Fall back to cache
@@ -548,12 +539,43 @@ func networkFirstGet[T any](c *CacheLayer, bucketName string, cacheKey string, n
 	if err != nil {
 		return nil, fmt.Errorf("cache lookup failed: %w", err)
 	}
-	if !found {
-		return nil, fmt.Errorf("no cached data available")
+	if found {
+		if !wasWorking {
+			// Serve stale data immediately while checking whether AniList is back.
+			go func() {
+				result, err := networkFn()
+				c.checkAndUpdateWorkingState(err)
+				if err == nil && result != nil {
+					if err := c.fileCacher.SetPerm(bucket, cacheKey, result); err != nil {
+						c.logger.Warn().Err(err).Msg("anilist cache: Failed to cache background result")
+					}
+				}
+			}()
+		}
+		c.logger.Debug().Str("bucket", bucketName).Str("key", cacheKey).Msg("anilist cache: Serving from cache")
+		return &cached, nil
 	}
 
-	c.logger.Debug().Str("bucket", bucketName).Str("key", cacheKey).Msg("anilist cache: Serving from cache")
-	return &cached, nil
+	if !wasWorking {
+		// With no stale value to serve, wait for a network attempt instead of failing
+		// while a background retry might successfully populate the cache.
+		result, err := networkFn()
+		c.checkAndUpdateWorkingState(err)
+		if err != nil {
+			return nil, err
+		}
+		if result != nil {
+			if err := c.fileCacher.SetPerm(bucket, cacheKey, result); err != nil {
+				c.logger.Warn().Err(err).Msg("anilist cache: Failed to cache result")
+			}
+			return result, nil
+		}
+	}
+
+	if networkErr != nil {
+		return nil, networkErr
+	}
+	return nil, fmt.Errorf("no cached data available")
 }
 
 // networkFirstGetSQLite is like networkFirstGet but uses SQLite (via c.db) for
