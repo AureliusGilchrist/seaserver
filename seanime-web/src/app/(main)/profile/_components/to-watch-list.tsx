@@ -236,11 +236,11 @@ function ToWatchCard({
                 transition,
             }}
             className={cn(
-                "flex items-stretch gap-3 rounded-xl border bg-gray-950/40 backdrop-blur-xl overflow-hidden",
+                "relative z-[1] flex items-stretch gap-3 rounded-xl border border-white/10 bg-black/25 backdrop-blur-md overflow-hidden",
                 "transition-colors",
                 isSortDragging
                     ? "border-brand-500/70 opacity-40"
-                    : "border-gray-800 hover:border-gray-700",
+                    : "border-white/10 hover:border-white/20",
                 isOverlay && "border-brand-500/70 shadow-2xl shadow-black/60 bg-gray-900",
             )}
         >

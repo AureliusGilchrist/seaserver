@@ -369,13 +369,18 @@ h6 {
     border-radius: 14px;
 }
 
-/* Card style presets (Card Style customization). Preserve explicit per-component blur utilities. */
-html[data-sea-card-style]:not([data-sea-card-style=""]) .UI-Card__root:not([class*="backdrop-blur"]) {
-    background: var(--sea-card-bg);
-    border-color: var(--sea-card-border);
+/* Keep card layering consistent; preserve explicit per-component blur utilities. */
+html .UI-Card__root {
+    position: relative;
+    z-index: 1;
+}
+
+html .UI-Card__root:not([class*="backdrop-blur"]) {
+    background: var(--sea-card-bg, rgba(0, 0, 0, 0.25));
+    border-color: var(--sea-card-border, rgba(255, 255, 255, 0.1));
     box-shadow: var(--sea-card-shadow, none);
-    backdrop-filter: blur(var(--sea-card-blur, 0px)) saturate(160%);
-    -webkit-backdrop-filter: blur(var(--sea-card-blur, 0px)) saturate(160%);
+    backdrop-filter: blur(var(--sea-card-blur, 12px)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--sea-card-blur, 12px)) saturate(160%);
 }
 
 /* JASSUB inserts this wrapper as a sibling right after <video>, inside video-core's flex
