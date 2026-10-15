@@ -5,6 +5,7 @@ type ImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
     fill?: boolean
     priority?: boolean
     overrideSrc?: string
+    fallbackSrc?: string | string[]
     quality?: number | string
     placeholder?: string
     blurDataURL?: string
@@ -13,12 +14,16 @@ type ImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
 }
 
 export const SeaImage = forwardRef<HTMLImageElement, ImageProps & { isExternal?: boolean }>(
-    ({ isExternal, fill, priority, quality, placeholder, sizes, allowGif, ...props }, ref) => {
+    ({ isExternal, fill, priority, quality, placeholder, sizes, allowGif, fallbackSrc, ...props }, ref) => {
         const [hasError, setHasError] = useState(false)
+        const fallbackSources = (Array.isArray(fallbackSrc) ? fallbackSrc : [fallbackSrc]).filter((src): src is string => !!src)
+        const fallbackKey = fallbackSources.join("\u0000")
+        const [currentSrc, setCurrentSrc] = useState(props.src || fallbackSources[0] || "")
 
         useEffect(() => {
             setHasError(false)
-        }, [props.src])
+            setCurrentSrc(props.src || fallbackSources[0] || "")
+        }, [props.src, fallbackKey])
 
         if (HIDE_IMAGES) {
             return <Image
@@ -31,27 +36,35 @@ export const SeaImage = forwardRef<HTMLImageElement, ImageProps & { isExternal?:
             />
         }
 
-        const blocked = isExternal && props.src && typeof props.src === "string" && !(
-            props.src.endsWith(".png")
-            || props.src.endsWith(".jpg")
-            || props.src.endsWith(".jpeg")
-            || props.src.endsWith(".avif")
-            || props.src.endsWith(".webp")
-            || props.src.endsWith(".ico")
-            || (allowGif && props.src.endsWith(".gif"))
+        const blocked = isExternal && currentSrc && typeof currentSrc === "string" && !(
+            currentSrc.endsWith(".png")
+            || currentSrc.endsWith(".jpg")
+            || currentSrc.endsWith(".jpeg")
+            || currentSrc.endsWith(".avif")
+            || currentSrc.endsWith(".webp")
+            || currentSrc.endsWith(".ico")
+            || (allowGif && currentSrc.endsWith(".gif"))
         )
 
-        const effectiveOverride = (blocked || hasError) ? "/no-cover.png" : props.overrideSrc
+        const fallbackIndex = fallbackSources.indexOf(currentSrc)
+        const nextFallback = fallbackSources[fallbackIndex < 0 ? 0 : fallbackIndex + 1]
+        const useFallback = !!nextFallback && (blocked || hasError)
+        const displaySrc = useFallback ? nextFallback : currentSrc
+        const effectiveOverride = ((blocked || hasError) && !useFallback) ? "/no-cover.png" : props.overrideSrc
 
         function handleError() {
+            if (nextFallback) {
+                setCurrentSrc(nextFallback)
+                return
+            }
             setHasError(true)
-            console.warn(`Error loading image ${props.src}`)
+            console.warn(`Error loading image ${currentSrc}`)
         }
 
         return <Image
             ref={ref}
             {...props}
-            src={props.src || ""}
+            src={displaySrc}
             alt={props.alt || ""}
             fill={fill}
             priority={priority}

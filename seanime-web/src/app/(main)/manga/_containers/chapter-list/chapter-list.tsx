@@ -6,6 +6,7 @@ import { DownloadedChapterList, manga_downloadedChapterContainerAtom } from "@/a
 import { MangaManualMappingModal } from "@/app/(main)/manga/_containers/chapter-list/manga-manual-mapping-modal"
 import { ChapterReaderDrawer } from "@/app/(main)/manga/_containers/chapter-reader/chapter-reader-drawer"
 import { __manga_selectedChapterAtom } from "@/app/(main)/manga/_lib/handle-chapter-reader"
+import { estimateMangaChapterRelease } from "@/app/(main)/manga/_lib/chapter-release-estimate"
 import { useHandleMangaChapters } from "@/app/(main)/manga/_lib/handle-manga-chapters"
 import { useHandleDownloadMangaChapter } from "@/app/(main)/manga/_lib/handle-manga-downloads"
 import { getChapterNumberFromChapter, useMangaChapterListRowSelection, useMangaDownloadDataUtils } from "@/app/(main)/manga/_lib/handle-manga-utils"
@@ -69,6 +70,10 @@ export function ChapterList(props: ChapterListProps) {
         chapterContainerError,
     } = useHandleMangaChapters(mediaId)
 
+    const releaseEstimate = React.useMemo(
+        () => estimateMangaChapterRelease(chapterContainer?.chapters ?? []),
+        [chapterContainer?.chapters],
+    )
 
     // Keep track of chapter numbers as integers
     // This is used to filter the chapters
@@ -430,6 +435,18 @@ export function ChapterList(props: ChapterListProps) {
 
                         {!!chapterContainer?.chapters?.length && (
                             <>
+                                {entry.media?.status === "RELEASING" && releaseEstimate && (
+                                    <div
+                                        className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-brand-300/20 bg-brand-500/10 px-3 py-2 text-sm text-gray-200"
+                                        data-chapter-release-estimate
+                                    >
+                                        <span className="font-semibold text-brand-200">Estimated chapter timing</span>
+                                        <span>about every {releaseEstimate.intervalDays} days</span>
+                                        <span className="text-[--muted]">
+                                            Next likely around {releaseEstimate.nextReleaseAt.toLocaleDateString(undefined, { timeZone: "UTC" })}
+                                        </span>
+                                    </div>
+                                )}
                                 <div data-chapter-list-header-container className="flex gap-2 items-center w-full pb-2">
                                     <h2 className="px-1">Chapters</h2>
                                     <div className="flex flex-1"></div>
@@ -534,4 +551,3 @@ export function ChapterList(props: ChapterListProps) {
         </div>
     )
 }
-

@@ -4212,6 +4212,12 @@ export type Manga_MangaLatestChapterNumberItem = {
     scanlator: string
     language: string
     number: number
+    releaseHistory?: Array<Manga_MangaChapterReleaseHistoryItem>
+}
+
+export type Manga_MangaChapterReleaseHistoryItem = {
+    chapter: string
+    updatedAt: string
 }
 
 /**

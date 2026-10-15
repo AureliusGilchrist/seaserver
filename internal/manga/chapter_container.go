@@ -54,7 +54,7 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 		Str("provider", providerContainer.Provider).
 		Int("providerChapterCount", len(providerContainer.Chapters)).
 		Msg("manga: Starting merge of downloaded chapters with provider chapters")
-	
+
 	if providerContainer == nil {
 		return nil, fmt.Errorf("provider container is nil")
 	}
@@ -71,7 +71,7 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 		r.logger.Debug().Int("mediaId", mediaId).Msg("No downloaded chapters found")
 		return providerContainer, nil
 	}
-	
+
 	r.logger.Debug().
 		Int("mediaId", mediaId).
 		Int("downloadedContainerCount", len(downloadedContainers)).
@@ -108,12 +108,12 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 
 	// Merge: prioritize downloaded chapters, fill gaps with provider chapters
 	mergedChapters := make([]*hibikemanga.ChapterDetails, 0, len(providerContainer.Chapters))
-	
+
 	downloadedCount := 0
 	for _, providerChapter := range providerContainer.Chapters {
 		// Normalize provider chapter number to match padded format
 		normalizedChapterNum := manga_providers.GetNormalizedChapter(providerChapter.Chapter)
-		
+
 		// Check if this chapter is downloaded
 		if downloadedChapter, exists := downloadedChapterMap[normalizedChapterNum]; exists {
 			// Use the downloaded version
@@ -126,7 +126,7 @@ func (r *Repository) MergeDownloadedChaptersWithProviderAndCollection(providerCo
 			mergedChapters = append(mergedChapters, &normalizedProviderChapter)
 		}
 	}
-	
+
 	r.logger.Debug().
 		Int("mediaId", mediaId).
 		Int("providerChapters", len(providerContainer.Chapters)).
@@ -183,14 +183,14 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 			break
 		}
 	}
-	
+
 	// Check if this AniList ID is mapped from a synthetic ID
 	// If so, we need to use the synthetic ID for cache and the original title for searching
 	cacheMediaId := mediaId
 	if mediaId > 0 && r.db != nil {
 		if syntheticID, found := r.db.GetReverseMangaIDMapping(mediaId); found {
 			cacheMediaId = syntheticID
-			
+
 			// Get the synthetic manga's original title for searching
 			if syntheticManga, foundSynthetic := r.db.GetSyntheticManga(syntheticID); foundSynthetic {
 				// Use the synthetic manga's title for searching
@@ -273,7 +273,7 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 	// Check if the container is in the cache
 	if found, _ := r.fileCacher.Get(containerBucket, chapterContainerKey, &container); found {
 		r.logger.Info().Str("bucket", containerBucket.Name()).Msg("manga: Chapter Container Cache HIT")
-		
+
 		// Normalize chapter numbers in cached container (handles legacy caches with unpadded numbers)
 		if container != nil {
 			providerTitles := make([]string, 0, len(container.Chapters))
@@ -287,7 +287,7 @@ func (r *Repository) GetMangaChapterContainer(opts *GetMangaChapterContainerOpti
 				chapter.Title = manga_providers.GetPreferredChapterTitle(dynamicPrefix, chapter.Title, chapter.Chapter)
 			}
 		}
-		
+
 		// If we used a synthetic ID for cache lookup but the request was for an AniList ID,
 		// update the container's MediaId to the AniList ID for presentation
 		if cacheMediaId != mediaId && container != nil {
@@ -547,10 +547,67 @@ const ChapterCountMapCacheKey = 1
 var mangaLatestChapterNumberMap = result.NewMap[int, map[int][]MangaLatestChapterNumberItem]()
 
 type MangaLatestChapterNumberItem struct {
-	Provider  string `json:"provider"`
-	Scanlator string `json:"scanlator"`
-	Language  string `json:"language"`
-	Number    int    `json:"number"`
+	Provider       string                           `json:"provider"`
+	Scanlator      string                           `json:"scanlator"`
+	Language       string                           `json:"language"`
+	Number         int                              `json:"number"`
+	ReleaseHistory []MangaChapterReleaseHistoryItem `json:"releaseHistory,omitempty"`
+}
+
+type MangaChapterReleaseHistoryItem struct {
+	Chapter   string `json:"chapter"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
+type mangaChapterReleaseHistoryEntry struct {
+	number float64
+	date   time.Time
+	item   MangaChapterReleaseHistoryItem
+}
+
+func getMangaChapterReleaseHistory(chapters []*hibikemanga.ChapterDetails) []MangaChapterReleaseHistoryItem {
+	byChapter := make(map[float64]mangaChapterReleaseHistoryEntry)
+	for _, chapter := range chapters {
+		if chapter == nil || chapter.UpdatedAt == "" {
+			continue
+		}
+		number, err := strconv.ParseFloat(chapter.Chapter, 64)
+		if err != nil || math.IsNaN(number) || math.IsInf(number, 0) {
+			continue
+		}
+		updatedAt, err := time.Parse("2006-01-02", chapter.UpdatedAt)
+		if err != nil {
+			continue
+		}
+		current, exists := byChapter[number]
+		if !exists || updatedAt.After(current.date) {
+			byChapter[number] = mangaChapterReleaseHistoryEntry{
+				number: number,
+				date:   updatedAt,
+				item: MangaChapterReleaseHistoryItem{
+					Chapter:   chapter.Chapter,
+					UpdatedAt: chapter.UpdatedAt,
+				},
+			}
+		}
+	}
+
+	entries := make([]mangaChapterReleaseHistoryEntry, 0, len(byChapter))
+	for _, entry := range byChapter {
+		entries = append(entries, entry)
+	}
+	slices.SortFunc(entries, func(a, b mangaChapterReleaseHistoryEntry) int {
+		return cmp.Compare(a.number, b.number)
+	})
+	if len(entries) > 12 {
+		entries = entries[len(entries)-12:]
+	}
+
+	history := make([]MangaChapterReleaseHistoryItem, 0, len(entries))
+	for _, entry := range entries {
+		history = append(history, entry.item)
+	}
+	return history
 }
 
 // GetMangaLatestChapterNumbersMap retrieves the latest chapter number for all manga entries.
@@ -615,10 +672,11 @@ func (r *Repository) GetMangaLatestChapterNumbersMap() (ret map[int][]MangaLates
 				}
 
 				ret[mediaId] = append(ret[mediaId], MangaLatestChapterNumberItem{
-					Provider:  provider,
-					Scanlator: scanlator,
-					Language:  language,
-					Number:    chapterCount,
+					Provider:       provider,
+					Scanlator:      scanlator,
+					Language:       language,
+					Number:         chapterCount,
+					ReleaseHistory: getMangaChapterReleaseHistory(chapters),
 				})
 			}
 		}

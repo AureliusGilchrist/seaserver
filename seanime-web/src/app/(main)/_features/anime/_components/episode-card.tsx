@@ -45,6 +45,7 @@ type EpisodeCardProps = {
     imageClass?: string
     badge?: React.ReactNode
     isFiller?: boolean
+    isFinished?: boolean
     percentageComplete?: number
     secondsRemaining?: number
     totalSeconds?: number
@@ -88,6 +89,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
         imageClass,
         badge,
         isFiller,
+        isFinished,
         percentageComplete,
         secondsRemaining,
         totalSeconds,
@@ -128,7 +130,6 @@ export function EpisodeCard(props: EpisodeCardProps) {
     const displayImage = spoiler.replaceImage
         ? spoilerSafeImage || getSpoilerFreeAnimeImage(episode?.baseAnime) || anime?.image || image
         : image
-
     const Meta = () => (
         <div data-episode-card-info-container className="relative z-[3] w-full space-y-0">
             {(displayTopTitle !== title || showTotalEpisodes) && <p
@@ -232,6 +233,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
                         {!!displayImage ? <SeaImage
                             data-episode-card-image
                             src={getImageUrl(displayImage)}
+                            fallbackSrc={fallbackImage?.filter((src): src is string => !!src).map(getImageUrl)}
                             alt={""}
                             fill
                             quality={100}
@@ -240,6 +242,7 @@ export function EpisodeCard(props: EpisodeCardProps) {
                             className={cn(
                                 "object-cover rounded-xl object-center transition lg:group-hover/episode-card:scale-[1.02] duration-200",
                                 spoiler.blurImage && "blur-2xl scale-110 lg:group-hover/episode-card:scale-110",
+                                isFinished && "grayscale",
                                 imageClass,
                             )}
                         /> : <div
@@ -249,15 +252,28 @@ export function EpisodeCard(props: EpisodeCardProps) {
                         {/*[CUSTOM UI] BOTTOM GRADIENT*/}
                         <EpisodeItemBottomGradient isSingleContainer={isSingleContainer} className="rounded-b-xl" />
 
-                        {isFiller && (
-                            <span
-                                data-episode-card-filler-badge
-                                title="Filler episode"
-                                className={cn(
-                                    "absolute top-2 left-2 z-[4] px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-wider font-medium",
-                                    "bg-black/40 text-orange-300/80 backdrop-blur-sm border border-orange-300/15",
+                        {(isFiller || isFinished) && (
+                            <div className="absolute top-2 left-2 z-[4] flex items-center gap-1.5">
+                                {isFiller && (
+                                    <span
+                                        data-episode-card-filler-badge
+                                        title="Filler episode"
+                                        className="rounded-full border border-orange-300/20 bg-black/55 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-orange-200/90 shadow-sm backdrop-blur-sm"
+                                    >
+                                        Filler
+                                    </span>
                                 )}
-                            >Filler</span>
+                                {isFinished && (
+                                    <span
+                                        data-episode-card-finished-badge
+                                        title="All episodes marked watched"
+                                        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/20 bg-black/65 px-3 py-1 text-[10px] font-semibold tracking-wide text-emerald-100 shadow-sm backdrop-blur-md"
+                                    >
+                                        <span className="size-1.5 rounded-full bg-emerald-300" aria-hidden />
+                                        Finished
+                                    </span>
+                                )}
+                            </div>
                         )}
 
                         {/* Sits opposite the filler badge so the two never collide. */}

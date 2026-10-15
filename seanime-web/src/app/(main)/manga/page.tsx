@@ -803,7 +803,7 @@ function MangaHomeScreenItem(props: MangaHomeScreenItemProps) {
                 <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                     <h2 className="text-lg font-semibold">Manga Release Calendar</h2>
                     <p className="mt-1 text-sm text-[--muted]">
-                        AniList does not provide scheduled chapter release dates. Use Upcoming Chapters to see currently releasing manga.
+                        AniList does not provide scheduled chapter release dates. Upcoming Manga can estimate timing from cached source history when releases show a steady pattern.
                     </p>
                 </div>
             </PageWrapper>

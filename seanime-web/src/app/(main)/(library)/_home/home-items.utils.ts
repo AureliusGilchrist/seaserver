@@ -620,10 +620,10 @@ export const HOME_ITEMS = {
         ],
     },
     "manga-upcoming-chapters": {
-        name: "Currently Releasing Manga",
+        name: "Upcoming Manga",
         kind: ["row"],
         schemaVersion: 1,
-        description: "Show manga from your list that AniList currently marks as releasing.",
+        description: "Show the next likely chapter for ongoing manga in your reading list; timing is estimated only when recent releases show a regular pattern.",
     },
     "manga-aired-recently": {
         name: "New Chapters Available",

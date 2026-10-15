@@ -2,6 +2,7 @@
 import { Anime_Episode, Continuity_WatchHistory } from "@/api/generated/types"
 import { getEpisodeSecondsRemaining, getEpisodePercentageComplete, getEpisodeTotalSeconds, useGetContinuityWatchHistory } from "@/api/hooks/continuity.hooks"
 import { __libraryHeaderImageAtom } from "@/app/(main)/(library)/_components/library-header"
+import { __anilist_userAnimeListDataAtom } from "@/app/(main)/_atoms/anilist.atoms"
 import { usePlayNext } from "@/app/(main)/_atoms/playback.atoms"
 import { EpisodeCard } from "@/app/(main)/_features/anime/_components/episode-card"
 import { useSeaCommandInject } from "@/app/(main)/_features/sea-command/use-inject"
@@ -14,10 +15,11 @@ import { Carousel, CarouselContent, CarouselDotButtons, CarouselItem } from "@/c
 import { useDebounce } from "@/hooks/use-debounce"
 import { anilist_animeIsMovie } from "@/lib/helpers/media"
 import { useContinueWatchingSpoilers } from "@/lib/theme/anime-spoilers"
+import { getImageUrl } from "@/lib/server/assets"
 import { ThemeLibraryScreenBannerType, useThemeSettings } from "@/lib/theme/hooks"
 import { useWindowSize } from "@uidotdev/usehooks"
 import { atom } from "jotai/index"
-import { useAtom, useSetAtom } from "jotai/react"
+import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
 import { useRouter } from "@/lib/navigation"
 import React from "react"
 import { seaCommand_compareMediaTitles } from "../../_features/sea-command/utils"
@@ -118,7 +120,8 @@ export function ContinueWatching({ episodes, isLoading, linkTemplate, withTitle 
                     <>
                         <div className="w-12 aspect-[6/5] flex-none rounded-[--radius-md] relative overflow-hidden">
                             <SeaImage
-                                src={episode.episodeMetadata?.image || ""}
+                                src={getImageUrl(episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge || "")}
+                                fallbackSrc={[episode.baseAnime?.bannerImage, episode.baseAnime?.coverImage?.extraLarge].filter((src): src is string => !!src).map(getImageUrl)}
                                 alt="episode image"
                                 fill
                                 className="object-center object-cover"
@@ -202,6 +205,8 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
     const router = useRouter()
     const setHeaderImage = useSetAtom(__libraryHeaderImageAtom)
     const setHeaderEpisode = useSetAtom(__libraryHeaderEpisodeAtom)
+    const anilistListData = useAtomValue(__anilist_userAnimeListDataAtom)
+    const isFinished = anilistListData[String(episode.baseAnime?.id ?? 0)]?.status === "COMPLETED"
 
     React.useEffect(() => {
         setHeaderImage(prev => {
@@ -228,6 +233,7 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
             key={episode.localFile?.path || ""}
             episode={episode}
             image={episode.episodeMetadata?.image || episode.baseAnime?.bannerImage || episode.baseAnime?.coverImage?.extraLarge}
+            fallbackImage={[episode.baseAnime?.bannerImage, episode.baseAnime?.coverImage?.extraLarge]}
             topTitle={episode.episodeTitle || episode?.baseAnime?.title?.romaji}
             spoilerSafeTopTitle={episode?.baseAnime?.title?.romaji}
             spoilerMode="replace"
@@ -236,6 +242,7 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
             isInvalid={episode.isInvalid}
             progressTotal={episode.baseAnime?.episodes}
             progressNumber={episode.progressNumber}
+            isFinished={isFinished}
             episodeNumber={episode.episodeNumber}
             length={episode.episodeMetadata?.length}
             hasDiscrepancy={episode.episodeNumber !== episode.progressNumber}
@@ -275,4 +282,3 @@ const _EpisodeCard = React.memo(({ episode, mRef, overrideLink, spoilerActive, w
         />
     )
 })
-

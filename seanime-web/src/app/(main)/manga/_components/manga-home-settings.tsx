@@ -73,6 +73,11 @@ export const DEFAULT_MANGA_HOME_ITEMS: Models_HomeItem[] = [
         schemaVersion: 1,
     },
     {
+        id: "manga-upcoming-chapters",
+        type: "manga-upcoming-chapters",
+        schemaVersion: 1,
+    },
+    {
         id: "manga-library",
         type: "manga-library",
         schemaVersion: 2,
