@@ -84,6 +84,35 @@ function priorityRank(anime: AL_BaseAnime & { synonyms?: string[] } | null | und
     return 2
 }
 
+const FILENAME_TITLE_STOP_WORDS = new Set(["a", "an", "and", "at", "by", "for", "from", "in", "is", "of", "on", "or", "the", "to", "with"])
+
+function filenameRelevancePercent(anime: AL_BaseAnime & { synonyms?: string[] }, fileName: string): number {
+    if (!fileName.trim()) return 0
+
+    const fileText = fileName.normalize("NFKC").toLowerCase()
+    const titleWordPattern = /[\p{L}\p{N}]+/gu
+    let bestScore = 0
+
+    for (const variant of animeTitleVariants(anime)) {
+        const words = variant.normalize("NFKC").match(titleWordPattern) ?? []
+        const meaningfulWords = words.filter(word => !FILENAME_TITLE_STOP_WORDS.has(word))
+        const scoreWords = meaningfulWords.some(word => !/^\d+$/u.test(word))
+            ? meaningfulWords.filter(word => !/^\d+$/u.test(word))
+            : meaningfulWords
+        if (scoreWords.length === 0) continue
+
+        const matchedWords = scoreWords.filter(word => {
+            const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+            const wordPattern = new RegExp(`(?:^|[^\\p{L}\\p{N}])${escaped}(?:$|[^\\p{L}\\p{N}])`, "iu")
+            return wordPattern.test(fileText)
+        }).length
+
+        bestScore = Math.max(bestScore, Math.round((matchedWords / scoreWords.length) * 100))
+    }
+
+    return bestScore
+}
+
 // Safely extract a title string from AniList details, handling generated type shapes
 function getAniListTitle(details: AL_AnimeDetailsById_Media | null | undefined): string | null {
     const media: any = details as any
@@ -764,8 +793,19 @@ export function UnmatchedMatchModal({ torrent, onClose, onSuccess }: UnmatchedMa
         }) as AL_BaseAnime[]
 
         if (!priorityTitle) return media
-        return [...media].sort((a, b) => priorityRank(a, priorityTitle) - priorityRank(b, priorityTitle))
-    }, [searchResults, searchResultsPage2, priorityTitle])
+        return [...media]
+            .map((anime, index) => ({
+                anime,
+                index,
+                filenameScore: filenameRelevancePercent(anime, torrent?.name ?? ""),
+            }))
+            .sort((a, b) =>
+                b.filenameScore - a.filenameScore
+                || priorityRank(a.anime, priorityTitle) - priorityRank(b.anime, priorityTitle)
+                || a.index - b.index
+            )
+            .map(({ anime }) => anime)
+    }, [searchResults, searchResultsPage2, priorityTitle, torrent?.name])
 
     if (!torrent) return null
 
