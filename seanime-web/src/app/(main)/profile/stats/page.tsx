@@ -57,9 +57,17 @@ export default function Page() {
             <CustomLibraryBanner discrete />
             <PageWrapper className="p-4 sm:p-8 space-y-8">
                 {/* Header */}
-                <div className="flex items-center gap-3">
-                    <LuActivity className="text-3xl text-brand-300" />
-                    <h1 className="text-2xl font-bold">Profile Stats</h1>
+                <div className="relative z-[1] overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-r from-brand-500/15 via-black/25 to-indigo-500/10 p-5 shadow-xl shadow-black/20 backdrop-blur-md sm:p-6">
+                    <div
+                        aria-hidden
+                        className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-brand-400/15 blur-3xl"
+                    />
+                    <div className="relative flex items-center gap-3">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-brand-300/20 bg-brand-400/10 text-2xl text-brand-200">
+                            <LuActivity />
+                        </span>
+                        <h1 className="text-2xl font-bold sm:text-3xl">Profile Stats</h1>
+                    </div>
                 </div>
 
                 {/* Hero Stats */}
@@ -91,7 +99,7 @@ export default function Page() {
                             Activity
                         </h2>
                         <select
-                            className="bg-gray-900 border border-[--border] rounded-md px-3 py-1.5 text-sm"
+                            className="rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-sm backdrop-blur-md"
                             value={selectedYear ?? ""}
                             onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : undefined)}
                         >
@@ -102,8 +110,16 @@ export default function Page() {
                             ))}
                         </select>
                     </div>
-                    <ActivityHeatmap days={profileStats?.activityHeatmap} />
-                    <DayOfWeekChart patterns={profileStats?.watchPatterns?.byDayOfWeek} />
+                    <div className="relative z-[1] space-y-5 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] via-black/25 to-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-6">
+                        <div
+                            aria-hidden
+                            className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-blue-400/10 blur-3xl"
+                        />
+                        <div className="relative space-y-5">
+                            <ActivityHeatmap days={profileStats?.activityHeatmap} />
+                            <DayOfWeekChart patterns={profileStats?.watchPatterns?.byDayOfWeek} />
+                        </div>
+                    </div>
                 </div>
 
                 <Separator />
@@ -129,7 +145,11 @@ function HeroStats({ anilistStats, profileStats }: { anilistStats?: AL_Stats, pr
     return (
         <div className="space-y-2">
             <Stats
-                className="w-full"
+                className="grid grid-cols-2 gap-3 divide-x-0 divide-y-0 overflow-visible md:grid-cols-2 lg:grid-cols-4"
+                itemClass="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-black/25 p-4 shadow-lg shadow-black/10 backdrop-blur-md sm:p-5"
+                nameClass="text-xs font-semibold uppercase tracking-wide text-[--muted]"
+                valueClass="mt-2 flex items-baseline font-bold md:block lg:flex"
+                iconClass="absolute right-4 top-4 text-2xl text-brand-200 opacity-40"
                 size="lg"
                 items={[
                     {
@@ -156,7 +176,11 @@ function HeroStats({ anilistStats, profileStats }: { anilistStats?: AL_Stats, pr
                 ]}
             />
             <Stats
-                className="w-full"
+                className="grid grid-cols-1 gap-3 divide-x-0 divide-y-0 overflow-visible sm:grid-cols-3"
+                itemClass="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-black/25 p-4 shadow-lg shadow-black/10 backdrop-blur-md sm:p-5"
+                nameClass="text-xs font-semibold uppercase tracking-wide text-[--muted]"
+                valueClass="mt-2 flex items-baseline font-bold md:block lg:flex"
+                iconClass="absolute right-4 top-4 text-xl text-blue-200 opacity-35"
                 size="md"
                 items={[
                     {
@@ -188,30 +212,38 @@ function StreakCard({ label, icon, streak }: {
     streak?: ProfileStats_StreakInfo
 }) {
     return (
-        <div className="bg-gray-900 border border-[--border] rounded-lg p-5 space-y-3">
-            <div className="flex items-center gap-2 text-[--muted]">
-                {icon}
-                <span className="text-sm font-medium">{label}</span>
-            </div>
-            <div className="flex items-end gap-6">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <LuFlame className={cn(
-                            "text-2xl",
-                            (streak?.current ?? 0) > 0 ? "text-orange-400" : "text-gray-600",
-                        )} />
-                        <span className="text-4xl font-bold">{streak?.current ?? 0}</span>
+        <div className="relative z-[1] overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-orange-500/[0.08] via-black/25 to-black/35 p-5 shadow-xl shadow-black/20 backdrop-blur-md sm:p-6">
+            <div
+                aria-hidden
+                className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-orange-400/10 blur-3xl"
+            />
+            <div className="relative space-y-4">
+                <div className="flex items-center gap-2 text-[--muted]">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-orange-200">
+                        {icon}
+                    </span>
+                    <span className="text-sm font-semibold">{label}</span>
+                </div>
+                <div className="flex items-end gap-6">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <LuFlame className={cn(
+                                "text-2xl",
+                                (streak?.current ?? 0) > 0 ? "text-orange-400" : "text-gray-600",
+                            )} />
+                            <span className="text-4xl font-bold">{streak?.current ?? 0}</span>
+                        </div>
+                        <span className="text-xs text-[--muted]">Current streak</span>
                     </div>
-                    <span className="text-xs text-[--muted]">Current streak</span>
+                    <div>
+                        <span className="text-2xl font-semibold text-[--muted]">{streak?.longest ?? 0}</span>
+                        <p className="text-xs text-[--muted]">Longest streak</p>
+                    </div>
                 </div>
-                <div>
-                    <span className="text-2xl font-semibold text-[--muted]">{streak?.longest ?? 0}</span>
-                    <p className="text-xs text-[--muted]">Longest streak</p>
-                </div>
+                {streak?.lastActive && (
+                    <p className="text-xs text-[--muted]">Last active: {streak.lastActive}</p>
+                )}
             </div>
-            {streak?.lastActive && (
-                <p className="text-xs text-[--muted]">Last active: {streak.lastActive}</p>
-            )}
         </div>
     )
 }
@@ -355,8 +387,8 @@ function DayOfWeekChart({ patterns }: { patterns?: number[] }) {
     }))
 
     return (
-        <div className="w-full max-w-md">
-            <p className="text-sm text-[--muted] mb-2">Activity by day of week</p>
+        <div className="w-full max-w-md rounded-xl border border-white/10 bg-black/15 p-4 backdrop-blur-sm">
+            <p className="mb-3 text-sm font-medium text-[--muted]">Activity by day of week</p>
             <BarChart
                 data={data}
                 index="name"
@@ -376,7 +408,7 @@ function PersonalityCard({ personality }: { personality: ProfileStats_Personalit
                 <LuGlobe className="text-purple-400" />
                 Your Anime Personality
             </h2>
-            <div className="bg-gradient-to-br from-purple-900/30 via-gray-900 to-indigo-900/30 border border-purple-500/20 rounded-xl p-6 space-y-4">
+            <div className="relative z-[1] space-y-4 overflow-hidden rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 via-black/25 to-indigo-500/10 p-5 shadow-xl shadow-black/20 backdrop-blur-md sm:p-6">
                 <div className="flex items-center gap-4">
                     {personality.iconSvg && (
                         <div
@@ -483,7 +515,10 @@ function AniListCharts({ stats }: { stats?: AL_Stats }) {
     return (
         <div className="space-y-10">
             {/* Anime Section */}
-            <h2 className="text-xl font-semibold text-center">Anime Breakdown</h2>
+            <h2 className="flex items-center gap-2 text-xl font-semibold">
+                <LuTv className="text-brand-300" />
+                Anime Breakdown
+            </h2>
 
             {genreData.length > 0 && (
                 <ChartSection title="Genres">
@@ -557,10 +592,17 @@ function AniListCharts({ stats }: { stats?: AL_Stats }) {
             <Separator />
 
             {/* Manga Section */}
-            <h2 className="text-xl font-semibold text-center">Manga Breakdown</h2>
+            <h2 className="flex items-center gap-2 text-xl font-semibold">
+                <LuBookOpen className="text-blue-300" />
+                Manga Breakdown
+            </h2>
 
             <Stats
-                className="w-full"
+                className="grid grid-cols-1 gap-3 divide-x-0 divide-y-0 overflow-visible sm:grid-cols-3"
+                itemClass="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-black/25 p-4 shadow-lg shadow-black/10 backdrop-blur-md sm:p-5"
+                nameClass="text-xs font-semibold uppercase tracking-wide text-[--muted]"
+                valueClass="mt-2 flex items-baseline font-bold md:block lg:flex"
+                iconClass="absolute right-4 top-4 text-xl text-blue-200 opacity-35"
                 size="lg"
                 items={[
                     {
@@ -597,9 +639,16 @@ function AniListCharts({ stats }: { stats?: AL_Stats }) {
 
 function ChartSection({ title, children }: { title: string, children: React.ReactNode }) {
     return (
-        <div className="space-y-4">
-            <h3 className="text-center text-lg font-medium">{title}</h3>
-            <div className="w-full">{children}</div>
-        </div>
+        <section className="relative z-[1] overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] via-black/25 to-black/35 p-4 shadow-xl shadow-black/20 backdrop-blur-md sm:p-6">
+            <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-brand-300/40 to-transparent"
+            />
+            <h3 className="relative mb-4 flex items-center gap-3 text-base font-semibold">
+                <span className="h-5 w-1 rounded-full bg-gradient-to-b from-brand-300 to-blue-400" />
+                {title}
+            </h3>
+            <div className="relative w-full">{children}</div>
+        </section>
     )
 }
